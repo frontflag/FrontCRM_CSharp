@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: frontcrm-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: FrontCRM
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - frontcrm-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: frontcrm-backend
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=FrontCRM;Username=postgres;Password=postgres123
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+    networks:
+      - frontcrm-network
+
+  frontend:
+    build:
+      context: CRM.Web
+      dockerfile: Dockerfile
+    container_name: frontcrm-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - frontcrm-network
+
+volumes:
+  postgres_data:
+
+networks:
+  frontcrm-network:
+    driver: bridge

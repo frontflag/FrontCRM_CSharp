@@ -1,0 +1,31 @@
+---
+description: 
+alwaysApply: true
+enabled: true
+updatedAt: 2026-03-15T06:50:25.225Z
+provider: 
+---
+
+# API路径规范
+
+## 规则
+1. 所有后端API必须使用 `/api/v1/` 前缀
+2. 前端调用时必须使用完整路径 `/api/v1/xxx`
+3. 禁止混用不同格式的路径
+
+## 示例
+✅ 正确：
+- `/api/v1/customers`
+- `/api/v1/auth/register`
+- `/api/v1/auth/login`
+
+❌ 错误：
+- `/customers` (缺少前缀)
+- `/auth/register` (缺少前缀)
+- `/api/customers` (版本号缺失)
+
+## 文件检查
+修改以下文件时必须检查API路径：
+- `CRM.Web/src/api/*.ts` - 前端API调用
+- `CRM.API/Controllers/*.cs` - 后端控制器路由
+- `CRM.Web/vite.config.ts` - 代理配置

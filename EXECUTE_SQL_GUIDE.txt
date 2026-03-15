@@ -1,0 +1,100 @@
+========================================
+在 FrontCRM 数据库中创建 EBS 业务表 - 执行指南
+========================================
+
+✅ 已确认的信息:
+1. PostgreSQL 服务正在运行 (postgresql-x64-16)
+2. 端口 5432 正在监听
+3. 数据库 FrontCRM 已存在
+4. SQL 脚本已准备完成: ebs_core_tables.sql
+
+📋 SQL 脚本包含以下表:
+- customerinfo (客户主表)
+- customercontactinfo (客户联系人表)
+- customeraddress (客户地址表)
+- vendorinfo (供应商主表)
+- vendorcontactinfo (供应商联系人表)
+- sellorder (销售订单主表)
+- purchaseorder (采购订单主表)
+- material (物料主表)
+
+🚀 执行方法 (选择其一):
+
+方法 1: 使用 pgAdmin (推荐)
+----------------------------------------
+1. 打开 pgAdmin
+2. 连接到 localhost:5432
+   - 用户名: postgres
+   - 密码: 1234
+3. 展开数据库列表，选择 FrontCRM
+4. 点击 "查询工具" (Query Tool)
+5. 打开 ebs_core_tables.sql 文件
+6. 点击执行按钮 (F5 或 ▶️)
+7. 等待执行完成
+
+方法 2: 安装 psql 命令行工具
+----------------------------------------
+1. 下载 PostgreSQL: https://www.postgresql.org/download/
+2. 安装时选择 "Command Line Tools"
+3. 打开命令提示符，执行:
+   
+   set PGPASSWORD=1234
+   psql -h localhost -p 5432 -U postgres -d FrontCRM -f ebs_core_tables.sql
+
+方法 3: 使用 DBeaver (免费数据库工具)
+----------------------------------------
+1. 下载 DBeaver: https://dbeaver.io/
+2. 新建 PostgreSQL 连接
+3. 填写连接信息:
+   - Host: localhost
+   - Port: 5432
+   - Database: FrontCRM
+   - Username: postgres
+   - Password: 1234
+4. 连接后，右键点击数据库 -> SQL 编辑器
+5. 执行 ebs_core_tables.sql 文件
+
+方法 4: 使用 VS Code 扩展
+----------------------------------------
+1. 安装 "PostgreSQL" 扩展
+2. 添加连接:
+   - Host: localhost
+   - Port: 5432
+   - Database: FrontCRM
+   - Username: postgres
+   - Password: 1234
+3. 右键点击连接 -> New Query
+4. 执行 ebs_core_tables.sql
+
+🔍 验证执行结果:
+----------------------------------------
+执行成功后，运行以下 SQL 验证:
+
+SELECT table_name FROM information_schema.tables 
+WHERE table_schema = 'public' ORDER BY table_name;
+
+应该看到以下表:
+- customerinfo
+- customercontactinfo
+- customeraddress
+- vendorinfo
+- vendorcontactinfo
+- sellorder
+- purchaseorder
+- material
+
+📁 已准备好的文件:
+----------------------------------------
+1. ebs_core_tables.sql - 完整的 PostgreSQL SQL 脚本
+2. create_ebs_tables.bat - 执行指导脚本
+3. EXECUTE_SQL_GUIDE.txt - 本指南
+
+⚠️ 注意事项:
+1. 确保 PostgreSQL 服务正在运行
+2. 确保密码 1234 是正确的
+3. 执行前备份重要数据
+4. 如果表已存在，可能需要先删除
+
+========================================
+执行完成后，您的 CRM 系统将拥有完整的 EBS 业务表结构
+========================================

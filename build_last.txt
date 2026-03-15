@@ -1,0 +1,28 @@
+  正在确定要还原的项目…
+  所有项目均是最新的，无法还原。
+  CRM.TestCommon -> d:\MyProject\FrontCRM(C#)\tests\CRM.TestCommon\bin\Debug\net9.0\CRM.TestCommon.dll
+  CRM.Core -> d:\MyProject\FrontCRM(C#)\CRM.Core\bin\Debug\net9.0\CRM.Core.dll
+  CRM.Infrastructure -> d:\MyProject\FrontCRM(C#)\CRM.Infrastructure\bin\Debug\net9.0\CRM.Infrastructure.dll
+  CRM.Core.Tests -> d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\bin\Debug\net9.0\CRM.Core.Tests.dll
+  CRM.Infrastructure.Tests -> d:\MyProject\FrontCRM(C#)\tests\CRM.Infrastructure.Tests\bin\Debug\net9.0\CRM.Infrastructure.Tests.dll
+  CRM.API -> d:\MyProject\FrontCRM(C#)\CRM.API\bin\Debug\net9.0\CRM.API.dll
+  CRM.API.Tests -> d:\MyProject\FrontCRM(C#)\tests\CRM.API.Tests\bin\Debug\net9.0\CRM.API.Tests.dll
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(107,31): error CS0019: 运算符“??”无法应用于“decimal”和“decimal”类型的操作数 [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(68,30): warning CS8601: 可能的 null 引用赋值。 [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(69,31): warning CS8601: 可能的 null 引用赋值。 [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(104,30): warning CS8601: 可能的 null 引用赋值。 [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(105,31): warning CS8601: 可能的 null 引用赋值。 [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+
+生成失败。
+
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(68,30): warning CS8601: 可能的 null 引用赋值。 [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(69,31): warning CS8601: 可能的 null 引用赋值。 [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(104,30): warning CS8601: 可能的 null 引用赋值。 [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(105,31): warning CS8601: 可能的 null 引用赋值。 [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(107,31): error CS0019: 运算符“??”无法应用于“decimal”和“decimal”类型的操作数 [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+    4 个警告
+    1 个错误
+
+已用时间 00:00:01.01
+
+有可用的工作负载更新。有关详细信息，请运行 `dotnet workload list`。

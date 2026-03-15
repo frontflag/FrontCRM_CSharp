@@ -1,0 +1,1 @@
+SELECT * FROM "user" ORDER BY "CreateTime" DESC LIMIT 5;

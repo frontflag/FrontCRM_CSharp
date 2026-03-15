@@ -1,0 +1,18 @@
+  正在确定要还原的项目…
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj : error NU1605: 错误形式的警告: 检测到包降级: Microsoft.EntityFrameworkCore.InMemory 从 9.0.11 降级到 9.0.0。直接从项目引用包以选择不同版本。  [d:\MyProject\FrontCRM(C#)\FrontCRM.sln]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj : error NU1605:  CRM.IntegrationTests -> CRM.API -> Microsoft.EntityFrameworkCore.InMemory (>= 9.0.11)  [d:\MyProject\FrontCRM(C#)\FrontCRM.sln]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj : error NU1605:  CRM.IntegrationTests -> Microsoft.EntityFrameworkCore.InMemory (>= 9.0.0) [d:\MyProject\FrontCRM(C#)\FrontCRM.sln]
+  未能还原 d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj (用时 247 毫秒)。
+  7 个项目(共 8 个)是最新的，无法还原。
+
+生成失败。
+
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj : error NU1605: 错误形式的警告: 检测到包降级: Microsoft.EntityFrameworkCore.InMemory 从 9.0.11 降级到 9.0.0。直接从项目引用包以选择不同版本。  [d:\MyProject\FrontCRM(C#)\FrontCRM.sln]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj : error NU1605:  CRM.IntegrationTests -> CRM.API -> Microsoft.EntityFrameworkCore.InMemory (>= 9.0.11)  [d:\MyProject\FrontCRM(C#)\FrontCRM.sln]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj : error NU1605:  CRM.IntegrationTests -> Microsoft.EntityFrameworkCore.InMemory (>= 9.0.0) [d:\MyProject\FrontCRM(C#)\FrontCRM.sln]
+    0 个警告
+    1 个错误
+
+已用时间 00:00:00.73
+
+有可用的工作负载更新。有关详细信息，请运行 `dotnet workload list`。

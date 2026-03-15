@@ -1,0 +1,69 @@
+  正在确定要还原的项目…
+  所有项目均是最新的，无法还原。
+  CRM.TestCommon -> d:\MyProject\FrontCRM(C#)\tests\CRM.TestCommon\bin\Debug\net9.0\CRM.TestCommon.dll
+  CRM.Core -> d:\MyProject\FrontCRM(C#)\CRM.Core\bin\Debug\net9.0\CRM.Core.dll
+  CRM.Infrastructure -> d:\MyProject\FrontCRM(C#)\CRM.Infrastructure\bin\Debug\net9.0\CRM.Infrastructure.dll
+  CRM.Infrastructure.Tests -> d:\MyProject\FrontCRM(C#)\tests\CRM.Infrastructure.Tests\bin\Debug\net9.0\CRM.Infrastructure.Tests.dll
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(35,28): error CS0029: 无法将类型“string”隐式转换为“short” [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\RFQServiceTests.cs(149,17): error CS0117: “UpdateRFQRequest”未包含“Id”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\RFQServiceTests.cs(150,17): error CS0117: “UpdateRFQRequest”未包含“SalesUserId”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\RFQServiceTests.cs(151,17): error CS0117: “UpdateRFQRequest”未包含“RFQDate”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\RFQServiceTests.cs(155,44): error CS7036: 未提供与“RFQService.UpdateAsync(string, UpdateRFQRequest)”的所需参数“request”对应的参数 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(144,17): error CS0117: “UpdateQuoteRequest”未包含“Id”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(145,17): error CS0117: “UpdateQuoteRequest”未包含“ValidUntil”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(146,17): error CS0117: “UpdateQuoteRequest”未包含“TotalAmount”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(147,17): error CS0117: “UpdateQuoteRequest”未包含“TaxAmount”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(148,17): error CS0117: “UpdateQuoteRequest”未包含“GrandTotal”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(152,46): error CS7036: 未提供与“QuoteService.UpdateAsync(string, UpdateQuoteRequest)”的所需参数“request”对应的参数 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(143,17): error CS0117: “UpdateSalesOrderRequest”未包含“Id”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(144,17): error CS0117: “UpdateSalesOrderRequest”未包含“DeliveryDate”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(145,17): error CS0117: “UpdateSalesOrderRequest”未包含“TotalAmount”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(146,17): error CS0117: “UpdateSalesOrderRequest”未包含“GrandTotal”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(150,46): error CS7036: 未提供与“SalesOrderService.UpdateAsync(string, UpdateSalesOrderRequest)”的所需参数“request”对应的参数 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(177,46): error CS1061: “QuoteService”未包含“ApproveQuoteAsync”的定义，并且找不到可接受第一个“QuoteService”类型参数的可访问扩展方法“ApproveQuoteAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(175,46): error CS1061: “SalesOrderService”未包含“ConfirmOrderAsync”的定义，并且找不到可接受第一个“SalesOrderService”类型参数的可访问扩展方法“ConfirmOrderAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(201,46): error CS1061: “QuoteService”未包含“RejectQuoteAsync”的定义，并且找不到可接受第一个“QuoteService”类型参数的可访问扩展方法“RejectQuoteAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(197,46): error CS1061: “SalesOrderService”未包含“ShipOrderAsync”的定义，并且找不到可接受第一个“SalesOrderService”类型参数的可访问扩展方法“ShipOrderAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(220,46): error CS1061: “SalesOrderService”未包含“CompleteOrderAsync”的定义，并且找不到可接受第一个“SalesOrderService”类型参数的可访问扩展方法“CompleteOrderAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(223,46): error CS1061: “QuoteService”未包含“GetQuotesByCustomerAsync”的定义，并且找不到可接受第一个“QuoteService”类型参数的可访问扩展方法“GetQuotesByCustomerAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(242,46): error CS1061: “SalesOrderService”未包含“CancelOrderAsync”的定义，并且找不到可接受第一个“SalesOrderService”类型参数的可访问扩展方法“CancelOrderAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(264,46): error CS1061: “SalesOrderService”未包含“GetOrdersByCustomerAsync”的定义，并且找不到可接受第一个“SalesOrderService”类型参数的可访问扩展方法“GetOrdersByCustomerAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(286,46): error CS1061: “SalesOrderService”未包含“GetOrdersByStatusAsync”的定义，并且找不到可接受第一个“SalesOrderService”类型参数的可访问扩展方法“GetOrdersByStatusAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+  CRM.API -> d:\MyProject\FrontCRM(C#)\CRM.API\bin\Debug\net9.0\CRM.API.dll
+  CRM.API.Tests -> d:\MyProject\FrontCRM(C#)\tests\CRM.API.Tests\bin\Debug\net9.0\CRM.API.Tests.dll
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(6,7): error CS0246: 未能找到类型或命名空间名“NSubstitute”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+
+生成失败。
+
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(35,28): error CS0029: 无法将类型“string”隐式转换为“short” [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\RFQServiceTests.cs(149,17): error CS0117: “UpdateRFQRequest”未包含“Id”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\RFQServiceTests.cs(150,17): error CS0117: “UpdateRFQRequest”未包含“SalesUserId”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\RFQServiceTests.cs(151,17): error CS0117: “UpdateRFQRequest”未包含“RFQDate”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\RFQServiceTests.cs(155,44): error CS7036: 未提供与“RFQService.UpdateAsync(string, UpdateRFQRequest)”的所需参数“request”对应的参数 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(144,17): error CS0117: “UpdateQuoteRequest”未包含“Id”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(145,17): error CS0117: “UpdateQuoteRequest”未包含“ValidUntil”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(146,17): error CS0117: “UpdateQuoteRequest”未包含“TotalAmount”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(147,17): error CS0117: “UpdateQuoteRequest”未包含“TaxAmount”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(148,17): error CS0117: “UpdateQuoteRequest”未包含“GrandTotal”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(152,46): error CS7036: 未提供与“QuoteService.UpdateAsync(string, UpdateQuoteRequest)”的所需参数“request”对应的参数 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(143,17): error CS0117: “UpdateSalesOrderRequest”未包含“Id”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(144,17): error CS0117: “UpdateSalesOrderRequest”未包含“DeliveryDate”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(145,17): error CS0117: “UpdateSalesOrderRequest”未包含“TotalAmount”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(146,17): error CS0117: “UpdateSalesOrderRequest”未包含“GrandTotal”的定义 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(150,46): error CS7036: 未提供与“SalesOrderService.UpdateAsync(string, UpdateSalesOrderRequest)”的所需参数“request”对应的参数 [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(177,46): error CS1061: “QuoteService”未包含“ApproveQuoteAsync”的定义，并且找不到可接受第一个“QuoteService”类型参数的可访问扩展方法“ApproveQuoteAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(175,46): error CS1061: “SalesOrderService”未包含“ConfirmOrderAsync”的定义，并且找不到可接受第一个“SalesOrderService”类型参数的可访问扩展方法“ConfirmOrderAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(201,46): error CS1061: “QuoteService”未包含“RejectQuoteAsync”的定义，并且找不到可接受第一个“QuoteService”类型参数的可访问扩展方法“RejectQuoteAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(197,46): error CS1061: “SalesOrderService”未包含“ShipOrderAsync”的定义，并且找不到可接受第一个“SalesOrderService”类型参数的可访问扩展方法“ShipOrderAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(220,46): error CS1061: “SalesOrderService”未包含“CompleteOrderAsync”的定义，并且找不到可接受第一个“SalesOrderService”类型参数的可访问扩展方法“CompleteOrderAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(223,46): error CS1061: “QuoteService”未包含“GetQuotesByCustomerAsync”的定义，并且找不到可接受第一个“QuoteService”类型参数的可访问扩展方法“GetQuotesByCustomerAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(242,46): error CS1061: “SalesOrderService”未包含“CancelOrderAsync”的定义，并且找不到可接受第一个“SalesOrderService”类型参数的可访问扩展方法“CancelOrderAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(264,46): error CS1061: “SalesOrderService”未包含“GetOrdersByCustomerAsync”的定义，并且找不到可接受第一个“SalesOrderService”类型参数的可访问扩展方法“GetOrdersByCustomerAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(286,46): error CS1061: “SalesOrderService”未包含“GetOrdersByStatusAsync”的定义，并且找不到可接受第一个“SalesOrderService”类型参数的可访问扩展方法“GetOrdersByStatusAsync”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(6,7): error CS0246: 未能找到类型或命名空间名“NSubstitute”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+    0 个警告
+    26 个错误
+
+已用时间 00:00:01.03
+
+有可用的工作负载更新。有关详细信息，请运行 `dotnet workload list`。

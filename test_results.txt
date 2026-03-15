@@ -1,0 +1,30 @@
+d:\MyProject\FrontCRM%28C#%29\tests\CRM.IntegrationTests\bin\Debug\net9.0\CRM.IntegrationTests.dll (.NETCoreApp,Version=v9.0)的测试运行
+VSTest 版本 17.14.1 (x64)
+
+正在启动测试执行，请稍候...
+总共 1 个测试文件与指定模式相匹配。
+[xUnit.net 00:00:00.14]     CRM.IntegrationTests.BusinessWorkflowTests.OrderStatusFlow_DraftToCompleted_ShouldSucceed [FAIL]
+  失败 CRM.IntegrationTests.BusinessWorkflowTests.OrderStatusFlow_DraftToCompleted_ShouldSucceed [2 ms]
+  错误消息:
+   NSubstitute.Exceptions.ReceivedCallsException : Expected to receive exactly 1 call matching:
+	UpdateAsync(o => (Convert(o.Status, Int32) == 2))
+Actually received 2 matching calls:
+	UpdateAsync(SellOrder)
+	UpdateAsync(SellOrder)
+
+  堆栈跟踪:
+     at NSubstitute.Core.ReceivedCallsExceptionThrower.Throw(ICallSpecification callSpecification, IEnumerable`1 matchingCalls, IEnumerable`1 nonMatchingCalls, Quantity requiredQuantity)
+   at NSubstitute.Routing.Handlers.CheckReceivedCallsHandler.Handle(ICall call)
+   at NSubstitute.Routing.Route.Handle(ICall call)
+   at NSubstitute.Core.CallRouter.Route(ICall call)
+   at NSubstitute.Proxies.CastleDynamicProxy.CastleForwardingInterceptor.Intercept(IInvocation invocation)
+   at Castle.DynamicProxy.AbstractInvocation.Proceed()
+   at NSubstitute.Proxies.CastleDynamicProxy.ProxyIdInterceptor.Intercept(IInvocation invocation)
+   at Castle.DynamicProxy.AbstractInvocation.Proceed()
+   at Castle.Proxies.ObjectProxy_2.UpdateAsync(SellOrder entity)
+   at CRM.IntegrationTests.BusinessWorkflowTests.OrderStatusFlow_DraftToCompleted_ShouldSucceed() in d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs:line 249
+--- End of stack trace from previous location ---
+
+失败!  - 失败:     1，通过:     5，已跳过:     0，总计:     6，持续时间: 67 ms - CRM.IntegrationTests.dll (net9.0)
+
+有可用的工作负载更新。有关详细信息，请运行 `dotnet workload list`。

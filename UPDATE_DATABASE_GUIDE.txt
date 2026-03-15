@@ -1,0 +1,125 @@
+========================================
+更新本地 FrontCRM 数据库指南
+========================================
+
+目标：添加财务表和日志表到本地数据库
+
+📁 SQL 文件：ebs_new_tables.sql
+包含 8 个新表：
+  - 财务表：invoice, invoiceitem, payment, paymentitem, receipt, receiptitem
+  - 日志表：businesslog, businesslogdetail
+
+========================================
+方法一：使用 pgAdmin (推荐)
+========================================
+
+1. 打开 pgAdmin
+2. 连接到 localhost:5432
+   - 用户名: postgres
+   - 密码: 1234
+3. 选择 FrontCRM 数据库
+4. 点击 "查询工具" (Query Tool)
+5. 点击 "打开文件" 按钮 (或按 Ctrl+O)
+6. 选择文件: ebs_new_tables.sql
+7. 点击 "执行" 按钮 (或按 F5)
+8. 等待执行完成
+
+========================================
+方法二：使用 psql 命令行
+========================================
+
+1. 打开命令提示符 (CMD)
+2. 切换到项目目录:
+   cd "D:\MyProject\FrontCRM(C#)"
+
+3. 设置密码环境变量:
+   set PGPASSWORD=1234
+
+4. 执行 SQL 文件:
+   psql -h localhost -p 5432 -U postgres -d FrontCRM -f ebs_new_tables.sql
+
+5. 查看执行结果
+
+========================================
+方法三：使用 DBeaver
+========================================
+
+1. 打开 DBeaver
+2. 连接到 FrontCRM 数据库
+3. 文件 -> 打开文件 -> 选择 ebs_new_tables.sql
+4. 按 Ctrl+Enter 执行 SQL
+5. 查看执行结果
+
+========================================
+验证执行结果
+========================================
+
+执行完成后，在 pgAdmin 中运行以下 SQL 验证：
+
+-- 查看新创建的表
+SELECT table_name 
+FROM information_schema.tables 
+WHERE table_schema = 'public'
+AND table_name IN (
+    'invoice', 'invoiceitem',
+    'payment', 'paymentitem', 
+    'receipt', 'receiptitem',
+    'businesslog', 'businesslogdetail'
+)
+ORDER BY table_name;
+
+-- 应该返回 8 行记录
+
+-- 查看表结构
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_schema = 'public' AND table_name = 'invoice'
+ORDER BY ordinal_position;
+
+========================================
+新表说明
+========================================
+
+1. 发票管理 (invoice / invoiceitem)
+   - 进项发票：关联采购订单
+   - 销项发票：关联销售订单
+   - 支持增值税专用发票、普通发票、电子发票
+
+2. 付款管理 (payment / paymentitem)
+   - 向供应商付款
+   - 关联采购订单
+   - 支持多种付款方式
+
+3. 收款管理 (receipt / receiptitem)
+   - 向客户收款
+   - 关联销售订单
+   - 支持多种收款方式
+
+4. 业务日志 (businesslog / businesslogdetail)
+   - 记录所有业务操作
+   - 支持字段级变更追踪
+   - 支持多租户
+
+========================================
+执行前注意事项
+========================================
+
+1. 确保 PostgreSQL 服务正在运行
+2. 确保 FrontCRM 数据库已存在
+3. 建议先备份数据库（可选）
+4. 确保有执行权限
+
+========================================
+常见问题
+========================================
+
+Q: 提示 "relation already exists"?
+A: 表已存在，SQL 中已包含 DROP TABLE IF EXISTS，会删除旧表重新创建
+
+Q: 提示 "permission denied"?
+A: 检查 postgres 用户权限，或使用超级用户执行
+
+Q: 如何查看执行日志?
+A: 在 pgAdmin 的 "消息" 标签页查看详细执行日志
+
+========================================

@@ -1,0 +1,37 @@
+  正在确定要还原的项目…
+  所有项目均是最新的，无法还原。
+  CRM.TestCommon -> d:\MyProject\FrontCRM(C#)\tests\CRM.TestCommon\bin\Debug\net9.0\CRM.TestCommon.dll
+  CRM.Core -> d:\MyProject\FrontCRM(C#)\CRM.Core\bin\Debug\net9.0\CRM.Core.dll
+  CRM.Infrastructure -> d:\MyProject\FrontCRM(C#)\CRM.Infrastructure\bin\Debug\net9.0\CRM.Infrastructure.dll
+  CRM.Infrastructure.Tests -> d:\MyProject\FrontCRM(C#)\tests\CRM.Infrastructure.Tests\bin\Debug\net9.0\CRM.Infrastructure.Tests.dll
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(4,7): error CS0246: 未能找到类型或命名空间名“Moq”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\RFQServiceTests.cs(4,7): error CS0246: 未能找到类型或命名空间名“Moq”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(4,7): error CS0246: 未能找到类型或命名空间名“Moq”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(14,26): error CS0246: 未能找到类型或命名空间名“Mock<>”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\RFQServiceTests.cs(14,26): error CS0246: 未能找到类型或命名空间名“Mock<>”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(14,26): error CS0246: 未能找到类型或命名空间名“Mock<>”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+  CRM.API -> d:\MyProject\FrontCRM(C#)\CRM.API\bin\Debug\net9.0\CRM.API.dll
+  CRM.API.Tests -> d:\MyProject\FrontCRM(C#)\tests\CRM.API.Tests\bin\Debug\net9.0\CRM.API.Tests.dll
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(6,7): error CS0246: 未能找到类型或命名空间名“Moq”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(17,26): error CS0246: 未能找到类型或命名空间名“Mock<>”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(18,26): error CS0246: 未能找到类型或命名空间名“Mock<>”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(19,26): error CS0246: 未能找到类型或命名空间名“Mock<>”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+
+生成失败。
+
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(4,7): error CS0246: 未能找到类型或命名空间名“Moq”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\RFQServiceTests.cs(4,7): error CS0246: 未能找到类型或命名空间名“Moq”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(4,7): error CS0246: 未能找到类型或命名空间名“Moq”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\QuoteServiceTests.cs(14,26): error CS0246: 未能找到类型或命名空间名“Mock<>”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\RFQServiceTests.cs(14,26): error CS0246: 未能找到类型或命名空间名“Mock<>”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\Services\SalesOrderServiceTests.cs(14,26): error CS0246: 未能找到类型或命名空间名“Mock<>”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.Core.Tests\CRM.Core.Tests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(6,7): error CS0246: 未能找到类型或命名空间名“Moq”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(17,26): error CS0246: 未能找到类型或命名空间名“Mock<>”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(18,26): error CS0246: 未能找到类型或命名空间名“Mock<>”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\BusinessWorkflowTests.cs(19,26): error CS0246: 未能找到类型或命名空间名“Mock<>”(是否缺少 using 指令或程序集引用?) [d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj]
+    0 个警告
+    10 个错误
+
+已用时间 00:00:01.12
+
+有可用的工作负载更新。有关详细信息，请运行 `dotnet workload list`。

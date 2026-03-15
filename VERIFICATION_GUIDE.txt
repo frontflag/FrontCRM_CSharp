@@ -1,0 +1,116 @@
+========================================
+EBS 业务表创建验证指南
+========================================
+
+✅ 根据您提供的信息，SQL 脚本已成功执行。
+
+📋 已创建的表结构包括：
+
+1. 客户管理模块
+   - customerinfo (客户主表)
+   - customercontactinfo (客户联系人表)
+   - customeraddress (客户地址表)
+
+2. 供应商管理模块
+   - vendorinfo (供应商主表)
+   - vendorcontactinfo (供应商联系人表)
+
+3. 订单管理模块
+   - sellorder (销售订单主表)
+   - purchaseorder (采购订单主表)
+
+4. 物料管理模块
+   - material (物料主表)
+
+🔍 验证方法：
+
+方法 1: 使用 pgAdmin (推荐)
+----------------------------------------
+1. 打开 pgAdmin
+2. 连接到 localhost:5432 (用户: postgres, 密码: 1234)
+3. 展开 FrontCRM 数据库
+4. 展开 Schemas → public → Tables
+5. 应该看到以下 8 个表：
+   - customerinfo
+   - customercontactinfo
+   - customeraddress
+   - vendorinfo
+   - vendorcontactinfo
+   - sellorder
+   - purchaseorder
+   - material
+
+方法 2: 执行验证 SQL
+----------------------------------------
+在查询工具中执行以下 SQL：
+
+-- 检查所有表
+SELECT table_name, 
+       CASE WHEN table_name IN ('customerinfo','customercontactinfo','customeraddress',
+                                'vendorinfo','vendorcontactinfo',
+                                'sellorder','purchaseorder','material')
+            THEN '✅ EBS业务表'
+            ELSE '其他表'
+       END as 类型
+FROM information_schema.tables 
+WHERE table_schema = 'public'
+ORDER BY 类型 DESC, table_name;
+
+-- 检查表数量
+SELECT COUNT(*) as 总表数,
+       SUM(CASE WHEN table_name IN ('customerinfo','customercontactinfo','customeraddress',
+                                    'vendorinfo','vendorcontactinfo',
+                                    'sellorder','purchaseorder','material') 
+                THEN 1 ELSE 0 END) as EBS表数
+FROM information_schema.tables 
+WHERE table_schema = 'public';
+
+方法 3: 检查表结构
+----------------------------------------
+执行以下 SQL 验证表结构：
+
+-- 查看客户表结构
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns 
+WHERE table_schema = 'public' AND table_name = 'customerinfo'
+ORDER BY ordinal_position;
+
+-- 查看索引
+SELECT tablename, indexname
+FROM pg_indexes 
+WHERE schemaname = 'public' 
+    AND tablename IN ('customerinfo','vendorinfo','sellorder','purchaseorder')
+ORDER BY tablename, indexname;
+
+📊 预期结果：
+----------------------------------------
+1. 总表数: 至少 8 个（EBS 表）
+2. EBS表数: 8 个
+3. 每个表应有正确的列结构
+4. 应有相应的索引
+
+🚀 下一步操作：
+----------------------------------------
+表创建成功后，您可以：
+
+1. 配置 CRM 应用程序连接字符串
+2. 运行数据迁移（如果需要）
+3. 测试应用程序功能
+4. 导入初始数据
+
+📁 相关文件：
+----------------------------------------
+1. ebs_core_tables.sql - 已执行的 SQL 脚本
+2. EXECUTE_SQL_GUIDE.txt - 执行指南
+3. VERIFICATION_GUIDE.txt - 本验证指南
+
+⚠️ 注意事项：
+----------------------------------------
+1. 确保应用程序连接字符串正确
+2. 检查是否有其他表冲突
+3. 验证外键关系（如果有）
+4. 测试插入测试数据
+
+========================================
+如果验证成功，您的 CRM 系统已具备完整的 EBS 业务表结构！
+========================================

@@ -1,0 +1,16 @@
+  正在确定要还原的项目…
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj : error NU1202: 包 Microsoft.AspNetCore.Mvc.Testing 10.0.5 与 net9.0 (.NETCoreApp,Version=v9.0) 不兼容。 包 Microsoft.AspNetCore.Mvc.Testing 10.0.5 支持: net10.0 (.NETCoreApp,Version=v10.0) [d:\MyProject\FrontCRM(C#)\FrontCRM.sln]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj : error NU1202: 包 Microsoft.EntityFrameworkCore.InMemory 10.0.5 与 net9.0 (.NETCoreApp,Version=v9.0) 不兼容。 包 Microsoft.EntityFrameworkCore.InMemory 10.0.5 支持: net10.0 (.NETCoreApp,Version=v10.0) [d:\MyProject\FrontCRM(C#)\FrontCRM.sln]
+  未能还原 d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj (用时 408 毫秒)。
+  7 个项目(共 8 个)是最新的，无法还原。
+
+生成失败。
+
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj : error NU1202: 包 Microsoft.AspNetCore.Mvc.Testing 10.0.5 与 net9.0 (.NETCoreApp,Version=v9.0) 不兼容。 包 Microsoft.AspNetCore.Mvc.Testing 10.0.5 支持: net10.0 (.NETCoreApp,Version=v10.0) [d:\MyProject\FrontCRM(C#)\FrontCRM.sln]
+d:\MyProject\FrontCRM(C#)\tests\CRM.IntegrationTests\CRM.IntegrationTests.csproj : error NU1202: 包 Microsoft.EntityFrameworkCore.InMemory 10.0.5 与 net9.0 (.NETCoreApp,Version=v9.0) 不兼容。 包 Microsoft.EntityFrameworkCore.InMemory 10.0.5 支持: net10.0 (.NETCoreApp,Version=v10.0) [d:\MyProject\FrontCRM(C#)\FrontCRM.sln]
+    0 个警告
+    2 个错误
+
+已用时间 00:00:00.85
+
+有可用的工作负载更新。有关详细信息，请运行 `dotnet workload list`。
