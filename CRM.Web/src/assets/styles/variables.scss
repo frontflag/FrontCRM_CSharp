@@ -1,24 +1,56 @@
-// Colors
-$primary-color: #667eea;
-$secondary-color: #764ba2;
-$success-color: #67c23a;
-$warning-color: #e6a23c;
-$danger-color: #f56c6c;
-$info-color: #909399;
+// ============================================================
+// FrontCRM 深海量子风 (Deep Quantum) 设计体系
+// 三层面板颜色体系 + 4种低饱和度颜色范式
+// ============================================================
 
-// Spacing
+// --- 三层面板背景色 ---
+$layer-1: #192A3F;      // 第1层：整体页面背景
+$layer-2: #0A1628;      // 第2层：侧边栏、顶部栏、主内容卡片
+$layer-3: #162233;      // 第3层：卡片内嵌套面板、输入框
+
+// --- 主高亮色 ---
+$cyan-primary: #00D4FF;       // 主青色高亮（按钮、图表线条）
+$blue-primary: #0066FF;       // 主蓝色（副线、链接）
+
+// --- 4种低饱和度颜色范式 ---
+$color-ice-blue:    #50BBE3;  // 冰蓝：销售额、信息类
+$color-steel-cyan:  #3295C9;  // 钢青：采购额、采购类
+$color-mint-green:  #46BF91;  // 薄荷绿：库存、成功状态
+$color-amber:       #C99A45;  // 琥珀：客户、警告状态
+$color-red-brown:   #C95745;  // 红棕：危险、取消状态
+
+// --- 文字颜色层次 ---
+$text-primary:      #E0F4FF;                  // 主文字（重要标题、数据值）
+$text-secondary:    rgba(224, 244, 255, 0.7); // 次要文字（普通正文）
+$text-muted:        rgba(200, 216, 232, 0.55);// 辅助文字（说明、日期）
+$text-placeholder:  rgba(200, 216, 232, 0.35);// 占位符文字
+
+// --- 边框颜色 ---
+$border-card:       rgba(0, 212, 255, 0.15);  // 第2层卡片边框（青色）
+$border-panel:      rgba(255, 255, 255, 0.10);// 第3层面板边框（浅灰白）
+
+// --- 语义色（保留兼容 Element Plus）---
+$primary-color:   #3295C9;
+$success-color:   #46BF91;
+$warning-color:   #C99A45;
+$danger-color:    #C95745;
+$info-color:      #6B7A8D;
+
+// --- 间距 ---
 $spacing-xs: 4px;
 $spacing-sm: 8px;
 $spacing-md: 16px;
 $spacing-lg: 24px;
 $spacing-xl: 32px;
 
-// Border radius
+// --- 圆角 ---
 $border-radius-sm: 4px;
 $border-radius-md: 8px;
 $border-radius-lg: 12px;
+$border-radius-xl: 16px;
 
-// Shadows
-$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-$shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-$shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+// --- 阴影 ---
+$shadow-sm:   0 2px 8px rgba(0, 0, 0, 0.3);
+$shadow-md:   0 4px 24px rgba(0, 0, 0, 0.4);
+$shadow-lg:   0 8px 40px rgba(0, 0, 0, 0.5);
+$shadow-glow: 0 0 20px rgba(0, 212, 255, 0.15);
