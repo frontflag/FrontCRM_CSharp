@@ -3,209 +3,288 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
-        <el-button @click="goBack">
-          <el-icon><ArrowLeft /></el-icon>返回
-        </el-button>
-        <h1>{{ customer?.customerName || '客户详情' }}</h1>
-        <el-tag v-if="customer" :type="customer.isActive ? 'success' : 'info'">
-          {{ customer.isActive ? '启用' : '停用' }}
-        </el-tag>
+        <button class="btn-back" @click="goBack">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+          返回
+        </button>
+        <div class="customer-title-group">
+          <div class="customer-avatar-lg">{{ (customer?.customerName || '?')[0] }}</div>
+          <div>
+            <h1 class="page-title">{{ customer?.customerName || '客户详情' }}</h1>
+            <div class="title-meta">
+              <span class="customer-code">{{ customer?.customerCode }}</span>
+              <span class="status-badge" :class="customer?.isActive ? 'status--active' : 'status--inactive'">
+                {{ customer?.isActive ? '启用' : '停用' }}
+              </span>
+              <span v-if="customer?.customerLevel" class="level-badge" :class="`level-${customer.customerLevel?.toLowerCase()}`">
+                {{ getLevelLabel(customer.customerLevel) }}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="header-right">
-        <el-button @click="handleEdit">
-          <el-icon><Edit /></el-icon>编辑
-        </el-button>
-        <el-button type="primary" @click="handleCreateQuote">
-          <el-icon><Document /></el-icon>创建报价
-        </el-button>
-        <el-button type="primary" @click="handleCreateOrder">
-          <el-icon><ShoppingCart /></el-icon>创建订单
-        </el-button>
+        <button class="btn-secondary" @click="handleEdit">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          编辑
+        </button>
+        <button class="btn-primary" @click="handleCreateQuote">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          创建报价
+        </button>
+        <button class="btn-primary btn-primary--green" @click="handleCreateOrder">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+          </svg>
+          创建订单
+        </button>
       </div>
     </div>
 
-    <div v-loading="loading" class="detail-content">
+    <div v-loading="loading" element-loading-background="rgba(10,22,40,0.8)" class="detail-content">
       <template v-if="customer">
         <!-- 基本信息卡片 -->
-        <el-card class="info-card">
-          <template #header>
-            <div class="card-header">
-              <span>基本信息</span>
-              <el-tag :type="getLevelType(customer.customerLevel)">
-                {{ getLevelLabel(customer.customerLevel) }}
-              </el-tag>
+        <div class="info-section">
+          <div class="section-header">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">基本信息</span>
+          </div>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">客户编号</span>
+              <span class="info-value info-value--code">{{ customer.customerCode }}</span>
             </div>
-          </template>
-          <el-descriptions :column="3" border>
-            <el-descriptions-item label="客户编号">{{ customer.customerCode }}</el-descriptions-item>
-            <el-descriptions-item label="客户名称">{{ customer.customerName }}</el-descriptions-item>
-            <el-descriptions-item label="客户类型">
-              <el-tag :type="getTypeType(customer.customerType)">
-                {{ getTypeLabel(customer.customerType) }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="统一社会信用代码">{{ customer.unifiedSocialCreditCode || '--' }}</el-descriptions-item>
-            <el-descriptions-item label="行业">{{ getIndustryLabel(customer.industry || '') }}</el-descriptions-item>
-            <el-descriptions-item label="地区">{{ customer.region || '--' }}</el-descriptions-item>
-            <el-descriptions-item label="所属业务员">{{ customer.salesPersonName || '--' }}</el-descriptions-item>
-            <el-descriptions-item label="信用额度">{{ formatCurrency(customer.creditLimit) }}</el-descriptions-item>
-            <el-descriptions-item label="账期(天)">{{ customer.paymentTerms || 0 }}</el-descriptions-item>
-            <el-descriptions-item label="账户余额" :span="1">
-              <span :class="{ 'negative': customer.balance && customer.balance < 0 }">
+            <div class="info-item">
+              <span class="info-label">客户名称</span>
+              <span class="info-value">{{ customer.customerName }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">客户类型</span>
+              <span class="type-badge" :class="`type-${customer.customerType}`">{{ getTypeLabel(customer.customerType) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">统一社会信用代码</span>
+              <span class="info-value info-value--code">{{ customer.unifiedSocialCreditCode || '--' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">行业</span>
+              <span class="info-value">{{ getIndustryLabel(customer.industry || '') }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">地区</span>
+              <span class="info-value">{{ customer.region || '--' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">所属业务员</span>
+              <span class="info-value">{{ customer.salesPersonName || '--' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">信用额度</span>
+              <span class="info-value info-value--amount">{{ formatCurrency(customer.creditLimit) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">账期(天)</span>
+              <span class="info-value">{{ customer.paymentTerms || 0 }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">账户余额</span>
+              <span class="info-value info-value--amount" :class="{ 'amount-negative': customer.balance && customer.balance < 0 }">
                 {{ formatCurrency(customer.balance) }}
               </span>
-            </el-descriptions-item>
-            <el-descriptions-item label="创建时间">{{ formatDateTime(customer.createdAt) }}</el-descriptions-item>
-            <el-descriptions-item label="更新时间">{{ formatDateTime(customer.updatedAt) }}</el-descriptions-item>
-          </el-descriptions>
-        </el-card>
+            </div>
+            <div class="info-item">
+              <span class="info-label">创建时间</span>
+              <span class="info-value info-value--time">{{ formatDateTime(customer.createdAt) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">更新时间</span>
+              <span class="info-value info-value--time">{{ formatDateTime(customer.updatedAt) }}</span>
+            </div>
+          </div>
+        </div>
 
         <!-- 标签页 -->
-        <el-card class="tabs-card">
-          <el-tabs v-model="activeTab">
-            <!-- 联系人标签 -->
-            <el-tab-pane label="联系人" name="contacts">
+        <div class="tabs-section">
+          <div class="tabs-nav">
+            <button
+              v-for="tab in tabs"
+              :key="tab.key"
+              class="tab-btn"
+              :class="{ 'tab-btn--active': activeTab === tab.key }"
+              @click="activeTab = tab.key"
+            >
+              {{ tab.label }}
+            </button>
+          </div>
+
+          <div class="tabs-body">
+            <!-- 联系人 -->
+            <div v-show="activeTab === 'contacts'">
               <div class="tab-toolbar">
-                <el-button type="primary" size="small" @click="showContactDialog = true">
-                  <el-icon><Plus /></el-icon>添加联系人
-                </el-button>
+                <button class="btn-add-item" @click="showContactDialog = true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  添加联系人
+                </button>
               </div>
-              <el-table :data="customer.contacts" stripe>
-                <el-table-column prop="contactName" label="姓名" width="100" />
+              <el-table :data="customer.contacts" class="quantum-table"
+                :header-cell-style="tableHeaderStyle" :cell-style="tableCellStyle" :row-style="tableRowStyle">
+                <el-table-column prop="contactName" label="姓名" width="100">
+                  <template #default="{ row }"><span class="cell-primary">{{ row.contactName }}</span></template>
+                </el-table-column>
                 <el-table-column prop="gender" label="性别" width="70">
                   <template #default="{ row }">
-                    {{ row.gender === 0 ? '男' : row.gender === 1 ? '女' : '未知' }}
+                    <span class="cell-muted">{{ row.gender === 0 ? '男' : row.gender === 1 ? '女' : '未知' }}</span>
                   </template>
                 </el-table-column>
-                <el-table-column prop="department" label="部门" width="120" />
-                <el-table-column prop="position" label="职位" width="120" />
-                <el-table-column prop="mobilePhone" label="手机" width="130" />
-                <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip />
+                <el-table-column prop="department" label="部门" width="120">
+                  <template #default="{ row }"><span class="cell-secondary">{{ row.department || '--' }}</span></template>
+                </el-table-column>
+                <el-table-column prop="position" label="职位" width="120">
+                  <template #default="{ row }"><span class="cell-secondary">{{ row.position || '--' }}</span></template>
+                </el-table-column>
+                <el-table-column prop="mobilePhone" label="手机" width="140">
+                  <template #default="{ row }"><span class="cell-code">{{ row.mobilePhone }}</span></template>
+                </el-table-column>
+                <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip>
+                  <template #default="{ row }"><span class="cell-secondary">{{ row.email || '--' }}</span></template>
+                </el-table-column>
                 <el-table-column prop="isDefault" label="默认" width="80" align="center">
                   <template #default="{ row }">
-                    <el-tag v-if="row.isDefault" type="success" size="small">是</el-tag>
-                    <span v-else>--</span>
+                    <span v-if="row.isDefault" class="default-badge">默认</span>
+                    <span v-else class="cell-muted">--</span>
                   </template>
                 </el-table-column>
                 <el-table-column label="操作" width="150" fixed="right">
                   <template #default="{ row }">
-                    <el-button link type="primary" size="small" @click="editContact(row)">编辑</el-button>
-                    <el-button link type="danger" size="small" @click="deleteContact(row)">删除</el-button>
+                    <button class="action-btn" @click="editContact(row)">编辑</button>
+                    <button class="action-btn action-btn--danger" @click="deleteContact(row)">删除</button>
                   </template>
                 </el-table-column>
               </el-table>
-            </el-tab-pane>
+            </div>
 
-            <!-- 地址标签 -->
-            <el-tab-pane label="地址信息" name="addresses">
+            <!-- 地址信息 -->
+            <div v-show="activeTab === 'addresses'">
               <div class="tab-toolbar">
-                <el-button type="primary" size="small" @click="showAddressDialog = true">
-                  <el-icon><Plus /></el-icon>添加地址
-                </el-button>
+                <button class="btn-add-item" @click="showAddressDialog = true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  添加地址
+                </button>
               </div>
-              <el-table :data="customer.addresses" stripe>
-                <el-table-column prop="addressType" label="地址类型" width="100">
+              <el-table :data="customer.addresses" class="quantum-table"
+                :header-cell-style="tableHeaderStyle" :cell-style="tableCellStyle" :row-style="tableRowStyle">
+                <el-table-column prop="addressType" label="地址类型" width="110">
                   <template #default="{ row }">
-                    {{ getAddressTypeLabel(row.addressType) }}
+                    <span class="type-badge type-0">{{ getAddressTypeLabel(row.addressType) }}</span>
                   </template>
                 </el-table-column>
-                <el-table-column prop="contactPerson" label="联系人" width="100" />
-                <el-table-column prop="contactPhone" label="联系电话" width="130" />
+                <el-table-column prop="contactPerson" label="联系人" width="100">
+                  <template #default="{ row }"><span class="cell-primary">{{ row.contactPerson || '--' }}</span></template>
+                </el-table-column>
+                <el-table-column prop="contactPhone" label="联系电话" width="140">
+                  <template #default="{ row }"><span class="cell-code">{{ row.contactPhone || '--' }}</span></template>
+                </el-table-column>
                 <el-table-column label="详细地址" min-width="250" show-overflow-tooltip>
-                  <template #default="{ row }">
-                    {{ formatFullAddress(row) }}
-                  </template>
+                  <template #default="{ row }"><span class="cell-secondary">{{ formatFullAddress(row) }}</span></template>
                 </el-table-column>
                 <el-table-column prop="isDefault" label="默认" width="80" align="center">
                   <template #default="{ row }">
-                    <el-tag v-if="row.isDefault" type="success" size="small">是</el-tag>
-                    <span v-else>--</span>
+                    <span v-if="row.isDefault" class="default-badge">默认</span>
+                    <span v-else class="cell-muted">--</span>
                   </template>
                 </el-table-column>
                 <el-table-column label="操作" width="150" fixed="right">
                   <template #default="{ row }">
-                    <el-button link type="primary" size="small" @click="editAddress(row)">编辑</el-button>
-                    <el-button link type="danger" size="small" @click="deleteAddress(row)">删除</el-button>
+                    <button class="action-btn" @click="editAddress(row)">编辑</button>
+                    <button class="action-btn action-btn--danger" @click="deleteAddress(row)">删除</button>
                   </template>
                 </el-table-column>
               </el-table>
-            </el-tab-pane>
+            </div>
 
-            <!-- 银行信息标签 -->
-            <el-tab-pane label="银行信息" name="banks">
+            <!-- 银行信息 -->
+            <div v-show="activeTab === 'banks'">
               <div class="tab-toolbar">
-                <el-button type="primary" size="small" @click="showBankDialog = true">
-                  <el-icon><Plus /></el-icon>添加银行信息
-                </el-button>
+                <button class="btn-add-item" @click="showBankDialog = true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  添加银行信息
+                </button>
               </div>
-              <el-table :data="customer.banks" stripe>
-                <el-table-column prop="accountName" label="账户名称" min-width="150" />
-                <el-table-column prop="bankName" label="开户银行" min-width="180" />
-                <el-table-column prop="bankBranch" label="开户支行" min-width="180" show-overflow-tooltip />
-                <el-table-column prop="accountNumber" label="银行账号" min-width="180" />
+              <el-table :data="customer.banks" class="quantum-table"
+                :header-cell-style="tableHeaderStyle" :cell-style="tableCellStyle" :row-style="tableRowStyle">
+                <el-table-column prop="accountName" label="账户名称" min-width="150">
+                  <template #default="{ row }"><span class="cell-primary">{{ row.accountName }}</span></template>
+                </el-table-column>
+                <el-table-column prop="bankName" label="开户银行" min-width="180">
+                  <template #default="{ row }"><span class="cell-secondary">{{ row.bankName }}</span></template>
+                </el-table-column>
+                <el-table-column prop="bankBranch" label="开户支行" min-width="180" show-overflow-tooltip>
+                  <template #default="{ row }"><span class="cell-secondary">{{ row.bankBranch || '--' }}</span></template>
+                </el-table-column>
+                <el-table-column prop="accountNumber" label="银行账号" min-width="180">
+                  <template #default="{ row }"><span class="cell-code">{{ row.accountNumber }}</span></template>
+                </el-table-column>
                 <el-table-column prop="currency" label="币种" width="80">
-                  <template #default="{ row }">
-                    {{ getCurrencyLabel(row.currency) }}
-                  </template>
+                  <template #default="{ row }"><span class="cell-muted">{{ getCurrencyLabel(row.currency) }}</span></template>
                 </el-table-column>
                 <el-table-column prop="isDefault" label="默认" width="80" align="center">
                   <template #default="{ row }">
-                    <el-tag v-if="row.isDefault" type="success" size="small">是</el-tag>
-                    <span v-else>--</span>
+                    <span v-if="row.isDefault" class="default-badge">默认</span>
+                    <span v-else class="cell-muted">--</span>
                   </template>
                 </el-table-column>
                 <el-table-column label="操作" width="150" fixed="right">
                   <template #default="{ row }">
-                    <el-button link type="primary" size="small" @click="editBank(row)">编辑</el-button>
-                    <el-button link type="danger" size="small" @click="deleteBank(row)">删除</el-button>
+                    <button class="action-btn" @click="editBank(row)">编辑</button>
+                    <button class="action-btn action-btn--danger" @click="deleteBank(row)">删除</button>
                   </template>
                 </el-table-column>
               </el-table>
-            </el-tab-pane>
+            </div>
 
-            <!-- 业务记录标签 -->
-            <el-tab-pane label="业务记录" name="business">
-              <el-timeline>
-                <el-timeline-item
-                  v-for="(record, index) in businessRecords"
-                  :key="index"
-                  :type="record.type"
-                  :timestamp="record.time"
-                >
-                  {{ record.content }}
-                </el-timeline-item>
-              </el-timeline>
-            </el-tab-pane>
-          </el-tabs>
-        </el-card>
+            <!-- 业务记录 -->
+            <div v-show="activeTab === 'business'" class="timeline-wrapper">
+              <div v-for="(record, index) in businessRecords" :key="index" class="timeline-item">
+                <div class="timeline-dot" :class="`dot--${record.type}`"></div>
+                <div class="timeline-content">
+                  <span class="timeline-text">{{ record.content }}</span>
+                  <span class="timeline-time">{{ record.time }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </template>
 
-      <el-empty v-else description="客户信息加载失败" />
+      <div v-else-if="!loading" class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <p>客户信息加载失败</p>
+      </div>
     </div>
 
-    <!-- 添加联系人对话框 -->
-    <ContactDialog
-      v-model="showContactDialog"
-      :customer-id="customerId"
-      :contact="editingContact"
-      @success="handleContactSuccess"
-    />
-
-    <!-- 添加地址对话框 -->
-    <AddressDialog
-      v-model="showAddressDialog"
-      :customer-id="customerId"
-      :address="editingAddress"
-      @success="handleAddressSuccess"
-    />
-
-    <!-- 添加银行信息对话框 -->
-    <BankDialog
-      v-model="showBankDialog"
-      :customer-id="customerId"
-      :bank="editingBank"
-      @success="handleBankSuccess"
-    />
+    <!-- 对话框 -->
+    <ContactDialog v-model="showContactDialog" :customer-id="customerId" :contact="editingContact" @success="handleContactSuccess" />
+    <AddressDialog v-model="showAddressDialog" :customer-id="customerId" :address="editingAddress" @success="handleAddressSuccess" />
+    <BankDialog v-model="showBankDialog" :customer-id="customerId" :bank="editingBank" @success="handleBankSuccess" />
   </div>
 </template>
 
@@ -213,9 +292,6 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import {
-  ArrowLeft, Edit, Plus, Document, ShoppingCart
-} from '@element-plus/icons-vue';
 import { customerApi, customerContactApi, customerAddressApi, customerBankApi } from '@/api/customer';
 import type { Customer, CustomerContactInfo, CustomerAddress, CustomerBankInfo } from '@/types/customer';
 import ContactDialog from './components/ContactDialog.vue';
@@ -224,30 +300,24 @@ import BankDialog from './components/BankDialog.vue';
 
 const route = useRoute();
 const router = useRouter();
-
-// 客户ID
 const customerId = route.params.id as string;
-
-// 加载状态
 const loading = ref(false);
-
-// 客户数据
 const customer = ref<Customer | null>(null);
-
-// 当前标签页
 const activeTab = ref('contacts');
-
-// 对话框显示状态
 const showContactDialog = ref(false);
 const showAddressDialog = ref(false);
 const showBankDialog = ref(false);
-
-// 编辑数据
 const editingContact = ref<CustomerContactInfo | undefined>(undefined);
 const editingAddress = ref<CustomerAddress | undefined>(undefined);
 const editingBank = ref<CustomerBankInfo | undefined>(undefined);
 
-// 业务记录（模拟数据）
+const tabs = [
+  { key: 'contacts', label: '联系人' },
+  { key: 'addresses', label: '地址信息' },
+  { key: 'banks', label: '银行信息' },
+  { key: 'business', label: '业务记录' }
+];
+
 const businessRecords = ref([
   { type: 'primary', time: '2024-03-15 10:30', content: '创建报价单 QT-2024-001' },
   { type: 'success', time: '2024-03-10 14:20', content: '销售订单 SO-2024-003 已发货' },
@@ -255,280 +325,442 @@ const businessRecords = ref([
   { type: 'primary', time: '2024-02-28 16:45', content: '创建询价单 RFQ-2024-002' }
 ]);
 
-// 获取客户详情
+const tableHeaderStyle = () => ({ background: '#0A1628', color: 'rgba(200,216,232,0.55)', fontSize: '12px', fontWeight: '500', letterSpacing: '0.5px', borderBottom: '1px solid rgba(0,212,255,0.12)', padding: '10px 0' });
+const tableCellStyle = () => ({ background: 'transparent', borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'rgba(224,244,255,0.85)', fontSize: '13px' });
+const tableRowStyle = () => ({ background: 'transparent' });
+
 const fetchCustomerDetail = async () => {
   loading.value = true;
-  try {
-    customer.value = await customerApi.getCustomerById(customerId);
-  } catch (error) {
-    console.error('获取客户详情失败:', error);
-    ElMessage.error('获取客户详情失败');
-  } finally {
-    loading.value = false;
-  }
+  try { customer.value = await customerApi.getCustomerById(customerId); }
+  catch { ElMessage.error('获取客户详情失败'); }
+  finally { loading.value = false; }
 };
 
-// 返回
-const goBack = () => {
-  router.push('/customers');
-};
+const goBack = () => router.push('/customers');
+const handleEdit = () => router.push(`/customers/${customerId}/edit`);
+const handleCreateQuote = () => router.push(`/quotes/create?customerId=${customerId}`);
+const handleCreateOrder = () => router.push(`/orders/create?customerId=${customerId}`);
 
-// 编辑客户
-const handleEdit = () => {
-  router.push(`/customers/${customerId}/edit`);
-};
-
-// 创建报价
-const handleCreateQuote = () => {
-  router.push(`/quotes/create?customerId=${customerId}`);
-};
-
-// 创建订单
-const handleCreateOrder = () => {
-  router.push(`/orders/create?customerId=${customerId}`);
-};
-
-// 编辑联系人
-const editContact = (contact: CustomerContactInfo) => {
-  editingContact.value = contact;
-  showContactDialog.value = true;
-};
-
-// 删除联系人
+const editContact = (contact: CustomerContactInfo) => { editingContact.value = contact; showContactDialog.value = true; };
 const deleteContact = async (contact: CustomerContactInfo) => {
   try {
-    await ElMessageBox.confirm('确定要删除该联系人吗？', '确认删除', {
-      type: 'warning'
-    });
+    await ElMessageBox.confirm('确定要删除该联系人吗？', '确认删除', { type: 'warning' });
     await customerContactApi.deleteContact(contact.id);
-    ElMessage.success('删除成功');
-    fetchCustomerDetail();
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('删除失败');
-    }
-  }
+    ElMessage.success('删除成功'); fetchCustomerDetail();
+  } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败'); }
 };
+const handleContactSuccess = () => { editingContact.value = undefined; fetchCustomerDetail(); };
 
-// 联系人操作成功
-const handleContactSuccess = () => {
-  editingContact.value = undefined;
-  fetchCustomerDetail();
-};
-
-// 编辑地址
-const editAddress = (address: CustomerAddress) => {
-  editingAddress.value = address;
-  showAddressDialog.value = true;
-};
-
-// 删除地址
+const editAddress = (address: CustomerAddress) => { editingAddress.value = address; showAddressDialog.value = true; };
 const deleteAddress = async (address: CustomerAddress) => {
   try {
-    await ElMessageBox.confirm('确定要删除该地址吗？', '确认删除', {
-      type: 'warning'
-    });
+    await ElMessageBox.confirm('确定要删除该地址吗？', '确认删除', { type: 'warning' });
     await customerAddressApi.deleteAddress(address.id);
-    ElMessage.success('删除成功');
-    fetchCustomerDetail();
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('删除失败');
-    }
-  }
+    ElMessage.success('删除成功'); fetchCustomerDetail();
+  } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败'); }
 };
+const handleAddressSuccess = () => { editingAddress.value = undefined; fetchCustomerDetail(); };
 
-// 地址操作成功
-const handleAddressSuccess = () => {
-  editingAddress.value = undefined;
-  fetchCustomerDetail();
-};
-
-// 编辑银行信息
-const editBank = (bank: CustomerBankInfo) => {
-  editingBank.value = bank;
-  showBankDialog.value = true;
-};
-
-// 删除银行信息
+const editBank = (bank: CustomerBankInfo) => { editingBank.value = bank; showBankDialog.value = true; };
 const deleteBank = async (bank: CustomerBankInfo) => {
   try {
-    await ElMessageBox.confirm('确定要删除该银行信息吗？', '确认删除', {
-      type: 'warning'
-    });
+    await ElMessageBox.confirm('确定要删除该银行信息吗？', '确认删除', { type: 'warning' });
     await customerBankApi.deleteBank(bank.id);
-    ElMessage.success('删除成功');
-    fetchCustomerDetail();
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error('删除失败');
-    }
-  }
+    ElMessage.success('删除成功'); fetchCustomerDetail();
+  } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败'); }
 };
+const handleBankSuccess = () => { editingBank.value = undefined; fetchCustomerDetail(); };
 
-// 银行操作成功
-const handleBankSuccess = () => {
-  editingBank.value = undefined;
-  fetchCustomerDetail();
-};
-
-// 格式化货币
 const formatCurrency = (value: number | undefined) => {
   if (value === undefined || value === null) return '¥0.00';
   return `¥${value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 };
+const formatDateTime = (date: string | undefined) => date ? new Date(date).toLocaleString('zh-CN') : '--';
+const getTypeLabel = (type: number) => ({ 0: '企业', 1: '个人', 2: '政府' }[type] || '未知');
+const getLevelLabel = (level: string) => ({ VIP: 'VIP客户', Important: '重要客户', Normal: '普通客户', Lead: '潜在客户' }[level] || level);
+const getLevelType = (level: string) => ({ VIP: 'danger', Important: 'warning', Normal: 'info', Lead: '' }[level] || '');
+const getIndustryLabel = (industry: string) => ({ Manufacturing: '制造业', Trading: '贸易/零售', Technology: '科技/IT', Construction: '建筑/工程', Healthcare: '医疗/健康', Education: '教育', Finance: '金融', Other: '其他' }[industry] || industry);
+const getAddressTypeLabel = (type: string) => ({ Office: '办公地址', Billing: '开票地址', Shipping: '收货地址', Registered: '注册地址' }[type] || type);
+const formatFullAddress = (address: CustomerAddress) => [address.country, address.province, address.city, address.district, address.streetAddress].filter(Boolean).join(' ');
+const getCurrencyLabel = (currency: number) => ({ 1: 'CNY', 2: 'USD', 3: 'EUR', 4: 'JPY', 5: 'GBP', 6: 'HKD' }[currency] || 'CNY');
 
-// 格式化日期时间
-const formatDateTime = (date: string | undefined) => {
-  if (!date) return '--';
-  return new Date(date).toLocaleString('zh-CN');
-};
-
-// 获取类型标签
-const getTypeLabel = (type: number) => {
-  const map: Record<number, string> = {
-    0: '企业',
-    1: '个人',
-    2: '政府'
-  };
-  return map[type] || '未知';
-};
-
-const getTypeType = (type: number) => {
-  const map: Record<number, any> = {
-    0: 'primary',
-    1: 'success',
-    2: 'warning'
-  };
-  return map[type] || '';
-};
-
-// 获取等级标签
-const getLevelLabel = (level: string) => {
-  const map: Record<string, string> = {
-    'VIP': 'VIP客户',
-    'Important': '重要客户',
-    'Normal': '普通客户',
-    'Lead': '潜在客户'
-  };
-  return map[level] || level;
-};
-
-const getLevelType = (level: string) => {
-  const map: Record<string, any> = {
-    'VIP': 'danger',
-    'Important': 'warning',
-    'Normal': 'info',
-    'Lead': ''
-  };
-  return map[level] || '';
-};
-
-// 获取行业标签
-const getIndustryLabel = (industry: string) => {
-  const map: Record<string, string> = {
-    'Manufacturing': '制造业',
-    'Trading': '贸易/零售',
-    'Technology': '科技/IT',
-    'Construction': '建筑/工程',
-    'Healthcare': '医疗/健康',
-    'Education': '教育',
-    'Finance': '金融',
-    'Other': '其他'
-  };
-  return map[industry] || industry;
-};
-
-// 获取地址类型标签
-const getAddressTypeLabel = (type: string) => {
-  const map: Record<string, string> = {
-    'Office': '办公地址',
-    'Billing': '开票地址',
-    'Shipping': '收货地址',
-    'Registered': '注册地址'
-  };
-  return map[type] || type;
-};
-
-// 格式化完整地址
-const formatFullAddress = (address: CustomerAddress) => {
-  const parts = [
-    address.country,
-    address.province,
-    address.city,
-    address.district,
-    address.streetAddress
-  ].filter(Boolean);
-  return parts.join(' ');
-};
-
-// 获取币种标签
-const getCurrencyLabel = (currency: number) => {
-  const map: Record<number, string> = {
-    1: 'CNY',
-    2: 'USD',
-    3: 'EUR',
-    4: 'JPY',
-    5: 'GBP',
-    6: 'HKD'
-  };
-  return map[currency] || 'CNY';
-};
-
-// 初始化
-onMounted(() => {
-  fetchCustomerDetail();
-});
+onMounted(() => fetchCustomerDetail());
 </script>
 
 <style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+
 .customer-detail-page {
-  padding: 20px;
+  padding: 24px;
+  min-height: 100%;
+  background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
+}
 
-  .page-header {
+// ---- 页面头部 ----
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+
+  .header-left {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-
-      h1 {
-        margin: 0;
-        font-size: 24px;
-        font-weight: 600;
-      }
-    }
-
-    .header-right {
-      display: flex;
-      gap: 10px;
-    }
+    gap: 16px;
   }
 
-  .detail-content {
-    .info-card {
-      margin-bottom: 20px;
+  .header-right {
+    display: flex;
+    gap: 10px;
+  }
+}
 
-      .card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-    }
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
 
-    .tabs-card {
-      .tab-toolbar {
-        margin-bottom: 16px;
-      }
-    }
+  &:hover { background: rgba(255,255,255,0.07); color: $text-secondary; border-color: rgba(0,212,255,0.2); }
+}
+
+.customer-title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.customer-avatar-lg {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, rgba(0,102,255,0.3), rgba(0,212,255,0.2));
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: $cyan-primary;
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: $text-primary;
+  margin: 0 0 6px 0;
+}
+
+.title-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.customer-code {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: $text-muted;
+}
+
+.status-badge {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 3px;
+
+  &--active   { background: rgba(70,191,145,0.15); color: $color-mint-green; border: 1px solid rgba(70,191,145,0.3); }
+  &--inactive { background: rgba(107,122,141,0.15); color: #8A9BB0; border: 1px solid rgba(107,122,141,0.3); }
+}
+
+.level-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 3px;
+
+  &.level-vip       { background: rgba(201,87,69,0.2);  color: #C95745; border: 1px solid rgba(201,87,69,0.3); }
+  &.level-important { background: rgba(201,154,69,0.2); color: #C99A45; border: 1px solid rgba(201,154,69,0.3); }
+  &.level-normal    { background: rgba(107,122,141,0.2); color: #8A9BB0; border: 1px solid rgba(107,122,141,0.3); }
+  &.level-lead      { background: rgba(70,191,145,0.15); color: #46BF91; border: 1px solid rgba(70,191,145,0.3); }
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, rgba(0,102,255,0.8), rgba(0,212,255,0.7));
+  border: 1px solid rgba(0,212,255,0.4);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,212,255,0.25); }
+
+  &--green {
+    background: linear-gradient(135deg, rgba(50,149,201,0.8), rgba(70,191,145,0.7));
+    border-color: rgba(70,191,145,0.4);
+    &:hover { box-shadow: 0 4px 16px rgba(70,191,145,0.25); }
+  }
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-secondary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover { background: rgba(255,255,255,0.08); border-color: rgba(0,212,255,0.25); }
+}
+
+// ---- 基本信息 ----
+.info-section {
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  background: rgba(0,0,0,0.1);
+}
+
+.section-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+
+  &--cyan { background: $cyan-primary; box-shadow: 0 0 6px rgba(0,212,255,0.6); }
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: $text-primary;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  padding: 0;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  border-right: 1px solid rgba(255,255,255,0.04);
+
+  &:nth-child(3n) { border-right: none; }
+
+  .info-label {
+    font-size: 11px;
+    color: $text-muted;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
   }
 
-  .negative {
-    color: #f56c6c;
+  .info-value {
+    font-size: 13px;
+    color: $text-secondary;
+
+    &--code   { font-family: 'Space Mono', monospace; font-size: 12px; color: $color-ice-blue; }
+    &--amount { font-family: 'Space Mono', monospace; font-size: 13px; color: $text-primary; font-weight: 500; }
+    &--time   { font-size: 12px; color: $text-muted; }
   }
+}
+
+.type-badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+
+  &.type-0 { background: rgba(50,149,201,0.15); color: $color-steel-cyan; border: 1px solid rgba(50,149,201,0.25); }
+  &.type-1 { background: rgba(70,191,145,0.15); color: $color-mint-green; border: 1px solid rgba(70,191,145,0.25); }
+  &.type-2 { background: rgba(201,154,69,0.15); color: $color-amber;      border: 1px solid rgba(201,154,69,0.25); }
+}
+
+.amount-negative { color: $color-red-brown !important; }
+
+// ---- 标签页 ----
+.tabs-section {
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+  overflow: hidden;
+}
+
+.tabs-nav {
+  display: flex;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 0 16px;
+  background: rgba(0,0,0,0.1);
+}
+
+.tab-btn {
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: $text-muted;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: -1px;
+
+  &:hover { color: $text-secondary; }
+
+  &--active {
+    color: $cyan-primary;
+    border-bottom-color: $cyan-primary;
+  }
+}
+
+.tabs-body { padding: 20px; }
+
+.tab-toolbar {
+  margin-bottom: 14px;
+}
+
+.btn-add-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  background: rgba(0,212,255,0.08);
+  border: 1px solid rgba(0,212,255,0.25);
+  border-radius: $border-radius-sm;
+  color: $cyan-primary;
+  font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover { background: rgba(0,212,255,0.14); }
+}
+
+// ---- 表格 ----
+.quantum-table {
+  width: 100%;
+  background: transparent !important;
+
+  :deep(.el-table__inner-wrapper) { background: transparent; }
+  :deep(tr) { background: transparent !important; &:hover td { background: rgba(0,212,255,0.04) !important; } }
+  :deep(.el-table__fixed-right) { background: $layer-2 !important; }
+}
+
+.cell-primary   { color: $text-primary; font-size: 13px; }
+.cell-secondary { color: $text-secondary; font-size: 13px; }
+.cell-muted     { color: $text-muted; font-size: 12px; }
+.cell-code      { font-family: 'Space Mono', monospace; font-size: 12px; color: $color-ice-blue; }
+
+.default-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  background: rgba(70,191,145,0.15);
+  color: $color-mint-green;
+  border: 1px solid rgba(70,191,145,0.3);
+  border-radius: 3px;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid rgba(0,212,255,0.2);
+  border-radius: 4px;
+  color: $color-ice-blue;
+  font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-right: 4px;
+
+  &:hover { background: rgba(0,212,255,0.08); border-color: rgba(0,212,255,0.4); color: $cyan-primary; }
+
+  &--danger {
+    border-color: rgba(201,87,69,0.2);
+    color: $color-red-brown;
+    &:hover { background: rgba(201,87,69,0.08); border-color: rgba(201,87,69,0.4); }
+  }
+}
+
+// ---- 时间线 ----
+.timeline-wrapper { padding: 8px 0; }
+
+.timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+
+  &:last-child { border-bottom: none; }
+}
+
+.timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 3px;
+  flex-shrink: 0;
+
+  &.dot--primary { background: $color-steel-cyan; box-shadow: 0 0 6px rgba(50,149,201,0.6); }
+  &.dot--success { background: $color-mint-green; box-shadow: 0 0 6px rgba(70,191,145,0.6); }
+  &.dot--warning { background: $color-amber; box-shadow: 0 0 6px rgba(201,154,69,0.6); }
+}
+
+.timeline-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  .timeline-text { font-size: 13px; color: $text-secondary; }
+  .timeline-time { font-size: 11px; color: $text-muted; font-family: 'Space Mono', monospace; }
+}
+
+// ---- 空状态 ----
+.empty-state {
+  text-align: center;
+  padding: 60px;
+  color: $text-muted;
+
+  svg { margin-bottom: 12px; opacity: 0.3; }
+  p { font-size: 14px; margin: 0; }
 }
 </style>
