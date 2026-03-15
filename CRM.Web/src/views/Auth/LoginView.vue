@@ -1,5 +1,8 @@
 <template>
   <div class="login-view">
+    <!-- 版本号 -->
+    <div class="version-tag">版本号：03160634</div>
+
     <!-- 背景动态粒子网格 -->
     <div class="bg-grid"></div>
     <div class="bg-glow bg-glow--left"></div>
@@ -197,6 +200,20 @@ const handleLogin = async () => {
   position: relative;
   overflow: hidden;
   font-family: 'Noto Sans SC', sans-serif;
+}
+
+// 版本号标签
+.version-tag {
+  position: fixed;
+  top: 12px;
+  left: 14px;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: rgba(0, 212, 255, 0.5);
+  letter-spacing: 1px;
+  z-index: 100;
+  pointer-events: none;
+  user-select: none;
 }
 
 // 背景网格
