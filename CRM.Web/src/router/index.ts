@@ -10,8 +10,12 @@ const router = createRouter({
 // Navigation guard
 router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore()
+  // PREVIEW MODE: skip auth check when preview_mode is set in localStorage
+  const previewMode = localStorage.getItem('preview_mode') === 'true'
 
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+  if (previewMode) {
+    next()
+  } else if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
   } else if ((to.path === '/login' || to.path === '/register') && authStore.isAuthenticated) {
     next('/dashboard')
