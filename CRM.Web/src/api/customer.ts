@@ -14,6 +14,33 @@ import type {
   CreateBankInfoRequest
 } from '@/types/customer';
 
+/**
+ * P2 修复：将前端 customerLevel 字符串统一映射到后端数字枚举
+ * 后端枚举: D=1, C=2, B=3, BPO=4, VIP=5, VPO=6
+ * 兼容旧前端字符串值: Normal->3(B), Important->5(VIP), Lead->1(D)
+ */
+export function mapCustomerLevelToInt(level: string | number | undefined): number {
+  if (level === undefined || level === null) return 3; // 默认 B(Normal)
+  if (typeof level === 'number') return level > 0 ? level : 3;
+  const map: Record<string, number> = {
+    'D': 1, 'C': 2, 'B': 3, 'BPO': 4, 'VIP': 5, 'VPO': 6,
+    // 兼容旧前端字符串值
+    'Normal': 3, 'Important': 5, 'Lead': 1
+  };
+  return map[level] ?? 3;
+}
+
+/**
+ * P3 修复：将后端 customerType 数字映射到前端显示标签
+ * 后端枚举: OEM=1, ODM=2, EndUser=3, IDH=4, Trader=5, Agent=6
+ */
+export function mapCustomerTypeToLabel(type: number | undefined): string {
+  const map: Record<number, string> = {
+    1: 'OEM', 2: 'ODM', 3: '终端用户', 4: 'IDH', 5: '贸易商', 6: '代理商'
+  };
+  return map[type ?? 0] ?? '未知';
+}
+
 // 客户API
 export const customerApi = {
   // 搜索客户列表
@@ -41,38 +68,44 @@ export const customerApi = {
 
   // 创建客户
   async createCustomer(data: CreateCustomerRequest): Promise<Customer> {
-    // 转换字段名以匹配后端
     const backendData: any = {
       ...data,
       officialName: data.customerName || (data as any).officialName,
       nickName: data.customerShortName || (data as any).nickName,
-      level: data.customerLevel ? (['', 'D', 'C', 'B', 'BPO', 'VIP', 'VPO'].indexOf(data.customerLevel)) : ((data as any).level || 1),
-      type: data.customerType ?? (data as any).type,
+      // P2 修复：使用统一映射函数
+      level: mapCustomerLevelToInt(data.customerLevel || (data as any).level),
+      // P3 修复：customerType 前端已是数字，直接传递（默认值从 0 改为 1）
+      type: (data.customerType && data.customerType > 0) ? data.customerType : ((data as any).type || 1),
       salesUserId: data.salesPersonId || (data as any).salesUserId,
       remark: data.remarks || (data as any).remark,
       creditLine: data.creditLimit ?? (data as any).creditLine,
       payment: data.paymentTerms ?? (data as any).payment,
       tradeCurrency: data.currency ?? (data as any).tradeCurrency,
-      creditCode: data.unifiedSocialCreditCode || (data as any).creditCode
+      creditCode: data.unifiedSocialCreditCode || (data as any).creditCode,
+      // P1 修复：新建时包含联系人数组
+      contacts: (data as any).contacts || []
     };
     return await apiClient.post<Customer>('/api/v1/customers', backendData);
   },
 
   // 更新客户
   async updateCustomer(id: string, data: UpdateCustomerRequest): Promise<Customer> {
-    // 转换字段名以匹配后端
     const backendData: any = {
       ...data,
       officialName: data.customerName || (data as any).officialName,
       nickName: data.customerShortName || (data as any).nickName,
-      level: data.customerLevel ? (['', 'D', 'C', 'B', 'BPO', 'VIP', 'VPO'].indexOf(data.customerLevel)) : (data as any).level,
-      type: data.customerType ?? (data as any).type,
+      // P2 修复：使用统一映射函数
+      level: mapCustomerLevelToInt(data.customerLevel || (data as any).level),
+      // P3 修复：customerType 直接传递
+      type: (data.customerType && data.customerType > 0) ? data.customerType : ((data as any).type || 1),
       salesUserId: data.salesPersonId || (data as any).salesUserId,
       remark: data.remarks || (data as any).remark,
       creditLine: data.creditLimit ?? (data as any).creditLine,
       payment: data.paymentTerms ?? (data as any).payment,
       tradeCurrency: data.currency ?? (data as any).tradeCurrency,
-      creditCode: data.unifiedSocialCreditCode || (data as any).creditCode
+      creditCode: data.unifiedSocialCreditCode || (data as any).creditCode,
+      // P1 修复：更新时包含联系人数组
+      contacts: (data as any).contacts || []
     };
     return await apiClient.put<Customer>(`/api/v1/customers/${id}`, backendData);
   },

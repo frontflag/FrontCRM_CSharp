@@ -67,9 +67,9 @@
             <el-col :span="8">
               <el-form-item label="客户类型" prop="customerType">
                 <el-select v-model="formData.customerType" placeholder="请选择" style="width: 100%" class="q-select">
-                  <el-option label="企业客户" :value="0" />
-                  <el-option label="个人客户" :value="1" />
-                  <el-option label="政府/机构" :value="2" />
+                  <el-option label="OEM" :value="1" />
+                  <el-option label="ODM" :value="2" />
+                  <el-option label="终端用户" :value="3" />
                 </el-select>
               </el-form-item>
             </el-col>
@@ -293,7 +293,7 @@ const formRef = ref<FormInstance>();
 
 const formData = reactive<CreateCustomerRequest & { contacts: any[] }>({
   customerCode: '', customerName: '', customerShortName: '',
-  customerType: 0, customerLevel: 'Normal', industry: '',
+  customerType: 1, customerLevel: 'Normal', industry: '',
   unifiedSocialCreditCode: '', salesPersonId: '', salesPersonName: '',
   country: '', province: '', city: '', district: '', address: '',
   creditLimit: 0, paymentTerms: 30, currency: 1, taxRate: 13,
@@ -336,7 +336,7 @@ const fetchCustomerDetail = async () => {
       customerName: customer.customerName || customerAny.officialName,
       customerShortName: customer.customerShortName || customerAny.nickName,
       customerLevel: customer.customerLevel || 'Normal',
-      customerType: customer.customerType ?? 0,
+      customerType: customer.customerType ?? 1,
       salesPersonId: customer.salesPersonId || customerAny.salesUserId,
       unifiedSocialCreditCode: customer.unifiedSocialCreditCode || customerAny.creditCode,
       creditLimit: customer.creditLimit ?? 0,

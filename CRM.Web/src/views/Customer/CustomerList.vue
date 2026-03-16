@@ -424,9 +424,9 @@ const handleExport = () => ElMessage.info('导出功能开发中');
 const handleSizeChange = (size: number) => { pagination.pageSize = size; fetchCustomerList(); };
 const handlePageChange = (page: number) => { pagination.pageNumber = page; fetchCustomerList(); };
 
-const getLevelLabel = (level: string) => ({ VIP: 'VIP', Important: '重要', Normal: '普通', Lead: '潜在' }[level] || level);
+const getLevelLabel = (level: string) => ({ VIP: 'VIP', VPO: 'VPO', BPO: 'BPO', B: 'B级', C: 'C级', D: 'D级', Important: '重要', Normal: '普通', Lead: '潜在' }[level] || level || '--');
 // const getLevelType = (level: string) => ({ VIP: 'danger', Important: 'warning', Normal: 'info', Lead: '' }[level] || 'info');
-const getTypeLabel = (type: number) => ({ 0: '企业', 1: '个人', 2: '机构' }[type] || '未知');
+const getTypeLabel = (type: number) => ({ 1: 'OEM', 2: 'ODM', 3: '终端用户', 4: 'IDH', 5: '贸易商', 6: '代理商' }[type] || '未知');
 // const getTypeType = (type: number) => ({ 0: 'primary', 1: 'success', 2: 'warning' }[type] || 'info');
 const getIndustryLabel = (industry: string) => ({
   Manufacturing: '制造业', Trading: '贸易/零售', Technology: '科技/IT',
