@@ -75,14 +75,13 @@ namespace CRM.API.Services.Implementations
                 return ApiResponse<AuthResponse>.Fail("密码错误");
             }
 
-            var token = GenerateJwtToken(user.Email, user.UserName, user.Id);
-
+            var token = GenerateJwtToken(user.Email ?? user.UserName, user.UserName, user.Id);
             return ApiResponse<AuthResponse>.Ok(new AuthResponse
             {
                 Token = token,
                 UserName = user.UserName,
-                Email = user.Email
-            }, "登录成功");
+                Email = user.Email ?? ""
+            }, "登录成功");;
         }
 
         public string GenerateJwtToken(string email, string userName, string userId)

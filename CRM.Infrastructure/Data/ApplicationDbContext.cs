@@ -1,4 +1,5 @@
 using CRM.Core.Models;
+using CRM.Core.Models.Component;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.System;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +24,9 @@ namespace CRM.Infrastructure.Data
         // ===== 新增系统表 =====
         public DbSet<SysSerialNumber> SerialNumbers { get; set; } = null!;
         public DbSet<SysErrorLog> ErrorLogs { get; set; } = null!;
+
+        // ===== 物料缓存表 =====
+        public DbSet<ComponentCache> ComponentCaches { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -129,6 +133,27 @@ namespace CRM.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.ModuleName).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.ErrorMessage).IsRequired().HasMaxLength(500);
+            });
+
+            // ===== 物料缓存表配置 =====
+            modelBuilder.Entity<ComponentCache>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Mpn).IsRequired().HasMaxLength(100);
+                entity.HasIndex(e => e.Mpn).IsUnique();  // MPN 唯一索引，加速查询
+                entity.Property(e => e.ManufacturerName).HasMaxLength(200);
+                entity.Property(e => e.ShortDescription).HasMaxLength(500);
+                entity.Property(e => e.LifecycleStatus).HasMaxLength(50);
+                entity.Property(e => e.PackageType).HasMaxLength(100);
+                entity.Property(e => e.DataSource).HasMaxLength(50);
+                // JSON 列使用 text 类型，不限制长度
+                entity.Property(e => e.SpecsJson).HasColumnType("text");
+                entity.Property(e => e.SellersJson).HasColumnType("text");
+                entity.Property(e => e.AlternativesJson).HasColumnType("text");
+                entity.Property(e => e.ApplicationsJson).HasColumnType("text");
+                entity.Property(e => e.PriceTrendJson).HasColumnType("text");
+                entity.Property(e => e.NewsJson).HasColumnType("text");
+                entity.Property(e => e.Description).HasColumnType("text");
             });
         }
     }

@@ -440,3 +440,42 @@ Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
 2026-03-16 03:25:30.110 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerBankInfo'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
 2026-03-16 03:25:30.111 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerContactInfo'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
 2026-03-16 03:25:31.728 -04:00 [WRN] The query uses the 'First'/'FirstOrDefault' operator without 'OrderBy' and filter operators. This may lead to unpredictable results.
+2026-03-16 05:56:22.610 -04:00 [INF] Starting FrontCRM API
+2026-03-16 05:56:22.771 -04:00 [FTL] Application terminated unexpectedly
+Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.ThrowHostAborted()
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.OnNext(KeyValuePair`2 value)
+   at System.Diagnostics.DiagnosticListener.Write(String name, Object value)
+   at System.Diagnostics.DiagnosticSource.Write[T](String name, T value)
+   at Microsoft.Extensions.Hosting.HostBuilder.ResolveHost(IServiceProvider serviceProvider, DiagnosticListener diagnosticListener)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at Program.<Main>$(String[] args) in /home/ubuntu/FrontCRM_CSharp/CRM.API/Program.cs:line 32
+2026-03-16 05:56:31.529 -04:00 [INF] Starting FrontCRM API
+2026-03-16 05:56:31.670 -04:00 [FTL] Application terminated unexpectedly
+Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.ThrowHostAborted()
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.OnNext(KeyValuePair`2 value)
+   at System.Diagnostics.DiagnosticListener.Write(String name, Object value)
+   at System.Diagnostics.DiagnosticSource.Write[T](String name, T value)
+   at Microsoft.Extensions.Hosting.HostBuilder.ResolveHost(IServiceProvider serviceProvider, DiagnosticListener diagnosticListener)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at Program.<Main>$(String[] args) in /home/ubuntu/FrontCRM_CSharp/CRM.API/Program.cs:line 32
+2026-03-16 05:56:39.646 -04:00 [INF] Starting FrontCRM API
+2026-03-16 05:56:39.781 -04:00 [FTL] Application terminated unexpectedly
+Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.ThrowHostAborted()
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.OnNext(KeyValuePair`2 value)
+   at System.Diagnostics.DiagnosticListener.Write(String name, Object value)
+   at System.Diagnostics.DiagnosticSource.Write[T](String name, T value)
+   at Microsoft.Extensions.Hosting.HostBuilder.ResolveHost(IServiceProvider serviceProvider, DiagnosticListener diagnosticListener)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at Program.<Main>$(String[] args) in /home/ubuntu/FrontCRM_CSharp/CRM.API/Program.cs:line 32
+2026-03-16 06:13:25.408 -04:00 [INF] Starting FrontCRM API
+2026-03-16 06:13:25.785 -04:00 [INF] Starting FrontCRM API
+2026-03-16 06:13:31.201 -04:00 [WRN] Failed to determine the https port for redirect.
+2026-03-16 06:13:31.848 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerAddress'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-03-16 06:13:31.850 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerBankInfo'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-03-16 06:13:31.850 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerContactInfo'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.

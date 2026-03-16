@@ -51,8 +51,8 @@ namespace CRM.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Login failed");
-                return StatusCode(500, ApiResponse<AuthResponse>.Fail("登录失败", 500));
+                _logger.LogError(ex, "Login failed: {Message}", ex.Message);
+                return StatusCode(500, ApiResponse<AuthResponse>.Fail($"登录失败: {ex.Message}", 500));
             }
         }
 

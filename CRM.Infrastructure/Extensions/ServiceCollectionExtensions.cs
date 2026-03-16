@@ -22,6 +22,11 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<ISerialNumberService, SerialNumberService>();
             services.AddScoped<IErrorLogService, ErrorLogService>();
 
+            // 注册物料数据服务（当前使用 Mock 实现，待 Nexar API 就绪后替换为 NexarComponentDataService）
+            // 替换方式：将下面一行改为 services.AddScoped<IComponentDataService, NexarComponentDataService>();
+            services.AddScoped<IComponentDataService, MockComponentDataService>();
+            services.AddScoped<IComponentCacheService, ComponentCacheService>();
+
             return services;
         }
     }
