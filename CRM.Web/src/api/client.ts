@@ -49,6 +49,13 @@ class ApiClient {
           localStorage.removeItem('token')
           localStorage.removeItem('user')
           window.location.href = '/login'
+          return Promise.reject(error)
+        }
+        // 对于其他 HTTP 错误（400/500 等），如果响应体是标准 ApiResponse 格式，则作为正常值返回
+        // 这样调用方可以通过 result.success === false 判断并显示具体错误信息
+        const responseData = error.response?.data
+        if (responseData && responseData.success !== undefined) {
+          return responseData
         }
         return Promise.reject(error)
       }
