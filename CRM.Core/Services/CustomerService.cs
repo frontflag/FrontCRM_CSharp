@@ -763,7 +763,9 @@ namespace CRM.Core.Services
                 CustomerId = customerId,
                 Type = request.Type?.Trim() ?? "call",
                 Content = request.Content?.Trim(),
-                Time = request.Time ?? DateTime.UtcNow,
+                Time = request.Time.HasValue 
+                    ? DateTime.SpecifyKind(request.Time.Value, DateTimeKind.Utc)
+                    : DateTime.UtcNow,
                 CreateTime = DateTime.UtcNow
             };
 

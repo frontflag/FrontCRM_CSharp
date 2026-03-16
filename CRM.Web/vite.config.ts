@@ -37,7 +37,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/tests/setup.ts'],
     include: [
-      '**/*.{test,spec}.?(c|m)[jt]s?(x)',
+      'src/tests/**/*.{test,spec}.{ts,tsx}',
       '../document/TestCase/APITest/**/*.test.ts',
       '../document/TestCase/UnitTest/**/*.test.ts'
     ],
