@@ -126,6 +126,26 @@ namespace CRM.Core.Interfaces
         /// 检查客户编码是否已存在
         /// </summary>
         Task<bool> IsCustomerCodeExistsAsync(string customerCode);
+
+        /// <summary>
+        /// 获取客户联系历史
+        /// </summary>
+        Task<IEnumerable<CustomerContactHistory>> GetContactHistoryAsync(string customerId);
+
+        /// <summary>
+        /// 添加客户联系记录
+        /// </summary>
+        Task<CustomerContactHistory> AddContactHistoryAsync(string customerId, AddContactHistoryRequest request);
+    }
+
+    /// <summary>
+    /// 添加联系历史请求
+    /// </summary>
+    public class AddContactHistoryRequest
+    {
+        public string? Type { get; set; } = "call";
+        public string? Content { get; set; }
+        public DateTime? Time { get; set; }
     }
 
     /// <summary>

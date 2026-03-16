@@ -16,6 +16,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<CustomerAddress> CustomerAddresses { get; set; } = null!;
         public DbSet<CustomerContactInfo> CustomerContacts { get; set; } = null!;
         public DbSet<CustomerBankInfo> CustomerBanks { get; set; } = null!;
+        public DbSet<CustomerContactHistory> CustomerContactHistories { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -72,6 +73,15 @@ namespace CRM.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.BankName).HasMaxLength(100);
                 entity.Property(e => e.BankAccount).HasMaxLength(50);
+            });
+
+            // Customer Contact History configuration
+            modelBuilder.Entity<CustomerContactHistory>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.CustomerId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.Type).HasMaxLength(50);
+                entity.Property(e => e.Content).HasMaxLength(500);
             });
         }
     }

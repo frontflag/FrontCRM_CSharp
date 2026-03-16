@@ -24,6 +24,7 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     allowedHosts: 'all',
+    fs: { allow: ['..'] },
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
@@ -35,6 +36,11 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/tests/setup.ts'],
+    include: [
+      '**/*.{test,spec}.?(c|m)[jt]s?(x)',
+      '../document/TestCase/APITest/**/*.test.ts',
+      '../document/TestCase/UnitTest/**/*.test.ts'
+    ],
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }

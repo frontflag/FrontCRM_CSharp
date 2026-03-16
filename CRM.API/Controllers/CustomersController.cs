@@ -160,21 +160,80 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var customers = await _customerService.GetAllCustomersAsync();
-                var totalCount = customers.Count();
-                var activeCount = customers.Count(c => c.Status == 1);
+                var customers = (await _customerService.GetAllCustomersAsync()).ToList();
+                var now = DateTime.UtcNow;
+                var firstDayOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+                var totalCustomers = customers.Count;
+                var activeCustomers = customers.Count(c => c.Status == 1);
+                var newThisMonth = customers.Count(c => c.CreateTime >= firstDayOfMonth);
+                var totalBalance = customers.Sum(c => c.CreditLineRemain);
+
+                var byLevel = customers
+                    .GroupBy(c => c.Level)
+                    .ToDictionary(g => g.Key switch { 1 => "D", 2 => "C", 3 => "B", 4 => "BPO", 5 => "VIP", 6 => "VPO", _ => "Other" }, g => g.Count());
+
+                var byIndustry = customers
+                    .Where(c => !string.IsNullOrEmpty(c.Industry))
+                    .GroupBy(c => c.Industry!)
+                    .ToDictionary(g => g.Key, g => g.Count());
 
                 return Ok(ApiResponse<object>.Ok(new
                 {
-                    totalCount,
-                    activeCount,
-                    inactiveCount = totalCount - activeCount
+                    totalCustomers,
+                    activeCustomers,
+                    newThisMonth,
+                    totalBalance,
+                    byLevel,
+                    byIndustry
                 }, "获取客户统计成功"));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取客户统计失败");
                 return StatusCode(500, ApiResponse<object>.Fail("获取客户统计失败", 500));
+            }
+        }
+
+        [HttpGet("{customerId}/contact-history")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<object>>>> GetCustomerContactHistory(string customerId)
+        {
+            try
+            {
+                var customer = await _customerService.GetCustomerByIdAsync(customerId);
+                if (customer == null)
+                    return NotFound(ApiResponse<IEnumerable<object>>.Fail("客户不存在", 404));
+
+                var list = await _customerService.GetContactHistoryAsync(customerId);
+                var items = list.Select(h => new { id = h.Id, type = h.Type, content = h.Content, time = h.Time.ToString("o") });
+                return Ok(ApiResponse<IEnumerable<object>>.Ok(items.ToList(), "获取联系历史成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取联系历史失败");
+                return StatusCode(500, ApiResponse<IEnumerable<object>>.Fail($"获取联系历史失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpPost("{customerId}/contact-history")]
+        public async Task<ActionResult<ApiResponse<object>>> AddContactHistory(string customerId, [FromBody] AddContactHistoryRequest request)
+        {
+            try
+            {
+                if (request == null)
+                    return BadRequest(ApiResponse<object>.Fail("请求体不能为空", 400));
+
+                var record = await _customerService.AddContactHistoryAsync(customerId, request);
+                return Ok(ApiResponse<object>.Ok(new { id = record.Id, type = record.Type, content = record.Content, time = record.Time.ToString("o") }, "添加联系记录成功"));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "添加联系记录失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"添加联系记录失败: {ex.Message}", 500));
             }
         }
 

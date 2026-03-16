@@ -13,6 +13,7 @@ namespace CRM.Core.Services
         private readonly IRepository<CustomerAddress> _addressRepository;
         private readonly IRepository<CustomerContactInfo> _contactRepository;
         private readonly IRepository<CustomerBankInfo> _bankRepository;
+        private readonly IRepository<CustomerContactHistory> _contactHistoryRepository;
         private readonly IUnitOfWork _unitOfWork;
 
         public CustomerService(
@@ -20,12 +21,14 @@ namespace CRM.Core.Services
             IRepository<CustomerAddress> addressRepository,
             IRepository<CustomerContactInfo> contactRepository,
             IRepository<CustomerBankInfo> bankRepository,
+            IRepository<CustomerContactHistory> contactHistoryRepository,
             IUnitOfWork unitOfWork)
         {
             _customerRepository = customerRepository;
             _addressRepository = addressRepository;
             _contactRepository = contactRepository;
             _bankRepository = bankRepository;
+            _contactHistoryRepository = contactHistoryRepository;
             _unitOfWork = unitOfWork;
         }
 
@@ -728,6 +731,45 @@ namespace CRM.Core.Services
 
             var existing = await GetCustomerByCodeAsync(customerCode);
             return existing != null;
+        }
+
+        /// <summary>
+        /// 获取客户联系历史
+        /// </summary>
+        public async Task<IEnumerable<CustomerContactHistory>> GetContactHistoryAsync(string customerId)
+        {
+            if (string.IsNullOrWhiteSpace(customerId))
+                return new List<CustomerContactHistory>();
+
+            var list = await _contactHistoryRepository.FindAsync(h => h.CustomerId == customerId);
+            return list.OrderByDescending(h => h.Time).ToList();
+        }
+
+        /// <summary>
+        /// 添加客户联系记录
+        /// </summary>
+        public async Task<CustomerContactHistory> AddContactHistoryAsync(string customerId, AddContactHistoryRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(customerId))
+                throw new ArgumentException("客户ID不能为空", nameof(customerId));
+
+            var customer = await GetCustomerByIdAsync(customerId);
+            if (customer == null)
+                throw new KeyNotFoundException($"找不到ID为 '{customerId}' 的客户");
+
+            var record = new CustomerContactHistory
+            {
+                Id = Guid.NewGuid().ToString(),
+                CustomerId = customerId,
+                Type = request.Type?.Trim() ?? "call",
+                Content = request.Content?.Trim(),
+                Time = request.Time ?? DateTime.UtcNow,
+                CreateTime = DateTime.UtcNow
+            };
+
+            await _contactHistoryRepository.AddAsync(record);
+            await _unitOfWork.SaveChangesAsync();
+            return record;
         }
 
         /// <summary>
