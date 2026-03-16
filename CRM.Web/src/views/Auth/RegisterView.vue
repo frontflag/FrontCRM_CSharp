@@ -17,7 +17,7 @@
         </div>
         <div class="brand-text">
           <span class="brand-name">FrontCRM</span>
-          <span class="brand-sub">AI策销系统</span>
+          <span class="brand-sub">AI智销系统</span>
         </div>
       </div>
 
