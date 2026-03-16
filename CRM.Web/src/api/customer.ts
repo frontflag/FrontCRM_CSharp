@@ -49,7 +49,7 @@ export const customerApi = {
     if (params.pageNumber) queryParams.append('pageNumber', params.pageNumber.toString());
     if (params.pageSize) queryParams.append('pageSize', params.pageSize.toString());
     if (params.searchTerm) queryParams.append('searchTerm', params.searchTerm);
-    if (params.customerType !== undefined) queryParams.append('customerType', params.customerType.toString());
+    if (params.customerType !== undefined && params.customerType > 0) queryParams.append('customerType', params.customerType.toString());
     if (params.customerLevel) queryParams.append('customerLevel', params.customerLevel);
     if (params.industry) queryParams.append('industry', params.industry);
     if (params.region) queryParams.append('region', params.region);
