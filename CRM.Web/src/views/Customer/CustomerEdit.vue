@@ -383,15 +383,26 @@ const handleSave = async (_submit: boolean) => {
   if (!valid) return;
   try {
     if (isEdit.value) {
-      await customerApi.updateCustomer(customerId.value, formData);
+      const result = await customerApi.updateCustomer(customerId.value, formData) as any;
+      if (result && result.success === false) {
+        ElMessage.error(result.message || '更新失败');
+        return;
+      }
       ElMessage.success('更新成功');
     } else {
-      await customerApi.createCustomer(formData);
+      const result = await customerApi.createCustomer(formData) as any;
+      if (result && result.success === false) {
+        ElMessage.error(result.message || '创建失败');
+        return;
+      }
       ElMessage.success('创建成功');
     }
     router.push('/customers');
-  } catch {
-    ElMessage.error('保存失败');
+  } catch (err: any) {
+    // 尝试从响应体中提取具体错误信息
+    const serverMsg = err?.response?.data?.message;
+    const msg = serverMsg || err?.message || '保存失败，请检查输入内容';
+    ElMessage.error(msg);
   }
 };
 

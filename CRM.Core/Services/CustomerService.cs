@@ -37,12 +37,17 @@ namespace CRM.Core.Services
         /// </summary>
         public async Task<CustomerInfo> CreateCustomerAsync(CreateCustomerRequest request)
         {
+            // 如果客户编码为空，自动生成
             if (string.IsNullOrWhiteSpace(request.CustomerCode))
-                throw new ArgumentException("客户编码不能为空", nameof(request.CustomerCode));
-
-            // 检查客户编码是否已存在
-            if (await IsCustomerCodeExistsAsync(request.CustomerCode))
-                throw new InvalidOperationException($"客户编码 '{request.CustomerCode}' 已存在");
+            {
+                request.CustomerCode = await GenerateUniqueCustomerCodeAsync();
+            }
+            else
+            {
+                // 检查客户编码是否已存在
+                if (await IsCustomerCodeExistsAsync(request.CustomerCode))
+                    throw new InvalidOperationException($"客户编码 '{request.CustomerCode}' 已存在");
+            }
 
             var customer = new CustomerInfo
             {
@@ -731,6 +736,22 @@ namespace CRM.Core.Services
 
             var existing = await GetCustomerByCodeAsync(customerCode);
             return existing != null;
+        }
+
+        /// <summary>
+        /// 自动生成唯一客户编码（格式：CyyyyMMdd + 3位序号）
+        /// </summary>
+        private async Task<string> GenerateUniqueCustomerCodeAsync()
+        {
+            var prefix = "C" + DateTime.UtcNow.ToString("yyyyMMdd");
+            var seq = 1;
+            string code;
+            do
+            {
+                code = $"{prefix}{seq:D3}";
+                seq++;
+            } while (await IsCustomerCodeExistsAsync(code) && seq <= 999);
+            return code;
         }
 
         /// <summary>
