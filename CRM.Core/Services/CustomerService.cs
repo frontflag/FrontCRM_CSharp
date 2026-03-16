@@ -15,6 +15,8 @@ namespace CRM.Core.Services
         private readonly IRepository<CustomerBankInfo> _bankRepository;
         private readonly IRepository<CustomerContactHistory> _contactHistoryRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ISerialNumberService _serialNumberService;
+        private readonly IErrorLogService _errorLogService;
 
         public CustomerService(
             IRepository<CustomerInfo> customerRepository,
@@ -22,7 +24,9 @@ namespace CRM.Core.Services
             IRepository<CustomerContactInfo> contactRepository,
             IRepository<CustomerBankInfo> bankRepository,
             IRepository<CustomerContactHistory> contactHistoryRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            ISerialNumberService serialNumberService,
+            IErrorLogService errorLogService)
         {
             _customerRepository = customerRepository;
             _addressRepository = addressRepository;
@@ -30,6 +34,8 @@ namespace CRM.Core.Services
             _bankRepository = bankRepository;
             _contactHistoryRepository = contactHistoryRepository;
             _unitOfWork = unitOfWork;
+            _serialNumberService = serialNumberService;
+            _errorLogService = errorLogService;
         }
 
         /// <summary>
@@ -37,17 +43,10 @@ namespace CRM.Core.Services
         /// </summary>
         public async Task<CustomerInfo> CreateCustomerAsync(CreateCustomerRequest request)
         {
-            // 如果客户编码为空，自动生成
-            if (string.IsNullOrWhiteSpace(request.CustomerCode))
+            try
             {
-                request.CustomerCode = await GenerateUniqueCustomerCodeAsync();
-            }
-            else
-            {
-                // 检查客户编码是否已存在
-                if (await IsCustomerCodeExistsAsync(request.CustomerCode))
-                    throw new InvalidOperationException($"客户编码 '{request.CustomerCode}' 已存在");
-            }
+            // 始终使用流水号服务自动生成客户编号，忽略前端传入的值
+            request.CustomerCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.Customer);
 
             var customer = new CustomerInfo
             {
@@ -72,10 +71,22 @@ namespace CRM.Core.Services
             await _customerRepository.AddAsync(customer);
             await _unitOfWork.SaveChangesAsync();
             return customer;
+            }
+            catch (Exception ex)
+            {
+                await _errorLogService.LogAsync(
+                    moduleName: "客户管理",
+                    errorMessage: ex.Message,
+                    exception: ex,
+                    operationType: "创建客户",
+                    documentNo: request.CustomerCode
+                );
+                throw;
+            }
         }
 
         /// <summary>
-        /// 根据ID获取客户（包含联系人、地址、银行信息）
+        /// 根据ID获取客户（包含联系人、地址、銀行信息）
         /// </summary>
         public async Task<CustomerInfo?> GetCustomerByIdAsync(string id)
         {
@@ -230,9 +241,9 @@ namespace CRM.Core.Services
         }
 
         /// <summary>
-        /// 删除客户
+        /// 删除客户（软删除：设置 IsDeleted=true，不真实删除数据）
         /// </summary>
-        public async Task DeleteCustomerAsync(string id)
+        public async Task DeleteCustomerAsync(string id, string? operatorUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("客户ID不能为空", nameof(id));
@@ -241,14 +252,20 @@ namespace CRM.Core.Services
             if (customer == null)
                 throw new KeyNotFoundException($"找不到ID为 '{id}' 的客户");
 
-            await _customerRepository.DeleteAsync(customer.Id);
+            // 软删除：设置删除标志和时间
+            customer.IsDeleted = true;
+            customer.DeletedAt = DateTime.UtcNow;
+            customer.DeletedByUserId = operatorUserId;
+            customer.ModifyTime = DateTime.UtcNow;
+
+            await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
         }
 
         /// <summary>
-        /// 批量删除客户
+        /// 批量删除客户（软删除）
         /// </summary>
-        public async Task BatchDeleteCustomersAsync(IEnumerable<string> ids)
+        public async Task BatchDeleteCustomersAsync(IEnumerable<string> ids, string? operatorUserId = null)
         {
             if (ids == null || !ids.Any())
                 return;
@@ -257,7 +274,7 @@ namespace CRM.Core.Services
             {
                 try
                 {
-                    await DeleteCustomerAsync(id);
+                    await DeleteCustomerAsync(id, operatorUserId);
                 }
                 catch (KeyNotFoundException)
                 {
@@ -736,22 +753,6 @@ namespace CRM.Core.Services
 
             var existing = await GetCustomerByCodeAsync(customerCode);
             return existing != null;
-        }
-
-        /// <summary>
-        /// 自动生成唯一客户编码（格式：CyyyyMMdd + 3位序号）
-        /// </summary>
-        private async Task<string> GenerateUniqueCustomerCodeAsync()
-        {
-            var prefix = "C" + DateTime.UtcNow.ToString("yyyyMMdd");
-            var seq = 1;
-            string code;
-            do
-            {
-                code = $"{prefix}{seq:D3}";
-                seq++;
-            } while (await IsCustomerCodeExistsAsync(code) && seq <= 999);
-            return code;
         }
 
         /// <summary>

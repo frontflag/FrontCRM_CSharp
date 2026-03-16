@@ -49,7 +49,12 @@
           <el-row :gutter="20">
             <el-col :span="8">
               <el-form-item label="客户编号" prop="customerCode">
-                <el-input v-model="formData.customerCode" placeholder="系统自动生成" :disabled="isEdit" class="q-input" />
+                <el-input
+                  v-model="formData.customerCode"
+                  :placeholder="isEdit ? '' : '保存后自动生成'"
+                  :disabled="true"
+                  class="q-input"
+                />
               </el-form-item>
             </el-col>
             <el-col :span="8">

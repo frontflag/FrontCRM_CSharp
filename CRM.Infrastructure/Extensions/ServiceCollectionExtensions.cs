@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using CRM.Core.Interfaces;
 using CRM.Infrastructure.Data;
 using CRM.Infrastructure.Repositories;
+using CRM.Infrastructure.Services;
 
 namespace CRM.Infrastructure.Extensions
 {
@@ -16,6 +17,10 @@ namespace CRM.Infrastructure.Extensions
 
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+            // 注册流水号服务和错误日志服务
+            services.AddScoped<ISerialNumberService, SerialNumberService>();
+            services.AddScoped<IErrorLogService, ErrorLogService>();
 
             return services;
         }

@@ -38,14 +38,14 @@ namespace CRM.Core.Interfaces
         Task<CustomerInfo> UpdateCustomerAsync(string id, UpdateCustomerRequest request);
 
         /// <summary>
-        /// 删除客户
+        /// 删除客户（软删除）
         /// </summary>
-        Task DeleteCustomerAsync(string id);
+        Task DeleteCustomerAsync(string id, string? operatorUserId = null);
 
         /// <summary>
-        /// 批量删除客户
+        /// 批量删除客户（软删除）
         /// </summary>
-        Task BatchDeleteCustomersAsync(IEnumerable<string> ids);
+        Task BatchDeleteCustomersAsync(IEnumerable<string> ids, string? operatorUserId = null);
 
         /// <summary>
         /// 添加客户地址

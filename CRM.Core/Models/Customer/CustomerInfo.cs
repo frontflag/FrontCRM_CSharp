@@ -432,6 +432,24 @@ namespace CRM.Core.Models.Customer
             set => Remark = value;
         }
 
+        // ===== 软删除字段 =====
+
+        /// <summary>
+        /// 是否已删除（软删除标志）
+        /// </summary>
+        public bool IsDeleted { get; set; } = false;
+
+        /// <summary>
+        /// 删除时间
+        /// </summary>
+        public DateTime? DeletedAt { get; set; }
+
+        /// <summary>
+        /// 删除操作人ID
+        /// </summary>
+        [StringLength(36)]
+        public string? DeletedByUserId { get; set; }
+
         // 导航属性
         public virtual ICollection<CustomerContactInfo> Contacts { get; set; } = new List<CustomerContactInfo>();
         public virtual ICollection<CustomerAddress> Addresses { get; set; } = new List<CustomerAddress>();

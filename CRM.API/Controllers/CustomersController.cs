@@ -106,7 +106,7 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "更新客户失败");
-                return StatusCode(500, ApiResponse<CustomerInfo>.Fail("更新客户失败", 500));
+                return StatusCode(500, ApiResponse<CustomerInfo>.Fail($"更新客户失败: {ex.Message}", 500));
             }
         }
 
@@ -121,7 +121,7 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "删除客户失败");
-                return StatusCode(500, ApiResponse<object>.Fail("删除客户失败", 500));
+                return StatusCode(500, ApiResponse<object>.Fail($"删除客户失败: {ex.Message}", 500));
             }
         }
 
@@ -136,7 +136,7 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "激活客户失败");
-                return StatusCode(500, ApiResponse<object>.Fail("激活客户失败", 500));
+                return StatusCode(500, ApiResponse<object>.Fail($"激活客户失败: {ex.Message}", 500));
             }
         }
 
@@ -151,7 +151,7 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "停用客户失败");
-                return StatusCode(500, ApiResponse<object>.Fail("停用客户失败", 500));
+                return StatusCode(500, ApiResponse<object>.Fail($"停用客户失败: {ex.Message}", 500));
             }
         }
 
@@ -191,7 +191,7 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取客户统计失败");
-                return StatusCode(500, ApiResponse<object>.Fail("获取客户统计失败", 500));
+                return StatusCode(500, ApiResponse<object>.Fail($"获取客户统计失败: {ex.Message}", 500));
             }
         }
 
@@ -252,7 +252,7 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取联系人列表失败");
-                return StatusCode(500, ApiResponse<IEnumerable<CustomerContactInfo>>.Fail("获取联系人列表失败", 500));
+                return StatusCode(500, ApiResponse<IEnumerable<CustomerContactInfo>>.Fail($"获取联系人列表失败: {ex.Message}", 500));
             }
         }
 
@@ -288,7 +288,7 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取地址列表失败");
-                return StatusCode(500, ApiResponse<IEnumerable<CustomerAddress>>.Fail("获取地址列表失败", 500));
+                return StatusCode(500, ApiResponse<IEnumerable<CustomerAddress>>.Fail($"获取地址列表失败: {ex.Message}", 500));
             }
         }
 
@@ -318,7 +318,7 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取银行信息列表失败");
-                return StatusCode(500, ApiResponse<IEnumerable<CustomerBankInfo>>.Fail("获取银行信息列表失败", 500));
+                return StatusCode(500, ApiResponse<IEnumerable<CustomerBankInfo>>.Fail($"获取银行信息列表失败: {ex.Message}", 500));
             }
         }
 
