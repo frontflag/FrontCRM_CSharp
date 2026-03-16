@@ -33,3 +33,4 @@ Thumbs.db
 ## Build
 dist/
 dist-ssr/
+CRM.API/publish*/
