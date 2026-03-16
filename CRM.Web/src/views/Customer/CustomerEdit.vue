@@ -330,21 +330,22 @@ const fetchCustomerDetail = async () => {
   if (!isEdit.value) return;
   try {
     const customer = await customerApi.getCustomerById(customerId.value);
+    const customerAny = customer as any;
     const mappedData: any = {
       ...customer,
-      customerName: customer.customerName || customer.officialName,
-      customerShortName: customer.customerShortName || customer.nickName,
+      customerName: customer.customerName || customerAny.officialName,
+      customerShortName: customer.customerShortName || customerAny.nickName,
       customerLevel: customer.customerLevel || 'Normal',
       customerType: customer.customerType ?? 0,
-      salesPersonId: customer.salesPersonId || customer.salesUserId,
-      unifiedSocialCreditCode: customer.unifiedSocialCreditCode || customer.creditCode,
+      salesPersonId: customer.salesPersonId || customerAny.salesUserId,
+      unifiedSocialCreditCode: customer.unifiedSocialCreditCode || customerAny.creditCode,
       creditLimit: customer.creditLimit ?? 0,
       paymentTerms: customer.paymentTerms ?? 30,
       currency: customer.currency ?? 1,
       taxRate: customer.taxRate ?? 13,
       invoiceType: customer.invoiceType ?? 2,
       isActive: customer.isActive ?? true,
-      remarks: customer.remarks || customer.remark,
+      remarks: customer.remarks || customerAny.remark,
       contacts: customer.contacts || []
     };
     Object.assign(formData, mappedData);

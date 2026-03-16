@@ -69,7 +69,7 @@
             </div>
             <div class="info-item">
               <span class="info-label">客户类型</span>
-              <span class="type-badge" :class="`type-${customer.customerType}`">{{ getTypeLabel(customer.customerType) }}</span>
+              <span class="type-badge" :class="`type-${customer.customerType ?? 0}`">{{ getTypeLabel(customer.customerType ?? 0) }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">统一社会信用代码</span>
@@ -378,7 +378,7 @@ const formatCurrency = (value: number | undefined) => {
 const formatDateTime = (date: string | undefined) => date ? new Date(date).toLocaleString('zh-CN') : '--';
 const getTypeLabel = (type: number) => ({ 0: '企业', 1: '个人', 2: '政府' }[type] || '未知');
 const getLevelLabel = (level: string) => ({ VIP: 'VIP客户', Important: '重要客户', Normal: '普通客户', Lead: '潜在客户' }[level] || level);
-const getLevelType = (level: string) => ({ VIP: 'danger', Important: 'warning', Normal: 'info', Lead: '' }[level] || '');
+// const getLevelType = (level: string) => ({ VIP: 'danger', Important: 'warning', Normal: 'info', Lead: '' }[level] || '');
 const getIndustryLabel = (industry: string) => ({ Manufacturing: '制造业', Trading: '贸易/零售', Technology: '科技/IT', Construction: '建筑/工程', Healthcare: '医疗/健康', Education: '教育', Finance: '金融', Other: '其他' }[industry] || industry);
 const getAddressTypeLabel = (type: string) => ({ Office: '办公地址', Billing: '开票地址', Shipping: '收货地址', Registered: '注册地址' }[type] || type);
 const formatFullAddress = (address: CustomerAddress) => [address.country, address.province, address.city, address.district, address.streetAddress].filter(Boolean).join(' ');

@@ -44,16 +44,16 @@ export const customerApi = {
     // 转换字段名以匹配后端
     const backendData: any = {
       ...data,
-      officialName: data.customerName || data.officialName,
-      nickName: data.customerShortName || data.nickName,
-      level: data.customerLevel ? (['', 'D', 'C', 'B', 'BPO', 'VIP', 'VPO'].indexOf(data.customerLevel)) : (data.level || 1),
-      type: data.customerType ?? data.type,
-      salesUserId: data.salesPersonId || data.salesUserId,
-      remark: data.remarks || data.remark,
-      creditLine: data.creditLimit ?? data.creditLine,
-      payment: data.paymentTerms ?? data.payment,
-      tradeCurrency: data.currency ?? data.tradeCurrency,
-      creditCode: data.unifiedSocialCreditCode || data.creditCode
+      officialName: data.customerName || (data as any).officialName,
+      nickName: data.customerShortName || (data as any).nickName,
+      level: data.customerLevel ? (['', 'D', 'C', 'B', 'BPO', 'VIP', 'VPO'].indexOf(data.customerLevel)) : ((data as any).level || 1),
+      type: data.customerType ?? (data as any).type,
+      salesUserId: data.salesPersonId || (data as any).salesUserId,
+      remark: data.remarks || (data as any).remark,
+      creditLine: data.creditLimit ?? (data as any).creditLine,
+      payment: data.paymentTerms ?? (data as any).payment,
+      tradeCurrency: data.currency ?? (data as any).tradeCurrency,
+      creditCode: data.unifiedSocialCreditCode || (data as any).creditCode
     };
     return await apiClient.post<Customer>('/api/v1/customers', backendData);
   },
@@ -63,16 +63,16 @@ export const customerApi = {
     // 转换字段名以匹配后端
     const backendData: any = {
       ...data,
-      officialName: data.customerName || data.officialName,
-      nickName: data.customerShortName || data.nickName,
-      level: data.customerLevel ? (['', 'D', 'C', 'B', 'BPO', 'VIP', 'VPO'].indexOf(data.customerLevel)) : data.level,
-      type: data.customerType ?? data.type,
-      salesUserId: data.salesPersonId || data.salesUserId,
-      remark: data.remarks || data.remark,
-      creditLine: data.creditLimit ?? data.creditLine,
-      payment: data.paymentTerms ?? data.payment,
-      tradeCurrency: data.currency ?? data.tradeCurrency,
-      creditCode: data.unifiedSocialCreditCode || data.creditCode
+      officialName: data.customerName || (data as any).officialName,
+      nickName: data.customerShortName || (data as any).nickName,
+      level: data.customerLevel ? (['', 'D', 'C', 'B', 'BPO', 'VIP', 'VPO'].indexOf(data.customerLevel)) : (data as any).level,
+      type: data.customerType ?? (data as any).type,
+      salesUserId: data.salesPersonId || (data as any).salesUserId,
+      remark: data.remarks || (data as any).remark,
+      creditLine: data.creditLimit ?? (data as any).creditLine,
+      payment: data.paymentTerms ?? (data as any).payment,
+      tradeCurrency: data.currency ?? (data as any).tradeCurrency,
+      creditCode: data.unifiedSocialCreditCode || (data as any).creditCode
     };
     return await apiClient.put<Customer>(`/api/v1/customers/${id}`, backendData);
   },

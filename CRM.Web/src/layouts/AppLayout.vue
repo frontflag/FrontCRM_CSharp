@@ -14,7 +14,7 @@
         <transition name="fade">
           <div class="logo-text" v-if="!isCollapsed">
             <span class="logo-title">FrontCRM</span>
-            <span class="logo-subtitle">智能进销存系统</span>
+            <span class="logo-subtitle">AI策销系统</span>
           </div>
         </transition>
         <button class="collapse-btn" @click="toggleCollapse" :title="isCollapsed ? '展开菜单' : '收起菜单'">

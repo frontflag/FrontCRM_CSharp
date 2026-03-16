@@ -367,7 +367,7 @@ const fetchCustomerList = async () => {
 
 const fetchStatistics = async () => {
   try {
-    const data = await customerApi.getStatistics();
+    const data = await customerApi.getCustomerStatistics();
     statistics.value = data;
   } catch (error) {
     console.error('获取统计数据失败', error);
@@ -394,7 +394,11 @@ const handleRowClick = (row: Customer) => handleView(row);
 
 const handleStatusChange = async (row: Customer, val: boolean) => {
   try {
-    await customerApi.updateCustomerStatus(row.id!, val);
+    if (val) {
+      await customerApi.activateCustomer(row.id!);
+    } else {
+      await customerApi.deactivateCustomer(row.id!);
+    }
     ElMessage.success(`客户已${val ? '启用' : '停用'}`);
   } catch {
     row.isActive = !val;
@@ -421,9 +425,9 @@ const handleSizeChange = (size: number) => { pagination.pageSize = size; fetchCu
 const handlePageChange = (page: number) => { pagination.pageNumber = page; fetchCustomerList(); };
 
 const getLevelLabel = (level: string) => ({ VIP: 'VIP', Important: '重要', Normal: '普通', Lead: '潜在' }[level] || level);
-const getLevelType = (level: string) => ({ VIP: 'danger', Important: 'warning', Normal: 'info', Lead: '' }[level] || 'info');
+// const getLevelType = (level: string) => ({ VIP: 'danger', Important: 'warning', Normal: 'info', Lead: '' }[level] || 'info');
 const getTypeLabel = (type: number) => ({ 0: '企业', 1: '个人', 2: '机构' }[type] || '未知');
-const getTypeType = (type: number) => ({ 0: 'primary', 1: 'success', 2: 'warning' }[type] || 'info');
+// const getTypeType = (type: number) => ({ 0: 'primary', 1: 'success', 2: 'warning' }[type] || 'info');
 const getIndustryLabel = (industry: string) => ({
   Manufacturing: '制造业', Trading: '贸易/零售', Technology: '科技/IT',
   Construction: '建筑/工程', Healthcare: '医疗/健康', Education: '教育',
