@@ -65,30 +65,30 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Customer/CustomerEdit.vue'),
         meta: { requiresAuth: true, title: '编辑客户' }
       },
-      // 需求管理
+      // RFQ 管理
       {
-        path: 'demands',
-        name: 'DemandList',
-        component: () => import('@/views/Demand/DemandList.vue'),
-        meta: { requiresAuth: true, title: '需求管理' }
+        path: 'rfqs',
+        name: 'RFQList',
+        component: () => import('@/views/RFQ/RFQList.vue'),
+        meta: { requiresAuth: true, title: 'RFQ 管理' }
       },
       {
-        path: 'demands/create',
-        name: 'DemandCreate',
-        component: () => import('@/views/Demand/DemandEdit.vue'),
-        meta: { requiresAuth: true, title: '新增需求' }
+        path: 'rfqs/create',
+        name: 'RFQCreate',
+        component: () => import('@/views/RFQ/RFQEdit.vue'),
+        meta: { requiresAuth: true, title: '新增 RFQ' }
       },
       {
-        path: 'demands/:id',
-        name: 'DemandDetail',
-        component: () => import('@/views/Demand/DemandDetail.vue'),
-        meta: { requiresAuth: true, title: '需求详情' }
+        path: 'rfqs/:id',
+        name: 'RFQDetail',
+        component: () => import('@/views/RFQ/RFQDetail.vue'),
+        meta: { requiresAuth: true, title: 'RFQ 详情' }
       },
       {
-        path: 'demands/:id/edit',
-        name: 'DemandEdit',
-        component: () => import('@/views/Demand/DemandEdit.vue'),
-        meta: { requiresAuth: true, title: '编辑需求' }
+        path: 'rfqs/:id/edit',
+        name: 'RFQEdit',
+        component: () => import('@/views/RFQ/RFQEdit.vue'),
+        meta: { requiresAuth: true, title: '编辑 RFQ' }
       },
       // 系统设置
       {

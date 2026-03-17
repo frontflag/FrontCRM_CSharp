@@ -1,5 +1,5 @@
 <template>
-  <div class="demand-edit-page">
+  <div class="rfq-edit-page">
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
@@ -37,7 +37,7 @@
       :model="formData"
       :rules="formRules"
       label-width="110px"
-      class="demand-form"
+      class="rfq-form"
     >
       <!-- 基本信息 -->
       <div class="form-section">
@@ -50,7 +50,7 @@
             <el-col :span="8">
               <el-form-item label="需求编号">
                 <el-input
-                  v-model="formData.demandCode"
+                  v-model="formData.rfqCode"
                   placeholder="保存后自动生成"
                   disabled
                   class="q-input"
@@ -82,9 +82,9 @@
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="需求日期" prop="demandDate">
+              <el-form-item label="需求日期" prop="rfqDate">
                 <el-date-picker
-                  v-model="formData.demandDate"
+                  v-model="formData.rfqDate"
                   type="date"
                   placeholder="选择日期"
                   style="width: 100%"
@@ -353,8 +353,8 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElNotification, ElMessageBox } from 'element-plus'
-import { demandApi } from '@/api/demand'
-import type { CreateDemandRequest, CreateDemandItemRequest } from '@/types/demand'
+import { rfqApi } from '@/api/rfq'
+import type { CreateRFQRequest, CreateRFQItemRequest } from '@/types/rfq'
 
 const router = useRouter()
 const route = useRoute()
@@ -370,9 +370,9 @@ let customerSearchTimer: ReturnType<typeof setTimeout> | null = null
 
 // 表单数据
 const formData = reactive<{
-  demandCode: string
+  rfqCode: string
   customerId: string
-  demandDate: string
+  rfqDate: string
   expectedDeliveryDate: string
   source: number
   currency: string
@@ -380,11 +380,11 @@ const formData = reactive<{
   qualityRequirements: string
   certificationRequirements: string
   remarks: string
-  items: Array<CreateDemandItemRequest & { _key: number; _isDuplicate?: boolean; specification?: string; targetUnitPrice?: number; itemRemarks?: string }>
+  items: Array<CreateRFQItemRequest & { _key: number; _isDuplicate?: boolean; specification?: string; targetUnitPrice?: number; itemRemarks?: string }>
 }>({
-  demandCode: '',
+  rfqCode: '',
   customerId: '',
-  demandDate: new Date().toISOString().split('T')[0],
+  rfqDate: new Date().toISOString().split('T')[0],
   expectedDeliveryDate: '',
   source: 1,
   currency: 'CNY',
@@ -396,7 +396,7 @@ const formData = reactive<{
 })
 
 let _keyCounter = 0
-function newItem(): CreateDemandItemRequest & { _key: number; _isDuplicate?: boolean; specification?: string; targetUnitPrice?: number; itemRemarks?: string } {
+function newItem(): CreateRFQItemRequest & { _key: number; _isDuplicate?: boolean; specification?: string; targetUnitPrice?: number; itemRemarks?: string } {
   return {
     _key: ++_keyCounter,
     _isDuplicate: false,
@@ -440,7 +440,7 @@ async function checkDuplicates() {
     for (const item of formData.items) {
       if (!item.materialCode) continue
       try {
-        const result = await demandApi.checkDuplicateMaterial({
+        const result = await rfqApi.checkDuplicateMaterial({
           customerId: formData.customerId,
           materialCode: item.materialCode
         })
@@ -466,7 +466,7 @@ function onCustomerChange() {
 // 表单校验规则
 const formRules = {
   customerId: [{ required: true, message: '请选择客户', trigger: 'change' }],
-  demandDate: [{ required: true, message: '请选择需求日期', trigger: 'change' }]
+  rfqDate: [{ required: true, message: '请选择需求日期', trigger: 'change' }]
 }
 
 // 远程搜索客户
@@ -498,13 +498,13 @@ async function searchCustomers(query: string) {
 }
 
 // 加载编辑数据
-async function loadDemand() {
+async function loadRFQ() {
   if (!isEdit.value) return
   try {
-    const data = await demandApi.getDemandById(route.params.id as string)
-    formData.demandCode = data.demandCode || ''
+    const data = await rfqApi.getRFQById(route.params.id as string)
+    formData.rfqCode = data.rfqCode || ''
     formData.customerId = data.customerId || ''
-    formData.demandDate = data.demandDate?.split('T')[0] || ''
+    formData.rfqDate = data.rfqDate?.split('T')[0] || ''
     formData.expectedDeliveryDate = data.expectedDeliveryDate?.split('T')[0] || ''
     formData.source = data.source || 1
     formData.currency = data.currency || 'CNY'
@@ -513,7 +513,7 @@ async function loadDemand() {
     formData.certificationRequirements = data.certificationRequirements || ''
     formData.remarks = data.remark || ''
     // 加载明细
-    const items = await demandApi.getDemandItemsByDemandId(data.id)
+    const items = await rfqApi.getRFQItemsByRFQId(data.id)
     formData.items = (items || []).map((item: any) => ({
       ...item,
       _key: ++_keyCounter,
@@ -541,9 +541,9 @@ async function handleSave(submit: boolean) {
   }
   saving.value = true
   try {
-    const payload: CreateDemandRequest = {
+    const payload: CreateRFQRequest = {
       customerId: formData.customerId,
-      demandDate: formData.demandDate,
+      rfqDate: formData.rfqDate,
       expectedDeliveryDate: formData.expectedDeliveryDate || undefined,
       source: formData.source,
       currency: formData.currency,
@@ -567,15 +567,15 @@ async function handleSave(submit: boolean) {
       }))
     }
     if (isEdit.value) {
-      await demandApi.updateDemand(route.params.id as string, payload)
+      await rfqApi.updateRFQ(route.params.id as string, payload)
     } else {
-      await demandApi.createDemand(payload)
+      await rfqApi.createRFQ(payload)
     }
     ElNotification.success({
       title: '保存成功',
       message: isEdit.value ? '需求信息已成功更新' : '需求已成功创建'
     })
-    setTimeout(() => router.push('/demands'), 1500)
+    setTimeout(() => router.push('/rfqs'), 1500)
   } catch (err: any) {
     ElNotification.error({
       title: '保存失败',
@@ -587,13 +587,13 @@ async function handleSave(submit: boolean) {
 }
 
 function goBack() {
-  router.push('/demands')
+  router.push('/rfqs')
 }
 
 onMounted(async () => {
   // 编辑模式：先加载需求数据，再预填客户选项
   if (isEdit.value) {
-    await loadDemand()
+    await loadRFQ()
     // 编辑模式下预填当前客户选项，使选择框能正确显示客户名称
     if (formData.customerId) {
       try {
@@ -616,7 +616,7 @@ onMounted(async () => {
 @import '@/assets/styles/variables.scss';
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
-.demand-edit-page {
+.rfq-edit-page {
   padding: 24px;
   min-height: 100%;
   background: $layer-1;
@@ -923,7 +923,7 @@ onMounted(async () => {
 }
 
 // ---- Element Plus 覆写 ----
-.demand-form {
+.rfq-form {
   :deep(.el-form-item__label) {
     color: $text-muted !important;
     font-size: 13px;

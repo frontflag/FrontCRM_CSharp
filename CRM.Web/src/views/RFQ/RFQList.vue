@@ -1,5 +1,5 @@
 <template>
-  <div class="demand-list-page">
+  <div class="rfq-list-page">
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
@@ -187,7 +187,7 @@
 
         <el-table-column label="需求编号" width="160">
           <template #default="{ row }">
-            <span class="code-link" @click="handleView(row)">{{ row.demandCode || '—' }}</span>
+            <span class="code-link" @click="handleView(row)">{{ row.rfqCode || '—' }}</span>
           </template>
         </el-table-column>
 
@@ -202,7 +202,7 @@
 
         <el-table-column label="需求日期" width="120">
           <template #default="{ row }">
-            <span class="text-secondary">{{ formatDate(row.demandDate) }}</span>
+            <span class="text-secondary">{{ formatDate(row.rfqDate) }}</span>
           </template>
         </el-table-column>
 
@@ -339,7 +339,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElNotification, ElMessageBox } from 'element-plus'
-import { demandApi } from '@/api/demand'
+import { rfqApi } from '@/api/rfq'
 
 const router = useRouter()
 const loading = ref(false)
@@ -362,12 +362,12 @@ const searchForm = reactive({
 const assignDialogVisible = ref(false)
 const assignLoading = ref(false)
 const purchaserList = ref<any[]>([])
-const assignForm = reactive({ demandId: '', purchaserId: '', remark: '' })
+const assignForm = reactive({ rfqId: '', purchaserId: '', remark: '' })
 
 // 关闭需求
 const closeDialogVisible = ref(false)
 const closeLoading = ref(false)
-const closeForm = reactive({ demandId: '', closeType: 1, closeReason: '' })
+const closeForm = reactive({ rfqId: '', closeType: 1, closeReason: '' })
 
 const headerCellStyle = {
   background: 'rgba(0,0,0,0.15)',
@@ -401,7 +401,7 @@ function formatDate(val: string) {
 async function loadData() {
   loading.value = true
   try {
-    const res = await demandApi.searchDemands({
+    const res = await rfqApi.searchRFQs({
       pageNumber: currentPage.value,
       pageSize: pageSize.value,
       searchTerm: searchForm.keyword || undefined,
@@ -435,9 +435,9 @@ function handleReset() {
   loadData()
 }
 
-function handleCreate() { router.push('/demands/create') }
-function handleView(row: any) { router.push(`/demands/${row.id}`) }
-function handleEdit(row: any) { router.push(`/demands/${row.id}/edit`) }
+function handleCreate() { router.push('/rfqs/create') }
+function handleView(row: any) { router.push(`/rfqs/${row.id}`) }
+function handleEdit(row: any) { router.push(`/rfqs/${row.id}/edit`) }
 
 function handleExport() {
   ElNotification.info({ title: '功能开发中', message: '导出功能正在开发中，敬请期待' })
@@ -445,25 +445,25 @@ function handleExport() {
 
 async function handleCommand(cmd: string, row: any) {
   if (cmd === 'assign') {
-    assignForm.demandId = row.id
+    assignForm.rfqId = row.id
     assignForm.purchaserId = ''
     assignForm.remark = ''
     try {
-      const list = await demandApi.getPurchasers()
+      const list = await rfqApi.getPurchasers()
       purchaserList.value = list || []
     } catch { purchaserList.value = [] }
     assignDialogVisible.value = true
   } else if (cmd === 'close') {
-    closeForm.demandId = row.id
+    closeForm.rfqId = row.id
     closeForm.closeType = 1
     closeForm.closeReason = ''
     closeDialogVisible.value = true
   } else if (cmd === 'delete') {
     try {
-      await ElMessageBox.confirm(`确定删除需求「${row.demandCode}」吗？此操作不可撤销。`, '删除确认', {
+      await ElMessageBox.confirm(`确定删除需求「${row.rfqCode}」吗？此操作不可撤销。`, '删除确认', {
         confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'error'
       })
-      await demandApi.deleteDemand(row.id)
+      await rfqApi.deleteRFQ(row.id)
       ElNotification.success({ title: '删除成功', message: '需求已删除' })
       loadData()
     } catch { /* 取消 */ }
@@ -477,7 +477,7 @@ async function handleAssignConfirm() {
   }
   assignLoading.value = true
   try {
-    await demandApi.assignPurchaser(assignForm.demandId, { purchaserId: assignForm.purchaserId, remark: assignForm.remark })
+    await rfqApi.assignPurchaser(assignForm.rfqId, { purchaserId: assignForm.purchaserId, remark: assignForm.remark })
     ElNotification.success({ title: '分配成功', message: '采购员已成功分配' })
     assignDialogVisible.value = false
     loadData()
@@ -495,7 +495,7 @@ async function handleCloseConfirm() {
   }
   closeLoading.value = true
   try {
-    await demandApi.addCloseRecord(closeForm.demandId, { closeType: closeForm.closeType, closeReason: closeForm.closeReason })
+    await rfqApi.addCloseRecord(closeForm.rfqId, { closeType: closeForm.closeType, closeReason: closeForm.closeReason })
     ElNotification.success({ title: '操作成功', message: '需求已关闭' })
     closeDialogVisible.value = false
     loadData()
@@ -513,7 +513,7 @@ onMounted(loadData)
 @import '@/assets/styles/variables.scss';
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
-.demand-list-page {
+.rfq-list-page {
   padding: 24px;
   min-height: 100%;
   background: $layer-1;

@@ -1,5 +1,5 @@
 <template>
-  <div class="demand-detail-page">
+  <div class="rfq-detail-page">
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
@@ -9,37 +9,37 @@
           </svg>
           返回
         </button>
-        <div class="demand-title-group">
-          <div class="demand-avatar-lg">
+        <div class="rfq-title-group">
+          <div class="rfq-avatar-lg">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
             </svg>
           </div>
           <div>
-            <h1 class="page-title">{{ demand?.demandCode || '需求详情' }}</h1>
+            <h1 class="page-title">{{ rfq?.rfqCode || 'RFQ 详情' }}</h1>
             <div class="title-meta">
-              <span class="demand-code">{{ demand?.customerName }}</span>
-              <span class="status-badge" :class="`status-${demand?.status}`">{{ getStatusLabel(demand?.status) }}</span>
-              <span class="source-tag">{{ getSourceLabel(demand?.source) }}</span>
+              <span class="rfq-code">{{ rfq?.customerName }}</span>
+              <span class="status-badge" :class="`status-${rfq?.status}`">{{ getStatusLabel(rfq?.status) }}</span>
+              <span class="source-tag">{{ getSourceLabel(rfq?.source) }}</span>
             </div>
           </div>
         </div>
       </div>
       <div class="header-right">
-        <button class="btn-secondary" @click="handleEdit" v-if="demand?.status === 0 || demand?.status === 1">
+        <button class="btn-secondary" @click="handleEdit" v-if="rfq?.status === 0 || rfq?.status === 1">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
           编辑
         </button>
-        <button class="btn-secondary" @click="showAssignDialog" v-if="demand?.status !== 7 && demand?.status !== 8">
+        <button class="btn-secondary" @click="showAssignDialog" v-if="rfq?.status !== 7 && rfq?.status !== 8">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
           </svg>
           分配采购员
         </button>
-        <button class="btn-warning" @click="showCloseDialog" v-if="demand?.status !== 7 && demand?.status !== 8">
+        <button class="btn-warning" @click="showCloseDialog" v-if="rfq?.status !== 7 && rfq?.status !== 8">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
           </svg>
@@ -56,7 +56,7 @@
     </div>
 
     <div v-loading="loading" element-loading-background="rgba(10,22,40,0.8)" class="detail-content">
-      <template v-if="demand">
+      <template v-if="rfq">
         <!-- 基本信息 -->
         <div class="info-section">
           <div class="section-header">
@@ -66,49 +66,49 @@
           <div class="info-grid">
             <div class="info-item">
               <span class="info-label">需求编号</span>
-              <span class="info-value info-value--code">{{ demand.demandCode || '—' }}</span>
+              <span class="info-value info-value--code">{{ rfq.rfqCode || '—' }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">客户名称</span>
-              <span class="info-value">{{ demand.customerName || '—' }}</span>
+              <span class="info-value">{{ rfq.customerName || '—' }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">业务员</span>
-              <span class="info-value">{{ demand.salesUserName || '—' }}</span>
+              <span class="info-value">{{ rfq.salesUserName || '—' }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">需求日期</span>
-              <span class="info-value info-value--time">{{ formatDate(demand.demandDate) }}</span>
+              <span class="info-value info-value--time">{{ formatDate(rfq.rfqDate) }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">期望交货日期</span>
-              <span class="info-value info-value--time">{{ formatDate(demand.expectedDeliveryDate) }}</span>
+              <span class="info-value info-value--time">{{ formatDate(rfq.expectedDeliveryDate) }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">结算货币</span>
-              <span class="info-value">{{ demand.currency || '—' }}</span>
+              <span class="info-value">{{ rfq.currency || '—' }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">需求来源</span>
-              <span class="info-value">{{ getSourceLabel(demand.source) }}</span>
+              <span class="info-value">{{ getSourceLabel(rfq.source) }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">质量要求</span>
-              <span class="info-value">{{ demand.qualityRequirement || '—' }}</span>
+              <span class="info-value">{{ rfq.qualityRequirement || '—' }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">认证要求</span>
-              <span class="info-value">{{ demand.certificationRequirement || '—' }}</span>
+              <span class="info-value">{{ rfq.certificationRequirement || '—' }}</span>
             </div>
             <div class="info-item" style="grid-column: span 3">
               <span class="info-label">备注</span>
-              <span class="info-value">{{ demand.remark || '—' }}</span>
+              <span class="info-value">{{ rfq.remark || '—' }}</span>
             </div>
           </div>
         </div>
 
         <!-- 采购员分配信息 -->
-        <div class="info-section" v-if="demand.purchaserName">
+        <div class="info-section" v-if="rfq.purchaserName">
           <div class="section-header">
             <div class="section-dot section-dot--cyan"></div>
             <span class="section-title">采购员信息</span>
@@ -116,15 +116,15 @@
           <div class="info-grid">
             <div class="info-item">
               <span class="info-label">当前采购员</span>
-              <span class="info-value">{{ demand.purchaserName }}</span>
+              <span class="info-value">{{ rfq.purchaserName }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">分配时间</span>
-              <span class="info-value info-value--time">{{ formatDate(demand.assignedAt) }}</span>
+              <span class="info-value info-value--time">{{ formatDate(rfq.assignedAt) }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">处理状态</span>
-              <span class="info-value">{{ getPurchaserStatusLabel(demand.purchaserStatus) }}</span>
+              <span class="info-value">{{ getPurchaserStatusLabel(rfq.purchaserStatus) }}</span>
             </div>
           </div>
         </div>
@@ -146,7 +146,7 @@
             <!-- 需求明细 -->
             <div v-if="activeTab === 'items'">
               <div class="tab-toolbar">
-                <span class="cell-muted">共 {{ demandItems.length }} 条明细</span>
+                <span class="cell-muted">共 {{ rfqItems.length }} 条明细</span>
                 <button class="btn-add-item" @click="loadItems" style="margin-left: auto;">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/>
@@ -155,7 +155,7 @@
                 </button>
               </div>
               <el-table
-                :data="demandItems"
+                :data="rfqItems"
                 v-loading="itemsLoading"
                 class="quantum-table"
                 :header-cell-style="headerCellStyle"
@@ -287,21 +287,21 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElNotification, ElMessageBox } from 'element-plus'
-import { demandApi } from '@/api/demand'
+import { rfqApi } from '@/api/rfq'
 
 const route = useRoute()
 const router = useRouter()
-const demandId = route.params.id as string
+const rfqId = route.params.id as string
 
 const loading = ref(false)
-const demand = ref<any>(null)
-const demandItems = ref<any[]>([])
+const rfq = ref<any>(null)
+const rfqItems = ref<any[]>([])
 const closeRecords = ref<any[]>([])
 const itemsLoading = ref(false)
 const activeTab = ref('items')
 
 const tabs = computed(() => [
-  { key: 'items', label: '需求明细', count: demandItems.value.length },
+  { key: 'items', label: '需求明细', count: rfqItems.value.length },
   { key: 'closeRecords', label: '关闭记录', count: closeRecords.value.length }
 ])
 
@@ -348,25 +348,25 @@ function getCloseTypeLabel(type?: number) {
   return type !== undefined ? (map[type] ?? '—') : '—'
 }
 function formatDate(val?: string) { if (!val) return '—'; return val.split('T')[0] }
-function goBack() { router.push('/demands') }
-function handleEdit() { router.push(`/demands/${demandId}/edit`) }
+function goBack() { router.push('/rfqs') }
+function handleEdit() { router.push(`/rfqs/${rfqId}/edit`) }
 
-async function loadDemand() {
+async function loadRFQ() {
   loading.value = true
-  try { demand.value = await demandApi.getDemandDetail(demandId) }
+  try { rfq.value = await rfqApi.getRFQDetail(rfqId) }
   catch { ElNotification.error({ title: '加载失败', message: '需求详情加载失败，请检查网络连接' }) }
   finally { loading.value = false }
 }
 
 async function loadItems() {
   itemsLoading.value = true
-  try { const res = await demandApi.getDemandItemsWithBestQuote(demandId); demandItems.value = res || [] }
-  catch { demandItems.value = [] }
+  try { const res = await rfqApi.getRFQItemsWithBestQuote(rfqId); rfqItems.value = res || [] }
+  catch { rfqItems.value = [] }
   finally { itemsLoading.value = false }
 }
 
 async function loadCloseRecords() {
-  try { const res = await demandApi.getCloseRecords(demandId); closeRecords.value = res || [] }
+  try { const res = await rfqApi.getCloseRecords(rfqId); closeRecords.value = res || [] }
   catch { closeRecords.value = [] }
 }
 
@@ -374,8 +374,8 @@ async function showAssignDialog() {
   assignForm.purchaserId = ''; assignForm.remark = ''; recommendedPurchaser.value = null
   try {
     const [list, recommended] = await Promise.all([
-      demandApi.getPurchasers(),
-      demandApi.getRecommendedPurchasers(demandId)
+      rfqApi.getPurchasers(),
+      rfqApi.getRecommendedPurchasers(rfqId)
     ])
     purchaserList.value = list || []; recommendedPurchaser.value = recommended
   } catch { purchaserList.value = [] }
@@ -393,9 +393,9 @@ async function handleAssignConfirm() {
   }
   assignLoading.value = true
   try {
-    await demandApi.assignPurchaser(demandId, { purchaserId: assignForm.purchaserId, remark: assignForm.remark })
+    await rfqApi.assignPurchaser(rfqId, { purchaserId: assignForm.purchaserId, remark: assignForm.remark })
     ElNotification.success({ title: '分配成功', message: '采购员已成功分配' })
-    assignDialogVisible.value = false; loadDemand()
+    assignDialogVisible.value = false; loadRFQ()
   } catch { ElNotification.error({ title: '分配失败', message: '采购员分配失败，请重试' }) }
   finally { assignLoading.value = false }
 }
@@ -406,9 +406,9 @@ async function handleCloseConfirm() {
   }
   closeLoading.value = true
   try {
-    await demandApi.addCloseRecord(demandId, { closeType: closeForm.closeType, closeReason: closeForm.reason })
+    await rfqApi.addCloseRecord(rfqId, { closeType: closeForm.closeType, closeReason: closeForm.reason })
     ElNotification.success({ title: '操作成功', message: '需求已关闭' })
-    closeDialogVisible.value = false; loadDemand(); loadCloseRecords()
+    closeDialogVisible.value = false; loadRFQ(); loadCloseRecords()
   } catch { ElNotification.error({ title: '操作失败', message: '关闭需求失败，请重试' }) }
   finally { closeLoading.value = false }
 }
@@ -416,24 +416,24 @@ async function handleCloseConfirm() {
 async function handleDelete() {
   try {
     await ElMessageBox.confirm(
-      `确定删除需求「${demand.value?.demandCode}」吗？此操作不可撤销。`,
+      `确定删除需求「${rfq.value?.rfqCode}」吗？此操作不可撤销。`,
       '删除确认',
       { confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'error' }
     )
-    await demandApi.deleteDemand(demandId)
+    await rfqApi.deleteRFQ(rfqId)
     ElNotification.success({ title: '删除成功', message: '需求已删除' })
-    router.push('/demands')
+    router.push('/rfqs')
   } catch { /* 取消 */ }
 }
 
-onMounted(() => { loadDemand(); loadItems(); loadCloseRecords() })
+onMounted(() => { loadRFQ(); loadItems(); loadCloseRecords() })
 </script>
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
-.demand-detail-page {
+.rfq-detail-page {
   padding: 24px;
   min-height: 100%;
   background: $layer-1;
@@ -466,13 +466,13 @@ onMounted(() => { loadDemand(); loadItems(); loadCloseRecords() })
   &:hover { background: rgba(255,255,255,0.07); color: $text-secondary; border-color: rgba(0,212,255,0.2); }
 }
 
-.demand-title-group {
+.rfq-title-group {
   display: flex;
   align-items: center;
   gap: 14px;
 }
 
-.demand-avatar-lg {
+.rfq-avatar-lg {
   width: 48px;
   height: 48px;
   background: linear-gradient(135deg, rgba(0,102,255,0.3), rgba(0,212,255,0.2));
@@ -499,7 +499,7 @@ onMounted(() => { loadDemand(); loadItems(); loadCloseRecords() })
   gap: 8px;
 }
 
-.demand-code {
+.rfq-code {
   font-size: 13px;
   color: $text-secondary;
 }

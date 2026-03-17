@@ -1,9 +1,9 @@
 // ============================================================
-// 需求管理模块 - 类型定义
+// RFQ（需求询价）管理模块 - 类型定义
 // ============================================================
 
-// 需求流转状态
-export enum DemandStatus {
+// RFQ 流转状态
+export enum RFQStatus {
   Draft = 0,        // 草稿
   Pending = 1,      // 待处理
   Assigned = 2,     // 已分配
@@ -15,8 +15,8 @@ export enum DemandStatus {
   Cancelled = 8,    // 已取消
 }
 
-// 需求明细状态
-export enum DemandItemStatus {
+// RFQ 明细状态
+export enum RFQItemStatus {
   Pending = 0,      // 待报价
   Quoted = 1,       // 已报价
   Accepted = 2,     // 已接受
@@ -32,8 +32,8 @@ export enum PurchaserHandleStatus {
   Deferred = 3,     // 已推迟
 }
 
-// 需求来源
-export enum DemandSource {
+// RFQ 来源
+export enum RFQSource {
   Manual = 1,       // 手动录入
   Import = 2,       // 导入
   Email = 3,        // 邮件
@@ -41,18 +41,18 @@ export enum DemandSource {
   Phone = 5,        // 电话
 }
 
-// 需求主表
-export interface Demand {
+// RFQ 主表
+export interface RFQ {
   id: string
-  demandCode: string
+  rfqCode: string
   customerId: string
   customerName?: string
   salesUserId?: string
   salesUserName?: string
-  demandDate: string
+  rfqDate: string
   expectedDeliveryDate?: string
-  status: DemandStatus
-  source?: DemandSource
+  status: RFQStatus
+  source?: RFQSource
   currency?: string
   paymentTerms?: string
   shippingMethod?: number
@@ -67,23 +67,25 @@ export interface Demand {
   createdAt?: string
   updatedAt?: string
   createdBy?: string
-  items?: DemandItem[]
+  items?: RFQItem[]
 }
 
-// 需求明细
-export interface DemandItem {
+// RFQ 明细
+export interface RFQItem {
   id: string
-  demandId: string
+  rfqId: string
   lineNo: number
   materialId?: string
   materialCode?: string
   materialName?: string
   materialModel?: string
+  specification?: string
   customerMaterialCode?: string
   description?: string
   quantity: number
   unit?: string
   targetPrice?: number
+  targetUnitPrice?: number
   targetAmount?: number
   quotedPrice?: number
   quotedAmount?: number
@@ -96,15 +98,15 @@ export interface DemandItem {
   moq?: number
   packagingSpec?: string
   remark?: string
-  status: DemandItemStatus
+  status: RFQItemStatus
   bestQuotePrice?: number
   bestQuoteSupplier?: string
 }
 
 // 采购员分配记录
-export interface DemandAssignment {
+export interface RFQAssignment {
   id: string
-  demandId: string
+  rfqId: string
   purchaserId: string
   purchaserName?: string
   purchaserEmail?: string
@@ -113,10 +115,10 @@ export interface DemandAssignment {
   remark?: string
 }
 
-// 需求关闭记录
-export interface DemandCloseRecord {
+// RFQ 关闭记录
+export interface RFQCloseRecord {
   id: string
-  demandId: string
+  rfqId: string
   closeReason: string
   closeType: number
   closedBy?: string
@@ -147,15 +149,15 @@ export interface AssignmentStatistics {
 // 请求/响应类型
 // ============================================================
 
-// 需求列表查询请求
-export interface DemandSearchRequest {
+// RFQ 列表查询请求
+export interface RFQSearchRequest {
   pageNumber?: number
   pageSize?: number
   searchTerm?: string
   customerId?: string
   salesUserId?: string
-  status?: DemandStatus | ''
-  source?: DemandSource | ''
+  status?: RFQStatus | ''
+  source?: RFQSource | ''
   isImportant?: boolean
   startDate?: string
   endDate?: string
@@ -163,44 +165,44 @@ export interface DemandSearchRequest {
   sortDescending?: boolean
 }
 
-// 需求列表响应
-export interface DemandSearchResponse {
-  items: Demand[]
+// RFQ 列表响应
+export interface RFQSearchResponse {
+  items: RFQ[]
   totalCount: number
   pageNumber: number
   pageSize: number
   totalPages: number
 }
 
-// 需求明细查询请求
-export interface DemandItemSearchRequest {
+// RFQ 明细查询请求
+export interface RFQItemSearchRequest {
   pageNumber?: number
   pageSize?: number
-  demandId?: string
+  rfqId?: string
   customerId?: string
   materialCode?: string
   materialName?: string
-  status?: DemandItemStatus | ''
+  status?: RFQItemStatus | ''
   startDate?: string
   endDate?: string
 }
 
-// 需求明细列表响应
-export interface DemandItemSearchResponse {
-  items: DemandItem[]
+// RFQ 明细列表响应
+export interface RFQItemSearchResponse {
+  items: RFQItem[]
   totalCount: number
   pageNumber: number
   pageSize: number
   totalPages: number
 }
 
-// 新增需求请求
-export interface CreateDemandRequest {
+// 新增 RFQ 请求
+export interface CreateRFQRequest {
   customerId: string
   salesUserId?: string
-  demandDate: string
+  rfqDate: string
   expectedDeliveryDate?: string
-  source?: DemandSource
+  source?: RFQSource
   currency?: string
   paymentTerms?: string
   shippingMethod?: number
@@ -208,11 +210,11 @@ export interface CreateDemandRequest {
   qualityRequirements?: string
   certificationRequirements?: string
   remark?: string
-  items: CreateDemandItemRequest[]
+  items: CreateRFQItemRequest[]
 }
 
-// 新增需求明细请求
-export interface CreateDemandItemRequest {
+// 新增 RFQ 明细请求
+export interface CreateRFQItemRequest {
   lineNo?: number
   materialCode?: string
   materialName?: string
@@ -232,12 +234,12 @@ export interface CreateDemandItemRequest {
   remark?: string
 }
 
-// 更新需求请求
-export interface UpdateDemandRequest {
+// 更新 RFQ 请求
+export interface UpdateRFQRequest {
   customerId?: string
   salesUserId?: string
   expectedDeliveryDate?: string
-  source?: DemandSource
+  source?: RFQSource
   currency?: string
   paymentTerms?: string
   shippingMethod?: number
@@ -246,12 +248,12 @@ export interface UpdateDemandRequest {
   certificationRequirements?: string
   remark?: string
   isImportant?: boolean
-  items?: CreateDemandItemRequest[]
+  items?: CreateRFQItemRequest[]
 }
 
 // 变更状态请求
-export interface UpdateDemandStatusRequest {
-  status: DemandStatus
+export interface UpdateRFQStatusRequest {
+  status: RFQStatus
   remark?: string
 }
 
@@ -261,8 +263,8 @@ export interface AssignPurchaserRequest {
   remark?: string
 }
 
-// 关闭需求请求
-export interface CloseDemandRequest {
+// 关闭 RFQ 请求
+export interface CloseRFQRequest {
   closeReason: string
   closeType: number
   remark?: string
@@ -279,7 +281,7 @@ export interface CheckDuplicateMaterialRequest {
 // 重复物料检查响应
 export interface CheckDuplicateMaterialResponse {
   isDuplicate: boolean
-  existingDemandId?: string
-  existingDemandCode?: string
+  existingRFQId?: string
+  existingRFQCode?: string
   message?: string
 }

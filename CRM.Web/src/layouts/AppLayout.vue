@@ -111,14 +111,14 @@
         <!-- 智能采购 -->
         <div class="menu-section-label" v-if="!isCollapsed">智能采购</div>
 
-        <router-link to="/demands" class="menu-item" active-class="active">
+        <router-link to="/rfqs" class="menu-item" active-class="active">
           <span class="menu-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <circle cx="12" cy="12" r="10"/>
               <path d="M12 8v4l3 3"/>
             </svg>
           </span>
-          <span class="menu-label" v-if="!isCollapsed">需求管理</span>
+          <span class="menu-label" v-if="!isCollapsed">RFQ 管理</span>
           <span class="active-dot" v-if="!isCollapsed"></span>
         </router-link>
 
@@ -300,7 +300,7 @@ const pageTitleMap: Record<string, string> = {
   '/suppliers': '供应商管理',
   '/reports': '报表分析',
   '/dashboard/settings': '系统设置',
-  '/smart/demand': '需求管理',
+  '/rfqs': 'RFQ 管理',
   '/smart/quote-match': '需求匹配报价',
   '/smart/bom-quote': 'BOM 批量报价',
 }
