@@ -111,7 +111,7 @@
         <!-- 智能采购 -->
         <div class="menu-section-label" v-if="!isCollapsed">智能采购</div>
 
-        <button class="menu-item" @click="handleUnimplemented('需求管理')">
+        <router-link to="/demands" class="menu-item" active-class="active">
           <span class="menu-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <circle cx="12" cy="12" r="10"/>
@@ -119,7 +119,8 @@
             </svg>
           </span>
           <span class="menu-label" v-if="!isCollapsed">需求管理</span>
-        </button>
+          <span class="active-dot" v-if="!isCollapsed"></span>
+        </router-link>
 
         <button class="menu-item" @click="handleUnimplemented('需求匹配报价')">
           <span class="menu-icon">
