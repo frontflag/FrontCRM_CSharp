@@ -394,6 +394,11 @@ const handleRowClick = (row: Customer) => handleView(row);
 
 const handleStatusChange = async (row: Customer, val: boolean) => {
   try {
+    await ElMessageBox.confirm(
+      `确定要${val ? '启用' : '停用'}客户「${row.customerName}」吗？`,
+      `确认${val ? '启用' : '停用'}`,
+      { type: val ? 'info' : 'warning', confirmButtonText: '确定', cancelButtonText: '取消' }
+    );
     if (val) {
       await customerApi.activateCustomer(row.id!);
     } else {
@@ -402,7 +407,6 @@ const handleStatusChange = async (row: Customer, val: boolean) => {
     ElNotification.success({ title: '操作成功', message: `客户已${val ? '启用' : '停用'}` });
   } catch {
     row.isActive = !val;
-    ElNotification.error({ title: '操作失败', message: '状态更改失败，请稍后重试' });
   }
 };
 

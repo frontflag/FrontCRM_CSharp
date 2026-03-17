@@ -532,8 +532,8 @@ const handleRemoveBlacklist = async () => {
 
 const goBack = () => router.push('/customers');
 const handleEdit = () => router.push(`/customers/${customerId}/edit`);
-const handleCreateQuote = () => router.push(`/quotes/create?customerId=${customerId}`);
-const handleCreateOrder = () => router.push(`/orders/create?customerId=${customerId}`);
+const handleCreateQuote = () => ElNotification.info({ title: '功能开发中', message: '报价单功能正在开发中，敬请期待' });
+const handleCreateOrder = () => ElNotification.info({ title: '功能开发中', message: '订单功能正在开发中，敬请期待' });
 
 const editContact = (contact: CustomerContactInfo) => { editingContact.value = contact; showContactDialog.value = true; };
 const deleteContact = async (contact: CustomerContactInfo) => {
