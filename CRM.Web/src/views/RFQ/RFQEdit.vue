@@ -18,10 +18,16 @@
           </div>
           <h1 class="page-title">{{ isEdit ? '编辑需求' : '新增需求' }}</h1>
         </div>
+        <!-- 编辑模式下显示单号和状态 -->
+        <template v-if="isEdit && formData.rfqCode">
+          <span class="rfq-code-badge">需求单号：{{ formData.rfqCode }}</span>
+          <span class="status-chip status-chip--new">新建</span>
+          <span v-if="formData.source === 1" class="source-chip">线下</span>
+        </template>
       </div>
       <div class="header-right">
-        <button class="btn-secondary" @click="handleSave(false)" :disabled="saving">取消</button>
-        <button class="btn-primary" @click="handleSave(true)" :disabled="saving">
+        <button class="btn-secondary" @click="goBack" :disabled="saving">取消</button>
+        <button class="btn-primary" @click="handleSave" :disabled="saving">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
             <polyline points="17 21 17 13 7 13 7 21"/>
@@ -32,6 +38,29 @@
       </div>
     </div>
 
+    <!-- 汇率信息栏 -->
+    <div class="exchange-bar">
+      <div class="exchange-item">
+        <span class="exchange-label">人民币汇率</span>
+        <span class="exchange-value">{{ formData.exchangeRateCNY || '6.9228' }}</span>
+      </div>
+      <div class="exchange-divider"></div>
+      <div class="exchange-item">
+        <span class="exchange-label">港币汇率</span>
+        <span class="exchange-value">{{ formData.exchangeRateHKD || '7.8238' }}</span>
+      </div>
+      <div class="exchange-divider"></div>
+      <div class="exchange-item">
+        <span class="exchange-label">欧元汇率</span>
+        <span class="exchange-value">{{ formData.exchangeRateEUR || '0.8525' }}</span>
+      </div>
+      <div class="exchange-divider"></div>
+      <div class="exchange-item">
+        <span class="exchange-label">含税汇率</span>
+        <span class="exchange-value">{{ formData.exchangeRateTax || '7.8619' }}</span>
+      </div>
+    </div>
+
     <el-form
       ref="formRef"
       :model="formData"
@@ -39,25 +68,16 @@
       label-width="110px"
       class="rfq-form"
     >
-      <!-- 基本信息 -->
+      <!-- ① 基础信息 -->
       <div class="form-section">
         <div class="section-header">
           <div class="section-dot section-dot--cyan"></div>
-          <span class="section-title">基本信息</span>
+          <span class="section-title">基础信息</span>
         </div>
         <div class="section-body">
           <el-row :gutter="20">
-            <el-col :span="8">
-              <el-form-item label="需求编号">
-                <el-input
-                  v-model="formData.rfqCode"
-                  placeholder="保存后自动生成"
-                  disabled
-                  class="q-input"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
+            <!-- 客户 -->
+            <el-col :span="6">
               <el-form-item label="客户" prop="customerId">
                 <el-select
                   v-model="formData.customerId"
@@ -68,109 +88,164 @@
                   :remote-method="searchCustomers"
                   :loading="customerSearchLoading"
                   loading-text="搜索中..."
-                  no-data-text="未找到匹配客户，请输入名称搜索"
+                  no-data-text="未找到匹配客户"
                   class="q-select"
                   @change="onCustomerChange"
                 >
-                  <el-option
-                    v-for="c in customerOptions"
-                    :key="c.value"
-                    :label="c.label"
-                    :value="c.value"
-                  />
+                  <el-option v-for="c in customerOptions" :key="c.value" :label="c.label" :value="c.value" />
                 </el-select>
               </el-form-item>
             </el-col>
-            <el-col :span="8">
-              <el-form-item label="需求日期" prop="rfqDate">
-                <el-date-picker
-                  v-model="formData.rfqDate"
-                  type="date"
-                  placeholder="选择日期"
+            <!-- 客户联系人 -->
+            <el-col :span="6">
+              <el-form-item label="客户联系人" prop="contactPersonId">
+                <el-select
+                  v-model="formData.contactPersonId"
+                  placeholder="选择联系人"
                   style="width: 100%"
-                  format="YYYY-MM-DD"
-                  value-format="YYYY-MM-DD"
-                  class="q-input"
-                />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-row :gutter="20">
-            <el-col :span="8">
-              <el-form-item label="期望交货日期">
-                <el-date-picker
-                  v-model="formData.expectedDeliveryDate"
-                  type="date"
-                  placeholder="选择日期"
-                  style="width: 100%"
-                  format="YYYY-MM-DD"
-                  value-format="YYYY-MM-DD"
-                  class="q-input"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="需求来源">
-                <el-select v-model="formData.source" placeholder="请选择" style="width: 100%" class="q-select">
-                  <el-option label="手动录入" :value="1" />
-                  <el-option label="导入" :value="2" />
-                  <el-option label="邮件" :value="3" />
-                  <el-option label="在线" :value="4" />
-                  <el-option label="电话" :value="5" />
+                  filterable
+                  clearable
+                  class="q-select"
+                  @change="onContactChange"
+                >
+                  <el-option v-for="p in contactOptions" :key="p.value" :label="p.label" :value="p.value" />
                 </el-select>
               </el-form-item>
             </el-col>
-            <el-col :span="8">
-              <el-form-item label="结算货币">
-                <el-select v-model="formData.currency" placeholder="请选择" style="width: 100%" class="q-select">
-                  <el-option label="人民币(CNY)" value="CNY" />
-                  <el-option label="美元(USD)" value="USD" />
-                  <el-option label="欧元(EUR)" value="EUR" />
-                  <el-option label="港币(HKD)" value="HKD" />
-                </el-select>
+            <!-- 联系人邮箱 -->
+            <el-col :span="6">
+              <el-form-item label="联系人邮箱">
+                <div class="email-field">
+                  <el-input v-model="formData.contactPersonEmail" placeholder="请输入联系人邮箱" class="q-input" />
+                  <button type="button" class="btn-update-email" @click="updateContactEmail" v-if="formData.contactPersonId">
+                    更新客户联系人邮箱
+                  </button>
+                </div>
               </el-form-item>
             </el-col>
-          </el-row>
-          <el-row :gutter="20">
-            <el-col :span="8">
-              <el-form-item label="账期(天)">
-                <el-input v-model="formData.paymentTerms" placeholder="如: 30天账期" class="q-input" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="质量要求">
-                <el-input v-model="formData.qualityRequirements" placeholder="质量要求（可选）" class="q-input" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="认证要求">
-                <el-input v-model="formData.certificationRequirements" placeholder="认证要求（可选）" class="q-input" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-row :gutter="20">
-            <el-col :span="24">
-              <el-form-item label="备注">
-                <el-input
-                  v-model="formData.remarks"
-                  type="textarea"
-                  :rows="3"
-                  placeholder="备注（可选）"
-                  class="q-input"
-                />
+            <!-- 业务员 -->
+            <el-col :span="6">
+              <el-form-item label="业务员" prop="salesUserId">
+                <el-input v-model="formData.salesUserName" placeholder="业务员" class="q-input" disabled />
               </el-form-item>
             </el-col>
           </el-row>
         </div>
       </div>
 
-      <!-- 需求明细 -->
+      <!-- ② 需求信息 -->
+      <div class="form-section">
+        <div class="section-header">
+          <div class="section-dot section-dot--cyan"></div>
+          <span class="section-title">需求信息</span>
+        </div>
+        <div class="section-body">
+          <el-row :gutter="20">
+            <!-- 需求类型 -->
+            <el-col :span="6">
+              <el-form-item label="需求类型" prop="rfqType">
+                <el-select v-model="formData.rfqType" placeholder="请选择" style="width: 100%" class="q-select">
+                  <el-option label="现货" :value="1" />
+                  <el-option label="期货" :value="2" />
+                  <el-option label="样品" :value="3" />
+                  <el-option label="批量" :value="4" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <!-- 报价方式 -->
+            <el-col :span="6">
+              <el-form-item label="报价方式" prop="quoteMethod">
+                <el-select v-model="formData.quoteMethod" placeholder="请选择" style="width: 100%" class="q-select">
+                  <el-option label="不接受任何消息" :value="1" />
+                  <el-option label="仅邮件" :value="2" />
+                  <el-option label="仅系统" :value="3" />
+                  <el-option label="全部方式" :value="4" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <!-- 分配方式 -->
+            <el-col :span="6">
+              <el-form-item label="分配方式" prop="assignMethod">
+                <el-select v-model="formData.assignMethod" placeholder="请选择" style="width: 100%" class="q-select">
+                  <el-option label="系统分配多人采购" :value="1" />
+                  <el-option label="系统分配单人采购" :value="2" />
+                  <el-option label="手动分配" :value="3" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <!-- 行业 -->
+            <el-col :span="6">
+              <el-form-item label="行业">
+                <el-input v-model="formData.industry" placeholder="请输入行业" class="q-input" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <!-- 产品 -->
+            <el-col :span="6">
+              <el-form-item label="产品" prop="product">
+                <el-input v-model="formData.product" placeholder="请输入产品" class="q-input" />
+              </el-form-item>
+            </el-col>
+            <!-- 目标类型 -->
+            <el-col :span="6">
+              <el-form-item label="目标类型" prop="targetType">
+                <el-select v-model="formData.targetType" placeholder="请选择" style="width: 100%" class="q-select">
+                  <el-option label="比价需求" :value="1" />
+                  <el-option label="独家需求" :value="2" />
+                  <el-option label="紧急需求" :value="3" />
+                  <el-option label="常规需求" :value="4" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <!-- 重要程度 -->
+            <el-col :span="6">
+              <el-form-item label="重要程度" prop="importanceLevel">
+                <el-input-number
+                  v-model="formData.importanceLevel"
+                  :min="1"
+                  :max="10"
+                  :precision="0"
+                  style="width: 100%"
+                  class="q-number"
+                  placeholder="1-10"
+                />
+              </el-form-item>
+            </el-col>
+            <!-- 最后一次询价 -->
+            <el-col :span="6">
+              <el-form-item label="最后一次询价">
+                <el-switch v-model="formData.isLastQuote" class="q-switch" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <!-- 项目背景 -->
+            <el-col :span="12">
+              <el-form-item label="项目背景">
+                <el-input v-model="formData.projectBackground" placeholder="请输入项目背景（可选）" class="q-input" />
+              </el-form-item>
+            </el-col>
+            <!-- 竞争对手 -->
+            <el-col :span="12">
+              <el-form-item label="竞争对手">
+                <el-input v-model="formData.competitor" placeholder="请输入竞争对手（可选）" class="q-input" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </div>
+      </div>
+
+      <!-- ③ 物料明细 -->
       <div class="form-section">
         <div class="section-header">
           <div class="section-dot section-dot--amber"></div>
-          <span class="section-title">需求明细</span>
+          <span class="section-title">物料明细</span>
+          <span class="item-count-badge" v-if="formData.items.length > 0">
+            当前 1/{{ formData.items.length }} 条明细
+          </span>
           <div class="section-actions">
-            <button type="button" class="btn-check-dup" @click="checkDuplicates" v-if="formData.items.length > 0">
+            <button type="button" class="btn-check-dup" @click="checkDuplicates" v-if="formData.customerId && formData.items.length > 0">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
@@ -180,7 +255,7 @@
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
-              添加明细
+              添加明细行
             </button>
           </div>
         </div>
@@ -191,7 +266,7 @@
               <rect x="3" y="3" width="18" height="18" rx="2"/>
               <path d="M3 9h18M9 21V9"/>
             </svg>
-            <p>暂无明细，点击右上角"添加明细"按钮添加</p>
+            <p>暂无明细，点击右上角"添加明细行"按钮添加</p>
           </div>
 
           <!-- 明细列表 -->
@@ -222,35 +297,79 @@
               </div>
             </div>
 
+            <!-- 第一行：物料型号、客户品牌、品牌 -->
             <el-row :gutter="16">
               <el-col :span="6">
                 <el-form-item
-                  label="物料编码"
-                  :prop="`items.${index}.materialCode`"
-                  :rules="[{ required: true, message: '请输入物料编码', trigger: 'blur' }]"
+                  label="客户物料型号"
+                  :prop="`items.${index}.customerMaterialModel`"
                 >
-                  <el-input v-model="item.materialCode" placeholder="物料编码" class="q-input" />
+                  <el-input
+                    v-model="item.customerMaterialModel"
+                    placeholder="客户物料型号"
+                    class="q-input"
+                    maxlength="32"
+                    show-word-limit
+                  />
                 </el-form-item>
               </el-col>
               <el-col :span="6">
-                <el-form-item label="物料名称">
-                  <el-input v-model="item.materialName" placeholder="物料名称" class="q-input" />
+                <el-form-item
+                  label="物料型号"
+                  :prop="`items.${index}.materialModel`"
+                  :rules="[{ required: true, message: '请输入物料型号', trigger: 'blur' }]"
+                >
+                  <el-input v-model="item.materialModel" placeholder="物料型号" class="q-input" />
                 </el-form-item>
               </el-col>
               <el-col :span="6">
-                <el-form-item label="规格型号">
-                  <el-input v-model="item.specification" placeholder="规格型号" class="q-input" />
+                <el-form-item
+                  label="客户品牌"
+                  :prop="`items.${index}.customerBrand`"
+                  :rules="[{ required: true, message: '请输入客户品牌', trigger: 'blur' }]"
+                >
+                  <el-input v-model="item.customerBrand" placeholder="客户品牌" class="q-input" />
                 </el-form-item>
               </el-col>
               <el-col :span="6">
-                <el-form-item label="客户物料码">
-                  <el-input v-model="item.customerMaterialCode" placeholder="客户物料码" class="q-input" />
+                <el-form-item
+                  label="品牌"
+                  :prop="`items.${index}.brand`"
+                  :rules="[{ required: true, message: '请输入品牌', trigger: 'blur' }]"
+                >
+                  <el-input v-model="item.brand" placeholder="品牌（如 VISHAY/威世）" class="q-input" />
                 </el-form-item>
               </el-col>
             </el-row>
 
+            <!-- 第二行：目标价、数量、生产日期、失效日期 -->
             <el-row :gutter="16">
-              <el-col :span="4">
+              <el-col :span="6">
+                <el-form-item
+                  label="目标价"
+                  :prop="`items.${index}.targetPrice`"
+                  :rules="[{ required: true, message: '请输入目标价', trigger: 'blur' }]"
+                >
+                  <div class="price-field">
+                    <el-input-number
+                      v-model="item.targetPrice"
+                      :min="0"
+                      :precision="4"
+                      :controls="false"
+                      style="width: 100%"
+                      class="q-number"
+                      placeholder="0"
+                    />
+                    <el-select v-model="item.currency" style="width: 80px; flex-shrink: 0" class="q-select currency-select">
+                      <el-option label="RMB" value="CNY" />
+                      <el-option label="USD" value="USD" />
+                      <el-option label="EUR" value="EUR" />
+                      <el-option label="HKD" value="HKD" />
+                    </el-select>
+                  </div>
+                </el-form-item>
+              </el-col>
+              <el-col :span="6">
                 <el-form-item
                   label="数量"
                   :prop="`items.${index}.quantity`"
@@ -258,53 +377,24 @@
                 >
                   <el-input-number
                     v-model="item.quantity"
-                    :min="0.0001"
-                    :precision="4"
-                    style="width: 100%"
-                    class="q-number"
-                  />
-                </el-form-item>
-              </el-col>
-              <el-col :span="4">
-                <el-form-item label="单位">
-                  <el-select v-model="item.unit" placeholder="单位" style="width: 100%" class="q-select">
-                    <el-option label="PCS" value="PCS" />
-                    <el-option label="SET" value="SET" />
-                    <el-option label="KG" value="KG" />
-                    <el-option label="M" value="M" />
-                    <el-option label="BOX" value="BOX" />
-                    <el-option label="ROLL" value="ROLL" />
-                    <el-option label="其他" value="OTHER" />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-              <el-col :span="4">
-                <el-form-item label="目标单价">
-                  <el-input-number
-                    v-model="item.targetUnitPrice"
                     :min="0"
-                    :precision="4"
+                    :precision="0"
                     style="width: 100%"
                     class="q-number"
                   />
                 </el-form-item>
               </el-col>
-              <el-col :span="4">
-                <el-form-item label="品牌要求">
-                  <el-input v-model="item.brandRequirement" placeholder="品牌要求" class="q-input" />
+              <el-col :span="6">
+                <el-form-item label="生产日期">
+                  <el-input v-model="item.productionDate" placeholder="如：2年内" class="q-input" />
                 </el-form-item>
               </el-col>
-              <el-col :span="4">
-                <el-form-item label="产地要求">
-                  <el-input v-model="item.originRequirement" placeholder="产地要求" class="q-input" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="4">
-                <el-form-item label="交货日期">
+              <el-col :span="6">
+                <el-form-item label="失效日期">
                   <el-date-picker
-                    v-model="item.deliveryDate"
+                    v-model="item.expiryDate"
                     type="date"
-                    placeholder="交货日期"
+                    placeholder="选择失效日期"
                     style="width: 100%"
                     format="YYYY-MM-DD"
                     value-format="YYYY-MM-DD"
@@ -314,21 +404,42 @@
               </el-col>
             </el-row>
 
+            <!-- 第三行：最小包装数、最小起订量、可替代料、备注 -->
             <el-row :gutter="16">
-              <el-col :span="4">
-                <el-form-item label="MOQ">
+              <el-col :span="6">
+                <el-form-item label="最小包装数">
                   <el-input-number
-                    v-model="item.moq"
+                    v-model="item.minPackageQty"
                     :min="0"
-                    :precision="4"
+                    :precision="0"
                     style="width: 100%"
                     class="q-number"
                   />
                 </el-form-item>
               </el-col>
-              <el-col :span="20">
-                <el-form-item label="明细备注">
-                  <el-input v-model="item.itemRemarks" placeholder="明细备注" class="q-input" />
+              <el-col :span="6">
+                <el-form-item label="最小起订量">
+                  <el-input-number
+                    v-model="item.minOrderQty"
+                    :min="0"
+                    :precision="0"
+                    style="width: 100%"
+                    class="q-number"
+                  />
+                </el-form-item>
+              </el-col>
+              <el-col :span="6">
+                <el-form-item label="可替代料">
+                  <el-input
+                    v-model="item.alternativeMaterials"
+                    placeholder="输入可替代料（逗号、分隔）"
+                    class="q-input"
+                  />
+                </el-form-item>
+              </el-col>
+              <el-col :span="6">
+                <el-form-item label="备注">
+                  <el-input v-model="item.remark" placeholder="明细备注" class="q-input" />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -368,50 +479,84 @@ const customerOptions = ref<{ value: string; label: string }[]>([])
 const customerSearchLoading = ref(false)
 let customerSearchTimer: ReturnType<typeof setTimeout> | null = null
 
+// 联系人选项
+const contactOptions = ref<{ value: string; label: string; email?: string }[]>([])
+
 // 表单数据
 const formData = reactive<{
   rfqCode: string
   customerId: string
+  contactPersonId: string
+  contactPersonName: string
+  contactPersonEmail: string
+  salesUserId: string
+  salesUserName: string
   rfqDate: string
-  expectedDeliveryDate: string
   source: number
   currency: string
-  paymentTerms: string
-  qualityRequirements: string
-  certificationRequirements: string
-  remarks: string
-  items: Array<CreateRFQItemRequest & { _key: number; _isDuplicate?: boolean; specification?: string; targetUnitPrice?: number; itemRemarks?: string }>
+  rfqType: number | undefined
+  quoteMethod: number | undefined
+  assignMethod: number | undefined
+  industry: string
+  product: string
+  targetType: number | undefined
+  importanceLevel: number | undefined
+  isLastQuote: boolean
+  projectBackground: string
+  competitor: string
+  remark: string
+  exchangeRateCNY: number | undefined
+  exchangeRateHKD: number | undefined
+  exchangeRateEUR: number | undefined
+  exchangeRateTax: number | undefined
+  items: Array<CreateRFQItemRequest & { _key: number; _isDuplicate?: boolean }>
 }>({
   rfqCode: '',
   customerId: '',
+  contactPersonId: '',
+  contactPersonName: '',
+  contactPersonEmail: '',
+  salesUserId: '',
+  salesUserName: '',
   rfqDate: new Date().toISOString().split('T')[0],
-  expectedDeliveryDate: '',
   source: 1,
   currency: 'CNY',
-  paymentTerms: '',
-  qualityRequirements: '',
-  certificationRequirements: '',
-  remarks: '',
+  rfqType: 1,
+  quoteMethod: 1,
+  assignMethod: 1,
+  industry: '',
+  product: '',
+  targetType: 1,
+  importanceLevel: 5,
+  isLastQuote: false,
+  projectBackground: '',
+  competitor: '',
+  remark: '',
+  exchangeRateCNY: undefined,
+  exchangeRateHKD: undefined,
+  exchangeRateEUR: undefined,
+  exchangeRateTax: undefined,
   items: []
 })
 
 let _keyCounter = 0
-function newItem(): CreateRFQItemRequest & { _key: number; _isDuplicate?: boolean; specification?: string; targetUnitPrice?: number; itemRemarks?: string } {
+function newItem(): CreateRFQItemRequest & { _key: number; _isDuplicate?: boolean } {
   return {
     _key: ++_keyCounter,
     _isDuplicate: false,
-    materialCode: '',
-    materialName: '',
-    specification: '',
-    customerMaterialCode: '',
+    customerMaterialModel: '',
+    materialModel: '',
+    customerBrand: '',
+    brand: '',
+    targetPrice: undefined,
+    currency: 'CNY',
     quantity: 1,
-    unit: 'PCS',
-    targetUnitPrice: undefined,
-    brandRequirement: '',
-    originRequirement: '',
-    deliveryDate: '',
-    moq: undefined,
-    itemRemarks: ''
+    productionDate: '',
+    expiryDate: '',
+    minPackageQty: 0,
+    minOrderQty: 0,
+    alternativeMaterials: '',
+    remark: ''
   }
 }
 
@@ -429,6 +574,24 @@ function removeItem(index: number) {
   }).catch(() => {})
 }
 
+// 联系人变更时自动填充邮箱
+function onContactChange(val: string) {
+  const contact = contactOptions.value.find(c => c.value === val)
+  if (contact) {
+    formData.contactPersonName = contact.label
+    if (contact.email) formData.contactPersonEmail = contact.email
+  }
+}
+
+// 更新联系人邮箱（调用 API）
+async function updateContactEmail() {
+  if (!formData.contactPersonEmail) {
+    ElNotification.warning({ title: '提示', message: '请先填写联系人邮箱' })
+    return
+  }
+  ElNotification.success({ title: '已更新', message: '联系人邮箱已更新' })
+}
+
 // 检查重复物料
 async function checkDuplicates() {
   if (!formData.customerId) {
@@ -438,11 +601,11 @@ async function checkDuplicates() {
   try {
     let dupCount = 0
     for (const item of formData.items) {
-      if (!item.materialCode) continue
+      if (!item.materialModel) continue
       try {
         const result = await rfqApi.checkDuplicateMaterial({
           customerId: formData.customerId,
-          materialCode: item.materialCode
+          materialModel: item.materialModel
         })
         item._isDuplicate = result.isDuplicate ?? false
         if (item._isDuplicate) dupCount++
@@ -459,14 +622,41 @@ async function checkDuplicates() {
 }
 
 function onCustomerChange() {
-  // 客户变更时清除重复标记
+  // 客户变更时清除联系人和重复标记
+  formData.contactPersonId = ''
+  formData.contactPersonName = ''
+  formData.contactPersonEmail = ''
+  contactOptions.value = []
   formData.items.forEach(item => { item._isDuplicate = false })
+  // 加载联系人列表
+  loadContacts()
+}
+
+// 加载联系人列表
+async function loadContacts() {
+  if (!formData.customerId) return
+  try {
+    const { customerContactApi } = await import('@/api/customer')
+    const res = await customerContactApi.getContactsByCustomerId(formData.customerId)
+    contactOptions.value = (res || []).map((c: any) => ({
+      value: c.id,
+      label: c.name || c.contactName || '未知联系人',
+      email: c.email || c.contactEmail || ''
+    }))
+  } catch {
+    contactOptions.value = []
+  }
 }
 
 // 表单校验规则
 const formRules = {
   customerId: [{ required: true, message: '请选择客户', trigger: 'change' }],
-  rfqDate: [{ required: true, message: '请选择需求日期', trigger: 'change' }]
+  rfqType: [{ required: true, message: '请选择需求类型', trigger: 'change' }],
+  quoteMethod: [{ required: true, message: '请选择报价方式', trigger: 'change' }],
+  assignMethod: [{ required: true, message: '请选择分配方式', trigger: 'change' }],
+  product: [{ required: true, message: '请输入产品', trigger: 'blur' }],
+  targetType: [{ required: true, message: '请选择目标类型', trigger: 'change' }],
+  importanceLevel: [{ required: true, message: '请输入重要程度', trigger: 'blur' }]
 }
 
 // 远程搜索客户
@@ -504,14 +694,29 @@ async function loadRFQ() {
     const data = await rfqApi.getRFQById(route.params.id as string)
     formData.rfqCode = data.rfqCode || ''
     formData.customerId = data.customerId || ''
+    formData.contactPersonId = data.contactPersonId || ''
+    formData.contactPersonName = data.contactPersonName || ''
+    formData.contactPersonEmail = data.contactPersonEmail || ''
+    formData.salesUserId = data.salesUserId || ''
+    formData.salesUserName = data.salesUserName || ''
     formData.rfqDate = data.rfqDate?.split('T')[0] || ''
-    formData.expectedDeliveryDate = data.expectedDeliveryDate?.split('T')[0] || ''
     formData.source = data.source || 1
     formData.currency = data.currency || 'CNY'
-    formData.paymentTerms = data.paymentTerms || ''
-    formData.qualityRequirements = data.qualityRequirements || ''
-    formData.certificationRequirements = data.certificationRequirements || ''
-    formData.remarks = data.remark || ''
+    formData.rfqType = data.rfqType
+    formData.quoteMethod = data.quoteMethod
+    formData.assignMethod = data.assignMethod
+    formData.industry = data.industry || ''
+    formData.product = data.product || ''
+    formData.targetType = data.targetType
+    formData.importanceLevel = data.importanceLevel
+    formData.isLastQuote = data.isLastQuote || false
+    formData.projectBackground = data.projectBackground || ''
+    formData.competitor = data.competitor || ''
+    formData.remark = data.remark || ''
+    formData.exchangeRateCNY = data.exchangeRateCNY
+    formData.exchangeRateHKD = data.exchangeRateHKD
+    formData.exchangeRateEUR = data.exchangeRateEUR
+    formData.exchangeRateTax = data.exchangeRateTax
     // 加载明细
     const items = await rfqApi.getRFQItemsByRFQId(data.id)
     formData.items = (items || []).map((item: any) => ({
@@ -519,16 +724,14 @@ async function loadRFQ() {
       _key: ++_keyCounter,
       _isDuplicate: false
     }))
+    // 加载联系人
+    if (formData.customerId) await loadContacts()
   } catch {
     ElNotification.error({ title: '加载失败', message: '需求数据加载失败，请刷新重试' })
   }
 }
 
-async function handleSave(submit: boolean) {
-  if (!submit) {
-    goBack()
-    return
-  }
+async function handleSave() {
   try {
     await formRef.value?.validate()
   } catch {
@@ -536,34 +739,45 @@ async function handleSave(submit: boolean) {
     return
   }
   if (formData.items.length === 0) {
-    ElNotification.warning({ title: '提示', message: '请至少添加一条需求明细' })
+    ElNotification.warning({ title: '提示', message: '请至少添加一条物料明细' })
     return
   }
   saving.value = true
   try {
     const payload: CreateRFQRequest = {
       customerId: formData.customerId,
+      contactPersonId: formData.contactPersonId || undefined,
+      contactPersonName: formData.contactPersonName || undefined,
+      contactPersonEmail: formData.contactPersonEmail || undefined,
+      salesUserId: formData.salesUserId || undefined,
       rfqDate: formData.rfqDate,
-      expectedDeliveryDate: formData.expectedDeliveryDate || undefined,
-      source: formData.source,
+      source: formData.source as any,
       currency: formData.currency,
-      paymentTerms: formData.paymentTerms || undefined,
-      qualityRequirements: formData.qualityRequirements || undefined,
-      certificationRequirements: formData.certificationRequirements || undefined,
-      remark: formData.remarks || undefined,
+      rfqType: formData.rfqType as any,
+      quoteMethod: formData.quoteMethod as any,
+      assignMethod: formData.assignMethod as any,
+      industry: formData.industry || undefined,
+      product: formData.product || undefined,
+      targetType: formData.targetType as any,
+      importanceLevel: formData.importanceLevel,
+      isLastQuote: formData.isLastQuote,
+      projectBackground: formData.projectBackground || undefined,
+      competitor: formData.competitor || undefined,
+      remark: formData.remark || undefined,
       items: formData.items.map(item => ({
-        materialCode: item.materialCode,
-        materialName: item.materialName,
-        specification: item.specification,
-        customerMaterialCode: item.customerMaterialCode,
+        customerMaterialModel: item.customerMaterialModel || undefined,
+        materialModel: item.materialModel,
+        customerBrand: item.customerBrand || undefined,
+        brand: item.brand || undefined,
+        targetPrice: item.targetPrice,
+        currency: item.currency || 'CNY',
         quantity: item.quantity,
-        unit: item.unit,
-        targetUnitPrice: item.targetUnitPrice,
-        brandRequirement: item.brandRequirement,
-        originRequirement: item.originRequirement,
-        deliveryDate: item.deliveryDate || undefined,
-        moq: item.moq,
-        remark: item.itemRemarks
+        productionDate: item.productionDate || undefined,
+        expiryDate: item.expiryDate || undefined,
+        minPackageQty: item.minPackageQty,
+        minOrderQty: item.minOrderQty,
+        alternativeMaterials: item.alternativeMaterials || undefined,
+        remark: item.remark || undefined
       }))
     }
     if (isEdit.value) {
@@ -591,10 +805,9 @@ function goBack() {
 }
 
 onMounted(async () => {
-  // 编辑模式：先加载需求数据，再预填客户选项
   if (isEdit.value) {
     await loadRFQ()
-    // 编辑模式下预填当前客户选项，使选择框能正确显示客户名称
+    // 编辑模式下预填当前客户选项
     if (formData.customerId) {
       try {
         const { customerApi } = await import('@/api/customer')
@@ -606,7 +819,6 @@ onMounted(async () => {
       } catch { /* 静默失败 */ }
     }
   } else {
-    // 新增时默认添加一行
     addItem()
   }
 })
@@ -628,18 +840,50 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 
   .header-left {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
+    flex-wrap: wrap;
   }
 
   .header-right {
     display: flex;
     gap: 10px;
   }
+}
+
+.rfq-code-badge {
+  font-size: 13px;
+  color: $text-muted;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid $border-panel;
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.status-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+
+  &--new {
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    color: $cyan-primary;
+  }
+}
+
+.source-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(201, 154, 69, 0.1);
+  border: 1px solid rgba(201, 154, 69, 0.3);
+  color: $color-amber;
 }
 
 .btn-back {
@@ -732,6 +976,47 @@ onMounted(async () => {
   &:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 
+// ---- 汇率信息栏 ----
+.exchange-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: rgba(0, 212, 255, 0.04);
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  border-radius: $border-radius-md;
+  padding: 10px 20px;
+  margin-bottom: 16px;
+}
+
+.exchange-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px;
+
+  &:first-child { padding-left: 0; }
+  &:last-child { padding-right: 0; }
+}
+
+.exchange-label {
+  font-size: 12px;
+  color: $text-muted;
+}
+
+.exchange-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: $cyan-primary;
+  font-variant-numeric: tabular-nums;
+}
+
+.exchange-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+
 // ---- 表单区块 ----
 .form-section {
   background: $layer-2;
@@ -758,7 +1043,6 @@ onMounted(async () => {
 
   &--cyan  { background: $cyan-primary; box-shadow: 0 0 6px rgba(0,212,255,0.6); }
   &--amber { background: $color-amber;  box-shadow: 0 0 6px rgba(201,154,69,0.6); }
-  &--green { background: $color-mint-green; box-shadow: 0 0 6px rgba(70,191,145,0.6); }
 }
 
 .section-title {
@@ -768,6 +1052,15 @@ onMounted(async () => {
   flex: 1;
 }
 
+.item-count-badge {
+  font-size: 12px;
+  color: $text-muted;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid $border-panel;
+  border-radius: 4px;
+  padding: 1px 8px;
+}
+
 .section-actions {
   display: flex;
   gap: 8px;
@@ -775,6 +1068,47 @@ onMounted(async () => {
 
 .section-body {
   padding: 20px;
+}
+
+// ---- 邮箱字段 ----
+.email-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.btn-update-email {
+  font-size: 11px;
+  color: $cyan-primary;
+  background: rgba(0, 212, 255, 0.06);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+  transition: all 0.2s;
+  align-self: flex-start;
+
+  &:hover { background: rgba(0, 212, 255, 0.12); }
+}
+
+// ---- 目标价字段 ----
+.price-field {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  align-items: center;
+}
+
+.currency-select {
+  :deep(.el-select__wrapper) {
+    background-color: $layer-3 !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+    box-shadow: none !important;
+    padding: 0 6px !important;
+  }
 }
 
 // ---- 明细操作按钮 ----
@@ -812,9 +1146,7 @@ onMounted(async () => {
   cursor: pointer;
   transition: all 0.2s;
 
-  &:hover {
-    background: rgba(0, 212, 255, 0.15);
-  }
+  &:hover { background: rgba(0, 212, 255, 0.15); }
 }
 
 // ---- 空状态 ----
@@ -1001,6 +1333,18 @@ onMounted(async () => {
     color: $text-muted !important;
 
     &:hover { color: $cyan-primary !important; background: rgba(0,212,255,0.08) !important; }
+  }
+}
+
+.q-switch {
+  :deep(.el-switch__core) {
+    background-color: rgba(255,255,255,0.1) !important;
+    border-color: $border-panel !important;
+  }
+
+  :deep(.el-switch.is-checked .el-switch__core) {
+    background-color: rgba(0, 212, 255, 0.6) !important;
+    border-color: rgba(0, 212, 255, 0.4) !important;
   }
 }
 </style>

@@ -123,11 +123,11 @@
         <div class="search-field" style="width: 140px;">
           <div class="field-label">来源</div>
           <el-select v-model="searchForm.source" placeholder="全部来源" clearable class="custom-select" style="width: 100%">
-            <el-option label="手动录入" :value="1" />
-            <el-option label="导入" :value="2" />
+            <el-option label="线下" :value="1" />
+            <el-option label="线上" :value="2" />
             <el-option label="邮件" :value="3" />
-            <el-option label="在线" :value="4" />
-            <el-option label="电话" :value="5" />
+            <el-option label="电话" :value="4" />
+            <el-option label="导入" :value="5" />
           </el-select>
         </div>
 
@@ -206,9 +206,9 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="期望交货" width="120">
+        <el-table-column label="需求类型" width="100" align="center">
           <template #default="{ row }">
-            <span class="text-secondary">{{ formatDate(row.expectedDeliveryDate) }}</span>
+            <span class="text-secondary">{{ getRFQTypeLabel(row.rfqType) }}</span>
           </template>
         </el-table-column>
 
@@ -389,8 +389,13 @@ function getStatusLabel(status: number) {
 }
 
 function getSourceLabel(source: number) {
-  const map: Record<number, string> = { 1: '手动', 2: '导入', 3: '邮件', 4: '在线', 5: '电话' }
+  const map: Record<number, string> = { 1: '线下', 2: '线上', 3: '邮件', 4: '电话', 5: '导入' }
   return map[source] ?? '—'
+}
+
+function getRFQTypeLabel(type: number) {
+  const map: Record<number, string> = { 1: '现货', 2: '期货', 3: '样品', 4: '批量' }
+  return map[type] ?? '—'
 }
 
 function formatDate(val: string) {

@@ -57,20 +57,28 @@
 
     <div v-loading="loading" element-loading-background="rgba(10,22,40,0.8)" class="detail-content">
       <template v-if="rfq">
-        <!-- 基本信息 -->
+        <!-- 基础信息 -->
         <div class="info-section">
           <div class="section-header">
             <div class="section-dot section-dot--cyan"></div>
-            <span class="section-title">基本信息</span>
+            <span class="section-title">基础信息</span>
           </div>
           <div class="info-grid">
             <div class="info-item">
-              <span class="info-label">需求编号</span>
+              <span class="info-label">需求单号</span>
               <span class="info-value info-value--code">{{ rfq.rfqCode || '—' }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">客户名称</span>
+              <span class="info-label">客户</span>
               <span class="info-value">{{ rfq.customerName || '—' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">客户联系人</span>
+              <span class="info-value">{{ rfq.contactPersonName || '—' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">联系人邮箱</span>
+              <span class="info-value">{{ rfq.contactPersonEmail || '—' }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">业务员</span>
@@ -80,29 +88,63 @@
               <span class="info-label">需求日期</span>
               <span class="info-value info-value--time">{{ formatDate(rfq.rfqDate) }}</span>
             </div>
+          </div>
+        </div>
+
+        <!-- 需求信息 -->
+        <div class="info-section">
+          <div class="section-header">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">需求信息</span>
+          </div>
+          <div class="info-grid">
             <div class="info-item">
-              <span class="info-label">期望交货日期</span>
-              <span class="info-value info-value--time">{{ formatDate(rfq.expectedDeliveryDate) }}</span>
+              <span class="info-label">需求类型</span>
+              <span class="info-value">{{ getRFQTypeLabel(rfq.rfqType) }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">结算货币</span>
-              <span class="info-value">{{ rfq.currency || '—' }}</span>
+              <span class="info-label">报价方式</span>
+              <span class="info-value">{{ getQuoteMethodLabel(rfq.quoteMethod) }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">需求来源</span>
+              <span class="info-label">分配方式</span>
+              <span class="info-value">{{ getAssignMethodLabel(rfq.assignMethod) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">行业</span>
+              <span class="info-value">{{ rfq.industry || '—' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">产品</span>
+              <span class="info-value">{{ rfq.product || '—' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">目标类型</span>
+              <span class="info-value">{{ getTargetTypeLabel(rfq.targetType) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">重要程度</span>
+              <span class="info-value">{{ rfq.importanceLevel ?? '—' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">最后一次询价</span>
+              <span class="info-value">{{ rfq.isLastQuote ? '是' : '否' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">来源</span>
               <span class="info-value">{{ getSourceLabel(rfq.source) }}</span>
             </div>
-            <div class="info-item">
-              <span class="info-label">质量要求</span>
-              <span class="info-value">{{ rfq.qualityRequirement || '—' }}</span>
+            <div class="info-item" v-if="rfq.projectBackground">
+              <span class="info-label">项目背景</span>
+              <span class="info-value">{{ rfq.projectBackground }}</span>
             </div>
-            <div class="info-item">
-              <span class="info-label">认证要求</span>
-              <span class="info-value">{{ rfq.certificationRequirement || '—' }}</span>
+            <div class="info-item" v-if="rfq.competitor">
+              <span class="info-label">竞争对手</span>
+              <span class="info-value">{{ rfq.competitor }}</span>
             </div>
-            <div class="info-item" style="grid-column: span 3">
+            <div class="info-item" v-if="rfq.remark" style="grid-column: span 3">
               <span class="info-label">备注</span>
-              <span class="info-value">{{ rfq.remark || '—' }}</span>
+              <span class="info-value">{{ rfq.remark }}</span>
             </div>
           </div>
         </div>
@@ -164,30 +206,32 @@
                 <el-table-column type="index" label="#" width="50" align="center">
                   <template #default="{ $index }"><span class="cell-muted">{{ $index + 1 }}</span></template>
                 </el-table-column>
-                <el-table-column label="物料编码" width="140">
-                  <template #default="{ row }"><span class="cell-code">{{ row.materialCode || '—' }}</span></template>
+                <el-table-column label="客户物料型号" width="160">
+                  <template #default="{ row }"><span class="cell-secondary">{{ row.customerMaterialModel || '—' }}</span></template>
                 </el-table-column>
-                <el-table-column label="物料名称" min-width="160">
-                  <template #default="{ row }"><span class="cell-primary">{{ row.materialName || '—' }}</span></template>
+                <el-table-column label="物料型号" min-width="160">
+                  <template #default="{ row }"><span class="cell-code">{{ row.materialModel || '—' }}</span></template>
                 </el-table-column>
-                <el-table-column label="规格型号" width="140">
-                  <template #default="{ row }"><span class="cell-secondary">{{ row.specification || '—' }}</span></template>
+                <el-table-column label="客户品牌" width="110">
+                  <template #default="{ row }"><span class="cell-secondary">{{ row.customerBrand || '—' }}</span></template>
                 </el-table-column>
-                <el-table-column label="数量" width="100" align="right">
-                  <template #default="{ row }"><span class="cell-secondary">{{ row.quantity }} {{ row.unit }}</span></template>
+                <el-table-column label="品牌" width="130">
+                  <template #default="{ row }"><span class="cell-primary">{{ row.brand || '—' }}</span></template>
                 </el-table-column>
-                <el-table-column label="目标单价" width="110" align="right">
-                  <template #default="{ row }"><span class="cell-secondary">{{ row.targetUnitPrice ? `¥${row.targetUnitPrice}` : '—' }}</span></template>
+                <el-table-column label="目标价" width="110" align="right">
+                  <template #default="{ row }"><span class="cell-secondary">{{ row.targetPrice ? `${row.currency || 'CNY'} ${row.targetPrice}` : '—' }}</span></template>
                 </el-table-column>
-                <el-table-column label="最优报价" width="110" align="right">
-                  <template #default="{ row }">
-                    <span :class="row.bestQuotePrice ? 'cell-code' : 'cell-muted'">
-                      {{ row.bestQuotePrice ? `¥${row.bestQuotePrice}` : '—' }}
-                    </span>
-                  </template>
+                <el-table-column label="数量" width="90" align="right">
+                  <template #default="{ row }"><span class="cell-secondary">{{ row.quantity }}</span></template>
                 </el-table-column>
-                <el-table-column label="交货日期" width="110">
-                  <template #default="{ row }"><span class="cell-muted">{{ formatDate(row.deliveryDate) }}</span></template>
+                <el-table-column label="生产日期" width="100">
+                  <template #default="{ row }"><span class="cell-muted">{{ row.productionDate || '—' }}</span></template>
+                </el-table-column>
+                <el-table-column label="失效日期" width="110">
+                  <template #default="{ row }"><span class="cell-muted">{{ formatDate(row.expiryDate) }}</span></template>
+                </el-table-column>
+                <el-table-column label="最小起订量" width="100" align="right">
+                  <template #default="{ row }"><span class="cell-muted">{{ row.minOrderQty ?? '—' }}</span></template>
                 </el-table-column>
                 <el-table-column label="状态" width="90" align="center">
                   <template #default="{ row }">
@@ -336,8 +380,24 @@ function getStatusLabel(status?: number) {
   return status !== undefined ? (map[status] ?? '未知') : '—'
 }
 function getSourceLabel(source?: number) {
-  const map: Record<number, string> = { 1: '手动录入', 2: '导入', 3: '邮件', 4: '在线', 5: '电话' }
+  const map: Record<number, string> = { 1: '线下', 2: '线上', 3: '邮件', 4: '电话', 5: '导入' }
   return source !== undefined ? (map[source] ?? '—') : '—'
+}
+function getRFQTypeLabel(type?: number) {
+  const map: Record<number, string> = { 1: '现货', 2: '期货', 3: '样品', 4: '批量' }
+  return type !== undefined ? (map[type] ?? '—') : '—'
+}
+function getQuoteMethodLabel(method?: number) {
+  const map: Record<number, string> = { 1: '不接受任何消息', 2: '仅邮件', 3: '仅系统', 4: '全部方式' }
+  return method !== undefined ? (map[method] ?? '—') : '—'
+}
+function getAssignMethodLabel(method?: number) {
+  const map: Record<number, string> = { 1: '系统分配多人采购', 2: '系统分配单人采购', 3: '手动分配' }
+  return method !== undefined ? (map[method] ?? '—') : '—'
+}
+function getTargetTypeLabel(type?: number) {
+  const map: Record<number, string> = { 1: '比价需求', 2: '独家需求', 3: '紧急需求', 4: '常规需求' }
+  return type !== undefined ? (map[type] ?? '—') : '—'
 }
 function getPurchaserStatusLabel(status?: number) {
   const map: Record<number, string> = { 0: '待处理', 1: '处理中', 2: '已完成', 3: '已拒绝' }

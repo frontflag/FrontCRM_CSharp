@@ -1,10 +1,11 @@
 // ============================================================
 // RFQ（需求询价）管理模块 - 类型定义
+// 字段标准：对齐参考系统 RF2603J6UB 页面
 // ============================================================
 
 // RFQ 流转状态
 export enum RFQStatus {
-  Draft = 0,        // 草稿
+  Draft = 0,        // 草稿/新建
   Pending = 1,      // 待处理
   Assigned = 2,     // 已分配
   Processing = 3,   // 处理中
@@ -32,78 +33,130 @@ export enum PurchaserHandleStatus {
   Deferred = 3,     // 已推迟
 }
 
-// RFQ 来源
+// RFQ 来源（线下/线上等）
 export enum RFQSource {
-  Manual = 1,       // 手动录入
-  Import = 2,       // 导入
+  Offline = 1,      // 线下
+  Online = 2,       // 线上
   Email = 3,        // 邮件
-  Online = 4,       // 在线
-  Phone = 5,        // 电话
+  Phone = 4,        // 电话
+  Import = 5,       // 导入
 }
 
-// RFQ 主表
+// 需求类型
+export enum RFQType {
+  Spot = 1,         // 现货
+  Future = 2,       // 期货
+  Sample = 3,       // 样品
+  Bulk = 4,         // 批量
+}
+
+// 报价方式
+export enum QuoteMethod {
+  NoQuote = 1,      // 不接受任何消息
+  EmailOnly = 2,    // 仅邮件
+  SystemOnly = 3,   // 仅系统
+  All = 4,          // 全部方式
+}
+
+// 分配方式
+export enum AssignMethod {
+  SystemMulti = 1,  // 系统分配多人采购
+  SystemSingle = 2, // 系统分配单人采购
+  Manual = 3,       // 手动分配
+}
+
+// 目标类型
+export enum TargetType {
+  PriceComparison = 1, // 比价需求
+  Exclusive = 2,       // 独家需求
+  Urgent = 3,          // 紧急需求
+  Regular = 4,         // 常规需求
+}
+
+// ============================================================
+// 主表
+// ============================================================
 export interface RFQ {
   id: string
-  rfqCode: string
+  rfqCode: string                    // 需求单号（自动生成）
+  status: RFQStatus
+
+  // 基础信息
   customerId: string
   customerName?: string
+  contactPersonId?: string           // 客户联系人 ID
+  contactPersonName?: string         // 客户联系人姓名
+  contactPersonEmail?: string        // 联系人邮箱
   salesUserId?: string
   salesUserName?: string
-  rfqDate: string
-  expectedDeliveryDate?: string
-  status: RFQStatus
-  source?: RFQSource
-  currency?: string
-  paymentTerms?: string
-  shippingMethod?: number
-  packagingRequirements?: string
-  qualityRequirements?: string
-  certificationRequirements?: string
+  rfqDate: string                    // 创建日期/需求日期
+
+  // 需求信息
+  rfqType?: RFQType                  // 需求类型（现货/期货等）
+  quoteMethod?: QuoteMethod          // 报价方式
+  assignMethod?: AssignMethod        // 分配方式
+  industry?: string                  // 行业
+  product?: string                   // 产品
+  targetType?: TargetType            // 目标类型（比价需求等）
+  importanceLevel?: number           // 重要程度（1-10）
+  isLastQuote?: boolean              // 最后一次询价
+  projectBackground?: string         // 项目背景
+  competitor?: string                // 竞争对手
+  source?: RFQSource                 // 来源（线下/线上等）
+  currency?: string                  // 结算货币
   remark?: string
-  isImportant?: boolean
-  attachmentCount?: number
+
+  // 汇率（只读展示）
+  exchangeRateCNY?: number           // 人民币汇率
+  exchangeRateHKD?: number           // 港币汇率
+  exchangeRateEUR?: number           // 欧元汇率
+  exchangeRateTax?: number           // 含税汇率
+
+  // 统计
   itemCount?: number
-  totalAmount?: number
   createdAt?: string
   updatedAt?: string
   createdBy?: string
   items?: RFQItem[]
 }
 
-// RFQ 明细
+// ============================================================
+// 明细
+// ============================================================
 export interface RFQItem {
   id: string
   rfqId: string
   lineNo: number
-  materialId?: string
-  materialCode?: string
-  materialName?: string
-  materialModel?: string
-  specification?: string
-  customerMaterialCode?: string
-  description?: string
-  quantity: number
-  unit?: string
-  targetPrice?: number
-  targetUnitPrice?: number
-  targetAmount?: number
-  quotedPrice?: number
-  quotedAmount?: number
-  costPrice?: number
-  costAmount?: number
-  profitRate?: number
-  brandRequirement?: string
-  originRequirement?: string
-  deliveryDate?: string
-  moq?: number
-  packagingSpec?: string
+
+  // 物料信息
+  customerMaterialModel?: string     // 客户物料型号
+  materialModel?: string             // 物料型号（主）
+  customerBrand?: string             // 客户品牌
+  brand?: string                     // 品牌（我方，如 VISHAY/威世）
+
+  // 价格与数量
+  targetPrice?: number               // 目标价
+  currency?: string                  // 货币单位（RMB/USD等）
+  quantity: number                   // 数量
+
+  // 日期
+  productionDate?: string            // 生产日期（如"2年内"）
+  expiryDate?: string                // 失效日期
+
+  // 起订量
+  minPackageQty?: number             // 最小包装数
+  minOrderQty?: number               // 最小起订量
+
+  // 其他
+  alternativeMaterials?: string      // 可替代料（逗号分隔）
   remark?: string
+
   status: RFQItemStatus
-  bestQuotePrice?: number
-  bestQuoteSupplier?: string
 }
 
+// ============================================================
 // 采购员分配记录
+// ============================================================
 export interface RFQAssignment {
   id: string
   rfqId: string
@@ -115,7 +168,9 @@ export interface RFQAssignment {
   remark?: string
 }
 
+// ============================================================
 // RFQ 关闭记录
+// ============================================================
 export interface RFQCloseRecord {
   id: string
   rfqId: string
@@ -127,7 +182,9 @@ export interface RFQCloseRecord {
   remark?: string
 }
 
-// 采购员简要信息
+// ============================================================
+// 采购员信息
+// ============================================================
 export interface PurchaserInfo {
   id: string
   name: string
@@ -136,7 +193,6 @@ export interface PurchaserInfo {
   recommendScore?: number
 }
 
-// 分配统计
 export interface AssignmentStatistics {
   purchaserId: string
   purchaserName: string
@@ -149,7 +205,6 @@ export interface AssignmentStatistics {
 // 请求/响应类型
 // ============================================================
 
-// RFQ 列表查询请求
 export interface RFQSearchRequest {
   pageNumber?: number
   pageSize?: number
@@ -157,15 +212,14 @@ export interface RFQSearchRequest {
   customerId?: string
   salesUserId?: string
   status?: RFQStatus | ''
+  rfqType?: RFQType | ''
   source?: RFQSource | ''
-  isImportant?: boolean
   startDate?: string
   endDate?: string
   sortBy?: string
   sortDescending?: boolean
 }
 
-// RFQ 列表响应
 export interface RFQSearchResponse {
   items: RFQ[]
   totalCount: number
@@ -174,20 +228,18 @@ export interface RFQSearchResponse {
   totalPages: number
 }
 
-// RFQ 明细查询请求
 export interface RFQItemSearchRequest {
   pageNumber?: number
   pageSize?: number
   rfqId?: string
   customerId?: string
-  materialCode?: string
-  materialName?: string
+  materialModel?: string
+  customerMaterialModel?: string
   status?: RFQItemStatus | ''
   startDate?: string
   endDate?: string
 }
 
-// RFQ 明细列表响应
 export interface RFQItemSearchResponse {
   items: RFQItem[]
   totalCount: number
@@ -199,16 +251,23 @@ export interface RFQItemSearchResponse {
 // 新增 RFQ 请求
 export interface CreateRFQRequest {
   customerId: string
+  contactPersonId?: string
+  contactPersonName?: string
+  contactPersonEmail?: string
   salesUserId?: string
   rfqDate: string
-  expectedDeliveryDate?: string
+  rfqType?: RFQType
+  quoteMethod?: QuoteMethod
+  assignMethod?: AssignMethod
+  industry?: string
+  product?: string
+  targetType?: TargetType
+  importanceLevel?: number
+  isLastQuote?: boolean
+  projectBackground?: string
+  competitor?: string
   source?: RFQSource
   currency?: string
-  paymentTerms?: string
-  shippingMethod?: number
-  packagingRequirements?: string
-  qualityRequirements?: string
-  certificationRequirements?: string
   remark?: string
   items: CreateRFQItemRequest[]
 }
@@ -216,38 +275,41 @@ export interface CreateRFQRequest {
 // 新增 RFQ 明细请求
 export interface CreateRFQItemRequest {
   lineNo?: number
-  materialCode?: string
-  materialName?: string
+  customerMaterialModel?: string
   materialModel?: string
-  specification?: string
-  customerMaterialCode?: string
-  description?: string
-  quantity: number
-  unit?: string
+  customerBrand?: string
+  brand?: string
   targetPrice?: number
-  targetUnitPrice?: number
-  brandRequirement?: string
-  originRequirement?: string
-  deliveryDate?: string
-  moq?: number
-  packagingSpec?: string
+  currency?: string
+  quantity: number
+  productionDate?: string
+  expiryDate?: string
+  minPackageQty?: number
+  minOrderQty?: number
+  alternativeMaterials?: string
   remark?: string
 }
 
 // 更新 RFQ 请求
 export interface UpdateRFQRequest {
   customerId?: string
+  contactPersonId?: string
+  contactPersonName?: string
+  contactPersonEmail?: string
   salesUserId?: string
-  expectedDeliveryDate?: string
+  rfqType?: RFQType
+  quoteMethod?: QuoteMethod
+  assignMethod?: AssignMethod
+  industry?: string
+  product?: string
+  targetType?: TargetType
+  importanceLevel?: number
+  isLastQuote?: boolean
+  projectBackground?: string
+  competitor?: string
   source?: RFQSource
   currency?: string
-  paymentTerms?: string
-  shippingMethod?: number
-  packagingRequirements?: string
-  qualityRequirements?: string
-  certificationRequirements?: string
   remark?: string
-  isImportant?: boolean
   items?: CreateRFQItemRequest[]
 }
 
@@ -273,7 +335,7 @@ export interface CloseRFQRequest {
 // 重复物料检查请求
 export interface CheckDuplicateMaterialRequest {
   customerId: string
-  materialCode: string
+  materialModel: string
   salesUserId?: string
   daysRange?: number
 }
