@@ -1,6 +1,7 @@
 using CRM.Core.Models;
 using CRM.Core.Models.Component;
 using CRM.Core.Models.Customer;
+using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Models.System;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +34,10 @@ namespace CRM.Infrastructure.Data
         public DbSet<RFQ> RFQs { get; set; } = null!;
         public DbSet<RFQItem> RFQItems { get; set; } = null!;
 
+        // ===== 报价模块 =====
+        public DbSet<Quote> Quotes { get; set; } = null!;
+        public DbSet<QuoteItem> QuoteItems { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -62,6 +67,32 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Brand).HasMaxLength(100);
                 entity.Property(e => e.Quantity).HasColumnType("numeric(18,4)").HasDefaultValue(1m);
                 entity.HasIndex(e => e.RfqId);
+            });
+
+            // ===== 报价模块配置 =====
+            modelBuilder.Entity<Quote>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("QuoteId");
+                entity.Property(e => e.QuoteCode).IsRequired().HasMaxLength(32);
+                entity.HasIndex(e => e.QuoteCode).IsUnique();
+                entity.Property(e => e.Status).HasDefaultValue((short)0);
+                entity.Property(e => e.QuoteDate).HasDefaultValueSql("NOW()");
+                entity.HasMany(e => e.Items)
+                      .WithOne(i => i.Quote)
+                      .HasForeignKey(i => i.QuoteId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<QuoteItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("QuoteItemId");
+                entity.Property(e => e.QuoteId).IsRequired();
+                entity.Property(e => e.Quantity).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                entity.Property(e => e.UnitPrice).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.ConvertedPrice).HasColumnType("numeric(18,6)");
+                entity.HasIndex(e => e.QuoteId);
             });
 
             // ===== 软删除全局过滤器 =====

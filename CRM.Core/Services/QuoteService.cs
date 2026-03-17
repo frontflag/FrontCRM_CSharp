@@ -9,19 +9,20 @@ namespace CRM.Core.Services
     public class QuoteService : IQuoteService
     {
         private readonly IRepository<Quote> _quoteRepository;
+        private readonly IRepository<QuoteItem> _quoteItemRepository;
 
-        public QuoteService(IRepository<Quote> quoteRepository)
+        public QuoteService(
+            IRepository<Quote> quoteRepository,
+            IRepository<QuoteItem> quoteItemRepository)
         {
             _quoteRepository = quoteRepository;
+            _quoteItemRepository = quoteItemRepository;
         }
 
         public async Task<Quote> CreateAsync(CreateQuoteRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.QuoteCode))
                 throw new ArgumentException("报价单号不能为空", nameof(request.QuoteCode));
-
-            if (string.IsNullOrWhiteSpace(request.CustomerId))
-                throw new ArgumentException("客户ID不能为空", nameof(request.CustomerId));
 
             // 检查报价单号是否已存在
             var allQuotes = await _quoteRepository.GetAllAsync();
@@ -32,20 +33,27 @@ namespace CRM.Core.Services
             {
                 Id = Guid.NewGuid().ToString(),
                 QuoteCode = request.QuoteCode.Trim(),
-                QuoteType = 1, // 销售报价
+                RFQId = request.RFQId,
+                RFQItemId = request.RFQItemId,
+                Mpn = request.Mpn,
                 CustomerId = request.CustomerId,
                 SalesUserId = request.SalesUserId,
                 PurchaseUserId = request.PurchaseUserId,
-                QuoteDate = request.QuoteDate,
-                ValidityDate = request.ValidUntil,
-                TotalAmount = request.TotalAmount,
-                TaxAmount = request.TaxAmount,
-                TotalAmountWithTax = request.GrandTotal,
-                Status = 0, // 草稿
+                QuoteDate = request.QuoteDate == default ? DateTime.UtcNow : request.QuoteDate,
+                Status = request.Status,
+                Remark = request.Remark,
                 CreateTime = DateTime.UtcNow
             };
 
             await _quoteRepository.AddAsync(quote);
+
+            // 创建明细行
+            foreach (var itemReq in request.Items)
+            {
+                var item = MapToQuoteItem(quote.Id, itemReq);
+                await _quoteItemRepository.AddAsync(item);
+            }
+
             return quote;
         }
 
@@ -71,12 +79,33 @@ namespace CRM.Core.Services
             if (quote == null)
                 throw new InvalidOperationException($"报价单 {id} 不存在");
 
-            if (!string.IsNullOrWhiteSpace(request.Remark))
-                quote.Remark = request.Remark;
+            if (request.Mpn != null) quote.Mpn = request.Mpn;
+            if (request.CustomerId != null) quote.CustomerId = request.CustomerId;
+            if (request.SalesUserId != null) quote.SalesUserId = request.SalesUserId;
+            if (request.PurchaseUserId != null) quote.PurchaseUserId = request.PurchaseUserId;
+            if (request.QuoteDate.HasValue) quote.QuoteDate = request.QuoteDate.Value;
+            if (request.Status.HasValue) quote.Status = request.Status.Value;
+            if (request.Remark != null) quote.Remark = request.Remark;
 
             quote.ModifyTime = DateTime.UtcNow;
 
             await _quoteRepository.UpdateAsync(quote);
+
+            // 更新明细行（先删后增）
+            if (request.Items != null)
+            {
+                var existingItems = await _quoteItemRepository.GetAllAsync();
+                var toDelete = existingItems.Where(i => i.QuoteId == id).ToList();
+                foreach (var item in toDelete)
+                    await _quoteItemRepository.DeleteAsync(item.Id);
+
+                foreach (var itemReq in request.Items)
+                {
+                    var item = MapToQuoteItem(id, itemReq);
+                    await _quoteItemRepository.AddAsync(item);
+                }
+            }
+
             return quote;
         }
 
@@ -88,6 +117,11 @@ namespace CRM.Core.Services
             var quote = await _quoteRepository.GetByIdAsync(id);
             if (quote == null)
                 throw new InvalidOperationException($"报价单 {id} 不存在");
+
+            // 先删明细行
+            var items = await _quoteItemRepository.GetAllAsync();
+            foreach (var item in items.Where(i => i.QuoteId == id))
+                await _quoteItemRepository.DeleteAsync(item.Id);
 
             await _quoteRepository.DeleteAsync(id);
         }
@@ -105,6 +139,42 @@ namespace CRM.Core.Services
             quote.ModifyTime = DateTime.UtcNow;
 
             await _quoteRepository.UpdateAsync(quote);
+        }
+
+        private static QuoteItem MapToQuoteItem(string quoteId, CreateQuoteItemRequest req)
+        {
+            return new QuoteItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                QuoteId = quoteId,
+                VendorId = req.VendorId,
+                VendorName = req.VendorName,
+                VendorCode = req.VendorCode,
+                ContactId = req.ContactId,
+                ContactName = req.ContactName,
+                PriceType = req.PriceType,
+                ExpiryDate = req.ExpiryDate,
+                Mpn = req.Mpn,
+                Brand = req.Brand,
+                BrandOrigin = req.BrandOrigin,
+                DateCode = req.DateCode,
+                LeadTime = req.LeadTime,
+                LabelType = req.LabelType,
+                WaferOrigin = req.WaferOrigin,
+                PackageOrigin = req.PackageOrigin,
+                FreeShipping = req.FreeShipping,
+                Currency = req.Currency,
+                Quantity = req.Quantity,
+                UnitPrice = req.UnitPrice,
+                ConvertedPrice = req.ConvertedPrice,
+                MinPackageQty = req.MinPackageQty,
+                MinPackageUnit = req.MinPackageUnit,
+                StockQty = req.StockQty,
+                Moq = req.Moq,
+                Remark = req.Remark,
+                Status = req.Status,
+                CreateTime = DateTime.UtcNow
+            };
         }
     }
 }

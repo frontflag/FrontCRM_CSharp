@@ -12,12 +12,14 @@ namespace CRM.Core.Tests.Services
     public class QuoteServiceTests
     {
         private readonly IRepository<Quote> _quoteRepository;
+        private readonly IRepository<QuoteItem> _quoteItemRepository;
         private readonly QuoteService _quoteService;
 
         public QuoteServiceTests()
         {
             _quoteRepository = Substitute.For<IRepository<Quote>>();
-            _quoteService = new QuoteService(_quoteRepository);
+            _quoteItemRepository = Substitute.For<IRepository<QuoteItem>>();
+            _quoteService = new QuoteService(_quoteRepository, _quoteItemRepository);
         }
 
         [Fact]
@@ -31,17 +33,11 @@ namespace CRM.Core.Tests.Services
                 SalesUserId = "USER-001",
                 PurchaseUserId = "USER-002",
                 QuoteDate = DateTime.UtcNow,
-                ValidUntil = DateTime.UtcNow.AddDays(30),
-                TotalAmount = 1000m,
-                TaxAmount = 130m,
-                GrandTotal = 1130m
+                Mpn = "REF3430QDBVRQ1",
+                Remark = "测试报价"
             };
-
             _quoteRepository.GetAllAsync().Returns(new List<Quote>());
-
-            Quote? capturedQuote = null;
-            _quoteRepository.When(r => r.AddAsync(Arg.Any<Quote>()))
-                .Do(call => capturedQuote = call.Arg<Quote>());
+            _quoteItemRepository.GetAllAsync().Returns(new List<QuoteItem>());
 
             // Act
             var result = await _quoteService.CreateAsync(request);
@@ -50,25 +46,20 @@ namespace CRM.Core.Tests.Services
             Assert.NotNull(result);
             Assert.Equal(request.QuoteCode, result.QuoteCode);
             Assert.Equal(request.CustomerId, result.CustomerId);
-            Assert.Equal(request.TotalAmount, result.TotalAmount);
-            Assert.Equal(request.TaxAmount, result.TaxAmount);
-            Assert.Equal(request.GrandTotal, result.TotalAmountWithTax);
+            Assert.Equal(request.Mpn, result.Mpn);
             Assert.Equal(0, result.Status); // 草稿状态
             await _quoteRepository.Received(1).AddAsync(Arg.Any<Quote>());
         }
 
         [Fact]
-        public async Task CreateAsync_DuplicateCode_ShouldThrowException()
+        public async Task CreateAsync_DuplicateQuoteCode_ShouldThrowException()
         {
             // Arrange
-            var existingQuote = new Quote
+            var existingQuotes = new List<Quote>
             {
-                Id = "1",
-                QuoteCode = "QT-2024-001",
-                CustomerId = "CUST-001"
+                new() { Id = "1", QuoteCode = "QT-2024-001", CustomerId = "CUST-001" }
             };
-
-            _quoteRepository.GetAllAsync().Returns(new List<Quote> { existingQuote });
+            _quoteRepository.GetAllAsync().Returns(existingQuotes);
 
             var request = new CreateQuoteRequest
             {
@@ -109,10 +100,8 @@ namespace CRM.Core.Tests.Services
                 Id = quoteId,
                 QuoteCode = "QT-2024-001",
                 CustomerId = "CUST-001",
-                TotalAmount = 5000m,
-                Status = 1 // 已审批
+                Status = 1
             };
-
             _quoteRepository.GetByIdAsync(quoteId).Returns(expectedQuote);
 
             // Act
@@ -121,7 +110,7 @@ namespace CRM.Core.Tests.Services
             // Assert
             Assert.NotNull(result);
             Assert.Equal(quoteId, result.Id);
-            Assert.Equal(expectedQuote.TotalAmount, result.TotalAmount);
+            Assert.Equal(expectedQuote.Status, result.Status);
         }
 
         [Fact]
@@ -133,11 +122,10 @@ namespace CRM.Core.Tests.Services
                 Id = "QT-123",
                 QuoteCode = "QT-2024-001",
                 CustomerId = "CUST-001",
-                TotalAmount = 1000m,
                 Status = 0
             };
-
             _quoteRepository.GetByIdAsync("QT-123").Returns(existingQuote);
+            _quoteItemRepository.GetAllAsync().Returns(new List<QuoteItem>());
 
             var updateRequest = new UpdateQuoteRequest
             {
@@ -162,13 +150,11 @@ namespace CRM.Core.Tests.Services
             {
                 Id = quoteId,
                 QuoteCode = "QT-2024-001",
-                Status = 0, // 草稿
-                TotalAmount = 1000m
+                Status = 0 // 草稿
             };
-
             _quoteRepository.GetByIdAsync(quoteId).Returns(existingQuote);
 
-            // Act - 使用状态码1表示已审批
+            // Act
             await _quoteService.UpdateStatusAsync(quoteId, 1);
 
             // Assert
@@ -186,14 +172,13 @@ namespace CRM.Core.Tests.Services
                 QuoteCode = "QT-2024-001",
                 Status = 0 // 草稿
             };
-
             _quoteRepository.GetByIdAsync(quoteId).Returns(existingQuote);
 
-            // Act - 使用状态码2表示已拒绝
-            await _quoteService.UpdateStatusAsync(quoteId, 2);
+            // Act
+            await _quoteService.UpdateStatusAsync(quoteId, 5); // 5 = 已拒绝
 
             // Assert
-            await _quoteRepository.Received(1).UpdateAsync(Arg.Is<Quote>(q => q.Status == 2));
+            await _quoteRepository.Received(1).UpdateAsync(Arg.Is<Quote>(q => q.Status == 5));
         }
 
         [Fact]
@@ -206,8 +191,8 @@ namespace CRM.Core.Tests.Services
                 Id = quoteId,
                 QuoteCode = "QT-2024-001"
             };
-
             _quoteRepository.GetByIdAsync(quoteId).Returns(existingQuote);
+            _quoteItemRepository.GetAllAsync().Returns(new List<QuoteItem>());
 
             // Act
             await _quoteService.DeleteAsync(quoteId);
@@ -226,7 +211,6 @@ namespace CRM.Core.Tests.Services
                 new() { Id = "2", QuoteCode = "QT-002", CustomerId = "C2" },
                 new() { Id = "3", QuoteCode = "QT-003", CustomerId = "C3" }
             };
-
             _quoteRepository.GetAllAsync().Returns(quotes);
 
             // Act

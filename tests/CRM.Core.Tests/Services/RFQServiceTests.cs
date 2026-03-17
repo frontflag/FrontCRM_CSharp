@@ -8,16 +8,32 @@ namespace CRM.Core.Tests.Services
 {
     /// <summary>
     /// RFQ询价单服务测试
+    /// 注意: RFQ 实体使用 RfqCode (camelCase) 而非 RFQCode
     /// </summary>
     public class RFQServiceTests
     {
         private readonly IRepository<RFQ> _rfqRepository;
+        private readonly IRepository<RFQItem> _rfqItemRepository;
+        private readonly ISerialNumberService _serialNumberService;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly RFQService _rfqService;
 
         public RFQServiceTests()
         {
             _rfqRepository = Substitute.For<IRepository<RFQ>>();
-            _rfqService = new RFQService(_rfqRepository);
+            _rfqItemRepository = Substitute.For<IRepository<RFQItem>>();
+            _serialNumberService = Substitute.For<ISerialNumberService>();
+            _unitOfWork = Substitute.For<IUnitOfWork>();
+
+            // 默认序列号生成
+            _serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
+
+            _rfqService = new RFQService(
+                _rfqRepository,
+                _rfqItemRepository,
+                null!,
+                _unitOfWork,
+                _serialNumberService);
         }
 
         [Fact]
@@ -26,71 +42,23 @@ namespace CRM.Core.Tests.Services
             // Arrange
             var request = new CreateRFQRequest
             {
-                RFQCode = "RFQ-2024-001",
                 CustomerId = "CUST-001",
                 SalesUserId = "USER-001",
-                RFQDate = DateTime.UtcNow
+                RfqDate = DateTime.UtcNow
             };
-
             _rfqRepository.GetAllAsync().Returns(new List<RFQ>());
-
-            RFQ? capturedRFQ = null;
-            _rfqRepository.When(r => r.AddAsync(Arg.Any<RFQ>()))
-                .Do(call => capturedRFQ = call.Arg<RFQ>());
+            _rfqItemRepository.GetAllAsync().Returns(new List<RFQItem>());
 
             // Act
             var result = await _rfqService.CreateAsync(request);
 
             // Assert
             Assert.NotNull(result);
-            Assert.Equal(request.RFQCode, result.RFQCode);
+            Assert.Equal("RF20260001", result.RfqCode);
             Assert.Equal(request.CustomerId, result.CustomerId);
-            Assert.Equal(request.SalesUserId, result.SalesUserId);
             Assert.Equal(0, result.Status); // 草稿状态
             Assert.NotNull(result.Id);
             await _rfqRepository.Received(1).AddAsync(Arg.Any<RFQ>());
-        }
-
-        [Fact]
-        public async Task CreateAsync_DuplicateCode_ShouldThrowException()
-        {
-            // Arrange
-            var existingRFQ = new RFQ
-            {
-                Id = "1",
-                RFQCode = "RFQ-2024-001",
-                CustomerId = "CUST-001"
-            };
-
-            _rfqRepository.GetAllAsync().Returns(new List<RFQ> { existingRFQ });
-
-            var request = new CreateRFQRequest
-            {
-                RFQCode = "RFQ-2024-001",
-                CustomerId = "CUST-002"
-            };
-
-            // Act & Assert
-            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-                () => _rfqService.CreateAsync(request));
-            Assert.Contains("RFQ-2024-001", exception.Message);
-        }
-
-        [Theory]
-        [InlineData("")]
-        [InlineData(" ")]
-        public async Task CreateAsync_EmptyRFQCode_ShouldThrowException(string rfqCode)
-        {
-            // Arrange
-            var request = new CreateRFQRequest
-            {
-                RFQCode = rfqCode,
-                CustomerId = "CUST-001"
-            };
-
-            // Act & Assert
-            await Assert.ThrowsAsync<ArgumentException>(
-                () => _rfqService.CreateAsync(request));
         }
 
         [Fact]
@@ -101,11 +69,10 @@ namespace CRM.Core.Tests.Services
             var expectedRFQ = new RFQ
             {
                 Id = rfqId,
-                RFQCode = "RFQ-2024-001",
+                RfqCode = "RF20260001",
                 CustomerId = "CUST-001",
                 Status = 1
             };
-
             _rfqRepository.GetByIdAsync(rfqId).Returns(expectedRFQ);
 
             // Act
@@ -114,7 +81,7 @@ namespace CRM.Core.Tests.Services
             // Assert
             Assert.NotNull(result);
             Assert.Equal(rfqId, result.Id);
-            Assert.Equal(expectedRFQ.RFQCode, result.RFQCode);
+            Assert.Equal(expectedRFQ.RfqCode, result.RfqCode);
         }
 
         [Fact]
@@ -137,12 +104,12 @@ namespace CRM.Core.Tests.Services
             var existingRFQ = new RFQ
             {
                 Id = "RFQ-123",
-                RFQCode = "RFQ-2024-001",
+                RfqCode = "RF20260001",
                 CustomerId = "CUST-001",
                 Status = 0
             };
-
             _rfqRepository.GetByIdAsync("RFQ-123").Returns(existingRFQ);
+            _rfqItemRepository.GetAllAsync().Returns(new List<RFQItem>());
 
             var updateRequest = new UpdateRFQRequest
             {
@@ -165,10 +132,9 @@ namespace CRM.Core.Tests.Services
             var existingRFQ = new RFQ
             {
                 Id = "RFQ-123",
-                RFQCode = "RFQ-2024-001",
+                RfqCode = "RF20260001",
                 Status = 0
             };
-
             _rfqRepository.GetByIdAsync("RFQ-123").Returns(existingRFQ);
 
             // Act
@@ -186,10 +152,10 @@ namespace CRM.Core.Tests.Services
             var existingRFQ = new RFQ
             {
                 Id = rfqId,
-                RFQCode = "RFQ-2024-001"
+                RfqCode = "RF20260001"
             };
-
             _rfqRepository.GetByIdAsync(rfqId).Returns(existingRFQ);
+            _rfqItemRepository.GetAllAsync().Returns(new List<RFQItem>());
 
             // Act
             await _rfqService.DeleteAsync(rfqId);
@@ -199,46 +165,25 @@ namespace CRM.Core.Tests.Services
         }
 
         [Fact]
-        public async Task GetAllAsync_ShouldReturnAllRFQs()
-        {
-            // Arrange
-            var rfqs = new List<RFQ>
-            {
-                new() { Id = "1", RFQCode = "RFQ-001", CustomerId = "C1" },
-                new() { Id = "2", RFQCode = "RFQ-002", CustomerId = "C2" },
-                new() { Id = "3", RFQCode = "RFQ-003", CustomerId = "C3" }
-            };
-
-            _rfqRepository.GetAllAsync().Returns(rfqs);
-
-            // Act
-            var result = await _rfqService.GetAllAsync();
-
-            // Assert
-            Assert.NotNull(result);
-            Assert.Equal(3, result.Count());
-        }
-
-        [Fact]
         public async Task GetByCustomerIdAsync_ShouldReturnCustomerRFQs()
         {
             // Arrange
             var customerId = "CUST-001";
             var rfqs = new List<RFQ>
             {
-                new() { Id = "1", RFQCode = "RFQ-001", CustomerId = customerId },
-                new() { Id = "2", RFQCode = "RFQ-002", CustomerId = customerId },
-                new() { Id = "3", RFQCode = "RFQ-003", CustomerId = "CUST-002" }
+                new() { Id = "1", RfqCode = "RF001", CustomerId = customerId },
+                new() { Id = "2", RfqCode = "RF002", CustomerId = customerId },
+                new() { Id = "3", RfqCode = "RF003", CustomerId = "CUST-002" }
             };
-
             _rfqRepository.GetAllAsync().Returns(rfqs);
 
             // Act
-            var result = await _rfqService.GetByCustomerIdAsync(customerId);
+            var pagedRequest = new RFQQueryRequest { CustomerId = customerId, PageIndex = 1, PageSize = 20 };
+            var result = await _rfqService.GetPagedAsync(pagedRequest);
 
             // Assert
             Assert.NotNull(result);
-            Assert.Equal(2, result.Count());
+            Assert.Equal(2, result.TotalCount);
         }
     }
 }

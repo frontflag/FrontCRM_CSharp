@@ -4,477 +4,222 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace CRM.Core.Models.Quote
 {
     /// <summary>
-    /// 报价单主表 (Quotation)
+    /// 报价单主表 (Quote)
+    /// 对应数据库表: quote
+    /// 说明: 一个报价单对应一个 RFQ 明细行（rfqitem），包含多个供应商报价行（quoteitem）
     /// </summary>
     [Table("quote")]
     public class Quote : BaseGuidEntity
     {
-        /// <summary>
-        /// 报价单ID (主键)
-        /// </summary>
         [Key]
         [StringLength(36)]
         [Column("QuoteId")]
         public override string Id { get; set; } = Guid.NewGuid().ToString();
 
-        /// <summary>
-        /// 报价单号
-        /// </summary>
+        /// <summary>报价单号，如 QT0001</summary>
         [Required]
         [StringLength(32)]
+        [Column("quote_code")]
         public string QuoteCode { get; set; } = string.Empty;
 
-        /// <summary>
-        /// 报价单类型 (1:销售报价 2:采购报价)
-        /// </summary>
-        public short QuoteType { get; set; } = 1;
-
-        /// <summary>
-        /// 询价单ID (外键)
-        /// </summary>
+        /// <summary>关联 RFQ 主表 ID</summary>
         [StringLength(36)]
+        [Column("rfq_id")]
         public string? RFQId { get; set; }
 
-        /// <summary>
-        /// 客户ID (外键)
-        /// </summary>
+        /// <summary>关联 RFQ 明细行 ID（一个报价单对应一个 rfqitem）</summary>
         [StringLength(36)]
+        [Column("rfq_item_id")]
+        public string? RFQItemId { get; set; }
+
+        /// <summary>物料型号（冗余自 rfqitem，方便查询）</summary>
+        [StringLength(200)]
+        [Column("mpn")]
+        public string? Mpn { get; set; }
+
+        /// <summary>客户 ID</summary>
+        [StringLength(36)]
+        [Column("customer_id")]
         public string? CustomerId { get; set; }
 
-        /// <summary>
-        /// 供应商ID (外键)
-        /// </summary>
+        /// <summary>业务员 ID</summary>
         [StringLength(36)]
-        public string? VendorId { get; set; }
-
-        /// <summary>
-        /// 联系人ID
-        /// </summary>
-        [StringLength(36)]
-        public string? ContactId { get; set; }
-
-        /// <summary>
-        /// 业务员ID
-        /// </summary>
-        [StringLength(36)]
+        [Column("sales_user_id")]
         public string? SalesUserId { get; set; }
 
-        /// <summary>
-        /// 采购员ID
-        /// </summary>
+        /// <summary>采购员 ID</summary>
         [StringLength(36)]
+        [Column("purchase_user_id")]
         public string? PurchaseUserId { get; set; }
 
-        /// <summary>
-        /// 报价日期
-        /// </summary>
+        /// <summary>报价日期</summary>
+        [Column("quote_date")]
         public DateTime QuoteDate { get; set; } = DateTime.UtcNow;
 
-        /// <summary>
-        /// 有效期至
-        /// </summary>
-        public DateTime? ValidityDate { get; set; }
-
-        /// <summary>
-        /// 币别
-        /// </summary>
-        public short? Currency { get; set; }
-
-        /// <summary>
-        /// 汇率
-        /// </summary>
-        [Column(TypeName = "numeric(18,6)")]
-        public decimal ExchangeRate { get; set; } = 1.000000m;
-
-        /// <summary>
-        /// 报价总金额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal TotalAmount { get; set; } = 0.00m;
-
-        /// <summary>
-        /// 成本总金额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal TotalCost { get; set; } = 0.00m;
-
-        /// <summary>
-        /// 利润总金额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal TotalProfit { get; set; } = 0.00m;
-
-        /// <summary>
-        /// 总利润率(%)
-        /// </summary>
-        [Column(TypeName = "numeric(5,2)")]
-        public decimal? TotalProfitRate { get; set; }
-
-        /// <summary>
-        /// 行项目数
-        /// </summary>
-        public int ItemRows { get; set; } = 0;
-
-        /// <summary>
-        /// 状态 (0:草稿 1:待审核 2:已审核 3:已发送 4:已接受 5:已拒绝 6:已过期 7:已关闭)
-        /// </summary>
+        /// <summary>状态 (0:草稿 1:待审核 2:已审核 3:已发送 4:已接受 5:已拒绝 6:已过期 7:已关闭)</summary>
+        [Column("status")]
         public short Status { get; set; } = 0;
 
-        /// <summary>
-        /// 版本号
-        /// </summary>
-        public int Version { get; set; } = 1;
-
-        /// <summary>
-        /// 是否最新版本
-        /// </summary>
-        public bool IsLatestVersion { get; set; } = true;
-
-        /// <summary>
-        /// 父报价单ID (用于版本管理)
-        /// </summary>
-        [StringLength(36)]
-        public string? ParentQuoteId { get; set; }
-
-        /// <summary>
-        /// 项目名称
-        /// </summary>
-        [StringLength(200)]
-        public string? ProjectName { get; set; }
-
-        /// <summary>
-        /// 项目描述
-        /// </summary>
-        public string? ProjectDescription { get; set; }
-
-        /// <summary>
-        /// 付款条款
-        /// </summary>
-        [StringLength(500)]
-        public string? PaymentTerms { get; set; }
-
-        /// <summary>
-        /// 交货条款
-        /// </summary>
-        [StringLength(500)]
-        public string? DeliveryTerms { get; set; }
-
-        /// <summary>
-        /// 预计交货日期
-        /// </summary>
-        public DateTime? ExpectedDeliveryDate { get; set; }
-
-        /// <summary>
-        /// 交货地点
-        /// </summary>
-        [StringLength(200)]
-        public string? DeliveryLocation { get; set; }
-
-        /// <summary>
-        /// 运输方式
-        /// </summary>
-        public short? ShippingMethod { get; set; }
-
-        /// <summary>
-        /// 运费承担方 (1:卖方 2:买方)
-        /// </summary>
-        public short? FreightBearer { get; set; }
-
-        /// <summary>
-        /// 运费金额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal? FreightAmount { get; set; }
-
-        /// <summary>
-        /// 包装费用
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal? PackagingFee { get; set; }
-
-        /// <summary>
-        /// 保险费用
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal? InsuranceFee { get; set; }
-
-        /// <summary>
-        /// 其他费用
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal? OtherFee { get; set; }
-
-        /// <summary>
-        /// 折扣金额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal? DiscountAmount { get; set; }
-
-        /// <summary>
-        /// 折扣率(%)
-        /// </summary>
-        [Column(TypeName = "numeric(5,2)")]
-        public decimal? DiscountRate { get; set; }
-
-        /// <summary>
-        /// 含税总金额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal? TotalAmountWithTax { get; set; }
-
-        /// <summary>
-        /// 税率(%)
-        /// </summary>
-        [Column(TypeName = "numeric(5,2)")]
-        public decimal? TaxRate { get; set; }
-
-        /// <summary>
-        /// 税额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal? TaxAmount { get; set; }
-
-        /// <summary>
-        /// 质保期(月)
-        /// </summary>
-        public int? WarrantyPeriod { get; set; }
-
-        /// <summary>
-        /// 报价条款
-        /// </summary>
-        public string? QuoteTerms { get; set; }
-
-        /// <summary>
-        /// 备注
-        /// </summary>
+        /// <summary>备注</summary>
         [StringLength(1000)]
+        [Column("remark")]
         public string? Remark { get; set; }
-
-        /// <summary>
-        /// 客户反馈
-        /// </summary>
-        [StringLength(1000)]
-        public string? CustomerFeedback { get; set; }
-
-        /// <summary>
-        /// 拒绝原因
-        /// </summary>
-        [StringLength(500)]
-        public string? RejectReason { get; set; }
-
-        /// <summary>
-        /// 附件数量
-        /// </summary>
-        public int AttachmentCount { get; set; } = 0;
-
-        /// <summary>
-        /// 审核人ID
-        /// </summary>
-        [StringLength(36)]
-        public string? ApproverId { get; set; }
-
-        /// <summary>
-        /// 审核时间
-        /// </summary>
-        public DateTime? ApproveTime { get; set; }
-
-        /// <summary>
-        /// 审核意见
-        /// </summary>
-        [StringLength(500)]
-        public string? ApproveRemark { get; set; }
 
         // 导航属性
         public virtual ICollection<QuoteItem> Items { get; set; } = new List<QuoteItem>();
     }
 
     /// <summary>
-    /// 报价单明细表
+    /// 报价明细行 (QuoteItem)
+    /// 对应数据库表: quoteitem
+    /// 说明: 每行对应一个供应商的报价，包含价格、库存、交期等信息
     /// </summary>
     [Table("quoteitem")]
     public class QuoteItem : BaseGuidEntity
     {
-        /// <summary>
-        /// 明细ID (主键)
-        /// </summary>
         [Key]
         [StringLength(36)]
-        [Column("ItemId")]
+        [Column("QuoteItemId")]
         public override string Id { get; set; } = Guid.NewGuid().ToString();
 
-        /// <summary>
-        /// 报价单ID (外键)
-        /// </summary>
+        /// <summary>所属报价单 ID（外键）</summary>
         [Required]
         [StringLength(36)]
+        [Column("quote_id")]
         public string QuoteId { get; set; } = string.Empty;
 
-        /// <summary>
-        /// 行号
-        /// </summary>
-        public int LineNo { get; set; } = 1;
+        // ─── 供应商信息 ───────────────────────────────────────────────
 
-        /// <summary>
-        /// 物料ID
-        /// </summary>
+        /// <summary>供应商 ID</summary>
         [StringLength(36)]
-        public string? MaterialId { get; set; }
+        [Column("vendor_id")]
+        public string? VendorId { get; set; }
 
-        /// <summary>
-        /// 物料编码
-        /// </summary>
-        [StringLength(50)]
-        public string? MaterialCode { get; set; }
-
-        /// <summary>
-        /// 物料名称
-        /// </summary>
+        /// <summary>供应商名称（如 Digikey）</summary>
         [StringLength(200)]
-        public string? MaterialName { get; set; }
+        [Column("vendor_name")]
+        public string? VendorName { get; set; }
 
-        /// <summary>
-        /// 规格型号
-        /// </summary>
+        /// <summary>供应商代码（如 VH0LUA）</summary>
+        [StringLength(50)]
+        [Column("vendor_code")]
+        public string? VendorCode { get; set; }
+
+        /// <summary>联系人 ID</summary>
+        [StringLength(36)]
+        [Column("contact_id")]
+        public string? ContactId { get; set; }
+
+        /// <summary>联系人名称（如 Internatinal Sales）</summary>
         [StringLength(100)]
-        public string? MaterialModel { get; set; }
+        [Column("contact_name")]
+        public string? ContactName { get; set; }
 
-        /// <summary>
-        /// 描述
-        /// </summary>
-        [StringLength(500)]
-        public string? Description { get; set; }
+        // ─── 价格类型 ─────────────────────────────────────────────────
 
-        /// <summary>
-        /// 数量
-        /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal Quantity { get; set; } = 0.0000m;
+        /// <summary>价格类型（如：现货价、期货价、样品价等）</summary>
+        [StringLength(50)]
+        [Column("price_type")]
+        public string? PriceType { get; set; }
 
-        /// <summary>
-        /// 单位
-        /// </summary>
-        [StringLength(20)]
-        public string? Unit { get; set; }
+        /// <summary>失效日期</summary>
+        [Column("expiry_date")]
+        public DateTime? ExpiryDate { get; set; }
 
-        /// <summary>
-        /// 成本单价
-        /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal CostPrice { get; set; } = 0.0000m;
+        // ─── 物料信息 ─────────────────────────────────────────────────
 
-        /// <summary>
-        /// 成本金额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal CostAmount { get; set; } = 0.00m;
+        /// <summary>物料型号（MPN，如 REF3430QDBVRQ1）</summary>
+        [StringLength(200)]
+        [Column("mpn")]
+        public string? Mpn { get; set; }
 
-        /// <summary>
-        /// 报价单价
-        /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal QuotePrice { get; set; } = 0.0000m;
-
-        /// <summary>
-        /// 报价金额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal QuoteAmount { get; set; } = 0.00m;
-
-        /// <summary>
-        /// 利润金额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal ProfitAmount { get; set; } = 0.00m;
-
-        /// <summary>
-        /// 利润率(%)
-        /// </summary>
-        [Column(TypeName = "numeric(5,2)")]
-        public decimal? ProfitRate { get; set; }
-
-        /// <summary>
-        /// 折扣率(%)
-        /// </summary>
-        [Column(TypeName = "numeric(5,2)")]
-        public decimal? DiscountRate { get; set; }
-
-        /// <summary>
-        /// 折扣金额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal? DiscountAmount { get; set; }
-
-        /// <summary>
-        /// 税率(%)
-        /// </summary>
-        [Column(TypeName = "numeric(5,2)")]
-        public decimal? TaxRate { get; set; }
-
-        /// <summary>
-        /// 税额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal? TaxAmount { get; set; }
-
-        /// <summary>
-        /// 含税单价
-        /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal? PriceWithTax { get; set; }
-
-        /// <summary>
-        /// 含税金额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal? AmountWithTax { get; set; }
-
-        /// <summary>
-        /// 品牌
-        /// </summary>
-        [StringLength(100)]
+        /// <summary>品牌（如 TEXAS INSTRUMENTS/德州仪器）</summary>
+        [StringLength(200)]
+        [Column("brand")]
         public string? Brand { get; set; }
 
-        /// <summary>
-        /// 产地
-        /// </summary>
+        /// <summary>品牌属地（如 美国）</summary>
         [StringLength(100)]
-        public string? Origin { get; set; }
+        [Column("brand_origin")]
+        public string? BrandOrigin { get; set; }
 
-        /// <summary>
-        /// 交货日期
-        /// </summary>
-        public DateTime? DeliveryDate { get; set; }
+        // ─── 时效信息 ─────────────────────────────────────────────────
 
-        /// <summary>
-        /// 最小订单量
-        /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal? MOQ { get; set; }
+        /// <summary>生产日期（如 NA、2年内）</summary>
+        [StringLength(100)]
+        [Column("date_code")]
+        public string? DateCode { get; set; }
 
-        /// <summary>
-        /// 包装规格
-        /// </summary>
+        /// <summary>交期（如 10-12days DC下单限制）</summary>
         [StringLength(200)]
-        public string? PackagingSpec { get; set; }
+        [Column("lead_time")]
+        public string? LeadTime { get; set; }
 
-        /// <summary>
-        /// 质保期(月)
-        /// </summary>
-        public int? WarrantyPeriod { get; set; }
+        // ─── 涂标 / 产地 ──────────────────────────────────────────────
 
-        /// <summary>
-        /// 备注
-        /// </summary>
+        /// <summary>涂标 (0:不涂标 1:涂标 2:待确定)</summary>
+        [Column("label_type")]
+        public short LabelType { get; set; } = 2;
+
+        /// <summary>报价晶圆产地 (0:美产 1:非美产 2:待确定)</summary>
+        [Column("wafer_origin")]
+        public short WaferOrigin { get; set; } = 2;
+
+        /// <summary>报价封装产地 (0:美产 1:非美产 2:待确定)</summary>
+        [Column("package_origin")]
+        public short PackageOrigin { get; set; } = 2;
+
+        /// <summary>是否包邮</summary>
+        [Column("free_shipping")]
+        public bool FreeShipping { get; set; } = false;
+
+        // ─── 价格信息 ─────────────────────────────────────────────────
+
+        /// <summary>报价币别 (0:RMB 1:USD 2:EUR 3:HKD)</summary>
+        [Column("currency")]
+        public short Currency { get; set; } = 1;
+
+        /// <summary>报价数量</summary>
+        [Column("quantity", TypeName = "numeric(18,4)")]
+        public decimal Quantity { get; set; } = 0;
+
+        /// <summary>报价单价（含6位小数，如 2.267910）</summary>
+        [Column("unit_price", TypeName = "numeric(18,6)")]
+        public decimal UnitPrice { get; set; } = 0;
+
+        /// <summary>折算价（按汇率折算后的价格）</summary>
+        [Column("converted_price", TypeName = "numeric(18,6)")]
+        public decimal? ConvertedPrice { get; set; }
+
+        // ─── 库存 / 订购信息 ──────────────────────────────────────────
+
+        /// <summary>最小包装数量</summary>
+        [Column("min_package_qty")]
+        public int MinPackageQty { get; set; } = 0;
+
+        /// <summary>最小包装单位（如 Reel、Tube、Tray）</summary>
+        [StringLength(50)]
+        [Column("min_package_unit")]
+        public string? MinPackageUnit { get; set; }
+
+        /// <summary>库存数量</summary>
+        [Column("stock_qty")]
+        public int StockQty { get; set; } = 0;
+
+        /// <summary>起订量（MOQ）</summary>
+        [Column("moq")]
+        public int Moq { get; set; } = 0;
+
+        /// <summary>备注（如 散料）</summary>
         [StringLength(500)]
+        [Column("remark")]
         public string? Remark { get; set; }
 
-        /// <summary>
-        /// 状态 (0:有效 1:已取消)
-        /// </summary>
+        /// <summary>状态 (0:有效 1:已取消)</summary>
+        [Column("status")]
         public short Status { get; set; } = 0;
 
         // 导航属性
-        [ForeignKey("QuoteId")]
         public virtual Quote? Quote { get; set; }
     }
 }

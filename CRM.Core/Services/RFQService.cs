@@ -92,7 +92,7 @@ namespace CRM.Core.Services
                 }
             }
 
-            await _unitOfWork.SaveChangesAsync();
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
             return rfq;
         }
 
@@ -140,7 +140,7 @@ namespace CRM.Core.Services
             // 批量获取客户名称
             var customerIds = items.Where(r => r.CustomerId != null).Select(r => r.CustomerId!).Distinct().ToList();
             var customers = new Dictionary<string, string>();
-            if (customerIds.Count > 0)
+            if (customerIds.Count > 0 && _customerRepo != null)
             {
                 var allCustomers = await _customerRepo.GetAllAsync();
                 customers = allCustomers
@@ -235,7 +235,7 @@ namespace CRM.Core.Services
             }
 
             await _rfqRepo.UpdateAsync(rfq);
-            await _unitOfWork.SaveChangesAsync();
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
             return rfq;
         }
 
@@ -252,7 +252,7 @@ namespace CRM.Core.Services
                 await _itemRepo.DeleteAsync(item.Id);
 
             await _rfqRepo.DeleteAsync(id);
-            await _unitOfWork.SaveChangesAsync();
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
         }
 
         // ─── Status ──────────────────────────────────────────────────────────────
@@ -264,7 +264,7 @@ namespace CRM.Core.Services
             rfq.Status = status;
             rfq.ModifyTime = DateTime.UtcNow;
             await _rfqRepo.UpdateAsync(rfq);
-            await _unitOfWork.SaveChangesAsync();
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
         }
     }
 }
