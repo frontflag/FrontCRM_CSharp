@@ -285,7 +285,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
+import { ElNotification, type FormInstance, type FormRules } from 'element-plus';
 import { customerApi } from '@/api/customer';
 import type { CreateCustomerRequest } from '@/types/customer';
 
@@ -363,7 +363,7 @@ const fetchCustomerDetail = async () => {
       }));
     }
   } catch (error) {
-    ElMessage.error('获取客户详情失败');
+    ElNotification.error({ title: '加载失败', message: '获取客户详情失败，请刷新重试' });
   }
 };
 
@@ -384,30 +384,35 @@ const addContact = () => {
 const removeContact = (index: number) => formData.contacts.splice(index, 1);
 
 const handleSave = async (_submit: boolean) => {
-  const valid = await formRef.value?.validate();
-  if (!valid) return;
+  // el-form.validate() 在校验失败时会抛出异常，需用 try-catch 统一处理
+  let isValid = false;
+  try {
+    isValid = await formRef.value?.validate() ?? false;
+  } catch {
+    // 校验失败（必填项为空等），不是真正的运行时错误
+    ElNotification.warning({ title: '校验失败', message: '请检查表单填写是否完整，必填项不能为空' });
+    return;
+  }
+  if (!isValid) {
+    ElNotification.warning({ title: '校验失败', message: '请检查表单填写是否完整' });
+    return;
+  }
+
   try {
     if (isEdit.value) {
-      const result = await customerApi.updateCustomer(customerId.value, formData) as any;
-      if (result && result.success === false) {
-        ElMessage.error(result.message || '更新失败');
-        return;
-      }
-      ElMessage.success('更新成功');
+      await customerApi.updateCustomer(customerId.value, formData);
     } else {
-      const result = await customerApi.createCustomer(formData) as any;
-      if (result && result.success === false) {
-        ElMessage.error(result.message || '创建失败');
-        return;
-      }
-      ElMessage.success('创建成功');
+      await customerApi.createCustomer(formData);
     }
-    router.push('/customers');
+    ElNotification.success({ title: '保存成功', message: isEdit.value ? '客户信息已成功更新' : '客户已成功创建' });
+    setTimeout(() => router.push('/customers'), 1500);
   } catch (err: any) {
-    // 尝试从响应体中提取具体错误信息
-    const serverMsg = err?.response?.data?.message;
-    const msg = serverMsg || err?.message || '保存失败，请检查输入内容';
-    ElMessage.error(msg);
+    // API 调用失败时，从错误对象中提取具体原因
+    const serverMsg = err?.response?.data?.message
+      || (Array.isArray(err?.response?.data?.errors) ? err.response.data.errors.join('；') : null)
+      || err?.message;
+    const msg = serverMsg ? `保存错误：${serverMsg}` : '保存错误，请稍后重试';
+    ElNotification.error({ title: '保存失败', message: msg });
   }
 };
 

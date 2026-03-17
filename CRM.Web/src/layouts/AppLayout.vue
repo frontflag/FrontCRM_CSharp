@@ -331,7 +331,7 @@ const handleLogout = () => {
   width: 100vw;
   height: 100vh;
   background: vars.$layer-1;
-  overflow: hidden;
+  overflow: clip; // 使用 clip 而非 hidden，避免裁剪 position:fixed 的元素（如 ElMessage）
 }
 
 // ── 侧边栏 ──────────────────────────────────────────────────

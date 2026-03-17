@@ -20,22 +20,20 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(credentials: LoginRequest): Promise<boolean> {
     try {
       loading.value = true
-      const response = await authApi.login(credentials)
-
-      if (response.success && response.data) {
-        token.value = response.data.token
+      // client.ts 拦截器已解包 data 层，返回的直接是 { token, userName, email }
+      const authData = await authApi.login(credentials) as any
+      const tokenVal = authData?.token
+      if (tokenVal) {
+        token.value = tokenVal
         user.value = {
-          email: response.data.email,
-          userName: response.data.userName,
+          email: authData.email,
+          userName: authData.userName,
           id: '0'
         }
-
-        localStorage.setItem('token', response.data.token)
+        localStorage.setItem('token', tokenVal)
         localStorage.setItem('user', JSON.stringify(user.value))
-
         return true
       }
-
       return false
     } catch (error) {
       console.error('Login failed:', error)
@@ -48,22 +46,20 @@ export const useAuthStore = defineStore('auth', () => {
   async function register(data: RegisterRequest): Promise<boolean> {
     try {
       loading.value = true
-      const response = await authApi.register(data)
-
-      if (response.success && response.data) {
-        token.value = response.data.token
+      // client.ts 拦截器已解包 data 层，返回的直接是 { token, userName, email }
+      const authData = await authApi.register(data) as any
+      const tokenVal = authData?.token
+      if (tokenVal) {
+        token.value = tokenVal
         user.value = {
-          email: response.data.email,
-          userName: response.data.userName,
+          email: authData.email,
+          userName: authData.userName,
           id: '0'
         }
-
-        localStorage.setItem('token', response.data.token)
+        localStorage.setItem('token', tokenVal)
         localStorage.setItem('user', JSON.stringify(user.value))
-
         return true
       }
-
       return false
     } catch (error) {
       console.error('Registration failed:', error)
@@ -77,9 +73,10 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token.value) return
 
     try {
-      const response = await authApi.getCurrentUser()
-      if (response.success && response.data) {
-        user.value = response.data
+      // client.ts 拦截器已解包 data 层，返回的直接是用户对象
+      const userData = await authApi.getCurrentUser() as any
+      if (userData) {
+        user.value = userData
         localStorage.setItem('user', JSON.stringify(user.value))
       }
     } catch (error) {
