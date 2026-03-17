@@ -1,4 +1,5 @@
 export * from './customer'
+export * from './demand'
 export type { Customer, CustomerInfo, CustomerContactInfo, CustomerAddress, CustomerBankInfo } from './customer'
 export type { CreateCustomerRequest, UpdateCustomerRequest } from './customer'
 export type { CustomerSearchRequest, CustomerSearchResponse, CustomerStatistics } from './customer'

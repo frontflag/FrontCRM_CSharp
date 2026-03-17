@@ -375,7 +375,7 @@ async function showAssignDialog() {
   try {
     const [list, recommended] = await Promise.all([
       demandApi.getPurchasers(),
-      demandApi.getRecommendedPurchaser(demandId)
+      demandApi.getRecommendedPurchasers(demandId)
     ])
     purchaserList.value = list || []; recommendedPurchaser.value = recommended
   } catch { purchaserList.value = [] }
@@ -393,7 +393,7 @@ async function handleAssignConfirm() {
   }
   assignLoading.value = true
   try {
-    await demandApi.assignPurchaser({ demandId, purchaserId: assignForm.purchaserId, remark: assignForm.remark })
+    await demandApi.assignPurchaser(demandId, { purchaserId: assignForm.purchaserId, remark: assignForm.remark })
     ElNotification.success({ title: '分配成功', message: '采购员已成功分配' })
     assignDialogVisible.value = false; loadDemand()
   } catch { ElNotification.error({ title: '分配失败', message: '采购员分配失败，请重试' }) }
@@ -406,7 +406,7 @@ async function handleCloseConfirm() {
   }
   closeLoading.value = true
   try {
-    await demandApi.closeDemand(demandId, { closeType: closeForm.closeType, reason: closeForm.reason })
+    await demandApi.addCloseRecord(demandId, { closeType: closeForm.closeType, closeReason: closeForm.reason })
     ElNotification.success({ title: '操作成功', message: '需求已关闭' })
     closeDialogVisible.value = false; loadDemand(); loadCloseRecords()
   } catch { ElNotification.error({ title: '操作失败', message: '关闭需求失败，请重试' }) }

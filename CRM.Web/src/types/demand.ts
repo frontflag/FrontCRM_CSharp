@@ -217,11 +217,13 @@ export interface CreateDemandItemRequest {
   materialCode?: string
   materialName?: string
   materialModel?: string
+  specification?: string
   customerMaterialCode?: string
   description?: string
   quantity: number
   unit?: string
   targetPrice?: number
+  targetUnitPrice?: number
   brandRequirement?: string
   originRequirement?: string
   deliveryDate?: string

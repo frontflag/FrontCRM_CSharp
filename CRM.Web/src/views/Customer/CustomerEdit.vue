@@ -287,6 +287,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElNotification, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
 import { customerApi } from '@/api/customer';
+import { regionData } from '@/data/regions';
 import type { CreateCustomerRequest } from '@/types/customer';
 
 const route = useRoute();
@@ -322,14 +323,7 @@ const salesPersonOptions = ref([
   { value: 'user-003', label: '王五' }
 ]);
 
-const regionOptions = ref([
-  { value: '北京市', label: '北京市', children: [{ value: '北京市', label: '北京市', children: [{ value: '朝阳区', label: '朝阳区' }, { value: '海淀区', label: '海淀区' }] }] },
-  { value: '上海市', label: '上海市', children: [{ value: '上海市', label: '上海市', children: [{ value: '浦东新区', label: '浦东新区' }, { value: '黄浦区', label: '黄浦区' }] }] },
-  { value: '广东省', label: '广东省', children: [
-    { value: '广州市', label: '广州市', children: [{ value: '天河区', label: '天河区' }] },
-    { value: '深圳市', label: '深圳市', children: [{ value: '南山区', label: '南山区' }] }
-  ]}
-]);
+const regionOptions = regionData;
 
 const fetchCustomerDetail = async () => {
   if (!isEdit.value) return;

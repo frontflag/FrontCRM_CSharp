@@ -354,7 +354,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElNotification, ElMessageBox } from 'element-plus'
 import { demandApi } from '@/api/demand'
-import type { CreateDemandRequest, DemandItemInput } from '@/types/demand'
+import type { CreateDemandRequest, CreateDemandItemRequest } from '@/types/demand'
 
 const router = useRouter()
 const route = useRoute()
@@ -380,7 +380,7 @@ const formData = reactive<{
   qualityRequirements: string
   certificationRequirements: string
   remarks: string
-  items: Array<DemandItemInput & { _key: number; _isDuplicate?: boolean }>
+  items: Array<CreateDemandItemRequest & { _key: number; _isDuplicate?: boolean; specification?: string; targetUnitPrice?: number; itemRemarks?: string }>
 }>({
   demandCode: '',
   customerId: '',
@@ -396,7 +396,7 @@ const formData = reactive<{
 })
 
 let _keyCounter = 0
-function newItem(): DemandItemInput & { _key: number; _isDuplicate?: boolean } {
+function newItem(): CreateDemandItemRequest & { _key: number; _isDuplicate?: boolean; specification?: string; targetUnitPrice?: number; itemRemarks?: string } {
   return {
     _key: ++_keyCounter,
     _isDuplicate: false,
@@ -436,15 +436,18 @@ async function checkDuplicates() {
     return
   }
   try {
-    const result = await demandApi.checkDuplicateMaterial({
-      customerId: formData.customerId,
-      materialCodes: formData.items.map(i => i.materialCode).filter(Boolean)
-    })
     let dupCount = 0
-    formData.items.forEach(item => {
-      item._isDuplicate = result.duplicates?.includes(item.materialCode) ?? false
-      if (item._isDuplicate) dupCount++
-    })
+    for (const item of formData.items) {
+      if (!item.materialCode) continue
+      try {
+        const result = await demandApi.checkDuplicateMaterial({
+          customerId: formData.customerId,
+          materialCode: item.materialCode
+        })
+        item._isDuplicate = result.isDuplicate ?? false
+        if (item._isDuplicate) dupCount++
+      } catch { /* 单条检查失败静默处理 */ }
+    }
     if (dupCount > 0) {
       ElNotification.warning({ title: '发现重复物料', message: `共 ${dupCount} 行物料在近期已有需求记录，请确认` })
     } else {
@@ -508,9 +511,9 @@ async function loadDemand() {
     formData.paymentTerms = data.paymentTerms || ''
     formData.qualityRequirements = data.qualityRequirements || ''
     formData.certificationRequirements = data.certificationRequirements || ''
-    formData.remarks = data.remarks || ''
+    formData.remarks = data.remark || ''
     // 加载明细
-    const items = await demandApi.getDemandItemsByMasterId(data.id)
+    const items = await demandApi.getDemandItemsByDemandId(data.id)
     formData.items = (items || []).map((item: any) => ({
       ...item,
       _key: ++_keyCounter,
@@ -547,7 +550,7 @@ async function handleSave(submit: boolean) {
       paymentTerms: formData.paymentTerms || undefined,
       qualityRequirements: formData.qualityRequirements || undefined,
       certificationRequirements: formData.certificationRequirements || undefined,
-      remarks: formData.remarks || undefined,
+      remark: formData.remarks || undefined,
       items: formData.items.map(item => ({
         materialCode: item.materialCode,
         materialName: item.materialName,
@@ -560,7 +563,7 @@ async function handleSave(submit: boolean) {
         originRequirement: item.originRequirement,
         deliveryDate: item.deliveryDate || undefined,
         moq: item.moq,
-        itemRemarks: item.itemRemarks
+        remark: item.itemRemarks
       }))
     }
     if (isEdit.value) {
@@ -598,7 +601,7 @@ onMounted(async () => {
         const res = await customerApi.searchCustomers({ pageNumber: 1, pageSize: 1, searchTerm: formData.customerId })
         if (res.items?.length) {
           const c = res.items[0]
-          customerOptions.value = [{ value: c.id, label: c.customerName || c.officialName || '未知客户' }]
+          customerOptions.value = [{ value: c.id, label: c.customerName || (c as any).officialName || '未知客户' }]
         }
       } catch { /* 静默失败 */ }
     }

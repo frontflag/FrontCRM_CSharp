@@ -402,20 +402,20 @@ async function loadData() {
   loading.value = true
   try {
     const res = await demandApi.searchDemands({
-      page: currentPage.value,
+      pageNumber: currentPage.value,
       pageSize: pageSize.value,
-      keyword: searchForm.keyword || undefined,
+      searchTerm: searchForm.keyword || undefined,
       status: searchForm.status,
       source: searchForm.source,
       startDate: searchForm.startDate || undefined,
       endDate: searchForm.endDate || undefined
     })
     tableData.value = res.items || []
-    totalCount.value = res.total || 0
-    stats.total = res.total || 0
-    stats.pending = res.pendingCount ?? 0
-    stats.processing = res.processingCount ?? 0
-    stats.quoted = res.quotedCount ?? 0
+    totalCount.value = res.totalCount || 0
+    stats.total = res.totalCount || 0
+    stats.pending = 0
+    stats.processing = 0
+    stats.quoted = 0
   } catch {
     ElNotification.error({ title: '加载失败', message: '需求列表加载失败，请稍后重试' })
   } finally {
@@ -477,7 +477,7 @@ async function handleAssignConfirm() {
   }
   assignLoading.value = true
   try {
-    await demandApi.assignPurchaser({ demandId: assignForm.demandId, purchaserId: assignForm.purchaserId, remark: assignForm.remark })
+    await demandApi.assignPurchaser(assignForm.demandId, { purchaserId: assignForm.purchaserId, remark: assignForm.remark })
     ElNotification.success({ title: '分配成功', message: '采购员已成功分配' })
     assignDialogVisible.value = false
     loadData()
@@ -495,7 +495,7 @@ async function handleCloseConfirm() {
   }
   closeLoading.value = true
   try {
-    await demandApi.closeDemand(closeForm.demandId, { closeType: closeForm.closeType, reason: closeForm.closeReason })
+    await demandApi.addCloseRecord(closeForm.demandId, { closeType: closeForm.closeType, closeReason: closeForm.closeReason })
     ElNotification.success({ title: '操作成功', message: '需求已关闭' })
     closeDialogVisible.value = false
     loadData()
