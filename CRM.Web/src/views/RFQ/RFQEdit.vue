@@ -660,10 +660,26 @@ const formRules = {
 }
 
 // 远程搜索客户
+async function loadDefaultCustomers() {
+  try {
+    const { customerApi } = await import('@/api/customer')
+    const res = await customerApi.searchCustomers({ pageNumber: 1, pageSize: 30 })
+    const newOptions = (res.items || []).map((c: any) => ({
+      value: c.id,
+      label: c.customerName || (c as any).officialName || c.name || '未知客户'
+    }))
+    // 保留已选中的客户选项，避免被覆盖
+    const existing = customerOptions.value.filter(o => o.value === formData.customerId)
+    const merged = [...existing, ...newOptions.filter((o: any) => o.value !== formData.customerId)]
+    customerOptions.value = merged
+  } catch { /* 静默失败 */ }
+}
+
 async function searchCustomers(query: string) {
   if (customerSearchTimer) clearTimeout(customerSearchTimer)
   if (!query || query.trim().length < 1) {
-    customerOptions.value = []
+    // 空查询时加载默认客户列表
+    await loadDefaultCustomers()
     return
   }
   customerSearchTimer = setTimeout(async () => {
@@ -672,12 +688,12 @@ async function searchCustomers(query: string) {
       const { customerApi } = await import('@/api/customer')
       const res = await customerApi.searchCustomers({
         pageNumber: 1,
-        pageSize: 20,
+        pageSize: 30,
         searchTerm: query.trim()
       })
       customerOptions.value = (res.items || []).map((c: any) => ({
         value: c.id,
-        label: c.customerName || c.officialName || c.name || '未知客户'
+        label: c.customerName || (c as any).officialName || c.name || '未知客户'
       }))
     } catch {
       customerOptions.value = []
@@ -810,16 +826,21 @@ function goBack() {
 }
 
 onMounted(async () => {
+  // 预加载默认客户列表（新建和编辑模式都需要）
+  await loadDefaultCustomers()
   if (isEdit.value) {
     await loadRFQ()
-    // 编辑模式下预填当前客户选项
+    // 编辑模式下：确保当前客户在选项中（用 getCustomerById 精确回填）
     if (formData.customerId) {
       try {
         const { customerApi } = await import('@/api/customer')
-        const res = await customerApi.searchCustomers({ pageNumber: 1, pageSize: 1, searchTerm: formData.customerId })
-        if (res.items?.length) {
-          const c = res.items[0]
-          customerOptions.value = [{ value: c.id, label: c.customerName || (c as any).officialName || '未知客户' }]
+        const c = await customerApi.getCustomerById(formData.customerId)
+        if (c) {
+          const label = (c as any).officialName || c.customerName || '未知客户'
+          // 如果选项中没有当前客户，添加进去
+          if (!customerOptions.value.find(o => o.value === formData.customerId)) {
+            customerOptions.value.unshift({ value: formData.customerId, label })
+          }
         }
       } catch { /* 静默失败 */ }
     }
