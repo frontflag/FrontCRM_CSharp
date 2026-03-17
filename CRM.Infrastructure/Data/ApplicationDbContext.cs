@@ -1,8 +1,10 @@
 using CRM.Core.Models;
 using CRM.Core.Models.Component;
 using CRM.Core.Models.Customer;
+using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
+using CRM.Core.Models.Sales;
 using CRM.Core.Models.System;
 using Microsoft.EntityFrameworkCore;
 
@@ -37,6 +39,14 @@ namespace CRM.Infrastructure.Data
         // ===== 报价模块 =====
         public DbSet<Quote> Quotes { get; set; } = null!;
         public DbSet<QuoteItem> QuoteItems { get; set; } = null!;
+
+        // ===== 销售订单模块 =====
+        public DbSet<SellOrder> SellOrders { get; set; } = null!;
+        public DbSet<SellOrderItem> SellOrderItems { get; set; } = null!;
+
+        // ===== 采购订单模块 =====
+        public DbSet<PurchaseOrder> PurchaseOrders { get; set; } = null!;
+        public DbSet<PurchaseOrderItem> PurchaseOrderItems { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -93,6 +103,61 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.UnitPrice).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
                 entity.Property(e => e.ConvertedPrice).HasColumnType("numeric(18,6)");
                 entity.HasIndex(e => e.QuoteId);
+            });
+
+            // ===== 销售订单模块配置 =====
+            modelBuilder.Entity<SellOrder>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("SellOrderId");
+                entity.Property(e => e.SellOrderCode).IsRequired().HasMaxLength(32);
+                entity.HasIndex(e => e.SellOrderCode).IsUnique();
+                entity.Property(e => e.Status).HasDefaultValue((short)0);
+                entity.HasMany(e => e.Items)
+                      .WithOne(i => i.SellOrder)
+                      .HasForeignKey(i => i.SellOrderId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<SellOrderItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("SellOrderItemId");
+                entity.Property(e => e.SellOrderId).IsRequired();
+                entity.Property(e => e.Qty).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                entity.Property(e => e.Price).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.PurchasedQty).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                entity.HasIndex(e => e.SellOrderId);
+            });
+
+            // ===== 采购订单模块配置 =====
+            modelBuilder.Entity<PurchaseOrder>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("PurchaseOrderId");
+                entity.Property(e => e.PurchaseOrderCode).IsRequired().HasMaxLength(32);
+                entity.HasIndex(e => e.PurchaseOrderCode).IsUnique();
+                entity.Property(e => e.Status).HasDefaultValue((short)0);
+                entity.HasMany(e => e.Items)
+                      .WithOne(i => i.PurchaseOrder)
+                      .HasForeignKey(i => i.PurchaseOrderId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<PurchaseOrderItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("PurchaseOrderItemId");
+                entity.Property(e => e.PurchaseOrderId).IsRequired();
+                entity.Property(e => e.SellOrderItemId).IsRequired();
+                entity.Property(e => e.Qty).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                entity.Property(e => e.Cost).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.HasIndex(e => e.PurchaseOrderId);
+                entity.HasIndex(e => e.SellOrderItemId);
+                entity.HasOne(e => e.SellOrderItem)
+                      .WithMany()
+                      .HasForeignKey(e => e.SellOrderItemId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             // ===== 软删除全局过滤器 =====

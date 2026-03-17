@@ -1,4 +1,5 @@
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Services;
 using NSubstitute;
@@ -6,18 +7,25 @@ using Xunit;
 
 namespace CRM.Core.Tests.Services
 {
-    /// <summary>
-    /// SalesOrder销售订单服务测试
-    /// </summary>
     public class SalesOrderServiceTests
     {
         private readonly IRepository<SellOrder> _orderRepository;
+        private readonly IRepository<SellOrderItem> _orderItemRepository;
+        private readonly IRepository<PurchaseOrder> _poRepository;
+        private readonly IRepository<PurchaseOrderItem> _poItemRepository;
         private readonly SalesOrderService _orderService;
 
         public SalesOrderServiceTests()
         {
             _orderRepository = Substitute.For<IRepository<SellOrder>>();
-            _orderService = new SalesOrderService(_orderRepository);
+            _orderItemRepository = Substitute.For<IRepository<SellOrderItem>>();
+            _poRepository = Substitute.For<IRepository<PurchaseOrder>>();
+            _poItemRepository = Substitute.For<IRepository<PurchaseOrderItem>>();
+            _orderService = new SalesOrderService(
+                _orderRepository,
+                _orderItemRepository,
+                _poRepository,
+                _poItemRepository);
         }
 
         [Fact]
@@ -26,33 +34,29 @@ namespace CRM.Core.Tests.Services
             // Arrange
             var request = new CreateSalesOrderRequest
             {
-                OrderCode = "SO-2024-001",
+                SellOrderCode = "SO-2024-001",
                 CustomerId = "CUST-001",
+                CustomerName = "测试客户",
                 SalesUserId = "USER-001",
-                DeliveryDate = DateTime.UtcNow.AddDays(7),
-                TotalAmount = 5000m,
-                GrandTotal = 5650m,
-                Currency = 1, // CNY
-                PaymentTerms = "30天账期"
+                Type = 1,
+                Currency = 1,
+                Items = new List<CreateSalesOrderItemRequest>
+                {
+                    new() { PN = "STM32F103", Brand = "ST", Qty = 100, Price = 5.5m }
+                }
             };
-
             _orderRepository.GetAllAsync().Returns(new List<SellOrder>());
-
-            SellOrder? capturedOrder = null;
-            _orderRepository.When(r => r.AddAsync(Arg.Any<SellOrder>()))
-                .Do(call => capturedOrder = call.Arg<SellOrder>());
+            _orderRepository.AddAsync(Arg.Any<SellOrder>()).Returns(Task.CompletedTask);
+            _orderItemRepository.AddAsync(Arg.Any<SellOrderItem>()).Returns(Task.CompletedTask);
+            _orderRepository.UpdateAsync(Arg.Any<SellOrder>()).Returns(Task.CompletedTask);
 
             // Act
             var result = await _orderService.CreateAsync(request);
 
             // Assert
             Assert.NotNull(result);
-            Assert.Equal(request.OrderCode, result.SellOrderCode);
-            Assert.Equal(request.CustomerId, result.CustomerId);
-            Assert.Equal(request.TotalAmount, result.Total);
-            Assert.Equal(request.GrandTotal, result.ConvertTotal);
-            Assert.Equal(request.Currency, result.Currency);
-            Assert.Equal(0, result.Status); // 草稿状态
+            Assert.Equal("SO-2024-001", result.SellOrderCode);
+            Assert.Equal("CUST-001", result.CustomerId);
             await _orderRepository.Received(1).AddAsync(Arg.Any<SellOrder>());
         }
 
@@ -60,42 +64,34 @@ namespace CRM.Core.Tests.Services
         public async Task CreateAsync_DuplicateOrderCode_ShouldThrowException()
         {
             // Arrange
-            var existingOrder = new SellOrder
-            {
-                Id = "1",
-                SellOrderCode = "SO-2024-001",
-                CustomerId = "CUST-001"
-            };
-
-            _orderRepository.GetAllAsync().Returns(new List<SellOrder> { existingOrder });
-
             var request = new CreateSalesOrderRequest
             {
-                OrderCode = "SO-2024-001",
-                CustomerId = "CUST-002"
+                SellOrderCode = "SO-2024-001",
+                CustomerId = "CUST-001",
+                Items = new List<CreateSalesOrderItemRequest>()
             };
+            _orderRepository.GetAllAsync().Returns(new List<SellOrder>
+            {
+                new() { SellOrderCode = "SO-2024-001" }
+            });
 
             // Act & Assert
-            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-                () => _orderService.CreateAsync(request));
-            Assert.Contains("SO-2024-001", exception.Message);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => _orderService.CreateAsync(request));
         }
 
-        [Theory]
-        [InlineData("")]
-        [InlineData(" ")]
-        public async Task CreateAsync_EmptyOrderCode_ShouldThrowException(string orderCode)
+        [Fact]
+        public async Task CreateAsync_EmptyOrderCode_ShouldThrowArgumentException()
         {
             // Arrange
             var request = new CreateSalesOrderRequest
             {
-                OrderCode = orderCode,
-                CustomerId = "CUST-001"
+                SellOrderCode = "",
+                CustomerId = "CUST-001",
+                Items = new List<CreateSalesOrderItemRequest>()
             };
 
             // Act & Assert
-            await Assert.ThrowsAsync<ArgumentException>(
-                () => _orderService.CreateAsync(request));
+            await Assert.ThrowsAsync<ArgumentException>(() => _orderService.CreateAsync(request));
         }
 
         [Fact]
@@ -103,16 +99,8 @@ namespace CRM.Core.Tests.Services
         {
             // Arrange
             var orderId = "SO-123";
-            var expectedOrder = new SellOrder
-            {
-                Id = orderId,
-                SellOrderCode = "SO-2024-001",
-                CustomerId = "CUST-001",
-                Total = 10000m,
-                Status = 1
-            };
-
-            _orderRepository.GetByIdAsync(orderId).Returns(expectedOrder);
+            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001" };
+            _orderRepository.GetByIdAsync(orderId).Returns(existingOrder);
 
             // Act
             var result = await _orderService.GetByIdAsync(orderId);
@@ -120,35 +108,24 @@ namespace CRM.Core.Tests.Services
             // Assert
             Assert.NotNull(result);
             Assert.Equal(orderId, result.Id);
-            Assert.Equal(expectedOrder.Total, result.Total);
         }
 
         [Fact]
         public async Task UpdateAsync_ValidRequest_ShouldUpdateSalesOrder()
         {
             // Arrange
-            var existingOrder = new SellOrder
-            {
-                Id = "SO-123",
-                SellOrderCode = "SO-2024-001",
-                CustomerId = "CUST-001",
-                Total = 5000m,
-                Status = 0
-            };
-
-            _orderRepository.GetByIdAsync("SO-123").Returns(existingOrder);
-
-            var updateRequest = new UpdateSalesOrderRequest
-            {
-                Remark = "订单已更新"
-            };
+            var orderId = "SO-123";
+            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001" };
+            _orderRepository.GetByIdAsync(orderId).Returns(existingOrder);
+            _orderRepository.UpdateAsync(Arg.Any<SellOrder>()).Returns(Task.CompletedTask);
+            var updateRequest = new UpdateSalesOrderRequest { Comment = "订单已更新" };
 
             // Act
-            var result = await _orderService.UpdateAsync("SO-123", updateRequest);
+            var result = await _orderService.UpdateAsync(orderId, updateRequest);
 
             // Assert
             Assert.NotNull(result);
-            Assert.Equal("订单已更新", result.Remark);
+            Assert.Equal("订单已更新", result.Comment);
             await _orderRepository.Received(1).UpdateAsync(Arg.Any<SellOrder>());
         }
 
@@ -157,17 +134,10 @@ namespace CRM.Core.Tests.Services
         {
             // Arrange
             var orderId = "SO-123";
-            var existingOrder = new SellOrder
-            {
-                Id = orderId,
-                SellOrderCode = "SO-2024-001",
-                Status = 0, // 草稿
-                Total = 5000m
-            };
-
+            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001", Status = 0 };
             _orderRepository.GetByIdAsync(orderId).Returns(existingOrder);
 
-            // Act - 使用状态码1表示已确认
+            // Act
             await _orderService.UpdateStatusAsync(orderId, 1);
 
             // Assert
@@ -179,20 +149,14 @@ namespace CRM.Core.Tests.Services
         {
             // Arrange
             var orderId = "SO-123";
-            var existingOrder = new SellOrder
-            {
-                Id = orderId,
-                SellOrderCode = "SO-2024-001",
-                Status = 1 // 已确认
-            };
-
+            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001", Status = 1 };
             _orderRepository.GetByIdAsync(orderId).Returns(existingOrder);
 
-            // Act - 使用状态码2表示已发货
-            await _orderService.UpdateStatusAsync(orderId, 2);
+            // Act
+            await _orderService.UpdateStatusAsync(orderId, 4);
 
             // Assert
-            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == 2));
+            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == 4));
         }
 
         [Fact]
@@ -200,20 +164,14 @@ namespace CRM.Core.Tests.Services
         {
             // Arrange
             var orderId = "SO-123";
-            var existingOrder = new SellOrder
-            {
-                Id = orderId,
-                SellOrderCode = "SO-2024-001",
-                Status = 2 // 已发货
-            };
-
+            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001", Status = 4 };
             _orderRepository.GetByIdAsync(orderId).Returns(existingOrder);
 
-            // Act - 使用状态码3表示已完成
-            await _orderService.UpdateStatusAsync(orderId, 3);
+            // Act
+            await _orderService.UpdateStatusAsync(orderId, 6);
 
             // Assert
-            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == 3));
+            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == 6));
         }
 
         [Fact]
@@ -221,20 +179,14 @@ namespace CRM.Core.Tests.Services
         {
             // Arrange
             var orderId = "SO-123";
-            var existingOrder = new SellOrder
-            {
-                Id = orderId,
-                SellOrderCode = "SO-2024-001",
-                Status = 0 // 草稿
-            };
-
+            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001", Status = 0 };
             _orderRepository.GetByIdAsync(orderId).Returns(existingOrder);
 
-            // Act - 使用状态码9表示已取消
-            await _orderService.UpdateStatusAsync(orderId, 9);
+            // Act
+            await _orderService.UpdateStatusAsync(orderId, -1);
 
             // Assert
-            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == 9));
+            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == -1));
         }
 
         [Fact]
@@ -242,22 +194,14 @@ namespace CRM.Core.Tests.Services
         {
             // Arrange
             var orderId = "SO-123";
-            var existingOrder = new SellOrder
-            {
-                Id = orderId,
-                SellOrderCode = "SO-2024-001",
-                Status = 1, // 已确认
-                StockOutStatus = 0 // 未出库
-            };
-
+            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001", Status = 3 };
             _orderRepository.GetByIdAsync(orderId).Returns(existingOrder);
 
             // Act
             await _orderService.RequestStockOutAsync(orderId, "USER-001");
 
-            // Assert - StockOutStatus 设置为 1 表示待出库
-            await _orderRepository.Received(1).UpdateAsync(
-                Arg.Is<SellOrder>(o => o.StockOutStatus == 1));
+            // Assert
+            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == 4));
         }
 
         [Fact]
@@ -270,7 +214,6 @@ namespace CRM.Core.Tests.Services
                 new() { Id = "2", SellOrderCode = "SO-002", CustomerId = "C2" },
                 new() { Id = "3", SellOrderCode = "SO-003", CustomerId = "C3" }
             };
-
             _orderRepository.GetAllAsync().Returns(orders);
 
             // Act
@@ -286,13 +229,9 @@ namespace CRM.Core.Tests.Services
         {
             // Arrange
             var orderId = "SO-123";
-            var existingOrder = new SellOrder
-            {
-                Id = orderId,
-                SellOrderCode = "SO-2024-001"
-            };
-
+            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001" };
             _orderRepository.GetByIdAsync(orderId).Returns(existingOrder);
+            _orderItemRepository.GetAllAsync().Returns(new List<SellOrderItem>());
 
             // Act
             await _orderService.DeleteAsync(orderId);

@@ -1,233 +1,225 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Models.Sales;
 
 namespace CRM.Core.Models.Purchase
 {
     /// <summary>
-    /// 采购订单主表
+    /// 采购订单主表 (PurchaseOrder)
+    /// 对应数据库表: purchaseorder
+    /// 状态: 0=待确认 1=已确认 2=已发货 3=已入库 4=已出库 5=已完成 -1=已取消
     /// </summary>
     [Table("purchaseorder")]
     public class PurchaseOrder : BaseGuidEntity
     {
-        /// <summary>
-        /// 采购订单ID (主键)
-        /// </summary>
         [Key]
         [StringLength(36)]
         [Column("PurchaseOrderId")]
         public override string Id { get; set; } = Guid.NewGuid().ToString();
 
-        /// <summary>
-        /// 采购订单编号
-        /// </summary>
+        /// <summary>采购单号(唯一)</summary>
         [Required]
         [StringLength(32)]
+        [Column("purchase_order_code")]
         public string PurchaseOrderCode { get; set; } = string.Empty;
 
-        /// <summary>
-        /// 供应商ID (外键)
-        /// </summary>
+        /// <summary>供应商ID</summary>
         [Required]
         [StringLength(36)]
+        [Column("vendor_id")]
         public string VendorId { get; set; } = string.Empty;
 
-        /// <summary>
-        /// 供应商联系人ID
-        /// </summary>
+        /// <summary>供应商名称(冗余)</summary>
+        [StringLength(200)]
+        [Column("vendor_name")]
+        public string? VendorName { get; set; }
+
+        /// <summary>供应商编号</summary>
+        [StringLength(50)]
+        [Column("vendor_code")]
+        public string? VendorCode { get; set; }
+
+        /// <summary>供应商联系人ID</summary>
         [StringLength(36)]
+        [Column("vendor_contact_id")]
         public string? VendorContactId { get; set; }
 
-        /// <summary>
-        /// 采购员ID
-        /// </summary>
+        /// <summary>采购员ID</summary>
         [StringLength(36)]
+        [Column("purchase_user_id")]
         public string? PurchaseUserId { get; set; }
 
-        /// <summary>
-        /// 采购组ID
-        /// </summary>
+        /// <summary>采购员名称(冗余)</summary>
+        [StringLength(100)]
+        [Column("purchase_user_name")]
+        public string? PurchaseUserName { get; set; }
+
+        /// <summary>采购组ID</summary>
         [StringLength(36)]
+        [Column("purchase_group_id")]
         public string? PurchaseGroupId { get; set; }
 
-        /// <summary>
-        /// 销售组ID
-        /// </summary>
+        /// <summary>业务员组ID(关联销售)</summary>
         [StringLength(36)]
+        [Column("sales_group_id")]
         public string? SalesGroupId { get; set; }
 
-        /// <summary>
-        /// 订单状态
-        /// </summary>
+        /// <summary>订单状态 0=待确认 1=已确认 2=已发货 3=已入库 4=已出库 5=已完成 -1=已取消</summary>
+        [Column("status")]
         public short Status { get; set; } = 0;
 
-        /// <summary>
-        /// 订单类型
-        /// </summary>
-        public short? Type { get; set; }
+        /// <summary>异常状态</summary>
+        [Column("err_status")]
+        public short ErrStatus { get; set; } = 0;
 
-        /// <summary>
-        /// 币别
-        /// </summary>
-        public short? Currency { get; set; }
+        /// <summary>订单类型 1=普通 2=紧急 3=样品</summary>
+        [Column("type")]
+        public short Type { get; set; } = 1;
 
-        /// <summary>
-        /// 订单总金额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
+        /// <summary>币别 1=CNY 2=USD 3=EUR</summary>
+        [Column("currency")]
+        public short Currency { get; set; } = 1;
+
+        /// <summary>采购总额</summary>
+        [Column("total", TypeName = "numeric(18,2)")]
         public decimal Total { get; set; } = 0.00m;
 
-        /// <summary>
-        /// 折算金额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
+        /// <summary>折算总额(本位币)</summary>
+        [Column("convert_total", TypeName = "numeric(18,2)")]
         public decimal ConvertTotal { get; set; } = 0.00m;
 
-        /// <summary>
-        /// 行项目数
-        /// </summary>
+        /// <summary>行项目数</summary>
+        [Column("item_rows")]
         public int ItemRows { get; set; } = 0;
 
-        /// <summary>
-        /// 库存状态
-        /// </summary>
+        /// <summary>入库状态 0=未入库 1=部分入库 2=全部入库</summary>
+        [Column("stock_status")]
         public short StockStatus { get; set; } = 0;
 
-        /// <summary>
-        /// 财务状态
-        /// </summary>
+        /// <summary>付款状态 0=未付款 1=部分付款 2=全部付款</summary>
+        [Column("finance_status")]
         public short FinanceStatus { get; set; } = 0;
 
-        /// <summary>
-        /// 出库状态
-        /// </summary>
+        /// <summary>出库状态 0=未出库 1=部分出库 2=全部出库</summary>
+        [Column("stock_out_status")]
         public short StockOutStatus { get; set; } = 0;
 
-        /// <summary>
-        /// 开票状态
-        /// </summary>
+        /// <summary>开票状态 0=未开票 1=部分开票 2=全部开票</summary>
+        [Column("invoice_status")]
         public short InvoiceStatus { get; set; } = 0;
 
-        /// <summary>
-        /// 送货地址
-        /// </summary>
-        [StringLength(200)]
+        /// <summary>送货地址</summary>
+        [StringLength(500)]
+        [Column("delivery_address")]
         public string? DeliveryAddress { get; set; }
 
-        /// <summary>
-        /// 交货日期
-        /// </summary>
+        /// <summary>交货日期</summary>
+        [Column("delivery_date")]
         public DateTime? DeliveryDate { get; set; }
 
-        /// <summary>
-        /// 备注
-        /// </summary>
+        /// <summary>备注</summary>
         [StringLength(500)]
-        public string? Remark { get; set; }
+        [Column("comment")]
+        public string? Comment { get; set; }
+
+        /// <summary>内部备注</summary>
+        [StringLength(500)]
+        [Column("inner_comment")]
+        public string? InnerComment { get; set; }
 
         // 导航属性
         public virtual ICollection<PurchaseOrderItem> Items { get; set; } = new List<PurchaseOrderItem>();
     }
 
     /// <summary>
-    /// 采购订单明细表
+    /// 采购订单明细表 (PurchaseOrderItem)
+    /// 对应数据库表: purchaseorderitem
+    /// 核心关联字段: SellOrderItemId — 以销定采的关键
     /// </summary>
     [Table("purchaseorderitem")]
     public class PurchaseOrderItem : BaseGuidEntity
     {
-        /// <summary>
-        /// 明细ID (主键)
-        /// </summary>
         [Key]
         [StringLength(36)]
-        [Column("ItemId")]
+        [Column("PurchaseOrderItemId")]
         public override string Id { get; set; } = Guid.NewGuid().ToString();
 
-        /// <summary>
-        /// 采购订单ID (外键)
-        /// </summary>
+        /// <summary>采购订单ID(外键)</summary>
         [Required]
         [StringLength(36)]
+        [Column("purchase_order_id")]
         public string PurchaseOrderId { get; set; } = string.Empty;
 
-        /// <summary>
-        /// 物料ID
-        /// </summary>
+        /// <summary>销售订单明细ID(外键) — 以销定采的核心关联字段</summary>
+        [Required]
         [StringLength(36)]
-        public string? MaterialId { get; set; }
+        [Column("sell_order_item_id")]
+        public string SellOrderItemId { get; set; } = string.Empty;
 
-        /// <summary>
-        /// 物料编码
-        /// </summary>
-        [StringLength(50)]
-        public string? MaterialCode { get; set; }
+        /// <summary>供应商ID</summary>
+        [Required]
+        [StringLength(36)]
+        [Column("vendor_id")]
+        public string VendorId { get; set; } = string.Empty;
 
-        /// <summary>
-        /// 物料名称
-        /// </summary>
+        /// <summary>商品/物料ID</summary>
+        [StringLength(36)]
+        [Column("product_id")]
+        public string? ProductId { get; set; }
+
+        /// <summary>物料型号(PN)</summary>
         [StringLength(200)]
-        public string? MaterialName { get; set; }
+        [Column("pn")]
+        public string? PN { get; set; }
 
-        /// <summary>
-        /// 规格型号
-        /// </summary>
-        [StringLength(100)]
-        public string? MaterialModel { get; set; }
+        /// <summary>品牌</summary>
+        [StringLength(200)]
+        [Column("brand")]
+        public string? Brand { get; set; }
 
-        /// <summary>
-        /// 数量
-        /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal Quantity { get; set; } = 0.0000m;
+        /// <summary>采购数量</summary>
+        [Column("qty", TypeName = "numeric(18,4)")]
+        public decimal Qty { get; set; } = 0.0000m;
 
-        /// <summary>
-        /// 单位
-        /// </summary>
-        [StringLength(20)]
-        public string? Unit { get; set; }
+        /// <summary>采购单价(成本)</summary>
+        [Column("cost", TypeName = "numeric(18,6)")]
+        public decimal Cost { get; set; } = 0.000000m;
 
-        /// <summary>
-        /// 单价
-        /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal Price { get; set; } = 0.0000m;
+        /// <summary>币别 1=CNY 2=USD 3=EUR</summary>
+        [Column("currency")]
+        public short Currency { get; set; } = 1;
 
-        /// <summary>
-        /// 金额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal Amount { get; set; } = 0.00m;
+        /// <summary>明细状态 0=正常 1=已取消</summary>
+        [Column("status")]
+        public short Status { get; set; } = 0;
 
-        /// <summary>
-        /// 税率
-        /// </summary>
-        [Column(TypeName = "numeric(5,2)")]
-        public decimal TaxRate { get; set; } = 0.00m;
+        /// <summary>入库状态 0=未入库 1=部分入库 2=全部入库</summary>
+        [Column("stock_in_status")]
+        public short StockInStatus { get; set; } = 0;
 
-        /// <summary>
-        /// 税额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal TaxAmount { get; set; } = 0.00m;
+        /// <summary>付款状态 0=未付款 1=部分付款 2=全部付款</summary>
+        [Column("finance_payment_status")]
+        public short FinancePaymentStatus { get; set; } = 0;
 
-        /// <summary>
-        /// 含税金额
-        /// </summary>
-        [Column(TypeName = "numeric(18,2)")]
-        public decimal TotalAmount { get; set; } = 0.00m;
+        /// <summary>出库状态 0=未出库 1=部分出库 2=全部出库</summary>
+        [Column("stock_out_status")]
+        public short StockOutStatus { get; set; } = 0;
 
-        /// <summary>
-        /// 交货日期
-        /// </summary>
+        /// <summary>异常状态</summary>
+        [Column("err_status")]
+        public short ErrStatus { get; set; } = 0;
+
+        /// <summary>交货日期</summary>
+        [Column("delivery_date")]
         public DateTime? DeliveryDate { get; set; }
 
-        /// <summary>
-        /// 备注
-        /// </summary>
+        /// <summary>备注</summary>
         [StringLength(500)]
-        public string? Remark { get; set; }
+        [Column("comment")]
+        public string? Comment { get; set; }
 
         // 导航属性
-        [ForeignKey("PurchaseOrderId")]
         public virtual PurchaseOrder? PurchaseOrder { get; set; }
+        public virtual SellOrderItem? SellOrderItem { get; set; }
     }
 }

@@ -1,124 +1,201 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Sales;
+using CRM.Core.Models.Purchase;
 
 namespace CRM.Core.Services
 {
-    /// <summary>
-    /// 销售订单服务实现
-    /// </summary>
+    /// <summary>销售订单服务实现</summary>
     public class SalesOrderService : ISalesOrderService
     {
-        private readonly IRepository<SellOrder> _salesOrderRepository;
+        private readonly IRepository<SellOrder> _soRepo;
+        private readonly IRepository<SellOrderItem> _soItemRepo;
+        private readonly IRepository<PurchaseOrder> _poRepo;
+        private readonly IRepository<PurchaseOrderItem> _poItemRepo;
+        private readonly IUnitOfWork? _unitOfWork;
 
-        public SalesOrderService(IRepository<SellOrder> salesOrderRepository)
+        public SalesOrderService(
+            IRepository<SellOrder> soRepo,
+            IRepository<SellOrderItem> soItemRepo,
+            IRepository<PurchaseOrder> poRepo,
+            IRepository<PurchaseOrderItem> poItemRepo,
+            IUnitOfWork? unitOfWork = null)
         {
-            _salesOrderRepository = salesOrderRepository;
+            _soRepo = soRepo;
+            _soItemRepo = soItemRepo;
+            _poRepo = poRepo;
+            _poItemRepo = poItemRepo;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<SellOrder> CreateAsync(CreateSalesOrderRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.OrderCode))
-                throw new ArgumentException("订单号不能为空", nameof(request.OrderCode));
-
+            if (string.IsNullOrWhiteSpace(request.SellOrderCode))
+                throw new ArgumentException("销售单号不能为空", nameof(request.SellOrderCode));
             if (string.IsNullOrWhiteSpace(request.CustomerId))
                 throw new ArgumentException("客户ID不能为空", nameof(request.CustomerId));
 
-            // 检查订单号是否已存在
-            var allOrders = await _salesOrderRepository.GetAllAsync();
-            if (allOrders.Any(o => o.SellOrderCode == request.OrderCode))
-                throw new InvalidOperationException($"销售订单号 {request.OrderCode} 已存在");
+            var all = await _soRepo.GetAllAsync();
+            if (all.Any(o => o.SellOrderCode == request.SellOrderCode))
+                throw new InvalidOperationException($"销售单号 {request.SellOrderCode} 已存在");
 
             var order = new SellOrder
             {
                 Id = Guid.NewGuid().ToString(),
-                SellOrderCode = request.OrderCode.Trim(),
+                SellOrderCode = request.SellOrderCode.Trim(),
                 CustomerId = request.CustomerId,
+                CustomerName = request.CustomerName,
                 SalesUserId = request.SalesUserId,
-                DeliveryDate = request.DeliveryDate,
-                Total = request.TotalAmount,
-                ConvertTotal = request.GrandTotal,
+                SalesUserName = request.SalesUserName,
+                Type = request.Type,
                 Currency = request.Currency,
-                Remark = request.PaymentTerms,
-                Status = 0, // 草稿
+                DeliveryDate = request.DeliveryDate,
+                DeliveryAddress = request.DeliveryAddress,
+                Comment = request.Comment,
+                Status = 0,
+                ItemRows = request.Items.Count,
                 CreateTime = DateTime.UtcNow
             };
+            await _soRepo.AddAsync(order);
 
-            await _salesOrderRepository.AddAsync(order);
+            decimal total = 0m;
+            foreach (var item in request.Items)
+            {
+                var soItem = new SellOrderItem
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    SellOrderId = order.Id,
+                    QuoteId = item.QuoteId,
+                    ProductId = item.ProductId,
+                    PN = item.PN,
+                    Brand = item.Brand,
+                    CustomerPnNo = item.CustomerPnNo,
+                    Qty = item.Qty,
+                    Price = item.Price,
+                    Currency = item.Currency,
+                    DateCode = item.DateCode,
+                    DeliveryDate = item.DeliveryDate,
+                    Comment = item.Comment,
+                    CreateTime = DateTime.UtcNow
+                };
+                await _soItemRepo.AddAsync(soItem);
+                total += item.Qty * item.Price;
+            }
+            order.Total = total;
+            order.ConvertTotal = total;
+            await _soRepo.UpdateAsync(order);
+
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
             return order;
         }
 
         public async Task<SellOrder?> GetByIdAsync(string id)
         {
-            if (string.IsNullOrWhiteSpace(id))
-                return null;
-
-            return await _salesOrderRepository.GetByIdAsync(id);
+            if (string.IsNullOrWhiteSpace(id)) return null;
+            return await _soRepo.GetByIdAsync(id);
         }
 
         public async Task<IEnumerable<SellOrder>> GetAllAsync()
         {
-            return await _salesOrderRepository.GetAllAsync();
+            return await _soRepo.GetAllAsync();
+        }
+
+        public async Task<IEnumerable<SellOrder>> GetByCustomerIdAsync(string customerId)
+        {
+            var all = await _soRepo.GetAllAsync();
+            return all.Where(o => o.CustomerId == customerId);
         }
 
         public async Task<SellOrder> UpdateAsync(string id, UpdateSalesOrderRequest request)
         {
-            if (string.IsNullOrWhiteSpace(id))
-                throw new ArgumentException("ID不能为空", nameof(id));
+            if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("ID不能为空");
+            var order = await _soRepo.GetByIdAsync(id)
+                ?? throw new InvalidOperationException($"销售订单 {id} 不存在");
 
-            var order = await _salesOrderRepository.GetByIdAsync(id);
-            if (order == null)
-                throw new InvalidOperationException($"销售订单 {id} 不存在");
+            if (request.CustomerName != null) order.CustomerName = request.CustomerName;
+            if (request.SalesUserName != null) order.SalesUserName = request.SalesUserName;
+            if (request.Type.HasValue) order.Type = request.Type.Value;
+            if (request.Currency.HasValue) order.Currency = request.Currency.Value;
+            if (request.DeliveryDate.HasValue) order.DeliveryDate = request.DeliveryDate;
+            if (request.DeliveryAddress != null) order.DeliveryAddress = request.DeliveryAddress;
+            if (request.Comment != null) order.Comment = request.Comment;
 
-            if (!string.IsNullOrWhiteSpace(request.Remark))
-                order.Remark = request.Remark;
+            if (request.Items != null && request.Items.Count > 0)
+            {
+                var existingItems = await _soItemRepo.GetAllAsync();
+                var toDelete = existingItems.Where(i => i.SellOrderId == id).ToList();
+                foreach (var d in toDelete) await _soItemRepo.DeleteAsync(d.Id);
+
+                decimal total = 0m;
+                foreach (var item in request.Items)
+                {
+                    var soItem = new SellOrderItem
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        SellOrderId = id,
+                        QuoteId = item.QuoteId,
+                        ProductId = item.ProductId,
+                        PN = item.PN,
+                        Brand = item.Brand,
+                        CustomerPnNo = item.CustomerPnNo,
+                        Qty = item.Qty,
+                        Price = item.Price,
+                        Currency = item.Currency,
+                        DateCode = item.DateCode,
+                        DeliveryDate = item.DeliveryDate,
+                        Comment = item.Comment,
+                        CreateTime = DateTime.UtcNow
+                    };
+                    await _soItemRepo.AddAsync(soItem);
+                    total += item.Qty * item.Price;
+                }
+                order.Total = total;
+                order.ConvertTotal = total;
+                order.ItemRows = request.Items.Count;
+            }
 
             order.ModifyTime = DateTime.UtcNow;
-
-            await _salesOrderRepository.UpdateAsync(order);
+            await _soRepo.UpdateAsync(order);
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
             return order;
         }
 
         public async Task DeleteAsync(string id)
         {
-            if (string.IsNullOrWhiteSpace(id))
-                throw new ArgumentException("ID不能为空", nameof(id));
-
-            var order = await _salesOrderRepository.GetByIdAsync(id);
-            if (order == null)
-                throw new InvalidOperationException($"销售订单 {id} 不存在");
-
-            await _salesOrderRepository.DeleteAsync(id);
+            if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("ID不能为空");
+            var order = await _soRepo.GetByIdAsync(id)
+                ?? throw new InvalidOperationException($"销售订单 {id} 不存在");
+            var items = await _soItemRepo.GetAllAsync();
+            foreach (var item in items.Where(i => i.SellOrderId == id))
+                await _soItemRepo.DeleteAsync(item.Id);
+            await _soRepo.DeleteAsync(id);
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task UpdateStatusAsync(string id, short status)
         {
-            if (string.IsNullOrWhiteSpace(id))
-                throw new ArgumentException("ID不能为空", nameof(id));
-
-            var order = await _salesOrderRepository.GetByIdAsync(id);
-            if (order == null)
-                throw new InvalidOperationException($"销售订单 {id} 不存在");
-
+            var order = await _soRepo.GetByIdAsync(id)
+                ?? throw new InvalidOperationException($"销售订单 {id} 不存在");
             order.Status = status;
             order.ModifyTime = DateTime.UtcNow;
-
-            await _salesOrderRepository.UpdateAsync(order);
+            await _soRepo.UpdateAsync(order);
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task RequestStockOutAsync(string id, string requestedBy)
         {
-            if (string.IsNullOrWhiteSpace(id))
-                throw new ArgumentException("ID不能为空", nameof(id));
+            await UpdateStatusAsync(id, 4); // 已发货
+        }
 
-            var order = await _salesOrderRepository.GetByIdAsync(id);
-            if (order == null)
-                throw new InvalidOperationException($"销售订单 {id} 不存在");
-
-            // 更新状态为待出库
-            order.StockOutStatus = 1; // 待出库
-            order.ModifyTime = DateTime.UtcNow;
-
-            await _salesOrderRepository.UpdateAsync(order);
+        public async Task<IEnumerable<object>> GetRelatedPurchaseOrdersAsync(string sellOrderId)
+        {
+            var soItems = await _soItemRepo.GetAllAsync();
+            var sellItemIds = soItems.Where(i => i.SellOrderId == sellOrderId)
+                                     .Select(i => i.Id).ToHashSet();
+            var poItems = await _poItemRepo.GetAllAsync();
+            var relatedPoIds = poItems.Where(i => sellItemIds.Contains(i.SellOrderItemId))
+                                       .Select(i => i.PurchaseOrderId).Distinct().ToList();
+            var allPo = await _poRepo.GetAllAsync();
+            return allPo.Where(p => relatedPoIds.Contains(p.Id)).Cast<object>();
         }
     }
 }

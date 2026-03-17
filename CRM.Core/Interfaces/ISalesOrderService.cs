@@ -2,9 +2,7 @@ using CRM.Core.Models.Sales;
 
 namespace CRM.Core.Interfaces
 {
-    /// <summary>
-    /// 销售订单服务接口
-    /// </summary>
+    /// <summary>销售订单服务接口</summary>
     public interface ISalesOrderService
     {
         Task<SellOrder> CreateAsync(CreateSalesOrderRequest request);
@@ -13,42 +11,73 @@ namespace CRM.Core.Interfaces
         Task<SellOrder> UpdateAsync(string id, UpdateSalesOrderRequest request);
         Task DeleteAsync(string id);
         Task UpdateStatusAsync(string id, short status);
-        Task RequestStockOutAsync(string id, string requestedBy);
+        /// <summary>根据客户ID获取销售订单列表</summary>
+        Task<IEnumerable<SellOrder>> GetByCustomerIdAsync(string customerId);
+        /// <summary>获取销售订单关联的采购订单列表</summary>
+        Task<IEnumerable<object>> GetRelatedPurchaseOrdersAsync(string sellOrderId);
     }
 
     public class CreateSalesOrderRequest
     {
-        public string OrderCode { get; set; } = string.Empty;
-        public string? QuoteId { get; set; }
+        /// <summary>销售单号</summary>
+        public string SellOrderCode { get; set; } = string.Empty;
+        /// <summary>客户ID</summary>
         public string CustomerId { get; set; } = string.Empty;
-        public string SalesUserId { get; set; } = string.Empty;
-        public DateTime OrderDate { get; set; }
-        public DateTime DeliveryDate { get; set; }
-        public decimal TotalAmount { get; set; }
-        public decimal TaxAmount { get; set; }
-        public decimal GrandTotal { get; set; }
-        public short Currency { get; set; }
-        public string? PaymentTerms { get; set; }
+        /// <summary>客户名称</summary>
+        public string? CustomerName { get; set; }
+        /// <summary>业务员ID</summary>
+        public string? SalesUserId { get; set; }
+        /// <summary>业务员名称</summary>
+        public string? SalesUserName { get; set; }
+        /// <summary>订单类型 1=普通 2=紧急 3=样品</summary>
+        public short Type { get; set; } = 1;
+        /// <summary>币别 1=CNY 2=USD 3=EUR</summary>
+        public short Currency { get; set; } = 1;
+        /// <summary>交货日期</summary>
+        public DateTime? DeliveryDate { get; set; }
+        /// <summary>送货地址</summary>
+        public string? DeliveryAddress { get; set; }
+        /// <summary>备注</summary>
+        public string? Comment { get; set; }
+        /// <summary>明细行</summary>
         public List<CreateSalesOrderItemRequest> Items { get; set; } = new();
     }
 
     public class CreateSalesOrderItemRequest
     {
-        public int LineNo { get; set; }
-        public string MaterialCode { get; set; } = string.Empty;
-        public string MaterialName { get; set; } = string.Empty;
-        public string Specification { get; set; } = string.Empty;
-        public decimal Quantity { get; set; }
-        public string Unit { get; set; } = string.Empty;
-        public decimal UnitPrice { get; set; }
-        public decimal Amount { get; set; }
-        public decimal TaxRate { get; set; }
-        public decimal TaxAmount { get; set; }
-        public decimal TotalAmount { get; set; }
+        /// <summary>报价ID(来源)</summary>
+        public string? QuoteId { get; set; }
+        /// <summary>商品/物料ID</summary>
+        public string? ProductId { get; set; }
+        /// <summary>物料型号(PN)</summary>
+        public string? PN { get; set; }
+        /// <summary>品牌</summary>
+        public string? Brand { get; set; }
+        /// <summary>客户料号</summary>
+        public string? CustomerPnNo { get; set; }
+        /// <summary>销售数量</summary>
+        public decimal Qty { get; set; }
+        /// <summary>销售单价</summary>
+        public decimal Price { get; set; }
+        /// <summary>币别</summary>
+        public short Currency { get; set; } = 1;
+        /// <summary>生产日期要求</summary>
+        public string? DateCode { get; set; }
+        /// <summary>交货日期</summary>
+        public DateTime? DeliveryDate { get; set; }
+        /// <summary>备注</summary>
+        public string? Comment { get; set; }
     }
 
     public class UpdateSalesOrderRequest
     {
-        public string? Remark { get; set; }
+        public string? CustomerName { get; set; }
+        public string? SalesUserName { get; set; }
+        public short? Type { get; set; }
+        public short? Currency { get; set; }
+        public DateTime? DeliveryDate { get; set; }
+        public string? DeliveryAddress { get; set; }
+        public string? Comment { get; set; }
+        public List<CreateSalesOrderItemRequest>? Items { get; set; }
     }
 }
