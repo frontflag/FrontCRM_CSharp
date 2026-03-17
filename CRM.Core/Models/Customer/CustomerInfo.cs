@@ -450,6 +450,41 @@ namespace CRM.Core.Models.Customer
         [StringLength(36)]
         public string? DeletedByUserId { get; set; }
 
+        /// <summary>
+        /// 删除操作人姓名
+        /// </summary>
+        [StringLength(64)]
+        public string? DeletedByUserName { get; set; }
+
+        /// <summary>
+        /// 删除理由
+        /// </summary>
+        [StringLength(500)]
+        public string? DeleteReason { get; set; }
+
+        /// <summary>
+        /// 黑名单理由
+        /// </summary>
+        [StringLength(500)]
+        public string? BlackListReason { get; set; }
+
+        /// <summary>
+        /// 加入黑名单时间
+        /// </summary>
+        public DateTime? BlackListAt { get; set; }
+
+        /// <summary>
+        /// 加入黑名单操作人ID
+        /// </summary>
+        [StringLength(36)]
+        public string? BlackListByUserId { get; set; }
+
+        /// <summary>
+        /// 加入黑名单操作人姓名
+        /// </summary>
+        [StringLength(64)]
+        public string? BlackListByUserName { get; set; }
+
         // 导航属性
         public virtual ICollection<CustomerContactInfo> Contacts { get; set; } = new List<CustomerContactInfo>();
         public virtual ICollection<CustomerAddress> Addresses { get; set; } = new List<CustomerAddress>();

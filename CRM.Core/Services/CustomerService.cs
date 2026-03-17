@@ -784,10 +784,16 @@ namespace CRM.Core.Services
                 Id = Guid.NewGuid().ToString(),
                 CustomerId = customerId,
                 Type = request.Type?.Trim() ?? "call",
+                Subject = request.Subject?.Trim(),
                 Content = request.Content?.Trim(),
+                ContactPerson = request.ContactPerson?.Trim(),
                 Time = request.Time.HasValue 
                     ? DateTime.SpecifyKind(request.Time.Value, DateTimeKind.Utc)
                     : DateTime.UtcNow,
+                NextFollowUpTime = request.NextFollowUpTime.HasValue
+                    ? DateTime.SpecifyKind(request.NextFollowUpTime.Value, DateTimeKind.Utc)
+                    : null,
+                Result = request.Result?.Trim(),
                 CreateTime = DateTime.UtcNow
             };
 
@@ -804,7 +810,7 @@ namespace CRM.Core.Services
             var addresses = await _addressRepository.FindAsync(a =>
                 a.CustomerId == customerId &&
                 a.AddressType == addressType &&
-                a.IsDefault);
+                a.IsDefault);  // CustomerAddress.IsDefault 是实际列，可直接使用
 
             foreach (var addr in addresses)
             {
@@ -822,7 +828,7 @@ namespace CRM.Core.Services
         {
             var contacts = await _contactRepository.FindAsync(c =>
                 c.CustomerId == customerId &&
-                c.IsDefault);
+                c.IsMain);  // IsDefault 是 [NotMapped] 别名，EF 无法翻译，使用实际列 IsMain
 
             foreach (var contact in contacts)
             {
@@ -831,6 +837,172 @@ namespace CRM.Core.Services
                 await _contactRepository.UpdateAsync(contact);
             }
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// 更新联系历史
+        /// </summary>
+        public async Task<CustomerContactHistory> UpdateContactHistoryAsync(string historyId, UpdateContactHistoryRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(historyId))
+                throw new ArgumentException("联系历史ID不能为空", nameof(historyId));
+            var records = await _contactHistoryRepository.FindAsync(h => h.Id == historyId);
+            var record = records.FirstOrDefault();
+            if (record == null)
+                throw new KeyNotFoundException($"找不到ID为 '{historyId}' 的联系历史");
+            if (request.Type != null) record.Type = request.Type.Trim();
+            if (request.Subject != null) record.Subject = request.Subject.Trim();
+            if (request.Content != null) record.Content = request.Content.Trim();
+            if (request.ContactPerson != null) record.ContactPerson = request.ContactPerson.Trim();
+            if (request.Time.HasValue) record.Time = DateTime.SpecifyKind(request.Time.Value, DateTimeKind.Utc);
+            if (request.NextFollowUpTime.HasValue) record.NextFollowUpTime = DateTime.SpecifyKind(request.NextFollowUpTime.Value, DateTimeKind.Utc);
+            if (request.Result != null) record.Result = request.Result.Trim();
+            await _contactHistoryRepository.UpdateAsync(record);
+            await _unitOfWork.SaveChangesAsync();
+            return record;
+        }
+
+        /// <summary>
+        /// 删除联系历史
+        /// </summary>
+        public async Task DeleteContactHistoryAsync(string historyId)
+        {
+            if (string.IsNullOrWhiteSpace(historyId))
+                throw new ArgumentException("联系历史ID不能为空", nameof(historyId));
+            var records = await _contactHistoryRepository.FindAsync(h => h.Id == historyId);
+            var record = records.FirstOrDefault();
+            if (record == null)
+                throw new KeyNotFoundException($"找不到ID为 '{historyId}' 的联系历史");
+            await _contactHistoryRepository.DeleteAsync(record.Id);
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        /// <summary>删除客户（带理由）</summary>
+        public async Task DeleteCustomerWithReasonAsync(string id, string? reason, string? operatorUserId, string? operatorUserName)
+        {
+            var customers = await _customerRepository.FindAsync(c => c.Id == id);
+            var customer = customers.FirstOrDefault();
+            if (customer == null) throw new KeyNotFoundException($"客户 {id} 不存在");
+            customer.IsDeleted = true;
+            customer.DeletedAt = DateTime.UtcNow;
+            customer.DeletedByUserId = operatorUserId;
+            customer.DeletedByUserName = operatorUserName;
+            customer.DeleteReason = reason;
+            customer.ModifyTime = DateTime.UtcNow;
+            await _customerRepository.UpdateAsync(customer);
+            await _unitOfWork.SaveChangesAsync();
+            await AddOperationLogAsync(id, "删除", $"删除客户，理由：{reason ?? "无"}", operatorUserId, operatorUserName);
+        }
+
+        /// <summary>设置黑名单（带理由）</summary>
+        public async Task SetBlackListAsync(string id, string reason, string? operatorUserId, string? operatorUserName)
+        {
+            var customers = await _customerRepository.FindAsync(c => c.Id == id);
+            var customer = customers.FirstOrDefault();
+            if (customer == null) throw new KeyNotFoundException($"客户 {id} 不存在");
+            customer.BlackList = true;
+            customer.BlackListReason = reason;
+            customer.BlackListAt = DateTime.UtcNow;
+            customer.BlackListByUserId = operatorUserId;
+            customer.BlackListByUserName = operatorUserName;
+            customer.ModifyTime = DateTime.UtcNow;
+            await _customerRepository.UpdateAsync(customer);
+            await _unitOfWork.SaveChangesAsync();
+            await AddOperationLogAsync(id, "加入黑名单", $"加入黑名单，理由：{reason}", operatorUserId, operatorUserName);
+        }
+
+        /// <summary>移出黑名单</summary>
+        public async Task RemoveFromBlackListAsync(string id, string? operatorUserId, string? operatorUserName)
+        {
+            var customers = await _customerRepository.FindAsync(c => c.Id == id);
+            var customer = customers.FirstOrDefault();
+            if (customer == null) throw new KeyNotFoundException($"客户 {id} 不存在");
+            customer.BlackList = false;
+            customer.BlackListReason = null;
+            customer.BlackListAt = null;
+            customer.BlackListByUserId = null;
+            customer.BlackListByUserName = null;
+            customer.ModifyTime = DateTime.UtcNow;
+            await _customerRepository.UpdateAsync(customer);
+            await _unitOfWork.SaveChangesAsync();
+            await AddOperationLogAsync(id, "移出黑名单", "客户已从黑名单移出", operatorUserId, operatorUserName);
+        }
+
+        /// <summary>恢复已删除的客户</summary>
+        public async Task RestoreCustomerAsync(string id, string? operatorUserId, string? operatorUserName)
+        {
+            var customers = await _customerRepository.FindIgnoreFiltersAsync(c => c.Id == id);
+            var customer = customers.FirstOrDefault();
+            if (customer == null) throw new KeyNotFoundException($"客户 {id} 不存在");
+            customer.IsDeleted = false;
+            customer.DeletedAt = null;
+            customer.DeletedByUserId = null;
+            customer.DeletedByUserName = null;
+            customer.DeleteReason = null;
+            customer.Status = 0; // 恢复为新建状态
+            customer.ModifyTime = DateTime.UtcNow;
+            await _customerRepository.UpdateAsync(customer);
+            await _unitOfWork.SaveChangesAsync();
+            await AddOperationLogAsync(id, "恢复", "客户已从回收站恢复", operatorUserId, operatorUserName);
+        }
+
+        /// <summary>获取已删除的客户列表（回收站）</summary>
+        public async Task<PagedResult<CustomerInfo>> GetDeletedCustomersAsync(int pageIndex, int pageSize, string? keyword)
+        {
+            var all = await _customerRepository.FindIgnoreFiltersAsync(c => c.IsDeleted);
+            if (!string.IsNullOrWhiteSpace(keyword))
+                all = all.Where(c => (c.OfficialName != null && c.OfficialName.Contains(keyword)) || (c.CustomerCode != null && c.CustomerCode.Contains(keyword)));
+            var sorted = all.OrderByDescending(c => c.DeletedAt).ToList();
+            var total = sorted.Count;
+            var items = sorted.Skip((pageIndex - 1) * pageSize).Take(pageSize);
+            return new PagedResult<CustomerInfo> { Items = items, TotalCount = total, PageIndex = pageIndex, PageSize = pageSize };
+        }
+
+        /// <summary>获取黑名单客户列表</summary>
+        public async Task<PagedResult<CustomerInfo>> GetBlackListCustomersAsync(int pageIndex, int pageSize, string? keyword)
+        {
+            var all = await _customerRepository.FindAsync(c => c.BlackList && !c.IsDeleted);
+            if (!string.IsNullOrWhiteSpace(keyword))
+                all = all.Where(c => (c.OfficialName != null && c.OfficialName.Contains(keyword)) || (c.CustomerCode != null && c.CustomerCode.Contains(keyword)));
+            var sorted = all.OrderByDescending(c => c.BlackListAt).ToList();
+            var total = sorted.Count;
+            var items = sorted.Skip((pageIndex - 1) * pageSize).Take(pageSize);
+            return new PagedResult<CustomerInfo> { Items = items, TotalCount = total, PageIndex = pageIndex, PageSize = pageSize };
+        }
+
+        /// <summary>获取客户操作日志</summary>
+        public async Task<IEnumerable<CustomerOperationLog>> GetOperationLogsAsync(string customerId)
+        {
+            var sql = $"SELECT \"Id\", \"CustomerId\", \"OperationType\", \"OperationDesc\", \"OperatorUserId\", \"OperatorUserName\", \"OperationTime\", \"Remark\" FROM customer_operation_log WHERE \"CustomerId\" = '{customerId.Replace("'", "''")}' ORDER BY \"OperationTime\" DESC";
+            return await _unitOfWork.QueryAsync<CustomerOperationLog>(sql);
+        }
+
+        /// <summary>获取客户变更日志</summary>
+        public async Task<IEnumerable<CustomerChangeLog>> GetChangeLogsAsync(string customerId)
+        {
+            var sql = $"SELECT \"Id\", \"CustomerId\", \"FieldName\", \"FieldLabel\", \"OldValue\", \"NewValue\", \"ChangedByUserId\", \"ChangedByUserName\", \"ChangedAt\" FROM customer_change_log WHERE \"CustomerId\" = '{customerId.Replace("'", "''")}' ORDER BY \"ChangedAt\" DESC";
+            return await _unitOfWork.QueryAsync<CustomerChangeLog>(sql);
+        }
+
+        /// <summary>记录操作日志</summary>
+        public async Task AddOperationLogAsync(string customerId, string operationType, string? desc, string? userId, string? userName, string? remark = null)
+        {
+            var safeDesc = desc?.Replace("'", "''") ?? "";
+            var safeUserName = userName?.Replace("'", "''") ?? "";
+            var safeRemark = remark?.Replace("'", "''");
+            var sql = $"INSERT INTO customer_operation_log (\"Id\", \"CustomerId\", \"OperationType\", \"OperationDesc\", \"OperatorUserId\", \"OperatorUserName\", \"OperationTime\", \"Remark\") VALUES (gen_random_uuid()::text, '{customerId}', '{operationType}', '{safeDesc}', {(userId == null ? "NULL" : $"'{userId}'")}, '{safeUserName}', NOW(), {(safeRemark == null ? "NULL" : $"'{safeRemark}'")})";
+            await _unitOfWork.ExecuteAsync(sql);
+        }
+
+        /// <summary>记录变更日志</summary>
+        public async Task AddChangeLogAsync(string customerId, string fieldName, string? fieldLabel, string? oldValue, string? newValue, string? userId, string? userName)
+        {
+            var safeOld = oldValue?.Replace("'", "''");
+            var safeNew = newValue?.Replace("'", "''");
+            var safeLabel = fieldLabel?.Replace("'", "''");
+            var safeUserName = userName?.Replace("'", "''") ?? "";
+            var sql = $"INSERT INTO customer_change_log (\"Id\", \"CustomerId\", \"FieldName\", \"FieldLabel\", \"OldValue\", \"NewValue\", \"ChangedByUserId\", \"ChangedByUserName\", \"ChangedAt\") VALUES (gen_random_uuid()::text, '{customerId}', '{fieldName}', {(safeLabel == null ? "NULL" : $"'{safeLabel}'")}, {(safeOld == null ? "NULL" : $"'{safeOld}'")}, {(safeNew == null ? "NULL" : $"'{safeNew}'")}, {(userId == null ? "NULL" : $"'{userId}'")}, '{safeUserName}', NOW())";
+            await _unitOfWork.ExecuteAsync(sql);
         }
     }
 }

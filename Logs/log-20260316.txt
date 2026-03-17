@@ -1,0 +1,32 @@
+2026-03-16 22:35:06.568 -04:00 [INF] Starting FrontCRM API
+2026-03-16 22:35:06.881 -04:00 [INF] Starting FrontCRM API
+2026-03-16 22:35:43.433 -04:00 [WRN] Failed to determine the https port for redirect.
+2026-03-16 22:35:43.959 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerAddress'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-03-16 22:35:43.960 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerBankInfo'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-03-16 22:35:43.960 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerContactInfo'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-03-16 22:35:45.664 -04:00 [WRN] The query uses the 'First'/'FirstOrDefault' operator without 'OrderBy' and filter operators. This may lead to unpredictable results.
+2026-03-16 22:36:24.194 -04:00 [INF] 开始添加联系人，客户ID: 03f1bc79-d7d2-4bf9-b65d-b93ab35599b1
+2026-03-16 22:36:24.313 -04:00 [INF] 联系人添加成功: c5760566-5478-4ea6-8fd8-67518383d6c4
+2026-03-16 22:36:52.675 -04:00 [INF] 开始添加联系人，客户ID: 03f1bc79-d7d2-4bf9-b65d-b93ab35599b1
+2026-03-16 22:36:52.684 -04:00 [INF] 联系人添加成功: b98e04fc-02ef-48a9-8633-c34b93d1d2b3
+2026-03-16 22:43:21.183 -04:00 [INF] Starting FrontCRM API
+2026-03-16 22:43:21.489 -04:00 [INF] Starting FrontCRM API
+2026-03-16 22:43:54.615 -04:00 [WRN] Failed to determine the https port for redirect.
+2026-03-16 22:43:55.193 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerAddress'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-03-16 22:43:55.195 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerBankInfo'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-03-16 22:43:55.195 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerContactInfo'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-03-16 22:43:56.018 -04:00 [WRN] The query uses the 'First'/'FirstOrDefault' operator without 'OrderBy' and filter operators. This may lead to unpredictable results.
+2026-03-16 22:44:30.492 -04:00 [INF] 开始添加联系人，客户ID: f4f1bab3-d1db-4eaa-8479-da11a653bc5f
+2026-03-16 22:44:30.676 -04:00 [INF] 联系人添加成功: a4c716a9-98ee-40bd-ba9c-06ada09535b6
+2026-03-16 22:50:24.994 -04:00 [INF] 开始添加联系人，客户ID: bda74119-d23d-4ce1-95a2-89fd84b86cd3
+2026-03-16 22:50:25.000 -04:00 [INF] 联系人添加成功: e91fa707-2114-4b24-90d4-f1508eadc43e
+2026-03-16 22:50:35.658 -04:00 [INF] 开始添加联系人，客户ID: bda74119-d23d-4ce1-95a2-89fd84b86cd3
+2026-03-16 22:50:35.666 -04:00 [INF] 联系人添加成功: fecde236-cebf-4f42-8776-64081cf9b17b
+2026-03-16 22:50:42.717 -04:00 [INF] 开始添加联系人，客户ID: bda74119-d23d-4ce1-95a2-89fd84b86cd3
+2026-03-16 22:50:42.721 -04:00 [INF] 联系人添加成功: 99cfdbdb-29bc-43c7-ae56-10f01cb85771
+2026-03-16 22:50:52.262 -04:00 [INF] 开始添加联系人，客户ID: bda74119-d23d-4ce1-95a2-89fd84b86cd3
+2026-03-16 22:50:52.266 -04:00 [INF] 联系人添加成功: 7e3f9626-8d81-48a7-912d-f6841e30222f
+2026-03-16 22:51:01.160 -04:00 [INF] 开始添加联系人，客户ID: bda74119-d23d-4ce1-95a2-89fd84b86cd3
+2026-03-16 22:51:01.165 -04:00 [INF] 联系人添加成功: 9a350908-6296-41f7-a453-07b8984eb10c
+2026-03-16 22:51:06.809 -04:00 [INF] 开始添加联系人，客户ID: bda74119-d23d-4ce1-95a2-89fd84b86cd3
+2026-03-16 22:51:06.813 -04:00 [INF] 联系人添加成功: 78eb7bb5-5ea6-48c7-995b-ac409023893c

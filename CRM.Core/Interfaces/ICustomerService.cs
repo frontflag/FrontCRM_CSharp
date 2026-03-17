@@ -136,6 +136,104 @@ namespace CRM.Core.Interfaces
         /// 添加客户联系记录
         /// </summary>
         Task<CustomerContactHistory> AddContactHistoryAsync(string customerId, AddContactHistoryRequest request);
+        Task<CustomerContactHistory> UpdateContactHistoryAsync(string historyId, UpdateContactHistoryRequest request);
+        Task DeleteContactHistoryAsync(string historyId);
+
+        /// <summary>删除客户（带理由）</summary>
+        Task DeleteCustomerWithReasonAsync(string id, string? reason, string? operatorUserId, string? operatorUserName);
+
+        /// <summary>设置黑名单（带理由）</summary>
+        Task SetBlackListAsync(string id, string reason, string? operatorUserId, string? operatorUserName);
+
+        /// <summary>移出黑名单</summary>
+        Task RemoveFromBlackListAsync(string id, string? operatorUserId, string? operatorUserName);
+
+        /// <summary>恢复已删除的客户</summary>
+        Task RestoreCustomerAsync(string id, string? operatorUserId, string? operatorUserName);
+
+        /// <summary>获取已删除的客户列表（回收站）</summary>
+        Task<PagedResult<CustomerInfo>> GetDeletedCustomersAsync(int pageIndex, int pageSize, string? keyword);
+
+        /// <summary>获取黑名单客户列表</summary>
+        Task<PagedResult<CustomerInfo>> GetBlackListCustomersAsync(int pageIndex, int pageSize, string? keyword);
+
+        /// <summary>获取客户操作日志</summary>
+        Task<IEnumerable<CustomerOperationLog>> GetOperationLogsAsync(string customerId);
+
+        /// <summary>获取客户变更日志</summary>
+        Task<IEnumerable<CustomerChangeLog>> GetChangeLogsAsync(string customerId);
+
+        /// <summary>记录操作日志</summary>
+        Task AddOperationLogAsync(string customerId, string operationType, string? desc, string? userId, string? userName, string? remark = null);
+
+        /// <summary>记录变更日志</summary>
+        Task AddChangeLogAsync(string customerId, string fieldName, string? fieldLabel, string? oldValue, string? newValue, string? userId, string? userName);
+    }
+
+    /// <summary>
+    /// 客户操作日志
+    /// </summary>
+    public class CustomerOperationLog
+    {
+        public string Id { get; set; } = string.Empty;
+        public string CustomerId { get; set; } = string.Empty;
+        public string OperationType { get; set; } = string.Empty;
+        public string? OperationDesc { get; set; }
+        public string? OperatorUserId { get; set; }
+        public string? OperatorUserName { get; set; }
+        public DateTime OperationTime { get; set; }
+        public string? Remark { get; set; }
+    }
+
+    /// <summary>
+    /// 客户变更日志
+    /// </summary>
+    public class CustomerChangeLog
+    {
+        public string Id { get; set; } = string.Empty;
+        public string CustomerId { get; set; } = string.Empty;
+        public string FieldName { get; set; } = string.Empty;
+        public string? FieldLabel { get; set; }
+        public string? OldValue { get; set; }
+        public string? NewValue { get; set; }
+        public string? ChangedByUserId { get; set; }
+        public string? ChangedByUserName { get; set; }
+        public DateTime ChangedAt { get; set; }
+    }
+
+    /// <summary>
+    /// 设置黑名单请求
+    /// </summary>
+    public class SetBlackListRequest
+    {
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// 删除客户请求（带理由）
+    /// </summary>
+    public class DeleteCustomerRequest
+    {
+        public string? Reason { get; set; }
+    }
+
+    /// <summary>
+    /// 更新联系历史请求
+    /// </summary>
+    public class UpdateContactHistoryRequest
+    {
+        public string? Type { get; set; }
+        public string? ContactType 
+        { 
+            get => Type; 
+            set => Type = value is null ? null : int.TryParse(value, out var n) ? n switch { 1 => "call", 2 => "visit", 3 => "email", 4 => "meeting", _ => "other" } : value;
+        }
+        public string? Subject { get; set; }
+        public string? Content { get; set; }
+        public string? ContactPerson { get; set; }
+        public DateTime? Time { get; set; }
+        public DateTime? NextFollowUpTime { get; set; }
+        public string? Result { get; set; }
     }
 
     /// <summary>
@@ -144,8 +242,24 @@ namespace CRM.Core.Interfaces
     public class AddContactHistoryRequest
     {
         public string? Type { get; set; } = "call";
+        /// <summary>ContactType 是 Type 的别名，前端兼容字段（可为数字或字符串）</summary>
+        public string? ContactType 
+        { 
+            get => Type; 
+            set => Type = value is null ? null : int.TryParse(value, out var n) ? n switch { 1 => "call", 2 => "visit", 3 => "email", 4 => "meeting", _ => "other" } : value;
+        }
         public string? Content { get; set; }
         public DateTime? Time { get; set; }
+        /// <summary>ContactTime 是 Time 的别名，前端兼容字段</summary>
+        public DateTime? ContactTime { get => Time; set => Time = value; }
+        /// <summary>主题（前端字段）</summary>
+        public string? Subject { get; set; }
+        /// <summary>联系人（前端字段）</summary>
+        public string? ContactPerson { get; set; }
+        /// <summary>跟进时间（前端字段）</summary>
+        public DateTime? NextFollowUpTime { get; set; }
+        /// <summary>联系结果（前端字段）</summary>
+        public string? Result { get; set; }
     }
 
     /// <summary>
@@ -572,10 +686,14 @@ namespace CRM.Core.Interfaces
     public class AddContactRequest
     {
         public string? Name { get; set; }
+        /// <summary>ContactName 是 Name 的别名，前端兼容字段</summary>
+        public string? ContactName { get => Name; set => Name = value; }
         public short? Gender { get; set; }
         public string? Department { get; set; }
         public string? Position { get; set; }
         public string? Phone { get; set; }
+        /// <summary>Tel 是 Phone 的别名，前端兼容字段</summary>
+        public string? Tel { get => Phone; set => Phone = value; }
         public string? Mobile { get; set; }
         public string? Email { get; set; }
         public string? Fax { get; set; }
@@ -588,10 +706,14 @@ namespace CRM.Core.Interfaces
     public class UpdateContactRequest
     {
         public string? Name { get; set; }
+        /// <summary>ContactName 是 Name 的别名，前端兼容字段</summary>
+        public string? ContactName { get => Name; set => Name = value; }
         public short? Gender { get; set; }
         public string? Department { get; set; }
         public string? Position { get; set; }
         public string? Phone { get; set; }
+        /// <summary>Tel 是 Phone 的别名，前端兼容字段</summary>
+        public string? Tel { get => Phone; set => Phone = value; }
         public string? Mobile { get; set; }
         public string? Email { get; set; }
         public string? Fax { get; set; }
@@ -605,8 +727,12 @@ namespace CRM.Core.Interfaces
     {
         public string? BankName { get; set; }
         public string? BankAccount { get; set; }
+        /// <summary>AccountNumber 是 BankAccount 的别名，前端兼容字段</summary>
+        public string? AccountNumber { get => BankAccount; set => BankAccount = value; }
         public string? AccountName { get; set; }
         public string? BankBranch { get; set; }
+        /// <summary>BankCode 是 BankBranch 的别名（SWIFT代码），前端兼容字段</summary>
+        public string? BankCode { get => BankBranch; set => BankBranch = value; }
         public short? Currency { get; set; }
         public bool IsDefault { get; set; } = false;
         public string? Remark { get; set; }
@@ -619,8 +745,12 @@ namespace CRM.Core.Interfaces
     {
         public string? BankName { get; set; }
         public string? BankAccount { get; set; }
+        /// <summary>AccountNumber 是 BankAccount 的别名，前端兼容字段</summary>
+        public string? AccountNumber { get => BankAccount; set => BankAccount = value; }
         public string? AccountName { get; set; }
         public string? BankBranch { get; set; }
+        /// <summary>BankCode 是 BankBranch 的别名（SWIFT代码），前端兼容字段</summary>
+        public string? BankCode { get => BankBranch; set => BankBranch = value; }
         public short? Currency { get; set; }
         public bool? IsDefault { get; set; }
         public string? Remark { get; set; }

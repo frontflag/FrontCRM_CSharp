@@ -18,13 +18,34 @@ namespace CRM.Core.Models.Customer
         [StringLength(36)]
         public string CustomerId { get; set; } = string.Empty;
 
-        /// <summary>类型：call / visit / quote / order 等</summary>
+        /// <summary>类型：call / visit / email / meeting / other</summary>
         [StringLength(50)]
         public string Type { get; set; } = "call";
 
-        [StringLength(500)]
+        /// <summary>主题</summary>
+        [StringLength(200)]
+        public string? Subject { get; set; }
+
+        /// <summary>联系内容</summary>
+        [StringLength(2000)]
         public string? Content { get; set; }
 
+        /// <summary>联系人（客户方）</summary>
+        [StringLength(100)]
+        public string? ContactPerson { get; set; }
+
+        /// <summary>联系时间</summary>
         public DateTime Time { get; set; } = DateTime.UtcNow;
+
+        /// <summary>下次跟进时间</summary>
+        public DateTime? NextFollowUpTime { get; set; }
+
+        /// <summary>联系结果</summary>
+        [StringLength(500)]
+        public string? Result { get; set; }
+
+        /// <summary>操作人ID</summary>
+        [StringLength(36)]
+        public string? OperatorId { get; set; }
     }
 }
