@@ -158,15 +158,25 @@
           <span class="menu-label" v-if="!isCollapsed">供应商管理</span>
         </router-link>
 
-        <router-link to="/customers" class="menu-item" active-class="active">
-          <span class="menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
+        <div class="menu-group">
+          <button class="menu-item has-children" @click="toggleGroup('customers')" :class="{ 'group-open': openGroups.customers }">
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">客户管理</span>
+            <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.customers }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"/>
             </svg>
-          </span>
-          <span class="menu-label" v-if="!isCollapsed">客户管理</span>
-        </router-link>
+          </button>
+          <div class="submenu" v-if="!isCollapsed && openGroups.customers">
+            <router-link to="/customers" class="submenu-item" active-class="active" exact>客户列表</router-link>
+            <router-link to="/customers/recycle-bin" class="submenu-item" active-class="active">回收站</router-link>
+            <router-link to="/customers/blacklist" class="submenu-item" active-class="active">黑名单管理</router-link>
+          </div>
+        </div>
 
         <!-- 数据分析 -->
         <div class="menu-section-label" v-if="!isCollapsed">数据分析</div>
@@ -260,13 +270,14 @@ const isCollapsed = ref(false)
 const openGroups = ref({
   purchase: false,
   sales: false,
-  inventory: false
+  inventory: false,
+  customers: false
 })
 
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
   if (isCollapsed.value) {
-    openGroups.value = { purchase: false, sales: false, inventory: false }
+    openGroups.value = { purchase: false, sales: false, inventory: false, customers: false }
   }
 }
 
@@ -282,6 +293,8 @@ const pageTitleMap: Record<string, string> = {
   '/dashboard': '控制台',
   '/customers': '客户管理',
   '/customers/create': '新增客户',
+  '/customers/recycle-bin': '客户回收站',
+  '/customers/blacklist': '黑名单管理',
   '/suppliers': '供应商管理',
   '/reports': '报表分析',
   '/dashboard/settings': '系统设置',

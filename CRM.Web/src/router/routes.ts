@@ -40,6 +40,19 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Customer/CustomerEdit.vue'),
         meta: { requiresAuth: true, title: '新增客户' }
       },
+      // 静态路由必须在 :id 动态路由之前
+      {
+        path: 'customers/recycle-bin',
+        name: 'CustomerRecycleBin',
+        component: () => import('@/views/Customer/CustomerRecycleBin.vue'),
+        meta: { requiresAuth: true, title: '客户回收站' }
+      },
+      {
+        path: 'customers/blacklist',
+        name: 'CustomerBlacklist',
+        component: () => import('@/views/Customer/CustomerBlacklist.vue'),
+        meta: { requiresAuth: true, title: '黑名单管理' }
+      },
       {
         path: 'customers/:id',
         name: 'CustomerDetail',

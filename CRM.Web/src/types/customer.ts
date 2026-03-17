@@ -125,6 +125,13 @@ export interface Customer {
   invoiceType?: number
   isActive?: boolean
   remarks?: string
+  blackList?: boolean
+  blackListReason?: string
+  blackListTime?: string
+  blackListUserName?: string
+  deleteReason?: string
+  deletedAt?: string
+  deletedByUserName?: string
   contacts?: CustomerContactInfo[]
   addresses?: CustomerAddress[]
   banks?: CustomerBankInfo[]

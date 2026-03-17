@@ -110,9 +110,64 @@ export const customerApi = {
     return await apiClient.put<Customer>(`/api/v1/customers/${id}`, backendData);
   },
 
-  // 删除客户
-  async deleteCustomer(id: string): Promise<void> {
-    await apiClient.delete(`/api/v1/customers/${id}`);
+  // 删除客户（带理由，软删除到回收站）
+  async deleteCustomer(id: string, reason?: string): Promise<void> {
+    await apiClient.delete(`/api/v1/customers/${id}`, { data: { reason } });
+  },
+
+  // 加入黑名单
+  async addToBlacklist(id: string, reason: string): Promise<void> {
+    await apiClient.post(`/api/v1/customers/${id}/blacklist`, { reason });
+  },
+
+  // 移出黑名单
+  async removeFromBlacklist(id: string): Promise<void> {
+    await apiClient.delete(`/api/v1/customers/${id}/blacklist`);
+  },
+
+  // 获取回收站列表
+  async getRecycleBin(params: { pageIndex?: number; pageSize?: number; keyword?: string } = {}): Promise<any> {
+    const q = new URLSearchParams();
+    q.append('pageIndex', String(params.pageIndex ?? 1));
+    q.append('pageSize', String(params.pageSize ?? 20));
+    if (params.keyword) q.append('keyword', params.keyword);
+    return await apiClient.get<any>(`/api/v1/customers/recycle-bin?${q.toString()}`);
+  },
+
+  // 从回收站恢复客户
+  async restoreCustomer(id: string): Promise<void> {
+    await apiClient.post(`/api/v1/customers/${id}/restore`);
+  },
+
+  // 获取黑名单列表
+  async getBlacklist(params: { pageIndex?: number; pageSize?: number; keyword?: string } = {}): Promise<any> {
+    const q = new URLSearchParams();
+    q.append('pageIndex', String(params.pageIndex ?? 1));
+    q.append('pageSize', String(params.pageSize ?? 20));
+    if (params.keyword) q.append('keyword', params.keyword);
+    return await apiClient.get<any>(`/api/v1/customers/blacklist?${q.toString()}`);
+  },
+
+  // 获取操作日志
+  async getOperationLogs(customerId: string): Promise<any[]> {
+    const res = await apiClient.get<any>(`/api/v1/customers/${customerId}/operation-logs`);
+    return res?.data ?? res ?? [];
+  },
+
+  // 获取字段变更日志
+  async getFieldChangeLogs(customerId: string): Promise<any[]> {
+    const res = await apiClient.get<any>(`/api/v1/customers/${customerId}/field-change-logs`);
+    return res?.data ?? res ?? [];
+  },
+
+  // 更新联系历史
+  async updateContactHistory(customerId: string, historyId: string, data: any): Promise<any> {
+    return await apiClient.put<any>(`/api/v1/customers/${customerId}/contact-history/${historyId}`, data);
+  },
+
+  // 删除联系历史
+  async deleteContactHistory(customerId: string, historyId: string): Promise<void> {
+    await apiClient.delete(`/api/v1/customers/${customerId}/contact-history/${historyId}`);
   },
 
   // 激活客户

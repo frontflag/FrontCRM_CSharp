@@ -18,6 +18,7 @@
               <span class="status-badge" :class="customer?.isActive ? 'status--active' : 'status--inactive'">
                 {{ customer?.isActive ? '启用' : '停用' }}
               </span>
+              <span v-if="customer?.blackList" class="status-badge status--blacklist">黑名单</span>
               <span v-if="customer?.customerLevel" class="level-badge" :class="`level-${customer.customerLevel?.toLowerCase()}`">
                 {{ getLevelLabel(customer.customerLevel) }}
               </span>
@@ -32,6 +33,24 @@
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
           编辑
+        </button>
+        <button v-if="!customer?.blackList" class="btn-warning" @click="showBlacklistDialog = true">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+          </svg>
+          加入黑名单
+        </button>
+        <button v-else class="btn-warning btn-warning--active" @click="handleRemoveBlacklist">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>
+          </svg>
+          解除黑名单
+        </button>
+        <button class="btn-danger" @click="showDeleteDialog = true">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+          删除客户
         </button>
         <button class="btn-primary" @click="handleCreateQuote">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -257,13 +276,79 @@
               </el-table>
             </div>
 
-            <!-- 业务记录 -->
-            <div v-show="activeTab === 'business'" class="timeline-wrapper">
-              <div v-for="(record, index) in businessRecords" :key="index" class="timeline-item">
-                <div class="timeline-dot" :class="`dot--${record.type}`"></div>
-                <div class="timeline-content">
-                  <span class="timeline-text">{{ record.content }}</span>
-                  <span class="timeline-time">{{ record.time }}</span>
+            <!-- 联系历史 -->
+            <div v-show="activeTab === 'contactHistory'">
+              <div class="tab-toolbar">
+                <button class="btn-add-item" @click="showContactHistoryForm = true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  添加记录
+                </button>
+              </div>
+              <!-- 新增表单 -->
+              <div v-if="showContactHistoryForm" class="inline-form">
+                <el-select v-model="newHistory.type" placeholder="类型" size="small" style="width:120px">
+                  <el-option label="电话" value="电话"/>
+                  <el-option label="邮件" value="邮件"/>
+                  <el-option label="拜访" value="拜访"/>
+                  <el-option label="微信" value="微信"/>
+                  <el-option label="其他" value="其他"/>
+                </el-select>
+                <el-input v-model="newHistory.content" placeholder="联系内容" size="small" style="flex:1" />
+                <el-input v-model="newHistory.followUpResult" placeholder="跟进结果" size="small" style="width:200px" />
+                <button class="btn-add-item" @click="submitContactHistory">保存</button>
+                <button class="action-btn" @click="showContactHistoryForm = false">取消</button>
+              </div>
+              <div v-if="contactHistories.length === 0 && !showContactHistoryForm" class="empty-state">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <p>暂无联系记录</p>
+              </div>
+              <div v-for="h in contactHistories" :key="h.id" class="timeline-item">
+                <div class="timeline-dot dot--primary"></div>
+                <div class="timeline-content" style="flex:1">
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <span class="timeline-text"><strong>{{ h.contactType || h.type }}</strong> · {{ h.content }}</span>
+                    <div>
+                      <button class="action-btn" style="margin-right:4px" @click="deleteHistory(h)">删除</button>
+                    </div>
+                  </div>
+                  <span v-if="h.followUpResult" class="timeline-time">跟进结果：{{ h.followUpResult }}</span>
+                  <span class="timeline-time">{{ formatDateTime(h.contactTime || h.createTime) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 操作日志 -->
+            <div v-show="activeTab === 'logs'">
+              <div v-if="operationLogs.length === 0 && fieldChangeLogs.length === 0" class="empty-state">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <p>暂无操作记录</p>
+              </div>
+              <div v-if="operationLogs.length > 0">
+                <div class="section-header" style="padding:8px 0 10px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:12px">
+                  <div class="section-dot section-dot--cyan"></div>
+                  <span class="section-title">操作日志</span>
+                </div>
+                <div v-for="log in operationLogs" :key="log.id" class="timeline-item">
+                  <div class="timeline-dot dot--primary"></div>
+                  <div class="timeline-content">
+                    <span class="timeline-text">{{ log.operationType }} · {{ log.description }}</span>
+                    <span class="timeline-time">{{ log.operatorUserName || '系统' }} · {{ formatDateTime(log.operationTime || log.createTime) }}</span>
+                  </div>
+                </div>
+              </div>
+              <div v-if="fieldChangeLogs.length > 0" style="margin-top:20px">
+                <div class="section-header" style="padding:8px 0 10px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:12px">
+                  <div class="section-dot section-dot--cyan"></div>
+                  <span class="section-title">字段变更日志</span>
+                </div>
+                <div v-for="log in fieldChangeLogs" :key="log.id" class="timeline-item">
+                  <div class="timeline-dot dot--warning"></div>
+                  <div class="timeline-content">
+                    <span class="timeline-text">{{ log.fieldName }}：{{ log.oldValue || '(空)' }} → {{ log.newValue || '(空)' }}</span>
+                    <span class="timeline-time">{{ log.operatorUserName || '系统' }} · {{ formatDateTime(log.operationTime || log.createTime) }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -285,6 +370,34 @@
     <ContactDialog v-model="showContactDialog" :customer-id="customerId" :contact="editingContact" @success="handleContactSuccess" />
     <AddressDialog v-model="showAddressDialog" :customer-id="customerId" :address="editingAddress" @success="handleAddressSuccess" />
     <BankDialog v-model="showBankDialog" :customer-id="customerId" :bank="editingBank" @success="handleBankSuccess" />
+
+    <!-- 删除客户弹窗 -->
+    <el-dialog v-model="showDeleteDialog" title="确认删除客户" width="440px" :close-on-click-modal="false">
+      <div style="color:rgba(200,216,232,0.75);font-size:13px;margin-bottom:16px">删除后可在回收站中查看并恢复。</div>
+      <el-form label-width="90px">
+        <el-form-item label="删除理由">
+          <el-input v-model="deleteReason" type="textarea" :rows="3" placeholder="请输入删除理由" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showDeleteDialog = false">取消</el-button>
+        <el-button type="danger" :loading="actionLoading" @click="handleDelete">确认删除</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 加入黑名单弹窗 -->
+    <el-dialog v-model="showBlacklistDialog" title="加入黑名单" width="440px" :close-on-click-modal="false">
+      <div style="color:rgba(200,216,232,0.75);font-size:13px;margin-bottom:16px">加入黑名单后可在黑名单管理中查看并移出。</div>
+      <el-form label-width="90px">
+        <el-form-item label="黑名单理由" required>
+          <el-input v-model="blacklistReason" type="textarea" :rows="3" placeholder="请输入黑名单理由（必填）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showBlacklistDialog = false">取消</el-button>
+        <el-button type="warning" :loading="actionLoading" @click="handleAddBlacklist">确认加入黑名单</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -314,16 +427,26 @@ const editingBank = ref<CustomerBankInfo | undefined>(undefined);
 const tabs = [
   { key: 'contacts', label: '联系人' },
   { key: 'addresses', label: '地址信息' },
-  { key: 'banks', label: '银行信息' },
-  { key: 'business', label: '业务记录' }
+  { key: 'banks', label: '銀行信息' },
+  { key: 'contactHistory', label: '联系历史' },
+  { key: 'logs', label: '操作日志' }
 ];
 
-const businessRecords = ref([
-  { type: 'primary', time: '2024-03-15 10:30', content: '创建报价单 QT-2024-001' },
-  { type: 'success', time: '2024-03-10 14:20', content: '销售订单 SO-2024-003 已发货' },
-  { type: 'warning', time: '2024-03-05 09:15', content: '收款 ¥50,000.00' },
-  { type: 'primary', time: '2024-02-28 16:45', content: '创建询价单 RFQ-2024-002' }
-]);
+// 联系历史
+const contactHistories = ref<any[]>([]);
+const showContactHistoryForm = ref(false);
+const newHistory = ref({ type: '', content: '', followUpResult: '' });
+
+// 操作日志
+const operationLogs = ref<any[]>([]);
+const fieldChangeLogs = ref<any[]>([]);
+
+// 删除 / 黑名单
+const showDeleteDialog = ref(false);
+const showBlacklistDialog = ref(false);
+const deleteReason = ref('');
+const blacklistReason = ref('');
+const actionLoading = ref(false);
 
 const tableHeaderStyle = () => ({ background: '#0A1628', color: 'rgba(200,216,232,0.55)', fontSize: '12px', fontWeight: '500', letterSpacing: '0.5px', borderBottom: '1px solid rgba(0,212,255,0.12)', padding: '10px 0' });
 const tableCellStyle = () => ({ background: 'transparent', borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'rgba(224,244,255,0.85)', fontSize: '13px' });
@@ -334,6 +457,77 @@ const fetchCustomerDetail = async () => {
   try { customer.value = await customerApi.getCustomerById(customerId); }
   catch { ElMessage.error('获取客户详情失败'); }
   finally { loading.value = false; }
+};
+
+const fetchContactHistory = async () => {
+  try { contactHistories.value = await customerApi.getCustomerContactHistory(customerId); }
+  catch { /* 静默失败 */ }
+};
+
+const fetchLogs = async () => {
+  try {
+    const [ops, fields] = await Promise.all([
+      customerApi.getOperationLogs(customerId),
+      customerApi.getFieldChangeLogs(customerId)
+    ]);
+    operationLogs.value = Array.isArray(ops) ? ops : [];
+    fieldChangeLogs.value = Array.isArray(fields) ? fields : [];
+  } catch { /* 静默失败 */ }
+};
+
+const submitContactHistory = async () => {
+  if (!newHistory.value.content.trim()) { ElMessage.warning('请输入联系内容'); return; }
+  try {
+    await customerApi.addContactHistory(customerId, {
+      contactType: newHistory.value.type,
+      content: newHistory.value.content,
+      followUpResult: newHistory.value.followUpResult
+    });
+    ElMessage.success('添加成功');
+    newHistory.value = { type: '', content: '', followUpResult: '' };
+    showContactHistoryForm.value = false;
+    fetchContactHistory();
+  } catch { ElMessage.error('添加失败'); }
+};
+
+const deleteHistory = async (h: any) => {
+  try {
+    await ElMessageBox.confirm('确定要删除该联系记录吗？', '确认删除', { type: 'warning' });
+    await customerApi.deleteContactHistory(customerId, h.id);
+    ElMessage.success('删除成功'); fetchContactHistory();
+  } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败'); }
+};
+
+const handleDelete = async () => {
+  actionLoading.value = true;
+  try {
+    await customerApi.deleteCustomer(customerId, deleteReason.value);
+    ElMessage.success('删除成功，已移至回收站');
+    showDeleteDialog.value = false;
+    router.push('/customers');
+  } catch { ElMessage.error('删除失败'); }
+  finally { actionLoading.value = false; }
+};
+
+const handleAddBlacklist = async () => {
+  if (!blacklistReason.value.trim()) { ElMessage.warning('请输入黑名单理由'); return; }
+  actionLoading.value = true;
+  try {
+    await customerApi.addToBlacklist(customerId, blacklistReason.value);
+    ElMessage.success('已加入黑名单');
+    showBlacklistDialog.value = false;
+    blacklistReason.value = '';
+    fetchCustomerDetail();
+  } catch { ElMessage.error('操作失败'); }
+  finally { actionLoading.value = false; }
+};
+
+const handleRemoveBlacklist = async () => {
+  try {
+    await ElMessageBox.confirm('确定要解除该客户的黑名单状态吗？', '解除黑名单', { type: 'warning' });
+    await customerApi.removeFromBlacklist(customerId);
+    ElMessage.success('已解除黑名单'); fetchCustomerDetail();
+  } catch (e) { if (e !== 'cancel') ElMessage.error('操作失败'); }
 };
 
 const goBack = () => router.push('/customers');
@@ -384,7 +578,11 @@ const getAddressTypeLabel = (type: string) => ({ Office: '办公地址', Billing
 const formatFullAddress = (address: CustomerAddress) => [address.country, address.province, address.city, address.district, address.streetAddress].filter(Boolean).join(' ');
 const getCurrencyLabel = (currency: number) => ({ 1: 'CNY', 2: 'USD', 3: 'EUR', 4: 'JPY', 5: 'GBP', 6: 'HKD' }[currency] || 'CNY');
 
-onMounted(() => fetchCustomerDetail());
+onMounted(() => {
+  fetchCustomerDetail();
+  fetchContactHistory();
+  fetchLogs();
+});
 </script>
 
 <style scoped lang="scss">
@@ -479,8 +677,9 @@ onMounted(() => fetchCustomerDetail());
   padding: 2px 7px;
   border-radius: 3px;
 
-  &--active   { background: rgba(70,191,145,0.15); color: $color-mint-green; border: 1px solid rgba(70,191,145,0.3); }
-  &--inactive { background: rgba(107,122,141,0.15); color: #8A9BB0; border: 1px solid rgba(107,122,141,0.3); }
+  &--active     { background: rgba(70,191,145,0.15); color: $color-mint-green; border: 1px solid rgba(70,191,145,0.3); }
+  &--inactive   { background: rgba(107,122,141,0.15); color: #8A9BB0; border: 1px solid rgba(107,122,141,0.3); }
+  &--blacklist  { background: rgba(201,87,69,0.15); color: $color-red-brown; border: 1px solid rgba(201,87,69,0.3); }
 }
 
 .level-badge {
@@ -493,6 +692,47 @@ onMounted(() => fetchCustomerDetail());
   &.level-important { background: rgba(201,154,69,0.2); color: #C99A45; border: 1px solid rgba(201,154,69,0.3); }
   &.level-normal    { background: rgba(107,122,141,0.2); color: #8A9BB0; border: 1px solid rgba(107,122,141,0.3); }
   &.level-lead      { background: rgba(70,191,145,0.15); color: #46BF91; border: 1px solid rgba(70,191,145,0.3); }
+}
+
+.btn-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(201,154,69,0.15);
+  border: 1px solid rgba(201,154,69,0.4);
+  border-radius: $border-radius-md;
+  color: $color-amber;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover { background: rgba(201,154,69,0.25); }
+
+  &--active {
+    background: rgba(107,122,141,0.15);
+    border-color: rgba(107,122,141,0.3);
+    color: #8A9BB0;
+    &:hover { background: rgba(107,122,141,0.25); }
+  }
+}
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(201,87,69,0.15);
+  border: 1px solid rgba(201,87,69,0.4);
+  border-radius: $border-radius-md;
+  color: $color-red-brown;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover { background: rgba(201,87,69,0.25); }
 }
 
 .btn-primary {
@@ -718,6 +958,19 @@ onMounted(() => fetchCustomerDetail());
     color: $color-red-brown;
     &:hover { background: rgba(201,87,69,0.08); border-color: rgba(201,87,69,0.4); }
   }
+}
+
+// ---- inline-form ----
+.inline-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(0,212,255,0.04);
+  border: 1px solid rgba(0,212,255,0.12);
+  border-radius: $border-radius-md;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
 }
 
 // ---- 时间线 ----
