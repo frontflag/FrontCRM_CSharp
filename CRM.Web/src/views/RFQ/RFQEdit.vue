@@ -80,6 +80,7 @@
             <el-col :span="6">
               <el-form-item label="客户" prop="customerId">
                 <el-select
+                  ref="customerSelectRef"
                   v-model="formData.customerId"
                   placeholder="请输入客户名称搜索"
                   style="width: 100%"
@@ -88,10 +89,15 @@
                   :remote-method="searchCustomers"
                   :loading="customerSearchLoading"
                   loading-text="搜索中..."
-                  no-data-text="未找到匹配客户"
                   class="q-select"
                   @change="onCustomerChange"
+                  @focus="onCustomerFocus"
                 >
+                  <template #empty>
+                    <div class="customer-search-hint">
+                      <span>请输入内容之后选择</span>
+                    </div>
+                  </template>
                   <el-option v-for="c in customerOptions" :key="c.value" :label="c.label" :value="c.value" />
                 </el-select>
               </el-form-item>
@@ -461,7 +467,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElNotification, ElMessageBox } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
@@ -659,27 +665,38 @@ const formRules = {
   importanceLevel: [{ required: true, message: '请输入重要程度', trigger: 'blur' }]
 }
 
-// 远程搜索客户
-async function loadDefaultCustomers() {
-  try {
-    const { customerApi } = await import('@/api/customer')
-    const res = await customerApi.searchCustomers({ pageNumber: 1, pageSize: 30 })
-    const newOptions = (res.items || []).map((c: any) => ({
-      value: c.id,
-      label: c.customerName || (c as any).officialName || c.name || '未知客户'
-    }))
-    // 保留已选中的客户选项，避免被覆盖
-    const existing = customerOptions.value.filter(o => o.value === formData.customerId)
-    const merged = [...existing, ...newOptions.filter((o: any) => o.value !== formData.customerId)]
-    customerOptions.value = merged
-  } catch { /* 静默失败 */ }
+// 客户选择器 ref
+const customerSelectRef = ref<any>(null)
+
+// 客户字段聚焦时，手动触发下拉展开（显示提示文字）
+function onCustomerFocus() {
+  if (!formData.customerId) {
+    // 清空选项确保显示 #empty 插槽提示
+    customerOptions.value = []
+    // 手动展开下拉框：尝试多种 Element Plus 方法
+    nextTick(() => {
+      const sel = customerSelectRef.value
+      if (sel) {
+        // Element Plus 4.x 内部方法
+        if (typeof sel.toggleMenu === 'function') {
+          sel.toggleMenu()
+        } else if (typeof sel.handleOpen === 'function') {
+          sel.handleOpen()
+        } else if (sel.states) {
+          // 直接设置内部状态
+          sel.states.visible = true
+        }
+      }
+    })
+  }
 }
 
+// 远程搜索客户
 async function searchCustomers(query: string) {
   if (customerSearchTimer) clearTimeout(customerSearchTimer)
   if (!query || query.trim().length < 1) {
-    // 空查询时加载默认客户列表
-    await loadDefaultCustomers()
+    // 空查询时清空选项，显示提示文字
+    customerOptions.value = []
     return
   }
   customerSearchTimer = setTimeout(async () => {
@@ -826,8 +843,6 @@ function goBack() {
 }
 
 onMounted(async () => {
-  // 预加载默认客户列表（新建和编辑模式都需要）
-  await loadDefaultCustomers()
   if (isEdit.value) {
     await loadRFQ()
     // 编辑模式下：确保当前客户在选项中（用 getCustomerById 精确回填）
@@ -1372,5 +1387,19 @@ onMounted(async () => {
     background-color: rgba(0, 212, 255, 0.6) !important;
     border-color: rgba(0, 212, 255, 0.4) !important;
   }
+}
+</style>
+
+<!-- 客户搜索提示内容全局样式 -->
+<style>
+.customer-search-hint {
+  padding: 8px 16px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.35);
+  font-style: italic;
+  font-size: 12px;
+  cursor: default;
+  user-select: none;
+  pointer-events: none;
 }
 </style>
