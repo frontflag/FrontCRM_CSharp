@@ -287,7 +287,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElNotification, ElMessageBox } from 'element-plus';
 import { customerApi } from '@/api/customer';
 import type { Customer, CustomerStatistics, CustomerSearchRequest } from '@/types/customer';
 
@@ -359,7 +359,7 @@ const fetchCustomerList = async () => {
     totalCount.value = response.totalCount;
   } catch (error) {
     console.error('获取客户列表失败', error);
-    ElMessage.error('获取客户列表失败');
+    ElNotification.error({ title: '加载失败', message: '获取客户列表失败，请刷新重试' });
   } finally {
     loading.value = false;
   }
@@ -399,10 +399,10 @@ const handleStatusChange = async (row: Customer, val: boolean) => {
     } else {
       await customerApi.deactivateCustomer(row.id!);
     }
-    ElMessage.success(`客户已${val ? '启用' : '停用'}`);
+    ElNotification.success({ title: '操作成功', message: `客户已${val ? '启用' : '停用'}` });
   } catch {
     row.isActive = !val;
-    ElMessage.error('操作失败');
+    ElNotification.error({ title: '操作失败', message: '状态更改失败，请稍后重试' });
   }
 };
 
@@ -412,15 +412,15 @@ const handleCommand = (cmd: string, row: Customer) => {
       confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning'
     }).then(async () => {
       await customerApi.deleteCustomer(row.id!);
-      ElMessage.success('删除成功');
+      ElNotification.success({ title: '删除成功', message: '客户已删除' });
       fetchCustomerList();
     }).catch(() => {});
   } else {
-    ElMessage.info('功能开发中');
+    ElNotification.info({ title: '提示', message: '功能开发中，敬请期待' });
   }
 };
 
-const handleExport = () => ElMessage.info('导出功能开发中');
+const handleExport = () => ElNotification.info({ title: '提示', message: '导出功能开发中，敬请期待' });
 const handleSizeChange = (size: number) => { pagination.pageSize = size; fetchCustomerList(); };
 const handlePageChange = (page: number) => { pagination.pageNumber = page; fetchCustomerList(); };
 

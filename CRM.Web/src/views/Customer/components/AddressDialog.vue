@@ -84,7 +84,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
+import { ElNotification, type FormInstance, type FormRules } from 'element-plus';
 import { customerAddressApi } from '@/api/customer';
 import type { CustomerAddress, CreateAddressRequest } from '@/types/customer';
 
@@ -277,16 +277,16 @@ const handleSubmit = async () => {
   try {
     if (isEdit.value && props.address) {
       await customerAddressApi.updateAddress(props.address.id, formData.value);
-      ElMessage.success('更新成功');
+      ElNotification.success({ title: '保存成功', message: '地址信息已更新' });
     } else {
       await customerAddressApi.createAddress(props.customerId, formData.value);
-      ElMessage.success('添加成功');
+      ElNotification.success({ title: '添加成功', message: '地址已添加' });
     }
     emit('success');
     emit('update:modelValue', false);
   } catch (error) {
     console.error('保存失败:', error);
-    ElMessage.error('保存失败');
+    ElNotification.error({ title: '保存失败', message: '地址保存失败，请稍后重试' });
   } finally {
     submitting.value = false;
   }

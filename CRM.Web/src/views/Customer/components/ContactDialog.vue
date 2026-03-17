@@ -102,7 +102,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
+import { ElNotification, type FormInstance, type FormRules } from 'element-plus';
 import { customerContactApi } from '@/api/customer';
 import type { CustomerContactInfo, CreateContactRequest } from '@/types/customer';
 
@@ -207,16 +207,16 @@ const handleSubmit = async () => {
   try {
     if (isEdit.value && props.contact) {
       await customerContactApi.updateContact(props.contact.id, formData.value);
-      ElMessage.success('更新成功');
+      ElNotification.success({ title: '保存成功', message: '联系人信息已更新' });
     } else {
       await customerContactApi.createContact(props.customerId, formData.value);
-      ElMessage.success('添加成功');
+      ElNotification.success({ title: '添加成功', message: '联系人已添加' });
     }
     emit('success');
     emit('update:modelValue', false);
   } catch (error) {
     console.error('保存失败:', error);
-    ElMessage.error('保存失败');
+    ElNotification.error({ title: '保存失败', message: '联系人保存失败，请稍后重试' });
   } finally {
     submitting.value = false;
   }

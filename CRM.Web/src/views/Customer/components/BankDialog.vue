@@ -84,7 +84,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
+import { ElNotification, type FormInstance, type FormRules } from 'element-plus';
 import { customerBankApi } from '@/api/customer';
 import type { CustomerBankInfo, CreateBankInfoRequest } from '@/types/customer';
 
@@ -203,16 +203,16 @@ const handleSubmit = async () => {
   try {
     if (isEdit.value && props.bank) {
       await customerBankApi.updateBank(props.bank.id, formData.value);
-      ElMessage.success('更新成功');
+      ElNotification.success({ title: '保存成功', message: '银行信息已更新' });
     } else {
       await customerBankApi.createBank(props.customerId, formData.value);
-      ElMessage.success('添加成功');
+      ElNotification.success({ title: '添加成功', message: '银行信息已添加' });
     }
     emit('success');
     emit('update:modelValue', false);
   } catch (error) {
     console.error('保存失败:', error);
-    ElMessage.error('保存失败');
+    ElNotification.error({ title: '保存失败', message: '银行信息保存失败，请稍后重试' });
   } finally {
     submitting.value = false;
   }

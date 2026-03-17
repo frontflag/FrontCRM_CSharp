@@ -404,7 +404,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElNotification, ElMessageBox } from 'element-plus';
 import { customerApi, customerContactApi, customerAddressApi, customerBankApi } from '@/api/customer';
 import type { Customer, CustomerContactInfo, CustomerAddress, CustomerBankInfo } from '@/types/customer';
 import ContactDialog from './components/ContactDialog.vue';
@@ -455,7 +455,7 @@ const tableRowStyle = () => ({ background: 'transparent' });
 const fetchCustomerDetail = async () => {
   loading.value = true;
   try { customer.value = await customerApi.getCustomerById(customerId); }
-  catch { ElMessage.error('获取客户详情失败'); }
+  catch { ElNotification.error({ title: '加载失败', message: '获取客户详情失败，请刷新重试' }); }
   finally { loading.value = false; }
 };
 
@@ -476,49 +476,49 @@ const fetchLogs = async () => {
 };
 
 const submitContactHistory = async () => {
-  if (!newHistory.value.content.trim()) { ElMessage.warning('请输入联系内容'); return; }
+  if (!newHistory.value.content.trim()) { ElNotification.warning({ title: '请填写内容', message: '请输入联系内容' }); return; }
   try {
     await customerApi.addContactHistory(customerId, {
       contactType: newHistory.value.type,
       content: newHistory.value.content,
       followUpResult: newHistory.value.followUpResult
     });
-    ElMessage.success('添加成功');
+    ElNotification.success({ title: '添加成功', message: '联系记录已添加' });
     newHistory.value = { type: '', content: '', followUpResult: '' };
     showContactHistoryForm.value = false;
     fetchContactHistory();
-  } catch { ElMessage.error('添加失败'); }
+  } catch { ElNotification.error({ title: '添加失败', message: '联系记录添加失败，请稍后重试' }); }
 };
 
 const deleteHistory = async (h: any) => {
   try {
     await ElMessageBox.confirm('确定要删除该联系记录吗？', '确认删除', { type: 'warning' });
     await customerApi.deleteContactHistory(customerId, h.id);
-    ElMessage.success('删除成功'); fetchContactHistory();
-  } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败'); }
+    ElNotification.success({ title: '删除成功', message: '联系记录已删除' }); fetchContactHistory();
+  } catch (e) { if (e !== 'cancel') ElNotification.error({ title: '删除失败', message: '联系记录删除失败' }); }
 };
 
 const handleDelete = async () => {
   actionLoading.value = true;
   try {
     await customerApi.deleteCustomer(customerId, deleteReason.value);
-    ElMessage.success('删除成功，已移至回收站');
+    ElNotification.success({ title: '删除成功', message: '客户已移至回收站' });
     showDeleteDialog.value = false;
     router.push('/customers');
-  } catch { ElMessage.error('删除失败'); }
+  } catch { ElNotification.error({ title: '删除失败', message: '客户删除失败，请稍后重试' }); }
   finally { actionLoading.value = false; }
 };
 
 const handleAddBlacklist = async () => {
-  if (!blacklistReason.value.trim()) { ElMessage.warning('请输入黑名单理由'); return; }
+  if (!blacklistReason.value.trim()) { ElNotification.warning({ title: '请填写理由', message: '请输入黑名单理由' }); return; }
   actionLoading.value = true;
   try {
     await customerApi.addToBlacklist(customerId, blacklistReason.value);
-    ElMessage.success('已加入黑名单');
+    ElNotification.success({ title: '操作成功', message: '客户已加入黑名单' });
     showBlacklistDialog.value = false;
     blacklistReason.value = '';
     fetchCustomerDetail();
-  } catch { ElMessage.error('操作失败'); }
+  } catch { ElNotification.error({ title: '操作失败', message: '加入黑名单失败，请稍后重试' }); }
   finally { actionLoading.value = false; }
 };
 
@@ -526,8 +526,8 @@ const handleRemoveBlacklist = async () => {
   try {
     await ElMessageBox.confirm('确定要解除该客户的黑名单状态吗？', '解除黑名单', { type: 'warning' });
     await customerApi.removeFromBlacklist(customerId);
-    ElMessage.success('已解除黑名单'); fetchCustomerDetail();
-  } catch (e) { if (e !== 'cancel') ElMessage.error('操作失败'); }
+    ElNotification.success({ title: '操作成功', message: '已解除黑名单状态' }); fetchCustomerDetail();
+  } catch (e) { if (e !== 'cancel') ElNotification.error({ title: '操作失败', message: '解除黑名单失败' }); }
 };
 
 const goBack = () => router.push('/customers');
@@ -540,8 +540,8 @@ const deleteContact = async (contact: CustomerContactInfo) => {
   try {
     await ElMessageBox.confirm('确定要删除该联系人吗？', '确认删除', { type: 'warning' });
     await customerContactApi.deleteContact(contact.id);
-    ElMessage.success('删除成功'); fetchCustomerDetail();
-  } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败'); }
+    ElNotification.success({ title: '删除成功', message: '联系人已删除' }); fetchCustomerDetail();
+  } catch (e) { if (e !== 'cancel') ElNotification.error({ title: '删除失败', message: '联系人删除失败' }); }
 };
 const handleContactSuccess = () => { editingContact.value = undefined; fetchCustomerDetail(); };
 
@@ -550,8 +550,8 @@ const deleteAddress = async (address: CustomerAddress) => {
   try {
     await ElMessageBox.confirm('确定要删除该地址吗？', '确认删除', { type: 'warning' });
     await customerAddressApi.deleteAddress(address.id);
-    ElMessage.success('删除成功'); fetchCustomerDetail();
-  } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败'); }
+    ElNotification.success({ title: '删除成功', message: '地址已删除' }); fetchCustomerDetail();
+  } catch (e) { if (e !== 'cancel') ElNotification.error({ title: '删除失败', message: '地址删除失败' }); }
 };
 const handleAddressSuccess = () => { editingAddress.value = undefined; fetchCustomerDetail(); };
 
@@ -560,8 +560,8 @@ const deleteBank = async (bank: CustomerBankInfo) => {
   try {
     await ElMessageBox.confirm('确定要删除该银行信息吗？', '确认删除', { type: 'warning' });
     await customerBankApi.deleteBank(bank.id);
-    ElMessage.success('删除成功'); fetchCustomerDetail();
-  } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败'); }
+    ElNotification.success({ title: '删除成功', message: '银行信息已删除' }); fetchCustomerDetail();
+  } catch (e) { if (e !== 'cancel') ElNotification.error({ title: '删除失败', message: '银行信息删除失败' }); }
 };
 const handleBankSuccess = () => { editingBank.value = undefined; fetchCustomerDetail(); };
 

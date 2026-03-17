@@ -87,7 +87,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElNotification, ElMessageBox } from 'element-plus';
 import { customerApi } from '@/api/customer';
 
 const router = useRouter();
@@ -106,7 +106,7 @@ const fetchData = async () => {
     items.value = res?.items ?? res?.data ?? (Array.isArray(res) ? res : []);
     totalCount.value = res?.totalCount ?? res?.total ?? items.value.length;
   } catch {
-    ElMessage.error('获取黑名单数据失败');
+    ElNotification.error({ title: '加载失败', message: '获取黑名单数据失败，请刷新重试' });
   } finally {
     loading.value = false;
   }
@@ -117,10 +117,10 @@ const handleRemove = async (item: any) => {
     await ElMessageBox.confirm(`确定要将「${item.customerName || item.officialName}」移出黑名单吗？`, '移出黑名单', { type: 'warning' });
     removingId.value = item.id;
     await customerApi.removeFromBlacklist(item.id);
-    ElMessage.success('已移出黑名单');
+    ElNotification.success({ title: '操作成功', message: '客户已移出黑名单' });
     fetchData();
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error('操作失败');
+    if (e !== 'cancel') ElNotification.error({ title: '操作失败', message: '移出黑名单失败，请稍后重试' });
   } finally {
     removingId.value = null;
   }

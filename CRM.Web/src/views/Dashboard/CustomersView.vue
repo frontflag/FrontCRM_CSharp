@@ -116,7 +116,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { ElNotification, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { useAuthStore } from '@/stores'
 
 const router = useRouter()
@@ -196,7 +196,7 @@ const handleDelete = async (row: Customer) => {
     const index = customers.value.findIndex(c => c.id === row.id)
     if (index > -1) {
       customers.value.splice(index, 1)
-      ElMessage.success('删除成功')
+      ElNotification.success({ title: '删除成功', message: '客户已删除' })
     }
   } catch {
     // 用户取消
@@ -217,13 +217,13 @@ const handleSubmit = async () => {
         createdAt: new Date().toISOString()
       }
       customers.value.push(newCustomer)
-      ElMessage.success('添加成功')
+      ElNotification.success({ title: '添加成功', message: '客户已添加' })
     } else {
       // 编辑客户
       const index = customers.value.findIndex(c => c.id === form.id)
       if (index > -1) {
         customers.value[index] = { ...customers.value[index], ...form }
-        ElMessage.success('更新成功')
+        ElNotification.success({ title: '更新成功', message: '客户信息已更新' })
       }
     }
 

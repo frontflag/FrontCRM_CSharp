@@ -150,7 +150,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElNotification, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores'
 
 const router = useRouter()
@@ -182,15 +182,15 @@ const notificationSettings = reactive({
 })
 
 const handleSaveBasic = () => {
-  ElMessage.success('基本信息已保存')
+  ElNotification.success({ title: '保存成功', message: '基本信息已保存' })
 }
 
 const handleSaveSecurity = () => {
-  ElMessage.success('安全设置已保存')
+  ElNotification.success({ title: '保存成功', message: '安全设置已保存' })
 }
 
 const handleSaveNotification = () => {
-  ElMessage.success('通知设置已保存')
+  ElNotification.success({ title: '保存成功', message: '通知设置已保存' })
 }
 
 const handleLogout = async () => {

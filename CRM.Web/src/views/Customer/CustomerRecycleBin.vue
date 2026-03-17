@@ -86,7 +86,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElNotification, ElMessageBox } from 'element-plus';
 import { customerApi } from '@/api/customer';
 
 const loading = ref(false);
@@ -104,7 +104,7 @@ const fetchData = async () => {
     items.value = res?.items ?? res?.data ?? (Array.isArray(res) ? res : []);
     totalCount.value = res?.totalCount ?? res?.total ?? items.value.length;
   } catch {
-    ElMessage.error('获取回收站数据失败');
+    ElNotification.error({ title: '加载失败', message: '获取回收站数据失败，请刷新重试' });
   } finally {
     loading.value = false;
   }
@@ -115,10 +115,10 @@ const handleRestore = async (item: any) => {
     await ElMessageBox.confirm(`确定要恢复客户「${item.customerName || item.officialName}」吗？`, '确认恢复', { type: 'info' });
     restoringId.value = item.id;
     await customerApi.restoreCustomer(item.id);
-    ElMessage.success('恢复成功');
+    ElNotification.success({ title: '恢复成功', message: '客户已恢复到客户列表' });
     fetchData();
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error('恢复失败');
+    if (e !== 'cancel') ElNotification.error({ title: '恢复失败', message: '客户恢复失败，请稍后重试' });
   } finally {
     restoringId.value = null;
   }
