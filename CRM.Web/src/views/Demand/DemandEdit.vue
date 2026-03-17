@@ -61,9 +61,14 @@
               <el-form-item label="客户" prop="customerId">
                 <el-select
                   v-model="formData.customerId"
-                  placeholder="请选择客户"
+                  placeholder="请输入客户名称搜索"
                   style="width: 100%"
                   filterable
+                  remote
+                  :remote-method="searchCustomers"
+                  :loading="customerSearchLoading"
+                  loading-text="搜索中..."
+                  no-data-text="未找到匹配客户，请输入名称搜索"
                   class="q-select"
                   @change="onCustomerChange"
                 >
@@ -358,8 +363,10 @@ const saving = ref(false)
 
 const isEdit = computed(() => !!route.params.id)
 
-// 客户选项（实际应从 API 获取）
+// 客户选项（远程搜索）
 const customerOptions = ref<{ value: string; label: string }[]>([])
+const customerSearchLoading = ref(false)
+let customerSearchTimer: ReturnType<typeof setTimeout> | null = null
 
 // 表单数据
 const formData = reactive<{
@@ -459,18 +466,32 @@ const formRules = {
   demandDate: [{ required: true, message: '请选择需求日期', trigger: 'change' }]
 }
 
-// 加载客户列表
-async function loadCustomers() {
-  try {
-    const { customerApi } = await import('@/api/customer')
-    const res = await customerApi.getCustomers({ page: 1, pageSize: 200 })
-    customerOptions.value = (res.items || []).map((c: any) => ({
-      value: c.id,
-      label: c.customerName
-    }))
-  } catch {
-    // 静默失败
+// 远程搜索客户
+async function searchCustomers(query: string) {
+  if (customerSearchTimer) clearTimeout(customerSearchTimer)
+  if (!query || query.trim().length < 1) {
+    customerOptions.value = []
+    return
   }
+  customerSearchTimer = setTimeout(async () => {
+    customerSearchLoading.value = true
+    try {
+      const { customerApi } = await import('@/api/customer')
+      const res = await customerApi.searchCustomers({
+        pageNumber: 1,
+        pageSize: 20,
+        searchTerm: query.trim()
+      })
+      customerOptions.value = (res.items || []).map((c: any) => ({
+        value: c.id,
+        label: c.customerName || c.officialName || c.name || '未知客户'
+      }))
+    } catch {
+      customerOptions.value = []
+    } finally {
+      customerSearchLoading.value = false
+    }
+  }, 300)
 }
 
 // 加载编辑数据
@@ -566,11 +587,25 @@ function goBack() {
   router.push('/demands')
 }
 
-onMounted(() => {
-  loadCustomers()
-  loadDemand()
-  // 新增时默认添加一行
-  if (!isEdit.value) addItem()
+onMounted(async () => {
+  // 编辑模式：先加载需求数据，再预填客户选项
+  if (isEdit.value) {
+    await loadDemand()
+    // 编辑模式下预填当前客户选项，使选择框能正确显示客户名称
+    if (formData.customerId) {
+      try {
+        const { customerApi } = await import('@/api/customer')
+        const res = await customerApi.searchCustomers({ pageNumber: 1, pageSize: 1, searchTerm: formData.customerId })
+        if (res.items?.length) {
+          const c = res.items[0]
+          customerOptions.value = [{ value: c.id, label: c.customerName || c.officialName || '未知客户' }]
+        }
+      } catch { /* 静默失败 */ }
+    }
+  } else {
+    // 新增时默认添加一行
+    addItem()
+  }
 })
 </script>
 
