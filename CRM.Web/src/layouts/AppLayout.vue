@@ -62,9 +62,9 @@
             </svg>
           </button>
           <div class="submenu" v-if="!isCollapsed && openGroups.purchase">
-            <router-link to="/purchase/orders" class="submenu-item" active-class="active">采购订单</router-link>
-            <router-link to="/purchase/receipts" class="submenu-item" active-class="active">收货管理</router-link>
-            <router-link to="/purchase/returns" class="submenu-item" active-class="active">采购退货</router-link>
+            <button class="submenu-item" @click="handleUnimplemented('采购订单')">采购订单</button>
+            <button class="submenu-item" @click="handleUnimplemented('收货管理')">收货管理</button>
+            <button class="submenu-item" @click="handleUnimplemented('采购退货')">采购退货</button>
           </div>
         </div>
 
@@ -81,9 +81,9 @@
             </svg>
           </button>
           <div class="submenu" v-if="!isCollapsed && openGroups.sales">
-            <router-link to="/sales/orders" class="submenu-item" active-class="active">销售订单</router-link>
-            <router-link to="/sales/deliveries" class="submenu-item" active-class="active">发货管理</router-link>
-            <router-link to="/sales/returns" class="submenu-item" active-class="active">销售退货</router-link>
+            <button class="submenu-item" @click="handleUnimplemented('销售订单')">销售订单</button>
+            <button class="submenu-item" @click="handleUnimplemented('发货管理')">发货管理</button>
+            <button class="submenu-item" @click="handleUnimplemented('销售退货')">销售退货</button>
           </div>
         </div>
 
@@ -102,16 +102,16 @@
             </svg>
           </button>
           <div class="submenu" v-if="!isCollapsed && openGroups.inventory">
-            <router-link to="/inventory/list" class="submenu-item" active-class="active">库存列表</router-link>
-            <router-link to="/inventory/transfer" class="submenu-item" active-class="active">库存调拨</router-link>
-            <router-link to="/inventory/check" class="submenu-item" active-class="active">库存盘点</router-link>
+            <button class="submenu-item" @click="handleUnimplemented('库存列表')">库存列表</button>
+            <button class="submenu-item" @click="handleUnimplemented('库存调拨')">库存调拨</button>
+            <button class="submenu-item" @click="handleUnimplemented('库存盘点')">库存盘点</button>
           </div>
         </div>
 
         <!-- 智能采购 -->
         <div class="menu-section-label" v-if="!isCollapsed">智能采购</div>
 
-        <router-link to="/smart/demand" class="menu-item" active-class="active">
+        <button class="menu-item" @click="handleUnimplemented('需求管理')">
           <span class="menu-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <circle cx="12" cy="12" r="10"/>
@@ -119,9 +119,9 @@
             </svg>
           </span>
           <span class="menu-label" v-if="!isCollapsed">需求管理</span>
-        </router-link>
+        </button>
 
-        <router-link to="/smart/quote-match" class="menu-item" active-class="active">
+        <button class="menu-item" @click="handleUnimplemented('需求匹配报价')">
           <span class="menu-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
@@ -131,9 +131,9 @@
             </svg>
           </span>
           <span class="menu-label" v-if="!isCollapsed">需求匹配报价</span>
-        </router-link>
+        </button>
 
-        <router-link to="/smart/bom-quote" class="menu-item" active-class="active">
+        <button class="menu-item" @click="handleUnimplemented('BOM 批量报价')">
           <span class="menu-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <rect x="3" y="3" width="18" height="18" rx="2"/>
@@ -141,12 +141,12 @@
             </svg>
           </span>
           <span class="menu-label" v-if="!isCollapsed">BOM 批量报价</span>
-        </router-link>
+        </button>
 
         <!-- 基础资料 -->
         <div class="menu-section-label" v-if="!isCollapsed">基础资料</div>
 
-        <router-link to="/suppliers" class="menu-item" active-class="active">
+        <button class="menu-item" @click="handleUnimplemented('供应商管理')">
           <span class="menu-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
@@ -156,7 +156,7 @@
             </svg>
           </span>
           <span class="menu-label" v-if="!isCollapsed">供应商管理</span>
-        </router-link>
+        </button>
 
         <div class="menu-group">
           <button class="menu-item has-children" @click="toggleGroup('customers')" :class="{ 'group-open': openGroups.customers }">
@@ -181,7 +181,7 @@
         <!-- 数据分析 -->
         <div class="menu-section-label" v-if="!isCollapsed">数据分析</div>
 
-        <router-link to="/reports" class="menu-item" active-class="active">
+        <button class="menu-item" @click="handleUnimplemented('报表分析')">
           <span class="menu-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <line x1="18" y1="20" x2="18" y2="10"/>
@@ -190,7 +190,7 @@
             </svg>
           </span>
           <span class="menu-label" v-if="!isCollapsed">报表分析</span>
-        </router-link>
+        </button>
 
         <!-- 系统 -->
         <div class="menu-section-label" v-if="!isCollapsed">系统</div>
@@ -261,6 +261,7 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores'
+import { ElMessageBox, ElNotification } from 'element-plus'
 
 const route = useRoute()
 const router = useRouter()
@@ -311,9 +312,22 @@ const currentPageTitle = computed(() => {
   return route.meta?.title as string || 'FrontCRM'
 })
 
-const handleLogout = () => {
-  authStore.logout()
-  router.push('/login')
+const handleLogout = async () => {
+  try {
+    await ElMessageBox.confirm('确定要退出登录吗？', '退出登录', {
+      confirmButtonText: '确定退出',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    authStore.logout()
+    router.push('/login')
+  } catch {
+    // 用户取消
+  }
+}
+
+const handleUnimplemented = (name: string) => {
+  ElNotification.info({ title: '功能开发中', message: `「${name}」功能正在开发中，敬请期待` })
 }
 </script>
 
