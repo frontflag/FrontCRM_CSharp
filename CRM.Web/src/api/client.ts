@@ -34,13 +34,19 @@ class ApiClient {
     )
 
     // Response interceptor
+    // 后端统一返回格式: { success: bool, data: T, message: string, errorCode: number }
+    // 拦截器统一解包 data 层，让调用方直接拿到业务数据
     this.instance.interceptors.response.use(
       (response: AxiosResponse) => {
-        // 后端返回格式: { success, data, message }
-        // 返回完整的响应对象，让调用者可以访问 success 字段
         const apiResponse = response.data
         if (apiResponse && apiResponse.success !== undefined) {
-          return apiResponse
+          if (apiResponse.success) {
+            // 成功时返回 data 字段（业务数据）
+            return apiResponse.data !== undefined ? apiResponse.data : apiResponse
+          } else {
+            // 业务失败时抛出错误，携带后端 message
+            return Promise.reject(new Error(apiResponse.message || '请求失败'))
+          }
         }
         return apiResponse
       },
@@ -51,11 +57,9 @@ class ApiClient {
           window.location.href = '/login'
           return Promise.reject(error)
         }
-        // 对于其他 HTTP 错误（400/500 等），如果响应体是标准 ApiResponse 格式，则作为正常值返回
-        // 这样调用方可以通过 result.success === false 判断并显示具体错误信息
         const responseData = error.response?.data
         if (responseData && responseData.success !== undefined) {
-          return responseData
+          return Promise.reject(new Error(responseData.message || '请求失败'))
         }
         return Promise.reject(error)
       }
