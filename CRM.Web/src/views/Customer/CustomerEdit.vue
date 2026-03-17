@@ -285,7 +285,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElNotification, type FormInstance, type FormRules } from 'element-plus';
+import { ElNotification, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
 import { customerApi } from '@/api/customer';
 import type { CreateCustomerRequest } from '@/types/customer';
 
@@ -381,7 +381,18 @@ const addContact = () => {
   });
 };
 
-const removeContact = (index: number) => formData.contacts.splice(index, 1);
+const removeContact = async (index: number) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除联系人「${formData.contacts[index]?.contactName || '联系人 ' + (index + 1)}」吗？`,
+      '确认删除',
+      { type: 'warning', confirmButtonText: '确定删除', cancelButtonText: '取消' }
+    );
+    formData.contacts.splice(index, 1);
+  } catch {
+    // 用户取消，不做任何操作
+  }
+};
 
 const handleSave = async (_submit: boolean) => {
   // el-form.validate() 在校验失败时会抛出异常，需用 try-catch 统一处理
