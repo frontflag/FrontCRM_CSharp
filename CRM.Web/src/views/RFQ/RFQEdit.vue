@@ -540,12 +540,12 @@ const formData = reactive<{
 })
 
 let _keyCounter = 0
-function newItem(): CreateRFQItemRequest & { _key: number; _isDuplicate?: boolean } {
+function newItem(): any {
   return {
     _key: ++_keyCounter,
     _isDuplicate: false,
-    customerMaterialModel: '',
-    materialModel: '',
+    customerMaterialModel: '',  // UI 字段，保存时映射到 customerMpn
+    materialModel: '',          // UI 字段，保存时映射到 mpn
     customerBrand: '',
     brand: '',
     targetPrice: undefined,
@@ -553,9 +553,9 @@ function newItem(): CreateRFQItemRequest & { _key: number; _isDuplicate?: boolea
     quantity: 1,
     productionDate: '',
     expiryDate: '',
-    minPackageQty: 0,
-    minOrderQty: 0,
-    alternativeMaterials: '',
+    minPackageQty: undefined,
+    minOrderQty: 0,             // UI 字段，保存时映射到 moq
+    alternativeMaterials: '',   // UI 字段，保存时映射到 alternatives
     remark: ''
   }
 }
@@ -694,9 +694,9 @@ async function loadRFQ() {
     const data = await rfqApi.getRFQById(route.params.id as string)
     formData.rfqCode = data.rfqCode || ''
     formData.customerId = data.customerId || ''
-    formData.contactPersonId = data.contactPersonId || ''
+    formData.contactPersonId = (data as any).contactId || data.contactPersonId || ''
     formData.contactPersonName = data.contactPersonName || ''
-    formData.contactPersonEmail = data.contactPersonEmail || ''
+    formData.contactPersonEmail = (data as any).contactEmail || data.contactPersonEmail || ''
     formData.salesUserId = data.salesUserId || ''
     formData.salesUserName = data.salesUserName || ''
     formData.rfqDate = data.rfqDate?.split('T')[0] || ''
@@ -708,8 +708,8 @@ async function loadRFQ() {
     formData.industry = data.industry || ''
     formData.product = data.product || ''
     formData.targetType = data.targetType
-    formData.importanceLevel = data.importanceLevel
-    formData.isLastQuote = data.isLastQuote || false
+    formData.importanceLevel = (data as any).importance ?? data.importanceLevel
+    formData.isLastQuote = (data as any).isLastInquiry ?? data.isLastQuote ?? false
     formData.projectBackground = data.projectBackground || ''
     formData.competitor = data.competitor || ''
     formData.remark = data.remark || ''
@@ -721,6 +721,11 @@ async function loadRFQ() {
     const items = await rfqApi.getRFQItemsByRFQId(data.id)
     formData.items = (items || []).map((item: any) => ({
       ...item,
+      // 将后端字段映射回 UI 字段
+      customerMaterialModel: item.customerMpn || item.customerMaterialModel || '',
+      materialModel: item.mpn || item.materialModel || '',
+      minOrderQty: item.moq ?? item.minOrderQty ?? 0,
+      alternativeMaterials: item.alternatives || item.alternativeMaterials || '',
       _key: ++_keyCounter,
       _isDuplicate: false
     }))
@@ -746,9 +751,9 @@ async function handleSave() {
   try {
     const payload: CreateRFQRequest = {
       customerId: formData.customerId,
-      contactPersonId: formData.contactPersonId || undefined,
-      contactPersonName: formData.contactPersonName || undefined,
-      contactPersonEmail: formData.contactPersonEmail || undefined,
+      contactId: formData.contactPersonId || undefined,
+      // contactPersonName: formData.contactPersonName || undefined, // 后端暂不支持
+      contactEmail: formData.contactPersonEmail || undefined,
       salesUserId: formData.salesUserId || undefined,
       rfqDate: formData.rfqDate,
       source: formData.source as any,
@@ -759,24 +764,24 @@ async function handleSave() {
       industry: formData.industry || undefined,
       product: formData.product || undefined,
       targetType: formData.targetType as any,
-      importanceLevel: formData.importanceLevel,
-      isLastQuote: formData.isLastQuote,
+      importance: formData.importanceLevel,
+      isLastInquiry: formData.isLastQuote,
       projectBackground: formData.projectBackground || undefined,
       competitor: formData.competitor || undefined,
       remark: formData.remark || undefined,
       items: formData.items.map(item => ({
-        customerMaterialModel: item.customerMaterialModel || undefined,
-        materialModel: item.materialModel,
+        customerMpn: item.customerMaterialModel || undefined,
+        mpn: item.materialModel,
         customerBrand: item.customerBrand || undefined,
         brand: item.brand || undefined,
         targetPrice: item.targetPrice,
-        currency: item.currency || 'CNY',
+        priceCurrency: ({'CNY':1,'USD':2,'EUR':3,'HKD':4}[item.currency || 'CNY'] || 1) as any,
         quantity: item.quantity,
         productionDate: item.productionDate || undefined,
         expiryDate: item.expiryDate || undefined,
         minPackageQty: item.minPackageQty,
-        minOrderQty: item.minOrderQty,
-        alternativeMaterials: item.alternativeMaterials || undefined,
+        moq: item.minOrderQty,
+        alternatives: item.alternativeMaterials || undefined,
         remark: item.remark || undefined
       }))
     }

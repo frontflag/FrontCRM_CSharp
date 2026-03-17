@@ -409,7 +409,7 @@ async function loadData() {
     const res = await rfqApi.searchRFQs({
       pageNumber: currentPage.value,
       pageSize: pageSize.value,
-      searchTerm: searchForm.keyword || undefined,
+      keyword: searchForm.keyword || undefined,
       status: searchForm.status,
       source: searchForm.source,
       startDate: searchForm.startDate || undefined,

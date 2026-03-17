@@ -54,9 +54,10 @@ export const rfqApi = {
   async getRFQItemById(itemId: string): Promise<RFQItem> {
     return apiClient.get<RFQItem>(`${BASE}/items/${itemId}`)
   },
-  /** 4. 根据主表ID获取明细集合 */
+  /** 4. 根据主表ID获取明细集合（从详情接口中提取） */
   async getRFQItemsByRFQId(rfqId: string): Promise<RFQItem[]> {
-    return apiClient.get<RFQItem[]>(`${BASE}/${rfqId}/items`)
+    const rfq = await apiClient.get<any>(`${BASE}/${rfqId}`)
+    return rfq?.items || []
   },
   /** 5. 根据ID获取 RFQ 实体 */
   async getRFQById(id: string): Promise<RFQ> {

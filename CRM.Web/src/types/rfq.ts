@@ -208,6 +208,7 @@ export interface AssignmentStatistics {
 export interface RFQSearchRequest {
   pageNumber?: number
   pageSize?: number
+  keyword?: string
   searchTerm?: string
   customerId?: string
   salesUserId?: string
@@ -251,19 +252,18 @@ export interface RFQItemSearchResponse {
 // 新增 RFQ 请求
 export interface CreateRFQRequest {
   customerId: string
-  contactPersonId?: string
-  contactPersonName?: string
-  contactPersonEmail?: string
+  contactId?: string           // 对应后端 contact_id
+  contactEmail?: string        // 对应后端 contact_email
   salesUserId?: string
-  rfqDate: string
+  rfqDate?: string
   rfqType?: RFQType
   quoteMethod?: QuoteMethod
   assignMethod?: AssignMethod
   industry?: string
   product?: string
   targetType?: TargetType
-  importanceLevel?: number
-  isLastQuote?: boolean
+  importance?: number          // 对应后端 importance
+  isLastInquiry?: boolean      // 对应后端 is_last_inquiry
   projectBackground?: string
   competitor?: string
   source?: RFQSource
@@ -275,27 +275,36 @@ export interface CreateRFQRequest {
 // 新增 RFQ 明细请求
 export interface CreateRFQItemRequest {
   lineNo?: number
-  customerMaterialModel?: string
-  materialModel?: string
+  // 后端字段名
+  customerMpn?: string         // 客户物料型号，对应后端 customer_mpn
+  mpn?: string                 // 物料型号，对应后端 mpn
+  // UI 兼容字段名（前端表单使用）
+  customerMaterialModel?: string  // 映射到 customerMpn
+  materialModel?: string          // 映射到 mpn
   customerBrand?: string
   brand?: string
   targetPrice?: number
-  currency?: string
+  priceCurrency?: number       // 货币枚举：1=CNY,2=USD,3=EUR,4=HKD
+  currency?: string            // UI 展示用货币字符串（CNY/USD/EUR/HKD）
   quantity: number
   productionDate?: string
   expiryDate?: string
   minPackageQty?: number
-  minOrderQty?: number
-  alternativeMaterials?: string
+  moq?: number                 // 最小起订量，对应后端 moq
+  minOrderQty?: number         // UI 展示用，映射到 moq
+  alternatives?: string        // 可替代料，对应后端 alternatives
+  alternativeMaterials?: string // UI 展示用，映射到 alternatives
   remark?: string
+  // 内部 UI 状态字段
+  _key?: number
+  _isDuplicate?: boolean
 }
 
 // 更新 RFQ 请求
 export interface UpdateRFQRequest {
   customerId?: string
-  contactPersonId?: string
-  contactPersonName?: string
-  contactPersonEmail?: string
+  contactId?: string
+  contactEmail?: string
   salesUserId?: string
   rfqType?: RFQType
   quoteMethod?: QuoteMethod
@@ -303,8 +312,8 @@ export interface UpdateRFQRequest {
   industry?: string
   product?: string
   targetType?: TargetType
-  importanceLevel?: number
-  isLastQuote?: boolean
+  importance?: number
+  isLastInquiry?: boolean
   projectBackground?: string
   competitor?: string
   source?: RFQSource

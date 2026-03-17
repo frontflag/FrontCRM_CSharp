@@ -47,5 +47,6 @@ namespace CRM.Core.Interfaces
         public const string Payment = "Payment";             // 付款：PAY0001
         public const string InputInvoice = "InputInvoice";   // 进项发票：VINV0001
         public const string OutputInvoice = "OutputInvoice"; // 销项发票：SINV0001
+        public const string RFQ = "RFQ";                         // 需求：RF0001
     }
 }

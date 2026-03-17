@@ -1,6 +1,7 @@
 using CRM.Core.Models;
 using CRM.Core.Models.Component;
 using CRM.Core.Models.Customer;
+using CRM.Core.Models.RFQ;
 using CRM.Core.Models.System;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,9 +29,40 @@ namespace CRM.Infrastructure.Data
         // ===== 物料缓存表 =====
         public DbSet<ComponentCache> ComponentCaches { get; set; } = null!;
 
+        // ===== 需求模块 =====
+        public DbSet<RFQ> RFQs { get; set; } = null!;
+        public DbSet<RFQItem> RFQItems { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // ===== RFQ 需求模块配置 =====
+            modelBuilder.Entity<RFQ>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("rfq_id");
+                entity.Property(e => e.RfqCode).IsRequired().HasMaxLength(32);
+                entity.HasIndex(e => e.RfqCode).IsUnique();
+                entity.Property(e => e.Status).HasDefaultValue((short)0);
+                entity.Property(e => e.RfqDate).HasDefaultValueSql("NOW()");
+                entity.HasMany(e => e.Items)
+                      .WithOne(i => i.RFQ)
+                      .HasForeignKey(i => i.RfqId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<RFQItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("item_id");
+                entity.Property(e => e.RfqId).IsRequired();
+                entity.Property(e => e.Mpn).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.CustomerBrand).HasMaxLength(100);
+                entity.Property(e => e.Brand).HasMaxLength(100);
+                entity.Property(e => e.Quantity).HasColumnType("numeric(18,4)").HasDefaultValue(1m);
+                entity.HasIndex(e => e.RfqId);
+            });
 
             // ===== 软删除全局过滤器 =====
             // 所有查询自动过滤已删除的客户
