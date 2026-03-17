@@ -152,6 +152,25 @@ const formRules: FormRules = {
   ]
 };
 
+// 重置表单
+const resetForm = () => {
+  formData.value = {
+    contactName: '',
+    gender: 0,
+    department: '',
+    position: '',
+    mobilePhone: '',
+    phone: '',
+    email: '',
+    fax: '',
+    socialAccount: '',
+    isDefault: false,
+    isDecisionMaker: false,
+    remarks: ''
+  };
+  formRef.value?.resetFields();
+};
+
 // 监听contact变化
 watch(() => props.contact, (newVal) => {
   if (newVal) {
@@ -173,25 +192,6 @@ watch(() => props.contact, (newVal) => {
     resetForm();
   }
 }, { immediate: true });
-
-// 重置表单
-const resetForm = () => {
-  formData.value = {
-    contactName: '',
-    gender: 0,
-    department: '',
-    position: '',
-    mobilePhone: '',
-    phone: '',
-    email: '',
-    fax: '',
-    socialAccount: '',
-    isDefault: false,
-    isDecisionMaker: false,
-    remarks: ''
-  };
-  formRef.value?.resetFields();
-};
 
 // 关闭时重置
 const handleClosed = () => {

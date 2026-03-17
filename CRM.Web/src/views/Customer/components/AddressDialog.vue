@@ -212,6 +212,34 @@ const regionOptions = ref([
   }
 ]);
 
+// 重置表单
+const resetForm = () => {
+  formData.value = {
+    addressType: 'Office',
+    country: '中国',
+    province: '',
+    city: '',
+    district: '',
+    streetAddress: '',
+    zipCode: '',
+    contactPerson: '',
+    contactPhone: '',
+    isDefault: false
+  };
+  regionValue.value = [];
+  formRef.value?.resetFields();
+};
+
+// 地区变更
+const handleRegionChange = (value: string[]) => {
+  if (value && value.length >= 3) {
+    formData.value.province = value[0];
+    formData.value.city = value[1];
+    formData.value.district = value[2];
+    formData.value.country = '中国';
+  }
+};
+
 // 监听address变化
 watch(() => props.address, (newVal) => {
   if (newVal) {
@@ -234,34 +262,6 @@ watch(() => props.address, (newVal) => {
     resetForm();
   }
 }, { immediate: true });
-
-// 地区变更
-const handleRegionChange = (value: string[]) => {
-  if (value && value.length >= 3) {
-    formData.value.province = value[0];
-    formData.value.city = value[1];
-    formData.value.district = value[2];
-    formData.value.country = '中国';
-  }
-};
-
-// 重置表单
-const resetForm = () => {
-  formData.value = {
-    addressType: 'Office',
-    country: '中国',
-    province: '',
-    city: '',
-    district: '',
-    streetAddress: '',
-    zipCode: '',
-    contactPerson: '',
-    contactPhone: '',
-    isDefault: false
-  };
-  regionValue.value = [];
-  formRef.value?.resetFields();
-};
 
 // 关闭时重置
 const handleClosed = () => {

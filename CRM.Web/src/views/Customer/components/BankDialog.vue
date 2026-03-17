@@ -158,6 +158,20 @@ const bankOptions = ref([
   { value: '花旗银行', label: '花旗银行' }
 ]);
 
+// 重置表单
+const resetForm = () => {
+  formData.value = {
+    accountName: '',
+    bankName: '',
+    bankBranch: '',
+    accountNumber: '',
+    currency: 1,
+    swiftCode: '',
+    isDefault: false
+  };
+  formRef.value?.resetFields();
+};
+
 // 监听bank变化
 watch(() => props.bank, (newVal) => {
   if (newVal) {
@@ -174,20 +188,6 @@ watch(() => props.bank, (newVal) => {
     resetForm();
   }
 }, { immediate: true });
-
-// 重置表单
-const resetForm = () => {
-  formData.value = {
-    accountName: '',
-    bankName: '',
-    bankBranch: '',
-    accountNumber: '',
-    currency: 1,
-    swiftCode: '',
-    isDefault: false
-  };
-  formRef.value?.resetFields();
-};
 
 // 关闭时重置
 const handleClosed = () => {
