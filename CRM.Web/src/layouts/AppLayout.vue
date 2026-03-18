@@ -824,6 +824,7 @@ onMounted(() => {
 
 .submenu-item {
   display: block;
+  width: 100%;
   padding: 7px 10px;
   border-radius: 6px;
   color: rgba(180, 210, 230, 0.6);
@@ -833,6 +834,13 @@ onMounted(() => {
   transition: all 0.2s;
   margin-bottom: 1px;
   position: relative;
+  /* Reset button defaults */
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  text-align: left;
+  box-sizing: border-box;
 
   &::before {
     content: '';
