@@ -44,8 +44,89 @@
           <span class="active-dot" v-if="!isCollapsed"></span>
         </router-link>
 
-        <!-- 业务管理 -->
-        <div class="menu-section-label" v-if="!isCollapsed">业务管理</div>
+        <!-- 基础资料 -->
+        <div class="menu-section-label" v-if="!isCollapsed">基础资料</div>
+
+        <div class="menu-group">
+          <button class="menu-item has-children" @click="toggleGroup('customers')" :class="{ 'group-open': openGroups.customers }">
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">客户管理</span>
+            <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.customers }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+          <div class="submenu" v-if="!isCollapsed && openGroups.customers">
+            <router-link to="/customers" class="submenu-item" active-class="active" exact>客户列表</router-link>
+            <router-link to="/customers/recycle-bin" class="submenu-item" active-class="active">回收站</router-link>
+            <router-link to="/customers/blacklist" class="submenu-item" active-class="active">黑名单管理</router-link>
+          </div>
+        </div>
+
+        <router-link to="/vendors" class="menu-item" active-class="active">
+          <span class="menu-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 00-3-3.87"/>
+              <path d="M16 3.13a4 4 0 010 7.75"/>
+            </svg>
+          </span>
+          <span class="menu-label" v-if="!isCollapsed">供应商管理</span>
+        </router-link>
+
+        <!-- 询价 -->
+        <div class="menu-section-label" v-if="!isCollapsed">询价</div>
+
+        <router-link to="/rfqs" class="menu-item" active-class="active">
+          <span class="menu-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+          </span>
+          <span class="menu-label" v-if="!isCollapsed">需求管理</span>
+          <span class="active-dot" v-if="!isCollapsed"></span>
+        </router-link>
+
+        <router-link to="/quotes" class="menu-item" active-class="active">
+          <span class="menu-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M12 2v20M2 12h20"/>
+            </svg>
+          </span>
+          <span class="menu-label" v-if="!isCollapsed">报价管理</span>
+          <span class="active-dot" v-if="!isCollapsed"></span>
+        </router-link>
+
+        <!-- 订单 -->
+        <div class="menu-section-label" v-if="!isCollapsed">订单</div>
+
+        <!-- 销售管理 -->
+        <div class="menu-group">
+          <button class="menu-item has-children" @click="toggleGroup('sales')" :class="{ 'group-open': openGroups.sales }">
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">销售管理</span>
+            <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.sales }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+          <div class="submenu" v-if="!isCollapsed && openGroups.sales">
+            <router-link to="/sales-orders" class="submenu-item" active-class="active">销售订单</router-link>
+            <button class="submenu-item" @click="handleUnimplemented('发货管理')">发货管理</button>
+            <button class="submenu-item" @click="handleUnimplemented('销售退货')">销售退货</button>
+          </div>
+        </div>
 
         <!-- 采购管理 -->
         <div class="menu-group">
@@ -69,25 +150,8 @@
           </div>
         </div>
 
-        <!-- 销售管理 -->
-        <div class="menu-group">
-          <button class="menu-item has-children" @click="toggleGroup('sales')" :class="{ 'group-open': openGroups.sales }">
-            <span class="menu-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-              </svg>
-            </span>
-            <span class="menu-label" v-if="!isCollapsed">销售管理</span>
-            <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.sales }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M6 9l6 6 6-6"/>
-            </svg>
-          </button>
-          <div class="submenu" v-if="!isCollapsed && openGroups.sales">
-            <router-link to="/sales-orders" class="submenu-item" active-class="active">销售订单</router-link>
-            <button class="submenu-item" @click="handleUnimplemented('发货管理')">发货管理</button>
-            <button class="submenu-item" @click="handleUnimplemented('销售退货')">销售退货</button>
-          </div>
-        </div>
+        <!-- 库存 -->
+        <div class="menu-section-label" v-if="!isCollapsed">库存</div>
 
         <!-- 库存管理 -->
         <div class="menu-group">
@@ -105,93 +169,11 @@
             </svg>
           </button>
           <div class="submenu" v-if="!isCollapsed && openGroups.inventory">
-            <router-link to="/inventory/list" class="submenu-item" active-class="active">库存列表</router-link>
             <router-link to="/inventory/stock-in" class="submenu-item" active-class="active">入库管理</router-link>
+            <router-link to="/inventory/list" class="submenu-item" active-class="active">库存管理</router-link>
             <router-link to="/inventory/stock-out" class="submenu-item" active-class="active">出库管理</router-link>
             <router-link to="/inventory/transfer" class="submenu-item" active-class="active">库存调拨</router-link>
             <router-link to="/inventory/check" class="submenu-item" active-class="active">库存盘点</router-link>
-          </div>
-        </div>
-
-        <!-- 智能采购 -->
-        <div class="menu-section-label" v-if="!isCollapsed">智能采购</div>
-
-        <router-link to="/rfqs" class="menu-item" active-class="active">
-          <span class="menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M12 8v4l3 3"/>
-            </svg>
-          </span>
-          <span class="menu-label" v-if="!isCollapsed">RFQ 管理</span>
-          <span class="active-dot" v-if="!isCollapsed"></span>
-        </router-link>
-
-        <button class="menu-item" @click="handleUnimplemented('需求匹配报价')">
-          <span class="menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
-            </svg>
-          </span>
-          <span class="menu-label" v-if="!isCollapsed">需求匹配报价</span>
-        </button>
-
-        <button class="menu-item" @click="handleUnimplemented('BOM 批量报价')">
-          <span class="menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <path d="M3 9h18M9 21V9"/>
-            </svg>
-          </span>
-          <span class="menu-label" v-if="!isCollapsed">BOM 批量报价</span>
-        </button>
-
-        <!-- 报价管理 -->
-        <router-link to="/quotes" class="menu-item" active-class="active">
-          <span class="menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M12 2v20M2 12h20"/>
-            </svg>
-          </span>
-          <span class="menu-label" v-if="!isCollapsed">报价管理</span>
-          <span class="active-dot" v-if="!isCollapsed"></span>
-        </router-link>
-
-        <!-- 基础资料 -->
-        <div class="menu-section-label" v-if="!isCollapsed">基础资料</div>
-
-        <router-link to="/vendors" class="menu-item" active-class="active">
-          <span class="menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 00-3-3.87"/>
-              <path d="M16 3.13a4 4 0 010 7.75"/>
-            </svg>
-          </span>
-          <span class="menu-label" v-if="!isCollapsed">供应商管理</span>
-        </router-link>
-
-        <div class="menu-group">
-          <button class="menu-item has-children" @click="toggleGroup('customers')" :class="{ 'group-open': openGroups.customers }">
-            <span class="menu-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
-              </svg>
-            </span>
-            <span class="menu-label" v-if="!isCollapsed">客户管理</span>
-            <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.customers }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M6 9l6 6 6-6"/>
-            </svg>
-          </button>
-          <div class="submenu" v-if="!isCollapsed && openGroups.customers">
-            <router-link to="/customers" class="submenu-item" active-class="active" exact>客户列表</router-link>
-            <router-link to="/customers/recycle-bin" class="submenu-item" active-class="active">回收站</router-link>
-            <router-link to="/customers/blacklist" class="submenu-item" active-class="active">黑名单管理</router-link>
           </div>
         </div>
 
