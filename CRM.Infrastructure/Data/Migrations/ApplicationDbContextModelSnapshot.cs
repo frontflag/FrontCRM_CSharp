@@ -98,7 +98,7 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.HasIndex("Mpn")
                         .IsUnique();
 
-                    b.ToTable("component_cache");
+                    b.ToTable("component_cache", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Customer.CustomerAddress", b =>
@@ -166,7 +166,7 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.HasIndex("CustomerId");
 
-                    b.ToTable("customeraddress");
+                    b.ToTable("customeraddress", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Customer.CustomerBankInfo", b =>
@@ -223,7 +223,7 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.HasIndex("CustomerId");
 
-                    b.ToTable("customerbankinfo");
+                    b.ToTable("customerbankinfo", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Customer.CustomerContactHistory", b =>
@@ -283,7 +283,7 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("customercontacthistory");
+                    b.ToTable("customercontacthistory", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Customer.CustomerContactInfo", b =>
@@ -369,7 +369,7 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.HasIndex("CustomerId");
 
-                    b.ToTable("customercontactinfo");
+                    b.ToTable("customercontactinfo", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Customer.CustomerInfo", b =>
@@ -562,554 +562,7 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("customerinfo");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Document.DocumentDailySequence", b =>
-                {
-                    b.Property<DateTime>("TheDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("TheDate");
-
-                    b.Property<int>("CurrentSequence")
-                        .HasColumnType("integer");
-
-                    b.HasKey("TheDate");
-
-                    b.ToTable("document_daily_sequence");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Document.UploadDocument", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)")
-                        .HasColumnName("DocumentId");
-
-                    b.Property<string>("BizId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<string>("BizType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("CreateUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("DeleteTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeleteUserId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<string>("FileExtension")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<long>("FileSize")
-                        .HasColumnType("bigint");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("MimeType")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime?>("ModifyTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("ModifyUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("OriginalFileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("RelativePath")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Remark")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<string>("StoredFileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("ThumbnailRelativePath")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("UploadUserId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreateTime");
-
-                    b.HasIndex("BizType", "BizId");
-
-                    b.ToTable("upload_document");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Inventory.StockIn", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)")
-                        .HasColumnName("StockInId");
-
-                    b.Property<string>("ApprovedBy")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<DateTime?>("ApprovedTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("CreateUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("CreatedBy")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<short>("InspectStatus")
-                        .HasColumnType("smallint");
-
-                    b.Property<DateTime?>("ModifyTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("ModifyUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Remark")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("SourceCode")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("SourceId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<short>("Status")
-                        .HasColumnType("smallint");
-
-                    b.Property<string>("StockInCode")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTime>("StockInDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<short>("StockInType")
-                        .HasColumnType("smallint");
-
-                    b.Property<decimal>("TotalAmount")
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("TotalQuantity")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<string>("VendorId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<string>("WarehouseId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("stockin");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Inventory.StockInItem", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)")
-                        .HasColumnName("ItemId");
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<string>("BatchNo")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("CreateUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("ExpiryDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsQualified")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("LocationId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<string>("MaterialId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<DateTime?>("ModifyTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("ModifyUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<decimal>("OrderQty")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<decimal>("Price")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<DateTime?>("ProductionDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("QtyReceived")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<decimal>("Quantity")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<string>("Remark")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("StockInId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StockInId");
-
-                    b.ToTable("stockinitem");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Inventory.StockInfo", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)")
-                        .HasColumnName("StockId");
-
-                    b.Property<decimal>("AvailableQuantity")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<string>("BatchNo")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("CreateUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("ExpiryDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LocationId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<decimal>("LockedQuantity")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<string>("MaterialId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<DateTime?>("ModifyTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("ModifyUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("ProductionDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("Qty")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<decimal>("QtyOccupy")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<decimal>("QtyRepertory")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<decimal>("QtyRepertoryAvailable")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<decimal>("QtySales")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<decimal>("QtyStockOut")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<decimal>("Quantity")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<string>("Remark")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<short>("Status")
-                        .HasColumnType("smallint");
-
-                    b.Property<string>("Unit")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("WarehouseId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("stock");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Inventory.StockOut", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)")
-                        .HasColumnName("StockOutId");
-
-                    b.Property<string>("ConfirmedBy")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<DateTime?>("ConfirmedTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("CreateUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("CustomerId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<DateTime?>("ModifyTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("ModifyUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("PickedTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("PickerId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<string>("Remark")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("SourceCode")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("SourceId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<short>("Status")
-                        .HasColumnType("smallint");
-
-                    b.Property<string>("StockOutCode")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTime>("StockOutDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<short>("StockOutType")
-                        .HasColumnType("smallint");
-
-                    b.Property<decimal>("TotalAmount")
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("TotalQuantity")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<string>("WarehouseId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("stockout");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Inventory.StockOutItem", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)")
-                        .HasColumnName("ItemId");
-
-                    b.Property<decimal>("ActualQty")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<string>("BatchNo")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("CreateUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("LocationId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<string>("MaterialId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<DateTime?>("ModifyTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("ModifyUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<decimal>("OrderQty")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<decimal>("PickQty")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<decimal>("PlanQty")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<decimal>("Price")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<decimal>("Quantity")
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<string>("Remark")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("StockId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<string>("StockOutId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<string>("WarehouseId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StockOutId");
-
-                    b.ToTable("stockoutitem");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Inventory.StockOutRequest", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)")
-                        .HasColumnName("UserId");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("CreateUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("CustomerId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<DateTime?>("ModifyTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("ModifyUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Remark")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("RequestCode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime>("RequestDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RequestUserId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<string>("SalesOrderId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<short>("Status")
-                        .HasColumnType("smallint");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("stockoutrequest");
+                    b.ToTable("customerinfo", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Purchase.PurchaseOrder", b =>
@@ -1248,7 +701,7 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.HasIndex("PurchaseOrderCode")
                         .IsUnique();
 
-                    b.ToTable("purchaseorder");
+                    b.ToTable("purchaseorder", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Purchase.PurchaseOrderItem", b =>
@@ -1354,7 +807,7 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.HasIndex("SellOrderItemId");
 
-                    b.ToTable("purchaseorderitem");
+                    b.ToTable("purchaseorderitem", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Quote.Quote", b =>
@@ -1434,7 +887,7 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.HasIndex("QuoteCode")
                         .IsUnique();
 
-                    b.ToTable("quote");
+                    b.ToTable("quote", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Quote.QuoteItem", b =>
@@ -1587,7 +1040,7 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.HasIndex("QuoteId");
 
-                    b.ToTable("quoteitem");
+                    b.ToTable("quoteitem", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.RFQ.RFQ", b =>
@@ -1705,7 +1158,7 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.HasIndex("RfqCode")
                         .IsUnique();
 
-                    b.ToTable("rfq");
+                    b.ToTable("rfq", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.RFQ.RFQItem", b =>
@@ -1809,7 +1262,7 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.HasIndex("RfqId");
 
-                    b.ToTable("rfqitem");
+                    b.ToTable("rfqitem", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Sales.SellOrder", b =>
@@ -1936,7 +1389,7 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.HasIndex("SellOrderCode")
                         .IsUnique();
 
-                    b.ToTable("sellorder");
+                    b.ToTable("sellorder", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Sales.SellOrderItem", b =>
@@ -2033,7 +1486,7 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.HasIndex("SellOrderId");
 
-                    b.ToTable("sellorderitem");
+                    b.ToTable("sellorderitem", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.System.SysErrorLog", b =>
@@ -2096,7 +1549,7 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("sys_error_log");
+                    b.ToTable("sys_error_log", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.System.SysSerialNumber", b =>
@@ -2155,7 +1608,7 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.HasIndex("ModuleCode")
                         .IsUnique();
 
-                    b.ToTable("sys_serial_number");
+                    b.ToTable("sys_serial_number", (string)null);
 
                     b.HasData(
                         new
@@ -2385,432 +1838,7 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("user");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Vendor.VendorAddress", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)")
-                        .HasColumnName("AddressId");
-
-                    b.Property<string>("Address")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<short>("AddressType")
-                        .HasColumnType("smallint");
-
-                    b.Property<string>("Area")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("City")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("ContactName")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("ContactPhone")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<short?>("Country")
-                        .HasColumnType("smallint");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("CreateUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<bool>("IsDefault")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("ModifyTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("ModifyUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Province")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("Remark")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("VendorId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VendorId");
-
-                    b.ToTable("vendoraddress");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Vendor.VendorBankInfo", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)")
-                        .HasColumnName("BankId");
-
-                    b.Property<string>("AccountName")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("BankAccount")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("BankBranch")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("BankName")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("CreateUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<short?>("Currency")
-                        .HasColumnType("smallint");
-
-                    b.Property<bool>("IsDefault")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("ModifyTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("ModifyUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Remark")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("VendorId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VendorId");
-
-                    b.ToTable("vendorbankinfo");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Vendor.VendorContactHistory", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)")
-                        .HasColumnName("HistoryId");
-
-                    b.Property<string>("ContactPerson")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("Content")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("CreateUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("ModifyTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("ModifyUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("NextFollowUpTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("OperatorId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<string>("Result")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Subject")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime>("Time")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("VendorId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("vendorcontacthistory");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Vendor.VendorContactInfo", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)")
-                        .HasColumnName("ContactId");
-
-                    b.Property<string>("Address")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("CName")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("CreateUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Department")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("EName")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("Email")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<bool>("IsMain")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Mobile")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<DateTime?>("ModifyTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("ModifyUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("QQ")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("Remark")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Tel")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<string>("Title")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("VendorId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<string>("WeChat")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VendorId");
-
-                    b.ToTable("vendorcontactinfo");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Vendor.VendorInfo", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)")
-                        .HasColumnName("VendorId");
-
-                    b.Property<short?>("AfterSalesService")
-                        .HasColumnType("smallint");
-
-                    b.Property<short>("AscriptionType")
-                        .HasColumnType("smallint");
-
-                    b.Property<short?>("Background")
-                        .HasColumnType("smallint");
-
-                    b.Property<bool>("BlackList")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<short?>("CompanyClass")
-                        .HasColumnType("smallint");
-
-                    b.Property<string>("CompanyInfo")
-                        .HasColumnType("text");
-
-                    b.Property<short?>("Country")
-                        .HasColumnType("smallint");
-
-                    b.Property<DateTime>("CreateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("CreateUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<short?>("Credit")
-                        .HasColumnType("smallint");
-
-                    b.Property<string>("CreditCode")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<short?>("DegreeAdaptability")
-                        .HasColumnType("smallint");
-
-                    b.Property<string>("DeleteReason")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime?>("DeleteTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ExternalNumber")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<bool>("ISCPFlag")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Industry")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<bool>("IsControl")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsDisenable")
-                        .HasColumnType("boolean");
-
-                    b.Property<decimal?>("Latitude")
-                        .HasColumnType("numeric(10,6)");
-
-                    b.Property<short?>("Level")
-                        .HasColumnType("smallint");
-
-                    b.Property<string>("ListingCode")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<short?>("LocationType")
-                        .HasColumnType("smallint");
-
-                    b.Property<decimal?>("Longitude")
-                        .HasColumnType("numeric(10,6)");
-
-                    b.Property<DateTime?>("ModifyTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("ModifyUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("NickName")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("OfficeAddress")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("OfficialName")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<short?>("Payment")
-                        .HasColumnType("smallint");
-
-                    b.Property<string>("Product")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("PurchaseGroupId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<string>("PurchaseUserId")
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
-
-                    b.Property<short?>("QualityPrejudgement")
-                        .HasColumnType("smallint");
-
-                    b.Property<short?>("Scale")
-                        .HasColumnType("smallint");
-
-                    b.Property<bool>("SelfSupport")
-                        .HasColumnType("boolean");
-
-                    b.Property<short>("Status")
-                        .HasColumnType("smallint");
-
-                    b.Property<short?>("Strategy")
-                        .HasColumnType("smallint");
-
-                    b.Property<short?>("Traceability")
-                        .HasColumnType("smallint");
-
-                    b.Property<short?>("TradeCurrency")
-                        .HasColumnType("smallint");
-
-                    b.Property<short?>("TradeType")
-                        .HasColumnType("smallint");
-
-                    b.Property<string>("VendorIdCrm")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("VendorScope")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("vendorinfo");
+                    b.ToTable("user", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Customer.CustomerAddress", b =>
@@ -2844,28 +1872,6 @@ namespace CRM.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Customer");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Inventory.StockInItem", b =>
-                {
-                    b.HasOne("CRM.Core.Models.Inventory.StockIn", "StockIn")
-                        .WithMany("Items")
-                        .HasForeignKey("StockInId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("StockIn");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Inventory.StockOutItem", b =>
-                {
-                    b.HasOne("CRM.Core.Models.Inventory.StockOut", "StockOut")
-                        .WithMany("Items")
-                        .HasForeignKey("StockOutId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("StockOut");
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Purchase.PurchaseOrderItem", b =>
@@ -2920,39 +1926,6 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.Navigation("SellOrder");
                 });
 
-            modelBuilder.Entity("CRM.Core.Models.Vendor.VendorAddress", b =>
-                {
-                    b.HasOne("CRM.Core.Models.Vendor.VendorInfo", "Vendor")
-                        .WithMany("Addresses")
-                        .HasForeignKey("VendorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Vendor");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Vendor.VendorBankInfo", b =>
-                {
-                    b.HasOne("CRM.Core.Models.Vendor.VendorInfo", "Vendor")
-                        .WithMany("BankAccounts")
-                        .HasForeignKey("VendorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Vendor");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Vendor.VendorContactInfo", b =>
-                {
-                    b.HasOne("CRM.Core.Models.Vendor.VendorInfo", "Vendor")
-                        .WithMany("Contacts")
-                        .HasForeignKey("VendorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Vendor");
-                });
-
             modelBuilder.Entity("CRM.Core.Models.Customer.CustomerInfo", b =>
                 {
                     b.Navigation("Addresses");
@@ -2960,16 +1933,6 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.Navigation("BankAccounts");
 
                     b.Navigation("Contacts");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Inventory.StockIn", b =>
-                {
-                    b.Navigation("Items");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Inventory.StockOut", b =>
-                {
-                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Purchase.PurchaseOrder", b =>
@@ -2990,15 +1953,6 @@ namespace CRM.Infrastructure.Data.Migrations
             modelBuilder.Entity("CRM.Core.Models.Sales.SellOrder", b =>
                 {
                     b.Navigation("Items");
-                });
-
-            modelBuilder.Entity("CRM.Core.Models.Vendor.VendorInfo", b =>
-                {
-                    b.Navigation("Addresses");
-
-                    b.Navigation("BankAccounts");
-
-                    b.Navigation("Contacts");
                 });
 #pragma warning restore 612, 618
         }
