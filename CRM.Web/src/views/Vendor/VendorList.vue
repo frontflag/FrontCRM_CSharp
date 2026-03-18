@@ -272,12 +272,26 @@ const fetchVendorList = async () => {
     const response = await vendorApi.searchVendors(params);
     vendorList.value = response.items || [];
     totalCount.value = response.totalCount ?? 0;
-    vendorStats.value = await vendorApi.getVendorStatistics();
-  } catch (error) {
-    console.error('获取供应商列表失败', error);
-    ElMessage.error('获取供应商列表失败');
+  } catch (error: any) {
+    // 仅在非空结果（真实网络/服务器错误）时提示，空数据不报错
+    const isEmptyResult = !error?.response || error?.response?.status === 404;
+    if (!isEmptyResult) {
+      console.error('获取供应商列表失败', error);
+      ElMessage.error('获取供应商列表失败，请检查网络或后端服务');
+    } else {
+      vendorList.value = [];
+      totalCount.value = 0;
+    }
   } finally {
     loading.value = false;
+  }
+};
+
+const fetchVendorStats = async () => {
+  try {
+    vendorStats.value = await vendorApi.getVendorStatistics();
+  } catch {
+    // 统计接口失败时静默处理，不影响列表展示
   }
 };
 
@@ -318,6 +332,7 @@ const handlePageChange = (page: number) => { pagination.pageNumber = page; fetch
 
 onMounted(() => {
   fetchVendorList();
+  fetchVendorStats();
 });
 </script>
 

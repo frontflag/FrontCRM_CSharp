@@ -271,9 +271,16 @@ const fetchCustomerList = async () => {
       contacts: item.contacts || []
     }));
     totalCount.value = response.totalCount;
-  } catch (error) {
-    console.error('获取客户列表失败', error);
-    ElNotification.error({ title: '加载失败', message: '获取客户列表失败，请刷新重试' });
+  } catch (error: any) {
+    // 仅在真实网络/服务器错误时提示，空数据不报错
+    const isEmptyResult = !error?.response || error?.response?.status === 404;
+    if (!isEmptyResult) {
+      console.error('获取客户列表失败', error);
+      ElNotification.error({ title: '加载失败', message: '获取客户列表失败，请检查网络或后端服务' });
+    } else {
+      customerList.value = [];
+      totalCount.value = 0;
+    }
   } finally {
     loading.value = false;
   }
@@ -283,8 +290,8 @@ const fetchStatistics = async () => {
   try {
     const data = await customerApi.getCustomerStatistics();
     statistics.value = data;
-  } catch (error) {
-    console.error('获取统计数据失败', error);
+  } catch {
+    // 统计接口失败时静默处理，不影响列表展示
   }
 };
 
