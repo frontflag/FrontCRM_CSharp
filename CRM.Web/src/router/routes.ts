@@ -204,6 +204,13 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Dashboard/SettingsView.vue'),
         meta: { requiresAuth: true, title: '系统设置' }
       },
+      // 个人设置
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('@/views/Profile/ProfileView.vue'),
+        meta: { requiresAuth: true, title: '个人设置' }
+      },
       {
         path: 'documents/demo',
         name: 'DocumentDemo',

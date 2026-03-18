@@ -223,25 +223,7 @@
         </router-link>
       </nav>
 
-      <!-- 底部用户信息 -->
-      <div class="sidebar-footer">
-        <div class="user-info" :class="{ collapsed: isCollapsed }">
-          <div class="user-avatar">{{ userInitial }}</div>
-          <transition name="fade">
-            <div class="user-details" v-if="!isCollapsed">
-              <span class="user-name">{{ userName }}</span>
-              <span class="user-email">{{ userEmail }}</span>
-            </div>
-          </transition>
-          <button class="logout-btn" @click="handleLogout" title="退出登录" v-if="!isCollapsed">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-          </button>
-        </div>
-      </div>
+
     </aside>
 
     <!-- 主内容区域 -->
@@ -259,12 +241,88 @@
             </svg>
             <span class="badge">3</span>
           </button>
-          <div class="top-user">
-            <div class="top-user-avatar">{{ userInitial }}</div>
-            <span class="top-user-name" v-if="!isCollapsed">{{ userName }}</span>
+          <!-- 右上角用户下拉菜单 -->
+          <div class="user-dropdown" v-click-outside="closeDropdown">
+            <div class="top-user" @click="toggleDropdown">
+              <div class="top-user-avatar">{{ userInitial }}</div>
+              <span class="top-user-name">{{ userName }}</span>
+              <svg class="dropdown-chevron" :class="{ open: dropdownOpen }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </div>
+            <transition name="dropdown">
+              <div class="dropdown-menu" v-if="dropdownOpen">
+                <div class="dropdown-header">
+                  <div class="dropdown-avatar">{{ userInitial }}</div>
+                  <div class="dropdown-user-info">
+                    <span class="dropdown-username">{{ userName }}</span>
+                    <span class="dropdown-email">{{ userEmail }}</span>
+                  </div>
+                </div>
+                <div class="dropdown-divider"></div>
+                <router-link to="/profile" class="dropdown-item" @click="closeDropdown">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  个人设置
+                </router-link>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item danger" @click="handleLogout">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                  </svg>
+                  退出系统
+                </button>
+              </div>
+            </transition>
           </div>
         </div>
       </header>
+
+      <!-- Tab Bar 多标签页 -->
+      <div class="tab-bar" v-if="tabs.length > 0">
+        <div
+          v-for="tab in tabs"
+          :key="tab.path"
+          class="tab-item"
+          :class="{ active: tab.path === activeTab }"
+          @click="activateTab(tab)"
+          @contextmenu.prevent="openContextMenu($event, tab)"
+          :draggable="true"
+          @dragstart="onDragStart($event, tab)"
+          @dragover.prevent="onDragOver($event, tab)"
+          @drop="onDrop($event, tab)"
+          @dragend="onDragEnd"
+        >
+          <span class="tab-label">{{ tab.title }}</span>
+          <button class="tab-close" @click.stop="closeTab(tab)" v-if="tabs.length > 1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+          <div class="tab-active-bar" v-if="tab.path === activeTab"></div>
+        </div>
+      </div>
+
+      <!-- 右键菜单 -->
+      <div
+        class="context-menu"
+        v-if="contextMenu.visible"
+        :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
+        v-click-outside="closeContextMenu"
+      >
+        <div class="context-menu-title">{{ contextMenu.tab?.title }}</div>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item" @click="contextMenuClose('current')">关闭当前</button>
+        <button class="context-menu-item" @click="contextMenuClose('others')" :disabled="tabs.length <= 1">关闭其他</button>
+        <button class="context-menu-item" @click="contextMenuClose('right')" :disabled="isLastTab">关闭右侧</button>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item" @click="contextMenuClose('all')">全部关闭</button>
+      </div>
 
       <!-- 页面内容 -->
       <div class="content-wrapper">
@@ -275,7 +333,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted, type Directive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores'
 import { ElMessageBox, ElNotification } from 'element-plus'
@@ -296,7 +354,7 @@ const openGroups = ref({
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
   if (isCollapsed.value) {
-    openGroups.value = { purchase: false, sales: false, inventory: false, customers: false }
+    openGroups.value = { purchase: false, sales: false, inventory: false, customers: false, finance: false }
   }
 }
 
@@ -327,6 +385,7 @@ const pageTitleMap: Record<string, string> = {
   '/quotes': '报价管理',
   '/purchase-orders': '采购订单',
   '/sales-orders': '销售订单',
+  '/profile': '个人设置',
 }
 
 const currentPageTitle = computed(() => {
@@ -339,7 +398,13 @@ const currentPageTitle = computed(() => {
   return route.meta?.title as string || 'FrontCRM'
 })
 
+// ===== 用户下拉菜单 =====
+const dropdownOpen = ref(false)
+const toggleDropdown = () => { dropdownOpen.value = !dropdownOpen.value }
+const closeDropdown = () => { dropdownOpen.value = false }
+
 const handleLogout = async () => {
+  closeDropdown()
   try {
     await ElMessageBox.confirm('确定要退出登录吗？', '退出登录', {
       confirmButtonText: '确定退出',
@@ -356,6 +421,159 @@ const handleLogout = async () => {
 const handleUnimplemented = (name: string) => {
   ElNotification.info({ title: '功能开发中', message: `「${name}」功能正在开发中，敬请期待` })
 }
+
+// ===== Tab Bar 多标签页 =====
+interface TabItem {
+  path: string
+  title: string
+}
+
+const STORAGE_KEY = 'crm_tabs'
+const ACTIVE_KEY = 'crm_active_tab'
+
+const loadTabs = (): TabItem[] => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    return saved ? JSON.parse(saved) : []
+  } catch { return [] }
+}
+
+const tabs = ref<TabItem[]>(loadTabs())
+const activeTab = ref<string>(localStorage.getItem(ACTIVE_KEY) || '')
+
+const saveTabs = () => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tabs.value))
+  localStorage.setItem(ACTIVE_KEY, activeTab.value)
+}
+
+// 监听路由变化，自动添加/激活标签
+watch(() => route.path, (newPath) => {
+  const title = currentPageTitle.value
+  const exists = tabs.value.find(t => t.path === newPath)
+  if (!exists) {
+    tabs.value.push({ path: newPath, title })
+  }
+  activeTab.value = newPath
+  saveTabs()
+}, { immediate: true })
+
+const activateTab = (tab: TabItem) => {
+  activeTab.value = tab.path
+  router.push(tab.path)
+  saveTabs()
+}
+
+const closeTab = (tab: TabItem) => {
+  const idx = tabs.value.findIndex(t => t.path === tab.path)
+  tabs.value.splice(idx, 1)
+  if (activeTab.value === tab.path) {
+    const next = tabs.value[idx] || tabs.value[idx - 1]
+    if (next) {
+      activeTab.value = next.path
+      router.push(next.path)
+    } else {
+      activeTab.value = ''
+      router.push('/dashboard')
+    }
+  }
+  saveTabs()
+}
+
+// 拖拽排序
+const dragSource = ref<TabItem | null>(null)
+
+const onDragStart = (_e: DragEvent, tab: TabItem) => {
+  dragSource.value = tab
+}
+
+const onDragOver = (_e: DragEvent, _tab: TabItem) => {}
+
+const onDrop = (_e: DragEvent, target: TabItem) => {
+  if (!dragSource.value || dragSource.value.path === target.path) return
+  const fromIdx = tabs.value.findIndex(t => t.path === dragSource.value!.path)
+  const toIdx = tabs.value.findIndex(t => t.path === target.path)
+  const newTabs = [...tabs.value]
+  newTabs.splice(fromIdx, 1)
+  newTabs.splice(toIdx, 0, dragSource.value)
+  tabs.value = newTabs
+  saveTabs()
+}
+
+const onDragEnd = () => {
+  dragSource.value = null
+}
+
+// 右键菜单
+const contextMenu = ref({
+  visible: false,
+  x: 0,
+  y: 0,
+  tab: null as TabItem | null
+})
+
+const isLastTab = computed(() => {
+  if (!contextMenu.value.tab) return true
+  const idx = tabs.value.findIndex(t => t.path === contextMenu.value.tab!.path)
+  return idx === tabs.value.length - 1
+})
+
+const openContextMenu = (e: MouseEvent, tab: TabItem) => {
+  contextMenu.value = { visible: true, x: e.clientX, y: e.clientY, tab }
+}
+
+const closeContextMenu = () => {
+  contextMenu.value.visible = false
+}
+
+const contextMenuClose = (type: 'current' | 'others' | 'right' | 'all') => {
+  const tab = contextMenu.value.tab
+  if (!tab) return
+  const idx = tabs.value.findIndex(t => t.path === tab.path)
+  if (type === 'current') {
+    closeTab(tab)
+  } else if (type === 'others') {
+    tabs.value = [tab]
+    activeTab.value = tab.path
+    router.push(tab.path)
+  } else if (type === 'right') {
+    tabs.value = tabs.value.slice(0, idx + 1)
+    if (!tabs.value.find(t => t.path === activeTab.value)) {
+      activeTab.value = tab.path
+      router.push(tab.path)
+    }
+  } else if (type === 'all') {
+    tabs.value = []
+    activeTab.value = ''
+    router.push('/dashboard')
+  }
+  saveTabs()
+  closeContextMenu()
+}
+
+// v-click-outside 指令
+const vClickOutside: Directive = {
+  mounted(el, binding) {
+    el._clickOutsideHandler = (event: MouseEvent) => {
+      if (!el.contains(event.target as Node)) {
+        binding.value()
+      }
+    }
+    document.addEventListener('mousedown', el._clickOutsideHandler)
+  },
+  unmounted(el) {
+    document.removeEventListener('mousedown', el._clickOutsideHandler)
+  }
+}
+
+onMounted(() => {
+  // 如果没有标签，初始化当前路由
+  if (tabs.value.length === 0) {
+    const title = currentPageTitle.value
+    tabs.value.push({ path: route.path, title })
+    activeTab.value = route.path
+    saveTabs()
+  }
+})
 </script>
 
 <style lang="scss" scoped>
@@ -876,5 +1094,296 @@ const handleUnimplemented = (name: string) => {
 .fade-leave-to {
   opacity: 0;
   transform: translateX(-8px);
+}
+
+// ===== 用户下拉菜单 =====
+.user-dropdown {
+  position: relative;
+}
+
+.dropdown-chevron {
+  width: 14px;
+  height: 14px;
+  color: rgba(80, 187, 227, 0.6);
+  transition: transform 0.2s;
+  margin-left: 2px;
+
+  &.open {
+    transform: rotate(180deg);
+  }
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 220px;
+  background: #162233;
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 212, 255, 0.05);
+  z-index: 1000;
+  overflow: hidden;
+  padding: 6px;
+}
+
+.dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+}
+
+.dropdown-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0066FF, #00D4FF);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Orbitron', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.dropdown-user-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dropdown-username {
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  color: #E8F4FF;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-email {
+  font-size: 11px;
+  color: rgba(80, 187, 227, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: rgba(0, 212, 255, 0.08);
+  margin: 4px 0;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  color: rgba(180, 210, 230, 0.85);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s;
+
+  svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    background: rgba(0, 212, 255, 0.08);
+    color: #E8F4FF;
+  }
+
+  &.danger {
+    color: rgba(201, 87, 69, 0.8);
+    &:hover {
+      background: rgba(201, 87, 69, 0.1);
+      color: #C95745;
+    }
+  }
+}
+
+// 下拉动画
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: opacity 0.15s, transform 0.15s;
+}
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+// ===== Tab Bar =====
+.tab-bar {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  background: #0A1628;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+  padding: 0 8px;
+  gap: 2px;
+  overflow-x: auto;
+  flex-shrink: 0;
+
+  &::-webkit-scrollbar {
+    height: 2px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.2);
+    border-radius: 1px;
+  }
+}
+
+.tab-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  height: 30px;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: rgba(255, 255, 255, 0.03);
+  transition: all 0.15s;
+
+  &:hover {
+    background: rgba(0, 212, 255, 0.06);
+    border-color: rgba(0, 212, 255, 0.1);
+  }
+
+  &.active {
+    background: linear-gradient(180deg, rgba(0, 212, 255, 0.12) 0%, rgba(0, 212, 255, 0.05) 100%);
+    border-color: rgba(0, 212, 255, 0.25);
+    transform: translateY(-1px);
+    box-shadow: 0 0 14px rgba(0, 212, 255, 0.15);
+
+    .tab-label {
+      color: #00D4FF;
+      font-weight: 600;
+      text-shadow: 0 0 8px rgba(0, 212, 255, 0.4);
+    }
+  }
+}
+
+.tab-label {
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 12px;
+  color: rgba(180, 210, 230, 0.6);
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: rgba(80, 187, 227, 0.4);
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.15s;
+
+  svg {
+    width: 10px;
+    height: 10px;
+  }
+
+  &:hover {
+    background: rgba(201, 87, 69, 0.2);
+    color: #C95745;
+  }
+}
+
+.tab-active-bar {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #00D4FF, transparent);
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
+  border-radius: 1px;
+}
+
+// ===== 右键菜单 =====
+.context-menu {
+  position: fixed;
+  z-index: 9999;
+  background: #162233;
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: 4px;
+  min-width: 140px;
+}
+
+.context-menu-title {
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 11px;
+  color: rgba(80, 187, 227, 0.5);
+  padding: 6px 10px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.context-menu-divider {
+  height: 1px;
+  background: rgba(0, 212, 255, 0.08);
+  margin: 3px 0;
+}
+
+.context-menu-item {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 12.5px;
+  color: rgba(180, 210, 230, 0.85);
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+
+  &:hover:not(:disabled) {
+    background: rgba(0, 212, 255, 0.08);
+    color: #E8F4FF;
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
 }
 </style>
