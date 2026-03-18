@@ -17,7 +17,6 @@
         <div class="customer-count-badge">共 {{ totalCount }} 个客户</div>
       </div>
       <div class="header-right">
-
         <button class="btn-primary" @click="handleCreate">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19"/>
@@ -117,72 +116,83 @@
       </div>
     </div>
 
-    <!-- 卡片网格 -->
-    <div v-loading="loading" class="card-grid">
-      <div
-        v-for="customer in customerList"
-        :key="customer.id"
-        class="customer-card"
-        @click="handleView(customer)"
-      >
-        <!-- 卡片头部 -->
-        <div class="card-header">
-          <div class="card-avatar">
-            <span class="avatar-letter">{{ (customer.customerName || customer.customerShortName || '?')[0] }}</span>
-          </div>
-          <div class="card-title-area">
-            <div class="card-name">{{ customer.customerName || customer.customerShortName }}</div>
-            <div class="card-code">{{ customer.customerCode }}</div>
-          </div>
-          <div v-if="customer.customerLevel" class="card-level-badge" :class="`level-${customer.customerLevel?.toLowerCase()}`">
-            {{ getLevelLabel(customer.customerLevel) }}
-          </div>
-        </div>
-
-        <!-- 类型和行业 -->
-        <div class="card-meta">
-          <span class="card-type-badge" v-if="customer.customerType">{{ getTypeLabel(customer.customerType) }}</span>
-          <span class="card-industry" v-if="customer.industry">{{ getIndustryLabel(customer.industry) }}</span>
-        </div>
-
-        <!-- 联系人信息 -->
-        <div class="card-contact">
-          <template v-if="customer.contacts && customer.contacts.length > 0">
-            <div class="contact-row">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-              </svg>
-              <span>{{ customer.contacts[0].contactName }}</span>
-              <span class="contact-phone">{{ customer.contacts[0].mobilePhone }}</span>
-            </div>
-            <div class="contact-row" v-if="customer.city || customer.region">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-              </svg>
-              <span>{{ customer.city || customer.region }}</span>
-            </div>
-          </template>
-          <div v-else class="contact-row no-contact">暂无联系人</div>
-        </div>
-
-        <!-- 底部统计 -->
-        <div class="card-footer">
-          <div class="card-stat">
-            <div class="card-stat-label">销售单数</div>
-            <div class="card-stat-value">--</div>
-          </div>
-          <div class="card-stat">
-            <div class="card-stat-label">累计销售额</div>
-            <div class="card-stat-value card-stat-value--highlight">--</div>
-          </div>
-        </div>
-
-        <!-- 操作按钮（hover 显示） -->
-        <div class="card-actions" @click.stop>
-          <button class="card-action-btn" @click.stop="handleEdit(customer)">编辑</button>
-          <button class="card-action-btn card-action-btn--danger" @click.stop="handleDeleteCustomer(customer)">删除</button>
-        </div>
-      </div>
+    <!-- 表格列表 -->
+    <div class="table-wrapper" v-loading="loading">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:44px">序号</th>
+            <th style="min-width:180px">客户名称</th>
+            <th style="width:110px">客户编号</th>
+            <th style="width:80px">类型</th>
+            <th style="width:80px">级别</th>
+            <th style="width:110px">行业</th>
+            <th style="width:130px">联系人</th>
+            <th style="width:130px">联系电话</th>
+            <th style="width:90px">地区</th>
+            <th style="width:80px">状态</th>
+            <th style="width:150px">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="(customer, index) in customerList"
+            :key="customer.id"
+            class="table-row"
+            @click="handleView(customer)"
+          >
+            <td class="td-index">{{ (pagination.pageNumber - 1) * pagination.pageSize + index + 1 }}</td>
+            <td>
+              <div class="customer-name-cell">
+                <div class="cell-avatar">
+                  <span>{{ (customer.customerName || customer.customerShortName || '?')[0] }}</span>
+                </div>
+                <div class="cell-name-group">
+                  <div class="cell-name">{{ customer.customerName || customer.customerShortName }}</div>
+                  <div class="cell-short" v-if="customer.customerShortName && customer.customerShortName !== customer.customerName">
+                    {{ customer.customerShortName }}
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td class="td-code">{{ customer.customerCode }}</td>
+            <td>
+              <span class="badge badge-type" v-if="customer.customerType">{{ getTypeLabel(customer.customerType) }}</span>
+            </td>
+            <td>
+              <span class="badge" :class="`badge-level-${(customer.customerLevel || '').toLowerCase()}`" v-if="customer.customerLevel">
+                {{ getLevelLabel(customer.customerLevel) }}
+              </span>
+            </td>
+            <td class="td-muted">{{ getIndustryLabel(customer.industry || '') }}</td>
+            <td>
+              <template v-if="customer.contacts && customer.contacts.length > 0">
+                <span class="td-contact">{{ customer.contacts[0].contactName }}</span>
+              </template>
+              <span v-else class="td-empty">--</span>
+            </td>
+            <td>
+              <template v-if="customer.contacts && customer.contacts.length > 0">
+                <span class="td-phone">{{ customer.contacts[0].mobilePhone }}</span>
+              </template>
+              <span v-else class="td-empty">--</span>
+            </td>
+            <td class="td-muted">{{ customer.city || customer.region || '--' }}</td>
+            <td>
+              <span class="status-dot" :class="customer.isActive ? 'status-active' : 'status-inactive'">
+                {{ customer.isActive ? '正常' : '停用' }}
+              </span>
+            </td>
+            <td @click.stop>
+              <div class="action-btns">
+                <button class="action-btn" @click.stop="handleView(customer)">详情</button>
+                <button class="action-btn" @click.stop="handleEdit(customer)">编辑</button>
+                <button class="action-btn action-btn--danger" @click.stop="handleDeleteCustomer(customer)">删除</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       <!-- 空状态 -->
       <div v-if="!loading && customerList.length === 0" class="empty-state">
@@ -195,11 +205,11 @@
     </div>
 
     <!-- 分页 -->
-    <div class="pagination-wrapper" v-if="totalCount > pagination.pageSize">
+    <div class="pagination-wrapper" v-if="totalCount > 0">
       <el-pagination
         v-model:current-page="pagination.pageNumber"
         v-model:page-size="pagination.pageSize"
-        :page-sizes="[12, 24, 48]"
+        :page-sizes="[20, 50, 100]"
         :total="totalCount"
         layout="total, sizes, prev, pager, next"
         @size-change="handleSizeChange"
@@ -237,7 +247,7 @@ const searchForm = reactive<CustomerSearchRequest>({
   sortDescending: true
 });
 
-const pagination = reactive({ pageNumber: 1, pageSize: 12 });
+const pagination = reactive({ pageNumber: 1, pageSize: 20 });
 
 const fetchCustomerList = async () => {
   loading.value = true;
@@ -309,9 +319,7 @@ const handleSizeChange = (size: number) => { pagination.pageSize = size; fetchCu
 const handlePageChange = (page: number) => { pagination.pageNumber = page; fetchCustomerList(); };
 
 const getLevelLabel = (level: string) => ({ VIP: 'VIP', VPO: 'VPO', BPO: 'BPO', B: 'B级', C: 'C级', D: 'D级', Important: '重要', Normal: '普通', Lead: '潜在' }[level] || level || '--');
-// const getLevelType = (level: string) => ({ VIP: 'danger', Important: 'warning', Normal: 'info', Lead: '' }[level] || 'info');
 const getTypeLabel = (type: number) => ({ 1: 'OEM', 2: 'ODM', 3: '终端用户', 4: 'IDH', 5: '贸易商', 6: '代理商' }[type] || '未知');
-// const getTypeType = (type: number) => ({ 0: 'primary', 1: 'success', 2: 'warning' }[type] || 'info');
 const getIndustryLabel = (industry: string) => ({
   Manufacturing: '制造业', Trading: '贸易/零售', Technology: '科技/IT',
   Construction: '建筑/工程', Healthcare: '医疗/健康', Education: '教育',
@@ -414,27 +422,6 @@ onMounted(() => {
   &.btn-sm { padding: 6px 12px; font-size: 12px; }
 }
 
-.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid $border-panel;
-  border-radius: $border-radius-md;
-  color: $text-secondary;
-  font-size: 13px;
-  font-family: 'Noto Sans SC', sans-serif;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(0, 212, 255, 0.25);
-    color: $text-primary;
-  }
-}
-
 .btn-ghost {
   display: inline-flex;
   align-items: center;
@@ -527,21 +514,57 @@ onMounted(() => {
   &--amber { background: $color-amber; }
 }
 
-/* 搜索栏 */
+// ---- 搜索栏 ----
 .search-bar {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
-.search-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.list-title { font-size: 14px; font-weight: 600; color: $text-primary; white-space: nowrap; }
-.search-input-wrap { position: relative; display: flex; align-items: center; }
-.search-icon { position: absolute; left: 10px; color: $text-muted; pointer-events: none; }
+
+.search-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.list-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $text-primary;
+  white-space: nowrap;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: $text-muted;
+  pointer-events: none;
+}
+
 .search-input {
-  width: 220px; padding: 7px 12px 7px 32px;
-  background: $layer-2; border: 1px solid $border-panel; border-radius: $border-radius-md;
-  color: $text-primary; font-size: 13px; font-family: 'Noto Sans SC', sans-serif; outline: none; transition: border-color 0.2s;
+  width: 220px;
+  padding: 7px 12px 7px 32px;
+  background: $layer-2;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-primary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+
   &::placeholder { color: $text-muted; }
   &:focus { border-color: rgba(0,212,255,0.4); }
 }
+
 .status-select {
   width: 120px;
   :deep(.el-select__wrapper) { background: $layer-2 !important; box-shadow: none !important; border: 1px solid $border-panel !important; border-radius: $border-radius-md !important; }
@@ -549,155 +572,249 @@ onMounted(() => {
   :deep(.el-select__selected-item) { color: $text-primary !important; }
 }
 
-/* 卡片网格 */
-.card-grid {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; min-height: 200px;
-}
-.customer-card {
-  background: $layer-2; border: 1px solid rgba(0,212,255,0.1);
-  border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s;
-  position: relative; overflow: hidden;
-  &:hover {
-    border-color: rgba(0,212,255,0.35);
-    box-shadow: 0 4px 20px rgba(0,212,255,0.08);
-    transform: translateY(-1px);
-    .card-actions { opacity: 1; }
-  }
-}
-.card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
-.card-avatar {
-  width: 38px; height: 38px; flex-shrink: 0;
-  background: linear-gradient(135deg, rgba(0,102,255,0.2), rgba(0,212,255,0.15));
-  border: 1px solid rgba(0,212,255,0.2); border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  .avatar-letter { font-size: 16px; font-weight: 700; color: $cyan-primary; }
-}
-.card-title-area { flex: 1; min-width: 0; }
-.card-name {
-  font-size: 14px; font-weight: 600; color: $text-primary;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px;
-}
-.card-code { font-size: 11px; color: $text-muted; font-family: 'Space Mono', monospace; }
-.card-level-badge {
-  flex-shrink: 0; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500;
-  &.level-vip { background: rgba(201,87,69,0.15); color: #C95745; border: 1px solid rgba(201,87,69,0.3); }
-  &.level-important { background: rgba(201,154,69,0.15); color: #C99A45; border: 1px solid rgba(201,154,69,0.3); }
-  &.level-normal { background: rgba(107,122,141,0.15); color: #8A9BB0; border: 1px solid rgba(107,122,141,0.3); }
-  &.level-lead { background: rgba(70,191,145,0.12); color: #46BF91; border: 1px solid rgba(70,191,145,0.3); }
-  &.level-bpo { background: rgba(0,212,255,0.12); color: $cyan-primary; border: 1px solid rgba(0,212,255,0.3); }
-  &.level-vpo { background: rgba(0,212,255,0.12); color: $cyan-primary; border: 1px solid rgba(0,212,255,0.3); }
-}
-.card-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
-.card-type-badge {
-  font-size: 11px; padding: 1px 7px;
-  background: rgba(50,149,201,0.12); border: 1px solid rgba(50,149,201,0.25);
-  border-radius: 3px; color: $color-steel-cyan;
-}
-.card-industry {
-  font-size: 11px; padding: 1px 7px;
-  background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.18);
-  border-radius: 3px; color: $cyan-primary;
-}
-.card-contact {
-  margin-bottom: 12px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;
-}
-.contact-row {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: $text-secondary; margin-bottom: 5px;
-  svg { flex-shrink: 0; color: $text-muted; }
-  &.no-contact { color: $text-muted; font-style: italic; }
-}
-.contact-phone { color: $text-muted; margin-left: 4px; font-family: 'Space Mono', monospace; font-size: 11px; }
-.card-footer { display: flex; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
-.card-stat {
-  flex: 1;
-  &:not(:last-child) { border-right: 1px solid rgba(255,255,255,0.05); padding-right: 12px; margin-right: 12px; }
-}
-.card-stat-label { font-size: 11px; color: $text-muted; margin-bottom: 3px; }
-.card-stat-value {
-  font-size: 15px; font-weight: 700; color: $text-primary; font-family: 'Space Mono', monospace;
-  &--highlight { color: $cyan-primary; }
-}
-.card-actions {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  background: linear-gradient(to top, rgba(10,22,40,0.95) 0%, transparent 100%);
-  padding: 20px 16px 12px;
-  display: flex; gap: 8px; justify-content: flex-end;
-  opacity: 0; transition: opacity 0.2s;
-}
-.card-action-btn {
-  padding: 5px 12px; font-size: 12px; border-radius: 5px;
-  border: 1px solid rgba(0,212,255,0.3); background: rgba(0,212,255,0.1);
-  color: $cyan-primary; cursor: pointer; transition: all 0.15s; font-family: 'Noto Sans SC', sans-serif;
-  &:hover { background: rgba(0,212,255,0.2); }
-  &--danger { border-color: rgba(201,87,69,0.3); background: rgba(201,87,69,0.1); color: #C95745; }
-  &--danger:hover { background: rgba(201,87,69,0.2); }
-}
-.empty-state {
-  grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 60px 0; color: $text-muted; gap: 12px;
-  svg { opacity: 0.3; } p { font-size: 14px; margin: 0; }
+// ---- 表格 ----
+.table-wrapper {
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+  overflow: hidden;
+  min-height: 200px;
 }
 
-// 分页
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  thead tr {
+    background: rgba(0, 212, 255, 0.04);
+    border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+  }
+
+  th {
+    padding: 12px 14px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 500;
+    color: $text-muted;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+  }
+
+  td {
+    padding: 11px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    vertical-align: middle;
+  }
+}
+
+.table-row {
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: rgba(0, 212, 255, 0.04);
+
+    .action-btns { opacity: 1; }
+  }
+
+  &:last-child td { border-bottom: none; }
+}
+
+// 客户名称单元格
+.customer-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cell-avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(0,102,255,0.2), rgba(0,212,255,0.15));
+  border: 1px solid rgba(0,212,255,0.2);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: $cyan-primary;
+}
+
+.cell-name-group {
+  min-width: 0;
+}
+
+.cell-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: $text-primary;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cell-short {
+  font-size: 11px;
+  color: $text-muted;
+  margin-top: 1px;
+}
+
+.td-code {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: $text-muted;
+}
+
+.td-muted {
+  color: $text-secondary;
+  font-size: 12.5px;
+}
+
+.td-contact {
+  color: $text-secondary;
+  font-size: 12.5px;
+}
+
+.td-phone {
+  color: $text-secondary;
+  font-size: 12px;
+  font-family: 'Space Mono', monospace;
+}
+
+.td-empty {
+  color: rgba(255,255,255,0.2);
+  font-size: 12px;
+}
+
+.td-index {
+  color: $text-muted;
+  font-size: 12px;
+  text-align: center;
+}
+
+// ---- 徽章 ----
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge-type {
+  background: rgba(50,149,201,0.12);
+  color: $color-steel-cyan;
+  border: 1px solid rgba(50,149,201,0.25);
+}
+
+.badge-level-vip  { background: rgba(201,87,69,0.15);   color: #C95745; border: 1px solid rgba(201,87,69,0.3); }
+.badge-level-vpo  { background: rgba(0,212,255,0.12);   color: $cyan-primary; border: 1px solid rgba(0,212,255,0.3); }
+.badge-level-bpo  { background: rgba(0,212,255,0.12);   color: $cyan-primary; border: 1px solid rgba(0,212,255,0.3); }
+.badge-level-b    { background: rgba(70,191,145,0.12);  color: #46BF91; border: 1px solid rgba(70,191,145,0.3); }
+.badge-level-c    { background: rgba(201,154,69,0.12);  color: $color-amber; border: 1px solid rgba(201,154,69,0.3); }
+.badge-level-d    { background: rgba(107,122,141,0.12); color: #8A9BB0; border: 1px solid rgba(107,122,141,0.3); }
+.badge-level-important { background: rgba(201,154,69,0.15); color: $color-amber; border: 1px solid rgba(201,154,69,0.3); }
+.badge-level-normal    { background: rgba(107,122,141,0.12); color: #8A9BB0; border: 1px solid rgba(107,122,141,0.3); }
+.badge-level-lead      { background: rgba(70,191,145,0.12);  color: #46BF91; border: 1px solid rgba(70,191,145,0.3); }
+
+// ---- 状态 ----
+.status-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+
+  &::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  &.status-active {
+    color: #46BF91;
+    background: rgba(70,191,145,0.1);
+    border: 1px solid rgba(70,191,145,0.25);
+    &::before { background: #46BF91; box-shadow: 0 0 4px #46BF91; }
+  }
+
+  &.status-inactive {
+    color: $text-muted;
+    background: rgba(107,122,141,0.1);
+    border: 1px solid rgba(107,122,141,0.2);
+    &::before { background: #8A9BB0; }
+  }
+}
+
+// ---- 操作按钮 ----
+.action-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.action-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  color: $cyan-primary;
+
+  &:hover {
+    background: rgba(0, 212, 255, 0.15);
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+
+  &--danger {
+    background: rgba(201, 87, 69, 0.08);
+    border-color: rgba(201, 87, 69, 0.2);
+    color: #C95745;
+
+    &:hover {
+      background: rgba(201, 87, 69, 0.15);
+      border-color: rgba(201, 87, 69, 0.4);
+    }
+  }
+}
+
+// ---- 空状态 ----
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: $text-muted;
+
+  svg { margin-bottom: 16px; opacity: 0.4; }
+  p { margin: 0 0 16px; font-size: 14px; }
+}
+
+// ---- 分页 ----
 .pagination-wrapper {
-  margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+  margin-top: 16px;
 }
 
 .quantum-pagination {
-  :deep(.el-pagination__total),
-  :deep(.el-pagination__sizes),
-  :deep(.el-pagination__jump) {
-    color: $text-muted !important;
-    font-size: 12px;
-  }
-
-  :deep(.el-pager li) {
-    background: transparent !important;
-    color: $text-muted !important;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    min-width: 28px;
-    height: 28px;
-    line-height: 28px;
-
-    &.is-active {
-      background: rgba(0, 212, 255, 0.15) !important;
-      color: $cyan-primary !important;
-      border-color: rgba(0, 212, 255, 0.3);
-    }
-
-    &:hover:not(.is-active) {
-      background: rgba(255, 255, 255, 0.05) !important;
-      color: $text-secondary !important;
-    }
-  }
-
-  :deep(.btn-prev), :deep(.btn-next) {
-    background: transparent !important;
-    color: $text-muted !important;
-    border: 1px solid $border-panel;
-    border-radius: 6px;
-
-    &:hover { border-color: rgba(0, 212, 255, 0.3); color: $text-secondary !important; }
-  }
-}
-
-// Dropdown
-:deep(.quantum-dropdown) {
-  background: $layer-2 !important;
-  border: 1px solid $border-card !important;
-  border-radius: $border-radius-md !important;
-
-  .el-dropdown-menu__item {
-    color: $text-secondary !important;
-    font-size: 13px;
-
-    &:hover { background: rgba(0, 212, 255, 0.06) !important; color: $text-primary !important; }
-  }
-
-  .danger-item { color: $color-red-brown !important; }
+  :deep(.el-pagination__total) { color: $text-muted; }
+  :deep(.el-pagination__sizes .el-select__wrapper) { background: $layer-2 !important; border: 1px solid $border-panel !important; box-shadow: none !important; }
+  :deep(.el-pager li) { background: $layer-2; border: 1px solid $border-panel; color: $text-secondary; border-radius: 6px; margin: 0 2px; }
+  :deep(.el-pager li.is-active) { background: rgba(0,212,255,0.15); border-color: rgba(0,212,255,0.4); color: $cyan-primary; }
+  :deep(.btn-prev), :deep(.btn-next) { background: $layer-2 !important; border: 1px solid $border-panel !important; color: $text-secondary !important; border-radius: 6px !important; }
 }
 </style>

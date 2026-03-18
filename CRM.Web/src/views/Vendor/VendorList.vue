@@ -5,10 +5,8 @@
         <div class="page-title-group">
           <div class="page-icon">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
           </div>
           <h1 class="page-title">供应商管理</h1>
@@ -39,22 +37,57 @@
       </div>
     </div>
 
+    <!-- 统计卡片 -->
     <div class="stats-row">
       <div class="stat-card">
-        <div class="stat-label">供应商总数</div>
-        <div class="stat-value">{{ vendorStats.totalVendors }} <span class="stat-unit">家</span></div>
+        <div class="stat-icon stat-icon--blue">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+        </div>
+        <div class="stat-body">
+          <div class="stat-value">{{ vendorStats.totalVendors }}</div>
+          <div class="stat-label">供应商总数</div>
+        </div>
+        <div class="stat-glow stat-glow--blue"></div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">合作中</div>
-        <div class="stat-value stat-value--cyan">{{ vendorStats.activeVendors }} <span class="stat-unit">家</span></div>
+        <div class="stat-icon stat-icon--green">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </div>
+        <div class="stat-body">
+          <div class="stat-value">{{ vendorStats.activeVendors }}</div>
+          <div class="stat-label">合作中</div>
+        </div>
+        <div class="stat-glow stat-glow--green"></div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">采购总数</div>
-        <div class="stat-value">-- <span class="stat-unit">单</span></div>
+        <div class="stat-icon stat-icon--cyan">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </div>
+        <div class="stat-body">
+          <div class="stat-value">--</div>
+          <div class="stat-label">采购总单数</div>
+        </div>
+        <div class="stat-glow stat-glow--cyan"></div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">主要供应商</div>
-        <div class="stat-value">{{ vendorStats.newThisMonth }} <span class="stat-unit">家</span></div>
+        <div class="stat-icon stat-icon--amber">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+          </svg>
+        </div>
+        <div class="stat-body">
+          <div class="stat-value">{{ vendorStats.newThisMonth }}</div>
+          <div class="stat-label">主要供应商</div>
+        </div>
+        <div class="stat-glow stat-glow--amber"></div>
       </div>
     </div>
 
@@ -83,81 +116,88 @@
       </div>
     </div>
 
-    <!-- 卡片网格 -->
-    <div v-loading="loading" class="card-grid">
-      <div
-        v-for="vendor in vendorList"
-        :key="vendor.id"
-        class="vendor-card"
-        @click="handleView(vendor)"
-      >
-        <!-- 卡片头部 -->
-        <div class="card-header">
-          <div class="card-avatar">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-              <polyline points="9 22 9 12 15 12 15 22"/>
-            </svg>
-          </div>
-          <div class="card-title-area">
-            <div class="card-name">{{ vendor.officialName || vendor.code }}</div>
-            <div class="card-code">{{ vendor.code }}</div>
-          </div>
-          <div class="card-status-badge" :class="getStatusClass(vendor.status)">
-            {{ getStatusLabel(vendor.status) }}
-          </div>
-        </div>
-
-        <!-- 星级评分 -->
-        <div class="card-rating">
-          <span v-for="i in 5" :key="i" class="star" :class="{ 'star--active': i <= (vendor.credit || 0) }">★</span>
-          <span class="card-category" v-if="vendor.industry">{{ vendor.industry }}</span>
-        </div>
-
-        <!-- 联系人信息 -->
-        <div class="card-contact" v-if="vendor.contacts && vendor.contacts.length > 0">
-          <div class="contact-row">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-            </svg>
-            <span>{{ vendor.contacts[0].cName || vendor.contacts[0].eName || '--' }}</span>
-            <span class="contact-phone">{{ vendor.contacts[0].mobile || vendor.contacts[0].tel || '' }}</span>
-          </div>
-          <div class="contact-row" v-if="vendor.officeAddress">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-            </svg>
-            <span class="address-text">{{ vendor.officeAddress }}</span>
-          </div>
-        </div>
-        <div class="card-contact" v-else>
-          <div class="contact-row no-contact">暂无联系人</div>
-        </div>
-
-        <!-- 底部统计 -->
-        <div class="card-footer">
-          <div class="card-stat">
-            <div class="card-stat-label">采购单数</div>
-            <div class="card-stat-value">--</div>
-          </div>
-          <div class="card-stat">
-            <div class="card-stat-label">累计采购额</div>
-            <div class="card-stat-value card-stat-value--highlight">--</div>
-          </div>
-        </div>
-
-        <!-- 操作按钮（hover 显示） -->
-        <div class="card-actions" @click.stop>
-          <button class="card-action-btn" @click.stop="handleEdit(vendor)">编辑</button>
-          <button class="card-action-btn card-action-btn--danger" @click.stop="handleDelete(vendor)">删除</button>
-        </div>
-      </div>
+    <!-- 表格列表 -->
+    <div class="table-wrapper" v-loading="loading">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:44px">序号</th>
+            <th style="min-width:180px">供应商名称</th>
+            <th style="width:110px">供应商编号</th>
+            <th style="width:80px">评级</th>
+            <th style="width:100px">行业</th>
+            <th style="width:130px">联系人</th>
+            <th style="width:130px">联系电话</th>
+            <th style="width:160px">地址</th>
+            <th style="width:80px">状态</th>
+            <th style="width:150px">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="(vendor, index) in vendorList"
+            :key="vendor.id"
+            class="table-row"
+            @click="handleView(vendor)"
+          >
+            <td class="td-index">{{ (pagination.pageNumber - 1) * pagination.pageSize + index + 1 }}</td>
+            <td>
+              <div class="vendor-name-cell">
+                <div class="cell-avatar">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    <polyline points="9 22 9 12 15 12 15 22"/>
+                  </svg>
+                </div>
+                <div class="cell-name-group">
+                  <div class="cell-name">{{ vendor.officialName || vendor.code }}</div>
+                  <div class="cell-short" v-if="vendor.code">{{ vendor.code }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="td-code">{{ vendor.code }}</td>
+            <td>
+              <div class="star-rating">
+                <span v-for="i in 5" :key="i" class="star" :class="{ 'star--active': i <= (vendor.credit || 0) }">★</span>
+              </div>
+            </td>
+            <td class="td-muted">{{ vendor.industry || '--' }}</td>
+            <td>
+              <template v-if="vendor.contacts && vendor.contacts.length > 0">
+                <span class="td-contact">{{ vendor.contacts[0].cName || vendor.contacts[0].eName || '--' }}</span>
+              </template>
+              <span v-else class="td-empty">--</span>
+            </td>
+            <td>
+              <template v-if="vendor.contacts && vendor.contacts.length > 0">
+                <span class="td-phone">{{ vendor.contacts[0].mobile || vendor.contacts[0].tel || '--' }}</span>
+              </template>
+              <span v-else class="td-empty">--</span>
+            </td>
+            <td>
+              <span class="td-address" :title="vendor.officeAddress">{{ vendor.officeAddress || '--' }}</span>
+            </td>
+            <td>
+              <span class="status-badge" :class="getStatusClass(vendor.status)">
+                {{ getStatusLabel(vendor.status) }}
+              </span>
+            </td>
+            <td @click.stop>
+              <div class="action-btns">
+                <button class="action-btn" @click.stop="handleView(vendor)">详情</button>
+                <button class="action-btn" @click.stop="handleEdit(vendor)">编辑</button>
+                <button class="action-btn action-btn--danger" @click.stop="handleDelete(vendor)">删除</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       <!-- 空状态 -->
       <div v-if="!loading && vendorList.length === 0" class="empty-state">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
         </svg>
         <p>暂无供应商数据</p>
         <button class="btn-primary" @click="handleCreate">新增供应商</button>
@@ -165,11 +205,11 @@
     </div>
 
     <!-- 分页 -->
-    <div class="pagination-wrapper" v-if="totalCount > pagination.pageSize">
+    <div class="pagination-wrapper" v-if="totalCount > 0">
       <el-pagination
         v-model:current-page="pagination.pageNumber"
         v-model:page-size="pagination.pageSize"
-        :page-sizes="[12, 24, 48]"
+        :page-sizes="[20, 50, 100]"
         :total="totalCount"
         layout="total, sizes, prev, pager, next"
         @size-change="handleSizeChange"
@@ -201,12 +241,12 @@ const vendorStats = ref<VendorStatistics>({
 
 const searchForm = reactive<VendorSearchRequest>({
   pageNumber: 1,
-  pageSize: 12,
+  pageSize: 20,
   keyword: '',
   status: undefined
 });
 
-const pagination = reactive({ pageNumber: 1, pageSize: 12 });
+const pagination = reactive({ pageNumber: 1, pageSize: 20 });
 
 const getStatusLabel = (status?: number) => {
   if (status === 0) return '草稿';
@@ -273,10 +313,8 @@ const handleDelete = (row: Vendor) => {
   }).catch(() => {});
 };
 
-const handleSizeChange = () => { fetchVendorList(); };
-const handlePageChange = () => { fetchVendorList(); };
-
-
+const handleSizeChange = (size: number) => { pagination.pageSize = size; fetchVendorList(); };
+const handlePageChange = (page: number) => { pagination.pageNumber = page; fetchVendorList(); };
 
 onMounted(() => {
   fetchVendorList();
@@ -285,6 +323,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .vendor-list-page {
   padding: 24px;
@@ -293,161 +332,484 @@ onMounted(() => {
   font-family: 'Noto Sans SC', sans-serif;
 }
 
+// ---- 页面头部 ----
 .page-header {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
-  .header-left { display: flex; align-items: center; gap: 12px; }
-  .header-right { display: flex; align-items: center; gap: 8px; }
-}
-.page-title-group {
-  display: flex; align-items: center; gap: 10px;
-  .page-icon {
-    width: 36px; height: 36px;
-    background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.25);
-    border-radius: 10px; display: flex; align-items: center; justify-content: center; color: $cyan-primary;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
-  .page-title { font-size: 20px; font-weight: 600; color: $text-primary; margin: 0; }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
 }
+
+.page-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .page-icon {
+    width: 36px;
+    height: 36px;
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid rgba(0, 212, 255, 0.25);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $cyan-primary;
+  }
+
+  .page-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: $text-primary;
+    margin: 0;
+    letter-spacing: 0.5px;
+  }
+}
+
 .vendor-count-badge {
-  font-size: 12px; color: $text-muted;
-  background: rgba(255,255,255,0.05); border: 1px solid $border-panel;
-  border-radius: 20px; padding: 3px 10px;
+  font-size: 12px;
+  color: $text-muted;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid $border-panel;
+  border-radius: 20px;
+  padding: 3px 10px;
 }
+
+// ---- 按钮 ----
 .btn-primary {
-  display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
-  background: linear-gradient(135deg, rgba(0,102,255,0.8), rgba(0,212,255,0.7));
-  border: 1px solid rgba(0,212,255,0.4); border-radius: $border-radius-md;
-  color: #fff; font-size: 13px; font-family: 'Noto Sans SC', sans-serif; cursor: pointer; transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
   &.btn-sm { padding: 6px 12px; font-size: 12px; }
-  &:hover { opacity: 0.9; }
 }
+
 .btn-ghost {
-  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
-  background: transparent; border: 1px solid $border-panel; border-radius: $border-radius-md;
-  color: $text-muted; font-size: 12px; font-family: 'Noto Sans SC', sans-serif; cursor: pointer; transition: all 0.2s;
-  &.btn-sm { padding: 5px 10px; }
-  &:hover { border-color: rgba(0,212,255,0.3); color: $text-secondary; }
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: rgba(0, 212, 255, 0.3);
+    color: $text-secondary;
+  }
 }
 
-/* 统计卡片 */
+// ---- 统计卡片 ----
 .stats-row {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px;
-}
-.stat-card {
-  background: $layer-2; border-radius: $border-radius-md;
-  border: 1px solid rgba(0,212,255,0.1); padding: 14px 18px;
-}
-.stat-label { font-size: 12px; color: $text-muted; margin-bottom: 6px; }
-.stat-value {
-  font-size: 22px; font-weight: 700; color: $text-primary; font-family: 'Space Mono', monospace;
-  &--cyan { color: $cyan-primary; }
-  .stat-unit { font-size: 13px; font-weight: 400; color: $text-muted; margin-left: 2px; }
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
-/* 搜索栏 */
-.search-bar {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+.stat-card {
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-md;
+  }
 }
-.search-left { display: flex; align-items: center; gap: 10px; }
-.list-title { font-size: 14px; font-weight: 600; color: $text-primary; white-space: nowrap; }
-.search-input-wrap { position: relative; display: flex; align-items: center; }
-.search-icon { position: absolute; left: 10px; color: $text-muted; pointer-events: none; }
+
+.stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &--blue  { background: rgba(50, 149, 201, 0.15); color: $color-steel-cyan; border: 1px solid rgba(50,149,201,0.25); }
+  &--green { background: rgba(70, 191, 145, 0.15); color: $color-mint-green; border: 1px solid rgba(70,191,145,0.25); }
+  &--cyan  { background: rgba(0, 212, 255, 0.12);  color: $cyan-primary;     border: 1px solid rgba(0,212,255,0.25); }
+  &--amber { background: rgba(201, 154, 69, 0.15); color: $color-amber;      border: 1px solid rgba(201,154,69,0.25); }
+}
+
+.stat-body {
+  .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: $text-primary;
+    font-family: 'Space Mono', monospace;
+    line-height: 1.2;
+  }
+  .stat-label {
+    font-size: 12px;
+    color: $text-muted;
+    margin-top: 3px;
+  }
+}
+
+.stat-glow {
+  position: absolute;
+  right: -20px;
+  top: -20px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  filter: blur(30px);
+  opacity: 0.4;
+
+  &--blue  { background: $color-steel-cyan; }
+  &--green { background: $color-mint-green; }
+  &--cyan  { background: $cyan-primary; }
+  &--amber { background: $color-amber; }
+}
+
+// ---- 搜索栏 ----
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.search-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.list-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $text-primary;
+  white-space: nowrap;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: $text-muted;
+  pointer-events: none;
+}
+
 .search-input {
-  width: 220px; padding: 7px 12px 7px 32px;
-  background: $layer-2; border: 1px solid $border-panel; border-radius: $border-radius-md;
-  color: $text-primary; font-size: 13px; font-family: 'Noto Sans SC', sans-serif; outline: none; transition: border-color 0.2s;
+  width: 220px;
+  padding: 7px 12px 7px 32px;
+  background: $layer-2;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-primary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+
   &::placeholder { color: $text-muted; }
   &:focus { border-color: rgba(0,212,255,0.4); }
 }
+
 .status-select {
   width: 120px;
-  :deep(.el-input__wrapper) { background: $layer-2; box-shadow: none; border: 1px solid $border-panel; border-radius: $border-radius-md; }
-  :deep(.el-input__inner) { color: $text-primary; font-size: 13px; }
+  :deep(.el-select__wrapper) { background: $layer-2 !important; box-shadow: none !important; border: 1px solid $border-panel !important; border-radius: $border-radius-md !important; }
+  :deep(.el-select__placeholder) { color: $text-muted !important; }
+  :deep(.el-select__selected-item) { color: $text-primary !important; }
 }
 
-/* 卡片网格 */
-.card-grid {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; min-height: 200px;
+// ---- 表格 ----
+.table-wrapper {
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+  overflow: hidden;
+  min-height: 200px;
 }
-.vendor-card {
-  background: $layer-2; border: 1px solid rgba(0,212,255,0.1);
-  border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s;
-  position: relative; overflow: hidden;
-  &:hover {
-    border-color: rgba(0,212,255,0.35);
-    box-shadow: 0 4px 20px rgba(0,212,255,0.08);
-    transform: translateY(-1px);
-    .card-actions { opacity: 1; }
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  thead tr {
+    background: rgba(0, 212, 255, 0.04);
+    border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+  }
+
+  th {
+    padding: 12px 14px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 500;
+    color: $text-muted;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+  }
+
+  td {
+    padding: 11px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    vertical-align: middle;
   }
 }
-.card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
-.card-avatar {
-  width: 38px; height: 38px; flex-shrink: 0;
-  background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2);
-  border-radius: 10px; display: flex; align-items: center; justify-content: center; color: $cyan-primary;
+
+.table-row {
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: rgba(0, 212, 255, 0.04);
+
+    .action-btns { opacity: 1; }
+  }
+
+  &:last-child td { border-bottom: none; }
 }
-.card-title-area { flex: 1; min-width: 0; }
-.card-name {
-  font-size: 14px; font-weight: 600; color: $text-primary;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px;
+
+// 供应商名称单元格
+.vendor-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.card-code { font-size: 11px; color: $text-muted; }
-.card-status-badge {
-  flex-shrink: 0; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500;
-  &.status-active { background: rgba(70,191,145,0.15); color: #46BF91; }
-  &.status-pending { background: rgba(255,193,7,0.15); color: #ffc107; }
-  &.status-draft { background: rgba(255,255,255,0.08); color: $text-muted; }
+
+.cell-avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(0,102,255,0.2), rgba(0,212,255,0.15));
+  border: 1px solid rgba(0,212,255,0.2);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $cyan-primary;
 }
-.card-rating { display: flex; align-items: center; gap: 2px; margin-bottom: 10px; }
-.star { font-size: 14px; color: rgba(255,255,255,0.15); &--active { color: #ffc107; } }
-.card-category {
-  margin-left: 8px; font-size: 11px; padding: 1px 7px;
-  background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2);
-  border-radius: 3px; color: $cyan-primary;
+
+.cell-name-group {
+  min-width: 0;
 }
-.card-contact {
-  margin-bottom: 12px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;
+
+.cell-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: $text-primary;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.contact-row {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: $text-secondary; margin-bottom: 5px;
-  svg { flex-shrink: 0; color: $text-muted; }
-  &.no-contact { color: $text-muted; font-style: italic; }
+
+.cell-short {
+  font-size: 11px;
+  color: $text-muted;
+  margin-top: 1px;
+  font-family: 'Space Mono', monospace;
 }
-.contact-phone { color: $text-muted; margin-left: 4px; }
-.address-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
-.card-footer { display: flex; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
-.card-stat {
-  flex: 1;
-  &:not(:last-child) { border-right: 1px solid rgba(255,255,255,0.05); padding-right: 12px; margin-right: 12px; }
+
+.td-code {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: $text-muted;
 }
-.card-stat-label { font-size: 11px; color: $text-muted; margin-bottom: 3px; }
-.card-stat-value {
-  font-size: 15px; font-weight: 700; color: $text-primary; font-family: 'Space Mono', monospace;
-  &--highlight { color: $cyan-primary; }
+
+.td-muted {
+  color: $text-secondary;
+  font-size: 12.5px;
 }
-.card-actions {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  background: linear-gradient(to top, rgba(10,22,40,0.95) 0%, transparent 100%);
-  padding: 20px 16px 12px;
-  display: flex; gap: 8px; justify-content: flex-end;
-  opacity: 0; transition: opacity 0.2s;
+
+.td-contact {
+  color: $text-secondary;
+  font-size: 12.5px;
 }
-.card-action-btn {
-  padding: 5px 12px; font-size: 12px; border-radius: 5px;
-  border: 1px solid rgba(0,212,255,0.3); background: rgba(0,212,255,0.1);
-  color: $cyan-primary; cursor: pointer; transition: all 0.15s; font-family: 'Noto Sans SC', sans-serif;
-  &:hover { background: rgba(0,212,255,0.2); }
-  &--danger { border-color: rgba(201,87,69,0.3); background: rgba(201,87,69,0.1); color: #C95745; }
-  &--danger:hover { background: rgba(201,87,69,0.2); }
+
+.td-phone {
+  color: $text-secondary;
+  font-size: 12px;
+  font-family: 'Space Mono', monospace;
 }
+
+.td-address {
+  color: $text-secondary;
+  font-size: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 160px;
+}
+
+.td-empty {
+  color: rgba(255,255,255,0.2);
+  font-size: 12px;
+}
+
+.td-index {
+  color: $text-muted;
+  font-size: 12px;
+  text-align: center;
+}
+
+// ---- 星级 ----
+.star-rating {
+  display: flex;
+  gap: 1px;
+}
+
+.star {
+  font-size: 13px;
+  color: rgba(255,255,255,0.15);
+  line-height: 1;
+
+  &--active {
+    color: #C99A45;
+  }
+}
+
+// ---- 状态徽章 ----
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+
+  &::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  &.status-active {
+    color: #46BF91;
+    background: rgba(70,191,145,0.1);
+    border: 1px solid rgba(70,191,145,0.25);
+    &::before { background: #46BF91; box-shadow: 0 0 4px #46BF91; }
+  }
+
+  &.status-pending {
+    color: $color-amber;
+    background: rgba(201,154,69,0.1);
+    border: 1px solid rgba(201,154,69,0.25);
+    &::before { background: $color-amber; }
+  }
+
+  &.status-draft {
+    color: $text-muted;
+    background: rgba(107,122,141,0.1);
+    border: 1px solid rgba(107,122,141,0.2);
+    &::before { background: #8A9BB0; }
+  }
+}
+
+// ---- 操作按钮 ----
+.action-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.action-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  color: $cyan-primary;
+
+  &:hover {
+    background: rgba(0, 212, 255, 0.15);
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+
+  &--danger {
+    background: rgba(201, 87, 69, 0.08);
+    border-color: rgba(201, 87, 69, 0.2);
+    color: #C95745;
+
+    &:hover {
+      background: rgba(201, 87, 69, 0.15);
+      border-color: rgba(201, 87, 69, 0.4);
+    }
+  }
+}
+
+// ---- 空状态 ----
 .empty-state {
-  grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 60px 0; color: $text-muted; gap: 12px;
-  svg { opacity: 0.3; } p { font-size: 14px; margin: 0; }
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: $text-muted;
+
+  svg { margin-bottom: 16px; opacity: 0.4; }
+  p { margin: 0 0 16px; font-size: 14px; }
 }
-.pagination-wrapper { margin-top: 20px; display: flex; justify-content: flex-end; }
-:deep(.quantum-pagination) {
-  --el-pagination-button-color: rgba(0,212,255,0.8);
-  --el-pagination-hover-color: #00D4FF;
+
+// ---- 分页 ----
+.pagination-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.quantum-pagination {
+  :deep(.el-pagination__total) { color: $text-muted; }
+  :deep(.el-pagination__sizes .el-select__wrapper) { background: $layer-2 !important; border: 1px solid $border-panel !important; box-shadow: none !important; }
+  :deep(.el-pager li) { background: $layer-2; border: 1px solid $border-panel; color: $text-secondary; border-radius: 6px; margin: 0 2px; }
+  :deep(.el-pager li.is-active) { background: rgba(0,212,255,0.15); border-color: rgba(0,212,255,0.4); color: $cyan-primary; }
+  :deep(.btn-prev), :deep(.btn-next) { background: $layer-2 !important; border: 1px solid $border-panel !important; color: $text-secondary !important; border-radius: 6px !important; }
 }
 </style>
