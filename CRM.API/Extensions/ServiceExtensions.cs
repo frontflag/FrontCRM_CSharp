@@ -22,6 +22,7 @@ namespace CRM.API.Extensions
             services.AddInfrastructure(connectionString);
 
             services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IUserService, UserService>();
             services.AddScoped<ICustomerService, CustomerService>();
             services.AddScoped<IRFQService, RFQService>();
             services.AddScoped<IRepository<CRM.Core.Models.RFQ.RFQ>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.RFQ.RFQ>>();
