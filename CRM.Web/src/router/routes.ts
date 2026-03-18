@@ -211,6 +211,31 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Profile/ProfileView.vue'),
         meta: { requiresAuth: true, title: '个人设置' }
       },
+      // 财务模块
+      {
+        path: 'finance/payments',
+        name: 'FinancePaymentList',
+        component: () => import('@/views/Finance/FinancePaymentList.vue'),
+        meta: { requiresAuth: true, title: '付款管理' }
+      },
+      {
+        path: 'finance/receipts',
+        name: 'FinanceReceiptList',
+        component: () => import('@/views/Finance/FinanceReceiptList.vue'),
+        meta: { requiresAuth: true, title: '收款管理' }
+      },
+      {
+        path: 'finance/purchase-invoices',
+        name: 'FinancePurchaseInvoiceList',
+        component: () => import('@/views/Finance/FinancePurchaseInvoiceList.vue'),
+        meta: { requiresAuth: true, title: '进项发票' }
+      },
+      {
+        path: 'finance/sell-invoices',
+        name: 'FinanceSellInvoiceList',
+        component: () => import('@/views/Finance/FinanceSellInvoiceList.vue'),
+        meta: { requiresAuth: true, title: '销项发票' }
+      },
       {
         path: 'documents/demo',
         name: 'DocumentDemo',

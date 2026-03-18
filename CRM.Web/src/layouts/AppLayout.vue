@@ -195,6 +195,29 @@
           </div>
         </div>
 
+        <!-- 财务管理 -->
+        <div class="menu-section-label" v-if="!isCollapsed">财务管理</div>
+        <div class="menu-group">
+          <button class="menu-item has-children" @click="toggleGroup('finance')" :class="{ 'group-open': openGroups.finance }">
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="2" y="5" width="20" height="14" rx="2"/>
+                <line x1="2" y1="10" x2="22" y2="10"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">财务管理</span>
+            <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.finance }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+          <div class="submenu" v-if="!isCollapsed && openGroups.finance">
+            <router-link to="/finance/payments" class="submenu-item" active-class="active">付款管理</router-link>
+            <router-link to="/finance/receipts" class="submenu-item" active-class="active">收款管理</router-link>
+            <router-link to="/finance/purchase-invoices" class="submenu-item" active-class="active">进项发票</router-link>
+            <router-link to="/finance/sell-invoices" class="submenu-item" active-class="active">销项发票</router-link>
+          </div>
+        </div>
+
         <!-- 数据分析 -->
         <div class="menu-section-label" v-if="!isCollapsed">数据分析</div>
 
