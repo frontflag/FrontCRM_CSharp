@@ -174,6 +174,22 @@ namespace CRM.Core.Services
                 entity.OfficialName = request.Name.Trim();
             if (request.Remark != null)
                 entity.CompanyInfo = request.Remark.Trim();
+            if (request.Industry != null)
+                entity.Industry = request.Industry.Trim();
+            if (request.Product != null)
+                entity.Product = request.Product.Trim();
+            if (request.Credit.HasValue)
+                entity.Credit = request.Credit.Value;
+            if (request.OfficeAddress != null)
+                entity.OfficeAddress = request.OfficeAddress.Trim();
+            if (request.Level.HasValue)
+                entity.Level = request.Level.Value;
+            if (request.TradeCurrency.HasValue)
+                entity.TradeCurrency = request.TradeCurrency.Value;
+            if (request.Payment.HasValue)
+                entity.Payment = request.Payment.Value;
+            if (request.ExternalNumber != null)
+                entity.ExternalNumber = request.ExternalNumber.Trim();
 
             entity.ModifyTime = DateTime.UtcNow;
             await _repository.UpdateAsync(entity);

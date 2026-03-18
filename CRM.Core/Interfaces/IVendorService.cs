@@ -347,6 +347,22 @@ namespace CRM.Core.Interfaces
     {
         public string? Name { get; set; }
         public string? Remark { get; set; }
+        /// <summary>行业分类</summary>
+        public string? Industry { get; set; }
+        /// <summary>供应商分类/产品类别</summary>
+        public string? Product { get; set; }
+        /// <summary>信用评级 1-5星</summary>
+        public short? Credit { get; set; }
+        /// <summary>办公地址</summary>
+        public string? OfficeAddress { get; set; }
+        /// <summary>供应商等级</summary>
+        public short? Level { get; set; }
+        /// <summary>贸易币种</summary>
+        public short? TradeCurrency { get; set; }
+        /// <summary>付款方式</summary>
+        public short? Payment { get; set; }
+        /// <summary>外部编号</summary>
+        public string? ExternalNumber { get; set; }
     }
 
     /// <summary>

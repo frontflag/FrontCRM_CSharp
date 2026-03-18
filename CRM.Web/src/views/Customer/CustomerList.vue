@@ -17,14 +17,7 @@
         <div class="customer-count-badge">共 {{ totalCount }} 个客户</div>
       </div>
       <div class="header-right">
-        <button class="btn-secondary" @click="handleExport">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          导出
-        </button>
+
         <button class="btn-primary" @click="handleCreate">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19"/>
@@ -90,196 +83,129 @@
       </div>
     </div>
 
-    <!-- 搜索和筛选区域 -->
-    <div class="search-panel">
-      <div class="search-panel-inner">
-        <div class="search-field">
-          <label class="field-label">关键字</label>
-          <div class="input-wrapper">
-            <span class="input-icon">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              </svg>
-            </span>
-            <el-input
-              v-model="searchForm.searchTerm"
-              placeholder="客户编号/名称/联系人/电话"
-              clearable
-              @keyup.enter="handleSearch"
-              class="custom-input"
-            />
-          </div>
+    <!-- 搜索栏 -->
+    <div class="search-bar">
+      <div class="search-left">
+        <span class="list-title">客户列表</span>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            v-model="searchForm.searchTerm"
+            class="search-input"
+            placeholder="搜索客户名称/联系人..."
+            @keyup.enter="handleSearch"
+          />
         </div>
-        <div class="search-field">
-          <label class="field-label">客户类型</label>
-          <el-select v-model="searchForm.customerType" placeholder="全部类型" clearable class="custom-select">
-            <el-option label="企业客户" :value="0" />
-            <el-option label="个人客户" :value="1" />
-            <el-option label="政府/机构" :value="2" />
-          </el-select>
-        </div>
-        <div class="search-field">
-          <label class="field-label">客户等级</label>
-          <el-select v-model="searchForm.customerLevel" placeholder="全部等级" clearable class="custom-select">
-            <el-option label="VIP" value="VIP" />
-            <el-option label="重要" value="Important" />
-            <el-option label="普通" value="Normal" />
-            <el-option label="潜在客户" value="Lead" />
-          </el-select>
-        </div>
-        <div class="search-field">
-          <label class="field-label">行业</label>
-          <el-select v-model="searchForm.industry" placeholder="全部行业" clearable class="custom-select">
-            <el-option label="制造业" value="Manufacturing" />
-            <el-option label="贸易/零售" value="Trading" />
-            <el-option label="科技/IT" value="Technology" />
-            <el-option label="建筑/工程" value="Construction" />
-            <el-option label="医疗/健康" value="Healthcare" />
-            <el-option label="教育" value="Education" />
-            <el-option label="金融" value="Finance" />
-            <el-option label="其他" value="Other" />
-          </el-select>
-        </div>
-        <div class="search-field">
-          <label class="field-label">状态</label>
-          <el-select v-model="searchForm.isActive" placeholder="全部状态" clearable class="custom-select">
-            <el-option label="启用" :value="true" />
-            <el-option label="停用" :value="false" />
-          </el-select>
-        </div>
-        <div class="search-actions">
-          <button class="btn-primary btn-sm" @click="handleSearch">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            搜索
-          </button>
-          <button class="btn-ghost btn-sm" @click="handleReset">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="1 4 1 10 7 10"/>
-              <path d="M3.51 15a9 9 0 1 0 .49-3.51"/>
-            </svg>
-            重置
-          </button>
-        </div>
+        <el-select v-model="searchForm.customerType" placeholder="全部类型" clearable class="status-select" @change="handleSearch">
+          <el-option label="OEM" :value="1" />
+          <el-option label="ODM" :value="2" />
+          <el-option label="终端用户" :value="3" />
+          <el-option label="贸易商" :value="5" />
+          <el-option label="代理商" :value="6" />
+        </el-select>
+        <el-select v-model="searchForm.industry" placeholder="全部行业" clearable class="status-select" @change="handleSearch">
+          <el-option label="制造业" value="Manufacturing" />
+          <el-option label="科技/IT" value="Technology" />
+          <el-option label="贸易/零售" value="Trading" />
+          <el-option label="建筑/工程" value="Construction" />
+          <el-option label="其他" value="Other" />
+        </el-select>
+        <button class="btn-primary btn-sm" @click="handleSearch">搜索</button>
+        <button class="btn-ghost btn-sm" @click="handleReset">重置</button>
       </div>
     </div>
 
-    <!-- 客户列表表格 -->
-    <div class="table-panel">
-      <el-table
-        :data="customerList"
-        v-loading="loading"
-        @row-click="handleRowClick"
-        class="quantum-table"
-        :header-cell-style="tableHeaderStyle"
-        :cell-style="tableCellStyle"
-        :row-style="tableRowStyle"
+    <!-- 卡片网格 -->
+    <div v-loading="loading" class="card-grid">
+      <div
+        v-for="customer in customerList"
+        :key="customer.id"
+        class="customer-card"
+        @click="handleView(customer)"
       >
-        <el-table-column type="index" width="50" align="center" />
-        <el-table-column prop="customerCode" label="客户编号" width="130" sortable>
-          <template #default="{ row }">
-            <span class="code-link" @click.stop="handleView(row)">{{ row.customerCode }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="customerName" label="客户名称" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }">
-            <div class="customer-name-cell">
-              <div class="customer-avatar">{{ (row.customerName || '?')[0] }}</div>
-              <div class="customer-info">
-                <div class="name">{{ row.customerName }}</div>
-                <span v-if="row.customerLevel" class="level-badge" :class="`level-${row.customerLevel?.toLowerCase()}`">
-                  {{ getLevelLabel(row.customerLevel) }}
-                </span>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="customerType" label="类型" width="100">
-          <template #default="{ row }">
-            <span class="type-badge" :class="`type-${row.customerType}`">{{ getTypeLabel(row.customerType) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="industry" label="行业" width="120">
-          <template #default="{ row }">
-            <span class="text-secondary">{{ getIndustryLabel(row.industry) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="联系人" width="160">
-          <template #default="{ row }">
-            <div v-if="row.contacts && row.contacts.length > 0" class="contact-cell">
-              <div class="contact-name">{{ row.contacts[0].contactName }}</div>
-              <div class="contact-phone">{{ row.contacts[0].mobilePhone }}</div>
-            </div>
-            <span v-else class="no-data">--</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="region" label="地区" width="120" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span class="text-secondary">{{ row.region || '--' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="creditLimit" label="信用额度" width="120" align="right">
-          <template #default="{ row }">
-            <span class="amount-value">{{ formatCurrency(row.creditLimit) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="balance" label="账户余额" width="120" align="right">
-          <template #default="{ row }">
-            <span class="amount-value" :class="{ 'amount-negative': row.balance && row.balance < 0 }">
-              {{ formatCurrency(row.balance) }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="isActive" label="状态" width="80" align="center">
-          <template #default="{ row }">
-            <el-switch
-              v-model="row.isActive"
-              @change="(val: any) => handleStatusChange(row, val)"
-              @click.stop
-              :active-color="'#46BF91'"
-              :inactive-color="'rgba(255,255,255,0.1)'"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
-          <template #default="{ row }">
-            <button class="action-btn" @click.stop="handleView(row)">查看</button>
-            <button class="action-btn" @click.stop="handleEdit(row)">编辑</button>
-            <el-dropdown @command="(cmd: any) => handleCommand(cmd, row)" @click.stop>
-              <button class="action-btn action-btn--more">
-                更多
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
-              </button>
-              <template #dropdown>
-                <el-dropdown-menu class="quantum-dropdown">
-                  <el-dropdown-item command="contact">添加联系人</el-dropdown-item>
-                  <el-dropdown-item command="address">添加地址</el-dropdown-item>
-                  <el-dropdown-item command="quote">创建报价</el-dropdown-item>
-                  <el-dropdown-item command="order">创建订单</el-dropdown-item>
-                  <el-dropdown-item divided command="delete" class="danger-item">删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </template>
-        </el-table-column>
-      </el-table>
+        <!-- 卡片头部 -->
+        <div class="card-header">
+          <div class="card-avatar">
+            <span class="avatar-letter">{{ (customer.customerName || customer.customerShortName || '?')[0] }}</span>
+          </div>
+          <div class="card-title-area">
+            <div class="card-name">{{ customer.customerName || customer.customerShortName }}</div>
+            <div class="card-code">{{ customer.customerCode }}</div>
+          </div>
+          <div v-if="customer.customerLevel" class="card-level-badge" :class="`level-${customer.customerLevel?.toLowerCase()}`">
+            {{ getLevelLabel(customer.customerLevel) }}
+          </div>
+        </div>
 
-      <!-- 分页 -->
-      <div class="pagination-wrapper">
-        <el-pagination
-          v-model:current-page="pagination.pageNumber"
-          v-model:page-size="pagination.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="totalCount"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handlePageChange"
-          class="quantum-pagination"
-        />
+        <!-- 类型和行业 -->
+        <div class="card-meta">
+          <span class="card-type-badge" v-if="customer.customerType">{{ getTypeLabel(customer.customerType) }}</span>
+          <span class="card-industry" v-if="customer.industry">{{ getIndustryLabel(customer.industry) }}</span>
+        </div>
+
+        <!-- 联系人信息 -->
+        <div class="card-contact">
+          <template v-if="customer.contacts && customer.contacts.length > 0">
+            <div class="contact-row">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+              <span>{{ customer.contacts[0].contactName }}</span>
+              <span class="contact-phone">{{ customer.contacts[0].mobilePhone }}</span>
+            </div>
+            <div class="contact-row" v-if="customer.city || customer.region">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+              </svg>
+              <span>{{ customer.city || customer.region }}</span>
+            </div>
+          </template>
+          <div v-else class="contact-row no-contact">暂无联系人</div>
+        </div>
+
+        <!-- 底部统计 -->
+        <div class="card-footer">
+          <div class="card-stat">
+            <div class="card-stat-label">销售单数</div>
+            <div class="card-stat-value">--</div>
+          </div>
+          <div class="card-stat">
+            <div class="card-stat-label">累计销售额</div>
+            <div class="card-stat-value card-stat-value--highlight">--</div>
+          </div>
+        </div>
+
+        <!-- 操作按钮（hover 显示） -->
+        <div class="card-actions" @click.stop>
+          <button class="card-action-btn" @click.stop="handleEdit(customer)">编辑</button>
+          <button class="card-action-btn card-action-btn--danger" @click.stop="handleDeleteCustomer(customer)">删除</button>
+        </div>
       </div>
+
+      <!-- 空状态 -->
+      <div v-if="!loading && customerList.length === 0" class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+        </svg>
+        <p>暂无客户数据</p>
+        <button class="btn-primary" @click="handleCreate">新增客户</button>
+      </div>
+    </div>
+
+    <!-- 分页 -->
+    <div class="pagination-wrapper" v-if="totalCount > pagination.pageSize">
+      <el-pagination
+        v-model:current-page="pagination.pageNumber"
+        v-model:page-size="pagination.pageSize"
+        :page-sizes="[12, 24, 48]"
+        :total="totalCount"
+        layout="total, sizes, prev, pager, next"
+        @size-change="handleSizeChange"
+        @current-change="handlePageChange"
+        class="quantum-pagination"
+      />
     </div>
   </div>
 </template>
@@ -311,29 +237,7 @@ const searchForm = reactive<CustomerSearchRequest>({
   sortDescending: true
 });
 
-const pagination = reactive({ pageNumber: 1, pageSize: 20 });
-
-const tableHeaderStyle = () => ({
-  background: '#0A1628',
-  color: 'rgba(200,216,232,0.55)',
-  fontSize: '12px',
-  fontWeight: '500',
-  letterSpacing: '0.5px',
-  borderBottom: '1px solid rgba(0,212,255,0.12)',
-  padding: '10px 0'
-});
-
-const tableCellStyle = () => ({
-  background: 'transparent',
-  borderBottom: '1px solid rgba(255,255,255,0.05)',
-  color: 'rgba(224,244,255,0.85)',
-  fontSize: '13px'
-});
-
-const tableRowStyle = () => ({
-  background: 'transparent',
-  cursor: 'pointer'
-});
+const pagination = reactive({ pageNumber: 1, pageSize: 12 });
 
 const fetchCustomerList = async () => {
   loading.value = true;
@@ -390,41 +294,17 @@ const handleReset = () => {
 const handleCreate = () => router.push('/customers/create');
 const handleView = (row: Customer) => router.push(`/customers/${row.id}`);
 const handleEdit = (row: Customer) => router.push(`/customers/${row.id}/edit`);
-const handleRowClick = (row: Customer) => handleView(row);
 
-const handleStatusChange = async (row: Customer, val: boolean) => {
-  try {
-    await ElMessageBox.confirm(
-      `确定要${val ? '启用' : '停用'}客户「${row.customerName}」吗？`,
-      `确认${val ? '启用' : '停用'}`,
-      { type: val ? 'info' : 'warning', confirmButtonText: '确定', cancelButtonText: '取消' }
-    );
-    if (val) {
-      await customerApi.activateCustomer(row.id!);
-    } else {
-      await customerApi.deactivateCustomer(row.id!);
-    }
-    ElNotification.success({ title: '操作成功', message: `客户已${val ? '启用' : '停用'}` });
-  } catch {
-    row.isActive = !val;
-  }
+const handleDeleteCustomer = (row: Customer) => {
+  ElMessageBox.confirm(`确定要删除客户 "${row.customerName}" 吗？`, '确认删除', {
+    confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning'
+  }).then(async () => {
+    await customerApi.deleteCustomer(row.id!);
+    ElNotification.success({ title: '删除成功', message: '客户已删除' });
+    fetchCustomerList();
+  }).catch(() => {});
 };
 
-const handleCommand = (cmd: string, row: Customer) => {
-  if (cmd === 'delete') {
-    ElMessageBox.confirm(`确定要删除客户 "${row.customerName}" 吗？`, '确认删除', {
-      confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning'
-    }).then(async () => {
-      await customerApi.deleteCustomer(row.id!);
-      ElNotification.success({ title: '删除成功', message: '客户已删除' });
-      fetchCustomerList();
-    }).catch(() => {});
-  } else {
-    ElNotification.info({ title: '提示', message: '功能开发中，敬请期待' });
-  }
-};
-
-const handleExport = () => ElNotification.info({ title: '提示', message: '导出功能开发中，敬请期待' });
 const handleSizeChange = (size: number) => { pagination.pageSize = size; fetchCustomerList(); };
 const handlePageChange = (page: number) => { pagination.pageNumber = page; fetchCustomerList(); };
 
@@ -437,11 +317,6 @@ const getIndustryLabel = (industry: string) => ({
   Construction: '建筑/工程', Healthcare: '医疗/健康', Education: '教育',
   Finance: '金融', Other: '其他'
 }[industry] || industry || '--');
-
-const formatCurrency = (val: number | undefined) => {
-  if (val === undefined || val === null) return '--';
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', minimumFractionDigits: 2 }).format(val);
-};
 
 onMounted(() => {
   fetchCustomerList();
@@ -652,251 +527,121 @@ onMounted(() => {
   &--amber { background: $color-amber; }
 }
 
-// ---- 搜索面板 ----
-.search-panel {
-  background: $layer-2;
-  border: 1px solid $border-card;
-  border-radius: $border-radius-lg;
-  padding: 18px 20px;
-  margin-bottom: 16px;
+/* 搜索栏 */
+.search-bar {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+}
+.search-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.list-title { font-size: 14px; font-weight: 600; color: $text-primary; white-space: nowrap; }
+.search-input-wrap { position: relative; display: flex; align-items: center; }
+.search-icon { position: absolute; left: 10px; color: $text-muted; pointer-events: none; }
+.search-input {
+  width: 220px; padding: 7px 12px 7px 32px;
+  background: $layer-2; border: 1px solid $border-panel; border-radius: $border-radius-md;
+  color: $text-primary; font-size: 13px; font-family: 'Noto Sans SC', sans-serif; outline: none; transition: border-color 0.2s;
+  &::placeholder { color: $text-muted; }
+  &:focus { border-color: rgba(0,212,255,0.4); }
+}
+.status-select {
+  width: 120px;
+  :deep(.el-select__wrapper) { background: $layer-2 !important; box-shadow: none !important; border: 1px solid $border-panel !important; border-radius: $border-radius-md !important; }
+  :deep(.el-select__placeholder) { color: $text-muted !important; }
+  :deep(.el-select__selected-item) { color: $text-primary !important; }
 }
 
-.search-panel-inner {
-  display: flex;
-  align-items: flex-end;
-  gap: 16px;
-  flex-wrap: wrap;
+/* 卡片网格 */
+.card-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; min-height: 200px;
 }
-
-.search-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-
-  .field-label {
-    font-size: 11px;
-    font-weight: 500;
-    color: $text-muted;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-  }
-}
-
-.search-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding-bottom: 1px;
-}
-
-.input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-
-  .input-icon {
-    position: absolute;
-    left: 10px;
-    z-index: 2;
-    color: rgba(0, 212, 255, 0.45);
-    display: flex;
-    align-items: center;
-    pointer-events: none;
-  }
-
-  :deep(.el-input__wrapper) {
-    background-color: $layer-3 !important;
-    border: 1px solid $border-panel !important;
-    border-radius: $border-radius-md !important;
-    box-shadow: none !important;
-    padding-left: 32px !important;
-    height: 34px;
-
-    &.is-focus {
-      border-color: rgba(0, 212, 255, 0.5) !important;
-      box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.08) !important;
-    }
-  }
-
-  :deep(.el-input__inner) {
-    color: $text-primary !important;
-    background: transparent !important;
-    font-size: 13px;
-    &::placeholder { color: $text-placeholder !important; }
-  }
-}
-
-.custom-select {
-  :deep(.el-select__wrapper) {
-    background-color: $layer-3 !important;
-    border: 1px solid $border-panel !important;
-    border-radius: $border-radius-md !important;
-    box-shadow: none !important;
-    height: 34px;
-    color: $text-primary !important;
-
-    &.is-focused {
-      border-color: rgba(0, 212, 255, 0.5) !important;
-    }
-  }
-
-  :deep(.el-select__placeholder) {
-    color: $text-placeholder !important;
-  }
-}
-
-// ---- 表格面板 ----
-.table-panel {
-  background: $layer-2;
-  border: 1px solid $border-card;
-  border-radius: $border-radius-lg;
-  overflow: hidden;
-}
-
-.quantum-table {
-  width: 100%;
-  background: transparent !important;
-
-  :deep(.el-table__inner-wrapper) { background: transparent; }
-  :deep(.el-table__header-wrapper) { background: $layer-2; }
-  :deep(.el-table__body-wrapper) { background: transparent; }
-
-  :deep(tr) {
-    background: transparent !important;
-    transition: background 0.15s;
-
-    &:hover td { background: rgba(0, 212, 255, 0.04) !important; }
-  }
-
-  :deep(.el-table__fixed-right) {
-    background: $layer-2 !important;
-    .el-table__fixed-right-patch { background: $layer-2; }
-  }
-
-  :deep(.el-loading-mask) { background: rgba(10, 22, 40, 0.7); }
-}
-
-// 表格内容样式
-.code-link {
-  color: $color-ice-blue;
-  cursor: pointer;
-  font-family: 'Space Mono', monospace;
-  font-size: 12px;
-  transition: color 0.2s;
-
-  &:hover { color: $cyan-primary; text-decoration: underline; }
-}
-
-.customer-name-cell {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  .customer-avatar {
-    width: 32px;
-    height: 32px;
-    background: linear-gradient(135deg, rgba(0,102,255,0.3), rgba(0,212,255,0.2));
-    border: 1px solid rgba(0, 212, 255, 0.2);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    font-weight: 600;
-    color: $cyan-primary;
-    flex-shrink: 0;
-  }
-
-  .customer-info {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-
-    .name {
-      font-size: 13px;
-      color: $text-primary;
-      font-weight: 500;
-    }
-  }
-}
-
-.level-badge {
-  display: inline-block;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-weight: 500;
-
-  &.level-vip     { background: rgba(201, 87, 69, 0.2);  color: #C95745; border: 1px solid rgba(201,87,69,0.3); }
-  &.level-important { background: rgba(201,154,69,0.2); color: #C99A45; border: 1px solid rgba(201,154,69,0.3); }
-  &.level-normal  { background: rgba(107,122,141,0.2);  color: #8A9BB0; border: 1px solid rgba(107,122,141,0.3); }
-  &.level-lead    { background: rgba(70,191,145,0.15);  color: #46BF91; border: 1px solid rgba(70,191,145,0.3); }
-}
-
-.type-badge {
-  display: inline-block;
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 4px;
-
-  &.type-0 { background: rgba(50,149,201,0.15); color: $color-steel-cyan; border: 1px solid rgba(50,149,201,0.25); }
-  &.type-1 { background: rgba(70,191,145,0.15); color: $color-mint-green; border: 1px solid rgba(70,191,145,0.25); }
-  &.type-2 { background: rgba(201,154,69,0.15); color: $color-amber;      border: 1px solid rgba(201,154,69,0.25); }
-}
-
-.contact-cell {
-  .contact-name { font-size: 13px; color: $text-secondary; }
-  .contact-phone { font-size: 11px; color: $text-muted; font-family: 'Space Mono', monospace; margin-top: 2px; }
-}
-
-.text-secondary { color: $text-secondary; font-size: 13px; }
-.no-data { color: $text-muted; font-size: 12px; }
-
-.amount-value {
-  font-family: 'Space Mono', monospace;
-  font-size: 12px;
-  color: $text-secondary;
-}
-
-.amount-negative { color: $color-red-brown !important; }
-
-// 操作按钮
-.action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 3px 8px;
-  background: transparent;
-  border: 1px solid rgba(0, 212, 255, 0.2);
-  border-radius: 4px;
-  color: $color-ice-blue;
-  font-size: 12px;
-  font-family: 'Noto Sans SC', sans-serif;
-  cursor: pointer;
-  transition: all 0.15s;
-  margin-right: 4px;
-
+.customer-card {
+  background: $layer-2; border: 1px solid rgba(0,212,255,0.1);
+  border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s;
+  position: relative; overflow: hidden;
   &:hover {
-    background: rgba(0, 212, 255, 0.08);
-    border-color: rgba(0, 212, 255, 0.4);
-    color: $cyan-primary;
+    border-color: rgba(0,212,255,0.35);
+    box-shadow: 0 4px 20px rgba(0,212,255,0.08);
+    transform: translateY(-1px);
+    .card-actions { opacity: 1; }
   }
-
-  &--more {
-    color: $text-muted;
-    border-color: $border-panel;
-
-    &:hover {
-      color: $text-secondary;
-      border-color: rgba(0, 212, 255, 0.2);
-    }
-  }
+}
+.card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+.card-avatar {
+  width: 38px; height: 38px; flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(0,102,255,0.2), rgba(0,212,255,0.15));
+  border: 1px solid rgba(0,212,255,0.2); border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  .avatar-letter { font-size: 16px; font-weight: 700; color: $cyan-primary; }
+}
+.card-title-area { flex: 1; min-width: 0; }
+.card-name {
+  font-size: 14px; font-weight: 600; color: $text-primary;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px;
+}
+.card-code { font-size: 11px; color: $text-muted; font-family: 'Space Mono', monospace; }
+.card-level-badge {
+  flex-shrink: 0; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500;
+  &.level-vip { background: rgba(201,87,69,0.15); color: #C95745; border: 1px solid rgba(201,87,69,0.3); }
+  &.level-important { background: rgba(201,154,69,0.15); color: #C99A45; border: 1px solid rgba(201,154,69,0.3); }
+  &.level-normal { background: rgba(107,122,141,0.15); color: #8A9BB0; border: 1px solid rgba(107,122,141,0.3); }
+  &.level-lead { background: rgba(70,191,145,0.12); color: #46BF91; border: 1px solid rgba(70,191,145,0.3); }
+  &.level-bpo { background: rgba(0,212,255,0.12); color: $cyan-primary; border: 1px solid rgba(0,212,255,0.3); }
+  &.level-vpo { background: rgba(0,212,255,0.12); color: $cyan-primary; border: 1px solid rgba(0,212,255,0.3); }
+}
+.card-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.card-type-badge {
+  font-size: 11px; padding: 1px 7px;
+  background: rgba(50,149,201,0.12); border: 1px solid rgba(50,149,201,0.25);
+  border-radius: 3px; color: $color-steel-cyan;
+}
+.card-industry {
+  font-size: 11px; padding: 1px 7px;
+  background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.18);
+  border-radius: 3px; color: $cyan-primary;
+}
+.card-contact {
+  margin-bottom: 12px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;
+}
+.contact-row {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: $text-secondary; margin-bottom: 5px;
+  svg { flex-shrink: 0; color: $text-muted; }
+  &.no-contact { color: $text-muted; font-style: italic; }
+}
+.contact-phone { color: $text-muted; margin-left: 4px; font-family: 'Space Mono', monospace; font-size: 11px; }
+.card-footer { display: flex; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
+.card-stat {
+  flex: 1;
+  &:not(:last-child) { border-right: 1px solid rgba(255,255,255,0.05); padding-right: 12px; margin-right: 12px; }
+}
+.card-stat-label { font-size: 11px; color: $text-muted; margin-bottom: 3px; }
+.card-stat-value {
+  font-size: 15px; font-weight: 700; color: $text-primary; font-family: 'Space Mono', monospace;
+  &--highlight { color: $cyan-primary; }
+}
+.card-actions {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(to top, rgba(10,22,40,0.95) 0%, transparent 100%);
+  padding: 20px 16px 12px;
+  display: flex; gap: 8px; justify-content: flex-end;
+  opacity: 0; transition: opacity 0.2s;
+}
+.card-action-btn {
+  padding: 5px 12px; font-size: 12px; border-radius: 5px;
+  border: 1px solid rgba(0,212,255,0.3); background: rgba(0,212,255,0.1);
+  color: $cyan-primary; cursor: pointer; transition: all 0.15s; font-family: 'Noto Sans SC', sans-serif;
+  &:hover { background: rgba(0,212,255,0.2); }
+  &--danger { border-color: rgba(201,87,69,0.3); background: rgba(201,87,69,0.1); color: #C95745; }
+  &--danger:hover { background: rgba(201,87,69,0.2); }
+}
+.empty-state {
+  grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 60px 0; color: $text-muted; gap: 12px;
+  svg { opacity: 0.3; } p { font-size: 14px; margin: 0; }
 }
 
 // 分页
 .pagination-wrapper {
-  padding: 16px 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: 20px;
   display: flex;
   justify-content: flex-end;
 }
