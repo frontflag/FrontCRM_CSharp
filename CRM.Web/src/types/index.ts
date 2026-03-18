@@ -4,3 +4,7 @@ export type { Customer, CustomerInfo, CustomerContactInfo, CustomerAddress, Cust
 export type { CreateCustomerRequest, UpdateCustomerRequest } from './customer'
 export type { CustomerSearchRequest, CustomerSearchResponse, CustomerStatistics } from './customer'
 export type { CreateContactRequest, CreateAddressRequest, CreateBankInfoRequest } from './customer'
+
+export * from './vendor'
+export type { Vendor, VendorContactInfo, VendorSearchRequest, VendorSearchResponse } from './vendor'
+export type { CreateVendorRequest, UpdateVendorRequest, AddVendorContactRequest, UpdateVendorContactRequest } from './vendor'

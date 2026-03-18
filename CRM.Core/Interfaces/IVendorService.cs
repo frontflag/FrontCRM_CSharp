@@ -35,12 +35,12 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 删除
         /// </summary>
-        Task DeleteAsync(string id);
+        Task DeleteAsync(string id, string? reason = null);
 
         /// <summary>
         /// 批量删除
         /// </summary>
-        Task BatchDeleteAsync(IEnumerable<string> ids);
+        Task BatchDeleteAsync(IEnumerable<string> ids, string? reason = null);
 
         /// <summary>
         /// 更新状态
@@ -51,6 +51,283 @@ namespace CRM.Core.Interfaces
         /// 搜索
         /// </summary>
         Task<IEnumerable<VendorInfo>> SearchAsync(string keyword);
+
+        /// <summary>
+        /// 获取供应商联系人列表
+        /// </summary>
+        Task<IEnumerable<VendorContactInfo>> GetContactsByVendorIdAsync(string vendorId);
+
+        /// <summary>
+        /// 添加供应商联系人
+        /// </summary>
+        Task<VendorContactInfo> AddContactAsync(string vendorId, AddVendorContactRequest request);
+
+        /// <summary>
+        /// 更新供应商联系人
+        /// </summary>
+        Task<VendorContactInfo> UpdateContactAsync(string contactId, UpdateVendorContactRequest request);
+
+        /// <summary>
+        /// 删除供应商联系人
+        /// </summary>
+        Task DeleteContactAsync(string contactId);
+
+        /// <summary>
+        /// 设置主联系人
+        /// </summary>
+        Task SetMainContactAsync(string contactId);
+
+        /// <summary>
+        /// 获取供应商地址列表
+        /// </summary>
+        Task<IEnumerable<VendorAddress>> GetAddressesByVendorIdAsync(string vendorId);
+
+        /// <summary>
+        /// 添加供应商地址
+        /// </summary>
+        Task<VendorAddress> AddAddressAsync(string vendorId, AddVendorAddressRequest request);
+
+        /// <summary>
+        /// 更新供应商地址
+        /// </summary>
+        Task<VendorAddress> UpdateAddressAsync(string addressId, UpdateVendorAddressRequest request);
+
+        /// <summary>
+        /// 删除供应商地址
+        /// </summary>
+        Task DeleteAddressAsync(string addressId);
+
+        /// <summary>
+        /// 设置默认地址
+        /// </summary>
+        Task SetDefaultAddressAsync(string addressId);
+
+        /// <summary>
+        /// 获取供应商银行账户列表
+        /// </summary>
+        Task<IEnumerable<VendorBankInfo>> GetBanksByVendorIdAsync(string vendorId);
+
+        /// <summary>
+        /// 添加供应商银行账户
+        /// </summary>
+        Task<VendorBankInfo> AddBankAsync(string vendorId, AddVendorBankRequest request);
+
+        /// <summary>
+        /// 更新供应商银行账户
+        /// </summary>
+        Task<VendorBankInfo> UpdateBankAsync(string bankId, UpdateVendorBankRequest request);
+
+        /// <summary>
+        /// 删除供应商银行账户
+        /// </summary>
+        Task DeleteBankAsync(string bankId);
+
+        /// <summary>
+        /// 设置默认银行账户
+        /// </summary>
+        Task SetDefaultBankAsync(string bankId);
+
+        /// <summary>
+        /// 加入黑名单
+        /// </summary>
+        Task AddToBlacklistAsync(string id, string? reason);
+
+        /// <summary>
+        /// 移出黑名单
+        /// </summary>
+        Task RemoveFromBlacklistAsync(string id);
+
+        /// <summary>
+        /// 获取黑名单供应商分页列表
+        /// </summary>
+        Task<PagedResult<VendorInfo>> GetBlacklistAsync(VendorQueryRequest request);
+
+        /// <summary>
+        /// 获取已删除供应商（回收站）分页列表
+        /// </summary>
+        Task<PagedResult<VendorInfo>> GetDeletedAsync(int pageIndex, int pageSize, string? keyword);
+
+        /// <summary>
+        /// 恢复已删除供应商
+        /// </summary>
+        Task RestoreAsync(string id);
+
+        /// <summary>
+        /// 获取供应商联系历史
+        /// </summary>
+        Task<IEnumerable<VendorContactHistory>> GetContactHistoryAsync(string vendorId);
+
+        /// <summary>
+        /// 添加供应商联系记录
+        /// </summary>
+        Task<VendorContactHistory> AddContactHistoryAsync(string vendorId, AddVendorContactHistoryRequest request);
+
+        /// <summary>
+        /// 更新供应商联系记录
+        /// </summary>
+        Task<VendorContactHistory> UpdateContactHistoryAsync(string historyId, UpdateVendorContactHistoryRequest request);
+
+        /// <summary>
+        /// 删除供应商联系记录
+        /// </summary>
+        Task DeleteContactHistoryAsync(string historyId);
+
+        /// <summary>
+        /// 获取供应商操作日志
+        /// </summary>
+        Task<IEnumerable<VendorOperationLog>> GetOperationLogsAsync(string vendorId);
+
+        /// <summary>
+        /// 获取供应商字段变更日志
+        /// </summary>
+        Task<IEnumerable<VendorChangeLog>> GetChangeLogsAsync(string vendorId);
+    }
+
+    /// <summary>
+    /// 添加供应商联系人请求
+    /// </summary>
+    public class AddVendorContactRequest
+    {
+        public string? CName { get; set; }
+        public string? EName { get; set; }
+        public string? Title { get; set; }
+        public string? Department { get; set; }
+        public string? Mobile { get; set; }
+        public string? Tel { get; set; }
+        public string? Email { get; set; }
+        public bool IsMain { get; set; }
+        public string? Remark { get; set; }
+    }
+
+    /// <summary>
+    /// 更新供应商联系人请求
+    /// </summary>
+    public class UpdateVendorContactRequest
+    {
+        public string? CName { get; set; }
+        public string? EName { get; set; }
+        public string? Title { get; set; }
+        public string? Department { get; set; }
+        public string? Mobile { get; set; }
+        public string? Tel { get; set; }
+        public string? Email { get; set; }
+        public bool? IsMain { get; set; }
+        public string? Remark { get; set; }
+    }
+
+    /// <summary>
+    /// 添加供应商地址请求
+    /// </summary>
+    public class AddVendorAddressRequest
+    {
+        public short AddressType { get; set; } = 1;
+        public short? Country { get; set; }
+        public string? Province { get; set; }
+        public string? City { get; set; }
+        public string? Area { get; set; }
+        public string? Address { get; set; }
+        public string? ContactName { get; set; }
+        public string? ContactPhone { get; set; }
+        public bool IsDefault { get; set; } = false;
+    }
+
+    /// <summary>
+    /// 更新供应商地址请求
+    /// </summary>
+    public class UpdateVendorAddressRequest
+    {
+        public short? AddressType { get; set; }
+        public short? Country { get; set; }
+        public string? Province { get; set; }
+        public string? City { get; set; }
+        public string? Area { get; set; }
+        public string? Address { get; set; }
+        public string? ContactName { get; set; }
+        public string? ContactPhone { get; set; }
+        public bool? IsDefault { get; set; }
+    }
+
+    /// <summary>
+    /// 添加供应商银行信息请求
+    /// </summary>
+    public class AddVendorBankRequest
+    {
+        public string? BankName { get; set; }
+        public string? BankAccount { get; set; }
+        public string? AccountName { get; set; }
+        public string? BankBranch { get; set; }
+        public short? Currency { get; set; }
+        public bool IsDefault { get; set; } = false;
+        public string? Remark { get; set; }
+    }
+
+    /// <summary>
+    /// 更新供应商银行信息请求
+    /// </summary>
+    public class UpdateVendorBankRequest
+    {
+        public string? BankName { get; set; }
+        public string? BankAccount { get; set; }
+        public string? AccountName { get; set; }
+        public string? BankBranch { get; set; }
+        public short? Currency { get; set; }
+        public bool? IsDefault { get; set; }
+        public string? Remark { get; set; }
+    }
+
+    /// <summary>
+    /// 添加供应商联系历史请求
+    /// </summary>
+    public class AddVendorContactHistoryRequest
+    {
+        public string? Type { get; set; } = "call";
+        /// <summary>ContactType 是 Type 的别名，前端兼容字段（可为数字或字符串）</summary>
+        public string? ContactType
+        {
+            get => Type;
+            set => Type = value is null ? null : int.TryParse(value, out var n) ? n switch
+            {
+                1 => "call",
+                2 => "visit",
+                3 => "email",
+                4 => "meeting",
+                _ => "other"
+            } : value;
+        }
+
+        public string? Subject { get; set; }
+        public string? Content { get; set; }
+        public string? ContactPerson { get; set; }
+        public DateTime? Time { get; set; }
+        public DateTime? NextFollowUpTime { get; set; }
+        public string? Result { get; set; }
+    }
+
+    /// <summary>
+    /// 更新供应商联系历史请求
+    /// </summary>
+    public class UpdateVendorContactHistoryRequest
+    {
+        public string? Type { get; set; }
+        public string? ContactType
+        {
+            get => Type;
+            set => Type = value is null ? null : int.TryParse(value, out var n) ? n switch
+            {
+                1 => "call",
+                2 => "visit",
+                3 => "email",
+                4 => "meeting",
+                _ => "other"
+            } : value;
+        }
+
+        public string? Subject { get; set; }
+        public string? Content { get; set; }
+        public string? ContactPerson { get; set; }
+        public DateTime? Time { get; set; }
+        public DateTime? NextFollowUpTime { get; set; }
+        public string? Result { get; set; }
     }
 
     /// <summary>
@@ -81,5 +358,36 @@ namespace CRM.Core.Interfaces
         public int PageSize { get; set; } = 10;
         public string? Keyword { get; set; }
         public short? Status { get; set; }
+    }
+
+    /// <summary>
+    /// 供应商操作日志
+    /// </summary>
+    public class VendorOperationLog
+    {
+        public string Id { get; set; } = string.Empty;
+        public string VendorId { get; set; } = string.Empty;
+        public string OperationType { get; set; } = string.Empty;
+        public string? OperationDesc { get; set; }
+        public string? OperatorUserId { get; set; }
+        public string? OperatorUserName { get; set; }
+        public DateTime OperationTime { get; set; }
+        public string? Remark { get; set; }
+    }
+
+    /// <summary>
+    /// 供应商字段变更日志
+    /// </summary>
+    public class VendorChangeLog
+    {
+        public string Id { get; set; } = string.Empty;
+        public string VendorId { get; set; } = string.Empty;
+        public string FieldName { get; set; } = string.Empty;
+        public string? FieldLabel { get; set; }
+        public string? OldValue { get; set; }
+        public string? NewValue { get; set; }
+        public string? ChangedByUserId { get; set; }
+        public string? ChangedByUserName { get; set; }
+        public DateTime ChangedAt { get; set; }
     }
 }

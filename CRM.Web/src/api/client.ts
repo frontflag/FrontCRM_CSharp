@@ -81,6 +81,10 @@ class ApiClient {
   public delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
     return this.instance.delete(url, config)
   }
+
+  public patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    return this.instance.patch(url, data, config)
+  }
 }
 
 export const apiClient = new ApiClient()

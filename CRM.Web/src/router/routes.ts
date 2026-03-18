@@ -90,12 +90,125 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/RFQ/RFQEdit.vue'),
         meta: { requiresAuth: true, title: '编辑 RFQ' }
       },
+      // 供应商管理
+      {
+        path: 'vendors',
+        name: 'VendorList',
+        component: () => import('@/views/Vendor/VendorList.vue'),
+        meta: { requiresAuth: true, title: '供应商管理' }
+      },
+      {
+        path: 'vendors/create',
+        name: 'VendorCreate',
+        component: () => import('@/views/Vendor/VendorEdit.vue'),
+        meta: { requiresAuth: true, title: '新增供应商' }
+      },
+      {
+        path: 'vendors/recycle-bin',
+        name: 'VendorRecycleBin',
+        component: () => import('@/views/Vendor/VendorRecycleBin.vue'),
+        meta: { requiresAuth: true, title: '供应商回收站' }
+      },
+      {
+        path: 'vendors/blacklist',
+        name: 'VendorBlacklist',
+        component: () => import('@/views/Vendor/VendorBlacklist.vue'),
+        meta: { requiresAuth: true, title: '供应商黑名单' }
+      },
+      {
+        path: 'vendors/:id',
+        name: 'VendorDetail',
+        component: () => import('@/views/Vendor/VendorDetail.vue'),
+        meta: { requiresAuth: true, title: '供应商详情' }
+      },
+      {
+        path: 'vendors/:id/edit',
+        name: 'VendorEdit',
+        component: () => import('@/views/Vendor/VendorEdit.vue'),
+        meta: { requiresAuth: true, title: '编辑供应商' }
+      },
+      // 库存管理
+      {
+        path: 'inventory/list',
+        name: 'InventoryList',
+        component: () => import('@/views/Inventory/InventoryList.vue'),
+        meta: { requiresAuth: true, title: '库存列表' }
+      },
+      {
+        path: 'inventory/stock-in',
+        name: 'StockInList',
+        component: () => import('@/views/Inventory/StockInList.vue'),
+        meta: { requiresAuth: true, title: '入库单列表' }
+      },
+      {
+        path: 'inventory/stock-in/create',
+        name: 'StockInCreate',
+        component: () => import('@/views/Inventory/StockInEdit.vue'),
+        meta: { requiresAuth: true, title: '新建入库单' }
+      },
+      {
+        path: 'inventory/stock-in/:id',
+        name: 'StockInDetail',
+        component: () => import('@/views/Inventory/StockInEdit.vue'),
+        meta: { requiresAuth: true, title: '入库单详情' }
+      },
+      {
+        path: 'inventory/stock-out',
+        name: 'StockOutList',
+        component: () => import('@/views/Inventory/StockOutList.vue'),
+        meta: { requiresAuth: true, title: '出库单列表' }
+      },
+      {
+        path: 'inventory/stock-out/create',
+        name: 'StockOutCreate',
+        component: () => import('@/views/Inventory/StockOutEdit.vue'),
+        meta: { requiresAuth: true, title: '执行出库' }
+      },
+      {
+        path: 'inventory/transfer',
+        name: 'InventoryTransfer',
+        component: () => import('@/views/Inventory/InventoryTransfer.vue'),
+        meta: { requiresAuth: true, title: '库存调拨' }
+      },
+      {
+        path: 'inventory/check',
+        name: 'InventoryCheck',
+        component: () => import('@/views/Inventory/InventoryCheck.vue'),
+        meta: { requiresAuth: true, title: '库存盘点' }
+      },
+      // 报价管理
+      {
+        path: 'quotes',
+        name: 'QuoteList',
+        component: () => import('@/views/RFQ/QuoteList.vue'),
+        meta: { requiresAuth: true, title: '报价管理' }
+      },
+      // 采购订单
+      {
+        path: 'purchase-orders',
+        name: 'PurchaseOrderList',
+        component: () => import('@/views/RFQ/PurchaseOrderList.vue'),
+        meta: { requiresAuth: true, title: '采购订单' }
+      },
+      // 销售订单
+      {
+        path: 'sales-orders',
+        name: 'SalesOrderList',
+        component: () => import('@/views/RFQ/SalesOrderList.vue'),
+        meta: { requiresAuth: true, title: '销售订单' }
+      },
       // 系统设置
       {
         path: 'dashboard/settings',
         name: 'Settings',
         component: () => import('@/views/Dashboard/SettingsView.vue'),
         meta: { requiresAuth: true, title: '系统设置' }
+      },
+      {
+        path: 'documents/demo',
+        name: 'DocumentDemo',
+        component: () => import('@/views/Document/DocumentDemo.vue'),
+        meta: { requiresAuth: true, title: '文档模块演示' }
       }
     ]
   }

@@ -8,6 +8,9 @@ namespace CRM.Core.Interfaces
     public interface IStockOutService
     {
         Task<StockOutRequest> CreateStockOutRequestAsync(CreateStockOutRequestRequest request);
+        /// <summary>
+        /// 执行出库（内部包含预占/拣货/出库确认的 FIFO 逻辑）
+        /// </summary>
         Task<StockOut> ExecuteStockOutAsync(ExecuteStockOutRequest request);
         Task<StockOut?> GetByIdAsync(string id);
         Task<IEnumerable<StockOut>> GetAllAsync();

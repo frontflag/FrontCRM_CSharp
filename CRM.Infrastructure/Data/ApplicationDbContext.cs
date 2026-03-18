@@ -1,11 +1,14 @@
 using CRM.Core.Models;
 using CRM.Core.Models.Component;
 using CRM.Core.Models.Customer;
+using CRM.Core.Models.Document;
+using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.System;
+using CRM.Core.Models.Vendor;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Infrastructure.Data
@@ -24,6 +27,13 @@ namespace CRM.Infrastructure.Data
         public DbSet<CustomerContactInfo> CustomerContacts { get; set; } = null!;
         public DbSet<CustomerBankInfo> CustomerBanks { get; set; } = null!;
         public DbSet<CustomerContactHistory> CustomerContactHistories { get; set; } = null!;
+
+        // ===== 供应商相关表 =====
+        public DbSet<VendorInfo> Vendors { get; set; } = null!;
+        public DbSet<VendorAddress> VendorAddresses { get; set; } = null!;
+        public DbSet<VendorContactInfo> VendorContacts { get; set; } = null!;
+        public DbSet<VendorBankInfo> VendorBanks { get; set; } = null!;
+        public DbSet<VendorContactHistory> VendorContactHistories { get; set; } = null!;
 
         // ===== 新增系统表 =====
         public DbSet<SysSerialNumber> SerialNumbers { get; set; } = null!;
@@ -47,6 +57,18 @@ namespace CRM.Infrastructure.Data
         // ===== 采购订单模块 =====
         public DbSet<PurchaseOrder> PurchaseOrders { get; set; } = null!;
         public DbSet<PurchaseOrderItem> PurchaseOrderItems { get; set; } = null!;
+
+        // ===== 库存/入库/出库 =====
+        public DbSet<StockInfo> Stocks { get; set; } = null!;
+        public DbSet<StockIn> StockIns { get; set; } = null!;
+        public DbSet<StockInItem> StockInItems { get; set; } = null!;
+        public DbSet<StockOut> StockOuts { get; set; } = null!;
+        public DbSet<StockOutItem> StockOutItems { get; set; } = null!;
+        public DbSet<StockOutRequest> StockOutRequests { get; set; } = null!;
+
+        // ===== 文档模块 =====
+        public DbSet<UploadDocument> UploadDocuments { get; set; } = null!;
+        public DbSet<DocumentDailySequence> DocumentDailySequences { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -227,6 +249,63 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Content).HasMaxLength(500);
             });
 
+            // Vendor configuration
+            modelBuilder.Entity<VendorInfo>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Code).IsRequired().HasMaxLength(16);
+                entity.Property(e => e.OfficialName).HasMaxLength(64);
+                entity.Property(e => e.NickName).HasMaxLength(64);
+            });
+
+            // Vendor Address configuration
+            modelBuilder.Entity<VendorAddress>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Address).HasMaxLength(200);
+                entity.Property(e => e.ContactName).HasMaxLength(50);
+                entity.Property(e => e.ContactPhone).HasMaxLength(20);
+            });
+
+            // Vendor Contact configuration
+            modelBuilder.Entity<VendorContactInfo>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.CName).HasMaxLength(50);
+                entity.Property(e => e.EName).HasMaxLength(100);
+                entity.Property(e => e.Mobile).HasMaxLength(20);
+                entity.Property(e => e.Tel).HasMaxLength(30);
+                entity.Property(e => e.Email).HasMaxLength(100);
+            });
+
+            // Vendor Bank configuration
+            modelBuilder.Entity<VendorBankInfo>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.BankName).HasMaxLength(100);
+                entity.Property(e => e.BankAccount).HasMaxLength(50);
+                entity.Property(e => e.AccountName).HasMaxLength(50);
+                entity.Property(e => e.BankBranch).HasMaxLength(100);
+            });
+
+            // Vendor Contact History configuration
+            modelBuilder.Entity<VendorContactHistory>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.VendorId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.Type).HasMaxLength(50);
+                entity.Property(e => e.Content).HasMaxLength(500);
+            });
+
+            // Vendor Contact History configuration
+            modelBuilder.Entity<VendorContactHistory>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.VendorId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.Type).HasMaxLength(50);
+                entity.Property(e => e.Content).HasMaxLength(500);
+            });
+
             // ===== 流水号管理表配置 =====
             modelBuilder.Entity<SysSerialNumber>(entity =>
             {
@@ -282,6 +361,92 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.PriceTrendJson).HasColumnType("text");
                 entity.Property(e => e.NewsJson).HasColumnType("text");
                 entity.Property(e => e.Description).HasColumnType("text");
+            });
+
+            // ===== 库存/入库/出库表配置 =====
+            modelBuilder.Entity<StockInfo>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.MaterialId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.WarehouseId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.LocationId).HasMaxLength(36);
+                entity.Property(e => e.Unit).HasMaxLength(20);
+                entity.Property(e => e.BatchNo).HasMaxLength(50);
+                entity.Property(e => e.Remark).HasMaxLength(500);
+            });
+
+            modelBuilder.Entity<StockIn>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.StockInCode).IsRequired().HasMaxLength(32);
+                entity.Property(e => e.SourceCode).HasMaxLength(32);
+                entity.Property(e => e.WarehouseId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.VendorId).HasMaxLength(36);
+                entity.Property(e => e.Remark).HasMaxLength(500);
+                entity.HasMany(e => e.Items).WithOne(e => e.StockIn).HasForeignKey(e => e.StockInId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<StockInItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.StockInId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.MaterialId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.LocationId).HasMaxLength(36);
+                entity.Property(e => e.BatchNo).HasMaxLength(50);
+                entity.Property(e => e.Remark).HasMaxLength(500);
+            });
+
+            modelBuilder.Entity<StockOut>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.StockOutCode).IsRequired().HasMaxLength(32);
+                entity.Property(e => e.SourceCode).HasMaxLength(32);
+                entity.Property(e => e.WarehouseId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.CustomerId).HasMaxLength(36);
+                entity.Property(e => e.Remark).HasMaxLength(500);
+                entity.HasMany(e => e.Items).WithOne(e => e.StockOut).HasForeignKey(e => e.StockOutId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<StockOutItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.StockOutId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.MaterialId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.LocationId).HasMaxLength(36);
+                entity.Property(e => e.BatchNo).HasMaxLength(50);
+                entity.Property(e => e.Remark).HasMaxLength(500);
+            });
+
+            modelBuilder.Entity<StockOutRequest>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.RequestCode).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.SalesOrderId).HasMaxLength(36);
+                entity.Property(e => e.CustomerId).HasMaxLength(36);
+                entity.Property(e => e.RequestUserId).HasMaxLength(36);
+                entity.Property(e => e.Remark).HasMaxLength(500);
+            });
+
+            // ===== 文档模块 =====
+            modelBuilder.Entity<UploadDocument>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.BizType).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.BizId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.OriginalFileName).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.StoredFileName).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.RelativePath).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.Remark).HasMaxLength(256);
+                entity.Property(e => e.ThumbnailRelativePath).HasMaxLength(500);
+                entity.Property(e => e.DeleteUserId).HasMaxLength(36);
+                entity.Property(e => e.UploadUserId).HasMaxLength(36);
+                entity.HasIndex(e => new { e.BizType, e.BizId });
+                entity.HasIndex(e => e.CreateTime);
+            });
+
+            modelBuilder.Entity<DocumentDailySequence>(entity =>
+            {
+                entity.HasKey(e => e.TheDate);
             });
         }
     }

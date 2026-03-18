@@ -50,7 +50,8 @@ try
             var context = services.GetRequiredService<ApplicationDbContext>();
             if (app.Environment.IsDevelopment())
             {
-                context.Database.EnsureCreated();
+                // 应用所有待处理的迁移
+                context.Database.Migrate();
             }
         }
         catch (Exception ex)

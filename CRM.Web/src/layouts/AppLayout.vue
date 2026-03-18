@@ -47,6 +47,7 @@
         <!-- 业务管理 -->
         <div class="menu-section-label" v-if="!isCollapsed">业务管理</div>
 
+        <!-- 采购管理 -->
         <div class="menu-group">
           <button class="menu-item has-children" @click="toggleGroup('purchase')" :class="{ 'group-open': openGroups.purchase }">
             <span class="menu-icon">
@@ -62,12 +63,13 @@
             </svg>
           </button>
           <div class="submenu" v-if="!isCollapsed && openGroups.purchase">
-            <button class="submenu-item" @click="handleUnimplemented('采购订单')">采购订单</button>
+            <router-link to="/purchase-orders" class="submenu-item" active-class="active">采购订单</router-link>
             <button class="submenu-item" @click="handleUnimplemented('收货管理')">收货管理</button>
             <button class="submenu-item" @click="handleUnimplemented('采购退货')">采购退货</button>
           </div>
         </div>
 
+        <!-- 销售管理 -->
         <div class="menu-group">
           <button class="menu-item has-children" @click="toggleGroup('sales')" :class="{ 'group-open': openGroups.sales }">
             <span class="menu-icon">
@@ -81,12 +83,13 @@
             </svg>
           </button>
           <div class="submenu" v-if="!isCollapsed && openGroups.sales">
-            <button class="submenu-item" @click="handleUnimplemented('销售订单')">销售订单</button>
+            <router-link to="/sales-orders" class="submenu-item" active-class="active">销售订单</router-link>
             <button class="submenu-item" @click="handleUnimplemented('发货管理')">发货管理</button>
             <button class="submenu-item" @click="handleUnimplemented('销售退货')">销售退货</button>
           </div>
         </div>
 
+        <!-- 库存管理 -->
         <div class="menu-group">
           <button class="menu-item has-children" @click="toggleGroup('inventory')" :class="{ 'group-open': openGroups.inventory }">
             <span class="menu-icon">
@@ -102,9 +105,11 @@
             </svg>
           </button>
           <div class="submenu" v-if="!isCollapsed && openGroups.inventory">
-            <button class="submenu-item" @click="handleUnimplemented('库存列表')">库存列表</button>
-            <button class="submenu-item" @click="handleUnimplemented('库存调拨')">库存调拨</button>
-            <button class="submenu-item" @click="handleUnimplemented('库存盘点')">库存盘点</button>
+            <router-link to="/inventory/list" class="submenu-item" active-class="active">库存列表</router-link>
+            <router-link to="/inventory/stock-in" class="submenu-item" active-class="active">入库管理</router-link>
+            <router-link to="/inventory/stock-out" class="submenu-item" active-class="active">出库管理</router-link>
+            <router-link to="/inventory/transfer" class="submenu-item" active-class="active">库存调拨</router-link>
+            <router-link to="/inventory/check" class="submenu-item" active-class="active">库存盘点</router-link>
           </div>
         </div>
 
@@ -144,10 +149,21 @@
           <span class="menu-label" v-if="!isCollapsed">BOM 批量报价</span>
         </button>
 
+        <!-- 报价管理 -->
+        <router-link to="/quotes" class="menu-item" active-class="active">
+          <span class="menu-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M12 2v20M2 12h20"/>
+            </svg>
+          </span>
+          <span class="menu-label" v-if="!isCollapsed">报价管理</span>
+          <span class="active-dot" v-if="!isCollapsed"></span>
+        </router-link>
+
         <!-- 基础资料 -->
         <div class="menu-section-label" v-if="!isCollapsed">基础资料</div>
 
-        <button class="menu-item" @click="handleUnimplemented('供应商管理')">
+        <router-link to="/vendors" class="menu-item" active-class="active">
           <span class="menu-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
@@ -157,7 +173,7 @@
             </svg>
           </span>
           <span class="menu-label" v-if="!isCollapsed">供应商管理</span>
-        </button>
+        </router-link>
 
         <div class="menu-group">
           <button class="menu-item has-children" @click="toggleGroup('customers')" :class="{ 'group-open': openGroups.customers }">
@@ -273,7 +289,8 @@ const openGroups = ref({
   purchase: false,
   sales: false,
   inventory: false,
-  customers: false
+  customers: false,
+  finance: false
 })
 
 const toggleCollapse = () => {
@@ -297,12 +314,19 @@ const pageTitleMap: Record<string, string> = {
   '/customers/create': '新增客户',
   '/customers/recycle-bin': '客户回收站',
   '/customers/blacklist': '黑名单管理',
-  '/suppliers': '供应商管理',
+  '/vendors': '供应商管理',
+  '/vendors/create': '新增供应商',
+  '/inventory/list': '库存列表',
+  '/inventory/stock-in': '入库管理',
+  '/inventory/stock-out': '出库管理',
+  '/inventory/transfer': '库存调拨',
+  '/inventory/check': '库存盘点',
   '/reports': '报表分析',
   '/dashboard/settings': '系统设置',
   '/rfqs': 'RFQ 管理',
-  '/smart/quote-match': '需求匹配报价',
-  '/smart/bom-quote': 'BOM 批量报价',
+  '/quotes': '报价管理',
+  '/purchase-orders': '采购订单',
+  '/sales-orders': '销售订单',
 }
 
 const currentPageTitle = computed(() => {
@@ -310,6 +334,8 @@ const currentPageTitle = computed(() => {
   if (pageTitleMap[path]) return pageTitleMap[path]
   if (path.includes('/customers/') && path.includes('/edit')) return '编辑客户'
   if (path.includes('/customers/')) return '客户详情'
+  if (path.includes('/vendors/') && path.includes('/edit')) return '编辑供应商'
+  if (path === '/vendors/create') return '新增供应商'
   return route.meta?.title as string || 'FrontCRM'
 })
 

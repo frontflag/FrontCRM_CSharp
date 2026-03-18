@@ -38,24 +38,6 @@ namespace CRM.Core.Models.Inventory
         public string? LocationId { get; set; }
 
         /// <summary>
-        /// 库存数量
-        /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal Quantity { get; set; } = 0.0000m;
-
-        /// <summary>
-        /// 可用数量
-        /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal AvailableQuantity { get; set; } = 0.0000m;
-
-        /// <summary>
-        /// 锁定数量
-        /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal LockedQuantity { get; set; } = 0.0000m;
-
-        /// <summary>
         /// 单位
         /// </summary>
         [StringLength(20)]
@@ -76,6 +58,60 @@ namespace CRM.Core.Models.Inventory
         /// 过期日期
         /// </summary>
         public DateTime? ExpiryDate { get; set; }
+
+        /// <summary>
+        /// 库存数量（旧字段，等价于当前库存）
+        /// </summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal Quantity { get; set; } = 0.0000m;
+
+        /// <summary>
+        /// 可用数量（旧字段，等价于可用库存）
+        /// </summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal AvailableQuantity { get; set; } = 0.0000m;
+
+        /// <summary>
+        /// 锁定数量（旧字段，用于占用）
+        /// </summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal LockedQuantity { get; set; } = 0.0000m;
+
+        /// <summary>
+        /// 总入库数量（累计入库量，文档中的 Qty）
+        /// </summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal Qty { get; set; } = 0.0000m;
+
+        /// <summary>
+        /// 已出库数量（文档中的 QtyStockOut）
+        /// </summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal QtyStockOut { get; set; } = 0.0000m;
+
+        /// <summary>
+        /// 拣货占用数量（文档中的 QtyOccupy）
+        /// </summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal QtyOccupy { get; set; } = 0.0000m;
+
+        /// <summary>
+        /// 销售预占数量（文档中的 QtySales）
+        /// </summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal QtySales { get; set; } = 0.0000m;
+
+        /// <summary>
+        /// 当前库存数量（QtyRepertory = Qty - QtyStockOut）
+        /// </summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal QtyRepertory { get; set; } = 0.0000m;
+
+        /// <summary>
+        /// 可用库存数量（QtyRepertoryAvailable = QtyRepertory - QtyOccupy - QtySales）
+        /// </summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal QtyRepertoryAvailable { get; set; } = 0.0000m;
 
         /// <summary>
         /// 状态 (1:正常 0:冻结)
@@ -140,6 +176,12 @@ namespace CRM.Core.Models.Inventory
         public DateTime StockInDate { get; set; } = DateTime.UtcNow;
 
         /// <summary>
+        /// 来源单ID（例如采购订单ID）
+        /// </summary>
+        [StringLength(36)]
+        public string? SourceId { get; set; }
+
+        /// <summary>
         /// 入库总数
         /// </summary>
         [Column(TypeName = "numeric(18,4)")]
@@ -155,6 +197,28 @@ namespace CRM.Core.Models.Inventory
         /// 状态 (0:草稿 1:待入库 2:已入库 3:已取消)
         /// </summary>
         public short Status { get; set; } = 0;
+
+        /// <summary>
+        /// 质检状态 (0:未质检 1:合格 2:不合格)
+        /// </summary>
+        public short InspectStatus { get; set; } = 0;
+
+        /// <summary>
+        /// 创建人
+        /// </summary>
+        [StringLength(36)]
+        public string? CreatedBy { get; set; }
+
+        /// <summary>
+        /// 审核人
+        /// </summary>
+        [StringLength(36)]
+        public string? ApprovedBy { get; set; }
+
+        /// <summary>
+        /// 审核时间
+        /// </summary>
+        public DateTime? ApprovedTime { get; set; }
 
         /// <summary>
         /// 备注
@@ -201,6 +265,18 @@ namespace CRM.Core.Models.Inventory
         public decimal Quantity { get; set; } = 0.0000m;
 
         /// <summary>
+        /// 订单数量（来源订单应收数量）
+        /// </summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal OrderQty { get; set; } = 0.0000m;
+
+        /// <summary>
+        /// 累计已入库数量（多次部分入库）
+        /// </summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal QtyReceived { get; set; } = 0.0000m;
+
+        /// <summary>
         /// 单价
         /// </summary>
         [Column(TypeName = "numeric(18,4)")]
@@ -233,6 +309,11 @@ namespace CRM.Core.Models.Inventory
         /// 过期日期
         /// </summary>
         public DateTime? ExpiryDate { get; set; }
+
+        /// <summary>
+        /// 是否质检合格
+        /// </summary>
+        public bool IsQualified { get; set; } = true;
 
         /// <summary>
         /// 备注
@@ -278,6 +359,12 @@ namespace CRM.Core.Models.Inventory
         public string? SourceCode { get; set; }
 
         /// <summary>
+        /// 来源单ID
+        /// </summary>
+        [StringLength(36)]
+        public string? SourceId { get; set; }
+
+        /// <summary>
         /// 仓库ID
         /// </summary>
         [Required]
@@ -311,6 +398,28 @@ namespace CRM.Core.Models.Inventory
         /// 状态 (0:草稿 1:待出库 2:已出库 3:已取消)
         /// </summary>
         public short Status { get; set; } = 0;
+
+        /// <summary>
+        /// 拣货人
+        /// </summary>
+        [StringLength(36)]
+        public string? PickerId { get; set; }
+
+        /// <summary>
+        /// 拣货完成时间
+        /// </summary>
+        public DateTime? PickedTime { get; set; }
+
+        /// <summary>
+        /// 出库确认人
+        /// </summary>
+        [StringLength(36)]
+        public string? ConfirmedBy { get; set; }
+
+        /// <summary>
+        /// 出库确认时间
+        /// </summary>
+        public DateTime? ConfirmedTime { get; set; }
 
         /// <summary>
         /// 备注
@@ -357,6 +466,30 @@ namespace CRM.Core.Models.Inventory
         public decimal Quantity { get; set; } = 0.0000m;
 
         /// <summary>
+        /// 订单应出数量
+        /// </summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal OrderQty { get; set; } = 0.0000m;
+
+        /// <summary>
+        /// 计划出库数量
+        /// </summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal PlanQty { get; set; } = 0.0000m;
+
+        /// <summary>
+        /// 拣货占用数量
+        /// </summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal PickQty { get; set; } = 0.0000m;
+
+        /// <summary>
+        /// 实际出库数量
+        /// </summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal ActualQty { get; set; } = 0.0000m;
+
+        /// <summary>
         /// 单价
         /// </summary>
         [Column(TypeName = "numeric(18,4)")]
@@ -373,6 +506,18 @@ namespace CRM.Core.Models.Inventory
         /// </summary>
         [StringLength(36)]
         public string? LocationId { get; set; }
+
+        /// <summary>
+        /// 库存记录ID（对应 StockInfo.Id）
+        /// </summary>
+        [StringLength(36)]
+        public string? StockId { get; set; }
+
+        /// <summary>
+        /// 仓库ID（冗余，方便查询）
+        /// </summary>
+        [StringLength(36)]
+        public string? WarehouseId { get; set; }
 
         /// <summary>
         /// 批次号

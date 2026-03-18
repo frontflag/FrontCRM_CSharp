@@ -223,6 +223,22 @@ namespace CRM.Core.Models.Vendor
         /// </summary>
         public short Status { get; set; } = 0;
 
+        /// <summary>
+        /// 是否已删除（软删除）
+        /// </summary>
+        public bool IsDeleted { get; set; } = false;
+
+        /// <summary>
+        /// 删除时间
+        /// </summary>
+        public DateTime? DeleteTime { get; set; }
+
+        /// <summary>
+        /// 删除原因
+        /// </summary>
+        [StringLength(200)]
+        public string? DeleteReason { get; set; }
+
         // 导航属性
         public virtual ICollection<VendorContactInfo> Contacts { get; set; } = new List<VendorContactInfo>();
         public virtual ICollection<VendorAddress> Addresses { get; set; } = new List<VendorAddress>();

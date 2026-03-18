@@ -1,12 +1,14 @@
 using CRM.API.Services.Interfaces;
 using CRM.API.Services.Implementations;
 using CRM.Core.Constants;
+using CRM.Core.Document;
 using CRM.Core.Interfaces;
 using CRM.Core.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using CRM.Infrastructure.Extensions;
+using CRM.Infrastructure.Document;
 
 namespace CRM.API.Extensions
 {
@@ -27,6 +29,11 @@ namespace CRM.API.Extensions
             services.AddScoped<IQuoteService, QuoteService>();
             services.AddScoped<IRepository<CRM.Core.Models.Quote.Quote>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Quote.Quote>>();
             services.AddScoped<IRepository<CRM.Core.Models.Quote.QuoteItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Quote.QuoteItem>>();
+            services.AddScoped<IVendorService, VendorService>();
+            services.AddScoped<IStockInService, StockInService>();
+            services.AddScoped<IStockOutService, StockOutService>();
+            services.AddScoped<IStockService, StockService>();
+            services.AddDocumentModule(configuration);
 
             // 销售订单模块
             services.AddScoped<ISalesOrderService, SalesOrderService>();
