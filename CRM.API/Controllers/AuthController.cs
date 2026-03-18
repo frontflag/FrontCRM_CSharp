@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.API.Services.Interfaces;
+using CRM.Core.Interfaces;
 
 namespace CRM.API.Controllers
 {
@@ -11,11 +12,13 @@ namespace CRM.API.Controllers
     {
         private readonly IAuthService _authService;
         private readonly ILogger<AuthController> _logger;
+        private readonly IUserService _userService;
 
-        public AuthController(IAuthService authService, ILogger<AuthController> logger)
+        public AuthController(IAuthService authService, ILogger<AuthController> logger, IUserService userService)
         {
             _authService = authService;
             _logger = logger;
+            _userService = userService;
         }
 
         [HttpPost("register")]
@@ -70,6 +73,32 @@ namespace CRM.API.Controllers
                 UserName = userName,
                 Id = userId
             }, "获取用户信息成功"));
+        }
+
+        /// <summary>获取业务员列表（用于下拉选择）</summary>
+        [Authorize]
+        [HttpGet("users")]
+        public async Task<ActionResult<ApiResponse<object>>> GetUsers()
+        {
+            try
+            {
+                var users = await _userService.GetAllAsync();
+                var list = users
+                    .Where(u => u.Status == 1)
+                    .Select(u => new
+                    {
+                        id = u.Id,
+                        label = string.IsNullOrWhiteSpace(u.RealName) ? u.UserName : u.RealName,
+                        userName = u.UserName,
+                        realName = u.RealName
+                    });
+                return Ok(ApiResponse<object>.Ok(list, "获取用户列表成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetUsers failed");
+                return StatusCode(500, ApiResponse<object>.Fail("获取用户列表失败", 500));
+            }
         }
     }
 }

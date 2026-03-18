@@ -287,6 +287,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElNotification, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
 import { customerApi } from '@/api/customer';
+import { authApi } from '@/api/auth';
 import { regionData } from '@/data/regions';
 import type { CreateCustomerRequest } from '@/types/customer';
 
@@ -317,11 +318,18 @@ const formRules: FormRules = {
   customerLevel: [{ required: true, message: '请选择客户等级', trigger: 'change' }]
 };
 
-const salesPersonOptions = ref([
-  { value: 'user-001', label: '张三' },
-  { value: 'user-002', label: '李四' },
-  { value: 'user-003', label: '王五' }
-]);
+const salesPersonOptions = ref<Array<{ value: string; label: string }>>([]);
+
+const fetchSalesPersons = async () => {
+  try {
+    const res = await authApi.getUsers();
+    if (res.success && res.data) {
+      salesPersonOptions.value = res.data.map(u => ({ value: u.id, label: u.label }));
+    }
+  } catch {
+    // 加载失败时保持空列表，不影响其他功能
+  }
+};
 
 const regionOptions = regionData;
 
@@ -422,7 +430,10 @@ const handleSave = async (_submit: boolean) => {
 };
 
 const goBack = () => router.back();
-onMounted(() => fetchCustomerDetail());
+onMounted(() => {
+  fetchCustomerDetail();
+  fetchSalesPersons();
+});
 </script>
 
 <style scoped lang="scss">

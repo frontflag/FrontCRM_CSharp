@@ -35,5 +35,9 @@ export const authApi = {
 
   getCurrentUser(): Promise<ApiResponse<any>> {
     return apiClient.get('/api/v1/auth/me')
+  },
+
+  getUsers(): Promise<ApiResponse<Array<{ id: string; label: string; userName: string; realName?: string }>>> {
+    return apiClient.get('/api/v1/auth/users')
   }
 }
