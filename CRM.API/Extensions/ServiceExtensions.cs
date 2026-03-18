@@ -38,6 +38,23 @@ namespace CRM.API.Extensions
             services.AddScoped<IRepository<CRM.Core.Models.Purchase.PurchaseOrder>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Purchase.PurchaseOrder>>();
             services.AddScoped<IRepository<CRM.Core.Models.Purchase.PurchaseOrderItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Purchase.PurchaseOrderItem>>();
 
+            // 财务模块 - 付款
+            services.AddScoped<IFinancePaymentService, FinancePaymentService>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FinancePayment>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinancePayment>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FinancePaymentItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinancePaymentItem>>();
+            // 财务模块 - 收款
+            services.AddScoped<IFinanceReceiptService, FinanceReceiptService>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceReceipt>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceReceipt>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceReceiptItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceReceiptItem>>();
+            // 财务模块 - 进项发票
+            services.AddScoped<IFinancePurchaseInvoiceService, FinancePurchaseInvoiceService>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FinancePurchaseInvoice>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinancePurchaseInvoice>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FinancePurchaseInvoiceItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinancePurchaseInvoiceItem>>();
+            // 财务模块 - 销项发票
+            services.AddScoped<IFinanceSellInvoiceService, FinanceSellInvoiceService>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceSellInvoice>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceSellInvoice>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.SellInvoiceItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.SellInvoiceItem>>();
+
             services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll", policy =>
