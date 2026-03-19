@@ -27,12 +27,23 @@ namespace CRM.API.Services.Implementations
 
         public async Task<ApiResponse<AuthResponse>> RegisterAsync(RegisterRequest request)
         {
-            var existingUser = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == request.Email);
-
-            if (existingUser != null)
+            // 检查账号是否重名
+            var existingByUserName = await _context.Users
+                .FirstOrDefaultAsync(u => u.UserName == request.UserName);
+            if (existingByUserName != null)
             {
-                return ApiResponse<AuthResponse>.Fail("邮箱已被注册");
+                return ApiResponse<AuthResponse>.Fail("账号已存在，请更换其他账号名");
+            }
+
+            // 检查邮箱是否已被注册（如果提供了邮箱）
+            if (!string.IsNullOrWhiteSpace(request.Email))
+            {
+                var existingByEmail = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Email == request.Email);
+                if (existingByEmail != null)
+                {
+                    return ApiResponse<AuthResponse>.Fail("邮箱已被注册");
+                }
             }
 
             var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
@@ -62,12 +73,13 @@ namespace CRM.API.Services.Implementations
 
         public async Task<ApiResponse<AuthResponse>> LoginAsync(LoginRequest request)
         {
+            // 按账号（UserName）查询用户
             var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == request.Email);
+                .FirstOrDefaultAsync(u => u.UserName == request.UserName);
 
             if (user == null || !user.IsActive)
             {
-                return ApiResponse<AuthResponse>.Fail("用户不存在或已被禁用");
+                return ApiResponse<AuthResponse>.Fail("账号不存在或已被禁用");
             }
 
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))

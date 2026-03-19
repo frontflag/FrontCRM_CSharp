@@ -41,21 +41,20 @@
           @submit.prevent="handleLogin"
           class="login-form"
         >
-          <!-- 邮箱 -->
+          <!-- 账号 -->
           <div class="form-field">
-            <label class="field-label">邮箱地址</label>
-            <el-form-item prop="email">
+            <label class="field-label">登录账号</label>
+            <el-form-item prop="userName">
               <div class="input-wrapper">
                 <span class="input-icon">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                    <polyline points="22,6 12,13 2,6"/>
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
                   </svg>
                 </span>
                 <el-input
-                  v-model="form.email"
-                  type="email"
-                  placeholder="请输入邮箱地址"
+                  v-model="form.userName"
+                  placeholder="请输入登录账号"
                   class="custom-input"
                 />
               </div>
@@ -145,14 +144,14 @@ const loading = ref(false)
 const errorMsg = ref('')
 
 const form = reactive({
-  email: '',
+  userName: '',
   password: ''
 })
 
 const rules: FormRules = {
-  email: [
-    { required: true, message: '请输入邮箱地址', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }
+  userName: [
+    { required: true, message: '请输入登录账号', trigger: 'blur' },
+    { min: 2, max: 50, message: '账号长度在 2 到 50 个字符', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -173,7 +172,7 @@ const handleLogin = async () => {
       if (success) {
         router.push('/dashboard')
       } else {
-        errorMsg.value = '登录失败，请检查邮箱和密码'
+        errorMsg.value = '登录失败，请检查账号和密码'
       }
     } catch (error: any) {
       // 拦截器会抛出带 message 的错误对象
