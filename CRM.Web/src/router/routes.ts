@@ -102,6 +102,25 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/RFQ/RFQEdit.vue'),
         meta: { requiresAuth: true, title: '编辑 RFQ' }
       },
+      // BOM 快速报价
+      {
+        path: 'boms',
+        name: 'BOMList',
+        component: () => import('@/views/BOM/BOMList.vue'),
+        meta: { requiresAuth: true, title: 'BOM 快速报价' }
+      },
+      {
+        path: 'boms/create',
+        name: 'BOMCreate',
+        component: () => import('@/views/BOM/BOMCreate.vue'),
+        meta: { requiresAuth: true, title: '新建 BOM' }
+      },
+      {
+        path: 'boms/:id',
+        name: 'BOMDetail',
+        component: () => import('@/views/BOM/BOMDetail.vue'),
+        meta: { requiresAuth: true, title: 'BOM 详情' }
+      },
       // 供应商管理
       {
         path: 'vendors',

@@ -103,6 +103,19 @@
           <span class="active-dot" v-if="!isCollapsed"></span>
         </router-link>
 
+        <router-link to="/boms" class="menu-item" active-class="active">
+          <span class="menu-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <line x1="3" y1="9" x2="21" y2="9"/>
+              <line x1="9" y1="21" x2="9" y2="9"/>
+              <path d="M13 13h5M13 17h3"/>
+            </svg>
+          </span>
+          <span class="menu-label" v-if="!isCollapsed">BOM 快速报价</span>
+          <span class="active-dot" v-if="!isCollapsed"></span>
+        </router-link>
+
         <router-link to="/quotes" class="menu-item" active-class="active">
           <span class="menu-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
