@@ -363,13 +363,27 @@ const confirmUpdateStatus = async () => {
 }
 
 .order-desc {
+  :deep(.el-descriptions__body) {
+    background: transparent;
+  }
   :deep(.el-descriptions__label) {
     color: #5a7a9a;
     background: #0d1e35;
     width: 100px;
+    border-color: #1a2d45 !important;
   }
   :deep(.el-descriptions__content) {
     background: #0a1828;
+    border-color: #1a2d45 !important;
+  }
+  :deep(.el-descriptions__cell) {
+    border-color: #1a2d45 !important;
+  }
+  :deep(table) {
+    border-color: #1a2d45 !important;
+  }
+  :deep(td), :deep(th) {
+    border-color: #1a2d45 !important;
   }
 }
 
@@ -416,13 +430,28 @@ const confirmUpdateStatus = async () => {
 }
 
 .items-table {
+  :deep(.el-table) {
+    --el-table-border-color: #1a2d45;
+    --el-table-header-bg-color: #0d1e35;
+    --el-table-row-hover-bg-color: #0f2035;
+    --el-table-bg-color: #0a1828;
+    --el-table-tr-bg-color: #0a1828;
+    background: #0a1828;
+    color: #c8dff0;
+  }
   :deep(.el-table__header-wrapper th) {
     background: #0d1e35;
     color: #5a7a9a;
+    border-color: #1a2d45 !important;
   }
   :deep(.el-table__row td) {
     background: #0a1828;
-    border-color: #1a2d45;
+    border-color: #1a2d45 !important;
+  }
+  :deep(.el-table__border-left-patch),
+  :deep(.el-table__inner-wrapper::before),
+  :deep(.el-table__inner-wrapper::after) {
+    background: #1a2d45;
   }
 }
 
