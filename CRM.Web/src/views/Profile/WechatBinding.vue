@@ -91,9 +91,10 @@ let pollingTimer: number | null = null
 // 获取绑定信息
 async function fetchBindInfo() {
   try {
-    const res = await getWechatBindInfo()
-    if (res.success) {
-      bindInfo.value = res.data
+    // apiClient 拦截器已解包，res 直接是业务数据
+    const res = await getWechatBindInfo() as any
+    if (res != null) {
+      bindInfo.value = res
     }
   } catch (error) {
     console.error('获取绑定信息失败', error)
@@ -105,10 +106,11 @@ async function generateQrCode() {
   generating.value = true
   bindStatus.value = 'pending'
   try {
-    const res = await generateBindQrCode()
-    if (res.success) {
-      bindQrCode.value = res.data.qrCodeUrl
-      bindId.value = res.data.bindId
+    // apiClient 拦截器已解包，res 直接是业务数据
+    const res = await generateBindQrCode() as any
+    if (res?.qrCodeUrl) {
+      bindQrCode.value = res.qrCodeUrl
+      bindId.value = res.bindId
       startPolling()
     }
   } catch (error) {
@@ -121,25 +123,26 @@ async function generateQrCode() {
 function startPolling() {
   pollingTimer = window.setInterval(async () => {
     try {
-      const res = await checkBindStatus(bindId.value)
-      if (!res.success) return
+      // apiClient 拦截器已解包，res 直接是业务数据
+      const res = await checkBindStatus(bindId.value) as any
+      if (res?.status == null) return
 
-      bindStatus.value = res.data.status
+      bindStatus.value = res.status
 
-      if (res.data.status === 'success') {
+      if (res.status === 'success') {
         clearInterval(pollingTimer!)
         pollingTimer = null
         ElMessage.success('微信绑定成功！')
         // 更新绑定信息
         bindInfo.value = {
           isBound: true,
-          nickname: res.data.nickname,
+          nickname: res.nickname,
           avatarUrl: undefined, // 需要重新获取
           bindTime: new Date().toISOString()
         }
         // 重新获取完整信息
         setTimeout(fetchBindInfo, 500)
-      } else if (res.data.status === 'expired') {
+      } else if (res.status === 'expired') {
         clearInterval(pollingTimer!)
         pollingTimer = null
       }
@@ -158,14 +161,13 @@ async function handleUnbind() {
       { type: 'warning' }
     )
 
-    const res = await unbindWechat()
-    if (res.success) {
-      ElMessage.success('已解除微信绑定')
-      bindQrCode.value = ''
-      bindId.value = ''
-      bindStatus.value = ''
-      fetchBindInfo()
-    }
+    // apiClient 拦截器已解包，请求成功则直接返回数据
+    await unbindWechat()
+    ElMessage.success('已解除微信绑定')
+    bindQrCode.value = ''
+    bindId.value = ''
+    bindStatus.value = ''
+    fetchBindInfo()
   } catch {
     // 取消
   }

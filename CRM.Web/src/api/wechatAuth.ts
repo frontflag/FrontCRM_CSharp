@@ -1,4 +1,4 @@
-import request from '@/utils/request'
+import request from '@/api/client'
 
 // ==================== 扫码登录相关 ====================
 

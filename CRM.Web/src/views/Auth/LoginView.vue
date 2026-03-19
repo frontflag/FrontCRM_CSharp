@@ -255,10 +255,11 @@ async function generateQrCode() {
   try {
     qrStatus.value = 0
     qrCodeUrl.value = ''
-    const res = await getWechatQrCode({ deviceType: 'web' })
-    if (res.success) {
-      qrCodeUrl.value = res.data.qrCodeUrl
-      qrTicket.value = res.data.ticket
+    // apiClient 拦截器已解包，res 直接是业务数据
+    const res = await getWechatQrCode({ deviceType: 'web' }) as any
+    if (res?.qrCodeUrl) {
+      qrCodeUrl.value = res.qrCodeUrl
+      qrTicket.value = res.ticket
       startPolling()
     }
   } catch (error) {
@@ -276,24 +277,29 @@ function refreshQrCode() {
 function startPolling() {
   pollingTimer = window.setInterval(async () => {
     try {
-      const res = await checkWechatLoginStatus(qrTicket.value)
-      if (!res.success) return
+      // apiClient 拦截器已解包，res 直接是业务数据
+      const res = await checkWechatLoginStatus(qrTicket.value) as any
+      if (res?.status == null) return
 
-      qrStatus.value = res.data.status
+      qrStatus.value = res.status
 
-      switch (res.data.status) {
+      switch (res.status) {
         case 2: // 登录成功
           stopPolling()
-          if (res.data.authData) {
-            authStore.setToken(res.data.authData.token)
-            authStore.setUserInfo({
-              userName: res.data.authData.userName,
-              email: res.data.authData.email,
-              userId: res.data.authData.userId,
-              isSysAdmin: res.data.authData.isSysAdmin,
-              roles: res.data.authData.roleCodes,
-              permissions: res.data.authData.permissionCodes
-            })
+          if (res.authData) {
+            const authData = res.authData
+            authStore.token = authData.token
+            authStore.user = {
+              id: authData.userId || '0',
+              userName: authData.userName,
+              email: authData.email,
+              isSysAdmin: !!authData.isSysAdmin,
+              roleCodes: authData.roleCodes || [],
+              permissionCodes: authData.permissionCodes || [],
+              departmentIds: authData.departmentIds || []
+            }
+            localStorage.setItem('token', authData.token)
+            localStorage.setItem('user', JSON.stringify(authStore.user))
             router.push('/dashboard')
           }
           break
