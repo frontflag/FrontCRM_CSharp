@@ -60,10 +60,11 @@ try
             if (app.Environment.IsDevelopment())
             {
                 // 应用所有待处理的迁移
-                //临时屏蔽 context.Database.Migrate();
+                context.Database.Migrate();
 
-                context.Database.EnsureDeleted();
-                context.Database.EnsureCreated();
+                //删除原数据库，根据当前实体重新创建数据库。 临时屏蔽，用于开发测试。
+                //context.Database.EnsureDeleted();
+                //context.Database.EnsureCreated();
             }
         }
         catch (Exception ex)

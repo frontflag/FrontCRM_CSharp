@@ -250,7 +250,7 @@
     </el-dialog>
 
     <!-- 查看详情对话框 -->
-    <el-dialog v-model="viewDialogVisible" title="采购订单详情" width="800px">
+    <el-dialog v-model="viewDialogVisible" title="采购订单详情" width="820px">
       <el-descriptions :column="2" border v-if="currentRow">
         <el-descriptions-item label="订单号">{{ currentRow.purchaseOrderCode }}</el-descriptions-item>
         <el-descriptions-item label="状态">
@@ -264,6 +264,14 @@
         <el-descriptions-item label="行项目数">{{ currentRow.itemRows }}</el-descriptions-item>
         <el-descriptions-item label="交货日期">{{ currentRow.deliveryDate }}</el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ currentRow.createTime }}</el-descriptions-item>
+        <el-descriptions-item label="标签" :span="2">
+          <div class="tags-row">
+            <TagListDisplay :tags="currentTags" />
+            <el-button size="small" type="primary" link @click="openTagDialog">
+              添加标签
+            </el-button>
+          </div>
+        </el-descriptions-item>
         <el-descriptions-item label="送货地址" :span="2">{{ currentRow.deliveryAddress }}</el-descriptions-item>
         <el-descriptions-item label="备注" :span="2">{{ currentRow.comment }}</el-descriptions-item>
         <el-descriptions-item label="内部备注" :span="2">{{ currentRow.innerComment }}</el-descriptions-item>
@@ -286,6 +294,14 @@
         </el-table-column>
       </el-table>
     </el-dialog>
+
+    <ApplyTagsDialog
+      v-model="tagDialogVisible"
+      entity-type="PURCHASE_ORDER"
+      :entity-ids="currentRow ? [currentRow.id] : []"
+      title="为采购订单添加标签"
+      @success="refreshCurrentTags"
+    />
 
     <!-- 状态更新对话框 -->
     <el-dialog v-model="statusDialogVisible" title="更新状态" width="400px">
@@ -316,6 +332,9 @@ import { Plus, Search, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 // 使用模拟数据API
 import { mockPurchaseOrderApi as purchaseOrderApi } from '@/api/mockPurchaseOrder'
+import { tagApi, type TagDefinitionDto } from '@/api/tag'
+import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
+import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 
 const loading = ref(false)
 const orderList = ref<any[]>([])
@@ -344,6 +363,10 @@ const formRef = ref()
 const currentRow = ref<any>(null)
 const isEdit = ref(false)
 const newStatus = ref(0)
+
+// 标签
+const currentTags = ref<TagDefinitionDto[]>([])
+const tagDialogVisible = ref(false)
 
 // 表单数据
 const formData = ref({
@@ -499,6 +522,7 @@ const handleEdit = (row: any) => {
 const handleView = (row: any) => {
   currentRow.value = row
   viewDialogVisible.value = true
+  refreshCurrentTags()
 }
 
 // 更多操作
@@ -532,6 +556,26 @@ const confirmUpdateStatus = async () => {
   await purchaseOrderApi.updateStatus(currentRow.value.id, newStatus.value)
   statusDialogVisible.value = false
   loadData()
+}
+
+const refreshCurrentTags = async () => {
+  if (!currentRow.value?.id) {
+    currentTags.value = []
+    return
+  }
+  try {
+    currentTags.value = await tagApi.getEntityTags('PURCHASE_ORDER', currentRow.value.id)
+  } catch {
+    currentTags.value = []
+  }
+}
+
+const openTagDialog = () => {
+  if (!currentRow.value?.id) {
+    ElMessage.warning('请先选择要操作的采购订单')
+    return
+  }
+  tagDialogVisible.value = true
 }
 
 // 添加/删除明细
@@ -676,5 +720,11 @@ onMounted(loadData)
       color: #00D4FF;
     }
   }
+}
+
+.tags-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 </style>

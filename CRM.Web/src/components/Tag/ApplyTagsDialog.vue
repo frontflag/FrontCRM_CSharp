@@ -86,6 +86,7 @@ const loading = ref(false);
 const searchText = ref('');
 const allTags = ref<TagDefinitionDto[]>([]);
 const selectedTags = ref<TagDefinitionDto[]>([]);
+const originalTagIds = ref<string[]>([]);
 
 const filteredAvailable = computed(() => {
   const keyword = searchText.value.trim().toLowerCase();
@@ -104,6 +105,9 @@ const onOpen = async () => {
   if (props.entityIds.length === 1) {
     const existing = await tagApi.getEntityTags(props.entityType, props.entityIds[0]);
     selectedTags.value = existing;
+    originalTagIds.value = existing.map(t => t.id);
+  } else {
+    originalTagIds.value = [];
   }
 };
 
@@ -137,16 +141,35 @@ const handleEnterCreate = async () => {
 const handleConfirm = async () => {
   loading.value = true;
   try {
-    await tagApi.applyTags({
-      entityType: props.entityType,
-      entityIds: props.entityIds,
-      tagIds: selectedTags.value.map(t => t.id),
-    });
+    const currentIds = selectedTags.value.map(t => t.id);
+    const toAdd = currentIds.filter(id => !originalTagIds.value.includes(id));
+    const toRemove = originalTagIds.value.filter(id => !currentIds.includes(id));
+
+    if (toAdd.length) {
+      await tagApi.applyTags({
+        entityType: props.entityType,
+        entityIds: props.entityIds,
+        tagIds: toAdd,
+      });
+    }
+
+    if (toRemove.length) {
+      await tagApi.removeTags({
+        entityType: props.entityType,
+        entityIds: props.entityIds,
+        tagIds: toRemove,
+      });
+    }
+
     ElMessage.success('标签已更新');
+    originalTagIds.value = currentIds;
     emit('update:modelValue', false);
     emit('success');
-  } catch {
-    ElMessage.warning('标签保存失败，后端接口暂未开放');
+  } catch (error: any) {
+    const msg =
+      (error && (error.message || error.msg || error.error)) ||
+      '标签保存失败，请稍后重试';
+    ElMessage.error(msg);
     emit('update:modelValue', false);
   } finally {
     loading.value = false;
