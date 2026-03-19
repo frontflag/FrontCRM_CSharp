@@ -250,49 +250,78 @@
     </el-dialog>
 
     <!-- 查看详情对话框 -->
-    <el-dialog v-model="viewDialogVisible" title="采购订单详情" width="820px">
-      <el-descriptions :column="2" border v-if="currentRow">
-        <el-descriptions-item label="订单号">{{ currentRow.purchaseOrderCode }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <el-tag :type="getStatusType(currentRow.status)">{{ getStatusText(currentRow.status) }}</el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="供应商">{{ currentRow.vendorName }}</el-descriptions-item>
-        <el-descriptions-item label="采购员">{{ currentRow.purchaseUserName }}</el-descriptions-item>
-        <el-descriptions-item label="总金额">
-          <span class="amount">{{ formatCurrency(currentRow.total, currentRow.currency) }}</span>
-        </el-descriptions-item>
-        <el-descriptions-item label="行项目数">{{ currentRow.itemRows }}</el-descriptions-item>
-        <el-descriptions-item label="交货日期">{{ currentRow.deliveryDate }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ currentRow.createTime }}</el-descriptions-item>
-        <el-descriptions-item label="标签" :span="2">
-          <div class="tags-row">
-            <TagListDisplay :tags="currentTags" />
-            <el-button size="small" type="primary" link @click="openTagDialog">
-              添加标签
-            </el-button>
+    <el-dialog v-model="viewDialogVisible" title="采购订单详情" width="860px" @open="activeDetailTab = 'info'">
+      <el-tabs v-model="activeDetailTab" class="detail-tabs">
+        <!-- 基本信息 Tab -->
+        <el-tab-pane label="基本信息" name="info">
+          <el-descriptions :column="2" border v-if="currentRow">
+            <el-descriptions-item label="订单号">{{ currentRow.purchaseOrderCode }}</el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="getStatusType(currentRow.status)">{{ getStatusText(currentRow.status) }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="供应商">{{ currentRow.vendorName }}</el-descriptions-item>
+            <el-descriptions-item label="采购员">{{ currentRow.purchaseUserName }}</el-descriptions-item>
+            <el-descriptions-item label="总金额">
+              <span class="amount">{{ formatCurrency(currentRow.total, currentRow.currency) }}</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="行项目数">{{ currentRow.itemRows }}</el-descriptions-item>
+            <el-descriptions-item label="交货日期">{{ currentRow.deliveryDate }}</el-descriptions-item>
+            <el-descriptions-item label="创建时间">{{ currentRow.createTime }}</el-descriptions-item>
+            <el-descriptions-item label="标签" :span="2">
+              <div class="tags-row">
+                <TagListDisplay :tags="currentTags" />
+                <el-button size="small" type="primary" link @click="openTagDialog">
+                  添加标签
+                </el-button>
+              </div>
+            </el-descriptions-item>
+            <el-descriptions-item label="送货地址" :span="2">{{ currentRow.deliveryAddress }}</el-descriptions-item>
+            <el-descriptions-item label="备注" :span="2">{{ currentRow.comment }}</el-descriptions-item>
+            <el-descriptions-item label="内部备注" :span="2">{{ currentRow.innerComment }}</el-descriptions-item>
+          </el-descriptions>
+        </el-tab-pane>
+
+        <!-- 订单明细 Tab -->
+        <el-tab-pane label="订单明细" name="items">
+          <el-table :data="currentRow?.items" border size="small" v-if="currentRow?.items?.length">
+            <el-table-column type="index" width="50" />
+            <el-table-column prop="pn" label="物料型号" />
+            <el-table-column prop="brand" label="品牌" />
+            <el-table-column prop="qty" label="数量" align="right" />
+            <el-table-column prop="cost" label="单价" align="right">
+              <template #default="{ row }">
+                {{ formatCurrency(row.cost, row.currency) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="金额" align="right">
+              <template #default="{ row }">
+                {{ formatCurrency(row.qty * row.cost, row.currency) }}
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-empty v-else description="暂无明细" :image-size="60" />
+        </el-tab-pane>
+
+        <!-- 文档 Tab -->
+        <el-tab-pane label="文档" name="documents">
+          <div v-if="currentRow" class="doc-tab-content">
+            <DocumentUploadPanel
+              biz-type="PURCHASE_ORDER"
+              :biz-id="String(currentRow.id)"
+              :max-files="20"
+              :max-size-mb="100"
+              @uploaded="docListRef?.fetchList()"
+            />
+            <DocumentListPanel
+              ref="docListRef"
+              biz-type="PURCHASE_ORDER"
+              :biz-id="String(currentRow.id)"
+              view-mode="list"
+              style="margin-top: 16px;"
+            />
           </div>
-        </el-descriptions-item>
-        <el-descriptions-item label="送货地址" :span="2">{{ currentRow.deliveryAddress }}</el-descriptions-item>
-        <el-descriptions-item label="备注" :span="2">{{ currentRow.comment }}</el-descriptions-item>
-        <el-descriptions-item label="内部备注" :span="2">{{ currentRow.innerComment }}</el-descriptions-item>
-      </el-descriptions>
-      <h4 style="margin-top: 20px;">订单明细</h4>
-      <el-table :data="currentRow?.items" border size="small" v-if="currentRow?.items?.length">
-        <el-table-column type="index" width="50" />
-        <el-table-column prop="pn" label="物料型号" />
-        <el-table-column prop="brand" label="品牌" />
-        <el-table-column prop="qty" label="数量" align="right" />
-        <el-table-column prop="cost" label="单价" align="right">
-          <template #default="{ row }">
-            {{ formatCurrency(row.cost, row.currency) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="金额" align="right">
-          <template #default="{ row }">
-            {{ formatCurrency(row.qty * row.cost, row.currency) }}
-          </template>
-        </el-table-column>
-      </el-table>
+        </el-tab-pane>
+      </el-tabs>
     </el-dialog>
 
     <ApplyTagsDialog
@@ -335,6 +364,8 @@ import { mockPurchaseOrderApi as purchaseOrderApi } from '@/api/mockPurchaseOrde
 import { tagApi, type TagDefinitionDto } from '@/api/tag'
 import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
+import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
+import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 
 const loading = ref(false)
 const orderList = ref<any[]>([])
@@ -357,6 +388,8 @@ const pageInfo = ref({
 const dialogVisible = ref(false)
 const dialogTitle = ref('新建采购订单')
 const viewDialogVisible = ref(false)
+const activeDetailTab = ref('info')
+const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
 const statusDialogVisible = ref(false)
 const submitLoading = ref(false)
 const formRef = ref()
@@ -726,5 +759,16 @@ onMounted(loadData)
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.doc-tab-content {
+  padding: 8px 0;
+}
+.detail-tabs {
+  :deep(.el-tabs__header) {
+    margin-bottom: 16px;
+  }
+  :deep(.el-tabs__content) {
+    min-height: 200px;
+  }
 }
 </style>
