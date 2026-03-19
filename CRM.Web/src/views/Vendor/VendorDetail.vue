@@ -906,6 +906,22 @@ onMounted(fetchVendorTags);
   align-items: center;
   gap: 8px;
 }
+.btn-add-tag {
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px dashed rgba(0, 212, 255, 0.35);
+  background: transparent;
+  color: rgba(200, 216, 232, 0.85);
+  font-size: 11px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  &:hover {
+    background: rgba(0, 212, 255, 0.08);
+    border-color: rgba(0, 212, 255, 0.55);
+    color: rgba(0, 212, 255, 0.9);
+  }
+}
 
 .vendor-code {
   font-size: 12px;
