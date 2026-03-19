@@ -65,6 +65,18 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Customer/CustomerEdit.vue'),
         meta: { requiresAuth: true, title: '编辑客户' }
       },
+      {
+        path: 'customers/:id/contacts/create',
+        name: 'CustomerContactCreate',
+        component: () => import('@/views/Customer/CustomerContactEdit.vue'),
+        meta: { requiresAuth: true, title: '新增联系人' }
+      },
+      {
+        path: 'customers/:id/contacts/:contactId/edit',
+        name: 'CustomerContactEdit',
+        component: () => import('@/views/Customer/CustomerContactEdit.vue'),
+        meta: { requiresAuth: true, title: '编辑联系人' }
+      },
       // RFQ 管理
       {
         path: 'rfqs',
@@ -126,6 +138,18 @@ const routes: RouteRecordRaw[] = [
         name: 'VendorEdit',
         component: () => import('@/views/Vendor/VendorEdit.vue'),
         meta: { requiresAuth: true, title: '编辑供应商' }
+      },
+      {
+        path: 'vendors/:id/contacts/create',
+        name: 'VendorContactCreate',
+        component: () => import('@/views/Vendor/VendorContactEdit.vue'),
+        meta: { requiresAuth: true, title: '新增联系人' }
+      },
+      {
+        path: 'vendors/:id/contacts/:contactId/edit',
+        name: 'VendorContactEdit',
+        component: () => import('@/views/Vendor/VendorContactEdit.vue'),
+        meta: { requiresAuth: true, title: '编辑联系人' }
       },
       // 库存管理
       {

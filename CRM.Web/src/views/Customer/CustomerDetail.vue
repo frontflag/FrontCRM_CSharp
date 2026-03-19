@@ -152,15 +152,8 @@
           <div class="tabs-body">
             <!-- 联系人 -->
             <div v-show="activeTab === 'contacts'">
-              <!-- 内嵌联系人表单面板 -->
-              <ContactInlineForm
-                v-model="showContactDialog"
-                :customer-id="customerId"
-                :contact="editingContact"
-                @success="handleContactSuccess"
-              />
               <div class="tab-toolbar">
-                <button class="btn-add-item" @click="openAddContact">
+                <button class="btn-add-item" @click="goAddContact">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                   </svg>
@@ -197,7 +190,7 @@
                 </el-table-column>
                 <el-table-column label="操作" width="150" fixed="right">
                   <template #default="{ row }">
-                    <button class="action-btn" @click="editContact(row)">编辑</button>
+                    <button class="action-btn" @click="goEditContact(row)">编辑</button>
                     <button class="action-btn action-btn--danger" @click="deleteContact(row)">删除</button>
                   </template>
                 </el-table-column>
@@ -377,7 +370,7 @@
       </div>
     </div>
 
-    <!-- 对话框（ContactDialog 已替换为页面内嵌 ContactInlineForm，此处保留其他弹窗） -->
+    <!-- 对话框 -->
     <AddressDialog v-model="showAddressDialog" :customer-id="customerId" :address="editingAddress" @success="handleAddressSuccess" />
     <BankDialog v-model="showBankDialog" :customer-id="customerId" :bank="editingBank" @success="handleBankSuccess" />
 
@@ -428,7 +421,7 @@ import { tagApi, type TagDefinitionDto } from '@/api/tag';
 import TagListDisplay from '@/components/Tag/TagListDisplay.vue';
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue';
 import type { Customer, CustomerContactInfo, CustomerAddress, CustomerBankInfo } from '@/types/customer';
-import ContactInlineForm from './components/ContactInlineForm.vue';
+
 import AddressDialog from './components/AddressDialog.vue';
 import BankDialog from './components/BankDialog.vue';
 
@@ -439,10 +432,8 @@ const loading = ref(false);
 const customer = ref<Customer | null>(null);
 const customerTags = ref<TagDefinitionDto[]>([]);
 const activeTab = ref('contacts');
-const showContactDialog = ref(false);
 const showAddressDialog = ref(false);
 const showBankDialog = ref(false);
-const editingContact = ref<CustomerContactInfo | undefined>(undefined);
 const editingAddress = ref<CustomerAddress | undefined>(undefined);
 const editingBank = ref<CustomerBankInfo | undefined>(undefined);
 
@@ -566,8 +557,8 @@ const handleEdit = () => router.push(`/customers/${customerId}/edit`);
 const handleCreateQuote = () => ElNotification.info({ title: '功能开发中', message: '报价单功能正在开发中，敬请期待' });
 const handleCreateOrder = () => ElNotification.info({ title: '功能开发中', message: '订单功能正在开发中，敬请期待' });
 
-const openAddContact = () => { editingContact.value = undefined; showContactDialog.value = true; };
-const editContact = (contact: CustomerContactInfo) => { editingContact.value = contact; showContactDialog.value = true; };
+const goAddContact = () => router.push({ name: 'CustomerContactCreate', params: { id: customerId } });
+const goEditContact = (contact: CustomerContactInfo) => router.push({ name: 'CustomerContactEdit', params: { id: customerId, contactId: contact.id } });
 const deleteContact = async (contact: CustomerContactInfo) => {
   try {
     await ElMessageBox.confirm('确定要删除该联系人吗？', '确认删除', { type: 'warning' });
@@ -575,7 +566,7 @@ const deleteContact = async (contact: CustomerContactInfo) => {
     ElNotification.success({ title: '删除成功', message: '联系人已删除' }); fetchCustomerDetail();
   } catch (e) { if (e !== 'cancel') ElNotification.error({ title: '删除失败', message: '联系人删除失败' }); }
 };
-const handleContactSuccess = () => { editingContact.value = undefined; fetchCustomerDetail(); };
+
 
 const editAddress = (address: CustomerAddress) => { editingAddress.value = address; showAddressDialog.value = true; };
 const deleteAddress = async (address: CustomerAddress) => {

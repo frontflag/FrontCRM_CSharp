@@ -119,16 +119,8 @@
         </div>
         <div class="tabs-body">
           <div v-show="activeTab === 'contacts'" class="contacts-tab">
-            <!-- 内嵌联系人表单面板 -->
-            <VendorContactInlineForm
-              v-model="contactDialogVisible"
-              :mode="contactDialogMode"
-              :contact="editingContact"
-              :loading="contactSaving"
-              @confirm="handleContactDialogConfirm"
-            />
             <div class="contacts-toolbar">
-              <button class="btn-primary btn-sm" @click="openCreateContact">新增联系人</button>
+              <button class="btn-primary btn-sm" @click="goCreateContact">新增联系人</button>
             </div>
             <el-table :data="contacts" size="small" class="contacts-table">
               <el-table-column type="index" width="50" />
@@ -144,7 +136,7 @@
               </el-table-column>
               <el-table-column label="操作" width="200" fixed="right">
                 <template #default="{ row }">
-                  <button class="action-btn" @click="openEditContact(row)">编辑</button>
+                  <button class="action-btn" @click="goEditContact(row)">编辑</button>
                   <button class="action-btn action-btn--danger" @click="handleDeleteContact(row)">删除</button>
                   <button
                     v-if="!row.isMain"
@@ -318,7 +310,7 @@
       </div>
     </div>
 
-    <!-- VendorContactDialog 已替换为页面内嵌 VendorContactInlineForm -->
+
 
     <VendorAddressDialog
       v-model="addressDialogVisible"
@@ -352,8 +344,8 @@ import { vendorApi, vendorContactApi, vendorAddressApi, vendorBankApi } from '@/
 import { tagApi, type TagDefinitionDto } from '@/api/tag';
 import TagListDisplay from '@/components/Tag/TagListDisplay.vue';
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue';
-import type { Vendor, VendorContactInfo, VendorAddress, VendorBankInfo, AddVendorContactRequest, UpdateVendorContactRequest } from '@/types/vendor';
-import VendorContactInlineForm from './VendorContactInlineForm.vue';
+import type { Vendor, VendorContactInfo, VendorAddress, VendorBankInfo } from '@/types/vendor';
+
 import VendorAddressDialog from './VendorAddressDialog.vue';
 import VendorBankDialog from './VendorBankDialog.vue';
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue';
@@ -561,41 +553,8 @@ const handleRemoveFromBlacklist = async () => {
   }
 };
 
-const contactDialogVisible = ref(false);
-const contactDialogMode = ref<'create' | 'edit'>('create');
-const editingContact = ref<VendorContactInfo | null>(null);
-const contactSaving = ref(false);
-
-const openCreateContact = () => {
-  contactDialogMode.value = 'create';
-  editingContact.value = null;
-  contactDialogVisible.value = true;
-};
-
-const openEditContact = (row: VendorContactInfo) => {
-  contactDialogMode.value = 'edit';
-  editingContact.value = row;
-  contactDialogVisible.value = true;
-};
-
-const handleContactDialogConfirm = async (payload: AddVendorContactRequest | UpdateVendorContactRequest) => {
-  contactSaving.value = true;
-  try {
-    if (contactDialogMode.value === 'create') {
-      await vendorContactApi.createContact(vendorId, payload as AddVendorContactRequest);
-      ElMessage.success('联系人已新增');
-    } else if (editingContact.value) {
-      await vendorContactApi.updateContact(editingContact.value.id, payload as UpdateVendorContactRequest);
-      ElMessage.success('联系人已更新');
-    }
-    contactDialogVisible.value = false;
-    await refreshContacts();
-  } catch {
-    ElMessage.error('保存联系人失败');
-  } finally {
-    contactSaving.value = false;
-  }
-};
+const goCreateContact = () => router.push({ name: 'VendorContactCreate', params: { id: vendorId } });
+const goEditContact = (row: VendorContactInfo) => router.push({ name: 'VendorContactEdit', params: { id: vendorId, contactId: row.id } });
 
 const handleDeleteContact = async (row: VendorContactInfo) => {
   try {
