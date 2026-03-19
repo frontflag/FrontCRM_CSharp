@@ -756,6 +756,92 @@ onMounted(fetchVendor);
   }
 }
 
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-secondary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover { background: rgba(255,255,255,0.08); border-color: rgba(0,212,255,0.25); }
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, rgba(0,102,255,0.8), rgba(0,212,255,0.7));
+  border: 1px solid rgba(0,212,255,0.4);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,212,255,0.25); }
+  &--green {
+    background: linear-gradient(135deg, rgba(50,149,201,0.8), rgba(70,191,145,0.7));
+    border-color: rgba(70,191,145,0.4);
+    &:hover { box-shadow: 0 4px 16px rgba(70,191,145,0.25); }
+  }
+  &.btn-sm { padding: 5px 10px; font-size: 12px; }
+}
+
+.btn-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(201,154,69,0.15);
+  border: 1px solid rgba(201,154,69,0.4);
+  border-radius: $border-radius-md;
+  color: $color-amber;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover { background: rgba(201,154,69,0.25); }
+}
+
+.btn-warning-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid rgba(201,154,69,0.4);
+  border-radius: $border-radius-md;
+  color: $color-amber;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover { background: rgba(201,154,69,0.12); }
+}
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(201,87,69,0.15);
+  border: 1px solid rgba(201,87,69,0.4);
+  border-radius: $border-radius-md;
+  color: $color-red-brown;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover { background: rgba(201,87,69,0.25); }
+}
+
 .vendor-title-group {
   display: flex;
   align-items: center;
