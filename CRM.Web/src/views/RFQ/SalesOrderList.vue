@@ -105,7 +105,7 @@
           <template #default="{ row }">
             <el-button link type="primary" @click="handleView(row)">查看</el-button>
             <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-            <el-dropdown @command="(cmd) => handleMore(cmd, row)">
+            <el-dropdown @command="(cmd: string) => handleMore(cmd, row)">
               <el-button link type="primary">
                 更多<el-icon class="el-icon--right"><arrow-down /></el-icon>
               </el-button>
@@ -306,7 +306,7 @@
               :biz-id="String(currentRow.id)"
               :max-files="20"
               :max-size-mb="100"
-              @uploaded="docListRef?.fetchList()"
+              @uploaded="docListRef?.refresh()"
             />
             <DocumentListPanel
               ref="docListRef"

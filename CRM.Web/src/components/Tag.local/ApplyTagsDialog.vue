@@ -39,7 +39,7 @@
         >
           <span class="color-dot" :style="{ backgroundColor: tag.color || '#4FC3F7' }" />
           <span class="name">{{ tag.name }}</span>
-          <span class="meta">{{ tag.category || '通用' }}</span>
+          <span class="meta">{{ tag.description || '通用' }}</span>
         </div>
         <div v-if="!tagOptions.length" class="empty">
           暂无可用标签
@@ -59,7 +59,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import tagApi, { type TagDefinitionDto } from '@/api/tag'
+import { tagApi, type TagDefinitionDto } from '@/api/tag'
 
 const props = defineProps<{
   modelValue: boolean
@@ -106,14 +106,11 @@ const removeTag = (id: string) => {
 
 const fetchTags = async () => {
   try {
-    const res = await tagApi.getTags({
-      pageNumber: 1,
-      pageSize: 50,
-      entityType: props.entityType,
-      keyword: keyword.value || undefined,
-      status: 1
-    })
-    tagOptions.value = res.items
+    const all = await tagApi.getTagDefinitions(props.entityType)
+    const kw = keyword.value.trim().toLowerCase()
+    tagOptions.value = kw
+      ? all.filter(t => t.name.toLowerCase().includes(kw))
+      : all
   } catch {
     tagOptions.value = []
   }
@@ -148,11 +145,10 @@ const handleConfirm = async () => {
 
   saving.value = true
   try {
-    await tagApi.applyTagsToEntities({
+    await tagApi.applyTags({
       entityType: props.entityType,
       entityIds: props.entityIds,
-      tagIds: selectedTags.value.map(t => t.id),
-      source: 'Manual'
+      tagIds: selectedTags.value.map(t => t.id)
     })
     ElMessage.success('打标签成功')
     visibleInner.value = false

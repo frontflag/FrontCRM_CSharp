@@ -187,7 +187,7 @@ export const mockPurchaseOrderApi = {
   // 自动生成(以销定采)
   async autoGenerate(sellOrderId: string) {
     await delay(800)
-    ElMessage.success('已根据销售订单生成采购订单')
+    ElMessage.success(`已根据销售订单 ${sellOrderId} 生成采购订单`)
     return { success: true, data: [] }
   }
 }

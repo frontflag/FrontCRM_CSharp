@@ -246,7 +246,7 @@ const searchCustomers = async (query: string) => {
   customerLoading.value = true
   try {
     const { customerApi } = await import('@/api/customer')
-    const res = await customerApi.searchCustomers({ keyword: query, pageSize: 20 })
+    const res = await customerApi.searchCustomers({ searchTerm: query, pageSize: 20 })
     customerOptions.value = (res.items || []).map((c: any) => ({ id: c.id, name: c.name }))
   } catch {
     customerOptions.value = []

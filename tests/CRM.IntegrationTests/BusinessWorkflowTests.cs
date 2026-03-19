@@ -21,6 +21,7 @@ namespace CRM.IntegrationTests
         private readonly IRepository<PurchaseOrderItem> _poItemRepository;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IDataPermissionService _dataPermissionService;
         private readonly RFQService _rfqService;
         private readonly QuoteService _quoteService;
         private readonly SalesOrderService _salesOrderService;
@@ -37,14 +38,22 @@ namespace CRM.IntegrationTests
             _poItemRepository = Substitute.For<IRepository<PurchaseOrderItem>>();
             _serialNumberService = Substitute.For<ISerialNumberService>();
             _unitOfWork = Substitute.For<IUnitOfWork>();
+            _dataPermissionService = Substitute.For<IDataPermissionService>();
             _serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
-            _rfqService = new RFQService(_rfqRepository, _rfqItemRepository, null!, _unitOfWork, _serialNumberService);
+            _rfqService = new RFQService(
+                _rfqRepository,
+                _rfqItemRepository,
+                null!,
+                _unitOfWork,
+                _serialNumberService,
+                _dataPermissionService);
             _quoteService = new QuoteService(_quoteRepository, _quoteItemRepository);
             _salesOrderService = new SalesOrderService(
                 _salesOrderRepository,
                 _salesOrderItemRepository,
                 _poRepository,
-                _poItemRepository);
+                _poItemRepository,
+                _dataPermissionService);
         }
 
         [Fact]

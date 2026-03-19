@@ -206,12 +206,12 @@ onMounted(async () => {
   pageLoading.value = true;
   try {
     // 加载客户名称用于面包屑
-    const customer = await customerApi.getCustomerDetail(customerId);
+    const customer = await customerApi.getCustomerById(customerId);
     customerName.value = customer.customerName || '客户详情';
 
     // 编辑模式：加载联系人数据
     if (isEdit.value && contactId) {
-      const detail = await customerApi.getCustomerDetail(customerId);
+      const detail = await customerApi.getCustomerById(customerId);
       const contact = detail.contacts?.find((c: any) => c.id === contactId);
       if (contact) {
         formData.value = {

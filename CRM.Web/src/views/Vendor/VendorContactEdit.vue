@@ -164,8 +164,8 @@ const formData = reactive<AddVendorContactRequest & { id?: string }>({
 onMounted(async () => {
   pageLoading.value = true;
   try {
-    const vendor = await vendorApi.getVendorDetail(vendorId);
-    vendorName.value = vendor.vendorName || vendor.cName || '供应商详情';
+    const vendor = await vendorApi.getVendorById(vendorId);
+    vendorName.value = vendor.officialName || vendor.nickName || vendor.code || '供应商详情';
 
     if (isEdit.value && contactId) {
       const contacts = vendor.contacts || [];

@@ -16,6 +16,7 @@ namespace CRM.Core.Tests.Services
         private readonly IRepository<RFQItem> _rfqItemRepository;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IDataPermissionService _dataPermissionService;
         private readonly RFQService _rfqService;
 
         public RFQServiceTests()
@@ -24,6 +25,7 @@ namespace CRM.Core.Tests.Services
             _rfqItemRepository = Substitute.For<IRepository<RFQItem>>();
             _serialNumberService = Substitute.For<ISerialNumberService>();
             _unitOfWork = Substitute.For<IUnitOfWork>();
+            _dataPermissionService = Substitute.For<IDataPermissionService>();
 
             // 默认序列号生成
             _serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -33,7 +35,8 @@ namespace CRM.Core.Tests.Services
                 _rfqItemRepository,
                 null!,
                 _unitOfWork,
-                _serialNumberService);
+                _serialNumberService,
+                _dataPermissionService);
         }
 
         [Fact]

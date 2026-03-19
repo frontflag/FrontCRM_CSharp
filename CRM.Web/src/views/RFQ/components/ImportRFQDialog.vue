@@ -281,7 +281,7 @@ async function searchCustomers(query: string) {
   if (!query) return
   customerSearchLoading.value = true
   try {
-    const res = await customerApi.searchCustomers({ keyword: query, pageSize: 20 })
+    const res = await customerApi.searchCustomers({ searchTerm: query, pageSize: 20 })
     customerOptions.value = res.items || []
   } catch {
     customerOptions.value = []
