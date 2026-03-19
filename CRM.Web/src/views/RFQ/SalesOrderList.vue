@@ -247,86 +247,7 @@
       </template>
     </el-dialog>
 
-    <!-- 查看详情对话框 -->
-    <el-dialog v-model="viewDialogVisible" title="销售订单详情" width="900px" @open="activeDetailTab = 'items'">
-      <!-- 固定显示：基本信息 -->
-      <el-descriptions :column="2" border v-if="currentRow" style="margin-bottom: 16px;">
-        <el-descriptions-item label="订单号">{{ currentRow.sellOrderCode }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <el-tag :type="getStatusType(currentRow.status)">{{ getStatusText(currentRow.status) }}</el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item v-if="canViewCustomerInfo" label="客户">{{ currentRow.customerName }}</el-descriptions-item>
-        <el-descriptions-item label="业务员">{{ currentRow.salesUserName }}</el-descriptions-item>
-        <el-descriptions-item v-if="canViewSalesAmount" label="总金额">
-          <span class="amount">{{ formatCurrency(currentRow.total, currentRow.currency) }}</span>
-        </el-descriptions-item>
-        <el-descriptions-item label="行项目数">{{ currentRow.itemRows }}</el-descriptions-item>
-        <el-descriptions-item label="交货日期">{{ currentRow.deliveryDate }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ currentRow.createTime }}</el-descriptions-item>
-        <el-descriptions-item label="标签" :span="2">
-          <div class="tags-row">
-            <TagListDisplay :tags="currentTags" />
-            <el-button size="small" type="primary" link @click="openTagDialog">
-              添加标签
-            </el-button>
-          </div>
-        </el-descriptions-item>
-        <el-descriptions-item label="送货地址" :span="2">{{ currentRow.deliveryAddress }}</el-descriptions-item>
-        <el-descriptions-item label="备注" :span="2">{{ currentRow.comment }}</el-descriptions-item>
-      </el-descriptions>
 
-      <!-- TabBar：订单明细 | 文档 -->
-      <el-tabs v-model="activeDetailTab" class="detail-tabs">
-        <!-- 订单明细 Tab -->
-        <el-tab-pane label="订单明细" name="items">
-          <el-table :data="currentRow?.items" border size="small" v-if="currentRow?.items?.length">
-            <el-table-column type="index" width="50" />
-            <el-table-column prop="pn" label="物料型号" />
-            <el-table-column prop="brand" label="品牌" />
-            <el-table-column prop="qty" label="数量" align="right" />
-            <el-table-column v-if="canViewSalesAmount" prop="price" label="单价" align="right">
-              <template #default="{ row }">
-                {{ formatCurrency(row.price, row.currency) }}
-              </template>
-            </el-table-column>
-            <el-table-column v-if="canViewSalesAmount" label="金额" align="right">
-              <template #default="{ row }">
-                {{ formatCurrency(row.qty * row.price, row.currency) }}
-              </template>
-            </el-table-column>
-          </el-table>
-          <el-empty v-else description="暂无明细" :image-size="60" />
-        </el-tab-pane>
-
-        <!-- 文档 Tab -->
-        <el-tab-pane label="文档" name="documents">
-          <div v-if="currentRow" class="doc-tab-content">
-            <DocumentUploadPanel
-              biz-type="SALES_ORDER"
-              :biz-id="String(currentRow.id)"
-              :max-files="20"
-              :max-size-mb="100"
-              @uploaded="docListRef?.refresh()"
-            />
-            <DocumentListPanel
-              ref="docListRef"
-              biz-type="SALES_ORDER"
-              :biz-id="String(currentRow.id)"
-              view-mode="list"
-              style="margin-top: 16px;"
-            />
-          </div>
-        </el-tab-pane>
-      </el-tabs>
-    </el-dialog>
-
-    <ApplyTagsDialog
-      v-model="tagDialogVisible"
-      entity-type="SALES_ORDER"
-      :entity-ids="currentRow ? [currentRow.id] : []"
-      title="为销售订单添加标签"
-      @success="refreshCurrentTags"
-    />
 
     <!-- 状态更新对话框 -->
     <el-dialog v-model="statusDialogVisible" title="更新状态" width="400px">
@@ -353,17 +274,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Plus, Search, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 // 使用模拟数据API
 import { mockSalesOrderApi as salesOrderApi } from '@/api/mockSalesOrder'
 import { mockPurchaseOrderApi as purchaseOrderApi } from '@/api/mockPurchaseOrder'
-import { tagApi, type TagDefinitionDto } from '@/api/tag'
 import { useAuthStore } from '@/stores/auth'
-import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
-import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
-import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
-import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 
 const loading = ref(false)
 const orderList = ref<any[]>([])
@@ -388,19 +305,12 @@ const pageInfo = ref({
 // 对话框控制
 const dialogVisible = ref(false)
 const dialogTitle = ref('新建销售订单')
-const viewDialogVisible = ref(false)
-const activeDetailTab = ref('info')
-const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
 const statusDialogVisible = ref(false)
 const submitLoading = ref(false)
 const formRef = ref()
 const currentRow = ref<any>(null)
 const isEdit = ref(false)
 const newStatus = ref(0)
-
-// 标签
-const currentTags = ref<TagDefinitionDto[]>([])
-const tagDialogVisible = ref(false)
 
 // 表单数据
 const formData = ref({
@@ -551,11 +461,10 @@ const handleEdit = (row: any) => {
   dialogVisible.value = true
 }
 
+const router = useRouter()
 // 查看
 const handleView = (row: any) => {
-  currentRow.value = row
-  viewDialogVisible.value = true
-  refreshCurrentTags()
+  router.push({ name: 'SalesOrderDetail', params: { id: row.id } })
 }
 
 // 更多操作
@@ -602,26 +511,6 @@ const confirmUpdateStatus = async () => {
   await salesOrderApi.updateStatus(currentRow.value.id, newStatus.value)
   statusDialogVisible.value = false
   loadData()
-}
-
-const refreshCurrentTags = async () => {
-  if (!currentRow.value?.id) {
-    currentTags.value = []
-    return
-  }
-  try {
-    currentTags.value = await tagApi.getEntityTags('SALES_ORDER', currentRow.value.id)
-  } catch {
-    currentTags.value = []
-  }
-}
-
-const openTagDialog = () => {
-  if (!currentRow.value?.id) {
-    ElMessage.warning('请先选择要操作的销售订单')
-    return
-  }
-  tagDialogVisible.value = true
 }
 
 // 添加/删除明细
