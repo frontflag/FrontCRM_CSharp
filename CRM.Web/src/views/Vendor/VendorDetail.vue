@@ -1066,5 +1066,47 @@ onMounted(fetchVendor);
     color: $text-muted;
   }
 }
+
+// 覆盖 Element Plus el-table 默认白色背景
+.contacts-table {
+  --el-table-bg-color: #{$layer-3};
+  --el-table-tr-bg-color: #{$layer-3};
+  --el-table-header-bg-color: #{$layer-2};
+  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.06);
+  --el-table-border-color: #{$border-panel};
+  --el-table-text-color: #a8c0d6;
+  --el-table-header-text-color: #6b8cae;
+  --el-fill-color-lighter: #{$layer-3};
+  --el-fill-color-light: #{$layer-2};
+  background: $layer-3 !important;
+  border-radius: 0 0 8px 8px;
+
+  :deep(.el-table__inner-wrapper) {
+    background: $layer-3;
+  }
+  :deep(.el-table__header-wrapper) {
+    background: $layer-2;
+  }
+  :deep(.el-table__body-wrapper) {
+    background: $layer-3;
+  }
+  :deep(.el-table__empty-block) {
+    background: $layer-3;
+    color: $text-muted;
+  }
+  :deep(th.el-table__cell) {
+    background: $layer-2 !important;
+    color: #6b8cae;
+    border-bottom: 1px solid $border-panel;
+  }
+  :deep(td.el-table__cell) {
+    background: $layer-3 !important;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: #a8c0d6;
+  }
+  :deep(tr:hover td.el-table__cell) {
+    background: rgba(0, 212, 255, 0.06) !important;
+  }
+}
 </style>
 
