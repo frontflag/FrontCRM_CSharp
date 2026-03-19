@@ -77,6 +77,34 @@
                   {{ formatCurrency(row.qty * row.price, row.currency) }}
                 </template>
               </el-table-column>
+              <el-table-column label="货运状态" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="getShippingStatusType(row.shippingStatus)" size="small" effect="light">
+                    {{ getShippingStatusText(row.shippingStatus) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="款项状态" width="90" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="getPaymentRequestStatusType(row.paymentRequestStatus)" size="small" effect="light">
+                    {{ getPaymentRequestStatusText(row.paymentRequestStatus) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="付款状态" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="getPartialPaymentStatusType(row.partialPaymentStatus)" size="small" effect="light">
+                    {{ getPartialPaymentStatusText(row.partialPaymentStatus) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="票据状态" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="getInvoiceStatusType(row.invoiceStatus)" size="small" effect="light">
+                    {{ getInvoiceStatusText(row.invoiceStatus) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
               <el-table-column prop="comment" label="备注" min-width="120" />
             </el-table>
             <el-empty v-else description="暂无明细" :image-size="80" />
@@ -213,6 +241,44 @@ const getStatusText = (status: number) => {
   const map: Record<number, string> = { 0: '草稿', 1: '审批中', 2: '已审批', 3: '已确认', 4: '已发货', 6: '已完成', [-1]: '已取消' }
   return map[status] ?? '未知'
 }
+// ===== 明细状态辅助函数 =====
+// 货运状态
+const getShippingStatusText = (v?: number) => {
+  const map: Record<number, string> = { 0: '待发货', 1: '在途', 2: '部分送达', 3: '货运完成' }
+  return v !== undefined ? (map[v] ?? '-') : '-'
+}
+const getShippingStatusType = (v?: number): '' | 'info' | 'success' | 'warning' | 'danger' => {
+  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = { 0: 'info', 1: 'warning', 2: '', 3: 'success' }
+  return v !== undefined ? (map[v] ?? 'info') : 'info'
+}
+// 款项状态
+const getPaymentRequestStatusText = (v?: number) => {
+  const map: Record<number, string> = { 0: '请款', 1: '已审核' }
+  return v !== undefined ? (map[v] ?? '-') : '-'
+}
+const getPaymentRequestStatusType = (v?: number): '' | 'info' | 'success' | 'warning' | 'danger' => {
+  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = { 0: 'warning', 1: 'success' }
+  return v !== undefined ? (map[v] ?? 'info') : 'info'
+}
+// 部分付款状态
+const getPartialPaymentStatusText = (v?: number) => {
+  const map: Record<number, string> = { 0: '未付款', 1: '部分付款', 2: '付款完成' }
+  return v !== undefined ? (map[v] ?? '-') : '-'
+}
+const getPartialPaymentStatusType = (v?: number): '' | 'info' | 'success' | 'warning' | 'danger' => {
+  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = { 0: 'info', 1: 'warning', 2: 'success' }
+  return v !== undefined ? (map[v] ?? 'info') : 'info'
+}
+// 票据状态
+const getInvoiceStatusText = (v?: number) => {
+  const map: Record<number, string> = { 0: '待开票', 1: '部分开票', 2: '开票完成' }
+  return v !== undefined ? (map[v] ?? '-') : '-'
+}
+const getInvoiceStatusType = (v?: number): '' | 'info' | 'success' | 'warning' | 'danger' => {
+  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = { 0: 'info', 1: 'warning', 2: 'success' }
+  return v !== undefined ? (map[v] ?? 'info') : 'info'
+}
+
 const formatCurrency = (amount: number, currency?: number) => {
   const symbol = currency === 2 ? '$' : currency === 3 ? '€' : '¥'
   return `${symbol}${(amount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`

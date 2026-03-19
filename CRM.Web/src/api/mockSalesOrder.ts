@@ -1,6 +1,35 @@
 // 销售订单模拟数据服务
 import { ElMessage } from 'element-plus'
 
+// ===== 销售订单明细状态枚举 =====
+// 货运状态
+export enum ShippingStatus {
+  PendingShipment = 0,  // 待发货
+  InTransit = 1,        // 在途
+  PartialDelivered = 2, // 部分送达
+  DeliveryComplete = 3  // 货运完成
+}
+
+// 款项状态
+export enum PaymentRequestStatus {
+  Requesting = 0, // 请款
+  Approved = 1    // 已审核
+}
+
+// 部分付款状态
+export enum PartialPaymentStatus {
+  NotPaid = 0,        // 未付款
+  PartialPaid = 1,    // 部分付款
+  PaymentComplete = 2 // 付款完成
+}
+
+// 票据状态
+export enum InvoiceStatus {
+  PendingInvoice = 0,  // 待开票
+  PartialInvoiced = 1, // 部分开票
+  InvoiceComplete = 2  // 开票完成
+}
+
 // 模拟数据存储
 let mockSalesOrders: any[] = [
   {
@@ -35,7 +64,11 @@ let mockSalesOrders: any[] = [
         currency: 2,
         dateCode: '2024+',
         deliveryDate: '2024-04-15',
-        status: 0
+        status: 0,
+        shippingStatus: 1,         // 在途
+        paymentRequestStatus: 0,   // 请款
+        partialPaymentStatus: 1,   // 部分付款
+        invoiceStatus: 1           // 部分开票
       },
       {
         id: 'SOI002',
@@ -48,7 +81,11 @@ let mockSalesOrders: any[] = [
         currency: 2,
         dateCode: '2024+',
         deliveryDate: '2024-04-15',
-        status: 0
+        status: 0,
+        shippingStatus: 0,         // 待发货
+        paymentRequestStatus: 1,   // 已审核
+        partialPaymentStatus: 0,   // 未付款
+        invoiceStatus: 0           // 待开票
       }
     ]
   },
@@ -84,7 +121,11 @@ let mockSalesOrders: any[] = [
         currency: 1,
         dateCode: '2024+',
         deliveryDate: '2024-03-25',
-        status: 0
+        status: 0,
+        shippingStatus: 3,         // 货运完成
+        paymentRequestStatus: 1,   // 已审核
+        partialPaymentStatus: 2,   // 付款完成
+        invoiceStatus: 2           // 开票完成
       }
     ]
   },
