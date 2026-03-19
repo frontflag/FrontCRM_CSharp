@@ -1,0 +1,1 @@
+2026-03-19 12:59:09.534 -04:00 [INF] User registered: xtra, Email: xtra@126.com, UserId: 35e3fb73-5ba1-4120-ba00-c225d5f5cf91, SaveChanges result: 1

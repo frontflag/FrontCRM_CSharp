@@ -29,91 +29,149 @@
         <!-- 卡片顶部装饰线 -->
         <div class="card-top-line"></div>
 
-        <div class="card-header">
-          <h2 class="card-title">欢迎回来</h2>
-          <p class="card-subtitle">请登录您的账号以继续</p>
+        <!-- 登录方式 Tab -->
+        <div class="login-tabs">
+          <button
+            :class="['tab-btn', { active: loginType === 'password' }]"
+            @click="loginType = 'password'; isWechatLogin = false; stopPolling()"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            账号登录
+          </button>
+          <button
+            :class="['tab-btn', { active: loginType === 'wechat' }]"
+            @click="switchToWechatLogin"
+          >
+            <el-icon style="font-size:14px"><ChatDotRound /></el-icon>
+            微信扫码
+          </button>
         </div>
 
-        <el-form
-          ref="formRef"
-          :model="form"
-          :rules="rules"
-          @submit.prevent="handleLogin"
-          class="login-form"
-        >
-          <!-- 账号 -->
-          <div class="form-field">
-            <label class="field-label">登录账号</label>
-            <el-form-item prop="userName">
-              <div class="input-wrapper">
-                <span class="input-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                  </svg>
-                </span>
-                <el-input
-                  v-model="form.userName"
-                  placeholder="请输入登录账号"
-                  class="custom-input"
-                />
-              </div>
-            </el-form-item>
-          </div>
-
-          <!-- 密码 -->
-          <div class="form-field">
-            <label class="field-label">登录密码</label>
-            <el-form-item prop="password">
-              <div class="input-wrapper">
-                <span class="input-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                  </svg>
-                </span>
-                <el-input
-                  v-model="form.password"
-                  type="password"
-                  placeholder="请输入登录密码"
-                  show-password
-                  class="custom-input"
-                />
-              </div>
-            </el-form-item>
-          </div>
-
-          <!-- 错误提示 -->
-          <div v-if="errorMsg" class="error-alert">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            {{ errorMsg }}
-          </div>
-
-          <!-- 登录按钮 -->
-          <button
-            type="submit"
-            class="login-btn"
-            :class="{ 'loading': loading }"
-            :disabled="loading"
+        <!-- 账号密码登录区域 -->
+        <div v-show="loginType === 'password'">
+          <el-form
+            ref="formRef"
+            :model="form"
+            :rules="rules"
+            @submit.prevent="handleLogin"
+            class="login-form"
           >
-            <span v-if="!loading" class="btn-content">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-                <polyline points="10 17 15 12 10 7"/>
-                <line x1="15" y1="12" x2="3" y2="12"/>
+            <!-- 账号 -->
+            <div class="form-field">
+              <label class="field-label">登录账号</label>
+              <el-form-item prop="userName">
+                <div class="input-wrapper">
+                  <span class="input-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  </span>
+                  <el-input
+                    v-model="form.userName"
+                    placeholder="请输入登录账号"
+                    class="custom-input"
+                  />
+                </div>
+              </el-form-item>
+            </div>
+
+            <!-- 密码 -->
+            <div class="form-field">
+              <label class="field-label">登录密码</label>
+              <el-form-item prop="password">
+                <div class="input-wrapper">
+                  <span class="input-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                  </span>
+                  <el-input
+                    v-model="form.password"
+                    type="password"
+                    placeholder="请输入登录密码"
+                    show-password
+                    class="custom-input"
+                  />
+                </div>
+              </el-form-item>
+            </div>
+
+            <!-- 错误提示 -->
+            <div v-if="errorMsg" class="error-alert">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
               </svg>
-              登录系统
-            </span>
-            <span v-else class="btn-loading">
-              <span class="spinner"></span>
-              验证中...
-            </span>
-          </button>
-        </el-form>
+              {{ errorMsg }}
+            </div>
+
+            <!-- 登录按鈕 -->
+            <button
+              type="submit"
+              class="login-btn"
+              :class="{ 'loading': loading }"
+              :disabled="loading"
+            >
+              <span v-if="!loading" class="btn-content">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                  <polyline points="10 17 15 12 10 7"/>
+                  <line x1="15" y1="12" x2="3" y2="12"/>
+                </svg>
+                登录系统
+              </span>
+              <span v-else class="btn-loading">
+                <span class="spinner"></span>
+                验证中...
+              </span>
+            </button>
+          </el-form>
+        </div>
+
+        <!-- 微信扫码登录区域 -->
+        <div v-show="loginType === 'wechat'" class="wechat-login-area">
+          <!-- 等待扫码 -->
+          <div v-if="qrStatus === 0" class="qr-waiting">
+            <div v-if="!qrCodeUrl" class="qr-loading">
+              <el-icon class="loading-icon"><Loading /></el-icon>
+              <p>正在生成二维码...</p>
+            </div>
+            <div v-else>
+              <img :src="qrCodeUrl" class="qr-code" alt="微信扫码登录" />
+              <p class="qr-tip">请使用微信扫一扫登录</p>
+            </div>
+          </div>
+
+          <!-- 已扫码 -->
+          <div v-else-if="qrStatus === 1" class="qr-scanned">
+            <el-icon :size="48" color="#67C23A"><CircleCheck /></el-icon>
+            <p>已扫码，请在手机上确认</p>
+          </div>
+
+          <!-- 未绑定提示 -->
+          <div v-else-if="qrStatus === 5" class="qr-unbound">
+            <el-icon :size="48" color="#E6A23C"><Warning /></el-icon>
+            <h3>微信未绑定账号</h3>
+            <p>该微信尚未绑定系统账号</p>
+            <div class="actions">
+              <el-button type="primary" @click="switchToPasswordLogin">先用账号密码登录</el-button>
+            </div>
+            <p class="tip">登录后可在个人中心绑定微信</p>
+          </div>
+
+          <!-- 已过期 -->
+          <div v-else-if="qrStatus === 3" class="qr-expired">
+            <el-icon :size="48" color="#909399"><Timer /></el-icon>
+            <p>二维码已过期</p>
+            <el-button @click="refreshQrCode">刷新二维码</el-button>
+          </div>
+        </div>
 
         <!-- 底部链接 -->
         <div class="card-footer">
@@ -125,71 +183,6 @@
       <!-- 版权信息 -->
       <div class="copyright">
         © 2026 FrontCRM · 智能进销存管理系统
-      </div>
-    </div>
-    <!-- 登录方式切换 -->
-    <div class="login-tabs" v-if="!isWechatLogin">
-      <button 
-        :class="['tab-btn', { active: loginType === 'password' }]"
-        @click="loginType = 'password'"
-      >
-        账号密码登录
-      </button>
-      <button 
-        :class="['tab-btn', { active: loginType === 'wechat' }]"
-        @click="switchToWechatLogin"
-      >
-        <el-icon><ChatDotRound /></el-icon>
-        微信扫码登录
-      </button>
-    </div>
-
-    <!-- 微信扫码登录区域 -->
-    <div v-if="loginType === 'wechat'" class="wechat-login-area">
-      <!-- 等待扫码 -->
-      <div v-if="qrStatus === 0" class="qr-waiting">
-        <div v-if="!qrCodeUrl" class="qr-loading">
-          <el-icon class="loading-icon"><Loading /></el-icon>
-          <p>正在生成二维码...</p>
-        </div>
-        <div v-else>
-          <img :src="qrCodeUrl" class="qr-code" alt="微信扫码登录" />
-          <p class="qr-tip">请使用微信扫一扫登录</p>
-        </div>
-      </div>
-
-      <!-- 已扫码 -->
-      <div v-else-if="qrStatus === 1" class="qr-scanned">
-        <el-icon :size="48" color="#67C23A"><CircleCheck /></el-icon>
-        <p>已扫码，请在手机上确认</p>
-      </div>
-
-      <!-- 未绑定提示 -->
-      <div v-else-if="qrStatus === 5" class="qr-unbound">
-        <el-icon :size="48" color="#E6A23C"><Warning /></el-icon>
-        <h3>微信未绑定账号</h3>
-        <p>该微信尚未绑定系统账号</p>
-        <div class="actions">
-          <el-button type="primary" @click="switchToPasswordLogin">
-            先用账号密码登录
-          </el-button>
-        </div>
-        <p class="tip">
-          登录后可在个人中心绑定微信，<br/>
-          之后即可使用微信扫码登录
-        </p>
-      </div>
-
-      <!-- 已过期 -->
-      <div v-else-if="qrStatus === 3" class="qr-expired">
-        <el-icon :size="48" color="#909399"><Timer /></el-icon>
-        <p>二维码已过期</p>
-        <el-button @click="refreshQrCode">刷新二维码</el-button>
-      </div>
-
-      <!-- 返回按钮 -->
-      <div class="back-link">
-        <a @click="loginType = 'password'">返回账号密码登录</a>
       </div>
     </div>
   </div>
@@ -729,36 +722,39 @@ const handleLogin = async () => {
 
 // ========== 微信登录相关样式 ==========
 
-// 登录方式切换
+// 登录方式 Tab
 .login-tabs {
   display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
+  border-bottom: 1px solid $border-panel;
+  margin-bottom: 28px;
+  gap: 0;
 
   .tab-btn {
     flex: 1;
-    padding: 12px 20px;
+    padding: 10px 0 12px;
     background: transparent;
-    border: 1px solid $border-panel;
-    border-radius: $border-radius-md;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
     color: $text-muted;
-    font-size: 14px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'Noto Sans SC', sans-serif;
     cursor: pointer;
-    transition: all 0.25s;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
+    letter-spacing: 0.5px;
 
     &:hover {
-      border-color: rgba(0, 212, 255, 0.4);
-      color: rgba(0, 212, 255, 0.8);
+      color: rgba(0, 212, 255, 0.75);
     }
 
     &.active {
-      background: rgba(0, 212, 255, 0.1);
-      border-color: rgba(0, 212, 255, 0.6);
       color: $cyan-primary;
+      border-bottom-color: $cyan-primary;
     }
   }
 }
