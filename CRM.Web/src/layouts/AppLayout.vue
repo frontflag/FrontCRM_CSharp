@@ -67,7 +67,7 @@
           </div>
         </div>
 
-        <router-link to="/vendors" class="menu-item" active-class="active">
+        <button class="menu-item has-children" @click="toggleGroup('vendors')" :class="{ 'group-open': openGroups.vendors }">
           <span class="menu-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
@@ -77,7 +77,15 @@
             </svg>
           </span>
           <span class="menu-label" v-if="!isCollapsed">供应商管理</span>
-        </router-link>
+          <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.vendors }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <div class="submenu" v-if="!isCollapsed && openGroups.vendors">
+          <router-link to="/vendors" class="submenu-item" active-class="active" exact>供应商列表</router-link>
+          <router-link to="/vendors/recycle-bin" class="submenu-item" active-class="active">回收站</router-link>
+          <router-link to="/vendors/blacklist" class="submenu-item" active-class="active">黑名单管理</router-link>
+        </div>
 
         <!-- 询价 -->
         <div class="menu-section-label" v-if="!isCollapsed">询价</div>
@@ -353,13 +361,14 @@ const openGroups = ref({
   sales: false,
   inventory: false,
   customers: false,
+  vendors: false,
   finance: false
 })
 
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
   if (isCollapsed.value) {
-    openGroups.value = { purchase: false, sales: false, inventory: false, customers: false, finance: false }
+    openGroups.value = { purchase: false, sales: false, inventory: false, customers: false, vendors: false, finance: false }
   }
 }
 
