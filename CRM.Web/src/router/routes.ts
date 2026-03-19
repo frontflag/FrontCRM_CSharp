@@ -233,12 +233,24 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/RFQ/PurchaseOrderList.vue'),
         meta: { requiresAuth: true, title: '采购订单' }
       },
+      {
+        path: 'purchase-orders/:id',
+        name: 'PurchaseOrderDetail',
+        component: () => import('@/views/RFQ/PurchaseOrderDetail.vue'),
+        meta: { requiresAuth: true, title: '采购订单详情' }
+      },
       // 销售订单
       {
         path: 'sales-orders',
         name: 'SalesOrderList',
         component: () => import('@/views/RFQ/SalesOrderList.vue'),
         meta: { requiresAuth: true, title: '销售订单' }
+      },
+      {
+        path: 'sales-orders/:id',
+        name: 'SalesOrderDetail',
+        component: () => import('@/views/RFQ/SalesOrderDetail.vue'),
+        meta: { requiresAuth: true, title: '销售订单详情' }
       },
       // 系统设置
       {
