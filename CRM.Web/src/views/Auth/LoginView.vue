@@ -127,14 +127,81 @@
         © 2026 FrontCRM · 智能进销存管理系统
       </div>
     </div>
+    <!-- 登录方式切换 -->
+    <div class="login-tabs" v-if="!isWechatLogin">
+      <button 
+        :class="['tab-btn', { active: loginType === 'password' }]"
+        @click="loginType = 'password'"
+      >
+        账号密码登录
+      </button>
+      <button 
+        :class="['tab-btn', { active: loginType === 'wechat' }]"
+        @click="switchToWechatLogin"
+      >
+        <el-icon><ChatDotRound /></el-icon>
+        微信扫码登录
+      </button>
+    </div>
+
+    <!-- 微信扫码登录区域 -->
+    <div v-if="loginType === 'wechat'" class="wechat-login-area">
+      <!-- 等待扫码 -->
+      <div v-if="qrStatus === 0" class="qr-waiting">
+        <div v-if="!qrCodeUrl" class="qr-loading">
+          <el-icon class="loading-icon"><Loading /></el-icon>
+          <p>正在生成二维码...</p>
+        </div>
+        <div v-else>
+          <img :src="qrCodeUrl" class="qr-code" alt="微信扫码登录" />
+          <p class="qr-tip">请使用微信扫一扫登录</p>
+        </div>
+      </div>
+
+      <!-- 已扫码 -->
+      <div v-else-if="qrStatus === 1" class="qr-scanned">
+        <el-icon :size="48" color="#67C23A"><CircleCheck /></el-icon>
+        <p>已扫码，请在手机上确认</p>
+      </div>
+
+      <!-- 未绑定提示 -->
+      <div v-else-if="qrStatus === 5" class="qr-unbound">
+        <el-icon :size="48" color="#E6A23C"><Warning /></el-icon>
+        <h3>微信未绑定账号</h3>
+        <p>该微信尚未绑定系统账号</p>
+        <div class="actions">
+          <el-button type="primary" @click="switchToPasswordLogin">
+            先用账号密码登录
+          </el-button>
+        </div>
+        <p class="tip">
+          登录后可在个人中心绑定微信，<br/>
+          之后即可使用微信扫码登录
+        </p>
+      </div>
+
+      <!-- 已过期 -->
+      <div v-else-if="qrStatus === 3" class="qr-expired">
+        <el-icon :size="48" color="#909399"><Timer /></el-icon>
+        <p>二维码已过期</p>
+        <el-button @click="refreshQrCode">刷新二维码</el-button>
+      </div>
+
+      <!-- 返回按钮 -->
+      <div class="back-link">
+        <a @click="loginType = 'password'">返回账号密码登录</a>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { type FormInstance, type FormRules } from 'element-plus'
+import { ChatDotRound, Loading, CircleCheck, Warning, Timer } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores'
+import { getWechatQrCode, checkWechatLoginStatus } from '@/api/wechatAuth'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -142,6 +209,16 @@ const authStore = useAuthStore()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 const errorMsg = ref('')
+
+// 登录方式
+const loginType = ref<'password' | 'wechat'>('password')
+const isWechatLogin = ref(false)
+
+// 微信扫码相关
+const qrCodeUrl = ref('')
+const qrTicket = ref('')
+const qrStatus = ref(0) // 0=待扫码, 1=已扫码, 2=成功, 3=过期, 5=未绑定
+let pollingTimer: number | null = null
 
 const form = reactive({
   userName: '',
@@ -158,6 +235,93 @@ const rules: FormRules = {
     { min: 6, message: '密码长度不能少于6个字符', trigger: 'blur' }
   ]
 }
+
+// 切换到微信登录
+async function switchToWechatLogin() {
+  loginType.value = 'wechat'
+  isWechatLogin.value = true
+  await generateQrCode()
+}
+
+// 切换到密码登录
+function switchToPasswordLogin() {
+  loginType.value = 'password'
+  isWechatLogin.value = false
+  stopPolling()
+}
+
+// 生成二维码
+async function generateQrCode() {
+  try {
+    qrStatus.value = 0
+    qrCodeUrl.value = ''
+    const res = await getWechatQrCode({ deviceType: 'web' })
+    if (res.success) {
+      qrCodeUrl.value = res.data.qrCodeUrl
+      qrTicket.value = res.data.ticket
+      startPolling()
+    }
+  } catch (error) {
+    console.error('生成二维码失败', error)
+  }
+}
+
+// 刷新二维码
+function refreshQrCode() {
+  stopPolling()
+  generateQrCode()
+}
+
+// 开始轮询
+function startPolling() {
+  pollingTimer = window.setInterval(async () => {
+    try {
+      const res = await checkWechatLoginStatus(qrTicket.value)
+      if (!res.success) return
+
+      qrStatus.value = res.data.status
+
+      switch (res.data.status) {
+        case 2: // 登录成功
+          stopPolling()
+          if (res.data.authData) {
+            authStore.setToken(res.data.authData.token)
+            authStore.setUserInfo({
+              userName: res.data.authData.userName,
+              email: res.data.authData.email,
+              userId: res.data.authData.userId,
+              isSysAdmin: res.data.authData.isSysAdmin,
+              roles: res.data.authData.roleCodes,
+              permissions: res.data.authData.permissionCodes
+            })
+            router.push('/dashboard')
+          }
+          break
+        case 5: // 未绑定
+          stopPolling()
+          break
+        case 3: // 过期
+          stopPolling()
+          break
+      }
+    } catch (error) {
+      console.error('轮询失败', error)
+    }
+  }, 2000)
+}
+
+// 停止轮询
+function stopPolling() {
+  if (pollingTimer) {
+    clearInterval(pollingTimer)
+    pollingTimer = null
+  }
+}
+
+// 页面卸载时清理
+onUnmounted(() => {
+  stopPolling()
+})
 
 const handleLogin = async () => {
   if (!formRef.value) return
@@ -555,5 +719,123 @@ const handleLogin = async () => {
   font-size: 11px;
   color: rgba(200, 216, 232, 0.25);
   letter-spacing: 0.5px;
+}
+
+// ========== 微信登录相关样式 ==========
+
+// 登录方式切换
+.login-tabs {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+
+  .tab-btn {
+    flex: 1;
+    padding: 12px 20px;
+    background: transparent;
+    border: 1px solid $border-panel;
+    border-radius: $border-radius-md;
+    color: $text-muted;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.25s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+
+    &:hover {
+      border-color: rgba(0, 212, 255, 0.4);
+      color: rgba(0, 212, 255, 0.8);
+    }
+
+    &.active {
+      background: rgba(0, 212, 255, 0.1);
+      border-color: rgba(0, 212, 255, 0.6);
+      color: $cyan-primary;
+    }
+  }
+}
+
+// 微信扫码登录区域
+.wechat-login-area {
+  text-align: center;
+  padding: 20px 0;
+
+  .qr-waiting {
+    .qr-loading {
+      padding: 40px;
+
+      .loading-icon {
+        font-size: 32px;
+        animation: spin 1s linear infinite;
+        color: $cyan-primary;
+      }
+
+      p {
+        margin-top: 16px;
+        color: $text-muted;
+      }
+    }
+
+    .qr-code {
+      width: 200px;
+      height: 200px;
+      border-radius: 8px;
+      background: white;
+      padding: 10px;
+    }
+
+    .qr-tip {
+      margin-top: 16px;
+      color: $text-muted;
+      font-size: 14px;
+    }
+  }
+
+  .qr-scanned,
+  .qr-unbound,
+  .qr-expired {
+    padding: 40px 20px;
+
+    p {
+      margin-top: 16px;
+      color: $text-primary;
+    }
+  }
+
+  .qr-unbound {
+    h3 {
+      margin: 16px 0 8px;
+      color: #E6A23C;
+      font-size: 18px;
+    }
+
+    .actions {
+      margin: 24px 0;
+    }
+
+    .tip {
+      color: $text-muted;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+  }
+
+  .back-link {
+    margin-top: 24px;
+
+    a {
+      color: $color-ice-blue;
+      font-size: 13px;
+      cursor: pointer;
+      transition: color 0.2s;
+
+      &:hover {
+        color: $cyan-primary;
+        text-decoration: underline;
+      }
+    }
+  }
 }
 </style>

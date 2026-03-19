@@ -4,7 +4,6 @@ using CRM.Core.Constants;
 using CRM.Core.Document;
 using CRM.Core.Interfaces;
 using CRM.Core.Services;
-using CRM.Core.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -73,6 +72,12 @@ namespace CRM.API.Extensions
             services.AddScoped<IFinanceSellInvoiceService, FinanceSellInvoiceService>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceSellInvoice>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceSellInvoice>>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.SellInvoiceItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.SellInvoiceItem>>();
+
+            // 微信认证
+            services.AddScoped<IWechatAuthService, WechatAuthService>();
+            services.AddScoped<IWechatLoginTicketRepository, CRM.Infrastructure.Repositories.WechatLoginTicketRepository>();
+            services.AddScoped<IWechatBindRequestRepository, CRM.Infrastructure.Repositories.WechatBindRequestRepository>();
+            services.AddHttpClient();
 
             services.AddCors(options =>
             {
