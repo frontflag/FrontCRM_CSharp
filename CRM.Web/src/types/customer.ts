@@ -124,6 +124,7 @@ export interface Customer {
   taxRate?: number
   invoiceType?: number
   isActive?: boolean
+  isFavorite?: boolean
   remarks?: string
   blackList?: boolean
   blackListReason?: string

@@ -235,6 +235,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Profile/ProfileView.vue'),
         meta: { requiresAuth: true, title: '个人设置' }
       },
+      {
+        path: 'drafts',
+        name: 'DraftList',
+        component: () => import('@/views/Draft/DraftList.vue'),
+        meta: { requiresAuth: true, title: '草稿箱' }
+      },
       // 财务模块
       {
         path: 'finance/payments',

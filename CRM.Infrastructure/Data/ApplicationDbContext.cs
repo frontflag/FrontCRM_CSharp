@@ -1,7 +1,9 @@
 using CRM.Core.Models;
 using CRM.Core.Models.Component;
 using CRM.Core.Models.Customer;
+using CRM.Core.Models.Draft;
 using CRM.Core.Models.Document;
+using CRM.Core.Models.Favorite;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Quote;
@@ -75,6 +77,8 @@ namespace CRM.Infrastructure.Data
         public DbSet<TagDefinition> Tags { get; set; } = null!;
         public DbSet<TagRelation> TagRelations { get; set; } = null!;
         public DbSet<UserTagPreference> UserTagPreferences { get; set; } = null!;
+        public DbSet<UserFavorite> UserFavorites { get; set; } = null!;
+        public DbSet<BizDraft> BizDrafts { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -494,6 +498,34 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.TagId).HasMaxLength(36);
                 entity.HasIndex(e => e.UserId);
                 entity.HasIndex(e => new { e.UserId, e.IsFavorite });
+            });
+
+            // ===== 用户收藏表配置 =====
+            modelBuilder.Entity<UserFavorite>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FavoriteId");
+                entity.Property(e => e.UserId).IsRequired();
+                entity.Property(e => e.EntityType).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.EntityId).IsRequired().HasMaxLength(36);
+                entity.HasIndex(e => new { e.UserId, e.EntityType, e.EntityId }).IsUnique();
+                entity.HasIndex(e => new { e.EntityType, e.EntityId });
+            });
+
+            // ===== 通用草稿表配置 =====
+            modelBuilder.Entity<BizDraft>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("DraftId");
+                entity.Property(e => e.UserId).IsRequired();
+                entity.Property(e => e.EntityType).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.DraftName).HasMaxLength(200);
+                entity.Property(e => e.PayloadJson).IsRequired().HasColumnType("text");
+                entity.Property(e => e.Status).HasDefaultValue((short)0);
+                entity.Property(e => e.Remark).HasMaxLength(500);
+                entity.Property(e => e.ConvertedEntityId).HasMaxLength(36);
+                entity.HasIndex(e => new { e.UserId, e.EntityType, e.Status });
+                entity.HasIndex(e => e.CreateTime);
             });
         }
     }

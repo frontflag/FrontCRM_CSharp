@@ -225,6 +225,16 @@
         <!-- 系统 -->
         <div class="menu-section-label" v-if="!isCollapsed">系统</div>
 
+        <router-link to="/drafts" class="menu-item" active-class="active">
+          <span class="menu-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M4 4h16v16H4z"/>
+              <path d="M8 8h8M8 12h8M8 16h5"/>
+            </svg>
+          </span>
+          <span class="menu-label" v-if="!isCollapsed">草稿箱</span>
+        </router-link>
+
         <router-link to="/dashboard/settings" class="menu-item" active-class="active">
           <span class="menu-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -400,6 +410,7 @@ const pageTitleMap: Record<string, string> = {
   '/purchase-orders': '采购订单',
   '/sales-orders': '销售订单',
   '/profile': '个人设置',
+  '/drafts': '草稿箱',
 }
 
 const currentPageTitle = computed(() => {

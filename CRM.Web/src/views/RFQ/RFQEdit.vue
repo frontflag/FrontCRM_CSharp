@@ -26,14 +26,16 @@
         </template>
       </div>
       <div class="header-right">
+        <button class="btn-secondary" @click="handleRestoreDraft" :disabled="saving">从草稿恢复</button>
+        <button class="btn-secondary" @click="saveDraftOnly" :disabled="saving">保存草稿</button>
         <button class="btn-secondary" @click="goBack" :disabled="saving">取消</button>
-        <button class="btn-primary" @click="handleSave" :disabled="saving">
+        <button class="btn-primary" @click="handleConvertToFormal" :disabled="saving">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
             <polyline points="17 21 17 13 7 13 7 21"/>
             <polyline points="7 3 7 8 15 8"/>
           </svg>
-          {{ saving ? '保存中...' : '保存需求' }}
+          {{ saving ? '处理中...' : (isEdit ? '保存需求' : '转正式') }}
         </button>
       </div>
     </div>
@@ -469,12 +471,14 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElNotification, ElMessageBox } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
+import { draftApi } from '@/api/draft'
 import type { CreateRFQRequest, CreateRFQItemRequest } from '@/types/rfq'
 
 const router = useRouter()
 const route = useRoute()
 const formRef = ref()
 const saving = ref(false)
+const currentDraftId = ref('')
 
 const isEdit = computed(() => !!route.params.id)
 
@@ -813,6 +817,138 @@ async function handleSave() {
   }
 }
 
+function buildCreatePayload(): CreateRFQRequest {
+  return {
+    customerId: formData.customerId,
+    contactId: formData.contactPersonId || undefined,
+    contactEmail: formData.contactPersonEmail || undefined,
+    salesUserId: formData.salesUserId || undefined,
+    rfqDate: formData.rfqDate,
+    source: formData.source as any,
+    currency: formData.currency,
+    rfqType: formData.rfqType as any,
+    quoteMethod: formData.quoteMethod as any,
+    assignMethod: formData.assignMethod as any,
+    industry: formData.industry || undefined,
+    product: formData.product || undefined,
+    targetType: formData.targetType as any,
+    importance: formData.importanceLevel,
+    isLastInquiry: formData.isLastQuote,
+    projectBackground: formData.projectBackground || undefined,
+    competitor: formData.competitor || undefined,
+    remark: formData.remark || undefined,
+    items: formData.items.map(item => ({
+      customerMpn: item.customerMaterialModel || undefined,
+      mpn: item.materialModel,
+      customerBrand: item.customerBrand || undefined,
+      brand: item.brand || undefined,
+      targetPrice: item.targetPrice,
+      priceCurrency: ({'CNY':1,'USD':2,'EUR':3,'HKD':4}[item.currency || 'CNY'] || 1) as any,
+      quantity: item.quantity,
+      productionDate: item.productionDate || undefined,
+      expiryDate: item.expiryDate || undefined,
+      minPackageQty: item.minPackageQty,
+      moq: item.minOrderQty,
+      alternatives: item.alternativeMaterials || undefined,
+      remark: item.remark || undefined
+    }))
+  }
+}
+
+function applyDraftPayload(payload: any) {
+  formData.customerId = payload.customerId || ''
+  formData.contactPersonId = payload.contactId || payload.contactPersonId || ''
+  formData.contactPersonEmail = payload.contactEmail || payload.contactPersonEmail || ''
+  formData.salesUserId = payload.salesUserId || ''
+  formData.rfqDate = payload.rfqDate || new Date().toISOString().split('T')[0]
+  formData.source = payload.source ?? 1
+  formData.currency = payload.currency || 'CNY'
+  formData.rfqType = payload.rfqType ?? 1
+  formData.quoteMethod = payload.quoteMethod ?? 1
+  formData.assignMethod = payload.assignMethod ?? 1
+  formData.industry = payload.industry || ''
+  formData.product = payload.product || ''
+  formData.targetType = payload.targetType ?? 1
+  formData.importanceLevel = payload.importance ?? payload.importanceLevel ?? 5
+  formData.isLastQuote = payload.isLastInquiry ?? payload.isLastQuote ?? false
+  formData.projectBackground = payload.projectBackground || ''
+  formData.competitor = payload.competitor || ''
+  formData.remark = payload.remark || ''
+  formData.items = (payload.items || []).map((item: any) => ({
+    customerMaterialModel: item.customerMpn || item.customerMaterialModel || '',
+    materialModel: item.mpn || item.materialModel || '',
+    customerBrand: item.customerBrand || '',
+    brand: item.brand || '',
+    targetPrice: item.targetPrice,
+    currency: ({1:'CNY',2:'USD',3:'EUR',4:'HKD'} as any)[item.priceCurrency] || item.currency || 'CNY',
+    quantity: item.quantity ?? 1,
+    productionDate: item.productionDate || '',
+    expiryDate: item.expiryDate || '',
+    minPackageQty: item.minPackageQty,
+    minOrderQty: item.moq ?? item.minOrderQty ?? 0,
+    alternativeMaterials: item.alternatives || item.alternativeMaterials || '',
+    remark: item.remark || '',
+    _key: ++_keyCounter,
+    _isDuplicate: false
+  }))
+}
+
+async function saveDraftOnly() {
+  try {
+    const draft = await draftApi.saveDraft({
+      draftId: currentDraftId.value || undefined,
+      entityType: 'RFQ',
+      draftName: formData.product || formData.rfqCode || 'RFQ草稿',
+      payloadJson: JSON.stringify(buildCreatePayload()),
+      remark: isEdit.value ? `来源RFQID:${route.params.id}` : undefined
+    })
+    currentDraftId.value = draft.draftId
+    ElNotification.success({ title: '保存成功', message: `草稿已保存（${draft.draftId}）` })
+  } catch (err: any) {
+    ElNotification.error({ title: '保存失败', message: err?.message || '草稿保存失败' })
+  }
+}
+
+async function restoreDraftById(draftId: string) {
+  const draft = await draftApi.getDraftById(draftId)
+  if (draft.entityType !== 'RFQ') throw new Error('该草稿不是RFQ类型')
+  applyDraftPayload(JSON.parse(draft.payloadJson || '{}'))
+  currentDraftId.value = draft.draftId
+  if (formData.customerId) await loadContacts()
+}
+
+async function handleRestoreDraft() {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入草稿ID', '从草稿恢复', {
+      confirmButtonText: '恢复',
+      cancelButtonText: '取消',
+      inputPlaceholder: 'DraftId'
+    })
+    if (!value) return
+    await restoreDraftById(value)
+    ElNotification.success({ title: '恢复成功', message: 'RFQ草稿已恢复到表单' })
+  } catch (err: any) {
+    if (err === 'cancel' || err === 'close') return
+    ElNotification.error({ title: '恢复失败', message: err?.message || '草稿恢复失败' })
+  }
+}
+
+async function handleConvertToFormal() {
+  if (isEdit.value) {
+    await handleSave()
+    return
+  }
+  try {
+    await saveDraftOnly()
+    if (!currentDraftId.value) throw new Error('草稿ID为空，无法转正式')
+    const result = await draftApi.convertDraft(currentDraftId.value)
+    ElNotification.success({ title: '转正式成功', message: `RFQ已创建，ID：${result.entityId}` })
+    setTimeout(() => router.push('/rfqs'), 1500)
+  } catch (err: any) {
+    ElNotification.error({ title: '转正式失败', message: err?.message || '草稿转正式失败' })
+  }
+}
+
 function goBack() {
   router.push('/rfqs')
 }
@@ -835,7 +971,13 @@ onMounted(async () => {
       } catch { /* 静默失败 */ }
     }
   } else {
-    addItem()
+    const draftId = route.query.draftId
+    if (typeof draftId === 'string' && draftId) {
+      await restoreDraftById(draftId).catch((err: any) => {
+        ElNotification.error({ title: '恢复失败', message: err?.message || '草稿恢复失败' })
+      })
+    }
+    if (formData.items.length === 0) addItem()
   }
 })
 </script>

@@ -20,14 +20,16 @@
         </div>
       </div>
       <div class="header-right">
+        <button class="btn-ghost" @click="handleRestoreDraft" :disabled="saving">从草稿恢复</button>
+        <button class="btn-ghost" @click="saveDraftOnly" :disabled="saving">保存草稿</button>
         <button class="btn-ghost" @click="goBack">取消</button>
-        <button class="btn-primary" @click="handleSave" :disabled="saving">
+        <button class="btn-primary" @click="handleConvertToFormal" :disabled="saving">
           <svg v-if="!saving" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
             <polyline points="17 21 17 13 7 13 7 21"/>
             <polyline points="7 3 7 8 15 8"/>
           </svg>
-          {{ saving ? '保存中...' : '保存' }}
+          {{ saving ? '处理中...' : (isEdit ? '保存' : '转正式') }}
         </button>
       </div>
     </div>
@@ -294,6 +296,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
 import { vendorApi, vendorContactApi } from '@/api/vendor';
+import { draftApi } from '@/api/draft';
 import type { VendorContactInfo } from '@/types/vendor';
 import VendorContactDialog from './components/VendorContactDialog.vue';
 
@@ -305,6 +308,7 @@ const vendorId = computed(() => route.params.id as string);
 
 const formRef = ref<FormInstance>();
 const saving = ref(false);
+const currentDraftId = ref('');
 
 const formData = reactive({
   code: '',
@@ -361,6 +365,51 @@ const loadVendor = async () => {
   }
 };
 
+const buildDraftPayload = () => ({ ...formData });
+
+const applyDraftPayload = (payload: any) => {
+  Object.assign(formData, payload || {});
+};
+
+const saveDraftOnly = async () => {
+  try {
+    const draft = await draftApi.saveDraft({
+      draftId: currentDraftId.value || undefined,
+      entityType: 'VENDOR',
+      draftName: formData.officialName || formData.nickName || '供应商草稿',
+      payloadJson: JSON.stringify(buildDraftPayload()),
+      remark: isEdit.value ? `来源供应商ID:${vendorId.value}` : undefined
+    });
+    currentDraftId.value = draft.draftId;
+    ElMessage.success(`草稿已保存（${draft.draftId}）`);
+  } catch (error: any) {
+    ElMessage.error(error?.message || '草稿保存失败');
+  }
+};
+
+const restoreDraftById = async (draftId: string) => {
+  const draft = await draftApi.getDraftById(draftId);
+  if (draft.entityType !== 'VENDOR') throw new Error('该草稿不是供应商类型');
+  applyDraftPayload(JSON.parse(draft.payloadJson || '{}'));
+  currentDraftId.value = draft.draftId;
+};
+
+const handleRestoreDraft = async () => {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入草稿ID', '从草稿恢复', {
+      confirmButtonText: '恢复',
+      cancelButtonText: '取消',
+      inputPlaceholder: 'DraftId'
+    });
+    if (!value) return;
+    await restoreDraftById(value);
+    ElMessage.success('供应商草稿已恢复');
+  } catch (e: any) {
+    if (e === 'cancel' || e === 'close') return;
+    ElMessage.error(e?.message || '草稿恢复失败');
+  }
+};
+
 const handleSave = async () => {
   const valid = await formRef.value?.validate().catch(() => false);
   if (!valid) return;
@@ -375,14 +424,6 @@ const handleSave = async () => {
     } else {
       await vendorApi.createVendor({
         name: formData.officialName.trim(),
-        officialName: formData.officialName.trim(),
-        nickName: formData.nickName?.trim() || undefined,
-        industry: formData.industry || undefined,
-        credit: formData.credit || undefined,
-        status: formData.status ?? 0,
-        officeAddress: formData.officeAddress?.trim() || undefined,
-        creditCode: formData.taxNumber?.trim() || undefined,
-        companyInfo: formData.companyInfo?.trim() || undefined,
         remark: formData.remark?.trim() || undefined
       });
       ElMessage.success('创建成功');
@@ -392,6 +433,25 @@ const handleSave = async () => {
   } catch (error: any) {
     const msg = error?.message || error?.data?.message || '保存失败';
     ElMessage.error(msg);
+  } finally {
+    saving.value = false;
+  }
+};
+
+const handleConvertToFormal = async () => {
+  if (isEdit.value) {
+    await handleSave();
+    return;
+  }
+  saving.value = true;
+  try {
+    await saveDraftOnly();
+    if (!currentDraftId.value) throw new Error('草稿ID为空，无法转正式');
+    const result = await draftApi.convertDraft(currentDraftId.value);
+    ElMessage.success(`供应商创建成功，ID：${result.entityId}`);
+    router.replace('/vendors');
+  } catch (error: any) {
+    ElMessage.error(error?.message || '草稿转正式失败');
   } finally {
     saving.value = false;
   }
@@ -418,7 +478,16 @@ const handleDeleteContact = async (row: VendorContactInfo) => {
 };
 
 onMounted(() => {
-  if (isEdit.value) loadVendor();
+  if (isEdit.value) {
+    loadVendor();
+    return;
+  }
+  const draftId = route.query.draftId;
+  if (typeof draftId === 'string' && draftId) {
+    restoreDraftById(draftId).catch((err: any) => {
+      ElMessage.error(err?.message || '草稿恢复失败');
+    });
+  }
 });
 </script>
 

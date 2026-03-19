@@ -20,14 +20,15 @@
         </div>
       </div>
       <div class="header-right">
-        <button class="btn-secondary" @click="handleSave(false)">保存草稿</button>
-        <button class="btn-primary" @click="handleSave(true)">
+        <button class="btn-secondary" @click="handleRestoreDraft">从草稿恢复</button>
+        <button class="btn-secondary" @click="saveDraftOnly">保存草稿</button>
+        <button class="btn-primary" @click="handleConvertToFormal">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
             <polyline points="17 21 17 13 7 13 7 21"/>
             <polyline points="7 3 7 8 15 8"/>
           </svg>
-          保存并提交
+          转正式
         </button>
       </div>
     </div>
@@ -287,6 +288,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElNotification, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
 import { customerApi } from '@/api/customer';
+import { draftApi } from '@/api/draft';
 import { authApi } from '@/api/auth';
 import { regionData } from '@/data/regions';
 import type { CreateCustomerRequest } from '@/types/customer';
@@ -297,6 +299,7 @@ const router = useRouter();
 const isEdit = computed(() => !!route.params.id);
 const customerId = computed(() => route.params.id as string);
 const formRef = ref<FormInstance>();
+const currentDraftId = ref('');
 
 const formData = reactive<CreateCustomerRequest & { contacts: any[] }>({
   customerCode: '', customerName: '', customerShortName: '',
@@ -396,7 +399,63 @@ const removeContact = async (index: number) => {
   }
 };
 
-const handleSave = async (_submit: boolean) => {
+const buildDraftPayload = () => ({
+  ...formData,
+  contacts: formData.contacts.map((c: any) => ({ ...c }))
+});
+
+const applyDraftPayload = (payload: any) => {
+  Object.assign(formData, payload || {});
+  formData.contacts = Array.isArray(payload?.contacts)
+    ? payload.contacts.map((c: any) => ({ ...c }))
+    : [];
+  if (formData.province && formData.city && formData.district) {
+    regionValue.value = [formData.province, formData.city, formData.district];
+  }
+};
+
+const saveDraftOnly = async () => {
+  try {
+    const draft = await draftApi.saveDraft({
+      draftId: currentDraftId.value || undefined,
+      entityType: 'CUSTOMER',
+      draftName: formData.customerName || formData.customerShortName || '客户草稿',
+      payloadJson: JSON.stringify(buildDraftPayload()),
+      remark: isEdit.value ? `来源客户ID:${customerId.value}` : undefined
+    });
+    currentDraftId.value = draft.draftId;
+    ElNotification.success({ title: '保存成功', message: `草稿已保存（${draft.draftId}）` });
+  } catch (err: any) {
+    ElNotification.error({ title: '保存失败', message: err?.message || '草稿保存失败' });
+  }
+};
+
+const restoreDraftById = async (draftId: string) => {
+  const draft = await draftApi.getDraftById(draftId);
+  if (draft.entityType !== 'CUSTOMER') {
+    throw new Error('该草稿不是客户类型');
+  }
+  applyDraftPayload(JSON.parse(draft.payloadJson || '{}'));
+  currentDraftId.value = draft.draftId;
+};
+
+const handleRestoreDraft = async () => {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入草稿ID', '从草稿恢复', {
+      confirmButtonText: '恢复',
+      cancelButtonText: '取消',
+      inputPlaceholder: 'DraftId'
+    });
+    if (!value) return;
+    await restoreDraftById(value);
+    ElNotification.success({ title: '恢复成功', message: '客户草稿已恢复到表单' });
+  } catch (err: any) {
+    if (err === 'cancel' || err === 'close') return;
+    ElNotification.error({ title: '恢复失败', message: err?.message || '草稿恢复失败' });
+  }
+};
+
+const handleSave = async () => {
   // el-form.validate() 在校验失败时会抛出异常，需用 try-catch 统一处理
   let isValid = false;
   try {
@@ -429,10 +488,32 @@ const handleSave = async (_submit: boolean) => {
   }
 };
 
+const handleConvertToFormal = async () => {
+  if (isEdit.value) {
+    await handleSave();
+    return;
+  }
+  try {
+    await saveDraftOnly();
+    if (!currentDraftId.value) throw new Error('草稿ID为空，无法转正式');
+    const result = await draftApi.convertDraft(currentDraftId.value);
+    ElNotification.success({ title: '转正式成功', message: `客户已创建，ID：${result.entityId}` });
+    setTimeout(() => router.push('/customers'), 1500);
+  } catch (err: any) {
+    ElNotification.error({ title: '转正式失败', message: err?.message || '草稿转正式失败' });
+  }
+};
+
 const goBack = () => router.back();
 onMounted(() => {
   fetchCustomerDetail();
   fetchSalesPersons();
+  const draftId = route.query.draftId;
+  if (!isEdit.value && typeof draftId === 'string' && draftId) {
+    restoreDraftById(draftId).catch((err: any) => {
+      ElNotification.error({ title: '恢复失败', message: err?.message || '草稿恢复失败' });
+    });
+  }
 });
 </script>
 

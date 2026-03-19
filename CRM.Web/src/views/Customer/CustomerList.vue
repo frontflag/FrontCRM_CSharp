@@ -112,6 +112,9 @@
           <el-option label="其他" value="Other" />
         </el-select>
         <button class="btn-primary btn-sm" @click="handleSearch">搜索</button>
+        <button class="btn-ghost btn-sm" :class="{ 'btn-favorite-active': favoriteOnly }" @click="toggleFavoriteOnly">
+          {{ favoriteOnly ? '仅收藏中' : '仅收藏' }}
+        </button>
         <button class="btn-ghost btn-sm" @click="handleReset">重置</button>
       </div>
     </div>
@@ -187,6 +190,13 @@
               <div class="action-btns">
                 <button class="action-btn" @click.stop="handleView(customer)">详情</button>
                 <button class="action-btn" @click.stop="handleEdit(customer)">编辑</button>
+                <button
+                  class="action-btn"
+                  :class="{ 'action-btn--favorite': customer.isFavorite }"
+                  @click.stop="toggleFavorite(customer)"
+                >
+                  {{ customer.isFavorite ? '取消收藏' : '收藏' }}
+                </button>
                 <button class="action-btn action-btn--danger" @click.stop="handleDeleteCustomer(customer)">删除</button>
               </div>
             </td>
@@ -225,6 +235,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElNotification, ElMessageBox } from 'element-plus';
 import { customerApi } from '@/api/customer';
+import { favoriteApi } from '@/api/favorite';
 import type { Customer, CustomerStatistics, CustomerSearchRequest } from '@/types/customer';
 
 const router = useRouter();
@@ -233,6 +244,7 @@ const loading = ref(false);
 const customerList = ref<Customer[]>([]);
 const totalCount = ref(0);
 const statistics = ref<CustomerStatistics | null>(null);
+const favoriteOnly = ref(false);
 
 const searchForm = reactive<CustomerSearchRequest>({
   pageNumber: 1,
@@ -257,8 +269,12 @@ const fetchCustomerList = async () => {
       pageNumber: pagination.pageNumber,
       pageSize: pagination.pageSize
     };
-    const response = await customerApi.searchCustomers(params);
-    customerList.value = response.items.map((item: any) => ({
+    const [response, favoriteIds] = await Promise.all([
+      customerApi.searchCustomers(params),
+      favoriteApi.getFavoriteEntityIds('CUSTOMER')
+    ]);
+    const favoriteSet = new Set(favoriteIds);
+    let mapped = response.items.map((item: any) => ({
       ...item,
       customerName: item.customerName || item.officialName,
       customerShortName: item.customerShortName || item.nickName,
@@ -268,9 +284,14 @@ const fetchCustomerList = async () => {
       creditLimit: item.creditLimit ?? item.creditLine ?? 0,
       balance: item.balance ?? item.creditLineRemain ?? 0,
       isActive: item.isActive ?? (item.status === 1),
+      isFavorite: favoriteSet.has(item.id),
       contacts: item.contacts || []
     }));
-    totalCount.value = response.totalCount;
+    if (favoriteOnly.value) {
+      mapped = mapped.filter((item: any) => item.isFavorite);
+    }
+    customerList.value = mapped;
+    totalCount.value = favoriteOnly.value ? mapped.length : response.totalCount;
   } catch (error: any) {
     // 仅在真实网络/服务器错误时提示，空数据不报错
     const isEmptyResult = !error?.response || error?.response?.status === 404;
@@ -305,6 +326,7 @@ const handleReset = () => {
     searchTerm: '', customerType: undefined, customerLevel: undefined,
     industry: undefined, region: undefined, isActive: undefined
   });
+  favoriteOnly.value = false;
   handleSearch();
 };
 
@@ -320,6 +342,31 @@ const handleDeleteCustomer = (row: Customer) => {
     ElNotification.success({ title: '删除成功', message: '客户已删除' });
     fetchCustomerList();
   }).catch(() => {});
+};
+
+const toggleFavoriteOnly = () => {
+  favoriteOnly.value = !favoriteOnly.value;
+  handleSearch();
+};
+
+const toggleFavorite = async (row: any) => {
+  try {
+    if (row.isFavorite) {
+      await favoriteApi.removeFavorite('CUSTOMER', row.id);
+      row.isFavorite = false;
+      ElNotification.success({ title: '已取消收藏', message: row.customerName || '客户记录已取消收藏' });
+    } else {
+      await favoriteApi.addFavorite({ entityType: 'CUSTOMER', entityId: row.id });
+      row.isFavorite = true;
+      ElNotification.success({ title: '收藏成功', message: row.customerName || '客户记录已收藏' });
+    }
+    if (favoriteOnly.value) {
+      customerList.value = customerList.value.filter((item: any) => item.isFavorite);
+      totalCount.value = customerList.value.length;
+    }
+  } catch (error: any) {
+    ElNotification.error({ title: '操作失败', message: error?.message || '收藏操作失败，请稍后重试' });
+  }
 };
 
 const handleSizeChange = (size: number) => { pagination.pageSize = size; fetchCustomerList(); };
@@ -447,6 +494,12 @@ onMounted(() => {
     border-color: rgba(0, 212, 255, 0.3);
     color: $text-secondary;
   }
+}
+
+.btn-favorite-active {
+  border-color: rgba(201, 154, 69, 0.45) !important;
+  color: $color-amber !important;
+  background: rgba(201, 154, 69, 0.1) !important;
 }
 
 // ---- 统计卡片 ----
@@ -798,6 +851,12 @@ onMounted(() => {
       background: rgba(201, 87, 69, 0.15);
       border-color: rgba(201, 87, 69, 0.4);
     }
+  }
+
+  &--favorite {
+    background: rgba(201, 154, 69, 0.1);
+    border-color: rgba(201, 154, 69, 0.3);
+    color: $color-amber;
   }
 }
 

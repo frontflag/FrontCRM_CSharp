@@ -8,6 +8,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     ApplyTagsDialog: typeof import('./src/components/Tag/ApplyTagsDialog.vue')['default']
+    BusinessCardUploader: typeof import('./src/components/Contact/BusinessCardUploader.vue')['default']
     DocumentListPanel: typeof import('./src/components/Document/DocumentListPanel.vue')['default']
     DocumentPreviewDialog: typeof import('./src/components/Document/DocumentPreviewDialog.vue')['default']
     DocumentUploadPanel: typeof import('./src/components/Document/DocumentUploadPanel.vue')['default']

@@ -28,6 +28,7 @@ export interface Vendor {
   officeAddress?: string
   companyInfo?: string
   status?: number
+  isFavorite?: boolean
   blackList?: boolean
   isDeleted?: boolean
   deleteTime?: string

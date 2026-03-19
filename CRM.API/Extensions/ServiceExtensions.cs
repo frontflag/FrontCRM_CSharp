@@ -41,6 +41,8 @@ namespace CRM.API.Extensions
             services.AddScoped<ITagService, TagService>();
             services.AddScoped<ITagApplyService, TagApplyService>();
             services.AddScoped<ITagFilterService, TagFilterService>();
+            services.AddScoped<IFavoriteService, FavoriteService>();
+            services.AddScoped<IDraftService, DraftService>();
             services.AddDocumentModule(configuration);
 
             // 销售订单模块

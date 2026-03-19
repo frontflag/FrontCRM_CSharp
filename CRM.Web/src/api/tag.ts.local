@@ -1,0 +1,109 @@
+import apiClient from './client'
+
+export interface TagDefinitionDto {
+  id: string
+  name: string
+  code?: string
+  color?: string
+  icon?: string
+  type: number
+  category?: string
+  scope?: string
+  status: number
+  sortOrder: number
+  usageCount: number
+}
+
+export interface TagSearchParams {
+  pageNumber?: number
+  pageSize?: number
+  type?: number
+  category?: string
+  entityType?: string
+  keyword?: string
+  status?: number
+}
+
+export interface PagedTagResult {
+  items: TagDefinitionDto[]
+  totalCount: number
+  pageNumber: number
+  pageSize: number
+  totalPages: number
+}
+
+export interface AddTagsToEntityPayload {
+  entityType: string
+  entityIds: string[]
+  tagIds: string[]
+  appliedByUserId?: number
+  source?: string
+}
+
+export interface RemoveTagsFromEntityPayload extends AddTagsToEntityPayload {}
+
+export interface TagFilterPayload {
+  entityType: string
+  includeTagIds?: string[]
+  includeLogic?: 'AND' | 'OR'
+  excludeTagIds?: string[]
+  pageIndex?: number
+  pageSize?: number
+}
+
+export const tagApi = {
+  getTags(params: TagSearchParams) {
+    return apiClient.get<PagedTagResult>('/api/v1/tags', { params })
+  },
+
+  createTag(data: Partial<TagDefinitionDto> & { name: string }) {
+    return apiClient.post<TagDefinitionDto>('/api/v1/tags', data)
+  },
+
+  updateTag(id: string, data: Partial<TagDefinitionDto>) {
+    return apiClient.put<TagDefinitionDto>(`/api/v1/tags/${id}`, data)
+  },
+
+  enableTag(id: string) {
+    return apiClient.patch<void>(`/api/v1/tags/${id}/enable`)
+  },
+
+  disableTag(id: string) {
+    return apiClient.patch<void>(`/api/v1/tags/${id}/disable`)
+  },
+
+  deleteTag(id: string) {
+    return apiClient.delete<void>(`/api/v1/tags/${id}`)
+  },
+
+  getEntityTags(entityType: string, entityId: string) {
+    return apiClient.get<TagDefinitionDto[]>(`/api/v1/tags/entities/${entityType}/${entityId}`)
+  },
+
+  applyTagsToEntities(payload: AddTagsToEntityPayload) {
+    return apiClient.post<void>('/api/v1/tags/apply', payload)
+  },
+
+  removeTagsFromEntities(payload: RemoveTagsFromEntityPayload) {
+    return apiClient.post<void>('/api/v1/tags/remove', payload)
+  },
+
+  getUserCommonTags(entityType?: string) {
+    return apiClient.get<TagDefinitionDto[]>('/api/v1/tags/user/common', {
+      params: entityType ? { entityType } : undefined
+    })
+  },
+
+  getUserRecentTags(entityType?: string) {
+    return apiClient.get<TagDefinitionDto[]>('/api/v1/tags/user/recent', {
+      params: entityType ? { entityType } : undefined
+    })
+  },
+
+  filterEntitiesByTags(payload: TagFilterPayload) {
+    return apiClient.post<{ entityIds: string[] }>('/api/v1/tags/filter', payload)
+  }
+}
+
+export default tagApi
+

@@ -112,6 +112,9 @@
           <el-option label="合作中" :value="2" />
         </el-select>
         <button class="btn-primary btn-sm" @click="handleSearch">搜索</button>
+        <button class="btn-ghost btn-sm" :class="{ 'btn-favorite-active': favoriteOnly }" @click="toggleFavoriteOnly">
+          {{ favoriteOnly ? '仅收藏中' : '仅收藏' }}
+        </button>
         <button class="btn-ghost btn-sm" @click="handleReset">重置</button>
       </div>
     </div>
@@ -186,6 +189,13 @@
               <div class="action-btns">
                 <button class="action-btn" @click.stop="handleView(vendor)">详情</button>
                 <button class="action-btn" @click.stop="handleEdit(vendor)">编辑</button>
+                <button
+                  class="action-btn"
+                  :class="{ 'action-btn--favorite': vendor.isFavorite }"
+                  @click.stop="toggleFavorite(vendor)"
+                >
+                  {{ vendor.isFavorite ? '取消收藏' : '收藏' }}
+                </button>
                 <button class="action-btn action-btn--danger" @click.stop="handleDelete(vendor)">删除</button>
               </div>
             </td>
@@ -225,6 +235,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { vendorApi } from '@/api/vendor';
+import { favoriteApi } from '@/api/favorite';
 import type { Vendor, VendorSearchRequest, VendorStatistics } from '@/types/vendor';
 
 const router = useRouter();
@@ -238,6 +249,7 @@ const vendorStats = ref<VendorStatistics>({
   byLevel: {},
   byIndustry: {}
 });
+const favoriteOnly = ref(false);
 
 const searchForm = reactive<VendorSearchRequest>({
   pageNumber: 1,
@@ -269,9 +281,20 @@ const fetchVendorList = async () => {
       pageNumber: pagination.pageNumber,
       pageSize: pagination.pageSize
     };
-    const response = await vendorApi.searchVendors(params);
-    vendorList.value = response.items || [];
-    totalCount.value = response.totalCount ?? 0;
+    const [response, favoriteIds] = await Promise.all([
+      vendorApi.searchVendors(params),
+      favoriteApi.getFavoriteEntityIds('VENDOR')
+    ]);
+    const favoriteSet = new Set(favoriteIds);
+    let mapped = (response.items || []).map((item: any) => ({
+      ...item,
+      isFavorite: favoriteSet.has(item.id)
+    }));
+    if (favoriteOnly.value) {
+      mapped = mapped.filter((item: any) => item.isFavorite);
+    }
+    vendorList.value = mapped;
+    totalCount.value = favoriteOnly.value ? mapped.length : (response.totalCount ?? 0);
   } catch (error: any) {
     // 仅在非空结果（真实网络/服务器错误）时提示，空数据不报错
     const isEmptyResult = !error?.response || error?.response?.status === 404;
@@ -303,6 +326,7 @@ const handleSearch = () => {
 const handleReset = () => {
   searchForm.keyword = '';
   searchForm.status = undefined;
+  favoriteOnly.value = false;
   handleSearch();
 };
 
@@ -325,6 +349,31 @@ const handleDelete = (row: Vendor) => {
     ElMessage.success('删除成功（已进入回收站）');
     fetchVendorList();
   }).catch(() => {});
+};
+
+const toggleFavoriteOnly = () => {
+  favoriteOnly.value = !favoriteOnly.value;
+  handleSearch();
+};
+
+const toggleFavorite = async (row: any) => {
+  try {
+    if (row.isFavorite) {
+      await favoriteApi.removeFavorite('VENDOR', row.id);
+      row.isFavorite = false;
+      ElMessage.success('已取消收藏');
+    } else {
+      await favoriteApi.addFavorite({ entityType: 'VENDOR', entityId: row.id });
+      row.isFavorite = true;
+      ElMessage.success('收藏成功');
+    }
+    if (favoriteOnly.value) {
+      vendorList.value = vendorList.value.filter((item: any) => item.isFavorite);
+      totalCount.value = vendorList.value.length;
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.message || '收藏操作失败');
+  }
 };
 
 const handleSizeChange = (size: number) => { pagination.pageSize = size; fetchVendorList(); };
@@ -444,6 +493,12 @@ onMounted(() => {
     border-color: rgba(0, 212, 255, 0.3);
     color: $text-secondary;
   }
+}
+
+.btn-favorite-active {
+  border-color: rgba(201, 154, 69, 0.45) !important;
+  color: $color-amber !important;
+  background: rgba(201, 154, 69, 0.1) !important;
 }
 
 // ---- 统计卡片 ----
@@ -801,6 +856,12 @@ onMounted(() => {
       background: rgba(201, 87, 69, 0.15);
       border-color: rgba(201, 87, 69, 0.4);
     }
+  }
+
+  &--favorite {
+    background: rgba(201, 154, 69, 0.1);
+    border-color: rgba(201, 154, 69, 0.3);
+    color: $color-amber;
   }
 }
 
