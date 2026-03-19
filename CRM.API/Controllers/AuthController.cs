@@ -11,12 +11,14 @@ namespace CRM.API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        private readonly IRbacService _rbacService;
         private readonly ILogger<AuthController> _logger;
         private readonly IUserService _userService;
 
-        public AuthController(IAuthService authService, ILogger<AuthController> logger, IUserService userService)
+        public AuthController(IAuthService authService, IRbacService rbacService, ILogger<AuthController> logger, IUserService userService)
         {
             _authService = authService;
+            _rbacService = rbacService;
             _logger = logger;
             _userService = userService;
         }
@@ -73,6 +75,26 @@ namespace CRM.API.Controllers
                 UserName = userName,
                 Id = userId
             }, "获取用户信息成功"));
+        }
+
+        [Authorize]
+        [HttpGet("permission-summary")]
+        public async Task<ActionResult<ApiResponse<object>>> GetPermissionSummary()
+        {
+            try
+            {
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return Unauthorized(ApiResponse<object>.Fail("未获取到用户信息", 401));
+
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+                return Ok(ApiResponse<object>.Ok(summary, "获取权限摘要成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetPermissionSummary failed");
+                return StatusCode(500, ApiResponse<object>.Fail("获取权限摘要失败", 500));
+            }
         }
 
         /// <summary>获取业务员列表（用于下拉选择）</summary>

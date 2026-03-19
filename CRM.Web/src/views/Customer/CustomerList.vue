@@ -93,7 +93,7 @@
           <input
             v-model="searchForm.searchTerm"
             class="search-input"
-            placeholder="搜索客户名称/联系人..."
+            :placeholder="canViewCustomerInfo ? '搜索客户名称/联系人...' : '搜索客户编号...'"
             @keyup.enter="handleSearch"
           />
         </div>
@@ -125,13 +125,13 @@
         <thead>
           <tr>
             <th style="width:44px">序号</th>
-            <th style="min-width:180px">客户名称</th>
+            <th v-if="canViewCustomerInfo" style="min-width:180px">客户名称</th>
             <th style="width:110px">客户编号</th>
             <th style="width:80px">类型</th>
             <th style="width:80px">级别</th>
             <th style="width:110px">行业</th>
-            <th style="width:130px">联系人</th>
-            <th style="width:130px">联系电话</th>
+            <th v-if="canViewCustomerInfo" style="width:130px">联系人</th>
+            <th v-if="canViewCustomerInfo" style="width:130px">联系电话</th>
             <th style="width:90px">地区</th>
             <th style="width:80px">状态</th>
             <th style="width:150px">操作</th>
@@ -145,7 +145,7 @@
             @click="handleView(customer)"
           >
             <td class="td-index">{{ (pagination.pageNumber - 1) * pagination.pageSize + index + 1 }}</td>
-            <td>
+            <td v-if="canViewCustomerInfo">
               <div class="customer-name-cell">
                 <div class="cell-avatar">
                   <span>{{ (customer.customerName || customer.customerShortName || '?')[0] }}</span>
@@ -168,13 +168,13 @@
               </span>
             </td>
             <td class="td-muted">{{ getIndustryLabel(customer.industry || '') }}</td>
-            <td>
+            <td v-if="canViewCustomerInfo">
               <template v-if="customer.contacts && customer.contacts.length > 0">
                 <span class="td-contact">{{ customer.contacts[0].contactName }}</span>
               </template>
               <span v-else class="td-empty">--</span>
             </td>
-            <td>
+            <td v-if="canViewCustomerInfo">
               <template v-if="customer.contacts && customer.contacts.length > 0">
                 <span class="td-phone">{{ customer.contacts[0].mobilePhone }}</span>
               </template>
@@ -237,8 +237,11 @@ import { ElNotification, ElMessageBox } from 'element-plus';
 import { customerApi } from '@/api/customer';
 import { favoriteApi } from '@/api/favorite';
 import type { Customer, CustomerStatistics, CustomerSearchRequest } from '@/types/customer';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
+const authStore = useAuthStore();
+const canViewCustomerInfo = authStore.hasPermission('customer.info.read');
 
 const loading = ref(false);
 const customerList = ref<Customer[]>([]);

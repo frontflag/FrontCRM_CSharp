@@ -7,6 +7,7 @@ using CRM.Core.Models.Favorite;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Quote;
+using CRM.Core.Models.Rbac;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.System;
@@ -79,6 +80,12 @@ namespace CRM.Infrastructure.Data
         public DbSet<UserTagPreference> UserTagPreferences { get; set; } = null!;
         public DbSet<UserFavorite> UserFavorites { get; set; } = null!;
         public DbSet<BizDraft> BizDrafts { get; set; } = null!;
+        public DbSet<RbacDepartment> RbacDepartments { get; set; } = null!;
+        public DbSet<RbacRole> RbacRoles { get; set; } = null!;
+        public DbSet<RbacPermission> RbacPermissions { get; set; } = null!;
+        public DbSet<RbacUserDepartment> RbacUserDepartments { get; set; } = null!;
+        public DbSet<RbacUserRole> RbacUserRoles { get; set; } = null!;
+        public DbSet<RbacRolePermission> RbacRolePermissions { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -526,6 +533,65 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.ConvertedEntityId).HasMaxLength(36);
                 entity.HasIndex(e => new { e.UserId, e.EntityType, e.Status });
                 entity.HasIndex(e => e.CreateTime);
+            });
+
+            // ===== RBAC 配置 =====
+            modelBuilder.Entity<RbacDepartment>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("DepartmentId");
+                entity.Property(e => e.DepartmentName).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.ParentId).HasMaxLength(36);
+                entity.Property(e => e.Path).HasMaxLength(500);
+                entity.HasIndex(e => e.ParentId);
+            });
+
+            modelBuilder.Entity<RbacRole>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("RoleId");
+                entity.Property(e => e.RoleCode).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.RoleName).IsRequired().HasMaxLength(100);
+                entity.HasIndex(e => e.RoleCode).IsUnique();
+            });
+
+            modelBuilder.Entity<RbacPermission>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("PermissionId");
+                entity.Property(e => e.PermissionCode).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.PermissionName).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.PermissionType).HasMaxLength(20);
+                entity.Property(e => e.Resource).HasMaxLength(200);
+                entity.Property(e => e.Action).HasMaxLength(50);
+                entity.HasIndex(e => e.PermissionCode).IsUnique();
+            });
+
+            modelBuilder.Entity<RbacUserDepartment>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("UserDepartmentId");
+                entity.Property(e => e.UserId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.DepartmentId).IsRequired().HasMaxLength(36);
+                entity.HasIndex(e => new { e.UserId, e.DepartmentId }).IsUnique();
+            });
+
+            modelBuilder.Entity<RbacUserRole>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("UserRoleId");
+                entity.Property(e => e.UserId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.RoleId).IsRequired().HasMaxLength(36);
+                entity.HasIndex(e => new { e.UserId, e.RoleId }).IsUnique();
+            });
+
+            modelBuilder.Entity<RbacRolePermission>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("RolePermissionId");
+                entity.Property(e => e.RoleId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.PermissionId).IsRequired().HasMaxLength(36);
+                entity.HasIndex(e => new { e.RoleId, e.PermissionId }).IsUnique();
             });
         }
     }

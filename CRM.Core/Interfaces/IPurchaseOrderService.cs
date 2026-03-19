@@ -11,6 +11,7 @@ namespace CRM.Core.Interfaces
         Task<PurchaseOrder> UpdateAsync(string id, UpdatePurchaseOrderRequest request);
         Task DeleteAsync(string id);
         Task UpdateStatusAsync(string id, short status);
+        Task<PagedResult<PurchaseOrder>> GetPagedAsync(PurchaseOrderQueryRequest request);
         /// <summary>根据销售订单号获取关联的采购订单列表</summary>
         Task<IEnumerable<PurchaseOrder>> GetBySellOrderCodeAsync(string sellOrderCode);
         /// <summary>根据销售订单明细ID列表获取采购订单明细列表</summary>
@@ -86,5 +87,16 @@ namespace CRM.Core.Interfaces
         public string? Comment { get; set; }
         public string? InnerComment { get; set; }
         public List<CreatePurchaseOrderItemRequest>? Items { get; set; }
+    }
+
+    public class PurchaseOrderQueryRequest
+    {
+        public string? Keyword { get; set; }
+        public short? Status { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+        public string? CurrentUserId { get; set; }
     }
 }

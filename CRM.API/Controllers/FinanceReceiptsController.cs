@@ -1,18 +1,23 @@
 using CRM.Core.Interfaces;
+using CRM.API.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace CRM.API.Controllers
 {
+    [RequirePermission("finance-receipt.read")]
     [ApiController]
     [Route("api/v1/finance/receipts")]
     public class FinanceReceiptsController : ControllerBase
     {
         private readonly IFinanceReceiptService _service;
+        private readonly IDataPermissionService _dataPermissionService;
         private readonly ILogger<FinanceReceiptsController> _logger;
 
-        public FinanceReceiptsController(IFinanceReceiptService service, ILogger<FinanceReceiptsController> logger)
+        public FinanceReceiptsController(IFinanceReceiptService service, IDataPermissionService dataPermissionService, ILogger<FinanceReceiptsController> logger)
         {
             _service = service;
+            _dataPermissionService = dataPermissionService;
             _logger = logger;
         }
 
@@ -28,31 +33,18 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var all = await _service.GetAllAsync();
-                var query = all.AsQueryable();
-
-                if (!string.IsNullOrWhiteSpace(keyword))
-                    query = query.Where(r =>
-                        (r.FinanceReceiptCode != null && r.FinanceReceiptCode.Contains(keyword, StringComparison.OrdinalIgnoreCase)) ||
-                        (r.CustomerName != null && r.CustomerName.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
-
-                if (status.HasValue)
-                    query = query.Where(r => r.Status == status.Value);
-
-                if (DateTime.TryParse(startDate, out var start))
-                    query = query.Where(r => r.CreateTime >= start);
-
-                if (DateTime.TryParse(endDate, out var end))
-                    query = query.Where(r => r.CreateTime <= end.AddDays(1));
-
-                var total = query.Count();
-                var items = query
-                    .OrderByDescending(r => r.CreateTime)
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToList();
-
-                return Ok(new { success = true, data = new { items, total, page, pageSize } });
+                var request = new FinanceReceiptQueryRequest
+                {
+                    Keyword = keyword,
+                    Status = status,
+                    StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
+                    EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
+                    Page = page,
+                    PageSize = pageSize,
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                };
+                var result = await _service.GetPagedAsync(request);
+                return Ok(new { success = true, data = new { items = result.Items, total = result.TotalCount, page = result.PageIndex, pageSize = result.PageSize } });
             }
             catch (Exception ex)
             {
@@ -69,6 +61,9 @@ namespace CRM.API.Controllers
             {
                 var receipt = await _service.GetByIdAsync(id);
                 if (receipt == null) return NotFound(new { success = false, message = "收款单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessFinanceReceiptAsync(userId, receipt))
+                    return StatusCode(403, new { success = false, message = "无权限访问该收款单" });
                 return Ok(new { success = true, data = receipt });
             }
             catch (Exception ex)
@@ -79,6 +74,7 @@ namespace CRM.API.Controllers
 
         /// <summary>新建收款单</summary>
         [HttpPost]
+        [RequirePermission("finance-receipt.write")]
         public async Task<IActionResult> Create([FromBody] CreateFinanceReceiptRequest request)
         {
             try
@@ -104,6 +100,7 @@ namespace CRM.API.Controllers
 
         /// <summary>更新收款单</summary>
         [HttpPut("{id}")]
+        [RequirePermission("finance-receipt.write")]
         public async Task<IActionResult> Update(string id, [FromBody] UpdateFinanceReceiptRequest request)
         {
             try
@@ -124,6 +121,7 @@ namespace CRM.API.Controllers
 
         /// <summary>更新收款单状态</summary>
         [HttpPatch("{id}/status")]
+        [RequirePermission("finance-receipt.write")]
         public async Task<IActionResult> UpdateStatus(string id, [FromBody] FinanceReceiptStatusRequest request)
         {
             try
@@ -144,6 +142,7 @@ namespace CRM.API.Controllers
 
         /// <summary>删除收款单</summary>
         [HttpDelete("{id}")]
+        [RequirePermission("finance-receipt.write")]
         public async Task<IActionResult> Delete(string id)
         {
             try
@@ -164,6 +163,7 @@ namespace CRM.API.Controllers
 
         /// <summary>核销收款明细</summary>
         [HttpPost("items/{receiptItemId}/verify")]
+        [RequirePermission("finance-receipt.write")]
         public async Task<IActionResult> VerifyItem(string receiptItemId, [FromBody] VerifyReceiptItemRequest request)
         {
             try

@@ -1,18 +1,23 @@
 using CRM.Core.Interfaces;
+using CRM.API.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace CRM.API.Controllers
 {
+    [RequirePermission("finance-sell-invoice.read")]
     [ApiController]
     [Route("api/v1/finance/sell-invoices")]
     public class FinanceSellInvoicesController : ControllerBase
     {
         private readonly IFinanceSellInvoiceService _service;
+        private readonly IDataPermissionService _dataPermissionService;
         private readonly ILogger<FinanceSellInvoicesController> _logger;
 
-        public FinanceSellInvoicesController(IFinanceSellInvoiceService service, ILogger<FinanceSellInvoicesController> logger)
+        public FinanceSellInvoicesController(IFinanceSellInvoiceService service, IDataPermissionService dataPermissionService, ILogger<FinanceSellInvoicesController> logger)
         {
             _service = service;
+            _dataPermissionService = dataPermissionService;
             _logger = logger;
         }
 
@@ -29,35 +34,19 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var all = await _service.GetAllAsync();
-                var query = all.AsQueryable();
-
-                if (!string.IsNullOrWhiteSpace(keyword))
-                    query = query.Where(inv =>
-                        (inv.CustomerName != null && inv.CustomerName.Contains(keyword, StringComparison.OrdinalIgnoreCase)) ||
-                        (inv.InvoiceCode != null && inv.InvoiceCode.Contains(keyword, StringComparison.OrdinalIgnoreCase)) ||
-                        (inv.InvoiceNo != null && inv.InvoiceNo.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
-
-                if (invoiceStatus.HasValue)
-                    query = query.Where(inv => inv.InvoiceStatus == invoiceStatus.Value);
-
-                if (receiveStatus.HasValue)
-                    query = query.Where(inv => inv.ReceiveStatus == receiveStatus.Value);
-
-                if (DateTime.TryParse(startDate, out var start))
-                    query = query.Where(inv => inv.MakeInvoiceDate >= start);
-
-                if (DateTime.TryParse(endDate, out var end))
-                    query = query.Where(inv => inv.MakeInvoiceDate <= end.AddDays(1));
-
-                var total = query.Count();
-                var items = query
-                    .OrderByDescending(inv => inv.CreateTime)
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToList();
-
-                return Ok(new { success = true, data = new { items, total, page, pageSize } });
+                var request = new FinanceSellInvoiceQueryRequest
+                {
+                    Keyword = keyword,
+                    InvoiceStatus = invoiceStatus,
+                    ReceiveStatus = receiveStatus,
+                    StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
+                    EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
+                    Page = page,
+                    PageSize = pageSize,
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                };
+                var result = await _service.GetPagedAsync(request);
+                return Ok(new { success = true, data = new { items = result.Items, total = result.TotalCount, page = result.PageIndex, pageSize = result.PageSize } });
             }
             catch (Exception ex)
             {
@@ -74,6 +63,9 @@ namespace CRM.API.Controllers
             {
                 var invoice = await _service.GetByIdAsync(id);
                 if (invoice == null) return NotFound(new { success = false, message = "销项发票不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessFinanceSellInvoiceAsync(userId, invoice))
+                    return StatusCode(403, new { success = false, message = "无权限访问该销项发票" });
                 return Ok(new { success = true, data = invoice });
             }
             catch (Exception ex)
@@ -84,6 +76,7 @@ namespace CRM.API.Controllers
 
         /// <summary>新建销项发票</summary>
         [HttpPost]
+        [RequirePermission("finance-sell-invoice.write")]
         public async Task<IActionResult> Create([FromBody] CreateFinanceSellInvoiceRequest request)
         {
             try
@@ -109,6 +102,7 @@ namespace CRM.API.Controllers
 
         /// <summary>更新销项发票</summary>
         [HttpPut("{id}")]
+        [RequirePermission("finance-sell-invoice.write")]
         public async Task<IActionResult> Update(string id, [FromBody] UpdateFinanceSellInvoiceRequest request)
         {
             try
@@ -129,6 +123,7 @@ namespace CRM.API.Controllers
 
         /// <summary>更新销项发票开票状态（申请开票/已开票/开票失败）</summary>
         [HttpPatch("{id}/invoice-status")]
+        [RequirePermission("finance-sell-invoice.write")]
         public async Task<IActionResult> UpdateInvoiceStatus(string id, [FromBody] UpdateInvoiceStatusRequest request)
         {
             try
@@ -149,6 +144,7 @@ namespace CRM.API.Controllers
 
         /// <summary>作废销项发票</summary>
         [HttpPost("{id}/void")]
+        [RequirePermission("finance-sell-invoice.write")]
         public async Task<IActionResult> Void(string id)
         {
             try
@@ -169,6 +165,7 @@ namespace CRM.API.Controllers
 
         /// <summary>删除销项发票</summary>
         [HttpDelete("{id}")]
+        [RequirePermission("finance-sell-invoice.write")]
         public async Task<IActionResult> Delete(string id)
         {
             try

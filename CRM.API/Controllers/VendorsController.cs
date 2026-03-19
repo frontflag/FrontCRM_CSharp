@@ -1,20 +1,25 @@
 using Microsoft.AspNetCore.Mvc;
+using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Vendor;
+using System.Security.Claims;
 
 namespace CRM.API.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
+    [RequirePermission("vendor.read")]
     public class VendorsController : ControllerBase
     {
         private readonly IVendorService _vendorService;
+        private readonly IDataPermissionService _dataPermissionService;
         private readonly ILogger<VendorsController> _logger;
 
-        public VendorsController(IVendorService vendorService, ILogger<VendorsController> logger)
+        public VendorsController(IVendorService vendorService, IDataPermissionService dataPermissionService, ILogger<VendorsController> logger)
         {
             _vendorService = vendorService;
+            _dataPermissionService = dataPermissionService;
             _logger = logger;
         }
 
@@ -63,7 +68,8 @@ namespace CRM.API.Controllers
                     PageIndex = pageNumber,
                     PageSize = pageSize,
                     Keyword = keyword,
-                    Status = status
+                    Status = status,
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 };
                 var result = await _vendorService.GetPagedAsync(request);
                 return Ok(ApiResponse<object>.Ok(new
@@ -131,6 +137,9 @@ namespace CRM.API.Controllers
                 var vendor = await _vendorService.GetByIdAsync(id);
                 if (vendor == null)
                     return NotFound(ApiResponse<VendorInfo>.Fail("供应商不存在", 404));
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessVendorAsync(userId, vendor))
+                    return StatusCode(403, ApiResponse<VendorInfo>.Fail("无权限访问该供应商", 403));
                 return Ok(ApiResponse<VendorInfo>.Ok(vendor, "获取供应商详情成功"));
             }
             catch (Exception ex)
@@ -141,6 +150,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpPost]
+        [RequirePermission("vendor.write")]
         public async Task<ActionResult<ApiResponse<VendorInfo>>> CreateVendor([FromBody] CreateVendorRequest request)
         {
             try
@@ -162,6 +172,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [RequirePermission("vendor.write")]
         public async Task<ActionResult<ApiResponse<VendorInfo>>> UpdateVendor(string id, [FromBody] UpdateVendorRequest request)
         {
             try
@@ -188,6 +199,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [RequirePermission("vendor.write")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteVendor(string id, [FromBody] DeleteVendorRequest? request)
         {
             try

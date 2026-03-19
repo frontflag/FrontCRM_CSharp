@@ -47,7 +47,7 @@
         <!-- 基础资料 -->
         <div class="menu-section-label" v-if="!isCollapsed">基础资料</div>
 
-        <div class="menu-group">
+        <div class="menu-group" v-if="hasPermission('customer.read')">
           <button class="menu-item has-children" @click="toggleGroup('customers')" :class="{ 'group-open': openGroups.customers }">
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -67,7 +67,7 @@
           </div>
         </div>
 
-        <button class="menu-item has-children" @click="toggleGroup('vendors')" :class="{ 'group-open': openGroups.vendors }">
+        <button v-if="hasPermission('vendor.read')" class="menu-item has-children" @click="toggleGroup('vendors')" :class="{ 'group-open': openGroups.vendors }">
           <span class="menu-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
@@ -81,7 +81,7 @@
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </button>
-        <div class="submenu" v-if="!isCollapsed && openGroups.vendors">
+        <div class="submenu" v-if="hasPermission('vendor.read') && !isCollapsed && openGroups.vendors">
           <router-link to="/vendors" class="submenu-item" active-class="active" exact>供应商列表</router-link>
           <router-link to="/vendors/recycle-bin" class="submenu-item" active-class="active">回收站</router-link>
           <router-link to="/vendors/blacklist" class="submenu-item" active-class="active">黑名单管理</router-link>
@@ -90,7 +90,7 @@
         <!-- 询价 -->
         <div class="menu-section-label" v-if="!isCollapsed">询价</div>
 
-        <router-link to="/rfqs" class="menu-item" active-class="active">
+        <router-link v-if="hasPermission('rfq.read')" to="/rfqs" class="menu-item" active-class="active">
           <span class="menu-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
@@ -238,7 +238,7 @@
         <!-- 系统 -->
         <div class="menu-section-label" v-if="!isCollapsed">系统</div>
 
-        <router-link to="/drafts" class="menu-item" active-class="active">
+        <router-link v-if="hasPermission('draft.read')" to="/drafts" class="menu-item" active-class="active">
           <span class="menu-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <path d="M4 4h16v16H4z"/>
@@ -459,6 +459,8 @@ const handleLogout = async () => {
 const handleUnimplemented = (name: string) => {
   ElNotification.info({ title: '功能开发中', message: `「${name}」功能正在开发中，敬请期待` })
 }
+
+const hasPermission = (code: string) => authStore.hasPermission(code)
 
 // ===== Tab Bar 多标签页 =====
 interface TabItem {

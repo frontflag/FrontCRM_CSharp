@@ -374,6 +374,7 @@ namespace CRM.Core.Interfaces
         public int PageSize { get; set; } = 10;
         public string? Keyword { get; set; }
         public short? Status { get; set; }
+        public string? CurrentUserId { get; set; }
     }
 
     /// <summary>

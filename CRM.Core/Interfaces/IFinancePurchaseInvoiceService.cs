@@ -14,6 +14,7 @@ namespace CRM.Core.Interfaces
         Task DeleteAsync(string id);
         Task ConfirmAsync(string id, DateTime confirmDate);
         Task RedInvoiceAsync(string id);
+        Task<PagedResult<FinancePurchaseInvoice>> GetPagedAsync(FinancePurchaseInvoiceQueryRequest request);
     }
 
     public class CreateFinancePurchaseInvoiceRequest
@@ -50,5 +51,17 @@ namespace CRM.Core.Interfaces
         public decimal? InvoiceAmount { get; set; }
         public DateTime? InvoiceDate { get; set; }
         public string? Remark { get; set; }
+    }
+
+    public class FinancePurchaseInvoiceQueryRequest
+    {
+        public string? Keyword { get; set; }
+        public short? InvoiceStatus { get; set; }
+        public byte? ConfirmStatus { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+        public string? CurrentUserId { get; set; }
     }
 }

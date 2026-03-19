@@ -15,6 +15,11 @@ export interface AuthResponse {
   token: string
   userName: string
   email: string
+  userId: string
+  isSysAdmin: boolean
+  roleCodes: string[]
+  permissionCodes: string[]
+  departmentIds: string[]
 }
 
 export interface ApiResponse<T> {
@@ -35,6 +40,10 @@ export const authApi = {
 
   getCurrentUser(): Promise<ApiResponse<any>> {
     return apiClient.get('/api/v1/auth/me')
+  },
+
+  getPermissionSummary(): Promise<ApiResponse<any>> {
+    return apiClient.get('/api/v1/auth/permission-summary')
   },
 
   getUsers(): Promise<ApiResponse<Array<{ id: string; label: string; userName: string; realName?: string }>>> {

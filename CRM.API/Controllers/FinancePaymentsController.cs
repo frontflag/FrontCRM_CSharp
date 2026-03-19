@@ -1,18 +1,23 @@
 using CRM.Core.Interfaces;
+using CRM.API.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace CRM.API.Controllers
 {
+    [RequirePermission("finance-payment.read")]
     [ApiController]
     [Route("api/v1/finance/payments")]
     public class FinancePaymentsController : ControllerBase
     {
         private readonly IFinancePaymentService _service;
+        private readonly IDataPermissionService _dataPermissionService;
         private readonly ILogger<FinancePaymentsController> _logger;
 
-        public FinancePaymentsController(IFinancePaymentService service, ILogger<FinancePaymentsController> logger)
+        public FinancePaymentsController(IFinancePaymentService service, IDataPermissionService dataPermissionService, ILogger<FinancePaymentsController> logger)
         {
             _service = service;
+            _dataPermissionService = dataPermissionService;
             _logger = logger;
         }
 
@@ -28,31 +33,18 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var all = await _service.GetAllAsync();
-                var query = all.AsQueryable();
-
-                if (!string.IsNullOrWhiteSpace(keyword))
-                    query = query.Where(p =>
-                        (p.FinancePaymentCode != null && p.FinancePaymentCode.Contains(keyword, StringComparison.OrdinalIgnoreCase)) ||
-                        (p.VendorName != null && p.VendorName.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
-
-                if (status.HasValue)
-                    query = query.Where(p => p.Status == status.Value);
-
-                if (DateTime.TryParse(startDate, out var start))
-                    query = query.Where(p => p.CreateTime >= start);
-
-                if (DateTime.TryParse(endDate, out var end))
-                    query = query.Where(p => p.CreateTime <= end.AddDays(1));
-
-                var total = query.Count();
-                var items = query
-                    .OrderByDescending(p => p.CreateTime)
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToList();
-
-                return Ok(new { success = true, data = new { items, total, page, pageSize } });
+                var request = new FinancePaymentQueryRequest
+                {
+                    Keyword = keyword,
+                    Status = status,
+                    StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
+                    EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
+                    Page = page,
+                    PageSize = pageSize,
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                };
+                var result = await _service.GetPagedAsync(request);
+                return Ok(new { success = true, data = new { items = result.Items, total = result.TotalCount, page = result.PageIndex, pageSize = result.PageSize } });
             }
             catch (Exception ex)
             {
@@ -69,6 +61,9 @@ namespace CRM.API.Controllers
             {
                 var payment = await _service.GetByIdAsync(id);
                 if (payment == null) return NotFound(new { success = false, message = "付款单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessFinancePaymentAsync(userId, payment))
+                    return StatusCode(403, new { success = false, message = "无权限访问该付款单" });
                 return Ok(new { success = true, data = payment });
             }
             catch (Exception ex)
@@ -79,6 +74,7 @@ namespace CRM.API.Controllers
 
         /// <summary>新建付款单</summary>
         [HttpPost]
+        [RequirePermission("finance-payment.write")]
         public async Task<IActionResult> Create([FromBody] CreateFinancePaymentRequest request)
         {
             try
@@ -104,6 +100,7 @@ namespace CRM.API.Controllers
 
         /// <summary>更新付款单</summary>
         [HttpPut("{id}")]
+        [RequirePermission("finance-payment.write")]
         public async Task<IActionResult> Update(string id, [FromBody] UpdateFinancePaymentRequest request)
         {
             try
@@ -124,6 +121,7 @@ namespace CRM.API.Controllers
 
         /// <summary>更新付款单状态（提交审核/审核通过/驳回/作废等）</summary>
         [HttpPatch("{id}/status")]
+        [RequirePermission("finance-payment.write")]
         public async Task<IActionResult> UpdateStatus(string id, [FromBody] FinancePaymentStatusRequest request)
         {
             try
@@ -144,6 +142,7 @@ namespace CRM.API.Controllers
 
         /// <summary>删除付款单</summary>
         [HttpDelete("{id}")]
+        [RequirePermission("finance-payment.write")]
         public async Task<IActionResult> Delete(string id)
         {
             try
@@ -164,6 +163,7 @@ namespace CRM.API.Controllers
 
         /// <summary>核销付款明细</summary>
         [HttpPost("items/{paymentItemId}/verify")]
+        [RequirePermission("finance-payment.write")]
         public async Task<IActionResult> VerifyItem(string paymentItemId, [FromBody] VerifyPaymentItemRequest request)
         {
             try

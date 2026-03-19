@@ -14,6 +14,7 @@ namespace CRM.Core.Interfaces
         Task DeleteAsync(string id);
         Task UpdateInvoiceStatusAsync(string id, short invoiceStatus);
         Task VoidAsync(string id);
+        Task<PagedResult<FinanceSellInvoice>> GetPagedAsync(FinanceSellInvoiceQueryRequest request);
     }
 
     public class CreateFinanceSellInvoiceRequest
@@ -49,5 +50,17 @@ namespace CRM.Core.Interfaces
         public decimal? InvoiceTotal { get; set; }
         public DateTime? MakeInvoiceDate { get; set; }
         public string? Remark { get; set; }
+    }
+
+    public class FinanceSellInvoiceQueryRequest
+    {
+        public string? Keyword { get; set; }
+        public short? InvoiceStatus { get; set; }
+        public byte? ReceiveStatus { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+        public string? CurrentUserId { get; set; }
     }
 }

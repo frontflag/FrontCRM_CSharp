@@ -919,3 +919,233 @@ CREATE INDEX IF NOT EXISTS idx_biz_draft_user_entity_status
 ON biz_draft("UserId", "EntityType", "Status");
 CREATE INDEX IF NOT EXISTS idx_biz_draft_create_time
 ON biz_draft("CreateTime");
+
+-- 19) RBAC 基础表（用户/部门/角色/权限）
+CREATE TABLE IF NOT EXISTS sys_department (
+    "DepartmentId" TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    "DepartmentName" VARCHAR(100) NOT NULL,
+    "ParentId" TEXT,
+    "Path" VARCHAR(500),
+    "Level" INT NOT NULL DEFAULT 1,
+    "SaleDataScope" SMALLINT NOT NULL DEFAULT 1,
+    "PurchaseDataScope" SMALLINT NOT NULL DEFAULT 1,
+    "IdentityType" SMALLINT NOT NULL DEFAULT 0,
+    "Status" SMALLINT NOT NULL DEFAULT 1,
+    "CreateTime" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "CreateUserId" BIGINT,
+    "ModifyTime" TIMESTAMP WITH TIME ZONE,
+    "ModifyUserId" BIGINT
+);
+CREATE INDEX IF NOT EXISTS idx_sys_department_parent ON sys_department("ParentId");
+
+CREATE TABLE IF NOT EXISTS sys_role (
+    "RoleId" TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    "RoleCode" VARCHAR(50) NOT NULL,
+    "RoleName" VARCHAR(100) NOT NULL,
+    "Description" VARCHAR(500),
+    "Status" SMALLINT NOT NULL DEFAULT 1,
+    "CreateTime" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "CreateUserId" BIGINT,
+    "ModifyTime" TIMESTAMP WITH TIME ZONE,
+    "ModifyUserId" BIGINT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_role_code ON sys_role("RoleCode");
+
+CREATE TABLE IF NOT EXISTS sys_permission (
+    "PermissionId" TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    "PermissionCode" VARCHAR(100) NOT NULL,
+    "PermissionName" VARCHAR(100) NOT NULL,
+    "PermissionType" VARCHAR(20) NOT NULL DEFAULT 'api',
+    "Resource" VARCHAR(200),
+    "Action" VARCHAR(50),
+    "Status" SMALLINT NOT NULL DEFAULT 1,
+    "CreateTime" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "CreateUserId" BIGINT,
+    "ModifyTime" TIMESTAMP WITH TIME ZONE,
+    "ModifyUserId" BIGINT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_permission_code ON sys_permission("PermissionCode");
+
+CREATE TABLE IF NOT EXISTS sys_user_department (
+    "UserDepartmentId" TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    "UserId" TEXT NOT NULL,
+    "DepartmentId" TEXT NOT NULL,
+    "IsPrimary" BOOLEAN NOT NULL DEFAULT FALSE,
+    "CreateTime" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "CreateUserId" BIGINT,
+    "ModifyTime" TIMESTAMP WITH TIME ZONE,
+    "ModifyUserId" BIGINT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_user_department_unique ON sys_user_department("UserId", "DepartmentId");
+CREATE INDEX IF NOT EXISTS idx_sys_user_department_user ON sys_user_department("UserId");
+
+CREATE TABLE IF NOT EXISTS sys_user_role (
+    "UserRoleId" TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    "UserId" TEXT NOT NULL,
+    "RoleId" TEXT NOT NULL,
+    "CreateTime" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "CreateUserId" BIGINT,
+    "ModifyTime" TIMESTAMP WITH TIME ZONE,
+    "ModifyUserId" BIGINT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_user_role_unique ON sys_user_role("UserId", "RoleId");
+CREATE INDEX IF NOT EXISTS idx_sys_user_role_user ON sys_user_role("UserId");
+
+CREATE TABLE IF NOT EXISTS sys_role_permission (
+    "RolePermissionId" TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    "RoleId" TEXT NOT NULL,
+    "PermissionId" TEXT NOT NULL,
+    "CreateTime" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "CreateUserId" BIGINT,
+    "ModifyTime" TIMESTAMP WITH TIME ZONE,
+    "ModifyUserId" BIGINT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_role_permission_unique ON sys_role_permission("RoleId", "PermissionId");
+
+-- 默认角色
+INSERT INTO sys_role("RoleId", "RoleCode", "RoleName", "Description")
+SELECT gen_random_uuid()::text, 'SYS_ADMIN', '系统管理员', '系统最高权限'
+WHERE NOT EXISTS (SELECT 1 FROM sys_role WHERE "RoleCode" = 'SYS_ADMIN');
+
+INSERT INTO sys_role("RoleId", "RoleCode", "RoleName", "Description")
+SELECT gen_random_uuid()::text, 'SALES', '销售', '销售业务角色'
+WHERE NOT EXISTS (SELECT 1 FROM sys_role WHERE "RoleCode" = 'SALES');
+
+INSERT INTO sys_role("RoleId", "RoleCode", "RoleName", "Description")
+SELECT gen_random_uuid()::text, 'PURCHASER', '采购', '采购业务角色'
+WHERE NOT EXISTS (SELECT 1 FROM sys_role WHERE "RoleCode" = 'PURCHASER');
+
+INSERT INTO sys_role("RoleId", "RoleCode", "RoleName", "Description")
+SELECT gen_random_uuid()::text, 'LOGISTICS', '物流', '物流（入库/质检/出库/库存）角色'
+WHERE NOT EXISTS (SELECT 1 FROM sys_role WHERE "RoleCode" = 'LOGISTICS');
+
+-- 默认权限（最小集合）
+INSERT INTO sys_permission("PermissionId", "PermissionCode", "PermissionName", "PermissionType")
+SELECT gen_random_uuid()::text, p.code, p.name, 'api'
+FROM (
+    VALUES
+      ('customer.read', '查看客户'),
+      ('customer.write', '编辑客户'),
+      ('vendor.read', '查看供应商'),
+      ('vendor.write', '编辑供应商'),
+      ('rfq.read', '查看RFQ'),
+      ('rfq.write', '编辑RFQ'),
+      ('sales-order.read', '查看销售订单'),
+      ('sales-order.write', '编辑销售订单'),
+      ('purchase-order.read', '查看采购订单'),
+      ('purchase-order.write', '编辑采购订单'),
+      ('finance-receipt.read', '查看收款单'),
+      ('finance-receipt.write', '编辑收款单'),
+      ('finance-payment.read', '查看付款单'),
+      ('finance-payment.write', '编辑付款单'),
+      ('finance-sell-invoice.read', '查看销项发票'),
+      ('finance-sell-invoice.write', '编辑销项发票'),
+      ('finance-purchase-invoice.read', '查看进项发票'),
+      ('finance-purchase-invoice.write', '编辑进项发票'),
+      ('customer.info.read', '查看客户信息字段'),
+      ('vendor.info.read', '查看供应商信息字段'),
+      ('sales.amount.read', '查看销售价格金额字段'),
+      ('purchase.amount.read', '查看采购价格金额字段'),
+      ('draft.read', '查看草稿'),
+      ('draft.write', '编辑草稿'),
+      ('rbac.manage', '权限管理')
+) AS p(code, name)
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission sp WHERE sp."PermissionCode" = p.code);
+
+-- 给系统管理员授予全部权限
+INSERT INTO sys_role_permission("RolePermissionId", "RoleId", "PermissionId")
+SELECT gen_random_uuid()::text, r."RoleId", p."PermissionId"
+FROM sys_role r
+JOIN sys_permission p ON 1 = 1
+WHERE r."RoleCode" = 'SYS_ADMIN'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM sys_role_permission rp
+      WHERE rp."RoleId" = r."RoleId"
+        AND rp."PermissionId" = p."PermissionId"
+  );
+
+-- 给 SALES 补充字段权限（仅客户信息与销售金额）
+INSERT INTO sys_role_permission("RolePermissionId", "RoleId", "PermissionId")
+SELECT gen_random_uuid()::text, r."RoleId", p."PermissionId"
+FROM sys_role r
+JOIN sys_permission p ON p."PermissionCode" IN ('customer.info.read', 'sales.amount.read')
+WHERE r."RoleCode" = 'SALES'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM sys_role_permission rp
+      WHERE rp."RoleId" = r."RoleId"
+        AND rp."PermissionId" = p."PermissionId"
+  );
+
+-- 给 PURCHASER 补充字段权限（仅供应商信息与采购金额）
+INSERT INTO sys_role_permission("RolePermissionId", "RoleId", "PermissionId")
+SELECT gen_random_uuid()::text, r."RoleId", p."PermissionId"
+FROM sys_role r
+JOIN sys_permission p ON p."PermissionCode" IN ('vendor.info.read', 'purchase.amount.read')
+WHERE r."RoleCode" = 'PURCHASER'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM sys_role_permission rp
+      WHERE rp."RoleId" = r."RoleId"
+        AND rp."PermissionId" = p."PermissionId"
+  );
+
+-- 撤销 LOGISTICS 的字段权限（确保物流只能在“入库/质检/出库/库存”相关页面查看客户/供应商信息）
+-- 由于销售/采购订单列表/详情是通过 customer.info.read / vendor.info.read 来做字段隐藏的，
+-- 因此这里不再授予这两个字段权限（并删除历史已授权的数据）。
+DELETE FROM sys_role_permission rp
+USING sys_role r
+JOIN sys_permission p ON p."PermissionId" = rp."PermissionId"
+WHERE rp."RoleId" = r."RoleId"
+  AND r."RoleCode" = 'LOGISTICS'
+  AND p."PermissionCode" IN ('customer.info.read', 'vendor.info.read');
+
+-- 给 LOGISTICS 授予“只读”业务查询权限：让物流可以查看销售/采购/财务全量数据
+-- 但不授予 customer.info.read / vendor.info.read，从而保证客户/供应商字段不会在非库存页面展示。
+INSERT INTO sys_role_permission("RolePermissionId", "RoleId", "PermissionId")
+SELECT gen_random_uuid()::text, r."RoleId", p."PermissionId"
+FROM sys_role r
+JOIN sys_permission p ON p."PermissionCode" IN (
+    'sales-order.read',
+    'purchase-order.read',
+    'finance-receipt.read',
+    'finance-payment.read',
+    'finance-sell-invoice.read',
+    'finance-purchase-invoice.read'
+)
+WHERE r."RoleCode" = 'LOGISTICS'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM sys_role_permission rp
+      WHERE rp."RoleId" = r."RoleId"
+        AND rp."PermissionId" = p."PermissionId"
+  );
+
+-- 物流部门默认数据范围：全部（SaleDataScope/PurchaseDataScope = 0）
+INSERT INTO sys_department(
+    "DepartmentId",
+    "DepartmentName",
+    "SaleDataScope",
+    "PurchaseDataScope",
+    "IdentityType",
+    "Status"
+)
+SELECT
+    gen_random_uuid()::text,
+    '物流部',
+    0,
+    0,
+    3,
+    1
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM sys_department d
+    WHERE d."DepartmentName" = '物流部'
+);
+
+UPDATE sys_department
+SET
+    "SaleDataScope" = 0,
+    "PurchaseDataScope" = 0
+WHERE "DepartmentName" = '物流部';

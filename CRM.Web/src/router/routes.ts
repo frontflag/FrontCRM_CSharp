@@ -32,57 +32,57 @@ const routes: RouteRecordRaw[] = [
         path: 'customers',
         name: 'CustomerList',
         component: () => import('@/views/Customer/CustomerList.vue'),
-        meta: { requiresAuth: true, title: '客户管理' }
+        meta: { requiresAuth: true, title: '客户管理', permission: 'customer.read' }
       },
       {
         path: 'customers/create',
         name: 'CustomerCreate',
         component: () => import('@/views/Customer/CustomerEdit.vue'),
-        meta: { requiresAuth: true, title: '新增客户' }
+        meta: { requiresAuth: true, title: '新增客户', permission: 'customer.write' }
       },
       // 静态路由必须在 :id 动态路由之前
       {
         path: 'customers/recycle-bin',
         name: 'CustomerRecycleBin',
         component: () => import('@/views/Customer/CustomerRecycleBin.vue'),
-        meta: { requiresAuth: true, title: '客户回收站' }
+        meta: { requiresAuth: true, title: '客户回收站', permission: 'customer.read' }
       },
       {
         path: 'customers/blacklist',
         name: 'CustomerBlacklist',
         component: () => import('@/views/Customer/CustomerBlacklist.vue'),
-        meta: { requiresAuth: true, title: '黑名单管理' }
+        meta: { requiresAuth: true, title: '黑名单管理', permission: 'customer.read' }
       },
       {
         path: 'customers/:id',
         name: 'CustomerDetail',
         component: () => import('@/views/Customer/CustomerDetail.vue'),
-        meta: { requiresAuth: true, title: '客户详情' }
+        meta: { requiresAuth: true, title: '客户详情', permission: 'customer.read' }
       },
       {
         path: 'customers/:id/edit',
         name: 'CustomerEdit',
         component: () => import('@/views/Customer/CustomerEdit.vue'),
-        meta: { requiresAuth: true, title: '编辑客户' }
+        meta: { requiresAuth: true, title: '编辑客户', permission: 'customer.write' }
       },
       {
         path: 'customers/:id/contacts/create',
         name: 'CustomerContactCreate',
         component: () => import('@/views/Customer/CustomerContactEdit.vue'),
-        meta: { requiresAuth: true, title: '新增联系人' }
+        meta: { requiresAuth: true, title: '新增联系人', permission: 'customer.write' }
       },
       {
         path: 'customers/:id/contacts/:contactId/edit',
         name: 'CustomerContactEdit',
         component: () => import('@/views/Customer/CustomerContactEdit.vue'),
-        meta: { requiresAuth: true, title: '编辑联系人' }
+        meta: { requiresAuth: true, title: '编辑联系人', permission: 'customer.write' }
       },
       // RFQ 管理
       {
         path: 'rfqs',
         name: 'RFQList',
         component: () => import('@/views/RFQ/RFQList.vue'),
-        meta: { requiresAuth: true, title: 'RFQ 管理' }
+        meta: { requiresAuth: true, title: 'RFQ 管理', permission: 'rfq.read' }
       },
       {
         path: 'rfqs/create',
@@ -126,49 +126,49 @@ const routes: RouteRecordRaw[] = [
         path: 'vendors',
         name: 'VendorList',
         component: () => import('@/views/Vendor/VendorList.vue'),
-        meta: { requiresAuth: true, title: '供应商管理' }
+        meta: { requiresAuth: true, title: '供应商管理', permission: 'vendor.read' }
       },
       {
         path: 'vendors/create',
         name: 'VendorCreate',
         component: () => import('@/views/Vendor/VendorEdit.vue'),
-        meta: { requiresAuth: true, title: '新增供应商' }
+        meta: { requiresAuth: true, title: '新增供应商', permission: 'vendor.write' }
       },
       {
         path: 'vendors/recycle-bin',
         name: 'VendorRecycleBin',
         component: () => import('@/views/Vendor/VendorRecycleBin.vue'),
-        meta: { requiresAuth: true, title: '供应商回收站' }
+        meta: { requiresAuth: true, title: '供应商回收站', permission: 'vendor.read' }
       },
       {
         path: 'vendors/blacklist',
         name: 'VendorBlacklist',
         component: () => import('@/views/Vendor/VendorBlacklist.vue'),
-        meta: { requiresAuth: true, title: '供应商黑名单' }
+        meta: { requiresAuth: true, title: '供应商黑名单', permission: 'vendor.read' }
       },
       {
         path: 'vendors/:id',
         name: 'VendorDetail',
         component: () => import('@/views/Vendor/VendorDetail.vue'),
-        meta: { requiresAuth: true, title: '供应商详情' }
+        meta: { requiresAuth: true, title: '供应商详情', permission: 'vendor.read' }
       },
       {
         path: 'vendors/:id/edit',
         name: 'VendorEdit',
         component: () => import('@/views/Vendor/VendorEdit.vue'),
-        meta: { requiresAuth: true, title: '编辑供应商' }
+        meta: { requiresAuth: true, title: '编辑供应商', permission: 'vendor.write' }
       },
       {
         path: 'vendors/:id/contacts/create',
         name: 'VendorContactCreate',
         component: () => import('@/views/Vendor/VendorContactEdit.vue'),
-        meta: { requiresAuth: true, title: '新增联系人' }
+        meta: { requiresAuth: true, title: '新增联系人', permission: 'vendor.write' }
       },
       {
         path: 'vendors/:id/contacts/:contactId/edit',
         name: 'VendorContactEdit',
         component: () => import('@/views/Vendor/VendorContactEdit.vue'),
-        meta: { requiresAuth: true, title: '编辑联系人' }
+        meta: { requiresAuth: true, title: '编辑联系人', permission: 'vendor.write' }
       },
       // 库存管理
       {
@@ -258,7 +258,7 @@ const routes: RouteRecordRaw[] = [
         path: 'drafts',
         name: 'DraftList',
         component: () => import('@/views/Draft/DraftList.vue'),
-        meta: { requiresAuth: true, title: '草稿箱' }
+        meta: { requiresAuth: true, title: '草稿箱', permission: 'draft.read' }
       },
       // 财务模块
       {

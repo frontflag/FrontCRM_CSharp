@@ -1,20 +1,25 @@
 using Microsoft.AspNetCore.Mvc;
+using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
+using System.Security.Claims;
 
 namespace CRM.API.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
+    [RequirePermission("customer.read")]
     public class CustomersController : ControllerBase
     {
         private readonly ICustomerService _customerService;
+        private readonly IDataPermissionService _dataPermissionService;
         private readonly ILogger<CustomersController> _logger;
 
-        public CustomersController(ICustomerService customerService, ILogger<CustomersController> logger)
+        public CustomersController(ICustomerService customerService, IDataPermissionService dataPermissionService, ILogger<CustomersController> logger)
         {
             _customerService = customerService;
+            _dataPermissionService = dataPermissionService;
             _logger = logger;
         }
 
@@ -42,7 +47,8 @@ namespace CRM.API.Controllers
                     Keyword = searchTerm,
                     Type = customerType,
                     Level = customerLevel,
-                    Status = isActive.HasValue ? (isActive.Value ? (short)1 : (short)0) : null
+                    Status = isActive.HasValue ? (isActive.Value ? (short)1 : (short)0) : null,
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 };
 
                 var result = await _customerService.GetCustomersPagedAsync(request);
@@ -113,6 +119,9 @@ namespace CRM.API.Controllers
                 {
                     return NotFound(ApiResponse<CustomerInfo>.Fail("客户不存在", 404));
                 }
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessCustomerAsync(userId, customer))
+                    return StatusCode(403, ApiResponse<CustomerInfo>.Fail("无权限访问该客户", 403));
                 return Ok(ApiResponse<CustomerInfo>.Ok(customer, "获取客户详情成功"));
             }
             catch (Exception ex)
@@ -123,6 +132,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpPost]
+        [RequirePermission("customer.write")]
         public async Task<ActionResult<ApiResponse<CustomerInfo>>> CreateCustomer([FromBody] CreateCustomerRequest request)
         {
             try
@@ -138,6 +148,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [RequirePermission("customer.write")]
         public async Task<ActionResult<ApiResponse<CustomerInfo>>> UpdateCustomer(string id, [FromBody] UpdateCustomerRequest request)
         {
             try
@@ -153,6 +164,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [RequirePermission("customer.write")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteCustomer(string id)
         {
             try

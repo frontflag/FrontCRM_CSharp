@@ -14,6 +14,7 @@ namespace CRM.Core.Interfaces
         Task DeleteAsync(string id);
         Task UpdateStatusAsync(string id, short status);
         Task VerifyPaymentItemAsync(string paymentItemId, decimal amount);
+        Task<PagedResult<FinancePayment>> GetPagedAsync(FinancePaymentQueryRequest request);
     }
 
     public class CreateFinancePaymentRequest
@@ -46,5 +47,16 @@ namespace CRM.Core.Interfaces
         public DateTime? PaymentDate { get; set; }
         public short? PaymentMode { get; set; }
         public string? Remark { get; set; }
+    }
+
+    public class FinancePaymentQueryRequest
+    {
+        public string? Keyword { get; set; }
+        public short? Status { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+        public string? CurrentUserId { get; set; }
     }
 }

@@ -29,7 +29,7 @@
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card stat-info">
-          <div class="stat-value">¥{{ statAmount.toLocaleString() }}</div>
+          <div class="stat-value">{{ canViewSalesAmount ? `¥${statAmount.toLocaleString()}` : '--' }}</div>
           <div class="stat-label">总金额</div>
         </el-card>
       </el-col>
@@ -41,7 +41,7 @@
         <el-form-item label="订单号">
           <el-input v-model="filterForm.code" placeholder="请输入订单号" clearable />
         </el-form-item>
-        <el-form-item label="客户">
+        <el-form-item v-if="canViewCustomerInfo" label="客户">
           <el-input v-model="filterForm.customer" placeholder="请输入客户名称" clearable />
         </el-form-item>
         <el-form-item label="状态">
@@ -77,9 +77,9 @@
             <el-link type="primary" @click="handleView(row)">{{ row.sellOrderCode }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="customerName" label="客户" min-width="180" show-overflow-tooltip />
+        <el-table-column v-if="canViewCustomerInfo" prop="customerName" label="客户" min-width="180" show-overflow-tooltip />
         <el-table-column prop="salesUserName" label="业务员" width="100" />
-        <el-table-column prop="total" label="总金额" width="130" align="right">
+        <el-table-column v-if="canViewSalesAmount" prop="total" label="总金额" width="130" align="right">
           <template #default="{ row }">
             <span class="amount">{{ formatCurrency(row.total, row.currency) }}</span>
           </template>
@@ -149,7 +149,7 @@
               <el-input v-model="formData.sellOrderCode" placeholder="系统自动生成" disabled />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col v-if="canViewCustomerInfo" :span="12">
             <el-form-item label="客户" prop="customerName">
               <el-input v-model="formData.customerName" placeholder="请输入客户名称" />
             </el-form-item>
@@ -225,7 +225,7 @@
                 <el-input-number v-model="formData.items[$index].qty" :min="1" :controls="false" style="width: 100%" />
               </template>
             </el-table-column>
-            <el-table-column label="单价" width="120">
+            <el-table-column v-if="canViewSalesAmount" label="单价" width="120">
               <template #default="{ $index }">
                 <el-input-number v-model="formData.items[$index].price" :min="0" :precision="2" :controls="false" style="width: 100%" />
               </template>
@@ -236,7 +236,7 @@
               </template>
             </el-table-column>
           </el-table>
-          <div class="total-amount">
+          <div v-if="canViewSalesAmount" class="total-amount">
             合计: <span class="amount">{{ formatCurrency(calculateTotal, formData.currency) }}</span>
           </div>
         </div>
@@ -255,9 +255,9 @@
         <el-descriptions-item label="状态">
           <el-tag :type="getStatusType(currentRow.status)">{{ getStatusText(currentRow.status) }}</el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="客户">{{ currentRow.customerName }}</el-descriptions-item>
+        <el-descriptions-item v-if="canViewCustomerInfo" label="客户">{{ currentRow.customerName }}</el-descriptions-item>
         <el-descriptions-item label="业务员">{{ currentRow.salesUserName }}</el-descriptions-item>
-        <el-descriptions-item label="总金额">
+        <el-descriptions-item v-if="canViewSalesAmount" label="总金额">
           <span class="amount">{{ formatCurrency(currentRow.total, currentRow.currency) }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="行项目数">{{ currentRow.itemRows }}</el-descriptions-item>
@@ -284,12 +284,12 @@
             <el-table-column prop="pn" label="物料型号" />
             <el-table-column prop="brand" label="品牌" />
             <el-table-column prop="qty" label="数量" align="right" />
-            <el-table-column prop="price" label="单价" align="right">
+            <el-table-column v-if="canViewSalesAmount" prop="price" label="单价" align="right">
               <template #default="{ row }">
                 {{ formatCurrency(row.price, row.currency) }}
               </template>
             </el-table-column>
-            <el-table-column label="金额" align="right">
+            <el-table-column v-if="canViewSalesAmount" label="金额" align="right">
               <template #default="{ row }">
                 {{ formatCurrency(row.qty * row.price, row.currency) }}
               </template>
@@ -359,6 +359,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { mockSalesOrderApi as salesOrderApi } from '@/api/mockSalesOrder'
 import { mockPurchaseOrderApi as purchaseOrderApi } from '@/api/mockPurchaseOrder'
 import { tagApi, type TagDefinitionDto } from '@/api/tag'
+import { useAuthStore } from '@/stores/auth'
 import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
@@ -366,6 +367,9 @@ import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 
 const loading = ref(false)
 const orderList = ref<any[]>([])
+const authStore = useAuthStore()
+const canViewCustomerInfo = computed(() => authStore.hasPermission('customer.info.read'))
+const canViewSalesAmount = computed(() => authStore.hasPermission('sales.amount.read'))
 
 // 筛选表单
 const filterForm = ref({

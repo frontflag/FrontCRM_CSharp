@@ -16,12 +16,14 @@ namespace CRM.API.Services.Implementations
     {
         private readonly ApplicationDbContext _context;
         private readonly IRepository<User> _userRepository;
+        private readonly IRbacService _rbacService;
         private readonly ILogger<AuthService> _logger;
 
-        public AuthService(ApplicationDbContext context, IRepository<User> userRepository, ILogger<AuthService> logger)
+        public AuthService(ApplicationDbContext context, IRepository<User> userRepository, IRbacService rbacService, ILogger<AuthService> logger)
         {
             _context = context;
             _userRepository = userRepository;
+            _rbacService = rbacService;
             _logger = logger;
         }
 
@@ -62,12 +64,18 @@ namespace CRM.API.Services.Implementations
             _logger.LogInformation($"User registered: {user.UserName}, Email: {user.Email}, UserId: {user.Id}, SaveChanges result: {saved}");
 
             var token = GenerateJwtToken(user.Email, user.UserName, user.Id);
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(user.Id);
 
             return ApiResponse<AuthResponse>.Ok(new AuthResponse
             {
                 Token = token,
                 UserName = user.UserName,
-                Email = user.Email
+                Email = user.Email ?? string.Empty,
+                UserId = user.Id,
+                IsSysAdmin = summary.IsSysAdmin,
+                RoleCodes = summary.RoleCodes,
+                PermissionCodes = summary.PermissionCodes,
+                DepartmentIds = summary.DepartmentIds
             }, "注册成功");
         }
 
@@ -88,11 +96,17 @@ namespace CRM.API.Services.Implementations
             }
 
             var token = GenerateJwtToken(user.Email ?? user.UserName, user.UserName, user.Id);
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(user.Id);
             return ApiResponse<AuthResponse>.Ok(new AuthResponse
             {
                 Token = token,
                 UserName = user.UserName,
-                Email = user.Email ?? ""
+                Email = user.Email ?? "",
+                UserId = user.Id,
+                IsSysAdmin = summary.IsSysAdmin,
+                RoleCodes = summary.RoleCodes,
+                PermissionCodes = summary.PermissionCodes,
+                DepartmentIds = summary.DepartmentIds
             }, "登录成功");;
         }
 

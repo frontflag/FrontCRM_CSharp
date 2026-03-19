@@ -1,19 +1,24 @@
 using Microsoft.AspNetCore.Mvc;
+using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
+using System.Security.Claims;
 
 namespace CRM.API.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
+    [RequirePermission("rfq.read")]
     public class RFQsController : ControllerBase
     {
         private readonly IRFQService _rfqService;
+        private readonly IDataPermissionService _dataPermissionService;
         private readonly ILogger<RFQsController> _logger;
 
-        public RFQsController(IRFQService rfqService, ILogger<RFQsController> logger)
+        public RFQsController(IRFQService rfqService, IDataPermissionService dataPermissionService, ILogger<RFQsController> logger)
         {
             _rfqService = rfqService;
+            _dataPermissionService = dataPermissionService;
             _logger = logger;
         }
 
@@ -38,7 +43,8 @@ namespace CRM.API.Controllers
                     Status = status,
                     CustomerId = customerId,
                     StartDate = string.IsNullOrEmpty(startDate) ? null : DateTime.Parse(startDate),
-                    EndDate = string.IsNullOrEmpty(endDate) ? null : DateTime.Parse(endDate)
+                    EndDate = string.IsNullOrEmpty(endDate) ? null : DateTime.Parse(endDate),
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 };
                 var result = await _rfqService.GetPagedAsync(request);
                 return Ok(ApiResponse<object>.Ok(new
@@ -66,6 +72,9 @@ namespace CRM.API.Controllers
                 var rfq = await _rfqService.GetByIdAsync(id);
                 if (rfq == null)
                     return NotFound(ApiResponse<object>.Fail("需求不存在", 404));
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessRFQAsync(userId, rfq))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权限访问该需求", 403));
                 return Ok(ApiResponse<object>.Ok(rfq, "获取需求成功"));
             }
             catch (Exception ex)
@@ -77,6 +86,7 @@ namespace CRM.API.Controllers
 
         // POST api/v1/rfqs
         [HttpPost]
+        [RequirePermission("rfq.write")]
         public async Task<ActionResult<ApiResponse<object>>> CreateRFQ([FromBody] CreateRFQRequest request)
         {
             try
@@ -102,6 +112,7 @@ namespace CRM.API.Controllers
 
         // PUT api/v1/rfqs/{id}
         [HttpPut("{id}")]
+        [RequirePermission("rfq.write")]
         public async Task<ActionResult<ApiResponse<object>>> UpdateRFQ(string id, [FromBody] UpdateRFQRequest request)
         {
             try
@@ -126,6 +137,7 @@ namespace CRM.API.Controllers
 
         // DELETE api/v1/rfqs/{id}
         [HttpDelete("{id}")]
+        [RequirePermission("rfq.write")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteRFQ(string id)
         {
             try

@@ -7,15 +7,18 @@ namespace CRM.Core.Services
     {
         private readonly IRepository<FinancePayment> _paymentRepo;
         private readonly IRepository<FinancePaymentItem> _itemRepo;
+        private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork? _unitOfWork;
 
         public FinancePaymentService(
             IRepository<FinancePayment> paymentRepo,
             IRepository<FinancePaymentItem> itemRepo,
+            IDataPermissionService dataPermissionService,
             IUnitOfWork? unitOfWork = null)
         {
             _paymentRepo = paymentRepo;
             _itemRepo = itemRepo;
+            _dataPermissionService = dataPermissionService;
             _unitOfWork = unitOfWork;
         }
 
@@ -69,6 +72,51 @@ namespace CRM.Core.Services
 
         public async Task<IEnumerable<FinancePayment>> GetAllAsync() =>
             await _paymentRepo.GetAllAsync();
+
+        public async Task<PagedResult<FinancePayment>> GetPagedAsync(FinancePaymentQueryRequest request)
+        {
+            var all = await _paymentRepo.GetAllAsync();
+            var filteredByPermission = all.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
+            {
+                filteredByPermission = await _dataPermissionService.FilterFinancePaymentsAsync(request.CurrentUserId, filteredByPermission);
+            }
+
+            var query = filteredByPermission.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Keyword))
+            {
+                var keyword = request.Keyword.Trim();
+                query = query.Where(p =>
+                    (!string.IsNullOrWhiteSpace(p.FinancePaymentCode) && p.FinancePaymentCode.Contains(keyword, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrWhiteSpace(p.VendorName) && p.VendorName.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            if (request.Status.HasValue)
+                query = query.Where(p => p.Status == request.Status.Value);
+
+            if (request.StartDate.HasValue)
+                query = query.Where(p => p.CreateTime >= request.StartDate.Value);
+
+            if (request.EndDate.HasValue)
+                query = query.Where(p => p.CreateTime <= request.EndDate.Value.AddDays(1));
+
+            var totalCount = query.Count();
+            var page = request.Page < 1 ? 1 : request.Page;
+            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
+            var items = query.OrderByDescending(p => p.CreateTime)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return new PagedResult<FinancePayment>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageIndex = page,
+                PageSize = pageSize
+            };
+        }
 
         public async Task<FinancePayment> UpdateAsync(string id, UpdateFinancePaymentRequest request)
         {

@@ -15,6 +15,7 @@ namespace CRM.Core.Services
         private readonly IRepository<VendorContactHistory> _historyRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
+        private readonly IDataPermissionService _dataPermissionService;
 
         public VendorService(
             IRepository<VendorInfo> repository,
@@ -23,7 +24,8 @@ namespace CRM.Core.Services
             IRepository<VendorBankInfo> bankRepository,
             IRepository<VendorContactHistory> historyRepository,
             IUnitOfWork unitOfWork,
-            ISerialNumberService serialNumberService)
+            ISerialNumberService serialNumberService,
+            IDataPermissionService dataPermissionService)
         {
             _repository = repository;
             _contactRepository = contactRepository;
@@ -32,6 +34,7 @@ namespace CRM.Core.Services
             _historyRepository = historyRepository;
             _unitOfWork = unitOfWork;
             _serialNumberService = serialNumberService;
+            _dataPermissionService = dataPermissionService;
         }
 
         /// <summary>
@@ -100,6 +103,13 @@ namespace CRM.Core.Services
 
             if (request.Status.HasValue)
                 query = query.Where(e => e.Status == request.Status.Value);
+
+            // 数据权限过滤（在分页前）
+            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
+            {
+                var filtered = await _dataPermissionService.FilterVendorsAsync(request.CurrentUserId, query.ToList());
+                query = filtered.AsQueryable();
+            }
 
             var totalCount = query.Count();
             var items = query

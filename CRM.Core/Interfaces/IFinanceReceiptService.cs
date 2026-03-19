@@ -14,6 +14,7 @@ namespace CRM.Core.Interfaces
         Task DeleteAsync(string id);
         Task UpdateStatusAsync(string id, short status);
         Task VerifyReceiptItemAsync(string receiptItemId, string sellInvoiceId, decimal amount);
+        Task<PagedResult<FinanceReceipt>> GetPagedAsync(FinanceReceiptQueryRequest request);
     }
 
     public class CreateFinanceReceiptRequest
@@ -51,5 +52,16 @@ namespace CRM.Core.Interfaces
         public DateTime? ReceiptDate { get; set; }
         public short? ReceiptMode { get; set; }
         public string? Remark { get; set; }
+    }
+
+    public class FinanceReceiptQueryRequest
+    {
+        public string? Keyword { get; set; }
+        public short? Status { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+        public string? CurrentUserId { get; set; }
     }
 }

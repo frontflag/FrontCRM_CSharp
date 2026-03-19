@@ -13,19 +13,22 @@ namespace CRM.Core.Services
         private readonly IRepository<CustomerInfo> _customerRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
+        private readonly IDataPermissionService _dataPermissionService;
 
         public RFQService(
             IRepository<RFQ> rfqRepo,
             IRepository<RFQItem> itemRepo,
             IRepository<CustomerInfo> customerRepo,
             IUnitOfWork unitOfWork,
-            ISerialNumberService serialNumberService)
+            ISerialNumberService serialNumberService,
+            IDataPermissionService dataPermissionService)
         {
             _rfqRepo = rfqRepo;
             _itemRepo = itemRepo;
             _customerRepo = customerRepo;
             _unitOfWork = unitOfWork;
             _serialNumberService = serialNumberService;
+            _dataPermissionService = dataPermissionService;
         }
 
         // ─── Create ──────────────────────────────────────────────────────────────
@@ -130,11 +133,8 @@ namespace CRM.Core.Services
             if (request.EndDate.HasValue)
                 query = query.Where(r => r.RfqDate <= request.EndDate.Value);
 
-            var total = query.Count();
             var items = query
                 .OrderByDescending(r => r.CreateTime)
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
                 .ToList();
 
             // 批量获取客户名称
@@ -164,10 +164,22 @@ namespace CRM.Core.Services
                 CreateTime = r.CreateTime
             }).ToList();
 
+            // 数据权限过滤（在分页前）
+            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
+            {
+                listItems = (await _dataPermissionService.FilterRFQsAsync(request.CurrentUserId, listItems)).ToList();
+            }
+
+            var totalCount = listItems.Count;
+            var pagedItems = listItems
+                .Skip((request.PageIndex - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToList();
+
             return new PagedResult<RFQListItem>
             {
-                Items = listItems,
-                TotalCount = total,
+                Items = pagedItems,
+                TotalCount = totalCount,
                 PageIndex = request.PageIndex,
                 PageSize = request.PageSize,
             };

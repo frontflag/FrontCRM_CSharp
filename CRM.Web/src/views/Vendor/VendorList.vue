@@ -102,7 +102,7 @@
           <input
             v-model="searchForm.keyword"
             class="search-input"
-            placeholder="搜索供应商名称/联系人..."
+            :placeholder="canViewVendorInfo ? '搜索供应商名称/联系人...' : '搜索供应商编号...'"
             @keyup.enter="handleSearch"
           />
         </div>
@@ -125,12 +125,12 @@
         <thead>
           <tr>
             <th style="width:44px">序号</th>
-            <th style="min-width:180px">供应商名称</th>
+            <th v-if="canViewVendorInfo" style="min-width:180px">供应商名称</th>
             <th style="width:110px">供应商编号</th>
             <th style="width:80px">评级</th>
             <th style="width:100px">行业</th>
-            <th style="width:130px">联系人</th>
-            <th style="width:130px">联系电话</th>
+            <th v-if="canViewVendorInfo" style="width:130px">联系人</th>
+            <th v-if="canViewVendorInfo" style="width:130px">联系电话</th>
             <th style="width:160px">地址</th>
             <th style="width:80px">状态</th>
             <th style="width:150px">操作</th>
@@ -144,7 +144,7 @@
             @click="handleView(vendor)"
           >
             <td class="td-index">{{ (pagination.pageNumber - 1) * pagination.pageSize + index + 1 }}</td>
-            <td>
+            <td v-if="canViewVendorInfo">
               <div class="vendor-name-cell">
                 <div class="cell-avatar">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -165,13 +165,13 @@
               </div>
             </td>
             <td class="td-muted">{{ vendor.industry || '--' }}</td>
-            <td>
+            <td v-if="canViewVendorInfo">
               <template v-if="vendor.contacts && vendor.contacts.length > 0">
                 <span class="td-contact">{{ vendor.contacts[0].cName || vendor.contacts[0].eName || '--' }}</span>
               </template>
               <span v-else class="td-empty">--</span>
             </td>
-            <td>
+            <td v-if="canViewVendorInfo">
               <template v-if="vendor.contacts && vendor.contacts.length > 0">
                 <span class="td-phone">{{ vendor.contacts[0].mobile || vendor.contacts[0].tel || '--' }}</span>
               </template>
@@ -237,8 +237,11 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { vendorApi } from '@/api/vendor';
 import { favoriteApi } from '@/api/favorite';
 import type { Vendor, VendorSearchRequest, VendorStatistics } from '@/types/vendor';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
+const authStore = useAuthStore();
+const canViewVendorInfo = authStore.hasPermission('vendor.info.read');
 const loading = ref(false);
 const vendorList = ref<Vendor[]>([]);
 const totalCount = ref(0);

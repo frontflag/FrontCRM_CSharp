@@ -1,4 +1,5 @@
 using CRM.API.Models.DTOs;
+using CRM.API.Authorization;
 using CRM.Core.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -6,6 +7,7 @@ namespace CRM.API.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
+    [RequirePermission("draft.read")]
     public class DraftsController : ControllerBase
     {
         private readonly IDraftService _draftService;
@@ -24,6 +26,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpPost]
+        [RequirePermission("draft.write")]
         public async Task<ActionResult<ApiResponse<DraftDto>>> SaveDraft([FromBody] SaveDraftRequest request)
         {
             try
@@ -84,6 +87,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpDelete("{draftId}")]
+        [RequirePermission("draft.write")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteDraft(string draftId)
         {
             try
@@ -103,6 +107,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpPost("{draftId}/convert")]
+        [RequirePermission("draft.write")]
         public async Task<ActionResult<ApiResponse<DraftConvertResultDto>>> ConvertDraft(string draftId)
         {
             try

@@ -7,15 +7,18 @@ namespace CRM.Core.Services
     {
         private readonly IRepository<FinanceSellInvoice> _invoiceRepo;
         private readonly IRepository<SellInvoiceItem> _itemRepo;
+        private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork? _unitOfWork;
 
         public FinanceSellInvoiceService(
             IRepository<FinanceSellInvoice> invoiceRepo,
             IRepository<SellInvoiceItem> itemRepo,
+            IDataPermissionService dataPermissionService,
             IUnitOfWork? unitOfWork = null)
         {
             _invoiceRepo = invoiceRepo;
             _itemRepo = itemRepo;
+            _dataPermissionService = dataPermissionService;
             _unitOfWork = unitOfWork;
         }
 
@@ -74,6 +77,55 @@ namespace CRM.Core.Services
 
         public async Task<IEnumerable<FinanceSellInvoice>> GetAllAsync() =>
             await _invoiceRepo.GetAllAsync();
+
+        public async Task<PagedResult<FinanceSellInvoice>> GetPagedAsync(FinanceSellInvoiceQueryRequest request)
+        {
+            var all = await _invoiceRepo.GetAllAsync();
+            var filteredByPermission = all.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
+            {
+                filteredByPermission = await _dataPermissionService.FilterFinanceSellInvoicesAsync(request.CurrentUserId, filteredByPermission);
+            }
+
+            var query = filteredByPermission.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Keyword))
+            {
+                var keyword = request.Keyword.Trim();
+                query = query.Where(inv =>
+                    (!string.IsNullOrWhiteSpace(inv.CustomerName) && inv.CustomerName.Contains(keyword, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrWhiteSpace(inv.InvoiceCode) && inv.InvoiceCode.Contains(keyword, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrWhiteSpace(inv.InvoiceNo) && inv.InvoiceNo.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            if (request.InvoiceStatus.HasValue)
+                query = query.Where(inv => inv.InvoiceStatus == request.InvoiceStatus.Value);
+
+            if (request.ReceiveStatus.HasValue)
+                query = query.Where(inv => inv.ReceiveStatus == request.ReceiveStatus.Value);
+
+            if (request.StartDate.HasValue)
+                query = query.Where(inv => inv.MakeInvoiceDate >= request.StartDate.Value);
+
+            if (request.EndDate.HasValue)
+                query = query.Where(inv => inv.MakeInvoiceDate <= request.EndDate.Value.AddDays(1));
+
+            var totalCount = query.Count();
+            var page = request.Page < 1 ? 1 : request.Page;
+            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
+            var items = query.OrderByDescending(inv => inv.CreateTime)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return new PagedResult<FinanceSellInvoice>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageIndex = page,
+                PageSize = pageSize
+            };
+        }
 
         public async Task<FinanceSellInvoice> UpdateAsync(string id, UpdateFinanceSellInvoiceRequest request)
         {

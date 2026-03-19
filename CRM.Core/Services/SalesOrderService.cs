@@ -11,6 +11,7 @@ namespace CRM.Core.Services
         private readonly IRepository<SellOrderItem> _soItemRepo;
         private readonly IRepository<PurchaseOrder> _poRepo;
         private readonly IRepository<PurchaseOrderItem> _poItemRepo;
+        private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork? _unitOfWork;
 
         public SalesOrderService(
@@ -18,12 +19,14 @@ namespace CRM.Core.Services
             IRepository<SellOrderItem> soItemRepo,
             IRepository<PurchaseOrder> poRepo,
             IRepository<PurchaseOrderItem> poItemRepo,
+            IDataPermissionService dataPermissionService,
             IUnitOfWork? unitOfWork = null)
         {
             _soRepo = soRepo;
             _soItemRepo = soItemRepo;
             _poRepo = poRepo;
             _poItemRepo = poItemRepo;
+            _dataPermissionService = dataPermissionService;
             _unitOfWork = unitOfWork;
         }
 
@@ -97,6 +100,51 @@ namespace CRM.Core.Services
         public async Task<IEnumerable<SellOrder>> GetAllAsync()
         {
             return await _soRepo.GetAllAsync();
+        }
+
+        public async Task<PagedResult<SellOrder>> GetPagedAsync(SalesOrderQueryRequest request)
+        {
+            var all = await _soRepo.GetAllAsync();
+            var filteredByPermission = all.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
+            {
+                filteredByPermission = await _dataPermissionService.FilterSalesOrdersAsync(request.CurrentUserId, filteredByPermission);
+            }
+
+            var query = filteredByPermission.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Keyword))
+            {
+                var keyword = request.Keyword.Trim();
+                query = query.Where(o =>
+                    (!string.IsNullOrWhiteSpace(o.SellOrderCode) && o.SellOrderCode.Contains(keyword, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrWhiteSpace(o.CustomerName) && o.CustomerName.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            if (request.Status.HasValue)
+                query = query.Where(o => o.Status == request.Status.Value);
+
+            if (request.StartDate.HasValue)
+                query = query.Where(o => o.CreateTime >= request.StartDate.Value);
+
+            if (request.EndDate.HasValue)
+                query = query.Where(o => o.CreateTime <= request.EndDate.Value.AddDays(1));
+
+            var totalCount = query.Count();
+            var page = request.Page < 1 ? 1 : request.Page;
+            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
+            var items = query.OrderByDescending(o => o.CreateTime)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return new PagedResult<SellOrder>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageIndex = page,
+                PageSize = pageSize
+            };
         }
 
         public async Task<IEnumerable<SellOrder>> GetByCustomerIdAsync(string customerId)

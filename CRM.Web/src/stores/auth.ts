@@ -6,6 +6,10 @@ interface User {
   id: string
   email: string
   userName: string
+  isSysAdmin?: boolean
+  roleCodes?: string[]
+  permissionCodes?: string[]
+  departmentIds?: string[]
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -28,7 +32,11 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = {
           email: authData.email,
           userName: authData.userName,
-          id: '0'
+          id: authData.userId || '0',
+          isSysAdmin: !!authData.isSysAdmin,
+          roleCodes: authData.roleCodes || [],
+          permissionCodes: authData.permissionCodes || [],
+          departmentIds: authData.departmentIds || []
         }
         localStorage.setItem('token', tokenVal)
         localStorage.setItem('user', JSON.stringify(user.value))
@@ -54,7 +62,11 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = {
           email: authData.email,
           userName: authData.userName,
-          id: '0'
+          id: authData.userId || '0',
+          isSysAdmin: !!authData.isSysAdmin,
+          roleCodes: authData.roleCodes || [],
+          permissionCodes: authData.permissionCodes || [],
+          departmentIds: authData.departmentIds || []
         }
         localStorage.setItem('token', tokenVal)
         localStorage.setItem('user', JSON.stringify(user.value))
@@ -76,7 +88,14 @@ export const useAuthStore = defineStore('auth', () => {
       // client.ts 拦截器已解包 data 层，返回的直接是用户对象
       const userData = await authApi.getCurrentUser() as any
       if (userData) {
-        user.value = userData
+        const summary = await authApi.getPermissionSummary() as any
+        user.value = {
+          ...userData,
+          isSysAdmin: !!summary?.isSysAdmin,
+          roleCodes: summary?.roleCodes || [],
+          permissionCodes: summary?.permissionCodes || [],
+          departmentIds: summary?.departmentIds || []
+        }
         localStorage.setItem('user', JSON.stringify(user.value))
       }
     } catch (error) {
@@ -92,6 +111,13 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('user')
   }
 
+  function hasPermission(permissionCode?: string): boolean {
+    if (!permissionCode) return true
+    if (!user.value) return false
+    if (user.value.isSysAdmin) return true
+    return (user.value.permissionCodes || []).includes(permissionCode)
+  }
+
   return {
     token,
     user,
@@ -100,6 +126,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     register,
     logout,
-    fetchCurrentUser
+    fetchCurrentUser,
+    hasPermission
   }
 })

@@ -17,6 +17,7 @@ namespace CRM.Core.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IErrorLogService _errorLogService;
+        private readonly IDataPermissionService _dataPermissionService;
 
         public CustomerService(
             IRepository<CustomerInfo> customerRepository,
@@ -26,7 +27,8 @@ namespace CRM.Core.Services
             IRepository<CustomerContactHistory> contactHistoryRepository,
             IUnitOfWork unitOfWork,
             ISerialNumberService serialNumberService,
-            IErrorLogService errorLogService)
+            IErrorLogService errorLogService,
+            IDataPermissionService dataPermissionService)
         {
             _customerRepository = customerRepository;
             _addressRepository = addressRepository;
@@ -36,6 +38,7 @@ namespace CRM.Core.Services
             _unitOfWork = unitOfWork;
             _serialNumberService = serialNumberService;
             _errorLogService = errorLogService;
+            _dataPermissionService = dataPermissionService;
         }
 
         /// <summary>
@@ -170,6 +173,13 @@ namespace CRM.Core.Services
             // 状态筛选
             if (request.Status.HasValue)
                 query = query.Where(c => c.Status == request.Status.Value);
+
+            // 数据权限过滤（在分页前）
+            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
+            {
+                var filtered = await _dataPermissionService.FilterCustomersAsync(request.CurrentUserId, query.ToList());
+                query = filtered.AsQueryable();
+            }
 
             var totalCount = query.Count();
             var items = query

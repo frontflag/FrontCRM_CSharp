@@ -11,6 +11,7 @@ namespace CRM.Core.Interfaces
         Task<SellOrder> UpdateAsync(string id, UpdateSalesOrderRequest request);
         Task DeleteAsync(string id);
         Task UpdateStatusAsync(string id, short status);
+        Task<PagedResult<SellOrder>> GetPagedAsync(SalesOrderQueryRequest request);
         /// <summary>根据客户ID获取销售订单列表</summary>
         Task<IEnumerable<SellOrder>> GetByCustomerIdAsync(string customerId);
         /// <summary>获取销售订单关联的采购订单列表</summary>
@@ -79,5 +80,16 @@ namespace CRM.Core.Interfaces
         public string? DeliveryAddress { get; set; }
         public string? Comment { get; set; }
         public List<CreateSalesOrderItemRequest>? Items { get; set; }
+    }
+
+    public class SalesOrderQueryRequest
+    {
+        public string? Keyword { get; set; }
+        public short? Status { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+        public string? CurrentUserId { get; set; }
     }
 }

@@ -634,6 +634,7 @@ namespace CRM.Core.Interfaces
         public short? Type { get; set; }
         public string? SalesUserId { get; set; }
         public short? Status { get; set; }
+        public string? CurrentUserId { get; set; }
     }
 
     /// <summary>
