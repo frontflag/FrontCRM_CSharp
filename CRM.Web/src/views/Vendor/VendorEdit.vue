@@ -46,7 +46,7 @@
               <el-form-item label="供应商编号" prop="code">
                 <el-input
                   v-model="formData.code"
-                  placeholder="请输入供应商编号，如：VEN001"
+                  placeholder="留空则系统自动生成"
                   :disabled="isEdit"
                   class="q-input"
                 />
@@ -332,7 +332,7 @@ const formData = reactive({
 
 const formRules = computed<FormRules>(() => ({
   officialName: [{ required: true, message: '请输入供应商全称', trigger: 'blur' }],
-  code: isEdit.value ? [] : [{ required: true, message: '请输入供应商编号', trigger: 'blur' }],
+  // code 由后端自动生成，无需前端必填验证
 }));
 
 const contacts = ref<VendorContactInfo[]>([]);
@@ -374,7 +374,7 @@ const handleSave = async () => {
       ElMessage.success('保存成功');
     } else {
       const created = await vendorApi.createVendor({
-        code: formData.code.trim(),
+        code: formData.code?.trim() || undefined,
         name: formData.officialName.trim(),
         remark: formData.remark?.trim() || undefined
       });

@@ -14,6 +14,7 @@ namespace CRM.Core.Services
         private readonly IRepository<VendorBankInfo> _bankRepository;
         private readonly IRepository<VendorContactHistory> _historyRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ISerialNumberService _serialNumberService;
 
         public VendorService(
             IRepository<VendorInfo> repository,
@@ -21,7 +22,8 @@ namespace CRM.Core.Services
             IRepository<VendorAddress> addressRepository,
             IRepository<VendorBankInfo> bankRepository,
             IRepository<VendorContactHistory> historyRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            ISerialNumberService serialNumberService)
         {
             _repository = repository;
             _contactRepository = contactRepository;
@@ -29,6 +31,7 @@ namespace CRM.Core.Services
             _bankRepository = bankRepository;
             _historyRepository = historyRepository;
             _unitOfWork = unitOfWork;
+            _serialNumberService = serialNumberService;
         }
 
         /// <summary>
@@ -36,8 +39,9 @@ namespace CRM.Core.Services
         /// </summary>
         public async Task<VendorInfo> CreateAsync(CreateVendorRequest request)
         {
+            // 若前端未传入编号，则自动生成
             if (string.IsNullOrWhiteSpace(request.Code))
-                throw new ArgumentException("编码不能为空", nameof(request.Code));
+                request.Code = await _serialNumberService.GenerateNextAsync(ModuleCodes.Vendor);
 
             var entity = new VendorInfo
             {
