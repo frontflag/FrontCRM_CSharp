@@ -119,6 +119,14 @@
         </div>
         <div class="tabs-body">
           <div v-show="activeTab === 'contacts'" class="contacts-tab">
+            <!-- 内嵌联系人表单面板 -->
+            <VendorContactInlineForm
+              v-model="contactDialogVisible"
+              :mode="contactDialogMode"
+              :contact="editingContact"
+              :loading="contactSaving"
+              @confirm="handleContactDialogConfirm"
+            />
             <div class="contacts-toolbar">
               <button class="btn-primary btn-sm" @click="openCreateContact">新增联系人</button>
             </div>
@@ -310,12 +318,7 @@
       </div>
     </div>
 
-    <VendorContactDialog
-      v-model="contactDialogVisible"
-      :mode="contactDialogMode"
-      :contact="editingContact"
-      @confirm="handleContactDialogConfirm"
-    />
+    <!-- VendorContactDialog 已替换为页面内嵌 VendorContactInlineForm -->
 
     <VendorAddressDialog
       v-model="addressDialogVisible"
@@ -350,7 +353,7 @@ import { tagApi, type TagDefinitionDto } from '@/api/tag';
 import TagListDisplay from '@/components/Tag/TagListDisplay.vue';
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue';
 import type { Vendor, VendorContactInfo, VendorAddress, VendorBankInfo, AddVendorContactRequest, UpdateVendorContactRequest } from '@/types/vendor';
-import VendorContactDialog from './VendorContactDialog.vue';
+import VendorContactInlineForm from './VendorContactInlineForm.vue';
 import VendorAddressDialog from './VendorAddressDialog.vue';
 import VendorBankDialog from './VendorBankDialog.vue';
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue';
@@ -561,6 +564,7 @@ const handleRemoveFromBlacklist = async () => {
 const contactDialogVisible = ref(false);
 const contactDialogMode = ref<'create' | 'edit'>('create');
 const editingContact = ref<VendorContactInfo | null>(null);
+const contactSaving = ref(false);
 
 const openCreateContact = () => {
   contactDialogMode.value = 'create';
@@ -575,6 +579,7 @@ const openEditContact = (row: VendorContactInfo) => {
 };
 
 const handleContactDialogConfirm = async (payload: AddVendorContactRequest | UpdateVendorContactRequest) => {
+  contactSaving.value = true;
   try {
     if (contactDialogMode.value === 'create') {
       await vendorContactApi.createContact(vendorId, payload as AddVendorContactRequest);
@@ -587,6 +592,8 @@ const handleContactDialogConfirm = async (payload: AddVendorContactRequest | Upd
     await refreshContacts();
   } catch {
     ElMessage.error('保存联系人失败');
+  } finally {
+    contactSaving.value = false;
   }
 };
 

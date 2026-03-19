@@ -152,8 +152,15 @@
           <div class="tabs-body">
             <!-- 联系人 -->
             <div v-show="activeTab === 'contacts'">
+              <!-- 内嵌联系人表单面板 -->
+              <ContactInlineForm
+                v-model="showContactDialog"
+                :customer-id="customerId"
+                :contact="editingContact"
+                @success="handleContactSuccess"
+              />
               <div class="tab-toolbar">
-                <button class="btn-add-item" @click="showContactDialog = true">
+                <button class="btn-add-item" @click="openAddContact">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                   </svg>
@@ -370,8 +377,7 @@
       </div>
     </div>
 
-    <!-- 对话框 -->
-    <ContactDialog v-model="showContactDialog" :customer-id="customerId" :contact="editingContact" @success="handleContactSuccess" />
+    <!-- 对话框（ContactDialog 已替换为页面内嵌 ContactInlineForm，此处保留其他弹窗） -->
     <AddressDialog v-model="showAddressDialog" :customer-id="customerId" :address="editingAddress" @success="handleAddressSuccess" />
     <BankDialog v-model="showBankDialog" :customer-id="customerId" :bank="editingBank" @success="handleBankSuccess" />
 
@@ -422,7 +428,7 @@ import { tagApi, type TagDefinitionDto } from '@/api/tag';
 import TagListDisplay from '@/components/Tag/TagListDisplay.vue';
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue';
 import type { Customer, CustomerContactInfo, CustomerAddress, CustomerBankInfo } from '@/types/customer';
-import ContactDialog from './components/ContactDialog.vue';
+import ContactInlineForm from './components/ContactInlineForm.vue';
 import AddressDialog from './components/AddressDialog.vue';
 import BankDialog from './components/BankDialog.vue';
 
@@ -560,6 +566,7 @@ const handleEdit = () => router.push(`/customers/${customerId}/edit`);
 const handleCreateQuote = () => ElNotification.info({ title: '功能开发中', message: '报价单功能正在开发中，敬请期待' });
 const handleCreateOrder = () => ElNotification.info({ title: '功能开发中', message: '订单功能正在开发中，敬请期待' });
 
+const openAddContact = () => { editingContact.value = undefined; showContactDialog.value = true; };
 const editContact = (contact: CustomerContactInfo) => { editingContact.value = contact; showContactDialog.value = true; };
 const deleteContact = async (contact: CustomerContactInfo) => {
   try {
