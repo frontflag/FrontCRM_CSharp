@@ -248,36 +248,35 @@
     </el-dialog>
 
     <!-- 查看详情对话框 -->
-    <el-dialog v-model="viewDialogVisible" title="销售订单详情" width="860px" @open="activeDetailTab = 'info'">
-      <el-tabs v-model="activeDetailTab" class="detail-tabs">
-        <!-- 基本信息 Tab -->
-        <el-tab-pane label="基本信息" name="info">
-          <el-descriptions :column="2" border v-if="currentRow">
-            <el-descriptions-item label="订单号">{{ currentRow.sellOrderCode }}</el-descriptions-item>
-            <el-descriptions-item label="状态">
-              <el-tag :type="getStatusType(currentRow.status)">{{ getStatusText(currentRow.status) }}</el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="客户">{{ currentRow.customerName }}</el-descriptions-item>
-            <el-descriptions-item label="业务员">{{ currentRow.salesUserName }}</el-descriptions-item>
-            <el-descriptions-item label="总金额">
-              <span class="amount">{{ formatCurrency(currentRow.total, currentRow.currency) }}</span>
-            </el-descriptions-item>
-            <el-descriptions-item label="行项目数">{{ currentRow.itemRows }}</el-descriptions-item>
-            <el-descriptions-item label="交货日期">{{ currentRow.deliveryDate }}</el-descriptions-item>
-            <el-descriptions-item label="创建时间">{{ currentRow.createTime }}</el-descriptions-item>
-            <el-descriptions-item label="标签" :span="2">
-              <div class="tags-row">
-                <TagListDisplay :tags="currentTags" />
-                <el-button size="small" type="primary" link @click="openTagDialog">
-                  添加标签
-                </el-button>
-              </div>
-            </el-descriptions-item>
-            <el-descriptions-item label="送货地址" :span="2">{{ currentRow.deliveryAddress }}</el-descriptions-item>
-            <el-descriptions-item label="备注" :span="2">{{ currentRow.comment }}</el-descriptions-item>
-          </el-descriptions>
-        </el-tab-pane>
+    <el-dialog v-model="viewDialogVisible" title="销售订单详情" width="900px" @open="activeDetailTab = 'items'">
+      <!-- 固定显示：基本信息 -->
+      <el-descriptions :column="2" border v-if="currentRow" style="margin-bottom: 16px;">
+        <el-descriptions-item label="订单号">{{ currentRow.sellOrderCode }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="getStatusType(currentRow.status)">{{ getStatusText(currentRow.status) }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="客户">{{ currentRow.customerName }}</el-descriptions-item>
+        <el-descriptions-item label="业务员">{{ currentRow.salesUserName }}</el-descriptions-item>
+        <el-descriptions-item label="总金额">
+          <span class="amount">{{ formatCurrency(currentRow.total, currentRow.currency) }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="行项目数">{{ currentRow.itemRows }}</el-descriptions-item>
+        <el-descriptions-item label="交货日期">{{ currentRow.deliveryDate }}</el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ currentRow.createTime }}</el-descriptions-item>
+        <el-descriptions-item label="标签" :span="2">
+          <div class="tags-row">
+            <TagListDisplay :tags="currentTags" />
+            <el-button size="small" type="primary" link @click="openTagDialog">
+              添加标签
+            </el-button>
+          </div>
+        </el-descriptions-item>
+        <el-descriptions-item label="送货地址" :span="2">{{ currentRow.deliveryAddress }}</el-descriptions-item>
+        <el-descriptions-item label="备注" :span="2">{{ currentRow.comment }}</el-descriptions-item>
+      </el-descriptions>
 
+      <!-- TabBar：订单明细 | 文档 -->
+      <el-tabs v-model="activeDetailTab" class="detail-tabs">
         <!-- 订单明细 Tab -->
         <el-tab-pane label="订单明细" name="items">
           <el-table :data="currentRow?.items" border size="small" v-if="currentRow?.items?.length">
