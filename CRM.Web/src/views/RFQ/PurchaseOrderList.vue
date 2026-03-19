@@ -1,83 +1,672 @@
 <template>
   <div class="purchase-order-list-page">
     <div class="page-header">
-      <h2>采购订单</h2>
-      <el-button type="primary" @click="handleCreate">新建采购订单</el-button>
+      <h2>采购订单管理</h2>
+      <el-button type="primary" @click="handleCreate">
+        <el-icon><Plus /></el-icon>新建采购订单
+      </el-button>
     </div>
+
+    <!-- 统计卡片 -->
+    <el-row :gutter="20" class="stat-row">
+      <el-col :span="6">
+        <el-card class="stat-card">
+          <div class="stat-value">{{ statTotal }}</div>
+          <div class="stat-label">订单总数</div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stat-card stat-warning">
+          <div class="stat-value">{{ statPending }}</div>
+          <div class="stat-label">待确认</div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stat-card stat-success">
+          <div class="stat-value">{{ statInProgress }}</div>
+          <div class="stat-label">进行中</div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card class="stat-card stat-info">
+          <div class="stat-value">¥{{ statAmount.toLocaleString() }}</div>
+          <div class="stat-label">采购总额</div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 搜索筛选 -->
+    <el-card class="filter-card">
+      <el-form :inline="true" :model="filterForm">
+        <el-form-item label="订单号">
+          <el-input v-model="filterForm.code" placeholder="请输入订单号" clearable />
+        </el-form-item>
+        <el-form-item label="供应商">
+          <el-input v-model="filterForm.vendor" placeholder="请输入供应商" clearable />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="filterForm.status" placeholder="全部状态" clearable>
+            <el-option label="待确认" :value="0" />
+            <el-option label="已确认" :value="1" />
+            <el-option label="已发货" :value="2" />
+            <el-option label="已入库" :value="3" />
+            <el-option label="已完成" :value="5" />
+            <el-option label="已取消" :value="-1" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch">
+            <el-icon><Search /></el-icon>查询
+          </el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <!-- 数据表格 -->
     <el-card class="table-card">
-      <el-table :data="orderList" v-loading="loading">
-        <el-table-column prop="purchaseOrderCode" label="订单号" />
-        <el-table-column prop="vendorName" label="供应商" />
-        <el-table-column prop="total" label="总金额" />
-        <el-table-column prop="status" label="状态">
+      <el-table 
+        :data="filteredList" 
+        v-loading="loading"
+        stripe
+        border
+        highlight-current-row
+      >
+        <el-table-column prop="purchaseOrderCode" label="订单号" width="160" sortable>
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">{{ getStatusText(row.status) }}</el-tag>
+            <el-link type="primary" @click="handleView(row)">{{ row.purchaseOrderCode }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" />
-        <el-table-column label="操作" width="200">
+        <el-table-column prop="vendorName" label="供应商" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="purchaseUserName" label="采购员" width="100" />
+        <el-table-column prop="total" label="总金额" width="130" align="right">
+          <template #default="{ row }">
+            <span class="amount">{{ formatCurrency(row.total, row.currency) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="itemRows" label="行项目" width="80" align="center" />
+        <el-table-column prop="status" label="状态" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="getStatusType(row.status)" size="small">
+              {{ getStatusText(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="stockStatus" label="入库状态" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="getStockStatusType(row.stockStatus)" size="small">
+              {{ getStockStatusText(row.stockStatus) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="deliveryDate" label="交货日期" width="110" />
+        <el-table-column prop="createTime" label="创建时间" width="150" />
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="handleView(row)">查看</el-button>
             <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
+            <el-dropdown @command="(cmd) => handleMore(cmd, row)">
+              <el-button link type="primary">
+                更多<el-icon class="el-icon--right"><arrow-down /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="status">更新状态</el-dropdown-item>
+                  <el-dropdown-item command="delete" type="danger" divided>删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
+
+      <!-- 分页 -->
+      <div class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="pageInfo.page"
+          v-model:page-size="pageInfo.pageSize"
+          :total="pageInfo.total"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handlePageChange"
+        />
+      </div>
     </el-card>
+
+    <!-- 新建/编辑对话框 -->
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      width="900px"
+      destroy-on-close
+    >
+      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="订单号" prop="purchaseOrderCode">
+              <el-input v-model="formData.purchaseOrderCode" placeholder="系统自动生成" disabled />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="供应商" prop="vendorName">
+              <el-input v-model="formData.vendorName" placeholder="请输入供应商名称" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="采购员" prop="purchaseUserName">
+              <el-input v-model="formData.purchaseUserName" placeholder="请输入采购员" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="订单类型">
+              <el-select v-model="formData.type" style="width: 100%">
+                <el-option label="普通订单" :value="1" />
+                <el-option label="紧急订单" :value="2" />
+                <el-option label="样品订单" :value="3" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="币别">
+              <el-select v-model="formData.currency" style="width: 100%">
+                <el-option label="CNY 人民币" :value="1" />
+                <el-option label="USD 美元" :value="2" />
+                <el-option label="EUR 欧元" :value="3" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="交货日期">
+              <el-date-picker
+                v-model="formData.deliveryDate"
+                type="date"
+                placeholder="选择交货日期"
+                style="width: 100%"
+                value-format="YYYY-MM-DD"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="送货地址">
+          <el-input v-model="formData.deliveryAddress" type="textarea" rows="2" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="formData.comment" type="textarea" rows="2" />
+        </el-form-item>
+        <el-form-item label="内部备注">
+          <el-input v-model="formData.innerComment" type="textarea" rows="2" />
+        </el-form-item>
+
+        <!-- 明细行 -->
+        <div class="items-section">
+          <div class="items-header">
+            <h4>订单明细</h4>
+            <el-button type="primary" size="small" @click="addItem">
+              <el-icon><Plus /></el-icon>添加明细
+            </el-button>
+          </div>
+          <el-table :data="formData.items" border size="small">
+            <el-table-column type="index" width="50" />
+            <el-table-column label="物料型号" min-width="150">
+              <template #default="{ $index }">
+                <el-input v-model="formData.items[$index].pn" placeholder="PN" />
+              </template>
+            </el-table-column>
+            <el-table-column label="品牌" width="120">
+              <template #default="{ $index }">
+                <el-input v-model="formData.items[$index].brand" placeholder="品牌" />
+              </template>
+            </el-table-column>
+            <el-table-column label="数量" width="100">
+              <template #default="{ $index }">
+                <el-input-number v-model="formData.items[$index].qty" :min="1" :controls="false" style="width: 100%" />
+              </template>
+            </el-table-column>
+            <el-table-column label="单价(成本)" width="120">
+              <template #default="{ $index }">
+                <el-input-number v-model="formData.items[$index].cost" :min="0" :precision="2" :controls="false" style="width: 100%" />
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="80" align="center">
+              <template #default="{ $index }">
+                <el-button link type="danger" @click="removeItem($index)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div class="total-amount">
+            合计: <span class="amount">{{ formatCurrency(calculateTotal, formData.currency) }}</span>
+          </div>
+        </div>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSubmit" :loading="submitLoading">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 查看详情对话框 -->
+    <el-dialog v-model="viewDialogVisible" title="采购订单详情" width="800px">
+      <el-descriptions :column="2" border v-if="currentRow">
+        <el-descriptions-item label="订单号">{{ currentRow.purchaseOrderCode }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="getStatusType(currentRow.status)">{{ getStatusText(currentRow.status) }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="供应商">{{ currentRow.vendorName }}</el-descriptions-item>
+        <el-descriptions-item label="采购员">{{ currentRow.purchaseUserName }}</el-descriptions-item>
+        <el-descriptions-item label="总金额">
+          <span class="amount">{{ formatCurrency(currentRow.total, currentRow.currency) }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="行项目数">{{ currentRow.itemRows }}</el-descriptions-item>
+        <el-descriptions-item label="交货日期">{{ currentRow.deliveryDate }}</el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ currentRow.createTime }}</el-descriptions-item>
+        <el-descriptions-item label="送货地址" :span="2">{{ currentRow.deliveryAddress }}</el-descriptions-item>
+        <el-descriptions-item label="备注" :span="2">{{ currentRow.comment }}</el-descriptions-item>
+        <el-descriptions-item label="内部备注" :span="2">{{ currentRow.innerComment }}</el-descriptions-item>
+      </el-descriptions>
+      <h4 style="margin-top: 20px;">订单明细</h4>
+      <el-table :data="currentRow?.items" border size="small" v-if="currentRow?.items?.length">
+        <el-table-column type="index" width="50" />
+        <el-table-column prop="pn" label="物料型号" />
+        <el-table-column prop="brand" label="品牌" />
+        <el-table-column prop="qty" label="数量" align="right" />
+        <el-table-column prop="cost" label="单价" align="right">
+          <template #default="{ row }">
+            {{ formatCurrency(row.cost, row.currency) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="金额" align="right">
+          <template #default="{ row }">
+            {{ formatCurrency(row.qty * row.cost, row.currency) }}
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
+
+    <!-- 状态更新对话框 -->
+    <el-dialog v-model="statusDialogVisible" title="更新状态" width="400px">
+      <el-form label-width="100px">
+        <el-form-item label="新状态">
+          <el-select v-model="newStatus" style="width: 100%">
+            <el-option label="待确认" :value="0" />
+            <el-option label="已确认" :value="1" />
+            <el-option label="已发货" :value="2" />
+            <el-option label="已入库" :value="3" />
+            <el-option label="已出库" :value="4" />
+            <el-option label="已完成" :value="5" />
+            <el-option label="已取消" :value="-1" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="statusDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmUpdateStatus">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ref, computed, onMounted } from 'vue'
+import { Plus, Search, ArrowDown } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+// 使用模拟数据API
+import { mockPurchaseOrderApi as purchaseOrderApi } from '@/api/mockPurchaseOrder'
 
-const router = useRouter()
 const loading = ref(false)
-const orderList = ref([])
+const orderList = ref<any[]>([])
 
+// 筛选表单
+const filterForm = ref({
+  code: '',
+  vendor: '',
+  status: undefined as number | undefined
+})
+
+// 分页信息
+const pageInfo = ref({
+  page: 1,
+  pageSize: 10,
+  total: 0
+})
+
+// 对话框控制
+const dialogVisible = ref(false)
+const dialogTitle = ref('新建采购订单')
+const viewDialogVisible = ref(false)
+const statusDialogVisible = ref(false)
+const submitLoading = ref(false)
+const formRef = ref()
+const currentRow = ref<any>(null)
+const isEdit = ref(false)
+const newStatus = ref(0)
+
+// 表单数据
+const formData = ref({
+  purchaseOrderCode: '',
+  vendorName: '',
+  purchaseUserName: '',
+  type: 1,
+  currency: 1,
+  deliveryDate: '',
+  deliveryAddress: '',
+  comment: '',
+  innerComment: '',
+  items: [] as any[]
+})
+
+const formRules = {
+  vendorName: [{ required: true, message: '请输入供应商名称', trigger: 'blur' }],
+  purchaseUserName: [{ required: true, message: '请输入采购员', trigger: 'blur' }]
+}
+
+// 计算属性：筛选后的列表
+const filteredList = computed(() => {
+  let result = orderList.value
+  if (filterForm.value.code) {
+    result = result.filter(o => o.purchaseOrderCode.toLowerCase().includes(filterForm.value.code.toLowerCase()))
+  }
+  if (filterForm.value.vendor) {
+    result = result.filter(o => o.vendorName?.toLowerCase().includes(filterForm.value.vendor.toLowerCase()))
+  }
+  if (filterForm.value.status !== undefined) {
+    result = result.filter(o => o.status === filterForm.value.status)
+  }
+  pageInfo.value.total = result.length
+  const start = (pageInfo.value.page - 1) * pageInfo.value.pageSize
+  return result.slice(start, start + pageInfo.value.pageSize)
+})
+
+// 统计
+const statTotal = computed(() => orderList.value.length)
+const statPending = computed(() => orderList.value.filter(o => o.status === 0).length)
+const statInProgress = computed(() => orderList.value.filter(o => o.status >= 1 && o.status <= 4).length)
+const statAmount = computed(() => orderList.value.reduce((sum, o) => sum + (o.total || 0), 0))
+
+// 计算总金额
+const calculateTotal = computed(() => {
+  return formData.value.items.reduce((sum, item) => sum + (item.qty || 0) * (item.cost || 0), 0)
+})
+
+// 格式化货币
+const formatCurrency = (value: number, currency?: number) => {
+  const symbol = currency === 2 ? '$' : currency === 3 ? '€' : '¥'
+  return symbol + (value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// 状态处理
 const getStatusType = (status: number) => {
-  const map: Record<number, string> = { 0: 'info', 1: 'success', 2: 'warning', 3: 'danger' }
+  const map: Record<number, string> = { 
+    0: 'info', 1: 'primary', 2: 'warning', 3: 'success', 4: 'success', 5: 'success', '-1': 'danger'
+  }
   return map[status] || 'info'
 }
 
 const getStatusText = (status: number) => {
-  const map: Record<number, string> = { 0: '草稿', 1: '已提交', 2: '审批中', 3: '已驳回' }
+  const map: Record<number, string> = {
+    0: '待确认', 1: '已确认', 2: '已发货', 3: '已入库', 4: '已出库', 5: '已完成', '-1': '已取消'
+  }
   return map[status] || '未知'
 }
 
+const getStockStatusType = (status: number) => {
+  const map: Record<number, string> = { 0: 'info', 1: 'warning', 2: 'success' }
+  return map[status] || 'info'
+}
+
+const getStockStatusText = (status: number) => {
+  const map: Record<number, string> = { 0: '未入库', 1: '部分入库', 2: '全部入库' }
+  return map[status] || '未知'
+}
+
+// 加载数据
+const loadData = async () => {
+  loading.value = true
+  try {
+    const res = await purchaseOrderApi.getList()
+    orderList.value = res.data || []
+    pageInfo.value.total = orderList.value.length
+  } catch (error) {
+    ElMessage.error('加载数据失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 搜索和重置
+const handleSearch = () => {
+  pageInfo.value.page = 1
+}
+
+const handleReset = () => {
+  filterForm.value = { code: '', vendor: '', status: undefined }
+  pageInfo.value.page = 1
+}
+
+// 分页
+const handleSizeChange = (val: number) => {
+  pageInfo.value.pageSize = val
+}
+
+const handlePageChange = (val: number) => {
+  pageInfo.value.page = val
+}
+
+// 新建
 const handleCreate = () => {
-  ElMessage.info('功能开发中')
+  isEdit.value = false
+  dialogTitle.value = '新建采购订单'
+  formData.value = {
+    purchaseOrderCode: 'PO' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + String(Math.random()).slice(2, 5),
+    vendorName: '',
+    purchaseUserName: '',
+    type: 1,
+    currency: 1,
+    deliveryDate: '',
+    deliveryAddress: '',
+    comment: '',
+    innerComment: '',
+    items: []
+  }
+  dialogVisible.value = true
 }
 
-const handleView = (row: any) => {
-  ElMessage.info('功能开发中')
-}
-
+// 编辑
 const handleEdit = (row: any) => {
-  ElMessage.info('功能开发中')
+  isEdit.value = true
+  dialogTitle.value = '编辑采购订单'
+  currentRow.value = row
+  formData.value = {
+    purchaseOrderCode: row.purchaseOrderCode,
+    vendorName: row.vendorName,
+    purchaseUserName: row.purchaseUserName,
+    type: row.type,
+    currency: row.currency,
+    deliveryDate: row.deliveryDate,
+    deliveryAddress: row.deliveryAddress,
+    comment: row.comment,
+    innerComment: row.innerComment,
+    items: row.items ? JSON.parse(JSON.stringify(row.items)) : []
+  }
+  dialogVisible.value = true
 }
 
-onMounted(() => {
-  // TODO: 加载采购订单列表
-})
+// 查看
+const handleView = (row: any) => {
+  currentRow.value = row
+  viewDialogVisible.value = true
+}
+
+// 更多操作
+const handleMore = (cmd: string, row: any) => {
+  currentRow.value = row
+  switch (cmd) {
+    case 'status':
+      newStatus.value = row.status
+      statusDialogVisible.value = true
+      break
+    case 'delete':
+      handleDelete(row)
+      break
+  }
+}
+
+// 删除
+const handleDelete = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(`确定要删除采购订单 ${row.purchaseOrderCode} 吗？`, '警告', { type: 'warning' })
+    await purchaseOrderApi.delete(row.id)
+    loadData()
+  } catch {
+    // 取消
+  }
+}
+
+// 更新状态
+const confirmUpdateStatus = async () => {
+  if (!currentRow.value) return
+  await purchaseOrderApi.updateStatus(currentRow.value.id, newStatus.value)
+  statusDialogVisible.value = false
+  loadData()
+}
+
+// 添加/删除明细
+const addItem = () => {
+  formData.value.items.push({
+    pn: '',
+    brand: '',
+    qty: 1,
+    cost: 0,
+    currency: formData.value.currency
+  })
+}
+
+const removeItem = (index: number) => {
+  formData.value.items.splice(index, 1)
+}
+
+// 提交
+const handleSubmit = async () => {
+  await formRef.value.validate()
+  submitLoading.value = true
+  try {
+    const data = {
+      ...formData.value,
+      total: calculateTotal.value,
+      itemRows: formData.value.items.length
+    }
+    if (isEdit.value && currentRow.value) {
+      await purchaseOrderApi.update(currentRow.value.id, data)
+    } else {
+      await purchaseOrderApi.create(data)
+    }
+    dialogVisible.value = false
+    loadData()
+  } finally {
+    submitLoading.value = false
+  }
+}
+
+onMounted(loadData)
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .purchase-order-list-page {
   padding: 20px;
 }
+
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  h2 {
+    margin: 0;
+    color: #E8F4FF;
+    font-size: 20px;
+  }
 }
-.page-header h2 {
-  margin: 0;
-  color: #E8F4FF;
+
+.stat-row {
+  margin-bottom: 20px;
 }
+
+.stat-card {
+  text-align: center;
+  background: #0A1628;
+  border: 1px solid rgba(0, 212, 255, 0.1);
+  :deep(.el-card__body) {
+    padding: 15px;
+  }
+  .stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #00D4FF;
+    margin-bottom: 5px;
+  }
+  .stat-label {
+    font-size: 14px;
+    color: rgba(200, 216, 232, 0.6);
+  }
+}
+
+.filter-card {
+  margin-bottom: 20px;
+  background: #0A1628;
+  border: 1px solid rgba(0, 212, 255, 0.1);
+}
+
 .table-card {
   background: #0A1628;
   border: 1px solid rgba(0, 212, 255, 0.1);
+  :deep(.el-table) {
+    background: transparent;
+    --el-table-header-bg-color: rgba(0, 212, 255, 0.1);
+    --el-table-tr-bg-color: transparent;
+    --el-table-border-color: rgba(0, 212, 255, 0.1);
+    color: #E8F4FF;
+  }
+}
+
+.amount {
+  color: #00D4FF;
+  font-weight: 500;
+}
+
+.pagination-wrapper {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.items-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0, 212, 255, 0.1);
+  .items-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    h4 {
+      margin: 0;
+      color: #E8F4FF;
+    }
+  }
+  .total-amount {
+    margin-top: 10px;
+    text-align: right;
+    font-size: 16px;
+    color: #E8F4FF;
+    .amount {
+      font-size: 20px;
+      font-weight: bold;
+      color: #00D4FF;
+    }
+  }
 }
 </style>

@@ -34,19 +34,18 @@ namespace CRM.Core.Interfaces
     /// </summary>
     public static class ModuleCodes
     {
-        public const string Customer = "Customer";           // 客户：Cus0001
-        public const string Vendor = "Vendor";               // 供应商：Ven0001
-        public const string Inquiry = "Inquiry";             // 询价/需求：INQ0001
+        public const string Customer = "Customer";           // 客户：CUS0001
+        public const string Vendor = "Vendor";               // 供应商：VEN0001
+        public const string RFQ = "RFQ";                     // 询价/需求：RFQ0001
         public const string Quotation = "Quotation";         // 报价：QUO0001
         public const string SalesOrder = "SalesOrder";       // 销售订单：SO0001
         public const string PurchaseOrder = "PurchaseOrder"; // 采购订单：PO0001
-        public const string StockIn = "StockIn";             // 入库：SIN0001
-        public const string StockOut = "StockOut";           // 出库：SOUT0001
-        public const string Inventory = "Inventory";         // 库存调整：INV0001
+        public const string StockIn = "StockIn";             // 入库：STI0001
+        public const string StockOut = "StockOut";           // 出库：STO0001
+        public const string Stock = "Stock";                 // 库存：STK0001
         public const string Receipt = "Receipt";             // 收款：REC0001
         public const string Payment = "Payment";             // 付款：PAY0001
-        public const string InputInvoice = "InputInvoice";   // 进项发票：VINV0001
-        public const string OutputInvoice = "OutputInvoice"; // 销项发票：SINV0001
-        public const string RFQ = "RFQ";                         // 需求：RF0001
+        public const string InputInvoice = "InputInvoice";   // 进项发票：INVI0001
+        public const string OutputInvoice = "OutputInvoice"; // 销项发票：INVO0001
     }
 }

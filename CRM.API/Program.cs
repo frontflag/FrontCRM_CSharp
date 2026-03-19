@@ -35,6 +35,15 @@ try
 
     app.UseCors("AllowAll");
 
+    // Swagger
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "FrontCRM API V1");
+        c.RoutePrefix = "swagger";
+        c.DocumentTitle = "FrontCRM API 文档";
+    });
+
     app.UseHttpsRedirection();
 
     app.UseAuthentication();
@@ -51,7 +60,10 @@ try
             if (app.Environment.IsDevelopment())
             {
                 // 应用所有待处理的迁移
-                context.Database.Migrate();
+                //临时屏蔽 context.Database.Migrate();
+
+                context.Database.EnsureDeleted();
+                context.Database.EnsureCreated();
             }
         }
         catch (Exception ex)

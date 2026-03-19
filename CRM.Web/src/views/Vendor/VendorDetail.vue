@@ -19,6 +19,10 @@
               <span v-if="vendor?.credit" class="level-badge">信用 {{ vendor.credit }}</span>
               <span v-if="vendor?.blackList" class="blacklist-badge">黑名单</span>
             </div>
+            <div class="title-tags-row">
+              <TagListDisplay :tags="vendorTags" />
+              <button class="btn-add-tag" @click="showTagDialog = true">添加标签</button>
+            </div>
           </div>
         </div>
       </div>
@@ -327,6 +331,14 @@
       @confirm="handleBankDialogConfirm"
     />
   </div>
+
+  <ApplyTagsDialog
+    v-model="showTagDialog"
+    entity-type="VENDOR"
+    :entity-ids="[vendorId]"
+    title="为供应商添加标签"
+    @success="fetchVendorTags"
+  />
 </template>
 
 <script setup lang="ts">
@@ -334,6 +346,9 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { vendorApi, vendorContactApi, vendorAddressApi, vendorBankApi } from '@/api/vendor';
+import { tagApi, type TagDefinitionDto } from '@/api/tag';
+import TagListDisplay from '@/components/Tag/TagListDisplay.vue';
+import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue';
 import type { Vendor, VendorContactInfo, VendorAddress, VendorBankInfo, AddVendorContactRequest, UpdateVendorContactRequest } from '@/types/vendor';
 import VendorContactDialog from './VendorContactDialog.vue';
 import VendorAddressDialog from './VendorAddressDialog.vue';
@@ -347,6 +362,7 @@ const router = useRouter();
 const vendorId = route.params.id as string;
 const loading = ref(false);
 const vendor = ref<Vendor | null>(null);
+const vendorTags = ref<TagDefinitionDto[]>([]);
 const contacts = ref<VendorContactInfo[]>([]);
 const addresses = ref<VendorAddress[]>([]);
 const banks = ref<VendorBankInfo[]>([]);
@@ -354,6 +370,7 @@ const histories = ref<any[]>([]);
 const operationLogs = ref<any[]>([]);
 const fieldChangeLogs = ref<any[]>([]);
 const documentListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null);
+const showTagDialog = ref(false);
 
 const tabs = [
   { key: 'contacts', label: '联系人' },
@@ -406,6 +423,14 @@ const fetchVendor = async () => {
     ElMessage.error('获取供应商详情失败');
   } finally {
     loading.value = false;
+  }
+};
+
+const fetchVendorTags = async () => {
+  try {
+    vendorTags.value = await tagApi.getEntityTags('VENDOR', vendorId);
+  } catch {
+    vendorTags.value = [];
   }
 };
 
@@ -709,6 +734,7 @@ const handleSetDefaultBank = async (row: VendorBankInfo) => {
 };
 
 onMounted(fetchVendor);
+onMounted(fetchVendorTags);
 </script>
 
 <style scoped lang="scss">
@@ -869,6 +895,13 @@ onMounted(fetchVendor);
 }
 
 .title-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title-tags-row {
+  margin-top: 6px;
   display: flex;
   align-items: center;
   gap: 8px;

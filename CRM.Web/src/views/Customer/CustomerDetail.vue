@@ -23,6 +23,10 @@
                 {{ getLevelLabel(customer.customerLevel) }}
               </span>
             </div>
+            <div class="title-tags-row">
+              <TagListDisplay :tags="customerTags" />
+              <button class="btn-add-tag" @click="showTagDialog = true">添加标签</button>
+            </div>
           </div>
         </div>
       </div>
@@ -371,6 +375,14 @@
     <AddressDialog v-model="showAddressDialog" :customer-id="customerId" :address="editingAddress" @success="handleAddressSuccess" />
     <BankDialog v-model="showBankDialog" :customer-id="customerId" :bank="editingBank" @success="handleBankSuccess" />
 
+    <ApplyTagsDialog
+      v-model="showTagDialog"
+      entity-type="CUSTOMER"
+      :entity-ids="[customerId]"
+      title="为客户添加标签"
+      @success="fetchCustomerTags"
+    />
+
     <!-- 删除客户弹窗 -->
     <el-dialog v-model="showDeleteDialog" title="确认删除客户" width="440px" :close-on-click-modal="false">
       <div style="color:rgba(200,216,232,0.75);font-size:13px;margin-bottom:16px">删除后可在回收站中查看并恢复。</div>
@@ -406,6 +418,9 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElNotification, ElMessageBox } from 'element-plus';
 import { customerApi, customerContactApi, customerAddressApi, customerBankApi } from '@/api/customer';
+import { tagApi, type TagDefinitionDto } from '@/api/tag';
+import TagListDisplay from '@/components/Tag/TagListDisplay.vue';
+import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue';
 import type { Customer, CustomerContactInfo, CustomerAddress, CustomerBankInfo } from '@/types/customer';
 import ContactDialog from './components/ContactDialog.vue';
 import AddressDialog from './components/AddressDialog.vue';
@@ -416,6 +431,7 @@ const router = useRouter();
 const customerId = route.params.id as string;
 const loading = ref(false);
 const customer = ref<Customer | null>(null);
+const customerTags = ref<TagDefinitionDto[]>([]);
 const activeTab = ref('contacts');
 const showContactDialog = ref(false);
 const showAddressDialog = ref(false);
@@ -447,6 +463,7 @@ const showBlacklistDialog = ref(false);
 const deleteReason = ref('');
 const blacklistReason = ref('');
 const actionLoading = ref(false);
+const showTagDialog = ref(false);
 
 const tableHeaderStyle = () => ({ background: '#0A1628', color: 'rgba(200,216,232,0.55)', fontSize: '12px', fontWeight: '500', letterSpacing: '0.5px', borderBottom: '1px solid rgba(0,212,255,0.12)', padding: '10px 0' });
 const tableCellStyle = () => ({ background: 'transparent', borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'rgba(224,244,255,0.85)', fontSize: '13px' });
@@ -457,6 +474,14 @@ const fetchCustomerDetail = async () => {
   try { customer.value = await customerApi.getCustomerById(customerId); }
   catch { ElNotification.error({ title: '加载失败', message: '获取客户详情失败，请刷新重试' }); }
   finally { loading.value = false; }
+};
+
+const fetchCustomerTags = async () => {
+  try {
+    customerTags.value = await tagApi.getEntityTags('CUSTOMER', customerId);
+  } catch {
+    customerTags.value = [];
+  }
 };
 
 const fetchContactHistory = async () => {
@@ -580,6 +605,7 @@ const getCurrencyLabel = (currency: number) => ({ 1: 'CNY', 2: 'USD', 3: 'EUR', 
 
 onMounted(() => {
   fetchCustomerDetail();
+  fetchCustomerTags();
   fetchContactHistory();
   fetchLogs();
 });
@@ -664,6 +690,28 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.title-tags-row {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-add-tag {
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px dashed rgba(0, 212, 255, 0.35);
+  background: transparent;
+  color: rgba(200, 216, 232, 0.85);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: rgba(0, 212, 255, 0.08);
+  }
 }
 
 .customer-code {

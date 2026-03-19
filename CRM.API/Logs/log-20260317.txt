@@ -77,8 +77,13 @@ System.IO.IOException: Failed to bind to address http://0.0.0.0:5000: address al
 2026-03-17 02:35:26.072 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerAddress'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
 2026-03-17 02:35:26.074 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerBankInfo'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
 2026-03-17 02:35:26.074 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerContactInfo'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+<<<<<<< Updated upstream
 2026-03-17 10:52:29.310 -04:00 [INF] Starting FrontCRM API
 2026-03-17 10:52:29.507 -04:00 [FTL] Application terminated unexpectedly
+=======
+2026-03-17 16:49:18.975 +08:00 [INF] Starting FrontCRM API
+2026-03-17 16:49:19.022 +08:00 [FTL] Application terminated unexpectedly
+>>>>>>> Stashed changes
 Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
    at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.ThrowHostAborted()
    at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.OnNext(KeyValuePair`2 value)
@@ -87,9 +92,15 @@ Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
    at Microsoft.Extensions.Hosting.HostBuilder.ResolveHost(IServiceProvider serviceProvider, DiagnosticListener diagnosticListener)
    at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
    at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+<<<<<<< Updated upstream
    at Program.<Main>$(String[] args) in /home/ubuntu/FrontCRM_CSharp/CRM.API/Program.cs:line 32
 2026-03-17 10:52:47.709 -04:00 [INF] Starting FrontCRM API
 2026-03-17 10:52:47.872 -04:00 [FTL] Application terminated unexpectedly
+=======
+   at Program.<Main>$(String[] args) in D:\MyProject\FrontCRM_CSharp\CRM.API\Program.cs:line 32
+2026-03-17 16:49:25.923 +08:00 [INF] Starting FrontCRM API
+2026-03-17 16:49:25.968 +08:00 [FTL] Application terminated unexpectedly
+>>>>>>> Stashed changes
 Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
    at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.ThrowHostAborted()
    at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.OnNext(KeyValuePair`2 value)
@@ -98,6 +109,7 @@ Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
    at Microsoft.Extensions.Hosting.HostBuilder.ResolveHost(IServiceProvider serviceProvider, DiagnosticListener diagnosticListener)
    at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
    at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+<<<<<<< Updated upstream
    at Program.<Main>$(String[] args) in /home/ubuntu/FrontCRM_CSharp/CRM.API/Program.cs:line 32
 2026-03-17 11:05:34.930 -04:00 [INF] Starting FrontCRM API
 2026-03-17 11:05:35.336 -04:00 [INF] Starting FrontCRM API
@@ -266,6 +278,11 @@ POSITION: 96
 2026-03-17 11:09:23.318 -04:00 [WRN] The query uses the 'First'/'FirstOrDefault' operator without 'OrderBy' and filter operators. This may lead to unpredictable results.
 2026-03-17 12:26:22.809 -04:00 [INF] Starting FrontCRM API
 2026-03-17 12:26:23.032 -04:00 [FTL] Application terminated unexpectedly
+=======
+   at Program.<Main>$(String[] args) in D:\MyProject\FrontCRM_CSharp\CRM.API\Program.cs:line 32
+2026-03-17 16:49:33.085 +08:00 [INF] Starting FrontCRM API
+2026-03-17 16:49:33.136 +08:00 [FTL] Application terminated unexpectedly
+>>>>>>> Stashed changes
 Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
    at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.ThrowHostAborted()
    at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.OnNext(KeyValuePair`2 value)
@@ -274,9 +291,15 @@ Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
    at Microsoft.Extensions.Hosting.HostBuilder.ResolveHost(IServiceProvider serviceProvider, DiagnosticListener diagnosticListener)
    at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
    at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+<<<<<<< Updated upstream
    at Program.<Main>$(String[] args) in /home/ubuntu/FrontCRM_CSharp/CRM.API/Program.cs:line 32
 2026-03-17 12:27:13.228 -04:00 [INF] Starting FrontCRM API
 2026-03-17 12:27:13.378 -04:00 [FTL] Application terminated unexpectedly
+=======
+   at Program.<Main>$(String[] args) in D:\MyProject\FrontCRM_CSharp\CRM.API\Program.cs:line 32
+2026-03-17 16:49:57.760 +08:00 [INF] Starting FrontCRM API
+2026-03-17 16:49:57.807 +08:00 [FTL] Application terminated unexpectedly
+>>>>>>> Stashed changes
 Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
    at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.ThrowHostAborted()
    at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.OnNext(KeyValuePair`2 value)
@@ -285,6 +308,7 @@ Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
    at Microsoft.Extensions.Hosting.HostBuilder.ResolveHost(IServiceProvider serviceProvider, DiagnosticListener diagnosticListener)
    at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
    at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+<<<<<<< Updated upstream
    at Program.<Main>$(String[] args) in /home/ubuntu/FrontCRM_CSharp/CRM.API/Program.cs:line 32
 2026-03-17 12:27:25.832 -04:00 [INF] Starting FrontCRM API
 2026-03-17 12:27:25.969 -04:00 [FTL] Application terminated unexpectedly
@@ -325,6 +349,7 @@ Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
 2026-03-17 12:30:41.148 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerAddress'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
 2026-03-17 12:30:41.150 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerBankInfo'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
 2026-03-17 12:30:41.150 -04:00 [WRN] Entity 'CustomerInfo' has a global query filter defined and is the required end of a relationship with the entity 'CustomerContactInfo'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+<<<<<<< Updated upstream
 2026-03-17 13:00:13.383 -04:00 [INF] Starting FrontCRM API
 2026-03-17 13:00:13.524 -04:00 [FTL] Application terminated unexpectedly
 Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
@@ -336,3 +361,8 @@ Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
    at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
    at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
    at Program.<Main>$(String[] args) in /home/ubuntu/FrontCRM_CSharp/CRM.API/Program.cs:line 32
+=======
+=======
+   at Program.<Main>$(String[] args) in D:\MyProject\FrontCRM_CSharp\CRM.API\Program.cs:line 32
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes

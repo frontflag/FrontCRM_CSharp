@@ -8,7 +8,7 @@ using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.System;
-using CRM.Core.Models.Finance;
+using CRM.Core.Models.Tag;
 using CRM.Core.Models.Vendor;
 using Microsoft.EntityFrameworkCore;
 
@@ -71,15 +71,10 @@ namespace CRM.Infrastructure.Data
         public DbSet<UploadDocument> UploadDocuments { get; set; } = null!;
         public DbSet<DocumentDailySequence> DocumentDailySequences { get; set; } = null!;
 
-        // ===== 财务模块 =====
-        public DbSet<FinancePayment> FinancePayments { get; set; } = null!;
-        public DbSet<FinancePaymentItem> FinancePaymentItems { get; set; } = null!;
-        public DbSet<FinanceReceipt> FinanceReceipts { get; set; } = null!;
-        public DbSet<FinanceReceiptItem> FinanceReceiptItems { get; set; } = null!;
-        public DbSet<FinancePurchaseInvoice> FinancePurchaseInvoices { get; set; } = null!;
-        public DbSet<FinancePurchaseInvoiceItem> FinancePurchaseInvoiceItems { get; set; } = null!;
-        public DbSet<FinanceSellInvoice> FinanceSellInvoices { get; set; } = null!;
-        public DbSet<SellInvoiceItem> FinanceSellInvoiceItems { get; set; } = null!;
+        // ===== 标签系统 =====
+        public DbSet<TagDefinition> Tags { get; set; } = null!;
+        public DbSet<TagRelation> TagRelations { get; set; } = null!;
+        public DbSet<UserTagPreference> UserTagPreferences { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -329,19 +324,19 @@ namespace CRM.Infrastructure.Data
                 // 注意：CreateTime 使用静态时间，避免 EF Core PendingModelChangesWarning
                 var seedTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
                 entity.HasData(
-                    new SysSerialNumber { Id = 1,  ModuleCode = "Customer",      ModuleName = "客户",     Prefix = "Cus",  SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 2,  ModuleCode = "Vendor",        ModuleName = "供应商",   Prefix = "Ven",  SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 3,  ModuleCode = "Inquiry",       ModuleName = "询价/需求", Prefix = "INQ",  SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 1,  ModuleCode = "Customer",      ModuleName = "客户",     Prefix = "CUS",  SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 2,  ModuleCode = "Vendor",        ModuleName = "供应商",   Prefix = "VEN",  SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 3,  ModuleCode = "RFQ",           ModuleName = "询价/需求", Prefix = "RFQ",  SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
                     new SysSerialNumber { Id = 4,  ModuleCode = "Quotation",     ModuleName = "报价",     Prefix = "QUO",  SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
                     new SysSerialNumber { Id = 5,  ModuleCode = "SalesOrder",    ModuleName = "销售订单", Prefix = "SO",   SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
                     new SysSerialNumber { Id = 6,  ModuleCode = "PurchaseOrder", ModuleName = "采购订单", Prefix = "PO",   SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 7,  ModuleCode = "StockIn",       ModuleName = "入库",     Prefix = "SIN",  SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 8,  ModuleCode = "StockOut",      ModuleName = "出库",     Prefix = "SOUT", SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 9,  ModuleCode = "Inventory",     ModuleName = "库存调整", Prefix = "INV",  SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 10, ModuleCode = "Receipt",       ModuleName = "收款",     Prefix = "REC",  SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 7,  ModuleCode = "StockIn",       ModuleName = "入库",     Prefix = "STI",  SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 8,  ModuleCode = "StockOut",      ModuleName = "出库",     Prefix = "STO",  SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 9,  ModuleCode = "Receipt",       ModuleName = "收款",     Prefix = "REC",  SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
                     new SysSerialNumber { Id = 11, ModuleCode = "Payment",       ModuleName = "付款",     Prefix = "PAY",  SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 12, ModuleCode = "InputInvoice",  ModuleName = "进项发票", Prefix = "VINV", SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 13, ModuleCode = "OutputInvoice", ModuleName = "销项发票", Prefix = "SINV", SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime }
+                    new SysSerialNumber { Id = 12, ModuleCode = "InputInvoice",  ModuleName = "进项发票", Prefix = "INVI", SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 13, ModuleCode = "OutputInvoice", ModuleName = "销项发票", Prefix = "INVO", SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 14, ModuleCode = "Stock",         ModuleName = "库存",     Prefix = "STK",  SequenceLength = 4, CurrentSequence = 0, CreateTime = seedTime }
                 );
             });
 
@@ -460,99 +455,45 @@ namespace CRM.Infrastructure.Data
                 entity.HasKey(e => e.TheDate);
             });
 
-            // ===== 财务模块配置 =====
-            modelBuilder.Entity<FinancePayment>(entity =>
+            // ===== 标签定义表配置 =====
+            modelBuilder.Entity<TagDefinition>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).HasColumnName("FinancePaymentId");
-                entity.Property(e => e.FinancePaymentCode).IsRequired().HasMaxLength(16);
-                entity.HasIndex(e => e.FinancePaymentCode).IsUnique();
-                entity.Property(e => e.Status).HasDefaultValue((short)0);
-                entity.Property(e => e.PaymentAmountToBe).HasColumnType("numeric(18,2)");
-                entity.Property(e => e.PaymentAmount).HasColumnType("numeric(18,2)");
-                entity.Property(e => e.PaymentTotalAmount).HasColumnType("numeric(18,2)");
-                entity.HasMany(e => e.Items)
-                      .WithOne()
-                      .HasForeignKey(i => i.FinancePaymentId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
-            modelBuilder.Entity<FinancePaymentItem>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).HasColumnName("FinancePaymentItemId");
-                entity.Property(e => e.PaymentAmount).HasColumnType("numeric(18,2)");
-                entity.HasIndex(e => e.FinancePaymentId);
+                entity.Property(e => e.Id).HasColumnName("TagId");
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Code).HasMaxLength(50);
+                entity.HasIndex(e => e.Code).IsUnique(false);
+                entity.Property(e => e.Color).HasMaxLength(20);
+                entity.Property(e => e.Icon).HasMaxLength(100);
+                entity.Property(e => e.Category).HasMaxLength(50);
+                entity.Property(e => e.Scope).HasMaxLength(200);
+                entity.Property(e => e.Type).HasDefaultValue((short)2);
+                entity.Property(e => e.Status).HasDefaultValue((short)1);
+                entity.Property(e => e.Visibility).HasDefaultValue((short)3);
             });
 
-            modelBuilder.Entity<FinanceReceipt>(entity =>
+            // ===== 标签关联表配置 =====
+            modelBuilder.Entity<TagRelation>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).HasColumnName("FinanceReceiptId");
-                entity.Property(e => e.FinanceReceiptCode).IsRequired().HasMaxLength(16);
-                entity.HasIndex(e => e.FinanceReceiptCode).IsUnique();
-                entity.Property(e => e.Status).HasDefaultValue((short)0);
-                entity.Property(e => e.ReceiptAmount).HasColumnType("numeric(18,2)");
-                entity.HasMany(e => e.Items)
-                      .WithOne()
-                      .HasForeignKey(i => i.FinanceReceiptId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
-            modelBuilder.Entity<FinanceReceiptItem>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).HasColumnName("FinanceReceiptItemId");
-                entity.Property(e => e.ReceiptAmount).HasColumnType("numeric(18,2)");
-                entity.HasIndex(e => e.FinanceReceiptId);
+                entity.Property(e => e.Id).HasColumnName("RelationId");
+                entity.Property(e => e.TagId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.EntityType).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.EntityId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.Source).HasMaxLength(20);
+
+                entity.HasIndex(e => new { e.EntityType, e.EntityId });
+                entity.HasIndex(e => e.TagId);
+                entity.HasIndex(e => new { e.EntityType, e.TagId });
             });
 
-            modelBuilder.Entity<FinancePurchaseInvoice>(entity =>
+            // ===== 用户标签偏好表配置 =====
+            modelBuilder.Entity<UserTagPreference>(entity =>
             {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).HasColumnName("FinancePurchaseInvoiceId");
-                entity.Property(e => e.InvoiceAmount).HasColumnType("numeric(18,2)");
-                entity.Property(e => e.BillAmount).HasColumnType("numeric(18,2)");
-                entity.Property(e => e.TaxAmount).HasColumnType("numeric(18,2)");
-                entity.Property(e => e.ExcludTaxAmount).HasColumnType("numeric(18,2)");
-                entity.HasMany(e => e.Items)
-                      .WithOne(i => i.PurchaseInvoice)
-                      .HasForeignKey(i => i.FinancePurchaseInvoiceId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
-            modelBuilder.Entity<FinancePurchaseInvoiceItem>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).HasColumnName("FinancePurchaseInvoiceItemId");
-                entity.Property(e => e.StockInCost).HasColumnType("numeric(18,4)");
-                entity.Property(e => e.BillCost).HasColumnType("numeric(18,4)");
-                entity.Property(e => e.BillAmount).HasColumnType("numeric(18,2)");
-                entity.Property(e => e.TaxRate).HasColumnType("numeric(18,4)");
-                entity.Property(e => e.TaxAmount).HasColumnType("numeric(18,2)");
-                entity.Property(e => e.ExcludTaxAmount).HasColumnType("numeric(18,2)");
-                entity.HasIndex(e => e.FinancePurchaseInvoiceId);
-            });
-
-            modelBuilder.Entity<FinanceSellInvoice>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).HasColumnName("FinanceSellInvoiceId");
-                entity.Property(e => e.InvoiceTotal).HasColumnType("numeric(18,2)");
-                entity.Property(e => e.ReceiveDone).HasColumnType("numeric(18,2)");
-                entity.Property(e => e.ReceiveToBe).HasColumnType("numeric(18,2)");
-                entity.HasMany(e => e.Items)
-                      .WithOne(i => i.SellInvoice)
-                      .HasForeignKey(i => i.FinanceSellInvoiceId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
-            modelBuilder.Entity<SellInvoiceItem>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).HasColumnName("SellInvoiceItemId");
-                entity.Property(e => e.InvoiceTotal).HasColumnType("numeric(18,2)");
-                entity.Property(e => e.ValueAddedTax).HasColumnType("numeric(18,2)");
-                entity.Property(e => e.TaxFreeTotal).HasColumnType("numeric(18,2)");
-                entity.Property(e => e.Price).HasColumnType("numeric(18,4)");
-                entity.Property(e => e.TaxRate).HasColumnType("numeric(18,4)");
-                entity.HasIndex(e => e.FinanceSellInvoiceId);
+                entity.HasKey(e => new { e.UserId, e.TagId });
+                entity.Property(e => e.TagId).HasMaxLength(36);
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => new { e.UserId, e.IsFavorite });
             });
         }
     }

@@ -176,7 +176,8 @@ const handleLogin = async () => {
         errorMsg.value = '登录失败，请检查邮箱和密码'
       }
     } catch (error: any) {
-      errorMsg.value = error.response?.data?.message || '登录失败，请稍后重试'
+      // 拦截器会抛出带 message 的错误对象
+      errorMsg.value = error.message || error.response?.data?.message || '登录失败，请稍后重试'
     } finally {
       loading.value = false
     }

@@ -44,14 +44,7 @@ class ApiClient {
             // 成功时返回 data 字段（业务数据）
             return apiResponse.data !== undefined ? apiResponse.data : apiResponse
           } else {
-            // 业务失败：若 data 为空列表/null 则静默返回空数据，否则抛出错误
-            const d = apiResponse.data
-            const isEmpty = d === null || d === undefined ||
-              (Array.isArray(d) && d.length === 0) ||
-              (typeof d === 'object' && 'items' in d && Array.isArray(d.items) && d.items.length === 0)
-            if (isEmpty) {
-              return d !== undefined ? d : (apiResponse.data ?? null)
-            }
+            // 业务失败：抛出错误，带上后端返回的错误消息
             return Promise.reject(new Error(apiResponse.message || '请求失败'))
           }
         }

@@ -4,8 +4,10 @@ using CRM.Core.Constants;
 using CRM.Core.Document;
 using CRM.Core.Interfaces;
 using CRM.Core.Services;
+using CRM.Core.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Text;
 using CRM.Infrastructure.Extensions;
 using CRM.Infrastructure.Document;
@@ -34,6 +36,11 @@ namespace CRM.API.Extensions
             services.AddScoped<IStockInService, StockInService>();
             services.AddScoped<IStockOutService, StockOutService>();
             services.AddScoped<IStockService, StockService>();
+
+            // 标签系统
+            services.AddScoped<ITagService, TagService>();
+            services.AddScoped<ITagApplyService, TagApplyService>();
+            services.AddScoped<ITagFilterService, TagFilterService>();
             services.AddDocumentModule(configuration);
 
             // 销售订单模块
@@ -90,6 +97,47 @@ namespace CRM.API.Extensions
                     ValidAudience = JwtSettings.Audience,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtSettings.SecretKey))
                 };
+            });
+
+            // Swagger 配置
+            services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Title = "FrontCRM API",
+                    Version = "v1",
+                    Description = "FrontCRM 智能进销存管理系统 API",
+                    Contact = new OpenApiContact
+                    {
+                        Name = "FrontCRM Team"
+                    }
+                });
+
+                // 添加 JWT 认证支持
+                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Description = "JWT Authorization header using the Bearer scheme. \n\n请输入: Bearer {你的JWT令牌}\n\n例如: Bearer eyJhbGciOiJIUzI1NiIs...",
+                    Name = "Authorization",
+                    In = ParameterLocation.Header,
+                    Type = SecuritySchemeType.ApiKey,
+                    Scheme = "Bearer",
+                    BearerFormat = "JWT"
+                });
+
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        new string[] {}
+                    }
+                });
             });
 
             return services;

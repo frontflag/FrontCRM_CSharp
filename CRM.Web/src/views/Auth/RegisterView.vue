@@ -224,10 +224,11 @@ const handleRegister = async () => {
       if (success) {
         router.push('/dashboard')
       } else {
-        errorMsg.value = '注册失败，该邮箱可能已被注册'
+        errorMsg.value = '注册失败，请稍后重试'
       }
     } catch (error: any) {
-      errorMsg.value = error.response?.data?.message || '注册失败，请稍后重试'
+      // 现在拦截器会抛出带 message 的错误对象
+      errorMsg.value = error.message || error.response?.data?.message || '注册失败，请稍后重试'
     } finally {
       loading.value = false
     }
