@@ -221,6 +221,11 @@ onMounted(fetchList)
   border: 1px solid $border-panel;
   border-radius: 8px;
   padding: 16px;
+
+  :deep(.el-table__cell) {
+    .el-button { white-space: nowrap !important; }
+    .cell { white-space: nowrap; }
+  }
 }
 .code-link {
   color: $cyan-primary;
@@ -245,6 +250,8 @@ onMounted(fetchList)
   cursor: pointer;
   font-size: 12px;
   padding: 2px 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
   &:hover { text-decoration: underline; }
 }
 </style>

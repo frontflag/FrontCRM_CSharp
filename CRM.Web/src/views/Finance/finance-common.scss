@@ -113,6 +113,16 @@
   :deep(.el-table__row.table-row-pointer) {
     cursor: pointer;
   }
+
+  // 操作列按钮禁止折行
+  :deep(.el-table__cell) {
+    .el-button {
+      white-space: nowrap !important;
+    }
+    .cell {
+      white-space: nowrap;
+    }
+  }
 }
 
 .code-text {

@@ -639,6 +639,14 @@ onMounted(loadData)
     --el-table-tr-bg-color: transparent;
     --el-table-border-color: rgba(0, 212, 255, 0.1);
     color: #E8F4FF;
+
+    // 操作列按钮禁止折行
+    .el-table__cell .el-button {
+      white-space: nowrap !important;
+    }
+    .el-table__cell .cell {
+      white-space: nowrap;
+    }
   }
 }
 

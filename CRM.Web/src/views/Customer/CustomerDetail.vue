@@ -968,6 +968,11 @@ onMounted(() => {
   :deep(.el-table__inner-wrapper) { background: transparent; }
   :deep(tr) { background: transparent !important; &:hover td { background: rgba(0,212,255,0.04) !important; } }
   :deep(.el-table__fixed-right) { background: $layer-2 !important; }
+  // 操作列按钮禁止折行
+  :deep(.el-table__cell) {
+    .el-button { white-space: nowrap !important; }
+    .cell { white-space: nowrap; }
+  }
 }
 
 .cell-primary   { color: $text-primary; font-size: 13px; }
@@ -998,6 +1003,8 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.15s;
   margin-right: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 
   &:hover { background: rgba(0,212,255,0.08); border-color: rgba(0,212,255,0.4); color: $cyan-primary; }
 

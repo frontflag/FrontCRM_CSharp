@@ -295,6 +295,8 @@ const goBack = () => {
   cursor: pointer;
   font-size: 12px;
   padding: 2px 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
   &:hover { text-decoration: underline; }
 }
 </style>

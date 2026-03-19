@@ -171,3 +171,28 @@ html, body {
 .el-overlay {
   background-color: rgba(0, 0, 0, 0.65) !important;
 }
+
+// ============================================================
+// 全局操作列按钮 — 禁止文字折行
+// 覆盖所有列表页操作列中的 action-btn（自定义按钮）和 el-button
+// ============================================================
+.action-btn {
+  white-space: nowrap !important;
+  flex-shrink: 0;
+}
+
+.action-btns {
+  white-space: nowrap;
+  flex-wrap: nowrap;
+}
+
+// el-table 操作列中的 el-button 也禁止折行
+.el-table .el-table__cell {
+  .el-button {
+    white-space: nowrap !important;
+  }
+  // 操作按钮容器
+  .cell {
+    white-space: nowrap;
+  }
+}

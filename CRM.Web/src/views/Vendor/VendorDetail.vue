@@ -1242,6 +1242,15 @@ onMounted(fetchVendorTags);
   :deep(tr:hover td.el-table__cell) {
     background: rgba(0, 212, 255, 0.06) !important;
   }
+  // 操作列按钮禁止折行
+  :deep(.el-table__cell) {
+    .el-button {
+      white-space: nowrap !important;
+    }
+    .cell {
+      white-space: nowrap;
+    }
+  }
 }
 </style>
 

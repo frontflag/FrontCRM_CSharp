@@ -767,6 +767,8 @@ onMounted(() => {
   gap: 6px;
   opacity: 0;
   transition: opacity 0.15s;
+  white-space: nowrap;
+  flex-wrap: nowrap;
 }
 
 .action-btn {
@@ -776,6 +778,8 @@ onMounted(() => {
   border-radius: 5px;
   cursor: pointer;
   transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
   background: rgba(0, 212, 255, 0.08);
   border: 1px solid rgba(0, 212, 255, 0.2);
   color: $cyan-primary;

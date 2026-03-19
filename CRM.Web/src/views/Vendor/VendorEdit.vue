@@ -667,6 +667,8 @@ onMounted(() => {
   padding: 0 6px;
   margin-right: 8px;
   font-family: 'Noto Sans SC', sans-serif;
+  white-space: nowrap;
+  flex-shrink: 0;
 
   &:hover { text-decoration: underline; }
   &.danger { color: #C95745; }
