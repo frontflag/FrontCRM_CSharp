@@ -235,6 +235,42 @@
           <span class="menu-label" v-if="!isCollapsed">报表分析</span>
         </button>
 
+        <!-- 系统管理 -->
+        <div class="menu-section-label" v-if="!isCollapsed">系统管理</div>
+        <div class="menu-group" v-if="hasPermission('rbac.manage')">
+          <button
+            class="menu-item has-children"
+            @click="toggleGroup('systemManagement')"
+            :class="{ 'group-open': openGroups.systemManagement }"
+          >
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 15.5V3"/>
+                <path d="M19 8.5L12 3 5 8.5"/>
+                <path d="M5 15.5L12 21l7-5.5"/>
+                <path d="M12 15.5h7"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">系统管理</span>
+            <svg
+              v-if="!isCollapsed"
+              class="chevron"
+              :class="{ rotated: openGroups.systemManagement }"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+          <div class="submenu" v-if="!isCollapsed && openGroups.systemManagement">
+            <router-link to="/system/users" class="submenu-item" active-class="active" exact>用户管理</router-link>
+            <router-link to="/system/roles" class="submenu-item" active-class="active" exact>角色管理</router-link>
+            <router-link to="/system/permissions" class="submenu-item" active-class="active" exact>权限管理</router-link>
+          </div>
+        </div>
+
         <!-- 系统 -->
         <div class="menu-section-label" v-if="!isCollapsed">系统</div>
 
@@ -385,13 +421,14 @@ const openGroups = ref({
   inventory: false,
   customers: false,
   vendors: false,
-  finance: false
+  finance: false,
+  systemManagement: false
 })
 
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
   if (isCollapsed.value) {
-    openGroups.value = { purchase: false, sales: false, inventory: false, customers: false, vendors: false, finance: false }
+    openGroups.value = { purchase: false, sales: false, inventory: false, customers: false, vendors: false, finance: false, systemManagement: false }
   }
 }
 
@@ -411,6 +448,12 @@ const pageTitleMap: Record<string, string> = {
   '/customers/blacklist': '黑名单管理',
   '/vendors': '供应商管理',
   '/vendors/create': '新增供应商',
+  '/system/users': '用户管理',
+  '/system/users/create': '新增用户',
+  '/system/roles': '角色管理',
+  '/system/roles/create': '新增角色',
+  '/system/permissions': '权限管理',
+  '/system/permissions/create': '新增权限',
   '/inventory/list': '库存列表',
   '/inventory/stock-in': '入库管理',
   '/inventory/stock-out': '出库管理',

@@ -255,10 +255,71 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '个人设置' }
       },
       {
+        path: 'profile/wechat-bind',
+        name: 'WechatBinding',
+        component: () => import('@/views/Profile/WechatBinding.vue'),
+        meta: { requiresAuth: true, title: '微信绑定' }
+      },
+      {
         path: 'drafts',
         name: 'DraftList',
         component: () => import('@/views/Draft/DraftList.vue'),
         meta: { requiresAuth: true, title: '草稿箱', permission: 'draft.read' }
+      },
+      // 系统管理
+      {
+        path: 'system/users',
+        name: 'UserList',
+        component: () => import('@/views/System/UserList.vue'),
+        meta: { requiresAuth: true, title: '用户管理', permission: 'rbac.manage' }
+      },
+      {
+        path: 'system/users/create',
+        name: 'UserCreate',
+        component: () => import('@/views/System/UserEdit.vue'),
+        meta: { requiresAuth: true, title: '新增用户', permission: 'rbac.manage' }
+      },
+      {
+        path: 'system/users/:id/edit',
+        name: 'UserEdit',
+        component: () => import('@/views/System/UserEdit.vue'),
+        meta: { requiresAuth: true, title: '编辑用户', permission: 'rbac.manage' }
+      },
+      {
+        path: 'system/roles',
+        name: 'RoleList',
+        component: () => import('@/views/System/RoleList.vue'),
+        meta: { requiresAuth: true, title: '角色管理', permission: 'rbac.manage' }
+      },
+      {
+        path: 'system/roles/create',
+        name: 'RoleCreate',
+        component: () => import('@/views/System/RoleEdit.vue'),
+        meta: { requiresAuth: true, title: '新增角色', permission: 'rbac.manage' }
+      },
+      {
+        path: 'system/roles/:id/edit',
+        name: 'RoleEdit',
+        component: () => import('@/views/System/RoleEdit.vue'),
+        meta: { requiresAuth: true, title: '编辑角色', permission: 'rbac.manage' }
+      },
+      {
+        path: 'system/permissions',
+        name: 'PermissionList',
+        component: () => import('@/views/System/PermissionList.vue'),
+        meta: { requiresAuth: true, title: '权限管理', permission: 'rbac.manage' }
+      },
+      {
+        path: 'system/permissions/create',
+        name: 'PermissionCreate',
+        component: () => import('@/views/System/PermissionEdit.vue'),
+        meta: { requiresAuth: true, title: '新增权限', permission: 'rbac.manage' }
+      },
+      {
+        path: 'system/permissions/:id/edit',
+        name: 'PermissionEdit',
+        component: () => import('@/views/System/PermissionEdit.vue'),
+        meta: { requiresAuth: true, title: '编辑权限', permission: 'rbac.manage' }
       },
       // 财务模块
       {

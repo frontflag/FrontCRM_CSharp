@@ -1,4 +1,5 @@
 using CRM.Core.Models;
+using CRM.Core.Models.Auth;
 using CRM.Core.Models.Component;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Draft;
@@ -86,6 +87,10 @@ namespace CRM.Infrastructure.Data
         public DbSet<RbacUserDepartment> RbacUserDepartments { get; set; } = null!;
         public DbSet<RbacUserRole> RbacUserRoles { get; set; } = null!;
         public DbSet<RbacRolePermission> RbacRolePermissions { get; set; } = null!;
+
+        // ===== 微信认证 =====
+        public DbSet<WechatLoginTicket> WechatLoginTickets { get; set; } = null!;
+        public DbSet<WechatBindRequest> WechatBindRequests { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
