@@ -373,13 +373,20 @@ const handleSave = async () => {
       });
       ElMessage.success('保存成功');
     } else {
-      const created = await vendorApi.createVendor({
-        code: formData.code?.trim() || undefined,
+      await vendorApi.createVendor({
         name: formData.officialName.trim(),
+        officialName: formData.officialName.trim(),
+        nickName: formData.nickName?.trim() || undefined,
+        industry: formData.industry || undefined,
+        credit: formData.credit || undefined,
+        status: formData.status ?? 0,
+        officeAddress: formData.officeAddress?.trim() || undefined,
+        creditCode: formData.taxNumber?.trim() || undefined,
+        companyInfo: formData.companyInfo?.trim() || undefined,
         remark: formData.remark?.trim() || undefined
       });
       ElMessage.success('创建成功');
-      router.replace(`/vendors/${(created as any).id}/edit`);
+      router.replace('/vendors');
       return;
     }
   } catch (error: any) {
