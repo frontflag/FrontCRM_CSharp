@@ -195,50 +195,12 @@
       </template>
     </el-dialog>
 
-    <!-- 详情抽屉 -->
-    <el-drawer v-model="drawerVisible" title="销项发票详情" size="560px" class="crm-drawer">
-      <div v-if="detailData" class="detail-content">
-        <div class="detail-header">
-          <span class="detail-code">{{ detailData.invoiceCode || '（未生成单号）' }}</span>
-          <el-tag :type="INVOICE_STATUS_MAP[detailData.invoiceStatus]?.type as any">
-            {{ INVOICE_STATUS_MAP[detailData.invoiceStatus]?.label }}
-          </el-tag>
-          <el-tag :type="RECEIVE_STATUS_MAP[detailData.receiveStatus]?.type as any" style="margin-left:4px">
-            {{ RECEIVE_STATUS_MAP[detailData.receiveStatus]?.label }}
-          </el-tag>
-        </div>
-        <div class="detail-grid">
-          <div class="detail-item"><span class="detail-label">客户</span><span class="detail-value">{{ detailData.customerName }}</span></div>
-          <div class="detail-item"><span class="detail-label">发票号码</span><span class="detail-value">{{ detailData.invoiceNo || '-' }}</span></div>
-          <div class="detail-item"><span class="detail-label">发票金额</span><span class="detail-value amount-text">{{ CURRENCY_MAP[detailData.currency] }} {{ formatAmount(detailData.invoiceTotal) }}</span></div>
-          <div class="detail-item"><span class="detail-label">已收金额</span><span class="detail-value amount-text">{{ CURRENCY_MAP[detailData.currency] }} {{ formatAmount(detailData.receiveDone) }}</span></div>
-          <div class="detail-item"><span class="detail-label">待收金额</span><span class="detail-value" style="color:#E8A838">{{ CURRENCY_MAP[detailData.currency] }} {{ formatAmount(detailData.receiveToBe) }}</span></div>
-          <div class="detail-item"><span class="detail-label">开票日期</span><span class="detail-value">{{ detailData.makeInvoiceDate?.slice(0, 10) || '-' }}</span></div>
-          <div class="detail-item"><span class="detail-label">发票类型</span><span class="detail-value">{{ SELL_INVOICE_TYPE_MAP[detailData.sellInvoiceType] }}</span></div>
-          <div class="detail-item"><span class="detail-label">蓝/红字</span><span class="detail-value">{{ INVOICE_TYPE_MAP[detailData.type] }}</span></div>
-          <div class="detail-item full"><span class="detail-label">备注</span><span class="detail-value">{{ detailData.remark || '-' }}</span></div>
-        </div>
-        <div class="detail-section-title">发票明细</div>
-        <el-empty v-if="!detailData.items?.length" description="暂无明细" :image-size="60" />
-        <div v-else class="items-table">
-          <div class="items-header" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr">
-            <span>数量</span><span>单价</span><span>开票总额</span><span>增值税额</span><span>税率</span>
-          </div>
-          <div class="items-row" v-for="item in detailData.items" :key="item.id" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr">
-            <span>{{ item.qty }}</span>
-            <span>¥ {{ formatAmount(item.price) }}</span>
-            <span class="amount-text">¥ {{ formatAmount(item.invoiceTotal) }}</span>
-            <span>¥ {{ formatAmount(item.valueAddedTax) }}</span>
-            <span>{{ (item.taxRate * 100).toFixed(0) }}%</span>
-          </div>
-        </div>
-      </div>
-    </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -251,6 +213,8 @@ import {
   type FinanceSellInvoice,
   type PageQuery,
 } from '@/api/finance'
+
+const router = useRouter()
 
 const query = reactive<PageQuery & { page: number; pageSize: number }>({
   page: 1, pageSize: 20, keyword: '', status: undefined,
@@ -335,12 +299,8 @@ const saveForm = async () => {
   }
 }
 
-const drawerVisible = ref(false)
-const detailData = ref<FinanceSellInvoice | null>(null)
-
 const openDetail = (row: FinanceSellInvoice) => {
-  detailData.value = row
-  drawerVisible.value = true
+  router.push({ name: 'FinanceSellInvoiceDetail', params: { id: row.id } })
 }
 
 const applyInvoice = async (row: FinanceSellInvoice) => {

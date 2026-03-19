@@ -237,41 +237,6 @@
       </template>
     </el-dialog>
 
-    <!-- 查看详情对话框 -->
-    <el-dialog v-model="viewDialogVisible" title="报价单详情" width="900px">
-      <el-descriptions :column="2" border v-if="currentRow">
-        <el-descriptions-item label="报价编号">{{ currentRow.quoteCode }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <el-tag :type="getStatusType(currentRow.status)">{{ getStatusText(currentRow.status) }}</el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="物料型号">{{ currentRow.mpn }}</el-descriptions-item>
-        <el-descriptions-item label="报价日期">{{ currentRow.quoteDate }}</el-descriptions-item>
-        <el-descriptions-item label="业务员">{{ currentRow.salesUserName }}</el-descriptions-item>
-        <el-descriptions-item label="采购员">{{ currentRow.purchaseUserName }}</el-descriptions-item>
-        <el-descriptions-item label="备注" :span="2">{{ currentRow.remark }}</el-descriptions-item>
-      </el-descriptions>
-      <h4 style="margin-top: 20px;">供应商报价明细</h4>
-      <el-table :data="currentRow?.items" border size="small" v-if="currentRow?.items?.length">
-        <el-table-column type="index" width="50" />
-        <el-table-column prop="vendorName" label="供应商" min-width="140" />
-        <el-table-column prop="contactName" label="联系人" width="100" />
-        <el-table-column prop="brand" label="品牌" width="100" />
-        <el-table-column prop="quantity" label="数量" width="80" align="right" />
-        <el-table-column prop="unitPrice" label="单价" width="110" align="right">
-          <template #default="{ row }">
-            {{ formatCurrency(row.unitPrice, row.currency) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="金额" width="110" align="right">
-          <template #default="{ row }">
-            {{ formatCurrency(row.quantity * row.unitPrice, row.currency) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="leadTime" label="交期" width="100" />
-        <el-table-column prop="stockQty" label="库存" width="80" align="right" />
-      </el-table>
-    </el-dialog>
-
     <!-- 状态更新对话框 -->
     <el-dialog v-model="statusDialogVisible" title="更新状态" width="400px">
       <el-form label-width="100px">
@@ -298,9 +263,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Plus, Search, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { mockQuoteApi as quoteApi } from '@/api/mockQuote'
+
+const router = useRouter()
 
 const loading = ref(false)
 const quoteList = ref<any[]>([])
@@ -322,7 +290,6 @@ const pageInfo = ref({
 // 对话框控制
 const dialogVisible = ref(false)
 const dialogTitle = ref('新建报价')
-const viewDialogVisible = ref(false)
 const statusDialogVisible = ref(false)
 const submitLoading = ref(false)
 const formRef = ref()
@@ -362,12 +329,6 @@ const getStatusText = (status: number) => {
     4: '已接受', 5: '已拒绝', 6: '已过期', 7: '已关闭'
   }
   return map[status] || '未知'
-}
-
-const formatCurrency = (value: number, currency?: number) => {
-  if (!value) return '-'
-  const symbol = currency === 1 ? '$' : '¥'
-  return symbol + value.toLocaleString('zh-CN', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
 }
 
 // 计算统计
@@ -450,8 +411,7 @@ const handleEdit = (row: any) => {
 
 // 查看
 const handleView = (row: any) => {
-  currentRow.value = row
-  viewDialogVisible.value = true
+  router.push({ name: 'QuoteDetail', params: { id: row.id } })
 }
 
 // 更多操作

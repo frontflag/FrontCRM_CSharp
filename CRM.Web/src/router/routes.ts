@@ -226,6 +226,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/RFQ/QuoteList.vue'),
         meta: { requiresAuth: true, title: '报价管理' }
       },
+      {
+        path: 'quotes/:id',
+        name: 'QuoteDetail',
+        component: () => import('@/views/RFQ/QuoteDetail.vue'),
+        meta: { requiresAuth: true, title: '报价单详情' }
+      },
       // 采购订单
       {
         path: 'purchase-orders',
@@ -280,10 +286,22 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '付款管理' }
       },
       {
+        path: 'finance/payments/:id',
+        name: 'FinancePaymentDetail',
+        component: () => import('@/views/Finance/FinancePaymentDetail.vue'),
+        meta: { requiresAuth: true, title: '付款单详情' }
+      },
+      {
         path: 'finance/receipts',
         name: 'FinanceReceiptList',
         component: () => import('@/views/Finance/FinanceReceiptList.vue'),
         meta: { requiresAuth: true, title: '收款管理' }
+      },
+      {
+        path: 'finance/receipts/:id',
+        name: 'FinanceReceiptDetail',
+        component: () => import('@/views/Finance/FinanceReceiptDetail.vue'),
+        meta: { requiresAuth: true, title: '收款单详情' }
       },
       {
         path: 'finance/purchase-invoices',
@@ -292,10 +310,22 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '进项发票' }
       },
       {
+        path: 'finance/purchase-invoices/:id',
+        name: 'FinancePurchaseInvoiceDetail',
+        component: () => import('@/views/Finance/FinancePurchaseInvoiceDetail.vue'),
+        meta: { requiresAuth: true, title: '进项发票详情' }
+      },
+      {
         path: 'finance/sell-invoices',
         name: 'FinanceSellInvoiceList',
         component: () => import('@/views/Finance/FinanceSellInvoiceList.vue'),
         meta: { requiresAuth: true, title: '销项发票' }
+      },
+      {
+        path: 'finance/sell-invoices/:id',
+        name: 'FinanceSellInvoiceDetail',
+        component: () => import('@/views/Finance/FinanceSellInvoiceDetail.vue'),
+        meta: { requiresAuth: true, title: '销项发票详情' }
       },
       {
         path: 'documents/demo',

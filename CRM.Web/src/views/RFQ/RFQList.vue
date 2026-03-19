@@ -287,41 +287,6 @@
       </template>
     </el-dialog>
 
-    <!-- 查看详情对话框 -->
-    <el-dialog v-model="viewDialogVisible" title="需求单详情" width="850px">
-      <el-descriptions :column="2" border v-if="currentRow">
-        <el-descriptions-item label="需求编号">{{ currentRow.rfqCode }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <el-tag :type="getStatusType(currentRow.status)">{{ getStatusText(currentRow.status) }}</el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="客户">{{ currentRow.customerName }}</el-descriptions-item>
-        <el-descriptions-item label="业务员">{{ currentRow.salesUserName }}</el-descriptions-item>
-        <el-descriptions-item label="产品">{{ currentRow.product }}</el-descriptions-item>
-        <el-descriptions-item label="行业">{{ currentRow.industry }}</el-descriptions-item>
-        <el-descriptions-item label="需求类型">{{ getTypeText(currentRow.rfqType) }}</el-descriptions-item>
-        <el-descriptions-item label="目标类型">{{ getTargetTypeText(currentRow.targetType) }}</el-descriptions-item>
-        <el-descriptions-item label="重要程度" :span="2">
-          <el-rate v-model="currentRow.importance" disabled :max="10" />
-        </el-descriptions-item>
-        <el-descriptions-item label="项目背景" :span="2">{{ currentRow.projectBackground }}</el-descriptions-item>
-        <el-descriptions-item label="竞争对手" :span="2">{{ currentRow.competitor }}</el-descriptions-item>
-        <el-descriptions-item label="备注" :span="2">{{ currentRow.remark }}</el-descriptions-item>
-      </el-descriptions>
-      <h4 style="margin-top: 20px;">需求明细</h4>
-      <el-table :data="currentRow?.items" border size="small" v-if="currentRow?.items?.length">
-        <el-table-column type="index" width="50" />
-        <el-table-column prop="mpn" label="物料型号" min-width="150" />
-        <el-table-column prop="brand" label="品牌" width="120" />
-        <el-table-column prop="customerMpn" label="客户料号" width="120" />
-        <el-table-column prop="quantity" label="数量" width="100" align="right" />
-        <el-table-column label="目标价" width="120" align="right">
-          <template #default="{ row }">
-            {{ formatCurrency(row.targetPrice, row.priceCurrency) }}
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-dialog>
-
     <!-- 状态更新对话框 -->
     <el-dialog v-model="statusDialogVisible" title="更新状态" width="400px">
       <el-form label-width="100px">
@@ -353,10 +318,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Plus, Search, ArrowDown, Upload } from '@element-plus/icons-vue'
 import ImportRFQDialog from './components/ImportRFQDialog.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
+
+const router = useRouter()
 
 const loading = ref(false)
 const rfqList = ref<any[]>([])
@@ -378,7 +346,6 @@ const pageInfo = ref({
 // 对话框控制
 const dialogVisible = ref(false)
 const dialogTitle = ref('新建需求')
-const viewDialogVisible = ref(false)
 const statusDialogVisible = ref(false)
 const importDialogVisible = ref(false)
 const submitLoading = ref(false)
@@ -431,17 +398,6 @@ const getStatusText = (status: number) => {
 const getTypeText = (type: number) => {
   const map: Record<number, string> = { 1: '现货', 2: '期货', 3: '样品', 4: '批量' }
   return map[type] || '未知'
-}
-
-const getTargetTypeText = (type: number) => {
-  const map: Record<number, string> = { 1: '比价需求', 2: '独家需求', 3: '紧急需求', 4: '常规需求' }
-  return map[type] || '未知'
-}
-
-const formatCurrency = (value: number, currency?: number) => {
-  if (!value) return '-'
-  const symbol = currency === 2 ? '$' : currency === 3 ? '€' : currency === 4 ? 'HK$' : '¥'
-  return symbol + value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 // 加载数据
@@ -545,8 +501,7 @@ const handleEdit = (row: any) => {
 
 // 查看
 const handleView = (row: any) => {
-  currentRow.value = row
-  viewDialogVisible.value = true
+  router.push({ name: 'RFQDetail', params: { id: row.id } })
 }
 
 // 更多操作

@@ -171,46 +171,12 @@
       </template>
     </el-dialog>
 
-    <!-- 详情抽屉 -->
-    <el-drawer v-model="drawerVisible" title="收款单详情" size="520px" class="crm-drawer">
-      <div v-if="detailData" class="detail-content">
-        <div class="detail-header">
-          <span class="detail-code">{{ detailData.financeReceiptCode }}</span>
-          <el-tag :type="RECEIPT_STATUS_MAP[detailData.status]?.type as any">
-            {{ RECEIPT_STATUS_MAP[detailData.status]?.label }}
-          </el-tag>
-        </div>
-        <div class="detail-grid">
-          <div class="detail-item"><span class="detail-label">客户</span><span class="detail-value">{{ detailData.customerName }}</span></div>
-          <div class="detail-item"><span class="detail-label">收款金额</span><span class="detail-value amount-text">{{ CURRENCY_MAP[detailData.receiptCurrency] }} {{ formatAmount(detailData.receiptAmount) }}</span></div>
-          <div class="detail-item"><span class="detail-label">收款方式</span><span class="detail-value">{{ PAYMENT_MODE_MAP[detailData.receiptMode] }}</span></div>
-          <div class="detail-item"><span class="detail-label">收款日期</span><span class="detail-value">{{ detailData.receiptDate?.slice(0, 10) || '-' }}</span></div>
-          <div class="detail-item full"><span class="detail-label">备注</span><span class="detail-value">{{ detailData.remark || '-' }}</span></div>
-        </div>
-        <div class="detail-section-title">收款明细</div>
-        <el-empty v-if="!detailData.items?.length" description="暂无明细" :image-size="60" />
-        <div v-else class="items-table">
-          <div class="items-header">
-            <span>型号</span><span>品牌</span><span>已收金额</span><span>核销状态</span>
-          </div>
-          <div class="items-row" v-for="item in detailData.items" :key="item.id">
-            <span>{{ item.pn || '-' }}</span>
-            <span>{{ item.brand || '-' }}</span>
-            <span class="amount-text">{{ formatAmount(item.receiptAmount) }}</span>
-            <span>
-              <el-tag size="small" :type="item.verificationStatus === 2 ? 'success' : item.verificationStatus === 1 ? 'warning' : 'info'">
-                {{ item.verificationStatus === 2 ? '核销完成' : item.verificationStatus === 1 ? '部分核销' : '未核销' }}
-              </el-tag>
-            </span>
-          </div>
-        </div>
-      </div>
-    </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -221,6 +187,8 @@ import {
   type FinanceReceipt,
   type PageQuery,
 } from '@/api/finance'
+
+const router = useRouter()
 
 const query = reactive<PageQuery & { page: number; pageSize: number }>({
   page: 1, pageSize: 20, keyword: '', status: undefined,
@@ -304,12 +272,8 @@ const saveForm = async () => {
   }
 }
 
-const drawerVisible = ref(false)
-const detailData = ref<FinanceReceipt | null>(null)
-
 const openDetail = (row: FinanceReceipt) => {
-  detailData.value = row
-  drawerVisible.value = true
+  router.push({ name: 'FinanceReceiptDetail', params: { id: row.id } })
 }
 
 const submitAudit = async (row: FinanceReceipt) => {

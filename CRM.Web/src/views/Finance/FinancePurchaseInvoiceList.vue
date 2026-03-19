@@ -194,50 +194,12 @@
       </template>
     </el-dialog>
 
-    <!-- 详情抽屉 -->
-    <el-drawer v-model="drawerVisible" title="进项发票详情" size="560px" class="crm-drawer">
-      <div v-if="detailData" class="detail-content">
-        <div class="detail-header">
-          <span class="detail-code">{{ detailData.financePurchaseInvoiceCode }}</span>
-          <el-tag :type="INVOICE_STATUS_MAP[detailData.invoiceStatus]?.type as any">
-            {{ INVOICE_STATUS_MAP[detailData.invoiceStatus]?.label }}
-          </el-tag>
-          <el-tag :type="PAYMENT_DONE_STATUS_MAP[detailData.paymentStatus]?.type as any" style="margin-left:4px">
-            {{ PAYMENT_DONE_STATUS_MAP[detailData.paymentStatus]?.label }}
-          </el-tag>
-        </div>
-        <div class="detail-grid">
-          <div class="detail-item"><span class="detail-label">供应商</span><span class="detail-value">{{ detailData.vendorName }}</span></div>
-          <div class="detail-item"><span class="detail-label">发票号码</span><span class="detail-value">{{ detailData.invoiceNo || '-' }}</span></div>
-          <div class="detail-item"><span class="detail-label">发票金额</span><span class="detail-value amount-text">¥ {{ formatAmount(detailData.invoiceTotal) }}</span></div>
-          <div class="detail-item"><span class="detail-label">已付金额</span><span class="detail-value amount-text">¥ {{ formatAmount(detailData.paymentDone) }}</span></div>
-          <div class="detail-item"><span class="detail-label">待付金额</span><span class="detail-value" style="color:#E8A838">¥ {{ formatAmount(detailData.paymentToBe) }}</span></div>
-          <div class="detail-item"><span class="detail-label">开票日期</span><span class="detail-value">{{ detailData.makeInvoiceDate?.slice(0, 10) || '-' }}</span></div>
-          <div class="detail-item"><span class="detail-label">发票类型</span><span class="detail-value">{{ PURCHASE_INVOICE_TYPE_MAP[detailData.purchaseInvoiceType] }}</span></div>
-          <div class="detail-item"><span class="detail-label">蓝/红字</span><span class="detail-value">{{ INVOICE_TYPE_MAP[detailData.type] }}</span></div>
-          <div class="detail-item full"><span class="detail-label">备注</span><span class="detail-value">{{ detailData.remark || '-' }}</span></div>
-        </div>
-        <div class="detail-section-title">发票明细</div>
-        <el-empty v-if="!detailData.items?.length" description="暂无明细" :image-size="60" />
-        <div v-else class="items-table">
-          <div class="items-header" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr">
-            <span>入库单号</span><span>采购单号</span><span>数量</span><span>含税金额</span><span>税率</span>
-          </div>
-          <div class="items-row" v-for="item in detailData.items" :key="item.id" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr">
-            <span>{{ item.stockInCode || '-' }}</span>
-            <span>{{ item.purchaseOrderCode || '-' }}</span>
-            <span>{{ item.billQty }}</span>
-            <span class="amount-text">¥ {{ formatAmount(item.billAmount) }}</span>
-            <span>{{ (item.taxRate * 100).toFixed(0) }}%</span>
-          </div>
-        </div>
-      </div>
-    </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -250,6 +212,8 @@ import {
   type FinancePurchaseInvoice,
   type PageQuery,
 } from '@/api/finance'
+
+const router = useRouter()
 
 const query = reactive<PageQuery & { page: number; pageSize: number }>({
   page: 1, pageSize: 20, keyword: '', status: undefined,
@@ -334,12 +298,8 @@ const saveForm = async () => {
   }
 }
 
-const drawerVisible = ref(false)
-const detailData = ref<FinancePurchaseInvoice | null>(null)
-
 const openDetail = (row: FinancePurchaseInvoice) => {
-  detailData.value = row
-  drawerVisible.value = true
+  router.push({ name: 'FinancePurchaseInvoiceDetail', params: { id: row.id } })
 }
 
 const voidInvoice = async (row: FinancePurchaseInvoice) => {
