@@ -1,43 +1,6 @@
 <template>
   <div class="settings-view">
-    <el-container style="height: 100vh">
-      <el-header class="header">
-        <div class="logo">FrontCRM</div>
-        <div class="user-info">
-          <span>{{ authStore.user?.userName }}</span>
-          <el-button type="danger" size="small" @click="handleLogout">
-            退出登录
-          </el-button>
-        </div>
-      </el-header>
-
-      <el-container>
-        <el-aside width="200px">
-          <el-menu
-            :default-active="activeMenu"
-            class="el-menu-vertical"
-            router
-          >
-            <el-menu-item index="/dashboard">
-              <el-icon><House /></el-icon>
-              <span>首页</span>
-            </el-menu-item>
-            <el-menu-item index="/dashboard/customers">
-              <el-icon><User /></el-icon>
-              <span>客户管理</span>
-            </el-menu-item>
-            <el-menu-item index="/dashboard/settings">
-              <el-icon><Setting /></el-icon>
-              <span>系统设置</span>
-            </el-menu-item>
-          </el-menu>
-        </el-aside>
-
-        <el-main>
-          <el-card>
-            <template #header>
-              <h3>系统设置</h3>
-            </template>
+    <el-card>
 
             <el-tabs v-model="activeTab">
               <el-tab-pane label="基本信息" name="basic">
@@ -140,23 +103,14 @@
                 </div>
               </el-tab-pane>
             </el-tabs>
-          </el-card>
-        </el-main>
-      </el-container>
-    </el-container>
+    </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElNotification, ElMessageBox } from 'element-plus'
-import { useAuthStore } from '@/stores'
+import { ElNotification } from 'element-plus'
 
-const router = useRouter()
-const authStore = useAuthStore()
-
-const activeMenu = ref('/dashboard/settings')
 const activeTab = ref('basic')
 
 const basicSettings = reactive({
@@ -193,58 +147,11 @@ const handleSaveNotification = () => {
   ElNotification.success({ title: '保存成功', message: '通知设置已保存' })
 }
 
-const handleLogout = async () => {
-  try {
-    await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
 
-    authStore.logout()
-    router.push('/login')
-  } catch {
-    // 用户取消
-  }
-}
 </script>
 
 <style scoped lang="scss">
 .settings-view {
-  .header {
-    background: #fff;
-    border-bottom: 1px solid #e4e7ed;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 20px;
-
-    .logo {
-      font-size: 20px;
-      font-weight: bold;
-      color: #667eea;
-    }
-
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-
-      span {
-        font-weight: 500;
-      }
-    }
-  }
-
-  .el-aside {
-    background: #fff;
-    border-right: 1px solid #e4e7ed;
-
-    .el-menu-vertical {
-      border-right: none;
-    }
-  }
-
   .about-section {
     padding: 20px 0;
 
