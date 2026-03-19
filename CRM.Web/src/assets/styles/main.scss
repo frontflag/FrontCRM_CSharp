@@ -103,8 +103,14 @@ html, body {
 
   td.el-table__cell {
     background: $layer-3 !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid $border-panel;
     color: #a8c0d6;
+  }
+
+  // 表格外框线颜色
+  .el-table__inner-wrapper::before,
+  .el-table__inner-wrapper::after {
+    background: $border-panel;
   }
 
   tr:hover td.el-table__cell {
@@ -120,6 +126,40 @@ html, body {
   .el-table__fixed-right::before,
   .el-table__fixed::before {
     background: $layer-3;
+  }
+}
+
+// ============================================================
+// 全局 el-descriptions 深色主题覆盖
+// ============================================================
+.el-descriptions {
+  --el-descriptions-item-bordered-label-background: #{$layer-2};
+  --el-border-color: #{$border-panel};
+  --el-border-color-lighter: #{$border-panel};
+
+  &.el-descriptions--bordered {
+    .el-descriptions__body {
+      background: transparent;
+    }
+    .el-descriptions__label {
+      background: $layer-2 !important;
+      color: #6b8cae;
+      border-color: $border-panel !important;
+    }
+    .el-descriptions__content {
+      background: $layer-3 !important;
+      color: #a8c0d6;
+      border-color: $border-panel !important;
+    }
+    .el-descriptions__cell {
+      border-color: $border-panel !important;
+    }
+    table {
+      border-color: $border-panel !important;
+    }
+    td, th {
+      border-color: $border-panel !important;
+    }
   }
 }
 
