@@ -43,12 +43,12 @@
         <div class="section-body">
           <el-row :gutter="24">
             <el-col :span="8">
-              <el-form-item label="供应商编号" prop="code">
+              <el-form-item label="供应商编号">
                 <el-input
-                  v-model="formData.code"
-                  placeholder="留空则系统自动生成"
-                  :disabled="isEdit"
-                  class="q-input"
+                  :model-value="isEdit ? formData.code : ''"
+                  :placeholder="isEdit ? '' : '系统生成'"
+                  disabled
+                  class="q-input readonly-code"
                 />
               </el-form-item>
             </el-col>
@@ -675,5 +675,26 @@ onMounted(() => {
 .td-empty {
   color: rgba(255,255,255,0.2);
   font-size: 12px;
+}
+// 只读编号字段样式
+.readonly-code {
+  :deep(.el-input__wrapper) {
+    background: rgba(255,255,255,0.02) !important;
+    border-color: rgba(255,255,255,0.06) !important;
+    cursor: default !important;
+  }
+  :deep(.el-input__inner) {
+    color: rgba(255,255,255,0.4) !important;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    cursor: default !important;
+  }
+  :deep(.el-input__inner::placeholder) {
+    color: rgba(0, 212, 255, 0.5) !important;
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 12px;
+    font-style: italic;
+  }
 }
 </style>
