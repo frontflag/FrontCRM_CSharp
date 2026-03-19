@@ -7,6 +7,9 @@
         <div class="count-badge">共 {{ totalCount }} 条需求</div>
       </div>
       <div class="header-right">
+        <el-button @click="importDialogVisible = true">
+          <el-icon><Upload /></el-icon>导入 Excel 创建
+        </el-button>
         <el-button type="primary" @click="handleCreate">
           <el-icon><Plus /></el-icon>新增需求
         </el-button>
@@ -339,12 +342,19 @@
         <el-button type="primary" @click="confirmUpdateStatus">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 导入 Excel 创建 RFQ 对话框 -->
+    <ImportRFQDialog
+      v-model="importDialogVisible"
+      @created="handleImportCreated"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { Plus, Search, ArrowDown } from '@element-plus/icons-vue'
+import { Plus, Search, ArrowDown, Upload } from '@element-plus/icons-vue'
+import ImportRFQDialog from './components/ImportRFQDialog.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
 
@@ -370,6 +380,7 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('新建需求')
 const viewDialogVisible = ref(false)
 const statusDialogVisible = ref(false)
+const importDialogVisible = ref(false)
 const submitLoading = ref(false)
 const formRef = ref()
 const currentRow = ref<any>(null)
@@ -483,6 +494,11 @@ const handlePageChange = (val: number) => {
 }
 
 // 新建
+// 导入 Excel 创建 RFQ 成功后刷新列表
+const handleImportCreated = (_rfqId: string) => {
+  loadData()
+}
+
 const handleCreate = () => {
   isEdit.value = false
   dialogTitle.value = '新建需求'
