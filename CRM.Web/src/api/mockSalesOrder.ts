@@ -2,6 +2,13 @@
 import { ElMessage } from 'element-plus'
 
 // ===== 销售订单明细状态枚举 =====
+// 审核状态
+export enum ItemAuditStatus {
+  New = 0,        // 新建
+  Pending = 1,    // 待审核
+  Approved = 2    // 已审核
+}
+
 // 货运状态
 export enum ShippingStatus {
   PendingShipment = 0,  // 待发货
@@ -11,16 +18,9 @@ export enum ShippingStatus {
 }
 
 // 款项状态
-export enum PaymentRequestStatus {
-  Requesting = 0, // 请款
-  Approved = 1    // 已审核
-}
-
-// 部分付款状态
-export enum PartialPaymentStatus {
-  NotPaid = 0,        // 未付款
-  PartialPaid = 1,    // 部分付款
-  PaymentComplete = 2 // 付款完成
+export enum PaymentStatus {
+  PartialPaid = 0,    // 部分付款
+  PaymentComplete = 1 // 付款完成
 }
 
 // 票据状态
@@ -65,10 +65,10 @@ let mockSalesOrders: any[] = [
         dateCode: '2024+',
         deliveryDate: '2024-04-15',
         status: 0,
-        shippingStatus: 1,         // 在途
-        paymentRequestStatus: 0,   // 请款
-        partialPaymentStatus: 1,   // 部分付款
-        invoiceStatus: 1           // 部分开票
+        itemAuditStatus: 1,   // 待审核
+        shippingStatus: 1,    // 在途
+        paymentStatus: 0,     // 部分付款
+        invoiceStatus: 1      // 部分开票
       },
       {
         id: 'SOI002',
@@ -82,10 +82,10 @@ let mockSalesOrders: any[] = [
         dateCode: '2024+',
         deliveryDate: '2024-04-15',
         status: 0,
-        shippingStatus: 0,         // 待发货
-        paymentRequestStatus: 1,   // 已审核
-        partialPaymentStatus: 0,   // 未付款
-        invoiceStatus: 0           // 待开票
+        itemAuditStatus: 0,   // 新建
+        shippingStatus: 0,    // 待发货
+        paymentStatus: 0,     // 部分付款
+        invoiceStatus: 0      // 待开票
       }
     ]
   },
@@ -122,10 +122,10 @@ let mockSalesOrders: any[] = [
         dateCode: '2024+',
         deliveryDate: '2024-03-25',
         status: 0,
-        shippingStatus: 3,         // 货运完成
-        paymentRequestStatus: 1,   // 已审核
-        partialPaymentStatus: 2,   // 付款完成
-        invoiceStatus: 2           // 开票完成
+        itemAuditStatus: 2,   // 已审核
+        shippingStatus: 3,    // 货运完成
+        paymentStatus: 1,     // 付款完成
+        invoiceStatus: 2      // 开票完成
       }
     ]
   },

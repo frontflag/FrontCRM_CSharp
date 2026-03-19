@@ -77,6 +77,13 @@
                   {{ formatCurrency(row.qty * row.price, row.currency) }}
                 </template>
               </el-table-column>
+              <el-table-column label="审核状态" width="90" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="getItemAuditStatusType(row.itemAuditStatus)" size="small" effect="light">
+                    {{ getItemAuditStatusText(row.itemAuditStatus) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
               <el-table-column label="货运状态" width="100" align="center">
                 <template #default="{ row }">
                   <el-tag :type="getShippingStatusType(row.shippingStatus)" size="small" effect="light">
@@ -84,17 +91,10 @@
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="款项状态" width="90" align="center">
+              <el-table-column label="款项状态" width="100" align="center">
                 <template #default="{ row }">
-                  <el-tag :type="getPaymentRequestStatusType(row.paymentRequestStatus)" size="small" effect="light">
-                    {{ getPaymentRequestStatusText(row.paymentRequestStatus) }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column label="付款状态" width="100" align="center">
-                <template #default="{ row }">
-                  <el-tag :type="getPartialPaymentStatusType(row.partialPaymentStatus)" size="small" effect="light">
-                    {{ getPartialPaymentStatusText(row.partialPaymentStatus) }}
+                  <el-tag :type="getPaymentStatusType(row.paymentStatus)" size="small" effect="light">
+                    {{ getPaymentStatusText(row.paymentStatus) }}
                   </el-tag>
                 </template>
               </el-table-column>
@@ -242,6 +242,15 @@ const getStatusText = (status: number) => {
   return map[status] ?? '未知'
 }
 // ===== 明细状态辅助函数 =====
+// 审核状态
+const getItemAuditStatusText = (v?: number) => {
+  const map: Record<number, string> = { 0: '新建', 1: '待审核', 2: '已审核' }
+  return v !== undefined ? (map[v] ?? '-') : '-'
+}
+const getItemAuditStatusType = (v?: number): '' | 'info' | 'success' | 'warning' | 'danger' => {
+  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = { 0: 'info', 1: 'warning', 2: 'success' }
+  return v !== undefined ? (map[v] ?? 'info') : 'info'
+}
 // 货运状态
 const getShippingStatusText = (v?: number) => {
   const map: Record<number, string> = { 0: '待发货', 1: '在途', 2: '部分送达', 3: '货运完成' }
@@ -252,21 +261,12 @@ const getShippingStatusType = (v?: number): '' | 'info' | 'success' | 'warning' 
   return v !== undefined ? (map[v] ?? 'info') : 'info'
 }
 // 款项状态
-const getPaymentRequestStatusText = (v?: number) => {
-  const map: Record<number, string> = { 0: '请款', 1: '已审核' }
+const getPaymentStatusText = (v?: number) => {
+  const map: Record<number, string> = { 0: '部分付款', 1: '付款完成' }
   return v !== undefined ? (map[v] ?? '-') : '-'
 }
-const getPaymentRequestStatusType = (v?: number): '' | 'info' | 'success' | 'warning' | 'danger' => {
+const getPaymentStatusType = (v?: number): '' | 'info' | 'success' | 'warning' | 'danger' => {
   const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = { 0: 'warning', 1: 'success' }
-  return v !== undefined ? (map[v] ?? 'info') : 'info'
-}
-// 部分付款状态
-const getPartialPaymentStatusText = (v?: number) => {
-  const map: Record<number, string> = { 0: '未付款', 1: '部分付款', 2: '付款完成' }
-  return v !== undefined ? (map[v] ?? '-') : '-'
-}
-const getPartialPaymentStatusType = (v?: number): '' | 'info' | 'success' | 'warning' | 'danger' => {
-  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = { 0: 'info', 1: 'warning', 2: 'success' }
   return v !== undefined ? (map[v] ?? 'info') : 'info'
 }
 // 票据状态
