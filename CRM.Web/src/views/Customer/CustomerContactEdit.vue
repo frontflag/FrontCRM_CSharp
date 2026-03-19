@@ -126,6 +126,20 @@
             </el-col>
           </el-row>
         </el-form>
+
+        <!-- 名片上传区域 -->
+        <div class="section-title" style="margin-top: 8px;">名片</div>
+        <BusinessCardUploader
+          biz-type="contact"
+          :biz-id="savedContactId || undefined"
+          :max-cards="10"
+        />
+        <p v-if="!savedContactId && !isEdit" class="bc-hint">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          保存联系人后可上传名片
+        </p>
       </div>
 
       <!-- 底部操作 -->
@@ -144,6 +158,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import BusinessCardUploader from '@/components/Contact/BusinessCardUploader.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElNotification, type FormInstance, type FormRules } from 'element-plus';
 import { customerContactApi, customerApi } from '@/api/customer';
@@ -160,6 +175,8 @@ const customerName = ref('客户详情');
 const pageLoading = ref(false);
 const submitting = ref(false);
 const formRef = ref<FormInstance>();
+// 新建成功后保存联系人 ID，用于名片上传
+const savedContactId = ref<string | null>(contactId || null);
 
 const formData = ref<CreateContactRequest>({
   contactName: '',
@@ -232,11 +249,17 @@ const handleSubmit = async () => {
     if (isEdit.value && contactId) {
       await customerContactApi.updateContact(contactId, formData.value);
       ElNotification.success({ title: '保存成功', message: '联系人信息已更新' });
+      handleBack();
     } else {
-      await customerContactApi.createContact(customerId, formData.value);
-      ElNotification.success({ title: '添加成功', message: '联系人已添加' });
+      const created = await customerContactApi.createContact(customerId, formData.value);
+      // 保存联系人 ID 供名片上传使用
+      const newId = (created as any)?.id || (created as any)?.data?.id;
+      if (newId) savedContactId.value = newId;
+      ElNotification.success({ title: '添加成功', message: '联系人已添加，可继续上传名片' });
+      // 新建成功后不立即跳转，等待用户上传名片（可选）
+      // 如果没有 newId 则直接返回
+      if (!newId) handleBack();
     }
-    handleBack();
   } catch (error) {
     console.error('保存失败:', error);
     ElNotification.error({ title: '保存失败', message: '联系人保存失败，请稍后重试' });
@@ -455,4 +478,14 @@ $text-secondary: rgba(130, 170, 200, 0.7);
 
 .spin { animation: spin 0.8s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.bc-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(130, 170, 200, 0.5);
+  padding: 0 2px;
+}
 </style>

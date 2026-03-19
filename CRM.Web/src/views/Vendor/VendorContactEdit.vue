@@ -104,6 +104,20 @@
             </el-col>
           </el-row>
         </el-form>
+
+        <!-- 名片上传区域 -->
+        <div class="section-title" style="margin-top: 8px;">名片</div>
+        <BusinessCardUploader
+          biz-type="contact"
+          :biz-id="savedContactId || undefined"
+          :max-cards="10"
+        />
+        <p v-if="!savedContactId && !isEdit" class="bc-hint">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          保存联系人后可上传名片
+        </p>
       </div>
 
       <!-- 底部操作 -->
@@ -122,6 +136,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
+import BusinessCardUploader from '@/components/Contact/BusinessCardUploader.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { vendorApi, vendorContactApi } from '@/api/vendor';
@@ -137,6 +152,8 @@ const isEdit = computed(() => !!contactId);
 const vendorName = ref('供应商详情');
 const pageLoading = ref(false);
 const submitting = ref(false);
+// 新建成功后保存联系人 ID，用于名片上传
+const savedContactId = ref<string | null>(contactId || null);
 
 const formData = reactive<AddVendorContactRequest & { id?: string }>({
   cName: '', title: '', department: '',
@@ -182,11 +199,14 @@ const handleSubmit = async () => {
     if (isEdit.value && contactId) {
       await vendorContactApi.updateContact(contactId, formData as UpdateVendorContactRequest);
       ElMessage.success('联系人已更新');
+      handleBack();
     } else {
-      await vendorContactApi.createContact(vendorId, formData as AddVendorContactRequest);
-      ElMessage.success('联系人已新增');
+      const created = await vendorContactApi.createContact(vendorId, formData as AddVendorContactRequest);
+      const newId = (created as any)?.id || (created as any)?.data?.id;
+      if (newId) savedContactId.value = newId;
+      ElMessage.success('联系人已新增，可继续上传名片');
+      if (!newId) handleBack();
     }
-    handleBack();
   } catch (error) {
     console.error('保存失败:', error);
     ElMessage.error('保存联系人失败');
@@ -364,4 +384,14 @@ $text-secondary: rgba(130, 170, 200, 0.7);
 
 .spin { animation: spin 0.8s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.bc-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(130, 170, 200, 0.5);
+  padding: 0 2px;
+}
 </style>
