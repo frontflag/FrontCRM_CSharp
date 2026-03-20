@@ -71,61 +71,86 @@ html, body {
   color: $color-red-brown !important;
 }
 
-// --- Element Plus el-table 全局深色主题覆盖 ---
+// --- Element Plus el-table 全局深色主题覆盖（data-table 风格：无外边框、极淡青色表头、极细行分隔线）---
 .el-table {
-  --el-table-bg-color: #{$layer-3};
-  --el-table-tr-bg-color: #{$layer-3};
-  --el-table-header-bg-color: #{$layer-2};
-  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.06);
-  --el-table-border-color: #{$border-panel};
+  // CSS 变量覆盖
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: rgba(0, 212, 255, 0.04);
+  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.04);
+  --el-table-border-color: transparent;
   --el-table-text-color: #a8c0d6;
   --el-table-header-text-color: #6b8cae;
-  --el-fill-color-lighter: #{$layer-3};
-  --el-fill-color-light: #{$layer-2};
-  background: $layer-3 !important;
+  --el-fill-color-lighter: transparent;
+  --el-fill-color-light: rgba(0, 212, 255, 0.04);
+  background: transparent !important;
+  font-size: 13px;
+
+  // 移除外边框
+  &.el-table--border::after,
+  &.el-table--border::before,
+  &::before,
+  &::after {
+    display: none !important;
+  }
+  .el-table__inner-wrapper::before {
+    display: none !important;
+  }
 
   .el-table__inner-wrapper,
   .el-table__body-wrapper,
   .el-table__empty-block {
-    background: $layer-3;
+    background: transparent;
   }
 
+  // 表头：极淡青色背景 + 青色底线
   .el-table__header-wrapper {
-    background: $layer-2;
+    background: transparent;
   }
-
   th.el-table__cell {
-    background: $layer-2 !important;
+    background: rgba(0, 212, 255, 0.04) !important;
     color: #6b8cae;
-    border-bottom: 1px solid $border-panel;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.1) !important;
+    border-right: none !important;
     font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.3px;
+    padding: 12px 14px;
   }
 
+  // 数据行：透明背景 + 极细白色分隔线
   td.el-table__cell {
-    background: $layer-3 !important;
-    border-bottom: 1px solid $border-panel;
+    background: transparent !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+    border-right: none !important;
     color: #a8c0d6;
+    padding: 11px 14px;
   }
 
-  // 表格外框线颜色
-  .el-table__inner-wrapper::before,
-  .el-table__inner-wrapper::after {
-    background: $border-panel;
-  }
-
+  // hover 效果
   tr:hover td.el-table__cell {
-    background: rgba(0, 212, 255, 0.06) !important;
+    background: rgba(0, 212, 255, 0.04) !important;
+  }
+
+  // 最后一行无底线
+  .el-table__row:last-child td.el-table__cell {
+    border-bottom: none !important;
   }
 
   .el-table__empty-text {
     color: $text-muted;
   }
 
-  // 固定列阴影
+  // 固定列
   .el-table__fixed-right-patch,
   .el-table__fixed-right::before,
   .el-table__fixed::before {
-    background: $layer-3;
+    background: transparent;
+  }
+
+  // 列分隔线（竖线）全部移除
+  .el-table__cell {
+    border-right: none !important;
   }
 }
 
@@ -425,4 +450,72 @@ html, body {
   --el-disabled-bg-color: #0a1628;
   --el-disabled-text-color: #3a5a7a;
   --el-disabled-border-color: #1a2d45;
+  // el-card 深色主题
+  --el-card-bg-color: #0d1e35;
+  --el-card-border-color: #1a2d45;
+}
+
+// ============================================================
+// 全局 el-card 深色主题覆盖
+// ============================================================
+.el-card {
+  background: #0d1e35 !important;
+  border: 1px solid #1a2d45 !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  color: #a8c0d6;
+
+  .el-card__header {
+    background: transparent;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+    color: #c8dff0;
+    padding: 14px 18px;
+  }
+
+  .el-card__body {
+    background: transparent;
+    padding: 16px 18px;
+  }
+}
+
+// ============================================================
+// 全局 el-pagination 深色主题覆盖
+// ============================================================
+.el-pagination {
+  --el-pagination-bg-color: transparent;
+  --el-pagination-button-bg-color: transparent;
+  --el-pagination-hover-color: #00d4ff;
+  color: #6b8cae;
+
+  .el-pagination__total,
+  .el-pagination__sizes {
+    color: #6b8cae;
+  }
+
+  .el-pager li {
+    background: transparent;
+    color: #6b8cae;
+
+    &.is-active {
+      color: #00d4ff;
+      font-weight: 600;
+    }
+
+    &:hover {
+      color: #00d4ff;
+    }
+  }
+
+  button {
+    background: transparent;
+    color: #6b8cae;
+
+    &:hover {
+      color: #00d4ff;
+    }
+
+    &:disabled {
+      color: #3a5a7a;
+    }
+  }
 }

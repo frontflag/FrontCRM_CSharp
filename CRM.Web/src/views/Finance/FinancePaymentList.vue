@@ -65,7 +65,6 @@
       <el-table
         :data="tableData"
         v-loading="loading"
-        stripe
         class="crm-table"
         @row-click="openDetail"
         row-class-name="table-row-pointer"

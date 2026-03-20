@@ -68,8 +68,6 @@
       <el-table 
         :data="filteredList" 
         v-loading="loading"
-        stripe
-        border
         highlight-current-row
       >
         <el-table-column prop="sellOrderCode" label="订单号" width="160" sortable>

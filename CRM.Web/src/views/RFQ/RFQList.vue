@@ -81,8 +81,6 @@
       <el-table 
         :data="rfqList" 
         v-loading="loading"
-        stripe
-        border
         highlight-current-row
       >
         <el-table-column prop="rfqCode" label="需求编号" width="150" sortable>
