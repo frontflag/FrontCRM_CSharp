@@ -280,13 +280,42 @@ const confirmUpdateStatus = async () => {
   :deep(.el-tabs__header) {
     margin-bottom: 16px;
     border-bottom: 1px solid #1a2d45;
+    background: transparent;
   }
-  :deep(.el-tabs__item) {
-    color: #5a7a9a;
-    &.is-active { color: #00c8ff; }
+  :deep(.el-tabs__nav-wrap::after) {
+    display: none;
   }
   :deep(.el-tabs__active-bar) {
-    background: #00c8ff;
+    display: none;
+  }
+  :deep(.el-tabs__item) {
+    position: relative;
+    height: 30px;
+    line-height: 30px;
+    padding: 0 14px;
+    margin-right: 4px;
+    border-radius: 6px 6px 0 0;
+    border: 1px solid transparent;
+    border-bottom: none;
+    background: rgba(255, 255, 255, 0.03);
+    color: rgba(180, 210, 230, 0.6);
+    font-size: 12px;
+    font-family: 'Noto Sans SC', sans-serif;
+    transition: all 0.15s;
+    &:hover {
+      background: rgba(0, 212, 255, 0.06);
+      border-color: rgba(0, 212, 255, 0.1);
+      color: rgba(180, 210, 230, 0.9);
+    }
+    &.is-active {
+      background: linear-gradient(180deg, rgba(0, 212, 255, 0.12) 0%, rgba(0, 212, 255, 0.05) 100%);
+      border-color: rgba(0, 212, 255, 0.25);
+      color: #00D4FF;
+      font-weight: 600;
+      text-shadow: 0 0 8px rgba(0, 212, 255, 0.4);
+      box-shadow: 0 0 14px rgba(0, 212, 255, 0.15);
+      transform: translateY(-1px);
+    }
   }
   :deep(.el-tabs__content) {
     padding: 0;
