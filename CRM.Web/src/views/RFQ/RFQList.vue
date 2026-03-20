@@ -455,27 +455,6 @@ const handleImportCreated = (_rfqId: string) => {
   loadData()
 }
 
-const handleCreate = () => {
-  isEdit.value = false
-  dialogTitle.value = '新建需求'
-  formData.value = {
-    rfqCode: '',
-    customerName: '',
-    salesUserName: '',
-    contactEmail: '',
-    product: '',
-    industry: '',
-    rfqType: 1,
-    targetType: 1,
-    importance: 5,
-    projectBackground: '',
-    competitor: '',
-    remark: '',
-    items: []
-  }
-  dialogVisible.value = true
-}
-
 // 编辑
 const handleEdit = (row: any) => {
   isEdit.value = true
