@@ -21,8 +21,8 @@
       <div class="detail-header">
         <div class="header-left">
           <div class="bom-code">{{ bom.bomCode }}</div>
-          <el-tag effect="dark" :type="getStatusTagType(bom.status)" size="large">{{ getStatusText(bom.status) }}</el-tag effect="dark">
-          <el-tag effect="dark" v-if="bom.bomType" size="small" :type="getBOMTypeTagType(bom.bomType)">{{ getBOMTypeText(bom.bomType) }}</el-tag effect="dark">
+          <el-tag effect="dark" :type="getStatusTagType(bom.status)" size="large">{{ getStatusText(bom.status) }}</el-tag>
+          <el-tag effect="dark" v-if="bom.bomType" size="small" :type="getBOMTypeTagType(bom.bomType)">{{ getBOMTypeText(bom.bomType) }}</el-tag>
         </div>
         <div class="header-right">
           <el-button

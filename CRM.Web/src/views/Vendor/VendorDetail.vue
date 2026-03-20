@@ -131,7 +131,7 @@
               <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip />
               <el-table-column label="主联系人" width="90" align="center">
                 <template #default="{ row }">
-                  <el-tag v-if="row.isMain" type="success" size="small">主</el-tag>
+                  <el-tag v-if="row.isMain" type="success" size="small" effect="dark">主</el-tag>
                 </template>
               </el-table-column>
               <el-table-column label="操作" width="200" fixed="right">
@@ -169,7 +169,7 @@
               </el-table-column>
               <el-table-column label="默认" width="80" align="center">
                 <template #default="{ row }">
-                  <el-tag v-if="row.isDefault" type="success" size="small">默认</el-tag>
+                  <el-tag v-if="row.isDefault" type="success" size="small" effect="dark">默认</el-tag>
                 </template>
               </el-table-column>
               <el-table-column label="操作" width="220" fixed="right">
@@ -199,7 +199,7 @@
               <el-table-column prop="bankAccount" label="银行账号" min-width="180" show-overflow-tooltip />
               <el-table-column label="默认" width="80" align="center">
                 <template #default="{ row }">
-                  <el-tag v-if="row.isDefault" type="success" size="small">默认</el-tag>
+                  <el-tag v-if="row.isDefault" type="success" size="small" effect="dark">默认</el-tag>
                 </template>
               </el-table-column>
               <el-table-column label="操作" width="220" fixed="right">

@@ -34,7 +34,7 @@
             <span class="order-code">{{ order.purchaseOrderCode }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="状态">
-            <el-tag effect="dark" :type="getStatusType(order.status)">{{ getStatusText(order.status) }}</el-tag effect="dark">
+            <el-tag effect="dark" :type="getStatusType(order.status)">{{ getStatusText(order.status) }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item v-if="canViewVendorInfo" label="供应商">{{ order.vendorName }}</el-descriptions-item>
           <el-descriptions-item label="采购员">{{ order.purchaseUserName }}</el-descriptions-item>
