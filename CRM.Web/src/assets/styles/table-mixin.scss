@@ -1,0 +1,63 @@
+// ============================================================
+// FrontCRM 统一表格样式 Mixin
+// 对标客户管理列表风格：无外框、行间细线、深色表头
+// ============================================================
+
+// 用于 el-table 的统一暗色科技风样式
+// 使用方式：在包裹 el-table 的容器上加 class="crm-items-table"
+// 或在 scoped style 中 @extend %crm-table-base
+
+%crm-table-base {
+  // 移除 el-table 外边框
+  --el-table-border-color: transparent;
+  --el-table-header-bg-color: rgba(0, 212, 255, 0.04);
+  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.04);
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-fixed-box-shadow: none;
+  background: transparent !important;
+
+  :deep(.el-table__inner-wrapper) {
+    background: transparent;
+    &::before { display: none !important; }
+    &::after  { display: none !important; }
+  }
+  :deep(.el-table__border-left-patch) { display: none !important; }
+
+  :deep(.el-table__header-wrapper) {
+    th.el-table__cell {
+      background: rgba(0, 212, 255, 0.04) !important;
+      border-bottom: 1px solid rgba(0, 212, 255, 0.1) !important;
+      border-right: none !important;
+      color: rgba(200, 216, 232, 0.55);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      padding: 10px 14px;
+    }
+  }
+
+  :deep(.el-table__row) {
+    background: transparent !important;
+    td.el-table__cell {
+      background: transparent !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+      border-right: none !important;
+      padding: 10px 14px;
+      color: rgba(224, 244, 255, 0.85);
+      font-size: 13px;
+    }
+    &:last-child td.el-table__cell {
+      border-bottom: none !important;
+    }
+    &:hover td.el-table__cell {
+      background: rgba(0, 212, 255, 0.04) !important;
+    }
+  }
+
+  // 操作列按钮禁止折行
+  :deep(.el-table__cell) {
+    .el-button { white-space: nowrap !important; }
+    .cell { white-space: nowrap; }
+  }
+}
