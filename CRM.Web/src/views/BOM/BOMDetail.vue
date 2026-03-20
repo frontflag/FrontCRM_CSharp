@@ -474,15 +474,47 @@ onMounted(loadData)
 }
 
 :deep(.items-table) {
-  background: transparent;
-  color: #c8d8e8;
-  --el-table-border-color: rgba(0, 212, 255, 0.06);
-  --el-table-header-bg-color: rgba(0, 212, 255, 0.05);
+  // 无外边框，行间细线分隔，对标客户管理列表风格
+  --el-table-border-color: transparent;
+  --el-table-header-bg-color: rgba(0, 212, 255, 0.04);
+  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.04);
+  --el-table-bg-color: transparent;
   --el-table-tr-bg-color: transparent;
-  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.03);
-  .el-table__header th { color: rgba(0, 212, 255, 0.6); font-size: 12px; }
-  .el-table__cell .el-button { white-space: nowrap; }
-  .cell { white-space: nowrap; }
+  --el-table-fixed-box-shadow: none;
+  background: transparent !important;
+  .el-table__inner-wrapper {
+    background: transparent;
+    &::before { display: none !important; }
+    &::after  { display: none !important; }
+  }
+  .el-table__border-left-patch { display: none !important; }
+  .el-table__header-wrapper {
+    th.el-table__cell {
+      background: rgba(0, 212, 255, 0.04) !important;
+      border-bottom: 1px solid rgba(0, 212, 255, 0.1) !important;
+      border-right: none !important;
+      color: rgba(200, 216, 232, 0.55);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+    }
+  }
+  .el-table__row {
+    background: transparent !important;
+    td.el-table__cell {
+      background: transparent !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+      border-right: none !important;
+      color: rgba(224, 244, 255, 0.85);
+      font-size: 13px;
+    }
+    &:last-child td.el-table__cell { border-bottom: none !important; }
+    &:hover td.el-table__cell { background: rgba(0, 212, 255, 0.04) !important; }
+  }
+  .el-table__cell {
+    .el-button { white-space: nowrap !important; }
+    .cell { white-space: nowrap; }
+  }
 }
 
 /* ── 报价弹窗 ── */
