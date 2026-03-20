@@ -10,7 +10,7 @@
         <el-breadcrumb-item>{{ order?.sellOrderCode || '详情' }}</el-breadcrumb-item>
       </el-breadcrumb>
       <div class="header-actions" v-if="order">
-        <el-button size="small" @click="handleUpdateStatus">更新状态</el-button>
+        <el-button size="small" plain @click="handleUpdateStatus">更新状态</el-button>
         <el-button size="small" type="primary" @click="handleEdit">编辑</el-button>
       </div>
     </div>
@@ -25,7 +25,7 @@
         <div class="card-title">
           <span class="title-bar"></span>
           <span>基本信息</span>
-          <el-tag :type="getStatusType(order.status)" size="small" style="margin-left: 12px;">
+          <el-tag :type="getStatusType(order.status)" size="small" effect="dark" style="margin-left: 12px;">
             {{ getStatusText(order.status) }}
           </el-tag>
         </div>
@@ -34,7 +34,7 @@
             <span class="order-code">{{ order.sellOrderCode }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="状态">
-            <el-tag :type="getStatusType(order.status)">{{ getStatusText(order.status) }}</el-tag>
+            <el-tag :type="getStatusType(order.status)" effect="dark">{{ getStatusText(order.status) }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item v-if="canViewCustomerInfo" label="客户">{{ order.customerName }}</el-descriptions-item>
           <el-descriptions-item label="业务员">{{ order.salesUserName }}</el-descriptions-item>
@@ -79,28 +79,28 @@
               </el-table-column>
               <el-table-column label="审核状态" width="90" align="center">
                 <template #default="{ row }">
-                  <el-tag :type="getItemAuditStatusType(row.itemAuditStatus)" size="small" effect="light">
+                  <el-tag :type="getItemAuditStatusType(row.itemAuditStatus)" size="small" effect="dark">
                     {{ getItemAuditStatusText(row.itemAuditStatus) }}
                   </el-tag>
                 </template>
               </el-table-column>
               <el-table-column label="货运状态" width="100" align="center">
                 <template #default="{ row }">
-                  <el-tag :type="getShippingStatusType(row.shippingStatus)" size="small" effect="light">
+                  <el-tag :type="getShippingStatusType(row.shippingStatus)" size="small" effect="dark">
                     {{ getShippingStatusText(row.shippingStatus) }}
                   </el-tag>
                 </template>
               </el-table-column>
               <el-table-column label="款项状态" width="100" align="center">
                 <template #default="{ row }">
-                  <el-tag :type="getPaymentStatusType(row.paymentStatus)" size="small" effect="light">
+                  <el-tag :type="getPaymentStatusType(row.paymentStatus)" size="small" effect="dark">
                     {{ getPaymentStatusText(row.paymentStatus) }}
                   </el-tag>
                 </template>
               </el-table-column>
               <el-table-column label="票据状态" width="100" align="center">
                 <template #default="{ row }">
-                  <el-tag :type="getInvoiceStatusType(row.invoiceStatus)" size="small" effect="light">
+                  <el-tag :type="getInvoiceStatusType(row.invoiceStatus)" size="small" effect="dark">
                     {{ getInvoiceStatusText(row.invoiceStatus) }}
                   </el-tag>
                 </template>

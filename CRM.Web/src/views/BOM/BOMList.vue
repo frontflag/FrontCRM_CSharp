@@ -143,12 +143,12 @@
         </el-table-column>
         <el-table-column label="类型" width="80" align="center">
           <template #default="{ row }">
-            <el-tag size="small" :type="getBOMTypeTagType(row.bomType)">{{ getBOMTypeText(row.bomType) }}</el-tag>
+            <el-tag effect="dark" size="small" :type="getBOMTypeTagType(row.bomType)">{{ getBOMTypeText(row.bomType) }}</el-tag effect="dark">
           </template>
         </el-table-column>
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">
-            <el-tag size="small" :type="getStatusTagType(row.status)">{{ getStatusText(row.status) }}</el-tag>
+            <el-tag effect="dark" size="small" :type="getStatusTagType(row.status)">{{ getStatusText(row.status) }}</el-tag effect="dark">
           </template>
         </el-table-column>
         <el-table-column label="创建人" width="90" show-overflow-tooltip>

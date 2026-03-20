@@ -21,8 +21,8 @@
       <div class="detail-header">
         <div class="header-left">
           <div class="bom-code">{{ bom.bomCode }}</div>
-          <el-tag :type="getStatusTagType(bom.status)" size="large">{{ getStatusText(bom.status) }}</el-tag>
-          <el-tag v-if="bom.bomType" size="small" :type="getBOMTypeTagType(bom.bomType)">{{ getBOMTypeText(bom.bomType) }}</el-tag>
+          <el-tag effect="dark" :type="getStatusTagType(bom.status)" size="large">{{ getStatusText(bom.status) }}</el-tag effect="dark">
+          <el-tag effect="dark" v-if="bom.bomType" size="small" :type="getBOMTypeTagType(bom.bomType)">{{ getBOMTypeText(bom.bomType) }}</el-tag effect="dark">
         </div>
         <div class="header-right">
           <el-button
@@ -116,7 +116,7 @@
           </el-table-column>
           <el-table-column label="报价状态" width="100" align="center">
             <template #default="{ row }">
-              <el-tag size="small" :type="getItemStatusTagType(row.quoteStatus)">
+              <el-tag effect="dark" size="small" :type="getItemStatusTagType(row.quoteStatus)">
                 {{ getItemStatusText(row.quoteStatus) }}
               </el-tag>
             </template>

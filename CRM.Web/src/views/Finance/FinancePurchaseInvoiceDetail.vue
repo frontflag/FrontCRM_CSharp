@@ -21,10 +21,10 @@
         <div class="card-title">
           <span class="title-bar"></span>
           <span>基本信息</span>
-          <el-tag :type="INVOICE_STATUS_MAP[detail.invoiceStatus]?.type as any" size="small" style="margin-left: 12px;">
+          <el-tag effect="dark" :type="INVOICE_STATUS_MAP[detail.invoiceStatus]?.type as any" size="small" style="margin-left: 12px;">
             {{ INVOICE_STATUS_MAP[detail.invoiceStatus]?.label }}
           </el-tag>
-          <el-tag :type="PAYMENT_DONE_STATUS_MAP[detail.paymentStatus]?.type as any" size="small" style="margin-left: 4px;">
+          <el-tag effect="dark" :type="PAYMENT_DONE_STATUS_MAP[detail.paymentStatus]?.type as any" size="small" style="margin-left: 4px;">
             {{ PAYMENT_DONE_STATUS_MAP[detail.paymentStatus]?.label }}
           </el-tag>
         </div>

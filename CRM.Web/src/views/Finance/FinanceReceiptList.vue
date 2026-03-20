@@ -87,7 +87,7 @@
         </el-table-column>
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="RECEIPT_STATUS_MAP[row.status]?.type as any" size="small">
+            <el-tag effect="dark" :type="RECEIPT_STATUS_MAP[row.status]?.type as any" size="small">
               {{ RECEIPT_STATUS_MAP[row.status]?.label }}
             </el-tag>
           </template>

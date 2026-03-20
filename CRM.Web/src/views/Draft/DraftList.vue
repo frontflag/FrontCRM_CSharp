@@ -48,7 +48,7 @@
         </el-table-column>
         <el-table-column label="状态" width="110">
           <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)">{{ statusText(row.status) }}</el-tag>
+            <el-tag effect="dark" :type="statusTagType(row.status)">{{ statusText(row.status) }}</el-tag effect="dark">
           </template>
         </el-table-column>
         <el-table-column prop="convertedEntityId" label="正式ID" min-width="220" show-overflow-tooltip />

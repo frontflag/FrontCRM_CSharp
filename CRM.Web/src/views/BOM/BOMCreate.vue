@@ -185,7 +185,7 @@
               <el-table-column label="货币" prop="currency" width="60" />
               <el-table-column label="状态" width="90">
                 <template #default="{ row }">
-                  <el-tag size="small" :type="row._hasError ? 'danger' : 'success'">
+                  <el-tag effect="dark" size="small" :type="row._hasError ? 'danger' : 'success'">
                     {{ row._hasError ? row._errorMsg : '正常' }}
                   </el-tag>
                 </template>

@@ -91,14 +91,14 @@
         </el-table-column>
         <el-table-column prop="receiveStatus" label="收款状态" width="110">
           <template #default="{ row }">
-            <el-tag :type="RECEIVE_STATUS_MAP[row.receiveStatus]?.type as any" size="small">
+            <el-tag effect="dark" :type="RECEIVE_STATUS_MAP[row.receiveStatus]?.type as any" size="small">
               {{ RECEIVE_STATUS_MAP[row.receiveStatus]?.label }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="invoiceStatus" label="开票状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="INVOICE_STATUS_MAP[row.invoiceStatus]?.type as any" size="small">
+            <el-tag effect="dark" :type="INVOICE_STATUS_MAP[row.invoiceStatus]?.type as any" size="small">
               {{ INVOICE_STATUS_MAP[row.invoiceStatus]?.label }}
             </el-tag>
           </template>

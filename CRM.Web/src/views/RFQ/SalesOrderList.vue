@@ -87,14 +87,14 @@
         <el-table-column prop="itemRows" label="行项目" width="80" align="center" />
         <el-table-column prop="status" label="状态" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small">
+            <el-tag effect="dark" :type="getStatusType(row.status)" size="small">
               {{ getStatusText(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="purchaseOrderStatus" label="采购状态" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="getPurchaseStatusType(row.purchaseOrderStatus)" size="small">
+            <el-tag effect="dark" :type="getPurchaseStatusType(row.purchaseOrderStatus)" size="small">
               {{ getPurchaseStatusText(row.purchaseOrderStatus) }}
             </el-tag>
           </template>

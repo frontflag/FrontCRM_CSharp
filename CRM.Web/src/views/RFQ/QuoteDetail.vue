@@ -24,7 +24,7 @@
         <div class="card-title">
           <span class="title-bar"></span>
           <span>基本信息</span>
-          <el-tag :type="getStatusType(quote.status)" size="small" style="margin-left: 12px;">
+          <el-tag effect="dark" :type="getStatusType(quote.status)" size="small" style="margin-left: 12px;">
             {{ getStatusText(quote.status) }}
           </el-tag>
         </div>
@@ -33,7 +33,7 @@
             <span class="order-code">{{ quote.quoteCode }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="状态">
-            <el-tag :type="getStatusType(quote.status)">{{ getStatusText(quote.status) }}</el-tag>
+            <el-tag effect="dark" :type="getStatusType(quote.status)">{{ getStatusText(quote.status) }}</el-tag effect="dark">
           </el-descriptions-item>
           <el-descriptions-item label="物料型号">{{ quote.mpn }}</el-descriptions-item>
           <el-descriptions-item label="报价日期">{{ quote.quoteDate }}</el-descriptions-item>

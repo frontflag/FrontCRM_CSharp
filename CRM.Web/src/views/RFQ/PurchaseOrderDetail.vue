@@ -25,7 +25,7 @@
         <div class="card-title">
           <span class="title-bar"></span>
           <span>基本信息</span>
-          <el-tag :type="getStatusType(order.status)" size="small" style="margin-left: 12px;">
+          <el-tag effect="dark" :type="getStatusType(order.status)" size="small" style="margin-left: 12px;">
             {{ getStatusText(order.status) }}
           </el-tag>
         </div>
@@ -34,7 +34,7 @@
             <span class="order-code">{{ order.purchaseOrderCode }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="状态">
-            <el-tag :type="getStatusType(order.status)">{{ getStatusText(order.status) }}</el-tag>
+            <el-tag effect="dark" :type="getStatusType(order.status)">{{ getStatusText(order.status) }}</el-tag effect="dark">
           </el-descriptions-item>
           <el-descriptions-item v-if="canViewVendorInfo" label="供应商">{{ order.vendorName }}</el-descriptions-item>
           <el-descriptions-item label="采购员">{{ order.purchaseUserName }}</el-descriptions-item>

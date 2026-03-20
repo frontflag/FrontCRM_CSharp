@@ -21,7 +21,7 @@
         <div class="card-title">
           <span class="title-bar"></span>
           <span>基本信息</span>
-          <el-tag :type="RECEIPT_STATUS_MAP[detail.status]?.type as any" size="small" style="margin-left: 12px;">
+          <el-tag effect="dark" :type="RECEIPT_STATUS_MAP[detail.status]?.type as any" size="small" style="margin-left: 12px;">
             {{ RECEIPT_STATUS_MAP[detail.status]?.label }}
           </el-tag>
         </div>
@@ -30,7 +30,7 @@
             <span class="order-code">{{ detail.financeReceiptCode }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="状态">
-            <el-tag :type="RECEIPT_STATUS_MAP[detail.status]?.type as any">
+            <el-tag effect="dark" :type="RECEIPT_STATUS_MAP[detail.status]?.type as any">
               {{ RECEIPT_STATUS_MAP[detail.status]?.label }}
             </el-tag>
           </el-descriptions-item>
@@ -62,7 +62,7 @@
           </el-table-column>
           <el-table-column label="核销状态" width="120" align="center">
             <template #default="{ row }">
-              <el-tag size="small" :type="row.verificationStatus === 2 ? 'success' : row.verificationStatus === 1 ? 'warning' : 'info'">
+              <el-tag effect="dark" size="small" :type="row.verificationStatus === 2 ? 'success' : row.verificationStatus === 1 ? 'warning' : 'info'">
                 {{ row.verificationStatus === 2 ? '核销完成' : row.verificationStatus === 1 ? '部分核销' : '未核销' }}
               </el-tag>
             </template>
