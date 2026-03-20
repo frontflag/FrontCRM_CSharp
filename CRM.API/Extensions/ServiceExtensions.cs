@@ -17,8 +17,12 @@ namespace CRM.API.Extensions
     {
         public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
         {
-            var connectionString = configuration.GetConnectionString("DefaultConnection")
-                ?? "Host=localhost;Port=5432;Database=FrontCRM;Username=postgres;Password=postgres123";
+            var connectionString = configuration.GetConnectionString("DefaultConnection");
+            
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException("数据库连接字符串未配置。请在 appsettings.json 中配置 ConnectionStrings:DefaultConnection。");
+            }
 
             services.AddInfrastructure(connectionString);
 

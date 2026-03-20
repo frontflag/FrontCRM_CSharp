@@ -51,25 +51,33 @@ try
 
     app.MapControllers();
 
+    // 数据库连接检查 - 无法连接时直接报错停止
     using (var scope = app.Services.CreateScope())
     {
         var services = scope.ServiceProvider;
+        var context = services.GetRequiredService<ApplicationDbContext>();
+        
         try
         {
-            var context = services.GetRequiredService<ApplicationDbContext>();
+            // 测试数据库连接
+            var canConnect = context.Database.CanConnect();
+            if (!canConnect)
+            {
+                throw new InvalidOperationException("无法连接到数据库，请检查数据库连接字符串和数据库服务状态。");
+            }
+            
             if (app.Environment.IsDevelopment())
             {
                 // 应用所有待处理的迁移
                 context.Database.Migrate();
-
-                //删除原数据库，根据当前实体重新创建数据库。 临时屏蔽，用于开发测试。
-                //context.Database.EnsureDeleted();
-                //context.Database.EnsureCreated();
             }
+            
+            Log.Information("数据库连接成功");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not InvalidOperationException)
         {
-            Log.Error(ex, "An error occurred while creating the database");
+            Log.Fatal(ex, "数据库连接失败: {Message}", ex.Message);
+            throw new InvalidOperationException($"数据库连接失败: {ex.Message}", ex);
         }
     }
 
