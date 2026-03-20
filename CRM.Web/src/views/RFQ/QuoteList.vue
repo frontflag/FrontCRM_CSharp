@@ -79,8 +79,6 @@
       <el-table 
         :data="quoteList" 
         v-loading="loading"
-        stripe
-        border
         highlight-current-row
       >
         <el-table-column prop="quoteCode" label="报价编号" width="150" sortable>
