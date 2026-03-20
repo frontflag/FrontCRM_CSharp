@@ -66,22 +66,25 @@ namespace CRM.Core.Services
         public async Task<PagedResult<Invoice>> GetPagedAsync(PurchaseInvoiceQueryRequest request)
         {
             var allEntities = await _repository.GetAllAsync();
-            var query = allEntities.AsQueryable();
+            var query = allEntities.AsEnumerable();
             // 类型过滤已在上面的代码中处理
 
             // 关键词搜索
             if (!string.IsNullOrWhiteSpace(request.Keyword))
             {
                 var keyword = request.Keyword.Trim().ToLower();
-                query = query.Where(e => 
-                    (GetProperty(e, "Code") != null && GetProperty(e, "Code")!.ToString()!.ToLower().Contains(keyword)) ||
-                    (GetProperty(e, "Name") != null && GetProperty(e, "Name")!.ToString()!.ToLower().Contains(keyword)));
+                query = query.Where(e =>
+                {
+                    var code = GetProperty(e, "Code")?.ToString()?.ToLower();
+                    var name = GetProperty(e, "Name")?.ToString()?.ToLower();
+                    return (code?.Contains(keyword) ?? false) || (name?.Contains(keyword) ?? false);
+                });
             }
 
             // 状态筛选
             if (request.Status.HasValue)
             {
-                query = query.Where(e => GetProperty(e, "Status") != null && GetProperty(e, "Status").Equals(request.Status.Value));
+                query = query.Where(e => object.Equals(GetProperty(e, "Status"), request.Status.Value));
             }
 
             var totalCount = query.Count();

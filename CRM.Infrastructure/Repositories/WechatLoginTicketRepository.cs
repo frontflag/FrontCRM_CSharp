@@ -10,11 +10,8 @@ namespace CRM.Infrastructure.Repositories;
 /// </summary>
 public class WechatLoginTicketRepository : Repository<WechatLoginTicket>, IWechatLoginTicketRepository
 {
-    private readonly ApplicationDbContext _context;
-
     public WechatLoginTicketRepository(ApplicationDbContext context) : base(context)
     {
-        _context = context;
     }
 
     public async Task<WechatLoginTicket?> GetByTicketAsync(string ticket)

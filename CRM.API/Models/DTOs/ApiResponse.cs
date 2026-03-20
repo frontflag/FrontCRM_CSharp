@@ -7,7 +7,7 @@ namespace CRM.API.Models.DTOs
         public T? Data { get; set; }
         public int ErrorCode { get; set; }
 
-        public static ApiResponse<T> Ok(T data, string message = "操作成功")
+        public static ApiResponse<T> Ok(T? data, string message = "操作成功")
         {
             return new ApiResponse<T>
             {

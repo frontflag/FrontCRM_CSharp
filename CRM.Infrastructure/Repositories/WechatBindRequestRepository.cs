@@ -10,11 +10,8 @@ namespace CRM.Infrastructure.Repositories;
 /// </summary>
 public class WechatBindRequestRepository : Repository<WechatBindRequest>, IWechatBindRequestRepository
 {
-    private readonly ApplicationDbContext _context;
-
     public WechatBindRequestRepository(ApplicationDbContext context) : base(context)
     {
-        _context = context;
     }
 
     public async Task<WechatBindRequest?> GetPendingByUserIdAsync(string userId)

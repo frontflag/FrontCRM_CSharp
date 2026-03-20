@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Models;
 
 namespace CRM.Core.Models.Auth;
 
@@ -7,7 +8,7 @@ namespace CRM.Core.Models.Auth;
 /// 微信扫码登录临时票据表
 /// </summary>
 [Table("wechat_login_ticket")]
-public class WechatLoginTicket
+public class WechatLoginTicket : BaseEntity
 {
     [Key]
     [MaxLength(64)]
@@ -41,11 +42,6 @@ public class WechatLoginTicket
     /// </summary>
     [MaxLength(100)]
     public string? UserId { get; set; }
-
-    /// <summary>
-    /// 创建时间
-    /// </summary>
-    public DateTime CreateTime { get; set; } = DateTime.UtcNow;
 
     /// <summary>
     /// 过期时间

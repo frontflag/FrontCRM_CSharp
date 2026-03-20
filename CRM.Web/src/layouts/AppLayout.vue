@@ -44,6 +44,25 @@
           <span class="active-dot" v-if="!isCollapsed"></span>
         </router-link>
 
+        <!-- 待办 -->
+        <div class="menu-section-label" v-if="!isCollapsed">待办</div>
+        <router-link
+          v-if="hasAnyApprovalPermission"
+          to="/pending-approvals"
+          class="menu-item"
+          active-class="active"
+          exact
+        >
+          <span class="menu-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M12 8v4l3 3" />
+              <circle cx="12" cy="12" r="9" />
+            </svg>
+          </span>
+          <span class="menu-label" v-if="!isCollapsed">待审批</span>
+          <span class="active-dot" v-if="!isCollapsed"></span>
+        </router-link>
+
         <!-- 基础资料 -->
         <div class="menu-section-label" v-if="!isCollapsed">基础资料</div>
 
@@ -442,6 +461,7 @@ const userInitial = computed(() => (authStore.user?.userName || '管')[0].toUppe
 
 const pageTitleMap: Record<string, string> = {
   '/dashboard': '控制台',
+  '/pending-approvals': '待审批',
   '/customers': '客户管理',
   '/customers/create': '新增客户',
   '/customers/recycle-bin': '客户回收站',
@@ -504,6 +524,12 @@ const handleUnimplemented = (name: string) => {
 }
 
 const hasPermission = (code: string) => authStore.hasPermission(code)
+
+// 待办：只在用户拥有任一“审批”相关写权限时显示入口
+const hasAnyApprovalPermission = computed(() => {
+  const codes = ['vendor.write', 'rfq.write', 'sales-order.write', 'finance-receipt.write', 'finance-payment.write']
+  return codes.some(code => hasPermission(code))
+})
 
 // ===== Tab Bar 多标签页 =====
 interface TabItem {

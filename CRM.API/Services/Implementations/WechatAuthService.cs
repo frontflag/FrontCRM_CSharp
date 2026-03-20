@@ -1,11 +1,12 @@
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
-using CRM.API.Models.DTOs;
 using CRM.API.Services.Interfaces;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Auth;
+using CRM.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace CRM.API.Services.Implementations;
 
@@ -16,7 +17,8 @@ public class WechatAuthService : IWechatAuthService
 {
     private readonly IWechatLoginTicketRepository _ticketRepository;
     private readonly IWechatBindRequestRepository _bindRequestRepository;
-    private readonly IUserRepository _userRepository;
+    private readonly IRepository<User> _userRepository;
+    private readonly ApplicationDbContext _context;
     private readonly IRbacService _rbacService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
@@ -29,7 +31,8 @@ public class WechatAuthService : IWechatAuthService
     public WechatAuthService(
         IWechatLoginTicketRepository ticketRepository,
         IWechatBindRequestRepository bindRequestRepository,
-        IUserRepository userRepository,
+        IRepository<User> userRepository,
+        ApplicationDbContext context,
         IRbacService rbacService,
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
@@ -38,6 +41,7 @@ public class WechatAuthService : IWechatAuthService
         _ticketRepository = ticketRepository;
         _bindRequestRepository = bindRequestRepository;
         _userRepository = userRepository;
+        _context = context;
         _rbacService = rbacService;
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
@@ -49,7 +53,7 @@ public class WechatAuthService : IWechatAuthService
     /// <summary>
     /// 生成登录二维码
     /// </summary>
-    public async Task<ApiResponse<WechatQrCodeResponse>> GenerateQrCodeAsync(string deviceType)
+    public async Task<WechatApiResponse<WechatQrCodeResponse>> GenerateQrCodeAsync(string deviceType)
     {
         try
         {
@@ -71,7 +75,7 @@ public class WechatAuthService : IWechatAuthService
 
             _logger.LogInformation($"生成登录二维码: Ticket={ticket}");
 
-            return ApiResponse<WechatQrCodeResponse>.Ok(new WechatQrCodeResponse
+            return WechatApiResponse<WechatQrCodeResponse>.Ok(new WechatQrCodeResponse
             {
                 Ticket = ticket,
                 QrCodeUrl = qrCodeUrl,
@@ -81,21 +85,21 @@ public class WechatAuthService : IWechatAuthService
         catch (Exception ex)
         {
             _logger.LogError(ex, "生成登录二维码失败");
-            return ApiResponse<WechatQrCodeResponse>.Fail("生成二维码失败: " + ex.Message);
+            return WechatApiResponse<WechatQrCodeResponse>.Fail("生成二维码失败: " + ex.Message);
         }
     }
 
     /// <summary>
     /// 获取登录状态
     /// </summary>
-    public async Task<ApiResponse<WechatLoginStatusResponse>> GetLoginStatusAsync(string ticket)
+    public async Task<WechatApiResponse<WechatLoginStatusResponse>> GetLoginStatusAsync(string ticket)
     {
         try
         {
             var ticketEntity = await _ticketRepository.GetByTicketAsync(ticket);
             if (ticketEntity == null)
             {
-                return ApiResponse<WechatLoginStatusResponse>.Fail("票据不存在");
+                return WechatApiResponse<WechatLoginStatusResponse>.Fail("票据不存在");
             }
 
             // 检查过期
@@ -117,19 +121,19 @@ public class WechatAuthService : IWechatAuthService
                 response.AuthData = await GenerateAuthResponseAsync(ticketEntity.UserId);
             }
 
-            return ApiResponse<WechatLoginStatusResponse>.Ok(response);
+            return WechatApiResponse<WechatLoginStatusResponse>.Ok(response);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取登录状态失败");
-            return ApiResponse<WechatLoginStatusResponse>.Fail("获取状态失败: " + ex.Message);
+            return WechatApiResponse<WechatLoginStatusResponse>.Fail("获取状态失败: " + ex.Message);
         }
     }
 
     /// <summary>
     /// 处理微信登录回调
     /// </summary>
-    public async Task<ApiResponse<bool>> HandleWechatCallbackAsync(string code, string state)
+    public async Task<WechatApiResponse<bool>> HandleWechatCallbackAsync(string code, string state)
     {
         try
         {
@@ -137,25 +141,25 @@ public class WechatAuthService : IWechatAuthService
             var wechatUserInfo = await GetWechatUserInfoByCodeAsync(code);
             if (wechatUserInfo == null)
             {
-                return ApiResponse<bool>.Fail("获取微信用户信息失败");
+                return WechatApiResponse<bool>.Fail("获取微信用户信息失败");
             }
 
             // 2. 获取票据
             var ticket = await _ticketRepository.GetByTicketAsync(state);
             if (ticket == null)
             {
-                return ApiResponse<bool>.Fail("票据不存在");
+                return WechatApiResponse<bool>.Fail("票据不存在");
             }
 
             if (ticket.ExpireTime < DateTime.UtcNow)
             {
                 ticket.Status = 3;
                 await _ticketRepository.UpdateAsync(ticket);
-                return ApiResponse<bool>.Fail("二维码已过期");
+                return WechatApiResponse<bool>.Fail("二维码已过期");
             }
 
             // 3. 【核心】查找已绑定该微信的用户
-            var user = await _userRepository
+            var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.WechatOpenId == wechatUserInfo.OpenId && u.IsActive);
 
             if (user == null)
@@ -167,7 +171,7 @@ public class WechatAuthService : IWechatAuthService
                 ticket.OpenId = wechatUserInfo.OpenId;
                 await _ticketRepository.UpdateAsync(ticket);
 
-                return ApiResponse<bool>.Ok(true); // 返回成功，让前端轮询到状态5
+                return WechatApiResponse<bool>.Ok(true); // 返回成功，让前端轮询到状态5
             }
 
             // 4. 已绑定用户，允许登录
@@ -178,12 +182,12 @@ public class WechatAuthService : IWechatAuthService
             await _ticketRepository.UpdateAsync(ticket);
 
             _logger.LogInformation($"微信登录成功: User={user.UserName}");
-            return ApiResponse<bool>.Ok(true);
+            return WechatApiResponse<bool>.Ok(true);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "处理微信回调失败");
-            return ApiResponse<bool>.Fail("处理失败: " + ex.Message);
+            return WechatApiResponse<bool>.Fail("处理失败: " + ex.Message);
         }
     }
 
@@ -194,7 +198,7 @@ public class WechatAuthService : IWechatAuthService
     /// <summary>
     /// 生成绑定二维码
     /// </summary>
-    public async Task<ApiResponse<WechatBindQrResponse>> GenerateBindQrCodeAsync(string userId)
+    public async Task<WechatApiResponse<WechatBindQrResponse>> GenerateBindQrCodeAsync(string userId)
     {
         try
         {
@@ -202,12 +206,12 @@ public class WechatAuthService : IWechatAuthService
             var user = await _userRepository.GetByIdAsync(userId);
             if (user == null)
             {
-                return ApiResponse<WechatBindQrResponse>.Fail("用户不存在");
+                return WechatApiResponse<WechatBindQrResponse>.Fail("用户不存在");
             }
 
             if (!string.IsNullOrEmpty(user.WechatOpenId))
             {
-                return ApiResponse<WechatBindQrResponse>.Fail("您已绑定微信");
+                return WechatApiResponse<WechatBindQrResponse>.Fail("您已绑定微信");
             }
 
             // 清理该用户的待处理请求
@@ -238,7 +242,7 @@ public class WechatAuthService : IWechatAuthService
 
             _logger.LogInformation($"生成绑定二维码: UserId={userId}, BindId={bindId}");
 
-            return ApiResponse<WechatBindQrResponse>.Ok(new WechatBindQrResponse
+            return WechatApiResponse<WechatBindQrResponse>.Ok(new WechatBindQrResponse
             {
                 BindId = bindId,
                 QrCodeUrl = qrCodeUrl,
@@ -248,21 +252,21 @@ public class WechatAuthService : IWechatAuthService
         catch (Exception ex)
         {
             _logger.LogError(ex, "生成绑定二维码失败");
-            return ApiResponse<WechatBindQrResponse>.Fail("生成失败: " + ex.Message);
+            return WechatApiResponse<WechatBindQrResponse>.Fail("生成失败: " + ex.Message);
         }
     }
 
     /// <summary>
     /// 获取绑定状态
     /// </summary>
-    public async Task<ApiResponse<WechatBindStatusResponse>> GetBindStatusAsync(string bindId)
+    public async Task<WechatApiResponse<WechatBindStatusResponse>> GetBindStatusAsync(string bindId)
     {
         try
         {
             var bindRequest = await _bindRequestRepository.GetByIdAsync(bindId);
             if (bindRequest == null)
             {
-                return ApiResponse<WechatBindStatusResponse>.Fail("绑定请求不存在");
+                return WechatApiResponse<WechatBindStatusResponse>.Fail("绑定请求不存在");
             }
 
             // 检查过期
@@ -272,7 +276,7 @@ public class WechatAuthService : IWechatAuthService
                 await _bindRequestRepository.UpdateAsync(bindRequest);
             }
 
-            return ApiResponse<WechatBindStatusResponse>.Ok(new WechatBindStatusResponse
+            return WechatApiResponse<WechatBindStatusResponse>.Ok(new WechatBindStatusResponse
             {
                 Status = bindRequest.Status,
                 Message = GetBindStatusMessage(bindRequest.Status),
@@ -282,14 +286,14 @@ public class WechatAuthService : IWechatAuthService
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取绑定状态失败");
-            return ApiResponse<WechatBindStatusResponse>.Fail("获取失败: " + ex.Message);
+            return WechatApiResponse<WechatBindStatusResponse>.Fail("获取失败: " + ex.Message);
         }
     }
 
     /// <summary>
     /// 处理微信绑定回调
     /// </summary>
-    public async Task<ApiResponse<bool>> HandleBindCallbackAsync(string code, string bindId)
+    public async Task<WechatApiResponse<bool>> HandleBindCallbackAsync(string code, string bindId)
     {
         try
         {
@@ -297,38 +301,42 @@ public class WechatAuthService : IWechatAuthService
             var wechatUser = await GetWechatUserInfoByCodeAsync(code);
             if (wechatUser == null)
             {
-                return ApiResponse<bool>.Fail("获取微信用户信息失败");
+                return WechatApiResponse<bool>.Fail("获取微信用户信息失败");
             }
 
             // 2. 验证绑定请求
             var bindRequest = await _bindRequestRepository.GetByIdAsync(bindId);
             if (bindRequest == null)
             {
-                return ApiResponse<bool>.Fail("绑定请求不存在");
+                return WechatApiResponse<bool>.Fail("绑定请求不存在");
             }
 
             if (bindRequest.ExpireTime < DateTime.UtcNow)
             {
                 bindRequest.Status = "expired";
                 await _bindRequestRepository.UpdateAsync(bindRequest);
-                return ApiResponse<bool>.Fail("绑定链接已过期");
+                return WechatApiResponse<bool>.Fail("绑定链接已过期");
             }
 
             if (bindRequest.Status != "pending")
             {
-                return ApiResponse<bool>.Fail("该链接已被使用");
+                return WechatApiResponse<bool>.Fail("该链接已被使用");
             }
 
             // 3. 检查OpenId是否已被其他账号绑定
-            var existingUser = await _userRepository
+            var existingUser = await _context.Users
                 .FirstOrDefaultAsync(u => u.WechatOpenId == wechatUser.OpenId);
             if (existingUser != null)
             {
-                return ApiResponse<bool>.Fail($"该微信已绑定账号：{existingUser.UserName}");
+                return WechatApiResponse<bool>.Fail($"该微信已绑定账号：{existingUser.UserName}");
             }
 
             // 4. 执行绑定
             var user = await _userRepository.GetByIdAsync(bindRequest.UserId);
+            if (user == null)
+            {
+                return WechatApiResponse<bool>.Fail("绑定用户不存在");
+            }
             user.WechatOpenId = wechatUser.OpenId;
             user.WechatUnionId = wechatUser.UnionId;
             user.WechatNickname = wechatUser.Nickname;
@@ -345,31 +353,31 @@ public class WechatAuthService : IWechatAuthService
             await _bindRequestRepository.UpdateAsync(bindRequest);
 
             _logger.LogInformation($"微信绑定成功: User={user.UserName}, Nickname={wechatUser.Nickname}");
-            return ApiResponse<bool>.Ok(true);
+            return WechatApiResponse<bool>.Ok(true);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "处理绑定回调失败");
-            return ApiResponse<bool>.Fail("绑定失败: " + ex.Message);
+            return WechatApiResponse<bool>.Fail("绑定失败: " + ex.Message);
         }
     }
 
     /// <summary>
     /// 解除微信绑定
     /// </summary>
-    public async Task<ApiResponse<bool>> UnbindWechatAsync(string userId)
+    public async Task<WechatApiResponse<bool>> UnbindWechatAsync(string userId)
     {
         try
         {
             var user = await _userRepository.GetByIdAsync(userId);
             if (user == null)
             {
-                return ApiResponse<bool>.Fail("用户不存在");
+                return WechatApiResponse<bool>.Fail("用户不存在");
             }
 
             if (string.IsNullOrEmpty(user.WechatOpenId))
             {
-                return ApiResponse<bool>.Fail("您未绑定微信");
+                return WechatApiResponse<bool>.Fail("您未绑定微信");
             }
 
             var oldNickname = user.WechatNickname;
@@ -381,42 +389,42 @@ public class WechatAuthService : IWechatAuthService
             await _userRepository.UpdateAsync(user);
 
             _logger.LogInformation($"解除微信绑定: User={user.UserName}, 原昵称={oldNickname}");
-            return ApiResponse<bool>.Ok(true, "已解除微信绑定");
+            return WechatApiResponse<bool>.Ok(true, "已解除微信绑定");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "解除微信绑定失败");
-            return ApiResponse<bool>.Fail("解除失败: " + ex.Message);
+            return WechatApiResponse<bool>.Fail("解除失败: " + ex.Message);
         }
     }
 
     /// <summary>
     /// 获取绑定信息
     /// </summary>
-    public async Task<ApiResponse<WechatBindInfo>> GetBindInfoAsync(string userId)
+    public async Task<WechatApiResponse<WechatBindInfo>> GetBindInfoAsync(string userId)
     {
         try
         {
             var user = await _userRepository.GetByIdAsync(userId);
             if (user == null)
             {
-                return ApiResponse<WechatBindInfo>.Fail("用户不存在");
+                return WechatApiResponse<WechatBindInfo>.Fail("用户不存在");
             }
 
             var isBound = !string.IsNullOrEmpty(user.WechatOpenId);
 
-            return ApiResponse<WechatBindInfo>.Ok(new WechatBindInfo
+            return WechatApiResponse<WechatBindInfo>.Ok(new WechatBindInfo
             {
                 IsBound = isBound,
                 Nickname = user.WechatNickname,
                 AvatarUrl = user.WechatAvatarUrl,
-                BindTime = isBound ? user.UpdateTime : null
+                BindTime = isBound ? user.ModifyTime : null
             });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取绑定信息失败");
-            return ApiResponse<WechatBindInfo>.Fail("获取失败: " + ex.Message);
+            return WechatApiResponse<WechatBindInfo>.Fail("获取失败: " + ex.Message);
         }
     }
 
@@ -508,15 +516,19 @@ public class WechatAuthService : IWechatAuthService
     /// <summary>
     /// 生成认证响应
     /// </summary>
-    private async Task<AuthResponse> GenerateAuthResponseAsync(string userId)
+    private async Task<WechatLoginAuthData> GenerateAuthResponseAsync(string userId)
     {
         var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+        {
+            throw new InvalidOperationException("登录用户不存在");
+        }
         var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
 
         // 生成JWT Token
         var token = GenerateJwtToken(user.Email ?? user.UserName, user.UserName, userId);
 
-        return new AuthResponse
+        return new WechatLoginAuthData
         {
             Token = token,
             UserName = user.UserName,

@@ -148,6 +148,34 @@
       </div>
     </div>
 
+    <!-- 微信绑定 -->
+    <div class="tab-content" v-if="activeTab === 'wechat'">
+      <div class="section-card">
+        <h3 class="section-title">微信绑定</h3>
+        <div class="wechat-bind-section">
+          <div v-if="wechatBindInfo.isBound" class="wechat-bound">
+            <div class="wechat-info">
+              <el-avatar :size="64" :src="wechatBindInfo.avatarUrl" />
+              <div class="wechat-detail">
+                <p class="nickname">{{ wechatBindInfo.nickname }}</p>
+                <p class="bind-time">绑定时间：{{ formatDate(wechatBindInfo.bindTime) }}</p>
+              </div>
+            </div>
+            <el-button type="danger" @click="unbindWechatHandler">解除绑定</el-button>
+          </div>
+          <div v-else class="wechat-unbound">
+            <div class="bind-intro">
+              <el-icon :size="48" color="#07C160"><ChatDotRound /></el-icon>
+              <p class="bind-text">绑定微信后，可以使用微信扫码快速登录</p>
+            </div>
+            <el-button type="primary" size="large" @click="goToWechatBind">
+              去绑定微信
+            </el-button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 通知偏好 -->
     <div class="tab-content" v-if="activeTab === 'notifications'">
       <div class="section-card">
@@ -208,11 +236,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { ChatDotRound } from '@element-plus/icons-vue'
+import { getWechatBindInfo, unbindWechat } from '@/api/wechatAuth'
+import { formatDate } from '@/utils/date'
 
 const authStore = useAuthStore()
+const router = useRouter()
 
 const userInitial = computed(() => (authStore.user?.userName || '管')[0].toUpperCase())
 
@@ -228,6 +261,11 @@ const tabList = [
     key: 'password',
     label: '修改密码',
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>'
+  },
+  {
+    key: 'wechat',
+    label: '微信绑定',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M9 11a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/><path d="M15 11a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/></svg>'
   },
   {
     key: 'notifications',
@@ -323,6 +361,53 @@ const revokeDevice = (id: number) => {
   devices.value = devices.value.filter(d => d.id !== id)
   ElMessage.success('已撤销该设备的登录')
 }
+
+// 微信绑定
+const wechatBindInfo = ref({
+  isBound: false,
+  nickname: '',
+  avatarUrl: '',
+  bindTime: ''
+})
+
+const fetchWechatBindInfo = async () => {
+  try {
+    const info = await getWechatBindInfo()
+    wechatBindInfo.value = {
+      isBound: info.isBound,
+      nickname: info.nickname || '',
+      avatarUrl: info.avatarUrl || '',
+      bindTime: info.bindTime || ''
+    }
+  } catch (error) {
+    console.error('获取微信绑定信息失败', error)
+  }
+}
+
+const goToWechatBind = () => {
+  router.push('/profile/wechat-bind')
+}
+
+const unbindWechatHandler = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '解除绑定后将无法使用微信扫码登录，确定解除吗？',
+      '确认解除绑定',
+      { type: 'warning' }
+    )
+    const ok = await unbindWechat()
+    if (ok) {
+      ElMessage.success('已解除微信绑定')
+      fetchWechatBindInfo()
+    }
+  } catch {
+    // 取消
+  }
+}
+
+onMounted(() => {
+  fetchWechatBindInfo()
+})
 </script>
 
 <style lang="scss" scoped>
@@ -846,6 +931,65 @@ const revokeDevice = (id: number) => {
     background: rgba(201, 87, 69, 0.1);
     border-color: rgba(201, 87, 69, 0.5);
     color: #C95745;
+  }
+}
+
+// 微信绑定
+.wechat-bind-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+}
+
+.wechat-bound {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+
+  .wechat-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 30px;
+    background: rgba(0, 212, 255, 0.05);
+    border: 1px solid rgba(0, 212, 255, 0.15);
+    border-radius: 12px;
+
+    .wechat-detail {
+      text-align: left;
+
+      .nickname {
+        font-size: 16px;
+        font-weight: 600;
+        color: #E8F4FF;
+        margin: 0 0 4px;
+      }
+
+      .bind-time {
+        font-size: 12px;
+        color: rgba(80, 187, 227, 0.6);
+        margin: 0;
+      }
+    }
+  }
+}
+
+.wechat-unbound {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+
+  .bind-intro {
+    text-align: center;
+
+    .bind-text {
+      margin-top: 12px;
+      font-size: 14px;
+      color: rgba(80, 187, 227, 0.7);
+    }
   }
 }
 </style>

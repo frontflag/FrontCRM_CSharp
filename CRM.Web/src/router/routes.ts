@@ -296,6 +296,13 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Draft/DraftList.vue'),
         meta: { requiresAuth: true, title: '草稿箱', permission: 'draft.read' }
       },
+      // 待办 - 待审批
+      {
+        path: 'pending-approvals',
+        name: 'PendingApprovals',
+        component: () => import('@/views/Approvals/PendingApprovals.vue'),
+        meta: { requiresAuth: true, title: '待审批' }
+      },
       // 系统管理
       {
         path: 'system/users',

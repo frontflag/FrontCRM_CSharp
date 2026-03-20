@@ -84,5 +84,39 @@ namespace CRM.Core.Models
         [MaxLength(20)]
         [Column("Mobile")]
         public string? Mobile { get; set; }
+
+        /// <summary>
+        /// 微信 OpenId（绑定后）
+        /// </summary>
+        [MaxLength(100)]
+        [Column("WechatOpenId")]
+        public string? WechatOpenId { get; set; }
+
+        /// <summary>
+        /// 微信 UnionId（绑定后）
+        /// </summary>
+        [MaxLength(100)]
+        [Column("WechatUnionId")]
+        public string? WechatUnionId { get; set; }
+
+        /// <summary>
+        /// 微信昵称（绑定后）
+        /// </summary>
+        [MaxLength(100)]
+        [Column("WechatNickname")]
+        public string? WechatNickname { get; set; }
+
+        /// <summary>
+        /// 微信头像（绑定后）
+        /// </summary>
+        [MaxLength(500)]
+        [Column("WechatAvatarUrl")]
+        public string? WechatAvatarUrl { get; set; }
+
+        /// <summary>
+        /// 微信绑定时间
+        /// </summary>
+        [Column("WechatBindTime")]
+        public DateTime? WechatBindTime { get; set; }
     }
 }

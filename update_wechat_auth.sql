@@ -9,6 +9,7 @@ ADD COLUMN IF NOT EXISTS "WechatOpenId" VARCHAR(100),
 ADD COLUMN IF NOT EXISTS "WechatUnionId" VARCHAR(100),
 ADD COLUMN IF NOT EXISTS "WechatNickname" VARCHAR(100),
 ADD COLUMN IF NOT EXISTS "WechatAvatarUrl" VARCHAR(500),
+ADD COLUMN IF NOT EXISTS "WechatBindTime" TIMESTAMP WITH TIME ZONE,
 ADD COLUMN IF NOT EXISTS "LoginType" SMALLINT DEFAULT 0;  -- 0=账号密码, 1=微信扫码
 
 -- 2. 创建索引
@@ -54,6 +55,7 @@ COMMENT ON COLUMN "user"."WechatOpenId" IS '微信OpenId（同一公众号下唯
 COMMENT ON COLUMN "user"."WechatUnionId" IS '微信UnionId（同一主体多个应用唯一）';
 COMMENT ON COLUMN "user"."WechatNickname" IS '微信昵称';
 COMMENT ON COLUMN "user"."WechatAvatarUrl" IS '微信头像URL';
+COMMENT ON COLUMN "user"."WechatBindTime" IS '微信绑定时间';
 COMMENT ON COLUMN "user"."LoginType" IS '登录方式：0=账号密码, 1=微信扫码';
 
 COMMENT ON TABLE "wechat_login_ticket" IS '微信扫码登录临时票据表';

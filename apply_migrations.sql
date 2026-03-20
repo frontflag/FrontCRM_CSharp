@@ -1149,3 +1149,13 @@ SET
     "SaleDataScope" = 0,
     "PurchaseDataScope" = 0
 WHERE "DepartmentName" = '物流部';
+
+-- 20) user 表：微信相关字段（与 CRM.Core Models.User 一致；未执行过 update_wechat_auth 时需补列，否则注册/登录查询会报 42703）
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "WechatOpenId" VARCHAR(100);
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "WechatUnionId" VARCHAR(100);
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "WechatNickname" VARCHAR(100);
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "WechatAvatarUrl" VARCHAR(500);
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "WechatBindTime" TIMESTAMP WITH TIME ZONE;
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "LoginType" SMALLINT DEFAULT 0;
+CREATE INDEX IF NOT EXISTS "IX_User_WechatOpenId" ON "user" ("WechatOpenId");
+CREATE INDEX IF NOT EXISTS "IX_User_WechatUnionId" ON "user" ("WechatUnionId");

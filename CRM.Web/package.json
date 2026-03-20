@@ -20,6 +20,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/node": "^25.5.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vitest/ui": "^4.1.0",
     "@vue/test-utils": "^2.4.6",

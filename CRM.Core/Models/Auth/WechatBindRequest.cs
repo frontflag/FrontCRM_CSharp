@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Models;
 
 namespace CRM.Core.Models.Auth;
 
@@ -7,7 +8,7 @@ namespace CRM.Core.Models.Auth;
 /// 微信绑定请求表（用户自助绑定）
 /// </summary>
 [Table("wechat_bind_request")]
-public class WechatBindRequest
+public class WechatBindRequest : BaseEntity
 {
     [Key]
     [MaxLength(64)]
@@ -48,11 +49,6 @@ public class WechatBindRequest
     /// </summary>
     [MaxLength(500)]
     public string? AvatarUrl { get; set; }
-
-    /// <summary>
-    /// 创建时间
-    /// </summary>
-    public DateTime CreateTime { get; set; } = DateTime.UtcNow;
 
     /// <summary>
     /// 过期时间

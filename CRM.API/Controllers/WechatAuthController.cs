@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Auth;
 
 namespace CRM.API.Controllers;
 
@@ -29,7 +29,7 @@ public class WechatAuthController : ControllerBase
     /// </summary>
     [HttpPost("qrcode")]
     [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<WechatQrCodeResponse>>> GetQrCode([FromBody] WechatQrCodeRequest request)
+    public async Task<ActionResult<WechatApiResponse<WechatQrCodeResponse>>> GetQrCode([FromBody] CRM.API.Models.DTOs.WechatQrCodeRequest request)
     {
         try
         {
@@ -39,7 +39,7 @@ public class WechatAuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取登录二维码失败");
-            return StatusCode(500, ApiResponse<WechatQrCodeResponse>.Fail("服务器错误"));
+            return StatusCode(500, WechatApiResponse<WechatQrCodeResponse>.Fail("服务器错误"));
         }
     }
 
@@ -48,7 +48,7 @@ public class WechatAuthController : ControllerBase
     /// </summary>
     [HttpGet("status/{ticket}")]
     [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<WechatLoginStatusResponse>>> GetLoginStatus(string ticket)
+    public async Task<ActionResult<WechatApiResponse<WechatLoginStatusResponse>>> GetLoginStatus(string ticket)
     {
         try
         {
@@ -58,7 +58,7 @@ public class WechatAuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "查询登录状态失败");
-            return StatusCode(500, ApiResponse<WechatLoginStatusResponse>.Fail("服务器错误"));
+            return StatusCode(500, WechatApiResponse<WechatLoginStatusResponse>.Fail("服务器错误"));
         }
     }
 
@@ -96,14 +96,14 @@ public class WechatAuthController : ControllerBase
     /// </summary>
     [HttpPost("bind-qrcode")]
     [Authorize]
-    public async Task<ActionResult<ApiResponse<WechatBindQrResponse>>> GenerateBindQrCode()
+    public async Task<ActionResult<WechatApiResponse<WechatBindQrResponse>>> GenerateBindQrCode()
     {
         try
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(ApiResponse<WechatBindQrResponse>.Fail("未登录"));
+                return Unauthorized(WechatApiResponse<WechatBindQrResponse>.Fail("未登录"));
             }
 
             var result = await _wechatAuthService.GenerateBindQrCodeAsync(userId);
@@ -112,7 +112,7 @@ public class WechatAuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "生成绑定二维码失败");
-            return StatusCode(500, ApiResponse<WechatBindQrResponse>.Fail("服务器错误"));
+            return StatusCode(500, WechatApiResponse<WechatBindQrResponse>.Fail("服务器错误"));
         }
     }
 
@@ -121,7 +121,7 @@ public class WechatAuthController : ControllerBase
     /// </summary>
     [HttpGet("bind-status/{bindId}")]
     [Authorize]
-    public async Task<ActionResult<ApiResponse<WechatBindStatusResponse>>> GetBindStatus(string bindId)
+    public async Task<ActionResult<WechatApiResponse<WechatBindStatusResponse>>> GetBindStatus(string bindId)
     {
         try
         {
@@ -131,7 +131,7 @@ public class WechatAuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "查询绑定状态失败");
-            return StatusCode(500, ApiResponse<WechatBindStatusResponse>.Fail("服务器错误"));
+            return StatusCode(500, WechatApiResponse<WechatBindStatusResponse>.Fail("服务器错误"));
         }
     }
 
@@ -165,14 +165,14 @@ public class WechatAuthController : ControllerBase
     /// </summary>
     [HttpGet("bind-info")]
     [Authorize]
-    public async Task<ActionResult<ApiResponse<WechatBindInfo>>> GetBindInfo()
+    public async Task<ActionResult<WechatApiResponse<WechatBindInfo>>> GetBindInfo()
     {
         try
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(ApiResponse<WechatBindInfo>.Fail("未登录"));
+                return Unauthorized(WechatApiResponse<WechatBindInfo>.Fail("未登录"));
             }
 
             var result = await _wechatAuthService.GetBindInfoAsync(userId);
@@ -181,7 +181,7 @@ public class WechatAuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取绑定信息失败");
-            return StatusCode(500, ApiResponse<WechatBindInfo>.Fail("服务器错误"));
+            return StatusCode(500, WechatApiResponse<WechatBindInfo>.Fail("服务器错误"));
         }
     }
 
@@ -190,14 +190,14 @@ public class WechatAuthController : ControllerBase
     /// </summary>
     [HttpPost("unbind")]
     [Authorize]
-    public async Task<ActionResult<ApiResponse<bool>>> Unbind()
+    public async Task<ActionResult<WechatApiResponse<bool>>> Unbind()
     {
         try
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(ApiResponse<bool>.Fail("未登录"));
+                return Unauthorized(WechatApiResponse<bool>.Fail("未登录"));
             }
 
             var result = await _wechatAuthService.UnbindWechatAsync(userId);
@@ -206,7 +206,7 @@ public class WechatAuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "解除绑定失败");
-            return StatusCode(500, ApiResponse<bool>.Fail("服务器错误"));
+            return StatusCode(500, WechatApiResponse<bool>.Fail("服务器错误"));
         }
     }
 

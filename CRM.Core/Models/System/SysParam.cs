@@ -154,12 +154,6 @@ namespace CRM.Core.Models.System
         [Column("Status")]
         public short Status { get; set; } = 1;
 
-        /// <summary>
-        /// 最后修改时间
-        /// </summary>
-        [Column("ModifyTime")]
-        public DateTime? ModifyTime { get; set; }
-
         // 导航属性
         /// <summary>
         /// 所属分组

@@ -98,7 +98,7 @@ namespace CRM.IntegrationTests
             var orderRequest = new CreateSalesOrderRequest
             {
                 SellOrderCode = "SO-2024-001",
-                CustomerId = quote.CustomerId,
+                CustomerId = quote.CustomerId ?? string.Empty,
                 CustomerName = "测试客户",
                 SalesUserId = quote.SalesUserId,
                 Currency = 1,
