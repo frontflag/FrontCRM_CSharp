@@ -135,119 +135,6 @@
       </div>
     </el-card>
 
-    <!-- 新建/编辑对话框 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="dialogTitle"
-      width="900px"
-      destroy-on-close
-    >
-      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="订单号" prop="sellOrderCode">
-              <el-input v-model="formData.sellOrderCode" placeholder="系统自动生成" disabled />
-            </el-form-item>
-          </el-col>
-          <el-col v-if="canViewCustomerInfo" :span="12">
-            <el-form-item label="客户" prop="customerName">
-              <el-input v-model="formData.customerName" placeholder="请输入客户名称" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="业务员" prop="salesUserName">
-              <el-input v-model="formData.salesUserName" placeholder="请输入业务员" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="订单类型">
-              <el-select v-model="formData.type" style="width: 100%">
-                <el-option label="普通订单" :value="1" />
-                <el-option label="紧急订单" :value="2" />
-                <el-option label="样品订单" :value="3" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="币别">
-              <el-select v-model="formData.currency" style="width: 100%">
-                <el-option label="CNY 人民币" :value="1" />
-                <el-option label="USD 美元" :value="2" />
-                <el-option label="EUR 欧元" :value="3" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="交货日期">
-              <el-date-picker
-                v-model="formData.deliveryDate"
-                type="date"
-                placeholder="选择交货日期"
-                style="width: 100%"
-                value-format="YYYY-MM-DD"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="送货地址">
-          <el-input v-model="formData.deliveryAddress" type="textarea" rows="2" />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="formData.comment" type="textarea" rows="2" />
-        </el-form-item>
-
-        <!-- 明细行 -->
-        <div class="items-section">
-          <div class="items-header">
-            <h4>订单明细</h4>
-            <el-button type="primary" size="small" @click="addItem">
-              <el-icon><Plus /></el-icon>添加明细
-            </el-button>
-          </div>
-          <el-table :data="formData.items" border size="small">
-            <el-table-column type="index" width="50" />
-            <el-table-column label="物料型号" min-width="150">
-              <template #default="{ $index }">
-                <el-input v-model="formData.items[$index].pn" placeholder="PN" />
-              </template>
-            </el-table-column>
-            <el-table-column label="品牌" width="120">
-              <template #default="{ $index }">
-                <el-input v-model="formData.items[$index].brand" placeholder="品牌" />
-              </template>
-            </el-table-column>
-            <el-table-column label="数量" width="100">
-              <template #default="{ $index }">
-                <el-input-number v-model="formData.items[$index].qty" :min="1" :controls="false" style="width: 100%" />
-              </template>
-            </el-table-column>
-            <el-table-column v-if="canViewSalesAmount" label="单价" width="120">
-              <template #default="{ $index }">
-                <el-input-number v-model="formData.items[$index].price" :min="0" :precision="2" :controls="false" style="width: 100%" />
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="80" align="center">
-              <template #default="{ $index }">
-                <el-button link type="danger" @click="removeItem($index)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          <div v-if="canViewSalesAmount" class="total-amount">
-            合计: <span class="amount">{{ formatCurrency(calculateTotal, formData.currency) }}</span>
-          </div>
-        </div>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitLoading">确定</el-button>
-      </template>
-    </el-dialog>
-
-
 
     <!-- 状态更新对话框 -->
     <el-dialog v-model="statusDialogVisible" title="更新状态" width="400px">
@@ -277,10 +164,12 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Plus, Search, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-// 使用模拟数据API
+// 使用模拟数据 API
 import { mockSalesOrderApi as salesOrderApi } from '@/api/mockSalesOrder'
 import { mockPurchaseOrderApi as purchaseOrderApi } from '@/api/mockPurchaseOrder'
 import { useAuthStore } from '@/stores/auth'
+
+const router = useRouter()
 
 const loading = ref(false)
 const orderList = ref<any[]>([])
@@ -303,32 +192,9 @@ const pageInfo = ref({
 })
 
 // 对话框控制
-const dialogVisible = ref(false)
-const dialogTitle = ref('新建销售订单')
 const statusDialogVisible = ref(false)
-const submitLoading = ref(false)
-const formRef = ref()
 const currentRow = ref<any>(null)
-const isEdit = ref(false)
 const newStatus = ref(0)
-
-// 表单数据
-const formData = ref({
-  sellOrderCode: '',
-  customerName: '',
-  salesUserName: '',
-  type: 1,
-  currency: 1,
-  deliveryDate: '',
-  deliveryAddress: '',
-  comment: '',
-  items: [] as any[]
-})
-
-const formRules = {
-  customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
-  salesUserName: [{ required: true, message: '请输入业务员', trigger: 'blur' }]
-}
 
 // 计算属性：筛选后的列表
 const filteredList = computed(() => {
@@ -352,11 +218,6 @@ const statTotal = computed(() => orderList.value.length)
 const statPending = computed(() => orderList.value.filter(o => o.status === 0 || o.status === 1).length)
 const statApproved = computed(() => orderList.value.filter(o => o.status >= 2).length)
 const statAmount = computed(() => orderList.value.reduce((sum, o) => sum + (o.total || 0), 0))
-
-// 计算总金额
-const calculateTotal = computed(() => {
-  return formData.value.items.reduce((sum, item) => sum + (item.qty || 0) * (item.price || 0), 0)
-})
 
 // 格式化货币
 const formatCurrency = (value: number, currency?: number) => {
@@ -426,42 +287,14 @@ const handlePageChange = (val: number) => {
 
 // 新建
 const handleCreate = () => {
-  isEdit.value = false
-  dialogTitle.value = '新建销售订单'
-  formData.value = {
-    sellOrderCode: 'SO' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + String(Math.random()).slice(2, 5),
-    customerName: '',
-    salesUserName: '',
-    type: 1,
-    currency: 1,
-    deliveryDate: '',
-    deliveryAddress: '',
-    comment: '',
-    items: []
-  }
-  dialogVisible.value = true
+  router.push({ name: 'SalesOrderCreate' })
 }
 
 // 编辑
 const handleEdit = (row: any) => {
-  isEdit.value = true
-  dialogTitle.value = '编辑销售订单'
-  currentRow.value = row
-  formData.value = {
-    sellOrderCode: row.sellOrderCode,
-    customerName: row.customerName,
-    salesUserName: row.salesUserName,
-    type: row.type,
-    currency: row.currency,
-    deliveryDate: row.deliveryDate,
-    deliveryAddress: row.deliveryAddress,
-    comment: row.comment,
-    items: row.items ? JSON.parse(JSON.stringify(row.items)) : []
-  }
-  dialogVisible.value = true
+  router.push({ name: 'SalesOrderCreate', query: { id: row.id, edit: '1' } })
 }
 
-const router = useRouter()
 // 查看
 const handleView = (row: any) => {
   router.push({ name: 'SalesOrderDetail', params: { id: row.id } })
@@ -513,42 +346,7 @@ const confirmUpdateStatus = async () => {
   loadData()
 }
 
-// 添加/删除明细
-const addItem = () => {
-  formData.value.items.push({
-    pn: '',
-    brand: '',
-    qty: 1,
-    price: 0,
-    currency: formData.value.currency
-  })
-}
 
-const removeItem = (index: number) => {
-  formData.value.items.splice(index, 1)
-}
-
-// 提交
-const handleSubmit = async () => {
-  await formRef.value.validate()
-  submitLoading.value = true
-  try {
-    const data = {
-      ...formData.value,
-      total: calculateTotal.value,
-      itemRows: formData.value.items.length
-    }
-    if (isEdit.value && currentRow.value) {
-      await salesOrderApi.update(currentRow.value.id, data)
-    } else {
-      await salesOrderApi.create(data)
-    }
-    dialogVisible.value = false
-    loadData()
-  } finally {
-    submitLoading.value = false
-  }
-}
 
 onMounted(loadData)
 </script>

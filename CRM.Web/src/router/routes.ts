@@ -240,6 +240,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '采购订单' }
       },
       {
+        path: 'purchase-orders/new',
+        name: 'PurchaseOrderCreate',
+        component: () => import('@/views/RFQ/PurchaseOrderCreate.vue'),
+        meta: { requiresAuth: true, title: '新建采购订单' }
+      },
+      {
         path: 'purchase-orders/:id',
         name: 'PurchaseOrderDetail',
         component: () => import('@/views/RFQ/PurchaseOrderDetail.vue'),
@@ -251,6 +257,12 @@ const routes: RouteRecordRaw[] = [
         name: 'SalesOrderList',
         component: () => import('@/views/RFQ/SalesOrderList.vue'),
         meta: { requiresAuth: true, title: '销售订单' }
+      },
+      {
+        path: 'sales-orders/new',
+        name: 'SalesOrderCreate',
+        component: () => import('@/views/RFQ/SalesOrderCreate.vue'),
+        meta: { requiresAuth: true, title: '新建销售订单' }
       },
       {
         path: 'sales-orders/:id',
