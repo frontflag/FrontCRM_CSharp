@@ -214,7 +214,6 @@ html, body {
 
 // ============================================================
 // 全局操作列按钮 — 禁止文字折行
-// 覆盖所有列表页操作列中的 action-btn（自定义按钮）和 el-button
 // ============================================================
 .action-btn {
   white-space: nowrap !important;
@@ -231,8 +230,162 @@ html, body {
   .el-button {
     white-space: nowrap !important;
   }
-  // 操作按钮容器
   .cell {
     white-space: nowrap;
+  }
+}
+
+// ============================================================
+// 全局 el-select 深色主题覆盖（修复白色底色问题）
+// ============================================================
+.el-select__wrapper {
+  background-color: $layer-3 !important;
+  border: 1px solid $border-panel !important;
+  box-shadow: none !important;
+  color: $text-primary !important;
+
+  &.is-focused {
+    border-color: rgba(0, 212, 255, 0.6) !important;
+    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.12) !important;
+  }
+
+  &:hover {
+    border-color: rgba(0, 212, 255, 0.3) !important;
+  }
+}
+
+.el-select__placeholder {
+  color: $text-placeholder !important;
+}
+
+.el-select__selected-item {
+  color: $text-primary !important;
+}
+
+// el-select 下拉面板
+.el-select-dropdown {
+  background-color: $layer-2 !important;
+  border: 1px solid $border-panel !important;
+
+  .el-select-dropdown__item {
+    color: $text-primary !important;
+
+    &.is-hovering,
+    &:hover {
+      background-color: rgba(0, 212, 255, 0.08) !important;
+    }
+
+    &.is-selected {
+      color: $cyan-primary !important;
+      background-color: rgba(0, 212, 255, 0.1) !important;
+    }
+  }
+}
+
+// ============================================================
+// 全局 el-textarea 深色主题覆盖
+// ============================================================
+.el-textarea__inner {
+  background-color: $layer-3 !important;
+  border: 1px solid $border-panel !important;
+  box-shadow: none !important;
+  color: $text-primary !important;
+
+  &::placeholder {
+    color: $text-placeholder !important;
+  }
+
+  &:hover {
+    border-color: rgba(0, 212, 255, 0.3) !important;
+  }
+
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.6) !important;
+    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.12) !important;
+    outline: none !important;
+  }
+}
+
+// ============================================================
+// 全局 el-input-number 深色主题覆盖
+// ============================================================
+.el-input-number {
+  .el-input__wrapper {
+    background-color: $layer-3 !important;
+    border: 1px solid $border-panel !important;
+    box-shadow: none !important;
+  }
+
+  .el-input-number__decrease,
+  .el-input-number__increase {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: $border-panel !important;
+    color: $text-muted !important;
+
+    &:hover {
+      color: $cyan-primary !important;
+      background: rgba(0, 212, 255, 0.08) !important;
+    }
+  }
+}
+
+// ============================================================
+// 全局 el-date-picker 深色主题覆盖
+// ============================================================
+.el-date-editor.el-input {
+  .el-input__wrapper {
+    background-color: $layer-3 !important;
+    border: 1px solid $border-panel !important;
+    box-shadow: none !important;
+
+    &:hover {
+      border-color: rgba(0, 212, 255, 0.3) !important;
+    }
+
+    &.is-focus {
+      border-color: rgba(0, 212, 255, 0.6) !important;
+      box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.12) !important;
+    }
+  }
+
+  .el-input__inner {
+    color: $text-primary !important;
+    background: transparent !important;
+
+    &::placeholder {
+      color: $text-placeholder !important;
+    }
+  }
+}
+
+.el-picker__popper {
+  background: $layer-2 !important;
+  border: 1px solid $border-panel !important;
+
+  .el-date-picker__header-label,
+  .el-date-table th,
+  .el-date-table td .el-date-table-cell__text {
+    color: $text-primary !important;
+  }
+
+  .el-date-table td.today .el-date-table-cell__text {
+    color: $cyan-primary !important;
+  }
+
+  .el-date-table td.available:hover .el-date-table-cell__text {
+    background: rgba(0, 212, 255, 0.1) !important;
+  }
+}
+
+// ============================================================
+// 全局 el-rate 深色主题覆盖
+// ============================================================
+.el-rate {
+  .el-rate__icon {
+    color: rgba(200, 216, 232, 0.2) !important;
+  }
+
+  .el-rate__icon.is-active {
+    color: $color-amber !important;
   }
 }

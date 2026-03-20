@@ -10,7 +10,7 @@
         <el-button @click="importDialogVisible = true">
           <el-icon><Upload /></el-icon>导入 Excel 创建
         </el-button>
-        <el-button type="primary" @click="handleCreate">
+        <el-button type="primary" @click="router.push({ name: 'RFQCreate' })">
           <el-icon><Plus /></el-icon>新增需求
         </el-button>
       </div>
