@@ -52,18 +52,14 @@ namespace CRM.Core.Models
         /// <summary>
         /// 账号是否启用
         /// </summary>
-        [Column("Status")]
-        public short Status { get; set; } = 1;
+        [Column("IsActive")]
+        public bool IsActive { get; set; } = true;
 
         /// <summary>
-        /// 账号是否启用（便捷属性）
+        /// 账号状态
         /// </summary>
-        [NotMapped]
-        public bool IsActive
-        {
-            get => Status == 1;
-            set => Status = value ? (short)1 : (short)0;
-        }
+        [Column("Status")]
+        public short Status { get; set; } = 1;
 
         /// <summary>
         /// 密码最后修改时间
