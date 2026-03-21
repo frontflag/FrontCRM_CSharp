@@ -109,18 +109,38 @@
         <!-- 询价 -->
         <div class="menu-section-label" v-if="!isCollapsed">询价</div>
 
-        <router-link v-if="hasPermission('rfq.read')" to="/rfqs" class="menu-item" active-class="active">
-          <span class="menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
+        <div class="menu-group" v-if="hasPermission('rfq.read')">
+          <button
+            class="menu-item has-children"
+            @click="toggleGroup('rfqs')"
+            :class="{ 'group-open': openGroups.rfqs }"
+          >
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">需求管理</span>
+            <svg
+              v-if="!isCollapsed"
+              class="chevron"
+              :class="{ rotated: openGroups.rfqs }"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M6 9l6 6 6-6"/>
             </svg>
-          </span>
-          <span class="menu-label" v-if="!isCollapsed">需求管理</span>
-          <span class="active-dot" v-if="!isCollapsed"></span>
-        </router-link>
+          </button>
+          <div class="submenu" v-if="!isCollapsed && openGroups.rfqs">
+            <router-link to="/rfqs" class="submenu-item" active-class="active" exact>需求列表</router-link>
+            <router-link to="/rfq-items" class="submenu-item" active-class="active">需求明细</router-link>
+          </div>
+        </div>
 
         <router-link to="/boms" class="menu-item" active-class="active">
           <span class="menu-icon">
@@ -284,7 +304,8 @@
             </svg>
           </button>
           <div class="submenu" v-if="!isCollapsed && openGroups.systemManagement">
-            <router-link to="/system/users" class="submenu-item" active-class="active" exact>用户管理</router-link>
+            <router-link to="/system/users" class="submenu-item" active-class="active" exact>员工管理</router-link>
+            <router-link to="/system/departments" class="submenu-item" active-class="active" exact>部门管理</router-link>
             <router-link to="/system/roles" class="submenu-item" active-class="active" exact>角色管理</router-link>
             <router-link to="/system/permissions" class="submenu-item" active-class="active" exact>权限管理</router-link>
           </div>
@@ -332,7 +353,7 @@
             </svg>
             <span class="badge">3</span>
           </button>
-          <!-- 右上角用户下拉菜单 -->
+          <!-- 右上角账号下拉菜单 -->
           <div class="user-dropdown" v-click-outside="closeDropdown">
             <div class="top-user" @click="toggleDropdown">
               <div class="top-user-avatar">{{ userInitial }}</div>
@@ -440,6 +461,7 @@ const openGroups = ref({
   inventory: false,
   customers: false,
   vendors: false,
+  rfqs: false,
   finance: false,
   systemManagement: false
 })
@@ -447,7 +469,7 @@ const openGroups = ref({
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
   if (isCollapsed.value) {
-    openGroups.value = { purchase: false, sales: false, inventory: false, customers: false, vendors: false, finance: false, systemManagement: false }
+    openGroups.value = { purchase: false, sales: false, inventory: false, customers: false, vendors: false, rfqs: false, finance: false, systemManagement: false }
   }
 }
 
@@ -468,12 +490,14 @@ const pageTitleMap: Record<string, string> = {
   '/customers/blacklist': '黑名单管理',
   '/vendors': '供应商管理',
   '/vendors/create': '新增供应商',
-  '/system/users': '用户管理',
-  '/system/users/create': '新增用户',
+  '/system/users': '员工管理',
+  '/system/users/create': '新增员工',
   '/system/roles': '角色管理',
   '/system/roles/create': '新增角色',
   '/system/permissions': '权限管理',
   '/system/permissions/create': '新增权限',
+  '/system/departments': '部门管理',
+  '/system/departments/create': '新增部门',
   '/inventory/list': '库存列表',
   '/inventory/stock-in': '入库管理',
   '/inventory/stock-out': '出库管理',
@@ -482,6 +506,7 @@ const pageTitleMap: Record<string, string> = {
   '/reports': '报表分析',
   '/dashboard/settings': '系统设置',
   '/rfqs': 'RFQ 管理',
+  '/rfq-items': '需求明细',
   '/quotes': '报价管理',
   '/purchase-orders': '采购订单',
   '/sales-orders': '销售订单',
@@ -499,7 +524,7 @@ const currentPageTitle = computed(() => {
   return route.meta?.title as string || 'FrontCRM'
 })
 
-// ===== 用户下拉菜单 =====
+// ===== 账号下拉菜单 =====
 const dropdownOpen = ref(false)
 const toggleDropdown = () => { dropdownOpen.value = !dropdownOpen.value }
 const closeDropdown = () => { dropdownOpen.value = false }
@@ -515,7 +540,7 @@ const handleLogout = async () => {
     authStore.logout()
     router.push('/login')
   } catch {
-    // 用户取消
+    // 取消操作
   }
 }
 
@@ -525,11 +550,25 @@ const handleUnimplemented = (name: string) => {
 
 const hasPermission = (code: string) => authStore.hasPermission(code)
 
-// 待办：只在用户拥有任一“审批”相关写权限时显示入口
+// 待办：只在员工拥有任一“审批”相关写权限时显示入口
 const hasAnyApprovalPermission = computed(() => {
   const codes = ['vendor.write', 'rfq.write', 'sales-order.write', 'finance-receipt.write', 'finance-payment.write']
   return codes.some(code => hasPermission(code))
 })
+
+// 根据当前路由自动展开“需求管理”分组
+watch(
+  () => route.path,
+  (p) => {
+    if (p === '/rfqs' || p.startsWith('/rfqs/') || p === '/rfq-items') {
+      openGroups.value.rfqs = true
+    }
+    if (p.startsWith('/system/')) {
+      openGroups.value.systemManagement = true
+    }
+  },
+  { immediate: true }
+)
 
 // ===== Tab Bar 多标签页 =====
 interface TabItem {
@@ -978,7 +1017,7 @@ onMounted(() => {
   }
 }
 
-// 底部用户信息
+// 底部账号信息
 .sidebar-footer {
   border-top: 1px solid rgba(0, 212, 255, 0.08);
   padding: 12px 8px;
@@ -1213,7 +1252,7 @@ onMounted(() => {
   transform: translateX(-8px);
 }
 
-// ===== 用户下拉菜单 =====
+// ===== 账号下拉菜单 =====
 .user-dropdown {
   position: relative;
 }

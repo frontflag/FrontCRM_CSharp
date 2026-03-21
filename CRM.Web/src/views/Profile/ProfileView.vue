@@ -37,8 +37,8 @@
         <h3 class="section-title">基本信息</h3>
         <div class="form-grid">
           <div class="form-item">
-            <label class="form-label">用户名</label>
-            <input v-model="form.userName" class="form-input" placeholder="请输入用户名" />
+            <label class="form-label">员工账号</label>
+            <input v-model="form.userName" class="form-input" placeholder="请输入员工账号" />
           </div>
           <div class="form-item">
             <label class="form-label">邮箱</label>

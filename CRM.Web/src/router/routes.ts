@@ -85,6 +85,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: 'RFQ 管理', permission: 'rfq.read' }
       },
       {
+        path: 'rfq-items',
+        name: 'RFQItemList',
+        component: () => import('@/views/RFQ/RFQItemList.vue'),
+        meta: { requiresAuth: true, title: '需求明细', permission: 'rfq.read' }
+      },
+      {
         path: 'rfqs/create',
         name: 'RFQCreate',
         component: () => import('@/views/RFQ/RFQCreate.vue'),
@@ -308,19 +314,19 @@ const routes: RouteRecordRaw[] = [
         path: 'system/users',
         name: 'UserList',
         component: () => import('@/views/System/UserList.vue'),
-        meta: { requiresAuth: true, title: '用户管理', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '员工管理', permission: 'rbac.manage' }
       },
       {
         path: 'system/users/create',
         name: 'UserCreate',
         component: () => import('@/views/System/UserEdit.vue'),
-        meta: { requiresAuth: true, title: '新增用户', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '新增员工', permission: 'rbac.manage' }
       },
       {
         path: 'system/users/:id/edit',
         name: 'UserEdit',
         component: () => import('@/views/System/UserEdit.vue'),
-        meta: { requiresAuth: true, title: '编辑用户', permission: 'rbac.manage' }
+        meta: { requiresAuth: true, title: '编辑员工', permission: 'rbac.manage' }
       },
       {
         path: 'system/roles',
@@ -357,6 +363,30 @@ const routes: RouteRecordRaw[] = [
         name: 'PermissionEdit',
         component: () => import('@/views/System/PermissionEdit.vue'),
         meta: { requiresAuth: true, title: '编辑权限', permission: 'rbac.manage' }
+      },
+      {
+        path: 'system/departments',
+        name: 'DepartmentList',
+        component: () => import('@/views/System/DepartmentList.vue'),
+        meta: { requiresAuth: true, title: '部门管理', permission: 'rbac.manage' }
+      },
+      {
+        path: 'system/departments/create',
+        name: 'DepartmentCreate',
+        component: () => import('@/views/System/DepartmentEdit.vue'),
+        meta: { requiresAuth: true, title: '新增部门', permission: 'rbac.manage' }
+      },
+      {
+        path: 'system/departments/:id/edit',
+        name: 'DepartmentEdit',
+        component: () => import('@/views/System/DepartmentEdit.vue'),
+        meta: { requiresAuth: true, title: '编辑部门', permission: 'rbac.manage' }
+      },
+      {
+        path: 'system/departments/:id',
+        name: 'DepartmentDetail',
+        component: () => import('@/views/System/DepartmentDetail.vue'),
+        meta: { requiresAuth: true, title: '部门详情', permission: 'rbac.manage' }
       },
       // 财务模块
       {

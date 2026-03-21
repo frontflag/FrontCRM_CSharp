@@ -1,13 +1,13 @@
 <template>
-  <div class="system-page">
-    <el-card>
-      <div class="toolbar">
-        <div class="title">用户管理</div>
-        <el-button type="primary" @click="router.push({ name: 'UserCreate' })">新增用户</el-button>
+  <div class="crm-system-list-page">
+    <el-card class="crm-system-list-card" shadow="never">
+      <div class="crm-system-list-toolbar">
+        <h1 class="crm-system-list-title">员工管理</h1>
+        <el-button type="primary" @click="router.push({ name: 'UserCreate' })">新增员工</el-button>
       </div>
 
-      <el-table v-loading="loading" :data="users" border style="width: 100%">
-        <el-table-column prop="userName" label="用户名" min-width="160" show-overflow-tooltip />
+      <el-table v-loading="loading" :data="users" style="width: 100%">
+        <el-table-column prop="userName" label="员工账号" min-width="160" show-overflow-tooltip />
         <el-table-column prop="realName" label="真实姓名" min-width="160" show-overflow-tooltip />
         <el-table-column prop="email" label="邮箱" min-width="200" show-overflow-tooltip />
         <el-table-column prop="mobile" label="手机" width="140" />
@@ -55,7 +55,7 @@ const load = async () => {
   try {
     users.value = await rbacAdminApi.getUsers()
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载用户列表失败')
+    ElMessage.error(e?.message || '加载员工列表失败')
   } finally {
     loading.value = false
   }
@@ -67,7 +67,7 @@ const goEdit = (id: string) => {
 
 const handleDelete = async (id: string) => {
   try {
-    await ElMessageBox.confirm('确定删除该用户吗？', '删除确认', {
+    await ElMessageBox.confirm('确定删除该员工吗？', '删除确认', {
       type: 'warning',
       confirmButtonText: '删除',
       cancelButtonText: '取消'
@@ -83,21 +83,7 @@ const handleDelete = async (id: string) => {
 onMounted(load)
 </script>
 
-<style scoped>
-.system-page {
-  padding: 20px;
-}
-
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.title {
-  font-size: 18px;
-  font-weight: 600;
-}
+<style scoped lang="scss">
+@import '@/assets/styles/system-list-page.scss';
 </style>
 

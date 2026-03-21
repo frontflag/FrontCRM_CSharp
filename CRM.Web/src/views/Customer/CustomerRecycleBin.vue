@@ -50,7 +50,7 @@
             <span class="meta-sep">·</span>
             <span class="meta-text">删除时间：{{ formatDateTime(item.deletedAt || item.updatedAt) }}</span>
             <span class="meta-sep">·</span>
-            <span class="meta-text">操作人：{{ item.deletedByUserName || '系统用户' }}</span>
+            <span class="meta-text">操作人：{{ item.deletedByUserName || '系统员工' }}</span>
           </div>
           <div v-if="item.deleteReason || item.remark" class="record-reason">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

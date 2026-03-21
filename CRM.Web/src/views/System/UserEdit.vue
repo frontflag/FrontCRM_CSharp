@@ -2,11 +2,11 @@
   <div class="system-page">
     <el-card>
       <div class="toolbar">
-        <div class="title">{{ isEdit ? '编辑用户' : '新增用户' }}</div>
+        <div class="title">{{ isEdit ? '编辑员工' : '新增员工' }}</div>
       </div>
 
       <el-form :model="formData" label-width="120px" :disabled="loading">
-        <el-form-item label="用户名">
+        <el-form-item label="员工账号">
           <el-input v-model="formData.userName" :disabled="isEdit" />
         </el-form-item>
         <el-form-item v-if="!isEdit" label="密码">
@@ -72,7 +72,7 @@
         <div class="footer-bar">
           <el-button @click="router.push({ name: 'UserList' })">返回</el-button>
           <el-button type="primary" :loading="saving" @click="handleSubmit">
-            {{ isEdit ? '保存修改' : '创建用户' }}
+            {{ isEdit ? '保存修改' : '创建员工' }}
           </el-button>
         </div>
       </el-form>
@@ -155,7 +155,7 @@ const handleSubmit = async () => {
   normalizePrimaryDepartment()
 
   if (!formData.value.userName.trim()) {
-    ElMessage.warning('请填写用户名')
+    ElMessage.warning('请填写员工账号')
     return
   }
 

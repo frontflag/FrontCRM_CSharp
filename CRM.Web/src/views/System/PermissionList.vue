@@ -1,12 +1,12 @@
 <template>
-  <div class="system-page">
-    <el-card>
-      <div class="toolbar">
-        <div class="title">权限管理</div>
+  <div class="crm-system-list-page">
+    <el-card class="crm-system-list-card" shadow="never">
+      <div class="crm-system-list-toolbar">
+        <h1 class="crm-system-list-title">权限管理</h1>
         <el-button type="primary" @click="router.push({ name: 'PermissionCreate' })">新增权限</el-button>
       </div>
 
-      <el-table v-loading="loading" :data="permissions" border style="width: 100%">
+      <el-table v-loading="loading" :data="permissions" style="width: 100%">
         <el-table-column prop="permissionCode" label="权限编码" min-width="180" show-overflow-tooltip />
         <el-table-column prop="permissionName" label="权限名称" min-width="200" show-overflow-tooltip />
         <el-table-column prop="permissionType" label="类型" width="110" />
@@ -74,21 +74,7 @@ const handleDelete = async (id: string) => {
 onMounted(load)
 </script>
 
-<style scoped>
-.system-page {
-  padding: 20px;
-}
-
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.title {
-  font-size: 18px;
-  font-weight: 600;
-}
+<style scoped lang="scss">
+@import '@/assets/styles/system-list-page.scss';
 </style>
 

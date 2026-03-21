@@ -128,6 +128,10 @@ export interface RFQItem {
   rfqId: string
   lineNo: number
 
+  // 来自主表的扩展字段（用于列表展示/跳转）
+  rfqCode?: string
+  rfqCreateTime?: string
+
   // 物料信息
   customerMaterialModel?: string     // 客户物料型号
   materialModel?: string             // 物料型号（主）
@@ -234,8 +238,10 @@ export interface RFQItemSearchRequest {
   pageSize?: number
   rfqId?: string
   customerId?: string
+  customerKeyword?: string
   materialModel?: string
   customerMaterialModel?: string
+  salesUserKeyword?: string
   status?: RFQItemStatus | ''
   startDate?: string
   endDate?: string

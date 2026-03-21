@@ -52,7 +52,7 @@
             <span class="meta-sep">·</span>
             <span class="meta-text">加入时间：{{ formatDateTime(item.blackListTime || item.updatedAt) }}</span>
             <span class="meta-sep">·</span>
-            <span class="meta-text">操作人：{{ item.blackListUserName || '系统用户' }}</span>
+            <span class="meta-text">操作人：{{ item.blackListUserName || '系统员工' }}</span>
           </div>
           <div v-if="item.blackListReason" class="record-reason">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

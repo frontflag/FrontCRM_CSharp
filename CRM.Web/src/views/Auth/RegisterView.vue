@@ -38,9 +38,9 @@
           @submit.prevent="handleRegister"
           class="register-form"
         >
-          <!-- 用户名 -->
+          <!-- 员工账号 -->
           <div class="form-field">
-            <label class="field-label">用户名</label>
+            <label class="field-label">员工账号</label>
             <el-form-item prop="userName">
               <div class="input-wrapper">
                 <span class="input-icon">
@@ -51,7 +51,7 @@
                 </span>
                 <el-input
                   v-model="form.userName"
-                  placeholder="请输入用户名（2-50个字符）"
+                  placeholder="请输入员工账号（2-50个字符）"
                   class="custom-input"
                 />
               </div>
@@ -185,8 +185,8 @@ const form = reactive({
 
 const rules: FormRules = {
   userName: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 2, max: 50, message: '用户名长度在 2 到 50 个字符', trigger: 'blur' }
+    { required: true, message: '请输入员工账号', trigger: 'blur' },
+    { min: 2, max: 50, message: '员工账号长度在 2 到 50 个字符', trigger: 'blur' }
   ],
   email: [
     { required: true, message: '请输入邮箱地址', trigger: 'blur' },

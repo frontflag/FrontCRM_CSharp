@@ -241,35 +241,57 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 20px;
 
+  .header-left {
+    display: flex;
+    align-items: center;
+  }
+
   .page-title {
     margin: 0;
-    display: inline;
-    color: #e8f4ff;
-    font-size: 22px;
-    font-weight: 600;
+    color: #E8F4FF;
+    font-size: 20px;
   }
 
   .count-badge {
-    display: inline-block;
-    margin-left: 12px;
-    padding: 4px 10px;
-    border-radius: 999px;
+    margin-left: 10px;
+    padding: 2px 10px;
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    border-radius: 12px;
     font-size: 12px;
-    color: rgba(200, 216, 232, 0.85);
-    background: rgba(0, 212, 255, 0.08);
-    border: 1px solid rgba(0, 212, 255, 0.15);
+    color: #00D4FF;
   }
 }
 
-.filter-card,
-.table-card {
-  margin-bottom: 16px;
-  background: #0a1628;
+.filter-card {
+  margin-bottom: 20px;
+  background: #0A1628;
   border: 1px solid rgba(0, 212, 255, 0.1);
 }
 
+.table-card {
+  background: #0A1628;
+  border: 1px solid rgba(0, 212, 255, 0.1);
+
+  :deep(.el-table) {
+    background: transparent;
+    --el-table-header-bg-color: rgba(0, 212, 255, 0.1);
+    --el-table-tr-bg-color: transparent;
+    --el-table-border-color: rgba(0, 212, 255, 0.1);
+    color: #E8F4FF;
+
+    .el-table__cell .el-button {
+      white-space: nowrap !important;
+    }
+
+    .el-table__cell .cell {
+      white-space: nowrap;
+    }
+  }
+}
+
 .pagination-wrapper {
-  margin-top: 16px;
+  margin-top: 20px;
   display: flex;
   justify-content: flex-end;
 }

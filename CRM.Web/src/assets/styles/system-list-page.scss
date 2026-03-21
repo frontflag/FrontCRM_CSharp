@@ -1,0 +1,43 @@
+// 系统管理列表页：与 RFQ「需求明细」列表深色表格风格一致
+.crm-system-list-page {
+  padding: 20px;
+}
+
+.crm-system-list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.crm-system-list-title {
+  margin: 0;
+  color: #e8f4ff;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.crm-system-list-card {
+  background: #0a1628;
+  border: 1px solid rgba(0, 212, 255, 0.1);
+
+  :deep(.el-card__body) {
+    padding: 20px;
+  }
+
+  :deep(.el-table) {
+    background: transparent;
+    --el-table-header-bg-color: rgba(0, 212, 255, 0.1);
+    --el-table-tr-bg-color: transparent;
+    --el-table-border-color: rgba(0, 212, 255, 0.1);
+    color: #e8f4ff;
+
+    .el-table__cell .el-button {
+      white-space: nowrap !important;
+    }
+
+    .el-table__cell .cell {
+      white-space: nowrap;
+    }
+  }
+}

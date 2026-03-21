@@ -6,6 +6,10 @@ export interface AdminUserDto {
   realName?: string
   email?: string
   mobile?: string
+  // 详情页可能用到的字段（后端未必已返回，先按可选字段处理）
+  birthDate?: string
+  hireDate?: string
+  avatarUrl?: string
   status: number
   roleIds: string[]
   roleCodes: string[]
@@ -42,6 +46,11 @@ export interface RbacDepartment {
   purchaseDataScope: number
   identityType: number
   status: number
+
+  // 详情页可能用到的字段（先按可选字段处理）
+  parentId?: string
+  createTime?: string
+  modifyTime?: string
 }
 
 export interface CreateAdminUserRequest {
@@ -156,6 +165,32 @@ export const rbacAdminApi = {
   // departments
   async getDepartments(): Promise<RbacDepartment[]> {
     return apiClient.get<RbacDepartment[]>('/api/v1/rbac/departments')
+  },
+
+  // 下面这些方法当前后端是否已提供不确定；这里先补齐类型/最小实现，
+  // 以保证页面能够编译通过。若调用会抛出/返回空，便于后续补齐真实后端接口。
+  async getDepartmentById(departmentId: string): Promise<RbacDepartment> {
+    const list = await this.getDepartments()
+    const d = list.find((x) => x.id === departmentId)
+    if (!d) throw new Error('部门不存在')
+    return d
+  },
+
+  async getDepartmentUsers(_departmentId: string): Promise<AdminUserDto[]> {
+    // 后端若未提供部门->用户映射接口，这里先返回空数组。
+    return []
+  },
+
+  async createDepartment(_payload: any): Promise<RbacDepartment> {
+    throw new Error('createDepartment 尚未实现后端接口')
+  },
+
+  async updateDepartment(_departmentId: string, _payload: any): Promise<RbacDepartment> {
+    throw new Error('updateDepartment 尚未实现后端接口')
+  },
+
+  async deleteDepartment(_departmentId: string): Promise<void> {
+    throw new Error('deleteDepartment 尚未实现后端接口')
   }
 }
 
