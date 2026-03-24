@@ -100,7 +100,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { stockOutApi } from '@/api/stockOut'
 
@@ -124,11 +124,12 @@ type ExecuteForm = {
 }
 
 const router = useRouter()
+const route = useRoute()
 const submitting = ref(false)
 
 const form = reactive<ExecuteForm>({
-  stockOutRequestId: '',
-  stockOutCode: '',
+  stockOutRequestId: (route.query.requestId as string) || '',
+  stockOutCode: `SOUT${new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)}`,
   warehouseId: '',
   operatorId: '',
   stockOutDate: new Date().toISOString(),

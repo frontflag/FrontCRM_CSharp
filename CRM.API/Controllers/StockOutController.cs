@@ -75,6 +75,21 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpGet("request")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<StockOutRequestListItemDto>>>> GetRequests()
+        {
+            try
+            {
+                var list = await _service.GetStockOutRequestListAsync();
+                return Ok(ApiResponse<IEnumerable<StockOutRequestListItemDto>>.Ok(list, "获取出库通知列表成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取出库通知列表失败");
+                return StatusCode(500, ApiResponse<IEnumerable<StockOutRequestListItemDto>>.Fail($"获取出库通知列表失败: {ex.Message}", 500));
+            }
+        }
+
         [HttpPost("execute")]
         public async Task<ActionResult<ApiResponse<StockOut>>> Execute([FromBody] ExecuteStockOutRequest request)
         {

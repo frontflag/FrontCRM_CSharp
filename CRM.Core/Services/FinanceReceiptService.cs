@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
 {
@@ -39,7 +40,7 @@ namespace CRM.Core.Services
                 SalesUserId = request.SalesUserId,
                 ReceiptAmount = request.ReceiptAmount,
                 ReceiptCurrency = request.ReceiptCurrency,
-                ReceiptDate = request.ReceiptDate,
+                ReceiptDate = PostgreSqlDateTime.ToUtc(request.ReceiptDate),
                 ReceiptUserId = request.ReceiptUserId,
                 ReceiptMode = request.ReceiptMode,
                 ReceiptBankId = request.ReceiptBankId,
@@ -132,7 +133,7 @@ namespace CRM.Core.Services
                 ?? throw new InvalidOperationException($"收款单 {id} 不存在");
 
             if (request.ReceiptAmount.HasValue) receipt.ReceiptAmount = request.ReceiptAmount.Value;
-            if (request.ReceiptDate.HasValue) receipt.ReceiptDate = request.ReceiptDate.Value;
+            if (request.ReceiptDate.HasValue) receipt.ReceiptDate = PostgreSqlDateTime.ToUtc(request.ReceiptDate.Value);
             if (request.ReceiptMode.HasValue) receipt.ReceiptMode = request.ReceiptMode.Value;
             if (request.Remark != null) receipt.Remark = request.Remark;
             receipt.ModifyTime = DateTime.UtcNow;

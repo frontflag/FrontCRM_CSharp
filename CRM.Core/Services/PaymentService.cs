@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
 {
@@ -39,7 +40,7 @@ namespace CRM.Core.Services
                 PurchaseOrderId = request.PurchaseOrderId,
                 VendorId = request.VendorId,
                 RequestUserId = request.RequestUserId,
-                RequestDate = request.RequestDate,
+                RequestDate = PostgreSqlDateTime.ToUtc(request.RequestDate),
                 Amount = request.Amount,
                 Currency = request.Currency,
                 PaymentMethod = request.PaymentMethod,
@@ -72,7 +73,7 @@ namespace CRM.Core.Services
                 PaymentAmount = paymentRequest.Amount,
                 Currency = paymentRequest.Currency,
                 PaymentMethod = paymentRequest.PaymentMethod,
-                PaymentDate = request.ActualPaymentDate,
+                PaymentDate = PostgreSqlDateTime.ToUtc(request.ActualPaymentDate),
                 Status = 3, // 已付款
                 CreateTime = DateTime.UtcNow
             };

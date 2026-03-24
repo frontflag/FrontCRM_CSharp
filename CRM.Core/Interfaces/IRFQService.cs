@@ -8,6 +8,8 @@ namespace CRM.Core.Interfaces
         Task<RFQ> CreateAsync(CreateRFQRequest request);
         Task<RFQ?> GetByIdAsync(string id);
         Task<PagedResult<RFQListItem>> GetPagedAsync(RFQQueryRequest request);
+        /// <summary>需求明细分页（联主表、客户、业务员，含数据权限）</summary>
+        Task<PagedResult<RFQItemListItem>> GetPagedItemsAsync(RFQItemQueryRequest request);
         Task<RFQ> UpdateAsync(string id, UpdateRFQRequest request);
         Task DeleteAsync(string id);
         Task UpdateStatusAsync(string id, short status);
@@ -99,5 +101,39 @@ namespace CRM.Core.Interfaces
         public int ItemCount { get; set; }
         public DateTime RfqDate { get; set; }
         public DateTime CreateTime { get; set; }
+    }
+
+    /// <summary>需求明细列表查询条件（对应 GET /rfqs/items）</summary>
+    public class RFQItemQueryRequest
+    {
+        public int PageIndex { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+        /// <summary>按主表创建时间（需求创建）筛选，含当日</summary>
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public string? CustomerKeyword { get; set; }
+        public string? MaterialModel { get; set; }
+        public string? SalesUserKeyword { get; set; }
+        public string? CurrentUserId { get; set; }
+    }
+
+    /// <summary>需求明细列表行（主表扩展字段供前端展示）</summary>
+    public class RFQItemListItem
+    {
+        public string Id { get; set; } = string.Empty;
+        public string RfqId { get; set; } = string.Empty;
+        public string? RfqCode { get; set; }
+        /// <summary>主表创建时间（需求创建）</summary>
+        public DateTime RfqCreateTime { get; set; }
+        public int LineNo { get; set; }
+        public string Mpn { get; set; } = string.Empty;
+        public string? CustomerMpn { get; set; }
+        public string Brand { get; set; } = string.Empty;
+        public decimal Quantity { get; set; }
+        public short Status { get; set; }
+        public string? CustomerId { get; set; }
+        public string? CustomerName { get; set; }
+        public string? SalesUserId { get; set; }
+        public string? SalesUserName { get; set; }
     }
 }

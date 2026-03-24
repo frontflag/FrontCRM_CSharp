@@ -122,7 +122,7 @@
             <div class="contacts-toolbar">
               <button class="btn-primary btn-sm" @click="goCreateContact">新增联系人</button>
             </div>
-            <el-table :data="contacts" size="small" class="contacts-table">
+            <CrmDataTable :data="contacts" size="small" class="contacts-table">
               <el-table-column type="index" width="50" />
               <el-table-column prop="cName" label="姓名" min-width="120" />
               <el-table-column prop="title" label="职位" min-width="120" />
@@ -147,13 +147,13 @@
                   </button>
                 </template>
               </el-table-column>
-            </el-table>
+            </CrmDataTable>
           </div>
           <div v-show="activeTab === 'addresses'" class="addresses-tab">
             <div class="contacts-toolbar">
               <button class="btn-primary btn-sm" @click="openCreateAddress">新增地址</button>
             </div>
-            <el-table :data="addresses" size="small" class="contacts-table">
+            <CrmDataTable :data="addresses" size="small" class="contacts-table">
               <el-table-column type="index" width="50" />
               <el-table-column prop="addressType" label="类型" width="100">
                 <template #default="{ row }">
@@ -185,13 +185,13 @@
                   </button>
                 </template>
               </el-table-column>
-            </el-table>
+            </CrmDataTable>
           </div>
           <div v-show="activeTab === 'banks'" class="banks-tab">
             <div class="contacts-toolbar">
               <button class="btn-primary btn-sm" @click="openCreateBank">新增银行账户</button>
             </div>
-            <el-table :data="banks" size="small" class="contacts-table">
+            <CrmDataTable :data="banks" size="small" class="contacts-table">
               <el-table-column type="index" width="50" />
               <el-table-column prop="accountName" label="账户名称" min-width="160" show-overflow-tooltip />
               <el-table-column prop="bankName" label="开户银行" min-width="160" show-overflow-tooltip />
@@ -215,7 +215,7 @@
                   </button>
                 </template>
               </el-table-column>
-            </el-table>
+            </CrmDataTable>
           </div>
           <div v-show="activeTab === 'history'" class="history-tab">
             <div class="contacts-toolbar">
@@ -263,10 +263,10 @@
           <div v-show="activeTab === 'documents'" class="documents-tab">
             <DocumentUploadPanel
               bizType="Vendor"
-              :bizId="vendorId"
+              :bizId="canonicalVendorId"
               @uploaded="documentListRef?.refresh?.()"
             />
-            <DocumentListPanel ref="documentListRef" bizType="Vendor" :bizId="vendorId" view-mode="grid" />
+            <DocumentListPanel ref="documentListRef" bizType="Vendor" :bizId="canonicalVendorId" view-mode="grid" />
           </div>
           <div v-show="activeTab === 'logs'" class="logs-tab">
             <div v-if="operationLogs.length === 0 && fieldChangeLogs.length === 0" class="empty-tab">
@@ -330,7 +330,7 @@
   <ApplyTagsDialog
     v-model="showTagDialog"
     entity-type="VENDOR"
-    :entity-ids="[vendorId]"
+    :entity-ids="[canonicalVendorId]"
     title="为供应商添加标签"
     @success="fetchVendorTags"
   />
@@ -355,6 +355,8 @@ const route = useRoute();
 const router = useRouter();
 
 const vendorId = route.params.id as string;
+/** 详情加载后主键（与路由中业务编号区分，文档/标签等用主键更稳） */
+const canonicalVendorId = computed(() => vendor.value?.id ?? (route.params.id as string));
 const loading = ref(false);
 const vendor = ref<Vendor | null>(null);
 const vendorTags = ref<TagDefinitionDto[]>([]);
@@ -403,19 +405,51 @@ const fetchVendor = async () => {
   loading.value = true;
   try {
     vendor.value = await vendorApi.getVendorById(vendorId);
-    contacts.value = await vendorContactApi.getContactsByVendorId(vendorId);
-    addresses.value = await vendorAddressApi.getAddressesByVendorId(vendorId);
-    banks.value = await vendorBankApi.getBanksByVendorId(vendorId);
-    histories.value = await vendorApi.getVendorContactHistory(vendorId);
-    const [ops, fields] = await Promise.all([
-      vendorApi.getOperationLogs(vendorId),
-      vendorApi.getFieldChangeLogs(vendorId)
+  } catch (e) {
+    console.error(e);
+    ElMessage.error('获取供应商详情失败');
+    vendor.value = null;
+    loading.value = false;
+    return;
+  }
+
+  const effectiveId = vendor.value?.id ?? vendorId;
+
+  try {
+    const [c, a, b, h, ops, fields] = await Promise.all([
+      vendorContactApi.getContactsByVendorId(effectiveId).catch((err) => {
+        console.warn('加载联系人失败', err);
+        return [] as VendorContactInfo[];
+      }),
+      vendorAddressApi.getAddressesByVendorId(effectiveId).catch((err) => {
+        console.warn('加载地址失败', err);
+        return [] as VendorAddress[];
+      }),
+      vendorBankApi.getBanksByVendorId(effectiveId).catch((err) => {
+        console.warn('加载银行信息失败', err);
+        return [] as VendorBankInfo[];
+      }),
+      vendorApi.getVendorContactHistory(effectiveId).catch((err) => {
+        console.warn('加载联系历史失败', err);
+        return [] as any[];
+      }),
+      vendorApi.getOperationLogs(effectiveId).catch((err) => {
+        console.warn('加载操作日志失败', err);
+        return [] as any[];
+      }),
+      vendorApi.getFieldChangeLogs(effectiveId).catch((err) => {
+        console.warn('加载字段变更日志失败', err);
+        return [] as any[];
+      })
     ]);
+    contacts.value = c;
+    addresses.value = a;
+    banks.value = b;
+    histories.value = h;
     operationLogs.value = Array.isArray(ops) ? ops : [];
     fieldChangeLogs.value = Array.isArray(fields) ? fields : [];
   } catch (e) {
     console.error(e);
-    ElMessage.error('获取供应商详情失败');
   } finally {
     loading.value = false;
   }
@@ -423,7 +457,7 @@ const fetchVendor = async () => {
 
 const fetchVendorTags = async () => {
   try {
-    vendorTags.value = await tagApi.getEntityTags('VENDOR', vendorId);
+    vendorTags.value = await tagApi.getEntityTags('VENDOR', canonicalVendorId.value);
   } catch {
     vendorTags.value = [];
   }

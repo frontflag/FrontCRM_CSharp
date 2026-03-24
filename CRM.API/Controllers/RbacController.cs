@@ -25,6 +25,17 @@ namespace CRM.API.Controllers
         private readonly IRepository<RbacRolePermission> _rolePermissionRepo;
         private readonly IUnitOfWork _unitOfWork;
 
+        /// <summary>
+        /// 员工/部门账号可分配角色（与前端「员工编辑」一致）；含 SYS_ADMIN 以便维护系统管理员账号。
+        /// </summary>
+        private static readonly HashSet<string> AssignableUserRoleCodes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "DEPT_DIRECTOR",
+            "DEPT_MANAGER",
+            "DEPT_EMPLOYEE",
+            "SYS_ADMIN"
+        };
+
         public RbacController(
             IRbacService rbacService,
             IUserService userService,
@@ -47,6 +58,33 @@ namespace CRM.API.Controllers
             _userDepartmentRepo = userDepartmentRepo;
             _rolePermissionRepo = rolePermissionRepo;
             _unitOfWork = unitOfWork;
+        }
+
+        private async Task<ActionResult<ApiResponse<object>>?> ValidateUserRoleIdsAsync(IReadOnlyList<string>? roleIds)
+        {
+            if (roleIds == null || roleIds.Count == 0) return null;
+            var distinctIds = roleIds
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (distinctIds.Count == 0) return null;
+
+            var found = (await _roleRepo.FindAsync(x => distinctIds.Contains(x.Id))).ToList();
+            if (found.Count != distinctIds.Count)
+                return BadRequest(ApiResponse<object>.Fail("存在无效的角色 ID", 400));
+
+            foreach (var r in found)
+            {
+                var code = r.RoleCode ?? string.Empty;
+                if (!AssignableUserRoleCodes.Contains(code))
+                {
+                    return BadRequest(ApiResponse<object>.Fail(
+                        $"不允许分配的角色: {code}。请使用部门标准角色 DEPT_DIRECTOR / DEPT_MANAGER / DEPT_EMPLOYEE（系统管理员为 SYS_ADMIN）",
+                        400));
+                }
+            }
+
+            return null;
         }
 
         [HttpGet("roles")]
@@ -255,6 +293,9 @@ namespace CRM.API.Controllers
                 if (string.IsNullOrWhiteSpace(request.Password))
                     return BadRequest(ApiResponse<object>.Fail("Password 不能为空", 400));
 
+                var roleCheck = await ValidateUserRoleIdsAsync(request.RoleIds);
+                if (roleCheck != null) return roleCheck;
+
                 var roleId = request.RoleIds?.FirstOrDefault();
                 var deptId = request.DepartmentIds?.FirstOrDefault();
 
@@ -316,7 +357,11 @@ namespace CRM.API.Controllers
                 await _unitOfWork.SaveChangesAsync();
 
                 if (request.RoleIds != null)
+                {
+                    var roleCheck = await ValidateUserRoleIdsAsync(request.RoleIds);
+                    if (roleCheck != null) return roleCheck;
                     await _rbacService.AssignUserRolesAsync(userId, request.RoleIds);
+                }
 
                 if (request.DepartmentIds != null)
                     await _rbacService.AssignUserDepartmentsAsync(userId, request.DepartmentIds, request.PrimaryDepartmentId);

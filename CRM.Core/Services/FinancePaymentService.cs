@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
 {
@@ -27,19 +28,27 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(request.VendorId))
                 throw new ArgumentException("供应商ID不能为空", nameof(request.VendorId));
 
+            var code = string.IsNullOrWhiteSpace(request.FinancePaymentCode)
+                ? $"P{DateTime.UtcNow:yyMMddHHmmss}{Random.Shared.Next(0, 100):D2}"
+                : request.FinancePaymentCode.Trim();
+
+            if (code.Length > 16)
+                throw new ArgumentException("付款单号长度不能超过16位", nameof(request.FinancePaymentCode));
+
             var payment = new FinancePayment
             {
                 Id = Guid.NewGuid().ToString(),
-                FinancePaymentCode = request.FinancePaymentCode,
+                FinancePaymentCode = code,
                 VendorId = request.VendorId,
                 VendorName = request.VendorName,
                 PaymentAmountToBe = request.PaymentAmountToBe,
                 PaymentCurrency = request.PaymentCurrency,
-                PaymentDate = request.PaymentDate,
+                PaymentDate = PostgreSqlDateTime.ToUtc(request.PaymentDate),
                 PaymentUserId = request.PaymentUserId,
                 PaymentMode = request.PaymentMode,
                 Remark = request.Remark,
-                Status = 0,
+                // 新建
+                Status = 1,
                 CreateTime = DateTime.UtcNow
             };
             await _paymentRepo.AddAsync(payment);
@@ -67,8 +76,17 @@ namespace CRM.Core.Services
             return payment;
         }
 
-        public async Task<FinancePayment?> GetByIdAsync(string id) =>
-            await _paymentRepo.GetByIdAsync(id);
+        public async Task<FinancePayment?> GetByIdAsync(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return null;
+
+            var payment = await _paymentRepo.GetByIdAsync(id);
+            if (payment == null) return null;
+
+            var items = await _itemRepo.FindAsync(i => i.FinancePaymentId == id);
+            payment.Items = items.ToList();
+            return payment;
+        }
 
         public async Task<IEnumerable<FinancePayment>> GetAllAsync() =>
             await _paymentRepo.GetAllAsync();
@@ -124,7 +142,7 @@ namespace CRM.Core.Services
                 ?? throw new InvalidOperationException($"付款单 {id} 不存在");
 
             if (request.PaymentAmountToBe.HasValue) payment.PaymentAmountToBe = request.PaymentAmountToBe.Value;
-            if (request.PaymentDate.HasValue) payment.PaymentDate = request.PaymentDate.Value;
+            if (request.PaymentDate.HasValue) payment.PaymentDate = PostgreSqlDateTime.ToUtc(request.PaymentDate.Value);
             if (request.PaymentMode.HasValue) payment.PaymentMode = request.PaymentMode.Value;
             if (request.Remark != null) payment.Remark = request.Remark;
             payment.ModifyTime = DateTime.UtcNow;
@@ -145,17 +163,36 @@ namespace CRM.Core.Services
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task UpdateStatusAsync(string id, short status)
+        public async Task UpdateStatusAsync(string id, short status, string? remark = null)
         {
             var payment = await _paymentRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"付款单 {id} 不存在");
+
+            // 状态流转：New(1) -> PendingAudit(2) -> Approved(10) -> Completed(100)
+            //                            \-> AuditFailed(-1)
+            var current = payment.Status;
+            var allowed =
+                (current == 1 && status == 2) ||      // 提交审核
+                (current == -1 && status == 1) ||     // 驳回后回到新建（编辑重提）
+                (current == 2 && (status == 10 || status == -1)) || // 审批通过/拒绝
+                (current == 10 && status == 100) ||   // 确认付款完成
+                (current == 1 && status == -2) ||     // 新建取消
+                (current == 2 && status == -2);       // 待审核取消
+
+            if (!allowed)
+                throw new InvalidOperationException($"不允许的状态流转: {current} -> {status}");
+
             payment.Status = status;
-            if (status == 3) // 已付款
+            if (status == 100) // 付款完成
             {
                 payment.PaymentAmount = payment.PaymentAmountToBe;
                 payment.PaymentTotalAmount = payment.PaymentAmountToBe;
                 payment.PaymentDate ??= DateTime.UtcNow;
             }
+
+            if (!string.IsNullOrWhiteSpace(remark))
+                payment.Remark = remark.Trim();
+
             payment.ModifyTime = DateTime.UtcNow;
             await _paymentRepo.UpdateAsync(payment);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();

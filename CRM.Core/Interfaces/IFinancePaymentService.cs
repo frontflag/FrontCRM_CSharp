@@ -12,7 +12,8 @@ namespace CRM.Core.Interfaces
         Task<IEnumerable<FinancePayment>> GetAllAsync();
         Task<FinancePayment> UpdateAsync(string id, UpdateFinancePaymentRequest request);
         Task DeleteAsync(string id);
-        Task UpdateStatusAsync(string id, short status);
+        /// <param name="remark">审核驳回原因等补充说明（可选）</param>
+        Task UpdateStatusAsync(string id, short status, string? remark = null);
         Task VerifyPaymentItemAsync(string paymentItemId, decimal amount);
         Task<PagedResult<FinancePayment>> GetPagedAsync(FinancePaymentQueryRequest request);
     }

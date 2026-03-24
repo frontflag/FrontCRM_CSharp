@@ -635,41 +635,7 @@ onMounted(() => {
   :deep(.el-select__selected-item) { color: $text-primary !important; }
 }
 
-// ---- 表格 ----
-.table-wrapper {
-  background: $layer-2;
-  border: 1px solid $border-card;
-  border-radius: $border-radius-lg;
-  overflow: hidden;
-  min-height: 200px;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-
-  thead tr {
-    background: rgba(0, 212, 255, 0.04);
-    border-bottom: 1px solid rgba(0, 212, 255, 0.1);
-  }
-
-  th {
-    padding: 12px 14px;
-    text-align: left;
-    font-size: 12px;
-    font-weight: 500;
-    color: $text-muted;
-    white-space: nowrap;
-    letter-spacing: 0.3px;
-  }
-
-  td {
-    padding: 11px 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-    vertical-align: middle;
-  }
-}
+// ---- 表格：.table-wrapper / .data-table 全局样式见 assets/styles/crm-unified-list.scss ----
 
 .table-row {
   cursor: pointer;

@@ -27,6 +27,18 @@ namespace CRM.Core.Models.RFQ
         [Column("customer_id")]
         public string? CustomerId { get; set; }
 
+        /// <summary>客户名称（仅详情/列表展示用，不入库）</summary>
+        [NotMapped]
+        public string? CustomerName { get; set; }
+
+        /// <summary>业务员显示名（仅详情展示用，不入库）</summary>
+        [NotMapped]
+        public string? SalesUserName { get; set; }
+
+        /// <summary>联系人姓名（仅详情展示用，不入库）</summary>
+        [NotMapped]
+        public string? ContactPersonName { get; set; }
+
         /// <summary>客户联系人ID</summary>
         [StringLength(36)]
         [Column("contact_id")]
@@ -140,6 +152,22 @@ namespace CRM.Core.Models.RFQ
         [StringLength(200)]
         [Column("mpn")]
         public string Mpn { get; set; } = string.Empty;
+
+        /// <summary>物料型号（与 Mpn 同义，供前端字段 materialModel 序列化）</summary>
+        [NotMapped]
+        public string? MaterialModel
+        {
+            get => string.IsNullOrEmpty(Mpn) ? null : Mpn;
+            set => Mpn = value ?? string.Empty;
+        }
+
+        /// <summary>客户物料型号（与 CustomerMpn 同义，供前端 customerMaterialModel）</summary>
+        [NotMapped]
+        public string? CustomerMaterialModel
+        {
+            get => CustomerMpn;
+            set => CustomerMpn = value;
+        }
 
         /// <summary>客户品牌 (客户指定品牌, 必填)</summary>
         [Required]

@@ -7,7 +7,7 @@ namespace CRM.Core.Models.Purchase
     /// <summary>
     /// 采购订单主表 (PurchaseOrder)
     /// 对应数据库表: purchaseorder
-    /// 状态: 0=待确认 1=已确认 2=已发货 3=已入库 4=已出库 5=已完成 -1=已取消
+    /// 状态: 1=新建 2=待审核 10=审核通过 20=待确认 30=已确认 50=进行中 100=采购完成 -1=审核失败 -2=取消
     /// </summary>
     [Table("purchaseorder")]
     public class PurchaseOrder : BaseGuidEntity
@@ -64,9 +64,9 @@ namespace CRM.Core.Models.Purchase
         [Column("sales_group_id")]
         public string? SalesGroupId { get; set; }
 
-        /// <summary>订单状态 0=待确认 1=已确认 2=已发货 3=已入库 4=已出库 5=已完成 -1=已取消</summary>
+        /// <summary>订单状态 1=新建 2=待审核 10=审核通过 20=待确认 30=已确认 50=进行中 100=采购完成 -1=审核失败 -2=取消</summary>
         [Column("status")]
-        public short Status { get; set; } = 0;
+        public short Status { get; set; } = 1;
 
         /// <summary>异常状态</summary>
         [Column("err_status")]
@@ -189,9 +189,9 @@ namespace CRM.Core.Models.Purchase
         [Column("currency")]
         public short Currency { get; set; } = 1;
 
-        /// <summary>明细状态 0=正常 1=已取消</summary>
+        /// <summary>明细状态 1=新建 2=待审核 10=审核通过 20=待确认 30=已确认 40=已付款 50=已发货 60=已入库 100=采购完成 -1=审核失败 -2=取消</summary>
         [Column("status")]
-        public short Status { get; set; } = 0;
+        public short Status { get; set; } = 1;
 
         /// <summary>入库状态 0=未入库 1=部分入库 2=全部入库</summary>
         [Column("stock_in_status")]
@@ -217,6 +217,11 @@ namespace CRM.Core.Models.Purchase
         [StringLength(500)]
         [Column("comment")]
         public string? Comment { get; set; }
+
+        /// <summary>内部备注</summary>
+        [StringLength(500)]
+        [Column("inner_comment")]
+        public string? InnerComment { get; set; }
 
         // 导航属性
         public virtual PurchaseOrder? PurchaseOrder { get; set; }

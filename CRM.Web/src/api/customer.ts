@@ -198,6 +198,30 @@ export const customerApi = {
 
 // 客户联系人API
 export const customerContactApi = {
+  normalizeContactPayload(data: Partial<CreateContactRequest> & Record<string, any>) {
+    const normalizedGender = (() => {
+      const g = Number(data.gender)
+      if (g === 0) return 1
+      if (g === 1) return 2
+      return Number.isFinite(g) ? g : undefined
+    })()
+
+    return {
+      Name: data.contactName ?? data.name ?? '',
+      ContactName: data.contactName ?? data.name ?? '',
+      Gender: normalizedGender,
+      Department: data.department ?? '',
+      Position: data.position ?? '',
+      Phone: data.phone ?? data.tel ?? '',
+      Mobile: data.mobilePhone ?? data.mobile ?? '',
+      Email: data.email ?? '',
+      Fax: data.fax ?? '',
+      IsDefault: Boolean(data.isDefault),
+      // 兼容历史字段命名
+      Tel: data.phone ?? data.tel ?? '',
+    }
+  },
+
   // 获取客户联系人列表
   async getContactsByCustomerId(customerId: string): Promise<CustomerContactInfo[]> {
     return await apiClient.get<CustomerContactInfo[]>(`/api/v1/customers/${customerId}/contacts`);
@@ -205,12 +229,14 @@ export const customerContactApi = {
 
   // 创建联系人
   async createContact(customerId: string, data: CreateContactRequest): Promise<CustomerContactInfo> {
-    return await apiClient.post<CustomerContactInfo>(`/api/v1/customers/${customerId}/contacts`, data);
+    const backendData = this.normalizeContactPayload(data as Partial<CreateContactRequest> & Record<string, any>);
+    return await apiClient.post<CustomerContactInfo>(`/api/v1/customers/${customerId}/contacts`, backendData);
   },
 
   // 更新联系人
   async updateContact(contactId: string, data: Partial<CreateContactRequest>): Promise<CustomerContactInfo> {
-    return await apiClient.put<CustomerContactInfo>(`/api/v1/contacts/${contactId}`, data);
+    const backendData = this.normalizeContactPayload(data as Partial<CreateContactRequest> & Record<string, any>);
+    return await apiClient.put<CustomerContactInfo>(`/api/v1/contacts/${contactId}`, backendData);
   },
 
   // 删除联系人

@@ -219,7 +219,8 @@ import { ArrowLeft, Download, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as XLSX from 'xlsx'
 import { bomApi } from '@/api/bom'
-import type { CreateBOMItemRequest } from '@/types/bom'
+import type { BOM, CreateBOMItemRequest } from '@/types/bom'
+import { runValidatedFormSave } from '@/composables/useFormSubmit'
 
 const router = useRouter()
 
@@ -338,30 +339,30 @@ const downloadTemplate = () => {
 
 // ── 提交 ──
 const handleSubmit = async () => {
-  await formRef.value?.validate()
-  if (!validItems.value.length) {
-    ElMessage.warning('请上传包含有效数据的 Excel 文件')
-    return
-  }
-  submitting.value = true
-  try {
-    const bom = await bomApi.createBOM({
-      customerId: formData.value.customerId,
-      bomDate: formData.value.bomDate,
-      bomType: formData.value.bomType,
-      source: formData.value.source,
-      industry: formData.value.industry || undefined,
-      currency: formData.value.currency || undefined,
-      remark: formData.value.remark || undefined,
-      items: validItems.value,
-    })
-    ElMessage.success(`BOM 创建成功：${bom.bomCode}`)
-    router.push({ name: 'BOMDetail', params: { id: bom.id } })
-  } catch {
-    ElMessage.error('创建失败，请稍后重试')
-  } finally {
-    submitting.value = false
-  }
+  await runValidatedFormSave(formRef, {
+    loading: submitting,
+    afterValidate: async () => {
+      if (!validItems.value.length) {
+        ElMessage.warning('请上传包含有效数据的 Excel 文件')
+        return false
+      }
+      return true
+    },
+    task: async () =>
+      bomApi.createBOM({
+        customerId: formData.value.customerId,
+        bomDate: formData.value.bomDate,
+        bomType: formData.value.bomType,
+        source: formData.value.source,
+        industry: formData.value.industry || undefined,
+        currency: formData.value.currency || undefined,
+        remark: formData.value.remark || undefined,
+        items: validItems.value,
+      }),
+    formatSuccess: (bom: BOM) => `BOM 创建成功：${bom.bomCode}`,
+    onSuccess: (bom) => router.push({ name: 'BOMDetail', params: { id: bom.id } }),
+    errorMessage: () => '创建失败，请稍后重试'
+  })
 }
 </script>
 

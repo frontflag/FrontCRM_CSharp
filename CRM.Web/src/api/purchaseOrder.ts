@@ -2,9 +2,16 @@ import apiClient from './client'
 
 // 采购订单API
 export const purchaseOrderApi = {
-  // 获取采购订单列表
-  async getList() {
-    return await apiClient.get('/api/v1/purchase-orders')
+  // 获取采购订单列表（分页，与后端 PurchaseOrdersController 一致）
+  async getList(params?: {
+    keyword?: string
+    status?: number
+    startDate?: string
+    endDate?: string
+    page?: number
+    pageSize?: number
+  }) {
+    return await apiClient.get('/api/v1/purchase-orders', { params })
   },
 
   // 获取采购订单详情

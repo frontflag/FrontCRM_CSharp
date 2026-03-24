@@ -1,0 +1,30 @@
+/**
+ * 销售订单主状态（与 CRM.Core SellOrderMainStatus 一致）
+ * 1=新建 2=待审核 10=审核通过 20=进行中 100=完成 -1=审核失败 -2=取消
+ */
+export const SALES_ORDER_STATUS_TEXT: Record<number, string> = {
+  1: '新建',
+  2: '待审核',
+  10: '审核通过',
+  20: '进行中',
+  100: '完成',
+  [-1]: '审核失败',
+  [-2]: '取消'
+}
+
+export function salesOrderStatusText(status: number): string {
+  return SALES_ORDER_STATUS_TEXT[status] ?? '未知'
+}
+
+export function salesOrderStatusTagType(status: number): 'success' | 'warning' | 'info' | 'danger' | 'primary' {
+  const map: Record<number, 'success' | 'warning' | 'info' | 'danger' | 'primary'> = {
+    1: 'info',
+    2: 'warning',
+    10: 'success',
+    20: 'primary',
+    100: 'success',
+    [-1]: 'danger',
+    [-2]: 'info'
+  }
+  return map[status] ?? 'info'
+}

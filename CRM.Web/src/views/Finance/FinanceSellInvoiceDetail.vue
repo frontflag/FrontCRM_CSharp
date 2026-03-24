@@ -57,7 +57,7 @@
           <span>发票明细</span>
         </div>
         <el-empty v-if="!detail.items?.length" description="暂无明细" :image-size="80" />
-        <el-table v-else :data="detail.items" size="small" class="items-table">
+        <CrmDataTable v-else :data="detail.items" size="small" class="items-table">
           <el-table-column type="index" width="50" label="#" />
           <el-table-column prop="qty" label="数量" width="80" align="right" />
           <el-table-column prop="price" label="单价" width="120" align="right">
@@ -80,7 +80,7 @@
               {{ (row.taxRate * 100).toFixed(0) }}%
             </template>
           </el-table-column>
-        </el-table>
+        </CrmDataTable>
       </div>
     </template>
 

@@ -83,9 +83,9 @@ namespace CRM.API.Controllers
                 BizType = "SALES_ORDER",
                 BizTypeName = "销售订单",
                 PermissionCode = "sales-order.write",
-                PendingStatus = 1,
-                ApproveStatus = 2,
-                RejectStatus = -2
+                PendingStatus = 2,  // 待审核 PendingAudit
+                ApproveStatus = 10, // 审核通过 Approved
+                RejectStatus = -1  // 审核失败 AuditFailed（取消=-2 由其他操作单独标记）
             },
             ["FINANCE_RECEIPT"] = new BizTypeConfig
             {
@@ -102,10 +102,9 @@ namespace CRM.API.Controllers
                 BizType = "FINANCE_PAYMENT",
                 BizTypeName = "付款单",
                 PermissionCode = "finance-payment.write",
-                PendingStatus = 1,
-                // 与前端 FinancePaymentList 的“审核通过”一致：直接标记为已付款(3)
-                ApproveStatus = 3,
-                RejectStatus = 4
+                PendingStatus = 2,  // 待审核
+                ApproveStatus = 10, // 审核通过（应付款）
+                RejectStatus = -1   // 审核失败
             }
         };
 
@@ -216,6 +215,11 @@ namespace CRM.API.Controllers
 
                         foreach (var o in pr.Items)
                         {
+                            // 非系统管理员不展示本人提交的销售订单（由上级在数据权限范围内审批）
+                            if (!summary.IsSysAdmin &&
+                                string.Equals(o.SalesUserId, userId, StringComparison.OrdinalIgnoreCase))
+                                continue;
+
                             allItems.Add(new PendingApprovalItemDto
                             {
                                 BizType = cfg.BizType,
@@ -226,7 +230,7 @@ namespace CRM.API.Controllers
                                 CounterpartyName = canViewCustomerInfo ? o.CustomerName : null,
                                 Amount = canViewSalesAmount ? o.Total : null,
                                 Currency = o.Currency,
-                                Status = o.Status,
+                                Status = (short)o.Status,
                                 CreatedAt = o.CreateTime
                             });
                         }
@@ -369,11 +373,21 @@ namespace CRM.API.Controllers
                 {
                     var o = await _salesOrderService.GetByIdAsync(request.BusinessId);
                     if (o == null) return NotFound(new { success = false, message = "销售订单不存在", errorCode = 404 });
-                    if (o.Status != cfg.PendingStatus) return Conflict(new { success = false, message = "该记录已不处于待审批状态", errorCode = 409 });
+                    if ((short)o.Status != cfg.PendingStatus) return Conflict(new { success = false, message = "该记录已不处于待审批状态", errorCode = 409 });
                     if (!await _dataPermissionService.CanAccessSalesOrderAsync(userId, o))
                         return StatusCode(403, new { success = false, message = "无权限访问该销售订单", errorCode = 403 });
+                    if (!summary.IsSysAdmin &&
+                        string.Equals(o.SalesUserId, userId, StringComparison.OrdinalIgnoreCase))
+                        return Conflict(new { success = false, message = "不能审批本人提交的销售订单", errorCode = 409 });
 
-                    await _salesOrderService.UpdateStatusAsync(o.Id, nextStatus);
+                    var isReject = decision is "reject" or "deny" or "refuse";
+                    if (isReject && string.IsNullOrWhiteSpace(request.Remark))
+                        return BadRequest(new { success = false, message = "驳回时请填写原因", errorCode = 400 });
+
+                    await _salesOrderService.UpdateStatusAsync(
+                        o.Id,
+                        (SellOrderMainStatus)nextStatus,
+                        isReject ? request.Remark : null);
                 }
                 else if (cfg.BizType.Equals("FINANCE_RECEIPT", StringComparison.OrdinalIgnoreCase))
                 {
@@ -393,7 +407,14 @@ namespace CRM.API.Controllers
                     if (!await _dataPermissionService.CanAccessFinancePaymentAsync(userId, p))
                         return StatusCode(403, new { success = false, message = "无权限访问该付款单", errorCode = 403 });
 
-                    await _financePaymentService.UpdateStatusAsync(p.Id, nextStatus);
+                    var isReject = decision is "reject" or "deny" or "refuse";
+                    if (isReject && string.IsNullOrWhiteSpace(request.Remark))
+                        return BadRequest(new { success = false, message = "驳回时请填写原因", errorCode = 400 });
+
+                    await _financePaymentService.UpdateStatusAsync(
+                        p.Id,
+                        nextStatus,
+                        isReject ? request.Remark : null);
                 }
 
                 return Ok(new { success = true, data = new { }, message = "审批成功" });

@@ -13,7 +13,7 @@ export interface FinancePayment {
   vendorId: string
   vendorName?: string
   salesUserId?: string
-  status: number       // 0草稿 1待审核 2已审核 3已付款 4已取消
+  status: number       // 1新建 2待审核 10审核通过 100付款完成 -1审核失败 -2取消
   paymentAmount: number
   paymentCurrency: number  // 1:人民币 2:美元 3:欧元
   paymentDate?: string
@@ -231,11 +231,12 @@ export const financeSellInvoiceApi = {
 
 // ==================== 枚举辅助 ====================
 export const PAYMENT_STATUS_MAP: Record<number, { label: string; type: string }> = {
-  0: { label: '草稿', type: 'info' },
-  1: { label: '待审核', type: 'warning' },
-  2: { label: '已审核', type: 'primary' },
-  3: { label: '已付款', type: 'success' },
-  4: { label: '已取消', type: 'danger' },
+  1: { label: '新建', type: 'info' },
+  2: { label: '待审核', type: 'warning' },
+  10: { label: '审核通过', type: 'primary' },
+  100: { label: '付款完成', type: 'success' },
+  [-1]: { label: '审核失败', type: 'danger' },
+  [-2]: { label: '取消', type: 'info' },
 }
 
 export const RECEIPT_STATUS_MAP: Record<number, { label: string; type: string }> = {

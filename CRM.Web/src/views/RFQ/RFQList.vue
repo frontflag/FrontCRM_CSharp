@@ -78,8 +78,8 @@
 
     <!-- 数据表格 -->
     <el-card class="table-card">
-      <el-table 
-        :data="rfqList" 
+      <CrmDataTable
+        :data="rfqList"
         v-loading="loading"
         highlight-current-row
       >
@@ -129,7 +129,7 @@
             </el-dropdown>
           </template>
         </el-table-column>
-      </el-table>
+      </CrmDataTable>
 
       <!-- 分页 -->
       <div class="pagination-wrapper">
@@ -144,146 +144,6 @@
         />
       </div>
     </el-card>
-
-    <!-- 新建/编辑对话框 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="dialogTitle"
-      width="950px"
-      destroy-on-close
-    >
-      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="需求编号">
-              <el-input v-model="formData.rfqCode" placeholder="系统自动生成" disabled />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="客户" prop="customerName">
-              <el-input v-model="formData.customerName" placeholder="请输入客户名称" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="业务员" prop="salesUserName">
-              <el-input v-model="formData.salesUserName" placeholder="请输入业务员" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="联系邮箱">
-              <el-input v-model="formData.contactEmail" placeholder="请输入联系邮箱" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="产品">
-              <el-input v-model="formData.product" placeholder="请输入产品名称" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="行业">
-              <el-input v-model="formData.industry" placeholder="请输入行业" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="8">
-            <el-form-item label="需求类型">
-              <el-select v-model="formData.rfqType" style="width: 100%">
-                <el-option label="现货" :value="1" />
-                <el-option label="期货" :value="2" />
-                <el-option label="样品" :value="3" />
-                <el-option label="批量" :value="4" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="目标类型">
-              <el-select v-model="formData.targetType" style="width: 100%">
-                <el-option label="比价需求" :value="1" />
-                <el-option label="独家需求" :value="2" />
-                <el-option label="紧急需求" :value="3" />
-                <el-option label="常规需求" :value="4" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="重要程度">
-              <el-rate v-model="formData.importance" :max="10" show-score />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="项目背景">
-          <el-input v-model="formData.projectBackground" type="textarea" rows="2" />
-        </el-form-item>
-        <el-form-item label="竞争对手">
-          <el-input v-model="formData.competitor" placeholder="请输入竞争对手" />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="formData.remark" type="textarea" rows="2" />
-        </el-form-item>
-
-        <!-- 明细行 -->
-        <div class="items-section">
-          <div class="items-header">
-            <h4>需求明细</h4>
-            <el-button type="primary" size="small" @click="addItem">
-              <el-icon><Plus /></el-icon>添加明细
-            </el-button>
-          </div>
-          <el-table :data="formData.items" border size="small">
-            <el-table-column type="index" width="50" />
-            <el-table-column label="物料型号(MPN)" min-width="150">
-              <template #default="{ $index }">
-                <el-input v-model="formData.items[$index].mpn" placeholder="请输入MPN" />
-              </template>
-            </el-table-column>
-            <el-table-column label="品牌" width="120">
-              <template #default="{ $index }">
-                <el-input v-model="formData.items[$index].brand" placeholder="品牌" />
-              </template>
-            </el-table-column>
-            <el-table-column label="客户料号" width="120">
-              <template #default="{ $index }">
-                <el-input v-model="formData.items[$index].customerMpn" placeholder="客户料号" />
-              </template>
-            </el-table-column>
-            <el-table-column label="数量" width="100">
-              <template #default="{ $index }">
-                <el-input-number v-model="formData.items[$index].quantity" :min="1" :controls="false" style="width: 100%" />
-              </template>
-            </el-table-column>
-            <el-table-column label="目标价" width="100">
-              <template #default="{ $index }">
-                <el-input-number v-model="formData.items[$index].targetPrice" :min="0" :precision="2" :controls="false" style="width: 100%" />
-              </template>
-            </el-table-column>
-            <el-table-column label="币别" width="90">
-              <template #default="{ $index }">
-                <el-select v-model="formData.items[$index].priceCurrency" size="small">
-                  <el-option label="CNY" :value="1" />
-                  <el-option label="USD" :value="2" />
-                  <el-option label="EUR" :value="3" />
-                  <el-option label="HKD" :value="4" />
-                </el-select>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="80" align="center">
-              <template #default="{ $index }">
-                <el-button link type="danger" @click="removeItem($index)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </div>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitLoading">确定</el-button>
-      </template>
-    </el-dialog>
 
     <!-- 状态更新对话框 -->
     <el-dialog v-model="statusDialogVisible" title="更新状态" width="400px">
@@ -341,38 +201,10 @@ const pageInfo = ref({
   total: 0
 })
 
-// 对话框控制
-const dialogVisible = ref(false)
-const dialogTitle = ref('新建需求')
 const statusDialogVisible = ref(false)
 const importDialogVisible = ref(false)
-const submitLoading = ref(false)
-const formRef = ref()
 const currentRow = ref<any>(null)
-const isEdit = ref(false)
 const newStatus = ref(0)
-
-// 表单数据
-const formData = ref({
-  rfqCode: '',
-  customerName: '',
-  salesUserName: '',
-  contactEmail: '',
-  product: '',
-  industry: '',
-  rfqType: 1,
-  targetType: 1,
-  importance: 5,
-  projectBackground: '',
-  competitor: '',
-  remark: '',
-  items: [] as any[]
-})
-
-const formRules = {
-  customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
-  salesUserName: [{ required: true, message: '请输入业务员', trigger: 'blur' }]
-}
 
 const totalCount = computed(() => rfqList.value.length)
 
@@ -453,27 +285,9 @@ const handleImportCreated = (_rfqId: string) => {
   loadData()
 }
 
-// 编辑
+// 编辑：与「新建需求」共用 RFQCreate 页面（路由 rfqs/:id/edit）
 const handleEdit = (row: any) => {
-  isEdit.value = true
-  dialogTitle.value = '编辑需求'
-  currentRow.value = row
-  formData.value = {
-    rfqCode: row.rfqCode,
-    customerName: row.customerName,
-    salesUserName: row.salesUserName,
-    contactEmail: row.contactEmail,
-    product: row.product,
-    industry: row.industry,
-    rfqType: row.rfqType,
-    targetType: row.targetType,
-    importance: row.importance,
-    projectBackground: row.projectBackground,
-    competitor: row.competitor,
-    remark: row.remark,
-    items: row.items ? JSON.parse(JSON.stringify(row.items)) : []
-  }
-  dialogVisible.value = true
+  router.push({ name: 'RFQEdit', params: { id: row.id } })
 }
 
 // 查看
@@ -517,47 +331,6 @@ const confirmUpdateStatus = async () => {
   ElMessage.success('状态更新成功')
   statusDialogVisible.value = false
   loadData()
-}
-
-// 添加/删除明细
-const addItem = () => {
-  formData.value.items.push({
-    mpn: '',
-    brand: '',
-    customerMpn: '',
-    quantity: 1,
-    targetPrice: undefined,
-    priceCurrency: 1
-  })
-}
-
-const removeItem = (index: number) => {
-  formData.value.items.splice(index, 1)
-}
-
-// 提交
-const handleSubmit = async () => {
-  await formRef.value.validate()
-  submitLoading.value = true
-  try {
-    const data = {
-      ...formData.value,
-      rfqDate: new Date().toISOString().slice(0, 10)
-    }
-    if (isEdit.value && currentRow.value) {
-      await rfqApi.updateRFQ(currentRow.value.id, data)
-      ElMessage.success('更新成功')
-    } else {
-      // RFQ 创建接口的请求类型要求 customerId，但该页面的表单当前仅维护 customerName。
-      // 为保证类型检查通过且不影响现有运行逻辑，先做类型兼容处理。
-      await rfqApi.createRFQ(data as any)
-      ElMessage.success('创建成功')
-    }
-    dialogVisible.value = false
-    loadData()
-  } finally {
-    submitLoading.value = false
-  }
 }
 
 onMounted(loadData)
@@ -647,19 +420,4 @@ onMounted(loadData)
   justify-content: flex-end;
 }
 
-.items-section {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid rgba(0, 212, 255, 0.1);
-  .items-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    h4 {
-      margin: 0;
-      color: #E8F4FF;
-    }
-  }
-}
 </style>

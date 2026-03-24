@@ -1,4 +1,5 @@
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Sales;
 using CRM.API.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -56,6 +57,54 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取销售订单列表失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>销售订单明细分页（须在 {id} 路由之前注册）</summary>
+        [HttpGet("lines")]
+        public async Task<IActionResult> GetSellOrderLines(
+            [FromQuery] string? orderCreateStart,
+            [FromQuery] string? orderCreateEnd,
+            [FromQuery] string? customerName,
+            [FromQuery] string? salesUserName,
+            [FromQuery] string? pn,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            try
+            {
+                var request = new SellOrderItemLineQueryRequest
+                {
+                    OrderCreateStart = DateTime.TryParse(orderCreateStart, out var ds) ? ds : null,
+                    OrderCreateEnd = DateTime.TryParse(orderCreateEnd, out var de) ? de : null,
+                    CustomerName = customerName,
+                    SalesUserName = salesUserName,
+                    Pn = pn,
+                    Page = page,
+                    PageSize = pageSize,
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                };
+                var result = await _service.GetSellOrderItemLinesPagedAsync(request);
+                var summary = await GetPermissionSummaryAsync(request.CurrentUserId);
+                var canViewCustomer = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("customer.info.read") ?? false);
+                var canViewAmount = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("sales.amount.read") ?? false);
+                var items = result.Items.Select(r => MaskSellOrderLine(r, canViewCustomer, canViewAmount)).ToList();
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items,
+                        total = result.TotalCount,
+                        page = result.PageIndex,
+                        pageSize = result.PageSize
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取销售订单明细列表失败");
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
@@ -178,12 +227,21 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.UpdateStatusAsync(id, request.Status);
+                var status = (SellOrderMainStatus)request.Status;
+                if (!Enum.IsDefined(typeof(SellOrderMainStatus), status))
+                    return BadRequest(new { success = false, message = "无效的销售订单主状态" });
+                if (status == SellOrderMainStatus.Approved || status == SellOrderMainStatus.AuditFailed)
+                    return BadRequest(new { success = false, message = "审核通过/拒绝请通过「待审批」菜单处理" });
+                await _service.UpdateStatusAsync(id, status);
                 return Ok(new { success = true, message = "状态更新成功" });
             }
             catch (InvalidOperationException ex)
             {
                 return NotFound(new { success = false, message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -195,6 +253,30 @@ namespace CRM.API.Controllers
         {
             if (string.IsNullOrWhiteSpace(userId)) return null;
             return await _rbacService.GetUserPermissionSummaryAsync(userId);
+        }
+
+        private static object MaskSellOrderLine(SellOrderItemLineDto r, bool canViewCustomer, bool canViewAmount)
+        {
+            return new
+            {
+                r.SellOrderItemId,
+                r.SellOrderId,
+                r.SellOrderCode,
+                r.OrderStatus,
+                r.OrderCreateTime,
+                CustomerId = canViewCustomer ? r.CustomerId : null,
+                CustomerName = canViewCustomer ? r.CustomerName : null,
+                r.SalesUserName,
+                r.PN,
+                r.Brand,
+                r.Qty,
+                Price = canViewAmount ? r.Price : 0m,
+                LineTotal = canViewAmount ? r.LineTotal : 0m,
+                r.Currency,
+                UsdUnitPrice = canViewAmount ? r.UsdUnitPrice : null,
+                UsdLineTotal = canViewAmount ? r.UsdLineTotal : null,
+                r.ItemStatus
+            };
         }
 
         private object MaskSalesOrder(CRM.Core.Models.Sales.SellOrder order, UserPermissionSummaryDto? summary)
@@ -225,6 +307,7 @@ namespace CRM.API.Controllers
                 order.DeliveryAddress,
                 order.DeliveryDate,
                 order.Comment,
+                order.AuditRemark,
                 order.CreateTime,
                 order.ModifyTime,
                 Items = (order.Items ?? Enumerable.Empty<CRM.Core.Models.Sales.SellOrderItem>()).Select(i => new

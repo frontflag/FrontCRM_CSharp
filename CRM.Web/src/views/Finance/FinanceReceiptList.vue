@@ -59,14 +59,12 @@
     </div>
 
     <!-- 数据表格 -->
-    <div class="table-wrap">
-      <el-table
-        :data="tableData"
-        v-loading="loading"
-        class="crm-table"
-        @row-click="openDetail"
-        row-class-name="table-row-pointer"
-      >
+    <CrmDataTable
+      :data="tableData"
+      v-loading="loading"
+      @row-click="openDetail"
+      row-class-name="table-row-pointer"
+    >
         <el-table-column prop="financeReceiptCode" label="收款单号" width="140" fixed>
           <template #default="{ row }">
             <span class="code-text">{{ row.financeReceiptCode }}</span>
@@ -104,7 +102,7 @@
             <el-button size="small" text type="danger" @click.stop="cancelReceipt(row)" v-if="[0,1].includes(row.status)">取消</el-button>
           </template>
         </el-table-column>
-      </el-table>
+    </CrmDataTable>
       <div class="pagination-wrap">
         <el-pagination
           v-model:current-page="query.page"
@@ -116,7 +114,6 @@
           @current-change="loadData"
         />
       </div>
-    </div>
 
     <!-- 新建/编辑弹窗 -->
     <el-dialog

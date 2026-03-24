@@ -17,6 +17,8 @@ namespace CRM.Core.Tests.Services
         private readonly ISerialNumberService _serialNumberService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IDataPermissionService _dataPermissionService;
+        private readonly IUserService _userService;
+        private readonly IEntityLookupService _entityLookup;
         private readonly RFQService _rfqService;
 
         public RFQServiceTests()
@@ -26,6 +28,9 @@ namespace CRM.Core.Tests.Services
             _serialNumberService = Substitute.For<ISerialNumberService>();
             _unitOfWork = Substitute.For<IUnitOfWork>();
             _dataPermissionService = Substitute.For<IDataPermissionService>();
+            _userService = Substitute.For<IUserService>();
+            _userService.GetAllAsync().Returns(new List<CRM.Core.Models.User>());
+            _entityLookup = Substitute.For<IEntityLookupService>();
 
             // 默认序列号生成
             _serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -34,34 +39,82 @@ namespace CRM.Core.Tests.Services
                 _rfqRepository,
                 _rfqItemRepository,
                 null!,
+                _entityLookup,
                 _unitOfWork,
                 _serialNumberService,
-                _dataPermissionService);
+                _dataPermissionService,
+                _userService);
+        }
+
+        private static CreateRFQRequest BuildValidCreateRequest(Action<CreateRFQRequest>? tweak = null)
+        {
+            var r = new CreateRFQRequest
+            {
+                CustomerId = "CUST-001",
+                SalesUserId = "USER-001",
+                RfqDate = DateTime.UtcNow,
+                Items =
+                {
+                    new CreateRFQItemRequest
+                    {
+                        Mpn = "MPN-001",
+                        Brand = "Brand-A",
+                        Quantity = 1
+                    }
+                }
+            };
+            tweak?.Invoke(r);
+            return r;
         }
 
         [Fact]
         public async Task CreateAsync_ValidRequest_ShouldCreateRFQ()
         {
-            // Arrange
-            var request = new CreateRFQRequest
-            {
-                CustomerId = "CUST-001",
-                SalesUserId = "USER-001",
-                RfqDate = DateTime.UtcNow
-            };
+            var request = BuildValidCreateRequest();
             _rfqRepository.GetAllAsync().Returns(new List<RFQ>());
             _rfqItemRepository.GetAllAsync().Returns(new List<RFQItem>());
 
-            // Act
             var result = await _rfqService.CreateAsync(request);
 
-            // Assert
             Assert.NotNull(result);
             Assert.Equal("RF20260001", result.RfqCode);
             Assert.Equal(request.CustomerId, result.CustomerId);
-            Assert.Equal(0, result.Status); // 草稿状态
+            Assert.Equal(0, result.Status);
             Assert.NotNull(result.Id);
             await _rfqRepository.Received(1).AddAsync(Arg.Any<RFQ>());
+            await _rfqItemRepository.Received(1).AddAsync(Arg.Any<RFQItem>());
+            await _unitOfWork.Received(1).SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task CreateAsync_RfqDateUnspecified_IsNormalizedToUtc()
+        {
+            var unspecified = new DateTime(2026, 3, 15, 10, 30, 0, DateTimeKind.Unspecified);
+            var request = BuildValidCreateRequest(r => r.RfqDate = unspecified);
+            _rfqRepository.GetAllAsync().Returns(new List<RFQ>());
+            _rfqItemRepository.GetAllAsync().Returns(new List<RFQItem>());
+
+            var result = await _rfqService.CreateAsync(request);
+
+            Assert.Equal(DateTimeKind.Utc, result.RfqDate.Kind);
+            Assert.Equal(unspecified.Ticks, result.RfqDate.Ticks);
+        }
+
+        [Fact]
+        public async Task CreateAsync_ItemExpiryDateUnspecified_IsPassedAsUtcKind()
+        {
+            var expiry = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
+            var request = BuildValidCreateRequest();
+            request.Items[0].ExpiryDate = expiry;
+            _rfqRepository.GetAllAsync().Returns(new List<RFQ>());
+            _rfqItemRepository.GetAllAsync().Returns(new List<RFQItem>());
+
+            await _rfqService.CreateAsync(request);
+
+            await _rfqItemRepository.Received(1).AddAsync(Arg.Is<RFQItem>(i =>
+                i.ExpiryDate.HasValue &&
+                i.ExpiryDate.Value.Kind == DateTimeKind.Utc &&
+                i.ExpiryDate.Value.Ticks == expiry.Ticks));
         }
 
         [Fact]

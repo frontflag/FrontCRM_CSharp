@@ -1,5 +1,5 @@
 <template>
-  <div class="create-page">
+  <div class="create-page" v-loading="pageLoading">
     <!-- 面包屑 + 操作栏 -->
     <div class="page-header">
       <div class="header-left">
@@ -8,13 +8,13 @@
         </el-button>
         <el-breadcrumb separator="/">
           <el-breadcrumb-item>需求管理</el-breadcrumb-item>
-          <el-breadcrumb-item>新建需求</el-breadcrumb-item>
+          <el-breadcrumb-item>{{ isEditMode ? '编辑需求' : '新建需求' }}</el-breadcrumb-item>
         </el-breadcrumb>
       </div>
       <div class="header-right">
         <el-button @click="router.back()">取消</el-button>
         <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
-          <el-icon><Check /></el-icon> 保存
+          <el-icon><Check /></el-icon> {{ isEditMode ? '保存修改' : '保存' }}
         </el-button>
       </div>
     </div>
@@ -216,17 +216,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Check, Plus } from '@element-plus/icons-vue'
 import { rfqApi } from '@/api/rfq'
+import type { CreateRFQItemRequest, UpdateRFQRequest } from '@/types/rfq'
 import { useAuthStore } from '@/stores/auth'
+import { getApiErrorMessage } from '@/utils/apiError'
+import { runValidatedFormSave } from '@/composables/useFormSubmit'
 
+const route = useRoute()
 const router = useRouter()
 const formRef = ref()
 const submitLoading = ref(false)
+const pageLoading = ref(false)
 const authStore = useAuthStore()
+
+const rfqId = computed(() => {
+  const id = route.params.id
+  if (Array.isArray(id)) return id[0] || ''
+  return String(id || '')
+})
+
+const isEditMode = computed(() => route.name === 'RFQEdit' && !!rfqId.value)
 
 // 客户下拉搜索
 const customerOptions = ref<{ value: string; label: string }[]>([])
@@ -241,7 +254,7 @@ const genRfqCode = () => {
   return `RFQ${date}${rand}`
 }
 
-const formData = ref({
+const emptyForm = () => ({
   rfqCode: genRfqCode(),
   customerId: '',
   customerName: '',
@@ -258,6 +271,94 @@ const formData = ref({
   remark: '',
   items: [] as any[]
 })
+
+const formData = ref(emptyForm())
+
+function resetFormForCreate() {
+  formData.value = emptyForm()
+  const user = authStore.user
+  if (user) {
+    formData.value.salesUserId = user.id || ''
+    formData.value.salesUserName = user.userName || ''
+  }
+}
+
+function normalizeImportance(v: unknown): number {
+  const n = Number(v)
+  if (!Number.isFinite(n) || n < 1) return 3
+  if (n <= 5) return Math.round(n)
+  return Math.min(5, Math.max(1, Math.round(n / 2)))
+}
+
+function mapCurrencyToPriceCurrency(c?: string | number): number {
+  if (typeof c === 'number' && c >= 1 && c <= 4) return c
+  const u = String(c || '').toUpperCase()
+  if (u.includes('USD')) return 2
+  if (u.includes('EUR')) return 3
+  if (u.includes('HKD')) return 4
+  return 1
+}
+
+function mapItemsFromApi(items: any[]) {
+  return items.map((raw: any) => ({
+    mpn: raw.mpn || raw.materialModel || '',
+    brand: raw.brand || '',
+    customerMpn: raw.customerMpn || raw.customerMaterialModel || '',
+    quantity: raw.quantity ?? 1,
+    targetPrice: raw.targetPrice,
+    priceCurrency: mapCurrencyToPriceCurrency(raw.priceCurrency ?? raw.currency)
+  }))
+}
+
+async function loadRfqForEdit() {
+  if (!isEditMode.value || !rfqId.value) return
+  pageLoading.value = true
+  try {
+    const data = await rfqApi.getRFQById(rfqId.value)
+    const d = data as any
+    if (data.customerId) {
+      customerOptions.value = [
+        { value: data.customerId, label: data.customerName || d.customerName || '客户' }
+      ]
+    } else {
+      customerOptions.value = []
+    }
+    formData.value = {
+      rfqCode: data.rfqCode || '',
+      customerId: data.customerId || '',
+      customerName: data.customerName || '',
+      salesUserId: data.salesUserId || '',
+      salesUserName: data.salesUserName || '',
+      contactEmail: d.contactEmail || d.contactPersonEmail || '',
+      product: data.product || '',
+      industry: data.industry || '',
+      rfqType: data.rfqType ?? 1,
+      targetType: data.targetType ?? 1,
+      importance: normalizeImportance(d.importanceLevel ?? d.importance),
+      projectBackground: data.projectBackground || '',
+      competitor: data.competitor || '',
+      remark: data.remark || '',
+      items: data.items?.length ? mapItemsFromApi(data.items) : []
+    }
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '加载需求失败'))
+    router.push({ name: 'RFQList' })
+  } finally {
+    pageLoading.value = false
+  }
+}
+
+watch(
+  () => [route.name, route.params.id] as const,
+  async () => {
+    if (route.name === 'RFQEdit' && rfqId.value) {
+      await loadRfqForEdit()
+    } else if (route.name === 'RFQCreate') {
+      resetFormForCreate()
+    }
+  },
+  { immediate: true }
+)
 
 const formRules = {
   customerId: [{ required: true, message: '请选择客户', trigger: 'change' }]
@@ -315,33 +416,53 @@ const removeItem = (index: number) => {
   formData.value.items.splice(index, 1)
 }
 
-// 提交
-const handleSubmit = async () => {
-  await formRef.value.validate()
-  submitLoading.value = true
-  try {
-    const data = {
-      ...formData.value,
-      rfqDate: new Date().toISOString().slice(0, 10)
-    }
-    await rfqApi.createRFQ(data as any)
-    ElMessage.success('需求创建成功')
-    router.push({ name: 'RFQList' })
-  } catch (e) {
-    ElMessage.error('创建失败，请重试')
-  } finally {
-    submitLoading.value = false
-  }
+function buildItemPayload(): CreateRFQItemRequest[] {
+  return formData.value.items.map((it: Record<string, unknown>) => ({
+    ...it,
+    customerBrand: (it.customerBrand as string) || (it.brand as string) || '',
+    brand: (it.brand as string) || '',
+    quantity: Math.max(1, Number(it.quantity) || 1)
+  })) as CreateRFQItemRequest[]
 }
 
-onMounted(() => {
-  // 自动填充当前登录用户为业务员
-  const user = authStore.user
-  if (user) {
-    formData.value.salesUserId = user.id || ''
-    formData.value.salesUserName = user.userName || ''
-  }
-})
+// 提交
+const handleSubmit = async () => {
+  const editMode = isEditMode.value
+  const id = rfqId.value
+  await runValidatedFormSave(formRef, {
+    loading: submitLoading,
+    task: async () => {
+      if (editMode && id) {
+        const payload: UpdateRFQRequest = {
+          customerId: formData.value.customerId,
+          contactEmail: formData.value.contactEmail,
+          salesUserId: formData.value.salesUserId,
+          industry: formData.value.industry,
+          product: formData.value.product,
+          rfqType: formData.value.rfqType,
+          targetType: formData.value.targetType,
+          importance: formData.value.importance,
+          projectBackground: formData.value.projectBackground,
+          competitor: formData.value.competitor,
+          remark: formData.value.remark,
+          items: buildItemPayload()
+        }
+        await rfqApi.updateRFQ(id, payload)
+        return 'edit' as const
+      }
+      const data = {
+        ...formData.value,
+        rfqDate: new Date().toISOString().slice(0, 10),
+        items: buildItemPayload()
+      }
+      await rfqApi.createRFQ(data as any)
+      return 'create' as const
+    },
+    formatSuccess: (mode) => (mode === 'edit' ? '需求已更新' : '需求创建成功'),
+    onSuccess: () => router.push({ name: 'RFQList' }),
+    errorMessage: (e) => getApiErrorMessage(e, editMode ? '保存失败，请重试' : '创建失败，请重试')
+  })
+}
 </script>
 
 <style scoped lang="scss">

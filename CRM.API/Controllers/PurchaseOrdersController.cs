@@ -254,6 +254,7 @@ namespace CRM.API.Controllers
                     i.ErrStatus,
                     i.DeliveryDate,
                     i.Comment,
+                    i.InnerComment,
                     i.CreateTime,
                     i.ModifyTime
                 }).ToList()

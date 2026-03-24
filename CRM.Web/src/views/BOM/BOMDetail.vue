@@ -92,7 +92,7 @@
           </div>
         </div>
 
-        <el-table
+        <CrmDataTable
           :data="filteredItems"
           class="items-table"
           row-key="id"
@@ -162,7 +162,7 @@
               </div>
             </template>
           </el-table-column>
-        </el-table>
+        </CrmDataTable>
       </div>
     </template>
 
@@ -240,6 +240,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft, Delete, MagicStick, Loading } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { bomApi } from '@/api/bom'
+import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import type { BOM, BOMItem } from '@/types/bom'
 
 const router = useRouter()
@@ -350,31 +351,33 @@ const openManualQuote = (item: BOMItem, isEdit: boolean) => {
 }
 
 const submitQuote = async () => {
-  await quoteFormRef.value?.validate()
-  if (!currentItem.value) return
-  quoteSubmitting.value = true
-  try {
-    const payload = {
-      quotedPrice: quoteForm.value.quotedPrice,
-      quotedCurrency: quoteForm.value.quotedCurrency,
-      quotedStock: quoteForm.value.quotedStock,
-      quotedDeliveryDays: quoteForm.value.quotedDeliveryDays,
-      quotedBrand: quoteForm.value.quotedBrand || undefined,
-      quoteRemark: quoteForm.value.quoteRemark || undefined,
-    }
-    if (isEditQuote.value) {
-      await bomApi.updateItemQuote(bomId.value, currentItem.value.id, payload)
-    } else {
-      await bomApi.manualQuoteItem(bomId.value, currentItem.value.id, payload)
-    }
-    ElMessage.success(isEditQuote.value ? '报价已更新' : '人工报价成功')
-    quoteDialogVisible.value = false
-    await loadData()
-  } catch {
-    ElMessage.error('报价提交失败，请稍后重试')
-  } finally {
-    quoteSubmitting.value = false
-  }
+  await runValidatedFormSave(quoteFormRef, {
+    loading: quoteSubmitting,
+    afterValidate: async () => !!currentItem.value,
+    task: async () => {
+      const item = currentItem.value!
+      const payload = {
+        quotedPrice: quoteForm.value.quotedPrice,
+        quotedCurrency: quoteForm.value.quotedCurrency,
+        quotedStock: quoteForm.value.quotedStock,
+        quotedDeliveryDays: quoteForm.value.quotedDeliveryDays,
+        quotedBrand: quoteForm.value.quotedBrand || undefined,
+        quoteRemark: quoteForm.value.quoteRemark || undefined,
+      }
+      if (isEditQuote.value) {
+        await bomApi.updateItemQuote(bomId.value, item.id, payload)
+      } else {
+        await bomApi.manualQuoteItem(bomId.value, item.id, payload)
+      }
+      return isEditQuote.value ? ('edit' as const) : ('create' as const)
+    },
+    formatSuccess: (mode) => (mode === 'edit' ? '报价已更新' : '人工报价成功'),
+    onSuccess: async () => {
+      quoteDialogVisible.value = false
+      await loadData()
+    },
+    errorMessage: () => '报价提交失败，请稍后重试'
+  })
 }
 
 // ── 删除 ──

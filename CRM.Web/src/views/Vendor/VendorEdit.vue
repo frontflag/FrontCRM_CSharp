@@ -299,10 +299,12 @@ import { vendorApi, vendorContactApi } from '@/api/vendor';
 import { draftApi } from '@/api/draft';
 import type { VendorContactInfo } from '@/types/vendor';
 import VendorContactDialog from './components/VendorContactDialog.vue';
+import { runValidatedFormSave } from '@/composables/useFormSubmit';
 
 const route = useRoute();
 const router = useRouter();
 
+/** 与 CustomerEdit 一致：create 路由无 id，:id/edit 有 id */
 const isEdit = computed(() => !!route.params.id);
 const vendorId = computed(() => route.params.id as string);
 
@@ -334,10 +336,9 @@ const formData = reactive({
   remark: ''
 });
 
-const formRules = computed<FormRules>(() => ({
-  officialName: [{ required: true, message: '请输入供应商全称', trigger: 'blur' }],
-  // code 由后端自动生成，无需前端必填验证
-}));
+const formRules: FormRules = {
+  officialName: [{ required: true, message: '请输入供应商全称', trigger: 'blur' }]
+};
 
 const contacts = ref<VendorContactInfo[]>([]);
 const showContactDialog = ref(false);
@@ -345,8 +346,8 @@ const editingContact = ref<VendorContactInfo | null>(null);
 
 const goBack = () => router.push('/vendors');
 
-const loadVendor = async () => {
-  if (!vendorId.value) return;
+const fetchVendorDetail = async () => {
+  if (!isEdit.value) return;
   try {
     const v = await vendorApi.getVendorById(vendorId.value);
     const data = v as any;
@@ -411,31 +412,32 @@ const handleRestoreDraft = async () => {
 };
 
 const handleSave = async () => {
-  const valid = await formRef.value?.validate().catch(() => false);
-  if (!valid) return;
-  saving.value = true;
-  try {
-    if (isEdit.value) {
-      await vendorApi.updateVendor(vendorId.value, {
-        name: formData.officialName,
-        remark: formData.remark
-      });
-      ElMessage.success('保存成功');
-    } else {
+  const editing = isEdit.value;
+  await runValidatedFormSave(formRef, {
+    loading: saving,
+    task: async () => {
+      if (editing) {
+        await vendorApi.updateVendor(vendorId.value, {
+          name: formData.officialName,
+          remark: formData.remark
+        });
+        return 'edit' as const;
+      }
       await vendorApi.createVendor({
         name: formData.officialName.trim(),
         remark: formData.remark?.trim() || undefined
       });
-      ElMessage.success('创建成功');
-      router.replace('/vendors');
-      return;
+      return 'create' as const;
+    },
+    formatSuccess: (mode) => (mode === 'edit' ? '保存成功' : '创建成功'),
+    onSuccess: (mode) => {
+      if (mode === 'create') router.replace('/vendors');
+    },
+    errorMessage: (error: unknown) => {
+      const e = error as { message?: string; data?: { message?: string } };
+      return e?.message || e?.data?.message || '保存失败';
     }
-  } catch (error: any) {
-    const msg = error?.message || error?.data?.message || '保存失败';
-    ElMessage.error(msg);
-  } finally {
-    saving.value = false;
-  }
+  });
 };
 
 const handleConvertToFormal = async () => {
@@ -463,7 +465,7 @@ const openContactDialog = (contact?: VendorContactInfo) => {
 };
 
 const onContactSuccess = () => {
-  loadVendor();
+  void fetchVendorDetail();
 };
 
 const handleDeleteContact = async (row: VendorContactInfo) => {
@@ -471,19 +473,16 @@ const handleDeleteContact = async (row: VendorContactInfo) => {
     await ElMessageBox.confirm('确定要删除该联系人吗？', '确认删除', { type: 'warning' });
     await vendorContactApi.deleteContact(row.id);
     ElMessage.success('删除成功');
-    loadVendor();
+    void fetchVendorDetail();
   } catch (e) {
     if (e !== 'cancel') ElMessage.error('删除失败');
   }
 };
 
 onMounted(() => {
-  if (isEdit.value) {
-    loadVendor();
-    return;
-  }
+  void fetchVendorDetail();
   const draftId = route.query.draftId;
-  if (typeof draftId === 'string' && draftId) {
+  if (!isEdit.value && typeof draftId === 'string' && draftId) {
     restoreDraftById(draftId).catch((err: any) => {
       ElMessage.error(err?.message || '草稿恢复失败');
     });
@@ -493,9 +492,11 @@ onMounted(() => {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .vendor-edit-page {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   padding: 24px;
   min-height: 100%;
   background: $layer-1;

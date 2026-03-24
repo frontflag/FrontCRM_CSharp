@@ -1,0 +1,26 @@
+---
+description: 全站列表/表格与客户列表统一视觉
+globs: CRM.Web/src/**/*.vue
+---
+
+# 列表样式约定（FrontCRM）
+
+全局已在 `main.scss` 引入 `crm-unified-list.scss`，并与 `main.scss` 内全局 `el-table` 覆盖一致。
+
+## 原生 `<table>`
+
+- 外层容器：`class="table-wrapper"`
+- 表格：`class="data-table"`
+- 参考：`CustomerList.vue`、`VendorList.vue`
+
+## Element Plus `el-table`
+
+- **不要**使用 `border` 属性（易出现浅色表头/竖线）。
+- 外层：`class="table-wrapper crm-items-table"` 包裹 `<el-table>`。
+- 可选整块卡片：`class="crm-list-card"`（筛选+表格一体时）。
+
+## 新页面
+
+新建含表格页面时，直接按上述结构加 class，无需再复制一套深色表格样式。
+
+财务模块列表页使用 `table-wrapper crm-items-table` 替代原 `table-wrap` + `crm-table`（样式已合并到全局）。

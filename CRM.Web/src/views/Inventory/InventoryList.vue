@@ -26,14 +26,10 @@
       </div>
     </div>
 
-    <div class="table-panel">
-      <el-table
-        :data="list"
-        v-loading="loading"
-        class="quantum-table"
-        :header-cell-style="tableHeaderStyle"
-        :cell-style="tableCellStyle"
-      >
+    <CrmDataTable
+      :data="list"
+      v-loading="loading"
+    >
         <el-table-column type="index" width="50" align="center" />
         <el-table-column prop="materialId" label="物料ID" width="140" show-overflow-tooltip />
         <el-table-column prop="warehouseId" label="仓库ID" width="140" show-overflow-tooltip />
@@ -55,8 +51,7 @@
             </span>
           </template>
         </el-table-column>
-      </el-table>
-    </div>
+    </CrmDataTable>
   </div>
 </template>
 
@@ -67,21 +62,6 @@ import { stockApi, type StockInfo } from '@/api/stock'
 const loading = ref(false)
 const list = ref<StockInfo[]>([])
 const warehouseFilter = ref('')
-
-const tableHeaderStyle = () => ({
-  background: '#0A1628',
-  color: 'rgba(200,216,232,0.55)',
-  fontSize: '12px',
-  fontWeight: '500',
-  borderBottom: '1px solid rgba(0,212,255,0.12)',
-  padding: '10px 0'
-})
-const tableCellStyle = () => ({
-  background: 'transparent',
-  borderBottom: '1px solid rgba(255,255,255,0.05)',
-  color: 'rgba(224,244,255,0.85)',
-  fontSize: '13px'
-})
 
 const formatNum = (v: number) => (v == null ? '--' : Number(v).toLocaleString())
 
@@ -153,12 +133,6 @@ onMounted(() => fetchList())
   color: #fff;
   font-size: 13px;
   cursor: pointer;
-}
-.table-panel {
-  background: $layer-2;
-  border: 1px solid $border-panel;
-  border-radius: 8px;
-  padding: 16px;
 }
 .status-dot {
   display: inline-block;

@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Quote;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
 {
@@ -10,13 +11,16 @@ namespace CRM.Core.Services
     {
         private readonly IRepository<Quote> _quoteRepository;
         private readonly IRepository<QuoteItem> _quoteItemRepository;
+        private readonly IUnitOfWork _unitOfWork;
 
         public QuoteService(
             IRepository<Quote> quoteRepository,
-            IRepository<QuoteItem> quoteItemRepository)
+            IRepository<QuoteItem> quoteItemRepository,
+            IUnitOfWork unitOfWork)
         {
             _quoteRepository = quoteRepository;
             _quoteItemRepository = quoteItemRepository;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<Quote> CreateAsync(CreateQuoteRequest request)
@@ -39,7 +43,7 @@ namespace CRM.Core.Services
                 CustomerId = request.CustomerId,
                 SalesUserId = request.SalesUserId,
                 PurchaseUserId = request.PurchaseUserId,
-                QuoteDate = request.QuoteDate == default ? DateTime.UtcNow : request.QuoteDate,
+                QuoteDate = request.QuoteDate == default ? DateTime.UtcNow : PostgreSqlDateTime.ToUtc(request.QuoteDate),
                 Status = request.Status,
                 Remark = request.Remark,
                 CreateTime = DateTime.UtcNow
@@ -54,6 +58,7 @@ namespace CRM.Core.Services
                 await _quoteItemRepository.AddAsync(item);
             }
 
+            await _unitOfWork.SaveChangesAsync();
             return quote;
         }
 
@@ -62,7 +67,13 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(id))
                 return null;
 
-            return await _quoteRepository.GetByIdAsync(id);
+            var quote = await _quoteRepository.GetByIdAsync(id);
+            if (quote == null)
+                return null;
+
+            var items = await _quoteItemRepository.FindAsync(i => i.QuoteId == id);
+            quote.Items = items.ToList();
+            return quote;
         }
 
         public async Task<IEnumerable<Quote>> GetAllAsync()
@@ -83,7 +94,7 @@ namespace CRM.Core.Services
             if (request.CustomerId != null) quote.CustomerId = request.CustomerId;
             if (request.SalesUserId != null) quote.SalesUserId = request.SalesUserId;
             if (request.PurchaseUserId != null) quote.PurchaseUserId = request.PurchaseUserId;
-            if (request.QuoteDate.HasValue) quote.QuoteDate = request.QuoteDate.Value;
+            if (request.QuoteDate.HasValue) quote.QuoteDate = PostgreSqlDateTime.ToUtc(request.QuoteDate.Value);
             if (request.Status.HasValue) quote.Status = request.Status.Value;
             if (request.Remark != null) quote.Remark = request.Remark;
 
@@ -106,6 +117,7 @@ namespace CRM.Core.Services
                 }
             }
 
+            await _unitOfWork.SaveChangesAsync();
             return quote;
         }
 
@@ -124,6 +136,7 @@ namespace CRM.Core.Services
                 await _quoteItemRepository.DeleteAsync(item.Id);
 
             await _quoteRepository.DeleteAsync(id);
+            await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task UpdateStatusAsync(string id, short status)
@@ -139,6 +152,7 @@ namespace CRM.Core.Services
             quote.ModifyTime = DateTime.UtcNow;
 
             await _quoteRepository.UpdateAsync(quote);
+            await _unitOfWork.SaveChangesAsync();
         }
 
         private static QuoteItem MapToQuoteItem(string quoteId, CreateQuoteItemRequest req)
@@ -153,7 +167,7 @@ namespace CRM.Core.Services
                 ContactId = req.ContactId,
                 ContactName = req.ContactName,
                 PriceType = req.PriceType,
-                ExpiryDate = req.ExpiryDate,
+                ExpiryDate = PostgreSqlDateTime.ToUtc(req.ExpiryDate),
                 Mpn = req.Mpn,
                 Brand = req.Brand,
                 BrandOrigin = req.BrandOrigin,

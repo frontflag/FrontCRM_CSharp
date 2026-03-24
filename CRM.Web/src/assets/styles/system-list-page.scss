@@ -1,4 +1,4 @@
-// 系统管理列表页：与 RFQ「需求明细」列表深色表格风格一致
+// 系统管理列表页布局；表格视觉与全站统一（见 crm-unified-list.scss + .table-wrapper.crm-items-table）
 .crm-system-list-page {
   padding: 20px;
 }
@@ -23,21 +23,5 @@
 
   :deep(.el-card__body) {
     padding: 20px;
-  }
-
-  :deep(.el-table) {
-    background: transparent;
-    --el-table-header-bg-color: rgba(0, 212, 255, 0.1);
-    --el-table-tr-bg-color: transparent;
-    --el-table-border-color: rgba(0, 212, 255, 0.1);
-    color: #e8f4ff;
-
-    .el-table__cell .el-button {
-      white-space: nowrap !important;
-    }
-
-    .el-table__cell .cell {
-      white-space: nowrap;
-    }
   }
 }

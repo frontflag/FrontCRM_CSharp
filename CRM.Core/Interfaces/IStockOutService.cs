@@ -8,6 +8,7 @@ namespace CRM.Core.Interfaces
     public interface IStockOutService
     {
         Task<StockOutRequest> CreateStockOutRequestAsync(CreateStockOutRequestRequest request);
+        Task<IEnumerable<StockOutRequestListItemDto>> GetStockOutRequestListAsync();
         /// <summary>
         /// 执行出库（内部包含预占/拣货/出库确认的 FIFO 逻辑）
         /// </summary>
@@ -24,6 +25,7 @@ namespace CRM.Core.Interfaces
         public string CustomerId { get; set; } = string.Empty;
         public string RequestUserId { get; set; } = string.Empty;
         public DateTime RequestDate { get; set; }
+        public string? Remark { get; set; }
         public List<CreateStockOutRequestItemRequest> Items { get; set; } = new();
     }
 
@@ -34,6 +36,21 @@ namespace CRM.Core.Interfaces
         public string MaterialName { get; set; } = string.Empty;
         public decimal Quantity { get; set; }
         public string? WarehouseLocation { get; set; }
+    }
+
+    public class StockOutRequestListItemDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string RequestCode { get; set; } = string.Empty;
+        public string SalesOrderId { get; set; } = string.Empty;
+        public string? SalesOrderCode { get; set; }
+        public string CustomerId { get; set; } = string.Empty;
+        public string? CustomerName { get; set; }
+        public string RequestUserId { get; set; } = string.Empty;
+        public DateTime RequestDate { get; set; }
+        public short Status { get; set; }
+        public string? Remark { get; set; }
+        public DateTime CreateTime { get; set; }
     }
 
     public class ExecuteStockOutRequest

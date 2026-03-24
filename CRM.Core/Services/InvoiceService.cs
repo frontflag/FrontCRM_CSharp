@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
 {
@@ -38,7 +39,7 @@ namespace CRM.Core.Services
                 OrderId = request.InvoiceType == 1 ? request.PurchaseOrderId : request.SalesOrderId,
                 CustomerId = request.CustomerId,
                 VendorId = request.VendorId,
-                InvoiceDate = request.InvoiceDate,
+                InvoiceDate = PostgreSqlDateTime.ToUtc(request.InvoiceDate),
                 Amount = request.Amount,
                 TaxAmount = request.TaxAmount,
                 TotalAmount = request.TotalAmount,

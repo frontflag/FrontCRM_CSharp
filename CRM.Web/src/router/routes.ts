@@ -1,4 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router'
+import VendorEdit from '@/views/Vendor/VendorEdit.vue'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -105,8 +106,8 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'rfqs/:id/edit',
         name: 'RFQEdit',
-        component: () => import('@/views/RFQ/RFQEdit.vue'),
-        meta: { requiresAuth: true, title: '编辑 RFQ' }
+        component: () => import('@/views/RFQ/RFQCreate.vue'),
+        meta: { requiresAuth: true, title: '编辑需求' }
       },
       // BOM 快速报价
       {
@@ -137,7 +138,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'vendors/create',
         name: 'VendorCreate',
-        component: () => import('@/views/Vendor/VendorEdit.vue'),
+        component: VendorEdit,
         meta: { requiresAuth: true, title: '新增供应商', permission: 'vendor.write' }
       },
       {
@@ -161,7 +162,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'vendors/:id/edit',
         name: 'VendorEdit',
-        component: () => import('@/views/Vendor/VendorEdit.vue'),
+        component: VendorEdit,
         meta: { requiresAuth: true, title: '编辑供应商', permission: 'vendor.write' }
       },
       {
@@ -225,12 +226,24 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Inventory/InventoryCheck.vue'),
         meta: { requiresAuth: true, title: '库存盘点' }
       },
-      // 报价管理
+      // 报价管理（quotes/create、quotes/:id/edit 必须在 quotes/:id 之前，否则 :id 会误匹配）
       {
         path: 'quotes',
         name: 'QuoteList',
         component: () => import('@/views/RFQ/QuoteList.vue'),
-        meta: { requiresAuth: true, title: '报价管理' }
+        meta: { requiresAuth: true, title: '报价列表' }
+      },
+      {
+        path: 'quotes/create',
+        name: 'QuoteCreate',
+        component: () => import('@/views/RFQ/QuoteCreate.vue'),
+        meta: { requiresAuth: true, title: '新建报价' }
+      },
+      {
+        path: 'quotes/:id/edit',
+        name: 'QuoteEdit',
+        component: () => import('@/views/RFQ/QuoteCreate.vue'),
+        meta: { requiresAuth: true, title: '编辑报价' }
       },
       {
         path: 'quotes/:id',
@@ -244,6 +257,25 @@ const routes: RouteRecordRaw[] = [
         name: 'PurchaseOrderList',
         component: () => import('@/views/RFQ/PurchaseOrderList.vue'),
         meta: { requiresAuth: true, title: '采购订单' }
+      },
+      // 采购申请
+      {
+        path: 'purchase-requisitions',
+        name: 'PurchaseRequisitionList',
+        component: () => import('@/views/RFQ/PurchaseRequisitionListPage.vue'),
+        meta: { requiresAuth: true, title: '采购申请' }
+      },
+      {
+        path: 'purchase-requisitions/new',
+        name: 'PurchaseRequisitionCreate',
+        component: () => import('@/views/RFQ/PurchaseRequisitionCreate.vue'),
+        meta: { requiresAuth: true, title: '新建采购申请' }
+      },
+      {
+        path: 'purchase-requisitions/:id',
+        name: 'PurchaseRequisitionDetail',
+        component: () => import('@/views/RFQ/PurchaseRequisitionDetailPage.vue'),
+        meta: { requiresAuth: true, title: '采购申请详情' }
       },
       {
         path: 'purchase-orders/new',
@@ -263,6 +295,25 @@ const routes: RouteRecordRaw[] = [
         name: 'SalesOrderList',
         component: () => import('@/views/RFQ/SalesOrderList.vue'),
         meta: { requiresAuth: true, title: '销售订单' }
+      },
+      {
+        path: 'sales-order-items',
+        name: 'SalesOrderItemList',
+        component: () => import('@/views/RFQ/SalesOrderItemList.vue'),
+        meta: { requiresAuth: true, title: '销售订单明细', permission: 'sales-order.read' }
+      },
+      {
+        path: 'stock-out-notifies',
+        name: 'StockOutNotifyList',
+        component: () => import('@/views/RFQ/StockOutNotifyList.vue'),
+        meta: { requiresAuth: true, title: '出库通知', permission: 'sales-order.read' }
+      },
+      // 采购订单明细
+      {
+        path: 'purchase-order-items',
+        name: 'PurchaseOrderItemList',
+        component: () => import('@/views/RFQ/PurchaseOrderItemList.vue'),
+        meta: { requiresAuth: true, title: '采购订单明细', permission: 'purchase-order.read' }
       },
       {
         path: 'sales-orders/new',
@@ -442,6 +493,12 @@ const routes: RouteRecordRaw[] = [
         name: 'DocumentDemo',
         component: () => import('@/views/Document/DocumentDemo.vue'),
         meta: { requiresAuth: true, title: '文档模块演示' }
+      },
+      {
+        path: 'debug',
+        name: 'DebugList',
+        component: () => import('@/views/Debug/DebugList.vue'),
+        meta: { requiresAuth: true, title: 'Debug' }
       }
     ]
   }

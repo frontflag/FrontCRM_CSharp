@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
 {
@@ -37,7 +38,7 @@ namespace CRM.Core.Services
                 BillAmount = request.BillAmount,
                 TaxAmount = request.TaxAmount,
                 ExcludTaxAmount = request.ExcludTaxAmount,
-                InvoiceDate = request.InvoiceDate,
+                InvoiceDate = PostgreSqlDateTime.ToUtc(request.InvoiceDate),
                 ConfirmStatus = 0,
                 RedInvoiceStatus = 0,
                 Remark = request.Remark,
@@ -131,7 +132,7 @@ namespace CRM.Core.Services
 
             if (request.InvoiceNo != null) invoice.InvoiceNo = request.InvoiceNo;
             if (request.InvoiceAmount.HasValue) invoice.InvoiceAmount = request.InvoiceAmount.Value;
-            if (request.InvoiceDate.HasValue) invoice.InvoiceDate = request.InvoiceDate.Value;
+            if (request.InvoiceDate.HasValue) invoice.InvoiceDate = PostgreSqlDateTime.ToUtc(request.InvoiceDate.Value);
             if (request.Remark != null) invoice.Remark = request.Remark;
             invoice.ModifyTime = DateTime.UtcNow;
 

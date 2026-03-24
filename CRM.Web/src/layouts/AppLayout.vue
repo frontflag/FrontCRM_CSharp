@@ -155,15 +155,34 @@
           <span class="active-dot" v-if="!isCollapsed"></span>
         </router-link>
 
-        <router-link to="/quotes" class="menu-item" active-class="active">
-          <span class="menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M12 2v20M2 12h20"/>
+        <div class="menu-group" v-if="hasPermission('rfq.read')">
+          <button
+            class="menu-item has-children"
+            @click="toggleGroup('quotes')"
+            :class="{ 'group-open': openGroups.quotes }"
+          >
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 2v20M2 12h20"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">报价管理</span>
+            <svg
+              v-if="!isCollapsed"
+              class="chevron"
+              :class="{ rotated: openGroups.quotes }"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M6 9l6 6 6-6"/>
             </svg>
-          </span>
-          <span class="menu-label" v-if="!isCollapsed">报价管理</span>
-          <span class="active-dot" v-if="!isCollapsed"></span>
-        </router-link>
+          </button>
+          <div class="submenu" v-if="!isCollapsed && openGroups.quotes">
+            <router-link to="/quotes" class="submenu-item" active-class="active" exact>报价列表</router-link>
+          </div>
+        </div>
 
         <!-- 订单 -->
         <div class="menu-section-label" v-if="!isCollapsed">订单</div>
@@ -183,7 +202,18 @@
           </button>
           <div class="submenu" v-if="!isCollapsed && openGroups.sales">
             <router-link to="/sales-orders" class="submenu-item" active-class="active">销售订单</router-link>
-            <button class="submenu-item" @click="handleUnimplemented('发货管理')">发货管理</button>
+            <router-link
+              v-if="hasPermission('sales-order.read')"
+              to="/sales-order-items"
+              class="submenu-item"
+              active-class="active"
+            >销售订单明细</router-link>
+            <router-link
+              v-if="hasPermission('sales-order.read')"
+              to="/stock-out-notifies"
+              class="submenu-item"
+              active-class="active"
+            >出库通知</router-link>
             <button class="submenu-item" @click="handleUnimplemented('销售退货')">销售退货</button>
           </div>
         </div>
@@ -204,7 +234,14 @@
             </svg>
           </button>
           <div class="submenu" v-if="!isCollapsed && openGroups.purchase">
+            <router-link to="/purchase-requisitions" class="submenu-item" active-class="active">采购申请</router-link>
             <router-link to="/purchase-orders" class="submenu-item" active-class="active">采购订单</router-link>
+            <router-link
+              v-if="hasPermission('purchase-order.read')"
+              to="/purchase-order-items"
+              class="submenu-item"
+              active-class="active"
+            >采购订单明细</router-link>
             <button class="submenu-item" @click="handleUnimplemented('收货管理')">收货管理</button>
             <button class="submenu-item" @click="handleUnimplemented('采购退货')">采购退货</button>
           </div>
@@ -438,7 +475,8 @@
 
       <!-- 页面内容 -->
       <div class="content-wrapper">
-        <router-view />
+        <!-- path 作为 key：新增/编辑切换时重挂载；避免 fullPath（含 query）导致异常重挂载 -->
+        <router-view :key="route.path" />
       </div>
     </main>
   </div>
@@ -462,6 +500,7 @@ const openGroups = ref({
   customers: false,
   vendors: false,
   rfqs: false,
+  quotes: false,
   finance: false,
   systemManagement: false
 })
@@ -469,7 +508,7 @@ const openGroups = ref({
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
   if (isCollapsed.value) {
-    openGroups.value = { purchase: false, sales: false, inventory: false, customers: false, vendors: false, rfqs: false, finance: false, systemManagement: false }
+    openGroups.value = { purchase: false, sales: false, inventory: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, systemManagement: false }
   }
 }
 
@@ -507,16 +546,22 @@ const pageTitleMap: Record<string, string> = {
   '/dashboard/settings': '系统设置',
   '/rfqs': 'RFQ 管理',
   '/rfq-items': '需求明细',
-  '/quotes': '报价管理',
+  '/quotes': '报价列表',
+  '/quotes/create': '新建报价',
   '/purchase-orders': '采购订单',
+  '/purchase-order-items': '采购订单明细',
   '/sales-orders': '销售订单',
+  '/sales-order-items': '销售订单明细',
+  '/stock-out-notifies': '出库通知',
   '/profile': '个人设置',
   '/drafts': '草稿箱',
+  '/debug': 'Debug',
 }
 
 const currentPageTitle = computed(() => {
   const path = route.path
   if (pageTitleMap[path]) return pageTitleMap[path]
+  if (/^\/quotes\/[^/]+\/edit$/.test(path)) return '编辑报价'
   if (path.includes('/customers/') && path.includes('/edit')) return '编辑客户'
   if (path.includes('/customers/')) return '客户详情'
   if (path.includes('/vendors/') && path.includes('/edit')) return '编辑供应商'
@@ -562,6 +607,15 @@ watch(
   (p) => {
     if (p === '/rfqs' || p.startsWith('/rfqs/') || p === '/rfq-items') {
       openGroups.value.rfqs = true
+    }
+    if (p === '/quotes' || p.startsWith('/quotes/')) {
+      openGroups.value.quotes = true
+    }
+    if (p === '/sales-orders' || p.startsWith('/sales-orders/') || p === '/sales-order-items' || p === '/stock-out-notifies') {
+      openGroups.value.sales = true
+    }
+    if (p === '/purchase-orders' || p.startsWith('/purchase-orders/') || p === '/purchase-order-items') {
+      openGroups.value.purchase = true
     }
     if (p.startsWith('/system/')) {
       openGroups.value.systemManagement = true
@@ -1225,6 +1279,8 @@ onMounted(() => {
 // 内容区域
 .content-wrapper {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   background: vars.$layer-1;

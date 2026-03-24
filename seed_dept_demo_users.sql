@@ -25,9 +25,10 @@ INSERT INTO sys_department (
 ON CONFLICT ("DepartmentId") DO NOTHING;
 
 -- ---------- 2) 角色：部门经理（除 rbac 管理外全权限） / 员工（只读类权限）----------
+-- 部门角色编码以 seed_dept_org_roles.sql 为准：DEPT_MANAGER / DEPT_EMPLOYEE / DEPT_DIRECTOR
 INSERT INTO sys_role ("RoleId", "RoleCode", "RoleName", "Description", "Status", "CreateTime") VALUES
 ('21000000-0000-4000-8000-000000000001', 'DEPT_MANAGER', '部门经理', '业务全权限（不含 rbac.manage）', 1, NOW()),
-('21000000-0000-4000-8000-000000000002', 'DEPT_STAFF', '部门员工', '只读 + 查看敏感字段类权限', 1, NOW())
+('21000000-0000-4000-8000-000000000002', 'DEPT_EMPLOYEE', '部门员工', '只读 + 查看敏感字段类权限', 1, NOW())
 ON CONFLICT ("RoleCode") DO NOTHING;
 
 -- 经理：除 rbac.manage 外全部权限
@@ -48,7 +49,7 @@ INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "
 SELECT gen_random_uuid()::text, r."RoleId", p."PermissionId", NOW()
 FROM sys_role r
 CROSS JOIN sys_permission p
-WHERE r."RoleCode" = 'DEPT_STAFF'
+WHERE r."RoleCode" = 'DEPT_EMPLOYEE'
   AND p."PermissionCode" IN (
     'customer.read', 'customer.info.read',
     'vendor.read', 'vendor.info.read',
@@ -84,10 +85,10 @@ SELECT gen_random_uuid()::text, u."UserId", r."RoleId", NOW()
 FROM "user" u
 CROSS JOIN sys_role r
 WHERE (u."UserName", r."RoleCode") IN (
-  ('sales_mgr', 'DEPT_MANAGER'), ('sales_staff', 'DEPT_STAFF'),
-  ('purchase_mgr', 'DEPT_MANAGER'), ('purchase_staff', 'DEPT_STAFF'),
-  ('logistics_mgr', 'DEPT_MANAGER'), ('logistics_staff', 'DEPT_STAFF'),
-  ('finance_mgr', 'DEPT_MANAGER'), ('finance_staff', 'DEPT_STAFF')
+  ('sales_mgr', 'DEPT_MANAGER'), ('sales_staff', 'DEPT_EMPLOYEE'),
+  ('purchase_mgr', 'DEPT_MANAGER'), ('purchase_staff', 'DEPT_EMPLOYEE'),
+  ('logistics_mgr', 'DEPT_MANAGER'), ('logistics_staff', 'DEPT_EMPLOYEE'),
+  ('finance_mgr', 'DEPT_MANAGER'), ('finance_staff', 'DEPT_EMPLOYEE')
 )
 AND NOT EXISTS (
   SELECT 1 FROM sys_user_role x WHERE x."UserId" = u."UserId" AND x."RoleId" = r."RoleId"

@@ -1,3 +1,4 @@
+<!-- 路由 rfqs/:id/edit 已改用 RFQCreate.vue；本页未再挂载，保留作历史参考。 -->
 <template>
   <div class="rfq-edit-page">
     <!-- 页面头部 -->
@@ -473,6 +474,7 @@ import { ElNotification, ElMessageBox } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
 import { draftApi } from '@/api/draft'
 import type { CreateRFQRequest, CreateRFQItemRequest } from '@/types/rfq'
+import { getApiErrorMessage } from '@/utils/apiError'
 
 const router = useRouter()
 const route = useRoute()
@@ -807,10 +809,10 @@ async function handleSave() {
       message: isEdit.value ? '需求信息已成功更新' : '需求已成功创建'
     })
     setTimeout(() => router.push('/rfqs'), 1500)
-  } catch (err: any) {
+  } catch (err: unknown) {
     ElNotification.error({
       title: '保存失败',
-      message: err?.message || '保存失败，请稍后重试'
+      message: getApiErrorMessage(err, '保存失败，请稍后重试')
     })
   } finally {
     saving.value = false

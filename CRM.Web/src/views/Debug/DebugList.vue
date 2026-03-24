@@ -2,41 +2,68 @@
   <div class="debug-page">
     <div class="debug-header">
       <h1>Debug</h1>
-      <div class="debug-sub">读取数据库 `debug` 表的全部记录</div>
+      <div class="debug-sub">按 PRD 分三块：版本（前端硬编码）、数据库连接（后端脱敏）、debug 表记录。</div>
     </div>
+
+    <section class="debug-panel panel-version">
+      <h2 class="panel-title">版本面板</h2>
+      <div class="panel-body">
+        <span class="meta-label">版本号</span>
+        <span class="meta-value mono version-strong">{{ FRONTEND_DEBUG_VERSION }}</span>
+      </div>
+    </section>
 
     <div v-if="loading" class="debug-loading">Loading...</div>
     <div v-else-if="error" class="debug-error">{{ error }}</div>
 
-    <el-table v-else :data="items" border style="width: 100%">
-      <el-table-column prop="name" label="Name" min-width="200" />
-      <el-table-column prop="value" label="Value" min-width="320" show-overflow-tooltip />
-    </el-table>
+    <template v-else>
+      <!-- 数据库面板 -->
+      <section class="debug-panel panel-db">
+        <h2 class="panel-title">数据库面板</h2>
+        <div class="panel-body connection-block">
+          <span class="meta-value mono break-all">{{ connectionDisplay }}</span>
+        </div>
+      </section>
 
-    <div v-if="!loading && !error && items.length === 0" class="debug-empty">
-      没有 debug 记录
-    </div>
+      <!-- 记录面板 -->
+      <section class="debug-panel panel-records">
+        <h2 class="panel-title">记录面板</h2>
+        <CrmDataTable embedded :data="items" class="debug-table">
+          <el-table-column prop="name" label="Name" min-width="200" />
+          <el-table-column prop="value" label="Value" min-width="320" show-overflow-tooltip />
+        </CrmDataTable>
+        <div v-if="items.length === 0" class="debug-empty">没有 debug 记录</div>
+      </section>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { getDebugItems, type DebugItem } from '@/api/debug'
+import { computed, onMounted, ref } from 'vue'
+import { getDebugPage } from '@/api/debug'
 
-const items = ref<DebugItem[]>([])
+/** PRD：Debug 页硬编码版本号，用于验证前端是否为最新 */
+const FRONTEND_DEBUG_VERSION = '1.101'
+
+const items = ref<{ name: string; value: string }[]>([])
+const databaseConnectionDisplay = ref('')
 const loading = ref(false)
 const error = ref<string | null>(null)
+
+const connectionDisplay = computed(() => databaseConnectionDisplay.value || '—')
 
 onMounted(async () => {
   loading.value = true
   error.value = null
   try {
-    items.value = await getDebugItems()
+    const page = await getDebugPage()
+    databaseConnectionDisplay.value = page.databaseConnectionDisplay ?? ''
+    items.value = page.items ?? []
   } catch (e: any) {
     error.value =
       e?.response?.data?.message ||
       e?.message ||
-      '获取 Debug 列表失败'
+      '获取 Debug 数据失败'
   } finally {
     loading.value = false
   }
@@ -48,19 +75,71 @@ onMounted(async () => {
   padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
 .debug-header h1 {
   margin: 0;
   font-size: 20px;
   font-weight: 700;
+  color: #e8f4ff;
 }
 
 .debug-sub {
   margin-top: 6px;
   font-size: 12px;
   color: rgba(200, 220, 240, 0.7);
+  line-height: 1.5;
+}
+
+.debug-panel {
+  padding: 16px 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  background: rgba(0, 212, 255, 0.06);
+}
+
+.panel-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #e8f4ff;
+}
+
+.panel-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.connection-block {
+  display: block;
+}
+
+.meta-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(200, 216, 232, 0.85);
+}
+
+.meta-value {
+  font-size: 13px;
+  color: #e8f4ff;
+}
+
+.version-strong {
+  font-size: 18px;
+  font-weight: 700;
+  color: #00d4ff;
+}
+
+.mono {
+  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+}
+
+.break-all {
+  word-break: break-all;
 }
 
 .debug-loading {
@@ -76,8 +155,18 @@ onMounted(async () => {
 }
 
 .debug-empty {
+  margin-top: 10px;
   color: rgba(200, 220, 240, 0.7);
   font-size: 13px;
 }
-</style>
 
+.debug-table {
+  :deep(.el-table__header-wrapper th) {
+    background: rgba(0, 212, 255, 0.08);
+    color: rgba(200, 216, 232, 0.9);
+  }
+  :deep(.el-table__body-wrapper td) {
+    color: #e8f4ff;
+  }
+}
+</style>

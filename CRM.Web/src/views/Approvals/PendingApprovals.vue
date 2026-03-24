@@ -1,83 +1,81 @@
 <template>
   <div class="pending-approvals-page">
-    <!-- 页面标题 -->
     <div class="page-header">
       <h2 class="page-title">待审批</h2>
     </div>
 
-    <!-- 搜索栏 -->
     <div class="search-bar">
       <div class="search-left">
         <span class="search-label">业务类型</span>
-        <el-select v-model="searchForm.bizType" placeholder="全部" clearable style="width: 160px" @change="handleSearch">
+        <el-select
+          v-model="searchForm.bizType"
+          placeholder="全部"
+          clearable
+          style="width: 200px"
+          @change="handleSearch"
+        >
+          <el-option label="供应商" value="VENDOR" />
+          <el-option label="报价单" value="QUOTE" />
           <el-option label="销售订单" value="SALES_ORDER" />
-          <el-option label="采购订单" value="PURCHASE_ORDER" />
-          <el-option label="收款单" value="RECEIPT" />
-          <el-option label="付款单" value="PAYMENT" />
-          <el-option label="销售发票" value="SELL_INVOICE" />
-          <el-option label="采购发票" value="PURCHASE_INVOICE" />
+          <el-option label="收款单" value="FINANCE_RECEIPT" />
+          <el-option label="付款单" value="FINANCE_PAYMENT" />
         </el-select>
       </div>
     </div>
 
-    <!-- 数据表格 -->
-    <div class="table-wrapper">
-      <el-table
-        :data="approvalList"
-        v-loading="loading"
-        highlight-current-row
-      >
-        <el-table-column label="业务类型" width="120">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="getBizTypeTagType(row.bizType)" size="small">
-              {{ getBizTypeText(row.bizType) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="bizCode" label="单据编号" min-width="180">
-          <template #default="{ row }">
-            <span class="code-link" @click="handleView(row)">{{ row.bizCode }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="relatedName" label="客户/供应商" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="amount" label="金额" width="140" align="right">
-          <template #default="{ row }">
-            <span class="amount-text" v-if="row.amount != null">
-              ¥{{ Number(row.amount).toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}
-            </span>
-            <span class="text-muted" v-else>—</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="submittedAt" label="提交时间" width="160">
-          <template #default="{ row }">
-            {{ formatDate(row.submittedAt) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
-          <template #default="{ row }">
-            <div class="action-btns">
-              <el-button link type="primary" size="small" @click="handleApprove(row)">审批通过</el-button>
-              <el-button link type="danger" size="small" @click="handleReject(row)">驳回</el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
+    <CrmDataTable :data="approvalList" v-loading="loading" highlight-current-row>
+      <el-table-column label="业务类型" width="120">
+        <template #default="{ row }">
+          <el-tag effect="dark" :type="getBizTypeTagType(row.bizType)" size="small">
+            {{ row.bizTypeName || getBizTypeText(row.bizType) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="documentCode" label="单据编号" min-width="180">
+        <template #default="{ row }">
+          <span class="code-link" @click="handleView(row)">{{ row.documentCode }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="counterpartyName" label="客户/供应商" min-width="200" show-overflow-tooltip />
+      <el-table-column prop="amount" label="金额" width="140" align="right">
+        <template #default="{ row }">
+          <span class="amount-text" v-if="row.amount != null">
+            {{ formatAmount(row.amount, row.currency) }}
+          </span>
+          <span class="text-muted" v-else>—</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="createdAt" label="提交时间" width="160">
+        <template #default="{ row }">
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="180" fixed="right">
+        <template #default="{ row }">
+          <div class="action-btns">
+            <el-button link type="primary" size="small" :loading="actionLoading" @click="handleApprove(row)">
+              审批通过
+            </el-button>
+            <el-button link type="danger" size="small" :loading="actionLoading" @click="handleReject(row)">
+              驳回
+            </el-button>
+          </div>
+        </template>
+      </el-table-column>
+    </CrmDataTable>
 
-      <!-- 分页 -->
-      <div class="pagination-wrapper">
-        <el-pagination
-          v-model:current-page="pagination.pageNumber"
-          v-model:page-size="pagination.pageSize"
-          :page-sizes="[20, 50, 100]"
-          :total="pagination.total"
-          layout="total, sizes, prev, pager, next"
-          @size-change="handleSearch"
-          @current-change="handleSearch"
-        />
-      </div>
+    <div class="pagination-wrapper">
+      <el-pagination
+        v-model:current-page="pagination.page"
+        v-model:page-size="pagination.pageSize"
+        :page-sizes="[20, 50, 100]"
+        :total="pagination.total"
+        layout="total, sizes, prev, pager, next"
+        @size-change="handleSearch"
+        @current-change="handleSearch"
+      />
     </div>
 
-    <!-- 驳回原因弹窗 -->
     <el-dialog v-model="rejectDialogVisible" title="驳回原因" width="420px">
       <el-form>
         <el-form-item label="驳回原因" label-width="80px">
@@ -85,7 +83,7 @@
             v-model="rejectReason"
             type="textarea"
             :rows="3"
-            placeholder="请输入驳回原因"
+            :placeholder="rejectRemarkRequired ? '销售订单驳回须填写原因' : '选填'"
           />
         </el-form-item>
       </el-form>
@@ -98,9 +96,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { approvalsApi, type BizType, type PendingApprovalItem } from '@/api/approvals'
 
 const router = useRouter()
 
@@ -108,40 +107,40 @@ const loading = ref(false)
 const actionLoading = ref(false)
 const rejectDialogVisible = ref(false)
 const rejectReason = ref('')
-const currentRow = ref<any>(null)
+const currentRow = ref<PendingApprovalItem | null>(null)
 
 const searchForm = ref({
-  bizType: ''
+  bizType: '' as '' | BizType
 })
 
 const pagination = ref({
-  pageNumber: 1,
+  page: 1,
   pageSize: 20,
   total: 0
 })
 
-const approvalList = ref<any[]>([])
+const approvalList = ref<PendingApprovalItem[]>([])
+
+const rejectRemarkRequired = computed(() => currentRow.value?.bizType === 'SALES_ORDER')
 
 const getBizTypeText = (type: string) => {
   const map: Record<string, string> = {
+    VENDOR: '供应商',
+    QUOTE: '报价单',
     SALES_ORDER: '销售订单',
-    PURCHASE_ORDER: '采购订单',
-    RECEIPT: '收款单',
-    PAYMENT: '付款单',
-    SELL_INVOICE: '销售发票',
-    PURCHASE_INVOICE: '采购发票'
+    FINANCE_RECEIPT: '收款单',
+    FINANCE_PAYMENT: '付款单'
   }
   return map[type] || type
 }
 
 const getBizTypeTagType = (type: string) => {
   const map: Record<string, string> = {
+    VENDOR: 'warning',
+    QUOTE: 'primary',
     SALES_ORDER: 'primary',
-    PURCHASE_ORDER: 'warning',
-    RECEIPT: 'success',
-    PAYMENT: 'danger',
-    SELL_INVOICE: 'info',
-    PURCHASE_INVOICE: ''
+    FINANCE_RECEIPT: 'success',
+    FINANCE_PAYMENT: 'danger'
   }
   return map[type] || ''
 }
@@ -149,64 +148,108 @@ const getBizTypeTagType = (type: string) => {
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '—'
   const d = new Date(dateStr)
-  return d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
-    + ' ' + d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+  return (
+    d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }) +
+    ' ' +
+    d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+  )
+}
+
+/** 币别：1=CNY 2=USD 3=EUR */
+const formatAmount = (amount: number, currency?: number | null) => {
+  const sym = currency === 2 ? '$' : currency === 3 ? '€' : '¥'
+  return sym + Number(amount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 const handleSearch = async () => {
   loading.value = true
   try {
-    // TODO: 接入真实 API
-    await new Promise(resolve => setTimeout(resolve, 300))
-    approvalList.value = []
-    pagination.value.total = 0
+    const res = await approvalsApi.getPendingApprovals({
+      bizType: searchForm.value.bizType || undefined,
+      page: pagination.value.page,
+      pageSize: pagination.value.pageSize
+    })
+    approvalList.value = res.items ?? []
+    pagination.value.total = res.total ?? 0
   } catch (e) {
-    ElMessage.error('加载失败')
+    ElMessage.error(e instanceof Error ? e.message : '加载失败')
   } finally {
     loading.value = false
   }
 }
 
-const handleView = (row: any) => {
-  const routeMap: Record<string, string> = {
-    SALES_ORDER: `/sales-orders/${row.bizId}`,
-    PURCHASE_ORDER: `/purchase-orders/${row.bizId}`,
-    RECEIPT: `/finance/receipts/${row.bizId}`,
-    PAYMENT: `/finance/payments/${row.bizId}`,
-    SELL_INVOICE: `/finance/sell-invoices/${row.bizId}`,
-    PURCHASE_INVOICE: `/finance/purchase-invoices/${row.bizId}`
+const handleView = (row: PendingApprovalItem) => {
+  const id = row.businessId
+  switch (row.bizType) {
+    case 'SALES_ORDER':
+      router.push({ name: 'SalesOrderDetail', params: { id } })
+      break
+    case 'VENDOR':
+      router.push({ name: 'VendorDetail', params: { id } })
+      break
+    case 'QUOTE':
+      router.push({ name: 'QuoteDetail', params: { id } })
+      break
+    case 'FINANCE_RECEIPT':
+      router.push({ name: 'FinanceReceiptDetail', params: { id } })
+      break
+    case 'FINANCE_PAYMENT':
+      router.push({ name: 'FinancePaymentDetail', params: { id } })
+      break
+    default:
+      ElMessage.warning('暂不支持从待审批跳转该类型')
   }
-  const path = routeMap[row.bizType]
-  if (path) router.push(path)
 }
 
-const handleApprove = async (row: any) => {
-  await ElMessageBox.confirm(`确认审批通过单据 ${row.bizCode}？`, '审批确认', {
-    confirmButtonText: '确认通过',
-    cancelButtonText: '取消',
-    type: 'success'
-  })
-  ElMessage.success('审批通过')
-  handleSearch()
+const handleApprove = async (row: PendingApprovalItem) => {
+  try {
+    await ElMessageBox.confirm(`确认审批通过单据 ${row.documentCode}？`, '审批确认', {
+      confirmButtonText: '确认通过',
+      cancelButtonText: '取消',
+      type: 'success'
+    })
+    actionLoading.value = true
+    await approvalsApi.decidePendingApproval({
+      bizType: row.bizType,
+      businessId: row.businessId,
+      decision: 'approve'
+    })
+    ElMessage.success('审批通过')
+    await handleSearch()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error(e instanceof Error ? e.message : '操作失败')
+    }
+  } finally {
+    actionLoading.value = false
+  }
 }
 
-const handleReject = (row: any) => {
+const handleReject = (row: PendingApprovalItem) => {
   currentRow.value = row
   rejectReason.value = ''
   rejectDialogVisible.value = true
 }
 
 const confirmReject = async () => {
-  if (!rejectReason.value.trim()) {
+  if (!currentRow.value) return
+  if (currentRow.value.bizType === 'SALES_ORDER' && !rejectReason.value.trim()) {
     ElMessage.warning('请输入驳回原因')
     return
   }
   actionLoading.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 300))
+    await approvalsApi.decidePendingApproval({
+      bizType: currentRow.value.bizType,
+      businessId: currentRow.value.businessId,
+      decision: 'reject',
+      remark: rejectReason.value.trim() || undefined
+    })
     ElMessage.success('已驳回')
     rejectDialogVisible.value = false
-    handleSearch()
+    await handleSearch()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '操作失败')
   } finally {
     actionLoading.value = false
   }
@@ -236,7 +279,6 @@ onMounted(() => {
   letter-spacing: 0.3px;
 }
 
-// 搜索栏
 .search-bar {
   display: flex;
   align-items: center;
@@ -255,15 +297,6 @@ onMounted(() => {
   margin-right: 8px;
 }
 
-// 表格容器
-.table-wrapper {
-  background: $layer-2;
-  border: 1px solid $border-card;
-  border-radius: $border-radius-lg;
-  overflow: hidden;
-}
-
-// 编号链接
 .code-link {
   color: $cyan-primary;
   cursor: pointer;
@@ -295,7 +328,6 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-// 分页
 .pagination-wrapper {
   display: flex;
   justify-content: flex-end;

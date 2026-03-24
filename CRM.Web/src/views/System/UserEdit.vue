@@ -29,21 +29,16 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="角色">
-          <el-select
-            v-model="formData.roleIds"
-            multiple
-            filterable
-            collapse-tags
-            style="width: 100%"
-          >
+        <el-form-item label="部门角色">
+          <el-select v-model="selectedDeptRoleId" filterable clearable placeholder="请选择总监 / 经理 / 员工" style="width: 100%">
             <el-option
-              v-for="r in roles"
+              v-for="r in departmentRoles"
               :key="r.id"
-              :label="`${r.roleCode} - ${r.roleName}`"
+              :label="`${r.roleCode} — ${r.roleName}`"
               :value="r.id"
             />
           </el-select>
+          <div class="field-hint">每个账号在部门维度仅分配一种组织角色，编码固定为 DEPT_DIRECTOR / DEPT_MANAGER / DEPT_EMPLOYEE。</div>
         </el-form-item>
 
         <el-form-item label="部门">
@@ -95,8 +90,13 @@ const isEdit = !!userId
 const loading = ref(false)
 const saving = ref(false)
 
+/** 与后端数据权限、seed_dept_org_roles.sql 一致 */
+const ORG_ROLE_CODES = ['DEPT_DIRECTOR', 'DEPT_MANAGER', 'DEPT_EMPLOYEE'] as const
+
 const roles = ref<RbacRole[]>([])
 const departments = ref<RbacDepartment[]>([])
+/** 非部门标准角色的 roleId（如 SYS_ADMIN），保存时原样带回，避免误删 */
+const preservedNonOrgRoleIds = ref<string[]>([])
 
 const formData = ref({
   userName: '',
@@ -109,6 +109,30 @@ const formData = ref({
   departmentIds: [] as string[],
   primaryDepartmentId: '' as string
 })
+
+const departmentRoles = computed(() =>
+  roles.value.filter(r => ORG_ROLE_CODES.includes(r.roleCode as (typeof ORG_ROLE_CODES)[number]))
+)
+
+const orgRoleIdSet = computed(() => new Set(departmentRoles.value.map(r => r.id)))
+
+const selectedDeptRoleId = computed({
+  get() {
+    const hit = formData.value.roleIds.find(id => orgRoleIdSet.value.has(id))
+    return hit ?? ''
+  },
+  set(v: string) {
+    const rest = formData.value.roleIds.filter(id => !orgRoleIdSet.value.has(id))
+    formData.value.roleIds = v ? [...rest, v] : rest
+  }
+})
+
+function buildRoleIdsForSubmit(): string[] {
+  const deptId = selectedDeptRoleId.value
+  const merged = [...preservedNonOrgRoleIds.value]
+  if (deptId) merged.push(deptId)
+  return [...new Set(merged)]
+}
 
 const availablePrimaryDepartments = computed(() => {
   if (!formData.value.departmentIds.length) return []
@@ -138,10 +162,33 @@ const load = async () => {
       formData.value.email = dto.email || ''
       formData.value.mobile = dto.mobile || ''
       formData.value.status = dto.status ?? 1
-      formData.value.roleIds = dto.roleIds || []
+      const allIds = dto.roleIds || []
+      const orgSet = orgRoleIdSet.value
+      preservedNonOrgRoleIds.value = allIds.filter(id => !orgSet.has(id))
+      formData.value.roleIds = allIds.filter(id => orgSet.has(id) || preservedNonOrgRoleIds.value.includes(id))
+
+      const unknown = preservedNonOrgRoleIds.value.filter(id => {
+        const r = roles.value.find(x => x.id === id)
+        if (!r) return true
+        return r.roleCode !== 'SYS_ADMIN'
+      })
+      if (unknown.length) {
+        ElMessage.warning(
+          '该用户含有非标准业务角色，保存时将被移除；请改用部门三种角色或联系管理员迁移数据。'
+        )
+        preservedNonOrgRoleIds.value = preservedNonOrgRoleIds.value.filter(id => {
+          const r = roles.value.find(x => x.id === id)
+          return r?.roleCode === 'SYS_ADMIN'
+        })
+        formData.value.roleIds = [...preservedNonOrgRoleIds.value, ...allIds.filter(id => orgSet.has(id))]
+      }
+
       formData.value.departmentIds = dto.departmentIds || []
       formData.value.primaryDepartmentId = dto.primaryDepartmentId || ''
       normalizePrimaryDepartment()
+    } else {
+      preservedNonOrgRoleIds.value = []
+      formData.value.roleIds = []
     }
   } catch (e: any) {
     ElMessage.error(e?.message || '加载数据失败')
@@ -164,6 +211,12 @@ const handleSubmit = async () => {
     return
   }
 
+  const roleIdsForApi = buildRoleIdsForSubmit()
+  if (!selectedDeptRoleId.value && preservedNonOrgRoleIds.value.length === 0) {
+    ElMessage.warning('请选择部门角色：部门总监 / 部门经理 / 部门员工')
+    return
+  }
+
   saving.value = true
   try {
     if (isEdit && userId) {
@@ -172,7 +225,7 @@ const handleSubmit = async () => {
         email: formData.value.email || undefined,
         mobile: formData.value.mobile || undefined,
         status: formData.value.status,
-        roleIds: formData.value.roleIds,
+        roleIds: roleIdsForApi,
         departmentIds: formData.value.departmentIds,
         primaryDepartmentId: formData.value.primaryDepartmentId || undefined
       })
@@ -185,7 +238,7 @@ const handleSubmit = async () => {
         email: formData.value.email || undefined,
         mobile: formData.value.mobile || undefined,
         status: formData.value.status,
-        roleIds: formData.value.roleIds,
+        roleIds: roleIdsForApi,
         departmentIds: formData.value.departmentIds,
         primaryDepartmentId: formData.value.primaryDepartmentId || undefined
       })
@@ -225,6 +278,13 @@ onMounted(load)
   gap: 12px;
   justify-content: flex-end;
   margin-top: 18px;
+}
+
+.field-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.45;
 }
 </style>
 

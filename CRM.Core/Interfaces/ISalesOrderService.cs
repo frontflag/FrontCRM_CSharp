@@ -10,12 +10,55 @@ namespace CRM.Core.Interfaces
         Task<IEnumerable<SellOrder>> GetAllAsync();
         Task<SellOrder> UpdateAsync(string id, UpdateSalesOrderRequest request);
         Task DeleteAsync(string id);
-        Task UpdateStatusAsync(string id, short status);
+        /// <param name="auditRemark">审核拒绝时写入的原因（仅 AuditFailed 时有效）</param>
+        Task UpdateStatusAsync(string id, SellOrderMainStatus status, string? auditRemark = null);
         Task<PagedResult<SellOrder>> GetPagedAsync(SalesOrderQueryRequest request);
         /// <summary>根据客户ID获取销售订单列表</summary>
         Task<IEnumerable<SellOrder>> GetByCustomerIdAsync(string customerId);
         /// <summary>获取销售订单关联的采购订单列表</summary>
         Task<IEnumerable<object>> GetRelatedPurchaseOrdersAsync(string sellOrderId);
+
+        /// <summary>分页查询销售订单明细行（含订单头字段），用于明细列表</summary>
+        Task<PagedResult<SellOrderItemLineDto>> GetSellOrderItemLinesPagedAsync(SellOrderItemLineQueryRequest request);
+    }
+
+    /// <summary>销售订单明细列表查询</summary>
+    public class SellOrderItemLineQueryRequest
+    {
+        /// <summary>订单创建时间起（含）</summary>
+        public DateTime? OrderCreateStart { get; set; }
+        /// <summary>订单创建时间止（含当日）</summary>
+        public DateTime? OrderCreateEnd { get; set; }
+        public string? CustomerName { get; set; }
+        public string? SalesUserName { get; set; }
+        public string? Pn { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+        public string? CurrentUserId { get; set; }
+    }
+
+    /// <summary>销售订单明细列表行 DTO</summary>
+    public class SellOrderItemLineDto
+    {
+        public string SellOrderItemId { get; set; } = string.Empty;
+        public string SellOrderId { get; set; } = string.Empty;
+        public string SellOrderCode { get; set; } = string.Empty;
+        public short OrderStatus { get; set; }
+        public DateTime OrderCreateTime { get; set; }
+        public string? CustomerId { get; set; }
+        public string? CustomerName { get; set; }
+        public string? SalesUserName { get; set; }
+        public string? PN { get; set; }
+        public string? Brand { get; set; }
+        public decimal Qty { get; set; }
+        public decimal Price { get; set; }
+        public decimal LineTotal { get; set; }
+        public short Currency { get; set; }
+        /// <summary>折算美金单价：仅当明细币别为 USD 时有值</summary>
+        public decimal? UsdUnitPrice { get; set; }
+        /// <summary>折算美金总额：仅当明细币别为 USD 时有值；其他币别暂无汇率时为空</summary>
+        public decimal? UsdLineTotal { get; set; }
+        public short ItemStatus { get; set; }
     }
 
     public class CreateSalesOrderRequest

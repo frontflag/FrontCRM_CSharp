@@ -1,6 +1,7 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.Purchase;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
 {
@@ -51,14 +52,16 @@ namespace CRM.Core.Services
                 SalesUserName = request.SalesUserName,
                 Type = request.Type,
                 Currency = request.Currency,
-                DeliveryDate = request.DeliveryDate,
+                DeliveryDate = PostgreSqlDateTime.ToUtc(request.DeliveryDate),
                 DeliveryAddress = request.DeliveryAddress,
                 Comment = request.Comment,
-                Status = 0,
+                Status = SellOrderMainStatus.New,
                 ItemRows = request.Items.Count,
                 CreateTime = DateTime.UtcNow
             };
             await _soRepo.AddAsync(order);
+            // 先落库主表，避免 sellorderitem 先插入导致外键约束失败
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
             decimal total = 0m;
             foreach (var item in request.Items)
@@ -76,7 +79,7 @@ namespace CRM.Core.Services
                     Price = item.Price,
                     Currency = item.Currency,
                     DateCode = item.DateCode,
-                    DeliveryDate = item.DeliveryDate,
+                    DeliveryDate = PostgreSqlDateTime.ToUtc(item.DeliveryDate),
                     Comment = item.Comment,
                     CreateTime = DateTime.UtcNow
                 };
@@ -94,7 +97,11 @@ namespace CRM.Core.Services
         public async Task<SellOrder?> GetByIdAsync(string id)
         {
             if (string.IsNullOrWhiteSpace(id)) return null;
-            return await _soRepo.GetByIdAsync(id);
+            var order = await _soRepo.GetByIdAsync(id);
+            if (order == null) return null;
+            var items = await _soItemRepo.FindAsync(i => i.SellOrderId == id);
+            order.Items = items.ToList();
+            return order;
         }
 
         public async Task<IEnumerable<SellOrder>> GetAllAsync()
@@ -122,7 +129,7 @@ namespace CRM.Core.Services
             }
 
             if (request.Status.HasValue)
-                query = query.Where(o => o.Status == request.Status.Value);
+                query = query.Where(o => o.Status == (SellOrderMainStatus)request.Status.Value);
 
             if (request.StartDate.HasValue)
                 query = query.Where(o => o.CreateTime >= request.StartDate.Value);
@@ -163,7 +170,7 @@ namespace CRM.Core.Services
             if (request.SalesUserName != null) order.SalesUserName = request.SalesUserName;
             if (request.Type.HasValue) order.Type = request.Type.Value;
             if (request.Currency.HasValue) order.Currency = request.Currency.Value;
-            if (request.DeliveryDate.HasValue) order.DeliveryDate = request.DeliveryDate;
+            if (request.DeliveryDate.HasValue) order.DeliveryDate = PostgreSqlDateTime.ToUtc(request.DeliveryDate.Value);
             if (request.DeliveryAddress != null) order.DeliveryAddress = request.DeliveryAddress;
             if (request.Comment != null) order.Comment = request.Comment;
 
@@ -189,7 +196,7 @@ namespace CRM.Core.Services
                         Price = item.Price,
                         Currency = item.Currency,
                         DateCode = item.DateCode,
-                        DeliveryDate = item.DeliveryDate,
+                        DeliveryDate = PostgreSqlDateTime.ToUtc(item.DeliveryDate),
                         Comment = item.Comment,
                         CreateTime = DateTime.UtcNow
                     };
@@ -219,11 +226,29 @@ namespace CRM.Core.Services
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task UpdateStatusAsync(string id, short status)
+        public async Task UpdateStatusAsync(string id, SellOrderMainStatus status, string? auditRemark = null)
         {
+            if (!Enum.IsDefined(typeof(SellOrderMainStatus), status))
+                throw new ArgumentException($"无效的销售订单主状态: {(short)status}", nameof(status));
+
             var order = await _soRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"销售订单 {id} 不存在");
+
+            if (status == SellOrderMainStatus.PendingAudit && order.Status != SellOrderMainStatus.New)
+                throw new InvalidOperationException("仅「新建」状态可提交审核");
+
+            if (status == SellOrderMainStatus.Approved && order.Status != SellOrderMainStatus.PendingAudit)
+                throw new InvalidOperationException("仅「待审核」状态可审核通过");
+
+            if (status == SellOrderMainStatus.AuditFailed && order.Status != SellOrderMainStatus.PendingAudit)
+                throw new InvalidOperationException("仅「待审核」状态可审核拒绝");
+
             order.Status = status;
+            if (status == SellOrderMainStatus.AuditFailed && !string.IsNullOrWhiteSpace(auditRemark))
+                order.AuditRemark = auditRemark.Trim();
+            else if (status == SellOrderMainStatus.Approved)
+                order.AuditRemark = null;
+
             order.ModifyTime = DateTime.UtcNow;
             await _soRepo.UpdateAsync(order);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
@@ -231,7 +256,8 @@ namespace CRM.Core.Services
 
         public async Task RequestStockOutAsync(string id, string requestedBy)
         {
-            await UpdateStatusAsync(id, 4); // 已发货
+            // 申请出库后进入「进行中」（完成=Completed 由业务手动或后续流程标记）
+            await UpdateStatusAsync(id, SellOrderMainStatus.InProgress);
         }
 
         public async Task<IEnumerable<object>> GetRelatedPurchaseOrdersAsync(string sellOrderId)
@@ -244,6 +270,100 @@ namespace CRM.Core.Services
                                        .Select(i => i.PurchaseOrderId).Distinct().ToList();
             var allPo = await _poRepo.GetAllAsync();
             return allPo.Where(p => relatedPoIds.Contains(p.Id)).Cast<object>();
+        }
+
+        public async Task<PagedResult<SellOrderItemLineDto>> GetSellOrderItemLinesPagedAsync(SellOrderItemLineQueryRequest request)
+        {
+            var allOrders = await _soRepo.GetAllAsync();
+            var filteredOrders = allOrders.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
+                filteredOrders = await _dataPermissionService.FilterSalesOrdersAsync(request.CurrentUserId, filteredOrders);
+            var orderDict = filteredOrders.ToDictionary(o => o.Id);
+
+            var allItems = await _soItemRepo.GetAllAsync();
+            IEnumerable<(SellOrderItem Item, SellOrder Order)> joined = allItems
+                .Where(i => orderDict.ContainsKey(i.SellOrderId))
+                .Select(i => (i, orderDict[i.SellOrderId]));
+
+            if (request.OrderCreateStart.HasValue)
+            {
+                var s = request.OrderCreateStart.Value;
+                joined = joined.Where(x => x.Order.CreateTime >= s);
+            }
+
+            if (request.OrderCreateEnd.HasValue)
+            {
+                var e = request.OrderCreateEnd.Value.Date.AddDays(1);
+                joined = joined.Where(x => x.Order.CreateTime < e);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.CustomerName))
+            {
+                var k = request.CustomerName.Trim();
+                joined = joined.Where(x =>
+                    !string.IsNullOrWhiteSpace(x.Order.CustomerName) &&
+                    x.Order.CustomerName.Contains(k, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.SalesUserName))
+            {
+                var k = request.SalesUserName.Trim();
+                joined = joined.Where(x =>
+                    !string.IsNullOrWhiteSpace(x.Order.SalesUserName) &&
+                    x.Order.SalesUserName.Contains(k, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Pn))
+            {
+                var k = request.Pn.Trim();
+                joined = joined.Where(x =>
+                    !string.IsNullOrWhiteSpace(x.Item.PN) &&
+                    x.Item.PN.Contains(k, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var list = joined
+                .OrderByDescending(x => x.Order.CreateTime)
+                .ThenBy(x => x.Item.Id)
+                .Select(x =>
+                {
+                    var lineTotal = Math.Round(x.Item.Qty * x.Item.Price, 2, MidpointRounding.AwayFromZero);
+                    decimal? usdUnit = x.Item.Currency == 2 ? x.Item.Price : null;
+                    decimal? usdLine = x.Item.Currency == 2 ? lineTotal : null;
+                    return new SellOrderItemLineDto
+                    {
+                        SellOrderItemId = x.Item.Id,
+                        SellOrderId = x.Order.Id,
+                        SellOrderCode = x.Order.SellOrderCode,
+                        OrderStatus = (short)x.Order.Status,
+                        OrderCreateTime = x.Order.CreateTime,
+                        CustomerId = x.Order.CustomerId,
+                        CustomerName = x.Order.CustomerName,
+                        SalesUserName = x.Order.SalesUserName,
+                        PN = x.Item.PN,
+                        Brand = x.Item.Brand,
+                        Qty = x.Item.Qty,
+                        Price = x.Item.Price,
+                        LineTotal = lineTotal,
+                        Currency = x.Item.Currency,
+                        UsdUnitPrice = usdUnit,
+                        UsdLineTotal = usdLine,
+                        ItemStatus = x.Item.Status
+                    };
+                })
+                .ToList();
+
+            var total = list.Count;
+            var page = request.Page < 1 ? 1 : request.Page;
+            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
+            var pageItems = list.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+            return new PagedResult<SellOrderItemLineDto>
+            {
+                Items = pageItems,
+                TotalCount = total,
+                PageIndex = page,
+                PageSize = pageSize
+            };
         }
     }
 }

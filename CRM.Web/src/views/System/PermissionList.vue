@@ -6,7 +6,7 @@
         <el-button type="primary" @click="router.push({ name: 'PermissionCreate' })">新增权限</el-button>
       </div>
 
-      <el-table v-loading="loading" :data="permissions" style="width: 100%">
+      <CrmDataTable v-loading="loading" :data="permissions">
         <el-table-column prop="permissionCode" label="权限编码" min-width="180" show-overflow-tooltip />
         <el-table-column prop="permissionName" label="权限名称" min-width="200" show-overflow-tooltip />
         <el-table-column prop="permissionType" label="类型" width="110" />
@@ -25,7 +25,7 @@
             <el-button link type="danger" @click="handleDelete(row.id)">删除</el-button>
           </template>
         </el-table-column>
-      </el-table>
+      </CrmDataTable>
     </el-card>
   </div>
 </template>

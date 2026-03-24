@@ -1,12 +1,23 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
 {
     /// <summary>采购订单服务实现</summary>
     public class PurchaseOrderService : IPurchaseOrderService
     {
+        private const short StatusNew = 1;
+        private const short StatusPendingAudit = 2;
+        private const short StatusApproved = 10;
+        private const short StatusPendingConfirm = 20;
+        private const short StatusConfirmed = 30;
+        private const short StatusInProgress = 50;
+        private const short StatusCompleted = 100;
+        private const short StatusAuditFailed = -1;
+        private const short StatusCancelled = -2;
+
         private readonly IRepository<PurchaseOrder> _poRepo;
         private readonly IRepository<PurchaseOrderItem> _poItemRepo;
         private readonly IRepository<SellOrder> _soRepo;
@@ -43,6 +54,8 @@ namespace CRM.Core.Services
             if (all.Any(o => o.PurchaseOrderCode == request.PurchaseOrderCode))
                 throw new InvalidOperationException($"采购单号 {request.PurchaseOrderCode} 已存在");
 
+            var total = request.Items.Sum(item => item.Qty * item.Cost);
+
             var order = new PurchaseOrder
             {
                 Id = Guid.NewGuid().ToString(),
@@ -55,17 +68,18 @@ namespace CRM.Core.Services
                 PurchaseUserName = request.PurchaseUserName,
                 Type = request.Type,
                 Currency = request.Currency,
-                DeliveryDate = request.DeliveryDate,
+                DeliveryDate = PostgreSqlDateTime.ToUtc(request.DeliveryDate),
                 DeliveryAddress = request.DeliveryAddress,
                 Comment = request.Comment,
                 InnerComment = request.InnerComment,
-                Status = 0,
+                Status = StatusNew,
                 ItemRows = request.Items.Count,
+                Total = total,
+                ConvertTotal = total,
                 CreateTime = DateTime.UtcNow
             };
             await _poRepo.AddAsync(order);
 
-            decimal total = 0m;
             foreach (var item in request.Items)
             {
                 var poItem = new PurchaseOrderItem
@@ -80,16 +94,15 @@ namespace CRM.Core.Services
                     Qty = item.Qty,
                     Cost = item.Cost,
                     Currency = item.Currency,
-                    DeliveryDate = item.DeliveryDate,
+                    // PostgreSQL timestamptz 不接受 DateTimeKind=Unspecified，统一转 UTC
+                    DeliveryDate = PostgreSqlDateTime.ToUtc(item.DeliveryDate),
                     Comment = item.Comment,
+                    InnerComment = item.InnerComment,
+                    Status = StatusNew,
                     CreateTime = DateTime.UtcNow
                 };
                 await _poItemRepo.AddAsync(poItem);
-                total += item.Qty * item.Cost;
             }
-            order.Total = total;
-            order.ConvertTotal = total;
-            await _poRepo.UpdateAsync(order);
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
             return order;
@@ -98,7 +111,11 @@ namespace CRM.Core.Services
         public async Task<PurchaseOrder?> GetByIdAsync(string id)
         {
             if (string.IsNullOrWhiteSpace(id)) return null;
-            return await _poRepo.GetByIdAsync(id);
+            var order = await _poRepo.GetByIdAsync(id);
+            if (order == null) return null;
+            var items = await _poItemRepo.FindAsync(i => i.PurchaseOrderId == id);
+            order.Items = items.ToList();
+            return order;
         }
 
         public async Task<IEnumerable<PurchaseOrder>> GetAllAsync()
@@ -230,7 +247,7 @@ namespace CRM.Core.Services
             if (request.PurchaseUserName != null) order.PurchaseUserName = request.PurchaseUserName;
             if (request.Type.HasValue) order.Type = request.Type.Value;
             if (request.Currency.HasValue) order.Currency = request.Currency.Value;
-            if (request.DeliveryDate.HasValue) order.DeliveryDate = request.DeliveryDate;
+            if (request.DeliveryDate.HasValue) order.DeliveryDate = PostgreSqlDateTime.ToUtc(request.DeliveryDate.Value);
             if (request.DeliveryAddress != null) order.DeliveryAddress = request.DeliveryAddress;
             if (request.Comment != null) order.Comment = request.Comment;
             if (request.InnerComment != null) order.InnerComment = request.InnerComment;
@@ -256,8 +273,11 @@ namespace CRM.Core.Services
                         Qty = item.Qty,
                         Cost = item.Cost,
                         Currency = item.Currency,
-                        DeliveryDate = item.DeliveryDate,
+                    // PostgreSQL timestamptz 不接受 DateTimeKind=Unspecified，统一转 UTC
+                    DeliveryDate = PostgreSqlDateTime.ToUtc(item.DeliveryDate),
                         Comment = item.Comment,
+                        InnerComment = item.InnerComment,
+                        Status = ShouldSyncOrderAndItemStatus(order.Status) ? order.Status : StatusNew,
                         CreateTime = DateTime.UtcNow
                     };
                     await _poItemRepo.AddAsync(poItem);
@@ -290,10 +310,50 @@ namespace CRM.Core.Services
         {
             var order = await _poRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"采购订单 {id} 不存在");
+
+            ValidateStatusTransition(order.Status, status);
             order.Status = status;
             order.ModifyTime = DateTime.UtcNow;
             await _poRepo.UpdateAsync(order);
+
+            if (ShouldSyncOrderAndItemStatus(status))
+            {
+                var items = await _poItemRepo.FindAsync(i => i.PurchaseOrderId == id);
+                foreach (var item in items)
+                {
+                    item.Status = status;
+                    item.ModifyTime = DateTime.UtcNow;
+                    await _poItemRepo.UpdateAsync(item);
+                }
+            }
+
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+        }
+
+        private static bool ShouldSyncOrderAndItemStatus(short status)
+        {
+            return status is StatusNew or StatusPendingAudit or StatusApproved or StatusPendingConfirm or StatusConfirmed;
+        }
+
+        private static void ValidateStatusTransition(short current, short target)
+        {
+            if (current == target) return;
+            var valid = current switch
+            {
+                StatusNew => target is StatusPendingAudit or StatusCancelled,
+                StatusPendingAudit => target is StatusApproved or StatusAuditFailed or StatusCancelled,
+                StatusAuditFailed => target is StatusNew or StatusCancelled,
+                StatusApproved => target is StatusPendingConfirm or StatusCancelled,
+                StatusPendingConfirm => target is StatusConfirmed or StatusCancelled,
+                StatusConfirmed => target is StatusInProgress or StatusCancelled,
+                StatusInProgress => target is StatusCompleted,
+                _ => false
+            };
+
+            if (!valid)
+            {
+                throw new InvalidOperationException($"不允许的状态流转: {current} -> {target}");
+            }
         }
     }
 }

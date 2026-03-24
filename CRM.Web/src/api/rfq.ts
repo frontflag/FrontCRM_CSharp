@@ -63,18 +63,19 @@ export const rfqApi = {
   async getRFQById(id: string): Promise<RFQ> {
     return apiClient.get<RFQ>(`${BASE}/${id}`)
   },
-  /** 6. 获取 RFQ 详情信息（含扩展信息） */
+  /** 6. RFQ 详情（与后端 GET /rfqs/{id} 一致；历史上曾用 /detail 路由，后端未实现） */
   async getRFQDetail(id: string): Promise<RFQ> {
-    return apiClient.get<RFQ>(`${BASE}/${id}/detail`)
+    return apiClient.get<RFQ>(`${BASE}/${id}`)
   },
   /** 7. 根据条件获取 RFQ 明细简要数据 */
   async getRFQItemsBrief(params: RFQItemSearchRequest): Promise<RFQItem[]> {
     const q = buildQuery(params as Record<string, any>)
     return apiClient.get<RFQItem[]>(`${BASE}/items/brief?${q}`)
   },
-  /** 8. 获取 RFQ 明细数据和最优报价 */
+  /** 8. RFQ 明细（含主表已加载的明细行；最优报价字段待后端提供独立接口后再切换） */
   async getRFQItemsWithBestQuote(rfqId: string): Promise<RFQItem[]> {
-    return apiClient.get<RFQItem[]>(`${BASE}/${rfqId}/items/best-quote`)
+    const rfq = await apiClient.get<{ items?: RFQItem[] }>(`${BASE}/${rfqId}`)
+    return rfq?.items ?? []
   },
   /** 9. 获取客户订阅 RFQ 列表 */
   async getCustomerSubscribedRFQs(customerId: string, params: { pageNumber?: number; pageSize?: number }): Promise<RFQSearchResponse> {

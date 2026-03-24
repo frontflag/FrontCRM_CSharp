@@ -61,14 +61,12 @@
     </div>
 
     <!-- 数据表格 -->
-    <div class="table-wrap">
-      <el-table
-        :data="tableData"
-        v-loading="loading"
-        class="crm-table"
-        @row-click="openDetail"
-        row-class-name="table-row-pointer"
-      >
+    <CrmDataTable
+      :data="tableData"
+      v-loading="loading"
+      @row-click="openDetail"
+      row-class-name="table-row-pointer"
+    >
         <el-table-column prop="invoiceCode" label="发票单号" width="150" fixed>
           <template #default="{ row }">
             <span class="code-text">{{ row.invoiceCode || '-' }}</span>
@@ -116,7 +114,7 @@
             <el-button size="small" text type="danger" @click.stop="voidInvoice(row)" v-if="row.invoiceStatus === 100">作废</el-button>
           </template>
         </el-table-column>
-      </el-table>
+    </CrmDataTable>
       <div class="pagination-wrap">
         <el-pagination
           v-model:current-page="query.page"
@@ -128,7 +126,6 @@
           @current-change="loadData"
         />
       </div>
-    </div>
 
     <!-- 新建/编辑弹窗 -->
     <el-dialog

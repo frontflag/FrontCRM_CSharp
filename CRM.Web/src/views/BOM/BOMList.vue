@@ -114,12 +114,12 @@
 
     <!-- 数据表格 -->
     <div class="table-panel">
-      <el-table
+      <CrmDataTable
         v-loading="loading"
         :data="bomList"
         row-key="id"
-        @selection-change="handleSelectionChange"
         class="bom-table"
+        @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="44" />
         <el-table-column label="序号" type="index" width="55" align="center" />
@@ -171,7 +171,7 @@
             </div>
           </template>
         </el-table-column>
-      </el-table>
+      </CrmDataTable>
 
       <!-- 分页 -->
       <div class="pagination-bar">

@@ -6,7 +6,7 @@
         <el-button type="primary" @click="router.push({ name: 'RoleCreate' })">新增角色</el-button>
       </div>
 
-      <el-table v-loading="loading" :data="roles" style="width: 100%">
+      <CrmDataTable v-loading="loading" :data="roles">
         <el-table-column prop="roleCode" label="角色编码" min-width="160" show-overflow-tooltip />
         <el-table-column prop="roleName" label="角色名称" min-width="180" show-overflow-tooltip />
         <el-table-column prop="description" label="描述" min-width="240" show-overflow-tooltip />
@@ -23,7 +23,7 @@
             <el-button link type="danger" @click="handleDelete(row.id)">删除</el-button>
           </template>
         </el-table-column>
-      </el-table>
+      </CrmDataTable>
     </el-card>
   </div>
 </template>

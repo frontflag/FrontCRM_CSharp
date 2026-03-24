@@ -3,8 +3,21 @@ import apiClient from './client'
 // 销售订单API
 export const salesOrderApi = {
   // 获取销售订单列表
-  async getList() {
-    return await apiClient.get('/api/v1/sales-orders')
+  async getList(params?: Record<string, unknown>) {
+    return await apiClient.get('/api/v1/sales-orders', { params })
+  },
+
+  /** 销售订单明细分页 */
+  async getItemLines(params?: {
+    orderCreateStart?: string
+    orderCreateEnd?: string
+    customerName?: string
+    salesUserName?: string
+    pn?: string
+    page?: number
+    pageSize?: number
+  }) {
+    return await apiClient.get('/api/v1/sales-orders/lines', { params })
   },
 
   // 获取销售订单详情

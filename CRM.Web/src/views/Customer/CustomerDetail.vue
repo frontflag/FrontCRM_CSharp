@@ -160,7 +160,7 @@
                   添加联系人
                 </button>
               </div>
-              <el-table :data="customer.contacts" class="quantum-table"
+              <CrmDataTable :data="customer.contacts" class="quantum-table"
                 :header-cell-style="tableHeaderStyle" :cell-style="tableCellStyle" :row-style="tableRowStyle">
                 <el-table-column prop="contactName" label="姓名" width="100">
                   <template #default="{ row }"><span class="cell-primary">{{ row.contactName }}</span></template>
@@ -194,7 +194,7 @@
                     <button class="action-btn action-btn--danger" @click="deleteContact(row)">删除</button>
                   </template>
                 </el-table-column>
-              </el-table>
+              </CrmDataTable>
             </div>
 
             <!-- 地址信息 -->
@@ -207,7 +207,7 @@
                   添加地址
                 </button>
               </div>
-              <el-table :data="customer.addresses" class="quantum-table"
+              <CrmDataTable :data="customer.addresses" class="quantum-table"
                 :header-cell-style="tableHeaderStyle" :cell-style="tableCellStyle" :row-style="tableRowStyle">
                 <el-table-column prop="addressType" label="地址类型" width="110">
                   <template #default="{ row }">
@@ -235,7 +235,7 @@
                     <button class="action-btn action-btn--danger" @click="deleteAddress(row)">删除</button>
                   </template>
                 </el-table-column>
-              </el-table>
+              </CrmDataTable>
             </div>
 
             <!-- 银行信息 -->
@@ -248,7 +248,7 @@
                   添加银行信息
                 </button>
               </div>
-              <el-table :data="customer.banks" class="quantum-table"
+              <CrmDataTable :data="customer.banks" class="quantum-table"
                 :header-cell-style="tableHeaderStyle" :cell-style="tableCellStyle" :row-style="tableRowStyle">
                 <el-table-column prop="accountName" label="账户名称" min-width="150">
                   <template #default="{ row }"><span class="cell-primary">{{ row.accountName }}</span></template>
@@ -277,7 +277,7 @@
                     <button class="action-btn action-btn--danger" @click="deleteBank(row)">删除</button>
                   </template>
                 </el-table-column>
-              </el-table>
+              </CrmDataTable>
             </div>
 
             <!-- 联系历史 -->

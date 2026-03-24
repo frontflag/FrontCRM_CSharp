@@ -1,5 +1,6 @@
 import axios from 'axios'
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
+import { getApiErrorMessage } from '@/utils/apiError'
 
 const API_BASE_URL = ''  // 使用相对路径，走Vite代理
 
@@ -39,13 +40,33 @@ class ApiClient {
     this.instance.interceptors.response.use(
       (response: AxiosResponse) => {
         const apiResponse = response.data
-        if (apiResponse && apiResponse.success !== undefined) {
-          if (apiResponse.success) {
-            // 成功时返回 data 字段（业务数据）
-            return apiResponse.data !== undefined ? apiResponse.data : apiResponse
-          } else {
-            // 业务失败：抛出错误，带上后端返回的错误消息
-            return Promise.reject(new Error(apiResponse.message || '请求失败'))
+        const ok =
+          apiResponse &&
+          (apiResponse.success === true ||
+            apiResponse.Success === true)
+        const fail =
+          apiResponse &&
+          (apiResponse.success === false ||
+            apiResponse.Success === false)
+        const hasEnvelope =
+          apiResponse &&
+          (apiResponse.success !== undefined ||
+            apiResponse.Success !== undefined ||
+            apiResponse.data !== undefined ||
+            apiResponse.Data !== undefined)
+
+        if (hasEnvelope) {
+          if (ok) {
+            const payload =
+              apiResponse.data !== undefined ? apiResponse.data : apiResponse.Data
+            if (payload !== undefined) {
+              return payload
+            }
+            return apiResponse
+          }
+          if (fail) {
+            const msg = apiResponse.message ?? apiResponse.Message ?? '请求失败'
+            return Promise.reject(new Error(msg))
           }
         }
         return apiResponse
@@ -58,10 +79,17 @@ class ApiClient {
           return Promise.reject(error)
         }
         const responseData = error.response?.data
-        if (responseData && responseData.success !== undefined) {
-          return Promise.reject(new Error(responseData.message || '请求失败'))
+        if (
+          responseData &&
+          (responseData.success !== undefined || responseData.Success !== undefined)
+        ) {
+          return Promise.reject(
+            new Error(responseData.message ?? responseData.Message ?? '请求失败')
+          )
         }
-        return Promise.reject(error)
+        // 400 ValidationProblemDetails 等：无 success 字段
+        const msg = getApiErrorMessage(error, '请求失败')
+        return Promise.reject(new Error(msg))
       }
     )
   }

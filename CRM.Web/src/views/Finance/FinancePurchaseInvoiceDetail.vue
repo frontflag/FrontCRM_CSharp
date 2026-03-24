@@ -57,7 +57,7 @@
           <span>发票明细</span>
         </div>
         <el-empty v-if="!detail.items?.length" description="暂无明细" :image-size="80" />
-        <el-table v-else :data="detail.items" size="small" class="items-table">
+        <CrmDataTable v-else :data="detail.items" size="small" class="items-table">
           <el-table-column type="index" width="50" label="#" />
           <el-table-column prop="stockInCode" label="入库单号" min-width="140" />
           <el-table-column prop="purchaseOrderCode" label="采购单号" min-width="140" />
@@ -72,7 +72,7 @@
               {{ (row.taxRate * 100).toFixed(0) }}%
             </template>
           </el-table-column>
-        </el-table>
+        </CrmDataTable>
       </div>
     </template>
 

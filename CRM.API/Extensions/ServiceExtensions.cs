@@ -29,6 +29,7 @@ namespace CRM.API.Extensions
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<ICustomerService, CustomerService>();
+            services.AddScoped<IEntityLookupService, EntityLookupService>();
             services.AddScoped<IRFQService, RFQService>();
             services.AddScoped<IRepository<CRM.Core.Models.RFQ.RFQ>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.RFQ.RFQ>>();
             services.AddScoped<IRepository<CRM.Core.Models.RFQ.RFQItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.RFQ.RFQItem>>();
@@ -59,6 +60,10 @@ namespace CRM.API.Extensions
             services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
             services.AddScoped<IRepository<CRM.Core.Models.Purchase.PurchaseOrder>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Purchase.PurchaseOrder>>();
             services.AddScoped<IRepository<CRM.Core.Models.Purchase.PurchaseOrderItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Purchase.PurchaseOrderItem>>();
+
+            // 采购申请模块
+            services.AddScoped<IPurchaseRequisitionService, PurchaseRequisitionService>();
+            services.AddScoped<IRepository<CRM.Core.Models.Purchase.PurchaseRequisition>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Purchase.PurchaseRequisition>>();
 
             // 财务模块 - 付款
             services.AddScoped<IFinancePaymentService, FinancePaymentService>();

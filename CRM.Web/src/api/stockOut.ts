@@ -18,11 +18,14 @@ export interface StockOutRequestDto {
   id: string
   requestCode: string
   salesOrderId: string
+  salesOrderCode?: string
   customerId: string
+  customerName?: string
   requestUserId: string
   requestDate: string
   status: number
   remark?: string
+  createTime?: string
 }
 
 export const stockOutApi = {
@@ -38,6 +41,28 @@ export const stockOutApi = {
     if (res && typeof res === 'object' && 'data' in res && res.data)
       return res.data as StockOutDto
     return res as StockOutDto ?? null
+  },
+
+  async getRequestList(): Promise<StockOutRequestDto[]> {
+    const res = await apiClient.get<any>('/api/v1/stock-out/request')
+    if (res && typeof res === 'object' && 'data' in res && Array.isArray(res.data))
+      return res.data as StockOutRequestDto[]
+    return Array.isArray(res) ? res : []
+  },
+
+  async createRequest(data: {
+    requestCode: string
+    salesOrderId: string
+    customerId: string
+    requestUserId: string
+    requestDate: string
+    remark?: string
+    items: { lineNo: number; materialCode: string; materialName: string; quantity: number; warehouseLocation?: string }[]
+  }): Promise<StockOutRequestDto> {
+    const res = await apiClient.post<any>('/api/v1/stock-out/request', data)
+    if (res && typeof res === 'object' && 'data' in res && res.data)
+      return res.data as StockOutRequestDto
+    return res as StockOutRequestDto
   },
 
   async execute(data: {

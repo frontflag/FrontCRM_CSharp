@@ -6,7 +6,7 @@
         <el-button type="primary" @click="router.push({ name: 'DepartmentCreate' })">新增部门</el-button>
       </div>
 
-      <el-table v-loading="loading" :data="departments" style="width: 100%" row-key="id">
+      <CrmDataTable v-loading="loading" :data="departments" row-key="id">
         <el-table-column prop="departmentName" label="部门名称" min-width="160" show-overflow-tooltip />
         <el-table-column label="上级部门" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">
@@ -37,7 +37,7 @@
             <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
-      </el-table>
+      </CrmDataTable>
     </el-card>
   </div>
 </template>

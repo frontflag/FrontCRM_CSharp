@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
 {
@@ -44,7 +45,7 @@ namespace CRM.Core.Services
                 SourceCode = request.PurchaseOrderId,
                 WarehouseId = request.WarehouseId,
                 VendorId = request.VendorId,
-                StockInDate = request.StockInDate,
+                StockInDate = PostgreSqlDateTime.ToUtc(request.StockInDate),
                 TotalQuantity = request.TotalQuantity,
                 Remark = request.Remark,
                 Status = 0, // 草稿

@@ -96,7 +96,7 @@
             <button type="button" class="tab-btn tab-btn--active">部门员工</button>
           </div>
           <div class="tabs-body">
-            <el-table
+            <CrmDataTable
               v-loading="usersLoading"
               :data="users"
               class="quantum-table"
@@ -137,7 +137,7 @@
                   <button type="button" class="action-btn" @click="goEditUser(row.id)">编辑</button>
                 </template>
               </el-table-column>
-            </el-table>
+            </CrmDataTable>
             <div v-if="!usersLoading && users.length === 0" class="empty-hint">暂无关联员工</div>
           </div>
         </div>

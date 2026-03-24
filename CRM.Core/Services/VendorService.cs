@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Vendor;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
 {
@@ -38,6 +39,17 @@ namespace CRM.Core.Services
         }
 
         /// <summary>
+        /// 按主键 Id 或业务编号 Code 解析供应商（路由、列表可能传任一种）。
+        /// </summary>
+        private async Task<VendorInfo?> ResolveVendorByIdOrCodeAsync(string idOrCode)
+        {
+            if (string.IsNullOrWhiteSpace(idOrCode)) return null;
+            var byId = (await _repository.FindAsync(e => e.Id == idOrCode)).FirstOrDefault();
+            if (byId != null) return byId;
+            return (await _repository.FindAsync(e => e.Code == idOrCode)).FirstOrDefault();
+        }
+
+        /// <summary>
         /// 创建
         /// </summary>
         public async Task<VendorInfo> CreateAsync(CreateVendorRequest request)
@@ -66,11 +78,9 @@ namespace CRM.Core.Services
         /// </summary>
         public async Task<VendorInfo?> GetByIdAsync(string id)
         {
-            if (string.IsNullOrWhiteSpace(id)) return null;
-            var entities = await _repository.FindAsync(e => e.Id == id);
-            var vendor = entities.FirstOrDefault();
+            var vendor = await ResolveVendorByIdOrCodeAsync(id);
             if (vendor == null) return null;
-            var contacts = await _contactRepository.FindAsync(c => c.VendorId == id);
+            var contacts = await _contactRepository.FindAsync(c => c.VendorId == vendor.Id);
             vendor.Contacts = contacts.ToList();
             return vendor;
         }
@@ -364,7 +374,9 @@ namespace CRM.Core.Services
         public async Task<IEnumerable<VendorContactInfo>> GetContactsByVendorIdAsync(string vendorId)
         {
             if (string.IsNullOrWhiteSpace(vendorId)) return new List<VendorContactInfo>();
-            var list = await _contactRepository.FindAsync(c => c.VendorId == vendorId);
+            var vendor = await ResolveVendorByIdOrCodeAsync(vendorId);
+            if (vendor == null) return new List<VendorContactInfo>();
+            var list = await _contactRepository.FindAsync(c => c.VendorId == vendor.Id);
             return list.OrderByDescending(c => c.IsMain).ThenBy(c => c.CName).ToList();
         }
 
@@ -383,7 +395,7 @@ namespace CRM.Core.Services
             var contact = new VendorContactInfo
             {
                 Id = Guid.NewGuid().ToString(),
-                VendorId = vendorId,
+                VendorId = vendor.Id,
                 CName = request.CName?.Trim(),
                 EName = request.EName?.Trim(),
                 Title = request.Title?.Trim(),
@@ -471,7 +483,9 @@ namespace CRM.Core.Services
         public async Task<IEnumerable<VendorAddress>> GetAddressesByVendorIdAsync(string vendorId)
         {
             if (string.IsNullOrWhiteSpace(vendorId)) return new List<VendorAddress>();
-            var list = await _addressRepository.FindAsync(a => a.VendorId == vendorId);
+            var vendor = await ResolveVendorByIdOrCodeAsync(vendorId);
+            if (vendor == null) return new List<VendorAddress>();
+            var list = await _addressRepository.FindAsync(a => a.VendorId == vendor.Id);
             return list.OrderByDescending(a => a.IsDefault).ThenBy(a => a.AddressType).ToList();
         }
 
@@ -502,13 +516,13 @@ namespace CRM.Core.Services
 
             if (request.IsDefault)
             {
-                await ResetDefaultAddressAsync(vendorId, request.AddressType);
+                await ResetDefaultAddressAsync(vendor.Id, request.AddressType);
             }
 
             var address = new VendorAddress
             {
                 Id = Guid.NewGuid().ToString(),
-                VendorId = vendorId,
+                VendorId = vendor.Id,
                 AddressType = request.AddressType,
                 Country = request.Country,
                 Province = request.Province?.Trim(),
@@ -601,7 +615,9 @@ namespace CRM.Core.Services
         public async Task<IEnumerable<VendorBankInfo>> GetBanksByVendorIdAsync(string vendorId)
         {
             if (string.IsNullOrWhiteSpace(vendorId)) return new List<VendorBankInfo>();
-            var list = await _bankRepository.FindAsync(b => b.VendorId == vendorId);
+            var vendor = await ResolveVendorByIdOrCodeAsync(vendorId);
+            if (vendor == null) return new List<VendorBankInfo>();
+            var list = await _bankRepository.FindAsync(b => b.VendorId == vendor.Id);
             return list.OrderByDescending(b => b.IsDefault).ThenBy(b => b.BankName).ToList();
         }
 
@@ -627,12 +643,12 @@ namespace CRM.Core.Services
                 throw new KeyNotFoundException($"找不到ID为 '{vendorId}' 的供应商");
 
             if (request.IsDefault)
-                await ResetDefaultBankAsync(vendorId);
+                await ResetDefaultBankAsync(vendor.Id);
 
             var bank = new VendorBankInfo
             {
                 Id = Guid.NewGuid().ToString(),
-                VendorId = vendorId,
+                VendorId = vendor.Id,
                 BankName = request.BankName?.Trim(),
                 BankAccount = request.BankAccount?.Trim(),
                 AccountName = request.AccountName?.Trim(),
@@ -712,7 +728,10 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(vendorId))
                 return Enumerable.Empty<VendorContactHistory>();
 
-            var list = await _historyRepository.FindAsync(h => h.VendorId == vendorId);
+            var vendor = await ResolveVendorByIdOrCodeAsync(vendorId);
+            if (vendor == null) return Enumerable.Empty<VendorContactHistory>();
+
+            var list = await _historyRepository.FindAsync(h => h.VendorId == vendor.Id);
             return list
                 .OrderByDescending(h => h.Time)
                 .ThenByDescending(h => h.CreateTime)
@@ -731,13 +750,13 @@ namespace CRM.Core.Services
             var record = new VendorContactHistory
             {
                 Id = Guid.NewGuid().ToString(),
-                VendorId = vendorId,
+                VendorId = vendor.Id,
                 Type = request.Type ?? "call",
                 Subject = request.Subject?.Trim(),
                 Content = request.Content?.Trim(),
                 ContactPerson = request.ContactPerson?.Trim(),
-                Time = request.Time ?? DateTime.UtcNow,
-                NextFollowUpTime = request.NextFollowUpTime,
+                Time = request.Time.HasValue ? PostgreSqlDateTime.ToUtc(request.Time.Value) : DateTime.UtcNow,
+                NextFollowUpTime = PostgreSqlDateTime.ToUtc(request.NextFollowUpTime),
                 Result = request.Result?.Trim(),
                 CreateTime = DateTime.UtcNow
             };
@@ -761,8 +780,8 @@ namespace CRM.Core.Services
             if (request.Subject != null) record.Subject = request.Subject.Trim();
             if (request.Content != null) record.Content = request.Content.Trim();
             if (request.ContactPerson != null) record.ContactPerson = request.ContactPerson.Trim();
-            if (request.Time.HasValue) record.Time = request.Time.Value;
-            if (request.NextFollowUpTime.HasValue) record.NextFollowUpTime = request.NextFollowUpTime;
+            if (request.Time.HasValue) record.Time = PostgreSqlDateTime.ToUtc(request.Time.Value);
+            if (request.NextFollowUpTime.HasValue) record.NextFollowUpTime = PostgreSqlDateTime.ToUtc(request.NextFollowUpTime.Value);
             if (request.Result != null) record.Result = request.Result.Trim();
 
             record.ModifyTime = DateTime.UtcNow;
@@ -790,7 +809,10 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(vendorId))
                 return Enumerable.Empty<VendorOperationLog>();
 
-            var safeId = vendorId.Replace("'", "''");
+            var vendor = await ResolveVendorByIdOrCodeAsync(vendorId);
+            var effectiveId = vendor?.Id ?? vendorId;
+
+            var safeId = effectiveId.Replace("'", "''");
             var sql =
                 $"SELECT \"Id\", \"VendorId\", \"OperationType\", \"OperationDesc\", \"OperatorUserId\", \"OperatorUserName\", \"OperationTime\", \"Remark\" " +
                 $"FROM vendor_operation_log WHERE \"VendorId\" = '{safeId}' ORDER BY \"OperationTime\" DESC";
@@ -802,7 +824,10 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(vendorId))
                 return Enumerable.Empty<VendorChangeLog>();
 
-            var safeId = vendorId.Replace("'", "''");
+            var vendor = await ResolveVendorByIdOrCodeAsync(vendorId);
+            var effectiveId = vendor?.Id ?? vendorId;
+
+            var safeId = effectiveId.Replace("'", "''");
             var sql =
                 $"SELECT \"Id\", \"VendorId\", \"FieldName\", \"FieldLabel\", \"OldValue\", \"NewValue\", \"ChangedByUserId\", \"ChangedByUserName\", \"ChangedAt\" " +
                 $"FROM vendor_change_log WHERE \"VendorId\" = '{safeId}' ORDER BY \"ChangedAt\" DESC";

@@ -3,12 +3,17 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">报价管理 (Quote)</h1>
+        <h1 class="page-title">报价列表 (Quote)</h1>
         <div class="count-badge">共 {{ totalCount }} 条报价</div>
       </div>
       <div class="header-right">
-        <el-button type="primary" @click="handleCreate">
-          <el-icon><Plus /></el-icon>新增报价
+        <el-button
+          type="primary"
+          :disabled="!selectedQuotes.length"
+          :loading="salesOrderPreflightLoading"
+          @click="handleGenerateSalesOrder"
+        >
+          生成销售订单
         </el-button>
       </div>
     </div>
@@ -47,7 +52,7 @@
         <el-form-item label="搜索">
           <el-input 
             v-model="searchForm.keyword" 
-            placeholder="报价编号/MPN/客户"
+            placeholder="报价编号/需求编号/MPN/客户"
             clearable
             @keyup.enter="handleSearch"
             style="width: 280px"
@@ -76,14 +81,22 @@
 
     <!-- 数据表格 -->
     <el-card class="table-card">
-      <el-table 
-        :data="quoteList" 
+      <CrmDataTable
+        :data="quoteList"
         v-loading="loading"
+        row-key="id"
         highlight-current-row
+        @selection-change="onQuoteSelectionChange"
       >
+        <el-table-column type="selection" width="48" :reserve-selection="true" />
         <el-table-column prop="quoteCode" label="报价编号" width="150" sortable>
           <template #default="{ row }">
-            <el-link type="primary" @click="handleView(row)">{{ row.quoteCode }}</el-link>
+            <span class="quote-code-cell">{{ displayQuoteCode(row) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="需求编号" width="140" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span>{{ displayRfqCode(row) }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="mpn" label="物料型号" min-width="150" show-overflow-tooltip />
@@ -104,9 +117,8 @@
         </el-table-column>
         <el-table-column prop="quoteDate" label="报价日期" width="110" />
         <el-table-column prop="createTime" label="创建时间" width="150" />
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleView(row)">查看</el-button>
             <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
             <el-dropdown @command="(cmd: string) => handleMore(cmd, row)">
               <el-button link type="primary">
@@ -121,7 +133,7 @@
             </el-dropdown>
           </template>
         </el-table-column>
-      </el-table>
+      </CrmDataTable>
 
       <!-- 分页 -->
       <div class="pagination-wrapper">
@@ -136,104 +148,6 @@
         />
       </div>
     </el-card>
-
-    <!-- 新建/编辑对话框 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="dialogTitle"
-      width="950px"
-      destroy-on-close
-    >
-      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="报价编号">
-              <el-input v-model="formData.quoteCode" placeholder="系统自动生成" disabled />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="物料型号" prop="mpn">
-              <el-input v-model="formData.mpn" placeholder="请输入MPN" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="业务员" prop="salesUserName">
-              <el-input v-model="formData.salesUserName" placeholder="请输入业务员" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="采购员">
-              <el-input v-model="formData.purchaseUserName" placeholder="请输入采购员" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="备注">
-          <el-input v-model="formData.remark" type="textarea" rows="2" />
-        </el-form-item>
-
-        <!-- 供应商报价明细 -->
-        <div class="items-section">
-          <div class="items-header">
-            <h4>供应商报价明细</h4>
-            <el-button type="primary" size="small" @click="addItem">
-              <el-icon><Plus /></el-icon>添加供应商报价
-            </el-button>
-          </div>
-          <el-table :data="formData.items" border size="small">
-            <el-table-column type="index" width="50" />
-            <el-table-column label="供应商" min-width="140">
-              <template #default="{ $index }">
-                <el-input v-model="formData.items[$index].vendorName" placeholder="供应商名称" />
-              </template>
-            </el-table-column>
-            <el-table-column label="联系人" width="120">
-              <template #default="{ $index }">
-                <el-input v-model="formData.items[$index].contactName" placeholder="联系人" />
-              </template>
-            </el-table-column>
-            <el-table-column label="品牌" width="100">
-              <template #default="{ $index }">
-                <el-input v-model="formData.items[$index].brand" placeholder="品牌" />
-              </template>
-            </el-table-column>
-            <el-table-column label="数量" width="80">
-              <template #default="{ $index }">
-                <el-input-number v-model="formData.items[$index].quantity" :min="1" :controls="false" style="width: 100%" />
-              </template>
-            </el-table-column>
-            <el-table-column label="单价" width="110">
-              <template #default="{ $index }">
-                <el-input-number v-model="formData.items[$index].unitPrice" :min="0" :precision="4" :controls="false" style="width: 100%" />
-              </template>
-            </el-table-column>
-            <el-table-column label="币别" width="80">
-              <template #default="{ $index }">
-                <el-select v-model="formData.items[$index].currency" size="small" style="width: 100%">
-                  <el-option label="USD" :value="1" />
-                  <el-option label="CNY" :value="0" />
-                </el-select>
-              </template>
-            </el-table-column>
-            <el-table-column label="交期" width="100">
-              <template #default="{ $index }">
-                <el-input v-model="formData.items[$index].leadTime" placeholder="交期" size="small" />
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="80" align="center">
-              <template #default="{ $index }">
-                <el-button link type="danger" @click="removeItem($index)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </div>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitLoading">确定</el-button>
-      </template>
-    </el-dialog>
 
     <!-- 状态更新对话框 -->
     <el-dialog v-model="statusDialogVisible" title="更新状态" width="400px">
@@ -261,14 +175,18 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { Plus, Search, ArrowDown } from '@element-plus/icons-vue'
+import { useRouter, useRoute } from 'vue-router'
+import { Search, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { mockQuoteApi as quoteApi } from '@/api/mockQuote'
+import { quoteApi } from '@/api/quote'
+import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
 
 const router = useRouter()
+const route = useRoute()
 
 const loading = ref(false)
+const selectedQuotes = ref<any[]>([])
+const salesOrderPreflightLoading = ref(false)
 const quoteList = ref<any[]>([])
 const stats = ref({ total: 0, pending: 0, sent: 0, accepted: 0 })
 
@@ -285,32 +203,29 @@ const pageInfo = ref({
   total: 0
 })
 
-// 对话框控制
-const dialogVisible = ref(false)
-const dialogTitle = ref('新建报价')
 const statusDialogVisible = ref(false)
-const submitLoading = ref(false)
-const formRef = ref()
 const currentRow = ref<any>(null)
-const isEdit = ref(false)
 const newStatus = ref(0)
 
-// 表单数据
-const formData = ref({
-  quoteCode: '',
-  mpn: '',
-  salesUserName: '',
-  purchaseUserName: '',
-  remark: '',
-  items: [] as any[]
-})
+const totalCount = computed(() => quoteList.value.length)
 
-const formRules = {
-  mpn: [{ required: true, message: '请输入物料型号', trigger: 'blur' }],
-  salesUserName: [{ required: true, message: '请输入业务员', trigger: 'blur' }]
+/** 兼容 camelCase / PascalCase / 后端字段，避免编号列空白 */
+function displayQuoteCode(row: Record<string, unknown>) {
+  const v =
+    row.quoteCode ??
+    row.quoteNumber ??
+    row.QuoteCode ??
+    row.QuoteNumber
+  if (v != null && String(v).trim() !== '') return String(v)
+  return '—'
 }
 
-const totalCount = computed(() => quoteList.value.length)
+/** 主需求单需求编号（与明细关联的 rfqId 对应主表 rfqCode；后端可直接返回 rfqCode） */
+function displayRfqCode(row: Record<string, unknown>) {
+  const v = row.rfqCode ?? row.RfqCode ?? row.rfqNumber ?? row.RfqNumber
+  if (v != null && String(v).trim() !== '') return String(v)
+  return '—'
+}
 
 // 状态处理
 const getStatusType = (status: number) => {
@@ -376,40 +291,46 @@ const handlePageChange = (val: number) => {
   loadData()
 }
 
-// 新建
-const handleCreate = () => {
-  isEdit.value = false
-  dialogTitle.value = '新建报价'
-  formData.value = {
-    quoteCode: '',
-    mpn: '',
-    salesUserName: '',
-    purchaseUserName: '',
-    remark: '',
-    items: []
+function onQuoteSelectionChange(rows: any[]) {
+  selectedQuotes.value = rows
+}
+
+function resolveQuoteId(row: Record<string, unknown>): string {
+  const id = row.id ?? row.Id
+  return id != null ? String(id).trim() : ''
+}
+
+/** PRD：quoteIds[] + returnTo；跳转前校验同一客户 */
+async function handleGenerateSalesOrder() {
+  const rows = selectedQuotes.value
+  if (!rows.length) {
+    ElMessage.warning('请先勾选报价记录')
+    return
   }
-  dialogVisible.value = true
+  const ids = [...new Set(rows.map((r) => resolveQuoteId(r)).filter(Boolean))]
+  if (!ids.length) {
+    ElMessage.warning('无法识别报价主键')
+    return
+  }
+  salesOrderPreflightLoading.value = true
+  try {
+    const check = await assertQuotesSameCustomer(ids)
+    if (!check.ok) {
+      ElMessage.error(check.message)
+      return
+    }
+    router.push({
+      name: 'SalesOrderCreate',
+      query: { quoteIds: ids.join(','), returnTo: route.fullPath }
+    })
+  } finally {
+    salesOrderPreflightLoading.value = false
+  }
 }
 
 // 编辑
 const handleEdit = (row: any) => {
-  isEdit.value = true
-  dialogTitle.value = '编辑报价'
-  currentRow.value = row
-  formData.value = {
-    quoteCode: row.quoteCode,
-    mpn: row.mpn,
-    salesUserName: row.salesUserName,
-    purchaseUserName: row.purchaseUserName,
-    remark: row.remark,
-    items: row.items ? JSON.parse(JSON.stringify(row.items)) : []
-  }
-  dialogVisible.value = true
-}
-
-// 查看
-const handleView = (row: any) => {
-  router.push({ name: 'QuoteDetail', params: { id: row.id } })
+  router.push({ name: 'QuoteEdit', params: { id: String(row.id) } })
 }
 
 // 更多操作
@@ -429,7 +350,7 @@ const handleMore = (cmd: string, row: any) => {
 // 删除
 const handleDelete = async (row: any) => {
   try {
-    await ElMessageBox.confirm(`确定要删除报价单 ${row.quoteCode} 吗？`, '警告', { type: 'warning' })
+    await ElMessageBox.confirm(`确定要删除报价单 ${displayQuoteCode(row)} 吗？`, '警告', { type: 'warning' })
     await quoteApi.delete(row.id)
     loadData()
   } catch {
@@ -445,45 +366,6 @@ const confirmUpdateStatus = async () => {
   loadData()
 }
 
-// 添加/删除明细
-const addItem = () => {
-  formData.value.items.push({
-    vendorName: '',
-    contactName: '',
-    brand: '',
-    quantity: 1,
-    unitPrice: 0,
-    currency: 1,
-    leadTime: '',
-    stockQty: 0
-  })
-}
-
-const removeItem = (index: number) => {
-  formData.value.items.splice(index, 1)
-}
-
-// 提交
-const handleSubmit = async () => {
-  await formRef.value.validate()
-  submitLoading.value = true
-  try {
-    const data = {
-      ...formData.value,
-      quoteDate: new Date().toISOString().slice(0, 10)
-    }
-    if (isEdit.value && currentRow.value) {
-      await quoteApi.update(currentRow.value.id, data)
-    } else {
-      await quoteApi.create(data)
-    }
-    dialogVisible.value = false
-    loadData()
-  } finally {
-    submitLoading.value = false
-  }
-}
-
 onMounted(loadData)
 </script>
 
@@ -497,6 +379,11 @@ onMounted(loadData)
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
   .page-title {
     margin: 0;
     color: #E8F4FF;
@@ -571,19 +458,7 @@ onMounted(loadData)
   justify-content: flex-end;
 }
 
-.items-section {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid rgba(0, 212, 255, 0.1);
-  .items-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    h4 {
-      margin: 0;
-      color: #E8F4FF;
-    }
-  }
+.quote-code-cell {
+  color: #e8f4ff;
 }
 </style>

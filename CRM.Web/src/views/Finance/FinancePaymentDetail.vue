@@ -34,7 +34,7 @@
               {{ PAYMENT_STATUS_MAP[detail.status]?.label }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="供应商">{{ detail.vendorName }}</el-descriptions-item>
+          <el-descriptions-item label="供应商">{{ vendorDisplayName }}</el-descriptions-item>
           <el-descriptions-item label="付款金额">
             <span class="amount">{{ CURRENCY_MAP[detail.paymentCurrency] }} {{ formatAmount(detail.paymentAmount) }}</span>
           </el-descriptions-item>
@@ -51,7 +51,7 @@
           <span>付款明细</span>
         </div>
         <el-empty v-if="!detail.items?.length" description="暂无明细" :image-size="80" />
-        <el-table v-else :data="detail.items" size="small" class="items-table">
+        <CrmDataTable v-else :data="detail.items" size="small" class="items-table">
           <el-table-column type="index" width="50" label="#" />
           <el-table-column prop="pn" label="型号" min-width="150" />
           <el-table-column prop="brand" label="品牌" width="120" />
@@ -67,7 +67,7 @@
               </el-tag>
             </template>
           </el-table-column>
-        </el-table>
+        </CrmDataTable>
       </div>
     </template>
 
@@ -86,12 +86,14 @@ import {
   CURRENCY_MAP,
   type FinancePayment,
 } from '@/api/finance'
+import { vendorApi } from '@/api/vendor'
 
 const router = useRouter()
 const route = useRoute()
 
 const loading = ref(false)
 const detail = ref<FinancePayment | null>(null)
+const vendorDisplayName = ref('-')
 
 const paymentId = computed(() => route.params.id as string)
 
@@ -104,10 +106,78 @@ const fetchDetail = async () => {
   try {
     // apiClient 拦截器已解包，直接返回业务数据
     detail.value = await financePaymentApi.getById(paymentId.value)
+    await resolveVendorDisplayName()
   } catch {
     detail.value = null
+    vendorDisplayName.value = '-'
   } finally {
     loading.value = false
+  }
+}
+
+const resolveVendorDisplayName = async () => {
+  const current = detail.value
+  if (!current) {
+    vendorDisplayName.value = '-'
+    return
+  }
+
+  const rawName = String(current.vendorName || '').trim()
+  const rawId = String(current.vendorId || '').trim()
+  const pickVendorName = (v: any) =>
+    v?.officialName ||
+    v?.OfficialName ||
+    v?.nickName ||
+    v?.NickName ||
+    v?.name ||
+    v?.Name ||
+    v?.vendorName ||
+    v?.VendorName ||
+    ''
+  const pickVendorCode = (v: any) =>
+    String(v?.code || v?.Code || '').trim()
+
+  // 正常名称直接展示；像 VEN0002 这种编码再尝试回查真实名称
+  const looksLikeCode = (value: string) => /^VEN[\w-]*$/i.test(value)
+  if (rawName && !looksLikeCode(rawName)) {
+    vendorDisplayName.value = rawName
+    return
+  }
+
+  // 如果当前值是供应商编码，优先用编码检索供应商名称
+  if (rawName && looksLikeCode(rawName)) {
+    try {
+      const pageByCode = await vendorApi.searchVendors({ pageNumber: 1, pageSize: 20, keyword: rawName })
+      const exactByCode = pageByCode?.items?.find((x: any) => pickVendorCode(x).toUpperCase() === rawName.toUpperCase())
+      const nameByCode = pickVendorName(exactByCode || pageByCode?.items?.[0])
+      if (nameByCode) {
+        vendorDisplayName.value = nameByCode
+        return
+      }
+    } catch {
+      // ignored
+    }
+  }
+
+  if (!rawId) {
+    vendorDisplayName.value = rawName || '-'
+    return
+  }
+
+  try {
+    const v = await vendorApi.getVendorById(rawId)
+    vendorDisplayName.value = pickVendorName(v) || rawName || rawId
+    return
+  } catch {
+    // ignored
+  }
+
+  try {
+    const page = await vendorApi.searchVendors({ pageNumber: 1, pageSize: 20, keyword: rawId })
+    const first = page?.items?.[0]
+    vendorDisplayName.value = pickVendorName(first) || rawName || rawId
+  } catch {
+    vendorDisplayName.value = rawName || rawId
   }
 }
 

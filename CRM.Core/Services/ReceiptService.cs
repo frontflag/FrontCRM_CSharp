@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
 {
@@ -36,7 +37,7 @@ namespace CRM.Core.Services
                 CustomerId = request.CustomerId,
                 SellOrderId = request.SalesOrderId,
                 InvoiceId = request.InvoiceId,
-                ReceiptDate = request.ReceiptDate,
+                ReceiptDate = PostgreSqlDateTime.ToUtc(request.ReceiptDate),
                 ReceivableAmount = request.Amount,
                 ReceiptAmount = request.Amount,
                 Currency = request.Currency,

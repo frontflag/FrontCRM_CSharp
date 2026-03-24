@@ -48,7 +48,7 @@
         <el-tabs v-model="activeTab" class="detail-tabs">
           <!-- 供应商报价明细 -->
           <el-tab-pane label="供应商报价明细" name="items">
-            <el-table :data="quote.items" size="small" v-if="quote.items?.length" class="items-table">
+            <CrmDataTable :data="quote.items" size="small" v-if="quote.items?.length" class="items-table">
               <el-table-column type="index" width="50" label="#" />
               <el-table-column prop="vendorName" label="供应商" min-width="140" />
               <el-table-column prop="contactName" label="联系人" width="100" />
@@ -66,7 +66,7 @@
               </el-table-column>
               <el-table-column prop="leadTime" label="交期" width="100" />
               <el-table-column prop="stockQty" label="库存" width="80" align="right" />
-            </el-table>
+            </CrmDataTable>
             <el-empty v-else description="暂无报价明细" :image-size="80" />
           </el-tab-pane>
 
@@ -124,7 +124,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { mockQuoteApi as quoteApi } from '@/api/mockQuote'
+import { quoteApi } from '@/api/quote'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 

@@ -33,11 +33,6 @@
           <el-icon><Search /></el-icon> 查询
         </el-button>
       </div>
-      <div class="search-right">
-        <el-button type="primary" @click="openCreate">
-          <el-icon><Plus /></el-icon> 新建付款单
-        </el-button>
-      </div>
     </div>
 
     <!-- 统计卡片 -->
@@ -51,24 +46,22 @@
         <div class="stat-value warning">{{ stats.pendingCount }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">已付款</div>
+        <div class="stat-label">付款完成</div>
         <div class="stat-value success">{{ stats.paidCount }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">草稿</div>
+        <div class="stat-label">新建</div>
         <div class="stat-value">{{ stats.draftCount }}</div>
       </div>
     </div>
 
     <!-- 数据表格 -->
-    <div class="table-wrap">
-      <el-table
-        :data="tableData"
-        v-loading="loading"
-        class="crm-table"
-        @row-click="openDetail"
-        row-class-name="table-row-pointer"
-      >
+    <CrmDataTable
+      :data="tableData"
+      v-loading="loading"
+      @row-click="openDetail"
+      row-class-name="table-row-pointer"
+    >
         <el-table-column prop="financePaymentCode" label="付款单号" width="140" fixed>
           <template #default="{ row }">
             <span class="code-text">{{ row.financePaymentCode }}</span>
@@ -97,16 +90,16 @@
         <el-table-column prop="createdAt" label="创建时间" width="120">
           <template #default="{ row }">{{ row.createdAt ? row.createdAt.slice(0, 10) : '-' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
-            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="row.status === 0">编辑</el-button>
-            <el-button size="small" text type="success" @click.stop="submitAudit(row)" v-if="row.status === 0">提交审核</el-button>
-            <el-button size="small" text type="success" @click.stop="approvePayment(row)" v-if="row.status === 1">审核通过</el-button>
-            <el-button size="small" text type="danger" @click.stop="cancelPayment(row)" v-if="[0,1].includes(row.status)">取消</el-button>
+            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="[1,-1].includes(row.status)">编辑</el-button>
+            <el-button size="small" text type="success" @click.stop="submitAudit(row)" v-if="row.status === 1">提交审核</el-button>
+            <el-button size="small" text type="success" @click.stop="confirmPayment(row)" v-if="canShowFinishButton(row)">付款完成</el-button>
+            <el-button size="small" text type="danger" @click.stop="cancelPayment(row)" v-if="[1,2].includes(row.status)">取消</el-button>
           </template>
         </el-table-column>
-      </el-table>
+    </CrmDataTable>
       <div class="pagination-wrap">
         <el-pagination
           v-model:current-page="query.page"
@@ -118,7 +111,6 @@
           @current-change="loadData"
         />
       </div>
-    </div>
 
     <!-- 新建/编辑弹窗 -->
     <el-dialog
@@ -130,6 +122,11 @@
     >
       <el-form :model="form" label-width="100px" class="crm-form">
         <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="供应商ID" required>
+              <el-input v-model="form.vendorId" placeholder="请输入供应商ID" />
+            </el-form-item>
+          </el-col>
           <el-col :span="12">
             <el-form-item label="供应商" required>
               <el-input v-model="form.vendorName" placeholder="请输入供应商名称" />
@@ -178,7 +175,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Plus } from '@element-plus/icons-vue'
+import { Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   financePaymentApi,
@@ -218,18 +215,18 @@ const loadData = async () => {
     tableData.value = res.items || []
     total.value = res.total || 0
     // 更新统计
-    stats.monthTotal = tableData.value.filter(r => r.status === 3).reduce((s, r) => s + r.paymentAmount, 0)
-    stats.pendingCount = tableData.value.filter(r => r.status === 1).length
-    stats.paidCount = tableData.value.filter(r => r.status === 3).length
-    stats.draftCount = tableData.value.filter(r => r.status === 0).length
+    stats.monthTotal = tableData.value.filter(r => r.status === 100).reduce((s, r) => s + r.paymentAmount, 0)
+    stats.pendingCount = tableData.value.filter(r => r.status === 2).length
+    stats.paidCount = tableData.value.filter(r => r.status === 100).length
+    stats.draftCount = tableData.value.filter(r => r.status === 1).length
   } catch {
     // 后端 API 未就绪时使用演示数据
     tableData.value = getMockData()
     total.value = tableData.value.length
-    stats.monthTotal = tableData.value.filter(r => r.status === 3).reduce((s, r) => s + r.paymentAmount, 0)
-    stats.pendingCount = tableData.value.filter(r => r.status === 1).length
-    stats.paidCount = tableData.value.filter(r => r.status === 3).length
-    stats.draftCount = tableData.value.filter(r => r.status === 0).length
+    stats.monthTotal = tableData.value.filter(r => r.status === 100).reduce((s, r) => s + r.paymentAmount, 0)
+    stats.pendingCount = tableData.value.filter(r => r.status === 2).length
+    stats.paidCount = tableData.value.filter(r => r.status === 100).length
+    stats.draftCount = tableData.value.filter(r => r.status === 1).length
   } finally {
     loading.value = false
   }
@@ -237,11 +234,11 @@ const loadData = async () => {
 
 // 演示数据
 const getMockData = (): FinancePayment[] => [
-  { id: '1', financePaymentCode: 'PAY-2026-0001', vendorId: 'v1', vendorName: '深圳华强电子有限公司', paymentAmount: 128500, paymentCurrency: 1, paymentMode: 1, paymentDate: '2026-03-15', status: 3, remark: '3月采购款', createdAt: '2026-03-10' },
-  { id: '2', financePaymentCode: 'PAY-2026-0002', vendorId: 'v2', vendorName: '上海元器件贸易公司', paymentAmount: 56800, paymentCurrency: 1, paymentMode: 1, paymentDate: '2026-03-18', status: 1, remark: '', createdAt: '2026-03-12' },
-  { id: '3', financePaymentCode: 'PAY-2026-0003', vendorId: 'v3', vendorName: 'Arrow Electronics', paymentAmount: 23400, paymentCurrency: 2, paymentMode: 1, paymentDate: undefined, status: 0, remark: '待提交', createdAt: '2026-03-14' },
-  { id: '4', financePaymentCode: 'PAY-2026-0004', vendorId: 'v4', vendorName: '广州立创电子科技', paymentAmount: 89200, paymentCurrency: 1, paymentMode: 2, paymentDate: '2026-03-16', status: 2, remark: '', createdAt: '2026-03-13' },
-  { id: '5', financePaymentCode: 'PAY-2026-0005', vendorId: 'v1', vendorName: '深圳华强电子有限公司', paymentAmount: 34600, paymentCurrency: 1, paymentMode: 3, paymentDate: undefined, status: 4, remark: '已取消', createdAt: '2026-03-08' },
+  { id: '1', financePaymentCode: 'PAY-2026-0001', vendorId: 'v1', vendorName: '深圳华强电子有限公司', paymentAmount: 128500, paymentCurrency: 1, paymentMode: 1, paymentDate: '2026-03-15', status: 100, remark: '3月采购款', createdAt: '2026-03-10' },
+  { id: '2', financePaymentCode: 'PAY-2026-0002', vendorId: 'v2', vendorName: '上海元器件贸易公司', paymentAmount: 56800, paymentCurrency: 1, paymentMode: 1, paymentDate: undefined, status: 2, remark: '', createdAt: '2026-03-12' },
+  { id: '3', financePaymentCode: 'PAY-2026-0003', vendorId: 'v3', vendorName: 'Arrow Electronics', paymentAmount: 23400, paymentCurrency: 2, paymentMode: 1, paymentDate: undefined, status: 1, remark: '待提交', createdAt: '2026-03-14' },
+  { id: '4', financePaymentCode: 'PAY-2026-0004', vendorId: 'v4', vendorName: '广州立创电子科技', paymentAmount: 89200, paymentCurrency: 1, paymentMode: 2, paymentDate: undefined, status: 10, remark: '', createdAt: '2026-03-13' },
+  { id: '5', financePaymentCode: 'PAY-2026-0005', vendorId: 'v1', vendorName: '深圳华强电子有限公司', paymentAmount: 34600, paymentCurrency: 1, paymentMode: 3, paymentDate: undefined, status: -1, remark: '审核驳回', createdAt: '2026-03-08' },
 ]
 
 // 弹窗
@@ -249,15 +246,9 @@ const dialogVisible = ref(false)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
 const form = reactive<Partial<FinancePayment>>({
-  vendorName: '', paymentAmount: 0, paymentMode: 1, paymentCurrency: 1,
+  vendorId: '', vendorName: '', paymentAmount: 0, paymentMode: 1, paymentCurrency: 1,
   paymentDate: undefined, remark: '',
 })
-
-const openCreate = () => {
-  editingId.value = null
-  Object.assign(form, { vendorName: '', paymentAmount: 0, paymentMode: 1, paymentCurrency: 1, paymentDate: undefined, remark: '' })
-  dialogVisible.value = true
-}
 
 const openEdit = (row: FinancePayment) => {
   editingId.value = row.id
@@ -269,9 +260,15 @@ const saveForm = async () => {
   saving.value = true
   try {
     if (editingId.value) {
-      await financePaymentApi.update(editingId.value, form)
+      await financePaymentApi.update(editingId.value, {
+        ...form,
+        paymentAmountToBe: form.paymentAmount,
+      })
     } else {
-      await financePaymentApi.create(form)
+      await financePaymentApi.create({
+        ...form,
+        paymentAmountToBe: form.paymentAmount,
+      })
     }
     ElMessage.success('保存成功')
     dialogVisible.value = false
@@ -292,20 +289,30 @@ const openDetail = (row: FinancePayment) => {
 // 状态操作
 const submitAudit = async (row: FinancePayment) => {
   await ElMessageBox.confirm(`确认提交付款单 ${row.financePaymentCode} 审核？`, '提交审核', { type: 'info' })
-  row.status = 1
+  await financePaymentApi.updateStatus(row.id, 2)
   ElMessage.success('已提交审核')
+  await loadData()
 }
 
-const approvePayment = async (row: FinancePayment) => {
-  await ElMessageBox.confirm(`确认审核通过并标记为已付款？`, '审核确认', { type: 'success' })
-  row.status = 3
-  ElMessage.success('审核通过，已标记为已付款')
+const confirmPayment = async (row: FinancePayment) => {
+  await ElMessageBox.confirm(`确认将付款单 ${row.financePaymentCode} 标记为付款完成？`, '付款完成', { type: 'success' })
+  await financePaymentApi.updateStatus(row.id, 100)
+  ElMessage.success('付款已完成')
+  await loadData()
+}
+
+const canShowFinishButton = (row: FinancePayment | Record<string, any>) => {
+  const numericStatus = Number((row as any)?.status)
+  if (numericStatus === 10) return true
+  const label = PAYMENT_STATUS_MAP[(row as any)?.status as number]?.label || PAYMENT_STATUS_MAP[numericStatus]?.label
+  return label === '审核通过'
 }
 
 const cancelPayment = async (row: FinancePayment) => {
   await ElMessageBox.confirm(`确认取消付款单 ${row.financePaymentCode}？`, '取消确认', { type: 'warning' })
-  row.status = 4
+  await financePaymentApi.updateStatus(row.id, -2)
   ElMessage.success('已取消')
+  await loadData()
 }
 
 const formatAmount = (v: number) => v?.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'

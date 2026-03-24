@@ -132,7 +132,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft, Check, Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { mockQuoteApi as quoteApi } from '@/api/mockQuote'
+import { quoteApi } from '@/api/quote'
+import { runValidatedFormSave } from '@/composables/useFormSubmit'
 
 const router = useRouter()
 const route = useRoute()
@@ -188,18 +189,18 @@ const load = async () => {
   loading.value = true
   try {
     const res = await quoteApi.getById(quoteId.value)
-    const q = res?.data
+    const q = res?.data as Record<string, unknown> | undefined
     if (!q) {
       ElMessage.error('报价单不存在')
       router.push({ name: 'QuoteList' })
       return
     }
     formData.value = {
-      quoteCode: q.quoteCode || '',
-      mpn: q.mpn || '',
-      salesUserName: q.salesUserName || '',
-      purchaseUserName: q.purchaseUserName || '',
-      remark: q.remark || '',
+      quoteCode: String(q.quoteCode ?? q.QuoteCode ?? ''),
+      mpn: String(q.mpn ?? q.Mpn ?? ''),
+      salesUserName: String(q.salesUserName ?? ''),
+      purchaseUserName: String(q.purchaseUserName ?? ''),
+      remark: String(q.remark ?? ''),
       items: q.items ? JSON.parse(JSON.stringify(q.items)) : []
     }
   } catch (e: any) {
@@ -211,22 +212,21 @@ const load = async () => {
 }
 
 const handleSubmit = async () => {
-  await formRef.value.validate()
-  submitLoading.value = true
-  try {
-    const data = {
-      ...formData.value,
-      quoteDate: new Date().toISOString().slice(0, 10)
+  await runValidatedFormSave(formRef, {
+    loading: submitLoading,
+    task: async () => {
+      const data = {
+        ...formData.value,
+        quoteDate: new Date().toISOString().slice(0, 10)
+      }
+      const res = await quoteApi.update(quoteId.value, data)
+      return (res?.data as { id?: string } | undefined)?.id
+    },
+    onSuccess: (id) => {
+      if (id) router.push({ name: 'QuoteDetail', params: { id } })
+      else router.push({ name: 'QuoteList' })
     }
-    const res = await quoteApi.update(quoteId.value, data)
-    const id = res?.data?.id
-    if (id) router.push({ name: 'QuoteDetail', params: { id } })
-    else router.push({ name: 'QuoteList' })
-  } catch (e: any) {
-    ElMessage.error(e?.message || '保存失败')
-  } finally {
-    submitLoading.value = false
-  }
+  })
 }
 
 onMounted(load)

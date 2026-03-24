@@ -74,6 +74,9 @@ namespace CRM.Core.Interfaces
         public DateTime? DeliveryDate { get; set; }
         /// <summary>备注</summary>
         public string? Comment { get; set; }
+
+        /// <summary>内部备注</summary>
+        public string? InnerComment { get; set; }
     }
 
     public class UpdatePurchaseOrderRequest

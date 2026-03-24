@@ -7,6 +7,10 @@ const router = createRouter({
   routes
 })
 
+router.onError((err) => {
+  console.error('[router] 路由或异步组件加载失败:', err)
+})
+
 // Navigation guard
 router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore()

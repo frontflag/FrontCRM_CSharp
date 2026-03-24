@@ -5,6 +5,7 @@ using CRM.Core.Models.Customer;
 using CRM.Core.Models.Draft;
 using CRM.Core.Models.Document;
 using CRM.Core.Models.Favorite;
+using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Quote;
@@ -43,6 +44,7 @@ namespace CRM.Infrastructure.Data
         // ===== 新增系统表 =====
         public DbSet<SysSerialNumber> SerialNumbers { get; set; } = null!;
         public DbSet<SysErrorLog> ErrorLogs { get; set; } = null!;
+        public DbSet<DebugRecord> DebugRecords { get; set; } = null!;
 
         // ===== 物料缓存表 =====
         public DbSet<ComponentCache> ComponentCaches { get; set; } = null!;
@@ -62,6 +64,19 @@ namespace CRM.Infrastructure.Data
         // ===== 采购订单模块 =====
         public DbSet<PurchaseOrder> PurchaseOrders { get; set; } = null!;
         public DbSet<PurchaseOrderItem> PurchaseOrderItems { get; set; } = null!;
+
+        // ===== 采购申请模块 =====
+        public DbSet<PurchaseRequisition> PurchaseRequisitions { get; set; } = null!;
+
+        // ===== 财务模块（收款/付款/进销项发票）=====
+        public DbSet<FinanceReceipt> FinanceReceipts { get; set; } = null!;
+        public DbSet<FinanceReceiptItem> FinanceReceiptItems { get; set; } = null!;
+        public DbSet<FinancePayment> FinancePayments { get; set; } = null!;
+        public DbSet<FinancePaymentItem> FinancePaymentItems { get; set; } = null!;
+        public DbSet<FinancePurchaseInvoice> FinancePurchaseInvoices { get; set; } = null!;
+        public DbSet<FinancePurchaseInvoiceItem> FinancePurchaseInvoiceItems { get; set; } = null!;
+        public DbSet<FinanceSellInvoice> FinanceSellInvoices { get; set; } = null!;
+        public DbSet<SellInvoiceItem> SellInvoiceItems { get; set; } = null!;
 
         // ===== 库存/入库/出库 =====
         public DbSet<StockInfo> Stocks { get; set; } = null!;
@@ -103,7 +118,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Id).HasColumnName("rfq_id");
                 entity.Property(e => e.RfqCode).IsRequired().HasMaxLength(32);
                 entity.HasIndex(e => e.RfqCode).IsUnique();
-                entity.Property(e => e.Status).HasDefaultValue((short)0);
+                entity.Property(e => e.Status).HasDefaultValue((short)1);
                 entity.Property(e => e.RfqDate).HasDefaultValueSql("NOW()");
                 entity.HasMany(e => e.Items)
                       .WithOne(i => i.RFQ)
@@ -156,7 +171,11 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Id).HasColumnName("SellOrderId");
                 entity.Property(e => e.SellOrderCode).IsRequired().HasMaxLength(32);
                 entity.HasIndex(e => e.SellOrderCode).IsUnique();
-                entity.Property(e => e.Status).HasDefaultValue((short)0);
+                entity.Property(e => e.Status)
+                    .HasConversion(
+                        v => (short)v,
+                        v => (SellOrderMainStatus)v)
+                    .HasDefaultValue(SellOrderMainStatus.New);
                 entity.HasMany(e => e.Items)
                       .WithOne(i => i.SellOrder)
                       .HasForeignKey(i => i.SellOrderId)
@@ -196,6 +215,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.SellOrderItemId).IsRequired();
                 entity.Property(e => e.Qty).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
                 entity.Property(e => e.Cost).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.Status).HasDefaultValue((short)1);
                 entity.HasIndex(e => e.PurchaseOrderId);
                 entity.HasIndex(e => e.SellOrderItemId);
                 entity.HasOne(e => e.SellOrderItem)
@@ -362,6 +382,13 @@ namespace CRM.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.ModuleName).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.ErrorMessage).IsRequired().HasMaxLength(500);
+            });
+
+            // ===== Debug 调试表（无认证调试用）=====
+            modelBuilder.Entity<DebugRecord>(entity =>
+            {
+                entity.HasKey(e => e.Name);
+                entity.ToTable("debug");
             });
 
             // ===== 物料缓存表配置 =====
@@ -538,6 +565,108 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.ConvertedEntityId).HasMaxLength(36);
                 entity.HasIndex(e => new { e.UserId, e.EntityType, e.Status });
                 entity.HasIndex(e => e.CreateTime);
+            });
+
+            // ===== 财务模块配置（与历史迁移表结构一致）=====
+            modelBuilder.Entity<FinanceReceipt>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FinanceReceiptId");
+                entity.Property(e => e.FinanceReceiptCode).IsRequired().HasMaxLength(16);
+                entity.Property(e => e.ReceiptAmount).HasColumnType("numeric(18,2)");
+                entity.HasIndex(e => e.FinanceReceiptCode).IsUnique();
+                entity.HasMany(e => e.Items)
+                    .WithOne(i => i.Receipt)
+                    .HasForeignKey(i => i.FinanceReceiptId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<FinanceReceiptItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FinanceReceiptItemId");
+                entity.Property(e => e.ReceiptAmount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.ReceiptConvertAmount).HasColumnType("numeric(18,2)");
+                entity.HasIndex(e => e.FinanceReceiptId);
+            });
+
+            modelBuilder.Entity<FinancePayment>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FinancePaymentId");
+                entity.Property(e => e.FinancePaymentCode).IsRequired().HasMaxLength(16);
+                entity.Property(e => e.PaymentAmount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.PaymentAmountToBe).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.PaymentTotalAmount).HasColumnType("numeric(18,2)");
+                entity.HasIndex(e => e.FinancePaymentCode).IsUnique();
+                entity.HasMany(e => e.Items)
+                    .WithOne(i => i.Payment)
+                    .HasForeignKey(i => i.FinancePaymentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<FinancePaymentItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FinancePaymentItemId");
+                entity.Property(e => e.PaymentAmount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.PaymentAmountToBe).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.VerificationDone).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.VerificationToBe).HasColumnType("numeric(18,2)");
+                entity.HasIndex(e => e.FinancePaymentId);
+            });
+
+            modelBuilder.Entity<FinancePurchaseInvoice>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FinancePurchaseInvoiceId");
+                entity.Property(e => e.InvoiceAmount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.BillAmount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.TaxAmount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.ExcludTaxAmount).HasColumnType("numeric(18,2)");
+                entity.HasMany(e => e.Items)
+                    .WithOne(i => i.PurchaseInvoice)
+                    .HasForeignKey(i => i.FinancePurchaseInvoiceId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<FinancePurchaseInvoiceItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FinancePurchaseInvoiceItemId");
+                entity.Property(e => e.StockInCost).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.BillCost).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.BillAmount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.TaxRate).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.TaxAmount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.ExcludTaxAmount).HasColumnType("numeric(18,2)");
+                entity.HasIndex(e => e.FinancePurchaseInvoiceId);
+            });
+
+            modelBuilder.Entity<FinanceSellInvoice>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FinanceSellInvoiceId");
+                entity.Property(e => e.InvoiceTotal).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.ReceiveDone).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.ReceiveToBe).HasColumnType("numeric(18,2)");
+                entity.HasMany(e => e.Items)
+                    .WithOne(i => i.SellInvoice)
+                    .HasForeignKey(i => i.FinanceSellInvoiceId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // 数据库主键列名为 SellInvoiceItemId，与实体 [Column] 不一致时以 Fluent 为准
+            modelBuilder.Entity<SellInvoiceItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("SellInvoiceItemId");
+                entity.Property(e => e.InvoiceTotal).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.TaxRate).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.ValueAddedTax).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.TaxFreeTotal).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.Price).HasColumnType("numeric(18,4)");
+                entity.HasIndex(e => e.FinanceSellInvoiceId);
             });
 
             // ===== RBAC 配置 =====

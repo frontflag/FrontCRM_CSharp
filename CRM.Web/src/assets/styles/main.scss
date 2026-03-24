@@ -1,4 +1,5 @@
 @import './variables.scss';
+@import './crm-unified-list.scss';
 
 * {
   margin: 0;
@@ -151,6 +152,14 @@ html, body {
   // 列分隔线（竖线）全部移除
   .el-table__cell {
     border-right: none !important;
+  }
+
+  // border 模式（部分页面误加）避免出现浅色竖线/白底表头
+  &.el-table--border {
+    border: none !important;
+    .el-table__cell {
+      border-right: none !important;
+    }
   }
 }
 

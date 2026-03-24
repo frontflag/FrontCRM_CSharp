@@ -287,11 +287,12 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElNotification, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
-import { customerApi } from '@/api/customer';
+import { customerApi, customerContactApi } from '@/api/customer';
 import { draftApi } from '@/api/draft';
 import { authApi } from '@/api/auth';
 import { regionData } from '@/data/regions';
 import type { CreateCustomerRequest } from '@/types/customer';
+import { runValidatedFormSave } from '@/composables/useFormSubmit';
 
 const route = useRoute();
 const router = useRouter();
@@ -455,37 +456,86 @@ const handleRestoreDraft = async () => {
   }
 };
 
-const handleSave = async () => {
-  // el-form.validate() 在校验失败时会抛出异常，需用 try-catch 统一处理
-  let isValid = false;
-  try {
-    isValid = await formRef.value?.validate() ?? false;
-  } catch {
-    // 校验失败（必填项为空等），不是真正的运行时错误
-    ElNotification.warning({ title: '校验失败', message: '请检查表单填写是否完整，必填项不能为空' });
-    return;
-  }
-  if (!isValid) {
-    ElNotification.warning({ title: '校验失败', message: '请检查表单填写是否完整' });
-    return;
+const syncContactsForCustomer = async (targetCustomerId: string) => {
+  const existingContacts = await customerContactApi.getContactsByCustomerId(targetCustomerId);
+  const existingById = new Map(existingContacts.map((c: any) => [c.id, c]));
+  const keptIds = new Set<string>();
+
+  // 仅保留首个默认联系人，避免多默认导致后端状态不一致
+  let defaultAssigned = false;
+  const preparedContacts = formData.contacts.map((c: any) => {
+    const next = { ...c };
+    if (next.isDefault && !defaultAssigned) {
+      defaultAssigned = true;
+    } else {
+      next.isDefault = false;
+    }
+    return next;
+  });
+
+  for (const contact of preparedContacts) {
+    const payload = {
+      contactName: contact.contactName || contact.name || '',
+      gender: contact.gender,
+      department: contact.department || '',
+      position: contact.position || '',
+      mobilePhone: contact.mobilePhone || contact.mobile || '',
+      phone: contact.phone || contact.tel || '',
+      email: contact.email || '',
+      fax: contact.fax || '',
+      isDefault: !!contact.isDefault,
+      isDecisionMaker: !!contact.isDecisionMaker,
+      remarks: contact.remarks || contact.remark || ''
+    };
+
+    if (contact.id && existingById.has(contact.id)) {
+      await customerContactApi.updateContact(contact.id, payload);
+      keptIds.add(contact.id);
+    } else {
+      const created = await customerContactApi.createContact(targetCustomerId, payload as any);
+      const createdId = (created as any)?.id || (created as any)?.data?.id;
+      if (createdId) keptIds.add(createdId);
+    }
   }
 
-  try {
-    if (isEdit.value) {
-      await customerApi.updateCustomer(customerId.value, formData);
-    } else {
-      await customerApi.createCustomer(formData);
+  for (const oldContact of existingContacts) {
+    if (!keptIds.has(oldContact.id)) {
+      await customerContactApi.deleteContact(oldContact.id);
     }
-    ElNotification.success({ title: '保存成功', message: isEdit.value ? '客户信息已成功更新' : '客户已成功创建' });
-    setTimeout(() => router.push('/customers'), 1500);
-  } catch (err: any) {
-    // API 调用失败时，从错误对象中提取具体原因
-    const serverMsg = err?.response?.data?.message
-      || (Array.isArray(err?.response?.data?.errors) ? err.response.data.errors.join('；') : null)
-      || err?.message;
-    const msg = serverMsg ? `保存错误：${serverMsg}` : '保存错误，请稍后重试';
-    ElNotification.error({ title: '保存失败', message: msg });
   }
+};
+
+const handleSave = async () => {
+  const editing = isEdit.value;
+  await runValidatedFormSave(formRef, {
+    task: async () => {
+      let targetCustomerId = '';
+      if (editing) {
+        await customerApi.updateCustomer(customerId.value, formData);
+        targetCustomerId = customerId.value;
+      } else {
+        const created = await customerApi.createCustomer(formData);
+        targetCustomerId = (created as any)?.id || (created as any)?.data?.id || '';
+      }
+
+      if (targetCustomerId) {
+        await syncContactsForCustomer(targetCustomerId);
+      }
+    },
+    formatSuccess: () => (editing ? '客户信息已成功更新' : '客户已成功创建'),
+    onSuccess: () => router.push('/customers'),
+    errorMessage: (err: unknown) => {
+      const e = err as {
+        response?: { data?: { message?: string; errors?: string[] } };
+        message?: string;
+      };
+      const serverMsg =
+        e?.response?.data?.message ||
+        (Array.isArray(e?.response?.data?.errors) ? e.response!.data!.errors!.join('；') : null) ||
+        e?.message;
+      return serverMsg ? `保存错误：${serverMsg}` : '保存错误，请稍后重试';
+    }
+  });
 };
 
 const handleConvertToFormal = async () => {

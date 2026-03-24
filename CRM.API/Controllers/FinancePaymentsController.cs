@@ -1,6 +1,7 @@
 using CRM.Core.Interfaces;
 using CRM.API.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace CRM.API.Controllers
@@ -90,6 +91,12 @@ namespace CRM.API.Controllers
             catch (InvalidOperationException ex)
             {
                 return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (DbUpdateException ex)
+            {
+                var innerMessage = ex.InnerException?.Message ?? ex.Message;
+                _logger.LogError(ex, "新建付款单保存失败");
+                return BadRequest(new { success = false, message = innerMessage });
             }
             catch (Exception ex)
             {

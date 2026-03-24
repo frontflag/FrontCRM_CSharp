@@ -31,14 +31,10 @@
       </div>
     </div>
 
-    <div class="table-panel">
-      <el-table
-        :data="filteredList"
-        v-loading="loading"
-        class="quantum-table"
-        :header-cell-style="tableHeaderStyle"
-        :cell-style="tableCellStyle"
-      >
+    <CrmDataTable
+      :data="filteredList"
+      v-loading="loading"
+    >
         <el-table-column type="index" width="50" align="center" />
         <el-table-column prop="stockOutCode" label="出库单号" width="160">
           <template #default="{ row }">
@@ -68,8 +64,7 @@
             </button>
           </template>
         </el-table-column>
-      </el-table>
-    </div>
+    </CrmDataTable>
   </div>
 </template>
 
@@ -83,22 +78,6 @@ const router = useRouter()
 const loading = ref(false)
 const list = ref<StockOutDto[]>([])
 const keyword = ref('')
-
-const tableHeaderStyle = () => ({
-  background: '#0A1628',
-  color: 'rgba(200,216,232,0.55)',
-  fontSize: '12px',
-  fontWeight: '500',
-  borderBottom: '1px solid rgba(0,212,255,0.12)',
-  padding: '10px 0'
-})
-
-const tableCellStyle = () => ({
-  background: 'transparent',
-  borderBottom: '1px solid rgba(255,255,255,0.05)',
-  color: 'rgba(224,244,255,0.85)',
-  fontSize: '13px'
-})
 
 const formatNum = (v: number) => (v == null ? '--' : Number(v).toLocaleString())
 const formatDate = (v?: string) => (v ? v.replace('T', ' ').slice(0, 16) : '--')
@@ -215,17 +194,6 @@ onMounted(fetchList)
   background: rgba(255, 255, 255, 0.05);
   border-color: $border-panel;
   color: $text-secondary;
-}
-.table-panel {
-  background: $layer-2;
-  border: 1px solid $border-panel;
-  border-radius: 8px;
-  padding: 16px;
-
-  :deep(.el-table__cell) {
-    .el-button { white-space: nowrap !important; }
-    .cell { white-space: nowrap; }
-  }
 }
 .code-link {
   color: $cyan-primary;

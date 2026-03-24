@@ -24,7 +24,7 @@
       <el-col :span="6">
         <el-card class="stat-card stat-success">
           <div class="stat-value">{{ statApproved }}</div>
-          <div class="stat-label">已审批</div>
+          <div class="stat-label">审核通过及以上</div>
         </el-card>
       </el-col>
       <el-col :span="6">
@@ -46,12 +46,7 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="filterForm.status" placeholder="全部状态" clearable>
-            <el-option label="草稿" :value="0" />
-            <el-option label="审批中" :value="1" />
-            <el-option label="已审批" :value="2" />
-            <el-option label="已确认" :value="3" />
-            <el-option label="已完成" :value="6" />
-            <el-option label="已取消" :value="-1" />
+            <el-option v-for="opt in statusFilterOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -65,8 +60,8 @@
 
     <!-- 数据表格 -->
     <el-card class="table-card">
-      <el-table 
-        :data="filteredList" 
+      <CrmDataTable
+        :data="filteredList"
         v-loading="loading"
         highlight-current-row
       >
@@ -99,10 +94,18 @@
         </el-table-column>
         <el-table-column prop="deliveryDate" label="交货日期" width="110" />
         <el-table-column prop="createTime" label="创建时间" width="150" />
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="handleView(row)">查看</el-button>
             <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
+            <el-button
+              v-if="row.status === 1 && canSubmitSalesOrderAudit"
+              link
+              type="warning"
+              @click="submitForAudit(row)"
+            >
+              提交审核
+            </el-button>
             <el-dropdown @command="(cmd: string) => handleMore(cmd, row)">
               <el-button link type="primary">
                 更多<el-icon class="el-icon--right"><arrow-down /></el-icon>
@@ -117,7 +120,7 @@
             </el-dropdown>
           </template>
         </el-table-column>
-      </el-table>
+      </CrmDataTable>
 
       <!-- 分页 -->
       <div class="pagination-wrapper">
@@ -139,13 +142,7 @@
       <el-form label-width="100px">
         <el-form-item label="新状态">
           <el-select v-model="newStatus" style="width: 100%">
-            <el-option label="草稿" :value="0" />
-            <el-option label="审批中" :value="1" />
-            <el-option label="已审批" :value="2" />
-            <el-option label="已确认" :value="3" />
-            <el-option label="已发货" :value="4" />
-            <el-option label="已完成" :value="6" />
-            <el-option label="已取消" :value="-1" />
+            <el-option v-for="opt in statusDialogOptions" :key="String(opt.value)" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -162,9 +159,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Plus, Search, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-// 使用模拟数据 API
-import { mockSalesOrderApi as salesOrderApi } from '@/api/mockSalesOrder'
-import { mockPurchaseOrderApi as purchaseOrderApi } from '@/api/mockPurchaseOrder'
+import { salesOrderApi } from '@/api/salesOrder'
+import { salesOrderStatusText, salesOrderStatusTagType } from '@/constants/salesOrderStatus'
+import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -174,6 +171,8 @@ const orderList = ref<any[]>([])
 const authStore = useAuthStore()
 const canViewCustomerInfo = computed(() => authStore.hasPermission('customer.info.read'))
 const canViewSalesAmount = computed(() => authStore.hasPermission('sales.amount.read'))
+/** 提交审核（新建→待审核） */
+const canSubmitSalesOrderAudit = computed(() => authStore.hasPermission('sales-order.write'))
 
 // 筛选表单
 const filterForm = ref({
@@ -192,7 +191,7 @@ const pageInfo = ref({
 // 对话框控制
 const statusDialogVisible = ref(false)
 const currentRow = ref<any>(null)
-const newStatus = ref(0)
+const newStatus = ref(1)
 
 // 计算属性：筛选后的列表
 const filteredList = computed(() => {
@@ -213,8 +212,25 @@ const filteredList = computed(() => {
 
 // 统计
 const statTotal = computed(() => orderList.value.length)
-const statPending = computed(() => orderList.value.filter(o => o.status === 0 || o.status === 1).length)
-const statApproved = computed(() => orderList.value.filter(o => o.status >= 2).length)
+const statusFilterOptions = [
+  { label: '新建', value: 1 },
+  { label: '待审核', value: 2 },
+  { label: '审核通过', value: 10 },
+  { label: '进行中', value: 20 },
+  { label: '完成', value: 100 },
+  { label: '审核失败', value: -1 },
+  { label: '取消', value: -2 }
+] as const
+
+/** 「更新状态」中不允许直接改为审核通过/审核失败（须走待审批） */
+const statusDialogOptions = computed(() =>
+  statusFilterOptions.filter(o => o.value !== 10 && o.value !== -1)
+)
+
+const terminalOkStatuses = new Set([10, 20, 100])
+
+const statPending = computed(() => orderList.value.filter(o => o.status === 1 || o.status === 2).length)
+const statApproved = computed(() => orderList.value.filter(o => terminalOkStatuses.has(o.status)).length)
 const statAmount = computed(() => orderList.value.reduce((sum, o) => sum + (o.total || 0), 0))
 
 // 格式化货币
@@ -224,21 +240,8 @@ const formatCurrency = (value: number, currency?: number) => {
 }
 
 // 状态处理
-const getStatusType = (status: number) => {
-  const map: Record<number, string> = { 
-    0: 'info', 1: 'warning', 2: 'success', 3: 'primary',
-    4: 'primary', 5: 'success', 6: 'success', '-1': 'danger', '-2': 'danger'
-  }
-  return map[status] || 'info'
-}
-
-const getStatusText = (status: number) => {
-  const map: Record<number, string> = {
-    0: '草稿', 1: '审批中', 2: '已审批', 3: '已确认',
-    4: '已发货', 5: '已收货', 6: '已完成', '-1': '已取消', '-2': '已驳回'
-  }
-  return map[status] || '未知'
-}
+const getStatusType = (status: number) => salesOrderStatusTagType(status)
+const getStatusText = (status: number) => salesOrderStatusText(status)
 
 const getPurchaseStatusType = (status: number) => {
   const map: Record<number, string> = { 0: 'info', 1: 'warning', 2: 'success' }
@@ -254,8 +257,8 @@ const getPurchaseStatusText = (status: number) => {
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await salesOrderApi.getList()
-    orderList.value = res.data || []
+    const res = await salesOrderApi.getList({ page: 1, pageSize: 2000 })
+    orderList.value = (res as { items?: unknown[] }).items || []
     pageInfo.value.total = orderList.value.length
   } catch (error) {
     ElMessage.error('加载数据失败')
@@ -296,6 +299,24 @@ const handleEdit = (row: any) => {
 // 查看
 const handleView = (row: any) => {
   router.push({ name: 'SalesOrderDetail', params: { id: row.id } })
+}
+
+/** 新建(1) → 待审核(2) */
+const submitForAudit = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定将销售订单 ${row.sellOrderCode} 提交审核吗？提交后上级可在「待审批」中处理。`,
+      '提交审核',
+      { type: 'info', confirmButtonText: '提交', cancelButtonText: '取消' }
+    )
+    await salesOrderApi.updateStatus(row.id, 2)
+    ElMessage.success('已提交审核')
+    await loadData()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error(e instanceof Error ? e.message : '提交失败')
+    }
+  }
 }
 
 // 更多操作

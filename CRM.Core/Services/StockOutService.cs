@@ -1,5 +1,7 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Models.Sales;
+using CRM.Core.Utilities;
 using System.Linq;
 
 namespace CRM.Core.Services
@@ -13,6 +15,7 @@ namespace CRM.Core.Services
         private readonly IRepository<StockOutItem> _stockOutItemRepository;
         private readonly IRepository<StockOutRequest> _stockOutRequestRepository;
         private readonly IRepository<StockInfo> _stockRepository;
+        private readonly IRepository<SellOrder> _sellOrderRepository;
         private readonly IUnitOfWork _unitOfWork;
 
         public StockOutService(
@@ -20,12 +23,14 @@ namespace CRM.Core.Services
             IRepository<StockOutItem> stockOutItemRepository,
             IRepository<StockOutRequest> stockOutRequestRepository,
             IRepository<StockInfo> stockRepository,
+            IRepository<SellOrder> sellOrderRepository,
             IUnitOfWork unitOfWork)
         {
             _stockOutRepository = stockOutRepository;
             _stockOutItemRepository = stockOutItemRepository;
             _stockOutRequestRepository = stockOutRequestRepository;
             _stockRepository = stockRepository;
+            _sellOrderRepository = sellOrderRepository;
             _unitOfWork = unitOfWork;
         }
 
@@ -36,6 +41,14 @@ namespace CRM.Core.Services
 
             if (string.IsNullOrWhiteSpace(request.SalesOrderId))
                 throw new ArgumentException("销售订单ID不能为空", nameof(request.SalesOrderId));
+
+            var so = await _sellOrderRepository.GetByIdAsync(request.SalesOrderId);
+            if (so == null)
+                throw new InvalidOperationException("销售订单不存在");
+            if (so.Status < SellOrderMainStatus.Approved)
+                throw new InvalidOperationException("销售订单未审核，不能申请出库");
+            if (so.Status == SellOrderMainStatus.Completed)
+                throw new InvalidOperationException("销售订单已完成，不能申请出库");
 
             var allRequests = await _stockOutRequestRepository.GetAllAsync();
             if (allRequests.Any(r => r.RequestCode == request.RequestCode))
@@ -48,14 +61,44 @@ namespace CRM.Core.Services
                 SalesOrderId = request.SalesOrderId,
                 CustomerId = request.CustomerId,
                 RequestUserId = request.RequestUserId,
-                RequestDate = request.RequestDate,
+                RequestDate = PostgreSqlDateTime.ToUtc(request.RequestDate),
                 Status = 0,
+                Remark = request.Remark,
                 CreateTime = DateTime.UtcNow
             };
 
             await _stockOutRequestRepository.AddAsync(stockOutRequest);
             await _unitOfWork.SaveChangesAsync();
             return stockOutRequest;
+        }
+
+        public async Task<IEnumerable<StockOutRequestListItemDto>> GetStockOutRequestListAsync()
+        {
+            var reqs = (await _stockOutRequestRepository.GetAllAsync()).ToList();
+            var soMap = (await _sellOrderRepository.GetAllAsync())
+                .ToDictionary(x => x.Id, x => x);
+
+            return reqs
+                .OrderByDescending(x => x.CreateTime)
+                .Select(x =>
+                {
+                    soMap.TryGetValue(x.SalesOrderId, out var so);
+                    return new StockOutRequestListItemDto
+                    {
+                        Id = x.Id,
+                        RequestCode = x.RequestCode,
+                        SalesOrderId = x.SalesOrderId,
+                        SalesOrderCode = so?.SellOrderCode,
+                        CustomerId = x.CustomerId,
+                        CustomerName = so?.CustomerName,
+                        RequestUserId = x.RequestUserId,
+                        RequestDate = x.RequestDate,
+                        Status = x.Status,
+                        Remark = x.Remark,
+                        CreateTime = x.CreateTime
+                    };
+                })
+                .ToList();
         }
 
         /// <summary>
@@ -179,7 +222,7 @@ namespace CRM.Core.Services
                 StockOutType = 1,
                 SourceCode = request.StockOutRequestId,
                 WarehouseId = request.WarehouseId,
-                StockOutDate = request.StockOutDate,
+                StockOutDate = PostgreSqlDateTime.ToUtc(request.StockOutDate),
                 TotalQuantity = totalQty,
                 TotalAmount = totalAmount,
                 Remark = request.Remark,

@@ -78,52 +78,7 @@
   &.danger  { color: #C95745; }
 }
 
-// ── 表格 ────────────────────────────────────────────────────
-.table-wrap {
-  background: #162233;
-  border: 1px solid rgba(0, 212, 255, 0.1);
-  border-radius: 10px;
-  overflow: hidden;
-  flex: 1;
-}
-
-.crm-table {
-  --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: transparent;
-  --el-table-header-bg-color: rgba(0, 212, 255, 0.06);
-  --el-table-border-color: rgba(0, 212, 255, 0.08);
-  --el-table-text-color: rgba(180, 210, 230, 0.85);
-  --el-table-header-text-color: rgba(0, 212, 255, 0.7);
-  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.05);
-  --el-table-fixed-box-shadow: none;
-
-  :deep(.el-table__header th) {
-    font-family: 'Noto Sans SC', sans-serif;
-    font-size: 12.5px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-  }
-
-  :deep(.el-table__row td) {
-    font-family: 'Noto Sans SC', sans-serif;
-    font-size: 13px;
-    border-bottom-color: rgba(0, 212, 255, 0.06);
-  }
-
-  :deep(.el-table__row.table-row-pointer) {
-    cursor: pointer;
-  }
-
-  // 操作列按钮禁止折行
-  :deep(.el-table__cell) {
-    .el-button {
-      white-space: nowrap !important;
-    }
-    .cell {
-      white-space: nowrap;
-    }
-  }
-}
+// 列表表格：统一使用全局 .table-wrapper.crm-items-table（见 crm-unified-list.scss）
 
 .code-text {
   font-family: 'Orbitron', monospace;

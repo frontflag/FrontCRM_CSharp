@@ -13,13 +13,15 @@ namespace CRM.Core.Tests.Services
     {
         private readonly IRepository<Quote> _quoteRepository;
         private readonly IRepository<QuoteItem> _quoteItemRepository;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly QuoteService _quoteService;
 
         public QuoteServiceTests()
         {
             _quoteRepository = Substitute.For<IRepository<Quote>>();
             _quoteItemRepository = Substitute.For<IRepository<QuoteItem>>();
-            _quoteService = new QuoteService(_quoteRepository, _quoteItemRepository);
+            _unitOfWork = Substitute.For<IUnitOfWork>();
+            _quoteService = new QuoteService(_quoteRepository, _quoteItemRepository, _unitOfWork);
         }
 
         [Fact]
@@ -49,6 +51,7 @@ namespace CRM.Core.Tests.Services
             Assert.Equal(request.Mpn, result.Mpn);
             Assert.Equal(0, result.Status); // 草稿状态
             await _quoteRepository.Received(1).AddAsync(Arg.Any<Quote>());
+            await _unitOfWork.Received(1).SaveChangesAsync();
         }
 
         [Fact]
@@ -159,6 +162,7 @@ namespace CRM.Core.Tests.Services
 
             // Assert
             await _quoteRepository.Received(1).UpdateAsync(Arg.Is<Quote>(q => q.Status == 1));
+            await _unitOfWork.Received(1).SaveChangesAsync();
         }
 
         [Fact]
@@ -179,6 +183,7 @@ namespace CRM.Core.Tests.Services
 
             // Assert
             await _quoteRepository.Received(1).UpdateAsync(Arg.Is<Quote>(q => q.Status == 5));
+            await _unitOfWork.Received(1).SaveChangesAsync();
         }
 
         [Fact]
@@ -199,6 +204,7 @@ namespace CRM.Core.Tests.Services
 
             // Assert
             await _quoteRepository.Received(1).DeleteAsync(quoteId);
+            await _unitOfWork.Received(1).SaveChangesAsync();
         }
 
         [Fact]

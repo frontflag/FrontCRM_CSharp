@@ -137,29 +137,66 @@ namespace CRM.Core.Tests.Services
         {
             // Arrange
             var orderId = "SO-123";
-            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001", Status = 0 };
+            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001", Status = SellOrderMainStatus.New };
             _orderRepository.GetByIdAsync(orderId).Returns(existingOrder);
 
             // Act
-            await _orderService.UpdateStatusAsync(orderId, 1);
+            await _orderService.UpdateStatusAsync(orderId, SellOrderMainStatus.PendingAudit);
 
             // Assert
-            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == 1));
+            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == SellOrderMainStatus.PendingAudit));
         }
 
         [Fact]
-        public async Task UpdateStatusAsync_ShipOrder_ShouldSetShippedStatus()
+        public async Task UpdateStatusAsync_ApprovedFromPendingAudit_ShouldSetApprovedAndClearAuditRemark()
+        {
+            var orderId = "SO-123";
+            var existingOrder = new SellOrder
+            {
+                Id = orderId,
+                SellOrderCode = "SO-2024-001",
+                Status = SellOrderMainStatus.PendingAudit,
+                AuditRemark = "old"
+            };
+            _orderRepository.GetByIdAsync(orderId).Returns(existingOrder);
+
+            await _orderService.UpdateStatusAsync(orderId, SellOrderMainStatus.Approved);
+
+            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o =>
+                o.Status == SellOrderMainStatus.Approved && o.AuditRemark == null));
+        }
+
+        [Fact]
+        public async Task UpdateStatusAsync_AuditFailedFromPendingAudit_ShouldSaveRemark()
+        {
+            var orderId = "SO-123";
+            var existingOrder = new SellOrder
+            {
+                Id = orderId,
+                SellOrderCode = "SO-2024-001",
+                Status = SellOrderMainStatus.PendingAudit
+            };
+            _orderRepository.GetByIdAsync(orderId).Returns(existingOrder);
+
+            await _orderService.UpdateStatusAsync(orderId, SellOrderMainStatus.AuditFailed, "价格异常");
+
+            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o =>
+                o.Status == SellOrderMainStatus.AuditFailed && o.AuditRemark == "价格异常"));
+        }
+
+        [Fact]
+        public async Task UpdateStatusAsync_ToInProgress_ShouldSetStatus3()
         {
             // Arrange
             var orderId = "SO-123";
-            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001", Status = 1 };
+            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001", Status = SellOrderMainStatus.Approved };
             _orderRepository.GetByIdAsync(orderId).Returns(existingOrder);
 
             // Act
-            await _orderService.UpdateStatusAsync(orderId, 4);
+            await _orderService.UpdateStatusAsync(orderId, SellOrderMainStatus.InProgress);
 
             // Assert
-            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == 4));
+            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == SellOrderMainStatus.InProgress));
         }
 
         [Fact]
@@ -167,14 +204,14 @@ namespace CRM.Core.Tests.Services
         {
             // Arrange
             var orderId = "SO-123";
-            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001", Status = 4 };
+            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001", Status = SellOrderMainStatus.InProgress };
             _orderRepository.GetByIdAsync(orderId).Returns(existingOrder);
 
             // Act
-            await _orderService.UpdateStatusAsync(orderId, 6);
+            await _orderService.UpdateStatusAsync(orderId, SellOrderMainStatus.Completed);
 
             // Assert
-            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == 6));
+            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == SellOrderMainStatus.Completed));
         }
 
         [Fact]
@@ -182,29 +219,29 @@ namespace CRM.Core.Tests.Services
         {
             // Arrange
             var orderId = "SO-123";
-            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001", Status = 0 };
+            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001", Status = SellOrderMainStatus.New };
             _orderRepository.GetByIdAsync(orderId).Returns(existingOrder);
 
             // Act
-            await _orderService.UpdateStatusAsync(orderId, -1);
+            await _orderService.UpdateStatusAsync(orderId, SellOrderMainStatus.Cancelled);
 
             // Assert
-            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == -1));
+            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == SellOrderMainStatus.Cancelled));
         }
 
         [Fact]
-        public async Task RequestStockOutAsync_ValidOrder_ShouldSetStockOutStatus()
+        public async Task RequestStockOutAsync_ValidOrder_ShouldSetInProgressStatus()
         {
             // Arrange
             var orderId = "SO-123";
-            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001", Status = 3 };
+            var existingOrder = new SellOrder { Id = orderId, SellOrderCode = "SO-2024-001", Status = SellOrderMainStatus.Approved };
             _orderRepository.GetByIdAsync(orderId).Returns(existingOrder);
 
             // Act
             await _orderService.RequestStockOutAsync(orderId, "USER-001");
 
             // Assert
-            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == 4));
+            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == SellOrderMainStatus.InProgress));
         }
 
         [Fact]

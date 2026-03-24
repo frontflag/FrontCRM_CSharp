@@ -6,7 +6,7 @@ namespace CRM.Core.Models.Sales
     /// <summary>
     /// 销售订单主表 (SellOrder)
     /// 对应数据库表: sellorder
-    /// 状态: 0=草稿 1=审批中 2=已审批 3=已确认 4=已发货 5=已收货 6=已完成 -1=已取消 -2=已驳回
+    /// 主状态: <see cref="SellOrderMainStatus"/>
     /// </summary>
     [Table("sellorder")]
     public class SellOrder : BaseGuidEntity
@@ -48,9 +48,9 @@ namespace CRM.Core.Models.Sales
         [Column("purchase_group_id")]
         public string? PurchaseGroupId { get; set; }
 
-        /// <summary>订单状态 0=草稿 1=审批中 2=已审批 3=已确认 4=已发货 5=已收货 6=已完成 -1=已取消 -2=已驳回</summary>
+        /// <summary>订单主状态</summary>
         [Column("status")]
-        public short Status { get; set; } = 0;
+        public SellOrderMainStatus Status { get; set; } = SellOrderMainStatus.New;
 
         /// <summary>异常状态</summary>
         [Column("err_status")]
@@ -113,6 +113,11 @@ namespace CRM.Core.Models.Sales
         [StringLength(500)]
         [Column("comment")]
         public string? Comment { get; set; }
+
+        /// <summary>审核拒绝原因（审核失败时由审批人填写）</summary>
+        [StringLength(500)]
+        [Column("audit_remark")]
+        public string? AuditRemark { get; set; }
 
         // 导航属性
         public virtual ICollection<SellOrderItem> Items { get; set; } = new List<SellOrderItem>();

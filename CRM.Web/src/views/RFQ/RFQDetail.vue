@@ -78,7 +78,7 @@
             </div>
             <div class="info-item">
               <span class="info-label">联系人邮箱</span>
-              <span class="info-value">{{ rfq.contactPersonEmail || '—' }}</span>
+              <span class="info-value">{{ rfq.contactPersonEmail || (rfq as any).contactEmail || '—' }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">业务员</span>
@@ -124,11 +124,11 @@
             </div>
             <div class="info-item">
               <span class="info-label">重要程度</span>
-              <span class="info-value">{{ rfq.importanceLevel ?? '—' }}</span>
+              <span class="info-value">{{ rfq.importanceLevel ?? (rfq as any).importance ?? '—' }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">最后一次询价</span>
-              <span class="info-value">{{ rfq.isLastQuote ? '是' : '否' }}</span>
+              <span class="info-value">{{ ((rfq as any).isLastInquiry ?? rfq.isLastQuote) ? '是' : '否' }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">来源</span>
@@ -196,7 +196,7 @@
                   刷新最优报价
                 </button>
               </div>
-              <el-table
+              <CrmDataTable
                 :data="rfqItems"
                 v-loading="itemsLoading"
                 class="quantum-table"
@@ -207,10 +207,10 @@
                   <template #default="{ $index }"><span class="cell-muted">{{ $index + 1 }}</span></template>
                 </el-table-column>
                 <el-table-column label="客户物料型号" width="160">
-                  <template #default="{ row }"><span class="cell-secondary">{{ row.customerMaterialModel || '—' }}</span></template>
+                  <template #default="{ row }"><span class="cell-secondary">{{ row.customerMaterialModel || (row as any).customerMpn || '—' }}</span></template>
                 </el-table-column>
                 <el-table-column label="物料型号" min-width="160">
-                  <template #default="{ row }"><span class="cell-code">{{ row.materialModel || '—' }}</span></template>
+                  <template #default="{ row }"><span class="cell-code">{{ row.materialModel || (row as any).mpn || '—' }}</span></template>
                 </el-table-column>
                 <el-table-column label="客户品牌" width="110">
                   <template #default="{ row }"><span class="cell-secondary">{{ row.customerBrand || '—' }}</span></template>
@@ -238,7 +238,7 @@
                     <span :class="['status-badge', `status-${row.status}`]">{{ getStatusLabel(row.status) }}</span>
                   </template>
                 </el-table-column>
-              </el-table>
+              </CrmDataTable>
             </div>
 
             <!-- 关闭记录 -->
@@ -249,7 +249,7 @@
                 </svg>
                 <p>暂无关闭记录</p>
               </div>
-              <el-table v-else :data="closeRecords" class="quantum-table" :header-cell-style="headerCellStyle" :cell-style="cellStyle">
+              <CrmDataTable v-else :data="closeRecords" class="quantum-table" :header-cell-style="headerCellStyle" :cell-style="cellStyle">
                 <el-table-column label="关闭类型" width="120">
                   <template #default="{ row }"><span class="cell-secondary">{{ getCloseTypeLabel(row.closeType) }}</span></template>
                 </el-table-column>
@@ -262,7 +262,7 @@
                 <el-table-column label="关闭时间" width="160">
                   <template #default="{ row }"><span class="cell-muted">{{ formatDate(row.createdAt) }}</span></template>
                 </el-table-column>
-              </el-table>
+              </CrmDataTable>
             </div>
           </div>
         </div>

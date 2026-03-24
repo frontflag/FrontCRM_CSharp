@@ -26,8 +26,8 @@ namespace CRM.Core.Models.Finance
         [StringLength(200)]
         public string? VendorName { get; set; }
 
-        /// <summary>付款状态 0草稿 1待审批 2审批通过 3已付款 4已驳回 5已作废</summary>
-        public short Status { get; set; } = 0;
+        /// <summary>付款状态 1新建 2待审核 10审核通过 100付款完成 -1审核失败 -2取消</summary>
+        public short Status { get; set; } = 1;
 
         /// <summary>待付总额（请款金额）</summary>
         [Column(TypeName = "numeric(18,2)")]

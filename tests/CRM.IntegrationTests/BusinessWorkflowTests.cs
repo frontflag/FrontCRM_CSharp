@@ -1,4 +1,5 @@
 using CRM.Core.Interfaces;
+using CRM.Core.Models;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
@@ -22,6 +23,8 @@ namespace CRM.IntegrationTests
         private readonly ISerialNumberService _serialNumberService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IDataPermissionService _dataPermissionService;
+        private readonly IUserService _userService;
+        private readonly IEntityLookupService _entityLookup;
         private readonly RFQService _rfqService;
         private readonly QuoteService _quoteService;
         private readonly SalesOrderService _salesOrderService;
@@ -39,15 +42,20 @@ namespace CRM.IntegrationTests
             _serialNumberService = Substitute.For<ISerialNumberService>();
             _unitOfWork = Substitute.For<IUnitOfWork>();
             _dataPermissionService = Substitute.For<IDataPermissionService>();
+            _userService = Substitute.For<IUserService>();
+            _userService.GetAllAsync().Returns(new List<User>());
             _serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
+            _entityLookup = Substitute.For<IEntityLookupService>();
             _rfqService = new RFQService(
                 _rfqRepository,
                 _rfqItemRepository,
                 null!,
+                _entityLookup,
                 _unitOfWork,
                 _serialNumberService,
-                _dataPermissionService);
-            _quoteService = new QuoteService(_quoteRepository, _quoteItemRepository);
+                _dataPermissionService,
+                _userService);
+            _quoteService = new QuoteService(_quoteRepository, _quoteItemRepository, _unitOfWork);
             _salesOrderService = new SalesOrderService(
                 _salesOrderRepository,
                 _salesOrderItemRepository,
@@ -133,8 +141,8 @@ namespace CRM.IntegrationTests
             // Note: CreateAsync already called UpdateAsync once (to persist Total),
             // UpdateStatusAsync calls it again with Status==3, so we use AtLeastOnce.
             _salesOrderRepository.GetByIdAsync(order.Id).Returns(order);
-            await _salesOrderService.UpdateStatusAsync(order.Id, 3);
-            await _salesOrderRepository.Received().UpdateAsync(Arg.Is<SellOrder>(o => o.Status == 3));
+            await _salesOrderService.UpdateStatusAsync(order.Id, SellOrderMainStatus.InProgress);
+            await _salesOrderRepository.Received().UpdateAsync(Arg.Is<SellOrder>(o => o.Status == SellOrderMainStatus.InProgress));
         }
     }
 }

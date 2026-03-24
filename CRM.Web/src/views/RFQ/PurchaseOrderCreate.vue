@@ -35,18 +35,25 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="供应商" prop="vendorName">
-              <el-input v-model="formData.vendorName" placeholder="请输入供应商名称" />
+            <el-form-item label="供应商">
+              <el-input v-model="formData.vendorName" disabled placeholder="系统自动带出供应商" />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="24">
           <el-col :span="12">
-            <el-form-item label="采购员" prop="purchaseUserName">
-              <el-input v-model="formData.purchaseUserName" placeholder="请输入采购员" />
+            <el-form-item label="供应商联系人">
+              <el-input v-model="formData.vendorContactName" disabled placeholder="系统自动带出联系人" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
+            <el-form-item label="采购员">
+              <el-input v-model="formData.purchaseUserName" disabled placeholder="系统自动带出采购员" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="24">
+          <el-col :span="24">
             <el-form-item label="订单类型">
               <el-select v-model="formData.type" style="width: 100%">
                 <el-option label="普通订单" :value="1" />
@@ -56,43 +63,15 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <!-- 基本信息-备注/内部备注：合并为一行显现 -->
         <el-row :gutter="24">
           <el-col :span="12">
-            <el-form-item label="币别">
-              <el-select v-model="formData.currency" style="width: 100%">
-                <el-option label="CNY 人民币" :value="1" />
-                <el-option label="USD 美元" :value="2" />
-                <el-option label="EUR 欧元" :value="3" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="交货日期">
-              <el-date-picker
-                v-model="formData.deliveryDate"
-                type="date"
-                placeholder="选择交货日期"
-                style="width: 100%"
-                value-format="YYYY-MM-DD"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="24">
-          <el-col :span="24">
-            <el-form-item label="送货地址">
-              <el-input v-model="formData.deliveryAddress" type="textarea" :rows="2" placeholder="请输入送货地址" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="24">
-          <el-col :span="12">
-            <el-form-item label="备注">
+            <el-form-item label="备注" label-width="80px">
               <el-input v-model="formData.comment" type="textarea" :rows="2" placeholder="请输入备注" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="内部备注">
+            <el-form-item label="内部备注" label-width="90px">
               <el-input v-model="formData.innerComment" type="textarea" :rows="2" placeholder="内部备注（仅内部可见）" />
             </el-form-item>
           </el-col>
@@ -107,39 +86,104 @@
             <el-icon><Plus /></el-icon> 添加明细
           </el-button>
         </div>
-        <el-table :data="formData.items" size="small" class="items-table">
-          <el-table-column type="index" width="50" label="#" align="center" />
-          <el-table-column label="物料型号" min-width="180">
-            <template #default="{ $index }">
-              <el-input v-model="formData.items[$index].pn" placeholder="请输入物料型号" />
-            </template>
-          </el-table-column>
-          <el-table-column label="品牌" width="130">
-            <template #default="{ $index }">
-              <el-input v-model="formData.items[$index].brand" placeholder="品牌" />
-            </template>
-          </el-table-column>
-          <el-table-column label="数量" width="120">
-            <template #default="{ $index }">
-              <el-input-number v-model="formData.items[$index].qty" :min="1" :controls="false" style="width: 100%" />
-            </template>
-          </el-table-column>
-          <el-table-column label="单价(成本)" width="150">
-            <template #default="{ $index }">
-              <el-input-number v-model="formData.items[$index].cost" :min="0" :precision="2" :controls="false" style="width: 100%" />
-            </template>
-          </el-table-column>
-          <el-table-column label="小计" width="140" align="right">
-            <template #default="{ row }">
-              <span class="subtotal">{{ formatCurrency((row.qty || 0) * (row.cost || 0), formData.currency) }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="80" align="center">
-            <template #default="{ $index }">
-              <el-button link type="danger" @click="removeItem($index)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <div v-if="formData.items.length === 0" class="items-empty">暂无明细</div>
+
+        <div v-for="(item, index) in formData.items" :key="index" class="material-card">
+          <div class="material-card-head">
+            <span class="head-mpn">物料型号：{{ item.pn || '—' }}</span>
+            <span class="head-quote">
+              预期采购单价：{{ formatCurrency(item.cost || 0, formData.currency) }}
+            </span>
+          </div>
+          <div class="material-card-body">
+            <el-row :gutter="16">
+              <el-col :span="12">
+                <el-form-item label="物料型号">
+                  <el-input v-model="item.pn" placeholder="请输入物料型号" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="品牌">
+                  <el-input v-model="item.brand" placeholder="品牌" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="16">
+              <el-col :span="8">
+                <el-form-item label="采购单价">
+                  <el-input-number v-model="item.targetPrice" :precision="4" :controls="false" style="width: 100%" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="预期采购单价">
+                  <el-input-number v-model="item.cost" :min="0" :precision="2" :controls="false" disabled style="width: 100%" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="数量">
+                  <el-input-number v-model="item.qty" :min="1" :controls="false" style="width: 100%" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="16">
+              <el-col :span="8">
+                <el-form-item label="币别">
+                  <el-select v-model="item.currency" style="width: 100%">
+                    <el-option label="CNY" :value="1" />
+                    <el-option label="USD" :value="2" />
+                    <el-option label="EUR" :value="3" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="生产日期要求">
+                  <el-select v-model="item.dateCode" style="width: 100%">
+                    <el-option label="2年内" value="2年内" />
+                    <el-option label="1年内" value="1年内" />
+                    <el-option label="无要求" value="无要求" />
+                    <el-option label="—" value="" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="交货日期">
+                  <el-date-picker
+                    v-model="item.deliveryDate"
+                    type="date"
+                    placeholder="选择交货日期"
+                    value-format="YYYY-MM-DD"
+                    style="width: 100%"
+                  />
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="16">
+              <el-col :span="12">
+                <el-form-item label="备注" label-width="80px">
+                  <el-input v-model="item.comment" type="textarea" :rows="2" placeholder="备注" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="内部备注" label-width="90px">
+                  <el-input v-model="item.innerComment" type="textarea" :rows="2" placeholder="内部备注" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <div class="material-card-actions">
+              <el-button link type="danger" @click="removeItem(index)">删除</el-button>
+            </div>
+
+            <div class="line-total-row">
+              <span class="line-total-label">预计采购总额：</span>
+              <span class="line-total-amount">{{ formatCurrency((item.qty || 0) * (item.targetPrice || 0), item.currency ?? formData.currency) }}</span>
+            </div>
+          </div>
+        </div>
+
         <div class="total-row">
           <span class="total-label">合计金额：</span>
           <span class="total-amount">{{ formatCurrency(calculateTotal, formData.currency) }}</span>
@@ -151,15 +195,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Check, Plus } from '@element-plus/icons-vue'
-import { mockPurchaseOrderApi as purchaseOrderApi } from '@/api/mockPurchaseOrder'
+import { purchaseOrderApi } from '@/api/purchaseOrder'
+import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
+import { runSaveTask } from '@/composables/useFormSubmit'
 
 const router = useRouter()
+const route = useRoute()
+
+/** 手工录入时尚无供应商/销售明细主键时的占位（满足后端非空；以销定采时应填真实 ID） */
+const MANUAL_VENDOR_ID = '00000000-0000-0000-0000-000000000002'
+const MANUAL_SELL_ORDER_ITEM_ID = '00000000-0000-0000-0000-000000000000'
 const formRef = ref()
 const submitLoading = ref(false)
+const genLoading = ref(false)
+
+const requisitionId = computed(() => {
+  const v = route.query.requisitionId
+  if (!v) return undefined
+  return String(v)
+})
+const generatedFromRequisition = ref(false)
 
 const genOrderCode = () => {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
@@ -170,6 +228,9 @@ const genOrderCode = () => {
 const formData = ref({
   purchaseOrderCode: genOrderCode(),
   vendorName: '',
+  vendorId: '' as string,
+  vendorContactName: '',
+  vendorContactId: '' as string,
   purchaseUserName: '',
   type: 1,
   currency: 1,
@@ -181,12 +242,11 @@ const formData = ref({
 })
 
 const formRules = {
-  vendorName: [{ required: true, message: '请输入供应商名称', trigger: 'blur' }],
-  purchaseUserName: [{ required: true, message: '请输入采购员', trigger: 'blur' }]
+  // 供应商/采购员由“生成采购订单”自动带出，不参与必填校验
 }
 
 const calculateTotal = computed(() =>
-  formData.value.items.reduce((sum, item) => sum + (item.qty || 0) * (item.cost || 0), 0)
+  formData.value.items.reduce((sum, item) => sum + (item.qty || 0) * (item.targetPrice || 0), 0)
 )
 
 const formatCurrency = (value: number, currency?: number) => {
@@ -195,7 +255,22 @@ const formatCurrency = (value: number, currency?: number) => {
 }
 
 const addItem = () => {
-  formData.value.items.push({ pn: '', brand: '', qty: 1, cost: 0, currency: formData.value.currency })
+  generatedFromRequisition.value = false
+  formData.value.items.push({
+    sellOrderItemId: undefined,
+    vendorId: undefined,
+    pn: '',
+    brand: '',
+    customerMaterialModel: '',
+    targetPrice: 0,
+    qty: 1,
+    cost: 0,
+    currency: formData.value.currency,
+    dateCode: '',
+    deliveryDate: formData.value.deliveryDate || '',
+    comment: '',
+    innerComment: ''
+  })
 }
 
 const removeItem = (index: number) => {
@@ -203,23 +278,91 @@ const removeItem = (index: number) => {
 }
 
 const handleSubmit = async () => {
-  await formRef.value.validate()
-  submitLoading.value = true
+  await runSaveTask({
+    loading: submitLoading,
+    successMessage: '采购订单创建成功',
+    task: async () => {
+      await purchaseOrderApi.create({
+        purchaseOrderCode: formData.value.purchaseOrderCode,
+        vendorId: formData.value.vendorId || MANUAL_VENDOR_ID,
+        vendorName: formData.value.vendorName,
+        purchaseUserName: formData.value.purchaseUserName,
+        vendorContactId: formData.value.vendorContactId || undefined,
+        type: formData.value.type,
+        currency: formData.value.currency,
+        deliveryDate: formData.value.deliveryDate || null,
+        deliveryAddress: formData.value.deliveryAddress || undefined,
+        comment: formData.value.comment || undefined,
+        innerComment: formData.value.innerComment || undefined,
+        items: formData.value.items.map((it) => ({
+          sellOrderItemId: it.sellOrderItemId ?? MANUAL_SELL_ORDER_ITEM_ID,
+          vendorId: it.vendorId ?? MANUAL_VENDOR_ID,
+          pn: it.pn,
+          brand: it.brand,
+          qty: it.qty,
+          cost: it.targetPrice,
+          currency: it.currency ?? formData.value.currency,
+          deliveryDate: it.deliveryDate || null,
+          comment: it.comment || undefined,
+          innerComment: it.innerComment || undefined
+        }))
+      })
+    },
+    onSuccess: () => router.push({ name: 'PurchaseOrderList' }),
+    errorMessage: () => '创建失败，请重试'
+  })
+}
+
+async function handleGeneratePurchaseOrder() {
+  if (!requisitionId.value) return
+  genLoading.value = true
   try {
-    const data = {
-      ...formData.value,
-      total: calculateTotal.value,
-      itemRows: formData.value.items.length
-    }
-    await purchaseOrderApi.create(data)
-    ElMessage.success('采购订单创建成功')
-    router.push({ name: 'PurchaseOrderList' })
+    const pr = await purchaseRequisitionApi.getById(requisitionId.value)
+
+    // 基于采购申请预填采购订单（PRD：预期采购价来自采购申请的 QuoteCost）
+    formData.value.purchaseOrderCode = genOrderCode()
+    formData.value.type = pr.type ?? 1
+    formData.value.vendorName = pr.intendedVendorName ?? ''
+    formData.value.vendorId = pr.quoteVendorId ?? ''
+    formData.value.vendorContactId = pr.intendedVendorContactId ?? ''
+    formData.value.vendorContactName = pr.intendedVendorContactName ?? ''
+    formData.value.purchaseUserName = pr.purchaseUserName ?? pr.purchaseUserId ?? ''
+    formData.value.currency = pr.currency ?? formData.value.currency ?? 1
+
+    const deliveryDateStr = pr.deliveryDate ? String(pr.deliveryDate).split('T')[0] : ''
+    formData.value.deliveryDate = deliveryDateStr || (pr.expectedPurchaseTime ? String(pr.expectedPurchaseTime).split('T')[0] : '')
+    // 基本信息-备注默认空白（PR里的备注/内部备注不回填到主表备注，避免干扰用户手工填写）
+    formData.value.comment = ''
+    formData.value.items = [
+      {
+        sellOrderItemId: pr.sellOrderItemId ?? MANUAL_SELL_ORDER_ITEM_ID,
+        vendorId: pr.quoteVendorId ?? MANUAL_VENDOR_ID,
+        pn: pr.pn ?? '',
+        brand: pr.brand ?? '',
+        customerMaterialModel: pr.customerMaterialModel ?? '',
+        targetPrice: pr.targetPrice ?? 0,
+        qty: pr.qty ?? 1,
+        cost: pr.quoteCost ?? 0,
+        currency: pr.currency ?? formData.value.currency,
+        dateCode: pr.dateCode ?? '',
+        deliveryDate: deliveryDateStr || formData.value.deliveryDate || '',
+        comment: pr.itemRemark ?? '',
+        innerComment: ''
+      }
+    ]
+
+    generatedFromRequisition.value = true
   } catch (e) {
-    ElMessage.error('创建失败，请重试')
+    // eslint-disable-next-line no-console
+    console.error(e)
   } finally {
-    submitLoading.value = false
+    genLoading.value = false
   }
 }
+
+onMounted(() => {
+  if (requisitionId.value) handleGeneratePurchaseOrder()
+})
 </script>
 
 <style scoped lang="scss">
@@ -370,9 +513,47 @@ const handleSubmit = async () => {
   }
 }
 
-.subtotal {
-  color: #00c8ff;
+.items-empty {
+  color: #5a7a9a;
   font-size: 13px;
+  padding: 16px 0;
+}
+
+.material-card {
+  border: 1px solid rgba(0, 212, 255, 0.15);
+  border-radius: 8px;
+  margin-bottom: 14px;
+  overflow: hidden;
+  background: rgba(0, 30, 60, 0.25);
+}
+
+.material-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  background: rgba(0, 200, 255, 0.08);
+  border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+  font-size: 13px;
+
+  .head-mpn {
+    color: #c8dff0;
+    font-weight: 600;
+  }
+  .head-quote {
+    color: #5a7a9a;
+  }
+}
+
+.material-card-body {
+  padding: 12px 14px 4px;
+}
+
+.material-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: 8px;
 }
 
 .total-row {
@@ -392,5 +573,29 @@ const handleSubmit = async () => {
     font-size: 16px;
     font-weight: 700;
   }
+}
+
+.subtotal {
+  color: #00c8ff;
+  font-size: 13px;
+}
+
+.line-total-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 8px 0 12px;
+  gap: 8px;
+}
+
+.line-total-label {
+  color: #5a7a9a;
+  font-size: 13px;
+}
+
+.line-total-amount {
+  color: #00c8ff;
+  font-size: 14px;
+  font-weight: 700;
 }
 </style>

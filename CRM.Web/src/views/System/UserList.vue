@@ -6,7 +6,7 @@
         <el-button type="primary" @click="router.push({ name: 'UserCreate' })">新增员工</el-button>
       </div>
 
-      <el-table v-loading="loading" :data="users" style="width: 100%">
+      <CrmDataTable v-loading="loading" :data="users">
         <el-table-column prop="userName" label="员工账号" min-width="160" show-overflow-tooltip />
         <el-table-column prop="realName" label="真实姓名" min-width="160" show-overflow-tooltip />
         <el-table-column prop="email" label="邮箱" min-width="200" show-overflow-tooltip />
@@ -34,7 +34,7 @@
             <el-button link type="danger" @click="handleDelete(row.id)">删除</el-button>
           </template>
         </el-table-column>
-      </el-table>
+      </CrmDataTable>
     </el-card>
   </div>
 </template>

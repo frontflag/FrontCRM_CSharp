@@ -131,6 +131,7 @@ export interface RFQItem {
   // 来自主表的扩展字段（用于列表展示/跳转）
   rfqCode?: string
   rfqCreateTime?: string
+  customerName?: string
 
   // 物料信息
   customerMaterialModel?: string     // 客户物料型号

@@ -51,7 +51,7 @@
           <span>收款明细</span>
         </div>
         <el-empty v-if="!detail.items?.length" description="暂无明细" :image-size="80" />
-        <el-table v-else :data="detail.items" size="small" class="items-table">
+        <CrmDataTable v-else :data="detail.items" size="small" class="items-table">
           <el-table-column type="index" width="50" label="#" />
           <el-table-column prop="pn" label="型号" min-width="150" />
           <el-table-column prop="brand" label="品牌" width="120" />
@@ -67,7 +67,7 @@
               </el-tag>
             </template>
           </el-table-column>
-        </el-table>
+        </CrmDataTable>
       </div>
     </template>
 

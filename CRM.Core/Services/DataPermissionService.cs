@@ -14,6 +14,8 @@ namespace CRM.Core.Services
         private readonly IRbacService _rbacService;
         private readonly IRepository<RbacDepartment> _departmentRepo;
         private readonly IRepository<RbacUserDepartment> _userDepartmentRepo;
+        private readonly IRepository<RbacUserRole> _userRoleRepo;
+        private readonly IRepository<RbacRole> _roleRepo;
         private readonly IRepository<RFQ> _rfqRepo;
         private readonly IRepository<CustomerInfo> _customerRepo;
         private readonly IRepository<VendorInfo> _vendorRepo;
@@ -22,6 +24,8 @@ namespace CRM.Core.Services
             IRbacService rbacService,
             IRepository<RbacDepartment> departmentRepo,
             IRepository<RbacUserDepartment> userDepartmentRepo,
+            IRepository<RbacUserRole> userRoleRepo,
+            IRepository<RbacRole> roleRepo,
             IRepository<RFQ> rfqRepo,
             IRepository<CustomerInfo> customerRepo,
             IRepository<VendorInfo> vendorRepo)
@@ -29,6 +33,8 @@ namespace CRM.Core.Services
             _rbacService = rbacService;
             _departmentRepo = departmentRepo;
             _userDepartmentRepo = userDepartmentRepo;
+            _userRoleRepo = userRoleRepo;
+            _roleRepo = roleRepo;
             _rfqRepo = rfqRepo;
             _customerRepo = customerRepo;
             _vendorRepo = vendorRepo;
@@ -279,10 +285,147 @@ namespace CRM.Core.Services
             }
 
             var userDepartments = await _userDepartmentRepo.GetAllAsync();
-            foreach (var rel in userDepartments.Where(x => allowedDepartmentIds.Contains(x.DepartmentId)))
-                result.Add(rel.UserId);
+            var scopedUserDepartments = userDepartments
+                .Where(x => allowedDepartmentIds.Contains(x.DepartmentId))
+                .ToList();
+
+            // 组织层级规则：
+            // - 总监：可看下属经理和员工
+            // - 经理：可看下属员工
+            // - 员工：仅自己
+            // 仅当用户角色可识别为总监/经理/员工时生效；否则回退到原数据范围逻辑。
+            var currentOrgLevel = ResolveOrgRoleLevel(summary.RoleCodes, Array.Empty<string>());
+            if (currentOrgLevel <= 0)
+            {
+                foreach (var rel in scopedUserDepartments)
+                    result.Add(rel.UserId);
+                return result;
+            }
+
+            if (currentOrgLevel == 1)
+                return result;
+
+            var scopedUserIds = scopedUserDepartments.Select(x => x.UserId).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (scopedUserIds.Count == 0)
+                return result;
+
+            var userRoleLevels = await BuildUserRoleLevelMapAsync(scopedUserIds);
+            var primaryDeptMap = BuildPrimaryDepartmentMap(scopedUserDepartments);
+
+            var currentPath = currentDepartment.Path ?? string.Empty;
+
+            foreach (var uid in scopedUserIds)
+            {
+                if (string.Equals(uid, summary.UserId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (!primaryDeptMap.TryGetValue(uid, out var targetDeptId))
+                    continue;
+
+                if (!TryGetDepartmentById(departments, targetDeptId, out var targetDept))
+                    continue;
+
+                if (!IsSubordinateDepartment(currentDepartment, targetDept))
+                    continue;
+
+                var targetLevel = userRoleLevels.TryGetValue(uid, out var lv) ? lv : 0;
+                if (targetLevel <= 0)
+                    continue;
+
+                var canSee = currentOrgLevel switch
+                {
+                    3 => targetLevel <= 2, // 总监看经理+员工
+                    2 => targetLevel <= 1, // 经理看员工
+                    _ => false
+                };
+
+                if (canSee)
+                    result.Add(uid);
+            }
 
             return result;
+        }
+
+        private async Task<Dictionary<string, int>> BuildUserRoleLevelMapAsync(IReadOnlyList<string> userIds)
+        {
+            var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            if (userIds.Count == 0) return map;
+
+            var userRoles = (await _userRoleRepo.FindAsync(x => userIds.Contains(x.UserId))).ToList();
+            if (userRoles.Count == 0) return map;
+
+            var roleIds = userRoles.Select(x => x.RoleId).Distinct().ToList();
+            var roleMap = (await _roleRepo.FindAsync(x => roleIds.Contains(x.Id)))
+                .ToDictionary(x => x.Id, x => x, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var g in userRoles.GroupBy(x => x.UserId))
+            {
+                var codes = new List<string>();
+                var names = new List<string>();
+                foreach (var ur in g)
+                {
+                    if (!roleMap.TryGetValue(ur.RoleId, out var role)) continue;
+                    codes.Add(role.RoleCode);
+                    names.Add(role.RoleName);
+                }
+                map[g.Key] = ResolveOrgRoleLevel(codes, names);
+            }
+
+            return map;
+        }
+
+        private static Dictionary<string, string> BuildPrimaryDepartmentMap(IReadOnlyList<RbacUserDepartment> scopedUserDepartments)
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var g in scopedUserDepartments.GroupBy(x => x.UserId))
+            {
+                var primary = g.FirstOrDefault(x => x.IsPrimary) ?? g.First();
+                map[g.Key] = primary.DepartmentId;
+            }
+            return map;
+        }
+
+        private static bool TryGetDepartmentById(IEnumerable<RbacDepartment> departments, string id, out RbacDepartment department)
+        {
+            department = departments.FirstOrDefault(x => x.Id == id)!;
+            return department != null;
+        }
+
+        private static bool IsSubordinateDepartment(RbacDepartment currentDept, RbacDepartment targetDept)
+        {
+            if (currentDept.Id == targetDept.Id) return true;
+            if (string.IsNullOrWhiteSpace(currentDept.Path) || string.IsNullOrWhiteSpace(targetDept.Path)) return false;
+            var prefix = currentDept.Path + "/";
+            return targetDept.Path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// 3=总监，2=经理，1=员工，0=未知
+        /// </summary>
+        private static int ResolveOrgRoleLevel(IEnumerable<string> roleCodes, IEnumerable<string> roleNames)
+        {
+            // 标准编码优先（避免「销售经理」等业务角色名误匹配部门层级）
+            foreach (var code in roleCodes.Where(x => !string.IsNullOrWhiteSpace(x)))
+            {
+                var c = code.Trim().ToUpperInvariant();
+                if (c == "DEPT_DIRECTOR") return 3;
+                if (c == "DEPT_MANAGER") return 2;
+                if (c is "DEPT_EMPLOYEE" or "DEPT_STAFF") return 1;
+            }
+
+            var normalized = roleCodes
+                .Concat(roleNames)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim().ToUpperInvariant())
+                .ToList();
+
+            if (normalized.Any(x => x.Contains("DIRECTOR") || x.Contains("总监")))
+                return 3;
+            if (normalized.Any(x => x.Contains("MANAGER") || x.Contains("经理")))
+                return 2;
+            if (normalized.Any(x => x.Contains("EMPLOYEE") || x.Contains("STAFF") || x.Contains("员工")))
+                return 1;
+            return 0;
         }
     }
 }

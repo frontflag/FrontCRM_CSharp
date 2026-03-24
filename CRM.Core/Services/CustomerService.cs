@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
+using CRM.Core.Utilities;
 using System.Linq.Expressions;
 
 namespace CRM.Core.Services
@@ -797,12 +798,10 @@ namespace CRM.Core.Services
                 Subject = request.Subject?.Trim(),
                 Content = request.Content?.Trim(),
                 ContactPerson = request.ContactPerson?.Trim(),
-                Time = request.Time.HasValue 
-                    ? DateTime.SpecifyKind(request.Time.Value, DateTimeKind.Utc)
+                Time = request.Time.HasValue
+                    ? PostgreSqlDateTime.ToUtc(request.Time.Value)
                     : DateTime.UtcNow,
-                NextFollowUpTime = request.NextFollowUpTime.HasValue
-                    ? DateTime.SpecifyKind(request.NextFollowUpTime.Value, DateTimeKind.Utc)
-                    : null,
+                NextFollowUpTime = PostgreSqlDateTime.ToUtc(request.NextFollowUpTime),
                 Result = request.Result?.Trim(),
                 CreateTime = DateTime.UtcNow
             };
@@ -864,8 +863,8 @@ namespace CRM.Core.Services
             if (request.Subject != null) record.Subject = request.Subject.Trim();
             if (request.Content != null) record.Content = request.Content.Trim();
             if (request.ContactPerson != null) record.ContactPerson = request.ContactPerson.Trim();
-            if (request.Time.HasValue) record.Time = DateTime.SpecifyKind(request.Time.Value, DateTimeKind.Utc);
-            if (request.NextFollowUpTime.HasValue) record.NextFollowUpTime = DateTime.SpecifyKind(request.NextFollowUpTime.Value, DateTimeKind.Utc);
+            if (request.Time.HasValue) record.Time = PostgreSqlDateTime.ToUtc(request.Time.Value);
+            if (request.NextFollowUpTime.HasValue) record.NextFollowUpTime = PostgreSqlDateTime.ToUtc(request.NextFollowUpTime.Value);
             if (request.Result != null) record.Result = request.Result.Trim();
             await _contactHistoryRepository.UpdateAsync(record);
             await _unitOfWork.SaveChangesAsync();

@@ -40,7 +40,7 @@
     </el-card>
 
     <el-card>
-      <el-table :data="drafts" v-loading="loading" border stripe>
+      <CrmDataTable :data="drafts" v-loading="loading">
         <el-table-column prop="draftId" label="草稿ID" min-width="260" show-overflow-tooltip />
         <el-table-column prop="draftName" label="草稿名称" min-width="160" show-overflow-tooltip />
         <el-table-column label="业务类型" width="120">
@@ -62,7 +62,7 @@
             <el-button link type="danger" @click="deleteDraft(row)">删除</el-button>
           </template>
         </el-table-column>
-      </el-table>
+      </CrmDataTable>
     </el-card>
   </div>
 </template>

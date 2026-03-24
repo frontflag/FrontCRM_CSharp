@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
@@ -63,6 +64,48 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>需求明细分页（须放在 {id} 之前，否则 "items" 会被当成 id）</summary>
+        // GET api/v1/rfqs/items?pageNumber=1&pageSize=20&startDate=&endDate=&customerKeyword=&materialModel=&salesUserKeyword=
+        [HttpGet("items")]
+        public async Task<ActionResult<ApiResponse<object>>> GetRFQItems(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string? startDate = null,
+            [FromQuery] string? endDate = null,
+            [FromQuery] string? customerKeyword = null,
+            [FromQuery] string? materialModel = null,
+            [FromQuery] string? salesUserKeyword = null)
+        {
+            try
+            {
+                var request = new RFQItemQueryRequest
+                {
+                    PageIndex = pageNumber,
+                    PageSize = pageSize,
+                    StartDate = string.IsNullOrEmpty(startDate) ? null : DateTime.Parse(startDate),
+                    EndDate = string.IsNullOrEmpty(endDate) ? null : DateTime.Parse(endDate),
+                    CustomerKeyword = customerKeyword,
+                    MaterialModel = materialModel,
+                    SalesUserKeyword = salesUserKeyword,
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                };
+                var result = await _rfqService.GetPagedItemsAsync(request);
+                return Ok(ApiResponse<object>.Ok(new
+                {
+                    items = result.Items,
+                    totalCount = result.TotalCount,
+                    pageNumber = result.PageIndex,
+                    pageSize = result.PageSize,
+                    totalPages = result.TotalPages
+                }, "获取需求明细列表成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取需求明细列表失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"获取需求明细列表失败: {ex.Message}", 500));
+            }
+        }
+
         // GET api/v1/rfqs/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<ApiResponse<object>>> GetRFQ(string id)
@@ -102,6 +145,12 @@ namespace CRM.API.Controllers
             catch (InvalidOperationException ex)
             {
                 return Conflict(ApiResponse<object>.Fail(ex.Message, 409));
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "创建需求数据库失败");
+                var detail = ex.InnerException?.Message ?? ex.Message;
+                return StatusCode(500, ApiResponse<object>.Fail($"创建需求失败: {detail}", 500));
             }
             catch (Exception ex)
             {
