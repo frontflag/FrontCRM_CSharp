@@ -85,6 +85,10 @@ namespace CRM.Infrastructure.Data
         public DbSet<StockOut> StockOuts { get; set; } = null!;
         public DbSet<StockOutItem> StockOutItems { get; set; } = null!;
         public DbSet<StockOutRequest> StockOutRequests { get; set; } = null!;
+        public DbSet<StockInNotify> StockInNotifies { get; set; } = null!;
+        public DbSet<StockInNotifyItem> StockInNotifyItems { get; set; } = null!;
+        public DbSet<QCInfo> QCInfos { get; set; } = null!;
+        public DbSet<QCItem> QCItems { get; set; } = null!;
 
         // ===== 文档模块 =====
         public DbSet<UploadDocument> UploadDocuments { get; set; } = null!;
@@ -474,6 +478,61 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.CustomerId).HasMaxLength(36);
                 entity.Property(e => e.RequestUserId).HasMaxLength(36);
                 entity.Property(e => e.Remark).HasMaxLength(500);
+            });
+
+            modelBuilder.Entity<StockInNotify>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.NoticeCode).IsRequired().HasMaxLength(32);
+                entity.Property(e => e.PurchaseOrderId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.PurchaseOrderCode).IsRequired().HasMaxLength(32);
+                entity.Property(e => e.VendorId).HasMaxLength(36);
+                entity.Property(e => e.VendorName).HasMaxLength(64);
+                entity.Property(e => e.PurchaseUserName).HasMaxLength(64);
+                entity.Property(e => e.Status).HasDefaultValue((short)10);
+                entity.HasMany(e => e.Items)
+                    .WithOne(x => x.StockInNotify)
+                    .HasForeignKey(x => x.StockInNotifyId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<StockInNotifyItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.StockInNotifyId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.PurchaseOrderItemId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.Pn).HasMaxLength(128);
+                entity.Property(e => e.Brand).HasMaxLength(64);
+                entity.Property(e => e.Qty).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.ArrivedQty).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.PassedQty).HasColumnType("numeric(18,4)");
+            });
+
+            modelBuilder.Entity<QCInfo>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.QcCode).IsRequired().HasMaxLength(32);
+                entity.Property(e => e.StockInNotifyId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.StockInNotifyCode).IsRequired().HasMaxLength(32);
+                entity.Property(e => e.StockInId).HasMaxLength(36);
+                entity.Property(e => e.PassQty).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.RejectQty).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.Status).HasDefaultValue((short)10);
+                entity.Property(e => e.StockInStatus).HasDefaultValue((short)1);
+                entity.HasMany(e => e.Items)
+                    .WithOne(x => x.QcInfo)
+                    .HasForeignKey(x => x.QcInfoId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<QCItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.QcInfoId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.StockInNotifyItemId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.ArrivedQty).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.PassedQty).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.RejectQty).HasColumnType("numeric(18,4)");
             });
 
             // ===== 文档模块 =====

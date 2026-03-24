@@ -89,6 +89,15 @@
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="goDetail(row)">详情</el-button>
           <el-button
+            v-if="row.itemStatus === 30 && canCreateArrivalNotice"
+            link
+            type="warning"
+            size="small"
+            @click="openArrivalDialog(row)"
+          >
+            到货通知
+          </el-button>
+          <el-button
             v-if="row.itemStatus === 30 && canApplyPayment"
             link
             type="success"
@@ -237,6 +246,86 @@
         <el-button type="primary" :loading="paymentSubmitting" @click="submitPayment()">提交审批</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="arrivalDialogVisible"
+      title="新建到货通知"
+      width="920px"
+      destroy-on-close
+    >
+      <div class="arrival-form-layout">
+
+        <div class="arrival-section">
+          <el-form label-width="90px">
+            <el-row :gutter="12">
+              <el-col :span="8"><el-form-item label="单号"><el-input v-model="arrivalForm.purchaseOrderCode" /></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="申请日期"><el-date-picker v-model="arrivalForm.applyDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="公司名称"><el-input v-model="arrivalForm.companyName" /></el-form-item></el-col>
+            </el-row>
+            <el-row :gutter="12">
+              <el-col :span="8"><el-form-item label="地址"><el-input v-model="arrivalForm.address" /></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="电话"><el-input v-model="arrivalForm.phone" /></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="联系人"><el-input v-model="arrivalForm.contact" /></el-form-item></el-col>
+            </el-row>
+            <el-row :gutter="12">
+              <el-col :span="8"><el-form-item label="来货方式"><el-input v-model="arrivalForm.arrivalMethod" /></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="快递方式"><el-input v-model="arrivalForm.expressMethod" /></el-form-item></el-col>
+              <el-col :span="8"><el-form-item label="快递单号"><el-input v-model="arrivalForm.expressNo" /></el-form-item></el-col>
+            </el-row>
+          </el-form>
+        </div>
+
+        <div class="arrival-section">
+          <div class="section-title">来货明细</div>
+          <CrmDataTable :data="arrivalForm.lines" size="small">
+            <el-table-column label="序号" width="70">
+              <template #default="{ $index }">{{ $index + 1 }}</template>
+            </el-table-column>
+            <el-table-column label="原厂型号" min-width="130">
+              <template #default="{ row }"><el-input v-model="row.pn" /></template>
+            </el-table-column>
+            <el-table-column label="品牌" width="120">
+              <template #default="{ row }"><el-input v-model="row.brand" /></template>
+            </el-table-column>
+            <el-table-column label="数量" width="110" align="right">
+              <template #default="{ row }"><el-input-number v-model="row.qty" :min="0" :precision="4" style="width:90px" /></template>
+            </el-table-column>
+            <el-table-column label="规格参数" min-width="130">
+              <template #default="{ row }"><el-input v-model="row.spec" /></template>
+            </el-table-column>
+            <el-table-column label="包装" width="120">
+              <template #default="{ row }"><el-input v-model="row.packaging" /></template>
+            </el-table-column>
+          </CrmDataTable>
+        </div>
+
+        <div class="arrival-section">
+          <el-form label-width="90px">
+            <el-form-item label="验货要求"><el-input v-model="arrivalForm.inspectionRequirement" /></el-form-item>
+            <el-form-item label="备注"><el-input v-model="arrivalForm.remark" type="textarea" :rows="2" /></el-form-item>
+          </el-form>
+        </div>
+
+        <div class="arrival-section">
+          <el-form label-width="90px">
+            <el-row :gutter="12">
+              <el-col :span="6"><el-form-item label="签收人"><el-input v-model="arrivalForm.signer" /></el-form-item></el-col>
+              <el-col :span="6"><el-form-item label="签收日期"><el-date-picker v-model="arrivalForm.signDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
+              <el-col :span="6"><el-form-item label="质检员"><el-input v-model="arrivalForm.qcUser" /></el-form-item></el-col>
+              <el-col :span="6"><el-form-item label="质检日期"><el-date-picker v-model="arrivalForm.qcDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
+            </el-row>
+            <el-row :gutter="12">
+              <el-col :span="6"><el-form-item label="入库人"><el-input v-model="arrivalForm.stockInUser" /></el-form-item></el-col>
+              <el-col :span="6"><el-form-item label="入库日期"><el-date-picker v-model="arrivalForm.stockInDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
+            </el-row>
+          </el-form>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="arrivalDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="arrivalSubmitting" @click="submitArrivalNotice">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -246,6 +335,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { financePaymentApi } from '@/api/finance'
+import { logisticsApi } from '@/api/logistics'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
@@ -255,6 +345,7 @@ const canViewVendor = computed(() => authStore.hasPermission('vendor.info.read')
 const canViewPurchaseUser = computed(() => authStore.hasPermission('purchase.user.read') || authStore.hasPermission('purchase-order.read'))
 const canViewAmount = computed(() => authStore.hasPermission('purchase.amount.read'))
 const canApplyPayment = computed(() => authStore.hasPermission('finance-payment.write'))
+const canCreateArrivalNotice = computed(() => authStore.hasPermission('purchase-order.read'))
 
 const loading = ref(false)
 const allLines = ref<any[]>([])
@@ -267,6 +358,31 @@ const tableRef = ref<any>(null)
 const selectedRows = ref<any[]>([])
 const paymentDialogVisible = ref(false)
 const paymentSubmitting = ref(false)
+const arrivalDialogVisible = ref(false)
+const arrivalSubmitting = ref(false)
+const arrivalForm = reactive<any>({
+  purchaseOrderId: '',
+  purchaseOrderCode: '',
+  vendorName: '',
+  pn: '',
+  applyDate: '',
+  companyName: '',
+  address: '',
+  phone: '',
+  contact: '',
+  arrivalMethod: '',
+  expressMethod: '',
+  expressNo: '',
+  inspectionRequirement: '',
+  remark: '',
+  signer: '',
+  signDate: '',
+  qcUser: '',
+  qcDate: '',
+  stockInUser: '',
+  stockInDate: '',
+  lines: [] as any[]
+})
 
 const paymentForm = reactive<any>({
   vendorId: '',
@@ -392,6 +508,55 @@ function openPaymentDialog(row: any) {
     remark: ''
   }]
   paymentDialogVisible.value = true
+}
+
+function openArrivalDialog(row: any) {
+  arrivalForm.purchaseOrderId = row.purchaseOrderId || ''
+  arrivalForm.purchaseOrderCode = row.purchaseOrderCode || ''
+  arrivalForm.vendorName = row.vendorName || ''
+  arrivalForm.pn = row.pn || ''
+  arrivalForm.applyDate = ''
+  arrivalForm.companyName = row.vendorName || ''
+  arrivalForm.address = ''
+  arrivalForm.phone = ''
+  arrivalForm.contact = ''
+  arrivalForm.arrivalMethod = ''
+  arrivalForm.expressMethod = ''
+  arrivalForm.expressNo = ''
+  arrivalForm.inspectionRequirement = ''
+  arrivalForm.remark = ''
+  arrivalForm.signer = ''
+  arrivalForm.signDate = ''
+  arrivalForm.qcUser = ''
+  arrivalForm.qcDate = ''
+  arrivalForm.stockInUser = ''
+  arrivalForm.stockInDate = ''
+  arrivalForm.lines = [{
+    pn: row.pn || '',
+    brand: row.brand || '',
+    qty: row.qty || 0,
+    spec: '',
+    packaging: ''
+  }]
+  arrivalDialogVisible.value = true
+}
+
+async function submitArrivalNotice() {
+  if (arrivalSubmitting.value) return
+  if (!arrivalForm.purchaseOrderId) {
+    ElMessage.warning('缺少采购订单ID，无法创建到货通知')
+    return
+  }
+  arrivalSubmitting.value = true
+  try {
+    await logisticsApi.createArrivalNotice(arrivalForm.purchaseOrderId)
+    ElMessage.success('到货通知已创建')
+    arrivalDialogVisible.value = false
+  } catch (error: any) {
+    ElMessage.error(error?.message || '创建到货通知失败')
+  } finally {
+    arrivalSubmitting.value = false
+  }
 }
 
 async function submitPayment() {
@@ -682,6 +847,23 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+.arrival-form-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.arrival-section {
+  border: 1px solid $border-panel;
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.section-title {
+  font-size: 20px;
+  margin-bottom: 8px;
+  color: $text-primary;
 }
 </style>
 

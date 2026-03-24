@@ -316,6 +316,24 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '采购订单明细', permission: 'purchase-order.read' }
       },
       {
+        path: 'logistics/arrival-notices',
+        name: 'ArrivalNoticeList',
+        component: () => import('@/views/Logistics/ArrivalNoticeList.vue'),
+        meta: { requiresAuth: true, title: '到货通知', permission: 'purchase-order.read' }
+      },
+      {
+        path: 'logistics/qc',
+        name: 'QcList',
+        component: () => import('@/views/Logistics/QcList.vue'),
+        meta: { requiresAuth: true, title: '质检', permission: 'purchase-order.read' }
+      },
+      {
+        path: 'logistics/qc/new',
+        name: 'QcCreate',
+        component: () => import('@/views/Logistics/QcCreate.vue'),
+        meta: { requiresAuth: true, title: '新建质检', permission: 'purchase-order.read' }
+      },
+      {
         path: 'sales-orders/new',
         name: 'SalesOrderCreate',
         component: () => import('@/views/RFQ/SalesOrderCreate.vue'),

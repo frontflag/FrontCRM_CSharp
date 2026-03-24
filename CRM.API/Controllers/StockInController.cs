@@ -71,7 +71,11 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "创建入库单失败");
-                return StatusCode(500, ApiResponse<StockIn>.Fail($"创建入库单失败: {ex.Message}", 500));
+                var detail = ex.InnerException?.Message;
+                var message = string.IsNullOrWhiteSpace(detail)
+                    ? $"创建入库单失败: {ex.Message}"
+                    : $"创建入库单失败: {detail}";
+                return StatusCode(500, ApiResponse<StockIn>.Fail(message, 500));
             }
         }
 

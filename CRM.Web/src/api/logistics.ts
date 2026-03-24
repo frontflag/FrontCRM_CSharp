@@ -1,0 +1,75 @@
+import apiClient from './client'
+
+export interface StockInNotifyItemDto {
+  id: string
+  stockInNotifyId: string
+  purchaseOrderItemId: string
+  pn?: string
+  brand?: string
+  qty: number
+  arrivedQty: number
+  passedQty: number
+}
+
+export interface StockInNotifyDto {
+  id: string
+  noticeCode: string
+  purchaseOrderId: string
+  purchaseOrderCode: string
+  vendorId?: string
+  vendorName?: string
+  purchaseUserName?: string
+  status: number
+  createTime: string
+  modifyTime?: string
+  items: StockInNotifyItemDto[]
+}
+
+export interface QcInfoDto {
+  id: string
+  qcCode: string
+  stockInNotifyId: string
+  stockInNotifyCode: string
+  status: number
+  stockInStatus: number
+  passQty: number
+  rejectQty: number
+  stockInId?: string
+  createTime: string
+  modifyTime?: string
+}
+
+export interface AutoGenerateArrivalNoticeResult {
+  purchaseOrdersScanned: number
+  createdCount: number
+  existingCount: number
+}
+
+const unwrap = <T>(res: any): T => (res?.data ?? res) as T
+
+export const logisticsApi = {
+  async getArrivalNotices(): Promise<StockInNotifyDto[]> {
+    return unwrap<StockInNotifyDto[]>(await apiClient.get('/api/v1/logistics/arrival-notices'))
+  },
+  async createArrivalNotice(purchaseOrderId: string): Promise<StockInNotifyDto> {
+    return unwrap<StockInNotifyDto>(await apiClient.post('/api/v1/logistics/arrival-notices', { purchaseOrderId }))
+  },
+  async autoGenerateArrivalNotices(): Promise<AutoGenerateArrivalNoticeResult> {
+    return unwrap<AutoGenerateArrivalNoticeResult>(await apiClient.post('/api/v1/logistics/arrival-notices/auto-generate', {}))
+  },
+  async updateArrivalStatus(id: string, status: number): Promise<void> {
+    await apiClient.patch(`/api/v1/logistics/arrival-notices/${id}/status?status=${status}`)
+  },
+  async getQcs(): Promise<QcInfoDto[]> {
+    return unwrap<QcInfoDto[]>(await apiClient.get('/api/v1/logistics/qcs'))
+  },
+  async createQc(stockInNotifyId: string): Promise<QcInfoDto> {
+    return unwrap<QcInfoDto>(await apiClient.post('/api/v1/logistics/qcs', { stockInNotifyId }))
+  },
+  async updateQcResult(id: string, payload: { result: 'pass' | 'partial' | 'reject'; passQty: number; rejectQty: number }): Promise<QcInfoDto> {
+    return unwrap<QcInfoDto>(await apiClient.patch(`/api/v1/logistics/qcs/${id}/result`, payload))
+  },
+  async bindQcStockIn(id: string, stockInId: string): Promise<void> {
+    await apiClient.patch(`/api/v1/logistics/qcs/${id}/bind-stock-in?stockInId=${encodeURIComponent(stockInId)}`)
+  }
+}

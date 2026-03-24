@@ -39,6 +39,7 @@ namespace CRM.API.Extensions
             services.AddScoped<IVendorService, VendorService>();
             services.AddScoped<IStockInService, StockInService>();
             services.AddScoped<IStockOutService, StockOutService>();
+            services.AddScoped<ILogisticsService, LogisticsService>();
             services.AddScoped<IStockService, StockService>();
 
             // 标签系统

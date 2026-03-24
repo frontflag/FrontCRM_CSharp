@@ -11,15 +11,18 @@ namespace CRM.Core.Services
     {
         private readonly IRepository<StockIn> _stockInRepository;
         private readonly IRepository<StockInItem> _stockInItemRepository;
+        private readonly ILogisticsService _logisticsService;
         private readonly IUnitOfWork _unitOfWork;
 
         public StockInService(
             IRepository<StockIn> stockInRepository,
             IRepository<StockInItem> stockInItemRepository,
+            ILogisticsService logisticsService,
             IUnitOfWork unitOfWork)
         {
             _stockInRepository = stockInRepository;
             _stockInItemRepository = stockInItemRepository;
+            _logisticsService = logisticsService;
             _unitOfWork = unitOfWork;
         }
 
@@ -37,12 +40,18 @@ namespace CRM.Core.Services
                 throw new InvalidOperationException($"入库单号 {request.StockInCode} 已存在");
 
             var stockInId = Guid.NewGuid().ToString();
+            var purchaseOrderId = request.PurchaseOrderId?.Trim();
             var stockIn = new StockIn
             {
                 Id = stockInId,
                 StockInCode = request.StockInCode.Trim(),
                 StockInType = 1, // 采购入库
-                SourceCode = request.PurchaseOrderId,
+                // SourceCode 最大 32，避免直接写入 36 位 GUID 导致保存失败
+                SourceCode = !string.IsNullOrWhiteSpace(purchaseOrderId)
+                    ? purchaseOrderId!.Length > 32 ? purchaseOrderId[..32] : purchaseOrderId
+                    : null,
+                // 保留完整来源单ID，供入库完成回写使用
+                SourceId = purchaseOrderId,
                 WarehouseId = request.WarehouseId,
                 VendorId = request.VendorId,
                 StockInDate = PostgreSqlDateTime.ToUtc(request.StockInDate),
@@ -53,6 +62,8 @@ namespace CRM.Core.Services
             };
 
             await _stockInRepository.AddAsync(stockIn);
+            // 先落主单，避免后续插入明细时触发 FK(stockinitem.stockinid -> stockin.stockinid) 失败
+            await _unitOfWork.SaveChangesAsync();
 
             if (request.Items != null && request.Items.Count > 0)
             {
@@ -138,11 +149,22 @@ namespace CRM.Core.Services
             if (stockIn == null)
                 throw new InvalidOperationException($"入库单 {id} 不存在");
 
+            // 幂等保护：状态未变化时直接返回，避免重复点击导致重复推进回写
+            if (stockIn.Status == status)
+                return;
+
             stockIn.Status = status;
             stockIn.ModifyTime = DateTime.UtcNow;
 
             await _stockInRepository.UpdateAsync(stockIn);
             await _unitOfWork.SaveChangesAsync();
+
+            if (status == 2)
+            {
+                await _logisticsService.HandleStockInCompletedAsync(
+                    stockIn.Id,
+                    !string.IsNullOrWhiteSpace(stockIn.SourceId) ? stockIn.SourceId : stockIn.SourceCode);
+            }
         }
     }
 }

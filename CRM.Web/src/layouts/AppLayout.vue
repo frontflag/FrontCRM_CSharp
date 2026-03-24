@@ -242,13 +242,44 @@
               class="submenu-item"
               active-class="active"
             >采购订单明细</router-link>
-            <button class="submenu-item" @click="handleUnimplemented('收货管理')">收货管理</button>
             <button class="submenu-item" @click="handleUnimplemented('采购退货')">采购退货</button>
           </div>
         </div>
 
         <!-- 库存 -->
         <div class="menu-section-label" v-if="!isCollapsed">库存</div>
+
+        <!-- 入库管理 -->
+        <div class="menu-group">
+          <button class="menu-item has-children" @click="toggleGroup('stockInManagement')" :class="{ 'group-open': openGroups.stockInManagement }">
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M3 7l9-4 9 4-9 4-9-4"/>
+                <path d="M3 12l9 4 9-4"/>
+                <path d="M3 17l9 4 9-4"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">入库管理</span>
+            <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.stockInManagement }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+          <div class="submenu" v-if="!isCollapsed && openGroups.stockInManagement">
+            <router-link
+              v-if="hasPermission('purchase-order.read')"
+              to="/logistics/arrival-notices"
+              class="submenu-item"
+              active-class="active"
+            >到货通知</router-link>
+            <router-link
+              v-if="hasPermission('purchase-order.read')"
+              to="/logistics/qc"
+              class="submenu-item"
+              active-class="active"
+            >质检</router-link>
+            <router-link to="/inventory/stock-in" class="submenu-item" active-class="active">入库</router-link>
+          </div>
+        </div>
 
         <!-- 库存管理 -->
         <div class="menu-group">
@@ -266,7 +297,6 @@
             </svg>
           </button>
           <div class="submenu" v-if="!isCollapsed && openGroups.inventory">
-            <router-link to="/inventory/stock-in" class="submenu-item" active-class="active">入库管理</router-link>
             <router-link to="/inventory/list" class="submenu-item" active-class="active">库存管理</router-link>
             <router-link to="/inventory/stock-out" class="submenu-item" active-class="active">出库管理</router-link>
             <router-link to="/inventory/transfer" class="submenu-item" active-class="active">库存调拨</router-link>
@@ -497,6 +527,7 @@ const openGroups = ref({
   purchase: false,
   sales: false,
   inventory: false,
+  stockInManagement: false,
   customers: false,
   vendors: false,
   rfqs: false,
@@ -508,7 +539,7 @@ const openGroups = ref({
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
   if (isCollapsed.value) {
-    openGroups.value = { purchase: false, sales: false, inventory: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, systemManagement: false }
+    openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, systemManagement: false }
   }
 }
 
@@ -550,6 +581,8 @@ const pageTitleMap: Record<string, string> = {
   '/quotes/create': '新建报价',
   '/purchase-orders': '采购订单',
   '/purchase-order-items': '采购订单明细',
+  '/logistics/arrival-notices': '到货通知',
+  '/logistics/qc': '质检',
   '/sales-orders': '销售订单',
   '/sales-order-items': '销售订单明细',
   '/stock-out-notifies': '出库通知',
@@ -614,8 +647,15 @@ watch(
     if (p === '/sales-orders' || p.startsWith('/sales-orders/') || p === '/sales-order-items' || p === '/stock-out-notifies') {
       openGroups.value.sales = true
     }
-    if (p === '/purchase-orders' || p.startsWith('/purchase-orders/') || p === '/purchase-order-items') {
+    if (
+      p === '/purchase-orders' ||
+      p.startsWith('/purchase-orders/') ||
+      p === '/purchase-order-items'
+    ) {
       openGroups.value.purchase = true
+    }
+    if (p.startsWith('/logistics/') || p === '/inventory/stock-in' || p.startsWith('/inventory/stock-in/')) {
+      openGroups.value.stockInManagement = true
     }
     if (p.startsWith('/system/')) {
       openGroups.value.systemManagement = true
