@@ -12,31 +12,29 @@ namespace CRM.Core.Services
         private readonly IRepository<Quote> _quoteRepository;
         private readonly IRepository<QuoteItem> _quoteItemRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ISerialNumberService _serialNumberService;
 
         public QuoteService(
             IRepository<Quote> quoteRepository,
             IRepository<QuoteItem> quoteItemRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            ISerialNumberService serialNumberService)
         {
             _quoteRepository = quoteRepository;
             _quoteItemRepository = quoteItemRepository;
             _unitOfWork = unitOfWork;
+            _serialNumberService = serialNumberService;
         }
 
         public async Task<Quote> CreateAsync(CreateQuoteRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.QuoteCode))
-                throw new ArgumentException("报价单号不能为空", nameof(request.QuoteCode));
-
-            // 检查报价单号是否已存在
-            var allQuotes = await _quoteRepository.GetAllAsync();
-            if (allQuotes.Any(q => q.QuoteCode == request.QuoteCode))
-                throw new InvalidOperationException($"报价单号 {request.QuoteCode} 已存在");
+            // 后端统一生成报价单号（忽略客户端传入）
+            var quoteCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.Quotation);
 
             var quote = new Quote
             {
                 Id = Guid.NewGuid().ToString(),
-                QuoteCode = request.QuoteCode.Trim(),
+                QuoteCode = quoteCode,
                 RFQId = request.RFQId,
                 RFQItemId = request.RFQItemId,
                 Mpn = request.Mpn,

@@ -3,13 +3,34 @@ using CRM.Core.Models.Inventory;
 namespace CRM.Core.Interfaces
 {
     /// <summary>
+    /// 入库单列表行（含来源单号、供应商名称等展示字段）
+    /// </summary>
+    public class StockInListItemDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string StockInCode { get; set; } = string.Empty;
+        public short StockInType { get; set; }
+        /// <summary>来源单号（采购单号/质检单号等，非内部 GUID）</summary>
+        public string? SourceDisplayNo { get; set; }
+        public string WarehouseId { get; set; } = string.Empty;
+        public string? VendorId { get; set; }
+        public string? VendorName { get; set; }
+        public DateTime StockInDate { get; set; }
+        public decimal TotalQuantity { get; set; }
+        public decimal TotalAmount { get; set; }
+        public short Status { get; set; }
+        public string? Remark { get; set; }
+        public DateTime CreateTime { get; set; }
+    }
+
+    /// <summary>
     /// 入库服务接口
     /// </summary>
     public interface IStockInService
     {
         Task<StockIn> CreateAsync(CreateStockInRequest request);
         Task<StockIn?> GetByIdAsync(string id);
-        Task<IEnumerable<StockIn>> GetAllAsync();
+        Task<IReadOnlyList<StockInListItemDto>> GetListAsync();
         Task<StockIn> UpdateAsync(string id, UpdateStockInRequest request);
         Task DeleteAsync(string id);
         Task UpdateStatusAsync(string id, short status);

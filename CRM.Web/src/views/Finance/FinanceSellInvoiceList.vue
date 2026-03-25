@@ -104,7 +104,7 @@
           <template #default="{ row }">{{ SELL_INVOICE_TYPE_MAP[row.sellInvoiceType] }}</template>
         </el-table-column>
         <el-table-column prop="makeInvoiceDate" label="开票日期" width="120">
-          <template #default="{ row }">{{ row.makeInvoiceDate ? row.makeInvoiceDate.slice(0, 10) : '-' }}</template>
+          <template #default="{ row }">{{ row.makeInvoiceDate ? formatDisplayDate(row.makeInvoiceDate) : '-' }}</template>
         </el-table-column>
         <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
@@ -209,6 +209,7 @@ import {
   type FinanceSellInvoice,
   type PageQuery,
 } from '@/api/finance'
+import { formatDisplayDate } from '@/utils/displayDateTime'
 
 const router = useRouter()
 

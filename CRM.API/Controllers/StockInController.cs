@@ -19,17 +19,17 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponse<IEnumerable<StockIn>>>> GetAll()
+        public async Task<ActionResult<ApiResponse<IReadOnlyList<StockInListItemDto>>>> GetAll()
         {
             try
             {
-                var list = await _service.GetAllAsync();
-                return Ok(ApiResponse<IEnumerable<StockIn>>.Ok(list, "获取入库单列表成功"));
+                var list = await _service.GetListAsync();
+                return Ok(ApiResponse<IReadOnlyList<StockInListItemDto>>.Ok(list, "获取入库单列表成功"));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取入库单列表失败");
-                return StatusCode(500, ApiResponse<IEnumerable<StockIn>>.Fail($"获取入库单列表失败: {ex.Message}", 500));
+                return StatusCode(500, ApiResponse<IReadOnlyList<StockInListItemDto>>.Fail($"获取入库单列表失败: {ex.Message}", 500));
             }
         }
 

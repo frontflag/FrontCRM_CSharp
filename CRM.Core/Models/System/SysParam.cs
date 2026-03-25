@@ -43,6 +43,14 @@ namespace CRM.Core.Models.System
     public class SysParam : BaseGuidEntity
     {
         /// <summary>
+        /// 参数主键
+        /// </summary>
+        [Key]
+        [MaxLength(36)]
+        [Column("ParamId")]
+        public override string Id { get; set; } = Guid.NewGuid().ToString();
+
+        /// <summary>
         /// 参数编码
         /// 格式建议：Group.SubGroup.ParamName
         /// 例如：System.Email.SMTPServer
@@ -61,10 +69,11 @@ namespace CRM.Core.Models.System
         public string ParamName { get; set; } = string.Empty;
 
         /// <summary>
-        /// 所属分组ID
+        /// 所属分组ID（与 <see cref="SysParamGroup.Id"/> 一致，varchar(36)）
         /// </summary>
+        [MaxLength(36)]
         [Column("GroupId")]
-        public Guid? GroupId { get; set; }
+        public string? GroupId { get; set; }
 
         /// <summary>
         /// 数据类型

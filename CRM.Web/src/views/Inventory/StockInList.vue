@@ -31,15 +31,14 @@
       v-loading="loading"
       @row-dblclick="handleView"
     >
-        <el-table-column type="index" width="50" align="center" />
         <el-table-column prop="stockInCode" label="入库单号" width="160">
           <template #default="{ row }">
             <span class="code-link" @click.stop="handleView(row)">{{ row.stockInCode }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="sourceCode" label="来源单号" width="160" show-overflow-tooltip />
+        <el-table-column prop="sourceDisplayNo" label="来源单号" width="160" show-overflow-tooltip />
         <el-table-column prop="warehouseId" label="仓库ID" width="140" show-overflow-tooltip />
-        <el-table-column prop="vendorId" label="供应商ID" width="140" show-overflow-tooltip />
+        <el-table-column prop="vendorName" label="供应商" min-width="160" show-overflow-tooltip />
         <el-table-column prop="stockInDate" label="入库日期" width="160">
           <template #default="{ row }">
             <span class="text-secondary">{{ formatDate(row.stockInDate) }}</span>
@@ -61,7 +60,7 @@
           <template #default="{ row }">
             <button class="action-btn" @click.stop="handleEditRemark(row)">修改备注</button>
             <button
-              v-if="row.status === 0 || row.status === 1"
+              v-if="row.status !== 2 && row.status !== 3"
               class="action-btn"
               @click.stop="handleFinish(row)"
             >
@@ -85,11 +84,12 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { stockInApi, type StockInDto } from '@/api/stockIn'
+import { stockInApi, type StockInListItemDto } from '@/api/stockIn'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const loading = ref(false)
-const list = ref<StockInDto[]>([])
+const list = ref<StockInListItemDto[]>([])
 const keyword = ref('')
 
 const remarkDialogVisible = ref(false)
@@ -100,7 +100,7 @@ const remarkForm = reactive<{ id: string; remark: string }>({
 
 const formatNum = (v: number) => (v == null ? '--' : Number(v).toLocaleString())
 const formatMoney = (v: number) => (v == null ? '--' : Number(v).toFixed(2))
-const formatDate = (v?: string) => (v ? v.replace('T', ' ').slice(0, 16) : '--')
+const formatDate = (v?: string) => formatDisplayDateTime(v)
 
 const statusLabel = (s: number) => {
   switch (s) {
@@ -117,7 +117,7 @@ const filteredList = computed(() => {
   const k = keyword.value.toLowerCase()
   return list.value.filter(x =>
     x.stockInCode.toLowerCase().includes(k) ||
-    (x.sourceCode && x.sourceCode.toLowerCase().includes(k))
+    (x.sourceDisplayNo && x.sourceDisplayNo.toLowerCase().includes(k))
   )
 })
 
@@ -133,12 +133,12 @@ const fetchList = async () => {
   }
 }
 
-const handleView = (row: StockInDto) => {
+const handleView = (row: StockInListItemDto) => {
   // 暂时直接进入编辑页查看
   router.push(`/inventory/stock-in/${row.id}`)
 }
 
-const handleEditRemark = (row: StockInDto) => {
+const handleEditRemark = (row: StockInListItemDto) => {
   remarkForm.id = row.id
   remarkForm.remark = row.remark || ''
   remarkDialogVisible.value = true
@@ -156,7 +156,7 @@ const submitRemark = async () => {
   }
 }
 
-const handleFinish = async (row: StockInDto) => {
+const handleFinish = async (row: StockInListItemDto) => {
   try {
     await stockInApi.updateStatus(row.id, 2)
     ElMessage.success('已标记为已入库')

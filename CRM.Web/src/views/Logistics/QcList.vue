@@ -38,18 +38,27 @@ import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { logisticsApi, type QcInfoDto } from '@/api/logistics'
 import { stockInApi } from '@/api/stockIn'
+import { inventoryCenterApi } from '@/api/inventoryCenter'
 import { useRouter } from 'vue-router'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const loading = ref(false)
 const list = ref<QcInfoDto[]>([])
+const getYYMMDD = (d: Date) => {
+  const yy = String(d.getFullYear()).slice(-2)
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yy}${mm}${dd}`
+}
+const random4 = () => String(Math.floor(Math.random() * 10000)).padStart(4, '0')
 
 const qcText = (s: number) => ({ [-1]: '未通过', 10: '部分通过', 100: '已通过' }[s] || '未知')
 const qcType = (s: number) => ({ [-1]: 'danger', 10: 'warning', 100: 'success' }[s] || 'info')
 const stockInText = (s: number) => ({ [-1]: '拒收', 1: '未入库', 10: '部分入库', 100: '全部入库' }[s] || '未知')
 const stockInType = (s: number) => ({ [-1]: 'danger', 1: 'info', 10: 'warning', 100: 'success' }[s] || 'info')
-const formatTime = (v?: string) => (v ? v.replace('T', ' ').slice(0, 16) : '--')
+const formatTime = (v?: string) => formatDisplayDateTime(v)
 
 const loadData = () => {
   loading.value = true
@@ -63,6 +72,13 @@ const goView = (row: QcInfoDto) => {
 }
 
 const canCreateStockIn = (row: QcInfoDto) => row.status !== -1 && !row.stockInId
+
+const resolveWarehouseId = async () => {
+  const warehouses = await inventoryCenterApi.getWarehouses()
+  if (!warehouses.length) return 'WH-DEFAULT'
+  const preferred = warehouses.find(w => (w.warehouseCode || '').trim().toUpperCase() === 'WH-DEFAULT')
+  return preferred?.id || warehouses[0].id || 'WH-DEFAULT'
+}
 
 const createStockIn = async (row: QcInfoDto) => {
   const notices = await logisticsApi.getArrivalNotices()
@@ -95,11 +111,12 @@ const createStockIn = async (row: QcInfoDto) => {
 
   loading.value = true
   try {
+    const warehouseId = await resolveWarehouseId()
     const payload = {
-      stockInCode: `SI${new Date().toISOString().replace(/[-:TZ.]/g, '').slice(2, 14)}`,
+      stockInCode: `SI${getYYMMDD(new Date())}${random4()}`,
       purchaseOrderId: notice.purchaseOrderId,
       vendorId: notice.vendorId,
-      warehouseId: 'WH-DEFAULT',
+      warehouseId,
       stockInDate: new Date().toISOString(),
       totalQuantity: Number(items.reduce((s, x) => s + Number(x.quantity || 0), 0).toFixed(4)),
       remark: `由质检单 ${row.qcCode} 生成`,
@@ -110,9 +127,11 @@ const createStockIn = async (row: QcInfoDto) => {
     if (!stockInId) {
       throw new Error('生成入库单失败：未返回入库单ID')
     }
+    // 质检生成的入库单默认直接完成入库，触发库存中心过账
+    await stockInApi.updateStatus(stockInId, 2)
     await logisticsApi.bindQcStockIn(row.id, stockInId)
     loadData()
-    ElMessage.success('已生成入库单')
+    ElMessage.success('已生成并过账入库单')
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, '生成入库失败'))
   } finally {

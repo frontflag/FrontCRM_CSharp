@@ -245,8 +245,11 @@ namespace CRM.API.Controllers
         {
             try
             {
+                if (request == null)
+                    return BadRequest(new { success = false, message = "请求体不能为空" });
+
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (request != null && string.IsNullOrWhiteSpace(request.PurchaseUserId))
+                if (string.IsNullOrWhiteSpace(request.PurchaseUserId))
                     request.PurchaseUserId = userId;
 
                 var created = await _service.CreateAsync(request);
@@ -350,8 +353,11 @@ namespace CRM.API.Controllers
         {
             try
             {
+                if (request == null)
+                    return BadRequest(new { success = false, message = "请求体不能为空" });
+
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (request != null && string.IsNullOrWhiteSpace(request.PurchaseUserId))
+                if (string.IsNullOrWhiteSpace(request.PurchaseUserId))
                     request.PurchaseUserId = userId;
 
                 var created = await _service.CreateAsync(request);

@@ -1,5 +1,14 @@
 import apiClient from './client'
 
+const getYYMMDD = (d: Date) => {
+  const yy = String(d.getFullYear()).slice(-2)
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yy}${mm}${dd}`
+}
+
+const random4 = () => String(Math.floor(Math.random() * 10000)).padStart(4, '0')
+
 /** 与后端 CreateQuoteItemRequest / 前端表单字段对齐 */
 function buildItemsFromQuoteCreateForm(form: Record<string, unknown>): Record<string, unknown>[] {
   const rows = (form.quotePriceRows as Record<string, unknown>[] | undefined) || []
@@ -49,7 +58,7 @@ function mapToCreateQuoteRequest(form: Record<string, unknown>): Record<string, 
 
   const quoteCode =
     (form.quoteCode && String(form.quoteCode).trim()) ||
-    `QT${new Date().toISOString().slice(0, 10).replace(/-/g, '')}${String(Math.random()).slice(2, 6)}`
+    `QT${getYYMMDD(new Date())}${random4()}`
 
   return {
     quoteCode,

@@ -33,6 +33,7 @@ import { ref, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
 import DocumentPreviewDialog from './DocumentPreviewDialog.vue'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const props = defineProps<{
   bizType: string
@@ -85,8 +86,7 @@ function fileIcon(doc: UploadDocumentDto) {
 }
 
 function formatDate(s?: string) {
-  if (!s) return '--'
-  return s.replace('T', ' ').slice(0, 16)
+  return formatDisplayDateTime(s)
 }
 
 function formatSize(n?: number) {

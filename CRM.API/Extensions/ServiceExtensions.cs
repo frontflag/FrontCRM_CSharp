@@ -38,9 +38,11 @@ namespace CRM.API.Extensions
             services.AddScoped<IRepository<CRM.Core.Models.Quote.QuoteItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Quote.QuoteItem>>();
             services.AddScoped<IVendorService, VendorService>();
             services.AddScoped<IStockInService, StockInService>();
+            services.AddScoped<IDisplayTimeZoneService, DisplayTimeZoneService>();
             services.AddScoped<IStockOutService, StockOutService>();
             services.AddScoped<ILogisticsService, LogisticsService>();
             services.AddScoped<IStockService, StockService>();
+            services.AddScoped<IInventoryCenterService, InventoryCenterService>();
 
             // 标签系统
             services.AddScoped<ITagService, TagService>();

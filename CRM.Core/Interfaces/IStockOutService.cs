@@ -22,20 +22,15 @@ namespace CRM.Core.Interfaces
     {
         public string RequestCode { get; set; } = string.Empty;
         public string SalesOrderId { get; set; } = string.Empty;
+        /// <summary>销售订单明细主键（sellorderitem）</summary>
+        public string SalesOrderItemId { get; set; } = string.Empty;
+        public string MaterialCode { get; set; } = string.Empty;
+        public string MaterialName { get; set; } = string.Empty;
+        public decimal Quantity { get; set; }
         public string CustomerId { get; set; } = string.Empty;
         public string RequestUserId { get; set; } = string.Empty;
         public DateTime RequestDate { get; set; }
         public string? Remark { get; set; }
-        public List<CreateStockOutRequestItemRequest> Items { get; set; } = new();
-    }
-
-    public class CreateStockOutRequestItemRequest
-    {
-        public int LineNo { get; set; }
-        public string MaterialCode { get; set; } = string.Empty;
-        public string MaterialName { get; set; } = string.Empty;
-        public decimal Quantity { get; set; }
-        public string? WarehouseLocation { get; set; }
     }
 
     public class StockOutRequestListItemDto
@@ -43,10 +38,18 @@ namespace CRM.Core.Interfaces
         public string Id { get; set; } = string.Empty;
         public string RequestCode { get; set; } = string.Empty;
         public string SalesOrderId { get; set; } = string.Empty;
+        public string SalesOrderItemId { get; set; } = string.Empty;
         public string? SalesOrderCode { get; set; }
+        public string? MaterialModel { get; set; }
+        public string? Brand { get; set; }
+        /// <summary>出库通知数量（单表 Quantity）</summary>
+        public decimal OutQuantity { get; set; }
+        public DateTime? ExpectedStockOutDate { get; set; }
+        public string? SalesUserName { get; set; }
         public string CustomerId { get; set; } = string.Empty;
         public string? CustomerName { get; set; }
         public string RequestUserId { get; set; } = string.Empty;
+        public string? RequestUserName { get; set; }
         public DateTime RequestDate { get; set; }
         public short Status { get; set; }
         public string? Remark { get; set; }

@@ -10,7 +10,7 @@ namespace CRM.Core.Interfaces
         /// 生成下一个流水号（线程安全，使用数据库行锁）
         /// </summary>
         /// <param name="moduleCode">业务模块代码</param>
-        /// <returns>格式化后的完整编号（如 Cus0001）</returns>
+        /// <returns>格式化后的完整编号（如 CUS2603230001）</returns>
         Task<string> GenerateNextAsync(string moduleCode);
 
         /// <summary>
@@ -37,11 +37,18 @@ namespace CRM.Core.Interfaces
         public const string Customer = "Customer";           // 客户：CUS0001
         public const string Vendor = "Vendor";               // 供应商：VEN0001
         public const string RFQ = "RFQ";                     // 询价/需求：RFQ0001
-        public const string Quotation = "Quotation";         // 报价：QUO0001
-        public const string SalesOrder = "SalesOrder";       // 销售订单：SO0001
-        public const string PurchaseOrder = "PurchaseOrder"; // 采购订单：PO0001
-        public const string StockIn = "StockIn";             // 入库：STI0001
-        public const string StockOut = "StockOut";           // 出库：STO0001
+        public const string Quotation = "Quotation";         // 报价：QT + YYMMDD + 4位
+        public const string SalesOrder = "SalesOrder";       // 销售订单：SO + YYMMDD + 4位
+        public const string PurchaseOrder = "PurchaseOrder"; // 采购订单：PO + YYMMDD + 4位
+        public const string PurchaseRequisition = "PurchaseRequisition"; // 采购申请：PR + YYMMDD + 4位
+        public const string StockIn = "StockIn";             // 入库：SI + YYMMDD + 4位
+        public const string StockOut = "StockOut";           // 出库执行：SOUT + YYMMDD + 4位
+        public const string StockOutRequest = "StockOutRequest"; // 出库申请/出货通知：SON + YYMMDD + 4位
+        public const string PickingTask = "PickingTask";     // 拣货任务：PK + YYMMDD + 4位
+        public const string ArrivalNotice = "ArrivalNotice"; // 到货通知：AN + YYMMDD + 4位
+        public const string QcRecord = "QcRecord";           // 质检单：QC + YYMMDD + 4位
+        public const string PaymentRequest = "PaymentRequest"; // 请款单：PRQ + YYMMDD + 4位
+        public const string FinancePayment = "FinancePayment"; // 财务付款单：FPY + YYMMDD + 4位
         public const string Stock = "Stock";                 // 库存：STK0001
         public const string Receipt = "Receipt";             // 收款：REC0001
         public const string Payment = "Payment";             // 付款：PAY0001

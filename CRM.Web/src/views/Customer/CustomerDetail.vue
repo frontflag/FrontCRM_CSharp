@@ -424,6 +424,7 @@ import type { Customer, CustomerContactInfo, CustomerAddress, CustomerBankInfo }
 
 import AddressDialog from './components/AddressDialog.vue';
 import BankDialog from './components/BankDialog.vue';
+import { formatDisplayDateTime } from '@/utils/displayDateTime';
 
 const route = useRoute();
 const router = useRouter();
@@ -592,7 +593,7 @@ const formatCurrency = (value: number | undefined) => {
   if (value === undefined || value === null) return '¥0.00';
   return `¥${value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 };
-const formatDateTime = (date: string | undefined) => date ? new Date(date).toLocaleString('zh-CN') : '--';
+const formatDateTime = (date: string | undefined) => (date ? formatDisplayDateTime(date) : '--');
 const getTypeLabel = (type: number) => ({ 0: '企业', 1: '个人', 2: '政府' }[type] || '未知');
 const getLevelLabel = (level: string) => ({ VIP: 'VIP客户', Important: '重要客户', Normal: '普通客户', Lead: '潜在客户' }[level] || level);
 // const getLevelType = (level: string) => ({ VIP: 'danger', Important: 'warning', Normal: 'info', Lead: '' }[level] || '');

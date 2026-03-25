@@ -11,11 +11,12 @@ namespace CRM.Core.Models.System
     public class SysParamHistory : BaseGuidEntity
     {
         /// <summary>
-        /// 参数ID
+        /// 参数ID（与 <see cref="SysParam.Id"/> / sysparam.ParamId 一致，varchar(36)）
         /// </summary>
         [Required]
+        [MaxLength(36)]
         [Column("ParamId")]
-        public Guid ParamId { get; set; }
+        public string ParamId { get; set; } = string.Empty;
 
         /// <summary>
         /// 修改前值

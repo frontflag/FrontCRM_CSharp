@@ -128,8 +128,8 @@ namespace CRM.Core.Models.Finance
         [Key][StringLength(36)][Column("FinanceReceiptId")]
         public override string Id { get; set; } = Guid.NewGuid().ToString();
 
-        /// <summary>收款单号</summary>
-        [Required][StringLength(10)]
+        /// <summary>收款单号（前缀+YYMMDD+4位流水，如 REC2603240001）</summary>
+        [Required][StringLength(32)]
         public string FinanceReceiptCode { get; set; } = string.Empty;
 
         /// <summary>客户ID</summary>

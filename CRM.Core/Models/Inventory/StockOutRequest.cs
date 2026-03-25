@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace CRM.Core.Models.Inventory
 {
     /// <summary>
-    /// 出库申请单
+    /// 出库申请单（单表：一条通知对应一条销售订单明细）
     /// </summary>
     [Table("stockoutrequest")]
     public class StockOutRequest : BaseGuidEntity
@@ -20,6 +20,30 @@ namespace CRM.Core.Models.Inventory
         /// </summary>
         [StringLength(36)]
         public string SalesOrderId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// 销售订单明细ID（sellorderitem.SellOrderItemId）
+        /// </summary>
+        [StringLength(36)]
+        public string SalesOrderItemId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// 物料型号（PN）
+        /// </summary>
+        [StringLength(200)]
+        public string MaterialCode { get; set; } = string.Empty;
+
+        /// <summary>
+        /// 品牌 / 物料名称
+        /// </summary>
+        [StringLength(200)]
+        public string? MaterialName { get; set; }
+
+        /// <summary>
+        /// 出库通知数量
+        /// </summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal Quantity { get; set; }
 
         /// <summary>
         /// 客户ID

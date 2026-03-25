@@ -187,6 +187,7 @@ import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const route = useRoute()
@@ -251,7 +252,7 @@ const formatCurrency = (amount: number, currency?: number) => {
   const symbol = currency === 2 ? '$' : currency === 3 ? '€' : '¥'
   return `${symbol}${(amount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
-const formatDateTime = (v?: string) => (v ? new Date(v).toLocaleString('zh-CN') : '--')
+const formatDateTime = (v?: string) => (v ? formatDisplayDateTime(v) : '--')
 
 const handleEdit = () => {
   ElMessage.info('编辑功能开发中')

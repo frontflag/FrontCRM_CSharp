@@ -1,5 +1,9 @@
+using System.Linq.Expressions;
 using CRM.Core.Interfaces;
+using CRM.Core.Models;
+using CRM.Core.Models.Rbac;
 using CRM.Core.Models.RFQ;
+using CRM.Core.Models.System;
 using CRM.Core.Services;
 using NSubstitute;
 using Xunit;
@@ -19,6 +23,10 @@ namespace CRM.Core.Tests.Services
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUserService _userService;
         private readonly IEntityLookupService _entityLookup;
+        private readonly IRepository<SysParam> _sysParamRepo;
+        private readonly IRepository<RbacRole> _rbacRoleRepo;
+        private readonly IRepository<RbacUserRole> _rbacUserRoleRepo;
+        private readonly IRepository<User> _userRepo;
         private readonly RFQService _rfqService;
 
         public RFQServiceTests()
@@ -31,6 +39,15 @@ namespace CRM.Core.Tests.Services
             _userService = Substitute.For<IUserService>();
             _userService.GetAllAsync().Returns(new List<CRM.Core.Models.User>());
             _entityLookup = Substitute.For<IEntityLookupService>();
+            _sysParamRepo = Substitute.For<IRepository<SysParam>>();
+            _rbacRoleRepo = Substitute.For<IRepository<RbacRole>>();
+            _rbacUserRoleRepo = Substitute.For<IRepository<RbacUserRole>>();
+            _userRepo = Substitute.For<IRepository<User>>();
+            _sysParamRepo.FindAsync(Arg.Any<Expression<Func<SysParam, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<SysParam>>(Array.Empty<SysParam>()));
+            _rbacRoleRepo.GetAllAsync().Returns(new List<RbacRole>());
+            _rbacUserRoleRepo.GetAllAsync().Returns(new List<RbacUserRole>());
+            _userRepo.GetAllAsync().Returns(new List<User>());
 
             // 默认序列号生成
             _serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -43,7 +60,11 @@ namespace CRM.Core.Tests.Services
                 _unitOfWork,
                 _serialNumberService,
                 _dataPermissionService,
-                _userService);
+                _userService,
+                _sysParamRepo,
+                _rbacRoleRepo,
+                _rbacUserRoleRepo,
+                _userRepo);
         }
 
         private static CreateRFQRequest BuildValidCreateRequest(Action<CreateRFQRequest>? tweak = null)

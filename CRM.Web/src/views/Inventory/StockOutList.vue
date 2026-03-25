@@ -73,6 +73,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { stockOutApi, type StockOutDto } from '@/api/stockOut'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const loading = ref(false)
@@ -80,7 +81,7 @@ const list = ref<StockOutDto[]>([])
 const keyword = ref('')
 
 const formatNum = (v: number) => (v == null ? '--' : Number(v).toLocaleString())
-const formatDate = (v?: string) => (v ? v.replace('T', ' ').slice(0, 16) : '--')
+const formatDate = (v?: string) => formatDisplayDateTime(v)
 
 const statusLabel = (s: number) => {
   switch (s) {

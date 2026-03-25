@@ -22,6 +22,9 @@ namespace CRM.Core.Interfaces
         Task<bool> CanAccessCustomerAsync(string userId, CustomerInfo customer);
         Task<bool> CanAccessVendorAsync(string userId, VendorInfo vendor);
         Task<bool> CanAccessRFQAsync(string userId, RFQ rfq);
+
+        /// <summary>需求明细行是否可见：销售数据范围 或 采购分配范围（采购员/经理/总监）。</summary>
+        Task<Func<RFQ, RFQItem, bool>> GetRfqItemLineVisibilityPredicateAsync(string userId);
         Task<bool> CanAccessSalesOrderAsync(string userId, SellOrder salesOrder);
         Task<bool> CanAccessPurchaseOrderAsync(string userId, PurchaseOrder purchaseOrder);
         Task<bool> CanAccessFinanceReceiptAsync(string userId, FinanceReceipt receipt);

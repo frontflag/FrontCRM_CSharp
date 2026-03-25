@@ -151,6 +151,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { rbacAdminApi, type AdminUserDto, type RbacDepartment } from '@/api/rbacAdmin'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -193,7 +194,7 @@ const identityLabel = (v: number) => {
   return map[v] ?? String(v)
 }
 
-const formatDateTime = (date: string | undefined) => (date ? new Date(date).toLocaleString('zh-CN') : '—')
+const formatDateTime = (date: string | undefined) => (date ? formatDisplayDateTime(date) : '—')
 
 const tableHeaderStyle = () => ({
   background: '#0A1628',

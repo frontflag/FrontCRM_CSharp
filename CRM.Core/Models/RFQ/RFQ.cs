@@ -224,6 +224,24 @@ namespace CRM.Core.Models.RFQ
         [Column("status")]
         public short Status { get; set; } = 0;
 
+        /// <summary>系统轮询分配：询价采购员1（User.Id）</summary>
+        [StringLength(36)]
+        [Column("assigned_purchaser_user_id_1")]
+        public string? AssignedPurchaserUserId1 { get; set; }
+
+        /// <summary>系统轮询分配：询价采购员2（User.Id）</summary>
+        [StringLength(36)]
+        [Column("assigned_purchaser_user_id_2")]
+        public string? AssignedPurchaserUserId2 { get; set; }
+
+        /// <summary>展示用：采购员1姓名</summary>
+        [NotMapped]
+        public string? AssignedPurchaserName1 { get; set; }
+
+        /// <summary>展示用：采购员2姓名</summary>
+        [NotMapped]
+        public string? AssignedPurchaserName2 { get; set; }
+
         // 导航属性
         [ForeignKey("RfqId")]
         public virtual RFQ? RFQ { get; set; }

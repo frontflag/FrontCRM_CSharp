@@ -1,7 +1,10 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Customer;
+using CRM.Core.Models.Rbac;
 using CRM.Core.Models.RFQ;
+using CRM.Core.Models.System;
 using CRM.Core.Utilities;
 
 
@@ -20,6 +23,10 @@ namespace CRM.Core.Services
         private readonly ISerialNumberService _serialNumberService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUserService _userService;
+        private readonly IRepository<SysParam> _sysParamRepo;
+        private readonly IRepository<RbacRole> _rbacRoleRepo;
+        private readonly IRepository<RbacUserRole> _rbacUserRoleRepo;
+        private readonly IRepository<User> _userRepo;
 
         public RFQService(
             IRepository<RFQ> rfqRepo,
@@ -29,7 +36,11 @@ namespace CRM.Core.Services
             IUnitOfWork unitOfWork,
             ISerialNumberService serialNumberService,
             IDataPermissionService dataPermissionService,
-            IUserService userService)
+            IUserService userService,
+            IRepository<SysParam> sysParamRepo,
+            IRepository<RbacRole> rbacRoleRepo,
+            IRepository<RbacUserRole> rbacUserRoleRepo,
+            IRepository<User> userRepo)
         {
             _rfqRepo = rfqRepo;
             _itemRepo = itemRepo;
@@ -39,6 +50,10 @@ namespace CRM.Core.Services
             _serialNumberService = serialNumberService;
             _dataPermissionService = dataPermissionService;
             _userService = userService;
+            _sysParamRepo = sysParamRepo;
+            _rbacRoleRepo = rbacRoleRepo;
+            _rbacUserRoleRepo = rbacUserRoleRepo;
+            _userRepo = userRepo;
         }
 
         // ─── Create ──────────────────────────────────────────────────────────────
@@ -86,12 +101,25 @@ namespace CRM.Core.Services
 
             await _rfqRepo.AddAsync(rfq);
 
-            // 保存明细
+            // 保存明细（每条自动分配 2 名询价采购员，全局轮询）
             if (request.Items != null && request.Items.Count > 0)
             {
+                var pool = await GetPurchaserPoolOrderedAsync();
+                var n = pool.Count;
+                var cursor = n > 0 ? await GetRoundRobinCursorAsync() : 0;
+
                 for (int i = 0; i < request.Items.Count; i++)
                 {
                     var itemReq = request.Items[i];
+                    string? a1 = null;
+                    string? a2 = null;
+                    if (n > 0)
+                    {
+                        a1 = pool[cursor % n];
+                        a2 = pool[(cursor + 1) % n];
+                        cursor += 2;
+                    }
+
                     var item = new RFQItem
                     {
                         Id = Guid.NewGuid().ToString(),
@@ -111,10 +139,15 @@ namespace CRM.Core.Services
                         Alternatives = itemReq.Alternatives,
                         Remark = itemReq.Remark,
                         Status = 0,
+                        AssignedPurchaserUserId1 = a1,
+                        AssignedPurchaserUserId2 = a2,
                         CreateTime = DateTime.UtcNow
                     };
                     await _itemRepo.AddAsync(item);
                 }
+
+                if (n > 0)
+                    await SaveRoundRobinCursorAsync(cursor);
             }
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
@@ -147,6 +180,12 @@ namespace CRM.Core.Services
                 var contact = await _entityLookup.GetCustomerContactByIdAsync(rfq.ContactId);
                 if (contact != null)
                     rfq.ContactPersonName = contact.Name;
+            }
+
+            foreach (var it in rfq.Items)
+            {
+                it.AssignedPurchaserName1 = await _entityLookup.GetUserDisplayNameAsync(it.AssignedPurchaserUserId1);
+                it.AssignedPurchaserName2 = await _entityLookup.GetUserDisplayNameAsync(it.AssignedPurchaserUserId2);
             }
 
             return rfq;
@@ -229,13 +268,10 @@ namespace CRM.Core.Services
         public async Task<PagedResult<RFQItemListItem>> GetPagedItemsAsync(RFQItemQueryRequest request)
         {
             var allRfqs = (await _rfqRepo.GetAllAsync()).ToDictionary(r => r.Id);
-            HashSet<string>? allowedRfqIds = null;
+
+            System.Func<RFQ, RFQItem, bool>? linePredicate = null;
             if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
-            {
-                var minimal = allRfqs.Values.Select(r => new RFQListItem { Id = r.Id }).ToList();
-                var allowed = await _dataPermissionService.FilterRFQsAsync(request.CurrentUserId, minimal);
-                allowedRfqIds = allowed.Select(x => x.Id).ToHashSet();
-            }
+                linePredicate = await _dataPermissionService.GetRfqItemLineVisibilityPredicateAsync(request.CurrentUserId!);
 
             var customers = new Dictionary<string, string>();
             if (_customerRepo != null)
@@ -247,16 +283,18 @@ namespace CRM.Core.Services
             var users = (await _userService.GetAllAsync()).ToDictionary(u => u.Id, u => u);
 
             var allItems = (await _itemRepo.GetAllAsync()).ToList();
-            if (allowedRfqIds != null)
-                allItems = allItems.Where(i => allowedRfqIds.Contains(i.RfqId)).ToList();
 
             var rows = new List<RFQItemListItem>();
             foreach (var item in allItems)
             {
                 if (!allRfqs.TryGetValue(item.RfqId, out var rfq))
                     continue;
+                if (linePredicate != null && !linePredicate(rfq, item))
+                    continue;
 
                 users.TryGetValue(rfq.SalesUserId ?? "", out var salesUser);
+                users.TryGetValue(item.AssignedPurchaserUserId1 ?? "", out var pu1);
+                users.TryGetValue(item.AssignedPurchaserUserId2 ?? "", out var pu2);
                 var customerName = rfq.CustomerId != null && customers.TryGetValue(rfq.CustomerId, out var cn)
                     ? cn
                     : null;
@@ -277,6 +315,10 @@ namespace CRM.Core.Services
                     CustomerName = customerName,
                     SalesUserId = rfq.SalesUserId,
                     SalesUserName = EntityLookupService.FormatUserDisplayName(salesUser),
+                    AssignedPurchaserUserId1 = item.AssignedPurchaserUserId1,
+                    AssignedPurchaserUserId2 = item.AssignedPurchaserUserId2,
+                    AssignedPurchaserName1 = EntityLookupService.FormatUserDisplayName(pu1),
+                    AssignedPurchaserName2 = EntityLookupService.FormatUserDisplayName(pu2),
                 });
             }
 
@@ -368,9 +410,22 @@ namespace CRM.Core.Services
                 foreach (var old in oldItems)
                     await _itemRepo.DeleteAsync(old.Id);
 
+                var pool = await GetPurchaserPoolOrderedAsync();
+                var n = pool.Count;
+                var cursor = n > 0 ? await GetRoundRobinCursorAsync() : 0;
+
                 for (int i = 0; i < request.Items.Count; i++)
                 {
                     var itemReq = request.Items[i];
+                    string? a1 = null;
+                    string? a2 = null;
+                    if (n > 0)
+                    {
+                        a1 = pool[cursor % n];
+                        a2 = pool[(cursor + 1) % n];
+                        cursor += 2;
+                    }
+
                     var item = new RFQItem
                     {
                         Id = Guid.NewGuid().ToString(),
@@ -390,10 +445,16 @@ namespace CRM.Core.Services
                         Alternatives = itemReq.Alternatives,
                         Remark = itemReq.Remark,
                         Status = 0,
+                        AssignedPurchaserUserId1 = a1,
+                        AssignedPurchaserUserId2 = a2,
                         CreateTime = DateTime.UtcNow
                     };
                     await _itemRepo.AddAsync(item);
                 }
+
+                if (n > 0)
+                    await SaveRoundRobinCursorAsync(cursor);
+
                 rfq.ItemCount = request.Items.Count;
             }
 
@@ -428,6 +489,53 @@ namespace CRM.Core.Services
             rfq.ModifyTime = DateTime.UtcNow;
             await _rfqRepo.UpdateAsync(rfq);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+        }
+
+        private async Task<List<string>> GetPurchaserPoolOrderedAsync()
+        {
+            var paramRows = await _sysParamRepo.FindAsync(p =>
+                p.ParamCode == SysParamCodes.RfqRoundRobinPurchaserRoleCodes && p.Status == 1);
+            var raw = paramRows.FirstOrDefault()?.ValueString?.Trim() ?? "";
+            var codes = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(s => s.Length > 0)
+                .ToList();
+            if (codes.Count == 0)
+                codes = new List<string> { "purchase_buyer", "purchaser", "purchase_staff" };
+
+            var roles = (await _rbacRoleRepo.GetAllAsync())
+                .Where(r => codes.Any(c => string.Equals(c, r.RoleCode, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+            var roleIds = roles.Select(r => r.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (roleIds.Count == 0)
+                return new List<string>();
+
+            var userRoleRows = (await _rbacUserRoleRepo.GetAllAsync())
+                .Where(ur => roleIds.Contains(ur.RoleId))
+                .ToList();
+            var candIds = userRoleRows.Select(ur => ur.UserId).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            return (await _userRepo.GetAllAsync())
+                .Where(u => candIds.Contains(u.Id) && u.IsActive)
+                .OrderBy(u => u.Id, StringComparer.Ordinal)
+                .Select(u => u.Id)
+                .ToList();
+        }
+
+        private async Task<int> GetRoundRobinCursorAsync()
+        {
+            var rows = await _sysParamRepo.FindAsync(p => p.ParamCode == SysParamCodes.RfqPurchaserRoundRobinCursor);
+            var row = rows.FirstOrDefault();
+            if (row == null) return 0;
+            return int.TryParse(row.ValueString?.Trim(), out var v) && v >= 0 ? v : 0;
+        }
+
+        private async Task SaveRoundRobinCursorAsync(int cursor)
+        {
+            var rows = await _sysParamRepo.FindAsync(p => p.ParamCode == SysParamCodes.RfqPurchaserRoundRobinCursor);
+            var row = rows.FirstOrDefault();
+            if (row == null) return;
+            row.ValueString = cursor.ToString();
+            row.ModifyTime = DateTime.UtcNow;
+            await _sysParamRepo.UpdateAsync(row);
         }
     }
 }

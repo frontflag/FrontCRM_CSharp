@@ -219,10 +219,17 @@ const requisitionId = computed(() => {
 })
 const generatedFromRequisition = ref(false)
 
+const getYYMMDD = (d: Date) => {
+  const yy = String(d.getFullYear()).slice(-2)
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yy}${mm}${dd}`
+}
+
 const genOrderCode = () => {
-  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-  const rand = String(Math.random()).slice(2, 5)
-  return `PO${date}${rand}`
+  const date = getYYMMDD(new Date())
+  const seq = String(Math.floor(Math.random() * 10000)).padStart(4, '0')
+  return `PO${date}${seq}`
 }
 
 const formData = ref({

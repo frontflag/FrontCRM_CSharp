@@ -10,16 +10,19 @@ namespace CRM.Core.Services
         private readonly IRepository<SellInvoiceItem> _itemRepo;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork? _unitOfWork;
+        private readonly ISerialNumberService _serialNumberService;
 
         public FinanceSellInvoiceService(
             IRepository<FinanceSellInvoice> invoiceRepo,
             IRepository<SellInvoiceItem> itemRepo,
             IDataPermissionService dataPermissionService,
+            ISerialNumberService serialNumberService,
             IUnitOfWork? unitOfWork = null)
         {
             _invoiceRepo = invoiceRepo;
             _itemRepo = itemRepo;
             _dataPermissionService = dataPermissionService;
+            _serialNumberService = serialNumberService;
             _unitOfWork = unitOfWork;
         }
 
@@ -28,12 +31,14 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(request.CustomerId))
                 throw new ArgumentException("客户ID不能为空", nameof(request.CustomerId));
 
+            var invoiceCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.OutputInvoice);
+
             var invoice = new FinanceSellInvoice
             {
                 Id = Guid.NewGuid().ToString(),
                 CustomerId = request.CustomerId,
                 CustomerName = request.CustomerName,
-                InvoiceCode = request.InvoiceCode,
+                InvoiceCode = invoiceCode,
                 InvoiceNo = request.InvoiceNo,
                 InvoiceTotal = request.InvoiceTotal,
                 MakeInvoiceDate = PostgreSqlDateTime.ToUtc(request.MakeInvoiceDate),

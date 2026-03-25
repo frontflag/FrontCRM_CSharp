@@ -17,6 +17,7 @@ namespace CRM.Core.Services
         private readonly IRepository<RbacUserRole> _userRoleRepo;
         private readonly IRepository<RbacRole> _roleRepo;
         private readonly IRepository<RFQ> _rfqRepo;
+        private readonly IRepository<RFQItem> _rfqItemRepo;
         private readonly IRepository<CustomerInfo> _customerRepo;
         private readonly IRepository<VendorInfo> _vendorRepo;
 
@@ -27,6 +28,7 @@ namespace CRM.Core.Services
             IRepository<RbacUserRole> userRoleRepo,
             IRepository<RbacRole> roleRepo,
             IRepository<RFQ> rfqRepo,
+            IRepository<RFQItem> rfqItemRepo,
             IRepository<CustomerInfo> customerRepo,
             IRepository<VendorInfo> vendorRepo)
         {
@@ -36,6 +38,7 @@ namespace CRM.Core.Services
             _userRoleRepo = userRoleRepo;
             _roleRepo = roleRepo;
             _rfqRepo = rfqRepo;
+            _rfqItemRepo = rfqItemRepo;
             _customerRepo = customerRepo;
             _vendorRepo = vendorRepo;
         }
@@ -71,21 +74,60 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<RFQListItem>> FilterRFQsAsync(string userId, IEnumerable<RFQListItem> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0) return source.ToList();
-            if (summary.SaleDataScope == 4) return Array.Empty<RFQListItem>();
+            if (summary.IsSysAdmin) return source.ToList();
 
             var list = source.ToList();
             var ids = list.Select(x => x.Id).Distinct().ToList();
             if (ids.Count == 0) return list;
 
-            var rfqMap = (await _rfqRepo.FindAsync(x => ids.Contains(x.Id)))
-                .ToDictionary(x => x.Id, x => x.SalesUserId);
+            var rfqEntities = (await _rfqRepo.FindAsync(x => ids.Contains(x.Id))).ToDictionary(x => x.Id);
+            var allItems = (await _rfqItemRepo.FindAsync(i => ids.Contains(i.RfqId))).ToList();
+            var itemsByRfq = allItems.GroupBy(i => i.RfqId).ToDictionary(g => g.Key, g => g.ToList());
 
-            if (summary.SaleDataScope == 1) // self
-                return list.Where(x => rfqMap.TryGetValue(x.Id, out var ownerId) && ownerId == userId).ToList();
+            HashSet<string>? saleAllow = null;
+            if (summary.SaleDataScope == 2)
+                saleAllow = await GetAllowedUserIdsAsync(summary, includeChildren: false);
+            else if (summary.SaleDataScope == 3)
+                saleAllow = await GetAllowedUserIdsAsync(summary, includeChildren: true);
 
-            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
-            return list.Where(x => rfqMap.TryGetValue(x.Id, out var ownerId) && !string.IsNullOrWhiteSpace(ownerId) && allowUserIds.Contains(ownerId!)).ToList();
+            HashSet<string>? purchaseAllow = null;
+            if (summary.PurchaseDataScope == 2)
+                purchaseAllow = await GetAllowedUserIdsAsync(summary, includeChildren: false);
+            else if (summary.PurchaseDataScope == 3)
+                purchaseAllow = await GetAllowedUserIdsAsync(summary, includeChildren: true);
+
+            bool SaleOk(string rfqId)
+            {
+                if (summary.SaleDataScope == 4) return false;
+                if (summary.SaleDataScope == 0) return true;
+                if (!rfqEntities.TryGetValue(rfqId, out var rfqEntity)) return false;
+                var ownerId = rfqEntity.SalesUserId;
+                if (summary.SaleDataScope == 1)
+                    return string.Equals(ownerId, userId, StringComparison.OrdinalIgnoreCase);
+                if ((summary.SaleDataScope == 2 || summary.SaleDataScope == 3) && saleAllow != null && !string.IsNullOrWhiteSpace(ownerId))
+                    return saleAllow.Contains(ownerId);
+                return false;
+            }
+
+            bool PurchaseOk(string rfqId)
+            {
+                if (summary.PurchaseDataScope == 4) return false;
+                if (summary.PurchaseDataScope == 0) return true;
+                if (!itemsByRfq.TryGetValue(rfqId, out var lines) || lines.Count == 0) return false;
+                if (summary.PurchaseDataScope == 1)
+                {
+                    return lines.Any(i =>
+                        string.Equals(i.AssignedPurchaserUserId1, userId, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(i.AssignedPurchaserUserId2, userId, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (purchaseAllow == null) return false;
+                return lines.Any(i =>
+                    (!string.IsNullOrWhiteSpace(i.AssignedPurchaserUserId1) && purchaseAllow.Contains(i.AssignedPurchaserUserId1!)) ||
+                    (!string.IsNullOrWhiteSpace(i.AssignedPurchaserUserId2) && purchaseAllow.Contains(i.AssignedPurchaserUserId2!)));
+            }
+
+            return list.Where(r => SaleOk(r.Id) || PurchaseOk(r.Id)).ToList();
         }
 
         public async Task<IReadOnlyList<SellOrder>> FilterSalesOrdersAsync(string userId, IEnumerable<SellOrder> source)
@@ -217,11 +259,100 @@ namespace CRM.Core.Services
         public async Task<bool> CanAccessRFQAsync(string userId, RFQ rfq)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0) return true;
+            if (summary.IsSysAdmin) return true;
+            if (await PassesSaleAccessToRfqAsync(userId, rfq, summary)) return true;
+            return await PassesPurchaseAccessToRfqAsync(userId, rfq, summary);
+        }
+
+        public async Task<Func<RFQ, RFQItem, bool>> GetRfqItemLineVisibilityPredicateAsync(string userId)
+        {
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin)
+                return (_, __) => true;
+
+            HashSet<string>? saleAllow = null;
+            if (summary.SaleDataScope == 2)
+                saleAllow = await GetAllowedUserIdsAsync(summary, includeChildren: false);
+            else if (summary.SaleDataScope == 3)
+                saleAllow = await GetAllowedUserIdsAsync(summary, includeChildren: true);
+
+            HashSet<string>? purchaseAllow = null;
+            if (summary.PurchaseDataScope == 2)
+                purchaseAllow = await GetAllowedUserIdsAsync(summary, includeChildren: false);
+            else if (summary.PurchaseDataScope == 3)
+                purchaseAllow = await GetAllowedUserIdsAsync(summary, includeChildren: true);
+
+            return (rfq, item) =>
+            {
+                bool saleOk = false;
+                if (summary.SaleDataScope != 4)
+                {
+                    if (summary.SaleDataScope == 0) saleOk = true;
+                    else if (summary.SaleDataScope == 1)
+                        saleOk = string.Equals(rfq.SalesUserId, userId, StringComparison.OrdinalIgnoreCase);
+                    else if ((summary.SaleDataScope == 2 || summary.SaleDataScope == 3) && saleAllow != null && !string.IsNullOrWhiteSpace(rfq.SalesUserId))
+                        saleOk = saleAllow.Contains(rfq.SalesUserId);
+                }
+
+                if (saleOk) return true;
+
+                if (summary.PurchaseDataScope == 4) return false;
+                if (summary.PurchaseDataScope == 0) return true;
+                if (summary.PurchaseDataScope == 1)
+                {
+                    return string.Equals(item.AssignedPurchaserUserId1, userId, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(item.AssignedPurchaserUserId2, userId, StringComparison.OrdinalIgnoreCase);
+                }
+
+                if (purchaseAllow == null) return false;
+                return (!string.IsNullOrWhiteSpace(item.AssignedPurchaserUserId1) && purchaseAllow.Contains(item.AssignedPurchaserUserId1!))
+                    || (!string.IsNullOrWhiteSpace(item.AssignedPurchaserUserId2) && purchaseAllow.Contains(item.AssignedPurchaserUserId2!));
+            };
+        }
+
+        private async Task<bool> PassesSaleAccessToRfqAsync(string userId, RFQ rfq, UserPermissionSummaryDto summary)
+        {
             if (summary.SaleDataScope == 4) return false;
-            if (summary.SaleDataScope == 1) return rfq.SalesUserId == userId;
-            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
-            return !string.IsNullOrWhiteSpace(rfq.SalesUserId) && allowUserIds.Contains(rfq.SalesUserId);
+            if (summary.SaleDataScope == 0) return true;
+            if (summary.SaleDataScope == 1)
+                return string.Equals(rfq.SalesUserId, userId, StringComparison.OrdinalIgnoreCase);
+            if (summary.SaleDataScope == 2)
+            {
+                var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: false);
+                return !string.IsNullOrWhiteSpace(rfq.SalesUserId) && allowUserIds.Contains(rfq.SalesUserId);
+            }
+
+            if (summary.SaleDataScope == 3)
+            {
+                var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: true);
+                return !string.IsNullOrWhiteSpace(rfq.SalesUserId) && allowUserIds.Contains(rfq.SalesUserId);
+            }
+
+            return false;
+        }
+
+        private async Task<bool> PassesPurchaseAccessToRfqAsync(string userId, RFQ rfq, UserPermissionSummaryDto summary)
+        {
+            if (summary.PurchaseDataScope == 4) return false;
+            if (summary.PurchaseDataScope == 0) return true;
+
+            var items = (await _rfqItemRepo.FindAsync(i => i.RfqId == rfq.Id)).ToList();
+            if (items.Count == 0) return false;
+
+            if (summary.PurchaseDataScope == 1)
+            {
+                return items.Any(i =>
+                    string.Equals(i.AssignedPurchaserUserId1, userId, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(i.AssignedPurchaserUserId2, userId, StringComparison.OrdinalIgnoreCase));
+            }
+
+            HashSet<string>? purchaseAllow = summary.PurchaseDataScope == 3
+                ? await GetAllowedUserIdsAsync(summary, includeChildren: true)
+                : await GetAllowedUserIdsAsync(summary, includeChildren: false);
+
+            return items.Any(i =>
+                (!string.IsNullOrWhiteSpace(i.AssignedPurchaserUserId1) && purchaseAllow.Contains(i.AssignedPurchaserUserId1!)) ||
+                (!string.IsNullOrWhiteSpace(i.AssignedPurchaserUserId2) && purchaseAllow.Contains(i.AssignedPurchaserUserId2!)));
         }
 
         public async Task<bool> CanAccessSalesOrderAsync(string userId, SellOrder salesOrder)

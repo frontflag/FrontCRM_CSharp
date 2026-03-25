@@ -51,6 +51,7 @@ import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { logisticsApi, type StockInNotifyDto, type StockInNotifyItemDto } from '@/api/logistics'
 import { useRouter } from 'vue-router'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const loading = ref(false)
@@ -63,7 +64,7 @@ const sumQty = (items: StockInNotifyItemDto[], key: 'arrivedQty' | 'qty' | 'pass
 
 const statusText = (s: number) => ({ 1: '新建', 10: '未到货', 20: '到货待检', 30: '已质检', 100: '已入库' }[s] || '未知')
 const statusType = (s: number) => ({ 1: 'info', 10: 'warning', 20: 'primary', 30: 'success', 100: 'success' }[s] || 'info')
-const formatTime = (v?: string) => (v ? v.replace('T', ' ').slice(0, 16) : '--')
+const formatTime = (v?: string) => formatDisplayDateTime(v)
 
 const loadData = () => {
   loading.value = true

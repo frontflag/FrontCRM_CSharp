@@ -153,7 +153,7 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 获取参数修改历史
         /// </summary>
-        Task<List<SysParamHistory>> GetParamHistoryAsync(Guid paramId);
+        Task<List<SysParamHistory>> GetParamHistoryAsync(string paramId);
 
         #endregion
     }

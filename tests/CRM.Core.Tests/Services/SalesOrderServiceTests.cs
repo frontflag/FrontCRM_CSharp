@@ -14,6 +14,7 @@ namespace CRM.Core.Tests.Services
         private readonly IRepository<PurchaseOrder> _poRepository;
         private readonly IRepository<PurchaseOrderItem> _poItemRepository;
         private readonly IDataPermissionService _dataPermissionService;
+        private readonly ISerialNumberService _serialNumberService;
         private readonly SalesOrderService _orderService;
 
         public SalesOrderServiceTests()
@@ -23,12 +24,15 @@ namespace CRM.Core.Tests.Services
             _poRepository = Substitute.For<IRepository<PurchaseOrder>>();
             _poItemRepository = Substitute.For<IRepository<PurchaseOrderItem>>();
             _dataPermissionService = Substitute.For<IDataPermissionService>();
+            _serialNumberService = Substitute.For<ISerialNumberService>();
+            _serialNumberService.GenerateNextAsync(ModuleCodes.SalesOrder).Returns("SO2603240001");
             _orderService = new SalesOrderService(
                 _orderRepository,
                 _orderItemRepository,
                 _poRepository,
                 _poItemRepository,
-                _dataPermissionService);
+                _dataPermissionService,
+                _serialNumberService);
         }
 
         [Fact]
@@ -58,43 +62,10 @@ namespace CRM.Core.Tests.Services
 
             // Assert
             Assert.NotNull(result);
-            Assert.Equal("SO-2024-001", result.SellOrderCode);
+            Assert.Equal("SO2603240001", result.SellOrderCode);
+            await _serialNumberService.Received(1).GenerateNextAsync(ModuleCodes.SalesOrder);
             Assert.Equal("CUST-001", result.CustomerId);
             await _orderRepository.Received(1).AddAsync(Arg.Any<SellOrder>());
-        }
-
-        [Fact]
-        public async Task CreateAsync_DuplicateOrderCode_ShouldThrowException()
-        {
-            // Arrange
-            var request = new CreateSalesOrderRequest
-            {
-                SellOrderCode = "SO-2024-001",
-                CustomerId = "CUST-001",
-                Items = new List<CreateSalesOrderItemRequest>()
-            };
-            _orderRepository.GetAllAsync().Returns(new List<SellOrder>
-            {
-                new() { SellOrderCode = "SO-2024-001" }
-            });
-
-            // Act & Assert
-            await Assert.ThrowsAsync<InvalidOperationException>(() => _orderService.CreateAsync(request));
-        }
-
-        [Fact]
-        public async Task CreateAsync_EmptyOrderCode_ShouldThrowArgumentException()
-        {
-            // Arrange
-            var request = new CreateSalesOrderRequest
-            {
-                SellOrderCode = "",
-                CustomerId = "CUST-001",
-                Items = new List<CreateSalesOrderItemRequest>()
-            };
-
-            // Act & Assert
-            await Assert.ThrowsAsync<ArgumentException>(() => _orderService.CreateAsync(request));
         }
 
         [Fact]

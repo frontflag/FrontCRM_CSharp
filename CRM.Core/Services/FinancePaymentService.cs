@@ -10,16 +10,19 @@ namespace CRM.Core.Services
         private readonly IRepository<FinancePaymentItem> _itemRepo;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork? _unitOfWork;
+        private readonly ISerialNumberService _serialNumberService;
 
         public FinancePaymentService(
             IRepository<FinancePayment> paymentRepo,
             IRepository<FinancePaymentItem> itemRepo,
             IDataPermissionService dataPermissionService,
+            ISerialNumberService serialNumberService,
             IUnitOfWork? unitOfWork = null)
         {
             _paymentRepo = paymentRepo;
             _itemRepo = itemRepo;
             _dataPermissionService = dataPermissionService;
+            _serialNumberService = serialNumberService;
             _unitOfWork = unitOfWork;
         }
 
@@ -28,12 +31,9 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(request.VendorId))
                 throw new ArgumentException("供应商ID不能为空", nameof(request.VendorId));
 
-            var code = string.IsNullOrWhiteSpace(request.FinancePaymentCode)
-                ? $"P{DateTime.UtcNow:yyMMddHHmmss}{Random.Shared.Next(0, 100):D2}"
-                : request.FinancePaymentCode.Trim();
-
+            var code = await _serialNumberService.GenerateNextAsync(ModuleCodes.FinancePayment);
             if (code.Length > 16)
-                throw new ArgumentException("付款单号长度不能超过16位", nameof(request.FinancePaymentCode));
+                throw new InvalidOperationException($"生成的财务付款单号超长：{code}");
 
             var payment = new FinancePayment
             {

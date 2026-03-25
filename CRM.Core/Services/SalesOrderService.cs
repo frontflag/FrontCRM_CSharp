@@ -14,6 +14,7 @@ namespace CRM.Core.Services
         private readonly IRepository<PurchaseOrderItem> _poItemRepo;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork? _unitOfWork;
+        private readonly ISerialNumberService _serialNumberService;
 
         public SalesOrderService(
             IRepository<SellOrder> soRepo,
@@ -21,6 +22,7 @@ namespace CRM.Core.Services
             IRepository<PurchaseOrder> poRepo,
             IRepository<PurchaseOrderItem> poItemRepo,
             IDataPermissionService dataPermissionService,
+            ISerialNumberService serialNumberService,
             IUnitOfWork? unitOfWork = null)
         {
             _soRepo = soRepo;
@@ -28,24 +30,21 @@ namespace CRM.Core.Services
             _poRepo = poRepo;
             _poItemRepo = poItemRepo;
             _dataPermissionService = dataPermissionService;
+            _serialNumberService = serialNumberService;
             _unitOfWork = unitOfWork;
         }
 
         public async Task<SellOrder> CreateAsync(CreateSalesOrderRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.SellOrderCode))
-                throw new ArgumentException("销售单号不能为空", nameof(request.SellOrderCode));
             if (string.IsNullOrWhiteSpace(request.CustomerId))
                 throw new ArgumentException("客户ID不能为空", nameof(request.CustomerId));
 
-            var all = await _soRepo.GetAllAsync();
-            if (all.Any(o => o.SellOrderCode == request.SellOrderCode))
-                throw new InvalidOperationException($"销售单号 {request.SellOrderCode} 已存在");
+            var sellOrderCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.SalesOrder);
 
             var order = new SellOrder
             {
                 Id = Guid.NewGuid().ToString(),
-                SellOrderCode = request.SellOrderCode.Trim(),
+                SellOrderCode = sellOrderCode,
                 CustomerId = request.CustomerId,
                 CustomerName = request.CustomerName,
                 SalesUserId = request.SalesUserId,

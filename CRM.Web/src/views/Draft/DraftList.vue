@@ -72,6 +72,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { draftApi, type DraftDto } from '@/api/draft'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const loading = ref(false)
@@ -130,7 +131,7 @@ const statusTagType = (status: number) => {
   return 'info'
 }
 
-const formatTime = (value?: string) => (value ? new Date(value).toLocaleString() : '--')
+const formatTime = (value?: string) => (value ? formatDisplayDateTime(value) : '--')
 
 const getCreatePathByEntityType = (entityType: string) => {
   if (entityType === 'CUSTOMER') return '/customers/create'

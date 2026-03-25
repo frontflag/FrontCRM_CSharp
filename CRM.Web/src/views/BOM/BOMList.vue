@@ -195,6 +195,7 @@ import { useRouter } from 'vue-router'
 import { Plus, Search, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { bomApi } from '@/api/bom'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { BOM } from '@/types/bom'
 
 const router = useRouter()
@@ -237,7 +238,11 @@ const getBOMTypeTagType = (t: number): '' | 'success' | 'warning' | 'danger' | '
   }
   return map[t] ?? 'info'
 }
-const formatDate = (d?: string) => d ? d.slice(0, 16).replace('T', ' ') : '—'
+const formatDate = (d?: string) => {
+  if (!d) return '—'
+  const s = formatDisplayDateTime(d)
+  return s === '--' ? '—' : s
+}
 
 // ── 数据加载 ──
 const loadData = async () => {

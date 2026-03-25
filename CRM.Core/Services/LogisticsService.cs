@@ -13,6 +13,7 @@ namespace CRM.Core.Services
         private readonly IRepository<PurchaseOrder> _poRepo;
         private readonly IRepository<PurchaseOrderItem> _poItemRepo;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ISerialNumberService _serialNumberService;
 
         public LogisticsService(
             IRepository<StockInNotify> notifyRepo,
@@ -21,6 +22,7 @@ namespace CRM.Core.Services
             IRepository<QCItem> qcItemRepo,
             IRepository<PurchaseOrder> poRepo,
             IRepository<PurchaseOrderItem> poItemRepo,
+            ISerialNumberService serialNumberService,
             IUnitOfWork unitOfWork)
         {
             _notifyRepo = notifyRepo;
@@ -29,6 +31,7 @@ namespace CRM.Core.Services
             _qcItemRepo = qcItemRepo;
             _poRepo = poRepo;
             _poItemRepo = poItemRepo;
+            _serialNumberService = serialNumberService;
             _unitOfWork = unitOfWork;
         }
 
@@ -58,10 +61,12 @@ namespace CRM.Core.Services
             if (!poItems.Any())
                 throw new InvalidOperationException("采购订单无明细，无法创建到货通知");
 
+            var noticeCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.ArrivalNotice);
+
             var notice = new StockInNotify
             {
                 Id = Guid.NewGuid().ToString(),
-                NoticeCode = BuildCode("AN"),
+                NoticeCode = noticeCode,
                 PurchaseOrderId = po.Id,
                 PurchaseOrderCode = po.PurchaseOrderCode,
                 VendorId = po.VendorId,
@@ -154,10 +159,11 @@ namespace CRM.Core.Services
             if (!noticeItems.Any()) throw new InvalidOperationException("到货通知无明细，无法创建质检");
 
             var passQty = noticeItems.Sum(x => x.ArrivedQty);
+            var qcCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.QcRecord);
             var qc = new QCInfo
             {
                 Id = Guid.NewGuid().ToString(),
-                QcCode = BuildCode("QC"),
+                QcCode = qcCode,
                 StockInNotifyId = notice.Id,
                 StockInNotifyCode = notice.NoticeCode,
                 Status = 10,
@@ -361,7 +367,5 @@ namespace CRM.Core.Services
             }
         }
 
-        private static string BuildCode(string prefix) =>
-            $"{prefix}{DateTime.UtcNow:yyMMddHHmmss}{Random.Shared.Next(0, 100):D2}";
     }
 }

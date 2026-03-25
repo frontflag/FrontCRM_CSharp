@@ -19,13 +19,21 @@
     </div>
 
     <CrmDataTable :data="filteredList" v-loading="loading">
-      <el-table-column type="index" width="50" align="center" />
       <el-table-column prop="requestCode" label="通知单号" width="170" />
       <el-table-column prop="salesOrderCode" label="销售单号" width="170" />
+      <el-table-column prop="materialModel" label="物料型号" width="180" show-overflow-tooltip />
+      <el-table-column prop="brand" label="品牌" width="140" show-overflow-tooltip />
+      <el-table-column prop="outQuantity" label="出库数量" width="110" align="right" />
+      <el-table-column prop="requestDate" label="预计出库日期" width="170">
+        <template #default="{ row }">{{ formatRequestDateTime(row.requestDate) }}</template>
+      </el-table-column>
+      <el-table-column prop="salesUserName" label="业务员名称" width="130" show-overflow-tooltip />
       <el-table-column prop="customerName" label="客户" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="requestUserId" label="申请人" width="120" />
-      <el-table-column prop="requestDate" label="申请时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.requestDate) }}</template>
+      <el-table-column label="申请人" width="140" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.requestUserName || '--' }}</template>
+      </el-table-column>
+      <el-table-column prop="createTime" label="申请时间" width="170">
+        <template #default="{ row }">{{ formatRequestDateTime(row.createTime) }}</template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="110">
         <template #default="{ row }">
@@ -47,6 +55,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { stockOutApi, type StockOutRequestDto } from '@/api/stockOut'
+import { formatDate as formatDateTimeZh } from '@/utils/date'
 
 const router = useRouter()
 const loading = ref(false)
@@ -60,7 +69,11 @@ const statusLabel = (s: number) => {
   return '未知'
 }
 
-const formatDate = (v?: string) => (v ? v.replace('T', ' ').slice(0, 16) : '--')
+/** 按本地时区显示年月日 + 时分 */
+const formatRequestDateTime = (v?: string | null) => {
+  if (v == null || v === '') return '--'
+  return formatDateTimeZh(v, 'YYYY-MM-DD HH:mm')
+}
 
 const filteredList = computed(() => {
   const k = keyword.value.trim().toLowerCase()

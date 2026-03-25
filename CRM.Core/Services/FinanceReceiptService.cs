@@ -11,18 +11,21 @@ namespace CRM.Core.Services
         private readonly IRepository<FinanceSellInvoice> _sellInvoiceRepo;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork? _unitOfWork;
+        private readonly ISerialNumberService _serialNumberService;
 
         public FinanceReceiptService(
             IRepository<FinanceReceipt> receiptRepo,
             IRepository<FinanceReceiptItem> itemRepo,
             IRepository<FinanceSellInvoice> sellInvoiceRepo,
             IDataPermissionService dataPermissionService,
+            ISerialNumberService serialNumberService,
             IUnitOfWork? unitOfWork = null)
         {
             _receiptRepo = receiptRepo;
             _itemRepo = itemRepo;
             _sellInvoiceRepo = sellInvoiceRepo;
             _dataPermissionService = dataPermissionService;
+            _serialNumberService = serialNumberService;
             _unitOfWork = unitOfWork;
         }
 
@@ -31,10 +34,12 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(request.CustomerId))
                 throw new ArgumentException("客户ID不能为空", nameof(request.CustomerId));
 
+            var receiptCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.Receipt);
+
             var receipt = new FinanceReceipt
             {
                 Id = Guid.NewGuid().ToString(),
-                FinanceReceiptCode = request.FinanceReceiptCode,
+                FinanceReceiptCode = receiptCode,
                 CustomerId = request.CustomerId,
                 CustomerName = request.CustomerName,
                 SalesUserId = request.SalesUserId,

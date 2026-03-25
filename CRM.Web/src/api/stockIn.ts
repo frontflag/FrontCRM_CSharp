@@ -39,11 +39,28 @@ export interface StockInDto {
   createTime?: string
 }
 
+/** 列表接口返回：含来源单号、供应商名称等展示字段 */
+export interface StockInListItemDto {
+  id: string
+  stockInCode: string
+  stockInType: number
+  sourceDisplayNo?: string
+  warehouseId: string
+  vendorId?: string
+  vendorName?: string
+  stockInDate: string
+  totalQuantity: number
+  totalAmount: number
+  status: number
+  remark?: string
+  createTime?: string
+}
+
 export const stockInApi = {
-  async getAll(): Promise<StockInDto[]> {
+  async getAll(): Promise<StockInListItemDto[]> {
     const res = await apiClient.get<any>('/api/v1/stock-in')
     if (res && typeof res === 'object' && 'data' in res && Array.isArray(res.data))
-      return res.data as StockInDto[]
+      return res.data as StockInListItemDto[]
     return Array.isArray(res) ? res : []
   },
 

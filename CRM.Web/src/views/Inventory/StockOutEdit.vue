@@ -13,6 +13,7 @@
       </div>
       <div class="header-right">
         <button class="btn-secondary" @click="goBack">返回列表</button>
+        <button class="btn-secondary" @click="handleGeneratePicking">生成拣货任务</button>
         <button class="btn-primary" style="margin-left: 8px" @click="handleSubmit" :disabled="submitting">
           {{ submitting ? '执行中...' : '执行出库' }}
         </button>
@@ -26,8 +27,15 @@
           <el-form-item label="出库单号" required>
             <el-input v-model="form.stockOutCode" placeholder="如：SOUT202603180001" />
           </el-form-item>
-          <el-form-item label="仓库ID" required>
-            <el-input v-model="form.warehouseId" placeholder="出库仓库ID" />
+          <el-form-item label="仓库名称" required>
+            <el-select v-model="form.warehouseId" placeholder="请选择仓库" style="width: 100%">
+              <el-option
+                v-for="w in warehouses"
+                :key="w.id"
+                :label="`${w.warehouseName}（${w.warehouseCode}）`"
+                :value="w.id"
+              />
+            </el-select>
           </el-form-item>
           <el-form-item label="申请单ID">
             <el-input v-model="form.stockOutRequestId" placeholder="关联的出库申请ID（可选）" />
@@ -53,23 +61,23 @@
       <div class="form-card">
         <div class="section-header">
           <h3 class="section-title">出库明细</h3>
-          <button class="btn-secondary btn-sm" @click="addRow">新增一行</button>
+          <button class="btn-secondary btn-sm" @click="loadItemsFromRequest">从出库通知刷新明细</button>
         </div>
         <el-table :data="form.items" class="quantum-table">
           <el-table-column type="index" width="50" />
           <el-table-column label="物料编码" min-width="140">
             <template #default="{ row }">
-              <el-input v-model="row.materialCode" placeholder="物料编码" />
+              <el-input v-model="row.materialCode" placeholder="物料编码" readonly />
             </template>
           </el-table-column>
           <el-table-column label="物料名称" min-width="160">
             <template #default="{ row }">
-              <el-input v-model="row.materialName" placeholder="物料名称" />
+              <el-input v-model="row.materialName" placeholder="物料名称" readonly />
             </template>
           </el-table-column>
           <el-table-column label="数量" width="110">
             <template #default="{ row }">
-              <el-input-number v-model="row.quantity" :min="0" :step="1" />
+              <el-input-number v-model="row.quantity" :min="0" :step="1" :controls="false" readonly />
             </template>
           </el-table-column>
           <el-table-column label="批次号" width="140">
@@ -84,7 +92,7 @@
           </el-table-column>
           <el-table-column label="操作" width="80" fixed="right">
             <template #default="{ $index }">
-              <button class="action-btn" @click="removeRow($index)">删除</button>
+              <button class="action-btn" disabled title="明细来自出库通知，不可手工删除">删除</button>
             </template>
           </el-table-column>
         </el-table>
@@ -95,6 +103,23 @@
         </div>
       </div>
     </div>
+
+    <div class="form-card" v-if="pickingTasks.length">
+      <h3 class="section-title">拣货任务</h3>
+      <el-table :data="pickingTasks">
+        <el-table-column prop="taskCode" label="任务号" width="160" />
+        <el-table-column prop="warehouseId" label="仓库" width="120" />
+        <el-table-column prop="status" label="状态" width="120">
+          <template #default="{ row }">{{ pickingStatusText(row.status) }}</template>
+        </el-table-column>
+        <el-table-column prop="createTime" label="创建时间" width="180" />
+        <el-table-column label="操作" width="120">
+          <template #default="{ row }">
+            <button class="action-btn" v-if="row.status !== 100" @click="completePicking(row.id)">完成拣货</button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
   </div>
 </template>
 
@@ -102,7 +127,9 @@
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { stockOutApi } from '@/api/stockOut'
+import { stockOutApi, type StockOutRequestDto } from '@/api/stockOut'
+import { inventoryCenterApi, type PickingTask, type WarehouseInfo } from '@/api/inventoryCenter'
+import { getApiErrorMessage } from '@/utils/apiError'
 
 type ExecuteItem = {
   lineNo: number
@@ -126,10 +153,20 @@ type ExecuteForm = {
 const router = useRouter()
 const route = useRoute()
 const submitting = ref(false)
+const pickingTasks = ref<PickingTask[]>([])
+const warehouses = ref<WarehouseInfo[]>([])
+const currentRequest = ref<StockOutRequestDto | null>(null)
+const getYYMMDD = (d: Date) => {
+  const yy = String(d.getFullYear()).slice(-2)
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yy}${mm}${dd}`
+}
+const random4 = () => String(Math.floor(Math.random() * 10000)).padStart(4, '0')
 
 const form = reactive<ExecuteForm>({
   stockOutRequestId: (route.query.requestId as string) || '',
-  stockOutCode: `SOUT${new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)}`,
+  stockOutCode: `SOUT${getYYMMDD(new Date())}${random4()}`,
   warehouseId: '',
   operatorId: '',
   stockOutDate: new Date().toISOString(),
@@ -137,24 +174,130 @@ const form = reactive<ExecuteForm>({
   items: []
 })
 
-const addRow = () => {
-  const lineNo = (form.items?.length ?? 0) + 1
-  form.items.push({
-    lineNo,
-    materialCode: '',
-    materialName: '',
-    quantity: 0,
-    batchNo: '',
-    warehouseLocation: ''
-  })
-}
-
-const removeRow = (index: number) => {
-  form.items.splice(index, 1)
-  form.items.forEach((x, i) => { x.lineNo = i + 1 })
-}
-
 const totalQuantity = computed(() => form.items.reduce((sum, x) => sum + (x.quantity || 0), 0))
+const pickingStatusText = (s: number) => ({ 1: '待拣货', 2: '拣货中', 100: '已完成', [-1]: '已取消' }[s] || '未知')
+
+const loadWarehouses = async () => {
+  try {
+    warehouses.value = await inventoryCenterApi.getWarehouses()
+    if (!form.warehouseId && warehouses.value.length) {
+      form.warehouseId = warehouses.value[0].id || ''
+    }
+  } catch (e) {
+    console.error(e)
+    warehouses.value = []
+  }
+}
+
+const loadRequest = async () => {
+  if (!form.stockOutRequestId) return
+  try {
+    const requests = await stockOutApi.getRequestList()
+    currentRequest.value = requests.find(x => x.id === form.stockOutRequestId) || null
+  } catch (e) {
+    console.error(e)
+    currentRequest.value = null
+  }
+}
+
+const loadItemsFromRequest = async () => {
+  if (!form.stockOutRequestId) {
+    ElMessage.warning('请先选择出库通知')
+    return
+  }
+  if (!currentRequest.value?.salesOrderId) {
+    await loadRequest()
+  }
+  const r = currentRequest.value
+  if (!r?.salesOrderId) {
+    ElMessage.warning('出库通知缺少销售订单信息')
+    return
+  }
+  const materialCode = String(r.materialModel ?? '').trim()
+  const qty = Number(r.outQuantity ?? 0)
+  if (!materialCode || qty <= 0) {
+    ElMessage.warning('出库通知缺少物料或数量，无法生成出库明细')
+    return
+  }
+  form.items = [
+    {
+      lineNo: 1,
+      materialCode,
+      materialName: String(r.brand ?? '').trim() || '物料',
+      quantity: qty,
+      batchNo: '',
+      warehouseLocation: ''
+    }
+  ]
+  await pickRecommendedWarehouse()
+}
+
+const pickRecommendedWarehouse = async () => {
+  if (!form.items.length || !warehouses.value.length) return
+  try {
+    const overview = await inventoryCenterApi.getOverview()
+    const materialSet = new Set(form.items.map(x => x.materialCode))
+    const candidates = overview
+      .filter(x => materialSet.has(x.materialId) && Number(x.availableQty || 0) > 0)
+      .sort((a, b) => Number(b.availableQty || 0) - Number(a.availableQty || 0))
+    if (!candidates.length) return
+    const bestWarehouseId = candidates[0].warehouseId
+    if (!form.warehouseId || !candidates.some(x => x.warehouseId === form.warehouseId)) {
+      form.warehouseId = bestWarehouseId
+    }
+  } catch {
+    // 推荐仓库失败不阻断主流程
+  }
+}
+
+const loadPickingTasks = async () => {
+  try {
+    const tasks = await inventoryCenterApi.getPickingTasks()
+    const requestId = form.stockOutRequestId
+    pickingTasks.value = (tasks || []).filter(x => requestId && x.stockOutRequestId === requestId)
+  } catch {
+    pickingTasks.value = []
+  }
+}
+
+const handleGeneratePicking = async () => {
+  if (!form.stockOutRequestId) {
+    ElMessage.warning('请先填写出库申请单ID')
+    return
+  }
+  if (!form.warehouseId || !form.items.length) {
+    ElMessage.warning('请先填写仓库和出库明细')
+    return
+  }
+  if (form.items.some(x => !x.materialCode || Number(x.quantity || 0) <= 0)) {
+    ElMessage.warning('出库明细存在空物料或数量为0，请检查来源数据')
+    return
+  }
+  try {
+    await inventoryCenterApi.generatePickingTask({
+      stockOutRequestId: form.stockOutRequestId,
+      warehouseId: form.warehouseId,
+      operatorId: form.operatorId,
+      items: form.items.map(x => ({ materialId: x.materialCode, quantity: x.quantity }))
+    })
+    ElMessage.success('拣货任务已生成')
+    await loadPickingTasks()
+  } catch (e) {
+    console.error(e)
+    ElMessage.error(getApiErrorMessage(e, '生成拣货任务失败'))
+  }
+}
+
+const completePicking = async (taskId: string) => {
+  try {
+    await inventoryCenterApi.completePickingTask(taskId)
+    ElMessage.success('拣货已完成')
+    await loadPickingTasks()
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('完成拣货失败')
+  }
+}
 
 const handleSubmit = async () => {
   if (!form.stockOutCode || !form.warehouseId) {
@@ -190,6 +333,15 @@ const handleSubmit = async () => {
 const goBack = () => {
   router.push('/inventory/stock-out')
 }
+
+const init = async () => {
+  await loadWarehouses()
+  await loadRequest()
+  await loadItemsFromRequest()
+  await loadPickingTasks()
+}
+
+init()
 </script>
 
 <style scoped lang="scss">

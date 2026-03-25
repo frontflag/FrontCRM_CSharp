@@ -63,9 +63,8 @@ namespace CRM.Infrastructure.Services
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                // 格式化：前缀 + 补零流水号
-                var sequence = serial.CurrentSequence.ToString().PadLeft(serial.SequenceLength, '0');
-                var result = $"{serial.Prefix}{sequence}";
+                // 统一业务编号格式：前缀 + YYMMDD + 4位流水号
+                var result = FormatBusinessCode(serial.Prefix, serial.CurrentSequence, now);
                 _logger.LogDebug("生成流水号：{ModuleCode} -> {SerialNo}", moduleCode, result);
                 return result;
             }
@@ -86,8 +85,7 @@ namespace CRM.Infrastructure.Services
                 throw new InvalidOperationException($"未找到业务模块 '{moduleCode}' 的流水号配置。");
 
             var nextSeq = serial.CurrentSequence + 1;
-            var sequence = nextSeq.ToString().PadLeft(serial.SequenceLength, '0');
-            return $"{serial.Prefix}{sequence}";
+            return FormatBusinessCode(serial.Prefix, nextSeq, DateTime.UtcNow);
         }
 
         /// <inheritdoc/>
@@ -112,6 +110,13 @@ namespace CRM.Infrastructure.Services
             _context.SerialNumbers.Update(serial);
             await _context.SaveChangesAsync();
             _logger.LogWarning("流水号已重置：模块={ModuleCode}，起始值={StartFrom}", moduleCode, startFrom);
+        }
+
+        private static string FormatBusinessCode(string prefix, int sequence, DateTime nowUtc)
+        {
+            var datePart = nowUtc.ToString("yyMMdd");
+            var seqPart = sequence.ToString("D4");
+            return $"{prefix}{datePart}{seqPart}";
         }
     }
 }

@@ -156,6 +156,12 @@ export interface RFQItem {
   alternativeMaterials?: string      // 可替代料（逗号分隔）
   remark?: string
 
+  /** 系统轮询分配的询价采购员（与后端 assignedPurchaserUserId1/2 对齐） */
+  assignedPurchaserUserId1?: string
+  assignedPurchaserUserId2?: string
+  assignedPurchaserName1?: string
+  assignedPurchaserName2?: string
+
   status: RFQItemStatus
 }
 

@@ -20,7 +20,6 @@
         </div>
       </div>
       <div class="header-right" v-if="order">
-        <button class="btn-warning" @click="handleOpenApplyStockOut">申请出库</button>
         <button class="btn-secondary" @click="handleUpdateStatus">更新状态</button>
         <button v-if="canWriteSo" class="btn-primary" @click="handleEdit">编辑</button>
       </div>
@@ -144,6 +143,11 @@
                 </template>
               </el-table-column>
               <el-table-column prop="comment" label="备注" min-width="120" />
+              <el-table-column label="操作" width="110" fixed="right">
+                <template #default="{ row }">
+                  <button v-if="canWriteSo" class="btn-warning btn-warning--sm" @click="handleOpenApplyStockOut(row)">申请出库</button>
+                </template>
+              </el-table-column>
             </CrmDataTable>
             <el-empty v-else description="暂无明细" :image-size="80" />
           </div>
@@ -183,12 +187,18 @@
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="通知单号" required>
-              <el-input v-model="applyForm.requestCode" />
+              <el-input v-model="applyForm.requestCode" readonly />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="预计出货日期" required>
-              <el-date-picker v-model="applyForm.requestDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+              <el-date-picker
+                v-model="applyForm.requestDate"
+                type="datetime"
+                placeholder="选择日期与时间"
+                format="YYYY-MM-DD HH:mm"
+                style="width: 100%"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -208,19 +218,33 @@
           </el-col>
         </el-row>
       </el-form>
-      <CrmDataTable :data="applyForm.items" class="items-table">
-        <el-table-column type="index" width="50" />
-        <el-table-column prop="materialCode" label="物料型号" min-width="150" />
-        <el-table-column prop="materialName" label="品牌" width="140" />
-        <el-table-column label="订单数量" width="120" align="right">
-          <template #default="{ row }">{{ row.maxQty }}</template>
-        </el-table-column>
-        <el-table-column label="出库通知数量" width="160">
-          <template #default="{ row }">
-            <el-input-number v-model="row.quantity" :min="0" :max="row.maxQty" :precision="0" />
-          </template>
-        </el-table-column>
-      </CrmDataTable>
+      <!-- 单条销售订单明细 → 一条出库通知（单表） -->
+      <div v-if="applyForm.sellOrderItemId" class="apply-stock-lines items-table">
+        <div class="apply-stock-lines__head">
+          <span class="cell cell--idx">#</span>
+          <span class="cell cell--pn">物料型号</span>
+          <span class="cell cell--brand">品牌</span>
+          <span class="cell cell--max">订单数量</span>
+          <span class="cell cell--qty">出库通知数量</span>
+        </div>
+        <div class="apply-stock-lines__row">
+          <span class="cell cell--idx">1</span>
+          <span class="cell cell--pn">{{ applyForm.materialCode }}</span>
+          <span class="cell cell--brand">{{ applyForm.materialName }}</span>
+          <span class="cell cell--max">{{ applyForm.maxQty }}</span>
+          <span class="cell cell--qty">
+            <el-input-number
+              v-model="applyForm.notifyQty"
+              :min="0"
+              :max="applyForm.maxQty"
+              :precision="0"
+              controls-position="right"
+              style="width: 140px"
+            />
+          </span>
+        </div>
+      </div>
+      <el-empty v-else description="请从上方明细行点击「申请出库」" :image-size="64" />
       <template #footer>
         <el-button @click="applyDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="applySubmitting" @click="submitApplyStockOut">确定</el-button>
@@ -296,6 +320,7 @@ import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const route = useRoute()
@@ -325,9 +350,13 @@ const applyDialogVisible = ref(false)
 const applySubmitting = ref(false)
 const applyForm = ref({
   requestCode: '',
-  requestDate: '',
+  requestDate: null as Date | null,
   remark: '',
-  items: [] as Array<{ lineNo: number; materialCode: string; materialName: string; quantity: number; maxQty: number }>
+  sellOrderItemId: '',
+  materialCode: '',
+  materialName: '',
+  maxQty: 0,
+  notifyQty: 0
 })
 const editForm = ref({
   customerName: '',
@@ -491,8 +520,27 @@ const formatCurrency = (amount: number, currency?: number) => {
   const symbol = currency === 2 ? '$' : currency === 3 ? '€' : '¥'
   return `${symbol}${(amount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
-const formatDateTime = (v?: string) => (v ? new Date(v).toLocaleString('zh-CN') : '--')
-const makeRequestCode = () => `SON${new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)}`
+const formatDateTime = (v?: string) => (v ? formatDisplayDateTime(v) : '--')
+const getYYMMDD = (d: Date) => {
+  const yy = String(d.getFullYear()).slice(-2)
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yy}${mm}${dd}`
+}
+
+const makeRequestCode = async () => {
+  const datePart = getYYMMDD(new Date())
+  const prefix = `SON${datePart}`
+  const list = await stockOutApi.getRequestList()
+  const maxSeq = (list || [])
+    .map(x => (x.requestCode || '').trim())
+    .filter(code => code.startsWith(prefix) && code.length >= prefix.length + 4)
+    .map(code => Number(code.slice(prefix.length, prefix.length + 4)))
+    .filter(n => Number.isFinite(n))
+    .reduce((m, n) => Math.max(m, n), 0)
+  const nextSeq = String(maxSeq + 1).padStart(4, '0')
+  return `${prefix}${nextSeq}`
+}
 
 const handleEdit = () => {
   if (!canWriteSo.value) {
@@ -502,28 +550,59 @@ const handleEdit = () => {
   openEditDialog()
 }
 
-const handleOpenApplyStockOut = () => {
+const handleOpenApplyStockOut = async (item?: any) => {
   if (!order.value) return
+  const list = order.value.items || []
+  let line: any
+  if (item) {
+    line = item
+  } else {
+    if (list.length !== 1) {
+      ElMessage.warning('请从订单明细行点击「申请出库」，每次仅针对一条明细生成出库通知')
+      return
+    }
+    line = list[0]
+  }
+  let requestCode = ''
+  try {
+    requestCode = await makeRequestCode()
+  } catch {
+    const datePart = getYYMMDD(new Date())
+    requestCode = `SON${datePart}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`
+  }
+  const sellOrderItemId = String(line.id ?? line.Id ?? '').trim()
+  if (!sellOrderItemId) {
+    ElMessage.error('销售订单明细缺少主键，无法申请出库')
+    return
+  }
+  const maxQty = Number(line.qty ?? line.Qty ?? 0)
   applyForm.value = {
-    requestCode: makeRequestCode(),
-    requestDate: new Date().toISOString().slice(0, 10),
+    requestCode,
+    requestDate: new Date(),
     remark: '',
-    items: (order.value.items || []).map((it: any, idx: number) => ({
-      lineNo: idx + 1,
-      materialCode: it.pn || '',
-      materialName: it.brand || '',
-      quantity: Number(it.qty || 0),
-      maxQty: Number(it.qty || 0)
-    }))
+    sellOrderItemId,
+    materialCode: String(line.pn ?? line.PN ?? '').trim(),
+    materialName: String(line.brand ?? line.Brand ?? '').trim(),
+    maxQty,
+    notifyQty: maxQty
   }
   applyDialogVisible.value = true
 }
 
 const submitApplyStockOut = async () => {
   if (!order.value) return
-  const items = applyForm.value.items.filter(x => Number(x.quantity) > 0)
-  if (!items.length) {
-    ElMessage.warning('请至少填写一条出库通知数量')
+  const rd = applyForm.value.requestDate
+  if (!rd || !(rd instanceof Date) || Number.isNaN(rd.getTime())) {
+    ElMessage.warning('请选择预计出货日期与时间')
+    return
+  }
+  if (!applyForm.value.sellOrderItemId) {
+    ElMessage.warning('请选择一条销售订单明细后再申请出库')
+    return
+  }
+  const qty = Number(applyForm.value.notifyQty)
+  if (!(qty > 0)) {
+    ElMessage.warning('出库通知数量必须大于 0')
     return
   }
   applySubmitting.value = true
@@ -531,16 +610,14 @@ const submitApplyStockOut = async () => {
     await stockOutApi.createRequest({
       requestCode: applyForm.value.requestCode.trim(),
       salesOrderId: order.value.id,
+      salesOrderItemId: applyForm.value.sellOrderItemId,
+      materialCode: applyForm.value.materialCode,
+      materialName: applyForm.value.materialName,
+      quantity: qty,
       customerId: order.value.customerId || '',
       requestUserId: (authStore.user as any)?.id || '',
-      requestDate: `${applyForm.value.requestDate}T00:00:00Z`,
-      remark: applyForm.value.remark || undefined,
-      items: items.map(x => ({
-        lineNo: x.lineNo,
-        materialCode: x.materialCode,
-        materialName: x.materialName,
-        quantity: x.quantity
-      }))
+      requestDate: rd.toISOString(),
+      remark: applyForm.value.remark || undefined
     })
     applyDialogVisible.value = false
     ElMessage.success('申请出库成功')
@@ -668,6 +745,11 @@ const confirmUpdateStatus = async () => {
   font-size: 13px;
   background: rgba(201,154,69,0.15);
   cursor: pointer;
+}
+
+.btn-warning--sm {
+  padding: 4px 10px;
+  font-size: 12px;
 }
 
 .btn-secondary {
@@ -869,6 +951,40 @@ const confirmUpdateStatus = async () => {
     .el-button { white-space: nowrap !important; }
     .cell { white-space: nowrap; }
   }
+}
+
+.apply-stock-lines {
+  margin-top: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: $border-radius-md;
+  overflow: hidden;
+}
+.apply-stock-lines__head,
+.apply-stock-lines__row {
+  display: grid;
+  grid-template-columns: 44px minmax(120px, 1fr) 100px 88px 148px;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+}
+.apply-stock-lines__head {
+  background: rgba(0, 212, 255, 0.04);
+  font-size: 12px;
+  color: rgba(200, 216, 232, 0.55);
+  font-weight: 500;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+}
+.apply-stock-lines__row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 13px;
+  color: rgba(224, 244, 255, 0.85);
+  &:last-child {
+    border-bottom: none;
+  }
+}
+.apply-stock-lines .cell--max {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .doc-tab-content {

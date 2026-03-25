@@ -208,12 +208,6 @@
               class="submenu-item"
               active-class="active"
             >销售订单明细</router-link>
-            <router-link
-              v-if="hasPermission('sales-order.read')"
-              to="/stock-out-notifies"
-              class="submenu-item"
-              active-class="active"
-            >出库通知</router-link>
             <button class="submenu-item" @click="handleUnimplemented('销售退货')">销售退货</button>
           </div>
         </div>
@@ -298,9 +292,31 @@
           </button>
           <div class="submenu" v-if="!isCollapsed && openGroups.inventory">
             <router-link to="/inventory/list" class="submenu-item" active-class="active">库存管理</router-link>
-            <router-link to="/inventory/stock-out" class="submenu-item" active-class="active">出库管理</router-link>
             <router-link to="/inventory/transfer" class="submenu-item" active-class="active">库存调拨</router-link>
             <router-link to="/inventory/check" class="submenu-item" active-class="active">库存盘点</router-link>
+          </div>
+        </div>
+
+        <!-- 出库管理 -->
+        <div class="menu-group">
+          <button class="menu-item has-children" @click="toggleGroup('stockOutManagement')" :class="{ 'group-open': openGroups.stockOutManagement }">
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M7 7h10v10H7z"/>
+                <path d="M3 12h8"/>
+                <path d="M13 12h8"/>
+                <path d="M17 8l4 4-4 4"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">出库管理</span>
+            <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.stockOutManagement }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+          <div class="submenu" v-if="!isCollapsed && openGroups.stockOutManagement">
+            <router-link to="/inventory/stock-out-notifies" class="submenu-item" active-class="active">出库通知</router-link>
+            <router-link to="/inventory/packing-lists" class="submenu-item" active-class="active">装箱单</router-link>
+            <router-link to="/inventory/stock-out" class="submenu-item" active-class="active">出库</router-link>
           </div>
         </div>
 
@@ -528,6 +544,7 @@ const openGroups = ref({
   sales: false,
   inventory: false,
   stockInManagement: false,
+  stockOutManagement: false,
   customers: false,
   vendors: false,
   rfqs: false,
@@ -539,7 +556,7 @@ const openGroups = ref({
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
   if (isCollapsed.value) {
-    openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, systemManagement: false }
+    openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, systemManagement: false }
   }
 }
 
@@ -571,6 +588,8 @@ const pageTitleMap: Record<string, string> = {
   '/inventory/list': '库存列表',
   '/inventory/stock-in': '入库管理',
   '/inventory/stock-out': '出库管理',
+  '/inventory/stock-out-notifies': '出库通知',
+  '/inventory/packing-lists': '装箱单',
   '/inventory/transfer': '库存调拨',
   '/inventory/check': '库存盘点',
   '/reports': '报表分析',
@@ -644,7 +663,7 @@ watch(
     if (p === '/quotes' || p.startsWith('/quotes/')) {
       openGroups.value.quotes = true
     }
-    if (p === '/sales-orders' || p.startsWith('/sales-orders/') || p === '/sales-order-items' || p === '/stock-out-notifies') {
+    if (p === '/sales-orders' || p.startsWith('/sales-orders/') || p === '/sales-order-items') {
       openGroups.value.sales = true
     }
     if (
@@ -656,6 +675,9 @@ watch(
     }
     if (p.startsWith('/logistics/') || p === '/inventory/stock-in' || p.startsWith('/inventory/stock-in/')) {
       openGroups.value.stockInManagement = true
+    }
+    if (p === '/inventory/stock-out' || p.startsWith('/inventory/stock-out/') || p === '/inventory/stock-out-notifies' || p === '/inventory/packing-lists') {
+      openGroups.value.stockOutManagement = true
     }
     if (p.startsWith('/system/')) {
       openGroups.value.systemManagement = true

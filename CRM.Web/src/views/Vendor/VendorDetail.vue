@@ -350,6 +350,7 @@ import VendorAddressDialog from './VendorAddressDialog.vue';
 import VendorBankDialog from './VendorBankDialog.vue';
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue';
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue';
+import { formatDisplayDateTime } from '@/utils/displayDateTime';
 
 const route = useRoute();
 const router = useRouter();
@@ -395,9 +396,8 @@ const vendorStatusClass = computed(() => {
 
 const formatDateTime = (val?: string) => {
   if (!val) return '--';
-  const d = new Date(val);
-  if (isNaN(d.getTime())) return val;
-  return d.toLocaleString('zh-CN');
+  const s = formatDisplayDateTime(val);
+  return s === '--' ? val : s;
 };
 
 const fetchVendor = async () => {

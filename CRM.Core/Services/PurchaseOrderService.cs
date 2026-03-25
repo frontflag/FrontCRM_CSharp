@@ -24,6 +24,7 @@ namespace CRM.Core.Services
         private readonly IRepository<SellOrderItem> _soItemRepo;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork? _unitOfWork;
+        private readonly ISerialNumberService _serialNumberService;
 
         public PurchaseOrderService(
             IRepository<PurchaseOrder> poRepo,
@@ -31,6 +32,7 @@ namespace CRM.Core.Services
             IRepository<SellOrder> soRepo,
             IRepository<SellOrderItem> soItemRepo,
             IDataPermissionService dataPermissionService,
+            ISerialNumberService serialNumberService,
             IUnitOfWork? unitOfWork = null)
         {
             _poRepo = poRepo;
@@ -38,28 +40,25 @@ namespace CRM.Core.Services
             _soRepo = soRepo;
             _soItemRepo = soItemRepo;
             _dataPermissionService = dataPermissionService;
+            _serialNumberService = serialNumberService;
             _unitOfWork = unitOfWork;
         }
 
         public async Task<PurchaseOrder> CreateAsync(CreatePurchaseOrderRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.PurchaseOrderCode))
-                throw new ArgumentException("采购单号不能为空", nameof(request.PurchaseOrderCode));
             if (string.IsNullOrWhiteSpace(request.VendorId))
                 throw new ArgumentException("供应商ID不能为空", nameof(request.VendorId));
             if (!request.Items.Any())
                 throw new ArgumentException("至少需要一条明细行", nameof(request.Items));
 
-            var all = await _poRepo.GetAllAsync();
-            if (all.Any(o => o.PurchaseOrderCode == request.PurchaseOrderCode))
-                throw new InvalidOperationException($"采购单号 {request.PurchaseOrderCode} 已存在");
+            var purchaseOrderCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.PurchaseOrder);
 
             var total = request.Items.Sum(item => item.Qty * item.Cost);
 
             var order = new PurchaseOrder
             {
                 Id = Guid.NewGuid().ToString(),
-                PurchaseOrderCode = request.PurchaseOrderCode.Trim(),
+                PurchaseOrderCode = purchaseOrderCode,
                 VendorId = request.VendorId,
                 VendorName = request.VendorName,
                 VendorCode = request.VendorCode,
@@ -203,13 +202,11 @@ namespace CRM.Core.Services
 
             // 按供应商分组（此处简化：每个明细生成一张采购单）
             var result = new List<PurchaseOrder>();
-            var seq = 1;
             foreach (var item in items)
             {
-                var poCode = $"PO-AUTO-{so.SellOrderCode}-{seq++:D2}";
                 var req = new CreatePurchaseOrderRequest
                 {
-                    PurchaseOrderCode = poCode,
+                    PurchaseOrderCode = string.Empty,
                     VendorId = "PENDING",
                     Type = so.Type,
                     Currency = so.Currency,

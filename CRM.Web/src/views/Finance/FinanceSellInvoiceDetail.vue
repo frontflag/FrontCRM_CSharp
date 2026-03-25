@@ -43,7 +43,7 @@
           <el-descriptions-item label="待收金额">
             <span style="color:#E8A838; font-weight: 600;">{{ CURRENCY_MAP[detail.currency] }} {{ formatAmount(detail.receiveToBe) }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="开票日期">{{ detail.makeInvoiceDate?.slice(0, 10) || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="开票日期">{{ detail.makeInvoiceDate ? formatDisplayDate(detail.makeInvoiceDate) : '-' }}</el-descriptions-item>
           <el-descriptions-item label="发票类型">{{ SELL_INVOICE_TYPE_MAP[detail.sellInvoiceType] }}</el-descriptions-item>
           <el-descriptions-item label="蓝/红字">{{ INVOICE_TYPE_MAP[detail.type] }}</el-descriptions-item>
           <el-descriptions-item label="备注" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
@@ -101,6 +101,7 @@ import {
   CURRENCY_MAP,
   type FinanceSellInvoice,
 } from '@/api/finance'
+import { formatDisplayDate } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const route = useRoute()

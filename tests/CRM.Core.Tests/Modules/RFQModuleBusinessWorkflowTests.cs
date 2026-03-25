@@ -2,7 +2,9 @@ using System.Collections.Concurrent;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Customer;
+using CRM.Core.Models.Rbac;
 using CRM.Core.Models.RFQ;
+using CRM.Core.Models.System;
 using CRM.Core.Models.Vendor;
 using CRM.Core.Services;
 using CRM.Core.Tests.Fakes;
@@ -24,6 +26,10 @@ public sealed class RFQModuleBusinessWorkflowTests
         public MemoryRepository<CustomerContactInfo> ContactRepo { get; } = new();
         public MemoryRepository<VendorInfo> VendorRepo { get; } = new();
         public MemoryRepository<VendorContactInfo> VendorContactRepo { get; } = new();
+        public MemoryRepository<SysParam> SysParamRepo { get; } = new();
+        public MemoryRepository<RbacRole> RbacRoleRepo { get; } = new();
+        public MemoryRepository<RbacUserRole> RbacUserRoleRepo { get; } = new();
+        public MemoryRepository<User> UserRepo { get; } = new();
         public EntityLookupService Lookup { get; }
         public IDataPermissionService DataPermission { get; }
         public ISerialNumberService Serial { get; }
@@ -37,6 +43,9 @@ public sealed class RFQModuleBusinessWorkflowTests
             DataPermission
                 .FilterRFQsAsync(Arg.Any<string>(), Arg.Any<IEnumerable<RFQListItem>>())
                 .Returns(ci => ci.ArgAt<IEnumerable<RFQListItem>>(1).ToList());
+            DataPermission
+                .GetRfqItemLineVisibilityPredicateAsync(Arg.Any<string>())
+                .Returns(_ => Task.FromResult<Func<RFQ, RFQItem, bool>>((__, ___) => true));
 
             Serial = Substitute.For<ISerialNumberService>();
             var codeSeq = new ConcurrentInt();
@@ -52,10 +61,11 @@ public sealed class RFQModuleBusinessWorkflowTests
             };
             UserService.GetAllAsync().Returns(new List<User> { workflowUser });
             UserService.GetByIdAsync("USER-001").Returns(workflowUser);
+            UserRepo.AddAsync(workflowUser).GetAwaiter().GetResult();
 
             UnitOfWork = Substitute.For<IUnitOfWork>();
             Lookup = new EntityLookupService(CustomerRepo, ContactRepo, VendorRepo, VendorContactRepo, UserService);
-            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService);
+            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, SysParamRepo, RbacRoleRepo, RbacUserRoleRepo, UserRepo);
         }
 
         private sealed class ConcurrentInt
@@ -319,6 +329,9 @@ public sealed class RFQModuleBusinessWorkflowTests
         h.DataPermission
             .FilterRFQsAsync(Arg.Any<string>(), Arg.Any<IEnumerable<RFQListItem>>())
             .Returns(new List<RFQListItem>());
+        h.DataPermission
+            .GetRfqItemLineVisibilityPredicateAsync(Arg.Any<string>())
+            .Returns(_ => Task.FromResult<Func<RFQ, RFQItem, bool>>((__, ___) => false));
 
         await SeedCustomerAsync(h);
         await h.Service.CreateAsync(BuildCreateRequest());

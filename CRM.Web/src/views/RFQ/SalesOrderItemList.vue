@@ -203,6 +203,7 @@ import salesOrderApi from '@/api/salesOrder'
 import purchaseRequisitionApi from '@/api/purchaseRequisition'
 import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
 import { salesOrderStatusText, salesOrderStatusTagType } from '@/constants/salesOrderStatus'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -339,8 +340,8 @@ function statusTagType(s: number): '' | 'success' | 'warning' | 'info' | 'danger
 
 function formatDt(v: string) {
   if (!v) return '—'
-  const d = new Date(v)
-  return Number.isNaN(d.getTime()) ? v : d.toLocaleString('zh-CN', { hour12: false })
+  const s = formatDisplayDateTime(v)
+  return s === '--' ? '—' : s
 }
 
 function formatMoney(n: number, currency?: number) {

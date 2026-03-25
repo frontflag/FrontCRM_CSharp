@@ -11,32 +11,29 @@ namespace CRM.Core.Services
     {
         private readonly IRepository<Payment> _paymentRepository;
         private readonly IRepository<PaymentRequest> _paymentRequestRepository;
+        private readonly ISerialNumberService _serialNumberService;
 
         public PaymentService(
             IRepository<Payment> paymentRepository,
-            IRepository<PaymentRequest> paymentRequestRepository)
+            IRepository<PaymentRequest> paymentRequestRepository,
+            ISerialNumberService serialNumberService)
         {
             _paymentRepository = paymentRepository;
             _paymentRequestRepository = paymentRequestRepository;
+            _serialNumberService = serialNumberService;
         }
 
         public async Task<PaymentRequest> CreatePaymentRequestAsync(CreatePaymentRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.RequestCode))
-                throw new ArgumentException("请款单号不能为空", nameof(request.RequestCode));
-
             if (string.IsNullOrWhiteSpace(request.VendorId))
                 throw new ArgumentException("供应商ID不能为空", nameof(request.VendorId));
 
-            // 检查请款单号是否已存在
-            var allRequests = await _paymentRequestRepository.GetAllAsync();
-            if (allRequests.Any(r => r.RequestCode == request.RequestCode))
-                throw new InvalidOperationException($"请款单号 {request.RequestCode} 已存在");
+            var requestCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.PaymentRequest);
 
             var paymentRequest = new PaymentRequest
             {
                 Id = Guid.NewGuid().ToString(),
-                RequestCode = request.RequestCode.Trim(),
+                RequestCode = requestCode,
                 PurchaseOrderId = request.PurchaseOrderId,
                 VendorId = request.VendorId,
                 RequestUserId = request.RequestUserId,
@@ -62,11 +59,13 @@ namespace CRM.Core.Services
             if (paymentRequest == null)
                 throw new InvalidOperationException($"请款单 {request.PaymentRequestId} 不存在");
 
+            var paymentCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.Payment);
+
             // 创建付款记录
             var payment = new Payment
             {
                 Id = Guid.NewGuid().ToString(),
-                PaymentCode = $"PAY{DateTime.Now:yyyyMMdd}{new Random().Next(1000, 9999)}",
+                PaymentCode = paymentCode,
                 PurchaseOrderId = paymentRequest.PurchaseOrderId,
                 VendorId = paymentRequest.VendorId,
                 ApplyAmount = paymentRequest.Amount,

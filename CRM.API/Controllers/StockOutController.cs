@@ -51,12 +51,25 @@ namespace CRM.API.Controllers
         }
 
         [HttpPost("request")]
-        public async Task<ActionResult<ApiResponse<StockOutRequest>>> CreateRequest([FromBody] CreateStockOutRequestRequest request)
+        public async Task<ActionResult<ApiResponse<StockOutRequest>>> CreateRequest([FromBody] StockOutRequestCreateApiRequest? body)
         {
             try
             {
-                if (request == null)
+                if (body == null)
                     return BadRequest(ApiResponse<StockOutRequest>.Fail("请求体不能为空", 400));
+                var request = new CreateStockOutRequestRequest
+                {
+                    RequestCode = body.RequestCode ?? string.Empty,
+                    SalesOrderId = body.SalesOrderId ?? string.Empty,
+                    SalesOrderItemId = body.SalesOrderItemId ?? string.Empty,
+                    MaterialCode = body.MaterialCode ?? string.Empty,
+                    MaterialName = body.MaterialName ?? string.Empty,
+                    Quantity = body.Quantity,
+                    CustomerId = body.CustomerId ?? string.Empty,
+                    RequestUserId = body.RequestUserId ?? string.Empty,
+                    RequestDate = body.RequestDate,
+                    Remark = body.Remark,
+                };
                 var entity = await _service.CreateStockOutRequestAsync(request);
                 return Ok(ApiResponse<StockOutRequest>.Ok(entity, "创建出库申请成功"));
             }

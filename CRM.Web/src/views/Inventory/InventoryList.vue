@@ -10,7 +10,7 @@
               <line x1="12" y1="22.08" x2="12" y2="12"/>
             </svg>
           </div>
-          <h1 class="page-title">库存列表</h1>
+          <h1 class="page-title">库存中心</h1>
         </div>
         <div class="count-badge">共 {{ list.length }} 条</div>
       </div>
@@ -22,58 +22,223 @@
           style="width: 180px; margin-right: 8px;"
           @keyup.enter="fetchList"
         />
+        <button class="btn-secondary" @click="openWarehouseDialog">仓库管理</button>
         <button class="btn-primary" @click="fetchList">刷新</button>
       </div>
     </div>
 
-    <CrmDataTable
-      :data="list"
-      v-loading="loading"
-    >
-        <el-table-column type="index" width="50" align="center" />
-        <el-table-column prop="materialId" label="物料ID" width="140" show-overflow-tooltip />
-        <el-table-column prop="warehouseId" label="仓库ID" width="140" show-overflow-tooltip />
-        <el-table-column prop="quantity" label="库存数量" width="110" align="right">
-          <template #default="{ row }">{{ formatNum(row.quantity) }}</template>
-        </el-table-column>
-        <el-table-column prop="availableQuantity" label="可用数量" width="110" align="right">
-          <template #default="{ row }">{{ formatNum(row.availableQuantity) }}</template>
-        </el-table-column>
-        <el-table-column prop="lockedQuantity" label="锁定数量" width="110" align="right">
-          <template #default="{ row }">{{ formatNum(row.lockedQuantity) }}</template>
-        </el-table-column>
-        <el-table-column prop="unit" label="单位" width="70" />
-        <el-table-column prop="batchNo" label="批次号" width="100" show-overflow-tooltip />
-        <el-table-column prop="status" label="状态" width="80">
-          <template #default="{ row }">
-            <span :class="['status-dot', row.status === 1 ? 'normal' : 'frozen']">
-              {{ row.status === 1 ? '正常' : '冻结' }}
-            </span>
-          </template>
-        </el-table-column>
+    <div class="stat-row" v-if="finance">
+      <div class="stat-card">
+        <div class="label">在库资金占用</div>
+        <div class="value">{{ formatMoney(finance.inventoryCapital) }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">本月出库成本</div>
+        <div class="value">{{ formatMoney(finance.monthlyOutCost) }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">周转天数</div>
+        <div class="value">{{ finance.turnoverDays?.toFixed(2) || '0.00' }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">呆滞料数</div>
+        <div class="value">{{ finance.stagnantMaterialCount }}</div>
+      </div>
+    </div>
+
+    <CrmDataTable :data="list" v-loading="loading">
+      <el-table-column type="index" width="50" align="center" />
+      <el-table-column label="物料型号" min-width="220" show-overflow-tooltip>
+        <template #default="{ row }">{{ materialModelAndName(row) }}</template>
+      </el-table-column>
+      <el-table-column label="仓库名称" width="160" show-overflow-tooltip>
+        <template #default="{ row }">{{ warehouseNameOf(row.warehouseId) }}</template>
+      </el-table-column>
+      <el-table-column prop="onHandQty" label="在库数量" width="110" align="right">
+        <template #default="{ row }">{{ formatNum(row.onHandQty) }}</template>
+      </el-table-column>
+      <el-table-column prop="availableQty" label="可用数量" width="110" align="right">
+        <template #default="{ row }">{{ formatNum(row.availableQty) }}</template>
+      </el-table-column>
+      <el-table-column prop="lockedQty" label="占用数量" width="110" align="right">
+        <template #default="{ row }">{{ formatNum(row.lockedQty) }}</template>
+      </el-table-column>
+      <el-table-column prop="inventoryAmount" label="库存金额" width="120" align="right">
+        <template #default="{ row }">{{ formatMoney(row.inventoryAmount) }}</template>
+      </el-table-column>
+      <el-table-column prop="lastMoveTime" label="最后移动时间" width="170">
+        <template #default="{ row }">{{ formatTime(row.lastMoveTime) }}</template>
+      </el-table-column>
+      <el-table-column label="追溯" width="100">
+        <template #default="{ row }">
+          <button class="action-btn" @click="openTrace(row.materialId)">入库追溯</button>
+        </template>
+      </el-table-column>
     </CrmDataTable>
+
+    <el-dialog v-model="warehouseVisible" title="仓库管理" width="720px">
+      <el-form :model="warehouseForm" inline>
+        <el-form-item label="仓库编码">
+          <el-input v-model="warehouseForm.warehouseCode" />
+        </el-form-item>
+        <el-form-item label="仓库名称">
+          <el-input v-model="warehouseForm.warehouseName" />
+        </el-form-item>
+        <el-form-item label="地址">
+          <el-input v-model="warehouseForm.address" />
+        </el-form-item>
+        <el-form-item>
+          <button class="btn-primary" type="button" @click="saveWarehouse">保存仓库</button>
+        </el-form-item>
+      </el-form>
+      <el-table :data="warehouses">
+        <el-table-column prop="id" label="库存ID" width="220" show-overflow-tooltip />
+        <el-table-column prop="warehouseCode" label="编码" width="140" />
+        <el-table-column prop="warehouseName" label="名称" width="180" />
+        <el-table-column prop="address" label="地址" min-width="200" />
+      </el-table>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { stockApi, type StockInfo } from '@/api/stock'
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { inventoryCenterApi, type FinanceSummary, type InventoryOverview, type WarehouseInfo } from '@/api/inventoryCenter'
+import { getApiErrorMessage } from '@/utils/apiError'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
+const router = useRouter()
 const loading = ref(false)
-const list = ref<StockInfo[]>([])
+const list = ref<InventoryOverview[]>([])
 const warehouseFilter = ref('')
+const finance = ref<FinanceSummary | null>(null)
+const warehouseVisible = ref(false)
+const warehouses = ref<WarehouseInfo[]>([])
+const warehouseForm = ref<WarehouseInfo>({
+  warehouseCode: '',
+  warehouseName: '',
+  address: '',
+  status: 1
+})
 
 const formatNum = (v: number) => (v == null ? '--' : Number(v).toLocaleString())
+const formatMoney = (v: number) => (v == null ? '--' : Number(v).toFixed(2))
+const formatTime = (v?: string) => formatDisplayDateTime(v)
+const warehouseNameOf = (warehouseId?: string) => {
+  if (!warehouseId) return '--'
+  const byId = warehouses.value.find(w => w.id === warehouseId)
+  if (byId?.warehouseName) return byId.warehouseName
+  const byCode = warehouses.value.find(w => (w.warehouseCode || '').trim() === warehouseId.trim())
+  return byCode?.warehouseName || warehouseId
+}
+
+function pickRowStr(row: Record<string, unknown>, camel: string, pascal: string): string {
+  const v = row[camel] ?? row[pascal]
+  return typeof v === 'string' ? v : ''
+}
+
+/** 展示：规格型号 + 名称；兼容 PascalCase；无主数据时回退物料 ID */
+const materialModelAndName = (row: InventoryOverview) => {
+  const r = row as unknown as Record<string, unknown>
+  const model = pickRowStr(r, 'materialModel', 'MaterialModel').trim()
+  const name = pickRowStr(r, 'materialName', 'MaterialName').trim()
+  const id = pickRowStr(r, 'materialId', 'MaterialId').trim()
+  if (model && name) return `${model} ${name}`
+  if (model) return model
+  if (name) return name
+  return id || '--'
+}
+
+/** 最后移动时间降序；无时间排后 */
+const sortByLastMoveDesc = (rows: InventoryOverview[]) =>
+  [...rows].sort((a, b) => {
+    const ta = a.lastMoveTime ? new Date(a.lastMoveTime).getTime() : null
+    const tb = b.lastMoveTime ? new Date(b.lastMoveTime).getTime() : null
+    if (ta == null && tb == null) {
+      return pickRowStr(a as unknown as Record<string, unknown>, 'warehouseId', 'WarehouseId').localeCompare(
+        pickRowStr(b as unknown as Record<string, unknown>, 'warehouseId', 'WarehouseId')
+      )
+    }
+    if (ta == null) return 1
+    if (tb == null) return -1
+    if (tb !== ta) return tb - ta
+    return pickRowStr(a as unknown as Record<string, unknown>, 'warehouseId', 'WarehouseId').localeCompare(
+      pickRowStr(b as unknown as Record<string, unknown>, 'warehouseId', 'WarehouseId')
+    )
+  })
 
 const fetchList = async () => {
   loading.value = true
   try {
-    list.value = await stockApi.getList(warehouseFilter.value || undefined)
+    const [overviewRes, summaryRes, warehouseRes] = await Promise.allSettled([
+      inventoryCenterApi.getOverview(warehouseFilter.value || undefined),
+      inventoryCenterApi.getFinanceSummary(),
+      inventoryCenterApi.getWarehouses()
+    ])
+
+    if (overviewRes.status === 'fulfilled') {
+      list.value = sortByLastMoveDesc(overviewRes.value)
+    } else {
+      list.value = []
+      ElMessage.error(getApiErrorMessage(overviewRes.reason, '加载库存总览失败'))
+    }
+
+    if (summaryRes.status === 'fulfilled') {
+      finance.value = summaryRes.value
+    } else {
+      finance.value = null
+      ElMessage.warning(getApiErrorMessage(summaryRes.reason, '加载库存分析失败'))
+    }
+
+    if (warehouseRes.status === 'fulfilled') {
+      warehouses.value = warehouseRes.value
+    }
   } catch (e) {
     console.error(e)
+    ElMessage.error(getApiErrorMessage(e, '加载库存中心数据失败'))
     list.value = []
   } finally {
     loading.value = false
+  }
+}
+
+const openTrace = (materialId: string) => {
+  router.push(`/inventory/traces/${encodeURIComponent(materialId)}`)
+}
+
+const openWarehouseDialog = async () => {
+  try {
+    warehouseVisible.value = true
+    warehouses.value = await inventoryCenterApi.getWarehouses()
+  } catch (e) {
+    console.error(e)
+    ElMessage.error(getApiErrorMessage(e, '加载仓库列表失败'))
+  }
+}
+
+const saveWarehouse = async () => {
+  try {
+    const form = warehouseForm.value
+    const trimmedId = form.id?.trim()
+    const shouldSendId = !!trimmedId && warehouses.value.some(w => w.id === trimmedId)
+    const payload: WarehouseInfo = shouldSendId
+      ? { ...form, id: trimmedId }
+      : {
+          warehouseCode: form.warehouseCode,
+          warehouseName: form.warehouseName,
+          address: form.address,
+          status: form.status
+        }
+
+    await inventoryCenterApi.saveWarehouse(payload)
+    ElMessage.success('仓库保存成功')
+    warehouseForm.value = { warehouseCode: '', warehouseName: '', address: '', status: 1 }
+    warehouses.value = await inventoryCenterApi.getWarehouses()
+  } catch (e) {
+    console.error(e)
+    ElMessage.error(getApiErrorMessage(e, '仓库保存失败'))
   }
 }
 
@@ -95,7 +260,7 @@ onMounted(() => fetchList())
   justify-content: space-between;
   margin-bottom: 20px;
   .header-left { display: flex; align-items: center; gap: 12px; }
-  .header-right { display: flex; align-items: center; }
+  .header-right { display: flex; align-items: center; gap: 8px; }
 }
 .page-title-group {
   display: flex;
@@ -122,24 +287,46 @@ onMounted(() => fetchList())
   border-radius: 20px;
   padding: 3px 10px;
 }
-.btn-primary {
+.btn-primary,
+.btn-secondary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
-  border: 1px solid rgba(0, 212, 255, 0.4);
-  border-radius: 8px;
-  color: #fff;
+  padding: 8px 14px;
+  border-radius: $border-radius-md;
   font-size: 13px;
   cursor: pointer;
+  border: 1px solid transparent;
 }
-.status-dot {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
+.btn-primary {
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
+  border-color: rgba(0, 212, 255, 0.4);
+  color: #fff;
+}
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: $border-panel;
+  color: $text-secondary;
+}
+.action-btn {
+  background: transparent;
+  border: none;
+  color: $cyan-primary;
+  cursor: pointer;
   font-size: 12px;
-  &.normal { background: rgba(70, 191, 145, 0.2); color: #46BF91; }
-  &.frozen { background: rgba(255, 255, 255, 0.1); color: $text-muted; }
+}
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.stat-card {
+  background: $layer-2;
+  border: 1px solid $border-panel;
+  border-radius: 8px;
+  padding: 10px 12px;
+  .label { color: $text-muted; font-size: 12px; }
+  .value { color: $cyan-primary; font-size: 18px; font-weight: 600; margin-top: 4px; }
 }
 </style>

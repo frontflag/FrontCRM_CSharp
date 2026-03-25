@@ -100,6 +100,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { approvalsApi, type BizType, type PendingApprovalItem } from '@/api/approvals'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 
@@ -145,15 +146,7 @@ const getBizTypeTagType = (type: string) => {
   return map[type] || ''
 }
 
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '—'
-  const d = new Date(dateStr)
-  return (
-    d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }) +
-    ' ' +
-    d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-  )
-}
+const formatDate = (dateStr: string) => formatDisplayDateTime(dateStr)
 
 /** 币别：1=CNY 2=USD 3=EUR */
 const formatAmount = (amount: number, currency?: number | null) => {

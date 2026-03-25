@@ -14,6 +14,7 @@ namespace CRM.Core.Tests.Services
         private readonly IRepository<Quote> _quoteRepository;
         private readonly IRepository<QuoteItem> _quoteItemRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ISerialNumberService _serialNumberService;
         private readonly QuoteService _quoteService;
 
         public QuoteServiceTests()
@@ -21,7 +22,9 @@ namespace CRM.Core.Tests.Services
             _quoteRepository = Substitute.For<IRepository<Quote>>();
             _quoteItemRepository = Substitute.For<IRepository<QuoteItem>>();
             _unitOfWork = Substitute.For<IUnitOfWork>();
-            _quoteService = new QuoteService(_quoteRepository, _quoteItemRepository, _unitOfWork);
+            _serialNumberService = Substitute.For<ISerialNumberService>();
+            _serialNumberService.GenerateNextAsync(ModuleCodes.Quotation).Returns("QT2603240001");
+            _quoteService = new QuoteService(_quoteRepository, _quoteItemRepository, _unitOfWork, _serialNumberService);
         }
 
         [Fact]
@@ -46,51 +49,13 @@ namespace CRM.Core.Tests.Services
 
             // Assert
             Assert.NotNull(result);
-            Assert.Equal(request.QuoteCode, result.QuoteCode);
+            Assert.Equal("QT2603240001", result.QuoteCode);
+            await _serialNumberService.Received(1).GenerateNextAsync(ModuleCodes.Quotation);
             Assert.Equal(request.CustomerId, result.CustomerId);
             Assert.Equal(request.Mpn, result.Mpn);
             Assert.Equal(0, result.Status); // 草稿状态
             await _quoteRepository.Received(1).AddAsync(Arg.Any<Quote>());
             await _unitOfWork.Received(1).SaveChangesAsync();
-        }
-
-        [Fact]
-        public async Task CreateAsync_DuplicateQuoteCode_ShouldThrowException()
-        {
-            // Arrange
-            var existingQuotes = new List<Quote>
-            {
-                new() { Id = "1", QuoteCode = "QT-2024-001", CustomerId = "CUST-001" }
-            };
-            _quoteRepository.GetAllAsync().Returns(existingQuotes);
-
-            var request = new CreateQuoteRequest
-            {
-                QuoteCode = "QT-2024-001",
-                CustomerId = "CUST-002"
-            };
-
-            // Act & Assert
-            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-                () => _quoteService.CreateAsync(request));
-            Assert.Contains("QT-2024-001", exception.Message);
-        }
-
-        [Theory]
-        [InlineData("")]
-        [InlineData(" ")]
-        public async Task CreateAsync_EmptyQuoteCode_ShouldThrowException(string quoteCode)
-        {
-            // Arrange
-            var request = new CreateQuoteRequest
-            {
-                QuoteCode = quoteCode,
-                CustomerId = "CUST-001"
-            };
-
-            // Act & Assert
-            await Assert.ThrowsAsync<ArgumentException>(
-                () => _quoteService.CreateAsync(request));
         }
 
         [Fact]

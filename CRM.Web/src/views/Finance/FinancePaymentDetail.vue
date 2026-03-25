@@ -39,7 +39,7 @@
             <span class="amount">{{ CURRENCY_MAP[detail.paymentCurrency] }} {{ formatAmount(detail.paymentAmount) }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="付款方式">{{ PAYMENT_MODE_MAP[detail.paymentMode] }}</el-descriptions-item>
-          <el-descriptions-item label="付款日期">{{ detail.paymentDate?.slice(0, 10) || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="付款日期">{{ detail.paymentDate ? formatDisplayDate(detail.paymentDate) : '-' }}</el-descriptions-item>
           <el-descriptions-item label="备注" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
         </el-descriptions>
       </div>
@@ -87,6 +87,7 @@ import {
   type FinancePayment,
 } from '@/api/finance'
 import { vendorApi } from '@/api/vendor'
+import { formatDisplayDate } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const route = useRoute()

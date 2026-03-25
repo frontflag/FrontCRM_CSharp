@@ -135,5 +135,11 @@ namespace CRM.Core.Interfaces
         public string? CustomerName { get; set; }
         public string? SalesUserId { get; set; }
         public string? SalesUserName { get; set; }
+
+        /// <summary>轮询分配的询价采购员1</summary>
+        public string? AssignedPurchaserUserId1 { get; set; }
+        public string? AssignedPurchaserUserId2 { get; set; }
+        public string? AssignedPurchaserName1 { get; set; }
+        public string? AssignedPurchaserName2 { get; set; }
     }
 }

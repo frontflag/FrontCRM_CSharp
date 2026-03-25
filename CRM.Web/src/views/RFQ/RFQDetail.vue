@@ -224,6 +224,9 @@
                 <el-table-column label="数量" width="90" align="right">
                   <template #default="{ row }"><span class="cell-secondary">{{ row.quantity }}</span></template>
                 </el-table-column>
+                <el-table-column label="询价采购员" min-width="150" show-overflow-tooltip>
+                  <template #default="{ row }"><span class="cell-secondary">{{ formatAssignedPurchasers(row) }}</span></template>
+                </el-table-column>
                 <el-table-column label="生产日期" width="100">
                   <template #default="{ row }"><span class="cell-muted">{{ row.productionDate || '—' }}</span></template>
                 </el-table-column>
@@ -260,7 +263,7 @@
                   <template #default="{ row }"><span class="cell-secondary">{{ row.operatorName || '—' }}</span></template>
                 </el-table-column>
                 <el-table-column label="关闭时间" width="160">
-                  <template #default="{ row }"><span class="cell-muted">{{ formatDate(row.createdAt) }}</span></template>
+                  <template #default="{ row }"><span class="cell-muted">{{ formatCloseAt(row.createdAt) }}</span></template>
                 </el-table-column>
               </CrmDataTable>
             </div>
@@ -332,6 +335,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElNotification, ElMessageBox } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -413,7 +417,22 @@ function getCloseTypeLabel(type?: number) {
   const map: Record<number, string> = { 1: '正常关闭', 2: '客户取消', 3: '价格不符', 9: '其他原因' }
   return type !== undefined ? (map[type] ?? '—') : '—'
 }
-function formatDate(val?: string) { if (!val) return '—'; return val.split('T')[0] }
+function formatDate(val?: string) {
+  if (!val) return '—'
+  const s = formatDisplayDate(val)
+  return s === '--' ? '—' : s
+}
+function formatAssignedPurchasers(row: any) {
+  const n1 = String(row.assignedPurchaserName1 ?? '').trim()
+  const n2 = String(row.assignedPurchaserName2 ?? '').trim()
+  const parts = [n1, n2].filter(Boolean)
+  return parts.length ? parts.join('、') : '—'
+}
+function formatCloseAt(val?: string) {
+  if (!val) return '—'
+  const s = formatDisplayDateTime(val)
+  return s === '--' ? '—' : s
+}
 function goBack() { router.push('/rfqs') }
 function handleEdit() { router.push(`/rfqs/${rfqId}/edit`) }
 

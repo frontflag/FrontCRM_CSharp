@@ -80,7 +80,7 @@
           <template #default="{ row }">{{ PAYMENT_MODE_MAP[row.receiptMode] }}</template>
         </el-table-column>
         <el-table-column prop="receiptDate" label="收款日期" width="120">
-          <template #default="{ row }">{{ row.receiptDate ? row.receiptDate.slice(0, 10) : '-' }}</template>
+          <template #default="{ row }">{{ row.receiptDate ? formatDisplayDate(row.receiptDate) : '-' }}</template>
         </el-table-column>
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
@@ -91,7 +91,7 @@
         </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
         <el-table-column prop="createdAt" label="创建时间" width="120">
-          <template #default="{ row }">{{ row.createdAt ? row.createdAt.slice(0, 10) : '-' }}</template>
+          <template #default="{ row }">{{ row.createdAt ? formatDisplayDate(row.createdAt) : '-' }}</template>
         </el-table-column>
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
@@ -183,6 +183,7 @@ import {
   type FinanceReceipt,
   type PageQuery,
 } from '@/api/finance'
+import { formatDisplayDate } from '@/utils/displayDateTime'
 
 const router = useRouter()
 

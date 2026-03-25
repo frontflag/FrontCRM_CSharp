@@ -114,6 +114,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { rbacAdminApi, type AdminUserDto } from '@/api/rbacAdmin'
+import { formatDisplayDate } from '@/utils/displayDateTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -150,7 +151,8 @@ const deptLabel = computed(() => {
 
 const formatDate = (v: string | null | undefined) => {
   if (v == null || v === '') return '--'
-  return v.length >= 10 ? v.slice(0, 10) : v
+  const s = formatDisplayDate(v)
+  return s === '--' ? '--' : s
 }
 
 const load = async () => {

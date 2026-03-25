@@ -80,6 +80,7 @@ import { ref, onMounted } from 'vue';
 import { ElNotification, ElMessageBox } from 'element-plus';
 import { vendorApi } from '@/api/vendor';
 import type { Vendor } from '@/types/vendor';
+import { formatDisplayDateTime } from '@/utils/displayDateTime';
 
 const loading = ref(false);
 const items = ref<Vendor[]>([]);
@@ -116,7 +117,7 @@ const handleRestore = async (item: Vendor) => {
   }
 };
 
-const formatDateTime = (date?: string) => (date ? new Date(date).toLocaleString('zh-CN') : '--');
+const formatDateTime = (date?: string) => (date ? formatDisplayDateTime(date) : '--');
 
 onMounted(fetchData);
 </script>

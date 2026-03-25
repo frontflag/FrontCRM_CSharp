@@ -44,7 +44,9 @@ namespace CRM.IntegrationTests
             _dataPermissionService = Substitute.For<IDataPermissionService>();
             _userService = Substitute.For<IUserService>();
             _userService.GetAllAsync().Returns(new List<User>());
-            _serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
+            _serialNumberService.GenerateNextAsync(ModuleCodes.RFQ).Returns("RF20260001");
+            _serialNumberService.GenerateNextAsync(ModuleCodes.Quotation).Returns("QT-2024-001");
+            _serialNumberService.GenerateNextAsync(ModuleCodes.SalesOrder).Returns("SO-2024-001");
             _entityLookup = Substitute.For<IEntityLookupService>();
             _rfqService = new RFQService(
                 _rfqRepository,
@@ -55,13 +57,14 @@ namespace CRM.IntegrationTests
                 _serialNumberService,
                 _dataPermissionService,
                 _userService);
-            _quoteService = new QuoteService(_quoteRepository, _quoteItemRepository, _unitOfWork);
+            _quoteService = new QuoteService(_quoteRepository, _quoteItemRepository, _unitOfWork, _serialNumberService);
             _salesOrderService = new SalesOrderService(
                 _salesOrderRepository,
                 _salesOrderItemRepository,
                 _poRepository,
                 _poItemRepository,
-                _dataPermissionService);
+                _dataPermissionService,
+                _serialNumberService);
         }
 
         [Fact]

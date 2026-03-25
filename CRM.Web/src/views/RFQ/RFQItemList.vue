@@ -65,6 +65,9 @@
         </el-table-column>
         <el-table-column prop="quantity" label="数量" width="90" min-width="72" align="right" resizable />
         <el-table-column prop="salesUserName" label="业务员" width="100" min-width="80" show-overflow-tooltip resizable />
+        <el-table-column label="询价采购员" min-width="160" show-overflow-tooltip resizable>
+          <template #default="{ row }">{{ formatAssignedPurchasers(row) }}</template>
+        </el-table-column>
         <el-table-column label="报价条目" width="96" min-width="80" align="center" resizable>
           <template #default="{ row }">
             {{ quoteRecordCountByRfqItemId[row.id] ?? 0 }}
@@ -212,6 +215,7 @@ import { quoteApi } from '@/api/quote'
 import { buildLinkAlertFieldsFromItem, fetchLinkedRfqItemRecord } from '@/utils/rfqLinkedItemSummary'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
 import type { RFQItem } from '@/types/rfq'
+import { formatDisplayDate } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const route = useRoute()
@@ -262,7 +266,16 @@ const linkAlertSep4Ideo = '\u3000'.repeat(4)
 
 function formatDate(val?: string) {
   if (!val) return '—'
-  return String(val).split('T')[0]
+  const s = formatDisplayDate(val)
+  return s === '--' ? '—' : s
+}
+
+/** 轮询分配的两名询价采购员展示 */
+function formatAssignedPurchasers(row: RFQItem) {
+  const n1 = row.assignedPurchaserName1?.trim()
+  const n2 = row.assignedPurchaserName2?.trim()
+  const parts = [n1, n2].filter((x): x is string => !!x)
+  return parts.length ? parts.join('、') : '—'
 }
 
 function itemStatusText(s?: number) {

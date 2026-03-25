@@ -15,6 +15,7 @@ namespace CRM.Core.Services
         private readonly IRepository<PurchaseOrderItem> _poItemRepo;
         private readonly IRepository<QuoteItem> _quoteItemRepo;
         private readonly IUnitOfWork? _unitOfWork;
+        private readonly ISerialNumberService _serialNumberService;
 
         public PurchaseRequisitionService(
             IRepository<PurchaseRequisition> prRepo,
@@ -22,6 +23,7 @@ namespace CRM.Core.Services
             IRepository<SellOrderItem> soItemRepo,
             IRepository<PurchaseOrderItem> poItemRepo,
             IRepository<QuoteItem> quoteItemRepo,
+            ISerialNumberService serialNumberService,
             IUnitOfWork? unitOfWork = null)
         {
             _prRepo = prRepo;
@@ -29,6 +31,7 @@ namespace CRM.Core.Services
             _soItemRepo = soItemRepo;
             _poItemRepo = poItemRepo;
             _quoteItemRepo = quoteItemRepo;
+            _serialNumberService = serialNumberService;
             _unitOfWork = unitOfWork;
         }
 
@@ -119,10 +122,12 @@ namespace CRM.Core.Services
                     ) ?? quoteItems.FirstOrDefault();
             }
 
+            var billCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.PurchaseRequisition);
+
             var pr = new PurchaseRequisition
             {
                 Id = Guid.NewGuid().ToString(),
-                BillCode = GenerateBillCode(),
+                BillCode = billCode,
                 SellOrderItemId = soItem.Id,
                 SellOrderId = soItem.SellOrderId,
                 Qty = request.Qty,
@@ -170,13 +175,6 @@ namespace CRM.Core.Services
         {
             // MVP：当前不做重算
             await Task.CompletedTask;
-        }
-
-        private static string GenerateBillCode()
-        {
-            var date = DateTime.UtcNow.ToString("yyyyMMdd");
-            var rand = new Random().Next(1000, 9999);
-            return $"PR{date}{rand}";
         }
     }
 }

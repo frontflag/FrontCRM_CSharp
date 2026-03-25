@@ -47,7 +47,7 @@
         </div>
         <div class="info-card">
           <div class="info-label">需求日期</div>
-          <div class="info-value">{{ bom.bomDate?.slice(0, 10) || '—' }}</div>
+          <div class="info-value">{{ formatBomDate(bom.bomDate) }}</div>
         </div>
         <div class="info-card">
           <div class="info-label">来源</div>
@@ -293,7 +293,16 @@ const getItemStatusTagType = (s: number): '' | 'success' | 'warning' | 'danger' 
   const m: Record<number, '' | 'success' | 'warning' | 'danger' | 'info'> = { 0: 'info', 1: 'success', 2: '', 3: 'danger', 4: 'success', 5: 'danger' }
   return m[s] ?? 'info'
 }
-const formatDate = (d?: string) => d ? d.slice(0, 16).replace('T', ' ') : '—'
+const formatBomDate = (d?: string) => {
+  if (!d) return '—'
+  const s = formatDisplayDate(d)
+  return s === '--' ? '—' : s
+}
+const formatDate = (d?: string) => {
+  if (!d) return '—'
+  const s = formatDisplayDateTime(d)
+  return s === '--' ? '—' : s
+}
 
 // ── 筛选 ──
 const applyFilter = () => {}

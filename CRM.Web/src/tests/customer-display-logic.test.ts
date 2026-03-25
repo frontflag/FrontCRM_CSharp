@@ -4,7 +4,9 @@
  * 包括：等级标签、类型标签、行业标签、状态标签、金额格式化、日期格式化、地址拼接、货币标签
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { formatDisplayDateTime } from '@/utils/displayDateTime';
+import { setDisplayTimeZoneId } from '@/utils/displayTimeZone';
 
 // ─── 从 CustomerList.vue 提取的显示逻辑函数 ───
 
@@ -39,11 +41,6 @@ function formatCurrencyList(val: number | undefined): string {
 function formatCurrencyDetail(value: number | undefined): string {
   if (value === undefined || value === null) return '¥0.00';
   return `¥${value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-}
-
-/** 日期时间格式化 */
-function formatDateTime(date: string | undefined): string {
-  return date ? new Date(date).toLocaleString('zh-CN') : '--';
 }
 
 /** 客户类型 → 显示标签（CustomerDetail.vue 版本，旧枚举 0-2） */
@@ -254,23 +251,27 @@ describe('CustomerDetail - 金额格式化 (formatCurrencyDetail)', () => {
   });
 });
 
-describe('CustomerDetail - 日期时间格式化 (formatDateTime)', () => {
+describe('CustomerDetail - 日期时间格式化 (formatDisplayDateTime, UTC)', () => {
+  beforeEach(() => {
+    setDisplayTimeZoneId('UTC');
+  });
+
   it('UT-DISPLAY-060: undefined → "--"', () => {
-    expect(formatDateTime(undefined)).toBe('--');
+    expect(formatDisplayDateTime(undefined)).toBe('--');
   });
 
   it('UT-DISPLAY-061: 空字符串 → "--"', () => {
-    expect(formatDateTime('')).toBe('--');
+    expect(formatDisplayDateTime('')).toBe('--');
   });
 
   it('UT-DISPLAY-062: 有效 ISO 日期字符串 → 返回非空字符串', () => {
-    const result = formatDateTime('2026-03-16T06:00:00Z');
+    const result = formatDisplayDateTime('2026-03-16T06:00:00Z');
     expect(result).not.toBe('--');
     expect(result.length).toBeGreaterThan(0);
   });
 
   it('UT-DISPLAY-063: 有效日期字符串 → 包含年份', () => {
-    const result = formatDateTime('2026-03-16T06:00:00Z');
+    const result = formatDisplayDateTime('2026-03-16T06:00:00Z');
     expect(result).toContain('2026');
   });
 });

@@ -11,6 +11,14 @@ namespace CRM.Core.Models.System
     public class SysParamGroup : BaseGuidEntity
     {
         /// <summary>
+        /// 分组主键
+        /// </summary>
+        [Key]
+        [MaxLength(36)]
+        [Column("GroupId")]
+        public override string Id { get; set; } = Guid.NewGuid().ToString();
+
+        /// <summary>
         /// 分组编码
         /// </summary>
         [Required]
@@ -29,8 +37,9 @@ namespace CRM.Core.Models.System
         /// <summary>
         /// 父分组ID
         /// </summary>
+        [MaxLength(36)]
         [Column("ParentId")]
-        public Guid? ParentId { get; set; }
+        public string? ParentId { get; set; }
 
         /// <summary>
         /// 分组层级
