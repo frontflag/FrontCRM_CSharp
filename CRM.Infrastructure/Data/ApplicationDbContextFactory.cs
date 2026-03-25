@@ -21,32 +21,37 @@ namespace CRM.Infrastructure.Data
                 Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ??
                 "Production";
 
-            string? connectionString = null;
+            string? connectionString =
+                Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
 
-            // 先读环境专用文件，再回退通用文件
-            var candidates = new[]
+            if (string.IsNullOrWhiteSpace(connectionString))
             {
-                Path.Combine(basePath, $"appsettings.{environment}.json"),
-                Path.Combine(basePath, "appsettings.json")
-            };
-
-            foreach (var file in candidates)
-            {
-                if (!File.Exists(file)) continue;
-
-                var json = File.ReadAllText(file);
-                using var doc = JsonDocument.Parse(json);
-                if (doc.RootElement.TryGetProperty("ConnectionStrings", out var connStrings) &&
-                    connStrings.TryGetProperty("DefaultConnection", out var dc))
+                // 先读环境专用文件，再回退通用文件
+                var candidates = new[]
                 {
-                    connectionString = dc.GetString();
-                    if (!string.IsNullOrWhiteSpace(connectionString))
-                        break;
+                    Path.Combine(basePath, $"appsettings.{environment}.json"),
+                    Path.Combine(basePath, "appsettings.json")
+                };
+
+                foreach (var file in candidates)
+                {
+                    if (!File.Exists(file)) continue;
+
+                    var json = File.ReadAllText(file);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("ConnectionStrings", out var connStrings) &&
+                        connStrings.TryGetProperty("DefaultConnection", out var dc))
+                    {
+                        connectionString = dc.GetString();
+                        if (!string.IsNullOrWhiteSpace(connectionString))
+                            break;
+                    }
                 }
             }
 
             if (string.IsNullOrWhiteSpace(connectionString))
-                throw new InvalidOperationException("未找到 ConnectionStrings:DefaultConnection 配置（appsettings.json）。");
+                throw new InvalidOperationException(
+                    "未找到 ConnectionStrings:DefaultConnection。请设置环境变量 ConnectionStrings__DefaultConnection，或在当前目录提供 appsettings.json。");
 
             var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
             optionsBuilder.UseNpgsql(connectionString);
