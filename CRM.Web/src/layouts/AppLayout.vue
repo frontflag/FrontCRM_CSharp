@@ -1,30 +1,94 @@
 <template>
   <div class="app-layout">
-    <!-- 左侧菜单面板 -->
-    <aside class="sidebar" :class="{ collapsed: isCollapsed }">
-      <!-- Logo 区域 -->
-      <div class="sidebar-logo">
-        <div class="logo-icon">
-          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke="#00D4FF" stroke-width="1.5"/>
-            <polygon points="20,8 30,14 30,26 20,32 10,26 10,14" fill="rgba(0,212,255,0.1)" stroke="#0066FF" stroke-width="1"/>
-            <circle cx="20" cy="20" r="5" fill="#00D4FF" opacity="0.9"/>
-          </svg>
-        </div>
-        <transition name="fade">
-          <div class="logo-text" v-if="!isCollapsed">
-            <span class="logo-title">FrontCRM</span>
-            <span class="logo-subtitle">AI智销系统</span>
+    <!-- 全局顶栏：深色 · 左 Logo+双行标题 · 右 通知+用户（全宽） -->
+    <header class="global-top-bar">
+      <div class="global-top-inner">
+        <router-link to="/dashboard" class="global-logo" @click="closeDropdown">
+          <span class="global-logo-mark" aria-hidden="true">
+            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke="#00D4FF" stroke-width="1.5"/>
+              <polygon points="20,8 30,14 30,26 20,32 10,26 10,14" fill="rgba(0,212,255,0.12)" stroke="#0066FF" stroke-width="1"/>
+              <circle cx="20" cy="20" r="5" fill="#00D4FF" opacity="0.95"/>
+            </svg>
+          </span>
+          <span class="global-logo-stack">
+            <span class="global-logo-title">FrontCRM</span>
+            <span class="global-logo-sub">AI智销系统</span>
+          </span>
+        </router-link>
+        <div class="global-top-right">
+          <button
+            type="button"
+            class="global-notify-btn"
+            title="消息通知"
+            @click="handleUnimplemented('消息通知')"
+          >
+            <span class="global-notify-icon-wrap" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 01-3.46 0"/>
+              </svg>
+            </span>
+            <span v-if="headerNotifyCount > 0" class="global-notify-badge">{{ headerNotifyCount > 99 ? '99+' : headerNotifyCount }}</span>
+          </button>
+          <div class="user-dropdown global-user-dropdown" v-click-outside="closeDropdown">
+            <button type="button" class="global-user-trigger" @click="toggleDropdown">
+              <span class="global-user-avatar">{{ userInitial }}</span>
+              <span class="global-user-name">{{ userName }}</span>
+              <svg class="dropdown-chevron global-user-chevron" :class="{ open: dropdownOpen }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </button>
+            <transition name="dropdown">
+              <div class="dropdown-menu" v-if="dropdownOpen">
+                <div class="dropdown-header">
+                  <div class="dropdown-avatar">{{ userInitial }}</div>
+                  <div class="dropdown-user-info">
+                    <span class="dropdown-username">{{ userName }}</span>
+                    <span class="dropdown-email">{{ userEmail }}</span>
+                  </div>
+                </div>
+                <div class="dropdown-divider"></div>
+                <router-link to="/profile" class="dropdown-item" @click="closeDropdown">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  个人设置
+                </router-link>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item danger" @click="handleLogout">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                  </svg>
+                  退出系统
+                </button>
+              </div>
+            </transition>
           </div>
-        </transition>
-        <button class="collapse-btn" @click="toggleCollapse" :title="isCollapsed ? '展开菜单' : '收起菜单'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path v-if="!isCollapsed" d="M15 18l-6-6 6-6"/>
-            <path v-else d="M9 18l6-6-6-6"/>
-          </svg>
-        </button>
+        </div>
       </div>
+    </header>
 
+    <div class="app-layout-body">
+    <button
+      v-if="sidebarMode === 'hidden'"
+      type="button"
+      class="sidebar-fab"
+      title="显示主菜单"
+      @click="sidebarMode = 'full'"
+    >
+      ☰
+    </button>
+    <!-- 左侧菜单面板：完整 / 边条 / 隐藏 -->
+    <aside
+      v-show="sidebarMode !== 'hidden'"
+      class="sidebar"
+      :class="{ collapsed: isCollapsed }"
+      :style="sidebarMode === 'full' ? { width: sidebarWidthPx + 'px' } : undefined"
+    >
       <!-- 菜单区域 -->
       <nav class="sidebar-nav">
         <!-- 主菜单标签 -->
@@ -519,67 +583,95 @@
         </router-link>
       </nav>
 
+      <div class="sidebar-collapse-bar">
+        <button
+          type="button"
+          class="collapse-btn"
+          @click="toggleCollapse"
+          :title="sidebarMode === 'full' ? '缩窄为边条' : sidebarMode === 'narrow' ? '隐藏主菜单' : '展开主菜单'"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path v-if="!isCollapsed" d="M15 18l-6-6 6-6"/>
+            <path v-else d="M9 18l6-6-6-6"/>
+          </svg>
+        </button>
+      </div>
 
     </aside>
 
-    <!-- 主内容区域 -->
-    <main class="main-content">
-      <!-- 顶部栏 -->
-      <header class="top-bar">
-        <div class="top-bar-left">
-          <h1 class="page-title">{{ currentPageTitle }}</h1>
-        </div>
-        <div class="top-bar-right">
-          <button class="top-btn" title="通知">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 01-3.46 0"/>
-            </svg>
-            <span class="badge">3</span>
-          </button>
-          <!-- 右上角账号下拉菜单 -->
-          <div class="user-dropdown" v-click-outside="closeDropdown">
-            <div class="top-user" @click="toggleDropdown">
-              <div class="top-user-avatar">{{ userInitial }}</div>
-              <span class="top-user-name">{{ userName }}</span>
-              <svg class="dropdown-chevron" :class="{ open: dropdownOpen }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M6 9l6 6 6-6"/>
-              </svg>
-            </div>
-            <transition name="dropdown">
-              <div class="dropdown-menu" v-if="dropdownOpen">
-                <div class="dropdown-header">
-                  <div class="dropdown-avatar">{{ userInitial }}</div>
-                  <div class="dropdown-user-info">
-                    <span class="dropdown-username">{{ userName }}</span>
-                    <span class="dropdown-email">{{ userEmail }}</span>
-                  </div>
-                </div>
-                <div class="dropdown-divider"></div>
-                <router-link to="/profile" class="dropdown-item" @click="closeDropdown">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                  </svg>
-                  个人设置
-                </router-link>
-                <div class="dropdown-divider"></div>
-                <button class="dropdown-item danger" @click="handleLogout">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
-                    <polyline points="16 17 21 12 16 7"/>
-                    <line x1="21" y1="12" x2="9" y2="12"/>
-                  </svg>
-                  退出系统
-                </button>
-              </div>
-            </transition>
+    <!-- 主菜单与工作内容之间的可调宽度（仅完整主菜单时） -->
+    <div
+      v-if="sidebarMode === 'full'"
+      class="col-splitter"
+      title="拖拽调整主菜单宽度"
+      @mousedown="onResizeStart('sidebar', $event)"
+    />
+
+    <div class="workspace-cols">
+      <!-- 左侧面板（检索 / 多 Tab） -->
+      <aside
+        v-show="leftPanelVisible"
+        class="aux-panel aux-left"
+        :class="{ 'is-fullscreen': leftFullscreen }"
+        :style="{ width: leftPanelWidth + 'px' }"
+      >
+        <div class="aux-panel-toolbar">
+          <div class="aux-tabs" role="tablist">
+            <button
+              v-for="t in leftTabs"
+              :key="t.id"
+              type="button"
+              class="aux-tab"
+              :class="{ active: leftActiveTabId === t.id }"
+              @click="leftActiveTabId = t.id"
+            >
+              {{ t.label }}
+            </button>
+          </div>
+          <div class="aux-panel-actions">
+            <button type="button" class="aux-icon-btn" title="全屏" @click="toggleLeftFullscreen()">⛶</button>
+            <button type="button" class="aux-icon-btn" title="隐藏左侧面板" @click="toggleLeftPanel(false)">✕</button>
           </div>
         </div>
-      </header>
+        <div class="aux-panel-body">
+          <p class="aux-placeholder">左侧面板 · {{ leftPanelTitle }}</p>
+          <p class="aux-hint">子页面可 inject(WorkspaceLayoutKey)；或 window 派发 workspace:toggle-left / workspace:toggle-right</p>
+        </div>
+      </aside>
 
-      <!-- Tab Bar 多标签页 -->
-      <div class="tab-bar" v-if="tabs.length > 0" ref="tabBarRef">
+      <div
+        v-show="leftPanelVisible"
+        class="col-splitter"
+        title="拖拽调整左侧栏宽度"
+        @mousedown="onResizeStart('left', $event)"
+      />
+
+      <!-- 主内容区域（页签与业务区在全局顶栏之下） -->
+      <main class="main-content" :class="{ 'is-fullscreen': centerFullscreen }">
+      <!-- 侧栏开关 + 页签栏 同一行 -->
+      <header class="main-chrome-bar">
+        <div class="workspace-top-tools">
+          <button
+            type="button"
+            class="ws-tool-btn ws-tool-btn--icon"
+            :class="{ active: leftPanelVisible }"
+            :title="leftPanelVisible ? '隐藏左侧面板' : '展开左侧面板'"
+            :aria-label="leftPanelVisible ? '隐藏左侧面板' : '展开左侧面板'"
+            @click="toggleLeftPanel()"
+          >
+            <span class="ws-tool-icon" aria-hidden="true">
+              <!-- 展开时「<」收起；隐藏时「>」展开 -->
+              <svg v-if="leftPanelVisible" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 18l-6-6 6-6"/>
+              </svg>
+              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            </span>
+          </button>
+        </div>
+        <div class="main-chrome-center">
+          <div class="tab-bar" v-if="tabs.length > 0" ref="tabBarRef">
         <div
           v-for="tab in visibleTabs"
           :key="tab.path"
@@ -622,7 +714,39 @@
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-      </div>
+          </div>
+        </div>
+        <div class="workspace-top-tools workspace-top-tools--end">
+          <button
+            type="button"
+            class="ws-tool-btn ws-tool-btn--icon"
+            :class="{ active: centerFullscreen }"
+            title="工作内容区全屏"
+            aria-label="工作内容区全屏"
+            @click="toggleCenterFullscreen()"
+          >
+            <span class="ws-tool-icon ws-tool-icon--fs" aria-hidden="true">⛶</span>
+          </button>
+          <button
+            type="button"
+            class="ws-tool-btn ws-tool-btn--icon"
+            :class="{ active: rightPanelVisible }"
+            :title="rightPanelVisible ? '隐藏右侧面板' : '展开右侧面板'"
+            :aria-label="rightPanelVisible ? '隐藏右侧面板' : '展开右侧面板'"
+            @click="toggleRightPanel()"
+          >
+            <span class="ws-tool-icon" aria-hidden="true">
+              <!-- 隐藏时「<」展开；展开时「>」收起（与左栏相反） -->
+              <svg v-if="!rightPanelVisible" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 18l-6-6 6-6"/>
+              </svg>
+              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            </span>
+          </button>
+        </div>
+      </header>
 
       <!-- 右键菜单 -->
       <div
@@ -646,6 +770,48 @@
         <router-view :key="route.path" />
       </div>
     </main>
+
+      <div
+        v-show="rightPanelVisible"
+        class="col-splitter"
+        title="拖拽调整右侧栏宽度"
+        @mousedown="onResizeStart('right', $event)"
+      />
+
+      <!-- 右侧面板（辅助 / 多 Tab） -->
+      <aside
+        v-show="rightPanelVisible"
+        class="aux-panel aux-right"
+        :class="{ 'is-fullscreen': rightFullscreen }"
+        :style="{ width: rightPanelWidth + 'px' }"
+      >
+        <div class="aux-panel-toolbar">
+          <div class="aux-tabs" role="tablist">
+            <button
+              v-for="t in rightTabs"
+              :key="t.id"
+              type="button"
+              class="aux-tab"
+              :class="{ active: rightActiveTabId === t.id }"
+              @click="rightActiveTabId = t.id"
+            >
+              {{ t.label }}
+            </button>
+          </div>
+          <div class="aux-panel-actions">
+            <button type="button" class="aux-icon-btn" title="全屏" @click="toggleRightFullscreen()">⛶</button>
+            <button type="button" class="aux-icon-btn" title="隐藏右侧面板" @click="toggleRightPanel(false)">✕</button>
+          </div>
+        </div>
+        <div class="aux-panel-body">
+          <p class="aux-placeholder">右侧面板 · {{ rightPanelTitle }}</p>
+          <p class="aux-hint">事件：window.dispatchEvent(new CustomEvent('workspace:toggle-left', { detail: { visible: true } }))</p>
+        </div>
+      </aside>
+    </div>
+    <!-- /.workspace-cols -->
+    </div>
+    <!-- /.app-layout-body -->
   </div>
 </template>
 
@@ -654,12 +820,41 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, type Direct
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores'
 import { ElMessageBox, ElNotification } from 'element-plus'
+import { useWorkspaceLayout } from '@/composables/useWorkspaceLayout'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const isCollapsed = ref(false)
+const {
+  sidebarMode,
+  sidebarWidthPx,
+  isSidebarCollapsed,
+  cycleSidebarMode,
+  leftPanelVisible,
+  rightPanelVisible,
+  leftPanelWidth,
+  rightPanelWidth,
+  leftFullscreen,
+  centerFullscreen,
+  rightFullscreen,
+  leftTabs,
+  rightTabs,
+  leftActiveTabId,
+  rightActiveTabId,
+  onResizeStart,
+  toggleLeftPanel,
+  toggleRightPanel,
+  toggleLeftFullscreen,
+  toggleRightFullscreen,
+  toggleCenterFullscreen
+} = useWorkspaceLayout()
+
+/** 模板沿用 isCollapsed：仅「边条」模式隐藏菜单文字 */
+const isCollapsed = isSidebarCollapsed
+
+const leftPanelTitle = computed(() => leftTabs.value.find(t => t.id === leftActiveTabId.value)?.label ?? '')
+const rightPanelTitle = computed(() => rightTabs.value.find(t => t.id === rightActiveTabId.value)?.label ?? '')
 const openGroups = ref({
   purchase: false,
   sales: false,
@@ -696,10 +891,10 @@ const expandAllGroups = () => {
 }
 
 const toggleCollapse = () => {
-  isCollapsed.value = !isCollapsed.value
-  if (isCollapsed.value) {
+  cycleSidebarMode()
+  if (sidebarMode.value === 'narrow') {
     openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, financePayments: false, financeReceipts: false, systemManagement: false }
-  } else if (isSysAdmin.value) {
+  } else if (sidebarMode.value === 'full' && isSysAdmin.value) {
     expandAllGroups()
   }
 }
@@ -711,6 +906,9 @@ const toggleGroup = (group: keyof typeof openGroups.value) => {
 const userName = computed(() => authStore.user?.userName || '管理员')
 const userEmail = computed(() => authStore.user?.email || '')
 const userInitial = computed(() => (authStore.user?.userName || '管')[0].toUpperCase())
+
+/** 顶栏通知角标数量（后续可对接未读接口） */
+const headerNotifyCount = ref(1)
 
 const pageTitleMap: Record<string, string> = {
   '/dashboard': '控制台',
@@ -798,8 +996,7 @@ watch(
   isSysAdmin,
   (v) => {
     if (v) {
-      // SYS_ADMIN 需要“主菜单面上的所有菜单项”可见：无论之前是否折叠，统一展开侧边栏与分组
-      isCollapsed.value = false
+      sidebarMode.value = 'full'
       expandAllGroups()
     }
   },
@@ -1068,10 +1265,207 @@ onBeforeUnmount(() => {
 
 .app-layout {
   display: flex;
+  flex-direction: column;
   width: 100vw;
   height: 100vh;
   background: vars.$layer-1;
   overflow: clip; // 使用 clip 而非 hidden，避免裁剪 position:fixed 的元素（如 ElMessage）
+}
+
+.app-layout-body {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+// ── 全局顶栏（更深底色 · 浮于内容之上 · 底边浅色分割）──────────
+.global-top-bar {
+  flex-shrink: 0;
+  width: 100%;
+  height: 56px;
+  position: relative;
+  z-index: 120;
+  isolation: isolate;
+  background: #070f1b;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08),
+    0 6px 20px rgba(0, 0, 0, 0.55),
+    0 12px 40px -8px rgba(0, 0, 0, 0.4);
+  overflow: visible;
+}
+
+.global-top-inner {
+  height: 100%;
+  max-width: 100%;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.global-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  flex-shrink: 0;
+  min-width: 0;
+  &:hover .global-logo-title {
+    color: #fff;
+  }
+}
+
+.global-logo-mark {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.global-logo-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1.15;
+}
+
+.global-logo-title {
+  font-family: 'Orbitron', 'Noto Sans SC', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  color: #e8f4ff;
+  white-space: nowrap;
+}
+
+.global-logo-sub {
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(0, 212, 255, 0.85);
+  white-space: nowrap;
+}
+
+.global-top-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.global-notify-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(0, 40, 80, 0.45);
+  color: rgba(180, 210, 230, 0.85);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  &:hover {
+    background: rgba(0, 212, 255, 0.1);
+    border-color: rgba(0, 212, 255, 0.28);
+    color: #00d4ff;
+  }
+}
+
+.global-notify-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.global-notify-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #c95745;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  font-family: 'Space Mono', monospace;
+}
+
+.global-user-dropdown {
+  position: relative;
+}
+
+.global-user-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 4px 4px 4px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s;
+  &:hover {
+    background: rgba(0, 212, 255, 0.08);
+  }
+}
+
+.global-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0066ff, #00d4ff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Orbitron', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.global-user-name {
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #e8f4ff;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.global-user-chevron {
+  width: 14px;
+  height: 14px;
+  color: rgba(80, 187, 227, 0.65);
+  flex-shrink: 0;
+  transition: transform 0.2s;
+  &.open {
+    transform: rotate(180deg);
+  }
 }
 
 // ── 侧边栏 ──────────────────────────────────────────────────
@@ -1092,79 +1486,38 @@ onBeforeUnmount(() => {
   }
 }
 
-// Logo 区域
-.sidebar-logo {
+// 侧栏底部：折叠主菜单
+.sidebar-collapse-bar {
+  flex-shrink: 0;
+  padding: 8px;
+  border-top: 1px solid rgba(0, 212, 255, 0.08);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.collapse-btn {
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 212, 255, 0.06);
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 20px 16px;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.08);
-  min-height: 72px;
-  position: relative;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(0, 212, 255, 0.75);
+  transition: all 0.2s;
 
-  .logo-icon {
-    width: 36px;
-    height: 36px;
-    flex-shrink: 0;
-
-    svg {
-      width: 100%;
-      height: 100%;
-    }
+  svg {
+    width: 14px;
+    height: 14px;
   }
 
-  .logo-text {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    flex: 1;
-  }
-
-  .logo-title {
-    font-family: 'Orbitron', monospace;
-    font-size: 15px;
-    font-weight: 700;
-    color: #E8F4FF;
-    letter-spacing: 1px;
-    white-space: nowrap;
-  }
-
-  .logo-subtitle {
-    font-family: 'Noto Sans SC', sans-serif;
-    font-size: 10px;
-    color: rgba(0, 212, 255, 0.6);
-    white-space: nowrap;
-    margin-top: 2px;
-  }
-
-  .collapse-btn {
-    position: absolute;
-    right: -12px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 24px;
-    height: 24px;
-    background: vars.$layer-2;
-    border: 1px solid rgba(0, 212, 255, 0.3);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    color: rgba(0, 212, 255, 0.7);
-    transition: all 0.2s;
-    z-index: 20;
-
-    svg {
-      width: 12px;
-      height: 12px;
-    }
-
-    &:hover {
-      background: rgba(0, 212, 255, 0.15);
-      color: #00D4FF;
-      border-color: #00D4FF;
-    }
+  &:hover {
+    background: rgba(0, 212, 255, 0.15);
+    color: #00D4FF;
+    border-color: #00D4FF;
   }
 }
 
@@ -1452,6 +1805,212 @@ onBeforeUnmount(() => {
   }
 }
 
+// ── 工作区多栏（左辅 / 主内容 / 右辅）────────────────────────
+.sidebar-fab {
+  position: fixed;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10001;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  background: vars.$layer-2;
+  color: #00d4ff;
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  &:hover {
+    background: rgba(0, 212, 255, 0.12);
+  }
+}
+
+.workspace-cols {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.col-splitter {
+  width: 6px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+  align-self: stretch;
+  position: relative;
+  z-index: 6;
+  transition: background 0.15s;
+  &:hover {
+    background: rgba(0, 212, 255, 0.18);
+  }
+}
+
+.aux-panel {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: vars.$layer-2;
+  border-right: 1px solid rgba(0, 212, 255, 0.12);
+  &.aux-right {
+    border-right: none;
+    border-left: 1px solid rgba(0, 212, 255, 0.12);
+  }
+  &.is-fullscreen {
+    position: fixed !important;
+    inset: 0;
+    z-index: 9998;
+    width: 100% !important;
+    max-width: none !important;
+    height: 100vh !important;
+    border: none;
+  }
+}
+
+.aux-panel-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+  flex-shrink: 0;
+  min-height: 44px;
+}
+
+.aux-tabs {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+  overflow-x: auto;
+  min-width: 0;
+  &::-webkit-scrollbar {
+    height: 2px;
+  }
+}
+
+.aux-tab {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(180, 210, 230, 0.75);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  &.active {
+    border-color: rgba(0, 212, 255, 0.35);
+    color: #00d4ff;
+    background: rgba(0, 212, 255, 0.1);
+  }
+  &:hover {
+    color: #e8f4ff;
+  }
+}
+
+.aux-panel-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.aux-icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 212, 255, 0.15);
+  background: rgba(0, 212, 255, 0.05);
+  color: rgba(180, 210, 230, 0.85);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  &:hover {
+    background: rgba(0, 212, 255, 0.12);
+    color: #00d4ff;
+  }
+}
+
+.aux-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: rgba(200, 220, 240, 0.85);
+}
+
+.aux-placeholder {
+  margin: 0 0 8px;
+  font-weight: 600;
+  color: #e8f4ff;
+}
+
+.aux-hint {
+  margin: 0;
+  font-size: 11px;
+  color: rgba(120, 160, 190, 0.75);
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.workspace-top-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-right: 10px;
+  border-right: 1px solid rgba(0, 212, 255, 0.1);
+}
+
+.ws-tool-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 212, 255, 0.15);
+  background: rgba(0, 212, 255, 0.06);
+  color: rgba(180, 210, 230, 0.85);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  &:hover {
+    border-color: rgba(0, 212, 255, 0.35);
+    color: #00d4ff;
+  }
+  &.active {
+    border-color: rgba(0, 212, 255, 0.4);
+    color: #00d4ff;
+    background: rgba(0, 212, 255, 0.12);
+  }
+}
+
+// 左栏 / 全屏 / 右栏：与左侧面板 aux-icon-btn 同尺寸（28×28），图标区 13px
+.ws-tool-btn--icon {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  padding: 0;
+  border-radius: 6px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  .ws-tool-icon svg {
+    display: block;
+    width: 13px;
+    height: 13px;
+  }
+
+  .ws-tool-icon--fs {
+    font-size: 13px;
+    line-height: 1;
+  }
+}
+
 // ── 主内容区域 ───────────────────────────────────────────────
 .main-content {
   flex: 1;
@@ -1459,116 +2018,47 @@ onBeforeUnmount(() => {
   flex-direction: column;
   overflow: hidden;
   min-width: 0;
+  &.is-fullscreen {
+    position: fixed !important;
+    inset: 0;
+    z-index: 9997;
+    width: 100vw !important;
+    max-width: none !important;
+    height: 100vh !important;
+    background: vars.$layer-1;
+  }
 }
 
-// 顶部栏
-.top-bar {
-  height: 56px;
-  background: vars.$layer-2;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+// 主内容区顶条：侧栏开关 + 页签栏同一行（位于全局顶栏之下）
+.main-chrome-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
+  gap: 10px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0 12px 0 16px;
+  background: vars.$layer-2;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.08);
   flex-shrink: 0;
 }
 
-.top-bar-left {
+// 中间：页签区占满剩余宽度（无页签时也撑开，使「右栏」固定在最右侧）
+.main-chrome-center {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  align-self: stretch;
+  min-height: 0;
 }
 
-.page-title {
-  font-family: 'Noto Sans SC', sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: #E8F4FF;
-  margin: 0;
-}
-
-.top-bar-right {
+.workspace-top-tools--end {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-.top-btn {
-  width: 36px;
-  height: 36px;
-  border: 1px solid rgba(0, 212, 255, 0.15);
-  background: rgba(0, 212, 255, 0.05);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: rgba(80, 187, 227, 0.7);
-  position: relative;
-  transition: all 0.2s;
-
-  svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  &:hover {
-    background: rgba(0, 212, 255, 0.12);
-    color: #00D4FF;
-    border-color: rgba(0, 212, 255, 0.4);
-  }
-
-  .badge {
-    position: absolute;
-    top: -4px;
-    right: -4px;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: #C95745;
-    font-size: 9px;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Space Mono', monospace;
-  }
-}
-
-.top-user {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 10px 4px 4px;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 212, 255, 0.12);
-  background: rgba(0, 212, 255, 0.05);
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: rgba(0, 212, 255, 0.1);
-  }
-}
-
-.top-user-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #0066FF, #00D4FF);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Orbitron', monospace;
-  font-size: 11px;
-  font-weight: 700;
-  color: #fff;
-}
-
-.top-user-name {
-  font-family: 'Noto Sans SC', sans-serif;
-  font-size: 13px;
-  color: #E8F4FF;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-left: 10px;
+  border-left: 1px solid rgba(0, 212, 255, 0.1);
 }
 
 // 内容区域
@@ -1734,17 +2224,19 @@ onBeforeUnmount(() => {
   transform: translateY(-6px);
 }
 
-// ===== Tab Bar =====
+// ===== Tab Bar（与 .main-chrome-bar 同一行，占满剩余宽度）=====
 .tab-bar {
   display: flex;
   align-items: center;
-  height: 40px;
-  background: #0A1628;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
-  padding: 0 8px;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  background: transparent;
+  padding: 0 4px 0 0;
   gap: 2px;
   overflow-x: auto;
-  flex-shrink: 0;
+  flex-shrink: 1;
 
   &::-webkit-scrollbar {
     height: 2px;
