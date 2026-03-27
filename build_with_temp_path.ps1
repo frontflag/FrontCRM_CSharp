@@ -19,9 +19,9 @@ if (Test-Path $tempPath) {
 Write-Host "Creating temporary build directory: $tempPath" -ForegroundColor Yellow
 mkdir $tempPath -Force | Out-Null
 
-# Copy project to temp path
+# Copy project to temp path（复制根目录下各子项；避免 Copy-Item . 在目标下再套一层项目文件夹导致找不到 CRM.Web）
 Write-Host "Copying project to temporary directory..." -ForegroundColor Yellow
-Copy-Item -Path "." -Destination "$tempPath" -Recurse -Force
+Copy-Item -Path (Join-Path (Get-Location).Path '*') -Destination $tempPath -Recurse -Force
 
 # Navigate to temp directory
 cd $tempPath
@@ -108,11 +108,12 @@ Copy-Item -Path "CRM.Web/dist/*" -Destination "$deployDir/CRM.Web/dist" -Recurse
 Write-Host "Copying backend files..." -ForegroundColor Yellow
 Copy-Item -Path "CRM.API/publish/*" -Destination "$deployDir/CRM.API/publish" -Recurse -ErrorAction SilentlyContinue
 
-Write-Host "Copying configuration files..." -ForegroundColor Yellow
-Copy-Item -Path "docker-compose.yml" -Destination "$deployDir/" -ErrorAction SilentlyContinue
-Copy-Item -Path "Dockerfile.backend" -Destination "$deployDir/" -ErrorAction SilentlyContinue
-Copy-Item -Path "CRM.Web/Dockerfile" -Destination "$deployDir/CRM.Web/" -ErrorAction SilentlyContinue
+Write-Host "Copying configuration files (prebuilt deploy: compose + Dockerfiles, no source in package)..." -ForegroundColor Yellow
+Copy-Item -Path "docker-compose.prebuilt.yml" -Destination "$deployDir/docker-compose.yml" -ErrorAction SilentlyContinue
+Copy-Item -Path "Dockerfile.backend.prebuilt" -Destination "$deployDir/" -ErrorAction SilentlyContinue
+Copy-Item -Path "CRM.Web/Dockerfile.prebuilt" -Destination "$deployDir/CRM.Web/" -ErrorAction SilentlyContinue
 Copy-Item -Path "CRM.Web/nginx.conf" -Destination "$deployDir/CRM.Web/" -ErrorAction SilentlyContinue
+Copy-Item -Path "deploy.env.example" -Destination "$deployDir/" -ErrorAction SilentlyContinue
 
 Write-Host "Deployment package created: $deployDir/" -ForegroundColor Green
 
@@ -161,13 +162,13 @@ Write-Host "NEXT STEPS:" -ForegroundColor Green
 Write-Host "============================================" -ForegroundColor Green
 Write-Host ""
 
-Write-Host "1. Upload deployment package to server:" -ForegroundColor Cyan
-Write-Host "   scp -r frontcrm_deploy ubuntu@129.226.161.3:/home/ubuntu/" -ForegroundColor Gray
+Write-Host "1. Upload deployment package (e.g. deploy_to_server.ps1 -> /home/ubuntu/frontcrm):" -ForegroundColor Cyan
 Write-Host ""
 
-Write-Host "2. On server, start services:" -ForegroundColor Cyan
-Write-Host "   cd /home/ubuntu/frontcrm_deploy" -ForegroundColor Gray
-Write-Host "   docker-compose up -d" -ForegroundColor Gray
+Write-Host "2. On server, rebuild and start (prebuilt 镜像使用包内 publish + dist):" -ForegroundColor Cyan
+Write-Host "   cd /home/ubuntu/frontcrm" -ForegroundColor Gray
+Write-Host "   docker compose build --no-cache" -ForegroundColor Gray
+Write-Host "   docker compose up -d" -ForegroundColor Gray
 Write-Host ""
 
 Write-Host "3. Access the application:" -ForegroundColor Cyan

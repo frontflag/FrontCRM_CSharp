@@ -258,7 +258,11 @@
           <el-input v-model="editForm.customerName" />
         </el-form-item>
         <el-form-item label="业务员">
-          <el-input v-model="editForm.salesUserName" />
+          <SalesUserCascader
+            v-model="editForm.salesUserId"
+            placeholder="请选择业务员"
+            @change="onEditSalesUserChange"
+          />
         </el-form-item>
         <el-form-item label="订单类型">
           <el-select v-model="editForm.type" style="width: 100%">
@@ -269,7 +273,7 @@
         </el-form-item>
         <el-form-item label="币别">
           <el-select v-model="editForm.currency" style="width: 100%">
-            <el-option label="CNY" :value="1" />
+            <el-option label="RMB" :value="1" />
             <el-option label="USD" :value="2" />
             <el-option label="EUR" :value="3" />
           </el-select>
@@ -321,6 +325,7 @@ import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import SalesUserCascader from '@/components/SalesUserCascader.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -360,6 +365,7 @@ const applyForm = ref({
 })
 const editForm = ref({
   customerName: '',
+  salesUserId: '',
   salesUserName: '',
   type: 1,
   currency: 1,
@@ -367,6 +373,10 @@ const editForm = ref({
   deliveryAddress: '',
   comment: ''
 })
+
+function onEditSalesUserChange(p: { id: string; label: string }) {
+  editForm.value.salesUserName = p.label || ''
+}
 
 const orderId = computed(() => route.params.id as string)
 
@@ -428,6 +438,7 @@ function openEditDialog() {
   const o = order.value
   editForm.value = {
     customerName: o.customerName || '',
+    salesUserId: o.salesUserId || '',
     salesUserName: o.salesUserName || '',
     type: o.type ?? 1,
     currency: o.currency ?? 1,
@@ -450,6 +461,7 @@ const saveEdit = async () => {
   try {
     await salesOrderApi.update(order.value.id, {
       customerName: editForm.value.customerName || undefined,
+      salesUserId: editForm.value.salesUserId || undefined,
       salesUserName: editForm.value.salesUserName || undefined,
       type: editForm.value.type,
       currency: editForm.value.currency,

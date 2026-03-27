@@ -1,7 +1,22 @@
 <template>
   <div class="pending-approvals-page">
     <div class="page-header">
-      <h2 class="page-title">待审批</h2>
+      <h2 class="page-title">审批管理</h2>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card stat-card--pending">
+        <div class="stat-label">待审核数量</div>
+        <div class="stat-value">{{ pendingCount }}</div>
+      </div>
+      <div class="stat-card stat-card--approved">
+        <div class="stat-label">已通过</div>
+        <div class="stat-value">{{ approvedCount }}</div>
+      </div>
+      <div class="stat-card stat-card--rejected">
+        <div class="stat-label">已拒绝</div>
+        <div class="stat-value">{{ rejectedCount }}</div>
+      </div>
     </div>
 
     <div class="search-bar">
@@ -14,30 +29,42 @@
           style="width: 200px"
           @change="handleSearch"
         >
+          <el-option label="客户" value="CUSTOMER" />
           <el-option label="供应商" value="VENDOR" />
-          <el-option label="报价单" value="QUOTE" />
           <el-option label="销售订单" value="SALES_ORDER" />
-          <el-option label="收款单" value="FINANCE_RECEIPT" />
-          <el-option label="付款单" value="FINANCE_PAYMENT" />
+          <el-option label="采购订单" value="PURCHASE_ORDER" />
+          <el-option label="付款" value="FINANCE_PAYMENT" />
+          <el-option label="收款" value="FINANCE_RECEIPT" />
         </el-select>
       </div>
     </div>
 
+    <div class="segment-row">
+      <button class="segment-item" :class="{ 'is-active': activeState === 'pending' }" @click="switchState('pending')">审批中 ({{ pendingCount }})</button>
+      <button class="segment-item" :class="{ 'is-active': activeState === 'approved' }" @click="switchState('approved')">审核通过 ({{ approvedCount }})</button>
+      <button class="segment-item" :class="{ 'is-active': activeState === 'rejected' }" @click="switchState('rejected')">审核拒绝 ({{ rejectedCount }})</button>
+    </div>
+
     <CrmDataTable :data="approvalList" v-loading="loading" highlight-current-row>
-      <el-table-column label="业务类型" width="120">
+      <el-table-column label="业务类型" width="100">
         <template #default="{ row }">
           <el-tag effect="dark" :type="getBizTypeTagType(row.bizType)" size="small">
             {{ row.bizTypeName || getBizTypeText(row.bizType) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="documentCode" label="单据编号" min-width="180">
+      <el-table-column prop="documentCode" label="单据编号" width="160" min-width="160" show-overflow-tooltip>
         <template #default="{ row }">
           <span class="code-link" @click="handleView(row)">{{ row.documentCode }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="counterpartyName" label="客户/供应商" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="amount" label="金额" width="140" align="right">
+      <el-table-column prop="counterpartyName" label="客户/供应商" width="200" min-width="200" show-overflow-tooltip />
+      <el-table-column label="事项描述" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span>{{ buildItemDescription(row) }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="amount" label="金额" width="160" align="right">
         <template #default="{ row }">
           <span class="amount-text" v-if="row.amount != null">
             {{ formatAmount(row.amount, row.currency) }}
@@ -50,15 +77,20 @@
           {{ formatDate(row.createdAt) }}
         </template>
       </el-table-column>
+      <el-table-column prop="submitter" label="提交人" width="100" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.submitter || '—' }}
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
           <div class="action-btns">
-            <el-button link type="primary" size="small" :loading="actionLoading" @click="handleApprove(row)">
-              审批通过
-            </el-button>
-            <el-button link type="danger" size="small" :loading="actionLoading" @click="handleReject(row)">
-              驳回
-            </el-button>
+            <template v-if="activeState === 'pending'">
+              <el-button link type="primary" size="small" @click="openAuditDialog(row)">
+                审核
+              </el-button>
+            </template>
+            <el-button v-else link type="primary" size="small" @click="handleView(row)">详情</el-button>
           </div>
         </template>
       </el-table-column>
@@ -76,39 +108,178 @@
       />
     </div>
 
-    <el-dialog v-model="rejectDialogVisible" title="驳回原因" width="420px">
-      <el-form>
-        <el-form-item label="驳回原因" label-width="80px">
-          <el-input
-            v-model="rejectReason"
-            type="textarea"
-            :rows="3"
-            :placeholder="rejectRemarkRequired ? '销售订单驳回须填写原因' : '选填'"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="rejectDialogVisible = false">取消</el-button>
-        <el-button type="danger" :loading="actionLoading" @click="confirmReject">确认驳回</el-button>
-      </template>
+    <el-dialog v-model="auditDialogVisible" title="审核窗口" width="980px" destroy-on-close>
+      <div v-if="auditRow" class="audit-dialog">
+        <div class="audit-top">
+          <div class="audit-top-head">
+            <div class="audit-doc">{{ auditRow.documentCode }}</div>
+            <el-tag size="small" :type="getBizTypeTagType(auditRow.bizType)">
+              {{ auditRow.bizTypeName || getBizTypeText(auditRow.bizType) }}
+            </el-tag>
+          </div>
+          <el-form label-width="88px">
+            <el-form-item label="提交备注">
+              <div class="submit-remark">{{ getSubmitRemark() }}</div>
+            </el-form-item>
+            <el-form-item label="审批意见">
+              <el-input
+                v-model="auditRemark"
+                type="textarea"
+                :rows="3"
+                placeholder="可填写审批意见；驳回时必填"
+              />
+            </el-form-item>
+          </el-form>
+          <div class="audit-attachments">
+            <div class="attach-header">
+              <span>附件预览</span>
+              <label class="upload-btn">
+                <input type="file" multiple @change="onAuditFilesSelected" />
+                上传附件
+              </label>
+            </div>
+            <div v-if="auditDocsLoading" class="detail-loading">附件加载中...</div>
+            <div v-else-if="auditDocs.length === 0" class="detail-loading">暂无附件</div>
+            <div v-else class="attach-list">
+              <div class="attach-item" v-for="doc in auditDocs" :key="doc.id">
+                <span class="name" :title="doc.originalFileName">{{ doc.originalFileName }}</span>
+                <span class="ops">
+                  <el-button link type="primary" size="small" @click="previewDoc(doc)">预览</el-button>
+                  <el-button link type="primary" size="small" @click="downloadDoc(doc)" :loading="uploadingAuditDocs">下载</el-button>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="audit-actions">
+            <el-button @click="auditDialogVisible = false">取消</el-button>
+            <el-button type="danger" :loading="actionLoading" @click="handleRejectInDialog">驳回</el-button>
+            <el-button type="primary" :loading="actionLoading" @click="handleApproveInDialog">审批通过</el-button>
+          </div>
+        </div>
+
+        <div class="audit-bottom">
+          <div class="section-title">业务相关信息</div>
+          <div v-if="auditDetailLoading" class="detail-loading">正在加载详情...</div>
+          <div v-else-if="auditDetailError" class="detail-error">{{ auditDetailError }}</div>
+          <div class="info-grid">
+            <div class="info-item"><span class="k">业务类型</span><span class="v">{{ auditRow.bizTypeName || getBizTypeText(auditRow.bizType) }}</span></div>
+            <div class="info-item"><span class="k">业务单号</span><span class="v">{{ auditRow.documentCode }}</span></div>
+            <div class="info-item"><span class="k">提交日期</span><span class="v">{{ formatDate(auditRow.createdAt) }}</span></div>
+            <div class="info-item"><span class="k">状态</span><span class="v">{{ statusText(auditRow.status) }}</span></div>
+            <div class="info-item"><span class="k">往来方</span><span class="v">{{ auditRow.counterpartyName || '—' }}</span></div>
+            <div class="info-item"><span class="k">金额</span><span class="v">{{ auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—' }}</span></div>
+          </div>
+
+          <div class="biz-extra">
+            <template v-if="auditRow.bizType === 'VENDOR'">
+              <div class="extra-title">供应商专属信息</div>
+              <div class="extra-line"><span>供应商名称：</span>{{ auditDetail?.officialName || auditRow.counterpartyName || '—' }}</div>
+              <div class="extra-line"><span>供应商编码：</span>{{ auditRow.documentCode }}</div>
+              <div class="extra-line"><span>付款方式：</span>{{ auditDetail?.paymentMethod || '—' }}</div>
+              <div class="extra-line"><span>账期：</span>{{ auditDetail?.payment ?? '—' }}</div>
+              <div class="extra-line"><span>黑名单：</span>{{ auditDetail?.blackList ? '是' : '否' }}</div>
+            </template>
+            <template v-else-if="auditRow.bizType === 'CUSTOMER'">
+              <div class="extra-title">客户专属信息</div>
+              <div class="extra-line"><span>客户名称：</span>{{ auditDetail?.customerName || auditDetail?.officialName || auditRow.counterpartyName || '—' }}</div>
+              <div class="extra-line"><span>客户编码：</span>{{ auditRow.documentCode }}</div>
+              <div class="extra-line"><span>区域：</span>{{ [auditDetail?.province, auditDetail?.city, auditDetail?.district].filter(Boolean).join(' / ') || '—' }}</div>
+              <div class="extra-line"><span>信用额度：</span>{{ auditDetail?.creditLimit ?? auditDetail?.creditLine ?? '—' }}</div>
+              <div class="extra-line"><span>业务员：</span>{{ auditDetail?.salesPersonName || auditDetail?.salesUserId || '—' }}</div>
+            </template>
+            <template v-else-if="auditRow.bizType === 'SALES_ORDER'">
+              <div class="extra-title">销售订单专属信息</div>
+              <div class="extra-line"><span>订单号：</span>{{ auditRow.documentCode }}</div>
+              <div class="extra-line"><span>客户：</span>{{ auditDetail?.customerName || auditRow.counterpartyName || '—' }}</div>
+              <div class="extra-line"><span>订单金额：</span>{{ auditDetail?.total != null ? formatAmount(auditDetail.total, auditDetail.currency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—') }}</div>
+              <div class="extra-line"><span>交付日期：</span>{{ auditDetail?.deliveryDate ? formatDate(auditDetail.deliveryDate) : '—' }}</div>
+              <div class="extra-line"><span>销售员：</span>{{ auditDetail?.salesUserName || auditDetail?.salesUserId || '—' }}</div>
+            </template>
+            <template v-else-if="auditRow.bizType === 'PURCHASE_ORDER'">
+              <div class="extra-title">采购订单专属信息</div>
+              <div class="extra-line"><span>采购单号：</span>{{ auditRow.documentCode }}</div>
+              <div class="extra-line"><span>供应商：</span>{{ auditDetail?.vendorName || auditRow.counterpartyName || '—' }}</div>
+              <div class="extra-line"><span>订单金额：</span>{{ auditDetail?.total != null ? formatAmount(auditDetail.total, auditDetail.currency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—') }}</div>
+              <div class="extra-line"><span>交货日期：</span>{{ auditDetail?.deliveryDate ? formatDate(auditDetail.deliveryDate) : '—' }}</div>
+              <div class="extra-line"><span>采购员：</span>{{ auditDetail?.purchaseUserName || auditDetail?.purchaseUserId || '—' }}</div>
+            </template>
+            <template v-else-if="auditRow.bizType === 'FINANCE_RECEIPT'">
+              <div class="extra-title">收款单专属信息</div>
+              <div class="extra-line"><span>单号：</span>{{ auditRow.documentCode }}</div>
+              <div class="extra-line"><span>客户：</span>{{ auditDetail?.customerName || auditRow.counterpartyName || '—' }}</div>
+              <div class="extra-line"><span>收款金额：</span>{{ auditDetail?.receiptAmount != null ? formatAmount(auditDetail.receiptAmount, auditDetail.receiptCurrency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—') }}</div>
+              <div class="extra-line"><span>收款方式：</span>{{ auditDetail?.receiveMode || '—' }}</div>
+            </template>
+            <template v-else-if="auditRow.bizType === 'FINANCE_PAYMENT'">
+              <div class="extra-title">付款单专属信息</div>
+              <div class="extra-line"><span>单号：</span>{{ auditRow.documentCode }}</div>
+              <div class="extra-line"><span>供应商：</span>{{ auditDetail?.vendorName || auditRow.counterpartyName || '—' }}</div>
+              <div class="extra-line"><span>付款金额：</span>{{ auditDetail?.paymentAmount != null ? formatAmount(auditDetail.paymentAmount, auditDetail.paymentCurrency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—') }}</div>
+              <div class="extra-line"><span>付款方式：</span>{{ auditDetail?.paymentMode || '—' }}</div>
+            </template>
+            <template v-else>
+              <div class="extra-line"><span>审批说明：</span>请结合业务详情页面信息进行审批。</div>
+            </template>
+          </div>
+
+          <div class="detail-jump">
+            <el-button type="primary" plain @click="handleView(auditRow)">查看完整业务详情</el-button>
+          </div>
+
+          <div class="audit-history">
+            <div class="section-title">审批历史</div>
+            <div v-if="auditHistoryLoading" class="detail-loading">审批历史加载中...</div>
+            <div v-else-if="auditHistory.length === 0" class="detail-loading">暂无审批历史</div>
+            <div v-else class="history-list">
+              <div class="history-item" v-for="h in auditHistory" :key="h.id">
+                <div class="dot"></div>
+                <div class="body">
+                  <div class="line-1">
+                    <span class="action">{{ historyActionText(h) }}</span>
+                    <span class="time">{{ formatDate(h.actionTime) }}</span>
+                  </div>
+                  <div class="line-2">操作人：{{ historyActorText(h) }}</div>
+                  <div class="line-2" v-if="h.itemDescription">事项描述：{{ h.itemDescription }}</div>
+                  <div class="line-2" v-if="h.submitRemark">提交备注：{{ h.submitRemark }}</div>
+                  <div class="line-2" v-if="h.auditRemark">审核意见：{{ h.auditRemark }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { approvalsApi, type BizType, type PendingApprovalItem } from '@/api/approvals'
+import { ElMessage } from 'element-plus'
+import { approvalsApi, type ApprovalHistoryItem, type BizType, type PendingApprovalItem } from '@/api/approvals'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { vendorApi } from '@/api/vendor'
+import { customerApi } from '@/api/customer'
+import salesOrderApi from '@/api/salesOrder'
+import { financePaymentApi, financeReceiptApi } from '@/api/finance'
+import { purchaseOrderApi } from '@/api/purchaseOrder'
+import { documentApi, type UploadDocumentDto } from '@/api/document'
 
 const router = useRouter()
 
 const loading = ref(false)
 const actionLoading = ref(false)
-const rejectDialogVisible = ref(false)
-const rejectReason = ref('')
-const currentRow = ref<PendingApprovalItem | null>(null)
+const auditDialogVisible = ref(false)
+const auditRow = ref<PendingApprovalItem | null>(null)
+const auditRemark = ref('')
+const auditDetailLoading = ref(false)
+const auditDetailError = ref('')
+const auditDetail = ref<any>(null)
+const auditDocsLoading = ref(false)
+const auditDocs = ref<UploadDocumentDto[]>([])
+const uploadingAuditDocs = ref(false)
+const auditHistoryLoading = ref(false)
+const auditHistory = ref<ApprovalHistoryItem[]>([])
 
 const searchForm = ref({
   bizType: '' as '' | BizType
@@ -121,16 +292,20 @@ const pagination = ref({
 })
 
 const approvalList = ref<PendingApprovalItem[]>([])
-
-const rejectRemarkRequired = computed(() => currentRow.value?.bizType === 'SALES_ORDER')
+const activeState = ref<'pending' | 'approved' | 'rejected'>('pending')
+const pendingCount = ref(0)
+const approvedCount = ref(0)
+const rejectedCount = ref(0)
 
 const getBizTypeText = (type: string) => {
   const map: Record<string, string> = {
     VENDOR: '供应商',
     QUOTE: '报价单',
     SALES_ORDER: '销售订单',
-    FINANCE_RECEIPT: '收款单',
-    FINANCE_PAYMENT: '付款单'
+    PURCHASE_ORDER: '采购订单',
+    CUSTOMER: '客户',
+    FINANCE_RECEIPT: '收款',
+    FINANCE_PAYMENT: '付款'
   }
   return map[type] || type
 }
@@ -140,6 +315,7 @@ const getBizTypeTagType = (type: string) => {
     VENDOR: 'warning',
     QUOTE: 'primary',
     SALES_ORDER: 'primary',
+    PURCHASE_ORDER: 'info',
     FINANCE_RECEIPT: 'success',
     FINANCE_PAYMENT: 'danger'
   }
@@ -148,26 +324,106 @@ const getBizTypeTagType = (type: string) => {
 
 const formatDate = (dateStr: string) => formatDisplayDateTime(dateStr)
 
-/** 币别：1=CNY 2=USD 3=EUR */
+/** 币别：1=RMB 2=USD 3=EUR */
 const formatAmount = (amount: number, currency?: number | null) => {
   const sym = currency === 2 ? '$' : currency === 3 ? '€' : '¥'
-  return sym + Number(amount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return sym + Number(amount).toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+}
+
+const buildItemDescription = (row: PendingApprovalItem) => {
+  const t = (row.title || '').trim()
+  const cp = (row.counterpartyName || '').trim()
+  if (t && cp && t !== cp) return `${t}；${cp}`
+  if (t) return t
+  if (cp) return cp
+  return row.documentCode || '—'
+}
+
+const is404Error = (e: unknown) => {
+  const msg = e instanceof Error ? e.message : String(e ?? '')
+  return /404/.test(msg) || /not\s*found/i.test(msg)
+}
+
+const loadApprovalItemsCompat = async () => {
+  try {
+    return await approvalsApi.getApprovalItems({
+      bizType: searchForm.value.bizType || undefined,
+      state: activeState.value,
+      page: pagination.value.page,
+      pageSize: pagination.value.pageSize
+    })
+  } catch (e) {
+    // 兼容旧后端：仅提供 /pending 接口
+    if (!is404Error(e)) throw e
+    if (activeState.value !== 'pending') {
+      return {
+        items: [] as PendingApprovalItem[],
+        total: 0,
+        page: pagination.value.page,
+        pageSize: pagination.value.pageSize
+      }
+    }
+    return await approvalsApi.getPendingApprovals({
+      bizType: searchForm.value.bizType || undefined,
+      page: pagination.value.page,
+      pageSize: pagination.value.pageSize
+    })
+  }
+}
+
+const loadApprovalSummaryCompat = async () => {
+  try {
+    return await approvalsApi.getApprovalSummary({
+      bizType: searchForm.value.bizType || undefined
+    })
+  } catch (e) {
+    if (!is404Error(e)) throw e
+    // 旧后端没有 summary：降级展示
+    return {
+      pendingCount: activeState.value === 'pending' ? Number(pagination.value.total || 0) : 0,
+      approvedCount: 0,
+      rejectedCount: 0
+    }
+  }
 }
 
 const handleSearch = async () => {
   loading.value = true
   try {
-    const res = await approvalsApi.getPendingApprovals({
-      bizType: searchForm.value.bizType || undefined,
-      page: pagination.value.page,
-      pageSize: pagination.value.pageSize
-    })
+    const [res, summary] = await Promise.all([
+      loadApprovalItemsCompat(),
+      loadApprovalSummaryCompat()
+    ])
     approvalList.value = res.items ?? []
     pagination.value.total = res.total ?? 0
+    // 兼容模式下，pendingCount 可用当前分页总数兜底
+    const fallbackPending = activeState.value === 'pending' ? Number(pagination.value.total || 0) : 0
+    pendingCount.value = Number(summary.pendingCount ?? 0)
+    approvedCount.value = Number(summary.approvedCount ?? 0)
+    rejectedCount.value = Number(summary.rejectedCount ?? 0)
+    if (!pendingCount.value && fallbackPending > 0) pendingCount.value = fallbackPending
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '加载失败')
   } finally {
     loading.value = false
+  }
+}
+
+const switchState = (state: 'pending' | 'approved' | 'rejected') => {
+  if (activeState.value === state) return
+  activeState.value = state
+  pagination.value.page = 1
+  handleSearch()
+}
+
+const refreshSummaryOnly = async () => {
+  try {
+    const summary = await loadApprovalSummaryCompat()
+    pendingCount.value = Number(summary.pendingCount ?? 0)
+    approvedCount.value = Number(summary.approvedCount ?? 0)
+    rejectedCount.value = Number(summary.rejectedCount ?? 0)
+  } catch {
+    // 忽略汇总错误，不影响主列表
   }
 }
 
@@ -180,8 +436,8 @@ const handleView = (row: PendingApprovalItem) => {
     case 'VENDOR':
       router.push({ name: 'VendorDetail', params: { id } })
       break
-    case 'QUOTE':
-      router.push({ name: 'QuoteDetail', params: { id } })
+    case 'CUSTOMER':
+      router.push({ name: 'CustomerDetail', params: { id } })
       break
     case 'FINANCE_RECEIPT':
       router.push({ name: 'FinanceReceiptDetail', params: { id } })
@@ -189,63 +445,171 @@ const handleView = (row: PendingApprovalItem) => {
     case 'FINANCE_PAYMENT':
       router.push({ name: 'FinancePaymentDetail', params: { id } })
       break
+    case 'PURCHASE_ORDER':
+      router.push({ name: 'PurchaseOrderDetail', params: { id } })
+      break
     default:
       ElMessage.warning('暂不支持从待审批跳转该类型')
   }
 }
 
-const handleApprove = async (row: PendingApprovalItem) => {
+const openAuditDialog = (row: PendingApprovalItem) => {
+  auditRow.value = row
+  auditRemark.value = ''
+  auditDialogVisible.value = true
+  loadAuditDetail(row)
+  loadAuditDocs(row)
+  loadAuditHistory(row)
+}
+
+const normalizeApiData = <T = any>(res: any): T => (res?.data ?? res) as T
+const currentBizKey = () => ({ bizType: auditRow.value?.bizType || '', bizId: auditRow.value?.businessId || '' })
+
+const loadAuditDetail = async (row: PendingApprovalItem) => {
+  auditDetailLoading.value = true
+  auditDetailError.value = ''
+  auditDetail.value = null
   try {
-    await ElMessageBox.confirm(`确认审批通过单据 ${row.documentCode}？`, '审批确认', {
-      confirmButtonText: '确认通过',
-      cancelButtonText: '取消',
-      type: 'success'
-    })
+    if (row.bizType === 'VENDOR') {
+      auditDetail.value = normalizeApiData(await vendorApi.getVendorById(row.businessId))
+    } else if (row.bizType === 'CUSTOMER') {
+      auditDetail.value = normalizeApiData(await customerApi.getCustomerById(row.businessId))
+    } else if (row.bizType === 'SALES_ORDER') {
+      auditDetail.value = normalizeApiData(await salesOrderApi.getById(row.businessId))
+    } else if (row.bizType === 'FINANCE_RECEIPT') {
+      auditDetail.value = normalizeApiData(await financeReceiptApi.getById(row.businessId))
+    } else if (row.bizType === 'FINANCE_PAYMENT') {
+      auditDetail.value = normalizeApiData(await financePaymentApi.getById(row.businessId))
+    } else if (row.bizType === 'PURCHASE_ORDER') {
+      auditDetail.value = normalizeApiData(await purchaseOrderApi.getById(row.businessId))
+    }
+  } catch (e: any) {
+    auditDetailError.value = e?.message || '加载业务详情失败'
+  } finally {
+    auditDetailLoading.value = false
+  }
+}
+
+const loadAuditDocs = async (row: PendingApprovalItem) => {
+  auditDocsLoading.value = true
+  try {
+    auditDocs.value = await documentApi.getDocuments(row.bizType, row.businessId)
+  } catch {
+    auditDocs.value = []
+  } finally {
+    auditDocsLoading.value = false
+  }
+}
+
+const getSubmitRemark = () => {
+  const d = auditDetail.value || {}
+  return d.submitRemark || d.remark || d.remarks || d.companyInfo || '—'
+}
+
+const previewDoc = (doc: UploadDocumentDto) => {
+  window.open(documentApi.getPreviewPath(doc.id), '_blank')
+}
+
+const downloadDoc = async (doc: UploadDocumentDto) => {
+  await documentApi.downloadDocument(doc.id, doc.originalFileName)
+}
+
+const onAuditFilesSelected = async (e: Event) => {
+  const files = Array.from((e.target as HTMLInputElement).files || [])
+  if (!files.length) return
+  const key = currentBizKey()
+  if (!key.bizType || !key.bizId) return
+  try {
+    uploadingAuditDocs.value = true
+    await documentApi.uploadDocuments(key.bizType, key.bizId, files, '审批附件')
+    if (auditRow.value) await loadAuditDocs(auditRow.value)
+    ElMessage.success('附件上传成功')
+  } catch (err: any) {
+    ElMessage.error(err?.message || '附件上传失败')
+  } finally {
+    uploadingAuditDocs.value = false
+    ;(e.target as HTMLInputElement).value = ''
+  }
+}
+
+const loadAuditHistory = async (row: PendingApprovalItem) => {
+  auditHistoryLoading.value = true
+  try {
+    const list = await approvalsApi.getApprovalHistory({ bizType: row.bizType, businessId: row.businessId })
+    auditHistory.value = Array.isArray(list) ? list : ((list as any)?.data ?? [])
+  } catch {
+    auditHistory.value = []
+  } finally {
+    auditHistoryLoading.value = false
+  }
+}
+
+const historyActionText = (item: ApprovalHistoryItem) => {
+  if (item.actionType === 'submit') return '提交审核'
+  if (item.actionType === 'approve') return '审批通过'
+  if (item.actionType === 'reject') return '审批驳回'
+  return item.actionType
+}
+
+const historyActorText = (item: ApprovalHistoryItem) => {
+  if (item.actionType === 'submit') return item.submitterUserName || item.submitterUserId || '系统'
+  return item.approverUserName || item.approverUserId || '系统'
+}
+
+const handleApproveInDialog = async () => {
+  if (!auditRow.value) return
+  try {
     actionLoading.value = true
     await approvalsApi.decidePendingApproval({
-      bizType: row.bizType,
-      businessId: row.businessId,
-      decision: 'approve'
+      bizType: auditRow.value.bizType,
+      businessId: auditRow.value.businessId,
+      decision: 'approve',
+      remark: auditRemark.value.trim() || undefined
     })
     ElMessage.success('审批通过')
-    await handleSearch()
-  } catch (e) {
-    if (e !== 'cancel') {
-      ElMessage.error(e instanceof Error ? e.message : '操作失败')
-    }
-  } finally {
-    actionLoading.value = false
-  }
-}
-
-const handleReject = (row: PendingApprovalItem) => {
-  currentRow.value = row
-  rejectReason.value = ''
-  rejectDialogVisible.value = true
-}
-
-const confirmReject = async () => {
-  if (!currentRow.value) return
-  if (currentRow.value.bizType === 'SALES_ORDER' && !rejectReason.value.trim()) {
-    ElMessage.warning('请输入驳回原因')
-    return
-  }
-  actionLoading.value = true
-  try {
-    await approvalsApi.decidePendingApproval({
-      bizType: currentRow.value.bizType,
-      businessId: currentRow.value.businessId,
-      decision: 'reject',
-      remark: rejectReason.value.trim() || undefined
-    })
-    ElMessage.success('已驳回')
-    rejectDialogVisible.value = false
+    auditDialogVisible.value = false
+    await refreshSummaryOnly()
     await handleSearch()
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '操作失败')
   } finally {
     actionLoading.value = false
   }
+}
+
+const handleRejectInDialog = async () => {
+  if (!auditRow.value) return
+  const needReason = ['SALES_ORDER', 'PURCHASE_ORDER', 'CUSTOMER', 'VENDOR', 'FINANCE_PAYMENT'].includes(
+    auditRow.value.bizType
+  )
+  if (needReason && !auditRemark.value.trim()) {
+    ElMessage.warning('请输入驳回原因')
+    return
+  }
+  try {
+    actionLoading.value = true
+    await approvalsApi.decidePendingApproval({
+      bizType: auditRow.value.bizType,
+      businessId: auditRow.value.businessId,
+      decision: 'reject',
+      remark: auditRemark.value.trim() || undefined
+    })
+    ElMessage.success('已驳回')
+    auditDialogVisible.value = false
+    await refreshSummaryOnly()
+    await handleSearch()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '操作失败')
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+const statusText = (status: number) => {
+  if (status === 2 || status === 1) return '待审核'
+  if (status === 10 || status === 20 || status === 3) return '已通过'
+  if (status < 0 || status === 4 || status === 5) return '已拒绝'
+  return String(status)
 }
 
 onMounted(() => {
@@ -262,7 +626,7 @@ onMounted(() => {
 }
 
 .page-header {
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .page-title {
@@ -271,6 +635,37 @@ onMounted(() => {
   color: $text-primary;
   letter-spacing: 0.3px;
 }
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.stat-card {
+  background: linear-gradient(180deg, rgba(12,36,62,0.9), rgba(8,26,46,0.9));
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: $text-muted;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 700;
+  font-family: 'Space Mono', monospace;
+}
+
+.stat-card--pending .stat-value { color: #f4c84e; }
+.stat-card--approved .stat-value { color: #47d39b; }
+.stat-card--rejected .stat-value { color: #ef6a73; }
 
 .search-bar {
   display: flex;
@@ -281,6 +676,33 @@ onMounted(() => {
   border: 1px solid $border-card;
   border-radius: $border-radius-lg;
   margin-bottom: 16px;
+}
+
+.segment-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.segment-item {
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  background: rgba(0, 212, 255, 0.08);
+  color: $text-secondary;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.segment-item.is-active {
+  color: $cyan-primary;
+  border-color: rgba(0, 212, 255, 0.45);
+}
+
+.segment-item:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .search-label {
@@ -305,9 +727,9 @@ onMounted(() => {
 }
 
 .amount-text {
-  color: $color-mint-green;
-  font-size: 13px;
-  font-weight: 500;
+  color: #f0f6ff;
+  font-size: 15px;
+  font-weight: 600;
   font-family: 'Space Mono', monospace;
 }
 
@@ -364,6 +786,215 @@ onMounted(() => {
         color: $text-muted;
       }
     }
+  }
+}
+
+.audit-dialog {
+  .audit-top {
+    border: 1px solid rgba(0, 212, 255, 0.15);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    background: rgba(0, 212, 255, 0.03);
+  }
+
+  .audit-top-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .audit-doc {
+    font-family: 'Space Mono', monospace;
+    color: $text-primary;
+    font-weight: 600;
+  }
+
+  .audit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .submit-remark {
+    color: $text-secondary;
+    white-space: pre-wrap;
+    line-height: 1.5;
+  }
+
+  .audit-attachments {
+    margin-top: 10px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.12);
+    padding-top: 10px;
+  }
+
+  .attach-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: $text-primary;
+    margin-bottom: 8px;
+  }
+
+  .upload-btn {
+    position: relative;
+    display: inline-block;
+    font-size: 12px;
+    color: $cyan-primary;
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    border-radius: 6px;
+    padding: 2px 8px;
+    cursor: pointer;
+  }
+
+  .upload-btn input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .attach-list {
+    display: grid;
+    gap: 6px;
+  }
+
+  .attach-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .attach-item .name {
+    color: $text-secondary;
+    max-width: 70%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .audit-bottom {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.01);
+  }
+
+  .section-title {
+    color: $text-primary;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 14px;
+  }
+
+  .info-item {
+    display: flex;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .k {
+    color: $text-muted;
+    width: 70px;
+    flex-shrink: 0;
+  }
+
+  .v {
+    color: $text-primary;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .biz-extra {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+  }
+
+  .detail-loading {
+    color: $text-muted;
+    margin-bottom: 8px;
+  }
+
+  .detail-error {
+    color: #ef6a73;
+    margin-bottom: 8px;
+  }
+
+  .extra-title {
+    color: $text-primary;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .extra-line {
+    color: $text-secondary;
+    margin-bottom: 6px;
+    span { color: $text-primary; }
+  }
+
+  .detail-jump {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .audit-history {
+    margin-top: 12px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+    padding-top: 10px;
+  }
+
+  .history-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .history-item {
+    display: flex;
+    gap: 8px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 8px;
+    background: rgba(255,255,255,0.02);
+  }
+
+  .history-item .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: $cyan-primary;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+
+  .history-item .line-1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .history-item .action {
+    color: $text-primary;
+    font-weight: 600;
+  }
+
+  .history-item .time,
+  .history-item .line-2 {
+    color: $text-muted;
+    font-size: 12px;
   }
 }
 </style>

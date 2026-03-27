@@ -216,13 +216,21 @@
 
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="业务员" prop="salesUserName">
-              <el-input v-model="formData.salesUserName" placeholder="请输入业务员" />
+            <el-form-item label="业务员" prop="salesUserId">
+              <SalesUserCascader
+                v-model="formData.salesUserId"
+                placeholder="请选择业务员"
+                @change="onSalesUserChange"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="采购员">
-              <el-input v-model="formData.purchaseUserName" placeholder="请输入采购员" />
+              <PurchaserCascader
+                v-model="formData.purchaseUserId"
+                placeholder="请选择采购员"
+                @change="onPurchaseUserChange"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -265,8 +273,12 @@
                     class="q-select tier-currency-select"
                     size="small"
                   >
-                    <el-option label="USD" :value="1" />
-                    <el-option label="CNY" :value="0" />
+                    <el-option
+                      v-for="opt in CURRENCY_ISO_OPTIONS"
+                      :key="opt.value"
+                      :label="opt.label"
+                      :value="opt.value"
+                    />
                   </el-select>
                 </template>
               </el-table-column>
@@ -325,6 +337,9 @@ import {
   fetchLinkedRfqItemRecord
 } from '@/utils/rfqLinkedItemSummary'
 import { useAuthStore } from '@/stores/auth'
+import { CURRENCY_ISO_OPTIONS } from '@/constants/currency'
+import SalesUserCascader from '@/components/SalesUserCascader.vue'
+import PurchaserCascader from '@/components/PurchaserCascader.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -381,7 +396,7 @@ function emptyPriceRow() {
   return {
     quantity: 0,
     unitPrice: 0,
-    /** 与历史主体字段一致：0=CNY，1=USD */
+    /** 与历史主体字段一致：0=RMB，1=USD */
     currency: 1,
     convertedPrice: undefined as number | undefined
   }
@@ -422,6 +437,8 @@ const formData = ref({
   minPackageQty: 0,
   stockQty: 0,
   moq: 0,
+  salesUserId: '',
+  purchaseUserId: '',
   salesUserName: '',
   purchaseUserName: '',
   remark: '',
@@ -491,6 +508,7 @@ async function loadLinkedRfqItem() {
     if (rfqId) {
       try {
         const rfq = rfqHeader ?? (await rfqApi.getRFQById(rfqId))
+        if (rfq.salesUserId) formData.value.salesUserId = String(rfq.salesUserId)
         formData.value.salesUserName = rfq.salesUserName || formData.value.salesUserName
       } catch {
         /* 主表失败时保留手工业务员 */
@@ -523,7 +541,15 @@ const formRules = {
   productionDate: [{ required: true, message: '请输入生产日期/DC', trigger: 'blur' }],
   waferOrigin: [{ required: true, message: '请选择晶圆产地', trigger: 'change' }],
   packageOrigin: [{ required: true, message: '请选择封装产地', trigger: 'change' }],
-  salesUserName: [{ required: true, message: '请输入业务员', trigger: 'blur' }]
+  salesUserId: [{ required: true, message: '请选择业务员', trigger: 'change' }]
+}
+
+function onSalesUserChange(p: { id: string; label: string }) {
+  formData.value.salesUserName = p.label || ''
+}
+
+function onPurchaseUserChange(p: { id: string; label: string }) {
+  formData.value.purchaseUserName = p.label || ''
 }
 
 function onVendorFilterInput(query: string) {
@@ -631,6 +657,8 @@ function applyQuoteToForm(q: Record<string, unknown>) {
   formData.value.rfqItemId = String(q.rfqItemId ?? q.RfqItemId ?? '')
   formData.value.mpn = String(q.mpn ?? q.Mpn ?? '')
   formData.value.remark = String(q.remark ?? '')
+  formData.value.salesUserId = String(q.salesUserId ?? q.SalesUserId ?? '')
+  formData.value.purchaseUserId = String(q.purchaseUserId ?? q.PurchaseUserId ?? '')
   formData.value.salesUserName = String(q.salesUserName ?? '')
   formData.value.purchaseUserName = String(q.purchaseUserName ?? '')
   formData.value.quotePriceRows = rows
@@ -736,6 +764,9 @@ onMounted(async () => {
     return
   }
   const u = authStore.user
+  if (u?.id && !formData.value.salesUserId) {
+    formData.value.salesUserId = u.id
+  }
   if (u?.userName && !formData.value.salesUserName) {
     formData.value.salesUserName = u.userName
   }
@@ -908,7 +939,7 @@ const handleSubmit = async () => {
     width: 100%;
   }
 
-  /* 币别下拉：列宽与 select 最小宽度保证 USD/CNY 不被截断 */
+  /* 币别下拉：列宽与 select 最小宽度保证 USD/RMB 不被截断 */
   :deep(.tier-col-currency .cell) {
     overflow: visible;
   }

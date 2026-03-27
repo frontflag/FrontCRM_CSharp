@@ -68,7 +68,10 @@ namespace CRM.Core.Services
                 Payment = request.Payment,
                 TradeCurrency = request.TradeCurrency,
                 CreditCode = request.CreditCode?.Trim(),
-                Status = 0, // 默认待审核
+                Province = request.Province?.Trim(),
+                City = request.City?.Trim(),
+                District = request.District?.Trim(),
+                Status = 1, // 新建
                 CreateTime = DateTime.UtcNow
             };
 
@@ -87,6 +90,21 @@ namespace CRM.Core.Services
                 );
                 throw;
             }
+        }
+
+        private static void ValidateCustomerStatusTransition(short current, short target)
+        {
+            if (current == target) return;
+            var ok = current switch
+            {
+                1 => target is 2,                 // 新建 -> 待审核
+                2 => target is 10 or -1,          // 待审核 -> 已审核 / 审核失败
+                -1 => target is 1,                // 审核失败 -> 回到新建（可重新提交）
+                10 => target is 12 or 20,         // 已审核 -> 待财务审核 / 财务建档
+                12 => target is 20,               // 待财务审核 -> 财务建档
+                _ => false
+            };
+            if (!ok) throw new InvalidOperationException($"不允许的客户状态流转: {current} -> {target}");
         }
 
         /// <summary>
@@ -243,6 +261,12 @@ namespace CRM.Core.Services
                 customer.TradeCurrency = request.TradeCurrency.Value;
             if (request.CreditCode != null)
                 customer.CreditCode = request.CreditCode.Trim();
+            if (request.Province != null)
+                customer.Province = request.Province.Trim();
+            if (request.City != null)
+                customer.City = request.City.Trim();
+            if (request.District != null)
+                customer.District = request.District.Trim();
 
             customer.ModifyTime = DateTime.UtcNow;
 
@@ -738,7 +762,7 @@ namespace CRM.Core.Services
         /// <summary>
         /// 更新客户状态
         /// </summary>
-        public async Task UpdateCustomerStatusAsync(string id, short status)
+        public async Task UpdateCustomerStatusAsync(string id, short status, string? auditRemark = null)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("客户ID不能为空", nameof(id));
@@ -747,7 +771,19 @@ namespace CRM.Core.Services
             if (customer == null)
                 throw new KeyNotFoundException($"找不到ID为 '{id}' 的客户");
 
+            ValidateCustomerStatusTransition(customer.Status, status);
             customer.Status = status;
+            if (status == -1)
+            {
+                if (string.IsNullOrWhiteSpace(auditRemark))
+                    throw new ArgumentException("审核拒绝时必须填写原因", nameof(auditRemark));
+                customer.AuditRemark = auditRemark.Trim();
+            }
+            else if (status == 10)
+            {
+                // 审核通过清空驳回原因
+                customer.AuditRemark = null;
+            }
             customer.ModifyTime = DateTime.UtcNow;
 
             await _customerRepository.UpdateAsync(customer);

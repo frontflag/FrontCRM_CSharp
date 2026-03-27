@@ -27,7 +27,16 @@
           <el-row :gutter="12">
             <el-col :span="6"><el-form-item label="到货编码"><el-input v-model="form.noticeCode" class="q-input" /></el-form-item></el-col>
             <el-col :span="6"><el-form-item label="供应商"><el-input v-model="form.vendorName" class="q-input" /></el-form-item></el-col>
-            <el-col :span="6"><el-form-item label="采购员"><el-input v-model="form.purchaseUserName" class="q-input" /></el-form-item></el-col>
+            <el-col :span="6">
+              <el-form-item label="采购员">
+                <PurchaserCascader
+                  v-model="form.purchaseUserId"
+                  placeholder="请选择采购员"
+                  class="q-input"
+                  @change="onPurchaseUserChange"
+                />
+              </el-form-item>
+            </el-col>
             <el-col :span="6"><el-form-item label="采购日期"><el-date-picker v-model="form.purchaseDate" type="date" value-format="YYYY-MM-DD" style="width:100%" class="q-date" /></el-form-item></el-col>
           </el-row>
           <el-form-item label="到货通知备注"><el-input v-model="form.noticeRemark" type="textarea" :rows="2" class="q-input" /></el-form-item>
@@ -127,6 +136,7 @@ import { ElMessage } from 'element-plus'
 import { logisticsApi } from '@/api/logistics'
 import { useRoute, useRouter } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
+import PurchaserCascader from '@/components/PurchaserCascader.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -141,6 +151,7 @@ const form = reactive<any>({
   brand: '',
   vendorName: '',
   purchaseDate: '',
+  purchaseUserId: '',
   purchaseUserName: '',
   noticeRemark: '',
   deliveryMethod: '',
@@ -157,6 +168,10 @@ const form = reactive<any>({
   arrivedTotalQty: 0
 })
 
+function onPurchaseUserChange(p: { id: string; label: string }) {
+  form.purchaseUserName = p.label || ''
+}
+
 const fillNotice = async (noticeId: string) => {
   form.noticeId = noticeId
   if (!noticeId) return
@@ -170,6 +185,7 @@ const fillNotice = async (noticeId: string) => {
   form.brand = firstItem?.brand || ''
   form.vendorName = row.vendorName || ''
   form.purchaseUserName = row.purchaseUserName || ''
+  form.purchaseUserId = ''
   form.stockInQty = arrivedTotalQty
   form.sampleQty = arrivedTotalQty
   form.arrivedTotalQty = arrivedTotalQty

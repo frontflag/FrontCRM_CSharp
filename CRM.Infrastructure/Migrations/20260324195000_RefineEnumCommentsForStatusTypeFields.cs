@@ -58,7 +58,7 @@ BEGIN
             -- sellorder
             ('sellorder','status','订单状态：1新建 2待审核 10审核通过 20进行中 100完成 -1审核失败 -2取消'),
             ('sellorder','type','订单类型：1普通 2紧急 3样品'),
-            ('sellorder','currency','币别：1CNY 2USD 3EUR'),
+            ('sellorder','currency','币别：1RMB 2USD 3EUR'),
             ('sellorder','purchase_order_status','采购状态：0未采购 1部分采购 2全部采购'),
             ('sellorder','stock_out_status','出库状态：0未出库 1部分出库 2全部出库'),
             ('sellorder','stock_in_status','入库状态：0未入库 1部分入库 2全部入库'),
@@ -68,7 +68,7 @@ BEGIN
 
             -- sellorderitem
             ('sellorderitem','status','明细状态：0正常 1已取消'),
-            ('sellorderitem','currency','币别：1CNY 2USD 3EUR'),
+            ('sellorderitem','currency','币别：1RMB 2USD 3EUR'),
 
             -- payment（旧付款模型）
             ('payment','Status','状态：0草稿 1待审核 2已审核 3已付款 4已取消'),

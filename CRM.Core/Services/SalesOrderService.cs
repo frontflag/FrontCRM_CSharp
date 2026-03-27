@@ -166,6 +166,7 @@ namespace CRM.Core.Services
                 ?? throw new InvalidOperationException($"销售订单 {id} 不存在");
 
             if (request.CustomerName != null) order.CustomerName = request.CustomerName;
+            if (request.SalesUserId != null) order.SalesUserId = request.SalesUserId;
             if (request.SalesUserName != null) order.SalesUserName = request.SalesUserName;
             if (request.Type.HasValue) order.Type = request.Type.Value;
             if (request.Currency.HasValue) order.Currency = request.Currency.Value;

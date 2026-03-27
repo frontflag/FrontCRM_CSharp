@@ -42,21 +42,12 @@
           <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="负责人" prop="salesUserId">
-                <el-select
+                <sales-user-cascader
                   v-model="formData.salesUserId"
                   placeholder="请选择负责人"
-                  style="width: 100%"
-                  filterable
                   clearable
                   @change="onSalesUserChange"
-                >
-                  <el-option
-                    v-for="u in salesUserOptions"
-                    :key="u.value"
-                    :label="u.label"
-                    :value="u.value"
-                  />
-                </el-select>
+                />
               </el-form-item>
             </el-col>
             <el-col :span="12">
@@ -344,12 +335,12 @@ import { salesOrderApi } from '@/api/salesOrder'
 import { quoteApi } from '@/api/quote'
 import { rfqApi } from '@/api/rfq'
 import { customerApi } from '@/api/customer'
-import { authApi } from '@/api/auth'
 import type { RFQ, RFQItem } from '@/types/rfq'
 import type { Customer } from '@/types/customer'
 import { resolveCustomerIdFromQuoteDetail } from '@/utils/quoteSalesOrderPrefill'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import { useAuthStore } from '@/stores/auth'
+import SalesUserCascader from '@/components/SalesUserCascader.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -381,7 +372,6 @@ const prefillSalesUserId = ref<string | undefined>(undefined)
 const collapseActive = ref(['order', 'customer', 'items'])
 const itemFilterKeyword = ref('')
 
-const salesUserOptions = ref<{ value: string; label: string }[]>([])
 const customerOptions = ref<{ value: string; label: string }[]>([])
 const customerSearchLoading = ref(false)
 const contactOptions = ref<{ value: string; label: string }[]>([])
@@ -492,27 +482,9 @@ const formatCurrency = (value: number, currency?: number) => {
   return symbol + (value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-async function loadSalesUsers() {
-  try {
-    const raw = (await authApi.getUsers()) as unknown
-    const list = Array.isArray(raw)
-      ? raw
-      : raw && typeof raw === 'object' && 'data' in raw && Array.isArray((raw as { data: unknown }).data)
-        ? ((raw as { data: { id: string; label?: string; userName?: string; realName?: string }[] }).data)
-        : []
-    salesUserOptions.value = list.map((u) => ({
-      value: u.id,
-      label: u.realName || u.label || u.userName || u.id
-    }))
-  } catch {
-    salesUserOptions.value = []
-  }
-}
-
-function onSalesUserChange(id: string) {
-  const u = salesUserOptions.value.find((x) => x.value === id)
-  formData.value.salesUserName = u?.label || ''
-  prefillSalesUserId.value = id || undefined
+function onSalesUserChange(payload: { id: string; label: string }) {
+  formData.value.salesUserName = payload?.label || ''
+  prefillSalesUserId.value = payload?.id || undefined
 }
 
 async function onCustomerFilterInput(query: string) {
@@ -695,8 +667,6 @@ function purchaseQuoteLabelFromRow(first: Record<string, unknown> | undefined): 
 }
 
 onMounted(async () => {
-  await loadSalesUsers()
-
   const user = authStore.user
   if (user?.id && !formData.value.salesUserId) {
     formData.value.salesUserId = user.id

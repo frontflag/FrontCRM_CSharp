@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using CRM.API.Models.DTOs;
 using CRM.Core.Models.Customer;
@@ -9,8 +10,10 @@ using CRM.Core.Models.Sales;
 using CRM.Core.Models.System;
 using CRM.Core.Models.Vendor;
 using CRM.Infrastructure.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace CRM.API.Controllers
 {
@@ -34,11 +37,11 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>
-        /// Debug 页数据：数据库连接（密码前 5 位为星号）、debug 表记录。版本号由前端硬编码（PRD）。
+        /// Debug 页数据：数据库连接（敏感字段按位脱敏）、debug 表记录。版本号由前端 package.json 注入。
         /// </summary>
         public class DebugPageDto
         {
-            /// <summary>供界面展示的数据库连接串（密码前 5 位为星号，其余保留便于排错）</summary>
+            /// <summary>供界面展示的数据库连接串（Host/Database/Username/Password 的值：从第 1 位起奇数位保留、偶数位为 *）</summary>
             public string DatabaseConnectionDisplay { get; set; } = string.Empty;
             public List<DebugItemDto> Items { get; set; } = new();
         }
@@ -64,15 +67,6 @@ namespace CRM.API.Controllers
         [HttpGet]
         public async Task<ActionResult<ApiResponse<DebugPageDto>>> GetAll()
         {
-            var items = await _context.DebugRecords
-                .OrderBy(x => x.Name)
-                .Select(x => new DebugItemDto
-                {
-                    Name = x.Name,
-                    Value = x.Value
-                })
-                .ToListAsync();
-
             var rawCs = _configuration.GetConnectionString("DefaultConnection");
             if (string.IsNullOrWhiteSpace(rawCs))
             {
@@ -80,9 +74,34 @@ namespace CRM.API.Controllers
                 rawCs = _context.Database.GetConnectionString();
             }
 
+            // Debug 页可直接访问：即使数据库账号没有 debug 表权限，也不应整体 500。
+            // 这里将 debug 表读取降级为“尽力而为”，失败则 Items 为空。
+            List<DebugItemDto> items = new();
+            try
+            {
+                items = await _context.DebugRecords
+                    .OrderBy(x => x.Name)
+                    .Select(x => new DebugItemDto
+                    {
+                        Name = x.Name,
+                        Value = x.Value
+                    })
+                    .ToListAsync();
+            }
+            catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.InsufficientPrivilege)
+            {
+                // 42501: permission denied
+                items = new List<DebugItemDto>();
+            }
+            catch (Exception)
+            {
+                // 其它异常也不阻断页面（例如表不存在/连接串可读但库不可达等），保持降级。
+                items = new List<DebugItemDto>();
+            }
+
             var page = new DebugPageDto
             {
-                DatabaseConnectionDisplay = MaskPasswordFirstFiveInConnectionString(rawCs),
+                DatabaseConnectionDisplay = MaskConnectionStringForDebugDisplay(rawCs),
                 Items = items
             };
 
@@ -93,6 +112,7 @@ namespace CRM.API.Controllers
         /// Debug: 生成指定业务节点/状态的模拟数据，并自动补齐此前链条数据。
         /// 支持节点：rfq / quote / salesorder / purchaserequisition / purchaseorder / stockinnotify / qc / stockin / stockoutrequest
         /// </summary>
+        [Authorize]
         [HttpPost("simulate-business-chain")]
         public async Task<ActionResult<ApiResponse<SimulateBusinessChainResponse>>> SimulateBusinessChain(
             [FromBody] SimulateBusinessChainRequest request)
@@ -302,7 +322,6 @@ namespace CRM.API.Controllers
                     CustomerId = customerId,
                     SalesUserId = salesUserId,
                     Status = normalizedNode == "rfq" ? request.Status : (short)5,
-                    RfqDate = now,
                     CreateTime = now,
                     ItemCount = 1,
                     Remark = $"DEBUG链路:{chainNo}"
@@ -601,30 +620,50 @@ namespace CRM.API.Controllers
             return Ok(ApiResponse<SimulateBusinessChainResponse>.Ok(response, "模拟数据生成成功"));
         }
 
-        /// <summary>PRD：密码的前 5 位显示为星号；不足 5 位则全部打星。</summary>
-        private static string MaskPasswordFirstFiveInConnectionString(string? connectionString)
+        /// <summary>
+        /// Debug：对 Host、Database、Username、Password 的值脱敏——从第 1 位起算，奇数位保留、偶数位替换为 *。
+        /// </summary>
+        private static string MaskConnectionStringForDebugDisplay(string? connectionString)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
                 return "(无法获取数据库连接串，请检查配置)";
 
             var s = connectionString.Trim();
-            return Regex.Replace(
-                s,
-                @"(Password|Pwd)\s*=\s*([^;]*)",
-                m =>
+
+            static string MaskEvenPositionsToStar(string? value)
+            {
+                if (string.IsNullOrEmpty(value))
+                    return value ?? string.Empty;
+                var sb = new StringBuilder(value.Length);
+                for (var i = 0; i < value.Length; i++)
                 {
-                    var key = m.Groups[1].Value;
-                    var pwd = m.Groups[2].Value;
-                    if (string.IsNullOrEmpty(pwd))
-                        return $"{key}=";
-                    string display;
-                    if (pwd.Length <= 5)
-                        display = new string('*', pwd.Length);
+                    // 第 (i+1) 位：奇数位保留，偶数位为 *
+                    if ((i + 1) % 2 == 0)
+                        sb.Append('*');
                     else
-                        display = "*****" + pwd.Substring(5);
-                    return $"{key}={display}";
-                },
-                RegexOptions.IgnoreCase);
+                        sb.Append(value[i]);
+                }
+                return sb.ToString();
+            }
+
+            static string ReplaceKeyValue(string input, string pattern)
+            {
+                return Regex.Replace(
+                    input,
+                    pattern,
+                    m => $"{m.Groups[1].Value}={MaskEvenPositionsToStar(m.Groups[2].Value)}",
+                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            }
+
+            // PostgreSQL / 常见别名
+            s = ReplaceKeyValue(s, @"\b(Host|Server)\s*=\s*([^;]*)");
+            s = ReplaceKeyValue(s, @"\b(Database)\s*=\s*([^;]*)");
+            // SQL Server
+            s = ReplaceKeyValue(s, @"\b(Initial\s+Catalog)\s*=\s*([^;]*)");
+            s = ReplaceKeyValue(s, @"\b(Username|User\s+Id|User\s+ID|UID)\s*=\s*([^;]*)");
+            s = ReplaceKeyValue(s, @"\b(Password|Pwd)\s*=\s*([^;]*)");
+
+            return s;
         }
     }
 }

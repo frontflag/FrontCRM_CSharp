@@ -128,6 +128,7 @@ namespace CRM.Infrastructure.Data
         // ===== 系统参数 =====
         public DbSet<SysParamGroup> SysParamGroups { get; set; } = null!;
         public DbSet<SysParam> SysParams { get; set; } = null!;
+        public DbSet<ApprovalRecord> ApprovalRecords { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -141,7 +142,6 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.RfqCode).IsRequired().HasMaxLength(32);
                 entity.HasIndex(e => e.RfqCode).IsUnique();
                 entity.Property(e => e.Status).HasDefaultValue((short)1);
-                entity.Property(e => e.RfqDate).HasDefaultValueSql("NOW()");
                 entity.HasMany(e => e.Items)
                       .WithOne(i => i.RFQ)
                       .HasForeignKey(i => i.RfqId)
@@ -269,6 +269,9 @@ namespace CRM.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.CustomerCode).IsRequired().HasMaxLength(16);
                 entity.Property(e => e.OfficialName).HasMaxLength(128);
+                entity.Property(e => e.Province).HasMaxLength(50);
+                entity.Property(e => e.City).HasMaxLength(50);
+                entity.Property(e => e.District).HasMaxLength(50);
                 entity.Property(e => e.Status).HasDefaultValue((short)1);
                 entity.Property(e => e.IsDeleted).HasDefaultValue(false);
             });
@@ -322,6 +325,9 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Code).IsRequired().HasMaxLength(16);
                 entity.Property(e => e.OfficialName).HasMaxLength(64);
                 entity.Property(e => e.NickName).HasMaxLength(64);
+                entity.Property(e => e.Website).HasMaxLength(300);
+                entity.Property(e => e.PurchaserName).HasMaxLength(64);
+                entity.Property(e => e.PaymentMethod).HasMaxLength(50);
             });
 
             // Vendor Address configuration
@@ -553,6 +559,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.VendorName).HasMaxLength(64);
                 entity.Property(e => e.PurchaseUserName).HasMaxLength(64);
                 entity.Property(e => e.Status).HasDefaultValue((short)10);
+                entity.Property(e => e.ExpectedArrivalDate);
                 entity.HasMany(e => e.Items)
                     .WithOne(x => x.StockInNotify)
                     .HasForeignKey(x => x.StockInNotifyId)
@@ -993,6 +1000,28 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Description).HasMaxLength(500);
                 entity.Property(e => e.ValueDecimal).HasColumnType("numeric(18,4)");
                 entity.HasIndex(e => e.ParamCode).IsUnique();
+            });
+
+            modelBuilder.Entity<ApprovalRecord>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("Id").HasMaxLength(36);
+                // 兼容已落地的 approval_record 表：该表不包含 BaseEntity 的 CreateUserId/ModifyUserId 列
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.Property(e => e.BizType).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.BusinessId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.DocumentCode).HasMaxLength(64);
+                entity.Property(e => e.ItemDescription).HasMaxLength(1000);
+                entity.Property(e => e.ActionType).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.SubmitRemark).HasMaxLength(500);
+                entity.Property(e => e.AuditRemark).HasMaxLength(500);
+                entity.Property(e => e.SubmitterUserId).HasMaxLength(36);
+                entity.Property(e => e.SubmitterUserName).HasMaxLength(100);
+                entity.Property(e => e.ApproverUserId).HasMaxLength(36);
+                entity.Property(e => e.ApproverUserName).HasMaxLength(100);
+                entity.HasIndex(e => new { e.BizType, e.BusinessId });
+                entity.HasIndex(e => e.ActionTime);
             });
         }
     }

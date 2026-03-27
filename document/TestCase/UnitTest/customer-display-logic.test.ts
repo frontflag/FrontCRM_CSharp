@@ -68,7 +68,7 @@ function formatFullAddress(address: { country?: string; province?: string; city?
 
 /** 货币枚举 → 显示标签 */
 function getCurrencyLabel(currency: number): string {
-  return ({ 1: 'CNY', 2: 'USD', 3: 'EUR', 4: 'JPY', 5: 'GBP', 6: 'HKD' } as Record<number, string>)[currency] || 'CNY';
+  return ({ 1: 'RMB', 2: 'USD', 3: 'EUR', 4: 'JPY', 5: 'GBP', 6: 'HKD' } as Record<number, string>)[currency] || 'RMB';
 }
 
 // ─── 测试用例 ───
@@ -378,8 +378,8 @@ describe('CustomerDetail - 完整地址拼接 (formatFullAddress)', () => {
 });
 
 describe('CustomerDetail - 货币标签显示 (getCurrencyLabel)', () => {
-  it('UT-DISPLAY-110: 1 → "CNY"', () => {
-    expect(getCurrencyLabel(1)).toBe('CNY');
+  it('UT-DISPLAY-110: 1 → "RMB"', () => {
+    expect(getCurrencyLabel(1)).toBe('RMB');
   });
 
   it('UT-DISPLAY-111: 2 → "USD"', () => {
@@ -402,11 +402,11 @@ describe('CustomerDetail - 货币标签显示 (getCurrencyLabel)', () => {
     expect(getCurrencyLabel(6)).toBe('HKD');
   });
 
-  it('UT-DISPLAY-116: 0（无效值）→ "CNY"（默认）', () => {
-    expect(getCurrencyLabel(0)).toBe('CNY');
+  it('UT-DISPLAY-116: 0（无效值）→ "RMB"（默认）', () => {
+    expect(getCurrencyLabel(0)).toBe('RMB');
   });
 
-  it('UT-DISPLAY-117: 7（超出范围）→ "CNY"（默认）', () => {
-    expect(getCurrencyLabel(7)).toBe('CNY');
+  it('UT-DISPLAY-117: 7（超出范围）→ "RMB"（默认）', () => {
+    expect(getCurrencyLabel(7)).toBe('RMB');
   });
 });

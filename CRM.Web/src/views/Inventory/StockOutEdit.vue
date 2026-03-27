@@ -12,19 +12,52 @@
         </div>
       </div>
       <div class="header-right">
-        <button class="btn-secondary" @click="goBack">返回列表</button>
-        <button class="btn-secondary" @click="handleGeneratePicking">生成拣货任务</button>
-        <button class="btn-primary" style="margin-left: 8px" @click="handleSubmit" :disabled="submitting">
+        <button class="btn-secondary" @click="goBack">返回出库通知</button>
+        <button
+          class="btn-picking"
+          :disabled="requestAlreadyShipped || hasActivePickingTask"
+          :title="generatePickingBtnTitle"
+          @click="handleGeneratePicking"
+        >
+          生成拣货任务
+        </button>
+        <button
+          class="btn-primary"
+          style="margin-left: 8px"
+          :disabled="submitting || !canExecuteStockOut"
+          :title="executeOutHint"
+          @click="handleSubmit"
+        >
           {{ submitting ? '执行中...' : '执行出库' }}
         </button>
       </div>
     </div>
 
+    <el-alert
+      v-if="form.stockOutRequestId"
+      class="flow-alert"
+      type="info"
+      :closable="false"
+      show-icon
+    >
+      <template #title>
+        <span class="flow-alert-title">出库流程</span>
+      </template>
+      <ol class="flow-steps">
+        <li :class="{ 'flow-step--done': hasItemsAndWarehouse }">确认仓库与出库明细（可点「从出库通知刷新明细」）</li>
+        <li :class="{ 'flow-step--done': pickingTasks.length > 0 }">生成拣货任务</li>
+        <li :class="{ 'flow-step--done': pickingCompleted }">在下方拣货任务中点击「完成拣货」</li>
+        <li :class="{ 'flow-step--done': requestAlreadyShipped }">执行出库（扣减库存并关闭出库通知）</li>
+      </ol>
+      <p v-if="requestAlreadyShipped" class="flow-done-msg">该出库通知已执行出库，请返回列表查看。</p>
+      <p v-else-if="!pickingCompleted && pickingTasks.length > 0" class="flow-warn-msg">请先完成拣货任务，再执行出库。</p>
+    </el-alert>
+
     <div class="form-layout">
       <div class="form-card">
         <h3 class="section-title">基础信息</h3>
-        <el-form :model="form" label-width="90px">
-          <el-form-item label="出库单号" required>
+        <el-form class="basic-info-form" :model="form" label-width="6em">
+          <el-form-item label="出库执行单号" required>
             <el-input v-model="form.stockOutCode" placeholder="如：SOUT202603180001" />
           </el-form-item>
           <el-form-item label="仓库名称" required>
@@ -37,8 +70,9 @@
               />
             </el-select>
           </el-form-item>
-          <el-form-item label="申请单ID">
-            <el-input v-model="form.stockOutRequestId" placeholder="关联的出库申请ID（可选）" />
+          <el-form-item label="出库通知单号">
+            <el-input :model-value="notifyRequestCodeDisplay" readonly />
+            <div v-if="form.stockOutRequestId" class="form-sub-hint">内部 ID：{{ form.stockOutRequestId }}</div>
           </el-form-item>
           <el-form-item label="操作人">
             <el-input v-model="form.operatorId" placeholder="当前操作人ID（可选）" />
@@ -75,9 +109,9 @@
               <el-input v-model="row.materialName" placeholder="物料名称" readonly />
             </template>
           </el-table-column>
-          <el-table-column label="数量" width="110">
+          <el-table-column label="出库数量" width="110" align="right">
             <template #default="{ row }">
-              <el-input-number v-model="row.quantity" :min="0" :step="1" :controls="false" readonly />
+              <span class="qty-cell">{{ formatQty(row.quantity) }}</span>
             </template>
           </el-table-column>
           <el-table-column label="批次号" width="140">
@@ -91,7 +125,7 @@
             </template>
           </el-table-column>
           <el-table-column label="操作" width="80" fixed="right">
-            <template #default="{ $index }">
+            <template #default>
               <button class="action-btn" disabled title="明细来自出库通知，不可手工删除">删除</button>
             </template>
           </el-table-column>
@@ -104,15 +138,29 @@
       </div>
     </div>
 
-    <div class="form-card" v-if="pickingTasks.length">
+    <div class="form-card" v-if="form.stockOutRequestId">
       <h3 class="section-title">拣货任务</h3>
-      <el-table :data="pickingTasks">
+      <p class="picking-hint">
+        每个出库通知仅允许生成<strong>一个</strong>拣货任务。计划拣货量、已拣货量由拣货明细汇总，应与出库明细数量一致；此处只读。点击「完成拣货」后，已拣货量与计划一致。
+      </p>
+      <p v-if="!pickingTasks.length" class="picking-empty">暂无拣货任务，请先确认明细与仓库后点击「生成拣货任务」。</p>
+      <el-table v-else :data="pickingTasks">
         <el-table-column prop="taskCode" label="任务号" width="160" />
-        <el-table-column prop="warehouseId" label="仓库" width="120" />
+        <el-table-column label="仓库" min-width="160">
+          <template #default="{ row }">{{ warehouseLabel(row.warehouseId) }}</template>
+        </el-table-column>
+        <el-table-column label="计划拣货" min-width="140" align="right" show-overflow-tooltip>
+          <template #default="{ row }">{{ formatQty(pickingQty(row, 'plan')) }}</template>
+        </el-table-column>
+        <el-table-column label="已拣货" min-width="110" align="right" show-overflow-tooltip>
+          <template #default="{ row }">{{ formatQty(pickingQty(row, 'picked')) }}</template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="120">
           <template #default="{ row }">{{ pickingStatusText(row.status) }}</template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" />
+        <el-table-column label="创建时间" min-width="168" show-overflow-tooltip>
+          <template #default="{ row }">{{ formatTaskTime(row.createTime) }}</template>
+        </el-table-column>
         <el-table-column label="操作" width="120">
           <template #default="{ row }">
             <button class="action-btn" v-if="row.status !== 100" @click="completePicking(row.id)">完成拣货</button>
@@ -130,6 +178,7 @@ import { ElMessage } from 'element-plus'
 import { stockOutApi, type StockOutRequestDto } from '@/api/stockOut'
 import { inventoryCenterApi, type PickingTask, type WarehouseInfo } from '@/api/inventoryCenter'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 type ExecuteItem = {
   lineNo: number
@@ -177,6 +226,81 @@ const form = reactive<ExecuteForm>({
 const totalQuantity = computed(() => form.items.reduce((sum, x) => sum + (x.quantity || 0), 0))
 const pickingStatusText = (s: number) => ({ 1: '待拣货', 2: '拣货中', 100: '已完成', [-1]: '已取消' }[s] || '未知')
 
+/** 数字展示（避免 el-input-number 只读在表格内不显示） */
+const formatQty = (n: number | undefined | null) => {
+  if (n == null || (typeof n === 'number' && Number.isNaN(n))) return '—'
+  const v = Number(n)
+  if (Number.isNaN(v)) return '—'
+  return Number.isInteger(v) ? `${v}` : `${+v.toFixed(4)}`.replace(/\.?0+$/, '')
+}
+
+const warehouseLabel = (warehouseId: string) => {
+  const w = warehouses.value.find((x) => x.id === warehouseId)
+  return w ? `${w.warehouseName}（${w.warehouseCode}）` : warehouseId
+}
+
+/** 出库通知业务单号（SON），无则退回显式内部 ID */
+const notifyRequestCodeDisplay = computed(() => {
+  const code = currentRequest.value?.requestCode?.trim()
+  if (code) return code
+  return form.stockOutRequestId?.trim() || '—'
+})
+
+/** 读取拣货汇总数量（兼容 camelCase / PascalCase） */
+const pickingQty = (row: PickingTask, kind: 'plan' | 'picked') => {
+  const r = row as unknown as Record<string, unknown>
+  const v =
+    kind === 'plan'
+      ? (row.planQtyTotal ?? r.PlanQtyTotal)
+      : (row.pickedQtyTotal ?? r.PickedQtyTotal)
+  if (v == null || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+/** 创建时间：按系统展示时区（默认 Asia/Shanghai）格式化，避免原始 ISO 串误解 */
+const formatTaskTime = (v?: string) => {
+  const r = v as string | undefined
+  if (!r) return '--'
+  return formatDisplayDateTime(r)
+}
+
+const requestAlreadyShipped = computed(() => Number(currentRequest.value?.status) === 1)
+
+const pickingCompleted = computed(() => pickingTasks.value.some((t) => t.status === 100))
+
+/** 是否存在未取消的拣货任务（与后端「禁止重复生成」一致） */
+const hasActivePickingTask = computed(() => pickingTasks.value.some((t) => t.status !== -1))
+
+const generatePickingBtnTitle = computed(() => {
+  if (requestAlreadyShipped.value) return '该出库通知已执行出库'
+  if (hasActivePickingTask.value) return '该出库通知已有拣货任务，请勿重复生成'
+  return ''
+})
+
+const hasItemsAndWarehouse = computed(
+  () =>
+    !!form.warehouseId &&
+    form.items.length > 0 &&
+    form.items.every((x) => x.materialCode && Number(x.quantity) > 0)
+)
+
+const canExecuteStockOut = computed(
+  () =>
+    !requestAlreadyShipped.value &&
+    pickingCompleted.value &&
+    !!form.stockOutRequestId &&
+    !!form.stockOutCode?.trim() &&
+    !!form.warehouseId &&
+    form.items.length > 0
+)
+
+const executeOutHint = computed(() => {
+  if (requestAlreadyShipped.value) return '该出库通知已出库'
+  if (!pickingCompleted.value) return '请先完成拣货任务后再执行出库'
+  return '将按 FIFO 扣减库存并标记出库通知为已出库'
+})
+
 const loadWarehouses = async () => {
   try {
     warehouses.value = await inventoryCenterApi.getWarehouses()
@@ -193,7 +317,9 @@ const loadRequest = async () => {
   if (!form.stockOutRequestId) return
   try {
     const requests = await stockOutApi.getRequestList()
-    currentRequest.value = requests.find(x => x.id === form.stockOutRequestId) || null
+    const rid = form.stockOutRequestId.trim()
+    currentRequest.value =
+      requests.find((x) => x.id === rid || x.id?.toLowerCase?.() === rid.toLowerCase()) || null
   } catch (e) {
     console.error(e)
     currentRequest.value = null
@@ -214,8 +340,10 @@ const loadItemsFromRequest = async () => {
     return
   }
   const materialCode = String(r.materialModel ?? '').trim()
-  const qty = Number(r.outQuantity ?? 0)
-  if (!materialCode || qty <= 0) {
+  const raw = r as Record<string, unknown>
+  const qRaw = raw.outQuantity ?? raw.OutQuantity
+  const qty = typeof qRaw === 'number' ? qRaw : Number(qRaw ?? 0)
+  if (!materialCode || !Number.isFinite(qty) || qty <= 0) {
     ElMessage.warning('出库通知缺少物料或数量，无法生成出库明细')
     return
   }
@@ -261,6 +389,14 @@ const loadPickingTasks = async () => {
 }
 
 const handleGeneratePicking = async () => {
+  if (requestAlreadyShipped.value) {
+    ElMessage.warning('该出库通知已执行出库，无法再次生成拣货任务')
+    return
+  }
+  if (hasActivePickingTask.value) {
+    ElMessage.warning('该出库通知已存在拣货任务，请勿重复生成')
+    return
+  }
   if (!form.stockOutRequestId) {
     ElMessage.warning('请先填写出库申请单ID')
     return
@@ -289,19 +425,31 @@ const handleGeneratePicking = async () => {
 }
 
 const completePicking = async (taskId: string) => {
+  if (requestAlreadyShipped.value) {
+    ElMessage.warning('该出库通知已出库')
+    return
+  }
   try {
     await inventoryCenterApi.completePickingTask(taskId)
     ElMessage.success('拣货已完成')
     await loadPickingTasks()
   } catch (e) {
     console.error(e)
-    ElMessage.error('完成拣货失败')
+    ElMessage.error(getApiErrorMessage(e, '完成拣货失败'))
   }
 }
 
 const handleSubmit = async () => {
+  if (requestAlreadyShipped.value) {
+    ElMessage.warning('该出库通知已执行出库')
+    return
+  }
+  if (!pickingCompleted.value) {
+    ElMessage.warning('请先完成拣货任务后再执行出库')
+    return
+  }
   if (!form.stockOutCode || !form.warehouseId) {
-    ElMessage.warning('请填写出库单号和仓库ID')
+    ElMessage.warning('请填写出库单号和仓库')
     return
   }
   if (!form.items.length) {
@@ -320,23 +468,26 @@ const handleSubmit = async () => {
       remark: form.remark,
       items: form.items
     })
-    ElMessage.success('执行出库成功')
-    router.push('/inventory/stock-out')
+    ElMessage.success('执行出库成功，出库通知已标记为已出库')
+    router.push({ name: 'StockOutNotifyList' })
   } catch (e) {
     console.error(e)
-    ElMessage.error('执行出库失败')
+    ElMessage.error(getApiErrorMessage(e, '执行出库失败'))
   } finally {
     submitting.value = false
   }
 }
 
 const goBack = () => {
-  router.push('/inventory/stock-out')
+  router.push({ name: 'StockOutNotifyList' })
 }
 
 const init = async () => {
   await loadWarehouses()
   await loadRequest()
+  if (requestAlreadyShipped.value) {
+    ElMessage.info('该出库通知已执行出库，仅可查看信息')
+  }
   await loadItemsFromRequest()
   await loadPickingTasks()
 }
@@ -379,7 +530,8 @@ init()
   .page-title { font-size: 20px; font-weight: 600; color: $text-primary; margin: 0; }
 }
 .btn-primary,
-.btn-secondary {
+.btn-secondary,
+.btn-picking {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -393,6 +545,14 @@ init()
   background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
   border-color: rgba(0, 212, 255, 0.4);
   color: #fff;
+}
+.btn-picking {
+  background: linear-gradient(135deg, rgba(0, 140, 120, 0.55), rgba(0, 100, 90, 0.45));
+  border-color: rgba(0, 212, 180, 0.4);
+  color: #e8fff8;
+  &:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
 }
 .btn-secondary {
   background: rgba(255, 255, 255, 0.05);
@@ -413,6 +573,18 @@ init()
   border-radius: 8px;
   border: 1px solid $border-panel;
   padding: 16px 18px;
+}
+.basic-info-form {
+  :deep(.el-form-item__label) {
+    width: 6em !important;
+    min-width: 6em;
+    max-width: 6em;
+    text-align: right;
+    justify-content: flex-end;
+    padding-right: 10px;
+    box-sizing: content-box;
+    white-space: nowrap;
+  }
 }
 .section-header {
   display: flex;
@@ -449,7 +621,81 @@ init()
   padding: 2px 6px;
   white-space: nowrap;
   flex-shrink: 0;
-  &:hover { text-decoration: underline; }
+  &:hover:not(:disabled) {
+    text-decoration: underline;
+  }
+  &:disabled,
+  &[disabled] {
+    color: rgba(140, 155, 175, 0.55) !important;
+    cursor: not-allowed;
+    opacity: 1;
+  }
+}
+.qty-cell {
+  font-variant-numeric: tabular-nums;
+  color: $text-primary;
+  font-size: 13px;
+}
+
+.flow-alert {
+  margin-bottom: 16px;
+  background: rgba(0, 212, 255, 0.06) !important;
+  border: 1px solid rgba(0, 212, 255, 0.2) !important;
+}
+.flow-alert-title {
+  font-weight: 600;
+  color: $text-primary;
+}
+.flow-steps {
+  margin: 8px 0 0;
+  padding-left: 1.25rem;
+  color: rgba(200, 216, 232, 0.85);
+  font-size: 13px;
+  line-height: 1.7;
+  li {
+    margin-bottom: 2px;
+  }
+  .flow-step--done {
+    color: #46bf91;
+  }
+}
+.flow-warn-msg,
+.flow-done-msg {
+  margin: 10px 0 0;
+  font-size: 12px;
+}
+.flow-warn-msg {
+  color: #ffc107;
+}
+.flow-done-msg {
+  color: #46bf91;
+}
+.form-sub-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: $text-muted;
+  line-height: 1.4;
+  word-break: break-all;
+}
+.picking-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: rgba(200, 216, 232, 0.75);
+  line-height: 1.55;
+}
+.picking-empty {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: $text-muted;
+}
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-secondary:disabled,
+.btn-picking:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 </style>
 

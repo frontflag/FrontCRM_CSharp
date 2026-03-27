@@ -10,7 +10,7 @@ namespace CRM.Core.Interfaces
         /// 生成下一个流水号（线程安全，使用数据库行锁）
         /// </summary>
         /// <param name="moduleCode">业务模块代码</param>
-        /// <returns>格式化后的完整编号（如 CUS2603230001）</returns>
+        /// <returns>格式化后的完整编号（如 CUS1234 或 SO2603230001）</returns>
         Task<string> GenerateNextAsync(string moduleCode);
 
         /// <summary>
@@ -34,8 +34,8 @@ namespace CRM.Core.Interfaces
     /// </summary>
     public static class ModuleCodes
     {
-        public const string Customer = "Customer";           // 客户：CUS0001
-        public const string Vendor = "Vendor";               // 供应商：VEN0001
+        public const string Customer = "Customer";           // 客户：CUS1234（不带日期）
+        public const string Vendor = "Vendor";               // 供应商：VEN1234（不带日期）
         public const string RFQ = "RFQ";                     // 询价/需求：RFQ0001
         public const string Quotation = "Quotation";         // 报价：QT + YYMMDD + 4位
         public const string SalesOrder = "SalesOrder";       // 销售订单：SO + YYMMDD + 4位

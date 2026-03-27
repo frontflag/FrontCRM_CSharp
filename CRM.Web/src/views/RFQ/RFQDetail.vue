@@ -84,10 +84,6 @@
               <span class="info-label">业务员</span>
               <span class="info-value">{{ rfq.salesUserName || '—' }}</span>
             </div>
-            <div class="info-item">
-              <span class="info-label">需求日期</span>
-              <span class="info-value info-value--time">{{ formatDate(rfq.rfqDate) }}</span>
-            </div>
           </div>
         </div>
 
@@ -219,7 +215,7 @@
                   <template #default="{ row }"><span class="cell-primary">{{ row.brand || '—' }}</span></template>
                 </el-table-column>
                 <el-table-column label="目标价" width="110" align="right">
-                  <template #default="{ row }"><span class="cell-secondary">{{ row.targetPrice ? `${row.currency || 'CNY'} ${row.targetPrice}` : '—' }}</span></template>
+                  <template #default="{ row }"><span class="cell-secondary">{{ row.targetPrice ? `${row.currency || 'RMB'} ${row.targetPrice}` : '—' }}</span></template>
                 </el-table-column>
                 <el-table-column label="数量" width="90" align="right">
                   <template #default="{ row }"><span class="cell-secondary">{{ row.quantity }}</span></template>
@@ -284,14 +280,11 @@
       </div>
       <el-form :model="assignForm" label-width="90px" style="margin-top: 16px;">
         <el-form-item label="采购员" required>
-          <el-select v-model="assignForm.purchaserId" placeholder="请选择采购员" style="width: 100%">
-            <el-option
-              v-for="p in purchaserList"
-              :key="p.id"
-              :label="`${p.name}（处理中: ${p.handlingCount ?? 0}）`"
-              :value="p.id"
-            />
-          </el-select>
+          <PurchaserCascader
+            v-model="assignForm.purchaserId"
+            placeholder="请选择采购员"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="assignForm.remark" type="textarea" :rows="2" placeholder="分配备注（可选）" />
@@ -336,6 +329,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElNotification, ElMessageBox } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import PurchaserCascader from '@/components/PurchaserCascader.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -355,7 +349,6 @@ const tabs = computed(() => [
 
 const assignDialogVisible = ref(false)
 const assignLoading = ref(false)
-const purchaserList = ref<any[]>([])
 const recommendedPurchaser = ref<any>(null)
 const assignForm = reactive({ purchaserId: '', remark: '' })
 
@@ -458,12 +451,12 @@ async function loadCloseRecords() {
 async function showAssignDialog() {
   assignForm.purchaserId = ''; assignForm.remark = ''; recommendedPurchaser.value = null
   try {
-    const [list, recommended] = await Promise.all([
-      rfqApi.getPurchasers(),
-      rfqApi.getRecommendedPurchasers(rfqId)
-    ])
-    purchaserList.value = list || []; recommendedPurchaser.value = recommended
-  } catch { purchaserList.value = [] }
+    const recommended = await rfqApi.getRecommendedPurchasers(rfqId)
+    const list = Array.isArray(recommended) ? recommended : recommended ? [recommended] : []
+    recommendedPurchaser.value = list[0] ?? null
+  } catch {
+    recommendedPurchaser.value = null
+  }
   assignDialogVisible.value = true
 }
 

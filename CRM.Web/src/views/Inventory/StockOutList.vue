@@ -21,13 +21,6 @@
           @keyup.enter="fetchList"
         />
         <button class="btn-secondary" @click="fetchList">刷新</button>
-        <button class="btn-primary" style="margin-left: 8px" @click="handleCreate">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          执行出库
-        </button>
       </div>
     </div>
 
@@ -35,10 +28,14 @@
       :data="filteredList"
       v-loading="loading"
     >
-        <el-table-column type="index" width="50" align="center" />
         <el-table-column prop="stockOutCode" label="出库单号" width="160">
           <template #default="{ row }">
             <span class="code-link">{{ row.stockOutCode }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="110">
+          <template #default="{ row }">
+            <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="sourceCode" label="来源申请" width="160" show-overflow-tooltip />
@@ -51,12 +48,13 @@
         <el-table-column prop="totalQuantity" label="出库数量" width="110" align="right">
           <template #default="{ row }">{{ formatNum(row.totalQuantity) }}</template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="110">
-          <template #default="{ row }">
-            <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
-          </template>
-        </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
+        <el-table-column label="创建时间" width="160">
+          <template #default="{ row }">{{ formatDate((row as any).createTime || (row as any).createdAt) }}</template>
+        </el-table-column>
+        <el-table-column label="创建人" width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
+        </el-table-column>
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <button class="action-btn" @click.stop="handleMarkFinish(row)" v-if="row.status !== 4">
@@ -70,12 +68,10 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { stockOutApi, type StockOutDto } from '@/api/stockOut'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
-const router = useRouter()
 const loading = ref(false)
 const list = ref<StockOutDto[]>([])
 const keyword = ref('')
@@ -113,10 +109,6 @@ const fetchList = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const handleCreate = () => {
-  router.push('/inventory/stock-out/create')
 }
 
 const handleMarkFinish = async (row: StockOutDto) => {
@@ -175,7 +167,6 @@ onMounted(fetchList)
   border-radius: 20px;
   padding: 3px 10px;
 }
-.btn-primary,
 .btn-secondary {
   display: inline-flex;
   align-items: center;
@@ -185,13 +176,6 @@ onMounted(fetchList)
   font-size: 13px;
   cursor: pointer;
   border: 1px solid transparent;
-}
-.btn-primary {
-  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
-  border-color: rgba(0, 212, 255, 0.4);
-  color: #fff;
-}
-.btn-secondary {
   background: rgba(255, 255, 255, 0.05);
   border-color: $border-panel;
   color: $text-secondary;

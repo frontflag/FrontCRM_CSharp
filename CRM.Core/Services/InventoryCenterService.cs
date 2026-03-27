@@ -13,6 +13,7 @@ namespace CRM.Core.Services
         private readonly IRepository<MaterialInfo> _materialRepository;
         private readonly IRepository<StockIn> _stockInRepository;
         private readonly IRepository<StockInItem> _stockInItemRepository;
+        private readonly IRepository<StockOutRequest> _stockOutRequestRepository;
         private readonly IRepository<StockOut> _stockOutRepository;
         private readonly IRepository<StockOutItem> _stockOutItemRepository;
         private readonly IRepository<InventoryLedger> _ledgerRepository;
@@ -62,6 +63,7 @@ namespace CRM.Core.Services
             IRepository<MaterialInfo> materialRepository,
             IRepository<StockIn> stockInRepository,
             IRepository<StockInItem> stockInItemRepository,
+            IRepository<StockOutRequest> stockOutRequestRepository,
             IRepository<StockOut> stockOutRepository,
             IRepository<StockOutItem> stockOutItemRepository,
             IRepository<InventoryLedger> ledgerRepository,
@@ -81,6 +83,7 @@ namespace CRM.Core.Services
             _materialRepository = materialRepository;
             _stockInRepository = stockInRepository;
             _stockInItemRepository = stockInItemRepository;
+            _stockOutRequestRepository = stockOutRequestRepository;
             _stockOutRepository = stockOutRepository;
             _stockOutItemRepository = stockOutItemRepository;
             _ledgerRepository = ledgerRepository;
@@ -473,7 +476,7 @@ namespace CRM.Core.Services
             return warehouse;
         }
 
-        public async Task<IEnumerable<PickingTask>> GetPickingTasksAsync(short? status = null)
+        public async Task<IEnumerable<PickingTaskSummaryDto>> GetPickingTasksAsync(short? status = null)
         {
             IEnumerable<PickingTask> tasks;
             try
@@ -482,12 +485,52 @@ namespace CRM.Core.Services
             }
             catch (Exception ex) when (IsTableMissingException(ex))
             {
-                return Array.Empty<PickingTask>();
+                return Array.Empty<PickingTaskSummaryDto>();
             }
-            return tasks
+            var list = tasks
                 .Where(x => !status.HasValue || x.Status == status.Value)
                 .OrderByDescending(x => x.CreateTime)
                 .ToList();
+
+            List<PickingTaskItem> taskItems;
+            try
+            {
+                taskItems = (await _pickingTaskItemRepository.GetAllAsync()).ToList();
+            }
+            catch (Exception ex) when (IsTableMissingException(ex))
+            {
+                taskItems = new List<PickingTaskItem>();
+            }
+
+            var sumByTask = taskItems
+                .GroupBy(i => i.PickingTaskId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => (Plan: g.Sum(x => x.PlanQty), Picked: g.Sum(x => x.PickedQty)),
+                    StringComparer.OrdinalIgnoreCase);
+
+            return list.Select(t =>
+            {
+                decimal plan = 0, picked = 0;
+                if (sumByTask.TryGetValue(t.Id, out var s))
+                {
+                    plan = s.Plan;
+                    picked = s.Picked;
+                }
+                return new PickingTaskSummaryDto
+                {
+                    Id = t.Id,
+                    TaskCode = t.TaskCode,
+                    StockOutRequestId = t.StockOutRequestId,
+                    WarehouseId = t.WarehouseId,
+                    OperatorId = t.OperatorId,
+                    Status = t.Status,
+                    Remark = t.Remark,
+                    CreateTime = t.CreateTime,
+                    PlanQtyTotal = plan,
+                    PickedQtyTotal = picked
+                };
+            }).ToList();
         }
 
         public async Task<PickingTask> GeneratePickingTaskAsync(GeneratePickingTaskRequest request)
@@ -496,13 +539,30 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(request.WarehouseId)) throw new ArgumentException("仓库ID不能为空");
             if (request.Items == null || request.Items.Count == 0) throw new ArgumentException("拣货明细不能为空");
 
+            var sorId = request.StockOutRequestId.Trim();
+            var sor = await _stockOutRequestRepository.GetByIdAsync(sorId)
+                ?? throw new InvalidOperationException("出库申请不存在");
+
+            // 同一出库通知只允许存在一条未取消的拣货任务，避免重复生成导致计划量叠加超过出库数量
+            var existingForSor = (await _pickingTaskRepository.GetAllAsync())
+                .Where(x => string.Equals(x.StockOutRequestId, sorId, StringComparison.OrdinalIgnoreCase) && x.Status != -1)
+                .ToList();
+            if (existingForSor.Count > 0)
+            {
+                var codes = string.Join("、", existingForSor.Select(x => x.TaskCode));
+                throw new InvalidOperationException($"该出库通知已存在拣货任务（{codes}），请勿重复生成。");
+            }
+
+            var soItem = await _sellOrderItemRepository.GetByIdAsync(sor.SalesOrderItemId.Trim());
+            var productIdFromLine = string.IsNullOrWhiteSpace(soItem?.ProductId) ? null : soItem!.ProductId!.Trim();
+
             var taskCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.PickingTask);
 
             var task = new PickingTask
             {
                 Id = Guid.NewGuid().ToString(),
                 TaskCode = taskCode,
-                StockOutRequestId = request.StockOutRequestId,
+                StockOutRequestId = sorId,
                 WarehouseId = request.WarehouseId,
                 OperatorId = string.IsNullOrWhiteSpace(request.OperatorId) ? "SYSTEM" : request.OperatorId,
                 Status = 1,
@@ -519,7 +579,9 @@ namespace CRM.Core.Services
             foreach (var item in request.Items)
             {
                 var need = item.Quantity;
-                foreach (var stock in stocks.Where(s => s.MaterialId == item.MaterialId && s.QtyRepertoryAvailable > 0))
+                var outboundCode = item.MaterialId?.Trim() ?? "";
+                foreach (var stock in stocks.Where(s =>
+                             StockMaterialMatch.Matches(s, outboundCode, productIdFromLine) && s.QtyRepertoryAvailable > 0))
                 {
                     if (need <= 0) break;
                     var qty = Math.Min(need, stock.QtyRepertoryAvailable);
@@ -528,7 +590,7 @@ namespace CRM.Core.Services
                     {
                         Id = Guid.NewGuid().ToString(),
                         PickingTaskId = task.Id,
-                        MaterialId = item.MaterialId,
+                        MaterialId = stock.MaterialId,
                         StockId = stock.Id,
                         BatchNo = stock.BatchNo,
                         LocationId = stock.LocationId,
@@ -539,7 +601,19 @@ namespace CRM.Core.Services
                     need -= qty;
                 }
                 if (need > 0)
-                    throw new InvalidOperationException($"物料 {item.MaterialId} 可用库存不足，缺少 {need}");
+                {
+                    var availableTotal = stocks
+                        .Where(s => StockMaterialMatch.Matches(s, outboundCode, productIdFromLine))
+                        .Sum(s => s.QtyRepertoryAvailable);
+                    var wh = await _warehouseRepository.GetByIdAsync(request.WarehouseId.Trim());
+                    var whLabel = wh != null ? $"{wh.WarehouseName}（{wh.WarehouseCode}）" : request.WarehouseId;
+                    throw new InvalidOperationException(
+                        $"仓库「{whLabel}」中物料「{outboundCode}」可用库存合计 {availableTotal}，本单需求 {item.Quantity}，仍缺 {need}。" +
+                        " 请入库、更换仓库或调减出库通知数量。" +
+                        (string.IsNullOrEmpty(productIdFromLine)
+                            ? "（若库存以 ProductId 入库，请为销售订单明细维护 ProductId）"
+                            : ""));
+                }
             }
 
             await _unitOfWork.SaveChangesAsync();

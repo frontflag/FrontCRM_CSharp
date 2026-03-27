@@ -5,7 +5,7 @@ export type DebugItem = {
   value: string
 }
 
-/** 与后端 DebugPageDto 一致（版本号由前端 PRD 硬编码，不在此接口） */
+/** 与后端 DebugPageDto 一致（版本号由 vite 注入 package.json，不在此接口） */
 export type DebugPage = {
   databaseConnectionDisplay: string
   items: DebugItem[]

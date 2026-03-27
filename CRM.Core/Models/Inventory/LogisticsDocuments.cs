@@ -27,6 +27,9 @@ namespace CRM.Core.Models.Inventory
         /// <summary>1新建 10未到货 20到货待检 30已质检 100已入库</summary>
         public short Status { get; set; } = 10;
 
+        /// <summary>预计到货日期（通知物流人员关注到期接收）</summary>
+        public DateTime? ExpectedArrivalDate { get; set; }
+
         public ICollection<StockInNotifyItem> Items { get; set; } = new List<StockInNotifyItem>();
     }
 

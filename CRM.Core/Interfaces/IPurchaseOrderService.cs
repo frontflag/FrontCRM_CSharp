@@ -38,7 +38,7 @@ namespace CRM.Core.Interfaces
         public string? PurchaseUserName { get; set; }
         /// <summary>订单类型 1=普通 2=紧急 3=样品</summary>
         public short Type { get; set; } = 1;
-        /// <summary>币别 1=CNY 2=USD 3=EUR</summary>
+        /// <summary>币别 1=RMB 2=USD 3=EUR</summary>
         public short Currency { get; set; } = 1;
         /// <summary>交货日期</summary>
         public DateTime? DeliveryDate { get; set; }
@@ -82,6 +82,7 @@ namespace CRM.Core.Interfaces
     public class UpdatePurchaseOrderRequest
     {
         public string? VendorName { get; set; }
+        public string? PurchaseUserId { get; set; }
         public string? PurchaseUserName { get; set; }
         public short? Type { get; set; }
         public short? Currency { get; set; }

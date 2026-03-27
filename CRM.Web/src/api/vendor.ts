@@ -37,11 +37,28 @@ export const vendorApi = {
   },
 
   async createVendor(data: CreateVendorRequest): Promise<Vendor> {
-    const payload = {
+    const payload: Record<string, unknown> = {
       code: data.code?.trim(),
       name: data.name?.trim(),
+      officialName: data.officialName?.trim(),
+      nickName: data.nickName?.trim(),
+      industry: data.industry?.trim(),
+      credit: data.credit,
+      status: data.status,
+      officeAddress: data.officeAddress?.trim(),
+      website: data.website?.trim(),
+      purchaserName: data.purchaserName?.trim(),
+      tradeCurrency: data.tradeCurrency ?? data.currency,
+      paymentMethod: data.paymentMethod?.trim(),
+      paymentDays: data.paymentDays,
+      creditCode: data.creditCode?.trim(),
+      taxNumber: data.taxNumber?.trim(),
+      companyInfo: data.companyInfo?.trim(),
       remark: data.remark?.trim()
     };
+    Object.keys(payload).forEach((k) => {
+      if (payload[k] === undefined) delete payload[k];
+    });
     const response = await apiClient.post<any>('/api/v1/vendors', payload);
     if (response && typeof response === 'object' && 'data' in response && response.data)
       return response.data as Vendor;
@@ -49,10 +66,28 @@ export const vendorApi = {
   },
 
   async updateVendor(id: string, data: UpdateVendorRequest): Promise<Vendor> {
-    const payload = {
+    const payload: Record<string, unknown> = {
       name: data.name?.trim(),
-      remark: data.remark?.trim()
+      nickName: data.nickName?.trim(),
+      industry: data.industry?.trim(),
+      product: data.product?.trim(),
+      credit: data.credit,
+      status: data.status,
+      officeAddress: data.officeAddress?.trim(),
+      website: data.website?.trim(),
+      purchaserName: data.purchaserName?.trim(),
+      level: data.level,
+      tradeCurrency: data.tradeCurrency,
+      paymentMethod: data.paymentMethod?.trim(),
+      paymentDays: data.paymentDays ?? data.payment,
+      creditCode: data.creditCode?.trim(),
+      companyInfo: data.companyInfo?.trim(),
+      remark: data.remark?.trim(),
+      externalNumber: data.externalNumber?.trim()
     };
+    Object.keys(payload).forEach((k) => {
+      if (payload[k] === undefined) delete payload[k];
+    });
     const response = await apiClient.put<any>(`/api/v1/vendors/${id}`, payload);
     if (response && typeof response === 'object' && 'data' in response && response.data)
       return response.data as Vendor;
@@ -69,6 +104,10 @@ export const vendorApi = {
 
   async deactivateVendor(id: string): Promise<void> {
     await apiClient.post(`/api/v1/vendors/${id}/deactivate`, {});
+  },
+
+  async submitAudit(id: string): Promise<void> {
+    await apiClient.post(`/api/v1/vendors/${id}/submit-audit`, {});
   },
 
   async addToBlacklist(id: string, reason: string): Promise<void> {

@@ -111,10 +111,6 @@ namespace CRM.Core.Models.RFQ
         [Column("remark")]
         public string? Remark { get; set; }
 
-        /// <summary>需求日期</summary>
-        [Column("rfq_date")]
-        public DateTime RfqDate { get; set; } = DateTime.UtcNow;
-
         // 导航属性
         public virtual ICollection<RFQItem> Items { get; set; } = new List<RFQItem>();
     }

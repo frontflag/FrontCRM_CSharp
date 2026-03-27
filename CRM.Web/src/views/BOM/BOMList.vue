@@ -122,10 +122,14 @@
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="44" />
-        <el-table-column label="序号" type="index" width="55" align="center" />
-        <el-table-column label="BOM 单号" min-width="150">
+        <el-table-column label="BOM 单号" width="160" min-width="160">
           <template #default="{ row }">
             <span class="bom-code" @click="goDetail(row.id)">{{ row.bomCode }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="90" align="center">
+          <template #default="{ row }">
+            <el-tag effect="dark" size="small" :type="getStatusTagType(row.status)">{{ getStatusText(row.status) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="客户" min-width="160" show-overflow-tooltip>
@@ -146,16 +150,11 @@
             <el-tag effect="dark" size="small" :type="getBOMTypeTagType(row.bomType)">{{ getBOMTypeText(row.bomType) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="90" align="center">
-          <template #default="{ row }">
-            <el-tag effect="dark" size="small" :type="getStatusTagType(row.status)">{{ getStatusText(row.status) }}</el-tag>
-          </template>
+        <el-table-column label="创建时间" width="150">
+          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
         <el-table-column label="创建人" width="90" show-overflow-tooltip>
           <template #default="{ row }">{{ row.salesUserName || row.createdBy || '—' }}</template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="150">
-          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">

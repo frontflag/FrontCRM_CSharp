@@ -1,9 +1,9 @@
--- 更新 admin 密码为 admin123
+-- 更新 admin 密码为 Admin123
 -- 使用正确的 BCrypt 哈希
 
 UPDATE "user" 
 SET "Password" = '$2a$11$vqvt8BRISDc6itm/ANyMGOo39xI8vkqEI.8IRvfcEW2mV9IA77to.',
-    "PasswordPlain" = 'admin123',
+    "PasswordPlain" = 'Admin123',
     "IsActive" = true,
     "Status" = 1
 WHERE "UserName" = 'admin';
@@ -14,9 +14,9 @@ SELECT
   'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
   'admin',
   'admin@frontcrm.com',
-  '$2a$11$vqvt8BRISDc6itm/ANyMGOo39xI8vkqEI.8IRvfcEW2mV9IA77to.',
+  '$2a$11$NG0gQf4DfJDQRP47SJ3OXueDdnuKS3gNjU4lLFCZ35Q9ypDPRFJfu$',
   'init_salt',
-  'admin123',
+  'Admin123',
   true,
   1,
   CURRENT_TIMESTAMP

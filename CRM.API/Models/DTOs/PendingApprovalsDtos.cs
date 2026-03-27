@@ -2,7 +2,7 @@ namespace CRM.API.Models.DTOs
 {
     public class PendingApprovalItemDto
     {
-        public string BizType { get; set; } = string.Empty; // e.g. VENDOR / QUOTE
+        public string BizType { get; set; } = string.Empty; // e.g. VENDOR / SALES_ORDER
         public string BizTypeName { get; set; } = string.Empty; // Chinese name
 
         public string BusinessId { get; set; } = string.Empty; // entity primary id
@@ -13,6 +13,8 @@ namespace CRM.API.Models.DTOs
 
         public decimal? Amount { get; set; } // optional amount for table display
         public short? Currency { get; set; } // optional currency id
+
+        public string? Submitter { get; set; } // submitter user id/name
 
         public short Status { get; set; } // current status
         public DateTime CreatedAt { get; set; }
@@ -28,8 +30,11 @@ namespace CRM.API.Models.DTOs
 
     public class PendingApprovalsQueryRequest
     {
-        // VENDOR / QUOTE / SALES_ORDER / FINANCE_RECEIPT / FINANCE_PAYMENT
+        // VENDOR / SALES_ORDER / PURCHASE_ORDER / CUSTOMER / FINANCE_RECEIPT / FINANCE_PAYMENT
         public string? BizType { get; set; }
+
+        // pending | approved | rejected
+        public string? State { get; set; } = "pending";
 
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;

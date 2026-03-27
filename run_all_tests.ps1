@@ -171,7 +171,7 @@ $testCustomer = @{
     remarks = "Test customer created by automation"
     creditLimit = 100000
     paymentTerms = "Net 30"
-    currency = "CNY"
+    currency = "RMB"
 }
 
 # 2.1 Create Customer

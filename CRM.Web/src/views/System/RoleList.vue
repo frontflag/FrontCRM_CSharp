@@ -7,15 +7,21 @@
       </div>
 
       <CrmDataTable v-loading="loading" :data="roles">
-        <el-table-column prop="roleCode" label="角色编码" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="roleName" label="角色名称" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="description" label="描述" min-width="240" show-overflow-tooltip />
         <el-table-column prop="status" label="状态" width="90">
           <template #default="{ row }">
             <el-tag effect="dark" :type="row.status === 1 ? 'success' : 'info'" size="small">
               {{ row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
+        </el-table-column>
+        <el-table-column prop="roleCode" label="角色编码" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="roleName" label="角色名称" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="description" label="描述" min-width="240" show-overflow-tooltip />
+        <el-table-column label="创建时间" width="160">
+          <template #default="{ row }">{{ formatCreateTime(row.createTime || row.createdAt) }}</template>
+        </el-table-column>
+        <el-table-column label="创建人" width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.createUserName || row.createdBy || '-' }}</template>
         </el-table-column>
         <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
@@ -33,11 +39,13 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { rbacAdminApi, type RbacRole } from '@/api/rbacAdmin'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 
 const loading = ref(false)
 const roles = ref<RbacRole[]>([])
+const formatCreateTime = (v?: string) => formatDisplayDateTime(v)
 
 const load = async () => {
   loading.value = true

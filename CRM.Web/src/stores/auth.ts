@@ -10,6 +10,10 @@ interface User {
   roleCodes?: string[]
   permissionCodes?: string[]
   departmentIds?: string[]
+  // 来自后端 `permission-summary`：用于菜单/功能展示的“部门数据隔离”维度判断
+  identityType?: number
+  saleDataScope?: number
+  purchaseDataScope?: number
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -39,6 +43,25 @@ export const useAuthStore = defineStore('auth', () => {
           departmentIds: authData.departmentIds || []
         }
         localStorage.setItem('token', tokenVal)
+        // 登录后补齐 permission-summary（用于 identityType / dataScope），否则菜单隔离可能失效
+        const summary = await authApi.getPermissionSummary().catch(() => null) as any
+        if (summary) {
+          const prevIsSysAdmin = user.value.isSysAdmin === true
+          user.value = {
+            ...user.value,
+            // 不要让 permission-summary 覆盖掉原本的 SYS_ADMIN 标识（避免 identityType 门禁误触发）
+            isSysAdmin: prevIsSysAdmin || !!summary?.isSysAdmin,
+            roleCodes: summary?.roleCodes || [],
+            permissionCodes: summary?.permissionCodes || [],
+            departmentIds: summary?.departmentIds || [],
+            identityType: Number(summary?.identityType ?? 0),
+            saleDataScope: Number(summary?.saleDataScope ?? 1),
+            purchaseDataScope: Number(summary?.purchaseDataScope ?? 1)
+          }
+        } else {
+          // 兜底：避免 identityType 仍是默认值导致菜单错误
+          user.value.identityType = user.value.identityType ?? 0
+        }
         localStorage.setItem('user', JSON.stringify(user.value))
         return true
       }
@@ -69,6 +92,22 @@ export const useAuthStore = defineStore('auth', () => {
           departmentIds: authData.departmentIds || []
         }
         localStorage.setItem('token', tokenVal)
+        // 注册后同样补齐 permission-summary（用于菜单隔离）
+        const summary = await authApi.getPermissionSummary().catch(() => null) as any
+        if (summary) {
+          const prevIsSysAdmin = user.value.isSysAdmin === true
+          user.value = {
+            ...user.value,
+            // 不要让 permission-summary 覆盖掉原本的 SYS_ADMIN 标识
+            isSysAdmin: prevIsSysAdmin || !!summary?.isSysAdmin,
+            roleCodes: summary?.roleCodes || [],
+            permissionCodes: summary?.permissionCodes || [],
+            departmentIds: summary?.departmentIds || [],
+            identityType: Number(summary?.identityType ?? 0),
+            saleDataScope: Number(summary?.saleDataScope ?? 1),
+            purchaseDataScope: Number(summary?.purchaseDataScope ?? 1)
+          }
+        }
         localStorage.setItem('user', JSON.stringify(user.value))
         return true
       }
@@ -89,12 +128,17 @@ export const useAuthStore = defineStore('auth', () => {
       const userData = await authApi.getCurrentUser() as any
       if (userData) {
         const summary = await authApi.getPermissionSummary() as any
+        const prevIsSysAdmin = user.value?.isSysAdmin === true
         user.value = {
           ...userData,
-          isSysAdmin: !!summary?.isSysAdmin,
+          // 避免 permission-summary 覆盖掉原本的 SYS_ADMIN 标识
+          isSysAdmin: prevIsSysAdmin || !!summary?.isSysAdmin,
           roleCodes: summary?.roleCodes || [],
           permissionCodes: summary?.permissionCodes || [],
-          departmentIds: summary?.departmentIds || []
+          departmentIds: summary?.departmentIds || [],
+          identityType: Number(summary?.identityType ?? 0),
+          saleDataScope: Number(summary?.saleDataScope ?? 1),
+          purchaseDataScope: Number(summary?.purchaseDataScope ?? 1)
         }
         localStorage.setItem('user', JSON.stringify(user.value))
       }

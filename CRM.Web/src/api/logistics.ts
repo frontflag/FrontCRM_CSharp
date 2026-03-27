@@ -20,6 +20,8 @@ export interface StockInNotifyDto {
   vendorName?: string
   purchaseUserName?: string
   status: number
+  /** 预计到货日期 */
+  expectedArrivalDate?: string | null
   createTime: string
   modifyTime?: string
   items: StockInNotifyItemDto[]
@@ -51,8 +53,11 @@ export const logisticsApi = {
   async getArrivalNotices(): Promise<StockInNotifyDto[]> {
     return unwrap<StockInNotifyDto[]>(await apiClient.get('/api/v1/logistics/arrival-notices'))
   },
-  async createArrivalNotice(purchaseOrderId: string): Promise<StockInNotifyDto> {
-    return unwrap<StockInNotifyDto>(await apiClient.post('/api/v1/logistics/arrival-notices', { purchaseOrderId }))
+  async createArrivalNotice(payload: {
+    purchaseOrderId: string
+    expectedArrivalDate?: string | null
+  }): Promise<StockInNotifyDto> {
+    return unwrap<StockInNotifyDto>(await apiClient.post('/api/v1/logistics/arrival-notices', payload))
   },
   async autoGenerateArrivalNotices(): Promise<AutoGenerateArrivalNoticeResult> {
     return unwrap<AutoGenerateArrivalNoticeResult>(await apiClient.post('/api/v1/logistics/arrival-notices/auto-generate', {}))

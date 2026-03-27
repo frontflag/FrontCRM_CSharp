@@ -180,6 +180,11 @@ export const customerApi = {
     await apiClient.post(`/api/v1/customers/${id}/deactivate`);
   },
 
+  // 提交审核（新建 -> 待审核）
+  async submitAudit(id: string): Promise<void> {
+    await apiClient.post(`/api/v1/customers/${id}/submit-audit`);
+  },
+
   // 获取客户统计信息
   async getCustomerStatistics(): Promise<CustomerStatistics> {
     return await apiClient.get<CustomerStatistics>('/api/v1/customers/statistics');

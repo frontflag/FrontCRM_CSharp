@@ -45,7 +45,7 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 更新状态
         /// </summary>
-        Task UpdateStatusAsync(string id, short status);
+        Task UpdateStatusAsync(string id, short status, string? auditRemark = null);
 
         /// <summary>
         /// 搜索
@@ -336,7 +336,35 @@ namespace CRM.Core.Interfaces
     public class CreateVendorRequest
     {
         public string? Code { get; set; }
+        /// <summary>公司全称（与 OfficialName 二选一）</summary>
         public string? Name { get; set; }
+        /// <summary>前端表单字段 officialName，草稿 JSON 常用此键</summary>
+        public string? OfficialName { get; set; }
+        public string? NickName { get; set; }
+        /// <summary>行业分类</summary>
+        public string? Industry { get; set; }
+        /// <summary>信用评级 1-5</summary>
+        public short? Credit { get; set; }
+        /// <summary>状态：1新建 2待审核 10已审核 12待财务审核 20财务建档 -1审核失败</summary>
+        public short? Status { get; set; }
+        public string? OfficeAddress { get; set; }
+        public string? Website { get; set; }
+        public string? PurchaserName { get; set; }
+        /// <summary>结算货币（与前端 CurrencyCode 一致）</summary>
+        public short? TradeCurrency { get; set; }
+        /// <summary>与 TradeCurrency 二选一（草稿 formData 使用 currency）</summary>
+        public short? Currency { get; set; }
+        /// <summary>付款方式编码（如 Prepaid、TT）</summary>
+        public string? PaymentMethod { get; set; }
+        /// <summary>账期天数</summary>
+        public short? PaymentDays { get; set; }
+        /// <summary>税号 / 统一社会信用代码</summary>
+        public string? CreditCode { get; set; }
+        /// <summary>与 CreditCode 二选一（前端表单 taxNumber）</summary>
+        public string? TaxNumber { get; set; }
+        /// <summary>公司简介</summary>
+        public string? CompanyInfo { get; set; }
+        /// <summary>其他备注</summary>
         public string? Remark { get; set; }
     }
 
@@ -346,21 +374,35 @@ namespace CRM.Core.Interfaces
     public class UpdateVendorRequest
     {
         public string? Name { get; set; }
-        public string? Remark { get; set; }
+        public string? NickName { get; set; }
         /// <summary>行业分类</summary>
         public string? Industry { get; set; }
-        /// <summary>供应商分类/产品类别</summary>
+        /// <summary>供应商分类/主营产品</summary>
         public string? Product { get; set; }
         /// <summary>信用评级 1-5星</summary>
         public short? Credit { get; set; }
+        /// <summary>合作状态</summary>
+        public short? Status { get; set; }
         /// <summary>办公地址</summary>
         public string? OfficeAddress { get; set; }
+        public string? Website { get; set; }
+        public string? PurchaserName { get; set; }
         /// <summary>供应商等级</summary>
         public short? Level { get; set; }
         /// <summary>贸易币种</summary>
         public short? TradeCurrency { get; set; }
-        /// <summary>付款方式</summary>
+        /// <summary>付款方式（字符串，存 PaymentMethod）</summary>
+        public string? PaymentMethod { get; set; }
+        /// <summary>账期（天）</summary>
+        public short? PaymentDays { get; set; }
+        /// <summary>兼容旧字段：与 PaymentDays 同义</summary>
         public short? Payment { get; set; }
+        /// <summary>税号</summary>
+        public string? CreditCode { get; set; }
+        /// <summary>公司简介</summary>
+        public string? CompanyInfo { get; set; }
+        /// <summary>其他备注</summary>
+        public string? Remark { get; set; }
         /// <summary>外部编号</summary>
         public string? ExternalNumber { get; set; }
     }

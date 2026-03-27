@@ -19,6 +19,9 @@ namespace CRM.Core.Interfaces
     public class CreateArrivalNoticeRequest
     {
         public string PurchaseOrderId { get; set; } = string.Empty;
+
+        /// <summary>预计到货日期（通知物流；可选，批量同步时可缺省由 PO 交货日带出）</summary>
+        public DateTime? ExpectedArrivalDate { get; set; }
     }
 
     public class CreateQcRequest

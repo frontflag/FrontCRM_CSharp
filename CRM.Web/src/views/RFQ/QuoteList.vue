@@ -89,35 +89,48 @@
         @selection-change="onQuoteSelectionChange"
       >
         <el-table-column type="selection" width="48" :reserve-selection="true" />
-        <el-table-column prop="quoteCode" label="报价编号" width="150" sortable>
+        <el-table-column prop="quoteCode" label="报价编号" width="160" min-width="160" show-overflow-tooltip sortable>
           <template #default="{ row }">
             <span class="quote-code-cell">{{ displayQuoteCode(row) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="需求编号" width="140" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span>{{ displayRfqCode(row) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="mpn" label="物料型号" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="customerName" label="客户" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="salesUserName" label="业务员" width="100" />
-        <el-table-column prop="purchaseUserName" label="采购员" width="100" />
-        <el-table-column prop="status" label="状态" width="100" align="center">
+        <el-table-column prop="status" label="状态" width="160" align="center">
           <template #default="{ row }">
             <el-tag effect="dark" :type="getStatusType(row.status)" size="small">
               {{ getStatusText(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="需求编号" width="160" min-width="160" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span>{{ displayRfqCode(row) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="mpn" label="物料型号" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="customerName" label="客户" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="salesUserName" label="业务员" width="100" />
+        <el-table-column prop="purchaseUserName" label="采购员" width="100" />
         <el-table-column label="供应商数" width="90" align="center">
           <template #default="{ row }">
             {{ row.items?.length || 0 }}
           </template>
         </el-table-column>
-        <el-table-column prop="quoteDate" label="报价日期" width="110" />
-        <el-table-column prop="createTime" label="创建时间" width="150" />
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column prop="quoteDate" label="报价日期" width="160">
+          <template #default="{ row }">
+            {{ formatDisplayDate(row.quoteDate) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="createTime" label="创建时间" width="160">
+          <template #default="{ row }">
+            {{ formatDisplayDateTime(row.createTime) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="创建人" width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ row.createUserName || row.createdBy || row.salesUserName || row.purchaseUserName || '—' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
             <el-dropdown @command="(cmd: string) => handleMore(cmd, row)">
@@ -126,7 +139,6 @@
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="status">更新状态</el-dropdown-item>
                   <el-dropdown-item command="delete" type="danger" divided>删除</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -149,27 +161,6 @@
       </div>
     </el-card>
 
-    <!-- 状态更新对话框 -->
-    <el-dialog v-model="statusDialogVisible" title="更新状态" width="400px">
-      <el-form label-width="100px">
-        <el-form-item label="新状态">
-          <el-select v-model="newStatus" style="width: 100%">
-            <el-option label="草稿" :value="0" />
-            <el-option label="待审核" :value="1" />
-            <el-option label="已审核" :value="2" />
-            <el-option label="已发送" :value="3" />
-            <el-option label="已接受" :value="4" />
-            <el-option label="已拒绝" :value="5" />
-            <el-option label="已过期" :value="6" />
-            <el-option label="已关闭" :value="7" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="statusDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="confirmUpdateStatus">确定</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -180,6 +171,7 @@ import { Search, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { quoteApi } from '@/api/quote'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const route = useRoute()
@@ -202,10 +194,6 @@ const pageInfo = ref({
   pageSize: 10,
   total: 0
 })
-
-const statusDialogVisible = ref(false)
-const currentRow = ref<any>(null)
-const newStatus = ref(0)
 
 const totalCount = computed(() => quoteList.value.length)
 
@@ -335,12 +323,7 @@ const handleEdit = (row: any) => {
 
 // 更多操作
 const handleMore = (cmd: string, row: any) => {
-  currentRow.value = row
   switch (cmd) {
-    case 'status':
-      newStatus.value = row.status
-      statusDialogVisible.value = true
-      break
     case 'delete':
       handleDelete(row)
       break
@@ -356,14 +339,6 @@ const handleDelete = async (row: any) => {
   } catch {
     // 取消
   }
-}
-
-// 更新状态
-const confirmUpdateStatus = async () => {
-  if (!currentRow.value) return
-  await quoteApi.updateStatus(currentRow.value.id, newStatus.value)
-  statusDialogVisible.value = false
-  loadData()
 }
 
 onMounted(loadData)

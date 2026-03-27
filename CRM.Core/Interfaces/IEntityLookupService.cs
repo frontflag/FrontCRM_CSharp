@@ -26,8 +26,9 @@ public interface IEntityLookupService
     Task<User?> GetUserByIdAsync(string? userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 根据用户主键返回展示名：优先 <see cref="User.RealName"/>，为空则用 <see cref="User.UserName"/>。
-    /// ID 为空或用户不存在时返回 null。
+    /// 根据用户标识返回展示名：优先按用户ID查询，失败后按 UserName 查询；
+    /// 展示名优先 <see cref="User.RealName"/>，为空则用 <see cref="User.UserName"/>。
+    /// 标识为空或用户不存在时返回 null。
     /// </summary>
     Task<string?> GetUserDisplayNameAsync(string? userId, CancellationToken cancellationToken = default);
 }

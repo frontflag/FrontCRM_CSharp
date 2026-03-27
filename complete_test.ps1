@@ -40,7 +40,7 @@ $testCustomer = @{
     remarks = "Test customer"
     creditLimit = 100000
     paymentTerms = "Net 30"
-    currency = "CNY"
+    currency = "RMB"
 }
 
 # ==================== PHASE 1: USER AUTHENTICATION ====================

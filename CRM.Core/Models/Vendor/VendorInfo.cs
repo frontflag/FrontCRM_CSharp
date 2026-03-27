@@ -179,6 +179,29 @@ namespace CRM.Core.Models.Vendor
         public string? CompanyInfo { get; set; }
 
         /// <summary>
+        /// 其他备注（与公司简介区分）
+        /// </summary>
+        public string? Remark { get; set; }
+
+        /// <summary>
+        /// 官方网站
+        /// </summary>
+        [StringLength(300)]
+        public string? Website { get; set; }
+
+        /// <summary>
+        /// 负责采购员（展示名，非用户表关联时可填）
+        /// </summary>
+        [StringLength(64)]
+        public string? PurchaserName { get; set; }
+
+        /// <summary>
+        /// 付款方式（如 Prepaid、TT 等，与账期天数区分）
+        /// </summary>
+        [StringLength(50)]
+        public string? PaymentMethod { get; set; }
+
+        /// <summary>
         /// 上市代码
         /// </summary>
         [StringLength(50)]
@@ -219,9 +242,16 @@ namespace CRM.Core.Models.Vendor
         public string? PurchaseGroupId { get; set; }
 
         /// <summary>
-        /// 审核状态
+        /// 状态
+        /// 1=新建 2=待审核 10=已审核 12=待财务审核 20=财务建档 -1=审核失败
         /// </summary>
-        public short Status { get; set; } = 0;
+        public short Status { get; set; } = 1;
+
+        /// <summary>
+        /// 审核拒绝原因（审核失败时由审批人填写）
+        /// </summary>
+        [StringLength(500)]
+        public string? AuditRemark { get; set; }
 
         /// <summary>
         /// 是否已删除（软删除）

@@ -80,8 +80,8 @@
               </el-col>
               <el-col :span="12">
                 <el-form-item label="结算货币">
-                  <el-select v-model="formData.currency" placeholder="CNY" class="w-full">
-                    <el-option label="CNY（人民币）" value="CNY" />
+                  <el-select v-model="formData.currency" placeholder="RMB" class="w-full">
+                    <el-option label="RMB（人民币）" value="RMB" />
                     <el-option label="USD（美元）" value="USD" />
                     <el-option label="EUR（欧元）" value="EUR" />
                     <el-option label="HKD（港币）" value="HKD" />
@@ -149,7 +149,7 @@
                   <tr><td>D</td><td>品牌</td><td>—</td><td>STMicro</td></tr>
                   <tr><td>E</td><td>数量</td><td><span class="req">必填</span></td><td>1000</td></tr>
                   <tr><td>F</td><td>目标价</td><td>—</td><td>2.50</td></tr>
-                  <tr><td>G</td><td>货币</td><td>—</td><td>CNY</td></tr>
+                  <tr><td>G</td><td>货币</td><td>—</td><td>RMB</td></tr>
                   <tr><td>H</td><td>最小包装量</td><td>—</td><td>100</td></tr>
                   <tr><td>I</td><td>最小起订量</td><td>—</td><td>500</td></tr>
                   <tr><td>J</td><td>可替代料</td><td>—</td><td>GD32F103</td></tr>
@@ -232,7 +232,7 @@ const formData = ref({
   bomType: 1,
   source: 5,
   industry: '',
-  currency: 'CNY',
+  currency: 'RMB',
   remark: '',
 })
 const formRules = {
@@ -328,8 +328,8 @@ const clearParsed = () => {
 
 // ── 下载模板 ──
 const downloadTemplate = () => {
-  const headers = ['客户物料型号', '物料型号(MPN)*', '客户品牌', '品牌', '数量*', '目标价', '货币(CNY/USD/EUR/HKD)', '最小包装量', '最小起订量(MOQ)', '可替代料(逗号分隔)', '备注']
-  const example = ['ABC-001', 'STM32F103C8T6', 'ST', 'STMicroelectronics', 1000, 2.5, 'CNY', 100, 500, 'STM32F103CBT6', '需2年内产品']
+  const headers = ['客户物料型号', '物料型号(MPN)*', '客户品牌', '品牌', '数量*', '目标价', '货币(RMB/USD/EUR/HKD)', '最小包装量', '最小起订量(MOQ)', '可替代料(逗号分隔)', '备注']
+  const example = ['ABC-001', 'STM32F103C8T6', 'ST', 'STMicroelectronics', 1000, 2.5, 'RMB', 100, 500, 'STM32F103CBT6', '需2年内产品']
   const wb = XLSX.utils.book_new()
   const ws = XLSX.utils.aoa_to_sheet([headers, example])
   ws['!cols'] = headers.map(() => ({ wch: 20 }))

@@ -20,12 +20,12 @@
       </el-form-item>
       <el-form-item label="币种">
         <el-select v-model="form.currency" placeholder="请选择" style="width: 200px">
-          <el-option label="人民币(CNY)" :value="1" />
-          <el-option label="美元(USD)" :value="2" />
-          <el-option label="欧元(EUR)" :value="3" />
-          <el-option label="日元(JPY)" :value="4" />
-          <el-option label="英镑(GBP)" :value="5" />
-          <el-option label="港币(HKD)" :value="6" />
+          <el-option
+            v-for="opt in CURRENCY_OPTIONS"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
         </el-select>
       </el-form-item>
       <el-form-item label="默认账户">
@@ -49,6 +49,7 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue';
 import type { VendorBankInfo } from '@/types/vendor';
+import { CURRENCY_OPTIONS } from '@/constants/currency';
 
 const props = defineProps<{
   modelValue: boolean;

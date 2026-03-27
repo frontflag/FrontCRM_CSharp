@@ -32,17 +32,21 @@
 
     <el-card class="table-card">
       <CrmDataTable :data="list" v-loading="loading" highlight-current-row>
-        <el-table-column prop="billCode" label="采购申请号" width="170" />
-        <el-table-column prop="sellOrderCode" label="销售订单" width="140" />
-        <el-table-column prop="pn" label="物料型号" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="brand" label="品牌" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="qty" label="申请数量" width="120" align="right" />
-        <el-table-column prop="expectedPurchaseTime" label="预计采购日期" width="170" />
-        <el-table-column prop="status" label="状态" width="110" align="center">
+        <el-table-column prop="billCode" label="采购申请号" width="160" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="status" label="状态" width="160" align="center">
           <template #default="{ row }">
             <el-tag effect="dark" :type="getStatusTagType(row.status)" size="small">
               {{ getStatusText(row.status) }}
             </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="sellOrderCode" label="销售订单" width="160" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="pn" label="物料型号" min-width="140" show-overflow-tooltip />
+        <el-table-column prop="brand" label="品牌" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="qty" label="申请数量" width="120" align="right" />
+        <el-table-column prop="expectedPurchaseTime" label="预计采购日期" width="160">
+          <template #default="{ row }">
+            {{ formatDisplayDateTime(row.expectedPurchaseTime) }}
           </template>
         </el-table-column>
         <el-table-column prop="type" label="类型" width="110" align="center">
@@ -52,6 +56,16 @@
         </el-table-column>
         <el-table-column prop="purchaseUserId" label="采购员ID" width="140" show-overflow-tooltip />
         <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
+        <el-table-column label="创建时间" width="160">
+          <template #default="{ row }">
+            {{ row.createTime ? formatDisplayDateTime(row.createTime) : '--' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="创建人" width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ row.createUserName || row.createdBy || row.purchaseUserName || row.purchaseUserId || '--' }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="handleView(row)">查看</el-button>
@@ -83,6 +97,7 @@ import { useRouter } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
 import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 

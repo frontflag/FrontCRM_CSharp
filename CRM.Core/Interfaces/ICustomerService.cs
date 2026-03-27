@@ -120,7 +120,7 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 更新客户状态
         /// </summary>
-        Task UpdateCustomerStatusAsync(string id, short status);
+        Task UpdateCustomerStatusAsync(string id, short status, string? auditRemark = null);
 
         /// <summary>
         /// 检查客户编码是否已存在
@@ -441,6 +441,15 @@ namespace CRM.Core.Interfaces
             get => CreditCode; 
             set => CreditCode = value; 
         }
+
+        /// <summary>省/州（地区级联）</summary>
+        public string? Province { get; set; }
+
+        /// <summary>市</summary>
+        public string? City { get; set; }
+
+        /// <summary>区/县</summary>
+        public string? District { get; set; }
     }
 
     /// <summary>
@@ -620,6 +629,15 @@ namespace CRM.Core.Interfaces
             get => CreditCode; 
             set => CreditCode = value; 
         }
+
+        /// <summary>省/州（地区级联）</summary>
+        public string? Province { get; set; }
+
+        /// <summary>市</summary>
+        public string? City { get; set; }
+
+        /// <summary>区/县</summary>
+        public string? District { get; set; }
     }
 
     /// <summary>

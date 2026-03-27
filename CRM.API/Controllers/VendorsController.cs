@@ -13,12 +13,14 @@ namespace CRM.API.Controllers
     public class VendorsController : ControllerBase
     {
         private readonly IVendorService _vendorService;
+        private readonly IApprovalRecordService _approvalRecordService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly ILogger<VendorsController> _logger;
 
-        public VendorsController(IVendorService vendorService, IDataPermissionService dataPermissionService, ILogger<VendorsController> logger)
+        public VendorsController(IVendorService vendorService, IApprovalRecordService approvalRecordService, IDataPermissionService dataPermissionService, ILogger<VendorsController> logger)
         {
             _vendorService = vendorService;
+            _approvalRecordService = approvalRecordService;
             _dataPermissionService = dataPermissionService;
             _logger = logger;
         }
@@ -98,7 +100,7 @@ namespace CRM.API.Controllers
                 var firstDayOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
                 var totalVendors = vendors.Count;
-                var activeVendors = vendors.Count(v => v.Status == 1 && !v.IsDeleted);
+                var activeVendors = vendors.Count(v => (v.Status == 10 || v.Status == 20) && !v.IsDeleted);
                 var newThisMonth = vendors.Count(v => v.CreateTime >= firstDayOfMonth && !v.IsDeleted);
 
                 var byLevel = vendors
@@ -292,7 +294,7 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _vendorService.UpdateStatusAsync(id, 1);
+                await _vendorService.UpdateStatusAsync(id, 10);
                 return Ok(ApiResponse<object>.Ok(null, "激活供应商成功"));
             }
             catch (KeyNotFoundException ex)
@@ -311,7 +313,7 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _vendorService.UpdateStatusAsync(id, 0);
+                await _vendorService.UpdateStatusAsync(id, 1);
                 return Ok(ApiResponse<object>.Ok(null, "停用供应商成功"));
             }
             catch (KeyNotFoundException ex)
@@ -322,6 +324,37 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "停用供应商失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"停用供应商失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>提交审核：新建(1) -> 待审核(2)</summary>
+        [HttpPost("{id}/submit-audit")]
+        [RequirePermission("vendor.write")]
+        public async Task<ActionResult<ApiResponse<object>>> SubmitAudit(string id)
+        {
+            try
+            {
+                var vendor = await _vendorService.GetByIdAsync(id);
+                if (vendor == null)
+                    return NotFound(ApiResponse<object>.Fail("供应商不存在", 404));
+                var before = vendor.Status;
+                await _vendorService.UpdateStatusAsync(id, 2);
+                await _approvalRecordService.RecordSubmitAsync(
+                    "VENDOR",
+                    vendor.Id,
+                    vendor.Code,
+                    $"供应商：{(vendor.OfficialName ?? vendor.NickName ?? vendor.Code)}；采购员：{(vendor.PurchaseUserId ?? "—")}；付款方式：{(vendor.PaymentMethod ?? "—")}",
+                    before,
+                    2,
+                    null,
+                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                    User.Identity?.Name);
+                return Ok(ApiResponse<object>.Ok(null, "提交审核成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "提交供应商审核失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"提交审核失败: {ex.Message}", 500));
             }
         }
 

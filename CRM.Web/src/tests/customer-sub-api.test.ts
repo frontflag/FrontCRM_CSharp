@@ -512,7 +512,7 @@ describe('customerBankApi - 银行账户接口', () => {
 
     it('TC-BANK-003: 返回多个银行账户（不同币种）', async () => {
       mockGet.mockResolvedValue([
-        makeBank({ id: 'b-001', currency: 1, isDefault: true }),   // CNY
+        makeBank({ id: 'b-001', currency: 1, isDefault: true }),   // RMB
         makeBank({ id: 'b-002', currency: 2, isDefault: false }),  // USD
         makeBank({ id: 'b-003', currency: 3, isDefault: false })   // EUR
       ])
@@ -571,7 +571,7 @@ describe('customerBankApi - 银行账户接口', () => {
       expect(body.accountNumber).toBe('6227001234567890')
     })
 
-    it('TC-BANK-008: 币种枚举 CNY=1 正确传递', async () => {
+    it('TC-BANK-008: 币种枚举 RMB=1 正确传递', async () => {
       mockPost.mockResolvedValue(makeBank({ currency: 1 }))
       await customerBankApi.createBank('cust-001', {
         accountName: '公司', bankName: '工行', bankBranch: '支行',

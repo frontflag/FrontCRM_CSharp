@@ -89,15 +89,6 @@
               />
             </el-select>
           </el-form-item>
-          <el-form-item label="需求日期">
-            <el-date-picker
-              v-model="rfqBaseForm.rfqDate"
-              type="date"
-              value-format="YYYY-MM-DD"
-              placeholder="选择日期"
-              style="width:160px"
-            />
-          </el-form-item>
           <el-form-item label="来源">
             <el-select v-model="rfqBaseForm.source" style="width:120px" clearable>
               <el-option label="线下" :value="1" />
@@ -268,7 +259,6 @@ const errorItems = computed(() => previewItems.value.filter(r => !!r._error))
 // ── RFQ 基础信息 ──
 const rfqBaseForm = ref({
   customerId: '',
-  rfqDate: new Date().toISOString().slice(0, 10),
   source: 5, // 导入
   rfqType: undefined as number | undefined,
   remark: '',
@@ -305,7 +295,7 @@ const columnMapping = [
   { col: 'D', field: '品牌', required: false, example: 'STMicroelectronics', note: '我方品牌' },
   { col: 'E', field: '数量', required: true, example: '1000', note: '需求数量，必填，正整数' },
   { col: 'F', field: '目标价', required: false, example: '2.5', note: '目标单价' },
-  { col: 'G', field: '货币', required: false, example: 'CNY', note: 'CNY/USD/EUR/HKD，默认 CNY' },
+  { col: 'G', field: '货币', required: false, example: 'RMB', note: 'RMB/USD/EUR/HKD，默认 RMB' },
   { col: 'H', field: '最小包装量', required: false, example: '100', note: '最小包装数量' },
   { col: 'I', field: '最小起订量', required: false, example: '500', note: 'MOQ' },
   { col: 'J', field: '可替代料', required: false, example: 'STM32F103CBT6', note: '多个用逗号分隔' },
@@ -340,7 +330,7 @@ function parseExcel(file: File): Promise<(CreateRFQItemRequest & { _error?: stri
           const brand = String(row[3] || '').trim()
           const quantityRaw = row[4]
           const targetPriceRaw = row[5]
-          const currency = String(row[6] || 'CNY').trim().toUpperCase() || 'CNY'
+          const currency = String(row[6] || 'RMB').trim().toUpperCase() || 'RMB'
           const minPackageQty = row[7] ? Number(row[7]) : undefined
           const moq = row[8] ? Number(row[8]) : undefined
           const alternatives = String(row[9] || '').trim()
@@ -362,7 +352,7 @@ function parseExcel(file: File): Promise<(CreateRFQItemRequest & { _error?: stri
             brand: brand || undefined,
             quantity: isNaN(quantity) ? 0 : quantity,
             targetPrice: targetPriceRaw !== '' && targetPriceRaw != null ? Number(targetPriceRaw) : undefined,
-            currency: currency || 'CNY',
+            currency: currency || 'RMB',
             minPackageQty,
             moq,
             minOrderQty: moq,
@@ -418,7 +408,6 @@ async function handleSubmit() {
   try {
     const payload: CreateRFQRequest = {
       customerId: rfqBaseForm.value.customerId,
-      rfqDate: rfqBaseForm.value.rfqDate,
       source: rfqBaseForm.value.source as any,
       rfqType: rfqBaseForm.value.rfqType as any,
       remark: rfqBaseForm.value.remark || undefined,
@@ -465,7 +454,6 @@ function handleClose() {
   createdRFQId.value = ''
   rfqBaseForm.value = {
     customerId: '',
-    rfqDate: new Date().toISOString().slice(0, 10),
     source: 5,
     rfqType: undefined,
     remark: '',
@@ -477,12 +465,12 @@ function downloadTemplate() {
   // 构建模板数据
   const headers = [
     '客户物料型号', '物料型号(MPN)*', '客户品牌', '品牌',
-    '数量*', '目标价', '货币(CNY/USD/EUR/HKD)',
+    '数量*', '目标价', '货币(RMB/USD/EUR/HKD)',
     '最小包装量', '最小起订量(MOQ)', '可替代料(逗号分隔)', '备注'
   ]
   const exampleRow = [
     'ABC-001', 'STM32F103C8T6', 'ST', 'STMicroelectronics',
-    '1000', '2.5', 'CNY',
+    '1000', '2.5', 'RMB',
     '100', '500', 'STM32F103CBT6', '需2年内产品'
   ]
   const ws = XLSX.utils.aoa_to_sheet([headers, exampleRow])

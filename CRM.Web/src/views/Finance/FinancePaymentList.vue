@@ -62,9 +62,16 @@
       @row-click="openDetail"
       row-class-name="table-row-pointer"
     >
-        <el-table-column prop="financePaymentCode" label="付款单号" width="140" fixed>
+        <el-table-column prop="financePaymentCode" label="付款单号" width="160" min-width="160" fixed>
           <template #default="{ row }">
             <span class="code-text">{{ row.financePaymentCode }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag effect="dark" :type="PAYMENT_STATUS_MAP[row.status]?.type as any" size="small">
+              {{ PAYMENT_STATUS_MAP[row.status]?.label }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="vendorName" label="供应商" min-width="160" show-overflow-tooltip />
@@ -79,16 +86,14 @@
         <el-table-column prop="paymentDate" label="付款日期" width="120">
           <template #default="{ row }">{{ row.paymentDate ? formatDisplayDate(row.paymentDate) : '-' }}</template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="PAYMENT_STATUS_MAP[row.status]?.type as any" size="small">
-              {{ PAYMENT_STATUS_MAP[row.status]?.label }}
-            </el-tag>
-          </template>
-        </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
         <el-table-column prop="createdAt" label="创建时间" width="120">
-          <template #default="{ row }">{{ row.createdAt ? formatDisplayDate(row.createdAt) : '-' }}</template>
+          <template #default="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
+        </el-table-column>
+        <el-table-column label="创建人" width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ (row as any).createUserName || (row as any).createdBy || (row as any).paymentUserName || '-' }}
+          </template>
         </el-table-column>
         <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
@@ -185,7 +190,7 @@ import {
   type FinancePayment,
   type PageQuery,
 } from '@/api/finance'
-import { formatDisplayDate } from '@/utils/displayDateTime'
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace CRM.Core.Models.Vendor
 {
@@ -66,6 +67,7 @@ namespace CRM.Core.Models.Vendor
 
         // 导航属性
         [ForeignKey("VendorId")]
+        [JsonIgnore]
         public virtual VendorInfo? Vendor { get; set; }
     }
 }

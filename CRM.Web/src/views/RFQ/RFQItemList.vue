@@ -1,19 +1,22 @@
 <template>
-  <div class="rfq-item-list-page">
+  <div class="rfq-item-list-page customer-list-theme">
     <div class="rfq-item-main">
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">需求明细</h1>
+        <div class="page-title-group">
+          <div class="page-icon">明</div>
+          <h1 class="page-title">需求明细</h1>
+        </div>
         <div class="count-badge">共 {{ totalCount }} 条</div>
       </div>
       <div class="header-right">
-        <el-button type="primary" :disabled="!selectedRows.length" @click="handleBatchQuote">
+        <el-button class="btn-primary" type="primary" :disabled="!selectedRows.length" @click="handleBatchQuote">
           批量报价
         </el-button>
       </div>
     </div>
 
-    <el-card class="filter-card">
+    <el-card class="filter-card search-bar">
       <el-form :inline="true" :model="searchForm">
         <el-form-item label="需求创建日期">
           <el-date-picker
@@ -36,13 +39,13 @@
           <el-input v-model="searchForm.salesUserKeyword" placeholder="姓名/账号模糊" clearable style="width: 160px" />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
+          <el-button class="btn-primary btn-sm" type="primary" @click="handleSearch">查询</el-button>
+          <el-button class="btn-ghost btn-sm" @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
-    <el-card class="table-card">
+    <el-card class="table-card table-wrapper">
       <CrmDataTable
         :data="tableData"
         v-loading="loading"
@@ -51,12 +54,17 @@
         @row-click="onItemRowClick"
         @selection-change="onSelectionChange"
       >
+        <el-table-column label="明细状态" width="160" min-width="160" align="center" resizable>
+          <template #default="{ row }">
+            <el-tag size="small" effect="dark">{{ itemStatusText(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column type="selection" width="48" :resizable="false" :reserve-selection="true" />
-        <el-table-column label="需求创建" width="110" min-width="96" resizable>
+        <el-table-column label="需求创建" width="160" min-width="160" resizable>
           <template #default="{ row }">{{ formatDate(row.rfqCreateTime) }}</template>
         </el-table-column>
-        <el-table-column prop="rfqCode" label="需求编号" width="140" min-width="100" show-overflow-tooltip resizable />
-        <el-table-column prop="customerName" label="客户" min-width="120" show-overflow-tooltip resizable />
+        <el-table-column prop="rfqCode" label="需求编号" width="160" min-width="160" show-overflow-tooltip resizable />
+        <el-table-column prop="customerName" label="客户" min-width="200" show-overflow-tooltip resizable />
         <el-table-column label="物料型号" min-width="120" show-overflow-tooltip resizable>
           <template #default="{ row }">{{ row.materialModel || row.mpn || '—' }}</template>
         </el-table-column>
@@ -73,21 +81,23 @@
             {{ quoteRecordCountByRfqItemId[row.id] ?? 0 }}
           </template>
         </el-table-column>
-        <el-table-column label="明细状态" width="96" min-width="80" align="center" resizable>
-          <template #default="{ row }">
-            <el-tag size="small" effect="dark">{{ itemStatusText(row.status) }}</el-tag>
-          </template>
+        <el-table-column label="创建时间" width="160" show-overflow-tooltip resizable>
+          <template #default="{ row }">{{ formatDate(row.createTime || row.rfqCreateTime) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="160" min-width="140" fixed="right" resizable>
+        <el-table-column label="创建人" width="120" show-overflow-tooltip resizable>
+          <template #default="{ row }">{{ row.createUserName || row.createdBy || row.salesUserName || '—' }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="200" min-width="200" fixed="right" resizable>
           <template #default="{ row }">
-            <el-button link type="primary" @click="goDetail(row)">详情</el-button>
-            <el-button link type="primary" @click="goQuote(row)">报价</el-button>
+            <el-button class="action-btn" link type="primary" @click="goDetail(row)">详情</el-button>
+            <el-button class="action-btn" link type="primary" @click="goQuote(row)">报价</el-button>
           </template>
         </el-table-column>
       </CrmDataTable>
 
       <div class="pagination-wrapper">
         <el-pagination
+          class="quantum-pagination"
           v-model:current-page="pageInfo.page"
           v-model:page-size="pageInfo.pageSize"
           :total="pageInfo.total"
@@ -167,7 +177,7 @@
               max-height="208"
               :row-key="dockQuoteRowKey"
             >
-              <el-table-column label="报价编号" width="150" show-overflow-tooltip>
+              <el-table-column label="报价编号" width="160" min-width="160" show-overflow-tooltip>
                 <template #default="{ row }">{{ displayQuoteCode(row) }}</template>
               </el-table-column>
               <el-table-column prop="mpn" label="物料型号" min-width="120" show-overflow-tooltip />
@@ -215,7 +225,7 @@ import { quoteApi } from '@/api/quote'
 import { buildLinkAlertFieldsFromItem, fetchLinkedRfqItemRecord } from '@/utils/rfqLinkedItemSummary'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
 import type { RFQItem } from '@/types/rfq'
-import { formatDisplayDate } from '@/utils/displayDateTime'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const route = useRoute()
@@ -266,7 +276,7 @@ const linkAlertSep4Ideo = '\u3000'.repeat(4)
 
 function formatDate(val?: string) {
   if (!val) return '—'
-  const s = formatDisplayDate(val)
+  const s = formatDisplayDateTime(val)
   return s === '--' ? '—' : s
 }
 
@@ -532,13 +542,18 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+
 .rfq-item-list-page {
   display: flex;
   flex-direction: column;
   min-height: calc(100vh - 120px);
-  padding: 20px;
+  padding: 24px;
   padding-bottom: 12px;
   box-sizing: border-box;
+  background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
 .rfq-item-main {
@@ -677,35 +692,54 @@ onMounted(() => {
 
   .page-title {
     margin: 0;
-    color: #E8F4FF;
+    color: $text-primary;
     font-size: 20px;
   }
 
   .count-badge {
     margin-left: 10px;
     padding: 2px 10px;
-    background: rgba(0, 212, 255, 0.1);
-    border: 1px solid rgba(0, 212, 255, 0.3);
-    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid $border-panel;
+    border-radius: 20px;
     font-size: 12px;
-    color: #00D4FF;
+    color: $text-muted;
+  }
+}
+
+.page-title-group {
+  display: flex; align-items: center; gap: 10px;
+  .page-icon {
+    width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.25); color: $cyan-primary; font-weight: 700;
   }
 }
 
 .filter-card {
   margin-bottom: 20px;
-  background: #0A1628;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  background: $layer-2;
+  border: 1px solid $border-panel;
 }
 
 .table-card {
-  background: #0a1628;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  background: $layer-2;
+  border: 1px solid $border-panel;
+  :deep(.el-table) {
+    background: transparent;
+    --el-table-header-bg-color: rgba(255, 255, 255, 0.03);
+    --el-table-tr-bg-color: transparent;
+    --el-table-border-color: $border-panel;
+    color: $text-primary;
+  }
 }
 
 .pagination-wrapper {
-  margin-top: 20px;
+  margin-top: 16px;
   display: flex;
   justify-content: flex-end;
 }
+
+.btn-primary { border-radius: $border-radius-md; }
+.action-btn { color: $cyan-primary !important; }
+.quantum-pagination { :deep(.el-pagination__total) { color: $text-muted; } }
 </style>

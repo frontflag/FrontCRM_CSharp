@@ -1,51 +1,46 @@
 <template>
-  <div class="rfq-list-page">
+  <div class="rfq-list-page customer-list-theme">
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">需求管理 (RFQ)</h1>
+        <div class="page-title-group">
+          <div class="page-icon">R</div>
+          <h1 class="page-title">需求管理 (RFQ)</h1>
+        </div>
         <div class="count-badge">共 {{ totalCount }} 条需求</div>
       </div>
       <div class="header-right">
-        <el-button @click="importDialogVisible = true">
+        <el-button class="btn-ghost btn-sm" @click="importDialogVisible = true">
           <el-icon><Upload /></el-icon>导入 Excel 创建
         </el-button>
-        <el-button type="primary" @click="router.push({ name: 'RFQCreate' })">
+        <el-button class="btn-primary" type="primary" @click="router.push({ name: 'RFQCreate' })">
           <el-icon><Plus /></el-icon>新增需求
         </el-button>
       </div>
     </div>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stat-row">
-      <el-col :span="6">
-        <el-card class="stat-card">
-          <div class="stat-value">{{ stats.total }}</div>
-          <div class="stat-label">需求总数</div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stat-card stat-warning">
-          <div class="stat-value">{{ stats.pending }}</div>
-          <div class="stat-label">待分配</div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stat-card stat-cyan">
-          <div class="stat-value">{{ stats.processing }}</div>
-          <div class="stat-label">报价中</div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stat-card stat-success">
-          <div class="stat-value">{{ stats.quoted }}</div>
-          <div class="stat-label">已报价</div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <div class="statistics-row">
+      <div class="stat-card">
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">需求总数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ stats.pending }}</div>
+        <div class="stat-label">待分配</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ stats.processing }}</div>
+        <div class="stat-label">报价中</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ stats.quoted }}</div>
+        <div class="stat-label">已报价</div>
+      </div>
+    </div>
 
     <!-- 搜索面板 -->
-    <el-card class="filter-card">
+    <el-card class="filter-card search-bar">
       <el-form :inline="true" :model="searchForm">
         <el-form-item label="搜索">
           <el-input 
@@ -68,27 +63,34 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">
+          <el-button class="btn-primary btn-sm" type="primary" @click="handleSearch">
             <el-icon><Search /></el-icon>查询
           </el-button>
-          <el-button @click="handleReset">重置</el-button>
+          <el-button class="btn-ghost btn-sm" @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     <!-- 数据表格 -->
-    <el-card class="table-card">
+    <el-card class="table-card table-wrapper">
       <CrmDataTable
         :data="rfqList"
         v-loading="loading"
         highlight-current-row
       >
-        <el-table-column prop="rfqCode" label="需求编号" width="150" sortable>
+        <el-table-column prop="rfqCode" label="需求编号" width="160" min-width="160" show-overflow-tooltip sortable>
           <template #default="{ row }">
             <el-link type="primary" @click="handleView(row)">{{ row.rfqCode }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="customerName" label="客户" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="status" label="状态" width="160" align="center">
+          <template #default="{ row }">
+            <el-tag effect="dark" :type="getStatusType(row.status)" size="small">
+              {{ getStatusText(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="customerName" label="客户" min-width="200" show-overflow-tooltip />
         <el-table-column prop="product" label="产品" min-width="150" show-overflow-tooltip />
         <el-table-column prop="industry" label="行业" width="100" />
         <el-table-column prop="itemCount" label="明细数" width="80" align="center" />
@@ -97,31 +99,32 @@
             <el-rate v-model="row.importance" disabled :max="10" />
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="getStatusType(row.status)" size="small">
-              {{ getStatusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
         <el-table-column prop="rfqType" label="类型" width="90">
           <template #default="{ row }">
             {{ getTypeText(row.rfqType) }}
           </template>
         </el-table-column>
         <el-table-column prop="salesUserName" label="业务员" width="100" />
-        <el-table-column prop="rfqDate" label="需求日期" width="110" />
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="创建时间" width="160">
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleView(row)">查看</el-button>
-            <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
+            {{ row.createTime ? formatDisplayDateTime(row.createTime) : '--' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="创建人" width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ row.createUserName || row.createdBy || row.salesUserName || '—' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="200" fixed="right">
+          <template #default="{ row }">
+            <el-button class="action-btn" link type="primary" @click="handleView(row)">查看</el-button>
+            <el-button class="action-btn" link type="primary" @click="handleEdit(row)">编辑</el-button>
             <el-dropdown @command="(cmd: string) => handleMore(cmd, row)">
-              <el-button link type="primary">
+              <el-button class="action-btn" link type="primary">
                 更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="status">更新状态</el-dropdown-item>
                   <el-dropdown-item command="quote">生成报价</el-dropdown-item>
                   <el-dropdown-item command="delete" type="danger" divided>删除</el-dropdown-item>
                 </el-dropdown-menu>
@@ -134,6 +137,7 @@
       <!-- 分页 -->
       <div class="pagination-wrapper">
         <el-pagination
+          class="quantum-pagination"
           v-model:current-page="pageInfo.page"
           v-model:page-size="pageInfo.pageSize"
           :total="pageInfo.total"
@@ -144,27 +148,6 @@
         />
       </div>
     </el-card>
-
-    <!-- 状态更新对话框 -->
-    <el-dialog v-model="statusDialogVisible" title="更新状态" width="400px">
-      <el-form label-width="100px">
-        <el-form-item label="新状态">
-          <el-select v-model="newStatus" style="width: 100%">
-            <el-option label="待分配" :value="0" />
-            <el-option label="已分配" :value="1" />
-            <el-option label="报价中" :value="2" />
-            <el-option label="已报价" :value="3" />
-            <el-option label="已选价" :value="4" />
-            <el-option label="已转订单" :value="5" />
-            <el-option label="已关闭" :value="6" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="statusDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="confirmUpdateStatus">确定</el-button>
-      </template>
-    </el-dialog>
 
     <!-- 导入 Excel 创建 RFQ 对话框 -->
     <ImportRFQDialog
@@ -181,6 +164,7 @@ import { Plus, Search, ArrowDown, Upload } from '@element-plus/icons-vue'
 import ImportRFQDialog from './components/ImportRFQDialog.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 
@@ -201,10 +185,7 @@ const pageInfo = ref({
   total: 0
 })
 
-const statusDialogVisible = ref(false)
 const importDialogVisible = ref(false)
-const currentRow = ref<any>(null)
-const newStatus = ref(0)
 
 const totalCount = computed(() => rfqList.value.length)
 
@@ -297,12 +278,7 @@ const handleView = (row: any) => {
 
 // 更多操作
 const handleMore = (cmd: string, row: any) => {
-  currentRow.value = row
   switch (cmd) {
-    case 'status':
-      newStatus.value = row.status
-      statusDialogVisible.value = true
-      break
     case 'quote':
       ElMessage.success('已生成报价单')
       break
@@ -324,21 +300,18 @@ const handleDelete = async (row: any) => {
   }
 }
 
-// 更新状态
-const confirmUpdateStatus = async () => {
-  if (!currentRow.value) return
-  await rfqApi.updateFlowStatus(currentRow.value.id, { status: newStatus.value })
-  ElMessage.success('状态更新成功')
-  statusDialogVisible.value = false
-  loadData()
-}
-
 onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+
 .rfq-list-page {
-  padding: 20px;
+  padding: 24px;
+  min-height: 100%;
+  background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
 .page-header {
@@ -346,78 +319,80 @@ onMounted(loadData)
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  .page-title {
-    margin: 0;
-    color: #E8F4FF;
-    font-size: 20px;
-  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .page-title { margin: 0; color: $text-primary; font-size: 20px; }
   .count-badge {
-    margin-left: 10px;
-    padding: 2px 10px;
-    background: rgba(0, 212, 255, 0.1);
-    border: 1px solid rgba(0, 212, 255, 0.3);
-    border-radius: 12px;
+    padding: 3px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid $border-panel;
+    border-radius: 20px;
     font-size: 12px;
-    color: #00D4FF;
+    color: $text-muted;
   }
 }
 
-.stat-row {
-  margin-bottom: 20px;
+.page-title-group {
+  display: flex; align-items: center; gap: 10px;
+  .page-icon {
+    width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.25); color: $cyan-primary; font-weight: 700;
+  }
 }
 
+.statistics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
 .stat-card {
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+  padding: 20px;
   text-align: center;
-  background: #0A1628;
-  border: 1px solid rgba(0, 212, 255, 0.1);
-  :deep(.el-card__body) {
-    padding: 15px;
-  }
   .stat-value {
-    font-size: 24px;
-    font-weight: bold;
-    color: #00D4FF;
+    font-size: 22px;
+    font-weight: 700;
+    color: $text-primary;
     margin-bottom: 5px;
+    font-family: 'Space Mono', monospace;
   }
-  .stat-label {
-    font-size: 14px;
-    color: rgba(200, 216, 232, 0.6);
-  }
-  &.stat-warning .stat-value { color: #E6A23C; }
-  &.stat-cyan .stat-value { color: #00D4FF; }
-  &.stat-success .stat-value { color: #67C23A; }
+  .stat-label { font-size: 12px; color: $text-muted; }
 }
 
 .filter-card {
   margin-bottom: 20px;
-  background: #0A1628;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  background: $layer-2;
+  border: 1px solid $border-panel;
 }
 
 .table-card {
-  background: #0A1628;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  background: $layer-2;
+  border: 1px solid $border-panel;
   :deep(.el-table) {
     background: transparent;
-    --el-table-header-bg-color: rgba(0, 212, 255, 0.1);
+    --el-table-header-bg-color: rgba(255, 255, 255, 0.03);
     --el-table-tr-bg-color: transparent;
-    --el-table-border-color: rgba(0, 212, 255, 0.1);
-    color: #E8F4FF;
+    --el-table-border-color: $border-panel;
+    color: $text-primary;
 
-    // 操作列按钮禁止折行
-    .el-table__cell .el-button {
-      white-space: nowrap !important;
-    }
-    .el-table__cell .cell {
-      white-space: nowrap;
-    }
+    .el-table__cell .el-button { white-space: nowrap !important; }
+    .el-table__cell .cell { white-space: nowrap; }
   }
 }
 
 .pagination-wrapper {
-  margin-top: 20px;
+  margin-top: 16px;
   display: flex;
   justify-content: flex-end;
 }
 
+.btn-primary {
+  border-radius: $border-radius-md;
+}
+
+.action-btn {
+  color: $cyan-primary !important;
+}
+
+.quantum-pagination {
+  :deep(.el-pagination__total) { color: $text-muted; }
+}
 </style>

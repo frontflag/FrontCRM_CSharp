@@ -241,9 +241,16 @@ namespace CRM.Core.Models.Customer
         public DateTime? ProtectTime { get; set; }
 
         /// <summary>
-        /// 审核状态
+        /// 状态
+        /// 1=新建 2=待审核 10=已审核 12=待财务审核 20=财务建档 -1=审核失败
         /// </summary>
-        public short Status { get; set; } = 0;
+        public short Status { get; set; } = 1;
+
+        /// <summary>
+        /// 审核拒绝原因（审核失败时由审批人填写）
+        /// </summary>
+        [StringLength(500)]
+        public string? AuditRemark { get; set; }
 
         /// <summary>
         /// 黑名单
@@ -346,21 +353,18 @@ namespace CRM.Core.Models.Customer
         /// 省/州
         /// </summary>
         [StringLength(50)]
-        [NotMapped]
         public string? Province { get; set; }
 
         /// <summary>
         /// 市
         /// </summary>
         [StringLength(50)]
-        [NotMapped]
         public string? City { get; set; }
 
         /// <summary>
         /// 区/县
         /// </summary>
         [StringLength(50)]
-        [NotMapped]
         public string? District { get; set; }
 
         /// <summary>
@@ -418,8 +422,9 @@ namespace CRM.Core.Models.Customer
         [NotMapped]
         public bool IsActive
         {
-            get => Status == 1;
-            set => Status = value ? (short)1 : (short)0;
+            // 历史上 IsActive 表示“启用”，在新状态体系下等价于“已审核及以后”
+            get => Status >= 10;
+            set => Status = value ? (short)10 : (short)1;
         }
 
         /// <summary>

@@ -21,6 +21,7 @@ services:
       dockerfile: Dockerfile.backend
     container_name: frontcrm-backend
     environment:
+      ASPNETCORE_URLS: http://+:5000
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=FrontCRM;Username=postgres;Password=postgres123
     ports:

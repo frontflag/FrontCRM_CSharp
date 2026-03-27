@@ -175,7 +175,7 @@ namespace CRM.Core.Models.Quote
 
         // ─── 价格信息 ─────────────────────────────────────────────────
 
-        /// <summary>报价币别 (0:RMB 1:USD 2:EUR 3:HKD)</summary>
+        /// <summary>报价币别 (统一币别编码：1=RMB 2=USD 3=EUR 4=HKD 5=JPY 6=GBP)</summary>
         [Column("currency")]
         public short Currency { get; set; } = 1;
 

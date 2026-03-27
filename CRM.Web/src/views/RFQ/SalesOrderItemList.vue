@@ -66,33 +66,39 @@
       @selection-change="onSelectionChange"
     >
         <el-table-column type="selection" width="48" :reserve-selection="true" />
-        <el-table-column prop="sellOrderCode" label="销售单号" min-width="130" show-overflow-tooltip />
-        <el-table-column prop="orderStatus" label="状态" width="100" align="center">
+        <el-table-column prop="sellOrderCode" label="销售单号" width="160" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="orderStatus" label="状态" width="160" align="center">
           <template #default="{ row }">
             <el-tag effect="dark" :type="statusTagType(row.orderStatus)" size="small">{{ statusText(row.orderStatus) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="orderCreateTime" label="订单生成日期" width="165">
+        <el-table-column prop="orderCreateTime" label="订单生成日期" width="160">
           <template #default="{ row }">{{ formatDt(row.orderCreateTime) }}</template>
         </el-table-column>
-        <el-table-column v-if="canViewCustomer" prop="customerName" label="客户名称" min-width="140" show-overflow-tooltip />
+        <el-table-column v-if="canViewCustomer" prop="customerName" label="客户名称" min-width="200" show-overflow-tooltip />
         <el-table-column prop="salesUserName" label="业务员" width="100" show-overflow-tooltip />
         <el-table-column prop="pn" label="物料型号" min-width="130" show-overflow-tooltip />
         <el-table-column prop="brand" label="品牌" width="110" show-overflow-tooltip />
         <el-table-column prop="qty" label="数量" width="100" align="right" />
-        <el-table-column v-if="canViewAmount" prop="price" label="单价" width="120" align="right">
+        <el-table-column v-if="canViewAmount" prop="price" label="单价" width="160" align="right">
           <template #default="{ row }">{{ formatMoney(row.price, row.currency) }}</template>
         </el-table-column>
-        <el-table-column v-if="canViewAmount" prop="lineTotal" label="明细总额" width="120" align="right">
+        <el-table-column v-if="canViewAmount" prop="lineTotal" label="明细总额" width="160" align="right">
           <template #default="{ row }">{{ formatMoney(row.lineTotal, row.currency) }}</template>
         </el-table-column>
-        <el-table-column v-if="canViewAmount" label="折算美金单价" width="120" align="right">
+        <el-table-column v-if="canViewAmount" label="折算美金单价" width="160" align="right">
           <template #default="{ row }">{{ row.usdUnitPrice != null ? `$${Number(row.usdUnitPrice).toFixed(6)}` : '—' }}</template>
         </el-table-column>
-        <el-table-column v-if="canViewAmount" label="折算美金总额" width="120" align="right">
+        <el-table-column v-if="canViewAmount" label="折算美金总额" width="160" align="right">
           <template #default="{ row }">{{ row.usdLineTotal != null ? `$${Number(row.usdLineTotal).toFixed(2)}` : '—' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right" align="center">
+        <el-table-column label="创建时间" width="160">
+          <template #default="{ row }">{{ formatDt(row.createTime || row.orderCreateTime) }}</template>
+        </el-table-column>
+        <el-table-column label="创建人" width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.createUserName || row.createdBy || row.salesUserName || '—' }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="200" fixed="right" align="center">
           <template #default="{ row }">
             <el-button v-if="canWriteSo" link type="primary" size="small" @click="goEdit(row)">编辑</el-button>
             <el-button link type="primary" size="small" @click="goDetail(row)">详情</el-button>
@@ -141,12 +147,12 @@
 
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="销售订单收发量">
+            <el-form-item label="订单明细数量">
               <el-input :model-value="applyFormSalesOrderQtyText" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="剩余数量">
+            <el-form-item label="可申请数量">
               <el-input :model-value="applyFormRemainingQtyText" disabled />
             </el-form-item>
           </el-col>
@@ -154,11 +160,12 @@
 
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="申请采购数量" prop="requestQty">
+            <el-form-item label="本次申请数量" prop="requestQty">
               <el-input-number
                 v-model="applyForm.requestQty"
                 :min="0"
-                :precision="4"
+                :precision="0"
+                :step="1"
                 :max="applyForm.remainingQty"
                 controls-position="right"
                 style="width: 100%"
@@ -246,7 +253,7 @@ const applyForm = reactive({
 })
 const applyRules: FormRules = {
   requestQty: [
-    { required: true, message: '请输入申请采购数量', trigger: 'change' }
+    { required: true, message: '请输入本次申请数量', trigger: 'change' }
   ],
   expectedPurchaseDate: [{ required: true, message: '请选择预计采购日期', trigger: 'change' }]
 }
@@ -267,13 +274,13 @@ const submitApply = async () => {
   const ok = await validateElFormOrWarn(applyFormRef)
   if (!ok) return
 
-  // 附加校验：不能超过剩余数量
+  // 附加校验：不能超过可申请数量
   if (applyForm.requestQty <= 0) {
-    ElMessage.warning('申请采购数量必须大于 0')
+    ElMessage.warning('本次申请数量必须大于 0')
     return
   }
   if (applyForm.requestQty > applyForm.remainingQty) {
-    ElMessage.warning('申请采购数量不能大于剩余数量')
+    ElMessage.warning('本次申请数量不能大于可申请数量')
     return
   }
   if (!applyForm.expectedPurchaseDate) {
@@ -317,8 +324,9 @@ async function applyPurchaseOne(row: any) {
     applyForm.sellOrderItemId = sellOrderItemId
     applyForm.pn = line?.pn ?? row.pn ?? ''
     applyForm.brand = line?.brand ?? row.brand ?? ''
-    applyForm.salesOrderQty = Number(line?.salesOrderQty ?? row.qty ?? 0) || 0
-    applyForm.remainingQty = Number(line?.remainingQty ?? row.qty ?? 0) || 0
+    const toInt = (v: unknown) => Math.trunc(Number(v) || 0)
+    applyForm.salesOrderQty = toInt(line?.salesOrderQty ?? row.qty ?? 0)
+    applyForm.remainingQty = toInt(line?.remainingQty ?? row.qty ?? 0)
     applyForm.requestQty = applyForm.remainingQty
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || e?.message || '加载明细失败')
@@ -327,8 +335,8 @@ async function applyPurchaseOne(row: any) {
 }
 
 // 将数字转为截图那种“输入框字符串效果”
-const applyFormSalesOrderQtyText = computed(() => String(applyForm.salesOrderQty ?? 0))
-const applyFormRemainingQtyText = computed(() => String(applyForm.remainingQty ?? 0))
+const applyFormSalesOrderQtyText = computed(() => String(Math.trunc(Number(applyForm.salesOrderQty ?? 0) || 0)))
+const applyFormRemainingQtyText = computed(() => String(Math.trunc(Number(applyForm.remainingQty ?? 0) || 0)))
 
 function statusText(s: number) {
   return salesOrderStatusText(s)

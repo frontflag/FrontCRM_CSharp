@@ -1,6 +1,12 @@
 import apiClient from './client'
 
-export type BizType = 'VENDOR' | 'QUOTE' | 'SALES_ORDER' | 'FINANCE_RECEIPT' | 'FINANCE_PAYMENT'
+export type BizType =
+  | 'VENDOR'
+  | 'SALES_ORDER'
+  | 'PURCHASE_ORDER'
+  | 'CUSTOMER'
+  | 'FINANCE_RECEIPT'
+  | 'FINANCE_PAYMENT'
 
 export interface PendingApprovalItem {
   bizType: BizType
@@ -11,6 +17,7 @@ export interface PendingApprovalItem {
   counterpartyName?: string | null
   amount?: number | null
   currency?: number | null
+  submitter?: string | null
   status: number
   createdAt: string
 }
@@ -22,7 +29,40 @@ export interface PageResult<T> {
   pageSize: number
 }
 
+export interface ApprovalSummary {
+  pendingCount: number
+  approvedCount: number
+  rejectedCount: number
+}
+
+export interface ApprovalHistoryItem {
+  id: string
+  bizType: string
+  businessId: string
+  documentCode?: string
+  itemDescription?: string | null
+  actionType: 'submit' | 'approve' | 'reject' | string
+  fromStatus?: number | null
+  toStatus?: number | null
+  submitRemark?: string | null
+  auditRemark?: string | null
+  submitterUserId?: string | null
+  submitterUserName?: string | null
+  approverUserId?: string | null
+  approverUserName?: string | null
+  actionTime: string
+}
+
 export const approvalsApi = {
+  getApprovalItems: (params: { bizType?: string; state?: 'pending' | 'approved' | 'rejected'; page: number; pageSize: number }) =>
+    apiClient.get<PageResult<PendingApprovalItem>>('/api/v1/approvals/items', { params }),
+
+  getApprovalSummary: (params: { bizType?: string }) =>
+    apiClient.get<ApprovalSummary>('/api/v1/approvals/summary', { params }),
+
+  getApprovalHistory: (params: { bizType: string; businessId: string }) =>
+    apiClient.get<ApprovalHistoryItem[]>('/api/v1/approvals/history', { params }),
+
   getPendingApprovals: (params: { bizType?: string; page: number; pageSize: number }) =>
     apiClient.get<PageResult<PendingApprovalItem>>('/api/v1/approvals/pending', { params }),
 

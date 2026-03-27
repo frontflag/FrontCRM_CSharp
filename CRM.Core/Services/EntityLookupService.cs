@@ -71,7 +71,16 @@ public sealed class EntityLookupService : IEntityLookupService
     /// <inheritdoc />
     public async Task<string?> GetUserDisplayNameAsync(string? userId, CancellationToken cancellationToken = default)
     {
-        var u = await GetUserByIdAsync(userId, cancellationToken);
+        if (string.IsNullOrWhiteSpace(userId))
+            return null;
+
+        var raw = userId.Trim();
+        var u = await GetUserByIdAsync(raw, cancellationToken);
+        if (u == null)
+        {
+            // 兼容部分业务把“用户名”而非“用户ID”写入提交人字段
+            u = await _userService.GetByUserNameAsync(raw);
+        }
         return FormatUserDisplayName(u);
     }
 

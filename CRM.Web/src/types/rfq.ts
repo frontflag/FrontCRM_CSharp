@@ -89,7 +89,6 @@ export interface RFQ {
   contactPersonEmail?: string        // 联系人邮箱
   salesUserId?: string
   salesUserName?: string
-  rfqDate: string                    // 创建日期/需求日期
 
   // 需求信息
   rfqType?: RFQType                  // 需求类型（现货/期货等）
@@ -268,7 +267,6 @@ export interface CreateRFQRequest {
   contactId?: string           // 对应后端 contact_id
   contactEmail?: string        // 对应后端 contact_email
   salesUserId?: string
-  rfqDate?: string
   rfqType?: RFQType
   quoteMethod?: QuoteMethod
   assignMethod?: AssignMethod
@@ -297,8 +295,8 @@ export interface CreateRFQItemRequest {
   customerBrand?: string
   brand?: string
   targetPrice?: number
-  priceCurrency?: number       // 货币枚举：1=CNY,2=USD,3=EUR,4=HKD
-  currency?: string            // UI 展示用货币字符串（CNY/USD/EUR/HKD）
+  priceCurrency?: number       // 货币枚举：1=RMB,2=USD,3=EUR,4=HKD
+  currency?: string            // UI 展示用货币字符串（RMB/USD/EUR/HKD）
   quantity: number
   productionDate?: string
   expiryDate?: string

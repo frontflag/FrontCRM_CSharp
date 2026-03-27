@@ -70,7 +70,7 @@ export interface BOM {
   // 统计
   itemCount?: number
   quotedCount?: number                // 已报价明细数
-  totalAmount?: number                // 报价总金额（CNY）
+  totalAmount?: number                // 报价总金额（RMB）
 
   createdAt?: string
   updatedAt?: string
@@ -94,7 +94,7 @@ export interface BOMItem {
 
   // 价格与数量
   targetPrice?: number                // 目标价
-  currency?: string                   // 货币（CNY/USD/EUR/HKD）
+  currency?: string                   // 货币（RMB/USD/EUR/HKD）
   quantity: number                    // 数量
 
   // 起订量
@@ -167,7 +167,7 @@ export interface CreateBOMItemRequest {
   customerBrand?: string
   brand?: string
   targetPrice?: number
-  priceCurrency?: number            // 货币枚举：1=CNY,2=USD,3=EUR,4=HKD
+  priceCurrency?: number            // 货币枚举：1=RMB,2=USD,3=EUR,4=HKD
   currency?: string                 // UI 展示用
   quantity: number
   minPackageQty?: number

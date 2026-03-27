@@ -50,12 +50,12 @@
         <el-col :span="8">
           <el-form-item label="币种" prop="currency">
             <el-select v-model="formData.currency" placeholder="请选择" style="width: 100%">
-              <el-option label="人民币(CNY)" :value="1" />
-              <el-option label="美元(USD)" :value="2" />
-              <el-option label="欧元(EUR)" :value="3" />
-              <el-option label="日元(JPY)" :value="4" />
-              <el-option label="英镑(GBP)" :value="5" />
-              <el-option label="港币(HKD)" :value="6" />
+              <el-option
+                v-for="opt in CURRENCY_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
             </el-select>
           </el-form-item>
         </el-col>
@@ -87,6 +87,7 @@ import { ref, computed, watch } from 'vue';
 import { ElNotification, type FormInstance, type FormRules } from 'element-plus';
 import { customerBankApi } from '@/api/customer';
 import type { CustomerBankInfo, CreateBankInfoRequest } from '@/types/customer';
+import { CURRENCY_OPTIONS } from '@/constants/currency';
 
 const props = defineProps<{
   modelValue: boolean;

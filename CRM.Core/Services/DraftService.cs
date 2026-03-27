@@ -112,16 +112,35 @@ namespace CRM.Core.Services
             if (draft.Status != 0) throw new InvalidOperationException("仅草稿状态可以转正式");
 
             var entityType = draft.EntityType.Trim().ToUpperInvariant();
-            string entityId = entityType switch
+            string entityId;
+            if (entityType == "CUSTOMER")
             {
-                "CUSTOMER" => (await _customerService.CreateCustomerAsync(
-                    Deserialize<CreateCustomerRequest>(draft.PayloadJson, "客户草稿数据格式错误"))).Id,
-                "VENDOR" => (await _vendorService.CreateAsync(
-                    Deserialize<CreateVendorRequest>(draft.PayloadJson, "供应商草稿数据格式错误"))).Id,
-                "RFQ" => (await _rfqService.CreateAsync(
-                    Deserialize<CreateRFQRequest>(draft.PayloadJson, "RFQ草稿数据格式错误"))).Id,
-                _ => throw new NotSupportedException($"不支持的实体类型: {entityType}")
-            };
+                var createReq = Deserialize<CreateCustomerRequest>(draft.PayloadJson, "客户草稿数据格式错误");
+                var customer = await _customerService.CreateCustomerAsync(createReq);
+                entityId = customer.Id;
+
+                // Draft payload 中可能包含 contacts，但 CreateCustomerAsync 不负责落库联系人。
+                // 因此在草稿转正式时需要把 contacts 同步到正式客户联系人表。
+                await SyncCustomerContactsFromDraftPayloadAsync(entityId, draft.PayloadJson);
+            }
+            else if (entityType == "VENDOR")
+            {
+                entityId = (await _vendorService.CreateAsync(
+                    Deserialize<CreateVendorRequest>(draft.PayloadJson, "供应商草稿数据格式错误"))).Id;
+
+                // 与客户类似：VendorService.CreateAsync 不会自动落库联系人；
+                // 因此需要从草稿 payload 中同步 contacts。
+                await SyncVendorContactsFromDraftPayloadAsync(entityId, draft.PayloadJson);
+            }
+            else if (entityType == "RFQ")
+            {
+                entityId = (await _rfqService.CreateAsync(
+                    Deserialize<CreateRFQRequest>(draft.PayloadJson, "RFQ草稿数据格式错误"))).Id;
+            }
+            else
+            {
+                throw new NotSupportedException($"不支持的实体类型: {entityType}");
+            }
 
             draft.Status = 1;
             draft.ConvertedEntityId = entityId;
@@ -136,6 +155,145 @@ namespace CRM.Core.Services
                 EntityType = entityType,
                 EntityId = entityId
             };
+        }
+
+        private async Task SyncCustomerContactsFromDraftPayloadAsync(string customerId, string payloadJson)
+        {
+            if (string.IsNullOrWhiteSpace(customerId)) return;
+            if (string.IsNullOrWhiteSpace(payloadJson)) return;
+
+            using var doc = JsonDocument.Parse(payloadJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return;
+            if (!doc.RootElement.TryGetProperty("contacts", out var contactsEl)) return;
+            if (contactsEl.ValueKind != JsonValueKind.Array) return;
+
+            var firstDefaultAssigned = false;
+
+            foreach (var contactEl in contactsEl.EnumerateArray())
+            {
+                if (contactEl.ValueKind != JsonValueKind.Object) continue;
+
+                string? contactName = null;
+                if (contactEl.TryGetProperty("contactName", out var contactNameEl))
+                    contactName = contactNameEl.GetString();
+                else if (contactEl.TryGetProperty("name", out var nameEl))
+                    contactName = nameEl.GetString();
+
+                // 若联系人内容为空，跳过，避免插入空记录
+                if (string.IsNullOrWhiteSpace(contactName)) continue;
+
+                short? gender = null;
+                if (contactEl.TryGetProperty("gender", out var genderEl) && genderEl.ValueKind != JsonValueKind.Null)
+                {
+                    if (genderEl.TryGetInt16(out var g16)) gender = g16;
+                    else if (genderEl.TryGetInt32(out var g32)) gender = (short)g32;
+                }
+
+                string? department = contactEl.TryGetProperty("department", out var deptEl) ? deptEl.GetString() : null;
+                string? position = contactEl.TryGetProperty("position", out var posEl) ? posEl.GetString() : null;
+                string? email = contactEl.TryGetProperty("email", out var emailEl) ? emailEl.GetString() : null;
+                string? fax = contactEl.TryGetProperty("fax", out var faxEl) ? faxEl.GetString() : null;
+
+                // phone/tel 兼容
+                string? phone = null;
+                if (contactEl.TryGetProperty("phone", out var phoneEl)) phone = phoneEl.GetString();
+                else if (contactEl.TryGetProperty("tel", out var telEl)) phone = telEl.GetString();
+
+                // mobilePhone/mobile 兼容
+                string? mobile = null;
+                if (contactEl.TryGetProperty("mobilePhone", out var mobilePhoneEl)) mobile = mobilePhoneEl.GetString();
+                else if (contactEl.TryGetProperty("mobile", out var mobileEl)) mobile = mobileEl.GetString();
+
+                bool isDefault = false;
+                if (contactEl.TryGetProperty("isDefault", out var isDefaultEl))
+                {
+                    if (isDefaultEl.ValueKind == JsonValueKind.True || isDefaultEl.ValueKind == JsonValueKind.False)
+                        isDefault = isDefaultEl.GetBoolean();
+                    else if (isDefaultEl.TryGetInt32(out var isDefaultInt))
+                        isDefault = isDefaultInt != 0;
+                }
+
+                // 保证最多一个默认联系人（与前端同步逻辑一致：只保留第一个 isDefault=true）
+                if (isDefault)
+                {
+                    if (firstDefaultAssigned) isDefault = false;
+                    else firstDefaultAssigned = true;
+                }
+
+                var req = new AddContactRequest
+                {
+                    Name = contactName?.Trim(),
+                    Gender = gender,
+                    Department = department?.Trim(),
+                    Position = position?.Trim(),
+                    Phone = phone?.Trim(),
+                    Mobile = mobile?.Trim(),
+                    Email = email?.Trim(),
+                    Fax = fax?.Trim(),
+                    IsDefault = isDefault
+                };
+
+                await _customerService.AddContactAsync(customerId, req);
+            }
+        }
+
+        private async Task SyncVendorContactsFromDraftPayloadAsync(string vendorId, string payloadJson)
+        {
+            if (string.IsNullOrWhiteSpace(vendorId)) return;
+            if (string.IsNullOrWhiteSpace(payloadJson)) return;
+
+            using var doc = JsonDocument.Parse(payloadJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return;
+            if (!doc.RootElement.TryGetProperty("contacts", out var contactsEl)) return;
+            if (contactsEl.ValueKind != JsonValueKind.Array) return;
+
+            var firstMainAssigned = false;
+
+            foreach (var contactEl in contactsEl.EnumerateArray())
+            {
+                if (contactEl.ValueKind != JsonValueKind.Object) continue;
+
+                // UI 字段：cName/title/department/mobile/tel/email/isMain/remark
+                string? cName = contactEl.TryGetProperty("cName", out var cNameEl) ? cNameEl.GetString() : null;
+                if (string.IsNullOrWhiteSpace(cName)) continue;
+
+                string? title = contactEl.TryGetProperty("title", out var titleEl) ? titleEl.GetString() : null;
+                string? department = contactEl.TryGetProperty("department", out var deptEl) ? deptEl.GetString() : null;
+                string? mobile = contactEl.TryGetProperty("mobile", out var mobileEl) ? mobileEl.GetString() : null;
+                string? tel = contactEl.TryGetProperty("tel", out var telEl) ? telEl.GetString() : null;
+                string? email = contactEl.TryGetProperty("email", out var emailEl) ? emailEl.GetString() : null;
+                string? remark = contactEl.TryGetProperty("remark", out var remarkEl) ? remarkEl.GetString() : null;
+
+                bool isMain = false;
+                if (contactEl.TryGetProperty("isMain", out var isMainEl))
+                {
+                    if (isMainEl.ValueKind == JsonValueKind.True || isMainEl.ValueKind == JsonValueKind.False)
+                        isMain = isMainEl.GetBoolean();
+                    else if (isMainEl.TryGetInt32(out var isMainInt))
+                        isMain = isMainInt != 0;
+                }
+
+                // 至多一个主联系人
+                if (isMain)
+                {
+                    if (firstMainAssigned) isMain = false;
+                    else firstMainAssigned = true;
+                }
+
+                var req = new AddVendorContactRequest
+                {
+                    CName = cName?.Trim(),
+                    Title = title?.Trim(),
+                    Department = department?.Trim(),
+                    Mobile = mobile?.Trim(),
+                    Tel = tel?.Trim(),
+                    Email = email?.Trim(),
+                    IsMain = isMain,
+                    Remark = remark?.Trim()
+                };
+
+                await _vendorService.AddContactAsync(vendorId, req);
+            }
         }
 
         private static void ValidatePayloadJson(string payloadJson)

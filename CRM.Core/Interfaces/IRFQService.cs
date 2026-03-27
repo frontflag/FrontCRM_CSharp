@@ -32,7 +32,6 @@ namespace CRM.Core.Interfaces
         public string? ProjectBackground { get; set; }
         public string? Competitor { get; set; }
         public string? Remark { get; set; }
-        public DateTime RfqDate { get; set; } = DateTime.UtcNow;
         public List<CreateRFQItemRequest> Items { get; set; } = new();
     }
 
@@ -71,7 +70,6 @@ namespace CRM.Core.Interfaces
         public string? ProjectBackground { get; set; }
         public string? Competitor { get; set; }
         public string? Remark { get; set; }
-        public DateTime? RfqDate { get; set; }
         public List<CreateRFQItemRequest>? Items { get; set; }
     }
 
@@ -99,7 +97,6 @@ namespace CRM.Core.Interfaces
         public string? Product { get; set; }
         public short Importance { get; set; }
         public int ItemCount { get; set; }
-        public DateTime RfqDate { get; set; }
         public DateTime CreateTime { get; set; }
     }
 

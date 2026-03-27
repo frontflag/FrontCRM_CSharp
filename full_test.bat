@@ -62,7 +62,7 @@ echo.
 
 :: Test 4: Create Customer
 echo [TEST 4] Create Customer
-curl -s -X POST "%API_URL%/customers" -H "Content-Type: application/json" -H "Authorization: Bearer !TOKEN!" -d "{\"customerName\":\"Customer !TIMESTAMP!\",\"customerShortName\":\"Cust !TIMESTAMP!\",\"customerLevel\":\"A\",\"customerType\":1,\"customerCode\":\"C!TIMESTAMP!\",\"unifiedSocialCreditCode\":\"91110000MA00!TIMESTAMP!XX\",\"remarks\":\"Test customer\",\"creditLimit\":100000,\"paymentTerms\":\"Net 30\",\"currency\":\"CNY\"}" > result.json
+curl -s -X POST "%API_URL%/customers" -H "Content-Type: application/json" -H "Authorization: Bearer !TOKEN!" -d "{\"customerName\":\"Customer !TIMESTAMP!\",\"customerShortName\":\"Cust !TIMESTAMP!\",\"customerLevel\":\"A\",\"customerType\":1,\"customerCode\":\"C!TIMESTAMP!\",\"unifiedSocialCreditCode\":\"91110000MA00!TIMESTAMP!XX\",\"remarks\":\"Test customer\",\"creditLimit\":100000,\"paymentTerms\":\"Net 30\",\"currency\":\"RMB\"}" > result.json
 findstr "success" result.json | findstr "true" >nul
 if !errorlevel! == 0 (
     echo [PASS] Customer created

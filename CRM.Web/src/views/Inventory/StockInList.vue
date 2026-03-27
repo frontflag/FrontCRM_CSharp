@@ -36,6 +36,11 @@
             <span class="code-link" @click.stop="handleView(row)">{{ row.stockInCode }}</span>
           </template>
         </el-table-column>
+        <el-table-column prop="status" label="状态" width="110">
+          <template #default="{ row }">
+            <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="sourceDisplayNo" label="来源单号" width="160" show-overflow-tooltip />
         <el-table-column prop="warehouseId" label="仓库ID" width="140" show-overflow-tooltip />
         <el-table-column prop="vendorName" label="供应商" min-width="160" show-overflow-tooltip />
@@ -50,12 +55,13 @@
         <el-table-column prop="totalAmount" label="入库金额" width="110" align="right">
           <template #default="{ row }">{{ formatMoney(row.totalAmount) }}</template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="110">
-          <template #default="{ row }">
-            <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
-          </template>
-        </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
+        <el-table-column label="创建时间" width="160">
+          <template #default="{ row }">{{ formatDate((row as any).createTime || (row as any).createdAt) }}</template>
+        </el-table-column>
+        <el-table-column label="创建人" width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
+        </el-table-column>
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
             <button class="action-btn" @click.stop="handleEditRemark(row)">修改备注</button>

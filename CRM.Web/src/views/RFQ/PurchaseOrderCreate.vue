@@ -9,7 +9,7 @@
         <el-breadcrumb separator="/">
           <el-breadcrumb-item>订单管理</el-breadcrumb-item>
           <el-breadcrumb-item>采购管理</el-breadcrumb-item>
-          <el-breadcrumb-item>新建采购订单</el-breadcrumb-item>
+          <el-breadcrumb-item>{{ pageTitle }}</el-breadcrumb-item>
         </el-breadcrumb>
       </div>
       <div class="header-right">
@@ -48,7 +48,12 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="采购员">
-              <el-input v-model="formData.purchaseUserName" disabled placeholder="系统自动带出采购员" />
+              <purchaser-cascader
+                v-model="formData.purchaseUserId"
+                placeholder="请选择采购员（默认当前账号，可更换）"
+                clearable
+                @change="onPurchaserChange"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -131,7 +136,7 @@
               <el-col :span="8">
                 <el-form-item label="币别">
                   <el-select v-model="item.currency" style="width: 100%">
-                    <el-option label="CNY" :value="1" />
+                    <el-option label="RMB" :value="1" />
                     <el-option label="USD" :value="2" />
                     <el-option label="EUR" :value="3" />
                   </el-select>
@@ -198,12 +203,19 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Check, Plus } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
 import { runSaveTask } from '@/composables/useFormSubmit'
+import { useAuthStore } from '@/stores/auth'
+import PurchaserCascader from '@/components/PurchaserCascader.vue'
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
+
+const editId = computed(() => (route.name === 'PurchaseOrderEdit' ? String(route.params.id || '').trim() : ''))
+const pageTitle = computed(() => (editId.value ? '编辑采购订单' : '新建采购订单'))
 
 /** 手工录入时尚无供应商/销售明细主键时的占位（满足后端非空；以销定采时应填真实 ID） */
 const MANUAL_VENDOR_ID = '00000000-0000-0000-0000-000000000002'
@@ -238,6 +250,7 @@ const formData = ref({
   vendorId: '' as string,
   vendorContactName: '',
   vendorContactId: '' as string,
+  purchaseUserId: '' as string,
   purchaseUserName: '',
   type: 1,
   currency: 1,
@@ -255,6 +268,11 @@ const formRules = {
 const calculateTotal = computed(() =>
   formData.value.items.reduce((sum, item) => sum + (item.qty || 0) * (item.targetPrice || 0), 0)
 )
+
+function onPurchaserChange(payload: { id: string; label: string }) {
+  formData.value.purchaseUserId = payload?.id || ''
+  formData.value.purchaseUserName = payload?.label || ''
+}
 
 const formatCurrency = (value: number, currency?: number) => {
   const symbol = currency === 2 ? '$' : currency === 3 ? '€' : '¥'
@@ -284,16 +302,89 @@ const removeItem = (index: number) => {
   formData.value.items.splice(index, 1)
 }
 
+function buildItemsPayload() {
+  return formData.value.items.map((it) => ({
+    sellOrderItemId: it.sellOrderItemId ?? MANUAL_SELL_ORDER_ITEM_ID,
+    vendorId: it.vendorId ?? MANUAL_VENDOR_ID,
+    pn: it.pn,
+    brand: it.brand,
+    qty: it.qty,
+    cost: it.targetPrice,
+    currency: it.currency ?? formData.value.currency,
+    deliveryDate: it.deliveryDate || null,
+    comment: it.comment || undefined,
+    innerComment: it.innerComment || undefined
+  }))
+}
+
+async function loadOrderForEdit(id: string) {
+  const o = (await purchaseOrderApi.getById(id)) as Record<string, unknown>
+  formData.value.purchaseOrderCode = String(o.purchaseOrderCode ?? formData.value.purchaseOrderCode)
+  formData.value.vendorName = String(o.vendorName ?? '')
+  formData.value.vendorId = String(o.vendorId ?? '')
+  formData.value.vendorContactId = String(o.vendorContactId ?? '')
+  formData.value.vendorContactName = String((o as { vendorContactName?: string }).vendorContactName ?? '')
+  formData.value.purchaseUserId = String(o.purchaseUserId ?? '')
+  formData.value.purchaseUserName = String(o.purchaseUserName ?? '')
+  formData.value.type = Number(o.type ?? 1)
+  formData.value.currency = Number(o.currency ?? 1)
+  const dd = o.deliveryDate
+  formData.value.deliveryDate =
+    dd == null ? '' : typeof dd === 'string' ? dd.split('T')[0]! : String(dd)
+  formData.value.deliveryAddress = String(o.deliveryAddress ?? '')
+  formData.value.comment = String(o.comment ?? '')
+  formData.value.innerComment = String(o.innerComment ?? '')
+  const items = (o.items as Record<string, unknown>[] | undefined) || []
+  formData.value.items = items.map((it) => {
+    const cost = Number(it.cost) || 0
+    const d = it.deliveryDate
+    const deliveryDateStr =
+      d == null ? '' : typeof d === 'string' ? d.split('T')[0]! : String(d)
+    return {
+      sellOrderItemId: it.sellOrderItemId as string | undefined,
+      vendorId: it.vendorId as string | undefined,
+      pn: String(it.pn ?? ''),
+      brand: String(it.brand ?? ''),
+      customerMaterialModel: '',
+      targetPrice: cost,
+      qty: Number(it.qty) || 1,
+      cost,
+      currency: Number(it.currency ?? formData.value.currency),
+      dateCode: '',
+      deliveryDate: deliveryDateStr,
+      comment: String(it.comment ?? ''),
+      innerComment: String(it.innerComment ?? '')
+    }
+  })
+}
+
 const handleSubmit = async () => {
   await runSaveTask({
     loading: submitLoading,
-    successMessage: '采购订单创建成功',
+    successMessage: editId.value ? '采购订单已保存' : '采购订单创建成功',
     task: async () => {
+      const uid = formData.value.purchaseUserId || authStore.user?.id || undefined
+      const uname = formData.value.purchaseUserName || authStore.user?.userName || undefined
+      if (editId.value) {
+        await purchaseOrderApi.update(editId.value, {
+          purchaseUserId: uid,
+          purchaseUserName: uname,
+          type: formData.value.type,
+          currency: formData.value.currency,
+          deliveryDate: formData.value.deliveryDate || null,
+          deliveryAddress: formData.value.deliveryAddress || undefined,
+          comment: formData.value.comment || undefined,
+          innerComment: formData.value.innerComment || undefined,
+          items: buildItemsPayload()
+        })
+        return
+      }
       await purchaseOrderApi.create({
         purchaseOrderCode: formData.value.purchaseOrderCode,
         vendorId: formData.value.vendorId || MANUAL_VENDOR_ID,
         vendorName: formData.value.vendorName,
-        purchaseUserName: formData.value.purchaseUserName,
+        purchaseUserId: uid,
+        purchaseUserName: uname,
         vendorContactId: formData.value.vendorContactId || undefined,
         type: formData.value.type,
         currency: formData.value.currency,
@@ -301,22 +392,14 @@ const handleSubmit = async () => {
         deliveryAddress: formData.value.deliveryAddress || undefined,
         comment: formData.value.comment || undefined,
         innerComment: formData.value.innerComment || undefined,
-        items: formData.value.items.map((it) => ({
-          sellOrderItemId: it.sellOrderItemId ?? MANUAL_SELL_ORDER_ITEM_ID,
-          vendorId: it.vendorId ?? MANUAL_VENDOR_ID,
-          pn: it.pn,
-          brand: it.brand,
-          qty: it.qty,
-          cost: it.targetPrice,
-          currency: it.currency ?? formData.value.currency,
-          deliveryDate: it.deliveryDate || null,
-          comment: it.comment || undefined,
-          innerComment: it.innerComment || undefined
-        }))
+        items: buildItemsPayload()
       })
     },
-    onSuccess: () => router.push({ name: 'PurchaseOrderList' }),
-    errorMessage: () => '创建失败，请重试'
+    onSuccess: () =>
+      editId.value
+        ? router.push({ name: 'PurchaseOrderDetail', params: { id: editId.value } })
+        : router.push({ name: 'PurchaseOrderList' }),
+    errorMessage: () => (editId.value ? '保存失败，请重试' : '创建失败，请重试')
   })
 }
 
@@ -333,7 +416,10 @@ async function handleGeneratePurchaseOrder() {
     formData.value.vendorId = pr.quoteVendorId ?? ''
     formData.value.vendorContactId = pr.intendedVendorContactId ?? ''
     formData.value.vendorContactName = pr.intendedVendorContactName ?? ''
-    formData.value.purchaseUserName = pr.purchaseUserName ?? pr.purchaseUserId ?? ''
+    const prUid = pr.purchaseUserId != null && String(pr.purchaseUserId).trim() ? String(pr.purchaseUserId).trim() : ''
+    formData.value.purchaseUserId = prUid || formData.value.purchaseUserId
+    formData.value.purchaseUserName =
+      (pr.purchaseUserName as string | undefined) ?? (prUid ? '' : formData.value.purchaseUserName)
     formData.value.currency = pr.currency ?? formData.value.currency ?? 1
 
     const deliveryDateStr = pr.deliveryDate ? String(pr.deliveryDate).split('T')[0] : ''
@@ -367,8 +453,24 @@ async function handleGeneratePurchaseOrder() {
   }
 }
 
-onMounted(() => {
-  if (requisitionId.value) handleGeneratePurchaseOrder()
+onMounted(async () => {
+  if (editId.value) {
+    try {
+      await loadOrderForEdit(editId.value)
+    } catch {
+      ElMessage.error('加载采购订单失败')
+    }
+    return
+  }
+  if (requisitionId.value) {
+    await handleGeneratePurchaseOrder()
+    return
+  }
+  const u = authStore.user
+  if (u?.id) {
+    formData.value.purchaseUserId = u.id
+    formData.value.purchaseUserName = u.userName || ''
+  }
 })
 </script>
 

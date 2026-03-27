@@ -1,0 +1,6 @@
+# 仅用于部署包 frontcrm_deploy：本机已 dotnet publish 到 CRM.API/publish/，镜像内不再编译
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+WORKDIR /app
+EXPOSE 5000
+COPY CRM.API/publish/ .
+ENTRYPOINT ["dotnet", "CRM.API.dll"]

@@ -62,27 +62,33 @@
     >
       <el-table-column type="selection" width="48" :reserve-selection="true" />
 
-      <el-table-column prop="purchaseOrderCode" label="采购单号" min-width="130" show-overflow-tooltip />
-      <el-table-column prop="itemStatus" label="状态" width="120" align="center">
+      <el-table-column prop="purchaseOrderCode" label="采购单号" width="160" min-width="160" show-overflow-tooltip />
+      <el-table-column prop="itemStatus" label="状态" width="160" align="center">
         <template #default="{ row }">
           <el-tag effect="dark" :type="statusTagType(row.itemStatus)" size="small">{{ statusText(row.itemStatus) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="orderCreateTime" label="订单生成日期" width="165">
+      <el-table-column prop="orderCreateTime" label="订单生成日期" width="160">
         <template #default="{ row }">{{ formatDt(row.orderCreateTime) }}</template>
       </el-table-column>
 
-      <el-table-column v-if="canViewVendor" prop="vendorName" label="供应商名称" min-width="140" show-overflow-tooltip />
+      <el-table-column v-if="canViewVendor" prop="vendorName" label="供应商名称" min-width="200" show-overflow-tooltip />
       <el-table-column v-if="canViewPurchaseUser" prop="purchaseUserName" label="采购员" width="100" show-overflow-tooltip />
       <el-table-column prop="pn" label="物料型号" min-width="130" show-overflow-tooltip />
       <el-table-column prop="brand" label="品牌" width="110" show-overflow-tooltip />
 
       <el-table-column prop="qty" label="数量" width="100" align="right" />
-      <el-table-column v-if="canViewAmount" prop="cost" label="单价" width="120" align="right">
+      <el-table-column v-if="canViewAmount" prop="cost" label="单价" width="160" align="right">
         <template #default="{ row }">{{ formatMoney(row.cost, row.currency) }}</template>
       </el-table-column>
-      <el-table-column v-if="canViewAmount" prop="lineTotal" label="明细总额" width="120" align="right">
+      <el-table-column v-if="canViewAmount" prop="lineTotal" label="明细总额" width="160" align="right">
         <template #default="{ row }">{{ formatMoney(row.lineTotal, row.currency) }}</template>
+      </el-table-column>
+      <el-table-column label="创建时间" width="160">
+        <template #default="{ row }">{{ formatDt(row.createTime || row.orderCreateTime) }}</template>
+      </el-table-column>
+      <el-table-column label="创建人" width="120" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}</template>
       </el-table-column>
 
       <el-table-column label="操作" width="200" fixed="right" align="center">
@@ -95,10 +101,10 @@
             size="small"
             @click="openArrivalDialog(row)"
           >
-            到货通知
+              通知到货
           </el-button>
           <el-button
-            v-if="row.itemStatus === 30 && canApplyPayment"
+              v-if="row.itemStatus === 30 && canApplyPayment && Number(row.stockInStatus ?? 0) < 2"
             link
             type="success"
             size="small"
@@ -209,17 +215,17 @@
 
         <div class="section-title">订单明细列表</div>
         <CrmDataTable :data="paymentForm.lines" size="small">
-          <el-table-column prop="purchaseOrderCode" label="采购单号" width="140" />
+          <el-table-column prop="purchaseOrderCode" label="采购单号" width="160" min-width="160" show-overflow-tooltip />
           <el-table-column prop="pn" label="型号" min-width="120" />
           <el-table-column prop="brand" label="品牌" width="100" />
           <el-table-column prop="qty" label="数量" width="90" align="right" />
-          <el-table-column prop="cost" label="单价" width="110" align="right">
+          <el-table-column prop="cost" label="单价" width="160" align="right">
             <template #default="{ row }">{{ formatMoney(row.cost, row.currency) }}</template>
           </el-table-column>
-          <el-table-column prop="alreadyRequested" label="已请款" width="110" align="right">
+          <el-table-column prop="alreadyRequested" label="已请款" width="160" align="right">
             <template #default="{ row }">{{ formatMoney(row.alreadyRequested, row.currency) }}</template>
           </el-table-column>
-          <el-table-column prop="pendingRequested" label="待请款" width="110" align="right">
+          <el-table-column prop="pendingRequested" label="待请款" width="160" align="right">
             <template #default="{ row }">{{ formatMoney(row.pendingRequested, row.currency) }}</template>
           </el-table-column>
           <el-table-column label="本次请款金额*" width="150">
@@ -250,7 +256,8 @@
     <el-dialog
       v-model="arrivalDialogVisible"
       title="新建到货通知"
-      width="920px"
+      width="1180px"
+      align-center
       destroy-on-close
     >
       <div class="arrival-form-layout">
@@ -259,7 +266,17 @@
           <el-form label-width="90px">
             <el-row :gutter="12">
               <el-col :span="8"><el-form-item label="单号"><el-input v-model="arrivalForm.purchaseOrderCode" /></el-form-item></el-col>
-              <el-col :span="8"><el-form-item label="申请日期"><el-date-picker v-model="arrivalForm.applyDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
+              <el-col :span="8">
+                <el-form-item label="预计到货日期" required>
+                  <el-date-picker
+                    v-model="arrivalForm.expectedArrivalDate"
+                    type="date"
+                    value-format="YYYY-MM-DD"
+                    placeholder="选择预计到货日期"
+                    style="width: 100%"
+                  />
+                </el-form-item>
+              </el-col>
               <el-col :span="8"><el-form-item label="公司名称"><el-input v-model="arrivalForm.companyName" /></el-form-item></el-col>
             </el-row>
             <el-row :gutter="12">
@@ -281,14 +298,22 @@
             <el-table-column label="序号" width="70">
               <template #default="{ $index }">{{ $index + 1 }}</template>
             </el-table-column>
-            <el-table-column label="原厂型号" min-width="130">
+            <el-table-column label="原厂型号" min-width="180">
               <template #default="{ row }"><el-input v-model="row.pn" /></template>
             </el-table-column>
             <el-table-column label="品牌" width="120">
               <template #default="{ row }"><el-input v-model="row.brand" /></template>
             </el-table-column>
-            <el-table-column label="数量" width="110" align="right">
-              <template #default="{ row }"><el-input-number v-model="row.qty" :min="0" :precision="4" style="width:90px" /></template>
+            <el-table-column label="数量" min-width="168" align="right">
+              <template #default="{ row }">
+                <el-input-number
+                  v-model="row.qty"
+                  :min="0"
+                  :precision="4"
+                  class="arrival-qty-input"
+                  controls-position="right"
+                />
+              </template>
             </el-table-column>
             <el-table-column label="规格参数" min-width="130">
               <template #default="{ row }"><el-input v-model="row.spec" /></template>
@@ -306,7 +331,8 @@
           </el-form>
         </div>
 
-        <div class="arrival-section">
+        <!-- 新建到货通知不展示签收/质检/入库；后续若支持编辑已存在通知可改为 v-if="arrivalNoticeShowProcessFields" -->
+        <div v-if="arrivalNoticeShowProcessFields" class="arrival-section">
           <el-form label-width="90px">
             <el-row :gutter="12">
               <el-col :span="6"><el-form-item label="签收人"><el-input v-model="arrivalForm.signer" /></el-form-item></el-col>
@@ -337,7 +363,7 @@ import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { financePaymentApi } from '@/api/finance'
 import { logisticsApi } from '@/api/logistics'
 import { ElMessage } from 'element-plus'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -360,13 +386,15 @@ const selectedRows = ref<any[]>([])
 const paymentDialogVisible = ref(false)
 const paymentSubmitting = ref(false)
 const arrivalDialogVisible = ref(false)
+/** 新建为 false；若以后支持「编辑到货通知」并需填写签收/质检/入库，可置为 true */
+const arrivalNoticeShowProcessFields = ref(false)
 const arrivalSubmitting = ref(false)
 const arrivalForm = reactive<any>({
   purchaseOrderId: '',
   purchaseOrderCode: '',
   vendorName: '',
   pn: '',
-  applyDate: '',
+  expectedArrivalDate: '' as string,
   companyName: '',
   address: '',
   phone: '',
@@ -512,11 +540,12 @@ function openPaymentDialog(row: any) {
 }
 
 function openArrivalDialog(row: any) {
+  arrivalNoticeShowProcessFields.value = false
   arrivalForm.purchaseOrderId = row.purchaseOrderId || ''
   arrivalForm.purchaseOrderCode = row.purchaseOrderCode || ''
   arrivalForm.vendorName = row.vendorName || ''
   arrivalForm.pn = row.pn || ''
-  arrivalForm.applyDate = ''
+  arrivalForm.expectedArrivalDate = toDatePickerValue(row.deliveryDate)
   arrivalForm.companyName = row.vendorName || ''
   arrivalForm.address = ''
   arrivalForm.phone = ''
@@ -542,15 +571,31 @@ function openArrivalDialog(row: any) {
   arrivalDialogVisible.value = true
 }
 
+function toDatePickerValue(v: unknown): string {
+  if (v == null || v === '') return ''
+  const s = String(v)
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/)
+  if (m) return m[1]
+  const d = formatDisplayDate(s)
+  return d === '--' ? '' : d
+}
+
 async function submitArrivalNotice() {
   if (arrivalSubmitting.value) return
   if (!arrivalForm.purchaseOrderId) {
     ElMessage.warning('缺少采购订单ID，无法创建到货通知')
     return
   }
+  if (!arrivalForm.expectedArrivalDate) {
+    ElMessage.warning('请填写预计到货日期')
+    return
+  }
   arrivalSubmitting.value = true
   try {
-    await logisticsApi.createArrivalNotice(arrivalForm.purchaseOrderId)
+    await logisticsApi.createArrivalNotice({
+      purchaseOrderId: arrivalForm.purchaseOrderId,
+      expectedArrivalDate: arrivalForm.expectedArrivalDate
+    })
     ElMessage.success('到货通知已创建')
     arrivalDialogVisible.value = false
   } catch (error: any) {
@@ -669,6 +714,7 @@ async function loadList() {
         purchaseOrderCode: detail.purchaseOrderCode ?? o.purchaseOrderCode,
         vendorId: detail.vendorId ?? o.vendorId,
         itemStatus: it.status,
+        stockInStatus: it.stockInStatus ?? 0,
         orderCreateTime: detail.createTime ?? o.createTime,
         vendorName: detail.vendorName ?? o.vendorName,
         purchaseUserName: detail.purchaseUserName ?? o.purchaseUserName,
@@ -677,7 +723,8 @@ async function loadList() {
         qty: it.qty,
         cost: it.cost,
         lineTotal: (it.qty || 0) * (it.cost || 0),
-        currency: it.currency ?? detail.currency ?? o.currency
+        currency: it.currency ?? detail.currency ?? o.currency,
+        deliveryDate: it.deliveryDate ?? detail.deliveryDate
       }))
     })
 
@@ -865,6 +912,15 @@ onMounted(() => {
   font-size: 20px;
   margin-bottom: 8px;
   color: $text-primary;
+}
+
+/* 来货明细：数量步进器占满列宽，避免裁切 */
+:deep(.arrival-qty-input) {
+  width: 100%;
+  box-sizing: border-box;
+}
+:deep(.arrival-qty-input .el-input__wrapper) {
+  width: 100%;
 }
 </style>
 

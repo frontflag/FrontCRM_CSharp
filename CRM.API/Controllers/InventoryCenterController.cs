@@ -98,17 +98,17 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("picking-tasks")]
-        public async Task<ActionResult<ApiResponse<IEnumerable<PickingTask>>>> GetPickingTasks([FromQuery] short? status = null)
+        public async Task<ActionResult<ApiResponse<IEnumerable<PickingTaskSummaryDto>>>> GetPickingTasks([FromQuery] short? status = null)
         {
             try
             {
                 var list = await _service.GetPickingTasksAsync(status);
-                return Ok(ApiResponse<IEnumerable<PickingTask>>.Ok(list, "获取拣货任务成功"));
+                return Ok(ApiResponse<IEnumerable<PickingTaskSummaryDto>>.Ok(list, "获取拣货任务成功"));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取拣货任务失败");
-                return StatusCode(500, ApiResponse<IEnumerable<PickingTask>>.Fail($"获取拣货任务失败: {ex.Message}", 500));
+                return StatusCode(500, ApiResponse<IEnumerable<PickingTaskSummaryDto>>.Fail($"获取拣货任务失败: {ex.Message}", 500));
             }
         }
 

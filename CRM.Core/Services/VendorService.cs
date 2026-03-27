@@ -58,13 +58,28 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(request.Code))
                 request.Code = await _serialNumberService.GenerateNextAsync(ModuleCodes.Vendor);
 
+            var official = (request.Name ?? request.OfficialName)?.Trim();
+            var tax = request.CreditCode ?? request.TaxNumber;
+            var currency = request.TradeCurrency ?? request.Currency;
+
             var entity = new VendorInfo
             {
                 Id = Guid.NewGuid().ToString(),
                 Code = request.Code.Trim(),
-                OfficialName = request.Name?.Trim(),
-                CompanyInfo = request.Remark?.Trim(),
-                Status = 0,
+                OfficialName = string.IsNullOrEmpty(official) ? null : official,
+                NickName = string.IsNullOrWhiteSpace(request.NickName) ? null : request.NickName.Trim(),
+                Industry = string.IsNullOrWhiteSpace(request.Industry) ? null : request.Industry.Trim(),
+                Credit = request.Credit,
+                Status = request.Status ?? 1,
+                OfficeAddress = string.IsNullOrWhiteSpace(request.OfficeAddress) ? null : request.OfficeAddress.Trim(),
+                Website = string.IsNullOrWhiteSpace(request.Website) ? null : request.Website.Trim(),
+                PurchaserName = string.IsNullOrWhiteSpace(request.PurchaserName) ? null : request.PurchaserName.Trim(),
+                TradeCurrency = currency,
+                PaymentMethod = string.IsNullOrWhiteSpace(request.PaymentMethod) ? null : request.PaymentMethod.Trim(),
+                Payment = request.PaymentDays,
+                CreditCode = string.IsNullOrWhiteSpace(tax) ? null : tax.Trim(),
+                CompanyInfo = string.IsNullOrWhiteSpace(request.CompanyInfo) ? null : request.CompanyInfo.Trim(),
+                Remark = string.IsNullOrWhiteSpace(request.Remark) ? null : request.Remark.Trim(),
                 CreateTime = DateTime.UtcNow
             };
 
@@ -82,6 +97,8 @@ namespace CRM.Core.Services
             if (vendor == null) return null;
             var contacts = await _contactRepository.FindAsync(c => c.VendorId == vendor.Id);
             vendor.Contacts = contacts.ToList();
+            var banks = await _bankRepository.FindAsync(b => b.VendorId == vendor.Id);
+            vendor.BankAccounts = banks.ToList();
             return vendor;
         }
 
@@ -196,22 +213,37 @@ namespace CRM.Core.Services
 
             if (request.Name != null)
                 entity.OfficialName = request.Name.Trim();
-            if (request.Remark != null)
-                entity.CompanyInfo = request.Remark.Trim();
+            if (request.NickName != null)
+                entity.NickName = string.IsNullOrWhiteSpace(request.NickName) ? null : request.NickName.Trim();
             if (request.Industry != null)
-                entity.Industry = request.Industry.Trim();
+                entity.Industry = string.IsNullOrWhiteSpace(request.Industry) ? null : request.Industry.Trim();
             if (request.Product != null)
-                entity.Product = request.Product.Trim();
+                entity.Product = string.IsNullOrWhiteSpace(request.Product) ? null : request.Product.Trim();
             if (request.Credit.HasValue)
                 entity.Credit = request.Credit.Value;
+            if (request.Status.HasValue)
+                entity.Status = request.Status.Value;
             if (request.OfficeAddress != null)
-                entity.OfficeAddress = request.OfficeAddress.Trim();
+                entity.OfficeAddress = string.IsNullOrWhiteSpace(request.OfficeAddress) ? null : request.OfficeAddress.Trim();
+            if (request.Website != null)
+                entity.Website = string.IsNullOrWhiteSpace(request.Website) ? null : request.Website.Trim();
+            if (request.PurchaserName != null)
+                entity.PurchaserName = string.IsNullOrWhiteSpace(request.PurchaserName) ? null : request.PurchaserName.Trim();
             if (request.Level.HasValue)
                 entity.Level = request.Level.Value;
             if (request.TradeCurrency.HasValue)
                 entity.TradeCurrency = request.TradeCurrency.Value;
-            if (request.Payment.HasValue)
-                entity.Payment = request.Payment.Value;
+            if (request.PaymentMethod != null)
+                entity.PaymentMethod = string.IsNullOrWhiteSpace(request.PaymentMethod) ? null : request.PaymentMethod.Trim();
+            var paymentDays = request.PaymentDays ?? request.Payment;
+            if (paymentDays.HasValue)
+                entity.Payment = paymentDays.Value;
+            if (request.CreditCode != null)
+                entity.CreditCode = string.IsNullOrWhiteSpace(request.CreditCode) ? null : request.CreditCode.Trim();
+            if (request.CompanyInfo != null)
+                entity.CompanyInfo = string.IsNullOrWhiteSpace(request.CompanyInfo) ? null : request.CompanyInfo.Trim();
+            if (request.Remark != null)
+                entity.Remark = string.IsNullOrWhiteSpace(request.Remark) ? null : request.Remark.Trim();
             if (request.ExternalNumber != null)
                 entity.ExternalNumber = request.ExternalNumber.Trim();
 
@@ -334,10 +366,25 @@ namespace CRM.Core.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
+        private static void ValidateVendorStatusTransition(short current, short target)
+        {
+            if (current == target) return;
+            var ok = current switch
+            {
+                1 => target is 2,                 // 新建 -> 待审核
+                2 => target is 10 or -1,          // 待审核 -> 已审核 / 审核失败
+                -1 => target is 1,                // 审核失败 -> 回到新建（可重新提交）
+                10 => target is 12 or 20,         // 已审核 -> 待财务审核 / 财务建档
+                12 => target is 20,               // 待财务审核 -> 财务建档
+                _ => false
+            };
+            if (!ok) throw new InvalidOperationException($"不允许的供应商状态流转: {current} -> {target}");
+        }
+
         /// <summary>
         /// 更新状态
         /// </summary>
-        public async Task UpdateStatusAsync(string id, short status)
+        public async Task UpdateStatusAsync(string id, short status, string? auditRemark = null)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("ID不能为空", nameof(id));
@@ -346,7 +393,18 @@ namespace CRM.Core.Services
             if (entity == null)
                 throw new KeyNotFoundException($"找不到ID为 '{id}' 的记录");
 
+            ValidateVendorStatusTransition(entity.Status, status);
             entity.Status = status;
+            if (status == -1)
+            {
+                if (string.IsNullOrWhiteSpace(auditRemark))
+                    throw new ArgumentException("审核拒绝时必须填写原因", nameof(auditRemark));
+                entity.AuditRemark = auditRemark.Trim();
+            }
+            else if (status == 10)
+            {
+                entity.AuditRemark = null;
+            }
             entity.ModifyTime = DateTime.UtcNow;
             await _repository.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();

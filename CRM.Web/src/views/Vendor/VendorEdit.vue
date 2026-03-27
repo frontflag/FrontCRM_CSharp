@@ -20,7 +20,7 @@
         </div>
       </div>
       <div class="header-right">
-        <button class="btn-ghost" @click="handleRestoreDraft" :disabled="saving">从草稿恢复</button>
+        <button v-if="isEdit" class="btn-ghost" @click="handleRestoreDraft" :disabled="saving">从草稿恢复</button>
         <button class="btn-ghost" @click="saveDraftOnly" :disabled="saving">保存草稿</button>
         <button class="btn-ghost" @click="goBack">取消</button>
         <button class="btn-primary" @click="handleConvertToFormal" :disabled="saving">
@@ -103,35 +103,19 @@
               </el-form-item>
             </el-col>
           </el-row>
-        </div>
-      </div>
 
-      <!-- 联系信息 -->
-      <div class="form-section">
-        <div class="section-header">
-          <div class="section-dot section-dot--green"></div>
-          <span class="section-title">联系信息</span>
-        </div>
-        <div class="section-body">
           <el-row :gutter="24">
             <el-col :span="8">
-              <el-form-item label="联系人姓名">
-                <el-input v-model="formData.contactName" placeholder="主要联系人" class="q-input" />
+              <el-form-item label="采购员">
+                <PurchaserCascader
+                  v-model="formData.purchaseUserId"
+                  placeholder="请选择负责采购员"
+                  class="q-select"
+                  @change="onPurchaserChange"
+                />
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="联系电话">
-                <el-input v-model="formData.contactPhone" placeholder="手机号码" class="q-input" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="联系邮箱">
-                <el-input v-model="formData.contactEmail" placeholder="电子邮箱" class="q-input" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-row :gutter="24">
-            <el-col :span="16">
               <el-form-item label="办公地址">
                 <el-input v-model="formData.officeAddress" placeholder="详细办公地址" class="q-input" />
               </el-form-item>
@@ -149,17 +133,19 @@
       <div class="form-section">
         <div class="section-header">
           <div class="section-dot section-dot--amber"></div>
-          <span class="section-title">合作条款</span>
+          <span class="section-title">财务信息</span>
         </div>
         <div class="section-body">
           <el-row :gutter="24">
             <el-col :span="8">
               <el-form-item label="结算货币">
                 <el-select v-model="formData.currency" placeholder="请选择货币" class="q-select">
-                  <el-option label="人民币 CNY" :value="1" />
-                  <el-option label="美元 USD" :value="2" />
-                  <el-option label="欧元 EUR" :value="3" />
-                  <el-option label="港币 HKD" :value="4" />
+                  <el-option
+                    v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
+                    :key="opt.value"
+                    :label="opt.label"
+                    :value="opt.value"
+                  />
                 </el-select>
               </el-form-item>
             </el-col>
@@ -182,11 +168,6 @@
             </el-col>
           </el-row>
           <el-row :gutter="24">
-            <el-col :span="8">
-              <el-form-item label="采购员">
-                <el-input v-model="formData.purchaserName" placeholder="负责采购员" class="q-input" />
-              </el-form-item>
-            </el-col>
             <el-col :span="8">
               <el-form-item label="税号">
                 <el-input v-model="formData.taxNumber" placeholder="统一社会信用代码" class="q-input" />
@@ -243,12 +224,12 @@
 
     </el-form>
 
-    <!-- 联系人（仅编辑时显示） -->
-    <div v-if="isEdit" class="form-section">
+    <!-- 联系人信息（与客户页面一致：内联添加/删除） -->
+    <div class="form-section">
       <div class="section-header">
         <div class="section-dot section-dot--green"></div>
-        <span class="section-title">联系人</span>
-        <button type="button" class="btn-add-contact" @click="openContactDialog()">
+        <span class="section-title">联系人信息</span>
+        <button type="button" class="btn-add-contact" @click="addContact">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
@@ -257,37 +238,75 @@
       </div>
       <div class="section-body">
         <div v-if="contacts.length === 0" class="empty-contacts">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <line x1="23" y1="11" x2="17" y2="11"/>
+            <line x1="20" y1="8" x2="20" y2="14"/>
+          </svg>
           <p>暂无联系人，点击上方按钮添加</p>
         </div>
-        <el-table v-else :data="contacts" class="contact-table" size="small">
-          <el-table-column prop="cName" label="姓名" width="100" />
-          <el-table-column prop="title" label="职位" width="100" />
-          <el-table-column prop="department" label="部门" width="100" />
-          <el-table-column prop="mobile" label="手机" width="130" />
-          <el-table-column prop="email" label="邮箱" min-width="160" show-overflow-tooltip />
-          <el-table-column label="主联系人" width="80" align="center">
-            <template #default="{ row }">
-              <el-tag v-if="row.isMain" type="success" size="small">主</el-tag>
-              <span v-else class="td-empty">--</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="120" fixed="right">
-            <template #default="{ row }">
-              <button type="button" class="action-btn" @click="openContactDialog(row)">编辑</button>
-              <button type="button" class="action-btn danger" @click="handleDeleteContact(row)">删除</button>
-            </template>
-          </el-table-column>
-        </el-table>
+
+        <div v-for="(contact, index) in contacts" :key="contact._key || index" class="contact-item">
+          <div class="contact-item-header">
+            <span class="contact-index">联系人 {{ index + 1 }}</span>
+            <button type="button" class="btn-remove" @click="removeContact(index)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+              删除
+            </button>
+          </div>
+
+          <el-row :gutter="16">
+            <el-col :span="6">
+              <el-form-item label="姓名">
+                <el-input v-model="contact.cName" placeholder="联系人姓名" class="q-input" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="6">
+              <el-form-item label="职位">
+                <el-input v-model="contact.title" placeholder="职位/角色" class="q-input" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="6">
+              <el-form-item label="手机">
+                <el-input v-model="contact.mobile" placeholder="手机号" class="q-input" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="6">
+              <el-form-item label="邮箱">
+                <el-input v-model="contact.email" placeholder="邮箱" class="q-input" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+
+          <el-row :gutter="16" style="margin-top: 6px;">
+            <el-col :span="6">
+              <el-form-item label="部门">
+                <el-input v-model="contact.department" placeholder="所属部门" class="q-input" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="6">
+              <el-form-item label="固话">
+                <el-input v-model="contact.tel" placeholder="座机电话" class="q-input" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="6">
+              <el-form-item label="备注">
+                <el-input v-model="contact.remark" placeholder="备注" class="q-input" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="6">
+              <el-form-item label=" ">
+                <el-checkbox v-model="contact.isMain" class="q-checkbox">设为主联系人</el-checkbox>
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </div>
       </div>
     </div>
-
-    <VendorContactDialog
-      v-if="isEdit"
-      v-model="showContactDialog"
-      :vendor-id="vendorId"
-      :contact="editingContact"
-      @success="onContactSuccess"
-    />
   </div>
 </template>
 
@@ -295,11 +314,12 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
-import { vendorApi, vendorContactApi } from '@/api/vendor';
+import { vendorApi, vendorBankApi, vendorContactApi } from '@/api/vendor';
 import { draftApi } from '@/api/draft';
-import type { VendorContactInfo } from '@/types/vendor';
-import VendorContactDialog from './components/VendorContactDialog.vue';
+import type { CreateVendorRequest, UpdateVendorRequest, Vendor, VendorContactInfo } from '@/types/vendor';
 import { runValidatedFormSave } from '@/composables/useFormSubmit';
+import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency';
+import PurchaserCascader from '@/components/PurchaserCascader.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -327,6 +347,7 @@ const formData = reactive({
   currency: 1 as number,
   paymentMethod: '',
   paymentDays: 0,
+  purchaseUserId: '',
   purchaserName: '',
   taxNumber: '',
   bankName: '',
@@ -340,17 +361,67 @@ const formRules: FormRules = {
   officialName: [{ required: true, message: '请输入供应商全称', trigger: 'blur' }]
 };
 
-const contacts = ref<VendorContactInfo[]>([]);
-const showContactDialog = ref(false);
-const editingContact = ref<VendorContactInfo | null>(null);
+function onPurchaserChange(p: { id: string; label: string }) {
+  formData.purchaserName = p.label || '';
+}
+
+type VendorContactDraft = Omit<VendorContactInfo, 'vendorId' | 'id'> & { id?: string; vendorId?: string; _key?: string };
+const contacts = ref<VendorContactDraft[]>([]);
 
 const goBack = () => router.push('/vendors');
+
+const buildVendorApiPayload = (): CreateVendorRequest & UpdateVendorRequest => ({
+  name: formData.officialName.trim(),
+  nickName: formData.nickName?.trim(),
+  industry: formData.industry || undefined,
+  credit: formData.credit,
+  status: formData.status,
+  officeAddress: formData.officeAddress?.trim(),
+  website: formData.website?.trim(),
+  purchaserName: formData.purchaserName?.trim(),
+  tradeCurrency: formData.currency,
+  paymentMethod: formData.paymentMethod || undefined,
+  paymentDays: Number(formData.paymentDays ?? 0),
+  creditCode: formData.taxNumber?.trim(),
+  companyInfo: formData.companyInfo?.trim(),
+  remark: formData.remark?.trim()
+});
+
+const syncVendorBankForVendor = async (targetVendorId: string) => {
+  const hasBankData = !!(
+    formData.bankName?.trim() ||
+    formData.bankAccount?.trim() ||
+    formData.bankAccountName?.trim()
+  );
+  const existing = await vendorBankApi.getBanksByVendorId(targetVendorId);
+  if (!hasBankData) {
+    for (const b of existing) {
+      await vendorBankApi.deleteBank(b.id);
+    }
+    return;
+  }
+  const payload = {
+    bankName: formData.bankName?.trim() || undefined,
+    bankAccount: formData.bankAccount?.trim() || undefined,
+    accountName: formData.bankAccountName?.trim() || undefined,
+    currency: formData.currency,
+    isDefault: true
+  };
+  const first = existing[0];
+  if (first) {
+    await vendorBankApi.updateBank(first.id, payload);
+    for (let i = 1; i < existing.length; i++) {
+      await vendorBankApi.deleteBank(existing[i].id);
+    }
+  } else {
+    await vendorBankApi.createBank(targetVendorId, payload);
+  }
+};
 
 const fetchVendorDetail = async () => {
   if (!isEdit.value) return;
   try {
-    const v = await vendorApi.getVendorById(vendorId.value);
-    const data = v as any;
+    const data: Vendor = await vendorApi.getVendorById(vendorId.value);
     formData.code = data.code ?? '';
     formData.officialName = data.officialName ?? data.name ?? '';
     formData.nickName = data.nickName ?? '';
@@ -358,18 +429,42 @@ const fetchVendorDetail = async () => {
     formData.credit = data.credit;
     formData.status = data.status ?? 0;
     formData.officeAddress = data.officeAddress ?? '';
+    formData.website = data.website ?? '';
+    formData.currency = data.tradeCurrency ?? 1;
+    formData.paymentMethod = data.paymentMethod ?? '';
+    formData.paymentDays = Number(data.payment ?? 0);
+    formData.purchaserName = data.purchaserName ?? '';
+    formData.purchaseUserId = '';
+    formData.taxNumber = data.creditCode ?? '';
     formData.companyInfo = data.companyInfo ?? '';
     formData.remark = data.remark ?? '';
-    contacts.value = data.contacts ?? [];
+    const banks = data.bankAccounts ?? [];
+    const b0 = banks[0];
+    formData.bankName = b0?.bankName ?? '';
+    formData.bankAccount = b0?.bankAccount ?? '';
+    formData.bankAccountName = b0?.accountName ?? '';
+    contacts.value = (data.contacts ?? []).map((c, idx: number) => ({
+      ...c,
+      _key: c.id || `srv-${idx}`
+    }));
   } catch (e) {
     ElMessage.error('获取供应商详情失败');
   }
 };
 
-const buildDraftPayload = () => ({ ...formData });
+const buildDraftPayload = () => ({
+  ...formData,
+  contacts: contacts.value
+});
 
 const applyDraftPayload = (payload: any) => {
   Object.assign(formData, payload || {});
+  if (Array.isArray(payload?.contacts)) {
+    contacts.value = payload.contacts.map((c: any, idx: number) => ({
+      ...c,
+      _key: c.id || `tmp-${idx}`
+    }));
+  }
 };
 
 const saveDraftOnly = async () => {
@@ -416,22 +511,30 @@ const handleSave = async () => {
   await runValidatedFormSave(formRef, {
     loading: saving,
     task: async () => {
+      let targetVendorId = '';
+      let mode: 'edit' | 'create' = 'create';
+      const payload = buildVendorApiPayload();
       if (editing) {
-        await vendorApi.updateVendor(vendorId.value, {
-          name: formData.officialName,
-          remark: formData.remark
-        });
-        return 'edit' as const;
+        await vendorApi.updateVendor(vendorId.value, payload);
+        targetVendorId = vendorId.value;
+        mode = 'edit';
+      } else {
+        const created = await vendorApi.createVendor(payload);
+        targetVendorId = (created as { id?: string })?.id || '';
+        mode = 'create';
       }
-      await vendorApi.createVendor({
-        name: formData.officialName.trim(),
-        remark: formData.remark?.trim() || undefined
-      });
-      return 'create' as const;
+
+      if (targetVendorId) {
+        await syncVendorBankForVendor(targetVendorId);
+        await syncContactsForVendor(targetVendorId);
+      }
+
+      return mode;
     },
     formatSuccess: (mode) => (mode === 'edit' ? '保存成功' : '创建成功'),
     onSuccess: (mode) => {
       if (mode === 'create') router.replace('/vendors');
+      else void fetchVendorDetail();
     },
     errorMessage: (error: unknown) => {
       const e = error as { message?: string; data?: { message?: string } };
@@ -441,42 +544,87 @@ const handleSave = async () => {
 };
 
 const handleConvertToFormal = async () => {
-  if (isEdit.value) {
-    await handleSave();
-    return;
-  }
-  saving.value = true;
-  try {
-    await saveDraftOnly();
-    if (!currentDraftId.value) throw new Error('草稿ID为空，无法转正式');
-    const result = await draftApi.convertDraft(currentDraftId.value);
-    ElMessage.success(`供应商创建成功，ID：${result.entityId}`);
-    router.replace('/vendors');
-  } catch (error: any) {
-    ElMessage.error(error?.message || '草稿转正式失败');
-  } finally {
-    saving.value = false;
-  }
+  // 需求：只有用户主动点击“保存草稿”才保存草稿；
+  // “转正式”应直接保存正式数据，不再自动保存草稿。
+  await handleSave();
 };
 
-const openContactDialog = (contact?: VendorContactInfo) => {
-  editingContact.value = contact ?? null;
-  showContactDialog.value = true;
+const addContact = () => {
+  const isFirst = contacts.value.length === 0;
+  contacts.value.push({
+    _key: `new-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    cName: '',
+    eName: '',
+    title: '',
+    department: '',
+    mobile: '',
+    tel: '',
+    email: '',
+    qq: '',
+    weChat: '',
+    isMain: isFirst,
+    remark: ''
+  } as VendorContactDraft);
 };
 
-const onContactSuccess = () => {
-  void fetchVendorDetail();
-};
-
-const handleDeleteContact = async (row: VendorContactInfo) => {
+const removeContact = async (index: number) => {
   try {
     await ElMessageBox.confirm('确定要删除该联系人吗？', '确认删除', { type: 'warning' });
-    await vendorContactApi.deleteContact(row.id);
-    ElMessage.success('删除成功');
-    void fetchVendorDetail();
+    contacts.value.splice(index, 1);
   } catch (e) {
     if (e !== 'cancel') ElMessage.error('删除失败');
   }
+};
+
+const syncContactsForVendor = async (targetVendorId: string) => {
+  const existingContacts = await vendorContactApi.getContactsByVendorId(targetVendorId);
+  const existingById = new Map(existingContacts.map((c: any) => [c.id, c]));
+  const keptIds = new Set<string>();
+
+  // 只保留第一个 isMain=true，避免后端状态不一致
+  let defaultAssigned = false;
+  const preparedContacts: VendorContactDraft[] = contacts.value.map((c) => ({ ...c }));
+  for (const c of preparedContacts) {
+    if (c.isMain) {
+      if (!defaultAssigned) defaultAssigned = true;
+      else c.isMain = false;
+    }
+  }
+
+  for (const contact of preparedContacts) {
+    const cName = (contact.cName || '').trim();
+    if (!cName) continue; // 跳过空行，避免插入空联系人
+
+    const payload = {
+      cName: cName || undefined,
+      title: (contact.title || '').trim(),
+      department: (contact.department || '').trim(),
+      mobile: (contact.mobile || '').trim(),
+      tel: (contact.tel || '').trim(),
+      email: (contact.email || '').trim(),
+      isMain: !!contact.isMain,
+      remark: (contact.remark || '').trim()
+    };
+
+    if (contact.id && existingById.has(contact.id)) {
+      await vendorContactApi.updateContact(contact.id, payload as any);
+      keptIds.add(contact.id);
+    } else {
+      const created = await vendorContactApi.createContact(targetVendorId, payload as any);
+      const createdId = (created as any)?.id || (created as any)?.data?.id;
+      if (createdId) keptIds.add(createdId);
+    }
+  }
+
+  for (const oldContact of existingContacts) {
+    if (!keptIds.has(oldContact.id)) {
+      await vendorContactApi.deleteContact(oldContact.id);
+    }
+  }
+
+  // 同步后拉取一次，保持界面数据与数据库一致
+  const latest = await vendorContactApi.getContactsByVendorId(targetVendorId);
+  contacts.value = latest.map((c: any, idx: number) => ({ ...c, _key: c.id || `srv-${idx}` }));
 };
 
 onMounted(() => {
@@ -717,43 +865,54 @@ onMounted(() => {
   .el-input__inner { color: $text-primary !important; }
 }
 
-// 联系人表格
-.contact-table {
-  --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: transparent;
-  --el-table-header-bg-color: rgba(0, 212, 255, 0.04);
-  --el-table-border-color: rgba(255, 255, 255, 0.06);
-  --el-table-text-color: #{$text-secondary};
-  --el-table-header-text-color: #{$text-muted};
-  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.04);
-}
-
-.action-btn {
-  background: none;
-  border: none;
-  color: $cyan-primary;
-  cursor: pointer;
-  font-size: 12px;
-  padding: 0 6px;
-  margin-right: 8px;
-  font-family: 'Noto Sans SC', sans-serif;
-  white-space: nowrap;
-  flex-shrink: 0;
-
-  &:hover { text-decoration: underline; }
-  &.danger { color: #C95745; }
-}
-
 .empty-contacts {
   text-align: center;
-  padding: 24px;
+  padding: 32px;
   color: $text-muted;
   font-size: 13px;
+
+  svg { margin-bottom: 10px; opacity: 0.4; }
 }
 
-.td-empty {
-  color: rgba(255,255,255,0.2);
-  font-size: 12px;
+.contact-item {
+  background: $layer-3;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  padding: 16px;
+  margin-bottom: 12px;
+
+  &:last-child { margin-bottom: 0; }
+}
+
+.contact-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+
+  .contact-index {
+    font-size: 12px;
+    font-weight: 500;
+    color: $cyan-primary;
+    letter-spacing: 0.5px;
+  }
+}
+
+.btn-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: rgba(201, 87, 69, 0.08);
+  border: 1px solid rgba(201, 87, 69, 0.2);
+  border-radius: 4px;
+  color: #C95745;
+  font-size: 11px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover { background: rgba(201, 87, 69, 0.15); }
 }
 // 只读编号字段样式
 .readonly-code {

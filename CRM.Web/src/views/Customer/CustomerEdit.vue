@@ -20,16 +20,20 @@
         </div>
       </div>
       <div class="header-right">
-        <button class="btn-secondary" @click="handleRestoreDraft">从草稿恢复</button>
-        <button class="btn-secondary" @click="saveDraftOnly">保存草稿</button>
-        <button class="btn-primary" @click="handleConvertToFormal">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-            <polyline points="17 21 17 13 7 13 7 21"/>
-            <polyline points="7 3 7 8 15 8"/>
-          </svg>
-          转正式
-        </button>
+        <template v-if="isEdit">
+          <button class="btn-primary" @click="handleSave">保存</button>
+        </template>
+        <template v-else>
+          <button class="btn-secondary" @click="saveDraftOnly">保存草稿</button>
+          <button class="btn-primary" @click="handleConvertToFormal">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            转正式
+          </button>
+        </template>
       </div>
     </div>
 
@@ -112,12 +116,11 @@
             </el-col>
             <el-col :span="8">
               <el-form-item label="所属业务员">
-                <el-select-v2
+                <SalesUserCascader
                   v-model="formData.salesPersonId"
-                  :options="salesPersonOptions"
                   placeholder="请选择业务员"
-                  style="width: 100%"
                   class="q-select"
+                  @change="onSalesPersonChange"
                 />
               </el-form-item>
             </el-col>
@@ -165,9 +168,12 @@
             <el-col :span="8">
               <el-form-item label="结算货币">
                 <el-select v-model="formData.currency" placeholder="请选择" style="width: 100%" class="q-select">
-                  <el-option label="人民币(CNY)" :value="1" />
-                  <el-option label="美元(USD)" :value="2" />
-                  <el-option label="欧元(EUR)" :value="3" />
+                  <el-option
+                    v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
+                    :key="opt.value"
+                    :label="opt.label"
+                    :value="opt.value"
+                  />
                 </el-select>
               </el-form-item>
             </el-col>
@@ -289,10 +295,11 @@ import { useRoute, useRouter } from 'vue-router';
 import { ElNotification, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
 import { customerApi, customerContactApi } from '@/api/customer';
 import { draftApi } from '@/api/draft';
-import { authApi } from '@/api/auth';
+import SalesUserCascader from '@/components/SalesUserCascader.vue';
 import { regionData } from '@/data/regions';
 import type { CreateCustomerRequest } from '@/types/customer';
 import { runValidatedFormSave } from '@/composables/useFormSubmit';
+import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency';
 
 const route = useRoute();
 const router = useRouter();
@@ -322,20 +329,11 @@ const formRules: FormRules = {
   customerLevel: [{ required: true, message: '请选择客户等级', trigger: 'change' }]
 };
 
-const salesPersonOptions = ref<Array<{ value: string; label: string }>>([]);
-
-const fetchSalesPersons = async () => {
-  try {
-    const res = await authApi.getUsers();
-    if (res.success && res.data) {
-      salesPersonOptions.value = res.data.map(u => ({ value: u.id, label: u.label }));
-    }
-  } catch {
-    // 加载失败时保持空列表，不影响其他功能
-  }
-};
-
 const regionOptions = regionData;
+
+function onSalesPersonChange(p: { id: string; label: string }) {
+  formData.salesPersonName = p.label || '';
+}
 
 const fetchCustomerDetail = async () => {
   if (!isEdit.value) return;
@@ -440,22 +438,6 @@ const restoreDraftById = async (draftId: string) => {
   currentDraftId.value = draft.draftId;
 };
 
-const handleRestoreDraft = async () => {
-  try {
-    const { value } = await ElMessageBox.prompt('请输入草稿ID', '从草稿恢复', {
-      confirmButtonText: '恢复',
-      cancelButtonText: '取消',
-      inputPlaceholder: 'DraftId'
-    });
-    if (!value) return;
-    await restoreDraftById(value);
-    ElNotification.success({ title: '恢复成功', message: '客户草稿已恢复到表单' });
-  } catch (err: any) {
-    if (err === 'cancel' || err === 'close') return;
-    ElNotification.error({ title: '恢复失败', message: err?.message || '草稿恢复失败' });
-  }
-};
-
 const syncContactsForCustomer = async (targetCustomerId: string) => {
   const existingContacts = await customerContactApi.getContactsByCustomerId(targetCustomerId);
   const existingById = new Map(existingContacts.map((c: any) => [c.id, c]));
@@ -539,25 +521,14 @@ const handleSave = async () => {
 };
 
 const handleConvertToFormal = async () => {
-  if (isEdit.value) {
-    await handleSave();
-    return;
-  }
-  try {
-    await saveDraftOnly();
-    if (!currentDraftId.value) throw new Error('草稿ID为空，无法转正式');
-    const result = await draftApi.convertDraft(currentDraftId.value);
-    ElNotification.success({ title: '转正式成功', message: `客户已创建，ID：${result.entityId}` });
-    setTimeout(() => router.push('/customers'), 1500);
-  } catch (err: any) {
-    ElNotification.error({ title: '转正式失败', message: err?.message || '草稿转正式失败' });
-  }
+  // 需求：只有用户主动点击“保存草稿”才保存草稿；
+  // “转正式”应直接保存正式数据，不再自动保存草稿。
+  await handleSave();
 };
 
 const goBack = () => router.back();
 onMounted(() => {
   fetchCustomerDetail();
-  fetchSalesPersons();
   const draftId = route.query.draftId;
   if (!isEdit.value && typeof draftId === 'string' && draftId) {
     restoreDraftById(draftId).catch((err: any) => {

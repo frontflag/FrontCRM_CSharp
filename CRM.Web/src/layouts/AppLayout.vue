@@ -63,10 +63,26 @@
           <span class="active-dot" v-if="!isCollapsed"></span>
         </router-link>
 
+        <router-link
+          v-if="hasPermission('draft.read')"
+          to="/drafts"
+          class="menu-item"
+          active-class="active"
+        >
+          <span class="menu-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M4 4h16v16H4z"/>
+              <path d="M8 8h8M8 12h8M8 16h5"/>
+            </svg>
+          </span>
+          <span class="menu-label" v-if="!isCollapsed">草稿箱</span>
+          <span class="active-dot" v-if="!isCollapsed"></span>
+        </router-link>
+
         <!-- 基础资料 -->
         <div class="menu-section-label" v-if="!isCollapsed">基础资料</div>
 
-        <div class="menu-group" v-if="hasPermission('customer.read')">
+        <div class="menu-group" v-if="(isSysAdmin || identityType !== 6) && hasPermission('customer.read')">
           <button class="menu-item has-children" @click="toggleGroup('customers')" :class="{ 'group-open': openGroups.customers }">
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -86,7 +102,7 @@
           </div>
         </div>
 
-        <button v-if="hasPermission('vendor.read')" class="menu-item has-children" @click="toggleGroup('vendors')" :class="{ 'group-open': openGroups.vendors }">
+        <button v-if="(isSysAdmin || identityType !== 6) && hasPermission('vendor.read')" class="menu-item has-children" @click="toggleGroup('vendors')" :class="{ 'group-open': openGroups.vendors }">
           <span class="menu-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
@@ -100,7 +116,7 @@
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </button>
-        <div class="submenu" v-if="hasPermission('vendor.read') && !isCollapsed && openGroups.vendors">
+        <div class="submenu" v-if="(isSysAdmin || identityType !== 6) && hasPermission('vendor.read') && !isCollapsed && openGroups.vendors">
           <router-link to="/vendors" class="submenu-item" active-class="active" exact>供应商列表</router-link>
           <router-link to="/vendors/recycle-bin" class="submenu-item" active-class="active">回收站</router-link>
           <router-link to="/vendors/blacklist" class="submenu-item" active-class="active">黑名单管理</router-link>
@@ -187,8 +203,8 @@
         <!-- 订单 -->
         <div class="menu-section-label" v-if="!isCollapsed">订单</div>
 
-        <!-- 销售管理 -->
-        <div class="menu-group">
+        <!-- 销售管理：必须具备销售订单读取权限才显示入口 -->
+        <div class="menu-group" v-if="hasPermission('sales-order.read')">
           <button class="menu-item has-children" @click="toggleGroup('sales')" :class="{ 'group-open': openGroups.sales }">
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -212,8 +228,11 @@
           </div>
         </div>
 
-        <!-- 采购管理 -->
-        <div class="menu-group">
+        <!-- 采购管理：销售部门不显示 -->
+        <div
+          class="menu-group"
+          v-if="(isSysAdmin || identityType !== 1) && (hasPermission('purchase-requisition.read') || hasPermission('purchase-order.read'))"
+        >
           <button class="menu-item has-children" @click="toggleGroup('purchase')" :class="{ 'group-open': openGroups.purchase }">
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -228,8 +247,18 @@
             </svg>
           </button>
           <div class="submenu" v-if="!isCollapsed && openGroups.purchase">
-            <router-link to="/purchase-requisitions" class="submenu-item" active-class="active">采购申请</router-link>
-            <router-link to="/purchase-orders" class="submenu-item" active-class="active">采购订单</router-link>
+            <router-link
+              v-if="hasPermission('purchase-requisition.read')"
+              to="/purchase-requisitions"
+              class="submenu-item"
+              active-class="active"
+            >采购申请</router-link>
+            <router-link
+              v-if="hasPermission('purchase-order.read')"
+              to="/purchase-orders"
+              class="submenu-item"
+              active-class="active"
+            >采购订单</router-link>
             <router-link
               v-if="hasPermission('purchase-order.read')"
               to="/purchase-order-items"
@@ -315,31 +344,113 @@
           </button>
           <div class="submenu" v-if="!isCollapsed && openGroups.stockOutManagement">
             <router-link to="/inventory/stock-out-notifies" class="submenu-item" active-class="active">出库通知</router-link>
-            <router-link to="/inventory/packing-lists" class="submenu-item" active-class="active">装箱单</router-link>
             <router-link to="/inventory/stock-out" class="submenu-item" active-class="active">出库</router-link>
           </div>
         </div>
 
-        <!-- 财务管理 -->
-        <div class="menu-section-label" v-if="!isCollapsed">财务管理</div>
-        <div class="menu-group">
-          <button class="menu-item has-children" @click="toggleGroup('finance')" :class="{ 'group-open': openGroups.finance }">
-            <span class="menu-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <rect x="2" y="5" width="20" height="14" rx="2"/>
-                <line x1="2" y1="10" x2="22" y2="10"/>
+        <!-- 财务：按部门隔离维度拆分“付款管理/收款管理”
+             红框（财务管理折叠按钮）已移除；这里以“付款管理/收款管理”作为二级菜单组（带图标与收起展开）。 -->
+        <div class="menu-section-label" v-if="!isCollapsed && (isSysAdmin || identityType !== 6)">财务</div>
+        <div v-if="!isCollapsed && (isSysAdmin || identityType !== 6)">
+          <!-- 付款管理组：销售部门（identityType=1）不显示 -->
+          <div
+            class="menu-group"
+            v-if="
+              (isSysAdmin || identityType !== 1) &&
+              (hasPermission('finance-payment.read') || hasPermission('finance-purchase-invoice.read'))
+            "
+          >
+            <button
+              class="menu-item has-children"
+              @click="toggleGroup('financePayments')"
+              :class="{ 'group-open': openGroups.financePayments }"
+            >
+              <span class="menu-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="3" y="5" width="18" height="14" rx="2" ry="2"/>
+                  <path d="M7 9h10"/>
+                  <path d="M7 13h6"/>
+                </svg>
+              </span>
+              <span class="menu-label" v-if="!isCollapsed">付款管理</span>
+              <svg
+                v-if="!isCollapsed"
+                class="chevron"
+                :class="{ rotated: openGroups.financePayments }"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M6 9l6 6 6-6"/>
               </svg>
-            </span>
-            <span class="menu-label" v-if="!isCollapsed">财务管理</span>
-            <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.finance }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M6 9l6 6 6-6"/>
-            </svg>
-          </button>
-          <div class="submenu" v-if="!isCollapsed && openGroups.finance">
-            <router-link to="/finance/payments" class="submenu-item" active-class="active">付款管理</router-link>
-            <router-link to="/finance/receipts" class="submenu-item" active-class="active">收款管理</router-link>
-            <router-link to="/finance/purchase-invoices" class="submenu-item" active-class="active">进项发票</router-link>
-            <router-link to="/finance/sell-invoices" class="submenu-item" active-class="active">销项发票</router-link>
+            </button>
+
+            <div class="submenu" v-if="!isCollapsed && openGroups.financePayments">
+              <router-link
+                v-if="hasPermission('finance-payment.read')"
+                to="/finance/payments"
+                class="submenu-item"
+                active-class="active"
+              >付款记录</router-link>
+              <router-link
+                v-if="hasPermission('finance-purchase-invoice.read')"
+                to="/finance/purchase-invoices"
+                class="submenu-item"
+                active-class="active"
+              >进项发票</router-link>
+            </div>
+          </div>
+
+          <!-- 收款管理组：采购部门（identityType=2）不显示 -->
+          <div
+            class="menu-group"
+            v-if="
+              (isSysAdmin || identityType !== 2) &&
+              (hasPermission('finance-receipt.read') || hasPermission('finance-sell-invoice.read'))
+            "
+          >
+            <button
+              class="menu-item has-children"
+              @click="toggleGroup('financeReceipts')"
+              :class="{ 'group-open': openGroups.financeReceipts }"
+            >
+              <span class="menu-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="3" y="11" width="18" height="10" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 019.5 0v4"/>
+                  <path d="M12 15v2"/>
+                  <path d="M12 19h0"/>
+                </svg>
+              </span>
+              <span class="menu-label" v-if="!isCollapsed">收款管理</span>
+              <svg
+                v-if="!isCollapsed"
+                class="chevron"
+                :class="{ rotated: openGroups.financeReceipts }"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </button>
+
+            <div class="submenu" v-if="!isCollapsed && openGroups.financeReceipts">
+              <router-link
+                v-if="hasPermission('finance-receipt.read')"
+                to="/finance/receipts"
+                class="submenu-item"
+                active-class="active"
+              >收款记录</router-link>
+              <router-link
+                v-if="hasPermission('finance-sell-invoice.read')"
+                to="/finance/sell-invoices"
+                class="submenu-item"
+                active-class="active"
+              >销项发票</router-link>
+            </div>
           </div>
         </div>
 
@@ -396,16 +507,6 @@
 
         <!-- 系统 -->
         <div class="menu-section-label" v-if="!isCollapsed">系统</div>
-
-        <router-link v-if="hasPermission('draft.read')" to="/drafts" class="menu-item" active-class="active">
-          <span class="menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M4 4h16v16H4z"/>
-              <path d="M8 8h8M8 12h8M8 16h5"/>
-            </svg>
-          </span>
-          <span class="menu-label" v-if="!isCollapsed">草稿箱</span>
-        </router-link>
 
         <router-link to="/dashboard/settings" class="menu-item" active-class="active">
           <span class="menu-icon">
@@ -550,13 +651,36 @@ const openGroups = ref({
   rfqs: false,
   quotes: false,
   finance: false,
+  financePayments: false,
+  financeReceipts: false,
   systemManagement: false
 })
+
+const expandAllGroups = () => {
+  // SYS_ADMIN 需要“看见所有菜单项”，因此默认把所有分组都展开
+  openGroups.value = {
+    purchase: true,
+    sales: true,
+    inventory: true,
+    stockInManagement: true,
+    stockOutManagement: true,
+    customers: true,
+    vendors: true,
+    rfqs: true,
+    quotes: true,
+    finance: true,
+    financePayments: true,
+    financeReceipts: true,
+    systemManagement: true
+  }
+}
 
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
   if (isCollapsed.value) {
-    openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, systemManagement: false }
+    openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, financePayments: false, financeReceipts: false, systemManagement: false }
+  } else if (isSysAdmin.value) {
+    expandAllGroups()
   }
 }
 
@@ -589,7 +713,6 @@ const pageTitleMap: Record<string, string> = {
   '/inventory/stock-in': '入库管理',
   '/inventory/stock-out': '出库管理',
   '/inventory/stock-out-notifies': '出库通知',
-  '/inventory/packing-lists': '装箱单',
   '/inventory/transfer': '库存调拨',
   '/inventory/check': '库存盘点',
   '/reports': '报表分析',
@@ -608,6 +731,7 @@ const pageTitleMap: Record<string, string> = {
   '/profile': '个人设置',
   '/drafts': '草稿箱',
   '/debug': 'Debug',
+  '/debug/data': 'Debug 模拟数据',
 }
 
 const currentPageTitle = computed(() => {
@@ -646,6 +770,21 @@ const handleUnimplemented = (name: string) => {
 }
 
 const hasPermission = (code: string) => authStore.hasPermission(code)
+const identityType = computed(() => authStore.user?.identityType ?? 0)
+const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
+
+// 管理员默认展开所有主菜单分组，保证“主菜单面上的所有菜单项”可见
+watch(
+  isSysAdmin,
+  (v) => {
+    if (v) {
+      // SYS_ADMIN 需要“主菜单面上的所有菜单项”可见：无论之前是否折叠，统一展开侧边栏与分组
+      isCollapsed.value = false
+      expandAllGroups()
+    }
+  },
+  { immediate: true }
+)
 
 // 待办：只在员工拥有任一“审批”相关写权限时显示入口
 const hasAnyApprovalPermission = computed(() => {
@@ -676,7 +815,7 @@ watch(
     if (p.startsWith('/logistics/') || p === '/inventory/stock-in' || p.startsWith('/inventory/stock-in/')) {
       openGroups.value.stockInManagement = true
     }
-    if (p === '/inventory/stock-out' || p.startsWith('/inventory/stock-out/') || p === '/inventory/stock-out-notifies' || p === '/inventory/packing-lists') {
+    if (p === '/inventory/stock-out' || p.startsWith('/inventory/stock-out/') || p === '/inventory/stock-out-notifies') {
       openGroups.value.stockOutManagement = true
     }
     if (p.startsWith('/system/')) {
@@ -1131,6 +1270,22 @@ onMounted(() => {
       box-shadow: 0 0 4px #00D4FF;
     }
   }
+}
+
+.submenu-group {
+  margin-top: 6px;
+}
+
+.submenu-group-label {
+  padding: 4px 10px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(200, 216, 232, 0.6);
+  letter-spacing: 0.5px;
+}
+
+.finance-inline {
+  padding: 6px 0 2px;
 }
 
 // 底部账号信息

@@ -56,6 +56,10 @@ export interface PickingTask {
   status: number
   remark?: string
   createTime?: string
+  /** 明细计划拣货量合计 */
+  planQtyTotal?: number
+  /** 明细已拣货量合计 */
+  pickedQtyTotal?: number
 }
 
 export interface CountPlan {

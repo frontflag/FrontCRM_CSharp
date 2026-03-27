@@ -195,7 +195,7 @@
           <el-col :span="12">
             <el-form-item label="报价货币">
               <el-select v-model="quoteForm.quotedCurrency" class="w-full">
-                <el-option label="CNY" value="CNY" />
+                <el-option label="RMB" value="RMB" />
                 <el-option label="USD" value="USD" />
                 <el-option label="EUR" value="EUR" />
                 <el-option label="HKD" value="HKD" />
@@ -242,6 +242,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { bomApi } from '@/api/bom'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import type { BOM, BOMItem } from '@/types/bom'
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const route = useRoute()
@@ -335,7 +336,7 @@ const currentItem = ref<BOMItem | null>(null)
 const quoteFormRef = ref()
 const quoteForm = ref({
   quotedPrice: 0,
-  quotedCurrency: 'CNY',
+  quotedCurrency: 'RMB',
   quotedStock: undefined as number | undefined,
   quotedDeliveryDays: undefined as number | undefined,
   quotedBrand: '',
@@ -350,7 +351,7 @@ const openManualQuote = (item: BOMItem, isEdit: boolean) => {
   isEditQuote.value = isEdit
   quoteForm.value = {
     quotedPrice: item.quotedPrice ?? 0,
-    quotedCurrency: item.quotedCurrency || item.currency || 'CNY',
+    quotedCurrency: item.quotedCurrency || item.currency || 'RMB',
     quotedStock: item.quotedStock,
     quotedDeliveryDays: item.quotedDeliveryDays,
     quotedBrand: item.quotedBrand || '',

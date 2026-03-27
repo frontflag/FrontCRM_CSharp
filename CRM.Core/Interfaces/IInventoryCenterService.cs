@@ -14,7 +14,7 @@ namespace CRM.Core.Interfaces
         Task<IEnumerable<WarehouseInfo>> GetWarehousesAsync();
         Task<WarehouseInfo> SaveWarehouseAsync(WarehouseInfo warehouse);
 
-        Task<IEnumerable<PickingTask>> GetPickingTasksAsync(short? status = null);
+        Task<IEnumerable<PickingTaskSummaryDto>> GetPickingTasksAsync(short? status = null);
         Task<PickingTask> GeneratePickingTaskAsync(GeneratePickingTaskRequest request);
         Task CompletePickingTaskAsync(string taskId);
 
@@ -61,6 +61,23 @@ namespace CRM.Core.Interfaces
         public decimal TurnoverRate { get; set; }
         public decimal TurnoverDays { get; set; }
         public int StagnantMaterialCount { get; set; }
+    }
+
+    /// <summary>拣货任务列表（含明细汇总数量，供前端展示）</summary>
+    public class PickingTaskSummaryDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string TaskCode { get; set; } = string.Empty;
+        public string StockOutRequestId { get; set; } = string.Empty;
+        public string WarehouseId { get; set; } = string.Empty;
+        public string OperatorId { get; set; } = string.Empty;
+        public short Status { get; set; }
+        public string? Remark { get; set; }
+        public DateTime CreateTime { get; set; }
+        /// <summary>本任务拣货明细计划数量合计</summary>
+        public decimal PlanQtyTotal { get; set; }
+        /// <summary>本任务拣货明细已拣数量合计</summary>
+        public decimal PickedQtyTotal { get; set; }
     }
 
     public class GeneratePickingTaskRequest

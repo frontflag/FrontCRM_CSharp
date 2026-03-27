@@ -29,6 +29,16 @@ export interface ApiResponse<T> {
   errorCode: number
 }
 
+export interface SalesUserTreeNode {
+  value: string
+  label: string
+  isUser: boolean
+  children?: SalesUserTreeNode[]
+}
+
+/** 销售/采购组织树节点（结构相同） */
+export type OrgUserTreeNode = SalesUserTreeNode
+
 export const authApi = {
   login(data: LoginRequest): Promise<ApiResponse<AuthResponse>> {
     return apiClient.post('/api/v1/auth/login', data)
@@ -48,5 +58,13 @@ export const authApi = {
 
   getUsers(): Promise<ApiResponse<Array<{ id: string; label: string; userName: string; realName?: string }>>> {
     return apiClient.get('/api/v1/auth/users')
+  },
+
+  getSalesUsersTree(): Promise<ApiResponse<SalesUserTreeNode[]>> {
+    return apiClient.get('/api/v1/auth/sales-users-tree')
+  },
+
+  getPurchaseUsersTree(): Promise<ApiResponse<OrgUserTreeNode[]>> {
+    return apiClient.get('/api/v1/auth/purchase-users-tree')
   }
 }

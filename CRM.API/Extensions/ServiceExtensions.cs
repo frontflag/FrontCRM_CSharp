@@ -52,6 +52,7 @@ namespace CRM.API.Extensions
             services.AddScoped<IDraftService, DraftService>();
             services.AddScoped<IRbacService, RbacService>();
             services.AddScoped<IDataPermissionService, DataPermissionService>();
+            services.AddScoped<IApprovalRecordService, ApprovalRecordService>();
             services.AddDocumentModule(configuration);
 
             // 销售订单模块

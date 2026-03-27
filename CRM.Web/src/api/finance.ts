@@ -4,6 +4,7 @@
 // 实体: FinancePayment / FinanceReceipt / FinancePurchaseInvoice / FinanceSellInvoice
 // ============================================================
 import apiClient from './client'
+import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 
 // ==================== 类型定义 ====================
 
@@ -15,6 +16,8 @@ export interface FinancePayment {
   salesUserId?: string
   status: number       // 1新建 2待审核 10审核通过 100付款完成 -1审核失败 -2取消
   paymentAmount: number
+  /** 创建/更新请款时与后端 DTO 对齐（应付金额） */
+  paymentAmountToBe?: number
   paymentCurrency: number  // 1:人民币 2:美元 3:欧元
   paymentDate?: string
   paymentUserId?: string
@@ -262,11 +265,7 @@ export const PAYMENT_MODE_MAP: Record<number, string> = {
   4: '承兑汇票',
 }
 
-export const CURRENCY_MAP: Record<number, string> = {
-  1: 'CNY',
-  2: 'USD',
-  3: 'EUR',
-}
+export const CURRENCY_MAP: Record<number, string> = CURRENCY_CODE_TO_TEXT
 
 export const INVOICE_TYPE_MAP: Record<number, string> = {
   10: '蓝字发票',

@@ -33,13 +33,21 @@
 
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="业务员" prop="salesUserName">
-              <el-input v-model="formData.salesUserName" placeholder="请输入业务员" />
+            <el-form-item label="业务员" prop="salesUserId">
+              <SalesUserCascader
+                v-model="formData.salesUserId"
+                placeholder="请选择业务员"
+                @change="onQuoteEditSalesUserChange"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="采购员">
-              <el-input v-model="formData.purchaseUserName" placeholder="请输入采购员" />
+              <PurchaserCascader
+                v-model="formData.purchaseUserId"
+                placeholder="请选择采购员"
+                @change="onQuoteEditPurchaseUserChange"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -103,8 +111,12 @@
             <el-table-column label="币别" width="80">
               <template #default="{ $index }">
                 <el-select v-model="formData.items[$index].currency" size="small" style="width: 100%">
-                  <el-option label="USD" :value="1" />
-                  <el-option label="CNY" :value="0" />
+                  <el-option
+                    v-for="opt in CURRENCY_ISO_OPTIONS"
+                    :key="opt.value"
+                    :label="opt.label"
+                    :value="opt.value"
+                  />
                 </el-select>
               </template>
             </el-table-column>
@@ -134,11 +146,22 @@ import { ArrowLeft, Check, Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { quoteApi } from '@/api/quote'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
+import { CURRENCY_ISO_OPTIONS } from '@/constants/currency'
+import SalesUserCascader from '@/components/SalesUserCascader.vue'
+import PurchaserCascader from '@/components/PurchaserCascader.vue'
 
 const router = useRouter()
 const route = useRoute()
 
 const quoteId = computed(() => route.params.id as string)
+
+function onQuoteEditSalesUserChange(p: { id: string; label: string }) {
+  formData.value.salesUserName = p.label || ''
+}
+
+function onQuoteEditPurchaseUserChange(p: { id: string; label: string }) {
+  formData.value.purchaseUserName = p.label || ''
+}
 
 const loading = ref(false)
 const submitLoading = ref(false)
@@ -147,6 +170,8 @@ const formRef = ref()
 const formData = ref({
   quoteCode: '',
   mpn: '',
+  salesUserId: '',
+  purchaseUserId: '',
   salesUserName: '',
   purchaseUserName: '',
   remark: '',
@@ -155,7 +180,7 @@ const formData = ref({
 
 const formRules = {
   mpn: [{ required: true, message: '请输入物料型号', trigger: 'blur' }],
-  salesUserName: [{ required: true, message: '请输入业务员', trigger: 'blur' }]
+  salesUserId: [{ required: true, message: '请选择业务员', trigger: 'change' }]
 }
 
 const handleBack = () => {
@@ -198,6 +223,8 @@ const load = async () => {
     formData.value = {
       quoteCode: String(q.quoteCode ?? q.QuoteCode ?? ''),
       mpn: String(q.mpn ?? q.Mpn ?? ''),
+      salesUserId: String(q.salesUserId ?? q.SalesUserId ?? ''),
+      purchaseUserId: String(q.purchaseUserId ?? q.PurchaseUserId ?? ''),
       salesUserName: String(q.salesUserName ?? ''),
       purchaseUserName: String(q.purchaseUserName ?? ''),
       remark: String(q.remark ?? ''),

@@ -181,7 +181,7 @@ interface CustomerBankInfo {
 
 | 值 | 标签 |
 |----|------|
-| 1 | CNY |
+| 1 | RMB |
 | 2 | USD |
 | 3 | EUR |
 | 4 | GBP |
@@ -418,7 +418,7 @@ sortDescending?: boolean // 是否降序
 |------|------|------|-------|
 | 信用额度 | `el-input-number` | ❌ | `0` |
 | 账期（天） | `el-input-number` | ❌ | `30` |
-| 结算币种 | `el-select` | ❌ | `1`（CNY） |
+| 结算币种 | `el-select` | ❌ | `1`（RMB） |
 | 税率（%） | `el-input-number`（0-100，精度2位） | ❌ | `13` |
 | 发票类型 | `el-select` | ❌ | `2`（增值税普通发票） |
 

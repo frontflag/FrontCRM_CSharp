@@ -2,6 +2,7 @@ using CRM.API.Extensions;
 using CRM.API.Middlewares;
 using Microsoft.EntityFrameworkCore;
 using CRM.Infrastructure.Data;
+using Npgsql;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -59,6 +60,10 @@ try
         
         try
         {
+            var configuration = services.GetRequiredService<IConfiguration>();
+            var rawCs = configuration.GetConnectionString("DefaultConnection");
+            Log.Information("数据库连接配置（脱敏，Password 已替换）: {MaskedConnectionString}", MaskConnectionStringForLog(rawCs));
+
             // 测试数据库连接
             var canConnect = context.Database.CanConnect();
             if (!canConnect)
@@ -91,4 +96,22 @@ catch (Exception ex)
 finally
 {
     Log.CloseAndFlush();
+}
+
+/// <summary>仅用于日志：解析 Npgsql 连接串并隐藏密码，切勿记录明文。</summary>
+static string MaskConnectionStringForLog(string? connectionString)
+{
+    if (string.IsNullOrWhiteSpace(connectionString))
+        return "(empty)";
+    try
+    {
+        var b = new NpgsqlConnectionStringBuilder(connectionString);
+        if (!string.IsNullOrEmpty(b.Password))
+            b.Password = "***";
+        return b.ConnectionString;
+    }
+    catch (Exception ex)
+    {
+        return $"(无法解析连接串: {ex.Message})";
+    }
 }

@@ -600,7 +600,7 @@ const getLevelLabel = (level: string) => ({ VIP: 'VIP客户', Important: '重要
 const getIndustryLabel = (industry: string) => ({ Manufacturing: '制造业', Trading: '贸易/零售', Technology: '科技/IT', Construction: '建筑/工程', Healthcare: '医疗/健康', Education: '教育', Finance: '金融', Other: '其他' }[industry] || industry);
 const getAddressTypeLabel = (type: string) => ({ Office: '办公地址', Billing: '开票地址', Shipping: '收货地址', Registered: '注册地址' }[type] || type);
 const formatFullAddress = (address: CustomerAddress) => [address.country, address.province, address.city, address.district, address.streetAddress].filter(Boolean).join(' ');
-const getCurrencyLabel = (currency: number) => ({ 1: 'CNY', 2: 'USD', 3: 'EUR', 4: 'JPY', 5: 'GBP', 6: 'HKD' }[currency] || 'CNY');
+const getCurrencyLabel = (currency: number) => ({ 1: 'RMB', 2: 'USD', 3: 'EUR', 4: 'JPY', 5: 'GBP', 6: 'HKD' }[currency] || 'RMB');
 
 onMounted(() => {
   fetchCustomerDetail();

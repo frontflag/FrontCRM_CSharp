@@ -133,7 +133,12 @@
             <!-- 业务员 -->
             <el-col :span="6">
               <el-form-item label="业务员" prop="salesUserId">
-                <el-input v-model="formData.salesUserName" placeholder="业务员" class="q-input" disabled />
+                <SalesUserCascader
+                  v-model="formData.salesUserId"
+                  placeholder="请选择业务员"
+                  class="q-input"
+                  @change="onRfqEditSalesUserChange"
+                />
               </el-form-item>
             </el-col>
           </el-row>
@@ -368,7 +373,7 @@
                       placeholder="0"
                     />
                     <el-select v-model="item.currency" style="width: 80px; flex-shrink: 0" class="q-select currency-select">
-                      <el-option label="RMB" value="CNY" />
+                      <el-option label="RMB" value="RMB" />
                       <el-option label="USD" value="USD" />
                       <el-option label="EUR" value="EUR" />
                       <el-option label="HKD" value="HKD" />
@@ -475,6 +480,7 @@ import { rfqApi } from '@/api/rfq'
 import { draftApi } from '@/api/draft'
 import type { CreateRFQRequest, CreateRFQItemRequest } from '@/types/rfq'
 import { getApiErrorMessage } from '@/utils/apiError'
+import SalesUserCascader from '@/components/SalesUserCascader.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -501,7 +507,6 @@ const formData = reactive<{
   contactPersonEmail: string
   salesUserId: string
   salesUserName: string
-  rfqDate: string
   source: number
   currency: string
   rfqType: number | undefined
@@ -528,9 +533,8 @@ const formData = reactive<{
   contactPersonEmail: '',
   salesUserId: '',
   salesUserName: '',
-  rfqDate: new Date().toISOString().split('T')[0],
   source: 1,
-  currency: 'CNY',
+  currency: 'RMB',
   rfqType: 1,
   quoteMethod: 1,
   assignMethod: 1,
@@ -549,6 +553,10 @@ const formData = reactive<{
   items: []
 })
 
+function onRfqEditSalesUserChange(p: { id: string; label: string }) {
+  formData.salesUserName = p.label || ''
+}
+
 let _keyCounter = 0
 function newItem(): any {
   return {
@@ -559,7 +567,7 @@ function newItem(): any {
     customerBrand: '',
     brand: '',
     targetPrice: undefined,
-    currency: 'CNY',
+    currency: 'RMB',
     quantity: 1,
     productionDate: '',
     expiryDate: '',
@@ -713,9 +721,8 @@ async function loadRFQ() {
     formData.contactPersonEmail = (data as any).contactEmail || data.contactPersonEmail || ''
     formData.salesUserId = data.salesUserId || ''
     formData.salesUserName = data.salesUserName || ''
-    formData.rfqDate = data.rfqDate?.split('T')[0] || ''
     formData.source = data.source || 1
-    formData.currency = data.currency || 'CNY'
+    formData.currency = data.currency || 'RMB'
     formData.rfqType = data.rfqType
     formData.quoteMethod = data.quoteMethod
     formData.assignMethod = data.assignMethod
@@ -769,7 +776,6 @@ async function handleSave() {
       // contactPersonName: formData.contactPersonName || undefined, // 后端暂不支持
       contactEmail: formData.contactPersonEmail || undefined,
       salesUserId: formData.salesUserId || undefined,
-      rfqDate: formData.rfqDate,
       source: formData.source as any,
       currency: formData.currency,
       rfqType: formData.rfqType as any,
@@ -789,7 +795,7 @@ async function handleSave() {
         customerBrand: item.customerBrand || undefined,
         brand: item.brand || undefined,
         targetPrice: item.targetPrice,
-        priceCurrency: ({'CNY':1,'USD':2,'EUR':3,'HKD':4}[item.currency || 'CNY'] || 1) as any,
+        priceCurrency: ({ 'RMB': 1, 'CNY': 1, 'USD': 2, 'EUR': 3, 'HKD': 4 }[item.currency || 'RMB'] || 1) as any,
         quantity: item.quantity,
         productionDate: item.productionDate || undefined,
         expiryDate: item.expiryDate || undefined,
@@ -825,7 +831,6 @@ function buildCreatePayload(): CreateRFQRequest {
     contactId: formData.contactPersonId || undefined,
     contactEmail: formData.contactPersonEmail || undefined,
     salesUserId: formData.salesUserId || undefined,
-    rfqDate: formData.rfqDate,
     source: formData.source as any,
     currency: formData.currency,
     rfqType: formData.rfqType as any,
@@ -845,7 +850,7 @@ function buildCreatePayload(): CreateRFQRequest {
       customerBrand: item.customerBrand || undefined,
       brand: item.brand || undefined,
       targetPrice: item.targetPrice,
-      priceCurrency: ({'CNY':1,'USD':2,'EUR':3,'HKD':4}[item.currency || 'CNY'] || 1) as any,
+      priceCurrency: ({ 'RMB': 1, 'CNY': 1, 'USD': 2, 'EUR': 3, 'HKD': 4 }[item.currency || 'RMB'] || 1) as any,
       quantity: item.quantity,
       productionDate: item.productionDate || undefined,
       expiryDate: item.expiryDate || undefined,
@@ -862,9 +867,8 @@ function applyDraftPayload(payload: any) {
   formData.contactPersonId = payload.contactId || payload.contactPersonId || ''
   formData.contactPersonEmail = payload.contactEmail || payload.contactPersonEmail || ''
   formData.salesUserId = payload.salesUserId || ''
-  formData.rfqDate = payload.rfqDate || new Date().toISOString().split('T')[0]
   formData.source = payload.source ?? 1
-  formData.currency = payload.currency || 'CNY'
+    formData.currency = payload.currency || 'RMB'
   formData.rfqType = payload.rfqType ?? 1
   formData.quoteMethod = payload.quoteMethod ?? 1
   formData.assignMethod = payload.assignMethod ?? 1
@@ -882,7 +886,7 @@ function applyDraftPayload(payload: any) {
     customerBrand: item.customerBrand || '',
     brand: item.brand || '',
     targetPrice: item.targetPrice,
-    currency: ({1:'CNY',2:'USD',3:'EUR',4:'HKD'} as any)[item.priceCurrency] || item.currency || 'CNY',
+    currency: ({ 1: 'RMB', 2: 'USD', 3: 'EUR', 4: 'HKD' } as any)[item.priceCurrency] || (item.currency === 'CNY' ? 'RMB' : item.currency || 'RMB'),
     quantity: item.quantity ?? 1,
     productionDate: item.productionDate || '',
     expiryDate: item.expiryDate || '',

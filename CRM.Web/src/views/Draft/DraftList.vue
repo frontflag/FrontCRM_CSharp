@@ -41,19 +41,22 @@
 
     <el-card>
       <CrmDataTable :data="drafts" v-loading="loading">
-        <el-table-column prop="draftId" label="草稿ID" min-width="260" show-overflow-tooltip />
-        <el-table-column prop="draftName" label="草稿名称" min-width="160" show-overflow-tooltip />
-        <el-table-column label="业务类型" width="120">
-          <template #default="{ row }">{{ entityTypeText(row.entityType) }}</template>
-        </el-table-column>
         <el-table-column label="状态" width="110">
           <template #default="{ row }">
             <el-tag effect="dark" :type="statusTagType(row.status)">{{ statusText(row.status) }}</el-tag>
           </template>
         </el-table-column>
+        <el-table-column prop="draftId" label="草稿ID" min-width="260" show-overflow-tooltip />
+        <el-table-column prop="draftName" label="草稿名称" min-width="160" show-overflow-tooltip />
+        <el-table-column label="业务类型" width="120">
+          <template #default="{ row }">{{ entityTypeText(row.entityType) }}</template>
+        </el-table-column>
         <el-table-column prop="convertedEntityId" label="正式ID" min-width="220" show-overflow-tooltip />
-        <el-table-column label="更新时间" width="180">
-          <template #default="{ row }">{{ formatTime(row.modifyTime || row.createTime) }}</template>
+        <el-table-column label="创建时间" width="180">
+          <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
+        </el-table-column>
+        <el-table-column label="创建人" width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
         </el-table-column>
         <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">

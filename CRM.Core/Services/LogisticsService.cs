@@ -1,6 +1,7 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
 {
@@ -63,6 +64,8 @@ namespace CRM.Core.Services
 
             var noticeCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.ArrivalNotice);
 
+            var expectedArrival = request.ExpectedArrivalDate ?? po.DeliveryDate;
+
             var notice = new StockInNotify
             {
                 Id = Guid.NewGuid().ToString(),
@@ -73,6 +76,7 @@ namespace CRM.Core.Services
                 VendorName = po.VendorName,
                 PurchaseUserName = po.PurchaseUserName,
                 Status = 10,
+                ExpectedArrivalDate = PostgreSqlDateTime.ToUtc(expectedArrival),
                 CreateTime = DateTime.UtcNow
             };
             await _notifyRepo.AddAsync(notice);

@@ -21,13 +21,27 @@ export interface VendorContactInfo {
 export interface Vendor {
   id: string
   code: string
+  /** 部分接口与 officialName 同义返回 name */
+  name?: string
   officialName?: string
   nickName?: string
   industry?: string
   credit?: number
   officeAddress?: string
   companyInfo?: string
+  remark?: string
+  website?: string
+  purchaserName?: string
+  tradeCurrency?: number
+  /** 付款方式编码 */
+  paymentMethod?: string
+  /** 账期（天），后端字段 payment */
+  payment?: number
+  creditCode?: string
+  /** 状态：1新建 2待审核 10已审核 12待财务审核 20财务建档 -1审核失败 */
   status?: number
+  /** 审核驳回原因（status=-1 时） */
+  auditRemark?: string
   isFavorite?: boolean
   blackList?: boolean
   isDeleted?: boolean
@@ -44,13 +58,44 @@ export interface Vendor {
 export interface CreateVendorRequest {
   code?: string
   name?: string
+  officialName?: string
+  nickName?: string
+  industry?: string
+  credit?: number
+  status?: number
+  officeAddress?: string
+  website?: string
+  purchaserName?: string
+  tradeCurrency?: number
+  currency?: number
+  paymentMethod?: string
+  paymentDays?: number
+  creditCode?: string
+  taxNumber?: string
+  companyInfo?: string
   remark?: string
 }
 
 // 更新供应商请求（与后端 UpdateVendorRequest 对应）
 export interface UpdateVendorRequest {
   name?: string
+  nickName?: string
+  industry?: string
+  product?: string
+  credit?: number
+  status?: number
+  officeAddress?: string
+  website?: string
+  purchaserName?: string
+  level?: number
+  tradeCurrency?: number
+  paymentMethod?: string
+  paymentDays?: number
+  payment?: number
+  creditCode?: string
+  companyInfo?: string
   remark?: string
+  externalNumber?: string
 }
 
 // 供应商列表查询参数（与后端 VendorQueryRequest 对应，前端用 pageNumber/pageSize）

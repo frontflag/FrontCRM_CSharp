@@ -17,7 +17,11 @@ router.beforeEach((to, _from, next) => {
   // PREVIEW MODE: skip auth check when preview_mode is set in localStorage
   const previewMode = localStorage.getItem('preview_mode') === 'true'
 
-  if (previewMode) {
+  // Debug 主列表页：免登录（与 routes 中 DebugList requiresAuth: false 一致；避免父级 requiresAuth 合并歧义）
+  const isDebugList =
+    to.name === 'DebugList' || to.path === '/debug' || to.path === '/debug/'
+
+  if (previewMode || isDebugList) {
     next()
   } else if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')

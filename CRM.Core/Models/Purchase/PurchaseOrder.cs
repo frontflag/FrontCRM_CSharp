@@ -76,7 +76,7 @@ namespace CRM.Core.Models.Purchase
         [Column("type")]
         public short Type { get; set; } = 1;
 
-        /// <summary>币别 1=CNY 2=USD 3=EUR</summary>
+        /// <summary>币别 1=RMB 2=USD 3=EUR</summary>
         [Column("currency")]
         public short Currency { get; set; } = 1;
 
@@ -185,7 +185,7 @@ namespace CRM.Core.Models.Purchase
         [Column("cost", TypeName = "numeric(18,6)")]
         public decimal Cost { get; set; } = 0.000000m;
 
-        /// <summary>币别 1=CNY 2=USD 3=EUR</summary>
+        /// <summary>币别 1=RMB 2=USD 3=EUR</summary>
         [Column("currency")]
         public short Currency { get; set; } = 1;
 

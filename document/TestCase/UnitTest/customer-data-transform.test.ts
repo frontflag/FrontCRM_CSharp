@@ -189,7 +189,7 @@ describe('CustomerEdit - 后端数据映射到前端表单 (mapBackendToForm)', 
     expect(result.paymentTerms).toBe(30);
   });
 
-  it('UT-TRANSFORM-019: currency 为 undefined 时，默认为 1（CNY）', () => {
+  it('UT-TRANSFORM-019: currency 为 undefined 时，默认为 1（RMB）', () => {
     const result = mapBackendToForm({});
     expect(result.currency).toBe(1);
   });

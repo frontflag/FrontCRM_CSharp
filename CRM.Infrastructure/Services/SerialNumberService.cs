@@ -63,8 +63,12 @@ namespace CRM.Infrastructure.Services
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                // 统一业务编号格式：前缀 + YYMMDD + 4位流水号
-                var result = FormatBusinessCode(serial.Prefix, serial.CurrentSequence, now);
+                // 编号格式：
+                // - Customer/Vendor：Prefix + 4位流水号（例：CUS1234 / VEN1234）
+                // - 其他模块：Prefix + YYMMDD + 4位流水号
+                var result = ShouldUsePlainSequenceCode(moduleCode)
+                    ? FormatPlainSequenceCode(serial.Prefix, serial.CurrentSequence)
+                    : FormatBusinessCode(serial.Prefix, serial.CurrentSequence, now);
                 _logger.LogDebug("生成流水号：{ModuleCode} -> {SerialNo}", moduleCode, result);
                 return result;
             }
@@ -85,7 +89,9 @@ namespace CRM.Infrastructure.Services
                 throw new InvalidOperationException($"未找到业务模块 '{moduleCode}' 的流水号配置。");
 
             var nextSeq = serial.CurrentSequence + 1;
-            return FormatBusinessCode(serial.Prefix, nextSeq, DateTime.UtcNow);
+            return ShouldUsePlainSequenceCode(moduleCode)
+                ? FormatPlainSequenceCode(serial.Prefix, nextSeq)
+                : FormatBusinessCode(serial.Prefix, nextSeq, DateTime.UtcNow);
         }
 
         /// <inheritdoc/>
@@ -117,6 +123,19 @@ namespace CRM.Infrastructure.Services
             var datePart = nowUtc.ToString("yyMMdd");
             var seqPart = sequence.ToString("D4");
             return $"{prefix}{datePart}{seqPart}";
+        }
+
+        private static string FormatPlainSequenceCode(string prefix, int sequence)
+        {
+            var seqPart = sequence.ToString("D4");
+            return $"{prefix}{seqPart}";
+        }
+
+        private static bool ShouldUsePlainSequenceCode(string moduleCode)
+        {
+            if (string.IsNullOrWhiteSpace(moduleCode)) return false;
+            return moduleCode.Equals(ModuleCodes.Customer, StringComparison.OrdinalIgnoreCase)
+                || moduleCode.Equals(ModuleCodes.Vendor, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

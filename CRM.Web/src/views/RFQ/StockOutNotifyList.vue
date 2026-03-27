@@ -13,14 +13,36 @@
         <div class="count-badge">共 {{ filteredList.length }} 条</div>
       </div>
       <div class="header-right">
+        <el-select
+          v-model="workflowFilter"
+          placeholder="流程筛选"
+          clearable
+          style="width: 168px"
+          class="filter-select"
+        >
+          <el-option label="全部" value="all" />
+          <el-option label="待拣货" value="pending_pick" />
+          <el-option label="已拣货待出库" value="picked_pending_out" />
+          <el-option label="已出库" value="done" />
+        </el-select>
         <el-input v-model="keyword" placeholder="通知单号/销售单号/客户" clearable style="width: 280px" @keyup.enter="fetchList" />
         <button class="btn-secondary" @click="fetchList">刷新</button>
       </div>
     </div>
 
     <CrmDataTable :data="filteredList" v-loading="loading">
-      <el-table-column prop="requestCode" label="通知单号" width="170" />
-      <el-table-column prop="salesOrderCode" label="销售单号" width="170" />
+      <el-table-column prop="requestCode" label="通知单号" width="160" min-width="160" />
+      <el-table-column label="流程" width="130">
+        <template #default="{ row }">
+          <span class="flow-tag" :class="`flow-tag--${workflowTagKey(row)}`">{{ workflowLabel(row) }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="status" label="状态" width="110">
+        <template #default="{ row }">
+          <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="salesOrderCode" label="销售单号" width="160" min-width="160" />
       <el-table-column prop="materialModel" label="物料型号" width="180" show-overflow-tooltip />
       <el-table-column prop="brand" label="品牌" width="140" show-overflow-tooltip />
       <el-table-column prop="outQuantity" label="出库数量" width="110" align="right" />
@@ -29,21 +51,23 @@
       </el-table-column>
       <el-table-column prop="salesUserName" label="业务员名称" width="130" show-overflow-tooltip />
       <el-table-column prop="customerName" label="客户" min-width="180" show-overflow-tooltip />
-      <el-table-column label="申请人" width="140" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.requestUserName || '--' }}</template>
-      </el-table-column>
-      <el-table-column prop="createTime" label="申请时间" width="170">
+      <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="createTime" label="创建时间" width="170">
         <template #default="{ row }">{{ formatRequestDateTime(row.createTime) }}</template>
       </el-table-column>
-      <el-table-column prop="status" label="状态" width="110">
-        <template #default="{ row }">
-          <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
-        </template>
+      <el-table-column label="创建人" width="140" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.createUserName || row.requestUserName || '--' }}</template>
       </el-table-column>
-      <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
       <el-table-column label="操作" width="140" fixed="right">
         <template #default="{ row }">
-          <button class="action-btn" @click="goExecute(row)">执行出库</button>
+          <button
+            v-if="Number(row.status) !== 1"
+            class="action-btn"
+            @click="goExecute(row)"
+          >
+            执行出库
+          </button>
+          <span v-else class="op-done">已出库</span>
         </template>
       </el-table-column>
     </CrmDataTable>
@@ -55,18 +79,39 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { stockOutApi, type StockOutRequestDto } from '@/api/stockOut'
+import { inventoryCenterApi, type PickingTask } from '@/api/inventoryCenter'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 
 const router = useRouter()
 const loading = ref(false)
 const keyword = ref('')
+const workflowFilter = ref<string>('all')
 const list = ref<StockOutRequestDto[]>([])
+const pickingTasks = ref<PickingTask[]>([])
 
 const statusLabel = (s: number) => {
   if (s === 0) return '待出库'
   if (s === 1) return '已出库'
   if (s === 2) return '已取消'
   return '未知'
+}
+
+function hasPickingCompleted(requestId: string): boolean {
+  return pickingTasks.value.some((t) => t.stockOutRequestId === requestId && t.status === 100)
+}
+
+/** 用于样式：pending_pick | picked | done */
+function workflowTagKey(row: StockOutRequestDto): string {
+  if (Number(row.status) === 1) return 'done'
+  if (hasPickingCompleted(row.id)) return 'picked'
+  return 'pending_pick'
+}
+
+function workflowLabel(row: StockOutRequestDto): string {
+  if (Number(row.status) === 1) return '已出库'
+  if (Number(row.status) === 2) return '已取消'
+  if (hasPickingCompleted(row.id)) return '已拣货待出库'
+  return '待拣货'
 }
 
 /** 按本地时区显示年月日 + 时分 */
@@ -76,19 +121,36 @@ const formatRequestDateTime = (v?: string | null) => {
 }
 
 const filteredList = computed(() => {
+  let rows = list.value
+  const wf = workflowFilter.value
+  if (wf && wf !== 'all') {
+    rows = rows.filter((x) => {
+      const st = Number(x.status)
+      if (wf === 'done') return st === 1
+      if (wf === 'pending_pick') return st === 0 && !hasPickingCompleted(x.id)
+      if (wf === 'picked_pending_out') return st === 0 && hasPickingCompleted(x.id)
+      return true
+    })
+  }
   const k = keyword.value.trim().toLowerCase()
-  if (!k) return list.value
-  return list.value.filter(x =>
-    (x.requestCode || '').toLowerCase().includes(k) ||
-    (x.salesOrderCode || '').toLowerCase().includes(k) ||
-    (x.customerName || '').toLowerCase().includes(k)
+  if (!k) return rows
+  return rows.filter(
+    (x) =>
+      (x.requestCode || '').toLowerCase().includes(k) ||
+      (x.salesOrderCode || '').toLowerCase().includes(k) ||
+      (x.customerName || '').toLowerCase().includes(k)
   )
 })
 
 const fetchList = async () => {
   loading.value = true
   try {
-    list.value = await stockOutApi.getRequestList()
+    const [requests, tasks] = await Promise.all([
+      stockOutApi.getRequestList(),
+      inventoryCenterApi.getPickingTasks().catch(() => [] as PickingTask[])
+    ])
+    list.value = requests
+    pickingTasks.value = tasks || []
   } catch (e) {
     console.error(e)
     ElMessage.error('加载出库通知列表失败')
@@ -180,5 +242,33 @@ onMounted(fetchList)
   font-size: 12px;
   padding: 2px 6px;
   &:hover { text-decoration: underline; }
+}
+.filter-select {
+  :deep(.el-input__wrapper) {
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 0 1px $border-panel inset;
+  }
+}
+.flow-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  &--pending_pick {
+    background: rgba(255, 193, 7, 0.12);
+    color: #ffc107;
+  }
+  &--picked {
+    background: rgba(0, 212, 255, 0.12);
+    color: #00d4ff;
+  }
+  &--done {
+    background: rgba(70, 191, 145, 0.15);
+    color: #46bf91;
+  }
+}
+.op-done {
+  font-size: 12px;
+  color: $text-muted;
 }
 </style>

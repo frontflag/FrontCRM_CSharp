@@ -93,7 +93,6 @@ namespace CRM.Core.Services
                 ProjectBackground = request.ProjectBackground,
                 Competitor = request.Competitor,
                 Remark = request.Remark,
-                RfqDate = request.RfqDate == default ? DateTime.UtcNow : PostgreSqlDateTime.ToUtc(request.RfqDate),
                 Status = 0,
                 ItemCount = request.Items?.Count ?? 0,
                 CreateTime = DateTime.UtcNow
@@ -209,9 +208,9 @@ namespace CRM.Core.Services
             if (!string.IsNullOrWhiteSpace(request.CustomerId))
                 query = query.Where(r => r.CustomerId == request.CustomerId);
             if (request.StartDate.HasValue)
-                query = query.Where(r => r.RfqDate >= request.StartDate.Value);
+                query = query.Where(r => r.CreateTime >= request.StartDate.Value);
             if (request.EndDate.HasValue)
-                query = query.Where(r => r.RfqDate <= request.EndDate.Value);
+                query = query.Where(r => r.CreateTime <= request.EndDate.Value);
 
             var items = query
                 .OrderByDescending(r => r.CreateTime)
@@ -240,7 +239,6 @@ namespace CRM.Core.Services
                 Product = r.Product,
                 Importance = r.Importance,
                 ItemCount = r.ItemCount,
-                RfqDate = r.RfqDate,
                 CreateTime = r.CreateTime
             }).ToList();
 
@@ -400,7 +398,6 @@ namespace CRM.Core.Services
             if (request.ProjectBackground != null) rfq.ProjectBackground = request.ProjectBackground;
             if (request.Competitor != null) rfq.Competitor = request.Competitor;
             if (request.Remark != null) rfq.Remark = request.Remark;
-            if (request.RfqDate.HasValue) rfq.RfqDate = PostgreSqlDateTime.ToUtc(request.RfqDate.Value);
             rfq.ModifyTime = DateTime.UtcNow;
 
             // 更新明细：删除旧的，重新插入

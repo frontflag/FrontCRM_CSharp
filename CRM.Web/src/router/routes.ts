@@ -221,12 +221,6 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '出库通知', permission: 'sales-order.read' }
       },
       {
-        path: 'inventory/packing-lists',
-        name: 'PackingListPage',
-        component: () => import('@/views/Inventory/PackingListPage.vue'),
-        meta: { requiresAuth: true, title: '装箱单' }
-      },
-      {
         path: 'inventory/stock-out/create',
         name: 'StockOutCreate',
         component: () => import('@/views/Inventory/StockOutEdit.vue'),
@@ -300,6 +294,12 @@ const routes: RouteRecordRaw[] = [
         name: 'PurchaseOrderCreate',
         component: () => import('@/views/RFQ/PurchaseOrderCreate.vue'),
         meta: { requiresAuth: true, title: '新建采购订单' }
+      },
+      {
+        path: 'purchase-orders/:id/edit',
+        name: 'PurchaseOrderEdit',
+        component: () => import('@/views/RFQ/PurchaseOrderCreate.vue'),
+        meta: { requiresAuth: true, title: '编辑采购订单' }
       },
       {
         path: 'purchase-orders/:id',
@@ -531,10 +531,22 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '文档模块演示' }
       },
       {
+        path: 'debug/data',
+        name: 'DebugData',
+        component: () => import('@/views/Debug/DebugData.vue'),
+        meta: { requiresAuth: true, title: 'Debug 模拟数据' }
+      },
+      // 兼容历史访问链接：/debugdata -> /debug/data
+      {
+        path: 'debugdata',
+        redirect: '/debug/data'
+      },
+      // 免登录：便于部署后核对脱敏数据库连接串与前端构建版本（PRD）
+      {
         path: 'debug',
         name: 'DebugList',
         component: () => import('@/views/Debug/DebugList.vue'),
-        meta: { requiresAuth: true, title: 'Debug' }
+        meta: { requiresAuth: false, title: 'Debug' }
       }
     ]
   }

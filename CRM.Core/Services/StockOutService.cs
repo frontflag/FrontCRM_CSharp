@@ -187,13 +187,24 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(request.StockOutRequestId))
                 throw new InvalidOperationException("执行出库前必须关联出库申请并完成拣货任务");
 
+            var requestId = request.StockOutRequestId.Trim();
+            var stockOutRequest = await _stockOutRequestRepository.GetByIdAsync(requestId)
+                ?? throw new InvalidOperationException("出库申请不存在");
+            if (stockOutRequest.Status == 1)
+                throw new InvalidOperationException("该出库通知已执行出库，请勿重复操作");
+            if (stockOutRequest.Status == 2)
+                throw new InvalidOperationException("该出库通知已取消，不能执行出库");
+
             var pickingTasks = (await _pickingTaskRepository.GetAllAsync())
-                .Where(x => x.StockOutRequestId == request.StockOutRequestId)
+                .Where(x => string.Equals(x.StockOutRequestId, requestId, StringComparison.OrdinalIgnoreCase))
                 .ToList();
             if (!pickingTasks.Any())
                 throw new InvalidOperationException("执行出库前请先生成拣货任务");
             if (!pickingTasks.Any(x => x.Status == 100))
                 throw new InvalidOperationException("执行出库前请先完成拣货任务");
+
+            var soItem = await _sellOrderItemRepository.GetByIdAsync(stockOutRequest.SalesOrderItemId.Trim());
+            var productIdFromLine = string.IsNullOrWhiteSpace(soItem?.ProductId) ? null : soItem!.ProductId!.Trim();
 
             var stockOutCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.StockOut);
 
@@ -219,16 +230,18 @@ namespace CRM.Core.Services
                     continue;
 
                 // 1) 找到该物料在指定仓库下的所有可用库存（FIFO：按生产日期 / 创建时间排序）
+                // 库存 MaterialId 常与 ProductId 一致；出库明细传 PN，需与订单行 ProductId 一并匹配
                 var candidateStocks = allStocks
                     .Where(s => s.WarehouseId == request.WarehouseId
-                                && s.MaterialId == materialId
+                                && StockMaterialMatch.Matches(s, materialId, productIdFromLine)
                                 && s.QtyRepertoryAvailable > 0)
                     .OrderBy(s => s.ProductionDate ?? s.CreateTime)
                     .ThenBy(s => s.CreateTime)
                     .ToList();
 
                 if (!candidateStocks.Any())
-                    throw new InvalidOperationException($"物料 {materialId} 在仓库 {request.WarehouseId} 无可用库存");
+                    throw new InvalidOperationException(
+                        $"物料 {materialId} 在仓库 {request.WarehouseId} 无可用库存（已按 PN 与订单 ProductId 尝试匹配）");
 
                 var remaining = needQty;
 
@@ -266,7 +279,7 @@ namespace CRM.Core.Services
                     {
                         Id = Guid.NewGuid().ToString(),
                         StockOutId = stockOutId,
-                        MaterialId = materialId,
+                        MaterialId = stock.MaterialId,
                         Quantity = takeQty,
                         OrderQty = needQty,
                         PlanQty = takeQty,
@@ -296,12 +309,19 @@ namespace CRM.Core.Services
                 await _stockRepository.UpdateAsync(stock);
             }
 
+            // SourceCode 字段最大 32 字符，不能写入 36 位 GUID；完整出库通知 ID 放在 SourceId
+            var requestCode = stockOutRequest.RequestCode?.Trim() ?? string.Empty;
+            if (requestCode.Length > 32)
+                requestCode = requestCode.Substring(0, 32);
+
             var stockOut = new StockOut
             {
                 Id = stockOutId,
                 StockOutCode = stockOutCode,
                 StockOutType = 1,
-                SourceCode = request.StockOutRequestId,
+                SourceCode = string.IsNullOrEmpty(requestCode) ? null : requestCode,
+                SourceId = requestId,
+                CustomerId = string.IsNullOrWhiteSpace(stockOutRequest.CustomerId) ? null : stockOutRequest.CustomerId.Trim(),
                 WarehouseId = request.WarehouseId,
                 StockOutDate = PostgreSqlDateTime.ToUtc(request.StockOutDate),
                 TotalQuantity = totalQty,
@@ -316,6 +336,12 @@ namespace CRM.Core.Services
             await _stockOutRepository.AddAsync(stockOut);
             await _unitOfWork.SaveChangesAsync();
             await _inventoryCenterService.RecordStockOutAsync(stockOut.Id);
+
+            stockOutRequest.Status = 1;
+            stockOutRequest.ModifyTime = DateTime.UtcNow;
+            await _stockOutRequestRepository.UpdateAsync(stockOutRequest);
+            await _unitOfWork.SaveChangesAsync();
+
             return stockOut;
         }
 

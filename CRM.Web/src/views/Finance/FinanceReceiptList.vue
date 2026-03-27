@@ -65,9 +65,16 @@
       @row-click="openDetail"
       row-class-name="table-row-pointer"
     >
-        <el-table-column prop="financeReceiptCode" label="收款单号" width="140" fixed>
+        <el-table-column prop="financeReceiptCode" label="收款单号" width="160" min-width="160" fixed>
           <template #default="{ row }">
             <span class="code-text">{{ row.financeReceiptCode }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag effect="dark" :type="RECEIPT_STATUS_MAP[row.status]?.type as any" size="small">
+              {{ RECEIPT_STATUS_MAP[row.status]?.label }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="customerName" label="客户" min-width="160" show-overflow-tooltip />
@@ -82,16 +89,14 @@
         <el-table-column prop="receiptDate" label="收款日期" width="120">
           <template #default="{ row }">{{ row.receiptDate ? formatDisplayDate(row.receiptDate) : '-' }}</template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="RECEIPT_STATUS_MAP[row.status]?.type as any" size="small">
-              {{ RECEIPT_STATUS_MAP[row.status]?.label }}
-            </el-tag>
-          </template>
-        </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
         <el-table-column prop="createdAt" label="创建时间" width="120">
-          <template #default="{ row }">{{ row.createdAt ? formatDisplayDate(row.createdAt) : '-' }}</template>
+          <template #default="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
+        </el-table-column>
+        <el-table-column label="创建人" width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ (row as any).createUserName || (row as any).createdBy || (row as any).receiptUserName || '-' }}
+          </template>
         </el-table-column>
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
@@ -183,7 +188,7 @@ import {
   type FinanceReceipt,
   type PageQuery,
 } from '@/api/finance'
-import { formatDisplayDate } from '@/utils/displayDateTime'
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 

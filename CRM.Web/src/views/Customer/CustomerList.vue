@@ -124,27 +124,33 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th style="width:44px">序号</th>
-            <th v-if="canViewCustomerInfo" style="min-width:180px">客户名称</th>
-            <th style="width:110px">客户编号</th>
+            <th style="width:160px;min-width:160px">客户编号</th>
+            <th style="width:160px">状态</th>
+            <th v-if="canViewCustomerInfo" style="min-width:200px">客户名称</th>
             <th style="width:80px">类型</th>
             <th style="width:80px">级别</th>
             <th style="width:110px">行业</th>
             <th v-if="canViewCustomerInfo" style="width:130px">联系人</th>
             <th v-if="canViewCustomerInfo" style="width:130px">联系电话</th>
             <th style="width:90px">地区</th>
-            <th style="width:80px">状态</th>
-            <th style="width:150px">操作</th>
+            <th style="width:160px">创建日期</th>
+            <th style="width:120px">创建人</th>
+            <th style="width:200px">操作</th>
           </tr>
         </thead>
         <tbody>
           <tr
-            v-for="(customer, index) in customerList"
+            v-for="customer in customerList"
             :key="customer.id"
             class="table-row"
             @click="handleView(customer)"
           >
-            <td class="td-index">{{ (pagination.pageNumber - 1) * pagination.pageSize + index + 1 }}</td>
+            <td class="td-code">{{ customer.customerCode }}</td>
+            <td>
+              <span class="status-dot" :class="getStatusDotClass(customer.status)">
+                {{ getStatusText(customer.status) }}
+              </span>
+            </td>
             <td v-if="canViewCustomerInfo">
               <div class="customer-name-cell">
                 <div class="cell-avatar">
@@ -158,7 +164,6 @@
                 </div>
               </div>
             </td>
-            <td class="td-code">{{ customer.customerCode }}</td>
             <td>
               <span class="badge badge-type" v-if="customer.customerType">{{ getTypeLabel(customer.customerType) }}</span>
             </td>
@@ -181,15 +186,19 @@
               <span v-else class="td-empty">--</span>
             </td>
             <td class="td-muted">{{ customer.city || customer.region || '--' }}</td>
-            <td>
-              <span class="status-dot" :class="customer.isActive ? 'status-active' : 'status-inactive'">
-                {{ customer.isActive ? '正常' : '停用' }}
-              </span>
-            </td>
+            <td class="td-muted">{{ formatDate(customer.createdAt ?? (customer as any).createTime) }}</td>
+            <td class="td-muted">{{ (customer as any).createUserName || (customer as any).createdBy || (customer as any).salesPersonName || '--' }}</td>
             <td @click.stop>
               <div class="action-btns">
                 <button class="action-btn" @click.stop="handleView(customer)">详情</button>
                 <button class="action-btn" @click.stop="handleEdit(customer)">编辑</button>
+                <button
+                  v-if="customer.status === 1"
+                  class="action-btn action-btn--primary"
+                  @click.stop="handleSubmitAudit(customer)"
+                >
+                  提交审核
+                </button>
                 <button
                   class="action-btn"
                   :class="{ 'action-btn--favorite': customer.isFavorite }"
@@ -236,12 +245,14 @@ import { useRouter } from 'vue-router';
 import { ElNotification, ElMessageBox } from 'element-plus';
 import { customerApi } from '@/api/customer';
 import { favoriteApi } from '@/api/favorite';
+import { formatDisplayDateTime } from '@/utils/displayDateTime';
 import type { Customer, CustomerStatistics, CustomerSearchRequest } from '@/types/customer';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const canViewCustomerInfo = authStore.hasPermission('customer.info.read');
+const canSubmitAudit = authStore.hasPermission('customer.write');
 
 const loading = ref(false);
 const customerList = ref<Customer[]>([]);
@@ -286,13 +297,18 @@ const fetchCustomerList = async () => {
       salesPersonName: item.salesPersonName,
       creditLimit: item.creditLimit ?? item.creditLine ?? 0,
       balance: item.balance ?? item.creditLineRemain ?? 0,
-      isActive: item.isActive ?? (item.status === 1),
+      // 新状态体系：已审核及以后视为“有效/正常”
+      isActive: item.isActive ?? (Number(item.status ?? 0) >= 10),
       isFavorite: favoriteSet.has(item.id),
-      contacts: item.contacts || []
+      contacts: item.contacts || [],
+      // 后端 CustomerInfo 序列化字段为 createTime，与前端 Customer.createdAt 对齐
+      createdAt: item.createdAt ?? item.createTime
     }));
     if (favoriteOnly.value) {
       mapped = mapped.filter((item: any) => item.isFavorite);
     }
+    // 兜底：确保按创建日期（createdAt）降序展示
+    mapped.sort((a: any, b: any) => (parseDateMs(b?.createdAt) - parseDateMs(a?.createdAt)));
     customerList.value = mapped;
     totalCount.value = favoriteOnly.value ? mapped.length : response.totalCount;
   } catch (error: any) {
@@ -336,6 +352,49 @@ const handleReset = () => {
 const handleCreate = () => router.push('/customers/create');
 const handleView = (row: Customer) => router.push(`/customers/${row.id}`);
 const handleEdit = (row: Customer) => router.push(`/customers/${row.id}/edit`);
+
+const getStatusText = (status: number | undefined) => {
+  const s = Number(status ?? 0);
+  const map: Record<number, string> = {
+    1: '新建',
+    2: '待审核',
+    10: '已审核',
+    12: '待财务审核',
+    20: '财务建档',
+    [-1]: '审核失败'
+  };
+  return map[s] ?? String(status ?? '');
+};
+
+const getStatusDotClass = (status: number | undefined) => {
+  const s = Number(status ?? 0);
+  if (s === 10 || s === 20) return 'status-active';
+  if (s === 2 || s === 12) return 'status-warning';
+  if (s === -1) return 'status-danger';
+  return 'status-inactive';
+};
+
+const handleSubmitAudit = async (row: Customer) => {
+  if (!canSubmitAudit) {
+    ElNotification.warning({ title: '无权限', message: '没有权限提交审核' });
+    return;
+  }
+  await ElMessageBox.confirm(
+    '确定提交审核？提交后将进入“待审批”列表，由上级角色审批。',
+    '提交审核',
+    { type: 'warning', confirmButtonText: '提交', cancelButtonText: '取消' }
+  );
+  try {
+    loading.value = true;
+    await customerApi.submitAudit(row.id);
+    ElNotification.success({ title: '成功', message: '已提交审核' });
+    await fetchCustomerList();
+  } catch (error: any) {
+    ElNotification.error({ title: '提交失败', message: error?.message || '提交审核失败，请稍后重试' });
+  } finally {
+    loading.value = false;
+  }
+};
 
 const handleDeleteCustomer = (row: Customer) => {
   ElMessageBox.confirm(`确定要删除客户 "${row.customerName}" 吗？`, '确认删除', {
@@ -382,6 +441,16 @@ const getIndustryLabel = (industry: string) => ({
   Construction: '建筑/工程', Healthcare: '医疗/健康', Education: '教育',
   Finance: '金融', Other: '其他'
 }[industry] || industry || '--');
+
+const parseDateMs = (v?: string) => {
+  if (!v) return 0;
+  const t = new Date(v).getTime();
+  return Number.isFinite(t) ? t : 0;
+};
+
+const formatDate = (v?: string) => {
+  return formatDisplayDateTime(v);
+};
 
 onMounted(() => {
   fetchCustomerList();
@@ -774,6 +843,20 @@ onMounted(() => {
     &::before { background: #46BF91; box-shadow: 0 0 4px #46BF91; }
   }
 
+  &.status-warning {
+    color: $color-amber;
+    background: rgba(201,154,69,0.10);
+    border: 1px solid rgba(201,154,69,0.25);
+    &::before { background: $color-amber; box-shadow: 0 0 4px rgba(201,154,69,0.8); }
+  }
+
+  &.status-danger {
+    color: #C95745;
+    background: rgba(201, 87, 69, 0.08);
+    border: 1px solid rgba(201, 87, 69, 0.20);
+    &::before { background: #C95745; box-shadow: 0 0 4px rgba(201, 87, 69, 0.8); }
+  }
+
   &.status-inactive {
     color: $text-muted;
     background: rgba(107,122,141,0.1);
@@ -819,6 +902,16 @@ onMounted(() => {
     &:hover {
       background: rgba(201, 87, 69, 0.15);
       border-color: rgba(201, 87, 69, 0.4);
+    }
+  }
+
+  &--primary {
+    background: rgba(70,191,145,0.10);
+    border-color: rgba(70,191,145,0.25);
+    color: #46BF91;
+    &:hover {
+      background: rgba(70,191,145,0.18);
+      border-color: rgba(70,191,145,0.40);
     }
   }
 

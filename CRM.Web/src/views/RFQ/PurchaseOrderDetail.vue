@@ -255,7 +255,8 @@ const formatCurrency = (amount: number, currency?: number) => {
 const formatDateTime = (v?: string) => (v ? formatDisplayDateTime(v) : '--')
 
 const handleEdit = () => {
-  ElMessage.info('编辑功能开发中')
+  if (!order.value?.id) return
+  router.push({ name: 'PurchaseOrderEdit', params: { id: order.value.id } })
 }
 
 const handleUpdateStatus = () => {

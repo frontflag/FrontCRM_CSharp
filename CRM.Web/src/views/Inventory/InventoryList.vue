@@ -47,7 +47,6 @@
     </div>
 
     <CrmDataTable :data="list" v-loading="loading">
-      <el-table-column type="index" width="50" align="center" />
       <el-table-column label="物料型号" min-width="220" show-overflow-tooltip>
         <template #default="{ row }">{{ materialModelAndName(row) }}</template>
       </el-table-column>
@@ -69,7 +68,13 @@
       <el-table-column prop="lastMoveTime" label="最后移动时间" width="170">
         <template #default="{ row }">{{ formatTime(row.lastMoveTime) }}</template>
       </el-table-column>
-      <el-table-column label="追溯" width="100">
+      <el-table-column label="创建时间" width="160">
+        <template #default="{ row }">{{ formatTime((row as any).createTime || (row as any).createdAt) }}</template>
+      </el-table-column>
+      <el-table-column label="创建人" width="120" show-overflow-tooltip>
+        <template #default="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="100" fixed="right">
         <template #default="{ row }">
           <button class="action-btn" @click="openTrace(row.materialId)">入库追溯</button>
         </template>

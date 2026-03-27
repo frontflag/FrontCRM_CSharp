@@ -10,19 +10,25 @@
 
     <CrmDataTable :data="list" v-loading="loading">
       <el-table-column prop="noticeCode" label="到货通知号" width="170" />
-      <el-table-column prop="purchaseOrderCode" label="采购单号" width="160" />
-      <el-table-column prop="vendorName" label="供应商" min-width="160" />
-      <el-table-column prop="purchaseUserName" label="采购员" width="120" />
       <el-table-column label="状态" width="110">
         <template #default="{ row }">
           <el-tag effect="dark" :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag>
         </template>
       </el-table-column>
+      <el-table-column prop="purchaseOrderCode" label="采购单号" width="160" />
+      <el-table-column label="预计到货日期" width="130" align="center">
+        <template #default="{ row }">{{ formatExpected(row.expectedArrivalDate) }}</template>
+      </el-table-column>
+      <el-table-column prop="vendorName" label="供应商" min-width="160" />
+      <el-table-column prop="purchaseUserName" label="采购员" width="120" />
       <el-table-column label="到货数量" width="120" align="right">
         <template #default="{ row }">{{ sumQty(row.items, 'arrivedQty') }}</template>
       </el-table-column>
       <el-table-column prop="createTime" label="创建时间" width="170">
         <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
+      </el-table-column>
+      <el-table-column label="创建人" width="120" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || '--' }}</template>
       </el-table-column>
       <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
@@ -51,7 +57,7 @@ import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { logisticsApi, type StockInNotifyDto, type StockInNotifyItemDto } from '@/api/logistics'
 import { useRouter } from 'vue-router'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const loading = ref(false)
@@ -65,6 +71,7 @@ const sumQty = (items: StockInNotifyItemDto[], key: 'arrivedQty' | 'qty' | 'pass
 const statusText = (s: number) => ({ 1: '新建', 10: '未到货', 20: '到货待检', 30: '已质检', 100: '已入库' }[s] || '未知')
 const statusType = (s: number) => ({ 1: 'info', 10: 'warning', 20: 'primary', 30: 'success', 100: 'success' }[s] || 'info')
 const formatTime = (v?: string) => formatDisplayDateTime(v)
+const formatExpected = (v?: string | null) => (v ? formatDisplayDate(v) : '—')
 
 const loadData = () => {
   loading.value = true

@@ -6,6 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- 纯 API：无 Blazor/wwwroot 资源时仍会在启动期解析 WebRoot；构建时保证目录存在，避免全新检出/清理输出后 dotnet run 报 wwwroot 不存在 -->
     <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+    <!-- 勿将发布输出目录纳入 Content，否则 -o ./publish 会递归嵌套 publish\publish\... 并复制失败 -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);publish\**;publish2\**;publish3\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <Target Name="EnsureWwwrootExists" BeforeTargets="BeforeBuild">

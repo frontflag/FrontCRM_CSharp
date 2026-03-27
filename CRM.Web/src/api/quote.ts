@@ -107,6 +107,8 @@ function mapQuoteEditSimpleToUpdate(body: Record<string, unknown>): Record<strin
   return {
     mpn: body.mpn,
     remark: body.remark ?? null,
+    salesUserId: body.salesUserId ?? null,
+    purchaseUserId: body.purchaseUserId ?? null,
     items
   }
 }
@@ -116,6 +118,8 @@ function mapQuoteCreateFormToUpdate(form: Record<string, unknown>): Record<strin
   return {
     mpn: form.mpn,
     remark: form.remark ?? null,
+    salesUserId: form.salesUserId ?? null,
+    purchaseUserId: form.purchaseUserId ?? null,
     items
   }
 }

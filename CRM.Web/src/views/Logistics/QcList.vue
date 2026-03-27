@@ -6,13 +6,13 @@
     </div>
 
     <CrmDataTable :data="list" v-loading="loading">
-      <el-table-column prop="qcCode" label="质检单号" width="170" />
-      <el-table-column prop="arrivalNoticeCode" label="到货通知号" width="170" />
-      <el-table-column label="质检结果" width="120">
+      <el-table-column prop="qcCode" label="质检单号" width="160" min-width="160" />
+      <el-table-column label="状态" width="120">
         <template #default="{ row }">
           <el-tag effect="dark" :type="qcType(row.status)">{{ qcText(row.status) }}</el-tag>
         </template>
       </el-table-column>
+      <el-table-column prop="arrivalNoticeCode" label="到货通知号" width="170" />
       <el-table-column label="入库状态" width="120">
         <template #default="{ row }">
           <el-tag effect="dark" :type="stockInType(row.stockInStatus)">{{ stockInText(row.stockInStatus) }}</el-tag>
@@ -22,6 +22,9 @@
       <el-table-column prop="rejectQty" label="拒收数量" width="110" align="right" />
       <el-table-column prop="createTime" label="创建时间" width="170">
         <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
+      </el-table-column>
+      <el-table-column label="创建人" width="120" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.createUserName || row.createdBy || '--' }}</template>
       </el-table-column>
       <el-table-column label="操作" width="260" fixed="right">
         <template #default="{ row }">

@@ -65,7 +65,12 @@
         <el-row :gutter="24">
           <el-col :span="12">
             <el-form-item label="业务员">
-              <el-input v-model="formData.salesUserName" disabled class="q-input" />
+              <SalesUserCascader
+                v-model="formData.salesUserId"
+                placeholder="请选择业务员"
+                class="q-input"
+                @change="onRfqCreateSalesUserChange"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -194,7 +199,7 @@
           <el-table-column label="币别" width="110">
             <template #default="{ $index }">
               <el-select v-model="formData.items[$index].priceCurrency" style="width: 100%" class="q-select">
-                <el-option label="CNY" :value="1" />
+                <el-option label="RMB" :value="1" />
                 <el-option label="USD" :value="2" />
                 <el-option label="EUR" :value="3" />
               </el-select>
@@ -225,6 +230,7 @@ import type { CreateRFQItemRequest, UpdateRFQRequest } from '@/types/rfq'
 import { useAuthStore } from '@/stores/auth'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
+import SalesUserCascader from '@/components/SalesUserCascader.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -371,6 +377,10 @@ const formRules = {
   customerId: [{ required: true, message: '请选择客户', trigger: 'change' }]
 }
 
+function onRfqCreateSalesUserChange(p: { id: string; label: string }) {
+  formData.value.salesUserName = p.label || ''
+}
+
 // 客户搜索防抖
 async function onCustomerFilterInput(query: string) {
   if (customerSearchTimer) clearTimeout(customerSearchTimer)
@@ -459,7 +469,6 @@ const handleSubmit = async () => {
       }
       const data = {
         ...formData.value,
-        rfqDate: new Date().toISOString().slice(0, 10),
         items: buildItemPayload()
       }
       await rfqApi.createRFQ(data as any)

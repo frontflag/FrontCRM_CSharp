@@ -107,9 +107,12 @@
           />
         </div>
         <el-select v-model="searchForm.status" placeholder="全部状态" clearable class="status-select" @change="handleSearch">
-          <el-option label="草稿" :value="0" />
-          <el-option label="待审" :value="1" />
-          <el-option label="合作中" :value="2" />
+          <el-option label="新建" :value="1" />
+          <el-option label="待审核" :value="2" />
+          <el-option label="已审核" :value="10" />
+          <el-option label="待财务审核" :value="12" />
+          <el-option label="财务建档" :value="20" />
+          <el-option label="审核失败" :value="-1" />
         </el-select>
         <button class="btn-primary btn-sm" @click="handleSearch">搜索</button>
         <button class="btn-ghost btn-sm" :class="{ 'btn-favorite-active': favoriteOnly }" @click="toggleFavoriteOnly">
@@ -124,26 +127,32 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th style="width:44px">序号</th>
-            <th v-if="canViewVendorInfo" style="min-width:180px">供应商名称</th>
-            <th style="width:110px">供应商编号</th>
+            <th style="width:160px;min-width:160px">供应商编号</th>
+            <th style="width:160px">状态</th>
+            <th v-if="canViewVendorInfo" style="min-width:200px">供应商名称</th>
             <th style="width:80px">评级</th>
             <th style="width:100px">行业</th>
             <th v-if="canViewVendorInfo" style="width:130px">联系人</th>
             <th v-if="canViewVendorInfo" style="width:130px">联系电话</th>
             <th style="width:160px">地址</th>
-            <th style="width:80px">状态</th>
-            <th style="width:150px">操作</th>
+            <th style="width:160px">创建日期</th>
+            <th style="width:120px">创建人</th>
+            <th style="width:200px">操作</th>
           </tr>
         </thead>
         <tbody>
           <tr
-            v-for="(vendor, index) in vendorList"
+            v-for="vendor in vendorList"
             :key="vendor.id"
             class="table-row"
             @click="handleView(vendor)"
           >
-            <td class="td-index">{{ (pagination.pageNumber - 1) * pagination.pageSize + index + 1 }}</td>
+            <td class="td-code">{{ vendor.code }}</td>
+            <td>
+              <span class="status-badge" :class="getStatusClass(vendor.status)">
+                {{ getStatusLabel(vendor.status) }}
+              </span>
+            </td>
             <td v-if="canViewVendorInfo">
               <div class="vendor-name-cell">
                 <div class="cell-avatar">
@@ -158,7 +167,6 @@
                 </div>
               </div>
             </td>
-            <td class="td-code">{{ vendor.code }}</td>
             <td>
               <div class="star-rating">
                 <span v-for="i in 5" :key="i" class="star" :class="{ 'star--active': i <= (vendor.credit || 0) }">★</span>
@@ -180,15 +188,19 @@
             <td>
               <span class="td-address" :title="vendor.officeAddress">{{ vendor.officeAddress || '--' }}</span>
             </td>
-            <td>
-              <span class="status-badge" :class="getStatusClass(vendor.status)">
-                {{ getStatusLabel(vendor.status) }}
-              </span>
-            </td>
+            <td class="td-muted">{{ formatDate(vendor.createTime) }}</td>
+            <td class="td-muted">{{ (vendor as any).createUserName || (vendor as any).createdBy || (vendor as any).purchaseUserName || '--' }}</td>
             <td @click.stop>
               <div class="action-btns">
                 <button class="action-btn" @click.stop="handleView(vendor)">详情</button>
                 <button class="action-btn" @click.stop="handleEdit(vendor)">编辑</button>
+                <button
+                  v-if="vendor.status === 1"
+                  class="action-btn action-btn--primary"
+                  @click.stop="handleSubmitAudit(vendor)"
+                >
+                  提交审核
+                </button>
                 <button
                   class="action-btn"
                   :class="{ 'action-btn--favorite': vendor.isFavorite }"
@@ -236,12 +248,14 @@ import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { vendorApi } from '@/api/vendor';
 import { favoriteApi } from '@/api/favorite';
+import { formatDisplayDateTime } from '@/utils/displayDateTime';
 import type { Vendor, VendorSearchRequest, VendorStatistics } from '@/types/vendor';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const canViewVendorInfo = authStore.hasPermission('vendor.info.read');
+const canSubmitAudit = authStore.hasPermission('vendor.write');
 const loading = ref(false);
 const vendorList = ref<Vendor[]>([]);
 const totalCount = ref(0);
@@ -264,16 +278,30 @@ const searchForm = reactive<VendorSearchRequest>({
 const pagination = reactive({ pageNumber: 1, pageSize: 20 });
 
 const getStatusLabel = (status?: number) => {
-  if (status === 0) return '草稿';
-  if (status === 1) return '待审';
-  if (status === 2) return '合作中';
+  if (status === 1) return '新建';
+  if (status === 2) return '待审核';
+  if (status === 10) return '已审核';
+  if (status === 12) return '待财务审核';
+  if (status === 20) return '财务建档';
+  if (status === -1) return '审核失败';
   return '未知';
 };
 const getStatusClass = (status?: number) => {
-  if (status === 0) return 'status-draft';
-  if (status === 1) return 'status-pending';
-  if (status === 2) return 'status-active';
+  if (status === 2 || status === 12) return 'status-pending';
+  if (status === 10 || status === 20) return 'status-active';
+  if (status === -1) return 'status-danger';
+  if (status === 1) return 'status-draft';
   return 'status-draft';
+};
+
+const parseDateMs = (v?: string) => {
+  if (!v) return 0;
+  const t = new Date(v).getTime();
+  return Number.isFinite(t) ? t : 0;
+};
+
+const formatDate = (v?: string) => {
+  return formatDisplayDateTime(v);
 };
 
 const fetchVendorList = async () => {
@@ -296,6 +324,8 @@ const fetchVendorList = async () => {
     if (favoriteOnly.value) {
       mapped = mapped.filter((item: any) => item.isFavorite);
     }
+    // 兜底：确保按创建日期（createTime）降序展示
+    mapped.sort((a: any, b: any) => (parseDateMs(b?.createTime) - parseDateMs(a?.createTime)));
     vendorList.value = mapped;
     totalCount.value = favoriteOnly.value ? mapped.length : (response.totalCount ?? 0);
   } catch (error: any) {
@@ -336,6 +366,25 @@ const handleReset = () => {
 const handleCreate = () => router.push('/vendors/create');
 const handleView = (row: Vendor) => router.push(`/vendors/${row.id}`);
 const handleEdit = (row: Vendor) => router.push(`/vendors/${row.id}/edit`);
+
+const handleSubmitAudit = async (row: Vendor) => {
+  if (!canSubmitAudit) {
+    ElMessage.warning('没有权限提交审核');
+    return;
+  }
+  try {
+    await ElMessageBox.confirm('确定提交审核？提交后将进入“待审批”列表，由上级角色审批。', '提交审核', {
+      confirmButtonText: '提交',
+      cancelButtonText: '取消',
+      type: 'warning'
+    });
+    await vendorApi.submitAudit(row.id);
+    ElMessage.success('已提交审核');
+    fetchVendorList();
+  } catch (e: any) {
+    if (e !== 'cancel') ElMessage.error(e?.message || '提交审核失败');
+  }
+};
 
 const handleDelete = (row: Vendor) => {
   ElMessageBox.prompt(
@@ -785,6 +834,13 @@ onMounted(() => {
     border: 1px solid rgba(107,122,141,0.2);
     &::before { background: #8A9BB0; }
   }
+
+  &.status-danger {
+    color: #C95745;
+    background: rgba(201, 87, 69, 0.08);
+    border: 1px solid rgba(201, 87, 69, 0.2);
+    &::before { background: #C95745; box-shadow: 0 0 4px rgba(201, 87, 69, 0.8); }
+  }
 }
 
 // ---- 操作按钮 ----
@@ -831,6 +887,16 @@ onMounted(() => {
     background: rgba(201, 154, 69, 0.1);
     border-color: rgba(201, 154, 69, 0.3);
     color: $color-amber;
+  }
+
+  &--primary {
+    background: rgba(70,191,145,0.10);
+    border-color: rgba(70,191,145,0.25);
+    color: #46BF91;
+    &:hover {
+      background: rgba(70,191,145,0.18);
+      border-color: rgba(70,191,145,0.40);
+    }
   }
 }
 

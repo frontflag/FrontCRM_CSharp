@@ -26,10 +26,12 @@ export enum AscriptionType {
 
 // 客户状态
 export enum CustomerStatus {
-  Draft = 0,
-  Pending = 1,
-  Approved = 2,
-  Rejected = 3
+  New = 1,
+  PendingAudit = 2,
+  Approved = 10,
+  PendingFinanceAudit = 12,
+  FinanceFiled = 20,
+  AuditFailed = -1
 }
 
 // 地址类型
@@ -123,6 +125,10 @@ export interface Customer {
   currency?: number
   taxRate?: number
   invoiceType?: number
+  /** 状态：1新建 2待审核 10已审核 12待财务审核 20财务建档 -1审核失败 */
+  status?: number
+  /** 审核驳回原因（status=-1 时） */
+  auditRemark?: string
   isActive?: boolean
   isFavorite?: boolean
   remarks?: string
@@ -136,6 +142,8 @@ export interface Customer {
   contacts?: CustomerContactInfo[]
   addresses?: CustomerAddress[]
   banks?: CustomerBankInfo[]
+  /** 后端 BaseEntity.CreateTime 序列化名（与 createdAt 二选一存在） */
+  createTime?: string
   createdAt?: string
   updatedAt?: string
 }
@@ -390,10 +398,12 @@ export const customerTypeOptions = [
 
 // 客户状态选项
 export const customerStatusOptions = [
-  { value: 0, label: '草稿', type: 'info' },
-  { value: 1, label: '待审核', type: 'warning' },
-  { value: 2, label: '已通过', type: 'success' },
-  { value: 3, label: '已拒绝', type: 'danger' }
+  { value: 1, label: '新建', type: 'info' },
+  { value: 2, label: '待审核', type: 'warning' },
+  { value: 10, label: '已审核', type: 'success' },
+  { value: 12, label: '待财务审核', type: 'warning' },
+  { value: 20, label: '财务建档', type: 'primary' },
+  { value: -1, label: '审核失败', type: 'danger' }
 ]
 
 // 归属类型选项
@@ -416,7 +426,7 @@ export const genderOptions = [
 
 // 币别选项
 export const currencyOptions = [
-  { value: 1, label: 'CNY' },
+  { value: 1, label: 'RMB' },
   { value: 2, label: 'USD' },
   { value: 3, label: 'EUR' },
   { value: 4, label: 'GBP' },

@@ -73,46 +73,83 @@
         v-loading="loading"
         highlight-current-row
       >
-        <el-table-column prop="purchaseOrderCode" label="订单号" width="160" sortable>
+        <el-table-column prop="purchaseOrderCode" label="订单号" width="160" min-width="160" show-overflow-tooltip sortable>
           <template #default="{ row }">
             <el-link type="primary" @click="handleView(row)">{{ row.purchaseOrderCode }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column v-if="canViewVendorInfo" prop="vendorName" label="供应商" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="purchaseUserName" label="采购员" width="100" />
-        <el-table-column v-if="canViewPurchaseAmount" prop="total" label="总金额" width="130" align="right">
-          <template #default="{ row }">
-            <span class="amount">{{ formatCurrency(row.total, row.currency) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="itemRows" label="行项目" width="80" align="center" />
-        <el-table-column prop="status" label="状态" width="100" align="center">
+        <el-table-column prop="status" label="状态" width="160" align="center">
           <template #default="{ row }">
             <el-tag effect="dark" :type="getStatusType(row.status)" size="small">
               {{ getStatusText(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="stockStatus" label="入库状态" width="100" align="center">
+        <el-table-column v-if="canViewVendorInfo" prop="vendorName" label="供应商" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="purchaseUserName" label="采购员" width="100" />
+        <el-table-column v-if="canViewPurchaseAmount" prop="total" label="总金额" width="160" align="right">
+          <template #default="{ row }">
+            <span class="amount">{{ formatCurrency(row.total, row.currency) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="itemRows" label="行项目" width="80" align="center" />
+        <el-table-column prop="stockStatus" label="入库状态" width="160" align="center">
           <template #default="{ row }">
             <el-tag effect="dark" :type="getStockStatusType(row.stockStatus)" size="small">
               {{ getStockStatusText(row.stockStatus) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="deliveryDate" label="交货日期" width="110" />
-        <el-table-column prop="createTime" label="创建时间" width="150" />
-        <el-table-column label="操作" width="330" fixed="right">
+        <el-table-column prop="deliveryDate" label="交货日期" width="160">
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleView(row)">查看</el-button>
+            {{ formatDisplayDate(row.deliveryDate) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="createTime" label="创建时间" width="160">
+          <template #default="{ row }">
+            {{ formatDisplayDateTime(row.createTime) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="创建人" width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" min-width="400" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="handleView(row)">详情</el-button>
             <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
             <el-button
-              v-if="row.status === 20 && canConfirmSupplier"
+              v-if="row.status < 10"
+              link
+              type="danger"
+              @click="cancelOrder(row)"
+            >
+              取消订单
+            </el-button>
+            <el-button
+              v-if="(row.status >= 1 && row.status < 10) || row.status === -1"
+              link
+              type="warning"
+              @click="submitAudit(row)"
+            >
+              提交审核
+            </el-button>
+            <el-button
+              v-if="row.status >= 10 && row.status < 30"
               link
               type="success"
               @click="confirmBySupplier(row)"
             >
               供应商确认
+            </el-button>
+            <el-button
+              v-if="row.status === 30"
+              link
+              type="danger"
+              @click="cancelSupplierConfirm(row)"
+            >
+              取消供应商确认
             </el-button>
             <el-dropdown @command="(cmd: string) => handleMore(cmd, row)">
               <el-button link type="primary">
@@ -120,7 +157,6 @@
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="status">更新状态</el-dropdown-item>
                   <el-dropdown-item command="delete" type="danger" divided>删除</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -143,29 +179,6 @@
       </div>
     </el-card>
 
-
-    <!-- 状态更新对话框 -->
-    <el-dialog v-model="statusDialogVisible" title="更新状态" width="400px">
-      <el-form label-width="100px">
-        <el-form-item label="新状态">
-          <el-select v-model="newStatus" style="width: 100%">
-            <el-option label="新建" :value="1" />
-            <el-option label="待审核" :value="2" />
-            <el-option label="审核通过" :value="10" />
-            <el-option label="待确认" :value="20" />
-            <el-option label="已确认" :value="30" />
-            <el-option label="进行中" :value="50" />
-            <el-option label="采购完成" :value="100" />
-            <el-option label="审核失败" :value="-1" />
-            <el-option label="取消" :value="-2" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="statusDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="confirmUpdateStatus">确定</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -176,6 +189,7 @@ import { Plus, Search, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { useAuthStore } from '@/stores/auth'
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 
@@ -184,7 +198,6 @@ const orderList = ref<any[]>([])
 const authStore = useAuthStore()
 const canViewVendorInfo = computed(() => authStore.hasPermission('vendor.info.read'))
 const canViewPurchaseAmount = computed(() => authStore.hasPermission('purchase.amount.read'))
-const canConfirmSupplier = computed(() => authStore.hasPermission('purchase-order.write'))
 
 // 筛选表单
 const filterForm = ref({
@@ -201,10 +214,6 @@ const pageInfo = ref({
 })
 
 // 对话框控制
-const statusDialogVisible = ref(false)
-const currentRow = ref<any>(null)
-const newStatus = ref(1)
-
 // 计算属性：筛选后的列表
 const filteredList = computed(() => {
   let result = orderList.value
@@ -331,6 +340,10 @@ const confirmBySupplier = async (row: any) => {
       '供应商确认',
       { type: 'info', confirmButtonText: '确认', cancelButtonText: '取消' }
     )
+    // 允许从“审核通过(10)”推进到“待确认(20)”再到“已确认(30)”
+    if (row.status === 10) {
+      await purchaseOrderApi.updateStatus(row.id, 20)
+    }
     await purchaseOrderApi.updateStatus(row.id, 30)
     ElMessage.success('供应商确认成功')
     await loadData()
@@ -339,14 +352,61 @@ const confirmBySupplier = async (row: any) => {
   }
 }
 
+/** 取消供应商确认：仅「已确认(30)」时显示；将订单标记为取消 */
+const cancelSupplierConfirm = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(
+      `确认将采购订单 ${row.purchaseOrderCode} 执行“取消供应商确认”吗？`,
+      '取消供应商确认',
+      { type: 'warning', confirmButtonText: '确认', cancelButtonText: '取消' }
+    )
+    await purchaseOrderApi.updateStatus(row.id, -2)
+    ElMessage.success('已取消供应商确认')
+    await loadData()
+  } catch {
+    // 取消或失败已由全局拦截器提示
+  }
+}
+
+/** 取消订单：仅在 status < 10 显示 */
+const cancelOrder = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(
+      `确认将采购订单 ${row.purchaseOrderCode} 标记为“取消”吗？`,
+      '取消订单',
+      { type: 'warning', confirmButtonText: '确认', cancelButtonText: '取消' }
+    )
+    await purchaseOrderApi.updateStatus(row.id, -2)
+    ElMessage.success('订单已取消')
+    await loadData()
+  } catch {
+    // 取消或失败已由全局拦截器提示
+  }
+}
+
+/** 提交审核 */
+const submitAudit = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(
+      `确认将采购订单 ${row.purchaseOrderCode} 提交审核吗？`,
+      '提交审核',
+      { type: 'info', confirmButtonText: '确认', cancelButtonText: '取消' }
+    )
+    // 审核失败(-1)先回到新建(1)，再提交审核(2)
+    if (row.status === -1) {
+      await purchaseOrderApi.updateStatus(row.id, 1)
+    }
+    await purchaseOrderApi.updateStatus(row.id, 2)
+    ElMessage.success('提交审核成功')
+    await loadData()
+  } catch {
+    // 取消或失败已由全局拦截器提示
+  }
+}
+
 // 更多操作
 const handleMore = (cmd: string, row: any) => {
-  currentRow.value = row
   switch (cmd) {
-    case 'status':
-      newStatus.value = row.status
-      statusDialogVisible.value = true
-      break
     case 'delete':
       handleDelete(row)
       break
@@ -363,16 +423,6 @@ const handleDelete = async (row: any) => {
     // 取消
   }
 }
-
-// 更新状态
-const confirmUpdateStatus = async () => {
-  if (!currentRow.value) return
-  await purchaseOrderApi.updateStatus(currentRow.value.id, newStatus.value)
-  statusDialogVisible.value = false
-  loadData()
-}
-
-
 
 onMounted(loadData)
 </script>
