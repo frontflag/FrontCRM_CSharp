@@ -22,6 +22,7 @@ export interface FinancePayment {
   paymentDate?: string
   paymentUserId?: string
   paymentMode: number  // 1:银行转账 2:现金 3:支票 4:承兑汇票
+  bankSlipNo?: string
   remark?: string
   createdAt?: string
   items?: FinancePaymentItem[]

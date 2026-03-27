@@ -54,6 +54,10 @@ namespace CRM.Core.Models.Finance
         /// <summary>付款方式 1:银行转账 2:现金 3:支票 4:承兑汇票</summary>
         public short PaymentMode { get; set; } = 1;
 
+        /// <summary>银行水单号码</summary>
+        [StringLength(100)]
+        public string? BankSlipNo { get; set; }
+
         /// <summary>备注</summary>
         [StringLength(500)]
         public string? Remark { get; set; }

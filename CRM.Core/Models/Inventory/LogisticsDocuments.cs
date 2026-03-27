@@ -79,6 +79,22 @@ namespace CRM.Core.Models.Inventory
         [StringLength(36)]
         public string? StockInId { get; set; }
 
+        /// <summary>展示字段：供应商名称（由到货通知带出）</summary>
+        [NotMapped]
+        public string? VendorName { get; set; }
+
+        /// <summary>展示字段：采购订单号（由到货通知带出）</summary>
+        [NotMapped]
+        public string? PurchaseOrderCode { get; set; }
+
+        /// <summary>展示字段：销售订单号（由采购明细关联销售明细推导）</summary>
+        [NotMapped]
+        public string? SalesOrderCode { get; set; }
+
+        /// <summary>展示字段：型号（由到货通知明细聚合）</summary>
+        [NotMapped]
+        public string? Model { get; set; }
+
         public ICollection<QCItem> Items { get; set; } = new List<QCItem>();
     }
 

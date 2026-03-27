@@ -53,6 +53,7 @@ namespace CRM.Core.Services
                 PaymentDate = PostgreSqlDateTime.ToUtc(request.PaymentDate),
                 PaymentUserId = request.PaymentUserId,
                 PaymentMode = request.PaymentMode,
+                BankSlipNo = request.BankSlipNo,
                 Remark = request.Remark,
                 // 新建
                 Status = 1,
@@ -151,6 +152,7 @@ namespace CRM.Core.Services
             if (request.PaymentAmountToBe.HasValue) payment.PaymentAmountToBe = request.PaymentAmountToBe.Value;
             if (request.PaymentDate.HasValue) payment.PaymentDate = PostgreSqlDateTime.ToUtc(request.PaymentDate.Value);
             if (request.PaymentMode.HasValue) payment.PaymentMode = request.PaymentMode.Value;
+            if (request.BankSlipNo != null) payment.BankSlipNo = request.BankSlipNo;
             if (request.Remark != null) payment.Remark = request.Remark;
             payment.ModifyTime = DateTime.UtcNow;
 

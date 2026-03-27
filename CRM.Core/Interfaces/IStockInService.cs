@@ -15,6 +15,8 @@ namespace CRM.Core.Interfaces
         public string WarehouseId { get; set; } = string.Empty;
         public string? VendorId { get; set; }
         public string? VendorName { get; set; }
+        /// <summary>销售订单号（由采购订单明细关联推导，可能多单逗号拼接）</summary>
+        public string? SalesOrderCode { get; set; }
         public DateTime StockInDate { get; set; }
         public decimal TotalQuantity { get; set; }
         public decimal TotalAmount { get; set; }
@@ -30,10 +32,18 @@ namespace CRM.Core.Interfaces
     {
         Task<StockIn> CreateAsync(CreateStockInRequest request);
         Task<StockIn?> GetByIdAsync(string id);
-        Task<IReadOnlyList<StockInListItemDto>> GetListAsync();
+        Task<IReadOnlyList<StockInListItemDto>> GetListAsync(StockInQueryRequest? request = null);
         Task<StockIn> UpdateAsync(string id, UpdateStockInRequest request);
         Task DeleteAsync(string id);
         Task UpdateStatusAsync(string id, short status);
+    }
+
+    public class StockInQueryRequest
+    {
+        public string? Model { get; set; }
+        public string? VendorName { get; set; }
+        public string? PurchaseOrderCode { get; set; }
+        public string? SalesOrderCode { get; set; }
     }
 
     public class CreateStockInRequest

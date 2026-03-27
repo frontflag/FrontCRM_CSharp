@@ -12,17 +12,40 @@
           </div>
           <h1 class="page-title">入库单列表</h1>
         </div>
-        <div class="count-badge">共 {{ list.length }} 条</div>
+        <div class="count-badge">共 {{ filteredList.length }} 条</div>
       </div>
-      <div class="header-right">
-        <el-input
-          v-model="keyword"
-          placeholder="入库单号/来源单号"
-          clearable
-          style="width: 220px; margin-right: 8px;"
+    </div>
+
+    <!-- 查询栏（与客户列表一致的结构与样式） -->
+    <div class="search-bar">
+      <div class="search-left">
+        <span class="list-title">入库单查询</span>
+        <input
+          v-model="filters.model"
+          class="search-input search-input--filter"
+          placeholder="型号"
           @keyup.enter="fetchList"
         />
-        <button class="btn-secondary" @click="fetchList">刷新</button>
+        <input
+          v-model="filters.vendorName"
+          class="search-input search-input--filter"
+          placeholder="供应商名称"
+          @keyup.enter="fetchList"
+        />
+        <input
+          v-model="filters.purchaseOrderCode"
+          class="search-input search-input--filter"
+          placeholder="采购订单号"
+          @keyup.enter="fetchList"
+        />
+        <input
+          v-model="filters.salesOrderCode"
+          class="search-input search-input--filter"
+          placeholder="销售订单号"
+          @keyup.enter="fetchList"
+        />
+        <button type="button" class="btn-primary btn-sm" @click="fetchList">搜索</button>
+        <button type="button" class="btn-ghost btn-sm" @click="resetFilters">重置</button>
       </div>
     </div>
 
@@ -44,6 +67,7 @@
         <el-table-column prop="sourceDisplayNo" label="来源单号" width="160" show-overflow-tooltip />
         <el-table-column prop="warehouseId" label="仓库ID" width="140" show-overflow-tooltip />
         <el-table-column prop="vendorName" label="供应商" min-width="160" show-overflow-tooltip />
+      <el-table-column prop="salesOrderCode" label="销售订单号" min-width="170" show-overflow-tooltip />
         <el-table-column prop="stockInDate" label="入库日期" width="160">
           <template #default="{ row }">
             <span class="text-secondary">{{ formatDate(row.stockInDate) }}</span>
@@ -96,7 +120,12 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 const router = useRouter()
 const loading = ref(false)
 const list = ref<StockInListItemDto[]>([])
-const keyword = ref('')
+const filters = reactive({
+  model: '',
+  vendorName: '',
+  purchaseOrderCode: '',
+  salesOrderCode: ''
+})
 
 const remarkDialogVisible = ref(false)
 const remarkForm = reactive<{ id: string; remark: string }>({
@@ -118,25 +147,54 @@ const statusLabel = (s: number) => {
   }
 }
 
-const filteredList = computed(() => {
-  if (!keyword.value) return list.value
-  const k = keyword.value.toLowerCase()
-  return list.value.filter(x =>
-    x.stockInCode.toLowerCase().includes(k) ||
-    (x.sourceDisplayNo && x.sourceDisplayNo.toLowerCase().includes(k))
-  )
-})
-
 const fetchList = async () => {
   loading.value = true
   try {
-    list.value = await stockInApi.getAll()
+    list.value = await stockInApi.getAll({
+      model: filters.model || undefined,
+      vendorName: filters.vendorName || undefined,
+      purchaseOrderCode: filters.purchaseOrderCode || undefined,
+      salesOrderCode: filters.salesOrderCode || undefined
+    })
   } catch (e) {
     console.error(e)
     ElMessage.error('加载入库单失败')
   } finally {
     loading.value = false
   }
+}
+
+const keywordHit = (text: string | undefined, keyword: string): boolean => {
+  if (!keyword) return true
+  return (text ?? '').toLowerCase().includes(keyword.toLowerCase())
+}
+
+// 前端兜底过滤：避免后端筛选偶发不生效时页面无响应
+const filteredList = computed(() => {
+  const model = filters.model.trim()
+  const vendorName = filters.vendorName.trim()
+  const purchaseOrderCode = filters.purchaseOrderCode.trim()
+  const salesOrderCode = filters.salesOrderCode.trim()
+
+  return list.value.filter((row) => {
+    const rowAny = row as any
+    const modelText = `${rowAny.model ?? ''} ${rowAny.materialCode ?? ''} ${rowAny.remark ?? ''}`
+    const poText = `${row.sourceDisplayNo ?? ''} ${row.stockInCode ?? ''}`
+    return (
+      keywordHit(modelText, model) &&
+      keywordHit(row.vendorName, vendorName) &&
+      keywordHit(poText, purchaseOrderCode) &&
+      keywordHit(row.salesOrderCode, salesOrderCode)
+    )
+  })
+})
+
+const resetFilters = () => {
+  filters.model = ''
+  filters.vendorName = ''
+  filters.purchaseOrderCode = ''
+  filters.salesOrderCode = ''
+  fetchList()
 }
 
 const handleView = (row: StockInListItemDto) => {
@@ -191,7 +249,6 @@ onMounted(fetchList)
   justify-content: space-between;
   margin-bottom: 20px;
   .header-left { display: flex; align-items: center; gap: 12px; }
-  .header-right { display: flex; align-items: center; gap: 8px; }
 }
 .page-title-group {
   display: flex;
@@ -218,6 +275,54 @@ onMounted(fetchList)
   border-radius: 20px;
   padding: 3px 10px;
 }
+
+// ---- 查询栏（对齐客户列表 CustomerList.vue）----
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.search-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.list-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $text-primary;
+  white-space: nowrap;
+}
+
+.search-input {
+  width: 220px;
+  padding: 7px 12px 7px 12px;
+  background: $layer-2;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-primary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: $text-muted;
+  }
+
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+
+  &--filter {
+    width: 160px;
+  }
+}
+
 .btn-primary,
 .btn-secondary {
   display: inline-flex;
@@ -228,16 +333,53 @@ onMounted(fetchList)
   font-size: 13px;
   cursor: pointer;
   border: 1px solid transparent;
+  font-family: 'Noto Sans SC', sans-serif;
+  transition: all 0.2s;
 }
 .btn-primary {
   background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
   border-color: rgba(0, 212, 255, 0.4);
   color: #fff;
+  letter-spacing: 0.5px;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
 }
 .btn-secondary {
   background: rgba(255, 255, 255, 0.05);
   border-color: $border-panel;
   color: $text-secondary;
+}
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: rgba(0, 212, 255, 0.3);
+    color: $text-secondary;
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
 }
 .code-link {
   color: $cyan-primary;

@@ -86,6 +86,9 @@
         <el-table-column prop="paymentDate" label="付款日期" width="120">
           <template #default="{ row }">{{ row.paymentDate ? formatDisplayDate(row.paymentDate) : '-' }}</template>
         </el-table-column>
+        <el-table-column prop="bankSlipNo" label="银行水单号" width="150" show-overflow-tooltip>
+          <template #default="{ row }">{{ (row as any).bankSlipNo || '-' }}</template>
+        </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
         <el-table-column prop="createdAt" label="创建时间" width="120">
           <template #default="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
@@ -98,9 +101,8 @@
         <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
-            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="[1,-1].includes(row.status)">编辑</el-button>
+            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="[1,-1,10].includes(row.status)">编辑</el-button>
             <el-button size="small" text type="success" @click.stop="submitAudit(row)" v-if="row.status === 1">提交审核</el-button>
-            <el-button size="small" text type="success" @click.stop="confirmPayment(row)" v-if="canShowFinishButton(row)">付款完成</el-button>
             <el-button size="small" text type="danger" @click.stop="cancelPayment(row)" v-if="[1,2].includes(row.status)">取消</el-button>
           </template>
         </el-table-column>
@@ -161,15 +163,48 @@
               <el-date-picker v-model="form.paymentDate" type="date" value-format="YYYY-MM-DD" style="width:100%" />
             </el-form-item>
           </el-col>
+          <el-col :span="12">
+            <el-form-item label="银行水单号">
+              <el-input v-model="form.bankSlipNo" placeholder="请输入银行水单号码" />
+            </el-form-item>
+          </el-col>
           <el-col :span="24">
             <el-form-item label="备注">
               <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24" v-if="editingId">
+            <el-form-item label="银行水单附件">
+              <div style="display:flex;flex-direction:column;gap:8px;width:100%">
+                <input type="file" multiple @change="onSlipFilesSelected" />
+                <div v-if="uploadingSlipDocs">上传中...</div>
+                <div v-if="paymentDocs.length">
+                  <el-tag
+                    v-for="doc in paymentDocs"
+                    :key="doc.id"
+                    size="small"
+                    style="margin-right:8px;cursor:pointer"
+                    @click="downloadSlipDoc(doc)"
+                  >
+                    {{ doc.originalFileName }}
+                  </el-tag>
+                </div>
+                <div v-else style="color:var(--el-text-color-placeholder)">暂无已上传水单文件</div>
+              </div>
             </el-form-item>
           </el-col>
         </el-row>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button
+          v-if="editingId && canShowFinishButton(form as any)"
+          type="success"
+          @click="completePaymentInDialog"
+          :loading="saving"
+        >
+          付款完成
+        </el-button>
         <el-button type="primary" @click="saveForm" :loading="saving">保存</el-button>
       </template>
     </el-dialog>
@@ -182,6 +217,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { documentApi, type UploadDocumentDto } from '@/api/document'
 import {
   financePaymentApi,
   PAYMENT_STATUS_MAP,
@@ -251,15 +287,18 @@ const getMockData = (): FinancePayment[] => [
 const dialogVisible = ref(false)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
+const paymentDocs = ref<UploadDocumentDto[]>([])
+const uploadingSlipDocs = ref(false)
 const form = reactive<Partial<FinancePayment>>({
   vendorId: '', vendorName: '', paymentAmount: 0, paymentMode: 1, paymentCurrency: 1,
-  paymentDate: undefined, remark: '',
+  paymentDate: undefined, bankSlipNo: '', remark: '',
 })
 
 const openEdit = (row: FinancePayment) => {
   editingId.value = row.id
   Object.assign(form, { ...row })
   dialogVisible.value = true
+  loadPaymentDocs(row.id)
 }
 
 const saveForm = async () => {
@@ -287,6 +326,40 @@ const saveForm = async () => {
   }
 }
 
+const loadPaymentDocs = async (paymentId: string) => {
+  try {
+    paymentDocs.value = await documentApi.getDocuments('FINANCE_PAYMENT', paymentId)
+  } catch {
+    paymentDocs.value = []
+  }
+}
+
+const onSlipFilesSelected = async (e: Event) => {
+  const paymentId = editingId.value
+  if (!paymentId) {
+    ElMessage.warning('请先保存付款单后再上传水单附件')
+    ;(e.target as HTMLInputElement).value = ''
+    return
+  }
+  const files = Array.from((e.target as HTMLInputElement).files || [])
+  if (!files.length) return
+  try {
+    uploadingSlipDocs.value = true
+    await documentApi.uploadDocuments('FINANCE_PAYMENT', paymentId, files, '银行水单')
+    await loadPaymentDocs(paymentId)
+    ElMessage.success('水单附件上传成功')
+  } catch (err: any) {
+    ElMessage.error(err?.message || '水单附件上传失败')
+  } finally {
+    uploadingSlipDocs.value = false
+    ;(e.target as HTMLInputElement).value = ''
+  }
+}
+
+const downloadSlipDoc = async (doc: UploadDocumentDto) => {
+  await documentApi.downloadDocument(doc.id, doc.originalFileName)
+}
+
 /// 详情
 const openDetail = (row: FinancePayment) => {
   router.push({ name: 'FinancePaymentDetail', params: { id: row.id } })
@@ -300,10 +373,13 @@ const submitAudit = async (row: FinancePayment) => {
   await loadData()
 }
 
-const confirmPayment = async (row: FinancePayment) => {
-  await ElMessageBox.confirm(`确认将付款单 ${row.financePaymentCode} 标记为付款完成？`, '付款完成', { type: 'success' })
-  await financePaymentApi.complete(row.id)
+const completePaymentInDialog = async () => {
+  if (!editingId.value) return
+  const code = form.financePaymentCode || editingId.value
+  await ElMessageBox.confirm(`确认将付款单 ${code} 标记为付款完成？`, '付款完成', { type: 'success' })
+  await financePaymentApi.complete(editingId.value)
   ElMessage.success('付款已完成')
+  dialogVisible.value = false
   await loadData()
 }
 

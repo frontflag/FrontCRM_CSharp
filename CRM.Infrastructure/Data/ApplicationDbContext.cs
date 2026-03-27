@@ -843,6 +843,7 @@ namespace CRM.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("FinancePaymentId");
                 entity.Property(e => e.FinancePaymentCode).IsRequired().HasMaxLength(16);
+                entity.Property(e => e.BankSlipNo).HasMaxLength(100);
                 entity.Property(e => e.PaymentAmount).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.PaymentAmountToBe).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.PaymentTotalAmount).HasColumnType("numeric(18,2)");

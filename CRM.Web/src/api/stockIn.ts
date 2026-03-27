@@ -48,6 +48,7 @@ export interface StockInListItemDto {
   warehouseId: string
   vendorId?: string
   vendorName?: string
+  salesOrderCode?: string
   stockInDate: string
   totalQuantity: number
   totalAmount: number
@@ -57,8 +58,13 @@ export interface StockInListItemDto {
 }
 
 export const stockInApi = {
-  async getAll(): Promise<StockInListItemDto[]> {
-    const res = await apiClient.get<any>('/api/v1/stock-in')
+  async getAll(params?: {
+    model?: string
+    vendorName?: string
+    purchaseOrderCode?: string
+    salesOrderCode?: string
+  }): Promise<StockInListItemDto[]> {
+    const res = await apiClient.get<any>('/api/v1/stock-in', { params })
     if (res && typeof res === 'object' && 'data' in res && Array.isArray(res.data))
       return res.data as StockInListItemDto[]
     return Array.isArray(res) ? res : []

@@ -9,7 +9,7 @@ namespace CRM.Core.Interfaces
         Task<AutoGenerateArrivalNoticeResult> AutoGenerateArrivalNoticesAsync();
         Task UpdateArrivalNoticeStatusAsync(string id, short status);
 
-        Task<IReadOnlyList<QCInfo>> GetQcsAsync();
+        Task<IReadOnlyList<QCInfo>> GetQcsAsync(QcQueryRequest? request = null);
         Task<QCInfo> CreateQcAsync(CreateQcRequest request);
         Task<QCInfo> UpdateQcResultAsync(string id, UpdateQcResultRequest request);
         Task BindQcStockInAsync(string id, string stockInId);
@@ -35,6 +35,14 @@ namespace CRM.Core.Interfaces
         public string Result { get; set; } = "pass";
         public decimal PassQty { get; set; }
         public decimal RejectQty { get; set; }
+    }
+
+    public class QcQueryRequest
+    {
+        public string? Model { get; set; }
+        public string? VendorName { get; set; }
+        public string? PurchaseOrderCode { get; set; }
+        public string? SalesOrderCode { get; set; }
     }
 
     public class AutoGenerateArrivalNoticeResult

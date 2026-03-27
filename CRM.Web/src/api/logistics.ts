@@ -32,6 +32,10 @@ export interface QcInfoDto {
   qcCode: string
   stockInNotifyId: string
   stockInNotifyCode: string
+  vendorName?: string
+  purchaseOrderCode?: string
+  salesOrderCode?: string
+  model?: string
   status: number
   stockInStatus: number
   passQty: number
@@ -69,8 +73,13 @@ export const logisticsApi = {
   async updateArrivalStatus(id: string, status: number): Promise<void> {
     await apiClient.patch(`/api/v1/logistics/arrival-notices/${id}/status?status=${status}`)
   },
-  async getQcs(): Promise<QcInfoDto[]> {
-    return unwrap<QcInfoDto[]>(await apiClient.get('/api/v1/logistics/qcs'))
+  async getQcs(params?: {
+    model?: string
+    vendorName?: string
+    purchaseOrderCode?: string
+    salesOrderCode?: string
+  }): Promise<QcInfoDto[]> {
+    return unwrap<QcInfoDto[]>(await apiClient.get('/api/v1/logistics/qcs', { params }))
   },
   async createQc(stockInNotifyId: string): Promise<QcInfoDto> {
     return unwrap<QcInfoDto>(await apiClient.post('/api/v1/logistics/qcs', { stockInNotifyId }))

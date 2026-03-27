@@ -78,6 +78,20 @@
       <el-table-column prop="brand" label="品牌" width="110" show-overflow-tooltip />
 
       <el-table-column prop="qty" label="数量" width="100" align="right" />
+      <el-table-column prop="financePaymentStatus" label="付款状态" width="120" align="center">
+        <template #default="{ row }">
+          <el-tag effect="dark" size="small" :type="financeStatusTagType(Number(row.financePaymentStatus ?? 0))">
+            {{ financeStatusText(Number(row.financePaymentStatus ?? 0)) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="stockInStatus" label="货运状态" width="120" align="center">
+        <template #default="{ row }">
+          <el-tag effect="dark" size="small" :type="shippingStatusTagType(Number(row.stockInStatus ?? 0))">
+            {{ shippingStatusText(Number(row.stockInStatus ?? 0)) }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column v-if="canViewAmount" prop="cost" label="单价" width="160" align="right">
         <template #default="{ row }">{{ formatMoney(row.cost, row.currency) }}</template>
       </el-table-column>
@@ -91,7 +105,7 @@
         <template #default="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}</template>
       </el-table-column>
 
-      <el-table-column label="操作" width="200" fixed="right" align="center">
+      <el-table-column label="操作" width="260" fixed="right" align="center" class-name="op-col" label-class-name="op-col-head">
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="goDetail(row)">详情</el-button>
           <el-button
@@ -101,10 +115,10 @@
             size="small"
             @click="openArrivalDialog(row)"
           >
-              通知到货
+            通知到货
           </el-button>
           <el-button
-              v-if="row.itemStatus === 30 && canApplyPayment && Number(row.stockInStatus ?? 0) < 2"
+            v-if="row.canApplyPayment"
             link
             type="success"
             size="small"
@@ -371,7 +385,6 @@ const authStore = useAuthStore()
 const canViewVendor = computed(() => authStore.hasPermission('vendor.info.read'))
 const canViewPurchaseUser = computed(() => authStore.hasPermission('purchase.user.read') || authStore.hasPermission('purchase-order.read'))
 const canViewAmount = computed(() => authStore.hasPermission('purchase.amount.read'))
-const canApplyPayment = computed(() => authStore.hasPermission('finance-payment.write'))
 const canCreateArrivalNotice = computed(() => authStore.hasPermission('purchase-order.read'))
 
 const loading = ref(false)
@@ -498,6 +511,42 @@ function formatDt(v: string) {
 function formatMoney(n: number, currency?: number) {
   const sym = currency === 2 ? '$' : currency === 3 ? '€' : '¥'
   return `${sym}${Number(n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}`
+}
+
+function financeStatusText(s: number) {
+  const map: Record<number, string> = {
+    0: '未付款',
+    1: '部分付款',
+    2: '全部付款'
+  }
+  return map[s] ?? String(s)
+}
+
+function financeStatusTagType(s: number): '' | 'success' | 'warning' | 'info' | 'danger' | 'primary' {
+  const map: Record<number, '' | 'success' | 'warning' | 'info' | 'danger' | 'primary'> = {
+    0: 'info',
+    1: 'warning',
+    2: 'success'
+  }
+  return map[s] ?? 'info'
+}
+
+function shippingStatusText(s: number) {
+  const map: Record<number, string> = {
+    0: '未到货',
+    1: '部分到货',
+    2: '全部到货'
+  }
+  return map[s] ?? String(s)
+}
+
+function shippingStatusTagType(s: number): '' | 'success' | 'warning' | 'info' | 'danger' | 'primary' {
+  const map: Record<number, '' | 'success' | 'warning' | 'info' | 'danger' | 'primary'> = {
+    0: 'info',
+    1: 'warning',
+    2: 'success'
+  }
+  return map[s] ?? 'info'
 }
 
 function buildFinancePaymentCode() {
@@ -715,6 +764,8 @@ async function loadList() {
         vendorId: detail.vendorId ?? o.vendorId,
         itemStatus: it.status,
         stockInStatus: it.stockInStatus ?? 0,
+        financePaymentStatus: it.financePaymentStatus ?? 0,
+        canApplyPayment: Boolean(it.canApplyPayment ?? it.CanApplyPayment ?? false),
         orderCreateTime: detail.createTime ?? o.createTime,
         vendorName: detail.vendorName ?? o.vendorName,
         purchaseUserName: detail.purchaseUserName ?? o.purchaseUserName,
@@ -890,6 +941,38 @@ onMounted(() => {
   border: 1px solid $border-card;
   border-radius: $border-radius-lg;
   overflow: hidden;
+}
+
+/* 右侧固定操作列浮层：全层级强制不透明，覆盖全局透明表格样式 */
+.po-item-list-page :deep(.el-table__fixed-right),
+.po-item-list-page :deep(.el-table__fixed-right-patch),
+.po-item-list-page :deep(.el-table__fixed-right .el-table__fixed-header-wrapper),
+.po-item-list-page :deep(.el-table__fixed-right .el-table__fixed-body-wrapper),
+.po-item-list-page :deep(.el-table__fixed-right .el-table__fixed-footer-wrapper),
+.po-item-list-page :deep(.el-table__fixed-right table),
+.po-item-list-page :deep(.el-table__fixed-right tr),
+.po-item-list-page :deep(.el-table__fixed-right th.el-table__cell),
+.po-item-list-page :deep(.el-table__fixed-right td.el-table__cell),
+.po-item-list-page :deep(.el-table__fixed-right .cell),
+.po-item-list-page :deep(.el-table .el-table-fixed-column--right),
+.po-item-list-page :deep(.el-table .el-table-fixed-column--right.is-leaf),
+.po-item-list-page :deep(.el-table .el-table-fixed-column--right .cell) {
+  background-color: $layer-2 !important;
+}
+
+/* fixed 列 hover 时也保持不透明，避免出现“透视缝隙” */
+.po-item-list-page :deep(.el-table__fixed-right .el-table__row:hover td.el-table__cell),
+.po-item-list-page :deep(.el-table__fixed-right .el-table__row.hover-row td.el-table__cell) {
+  background-color: $layer-2 !important;
+}
+
+/* 固定列与普通列边界：左侧阴影 + 细分隔线 */
+.po-item-list-page :deep(.el-table__fixed-right) {
+  box-shadow: -12px 0 18px -10px rgba(0, 0, 0, 0.72) !important;
+}
+.po-item-list-page :deep(.el-table__fixed-right::before),
+.po-item-list-page :deep(.el-table__fixed-right-patch) {
+  background-color: rgba(255, 255, 255, 0.08) !important;
 }
 .pagination-wrapper {
   display: flex;

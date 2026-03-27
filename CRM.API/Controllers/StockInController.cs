@@ -19,11 +19,22 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponse<IReadOnlyList<StockInListItemDto>>>> GetAll()
+        public async Task<ActionResult<ApiResponse<IReadOnlyList<StockInListItemDto>>>> GetAll(
+            [FromQuery] string? model,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? purchaseOrderCode,
+            [FromQuery] string? salesOrderCode)
         {
             try
             {
-                var list = await _service.GetListAsync();
+                var query = new StockInQueryRequest
+                {
+                    Model = model,
+                    VendorName = vendorName,
+                    PurchaseOrderCode = purchaseOrderCode,
+                    SalesOrderCode = salesOrderCode
+                };
+                var list = await _service.GetListAsync(query);
                 return Ok(ApiResponse<IReadOnlyList<StockInListItemDto>>.Ok(list, "获取入库单列表成功"));
             }
             catch (Exception ex)

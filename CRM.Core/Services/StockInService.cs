@@ -1,6 +1,7 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
+using CRM.Core.Models.Sales;
 using CRM.Core.Models.Vendor;
 using CRM.Core.Utilities;
 
@@ -14,6 +15,9 @@ namespace CRM.Core.Services
         private readonly IRepository<StockIn> _stockInRepository;
         private readonly IRepository<StockInItem> _stockInItemRepository;
         private readonly IRepository<PurchaseOrder> _purchaseOrderRepository;
+        private readonly IRepository<PurchaseOrderItem> _purchaseOrderItemRepository;
+        private readonly IRepository<SellOrderItem> _sellOrderItemRepository;
+        private readonly IRepository<SellOrder> _sellOrderRepository;
         private readonly IRepository<QCInfo> _qcRepository;
         private readonly IRepository<VendorInfo> _vendorRepository;
         private readonly ILogisticsService _logisticsService;
@@ -25,6 +29,9 @@ namespace CRM.Core.Services
             IRepository<StockIn> stockInRepository,
             IRepository<StockInItem> stockInItemRepository,
             IRepository<PurchaseOrder> purchaseOrderRepository,
+            IRepository<PurchaseOrderItem> purchaseOrderItemRepository,
+            IRepository<SellOrderItem> sellOrderItemRepository,
+            IRepository<SellOrder> sellOrderRepository,
             IRepository<QCInfo> qcRepository,
             IRepository<VendorInfo> vendorRepository,
             ILogisticsService logisticsService,
@@ -35,6 +42,9 @@ namespace CRM.Core.Services
             _stockInRepository = stockInRepository;
             _stockInItemRepository = stockInItemRepository;
             _purchaseOrderRepository = purchaseOrderRepository;
+            _purchaseOrderItemRepository = purchaseOrderItemRepository;
+            _sellOrderItemRepository = sellOrderItemRepository;
+            _sellOrderRepository = sellOrderRepository;
             _qcRepository = qcRepository;
             _vendorRepository = vendorRepository;
             _logisticsService = logisticsService;
@@ -114,7 +124,7 @@ namespace CRM.Core.Services
             return await _stockInRepository.GetByIdAsync(id);
         }
 
-        public async Task<IReadOnlyList<StockInListItemDto>> GetListAsync()
+        public async Task<IReadOnlyList<StockInListItemDto>> GetListAsync(StockInQueryRequest? request = null)
         {
             var raw = (await _stockInRepository.GetAllAsync())
                 .OrderByDescending(x => x.StockInDate)
@@ -127,6 +137,10 @@ namespace CRM.Core.Services
             var sourceIds = raw.Select(x => x.SourceId).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToList();
             var stockInIds = raw.Select(x => x.Id).ToList();
             var vendorIds = raw.Select(x => x.VendorId).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToList();
+            var stockInItems = (await _stockInItemRepository.FindAsync(x => stockInIds.Contains(x.StockInId))).ToList();
+            var stockInItemsMap = stockInItems
+                .GroupBy(x => x.StockInId)
+                .ToDictionary(g => g.Key, g => g.ToList());
 
             var poDict = sourceIds.Count == 0
                 ? new Dictionary<string, PurchaseOrder>()
@@ -143,6 +157,30 @@ namespace CRM.Core.Services
             var venDict = vendorIds.Count == 0
                 ? new Dictionary<string, VendorInfo>()
                 : (await _vendorRepository.FindAsync(v => vendorIds.Contains(v.Id))).ToDictionary(v => v.Id);
+
+            var poIds = poDict.Keys.ToList();
+            var poItems = poIds.Count == 0
+                ? new List<PurchaseOrderItem>()
+                : (await _purchaseOrderItemRepository.FindAsync(x => poIds.Contains(x.PurchaseOrderId))).ToList();
+            var poItemsMap = poItems
+                .GroupBy(x => x.PurchaseOrderId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var sellOrderItemIds = poItems
+                .Select(x => x.SellOrderItemId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .ToList();
+            var soItems = sellOrderItemIds.Count == 0
+                ? new List<SellOrderItem>()
+                : (await _sellOrderItemRepository.FindAsync(x => sellOrderItemIds.Contains(x.Id))).ToList();
+            var soIdByItemId = soItems
+                .Where(x => !string.IsNullOrWhiteSpace(x.SellOrderId))
+                .ToDictionary(x => x.Id, x => x.SellOrderId!);
+            var soIds = soIdByItemId.Values.Distinct().ToList();
+            var soDict = soIds.Count == 0
+                ? new Dictionary<string, SellOrder>()
+                : (await _sellOrderRepository.FindAsync(x => soIds.Contains(x.Id))).ToDictionary(x => x.Id);
 
             var result = new List<StockInListItemDto>(raw.Count);
             foreach (var s in raw)
@@ -168,6 +206,20 @@ namespace CRM.Core.Services
                         : v.Code;
                 }
 
+                var salesOrderCodes = new List<string>();
+                if (!string.IsNullOrWhiteSpace(s.SourceId) && poItemsMap.TryGetValue(s.SourceId!, out var thisPoItems))
+                {
+                    foreach (var poi in thisPoItems)
+                    {
+                        if (string.IsNullOrWhiteSpace(poi.SellOrderItemId)) continue;
+                        if (!soIdByItemId.TryGetValue(poi.SellOrderItemId, out var soId)) continue;
+                        if (!soDict.TryGetValue(soId, out var so)) continue;
+                        if (string.IsNullOrWhiteSpace(so.SellOrderCode)) continue;
+                        salesOrderCodes.Add(so.SellOrderCode);
+                    }
+                }
+                var salesOrderCode = string.Join(", ", salesOrderCodes.Distinct(StringComparer.OrdinalIgnoreCase));
+
                 result.Add(new StockInListItemDto
                 {
                     Id = s.Id,
@@ -177,6 +229,7 @@ namespace CRM.Core.Services
                     WarehouseId = s.WarehouseId,
                     VendorId = s.VendorId,
                     VendorName = vendorName,
+                    SalesOrderCode = string.IsNullOrWhiteSpace(salesOrderCode) ? null : salesOrderCode,
                     StockInDate = s.StockInDate,
                     TotalQuantity = s.TotalQuantity,
                     TotalAmount = s.TotalAmount,
@@ -186,7 +239,31 @@ namespace CRM.Core.Services
                 });
             }
 
-            return result;
+            var modelKeyword = request?.Model?.Trim();
+            var vendorKeyword = request?.VendorName?.Trim();
+            var poCodeKeyword = request?.PurchaseOrderCode?.Trim();
+            var soCodeKeyword = request?.SalesOrderCode?.Trim();
+
+            return result.Where(x =>
+            {
+                if (!string.IsNullOrWhiteSpace(modelKeyword))
+                {
+                    var modelHit = stockInItemsMap.TryGetValue(x.Id, out var items)
+                        && items.Any(i => !string.IsNullOrWhiteSpace(i.MaterialId)
+                                          && i.MaterialId.Contains(modelKeyword, StringComparison.OrdinalIgnoreCase));
+                    if (!modelHit) return false;
+                }
+                if (!string.IsNullOrWhiteSpace(vendorKeyword)
+                    && !(x.VendorName?.Contains(vendorKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+                    return false;
+                if (!string.IsNullOrWhiteSpace(poCodeKeyword)
+                    && !(x.SourceDisplayNo?.Contains(poCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+                    return false;
+                if (!string.IsNullOrWhiteSpace(soCodeKeyword)
+                    && !(x.SalesOrderCode?.Contains(soCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+                    return false;
+                return true;
+            }).ToList();
         }
 
         public async Task<StockIn> UpdateAsync(string id, UpdateStockInRequest request)

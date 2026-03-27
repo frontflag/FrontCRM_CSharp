@@ -28,6 +28,7 @@ namespace CRM.Core.Interfaces
         public DateTime? PaymentDate { get; set; }
         public string? PaymentUserId { get; set; }
         public short PaymentMode { get; set; } = 1;
+        public string? BankSlipNo { get; set; }
         public string? Remark { get; set; }
         public List<CreateFinancePaymentItemRequest> Items { get; set; } = new();
     }
@@ -47,6 +48,7 @@ namespace CRM.Core.Interfaces
         public decimal? PaymentAmountToBe { get; set; }
         public DateTime? PaymentDate { get; set; }
         public short? PaymentMode { get; set; }
+        public string? BankSlipNo { get; set; }
         public string? Remark { get; set; }
     }
 

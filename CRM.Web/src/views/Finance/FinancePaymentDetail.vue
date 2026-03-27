@@ -40,6 +40,7 @@
           </el-descriptions-item>
           <el-descriptions-item label="付款方式">{{ PAYMENT_MODE_MAP[detail.paymentMode] }}</el-descriptions-item>
           <el-descriptions-item label="付款日期">{{ detail.paymentDate ? formatDisplayDate(detail.paymentDate) : '-' }}</el-descriptions-item>
+          <el-descriptions-item label="银行水单号">{{ (detail as any).bankSlipNo || '-' }}</el-descriptions-item>
           <el-descriptions-item label="备注" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
         </el-descriptions>
       </div>
@@ -51,20 +52,62 @@
           <span>付款明细</span>
         </div>
         <el-empty v-if="!detail.items?.length" description="暂无明细" :image-size="80" />
-        <CrmDataTable v-else :data="detail.items" size="small" class="items-table">
+        <CrmDataTable v-else :data="paymentLineRows" size="small" class="items-table">
           <el-table-column type="index" width="50" label="#" />
+          <el-table-column prop="purchaseOrderCode" label="采购单号" min-width="160" show-overflow-tooltip />
           <el-table-column prop="pn" label="型号" min-width="150" />
           <el-table-column prop="brand" label="品牌" width="120" />
+          <el-table-column prop="qty" label="数量" width="100" align="right">
+            <template #default="{ row }">
+              {{ row.qty ?? '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="cost" label="单价" width="130" align="right">
+            <template #default="{ row }">
+              {{ row.cost == null ? '-' : formatAmount(Number(row.cost)) }}
+            </template>
+          </el-table-column>
           <el-table-column prop="paymentAmount" label="已付金额" width="130" align="right">
             <template #default="{ row }">
               {{ formatAmount(row.paymentAmount) }}
             </template>
           </el-table-column>
+          <el-table-column prop="purchaseOrderCreateTime" label="采购订单创建日期" width="170">
+            <template #default="{ row }">
+              {{ row.purchaseOrderCreateTime ? formatDisplayDateTime(row.purchaseOrderCreateTime) : '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="purchaseOrderCreateUserName" label="创建人" width="120" show-overflow-tooltip />
           <el-table-column label="核销状态" width="120" align="center">
             <template #default="{ row }">
               <el-tag effect="dark" size="small" :type="row.verificationStatus === 2 ? 'success' : row.verificationStatus === 1 ? 'warning' : 'info'">
                 {{ row.verificationStatus === 2 ? '核销完成' : row.verificationStatus === 1 ? '部分核销' : '未核销' }}
               </el-tag>
+            </template>
+          </el-table-column>
+        </CrmDataTable>
+      </div>
+
+      <!-- 银行水单附件 -->
+      <div class="tab-card">
+        <div class="card-title">
+          <span class="title-bar"></span>
+          <span>银行水单附件</span>
+        </div>
+        <el-empty v-if="!paymentDocs.length" description="暂无附件" :image-size="80" />
+        <CrmDataTable v-else :data="paymentDocs" size="small" class="items-table">
+          <el-table-column type="index" width="50" label="#" />
+          <el-table-column prop="originalFileName" label="文件名" min-width="260" show-overflow-tooltip />
+          <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
+          <el-table-column prop="createTime" label="上传时间" width="170">
+            <template #default="{ row }">
+              {{ row.createTime ? formatDisplayDateTime(row.createTime) : '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="140" fixed="right">
+            <template #default="{ row }">
+              <el-button size="small" text type="primary" @click="previewDoc(row)">预览</el-button>
+              <el-button size="small" text type="primary" @click="downloadDoc(row)">下载</el-button>
             </template>
           </el-table-column>
         </CrmDataTable>
@@ -86,14 +129,18 @@ import {
   CURRENCY_MAP,
   type FinancePayment,
 } from '@/api/finance'
+import { documentApi, type UploadDocumentDto } from '@/api/document'
+import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { vendorApi } from '@/api/vendor'
-import { formatDisplayDate } from '@/utils/displayDateTime'
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const route = useRoute()
 
 const loading = ref(false)
 const detail = ref<FinancePayment | null>(null)
+const paymentLineRows = ref<any[]>([])
+const paymentDocs = ref<UploadDocumentDto[]>([])
 const vendorDisplayName = ref('-')
 
 const paymentId = computed(() => route.params.id as string)
@@ -107,13 +154,64 @@ const fetchDetail = async () => {
   try {
     // apiClient 拦截器已解包，直接返回业务数据
     detail.value = await financePaymentApi.getById(paymentId.value)
+    await buildPaymentLineRows()
+    await loadPaymentDocs()
     await resolveVendorDisplayName()
   } catch {
     detail.value = null
+    paymentLineRows.value = []
+    paymentDocs.value = []
     vendorDisplayName.value = '-'
   } finally {
     loading.value = false
   }
+}
+
+const loadPaymentDocs = async () => {
+  if (!paymentId.value) {
+    paymentDocs.value = []
+    return
+  }
+  try {
+    paymentDocs.value = await documentApi.getDocuments('FINANCE_PAYMENT', paymentId.value)
+  } catch {
+    paymentDocs.value = []
+  }
+}
+
+const buildPaymentLineRows = async () => {
+  const current = detail.value
+  const rows = current?.items ?? []
+  if (!rows.length) {
+    paymentLineRows.value = []
+    return
+  }
+
+  const poIds = Array.from(new Set(
+    rows.map((x: any) => String(x?.purchaseOrderId || '').trim()).filter(Boolean)
+  ))
+  const poMap = new Map<string, any>()
+  if (poIds.length) {
+    const results = await Promise.allSettled(poIds.map((id) => purchaseOrderApi.getById(id)))
+    results.forEach((r, idx) => {
+      if (r.status !== 'fulfilled') return
+      poMap.set(poIds[idx], r.value)
+    })
+  }
+
+  paymentLineRows.value = rows.map((item: any) => {
+    const po = poMap.get(String(item?.purchaseOrderId || '').trim()) || {}
+    const poItems: any[] = Array.isArray(po?.items) ? po.items : []
+    const matchedItem = poItems.find((x: any) => String(x?.id || '') === String(item?.purchaseOrderItemId || '')) || {}
+    return {
+      ...item,
+      purchaseOrderCode: po?.purchaseOrderCode || po?.PurchaseOrderCode || item?.purchaseOrderCode || '-',
+      qty: matchedItem?.qty ?? matchedItem?.Qty ?? null,
+      cost: matchedItem?.cost ?? matchedItem?.Cost ?? null,
+      purchaseOrderCreateTime: po?.createTime || po?.CreateTime || null,
+      purchaseOrderCreateUserName: po?.createUserName || po?.createdBy || po?.purchaseUserName || '-'
+    }
+  })
 }
 
 const resolveVendorDisplayName = async () => {
@@ -185,6 +283,14 @@ const resolveVendorDisplayName = async () => {
 const formatAmount = (val: number) => {
   if (val == null) return '-'
   return val.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+const previewDoc = (doc: UploadDocumentDto) => {
+  window.open(documentApi.getPreviewPath(doc.id), '_blank')
+}
+
+const downloadDoc = async (doc: UploadDocumentDto) => {
+  await documentApi.downloadDocument(doc.id, doc.originalFileName)
 }
 </script>
 

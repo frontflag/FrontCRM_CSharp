@@ -208,6 +208,7 @@ namespace CRM.API.Controllers
         {
             var canViewVendorInfo = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("vendor.info.read") ?? false);
             var canViewPurchaseAmount = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("purchase.amount.read") ?? false);
+            var canWriteFinancePayment = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("finance-payment.write") ?? false);
 
             return new
             {
@@ -256,7 +257,11 @@ namespace CRM.API.Controllers
                     i.Comment,
                     i.InnerComment,
                     i.CreateTime,
-                    i.ModifyTime
+                    i.ModifyTime,
+                    // 业务口径：主单已确认即可申请付款；兼容历史数据中“主单已确认但明细状态未同步到30”的情况
+                    CanApplyPayment = canWriteFinancePayment
+                        && i.FinancePaymentStatus < 2
+                        && (i.Status == 30 || order.Status == 30)
                 }).ToList()
             };
         }
