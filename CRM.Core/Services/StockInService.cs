@@ -309,7 +309,10 @@ namespace CRM.Core.Services
 
             // 幂等保护：状态未变化时直接返回，避免重复点击导致重复推进回写
             if (stockIn.Status == status)
+            {
+                Console.WriteLine($"[StockInService] Skip status update for stockInId={id}, status already {status}.");
                 return;
+            }
 
             stockIn.Status = status;
             stockIn.ModifyTime = DateTime.UtcNow;

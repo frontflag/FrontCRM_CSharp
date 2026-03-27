@@ -51,7 +51,7 @@ import { computed, onMounted, ref } from 'vue'
 import { getDebugPage } from '@/api/debug'
 
 /** debug 页面展示版本号（按发布批次手动维护） */
-const FRONTEND_DEBUG_VERSION = '1.1.0327-2'
+const FRONTEND_DEBUG_VERSION = '1.1.0327-3'
 
 const items = ref<{ name: string; value: string }[]>([])
 const databaseConnectionDisplay = ref('')

@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using CRM.API.Models.DTOs;
+using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
@@ -23,11 +24,16 @@ namespace CRM.API.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly IStockInService _stockInService;
 
-        public DebugController(ApplicationDbContext context, IConfiguration configuration)
+        public DebugController(
+            ApplicationDbContext context,
+            IConfiguration configuration,
+            IStockInService stockInService)
         {
             _context = context;
             _configuration = configuration;
+            _stockInService = stockInService;
         }
 
         public class DebugItemDto
@@ -62,6 +68,7 @@ namespace CRM.API.Controllers
             public string BusinessNode { get; set; } = string.Empty;
             public short TargetStatus { get; set; }
             public List<string> CreatedNodes { get; set; } = new();
+            public bool StockInPostedThroughRealFlow { get; set; }
         }
 
         [HttpGet]
@@ -154,6 +161,7 @@ namespace CRM.API.Controllers
 
             var createdNodes = new List<string>();
             var now = DateTime.UtcNow;
+            var stockInPostedThroughRealFlow = false;
 
             RFQ? rfq = null;
             RFQItem? rfqItem = null;
@@ -546,6 +554,8 @@ namespace CRM.API.Controllers
 
             if (targetIdx >= 7 && firstCreateIdx <= 7 && po != null && poItem != null && qc != null)
             {
+                var desiredStockInStatus = normalizedNode == "stockin" ? request.Status : (short)2;
+                var initialStockInStatus = desiredStockInStatus == 2 ? (short)1 : desiredStockInStatus;
                 stockIn = new StockIn
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -558,7 +568,7 @@ namespace CRM.API.Controllers
                     StockInDate = now,
                     TotalQuantity = poItem.Qty,
                     TotalAmount = Math.Round(poItem.Qty * poItem.Cost, 2),
-                    Status = normalizedNode == "stockin" ? request.Status : (short)2,
+                    Status = initialStockInStatus,
                     InspectStatus = qc.Status == 100 ? (short)1 : (short)0,
                     CreatedBy = purchaseUserId,
                     CreateTime = now,
@@ -579,10 +589,17 @@ namespace CRM.API.Controllers
                     Remark = "DEBUG自动生成"
                 };
                 qc.StockInId = stockIn.Id;
-                qc.StockInStatus = stockIn.Status == 2 ? (short)100 : qc.StockInStatus;
+                qc.StockInStatus = initialStockInStatus == 2 ? (short)100 : qc.StockInStatus;
                 _context.StockIns.Add(stockIn);
                 _context.StockInItems.Add(stockInItem);
                 await _context.SaveChangesAsync();
+
+                // Debug 造数必须走真实“待入库 -> 已入库”业务动作，确保库存汇总与流水一致写入。
+                if (desiredStockInStatus == 2)
+                {
+                    await _stockInService.UpdateStatusAsync(stockIn.Id, 2);
+                    stockInPostedThroughRealFlow = true;
+                }
                 createdNodes.Add($"StockIn:{stockIn.StockInCode}");
             }
 
@@ -614,7 +631,8 @@ namespace CRM.API.Controllers
                 ChainNo = chainNo,
                 BusinessNode = normalizedNode,
                 TargetStatus = request.Status,
-                CreatedNodes = createdNodes
+                CreatedNodes = createdNodes,
+                StockInPostedThroughRealFlow = stockInPostedThroughRealFlow
             };
 
             return Ok(ApiResponse<SimulateBusinessChainResponse>.Ok(response, "模拟数据生成成功"));
