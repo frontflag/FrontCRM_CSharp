@@ -13,6 +13,7 @@ namespace CRM.Core.Interfaces
         Task<FinancePurchaseInvoice> UpdateAsync(string id, UpdateFinancePurchaseInvoiceRequest request);
         Task DeleteAsync(string id);
         Task ConfirmAsync(string id, DateTime confirmDate);
+        Task UnconfirmAsync(string id);
         Task RedInvoiceAsync(string id);
         Task<PagedResult<FinancePurchaseInvoice>> GetPagedAsync(FinancePurchaseInvoiceQueryRequest request);
     }

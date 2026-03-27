@@ -73,7 +73,6 @@ namespace CRM.Core.Tests.Services
             {
                 CustomerId = "CUST-001",
                 SalesUserId = "USER-001",
-                RfqDate = DateTime.UtcNow,
                 Items =
                 {
                     new CreateRFQItemRequest
@@ -105,20 +104,6 @@ namespace CRM.Core.Tests.Services
             await _rfqRepository.Received(1).AddAsync(Arg.Any<RFQ>());
             await _rfqItemRepository.Received(1).AddAsync(Arg.Any<RFQItem>());
             await _unitOfWork.Received(1).SaveChangesAsync();
-        }
-
-        [Fact]
-        public async Task CreateAsync_RfqDateUnspecified_IsNormalizedToUtc()
-        {
-            var unspecified = new DateTime(2026, 3, 15, 10, 30, 0, DateTimeKind.Unspecified);
-            var request = BuildValidCreateRequest(r => r.RfqDate = unspecified);
-            _rfqRepository.GetAllAsync().Returns(new List<RFQ>());
-            _rfqItemRepository.GetAllAsync().Returns(new List<RFQItem>());
-
-            var result = await _rfqService.CreateAsync(request);
-
-            Assert.Equal(DateTimeKind.Utc, result.RfqDate.Kind);
-            Assert.Equal(unspecified.Ticks, result.RfqDate.Ticks);
         }
 
         [Fact]

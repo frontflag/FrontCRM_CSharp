@@ -164,6 +164,16 @@ namespace CRM.Core.Services
         {
             var invoice = await _invoiceRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"销项发票 {id} 不存在");
+
+            // 发票状态：1未申请 2申请中 100已开票 101开票失败 -1已作废
+            var current = invoice.InvoiceStatus;
+            var allowed =
+                (current == 1 && invoiceStatus == 2) ||                    // 提交开票申请
+                (current == 2 && (invoiceStatus == 100 || invoiceStatus == 101)) || // 开票成功/失败
+                (current == 101 && invoiceStatus == 2);                    // 失败后重提
+            if (!allowed)
+                throw new InvalidOperationException($"不允许的发票状态流转: {current} -> {invoiceStatus}");
+
             invoice.InvoiceStatus = invoiceStatus;
             invoice.ModifyTime = DateTime.UtcNow;
             await _invoiceRepo.UpdateAsync(invoice);
@@ -174,6 +184,10 @@ namespace CRM.Core.Services
         {
             var invoice = await _invoiceRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"销项发票 {id} 不存在");
+            if (invoice.InvoiceStatus == -1)
+                throw new InvalidOperationException("该销项发票已作废");
+            if (invoice.ReceiveDone > 0)
+                throw new InvalidOperationException("已有收款核销记录，禁止作废销项发票");
             invoice.InvoiceStatus = -1; // 已作废
             invoice.ModifyTime = DateTime.UtcNow;
             await _invoiceRepo.UpdateAsync(invoice);

@@ -142,6 +142,27 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>取消认证（1 -> 0）</summary>
+        [HttpPost("{id}/unconfirm")]
+        [RequirePermission("finance-purchase-invoice.write")]
+        public async Task<IActionResult> Unconfirm(string id)
+        {
+            try
+            {
+                await _service.UnconfirmAsync(id);
+                return Ok(new { success = true, message = "取消认证成功" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "取消认证进项发票失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         /// <summary>冲红进项发票</summary>
         [HttpPost("{id}/red-invoice")]
         [RequirePermission("finance-purchase-invoice.write")]

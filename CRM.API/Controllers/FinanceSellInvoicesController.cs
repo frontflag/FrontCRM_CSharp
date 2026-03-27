@@ -142,6 +142,69 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>提交开票申请（1 -> 2）</summary>
+        [HttpPost("{id}/submit-application")]
+        [RequirePermission("finance-sell-invoice.write")]
+        public async Task<IActionResult> SubmitApplication(string id)
+        {
+            try
+            {
+                await _service.UpdateInvoiceStatusAsync(id, 2);
+                return Ok(new { success = true, message = "已提交开票申请" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "提交销项发票开票申请失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>开票成功（2 -> 100）</summary>
+        [HttpPost("{id}/mark-issued")]
+        [RequirePermission("finance-sell-invoice.write")]
+        public async Task<IActionResult> MarkIssued(string id)
+        {
+            try
+            {
+                await _service.UpdateInvoiceStatusAsync(id, 100);
+                return Ok(new { success = true, message = "已标记开票成功" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "标记销项发票开票成功失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>开票失败（2 -> 101）</summary>
+        [HttpPost("{id}/mark-issue-failed")]
+        [RequirePermission("finance-sell-invoice.write")]
+        public async Task<IActionResult> MarkIssueFailed(string id)
+        {
+            try
+            {
+                await _service.UpdateInvoiceStatusAsync(id, 101);
+                return Ok(new { success = true, message = "已标记开票失败" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "标记销项发票开票失败失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         /// <summary>作废销项发票</summary>
         [HttpPost("{id}/void")]
         [RequirePermission("finance-sell-invoice.write")]

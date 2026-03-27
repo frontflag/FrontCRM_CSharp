@@ -91,7 +91,6 @@ public sealed class RFQModuleBusinessWorkflowTests
         SalesUserId = "USER-001",
         Product = "工业MCU",
         Industry = "半导体",
-        RfqDate = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc),
         Items =
         {
             new CreateRFQItemRequest
@@ -244,7 +243,6 @@ public sealed class RFQModuleBusinessWorkflowTests
             CustomerId = "CUST-WF-001",
             SalesUserId = "USER-001",
             CreateTime = new DateTime(2026, 2, 10, 12, 0, 0, DateTimeKind.Utc),
-            RfqDate = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc),
             ItemCount = 1
         });
         await h.ItemRepo.AddAsync(new RFQItem

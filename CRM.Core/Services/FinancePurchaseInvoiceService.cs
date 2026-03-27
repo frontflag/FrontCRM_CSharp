@@ -156,8 +156,29 @@ namespace CRM.Core.Services
         {
             var invoice = await _invoiceRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"进项发票 {id} 不存在");
+            if (invoice.RedInvoiceStatus == 1)
+                throw new InvalidOperationException("已冲红的进项发票不允许认证");
+            if (invoice.ConfirmStatus == 1)
+                throw new InvalidOperationException("该进项发票已认证");
+            if (invoice.InvoiceAmount <= 0)
+                throw new InvalidOperationException("发票金额必须大于0才能认证");
             invoice.ConfirmStatus = 1;
-            invoice.ConfirmDate = confirmDate;
+            invoice.ConfirmDate = PostgreSqlDateTime.ToUtc(confirmDate);
+            invoice.ModifyTime = DateTime.UtcNow;
+            await _invoiceRepo.UpdateAsync(invoice);
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+        }
+
+        public async Task UnconfirmAsync(string id)
+        {
+            var invoice = await _invoiceRepo.GetByIdAsync(id)
+                ?? throw new InvalidOperationException($"进项发票 {id} 不存在");
+            if (invoice.RedInvoiceStatus == 1)
+                throw new InvalidOperationException("已冲红的进项发票不允许取消认证");
+            if (invoice.ConfirmStatus != 1)
+                throw new InvalidOperationException("当前发票未认证，无需取消认证");
+            invoice.ConfirmStatus = 0;
+            invoice.ConfirmDate = null;
             invoice.ModifyTime = DateTime.UtcNow;
             await _invoiceRepo.UpdateAsync(invoice);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
@@ -167,6 +188,10 @@ namespace CRM.Core.Services
         {
             var invoice = await _invoiceRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"进项发票 {id} 不存在");
+            if (invoice.RedInvoiceStatus == 1)
+                throw new InvalidOperationException("该进项发票已冲红");
+            if (invoice.ConfirmStatus == 1)
+                throw new InvalidOperationException("已认证的进项发票不允许直接冲红，请先执行财务冲销流程");
             invoice.RedInvoiceStatus = 1;
             invoice.ModifyTime = DateTime.UtcNow;
             await _invoiceRepo.UpdateAsync(invoice);

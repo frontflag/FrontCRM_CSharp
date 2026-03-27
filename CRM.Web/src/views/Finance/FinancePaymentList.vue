@@ -295,14 +295,14 @@ const openDetail = (row: FinancePayment) => {
 // 状态操作
 const submitAudit = async (row: FinancePayment) => {
   await ElMessageBox.confirm(`确认提交付款单 ${row.financePaymentCode} 审核？`, '提交审核', { type: 'info' })
-  await financePaymentApi.updateStatus(row.id, 2)
+  await financePaymentApi.submit(row.id)
   ElMessage.success('已提交审核')
   await loadData()
 }
 
 const confirmPayment = async (row: FinancePayment) => {
   await ElMessageBox.confirm(`确认将付款单 ${row.financePaymentCode} 标记为付款完成？`, '付款完成', { type: 'success' })
-  await financePaymentApi.updateStatus(row.id, 100)
+  await financePaymentApi.complete(row.id)
   ElMessage.success('付款已完成')
   await loadData()
 }
@@ -316,7 +316,7 @@ const canShowFinishButton = (row: FinancePayment | Record<string, any>) => {
 
 const cancelPayment = async (row: FinancePayment) => {
   await ElMessageBox.confirm(`确认取消付款单 ${row.financePaymentCode}？`, '取消确认', { type: 'warning' })
-  await financePaymentApi.updateStatus(row.id, -2)
+  await financePaymentApi.cancel(row.id)
   ElMessage.success('已取消')
   await loadData()
 }

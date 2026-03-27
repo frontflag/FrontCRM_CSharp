@@ -50,8 +50,12 @@ export interface AutoGenerateArrivalNoticeResult {
 const unwrap = <T>(res: any): T => (res?.data ?? res) as T
 
 export const logisticsApi = {
-  async getArrivalNotices(): Promise<StockInNotifyDto[]> {
-    return unwrap<StockInNotifyDto[]>(await apiClient.get('/api/v1/logistics/arrival-notices'))
+  async getArrivalNotices(params?: {
+    status?: number
+    purchaseOrderCode?: string
+    expectedArrivalDate?: string
+  }): Promise<StockInNotifyDto[]> {
+    return unwrap<StockInNotifyDto[]>(await apiClient.get('/api/v1/logistics/arrival-notices', { params }))
   },
   async createArrivalNotice(payload: {
     purchaseOrderId: string

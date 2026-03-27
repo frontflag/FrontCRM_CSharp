@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
+using CRM.Core.Models.Purchase;
 using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
@@ -8,6 +9,8 @@ namespace CRM.Core.Services
     {
         private readonly IRepository<FinancePayment> _paymentRepo;
         private readonly IRepository<FinancePaymentItem> _itemRepo;
+        private readonly IRepository<PurchaseOrder> _poRepo;
+        private readonly IRepository<PurchaseOrderItem> _poItemRepo;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork? _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
@@ -15,12 +18,16 @@ namespace CRM.Core.Services
         public FinancePaymentService(
             IRepository<FinancePayment> paymentRepo,
             IRepository<FinancePaymentItem> itemRepo,
+            IRepository<PurchaseOrder> poRepo,
+            IRepository<PurchaseOrderItem> poItemRepo,
             IDataPermissionService dataPermissionService,
             ISerialNumberService serialNumberService,
             IUnitOfWork? unitOfWork = null)
         {
             _paymentRepo = paymentRepo;
             _itemRepo = itemRepo;
+            _poRepo = poRepo;
+            _poItemRepo = poItemRepo;
             _dataPermissionService = dataPermissionService;
             _serialNumberService = serialNumberService;
             _unitOfWork = unitOfWork;
@@ -203,6 +210,12 @@ namespace CRM.Core.Services
             var item = await _itemRepo.GetByIdAsync(paymentItemId)
                 ?? throw new InvalidOperationException($"付款明细 {paymentItemId} 不存在");
 
+            if (amount <= 0)
+                throw new ArgumentException("核销金额必须大于0", nameof(amount));
+
+            if (amount > item.VerificationToBe)
+                throw new InvalidOperationException($"核销金额超限：待核销 {item.VerificationToBe}，本次 {amount}");
+
             item.VerificationDone += amount;
             item.VerificationToBe -= amount;
             if (item.VerificationToBe <= 0)
@@ -212,7 +225,45 @@ namespace CRM.Core.Services
 
             item.ModifyTime = DateTime.UtcNow;
             await _itemRepo.UpdateAsync(item);
+
+            await SyncPurchaseFinanceStatusAsync(item);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+        }
+
+        private async Task SyncPurchaseFinanceStatusAsync(FinancePaymentItem payItem)
+        {
+            if (string.IsNullOrWhiteSpace(payItem.PurchaseOrderItemId))
+                return;
+
+            var poItem = await _poItemRepo.GetByIdAsync(payItem.PurchaseOrderItemId);
+            if (poItem == null) return;
+
+            // 同一采购明细允许分多次请款/付款，按累计核销金额计算付款状态
+            var relatedPayItems = (await _itemRepo.GetAllAsync())
+                .Where(x => x.PurchaseOrderItemId == poItem.Id)
+                .ToList();
+            var totalToBe = relatedPayItems.Sum(x => x.PaymentAmountToBe);
+            var totalDone = relatedPayItems.Sum(x => x.VerificationDone);
+
+            poItem.FinancePaymentStatus = totalDone <= 0
+                ? (short)0
+                : totalDone >= totalToBe && totalToBe > 0
+                    ? (short)2
+                    : (short)1;
+            poItem.ModifyTime = DateTime.UtcNow;
+            await _poItemRepo.UpdateAsync(poItem);
+
+            var po = await _poRepo.GetByIdAsync(poItem.PurchaseOrderId);
+            if (po == null) return;
+
+            var allPoItems = (await _poItemRepo.FindAsync(x => x.PurchaseOrderId == po.Id)).ToList();
+            po.FinanceStatus = allPoItems.All(x => x.FinancePaymentStatus == 2)
+                ? (short)2
+                : allPoItems.Any(x => x.FinancePaymentStatus > 0)
+                    ? (short)1
+                    : (short)0;
+            po.ModifyTime = DateTime.UtcNow;
+            await _poRepo.UpdateAsync(po);
         }
     }
 }

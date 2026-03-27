@@ -8,6 +8,43 @@
       </div>
     </div>
 
+    <el-card class="filter-card">
+      <el-form :inline="true" class="filter-form">
+        <el-form-item label="状态">
+          <el-select v-model="filters.status" placeholder="全部状态" clearable style="width: 140px">
+            <el-option label="新建" :value="1" />
+            <el-option label="未到货" :value="10" />
+            <el-option label="到货待检" :value="20" />
+            <el-option label="已质检" :value="30" />
+            <el-option label="已入库" :value="100" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="采购单号">
+          <el-input
+            v-model="filters.purchaseOrderCode"
+            placeholder="请输入采购单号"
+            clearable
+            style="width: 200px"
+            @keyup.enter="loadData"
+          />
+        </el-form-item>
+        <el-form-item label="预计到货日期">
+          <el-date-picker
+            v-model="filters.expectedArrivalDate"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="选择日期"
+            clearable
+            style="width: 170px"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadData">查询</el-button>
+          <el-button @click="resetFilters">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
     <CrmDataTable :data="list" v-loading="loading">
       <el-table-column prop="noticeCode" label="到货通知号" width="170" />
       <el-table-column label="状态" width="110">
@@ -64,6 +101,15 @@ const loading = ref(false)
 const list = ref<StockInNotifyDto[]>([])
 const itemsVisible = ref(false)
 const currentItems = ref<StockInNotifyItemDto[]>([])
+const filters = ref<{
+  status?: number
+  purchaseOrderCode: string
+  expectedArrivalDate: string
+}>({
+  status: undefined,
+  purchaseOrderCode: '',
+  expectedArrivalDate: ''
+})
 
 const sumQty = (items: StockInNotifyItemDto[], key: 'arrivedQty' | 'qty' | 'passedQty') =>
   Number((items || []).reduce((s, x) => s + Number(x?.[key] || 0), 0).toFixed(4))
@@ -75,9 +121,22 @@ const formatExpected = (v?: string | null) => (v ? formatDisplayDate(v) : '—')
 
 const loadData = () => {
   loading.value = true
-  logisticsApi.getArrivalNotices()
+  logisticsApi.getArrivalNotices({
+    status: filters.value.status,
+    purchaseOrderCode: filters.value.purchaseOrderCode.trim() || undefined,
+    expectedArrivalDate: filters.value.expectedArrivalDate || undefined
+  })
     .then(res => { list.value = (res || []).sort((a, b) => (a.createTime < b.createTime ? 1 : -1)) })
     .finally(() => { loading.value = false })
+}
+
+const resetFilters = () => {
+  filters.value = {
+    status: undefined,
+    purchaseOrderCode: '',
+    expectedArrivalDate: ''
+  }
+  loadData()
 }
 
 const syncFromPurchaseOrders = async () => {
@@ -115,5 +174,7 @@ loadData()
 .page-wrap { padding: 20px; }
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .ops { display: flex; gap: 8px; }
+.filter-card { margin-bottom: 12px; }
+.filter-form { margin-bottom: -18px; }
 h2 { margin: 0; }
 </style>

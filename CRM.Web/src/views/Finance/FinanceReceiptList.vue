@@ -280,20 +280,24 @@ const openDetail = (row: FinanceReceipt) => {
 
 const submitAudit = async (row: FinanceReceipt) => {
   await ElMessageBox.confirm(`确认提交收款单 ${row.financeReceiptCode} 审核？`, '提交审核', { type: 'info' })
-  row.status = 1
+  await financeReceiptApi.submit(row.id)
   ElMessage.success('已提交审核')
+  await loadData()
 }
 
 const approveReceipt = async (row: FinanceReceipt) => {
   await ElMessageBox.confirm('确认审核通过并标记为已收款？', '审核确认', { type: 'success' })
-  row.status = 3
+  await financeReceiptApi.approve(row.id)
+  await financeReceiptApi.confirmReceived(row.id)
   ElMessage.success('审核通过，已标记为已收款')
+  await loadData()
 }
 
 const cancelReceipt = async (row: FinanceReceipt) => {
   await ElMessageBox.confirm(`确认取消收款单 ${row.financeReceiptCode}？`, '取消确认', { type: 'warning' })
-  row.status = 4
+  await financeReceiptApi.cancel(row.id)
   ElMessage.success('已取消')
+  await loadData()
 }
 
 const formatAmount = (v: number) => v?.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'

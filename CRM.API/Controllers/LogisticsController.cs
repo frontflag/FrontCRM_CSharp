@@ -19,11 +19,37 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("arrival-notices")]
-        public async Task<ActionResult<ApiResponse<IReadOnlyList<StockInNotify>>>> GetArrivalNotices()
+        public async Task<ActionResult<ApiResponse<IReadOnlyList<StockInNotify>>>> GetArrivalNotices(
+            [FromQuery] short? status,
+            [FromQuery] string? purchaseOrderCode,
+            [FromQuery] DateTime? expectedArrivalDate)
         {
             try
             {
-                return Ok(ApiResponse<IReadOnlyList<StockInNotify>>.Ok(await _service.GetArrivalNoticesAsync(), "获取到货通知成功"));
+                var list = await _service.GetArrivalNoticesAsync();
+
+                if (status.HasValue)
+                {
+                    list = list.Where(x => x.Status == status.Value).ToList();
+                }
+
+                if (!string.IsNullOrWhiteSpace(purchaseOrderCode))
+                {
+                    var keyword = purchaseOrderCode.Trim();
+                    list = list.Where(x =>
+                        !string.IsNullOrWhiteSpace(x.PurchaseOrderCode) &&
+                        x.PurchaseOrderCode.Contains(keyword, StringComparison.OrdinalIgnoreCase)).ToList();
+                }
+
+                if (expectedArrivalDate.HasValue)
+                {
+                    var targetDate = expectedArrivalDate.Value.Date;
+                    list = list.Where(x =>
+                        x.ExpectedArrivalDate.HasValue &&
+                        x.ExpectedArrivalDate.Value.Date == targetDate).ToList();
+                }
+
+                return Ok(ApiResponse<IReadOnlyList<StockInNotify>>.Ok(list, "获取到货通知成功"));
             }
             catch (Exception ex)
             {

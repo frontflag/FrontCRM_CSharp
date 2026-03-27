@@ -306,9 +306,10 @@ const openDetail = (row: FinancePurchaseInvoice) => {
 }
 
 const voidInvoice = async (row: FinancePurchaseInvoice) => {
-  await ElMessageBox.confirm(`确认作废发票 ${row.financePurchaseInvoiceCode}？此操作不可撤销。`, '作废确认', { type: 'warning' })
-  row.invoiceStatus = -1
-  ElMessage.success('发票已作废')
+  await ElMessageBox.confirm(`确认冲红发票 ${row.financePurchaseInvoiceCode}？`, '冲红确认', { type: 'warning' })
+  await financePurchaseInvoiceApi.redInvoice(row.id)
+  ElMessage.success('发票已冲红')
+  await loadData()
 }
 
 const formatAmount = (v: number) => v?.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'

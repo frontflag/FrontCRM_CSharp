@@ -140,6 +140,90 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>提交审核（0 -> 1）</summary>
+        [HttpPost("{id}/submit")]
+        [RequirePermission("finance-receipt.write")]
+        public async Task<IActionResult> Submit(string id)
+        {
+            try
+            {
+                await _service.UpdateStatusAsync(id, 1);
+                return Ok(new { success = true, message = "提交审核成功" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "提交收款单审核失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>审核通过（1 -> 2）</summary>
+        [HttpPost("{id}/approve")]
+        [RequirePermission("finance-receipt.write")]
+        public async Task<IActionResult> Approve(string id)
+        {
+            try
+            {
+                await _service.UpdateStatusAsync(id, 2);
+                return Ok(new { success = true, message = "审核通过" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "审核收款单失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>确认收款（2 -> 3）</summary>
+        [HttpPost("{id}/confirm-received")]
+        [RequirePermission("finance-receipt.write")]
+        public async Task<IActionResult> ConfirmReceived(string id)
+        {
+            try
+            {
+                await _service.UpdateStatusAsync(id, 3);
+                return Ok(new { success = true, message = "确认收款成功" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "确认收款失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>取消收款单（0/1/2 -> 4）</summary>
+        [HttpPost("{id}/cancel")]
+        [RequirePermission("finance-receipt.write")]
+        public async Task<IActionResult> Cancel(string id)
+        {
+            try
+            {
+                await _service.UpdateStatusAsync(id, 4);
+                return Ok(new { success = true, message = "已取消" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "取消收款单失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         /// <summary>删除收款单</summary>
         [HttpDelete("{id}")]
         [RequirePermission("finance-receipt.write")]

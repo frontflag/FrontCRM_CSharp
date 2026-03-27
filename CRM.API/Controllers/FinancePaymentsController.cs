@@ -147,6 +147,113 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>提交审核（1 -> 2）</summary>
+        [HttpPost("{id}/submit")]
+        [RequirePermission("finance-payment.write")]
+        public async Task<IActionResult> Submit(string id)
+        {
+            try
+            {
+                await _service.UpdateStatusAsync(id, 2);
+                return Ok(new { success = true, message = "提交审核成功" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "提交付款单审核失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>审核通过（2 -> 10）</summary>
+        [HttpPost("{id}/approve")]
+        [RequirePermission("finance-payment.write")]
+        public async Task<IActionResult> Approve(string id, [FromBody] FinancePaymentDecisionRequest? request)
+        {
+            try
+            {
+                await _service.UpdateStatusAsync(id, 10, request?.Remark);
+                return Ok(new { success = true, message = "审核通过" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "审核付款单失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>审核驳回（2 -> -1）</summary>
+        [HttpPost("{id}/reject")]
+        [RequirePermission("finance-payment.write")]
+        public async Task<IActionResult> Reject(string id, [FromBody] FinancePaymentDecisionRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.Remark))
+                    return BadRequest(new { success = false, message = "驳回原因不能为空" });
+                await _service.UpdateStatusAsync(id, -1, request.Remark);
+                return Ok(new { success = true, message = "已驳回" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "驳回付款单失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>确认付款完成（10 -> 100）</summary>
+        [HttpPost("{id}/complete")]
+        [RequirePermission("finance-payment.write")]
+        public async Task<IActionResult> Complete(string id)
+        {
+            try
+            {
+                await _service.UpdateStatusAsync(id, 100);
+                return Ok(new { success = true, message = "付款完成" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "确认付款失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>取消付款单（1/2 -> -2）</summary>
+        [HttpPost("{id}/cancel")]
+        [RequirePermission("finance-payment.write")]
+        public async Task<IActionResult> Cancel(string id, [FromBody] FinancePaymentDecisionRequest? request)
+        {
+            try
+            {
+                await _service.UpdateStatusAsync(id, -2, request?.Remark);
+                return Ok(new { success = true, message = "已取消" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "取消付款单失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         /// <summary>删除付款单</summary>
         [HttpDelete("{id}")]
         [RequirePermission("finance-payment.write")]
@@ -194,5 +301,10 @@ namespace CRM.API.Controllers
     public class VerifyPaymentItemRequest
     {
         public decimal Amount { get; set; }
+    }
+
+    public class FinancePaymentDecisionRequest
+    {
+        public string? Remark { get; set; }
     }
 }

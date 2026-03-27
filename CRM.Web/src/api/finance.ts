@@ -176,6 +176,16 @@ export const financePaymentApi = {
     apiClient.delete(`${PAYMENT_BASE}/${id}`),
   updateStatus: (id: string, status: number) =>
     apiClient.patch(`${PAYMENT_BASE}/${id}/status`, { status }),
+  submit: (id: string) =>
+    apiClient.post(`${PAYMENT_BASE}/${id}/submit`, {}),
+  approve: (id: string, remark?: string) =>
+    apiClient.post(`${PAYMENT_BASE}/${id}/approve`, { remark }),
+  reject: (id: string, remark: string) =>
+    apiClient.post(`${PAYMENT_BASE}/${id}/reject`, { remark }),
+  complete: (id: string) =>
+    apiClient.post(`${PAYMENT_BASE}/${id}/complete`, {}),
+  cancel: (id: string, remark?: string) =>
+    apiClient.post(`${PAYMENT_BASE}/${id}/cancel`, { remark }),
 }
 
 // ==================== 收款管理 API ====================
@@ -194,6 +204,14 @@ export const financeReceiptApi = {
     apiClient.delete(`${RECEIPT_BASE}/${id}`),
   updateStatus: (id: string, status: number) =>
     apiClient.patch(`${RECEIPT_BASE}/${id}/status`, { status }),
+  submit: (id: string) =>
+    apiClient.post(`${RECEIPT_BASE}/${id}/submit`, {}),
+  approve: (id: string) =>
+    apiClient.post(`${RECEIPT_BASE}/${id}/approve`, {}),
+  confirmReceived: (id: string) =>
+    apiClient.post(`${RECEIPT_BASE}/${id}/confirm-received`, {}),
+  cancel: (id: string) =>
+    apiClient.post(`${RECEIPT_BASE}/${id}/cancel`, {}),
 }
 
 // ==================== 进项发票 API ====================
@@ -210,8 +228,12 @@ export const financePurchaseInvoiceApi = {
     apiClient.put<FinancePurchaseInvoice>(`${PURCHASE_INVOICE_BASE}/${id}`, data),
   delete: (id: string) =>
     apiClient.delete(`${PURCHASE_INVOICE_BASE}/${id}`),
-  updateStatus: (id: string, status: number) =>
-    apiClient.patch(`${PURCHASE_INVOICE_BASE}/${id}/status`, { status }),
+  confirm: (id: string, confirmDate?: string) =>
+    apiClient.post(`${PURCHASE_INVOICE_BASE}/${id}/confirm`, { confirmDate }),
+  unconfirm: (id: string) =>
+    apiClient.post(`${PURCHASE_INVOICE_BASE}/${id}/unconfirm`, {}),
+  redInvoice: (id: string) =>
+    apiClient.post(`${PURCHASE_INVOICE_BASE}/${id}/red-invoice`, {}),
 }
 
 // ==================== 销项发票 API ====================
@@ -228,8 +250,16 @@ export const financeSellInvoiceApi = {
     apiClient.put<FinanceSellInvoice>(`${SELL_INVOICE_BASE}/${id}`, data),
   delete: (id: string) =>
     apiClient.delete(`${SELL_INVOICE_BASE}/${id}`),
-  updateStatus: (id: string, status: number) =>
-    apiClient.patch(`${SELL_INVOICE_BASE}/${id}/status`, { status }),
+  updateInvoiceStatus: (id: string, invoiceStatus: number) =>
+    apiClient.patch(`${SELL_INVOICE_BASE}/${id}/invoice-status`, { invoiceStatus }),
+  submitApplication: (id: string) =>
+    apiClient.post(`${SELL_INVOICE_BASE}/${id}/submit-application`, {}),
+  markIssued: (id: string) =>
+    apiClient.post(`${SELL_INVOICE_BASE}/${id}/mark-issued`, {}),
+  markIssueFailed: (id: string) =>
+    apiClient.post(`${SELL_INVOICE_BASE}/${id}/mark-issue-failed`, {}),
+  void: (id: string) =>
+    apiClient.post(`${SELL_INVOICE_BASE}/${id}/void`, {}),
 }
 
 // ==================== 枚举辅助 ====================

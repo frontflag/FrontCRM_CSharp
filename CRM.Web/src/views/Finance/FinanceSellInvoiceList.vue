@@ -308,14 +308,16 @@ const openDetail = (row: FinanceSellInvoice) => {
 
 const applyInvoice = async (row: FinanceSellInvoice) => {
   await ElMessageBox.confirm(`确认申请开票 ${row.invoiceCode}？`, '申请开票', { type: 'info' })
-  row.invoiceStatus = 2
+  await financeSellInvoiceApi.submitApplication(row.id)
   ElMessage.success('已提交开票申请')
+  await loadData()
 }
 
 const voidInvoice = async (row: FinanceSellInvoice) => {
   await ElMessageBox.confirm(`确认作废发票 ${row.invoiceCode}？此操作不可撤销。`, '作废确认', { type: 'warning' })
-  row.invoiceStatus = -1
+  await financeSellInvoiceApi.void(row.id)
   ElMessage.success('发票已作废')
+  await loadData()
 }
 
 const formatAmount = (v: number) => v?.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'
