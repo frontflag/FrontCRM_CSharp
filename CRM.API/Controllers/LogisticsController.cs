@@ -102,11 +102,11 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("qcs")]
-        public async Task<ActionResult<ApiResponse<IReadOnlyList<QCInfo>>>> GetQcs()
+        public async Task<ActionResult<ApiResponse<IReadOnlyList<QCInfo>>>> GetQcs([FromQuery] QcQueryRequest? request)
         {
             try
             {
-                return Ok(ApiResponse<IReadOnlyList<QCInfo>>.Ok(await _service.GetQcsAsync(), "获取质检单成功"));
+                return Ok(ApiResponse<IReadOnlyList<QCInfo>>.Ok(await _service.GetQcsAsync(request), "获取质检单成功"));
             }
             catch (Exception ex)
             {

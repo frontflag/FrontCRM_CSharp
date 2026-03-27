@@ -5,14 +5,27 @@
       <el-button @click="loadData">刷新</el-button>
     </div>
 
+    <div class="search-bar">
+      <el-input v-model="filters.model" placeholder="物料型号(PN)" clearable class="search-item" @keyup.enter="loadData" />
+      <el-input v-model="filters.vendorName" placeholder="供应商名称" clearable class="search-item" @keyup.enter="loadData" />
+      <el-input v-model="filters.purchaseOrderCode" placeholder="采购订单号" clearable class="search-item" @keyup.enter="loadData" />
+      <el-input v-model="filters.salesOrderCode" placeholder="销售订单号" clearable class="search-item" @keyup.enter="loadData" />
+      <el-button type="primary" @click="loadData">查询</el-button>
+      <el-button @click="resetFilters">重置</el-button>
+    </div>
+
     <CrmDataTable :data="list" v-loading="loading">
       <el-table-column prop="qcCode" label="质检单号" width="160" min-width="160" />
+      <el-table-column prop="model" label="型号" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="vendorName" label="供应商名称" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="purchaseOrderCode" label="采购订单号" width="170" show-overflow-tooltip />
+      <el-table-column prop="salesOrderCode" label="销售订单号" width="170" show-overflow-tooltip />
       <el-table-column label="状态" width="120">
         <template #default="{ row }">
           <el-tag effect="dark" :type="qcType(row.status)">{{ qcText(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="arrivalNoticeCode" label="到货通知号" width="170" />
+      <el-table-column prop="stockInNotifyCode" label="到货通知号" width="170" />
       <el-table-column label="入库状态" width="120">
         <template #default="{ row }">
           <el-tag effect="dark" :type="stockInType(row.stockInStatus)">{{ stockInText(row.stockInStatus) }}</el-tag>
@@ -49,6 +62,12 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 const router = useRouter()
 const loading = ref(false)
 const list = ref<QcInfoDto[]>([])
+const filters = ref({
+  model: '',
+  vendorName: '',
+  purchaseOrderCode: '',
+  salesOrderCode: '',
+})
 const getYYMMDD = (d: Date) => {
   const yy = String(d.getFullYear()).slice(-2)
   const mm = String(d.getMonth() + 1).padStart(2, '0')
@@ -65,9 +84,24 @@ const formatTime = (v?: string) => formatDisplayDateTime(v)
 
 const loadData = () => {
   loading.value = true
-  logisticsApi.getQcs()
+  logisticsApi.getQcs({
+    model: filters.value.model || undefined,
+    vendorName: filters.value.vendorName || undefined,
+    purchaseOrderCode: filters.value.purchaseOrderCode || undefined,
+    salesOrderCode: filters.value.salesOrderCode || undefined,
+  })
     .then(res => { list.value = (res || []).sort((a, b) => (a.createTime < b.createTime ? 1 : -1)) })
     .finally(() => { loading.value = false })
+}
+
+const resetFilters = () => {
+  filters.value = {
+    model: '',
+    vendorName: '',
+    purchaseOrderCode: '',
+    salesOrderCode: '',
+  }
+  loadData()
 }
 
 const goView = (row: QcInfoDto) => {
@@ -148,5 +182,7 @@ loadData()
 <style scoped lang="scss">
 .page-wrap { padding: 20px; }
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.search-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.search-item { width: 180px; }
 h2 { margin: 0; }
 </style>

@@ -1,6 +1,7 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
+using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
@@ -13,6 +14,8 @@ namespace CRM.Core.Services
         private readonly IRepository<QCItem> _qcItemRepo;
         private readonly IRepository<PurchaseOrder> _poRepo;
         private readonly IRepository<PurchaseOrderItem> _poItemRepo;
+        private readonly IRepository<SellOrderItem> _sellOrderItemRepo;
+        private readonly IRepository<SellOrder> _sellOrderRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
 
@@ -23,6 +26,8 @@ namespace CRM.Core.Services
             IRepository<QCItem> qcItemRepo,
             IRepository<PurchaseOrder> poRepo,
             IRepository<PurchaseOrderItem> poItemRepo,
+            IRepository<SellOrderItem> sellOrderItemRepo,
+            IRepository<SellOrder> sellOrderRepo,
             ISerialNumberService serialNumberService,
             IUnitOfWork unitOfWork)
         {
@@ -32,6 +37,8 @@ namespace CRM.Core.Services
             _qcItemRepo = qcItemRepo;
             _poRepo = poRepo;
             _poItemRepo = poItemRepo;
+            _sellOrderItemRepo = sellOrderItemRepo;
+            _sellOrderRepo = sellOrderRepo;
             _serialNumberService = serialNumberService;
             _unitOfWork = unitOfWork;
         }
@@ -138,16 +145,174 @@ namespace CRM.Core.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task<IReadOnlyList<QCInfo>> GetQcsAsync()
+        public async Task<IReadOnlyList<QCInfo>> GetQcsAsync(QcQueryRequest? request = null)
         {
             var list = (await _qcRepo.GetAllAsync()).OrderByDescending(x => x.CreateTime).ToList();
-            var items = (await _qcItemRepo.GetAllAsync()).ToList();
-            var map = items.GroupBy(x => x.QcInfoId).ToDictionary(g => g.Key, g => (ICollection<QCItem>)g.ToList());
+            var qcItemsAll = (await _qcItemRepo.GetAllAsync()).ToList();
+            var map = qcItemsAll.GroupBy(x => x.QcInfoId).ToDictionary(g => g.Key, g => (ICollection<QCItem>)g.ToList());
             foreach (var row in list)
             {
                 row.Items = map.TryGetValue(row.Id, out var v) ? v : new List<QCItem>();
             }
-            return list;
+
+            if (list.Count == 0)
+                return list;
+
+            var notices = (await _notifyRepo.GetAllAsync()).ToList();
+            var noticeMap = notices.ToDictionary(x => x.Id, x => x);
+            var noticeIds = list.Select(x => x.StockInNotifyId).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToHashSet();
+            var relatedNoticeItems = (await _notifyItemRepo.GetAllAsync())
+                .Where(x => noticeIds.Contains(x.StockInNotifyId))
+                .ToList();
+            var noticeItemsMap = relatedNoticeItems.GroupBy(x => x.StockInNotifyId).ToDictionary(g => g.Key, g => g.ToList());
+            var notifyItemById = relatedNoticeItems.ToDictionary(x => x.Id, x => x);
+
+            var poItems = (await _poItemRepo.GetAllAsync()).ToList();
+            var poItemMap = poItems.ToDictionary(x => x.Id, x => x);
+            var poItemsByPurchaseOrderId = poItems
+                .GroupBy(x => x.PurchaseOrderId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var sellOrderItems = (await _sellOrderItemRepo.GetAllAsync()).ToList();
+            var sellOrders = (await _sellOrderRepo.GetAllAsync()).ToList();
+            var sellOrderCodeById = sellOrders.ToDictionary(x => x.Id, x => x.SellOrderCode ?? string.Empty);
+            var sellOrderCodeBySellOrderItemId = sellOrderItems.ToDictionary(
+                x => x.Id,
+                x => x.SellOrderId != null && sellOrderCodeById.TryGetValue(x.SellOrderId, out var code) ? code : string.Empty);
+
+            // 始终回填列表展示字段（供应商、采购单号、销售单号、型号），避免无筛选时列表列为空
+            foreach (var qc in list)
+            {
+                noticeMap.TryGetValue(qc.StockInNotifyId, out var notice);
+                noticeItemsMap.TryGetValue(qc.StockInNotifyId, out var noticeItems);
+                noticeItems ??= new List<StockInNotifyItem>();
+
+                qc.VendorName = notice?.VendorName;
+                qc.PurchaseOrderCode = notice?.PurchaseOrderCode;
+
+                var modelSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var ni in noticeItems)
+                {
+                    if (!string.IsNullOrWhiteSpace(ni.Pn)) modelSet.Add(ni.Pn.Trim());
+                    else if (!string.IsNullOrWhiteSpace(ni.PurchaseOrderItemId)
+                             && poItemMap.TryGetValue(ni.PurchaseOrderItemId, out var poi0)
+                             && !string.IsNullOrWhiteSpace(poi0.PN))
+                        modelSet.Add(poi0.PN.Trim());
+                }
+
+                // 合并同一采购订单下全部明细的 PN，便于列表展示与按物料型号检索（不仅限于到货通知行）
+                if (notice != null
+                    && !string.IsNullOrWhiteSpace(notice.PurchaseOrderId)
+                    && poItemsByPurchaseOrderId.TryGetValue(notice.PurchaseOrderId, out var poLines))
+                {
+                    foreach (var pl in poLines)
+                    {
+                        if (!string.IsNullOrWhiteSpace(pl.PN)) modelSet.Add(pl.PN.Trim());
+                    }
+                }
+
+                qc.Model = modelSet.Count == 0 ? null : string.Join(", ", modelSet.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+
+                var soCodes = noticeItems
+                    .Select(ni =>
+                    {
+                        if (string.IsNullOrWhiteSpace(ni.PurchaseOrderItemId)) return string.Empty;
+                        if (!poItemMap.TryGetValue(ni.PurchaseOrderItemId, out var poi)) return string.Empty;
+                        if (string.IsNullOrWhiteSpace(poi.SellOrderItemId)) return string.Empty;
+                        return sellOrderCodeBySellOrderItemId.TryGetValue(poi.SellOrderItemId, out var so) ? so : string.Empty;
+                    })
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                qc.SalesOrderCode = soCodes.Count == 0 ? null : string.Join(", ", soCodes);
+            }
+
+            var modelKeyword = request?.Model?.Trim();
+            var vendorKeyword = request?.VendorName?.Trim();
+            var poCodeKeyword = request?.PurchaseOrderCode?.Trim();
+            var soCodeKeyword = request?.SalesOrderCode?.Trim();
+            var hasFilters = !string.IsNullOrWhiteSpace(modelKeyword)
+                             || !string.IsNullOrWhiteSpace(vendorKeyword)
+                             || !string.IsNullOrWhiteSpace(poCodeKeyword)
+                             || !string.IsNullOrWhiteSpace(soCodeKeyword);
+            if (!hasFilters)
+            {
+                return list;
+            }
+
+            bool MatchModel(QCInfo qc, StockInNotify? notice, List<StockInNotifyItem> noticeItems, string keyword)
+            {
+                // 列表已聚合的型号串（含整单 PN）
+                if (!string.IsNullOrWhiteSpace(qc.Model) && qc.Model.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                bool MatchNi(StockInNotifyItem ni)
+                {
+                    if (!string.IsNullOrWhiteSpace(ni.Pn) && ni.Pn.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                    if (!string.IsNullOrWhiteSpace(ni.PurchaseOrderItemId)
+                        && poItemMap.TryGetValue(ni.PurchaseOrderItemId, out var poi)
+                        && !string.IsNullOrWhiteSpace(poi.PN)
+                        && poi.PN.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                    return false;
+                }
+
+                if (noticeItems.Any(MatchNi))
+                    return true;
+
+                if (qc.Items is { Count: > 0 })
+                {
+                    foreach (var qci in qc.Items)
+                    {
+                        if (notifyItemById.TryGetValue(qci.StockInNotifyItemId, out var ni) && MatchNi(ni))
+                            return true;
+                    }
+                }
+
+                // 整单采购明细 PN（与到货通知行可能不一致）
+                if (notice != null
+                    && !string.IsNullOrWhiteSpace(notice.PurchaseOrderId)
+                    && poItemsByPurchaseOrderId.TryGetValue(notice.PurchaseOrderId, out var polines))
+                {
+                    if (polines.Any(p => !string.IsNullOrWhiteSpace(p.PN) && p.PN.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+                        return true;
+                }
+
+                return false;
+            }
+
+            return list.Where(qc =>
+            {
+                noticeMap.TryGetValue(qc.StockInNotifyId, out var notice);
+                noticeItemsMap.TryGetValue(qc.StockInNotifyId, out var noticeItems);
+                noticeItems ??= new List<StockInNotifyItem>();
+
+                if (!string.IsNullOrWhiteSpace(vendorKeyword)
+                    && !(notice?.VendorName?.Contains(vendorKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+                    return false;
+
+                if (!string.IsNullOrWhiteSpace(poCodeKeyword)
+                    && !(notice?.PurchaseOrderCode?.Contains(poCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+                    return false;
+
+                if (!string.IsNullOrWhiteSpace(modelKeyword) && !MatchModel(qc, notice, noticeItems, modelKeyword))
+                    return false;
+
+                if (!string.IsNullOrWhiteSpace(soCodeKeyword))
+                {
+                    var soMatched = noticeItems.Any(ni =>
+                        !string.IsNullOrWhiteSpace(ni.PurchaseOrderItemId)
+                        && poItemMap.TryGetValue(ni.PurchaseOrderItemId, out var poi)
+                        && !string.IsNullOrWhiteSpace(poi.SellOrderItemId)
+                        && sellOrderCodeBySellOrderItemId.TryGetValue(poi.SellOrderItemId, out var soCode)
+                        && !string.IsNullOrWhiteSpace(soCode)
+                        && soCode.Contains(soCodeKeyword, StringComparison.OrdinalIgnoreCase));
+                    if (!soMatched) return false;
+                }
+
+                return true;
+            }).ToList();
         }
 
         public async Task<QCInfo> CreateQcAsync(CreateQcRequest request)
