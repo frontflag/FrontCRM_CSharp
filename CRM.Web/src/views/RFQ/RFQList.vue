@@ -119,17 +119,8 @@
           <template #default="{ row }">
             <el-button class="action-btn" link type="primary" @click="handleView(row)">查看</el-button>
             <el-button class="action-btn" link type="primary" @click="handleEdit(row)">编辑</el-button>
-            <el-dropdown @command="(cmd: string) => handleMore(cmd, row)">
-              <el-button class="action-btn" link type="primary">
-                更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="quote">生成报价</el-dropdown-item>
-                  <el-dropdown-item command="delete" type="danger" divided>删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            <el-button class="action-btn" link type="success" @click="handleGenerateQuote(row)">生成报价</el-button>
+            <el-button class="action-btn" link type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </CrmDataTable>
@@ -160,7 +151,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Search, ArrowDown, Upload } from '@element-plus/icons-vue'
+import { Plus, Search, Upload } from '@element-plus/icons-vue'
 import ImportRFQDialog from './components/ImportRFQDialog.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
@@ -276,16 +267,8 @@ const handleView = (row: any) => {
   router.push({ name: 'RFQDetail', params: { id: row.id } })
 }
 
-// 更多操作
-const handleMore = (cmd: string, row: any) => {
-  switch (cmd) {
-    case 'quote':
-      ElMessage.success('已生成报价单')
-      break
-    case 'delete':
-      handleDelete(row)
-      break
-  }
+const handleGenerateQuote = (_row: any) => {
+  ElMessage.success('已生成报价单')
 }
 
 // 删除

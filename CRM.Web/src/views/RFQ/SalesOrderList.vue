@@ -107,29 +107,22 @@
             {{ row.createUserName || row.createdBy || row.salesUserName || '—' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="420" fixed="right" class-name="op-col">
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleView(row)">查看</el-button>
-            <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-            <el-button
-              v-if="row.status === 1 && canSubmitSalesOrderAudit"
-              link
-              type="warning"
-              @click="submitForAudit(row)"
-            >
-              提交审核
-            </el-button>
-            <el-dropdown @command="(cmd: string) => handleMore(cmd, row)">
-              <el-button link type="primary">
-                更多<el-icon class="el-icon--right"><arrow-down /></el-icon>
+            <div class="op-actions">
+              <el-button link type="primary" @click.stop="handleView(row)">查看</el-button>
+              <el-button link type="primary" @click.stop="handleEdit(row)">编辑</el-button>
+              <el-button
+                v-if="row.status === 1 && canSubmitSalesOrderAudit"
+                link
+                type="warning"
+                @click.stop="submitForAudit(row)"
+              >
+                提交审核
               </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="generate" divided>生成采购单</el-dropdown-item>
-                  <el-dropdown-item command="delete" type="danger">删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+              <el-button link type="success" @click.stop="handleGeneratePO(row)">生成采购单</el-button>
+              <el-button link type="danger" @click.stop="handleDelete(row)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </CrmDataTable>
@@ -154,7 +147,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Search, ArrowDown } from '@element-plus/icons-vue'
+import { Plus, Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { salesOrderApi } from '@/api/salesOrder'
 import { salesOrderStatusText, salesOrderStatusTagType } from '@/constants/salesOrderStatus'
@@ -308,18 +301,6 @@ const submitForAudit = async (row: any) => {
   }
 }
 
-// 更多操作
-const handleMore = (cmd: string, row: any) => {
-  switch (cmd) {
-    case 'generate':
-      handleGeneratePO(row)
-      break
-    case 'delete':
-      handleDelete(row)
-      break
-  }
-}
-
 // 生成采购单
 const handleGeneratePO = async (row: any) => {
   try {
@@ -419,6 +400,20 @@ onMounted(loadData)
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+/* 操作列禁止省略号，确保按钮文字完整可见 */
+:deep(.op-col .cell) {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+}
+
+.op-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
 }
 
 .items-section {

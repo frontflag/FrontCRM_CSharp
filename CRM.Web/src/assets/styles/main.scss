@@ -142,11 +142,42 @@ html, body {
     color: $text-muted;
   }
 
-  // 固定列
+  // 固定列：统一深色底板，避免右侧操作列浮层“透视”
+  .el-table__fixed,
+  .el-table__fixed-right,
   .el-table__fixed-right-patch,
+  .el-table__fixed-header-wrapper,
+  .el-table__fixed-body-wrapper,
+  .el-table__fixed-footer-wrapper,
+  .el-table__fixed table,
+  .el-table__fixed-right table,
+  .el-table__fixed th.el-table__cell,
+  .el-table__fixed td.el-table__cell,
+  .el-table__fixed-right th.el-table__cell,
+  .el-table__fixed-right td.el-table__cell,
+  .el-table .el-table-fixed-column--left,
+  .el-table .el-table-fixed-column--right,
+  .el-table .el-table-fixed-column--left .cell,
+  .el-table .el-table-fixed-column--right .cell {
+    background: $layer-2 !important;
+  }
+
+  // 固定列 hover 也保持不透明，避免出现“缝隙露底”
+  .el-table__fixed .el-table__row:hover td.el-table__cell,
+  .el-table__fixed-right .el-table__row:hover td.el-table__cell,
+  .el-table__fixed .el-table__row.hover-row td.el-table__cell,
+  .el-table__fixed-right .el-table__row.hover-row td.el-table__cell {
+    background: $layer-2 !important;
+  }
+
+  // 固定右列与普通列的视觉边界
+  .el-table__fixed-right {
+    box-shadow: -12px 0 18px -10px rgba(0, 0, 0, 0.72) !important;
+  }
   .el-table__fixed-right::before,
-  .el-table__fixed::before {
-    background: transparent;
+  .el-table__fixed::before,
+  .el-table__fixed-right-patch {
+    background: rgba(255, 255, 255, 0.08) !important;
   }
 
   // 列分隔线（竖线）全部移除
@@ -527,4 +558,39 @@ html, body {
       color: #3a5a7a;
     }
   }
+}
+
+// ============================================================
+// CrmDataTable 固定操作列特征（全局强制）
+// - 所有列表页固定右列必须有不透明底色
+// - hover 时保持不透明
+// - 左侧阴影边界统一
+// ============================================================
+.crm-data-table .el-table__fixed-right,
+.crm-data-table .el-table__fixed-right-patch,
+.crm-data-table .el-table__fixed-right .el-table__fixed-header-wrapper,
+.crm-data-table .el-table__fixed-right .el-table__fixed-body-wrapper,
+.crm-data-table .el-table__fixed-right .el-table__fixed-footer-wrapper,
+.crm-data-table .el-table__fixed-right table,
+.crm-data-table .el-table__fixed-right tr,
+.crm-data-table .el-table__fixed-right th.el-table__cell,
+.crm-data-table .el-table__fixed-right td.el-table__cell,
+.crm-data-table .el-table__fixed-right .cell,
+.crm-data-table .el-table .el-table-fixed-column--right,
+.crm-data-table .el-table .el-table-fixed-column--right .cell {
+  background: $layer-2 !important;
+}
+
+.crm-data-table .el-table__fixed-right .el-table__row:hover td.el-table__cell,
+.crm-data-table .el-table__fixed-right .el-table__row.hover-row td.el-table__cell {
+  background: $layer-2 !important;
+}
+
+.crm-data-table .el-table__fixed-right {
+  box-shadow: -12px 0 18px -10px rgba(0, 0, 0, 0.72) !important;
+}
+
+.crm-data-table .el-table__fixed-right::before,
+.crm-data-table .el-table__fixed-right-patch {
+  background: rgba(255, 255, 255, 0.08) !important;
 }

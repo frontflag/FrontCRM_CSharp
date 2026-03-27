@@ -151,16 +151,7 @@
             >
               取消供应商确认
             </el-button>
-            <el-dropdown @command="(cmd: string) => handleMore(cmd, row)">
-              <el-button link type="primary">
-                更多<el-icon class="el-icon--right"><arrow-down /></el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="delete" type="danger" divided>删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </CrmDataTable>
@@ -185,7 +176,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Search, ArrowDown } from '@element-plus/icons-vue'
+import { Plus, Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { useAuthStore } from '@/stores/auth'
@@ -401,15 +392,6 @@ const submitAudit = async (row: any) => {
     await loadData()
   } catch {
     // 取消或失败已由全局拦截器提示
-  }
-}
-
-// 更多操作
-const handleMore = (cmd: string, row: any) => {
-  switch (cmd) {
-    case 'delete':
-      handleDelete(row)
-      break
   }
 }
 

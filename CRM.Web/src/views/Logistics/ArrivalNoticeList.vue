@@ -69,7 +69,7 @@
       </el-table-column>
       <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" v-if="row.status === 10" @click="markArrived(row)">确认到货</el-button>
+          <el-button link type="warning" v-if="row.status === 10" @click="markArrived(row)">确认到货</el-button>
           <el-button link type="success" v-if="row.status === 20" @click="goCreateQc(row)">质检</el-button>
           <el-button link type="info" @click="viewItems(row)">明细</el-button>
         </template>

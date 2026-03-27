@@ -90,7 +90,7 @@
         <el-table-column label="操作" width="200" min-width="200" fixed="right" resizable>
           <template #default="{ row }">
             <el-button class="action-btn" link type="primary" @click="goDetail(row)">详情</el-button>
-            <el-button class="action-btn" link type="primary" @click="goQuote(row)">报价</el-button>
+            <el-button class="action-btn" link type="success" @click="goQuote(row)">报价</el-button>
           </template>
         </el-table-column>
       </CrmDataTable>

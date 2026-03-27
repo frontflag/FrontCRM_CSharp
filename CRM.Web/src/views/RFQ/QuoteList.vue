@@ -133,16 +133,7 @@
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-            <el-dropdown @command="(cmd: string) => handleMore(cmd, row)">
-              <el-button link type="primary">
-                更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="delete" type="danger" divided>删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </CrmDataTable>
@@ -167,7 +158,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Search, ArrowDown } from '@element-plus/icons-vue'
+import { Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { quoteApi } from '@/api/quote'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
@@ -319,15 +310,6 @@ async function handleGenerateSalesOrder() {
 // 编辑
 const handleEdit = (row: any) => {
   router.push({ name: 'QuoteEdit', params: { id: String(row.id) } })
-}
-
-// 更多操作
-const handleMore = (cmd: string, row: any) => {
-  switch (cmd) {
-    case 'delete':
-      handleDelete(row)
-      break
-  }
 }
 
 // 删除
