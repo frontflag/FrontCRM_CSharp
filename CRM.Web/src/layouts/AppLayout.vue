@@ -579,9 +579,9 @@
       </header>
 
       <!-- Tab Bar 多标签页 -->
-      <div class="tab-bar" v-if="tabs.length > 0">
+      <div class="tab-bar" v-if="tabs.length > 0" ref="tabBarRef">
         <div
-          v-for="tab in tabs"
+          v-for="tab in visibleTabs"
           :key="tab.path"
           class="tab-item"
           :class="{ active: tab.path === activeTab }"
@@ -602,6 +602,26 @@
           </button>
           <div class="tab-active-bar" v-if="tab.path === activeTab"></div>
         </div>
+        <el-dropdown
+          v-if="overflowTabs.length > 0"
+          trigger="click"
+          class="tab-overflow-dropdown"
+          @command="onOverflowTabSelect"
+        >
+          <button class="tab-overflow-trigger" type="button" title="更多页签">...</button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item
+                v-for="tab in overflowTabs"
+                :key="tab.path"
+                :command="tab.path"
+                :class="{ 'is-active-item': tab.path === activeTab }"
+              >
+                {{ tab.title }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
 
       <!-- 右键菜单 -->
@@ -630,7 +650,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, type Directive } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, type Directive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores'
 import { ElMessageBox, ElNotification } from 'element-plus'
@@ -843,14 +863,58 @@ const loadTabs = (): TabItem[] => {
 
 const tabs = ref<TabItem[]>(loadTabs())
 const activeTab = ref<string>(localStorage.getItem(ACTIVE_KEY) || '')
+const tabBarRef = ref<HTMLElement | null>(null)
+const visibleTabCount = ref<number>(tabs.value.length)
+let tabBarResizeObserver: ResizeObserver | null = null
 
 const saveTabs = () => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tabs.value))
   localStorage.setItem(ACTIVE_KEY, activeTab.value)
 }
 
+const estimateTabWidth = (tab: TabItem) => {
+  const titleLen = tab.title?.length ?? 0
+  return Math.min(200, Math.max(92, 50 + titleLen * 14))
+}
+
+const recalcTabOverflow = () => {
+  const host = tabBarRef.value
+  if (!host) {
+    visibleTabCount.value = tabs.value.length
+    return
+  }
+  const totalWidth = host.clientWidth
+  if (totalWidth <= 0) {
+    visibleTabCount.value = tabs.value.length
+    return
+  }
+
+  const moreBtnWidth = 44
+  let used = 0
+  let count = 0
+
+  for (const tab of tabs.value) {
+    const tabWidth = estimateTabWidth(tab)
+    const reserve = count < tabs.value.length - 1 ? moreBtnWidth : 0
+    if (used + tabWidth + reserve > totalWidth) break
+    used += tabWidth + 2 // include gap
+    count += 1
+  }
+
+  // 至少显示一个，避免全量都被折叠
+  visibleTabCount.value = Math.max(1, count)
+}
+
+const visibleTabs = computed(() => tabs.value.slice(0, visibleTabCount.value))
+const overflowTabs = computed(() => tabs.value.slice(visibleTabCount.value))
+
+const onOverflowTabSelect = (path: string) => {
+  const hit = tabs.value.find(t => t.path === path)
+  if (hit) activateTab(hit)
+}
+
 // 监听路由变化，自动添加/激活标签
-watch(() => route.path, (newPath) => {
+watch(() => route.path, async (newPath) => {
   const title = currentPageTitle.value
   const exists = tabs.value.find(t => t.path === newPath)
   if (!exists) {
@@ -858,6 +922,8 @@ watch(() => route.path, (newPath) => {
   }
   activeTab.value = newPath
   saveTabs()
+  await nextTick()
+  recalcTabOverflow()
 }, { immediate: true })
 
 const activateTab = (tab: TabItem) => {
@@ -880,6 +946,7 @@ const closeTab = (tab: TabItem) => {
     }
   }
   saveTabs()
+  nextTick(() => recalcTabOverflow())
 }
 
 // 拖拽排序
@@ -951,6 +1018,7 @@ const contextMenuClose = (type: 'current' | 'others' | 'right' | 'all') => {
   }
   saveTabs()
   closeContextMenu()
+  nextTick(() => recalcTabOverflow())
 }
 
 // v-click-outside 指令
@@ -976,6 +1044,16 @@ onMounted(() => {
     activeTab.value = route.path
     saveTabs()
   }
+  nextTick(() => recalcTabOverflow())
+  if (tabBarRef.value && typeof ResizeObserver !== 'undefined') {
+    tabBarResizeObserver = new ResizeObserver(() => recalcTabOverflow())
+    tabBarResizeObserver.observe(tabBarRef.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  tabBarResizeObserver?.disconnect()
+  tabBarResizeObserver = null
 })
 </script>
 
@@ -1678,6 +1756,28 @@ onMounted(() => {
     background: rgba(0, 212, 255, 0.2);
     border-radius: 1px;
   }
+}
+
+.tab-overflow-dropdown {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.tab-overflow-trigger {
+  height: 28px;
+  min-width: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 212, 255, 0.18);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(180, 210, 230, 0.85);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.tab-overflow-trigger:hover {
+  background: rgba(0, 212, 255, 0.08);
+  color: #00d4ff;
 }
 
 .tab-item {
