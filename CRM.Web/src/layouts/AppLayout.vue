@@ -73,18 +73,8 @@
     </header>
 
     <div class="app-layout-body">
-    <button
-      v-if="sidebarMode === 'hidden'"
-      type="button"
-      class="sidebar-fab"
-      title="显示主菜单"
-      @click="sidebarMode = 'full'"
-    >
-      ☰
-    </button>
-    <!-- 左侧菜单面板：完整 / 边条 / 隐藏 -->
+    <!-- 左侧菜单面板：完整 / 边条 -->
     <aside
-      v-show="sidebarMode !== 'hidden'"
       class="sidebar"
       :class="{ collapsed: isCollapsed }"
       :style="sidebarMode === 'full' ? { width: sidebarWidthPx + 'px' } : undefined"
@@ -94,107 +84,140 @@
         <!-- 主菜单标签 -->
         <div class="menu-section-label" v-if="!isCollapsed">主菜单</div>
 
-        <!-- 控制台 -->
-        <router-link to="/dashboard" class="menu-item" active-class="active" exact>
-          <span class="menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <rect x="3" y="3" width="7" height="7" rx="1"/>
-              <rect x="14" y="3" width="7" height="7" rx="1"/>
-              <rect x="3" y="14" width="7" height="7" rx="1"/>
-              <rect x="14" y="14" width="7" height="7" rx="1"/>
-            </svg>
-          </span>
-          <span class="menu-label" v-if="!isCollapsed">控制台</span>
-          <span class="active-dot" v-if="!isCollapsed"></span>
-        </router-link>
+        <!-- 控制台：展开时不包 el-tooltip，避免触发器层把菜单项挤成纵向 -->
+        <SidebarMenuTooltipWrap :collapsed="isCollapsed" tooltip="控制台">
+          <router-link to="/dashboard" class="menu-item" active-class="active" exact>
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">控制台</span>
+            <span class="active-dot" v-if="!isCollapsed"></span>
+          </router-link>
+        </SidebarMenuTooltipWrap>
 
         <!-- 待办 -->
         <div class="menu-section-label" v-if="!isCollapsed">待办</div>
-        <router-link
+        <SidebarMenuTooltipWrap
           v-if="hasAnyApprovalPermission"
-          to="/pending-approvals"
-          class="menu-item"
-          active-class="active"
-          exact
+          :collapsed="isCollapsed"
+          tooltip="待审批"
         >
-          <span class="menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M12 8v4l3 3" />
-              <circle cx="12" cy="12" r="9" />
-            </svg>
-          </span>
-          <span class="menu-label" v-if="!isCollapsed">待审批</span>
-          <span class="active-dot" v-if="!isCollapsed"></span>
-        </router-link>
+          <router-link
+            to="/pending-approvals"
+            class="menu-item"
+            active-class="active"
+            exact
+          >
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 8v4l3 3" />
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">待审批</span>
+            <span class="active-dot" v-if="!isCollapsed"></span>
+          </router-link>
+        </SidebarMenuTooltipWrap>
 
-        <router-link
+        <SidebarMenuTooltipWrap
           v-if="hasPermission('draft.read')"
-          to="/drafts"
-          class="menu-item"
-          active-class="active"
+          :collapsed="isCollapsed"
+          tooltip="草稿箱"
         >
-          <span class="menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M4 4h16v16H4z"/>
-              <path d="M8 8h8M8 12h8M8 16h5"/>
-            </svg>
-          </span>
-          <span class="menu-label" v-if="!isCollapsed">草稿箱</span>
-          <span class="active-dot" v-if="!isCollapsed"></span>
-        </router-link>
+          <router-link
+            to="/drafts"
+            class="menu-item"
+            active-class="active"
+          >
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M4 4h16v16H4z"/>
+                <path d="M8 8h8M8 12h8M8 16h5"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">草稿箱</span>
+            <span class="active-dot" v-if="!isCollapsed"></span>
+          </router-link>
+        </SidebarMenuTooltipWrap>
 
         <!-- 基础资料 -->
         <div class="menu-section-label" v-if="!isCollapsed">基础资料</div>
 
-        <div class="menu-group" v-if="(isSysAdmin || identityType !== 6) && hasPermission('customer.read')">
-          <button class="menu-item has-children" @click="toggleGroup('customers')" :class="{ 'group-open': openGroups.customers }">
+        <SidebarMenuGroupFlyout
+          v-if="(isSysAdmin || identityType !== 6) && hasPermission('customer.read')"
+          :collapsed="isCollapsed"
+          :expanded="openGroups.customers"
+          @toggle="toggleGroup('customers')"
+        >
+          <template #icon>
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
                 <circle cx="12" cy="7" r="4"/>
               </svg>
             </span>
+          </template>
+          <template #label>
             <span class="menu-label" v-if="!isCollapsed">客户管理</span>
+          </template>
+          <template #chevron>
             <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.customers }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M6 9l6 6 6-6"/>
             </svg>
-          </button>
-          <div class="submenu" v-if="!isCollapsed && openGroups.customers">
+          </template>
+          <template #submenu>
             <router-link to="/customers" class="submenu-item" active-class="active" exact>客户列表</router-link>
             <router-link to="/customers/recycle-bin" class="submenu-item" active-class="active">回收站</router-link>
             <router-link to="/customers/blacklist" class="submenu-item" active-class="active">黑名单管理</router-link>
-          </div>
-        </div>
+          </template>
+        </SidebarMenuGroupFlyout>
 
-        <button v-if="(isSysAdmin || identityType !== 6) && hasPermission('vendor.read')" class="menu-item has-children" @click="toggleGroup('vendors')" :class="{ 'group-open': openGroups.vendors }">
-          <span class="menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 00-3-3.87"/>
-              <path d="M16 3.13a4 4 0 010 7.75"/>
+        <SidebarMenuGroupFlyout
+          v-if="(isSysAdmin || identityType !== 6) && hasPermission('vendor.read')"
+          :collapsed="isCollapsed"
+          :expanded="openGroups.vendors"
+          @toggle="toggleGroup('vendors')"
+        >
+          <template #icon>
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 00-3-3.87"/>
+                <path d="M16 3.13a4 4 0 010 7.75"/>
+              </svg>
+            </span>
+          </template>
+          <template #label>
+            <span class="menu-label" v-if="!isCollapsed">供应商管理</span>
+          </template>
+          <template #chevron>
+            <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.vendors }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"/>
             </svg>
-          </span>
-          <span class="menu-label" v-if="!isCollapsed">供应商管理</span>
-          <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.vendors }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        </button>
-        <div class="submenu" v-if="(isSysAdmin || identityType !== 6) && hasPermission('vendor.read') && !isCollapsed && openGroups.vendors">
-          <router-link to="/vendors" class="submenu-item" active-class="active" exact>供应商列表</router-link>
-          <router-link to="/vendors/recycle-bin" class="submenu-item" active-class="active">回收站</router-link>
-          <router-link to="/vendors/blacklist" class="submenu-item" active-class="active">黑名单管理</router-link>
-        </div>
+          </template>
+          <template #submenu>
+            <router-link to="/vendors" class="submenu-item" active-class="active" exact>供应商列表</router-link>
+            <router-link to="/vendors/recycle-bin" class="submenu-item" active-class="active">回收站</router-link>
+            <router-link to="/vendors/blacklist" class="submenu-item" active-class="active">黑名单管理</router-link>
+          </template>
+        </SidebarMenuGroupFlyout>
 
         <!-- 询价 -->
         <div class="menu-section-label" v-if="!isCollapsed">询价</div>
 
-        <div class="menu-group" v-if="hasPermission('rfq.read')">
-          <button
-            class="menu-item has-children"
-            @click="toggleGroup('rfqs')"
-            :class="{ 'group-open': openGroups.rfqs }"
-          >
+        <SidebarMenuGroupFlyout
+          v-if="hasPermission('rfq.read')"
+          :collapsed="isCollapsed"
+          :expanded="openGroups.rfqs"
+          @toggle="toggleGroup('rfqs')"
+        >
+          <template #icon>
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
@@ -203,7 +226,11 @@
                 <line x1="16" y1="17" x2="8" y2="17"/>
               </svg>
             </span>
+          </template>
+          <template #label>
             <span class="menu-label" v-if="!isCollapsed">需求管理</span>
+          </template>
+          <template #chevron>
             <svg
               v-if="!isCollapsed"
               class="chevron"
@@ -215,38 +242,45 @@
             >
               <path d="M6 9l6 6 6-6"/>
             </svg>
-          </button>
-          <div class="submenu" v-if="!isCollapsed && openGroups.rfqs">
+          </template>
+          <template #submenu>
             <router-link to="/rfqs" class="submenu-item" active-class="active" exact>需求列表</router-link>
             <router-link to="/rfq-items" class="submenu-item" active-class="active">需求明细</router-link>
-          </div>
-        </div>
+          </template>
+        </SidebarMenuGroupFlyout>
 
-        <router-link to="/boms" class="menu-item" active-class="active">
-          <span class="menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <line x1="3" y1="9" x2="21" y2="9"/>
-              <line x1="9" y1="21" x2="9" y2="9"/>
-              <path d="M13 13h5M13 17h3"/>
-            </svg>
-          </span>
-          <span class="menu-label" v-if="!isCollapsed">BOM 快速报价</span>
-          <span class="active-dot" v-if="!isCollapsed"></span>
-        </router-link>
+        <SidebarMenuTooltipWrap :collapsed="isCollapsed" tooltip="BOM 快速报价">
+          <router-link to="/boms" class="menu-item" active-class="active">
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <line x1="3" y1="9" x2="21" y2="9"/>
+                <line x1="9" y1="21" x2="9" y2="9"/>
+                <path d="M13 13h5M13 17h3"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">BOM 快速报价</span>
+            <span class="active-dot" v-if="!isCollapsed"></span>
+          </router-link>
+        </SidebarMenuTooltipWrap>
 
-        <div class="menu-group" v-if="hasPermission('rfq.read')">
-          <button
-            class="menu-item has-children"
-            @click="toggleGroup('quotes')"
-            :class="{ 'group-open': openGroups.quotes }"
-          >
+        <SidebarMenuGroupFlyout
+          v-if="hasPermission('rfq.read')"
+          :collapsed="isCollapsed"
+          :expanded="openGroups.quotes"
+          @toggle="toggleGroup('quotes')"
+        >
+          <template #icon>
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M12 2v20M2 12h20"/>
               </svg>
             </span>
+          </template>
+          <template #label>
             <span class="menu-label" v-if="!isCollapsed">报价管理</span>
+          </template>
+          <template #chevron>
             <svg
               v-if="!isCollapsed"
               class="chevron"
@@ -258,29 +292,38 @@
             >
               <path d="M6 9l6 6 6-6"/>
             </svg>
-          </button>
-          <div class="submenu" v-if="!isCollapsed && openGroups.quotes">
+          </template>
+          <template #submenu>
             <router-link to="/quotes" class="submenu-item" active-class="active" exact>报价列表</router-link>
-          </div>
-        </div>
+          </template>
+        </SidebarMenuGroupFlyout>
 
         <!-- 订单 -->
         <div class="menu-section-label" v-if="!isCollapsed">订单</div>
 
         <!-- 销售管理：必须具备销售订单读取权限才显示入口 -->
-        <div class="menu-group" v-if="hasPermission('sales-order.read')">
-          <button class="menu-item has-children" @click="toggleGroup('sales')" :class="{ 'group-open': openGroups.sales }">
+        <SidebarMenuGroupFlyout
+          v-if="hasPermission('sales-order.read')"
+          :collapsed="isCollapsed"
+          :expanded="openGroups.sales"
+          @toggle="toggleGroup('sales')"
+        >
+          <template #icon>
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
               </svg>
             </span>
+          </template>
+          <template #label>
             <span class="menu-label" v-if="!isCollapsed">销售管理</span>
+          </template>
+          <template #chevron>
             <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.sales }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M6 9l6 6 6-6"/>
             </svg>
-          </button>
-          <div class="submenu" v-if="!isCollapsed && openGroups.sales">
+          </template>
+          <template #submenu>
             <router-link to="/sales-orders" class="submenu-item" active-class="active">销售订单</router-link>
             <router-link
               v-if="hasPermission('sales-order.read')"
@@ -288,16 +331,18 @@
               class="submenu-item"
               active-class="active"
             >销售订单明细</router-link>
-            <button class="submenu-item" @click="handleUnimplemented('销售退货')">销售退货</button>
-          </div>
-        </div>
+            <button type="button" class="submenu-item" @click="handleUnimplemented('销售退货')">销售退货</button>
+          </template>
+        </SidebarMenuGroupFlyout>
 
         <!-- 采购管理：销售部门不显示 -->
-        <div
-          class="menu-group"
+        <SidebarMenuGroupFlyout
           v-if="(isSysAdmin || identityType !== 1) && (hasPermission('purchase-requisition.read') || hasPermission('purchase-order.read'))"
+          :collapsed="isCollapsed"
+          :expanded="openGroups.purchase"
+          @toggle="toggleGroup('purchase')"
         >
-          <button class="menu-item has-children" @click="toggleGroup('purchase')" :class="{ 'group-open': openGroups.purchase }">
+          <template #icon>
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
@@ -305,12 +350,16 @@
                 <path d="M16 10a4 4 0 01-8 0"/>
               </svg>
             </span>
+          </template>
+          <template #label>
             <span class="menu-label" v-if="!isCollapsed">采购管理</span>
+          </template>
+          <template #chevron>
             <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.purchase }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M6 9l6 6 6-6"/>
             </svg>
-          </button>
-          <div class="submenu" v-if="!isCollapsed && openGroups.purchase">
+          </template>
+          <template #submenu>
             <router-link
               v-if="hasPermission('purchase-requisition.read')"
               to="/purchase-requisitions"
@@ -329,16 +378,20 @@
               class="submenu-item"
               active-class="active"
             >采购订单明细</router-link>
-            <button class="submenu-item" @click="handleUnimplemented('采购退货')">采购退货</button>
-          </div>
-        </div>
+            <button type="button" class="submenu-item" @click="handleUnimplemented('采购退货')">采购退货</button>
+          </template>
+        </SidebarMenuGroupFlyout>
 
         <!-- 库存 -->
         <div class="menu-section-label" v-if="!isCollapsed">库存</div>
 
         <!-- 入库管理 -->
-        <div class="menu-group">
-          <button class="menu-item has-children" @click="toggleGroup('stockInManagement')" :class="{ 'group-open': openGroups.stockInManagement }">
+        <SidebarMenuGroupFlyout
+          :collapsed="isCollapsed"
+          :expanded="openGroups.stockInManagement"
+          @toggle="toggleGroup('stockInManagement')"
+        >
+          <template #icon>
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M3 7l9-4 9 4-9 4-9-4"/>
@@ -346,12 +399,16 @@
                 <path d="M3 17l9 4 9-4"/>
               </svg>
             </span>
+          </template>
+          <template #label>
             <span class="menu-label" v-if="!isCollapsed">入库管理</span>
+          </template>
+          <template #chevron>
             <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.stockInManagement }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M6 9l6 6 6-6"/>
             </svg>
-          </button>
-          <div class="submenu" v-if="!isCollapsed && openGroups.stockInManagement">
+          </template>
+          <template #submenu>
             <router-link
               v-if="hasPermission('purchase-order.read')"
               to="/logistics/arrival-notices"
@@ -365,12 +422,16 @@
               active-class="active"
             >质检</router-link>
             <router-link to="/inventory/stock-in" class="submenu-item" active-class="active">入库</router-link>
-          </div>
-        </div>
+          </template>
+        </SidebarMenuGroupFlyout>
 
         <!-- 库存管理 -->
-        <div class="menu-group">
-          <button class="menu-item has-children" @click="toggleGroup('inventory')" :class="{ 'group-open': openGroups.inventory }">
+        <SidebarMenuGroupFlyout
+          :collapsed="isCollapsed"
+          :expanded="openGroups.inventory"
+          @toggle="toggleGroup('inventory')"
+        >
+          <template #icon>
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
@@ -378,21 +439,29 @@
                 <line x1="12" y1="22.08" x2="12" y2="12"/>
               </svg>
             </span>
+          </template>
+          <template #label>
             <span class="menu-label" v-if="!isCollapsed">库存管理</span>
+          </template>
+          <template #chevron>
             <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.inventory }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M6 9l6 6 6-6"/>
             </svg>
-          </button>
-          <div class="submenu" v-if="!isCollapsed && openGroups.inventory">
+          </template>
+          <template #submenu>
             <router-link to="/inventory/list" class="submenu-item" active-class="active">库存管理</router-link>
             <router-link to="/inventory/transfer" class="submenu-item" active-class="active">库存调拨</router-link>
             <router-link to="/inventory/check" class="submenu-item" active-class="active">库存盘点</router-link>
-          </div>
-        </div>
+          </template>
+        </SidebarMenuGroupFlyout>
 
         <!-- 出库管理 -->
-        <div class="menu-group">
-          <button class="menu-item has-children" @click="toggleGroup('stockOutManagement')" :class="{ 'group-open': openGroups.stockOutManagement }">
+        <SidebarMenuGroupFlyout
+          :collapsed="isCollapsed"
+          :expanded="openGroups.stockOutManagement"
+          @toggle="toggleGroup('stockOutManagement')"
+        >
+          <template #icon>
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M7 7h10v10H7z"/>
@@ -401,34 +470,36 @@
                 <path d="M17 8l4 4-4 4"/>
               </svg>
             </span>
+          </template>
+          <template #label>
             <span class="menu-label" v-if="!isCollapsed">出库管理</span>
+          </template>
+          <template #chevron>
             <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.stockOutManagement }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M6 9l6 6 6-6"/>
             </svg>
-          </button>
-          <div class="submenu" v-if="!isCollapsed && openGroups.stockOutManagement">
+          </template>
+          <template #submenu>
             <router-link to="/inventory/stock-out-notifies" class="submenu-item" active-class="active">出库通知</router-link>
             <router-link to="/inventory/stock-out" class="submenu-item" active-class="active">出库</router-link>
-          </div>
-        </div>
+          </template>
+        </SidebarMenuGroupFlyout>
 
         <!-- 财务：按部门隔离维度拆分“付款管理/收款管理”
              红框（财务管理折叠按钮）已移除；这里以“付款管理/收款管理”作为二级菜单组（带图标与收起展开）。 -->
         <div class="menu-section-label" v-if="!isCollapsed && (isSysAdmin || identityType !== 6)">财务</div>
-        <div v-if="!isCollapsed && (isSysAdmin || identityType !== 6)">
+        <div v-if="(isSysAdmin || identityType !== 6)" class="sidebar-nav-inline-group">
           <!-- 付款管理组：销售部门（identityType=1）不显示 -->
-          <div
-            class="menu-group"
+          <SidebarMenuGroupFlyout
             v-if="
               (isSysAdmin || identityType !== 1) &&
               (hasPermission('finance-payment.read') || hasPermission('finance-purchase-invoice.read'))
             "
+            :collapsed="isCollapsed"
+            :expanded="openGroups.financePayments"
+            @toggle="toggleGroup('financePayments')"
           >
-            <button
-              class="menu-item has-children"
-              @click="toggleGroup('financePayments')"
-              :class="{ 'group-open': openGroups.financePayments }"
-            >
+            <template #icon>
               <span class="menu-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                   <rect x="3" y="5" width="18" height="14" rx="2" ry="2"/>
@@ -436,7 +507,11 @@
                   <path d="M7 13h6"/>
                 </svg>
               </span>
+            </template>
+            <template #label>
               <span class="menu-label" v-if="!isCollapsed">付款管理</span>
+            </template>
+            <template #chevron>
               <svg
                 v-if="!isCollapsed"
                 class="chevron"
@@ -448,9 +523,8 @@
               >
                 <path d="M6 9l6 6 6-6"/>
               </svg>
-            </button>
-
-            <div class="submenu" v-if="!isCollapsed && openGroups.financePayments">
+            </template>
+            <template #submenu>
               <router-link
                 v-if="hasPermission('finance-payment.read')"
                 to="/finance/payments"
@@ -463,22 +537,20 @@
                 class="submenu-item"
                 active-class="active"
               >进项发票</router-link>
-            </div>
-          </div>
+            </template>
+          </SidebarMenuGroupFlyout>
 
           <!-- 收款管理组：采购部门（identityType=2）不显示 -->
-          <div
-            class="menu-group"
+          <SidebarMenuGroupFlyout
             v-if="
               (isSysAdmin || identityType !== 2) &&
               (hasPermission('finance-receipt.read') || hasPermission('finance-sell-invoice.read'))
             "
+            :collapsed="isCollapsed"
+            :expanded="openGroups.financeReceipts"
+            @toggle="toggleGroup('financeReceipts')"
           >
-            <button
-              class="menu-item has-children"
-              @click="toggleGroup('financeReceipts')"
-              :class="{ 'group-open': openGroups.financeReceipts }"
-            >
+            <template #icon>
               <span class="menu-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                   <rect x="3" y="11" width="18" height="10" rx="2" ry="2"/>
@@ -487,7 +559,11 @@
                   <path d="M12 19h0"/>
                 </svg>
               </span>
+            </template>
+            <template #label>
               <span class="menu-label" v-if="!isCollapsed">收款管理</span>
+            </template>
+            <template #chevron>
               <svg
                 v-if="!isCollapsed"
                 class="chevron"
@@ -499,9 +575,8 @@
               >
                 <path d="M6 9l6 6 6-6"/>
               </svg>
-            </button>
-
-            <div class="submenu" v-if="!isCollapsed && openGroups.financeReceipts">
+            </template>
+            <template #submenu>
               <router-link
                 v-if="hasPermission('finance-receipt.read')"
                 to="/finance/receipts"
@@ -514,32 +589,35 @@
                 class="submenu-item"
                 active-class="active"
               >销项发票</router-link>
-            </div>
-          </div>
+            </template>
+          </SidebarMenuGroupFlyout>
         </div>
 
         <!-- 数据分析 -->
         <div class="menu-section-label" v-if="!isCollapsed">数据分析</div>
 
-        <button class="menu-item" @click="handleUnimplemented('报表分析')">
-          <span class="menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <line x1="18" y1="20" x2="18" y2="10"/>
-              <line x1="12" y1="20" x2="12" y2="4"/>
-              <line x1="6" y1="20" x2="6" y2="14"/>
-            </svg>
-          </span>
-          <span class="menu-label" v-if="!isCollapsed">报表分析</span>
-        </button>
+        <SidebarMenuTooltipWrap :collapsed="isCollapsed" tooltip="报表分析">
+          <button type="button" class="menu-item" @click="handleUnimplemented('报表分析')">
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">报表分析</span>
+          </button>
+        </SidebarMenuTooltipWrap>
 
         <!-- 系统管理 -->
         <div class="menu-section-label" v-if="!isCollapsed">系统管理</div>
-        <div class="menu-group" v-if="hasPermission('rbac.manage')">
-          <button
-            class="menu-item has-children"
-            @click="toggleGroup('systemManagement')"
-            :class="{ 'group-open': openGroups.systemManagement }"
-          >
+        <SidebarMenuGroupFlyout
+          v-if="hasPermission('rbac.manage')"
+          :collapsed="isCollapsed"
+          :expanded="openGroups.systemManagement"
+          @toggle="toggleGroup('systemManagement')"
+        >
+          <template #icon>
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M12 15.5V3"/>
@@ -548,7 +626,11 @@
                 <path d="M12 15.5h7"/>
               </svg>
             </span>
+          </template>
+          <template #label>
             <span class="menu-label" v-if="!isCollapsed">系统管理</span>
+          </template>
+          <template #chevron>
             <svg
               v-if="!isCollapsed"
               class="chevron"
@@ -560,27 +642,29 @@
             >
               <path d="M6 9l6 6 6-6"/>
             </svg>
-          </button>
-          <div class="submenu" v-if="!isCollapsed && openGroups.systemManagement">
+          </template>
+          <template #submenu>
             <router-link to="/system/users" class="submenu-item" active-class="active" exact>员工管理</router-link>
             <router-link to="/system/departments" class="submenu-item" active-class="active" exact>部门管理</router-link>
             <router-link to="/system/roles" class="submenu-item" active-class="active" exact>角色管理</router-link>
             <router-link to="/system/permissions" class="submenu-item" active-class="active" exact>权限管理</router-link>
-          </div>
-        </div>
+          </template>
+        </SidebarMenuGroupFlyout>
 
         <!-- 系统 -->
         <div class="menu-section-label" v-if="!isCollapsed">系统</div>
 
-        <router-link to="/dashboard/settings" class="menu-item" active-class="active">
-          <span class="menu-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
-            </svg>
-          </span>
-          <span class="menu-label" v-if="!isCollapsed">系统设置</span>
-        </router-link>
+        <SidebarMenuTooltipWrap :collapsed="isCollapsed" tooltip="系统设置">
+          <router-link to="/dashboard/settings" class="menu-item" active-class="active">
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+              </svg>
+            </span>
+            <span class="menu-label" v-if="!isCollapsed">系统设置</span>
+          </router-link>
+        </SidebarMenuTooltipWrap>
       </nav>
 
       <div class="sidebar-collapse-bar">
@@ -588,7 +672,7 @@
           type="button"
           class="collapse-btn"
           @click="toggleCollapse"
-          :title="sidebarMode === 'full' ? '缩窄为边条' : sidebarMode === 'narrow' ? '隐藏主菜单' : '展开主菜单'"
+          :title="sidebarMode === 'full' ? '缩窄为边条' : '展开主菜单'"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path v-if="!isCollapsed" d="M15 18l-6-6 6-6"/>
@@ -821,6 +905,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { useWorkspaceLayout } from '@/composables/useWorkspaceLayout'
+import SidebarMenuGroupFlyout from '@/layouts/components/SidebarMenuGroupFlyout.vue'
+import SidebarMenuTooltipWrap from '@/layouts/components/SidebarMenuTooltipWrap.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -991,14 +1077,11 @@ const hasPermission = (code: string) => authStore.hasPermission(code)
 const identityType = computed(() => authStore.user?.identityType ?? 0)
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 
-// 管理员默认展开所有主菜单分组，保证“主菜单面上的所有菜单项”可见
+// 管理员登录时默认展开所有分组（不强制主菜单宽度，以便可缩为边条/隐藏）
 watch(
   isSysAdmin,
   (v) => {
-    if (v) {
-      sidebarMode.value = 'full'
-      expandAllGroups()
-    }
+    if (v) expandAllGroups()
   },
   { immediate: true }
 )
@@ -1469,11 +1552,14 @@ onBeforeUnmount(() => {
 }
 
 // ── 侧边栏 ──────────────────────────────────────────────────
+// 高度随 app-layout-body（顶栏已占 56px），勿用 100vh 否则底部折叠条会被 body 的 overflow 裁掉
 .sidebar {
   width: 240px;
-  height: 100vh;
-  background: vars.$layer-2;
-  border-right: 1px solid rgba(0, 212, 255, 0.12);
+  align-self: stretch;
+  min-height: 0;
+  // 图2：与旧版一致的 #001529 系侧栏底
+  background: #001529;
+  border-right: 1px solid rgba(0, 212, 255, 0.1);
   display: flex;
   flex-direction: column;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1483,22 +1569,33 @@ onBeforeUnmount(() => {
 
   &.collapsed {
     width: 64px;
+
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      // 相对面板左缘至右缘（红线）整宽居中，子项宽度收缩为图标列
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0 10px;
+    }
   }
 }
 
-// 侧栏底部：折叠主菜单
+// 侧栏底部：折叠主菜单（左对齐 + 固定左右 padding，避免完整/边条宽度变化时按钮水平漂移，便于同一点连点）
 .sidebar-collapse-bar {
   flex-shrink: 0;
   padding: 8px;
   border-top: 1px solid rgba(0, 212, 255, 0.08);
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
 }
 
 .collapse-btn {
   width: 32px;
   height: 32px;
+  appearance: none;
+  -webkit-appearance: none;
   background: rgba(0, 212, 255, 0.06);
   border: 1px solid rgba(0, 212, 255, 0.25);
   border-radius: 8px;
@@ -1521,12 +1618,14 @@ onBeforeUnmount(() => {
   }
 }
 
-// 导航区域
+// 导航区域（min-height:0 保证在 flex 列里可收缩，底部折叠条始终留在视口内）
 .sidebar-nav {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 12px 8px;
+  // 图2：整体更紧凑，行距接近字高
+  padding: 10px 8px;
 
   &::-webkit-scrollbar {
     width: 3px;
@@ -1540,57 +1639,69 @@ onBeforeUnmount(() => {
   }
 }
 
-// 分组标签
+// 分组标签（图2：小字、偏淡青、上下留白收紧）
 .menu-section-label {
   font-family: 'Noto Sans SC', sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  color: rgba(80, 187, 227, 0.5);
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  padding: 14px 10px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(100, 185, 230, 0.48);
+  letter-spacing: 0.4px;
+  text-transform: none;
+  padding: 8px 10px 3px;
   white-space: nowrap;
   overflow: hidden;
 }
 
-// 菜单项
-.menu-item {
+// 菜单项（含 SidebarMenuGroupFlyout / el-popover 内 button，scoped 需 :deep 否则出现白底默认按钮样式）
+.sidebar :deep(.menu-item) {
   display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 10px;
-  padding: 9px 10px;
-  border-radius: 8px;
+  gap: 8px;
+  // 主项：图标在左、文字在右；纵向略紧
+  padding: 4px 10px;
+  border-radius: 4px;
   cursor: pointer;
-  color: rgba(200, 220, 240, 0.7);
+  // 默认略压白，避免刺眼大白字
+  color: rgba(175, 200, 222, 0.9);
   text-decoration: none;
-  transition: all 0.2s;
+  transition: background 0.2s, color 0.2s;
   position: relative;
   width: 100%;
+  max-width: 100%;
   border: none;
   background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
   font-family: 'Noto Sans SC', sans-serif;
-  font-size: 13.5px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
-  margin-bottom: 2px;
+  margin-bottom: 0;
+  box-sizing: border-box;
 
   &:hover {
     background: rgba(0, 212, 255, 0.08);
-    color: #E8F4FF;
+    color: rgba(210, 232, 248, 0.95);
 
     .menu-icon svg {
-      stroke: #00D4FF;
+      stroke: #00d4ff;
     }
   }
 
-  &.active, &.router-link-active {
-    background: rgba(0, 102, 255, 0.2);
-    color: #E8F4FF;
-    border-left: 2px solid #00D4FF;
+  &.active,
+  &.router-link-active {
+    background: rgba(0, 212, 255, 0.14);
+    color: #7fdfff;
+    border-left: 2px solid #00d4ff;
     padding-left: 8px;
+    box-shadow: inset 0 0 20px rgba(0, 212, 255, 0.07);
 
     .menu-icon svg {
-      stroke: #00D4FF;
+      stroke: #00d4ff;
     }
   }
 
@@ -1602,66 +1713,142 @@ onBeforeUnmount(() => {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #00D4FF;
+    background: #00d4ff;
     margin-left: auto;
     flex-shrink: 0;
-    box-shadow: 0 0 6px #00D4FF;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.85);
+  }
+
+  .menu-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    svg {
+      width: 18px;
+      height: 18px;
+      stroke: rgba(0, 212, 255, 0.72);
+      transition: stroke 0.2s;
+    }
   }
 }
 
-.menu-icon {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
+// 边条模式：图标在面板宽度内水平居中；完整模式里 has-children 左对齐，此处后声明以覆盖
+.sidebar.collapsed :deep(.menu-item.has-children) {
   justify-content: center;
+}
 
-  svg {
-    width: 18px;
-    height: 18px;
-    stroke: rgba(80, 187, 227, 0.6);
-    transition: stroke 0.2s;
+.sidebar.collapsed :deep(.menu-item) {
+  justify-content: center;
+  margin-bottom: 0;
+  padding: 8px 0;
+  width: auto;
+  max-width: 100%;
+  box-sizing: border-box;
+
+  &.active,
+  &.router-link-active {
+    border-left: none;
+    padding: 8px 0;
   }
 }
 
-.menu-label {
+// 边条：触发器不再拉满整行，便于在 64px 面板内几何居中
+.sidebar.collapsed :deep(.el-tooltip__trigger) {
+  width: auto;
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.sidebar.collapsed :deep(.el-popover__reference-wrapper) {
+  width: auto;
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.sidebar.collapsed :deep(.menu-group) {
+  width: auto;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+// 财务区两个分组包在同一容器内，边条下与全局 gap 一致（已减半）
+.sidebar.collapsed .sidebar-nav-inline-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  width: auto;
+  align-self: center;
+}
+
+.sidebar :deep(.menu-label) {
   flex: 1;
+  min-width: 0;
   text-align: left;
+  font-size: 13px;
+  font-weight: 400;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.chevron {
+.sidebar :deep(.chevron) {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
   margin-left: auto;
   transition: transform 0.25s;
-  stroke: rgba(80, 187, 227, 0.5);
+  stroke: rgba(0, 212, 255, 0.5);
 
   &.rotated {
     transform: rotate(180deg);
   }
 }
 
-// 子菜单
-.submenu {
-  padding: 2px 0 2px 30px;
+// 子菜单（图2：缩进保留、上下留白收紧）
+.sidebar :deep(.submenu) {
+  padding: 2px 0 5px 28px;
   overflow: hidden;
+}
+
+// 侧栏内 el-tooltip（仅边条模式，由 SidebarMenuTooltipWrap 渲染）：去默认块样式
+.sidebar :deep(.el-tooltip__trigger) {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+}
+
+// el-popover 引用层不引入浅色底
+.sidebar :deep(.el-popover__reference-wrapper) {
+  display: block;
+  width: 100%;
+  background: transparent !important;
+  border: none;
+  padding: 0;
 }
 
 .submenu-item {
   display: block;
   width: 100%;
-  padding: 7px 10px;
-  border-radius: 6px;
-  color: rgba(180, 210, 230, 0.6);
+  padding: 4px 8px 4px 15px;
+  border-radius: 3px;
+  color: rgba(175, 200, 220, 0.82);
   text-decoration: none;
   font-family: 'Noto Sans SC', sans-serif;
   font-size: 12.5px;
-  transition: all 0.2s;
-  margin-bottom: 1px;
+  font-weight: 400;
+  line-height: 1.35;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+  margin-bottom: 0;
   position: relative;
   /* Reset button defaults */
   background: transparent;
@@ -1671,40 +1858,45 @@ onBeforeUnmount(() => {
   text-align: left;
   box-sizing: border-box;
 
+  // 旧版：空心小圆点（非实心填充）
   &::before {
     content: '';
     position: absolute;
-    left: 0;
+    left: 3px;
     top: 50%;
     transform: translateY(-50%);
-    width: 4px;
-    height: 4px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
-    background: rgba(80, 187, 227, 0.3);
-    transition: background 0.2s;
+    background: transparent;
+    border: 1px solid rgba(0, 212, 255, 0.38);
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
   }
 
   &:hover {
-    color: #E8F4FF;
-    background: rgba(0, 212, 255, 0.06);
+    color: #e8f4ff;
+    background: rgba(0, 212, 255, 0.05);
 
     &::before {
-      background: #00D4FF;
+      border-color: #00d4ff;
     }
   }
 
-  &.active, &.router-link-active {
-    color: #50BBE3;
+  &.active,
+  &.router-link-active {
+    color: #7fdfff;
+    background: rgba(0, 212, 255, 0.06);
 
     &::before {
-      background: #00D4FF;
-      box-shadow: 0 0 4px #00D4FF;
+      border-color: #00d4ff;
+      box-shadow: 0 0 8px rgba(0, 212, 255, 0.55);
     }
   }
 }
 
 .submenu-group {
-  margin-top: 6px;
+  margin-top: 2px;
 }
 
 .submenu-group-label {
@@ -1806,26 +1998,6 @@ onBeforeUnmount(() => {
 }
 
 // ── 工作区多栏（左辅 / 主内容 / 右辅）────────────────────────
-.sidebar-fab {
-  position: fixed;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10001;
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-  border: 1px solid rgba(0, 212, 255, 0.35);
-  background: vars.$layer-2;
-  color: #00d4ff;
-  font-size: 18px;
-  cursor: pointer;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
-  &:hover {
-    background: rgba(0, 212, 255, 0.12);
-  }
-}
-
 .workspace-cols {
   flex: 1;
   display: flex;
@@ -2406,5 +2578,51 @@ onBeforeUnmount(() => {
     opacity: 0.35;
     cursor: not-allowed;
   }
+}
+</style>
+
+<!-- 边条模式子菜单浮层 Teleport 到 body，需非 scoped -->
+<style lang="scss">
+.sidebar-menu-flyout-popper.el-popover,
+.sidebar-menu-flyout-popper.el-popper {
+  padding: 6px 0 !important;
+  background: #001529 !important;
+  border: 1px solid rgba(0, 212, 255, 0.18) !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5) !important;
+  border-radius: 8px !important;
+}
+
+.sidebar-menu-flyout-popper .sidebar-menu-flyout-body {
+  padding: 0 6px;
+  min-width: 0;
+}
+
+.sidebar-menu-flyout-popper .sidebar-menu-flyout-body .submenu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px 8px 16px;
+  border-radius: 4px;
+  color: rgba(200, 220, 240, 0.78);
+  text-decoration: none;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  transition: background 0.15s, color 0.15s;
+  margin-bottom: 2px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.sidebar-menu-flyout-popper .sidebar-menu-flyout-body .submenu-item:hover {
+  background: rgba(0, 212, 255, 0.06);
+  color: #e8f4ff;
+}
+
+.sidebar-menu-flyout-popper .sidebar-menu-flyout-body .submenu-item.router-link-active,
+.sidebar-menu-flyout-popper .sidebar-menu-flyout-body .submenu-item.active {
+  color: #7fdfff;
+  background: rgba(0, 212, 255, 0.08);
 }
 </style>

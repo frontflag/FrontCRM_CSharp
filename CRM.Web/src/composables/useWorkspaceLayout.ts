@@ -2,7 +2,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, provide, type Injecti
 
 const STORAGE_KEY = 'frontcrm_workspace_layout_v1'
 
-export type SidebarMode = 'full' | 'narrow' | 'hidden'
+export type SidebarMode = 'full' | 'narrow'
 
 export interface WorkspaceTabItem {
   id: string
@@ -65,8 +65,11 @@ export function useWorkspaceLayout() {
       const raw = localStorage.getItem(STORAGE_KEY)
       if (!raw) return
       const o = JSON.parse(raw) as Record<string, unknown>
-      if (o.sidebarMode === 'full' || o.sidebarMode === 'narrow' || o.sidebarMode === 'hidden') {
-        sidebarMode.value = o.sidebarMode
+      // 旧版曾保存 hidden，现仅支持 full / narrow
+      if (o.sidebarMode === 'narrow') {
+        sidebarMode.value = 'narrow'
+      } else {
+        sidebarMode.value = 'full'
       }
       if (typeof o.sidebarWidthPx === 'number') sidebarWidthPx.value = clamp(o.sidebarWidthPx, 200, 320)
       if (typeof o.leftPanelWidth === 'number') leftPanelWidth.value = clamp(o.leftPanelWidth, 160, 560)
@@ -106,9 +109,7 @@ export function useWorkspaceLayout() {
   const isSidebarCollapsed = computed(() => sidebarMode.value === 'narrow')
 
   const cycleSidebarMode = () => {
-    const order: SidebarMode[] = ['full', 'narrow', 'hidden']
-    const i = order.indexOf(sidebarMode.value)
-    sidebarMode.value = order[(i + 1) % order.length]
+    sidebarMode.value = sidebarMode.value === 'full' ? 'narrow' : 'full'
   }
 
   const toggleLeftPanel = (visible?: boolean) => {
