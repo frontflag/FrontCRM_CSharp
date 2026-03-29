@@ -67,6 +67,7 @@ declare module 'vue' {
     ElUpload: typeof import('element-plus/es')['ElUpload']
     HelpManualPanel: typeof import('./src/components/workspace/HelpManualPanel.vue')['default']
     PartyStatusIcons: typeof import('./src/components/party/PartyStatusIcons.vue')['default']
+    PurchaseOrderReportDocument: typeof import('./src/components/purchaseOrder/PurchaseOrderReportDocument.vue')['default']
     PurchaserCascader: typeof import('./src/components/PurchaserCascader.vue')['default']
     RecentHistoryList: typeof import('./src/components/workspace/RecentHistoryList.vue')['default']
     RFQFavoritePanel: typeof import('./src/components/RFQ/RFQFavoritePanel.vue')['default']

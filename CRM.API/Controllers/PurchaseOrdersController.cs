@@ -1,5 +1,9 @@
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Vendor;
 using CRM.API.Authorization;
+using CRM.API.Services;
+using CRM.API.Services.Interfaces;
+using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -13,17 +17,26 @@ namespace CRM.API.Controllers
         private readonly IPurchaseOrderService _service;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
+        private readonly IEntityLookupService _entityLookup;
+        private readonly IEmailSender _emailSender;
+        private readonly ApplicationDbContext _db;
         private readonly ILogger<PurchaseOrdersController> _logger;
 
         public PurchaseOrdersController(
             IPurchaseOrderService service,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
+            IEntityLookupService entityLookup,
+            IEmailSender emailSender,
+            ApplicationDbContext db,
             ILogger<PurchaseOrdersController> logger)
         {
             _service = service;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
+            _entityLookup = entityLookup;
+            _emailSender = emailSender;
+            _db = db;
             _logger = logger;
         }
 
@@ -60,8 +73,9 @@ namespace CRM.API.Controllers
             }
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(string id)
+        /// <summary>采购订单报表页：一次返回订单详情（含供应商扩展字段）与公司参数，避免单独请求 company-profile/report-bundle。</summary>
+        [HttpGet("{id}/report-data")]
+        public async Task<IActionResult> GetReportData(string id, CancellationToken cancellationToken)
         {
             try
             {
@@ -71,10 +85,124 @@ namespace CRM.API.Controllers
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
                     return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
                 var summary = await GetPermissionSummaryAsync(userId);
-                return Ok(new { success = true, data = MaskPurchaseOrder(order, summary) });
+                VendorContactInfo? contact = null;
+                VendorInfo? vendor = null;
+                var canVendor = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("vendor.info.read") ?? false);
+                if (canVendor)
+                {
+                    if (!string.IsNullOrWhiteSpace(order.VendorContactId))
+                        contact = await _entityLookup.GetVendorContactByIdAsync(order.VendorContactId, cancellationToken);
+                    if (!string.IsNullOrWhiteSpace(order.VendorId))
+                        vendor = await _entityLookup.GetVendorByIdAsync(order.VendorId, cancellationToken);
+                }
+                var companyProfile = await CompanyProfileBundleLoader.LoadAsync(_db, _logger, cancellationToken);
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        order = MaskPurchaseOrder(order, summary, contact, vendor),
+                        companyProfile
+                    }
+                });
             }
             catch (Exception ex)
             {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(string id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+                var summary = await GetPermissionSummaryAsync(userId);
+                VendorContactInfo? contact = null;
+                VendorInfo? vendor = null;
+                var canVendor = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("vendor.info.read") ?? false);
+                if (canVendor)
+                {
+                    if (!string.IsNullOrWhiteSpace(order.VendorContactId))
+                        contact = await _entityLookup.GetVendorContactByIdAsync(order.VendorContactId, cancellationToken);
+                    if (!string.IsNullOrWhiteSpace(order.VendorId))
+                        vendor = await _entityLookup.GetVendorByIdAsync(order.VendorId, cancellationToken);
+                }
+                return Ok(new { success = true, data = MaskPurchaseOrder(order, summary, contact, vendor) });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>将当前预览的采购订单 PDF（Base64）作为附件发送至指定邮箱。</summary>
+        [HttpPost("{id}/report/send-email")]
+        public async Task<IActionResult> SendReportEmail(string id, [FromBody] SendPurchaseOrderReportEmailRequest request, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.To))
+                    return BadRequest(new { success = false, message = "收件人邮箱不能为空" });
+                if (string.IsNullOrWhiteSpace(request.PdfBase64))
+                    return BadRequest(new { success = false, message = "PDF 内容不能为空" });
+
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+
+                var raw = request.PdfBase64.Trim();
+                var comma = raw.IndexOf(',');
+                if (raw.StartsWith("data:", StringComparison.OrdinalIgnoreCase) && comma > 0)
+                    raw = raw[(comma + 1)..];
+
+                byte[] pdfBytes;
+                try
+                {
+                    pdfBytes = Convert.FromBase64String(raw);
+                }
+                catch (FormatException)
+                {
+                    return BadRequest(new { success = false, message = "PDF 数据格式无效" });
+                }
+
+                const int maxBytes = 25 * 1024 * 1024;
+                if (pdfBytes.Length > maxBytes)
+                    return BadRequest(new { success = false, message = "附件过大" });
+
+                var fileName = string.IsNullOrWhiteSpace(request.FileName) ? $"{order.PurchaseOrderCode}.pdf" : request.FileName!.Trim();
+                if (!fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                    fileName += ".pdf";
+
+                var subject = string.IsNullOrWhiteSpace(request.Subject)
+                    ? $"采购订单 {order.PurchaseOrderCode}"
+                    : request.Subject!.Trim();
+
+                await _emailSender.SendWithAttachmentAsync(
+                    request.To.Trim(),
+                    subject,
+                    request.Body,
+                    pdfBytes,
+                    fileName,
+                    "application/pdf",
+                    cancellationToken);
+
+                return Ok(new { success = true, message = "邮件已发送" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "发送采购订单报表邮件失败");
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
@@ -204,7 +332,11 @@ namespace CRM.API.Controllers
             return await _rbacService.GetUserPermissionSummaryAsync(userId);
         }
 
-        private object MaskPurchaseOrder(CRM.Core.Models.Purchase.PurchaseOrder order, UserPermissionSummaryDto? summary)
+        private object MaskPurchaseOrder(
+            CRM.Core.Models.Purchase.PurchaseOrder order,
+            UserPermissionSummaryDto? summary,
+            VendorContactInfo? vendorContact = null,
+            VendorInfo? vendor = null)
         {
             var canViewVendorInfo = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("vendor.info.read") ?? false);
             var canViewPurchaseAmount = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("purchase.amount.read") ?? false);
@@ -218,6 +350,10 @@ namespace CRM.API.Controllers
                 VendorName = canViewVendorInfo ? order.VendorName : null,
                 VendorCode = canViewVendorInfo ? order.VendorCode : null,
                 VendorContactId = canViewVendorInfo ? order.VendorContactId : null,
+                VendorContactEmail = canViewVendorInfo ? vendorContact?.Email : null,
+                VendorContactName = canViewVendorInfo ? (vendorContact?.CName ?? vendorContact?.EName) : null,
+                VendorContactPhone = canViewVendorInfo ? (vendorContact?.Mobile ?? vendorContact?.Tel) : null,
+                VendorOfficeAddress = canViewVendorInfo ? vendor?.OfficeAddress : null,
                 order.PurchaseUserId,
                 order.PurchaseUserName,
                 order.Status,
@@ -270,5 +406,14 @@ namespace CRM.API.Controllers
     public class PurchaseOrderUpdateStatusRequest
     {
         public short Status { get; set; }
+    }
+
+    public class SendPurchaseOrderReportEmailRequest
+    {
+        public string To { get; set; } = string.Empty;
+        public string PdfBase64 { get; set; } = string.Empty;
+        public string? FileName { get; set; }
+        public string? Subject { get; set; }
+        public string? Body { get; set; }
     }
 }

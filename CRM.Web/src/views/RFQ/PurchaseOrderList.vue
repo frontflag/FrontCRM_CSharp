@@ -116,11 +116,12 @@
             {{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" min-width="400" fixed="right" class-name="op-col" label-class-name="op-col">
+        <el-table-column label="操作" min-width="480" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
             <div @click.stop @dblclick.stop>
               <div class="action-btns">
                 <el-button link type="primary" @click.stop="handleView(row)">详情</el-button>
+                <el-button link type="primary" @click.stop="handlePrintOrder(row)">打印订单</el-button>
                 <el-button link type="primary" @click.stop="handleEdit(row)">编辑</el-button>
                 <el-button
                   v-if="row.status < 10"
@@ -326,6 +327,10 @@ const handleEdit = (row: any) => {
 // 查看
 const handleView = (row: any) => {
   router.push({ name: 'PurchaseOrderDetail', params: { id: row.id } })
+}
+
+const handlePrintOrder = (row: any) => {
+  router.push({ name: 'PurchaseOrderReport', params: { id: row.id } })
 }
 
 /** 供应商确认：待确认(20) -> 已确认(30) */

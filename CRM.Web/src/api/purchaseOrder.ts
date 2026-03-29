@@ -19,6 +19,11 @@ export const purchaseOrderApi = {
     return await apiClient.get(`/api/v1/purchase-orders/${id}`)
   },
 
+  /** 报表页：订单 + 公司参数（单请求，不依赖 company-profile/report-bundle） */
+  async getReportData(id: string) {
+    return await apiClient.get(`/api/v1/purchase-orders/${id}/report-data`)
+  },
+
   // 根据销售订单号获取采购订单
   async getBySellOrder(sellOrderCode: string) {
     return await apiClient.get(`/api/v1/purchase-orders/by-sell-order/${sellOrderCode}`)

@@ -344,6 +344,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '新建采购订单' }
       },
       {
+        path: 'purchase-orders/:id/report',
+        name: 'PurchaseOrderReport',
+        component: () => import('@/views/RFQ/PurchaseOrderReportPage.vue'),
+        meta: { requiresAuth: true, title: '采购订单报表' }
+      },
+      {
         path: 'purchase-orders/:id/edit',
         name: 'PurchaseOrderEdit',
         component: () => import('@/views/RFQ/PurchaseOrderCreate.vue'),
@@ -522,6 +528,12 @@ const routes: RouteRecordRaw[] = [
         name: 'DepartmentDetail',
         component: () => import('@/views/System/DepartmentDetail.vue'),
         meta: { requiresAuth: true, title: '部门详情', permission: 'rbac.manage' }
+      },
+      {
+        path: 'system/company-info',
+        name: 'CompanyInfo',
+        component: () => import('@/views/System/CompanyInfoView.vue'),
+        meta: { requiresAuth: true, title: '公司信息', permission: 'rbac.manage' }
       },
       // 财务模块
       {

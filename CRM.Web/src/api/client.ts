@@ -98,6 +98,18 @@ class ApiClient {
     return this.instance.get(url, config)
   }
 
+  /**
+   * 下载/预览二进制。
+   * 注意：响应拦截器在「无 JSON 信封」时直接 return data，对 blob 请求会得到 Blob 本身而非 AxiosResponse，故需兼容两种形态。
+   */
+  public getBlob(url: string): Promise<Blob> {
+    return this.instance.get(url, { responseType: 'blob' }).then((res: unknown) => {
+      const d = res instanceof Blob ? res : (res as AxiosResponse<Blob>)?.data
+      if (d instanceof Blob) return d
+      return Promise.reject(new Error('无效的 Blob 响应'))
+    })
+  }
+
   public post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     return this.instance.post(url, data, config)
   }

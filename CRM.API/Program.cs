@@ -45,7 +45,9 @@ try
         c.DocumentTitle = "FrontCRM API 文档";
     });
 
-    app.UseHttpsRedirection();
+    // 仅 HTTP 启动（如 launch profile「http」）时无 HTTPS 端口，UseHttpsRedirection 会报 WRN「Failed to determine the https port」
+    if (!app.Environment.IsDevelopment())
+        app.UseHttpsRedirection();
 
     app.UseAuthentication();
     app.UseAuthorization();

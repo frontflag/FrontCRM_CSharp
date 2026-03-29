@@ -16,11 +16,20 @@ interface User {
   purchaseDataScope?: number
 }
 
+function readUserFromStorage(): User | null {
+  const raw = localStorage.getItem('user')
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as User
+  } catch {
+    localStorage.removeItem('user')
+    return null
+  }
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('token'))
-  const user = ref<User | null>(
-    localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null
-  )
+  const user = ref<User | null>(readUserFromStorage())
   const loading = ref(false)
 
   const isAuthenticated = computed(() => !!token.value)

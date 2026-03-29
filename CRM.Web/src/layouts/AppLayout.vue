@@ -653,6 +653,48 @@
           </template>
         </SidebarMenuGroupFlyout>
 
+        <SidebarMenuGroupFlyout
+          v-if="hasPermission('rbac.manage')"
+          :collapsed="isCollapsed"
+          :expanded="openGroups.paramManagement"
+          @toggle="toggleGroup('paramManagement')"
+        >
+          <template #icon>
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <line x1="4" y1="21" x2="4" y2="14"/>
+                <line x1="4" y1="10" x2="4" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12" y2="3"/>
+                <line x1="20" y1="21" x2="20" y2="16"/>
+                <line x1="20" y1="12" x2="20" y2="3"/>
+                <line x1="1" y1="14" x2="7" y2="14"/>
+                <line x1="9" y1="8" x2="15" y2="8"/>
+                <line x1="17" y1="16" x2="23" y2="16"/>
+              </svg>
+            </span>
+          </template>
+          <template #label>
+            <span class="menu-label" v-if="!isCollapsed">参数管理</span>
+          </template>
+          <template #chevron>
+            <svg
+              v-if="!isCollapsed"
+              class="chevron"
+              :class="{ rotated: openGroups.paramManagement }"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </template>
+          <template #submenu>
+            <router-link to="/system/company-info" class="submenu-item" active-class="active" exact>公司信息</router-link>
+          </template>
+        </SidebarMenuGroupFlyout>
+
         <!-- 系统 -->
         <div class="menu-section-label" v-if="!isCollapsed">系统</div>
 
@@ -1068,7 +1110,8 @@ const openGroups = ref({
   finance: false,
   financePayments: false,
   financeReceipts: false,
-  systemManagement: false
+  systemManagement: false,
+  paramManagement: false
 })
 
 const expandAllGroups = () => {
@@ -1086,14 +1129,15 @@ const expandAllGroups = () => {
     finance: true,
     financePayments: true,
     financeReceipts: true,
-    systemManagement: true
+    systemManagement: true,
+    paramManagement: true
   }
 }
 
 const toggleCollapse = () => {
   cycleSidebarMode()
   if (sidebarMode.value === 'narrow') {
-    openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, financePayments: false, financeReceipts: false, systemManagement: false }
+    openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, financePayments: false, financeReceipts: false, systemManagement: false, paramManagement: false }
   } else if (sidebarMode.value === 'full' && isSysAdmin.value) {
     expandAllGroups()
   }
@@ -1133,6 +1177,7 @@ const pageTitleMap: Record<string, string> = {
   '/system/permissions/create': '新增权限',
   '/system/departments': '部门管理',
   '/system/departments/create': '新增部门',
+  '/system/company-info': '公司信息',
   '/inventory/list': '库存列表',
   '/inventory/stock-in': '入库管理',
   '/inventory/stock-out': '出库管理',
@@ -1163,6 +1208,7 @@ const pageTitleMap: Record<string, string> = {
 const currentPageTitle = computed(() => {
   const path = route.path
   if (pageTitleMap[path]) return pageTitleMap[path]
+  if (/^\/purchase-orders\/[^/]+\/report$/.test(path)) return '采购订单报表'
   if (/^\/quotes\/[^/]+\/edit$/.test(path)) return '编辑报价'
   if (path.includes('/customers/') && path.includes('/edit')) return '编辑客户'
   if (path.includes('/customers/')) return '客户详情'
@@ -1262,6 +1308,9 @@ watch(
     }
     if (p.startsWith('/system/')) {
       openGroups.value.systemManagement = true
+    }
+    if (p === '/system/company-info') {
+      openGroups.value.paramManagement = true
     }
   },
   { immediate: true }

@@ -1,0 +1,102 @@
+/**
+ * 采购订单报表页打印：仅输出 .po-doc，隐藏壳层（顶栏/菜单/页签/左右面板等）。
+ * 需在报表页挂载时给 body 加上类名 po-order-report-print。
+ */
+@media print {
+  @page {
+    margin: 10mm;
+    size: A4 portrait;
+  }
+
+  body.po-order-report-print {
+    background: #fff !important;
+  }
+
+  body.po-order-report-print #app,
+  body.po-order-report-print .app-layout {
+    background: #fff !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  body.po-order-report-print .global-top-bar,
+  body.po-order-report-print .sidebar,
+  body.po-order-report-print .sidebar-collapse-bar,
+  body.po-order-report-print .app-layout-body > .col-splitter,
+  body.po-order-report-print .aux-panel,
+  body.po-order-report-print .workspace-cols > .col-splitter,
+  body.po-order-report-print .main-chrome-bar,
+  body.po-order-report-print .context-menu {
+    display: none !important;
+  }
+
+  body.po-order-report-print .app-layout-body {
+    display: block !important;
+  }
+
+  body.po-order-report-print .workspace-cols {
+    display: block !important;
+  }
+
+  body.po-order-report-print .main-content {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  body.po-order-report-print .content-wrapper {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+
+  body.po-order-report-print .el-loading-parent--relative .el-loading-mask,
+  body.po-order-report-print .el-loading-mask {
+    display: none !important;
+  }
+
+  body.po-order-report-print .el-overlay,
+  body.po-order-report-print .el-dialog__wrapper {
+    display: none !important;
+  }
+
+  body.po-order-report-print .po-report-page {
+    padding: 0 !important;
+    background: #fff !important;
+    min-height: 0 !important;
+  }
+
+  body.po-order-report-print .po-report-page .no-print {
+    display: none !important;
+  }
+
+  body.po-order-report-print .preview-wrap {
+    min-height: 0 !important;
+  }
+
+  body.po-order-report-print .print-root {
+    background: #fff !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+  }
+
+  body.po-order-report-print .po-doc {
+    box-shadow: none !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  body.po-order-report-print .po-doc th,
+  body.po-order-report-print .po-doc .po-doc__tri th,
+  body.po-order-report-print .po-doc .po-doc__addon-bar {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

@@ -93,6 +93,8 @@ namespace CRM.API.Extensions
             services.AddScoped<IWechatBindRequestRepository, CRM.Infrastructure.Repositories.WechatBindRequestRepository>();
             services.AddHttpClient();
 
+            services.AddScoped<IEmailSender, SmtpEmailSender>();
+
             services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll", policy =>
