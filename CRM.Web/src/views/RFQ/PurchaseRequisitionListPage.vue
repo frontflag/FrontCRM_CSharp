@@ -31,7 +31,7 @@
     </el-card>
 
     <el-card class="table-card">
-      <CrmDataTable :data="list" v-loading="loading" highlight-current-row>
+      <CrmDataTable :data="list" v-loading="loading" highlight-current-row @row-dblclick="handleView">
         <el-table-column prop="billCode" label="采购申请号" width="160" min-width="160" show-overflow-tooltip />
         <el-table-column prop="status" label="状态" width="160" align="center">
           <template #default="{ row }">
@@ -66,12 +66,16 @@
             {{ row.createUserName || row.createdBy || row.purchaseUserName || row.purchaseUserId || '--' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleView(row)">查看</el-button>
-            <el-button link type="success" size="small" @click="handleGeneratePurchaseOrder(row)">
-              生成采购订单
-            </el-button>
+            <div @click.stop @dblclick.stop>
+              <div class="action-btns">
+                <el-button link type="primary" @click.stop="handleView(row)">查看</el-button>
+                <el-button link type="warning" size="small" @click.stop="handleGeneratePurchaseOrder(row)">
+                  生成采购订单
+                </el-button>
+              </div>
+            </div>
           </template>
         </el-table-column>
       </CrmDataTable>

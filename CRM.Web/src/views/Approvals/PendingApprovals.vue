@@ -45,7 +45,7 @@
       <button class="segment-item" :class="{ 'is-active': activeState === 'rejected' }" @click="switchState('rejected')">审核拒绝 ({{ rejectedCount }})</button>
     </div>
 
-    <CrmDataTable :data="approvalList" v-loading="loading" highlight-current-row>
+    <CrmDataTable :data="approvalList" v-loading="loading" highlight-current-row @row-dblclick="handleView">
       <el-table-column label="业务类型" width="100">
         <template #default="{ row }">
           <el-tag effect="dark" :type="getBizTypeTagType(row.bizType)" size="small">
@@ -82,15 +82,17 @@
           {{ row.submitter || '—' }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column label="操作" width="180" fixed="right" class-name="op-col" label-class-name="op-col">
         <template #default="{ row }">
-          <div class="action-btns">
-            <template v-if="activeState === 'pending'">
-              <el-button link type="primary" size="small" @click="openAuditDialog(row)">
-                审核
-              </el-button>
-            </template>
-            <el-button v-else link type="primary" size="small" @click="handleView(row)">详情</el-button>
+          <div @click.stop @dblclick.stop>
+            <div class="action-btns">
+              <template v-if="activeState === 'pending'">
+                <el-button link type="primary" size="small" @click.stop="openAuditDialog(row)">
+                  审核
+                </el-button>
+              </template>
+              <el-button v-else link type="primary" size="small" @click.stop="handleView(row)">详情</el-button>
+            </div>
           </div>
         </template>
       </el-table-column>

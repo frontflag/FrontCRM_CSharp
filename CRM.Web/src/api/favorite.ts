@@ -22,6 +22,13 @@ export const favoriteApi = {
     });
     const payload = res && typeof res === 'object' && 'data' in res ? res.data : res;
     return Array.isArray(payload?.entityIds) ? payload.entityIds : [];
+  },
+
+  async checkFavorite(entityType: string, entityId: string): Promise<boolean> {
+    const payload = await apiClient.get<{ isFavorite?: boolean }>('/api/v1/favorites/check', {
+      params: { entityType, entityId }
+    });
+    return Boolean(payload?.isFavorite);
   }
 };
 

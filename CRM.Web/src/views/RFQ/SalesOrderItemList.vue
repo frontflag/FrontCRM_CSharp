@@ -64,6 +64,7 @@
       v-loading="loading"
       row-key="sellOrderItemId"
       @selection-change="onSelectionChange"
+      @row-dblclick="goDetail"
     >
         <el-table-column type="selection" width="48" :reserve-selection="true" />
         <el-table-column prop="sellOrderCode" label="销售单号" width="160" min-width="160" show-overflow-tooltip />
@@ -98,12 +99,16 @@
         <el-table-column label="创建人" width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.createUserName || row.createdBy || row.salesUserName || '—' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right" align="center">
+        <el-table-column label="操作" width="280" fixed="right" align="center" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click.stop="goDetail(row)">详情</el-button>
-            <el-button v-if="canWriteSo" link type="primary" size="small" @click.stop="goEdit(row)">编辑</el-button>
-            <el-button v-if="canPurchaseReq" link type="success" size="small" @click.stop="applyPurchaseOne(row)">申请采购</el-button>
-            <el-button v-if="canWriteSo" link type="warning" size="small" @click.stop="applyStockOutOne(row)">申请出库</el-button>
+            <div @click.stop @dblclick.stop>
+              <div class="action-btns">
+                <el-button link type="primary" size="small" @click.stop="goDetail(row)">详情</el-button>
+                <el-button v-if="canWriteSo" link type="primary" size="small" @click.stop="goEdit(row)">编辑</el-button>
+                <el-button v-if="canPurchaseReq" link type="warning" size="small" @click.stop="applyPurchaseOne(row)">申请采购</el-button>
+                <el-button v-if="canWriteSo" link type="warning" size="small" @click.stop="applyStockOutOne(row)">申请出库</el-button>
+              </div>
+            </div>
           </template>
         </el-table-column>
     </CrmDataTable>
@@ -567,31 +572,5 @@ onMounted(() => loadList())
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
-}
-
-/* 操作列固定浮层：强制不透明，避免与下层文字重叠 */
-.so-item-list-page :deep(.el-table__fixed-right),
-.so-item-list-page :deep(.el-table__fixed-right-patch),
-.so-item-list-page :deep(.el-table__fixed-right .el-table__fixed-header-wrapper),
-.so-item-list-page :deep(.el-table__fixed-right .el-table__fixed-body-wrapper),
-.so-item-list-page :deep(.el-table__fixed-right table),
-.so-item-list-page :deep(.el-table__fixed-right tr),
-.so-item-list-page :deep(.el-table__fixed-right th.el-table__cell),
-.so-item-list-page :deep(.el-table__fixed-right td.el-table__cell),
-.so-item-list-page :deep(.el-table__fixed-right .cell),
-.so-item-list-page :deep(.el-table .el-table-fixed-column--right),
-.so-item-list-page :deep(.el-table .el-table-fixed-column--right .cell) {
-  background: $layer-2 !important;
-}
-
-/* hover 时固定列保持不透明 */
-.so-item-list-page :deep(.el-table__fixed-right .el-table__row:hover td.el-table__cell),
-.so-item-list-page :deep(.el-table__fixed-right .el-table__row.hover-row td.el-table__cell) {
-  background: $layer-2 !important;
-}
-
-/* 固定列与普通列的边界阴影（黑色系） */
-.so-item-list-page :deep(.el-table__fixed-right) {
-  box-shadow: -12px 0 18px -10px rgba(0, 0, 0, 0.72) !important;
 }
 </style>

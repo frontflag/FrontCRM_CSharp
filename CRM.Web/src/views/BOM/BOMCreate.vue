@@ -81,10 +81,12 @@
               <el-col :span="12">
                 <el-form-item label="结算货币">
                   <el-select v-model="formData.currency" placeholder="RMB" class="w-full">
-                    <el-option label="RMB（人民币）" value="RMB" />
-                    <el-option label="USD（美元）" value="USD" />
-                    <el-option label="EUR（欧元）" value="EUR" />
-                    <el-option label="HKD（港币）" value="HKD" />
+                    <el-option
+                      v-for="opt in SETTLEMENT_CURRENCY_STRING_OPTIONS"
+                      :key="opt.value"
+                      :label="opt.label"
+                      :value="opt.value"
+                    />
                   </el-select>
                 </el-form-item>
               </el-col>
@@ -221,6 +223,7 @@ import * as XLSX from 'xlsx'
 import { bomApi } from '@/api/bom'
 import type { BOM, CreateBOMItemRequest } from '@/types/bom'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
+import { SETTLEMENT_CURRENCY_STRING_OPTIONS } from '@/constants/currency'
 
 const router = useRouter()
 

@@ -43,6 +43,18 @@
     color: $text-secondary;
   }
 
+  /* 末列（操作列）：第 3 层面板底 + 左侧细分隔线，与客户/供应商列表一致 */
+  thead th:last-child,
+  tbody td:last-child {
+    background: $layer-3 !important;
+    box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.1);
+  }
+
+  tbody tr:hover td:last-child {
+    background: linear-gradient(0deg, rgba(0, 212, 255, 0.065), rgba(0, 212, 255, 0.065)), $layer-3 !important;
+    box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.14);
+  }
+
   tbody tr:last-child td {
     border-bottom: none !important;
   }
@@ -142,6 +154,95 @@
 
   .el-table__fixed-right-patch {
     border-left: none !important;
+  }
+
+  // --- 操作列：与客户列表 CustomerList 末列 .action-btns / .action-btn 一致（含行悬停显隐）---
+  td.op-col .cell,
+  th.op-col .cell {
+    overflow: hidden;
+  }
+
+  .action-btns {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+    flex-wrap: nowrap;
+  }
+
+  .el-table__body-wrapper .el-table__body tr:hover .action-btns,
+  .el-table__fixed-body-wrapper .el-table__body tr:hover .action-btns,
+  .el-table__body-wrapper .el-table__body tr.hover-row .action-btns,
+  .el-table__fixed-body-wrapper .el-table__body tr.hover-row .action-btns {
+    opacity: 1;
+  }
+
+  .action-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    font-family: 'Noto Sans SC', sans-serif;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+
+    &--primary {
+      background: rgba(0, 102, 255, 0.12);
+      border: 1px solid rgba(0, 212, 255, 0.35);
+      color: $cyan-primary;
+
+      &:hover {
+        background: rgba(0, 102, 255, 0.2);
+        border-color: rgba(0, 212, 255, 0.5);
+      }
+    }
+
+    &--danger {
+      background: rgba(201, 87, 69, 0.08);
+      border: 1px solid rgba(201, 87, 69, 0.2);
+      color: #c95745;
+
+      &:hover {
+        background: rgba(201, 87, 69, 0.15);
+        border-color: rgba(201, 87, 69, 0.4);
+      }
+    }
+
+    &--warning {
+      background: rgba(201, 154, 69, 0.12);
+      border: 1px solid rgba(201, 154, 69, 0.35);
+      color: $color-amber;
+
+      &:hover {
+        background: rgba(201, 154, 69, 0.2);
+        border-color: rgba(201, 154, 69, 0.5);
+      }
+    }
+
+    &--success {
+      background: rgba(46, 160, 67, 0.12);
+      border: 1px solid rgba(70, 191, 145, 0.35);
+      color: #5fd4a8;
+
+      &:hover {
+        background: rgba(46, 160, 67, 0.2);
+        border-color: rgba(70, 191, 145, 0.5);
+      }
+    }
+
+    &--info {
+      background: rgba(120, 140, 160, 0.1);
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      color: rgba(200, 216, 232, 0.85);
+
+      &:hover {
+        background: rgba(120, 140, 160, 0.16);
+        border-color: rgba(148, 163, 184, 0.42);
+      }
+    }
   }
 }
 

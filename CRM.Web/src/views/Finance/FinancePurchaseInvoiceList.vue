@@ -64,7 +64,7 @@
     <CrmDataTable
       :data="tableData"
       v-loading="loading"
-      @row-click="openDetail"
+      @row-dblclick="openDetail"
       row-class-name="table-row-pointer"
     >
         <el-table-column prop="financePurchaseInvoiceCode" label="发票单号" width="160" min-width="160" fixed>
@@ -112,11 +112,15 @@
         <el-table-column label="创建人" width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '-' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column label="操作" width="120" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
-            <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
-            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="row.invoiceStatus === 1">编辑</el-button>
-            <el-button size="small" text type="danger" @click.stop="voidInvoice(row)" v-if="row.invoiceStatus === 100">作废</el-button>
+            <div @click.stop @dblclick.stop>
+              <div class="action-btns">
+                <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
+                <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="row.invoiceStatus === 1">编辑</el-button>
+                <el-button size="small" text type="danger" @click.stop="voidInvoice(row)" v-if="row.invoiceStatus === 100">作废</el-button>
+              </div>
+            </div>
           </template>
         </el-table-column>
     </CrmDataTable>
@@ -179,7 +183,12 @@
           <el-col :span="12">
             <el-form-item label="币别">
               <el-select v-model="form.currency" style="width:100%">
-                <el-option v-for="(v, k) in CURRENCY_MAP" :key="k" :label="v" :value="Number(k)" />
+                <el-option
+                  v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
+                  :key="opt.value"
+                  :label="opt.label"
+                  :value="opt.value"
+                />
               </el-select>
             </el-form-item>
           </el-col>
@@ -210,10 +219,10 @@ import {
   PAYMENT_DONE_STATUS_MAP,
   PURCHASE_INVOICE_TYPE_MAP,
   INVOICE_TYPE_MAP,
-  CURRENCY_MAP,
   type FinancePurchaseInvoice,
   type PageQuery,
 } from '@/api/finance'
+import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()

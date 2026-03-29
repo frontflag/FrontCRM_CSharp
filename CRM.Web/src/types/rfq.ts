@@ -42,27 +42,29 @@ export enum RFQSource {
   Import = 5,       // 导入
 }
 
-// 需求类型
+// 需求类型（与 rfqFormEnums / DB rfq_type 一致）
 export enum RFQType {
-  Spot = 1,         // 现货
-  Future = 2,       // 期货
-  Sample = 3,       // 样品
-  Bulk = 4,         // 批量
+  Spot = 1, // 现货
+  Scheduled = 2, // 排单
+  Agency = 3, // 代理
+  SelfOperated = 4, // 自营
+  InfoService = 5 // 信息服务
 }
 
-// 报价方式
+// 报价方式（与 rfqFormEnums / DB quote_method 一致）
 export enum QuoteMethod {
-  NoQuote = 1,      // 不接受任何消息
-  EmailOnly = 2,    // 仅邮件
-  SystemOnly = 3,   // 仅系统
-  All = 4,          // 全部方式
+  None = 1, // 不接受任何消息
+  SystemPush = 2, // 系统推送
+  Email = 3, // 邮件
+  Sms = 4 // 短信
 }
 
-// 分配方式
+// 分配方式（与 rfqFormEnums / DB assign_method 一致）
 export enum AssignMethod {
-  SystemMulti = 1,  // 系统分配多人采购
-  SystemSingle = 2, // 系统分配单人采购
-  Manual = 3,       // 手动分配
+  SamePurchaser = 1, // 系统分配同一采购
+  MultiPurchaser = 2, // 系统分配多人采购
+  SameBrandSamePurchaser = 3, // 相同品牌分配同一采购
+  DesignatedPurchaser = 4 // 指定采购员
 }
 
 // 目标类型
@@ -91,7 +93,7 @@ export interface RFQ {
   salesUserName?: string
 
   // 需求信息
-  rfqType?: RFQType                  // 需求类型（现货/期货等）
+  rfqType?: RFQType                  // 需求类型（见 rfqFormEnums）
   quoteMethod?: QuoteMethod          // 报价方式
   assignMethod?: AssignMethod        // 分配方式
   industry?: string                  // 行业
@@ -247,6 +249,8 @@ export interface RFQItemSearchRequest {
   customerKeyword?: string
   materialModel?: string
   customerMaterialModel?: string
+  /** 主表业务员用户 ID（与 auth sales-users-tree 范围一致，由前端下拉传入） */
+  salesUserId?: string
   salesUserKeyword?: string
   status?: RFQItemStatus | ''
   startDate?: string

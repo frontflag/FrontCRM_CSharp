@@ -20,12 +20,12 @@
     </div>
 
     <!-- 表单卡片 -->
-    <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px" class="create-form">
+    <el-form ref="formRef" :model="formData" :rules="formRules" label-width="108px" class="create-form">
 
-      <!-- 基本信息 -->
+      <!-- 基础信息 -->
       <div class="form-section">
         <div class="section-title">
-          <span class="title-bar"></span>基本信息
+          <span class="title-bar"></span>基础信息
         </div>
         <el-row :gutter="24">
           <el-col :span="12">
@@ -64,6 +64,34 @@
         </el-row>
         <el-row :gutter="24">
           <el-col :span="12">
+            <el-form-item label="客户联系人">
+              <el-select
+                v-model="formData.contactId"
+                placeholder="请先选择客户"
+                clearable
+                filterable
+                style="width: 100%"
+                class="q-select"
+                :disabled="!formData.customerId"
+                @change="onContactChange"
+              >
+                <el-option
+                  v-for="c in contactOptions"
+                  :key="c.value"
+                  :label="c.label"
+                  :value="c.value"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="联系人邮箱">
+              <el-input v-model="formData.contactEmail" placeholder="选择联系人可自动带出，也可手填" class="q-input" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="24">
+          <el-col :span="12">
             <el-form-item label="业务员">
               <SalesUserCascader
                 v-model="formData.salesUserId"
@@ -73,32 +101,24 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="联系邮箱">
-              <el-input v-model="formData.contactEmail" placeholder="请输入联系邮箱" class="q-input" />
-            </el-form-item>
-          </el-col>
         </el-row>
-        <el-row :gutter="24">
-          <el-col :span="12">
-            <el-form-item label="产品">
-              <el-input v-model="formData.product" placeholder="请输入产品名称" class="q-input" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="行业">
-              <el-input v-model="formData.industry" placeholder="请输入行业" class="q-input" />
-            </el-form-item>
-          </el-col>
-        </el-row>
+      </div>
+
+      <!-- 需求信息 -->
+      <div class="form-section">
+        <div class="section-title">
+          <span class="title-bar"></span>需求信息
+        </div>
         <el-row :gutter="24">
           <el-col :span="8">
-            <el-form-item label="需求类型">
-              <el-select v-model="formData.rfqType" style="width: 100%" class="q-select">
-                <el-option label="现货" :value="1" />
-                <el-option label="期货" :value="2" />
-                <el-option label="样品" :value="3" />
-                <el-option label="批量" :value="4" />
+            <el-form-item label="需求类型" prop="rfqType">
+              <el-select
+                v-model="formData.rfqType"
+                placeholder="请选择需求类型"
+                style="width: 100%"
+                class="q-select"
+              >
+                <el-option v-for="o in RFQ_TYPE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -113,106 +133,201 @@
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="重要程度">
-              <div class="importance-wrap">
-                <el-rate
-                  v-model="formData.importance"
-                  :max="5"
-                  :colors="['#C99A45', '#C99A45', '#C99A45']"
-                  void-color="rgba(200,216,232,0.2)"
-                  class="q-rate"
-                />
-                <span class="importance-label">{{ formData.importance }} 星</span>
-              </div>
+            <el-form-item prop="quoteMethod">
+              <template #label>
+                <span class="rfq-field-label">
+                  报价方式
+                  <el-tooltip content="选择报价结果与通知的触达方式（系统推送 / 邮件 / 短信等）" placement="top">
+                    <el-icon class="rfq-label-help" aria-hidden="true"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </span>
+              </template>
+              <el-select
+                v-model="formData.quoteMethod"
+                placeholder="请选择报价方式"
+                style="width: 100%"
+                class="q-select"
+              >
+                <el-option v-for="o in QUOTE_METHOD_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="24">
+          <el-col :span="8">
+            <el-form-item prop="assignMethod">
+              <template #label>
+                <span class="rfq-field-label">
+                  分配方式
+                  <el-tooltip content="询价明细如何分配给采购员（同一采购、多人、按品牌或指定人员）" placement="top">
+                    <el-icon class="rfq-label-help" aria-hidden="true"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </span>
+              </template>
+              <el-select
+                v-model="formData.assignMethod"
+                placeholder="请选择分配方式"
+                style="width: 100%"
+                class="q-select"
+              >
+                <el-option v-for="o in ASSIGN_METHOD_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="行业">
+              <el-input v-model="formData.industry" placeholder="请输入行业" class="q-input" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="产品">
+              <el-input v-model="formData.product" placeholder="请输入产品" class="q-input" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="24" class="rfq-row-bg-comp-importance">
+          <el-col :span="8">
+            <el-form-item label="背景">
+              <el-input v-model="formData.projectBackground" type="textarea" :rows="2" placeholder="请输入背景" class="q-input" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="竞争对手">
+              <el-input v-model="formData.competitor" placeholder="请输入竞争对手" class="q-input" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="重要程度" class="importance-inline-item">
+              <el-rate
+                v-model="formData.importance"
+                :max="5"
+                :colors="['#C99A45', '#C99A45', '#C99A45']"
+                void-color="rgba(200,216,232,0.2)"
+                class="q-rate"
+              />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="24">
           <el-col :span="24">
-            <el-form-item label="项目背景">
-              <el-input v-model="formData.projectBackground" type="textarea" :rows="2" placeholder="请输入项目背景" class="q-input" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="24">
-          <el-col :span="12">
-            <el-form-item label="竞争对手">
-              <el-input v-model="formData.competitor" placeholder="请输入竞争对手" class="q-input" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
             <el-form-item label="备注">
-              <el-input v-model="formData.remark" placeholder="请输入备注" class="q-input" />
+              <el-input v-model="formData.remark" type="textarea" :rows="2" placeholder="请输入备注" class="q-input" />
             </el-form-item>
           </el-col>
         </el-row>
       </div>
 
-      <!-- 需求明细 -->
+      <!-- 物料明细 -->
       <div class="form-section">
         <div class="section-title">
-          <span class="title-bar"></span>需求明细
+          <span class="title-bar"></span>物料明细
           <el-button type="primary" size="small" class="add-item-btn" @click="addItem">
             <el-icon><Plus /></el-icon> 添加明细
           </el-button>
         </div>
-        <el-table :data="formData.items" size="small" class="items-table">
-          <el-table-column type="index" width="50" label="#" align="center" />
-          <el-table-column label="物料型号(MPN)" min-width="160">
-            <template #default="{ $index }">
-              <el-input v-model="formData.items[$index].mpn" placeholder="请输入MPN" class="q-input" />
-            </template>
-          </el-table-column>
-          <el-table-column label="品牌" width="120">
-            <template #default="{ $index }">
-              <el-input v-model="formData.items[$index].brand" placeholder="品牌" class="q-input" />
-            </template>
-          </el-table-column>
-          <el-table-column label="客户料号" width="120">
-            <template #default="{ $index }">
-              <el-input v-model="formData.items[$index].customerMpn" placeholder="客户料号" class="q-input" />
-            </template>
-          </el-table-column>
-          <el-table-column label="数量" width="110">
-            <template #default="{ $index }">
-              <el-input-number
-                v-model="formData.items[$index].quantity"
-                :min="1"
-                :controls="false"
-                style="width: 100%"
-                class="q-number"
-              />
-            </template>
-          </el-table-column>
-          <el-table-column label="目标价" width="120">
-            <template #default="{ $index }">
-              <el-input-number
-                v-model="formData.items[$index].targetPrice"
-                :min="0"
-                :precision="4"
-                :controls="false"
-                style="width: 100%"
-                class="q-number"
-              />
-            </template>
-          </el-table-column>
-          <el-table-column label="币别" width="110">
-            <template #default="{ $index }">
-              <el-select v-model="formData.items[$index].priceCurrency" style="width: 100%" class="q-select">
-                <el-option label="RMB" :value="1" />
-                <el-option label="USD" :value="2" />
-                <el-option label="EUR" :value="3" />
-              </el-select>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="80" align="center">
-            <template #default="{ $index }">
-              <el-button link type="danger" @click="removeItem($index)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <div class="items-table-wrap">
+          <el-table :data="formData.items" size="small" class="items-table">
+            <el-table-column label="客户物料型号" min-width="130">
+              <template #default="{ $index }">
+                <el-input v-model="formData.items[$index].customerMpn" placeholder="客户物料型号" class="q-input" />
+              </template>
+            </el-table-column>
+            <el-table-column label="客户品牌" min-width="100">
+              <template #default="{ $index }">
+                <el-input v-model="formData.items[$index].customerBrand" placeholder="客户品牌" class="q-input" />
+              </template>
+            </el-table-column>
+            <el-table-column label="物料型号" min-width="140">
+              <template #default="{ $index }">
+                <el-input v-model="formData.items[$index].mpn" placeholder="物料型号(MPN)" class="q-input" />
+              </template>
+            </el-table-column>
+            <el-table-column label="品牌" min-width="100">
+              <template #default="{ $index }">
+                <el-input v-model="formData.items[$index].brand" placeholder="品牌" class="q-input" />
+              </template>
+            </el-table-column>
+            <el-table-column label="目标价" width="118">
+              <template #default="{ $index }">
+                <el-input-number
+                  v-model="formData.items[$index].targetPrice"
+                  :min="0"
+                  :precision="4"
+                  :controls="false"
+                  style="width: 100%"
+                  class="q-number"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column label="数量" width="100">
+              <template #default="{ $index }">
+                <el-input-number
+                  v-model="formData.items[$index].quantity"
+                  :min="1"
+                  :controls="false"
+                  style="width: 100%"
+                  class="q-number"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column label="生产日期" min-width="120">
+              <template #default="{ $index }">
+                <el-input v-model="formData.items[$index].productionDate" placeholder="如 2年内、DC" class="q-input" />
+              </template>
+            </el-table-column>
+            <el-table-column label="失效日期" width="138">
+              <template #default="{ $index }">
+                <el-date-picker
+                  v-model="formData.items[$index].expiryDate"
+                  type="date"
+                  placeholder="选择日期"
+                  value-format="YYYY-MM-DD"
+                  style="width: 100%"
+                  class="q-date"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column label="最小包装" width="100">
+              <template #default="{ $index }">
+                <el-input-number
+                  v-model="formData.items[$index].minPackageQty"
+                  :min="0"
+                  :controls="false"
+                  style="width: 100%"
+                  class="q-number"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column label="最小起订量" width="100">
+              <template #default="{ $index }">
+                <el-input-number
+                  v-model="formData.items[$index].minOrderQty"
+                  :min="0"
+                  :controls="false"
+                  style="width: 100%"
+                  class="q-number"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column label="可替代料" min-width="120">
+              <template #default="{ $index }">
+                <el-input v-model="formData.items[$index].alternativeMaterials" placeholder="逗号分隔" class="q-input" />
+              </template>
+            </el-table-column>
+            <el-table-column label="备注" min-width="100">
+              <template #default="{ $index }">
+                <el-input v-model="formData.items[$index].remark" placeholder="备注" class="q-input" />
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="72" align="center" fixed="right" class-name="op-col" label-class-name="op-col">
+              <template #default="{ $index }">
+                <el-button link type="danger" @click.stop="removeItem($index)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
         <div v-if="formData.items.length === 0" class="empty-hint">
-          暂无明细，点击"添加明细"按钮添加
+          暂无明细，点击「添加明细」添加
         </div>
       </div>
 
@@ -224,13 +339,19 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, Check, Plus } from '@element-plus/icons-vue'
+import { ArrowLeft, Check, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { rfqApi } from '@/api/rfq'
-import type { CreateRFQItemRequest, UpdateRFQRequest } from '@/types/rfq'
+import { customerApi, customerContactApi } from '@/api/customer'
+import type { CreateRFQItemRequest, CreateRFQRequest, UpdateRFQRequest } from '@/types/rfq'
 import { useAuthStore } from '@/stores/auth'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
+import {
+  RFQ_TYPE_OPTIONS,
+  QUOTE_METHOD_OPTIONS,
+  ASSIGN_METHOD_OPTIONS
+} from '@/constants/rfqFormEnums'
 
 const route = useRoute()
 const router = useRouter()
@@ -253,6 +374,25 @@ const customerSearchLoading = ref(false)
 const customerSelectRef = ref<any>(null)
 let customerSearchTimer: ReturnType<typeof setTimeout> | null = null
 
+const contactOptions = ref<{ value: string; label: string; email?: string }[]>([])
+
+async function loadContactsForCustomer(customerId: string) {
+  if (!customerId) {
+    contactOptions.value = []
+    return
+  }
+  try {
+    const list = await customerContactApi.getContactsByCustomerId(customerId)
+    contactOptions.value = (list || []).map((c: any) => ({
+      value: c.id,
+      label: c.contactName || c.name || '联系人',
+      email: c.email || undefined
+    }))
+  } catch {
+    contactOptions.value = []
+  }
+}
+
 // 生成需求编号
 const getYYMMDD = (d: Date) => {
   const yy = String(d.getFullYear()).slice(-2)
@@ -271,6 +411,7 @@ const emptyForm = () => ({
   rfqCode: genRfqCode(),
   customerId: '',
   customerName: '',
+  contactId: '' as string,
   salesUserId: '',
   salesUserName: '',
   contactEmail: '',
@@ -278,6 +419,8 @@ const emptyForm = () => ({
   industry: '',
   rfqType: 1,
   targetType: 1,
+  quoteMethod: 2,
+  assignMethod: 2,
   importance: 3,
   projectBackground: '',
   competitor: '',
@@ -289,10 +432,35 @@ const formData = ref(emptyForm())
 
 function resetFormForCreate() {
   formData.value = emptyForm()
+  contactOptions.value = []
   const user = authStore.user
   if (user) {
     formData.value.salesUserId = user.id || ''
     formData.value.salesUserName = user.userName || ''
+  }
+}
+
+/** 从路由 query（如客户详情「创建需求」）预填客户下拉与 customerId */
+async function applyPrefillCustomerFromQuery() {
+  const raw = route.query.customerId
+  const cid = Array.isArray(raw) ? raw[0] : raw
+  if (!cid || typeof cid !== 'string') return
+  try {
+    const c = await customerApi.getCustomerById(cid)
+    const name =
+      c.customerName ||
+      (c as any).officialName ||
+      c.customerShortName ||
+      (c as any).nickName ||
+      c.customerCode ||
+      '客户'
+    const id = String(c.id)
+    customerOptions.value = [{ value: id, label: name }]
+    formData.value.customerId = id
+    formData.value.customerName = name
+    await loadContactsForCustomer(id)
+  } catch {
+    ElMessage.warning('无法加载预选客户，请在「客户」中搜索选择')
   }
 }
 
@@ -312,13 +480,33 @@ function mapCurrencyToPriceCurrency(c?: string | number): number {
   return 1
 }
 
+function formatExpiryForPicker(v: unknown): string {
+  if (v == null || v === '') return ''
+  if (typeof v === 'string') return v.length >= 10 ? v.slice(0, 10) : v
+  const d = v as Date
+  if (d instanceof Date && !Number.isNaN(d.getTime())) {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+  return ''
+}
+
 function mapItemsFromApi(items: any[]) {
   return items.map((raw: any) => ({
+    customerMpn: raw.customerMpn || raw.customerMaterialModel || '',
+    customerBrand: raw.customerBrand || '',
     mpn: raw.mpn || raw.materialModel || '',
     brand: raw.brand || '',
-    customerMpn: raw.customerMpn || raw.customerMaterialModel || '',
     quantity: raw.quantity ?? 1,
     targetPrice: raw.targetPrice,
+    productionDate: raw.productionDate || '',
+    expiryDate: formatExpiryForPicker(raw.expiryDate),
+    minPackageQty: raw.minPackageQty != null ? Number(raw.minPackageQty) : undefined,
+    minOrderQty: raw.moq != null ? Number(raw.moq) : raw.minOrderQty != null ? Number(raw.minOrderQty) : undefined,
+    alternativeMaterials: raw.alternatives || raw.alternativeMaterials || '',
+    remark: raw.remark || '',
     priceCurrency: mapCurrencyToPriceCurrency(raw.priceCurrency ?? raw.currency)
   }))
 }
@@ -336,10 +524,12 @@ async function loadRfqForEdit() {
     } else {
       customerOptions.value = []
     }
+    await loadContactsForCustomer(data.customerId || '')
     formData.value = {
       rfqCode: data.rfqCode || '',
       customerId: data.customerId || '',
       customerName: data.customerName || '',
+      contactId: (d.contactId || d.contactPersonId || '') as string,
       salesUserId: data.salesUserId || '',
       salesUserName: data.salesUserName || '',
       contactEmail: d.contactEmail || d.contactPersonEmail || '',
@@ -347,6 +537,8 @@ async function loadRfqForEdit() {
       industry: data.industry || '',
       rfqType: data.rfqType ?? 1,
       targetType: data.targetType ?? 1,
+      quoteMethod: d.quoteMethod ?? 2,
+      assignMethod: d.assignMethod ?? 2,
       importance: normalizeImportance(d.importanceLevel ?? d.importance),
       projectBackground: data.projectBackground || '',
       competitor: data.competitor || '',
@@ -362,19 +554,23 @@ async function loadRfqForEdit() {
 }
 
 watch(
-  () => [route.name, route.params.id] as const,
+  () => [route.name, route.params.id, route.query.customerId] as const,
   async () => {
     if (route.name === 'RFQEdit' && rfqId.value) {
       await loadRfqForEdit()
     } else if (route.name === 'RFQCreate') {
       resetFormForCreate()
+      await applyPrefillCustomerFromQuery()
     }
   },
   { immediate: true }
 )
 
 const formRules = {
-  customerId: [{ required: true, message: '请选择客户', trigger: 'change' }]
+  customerId: [{ required: true, message: '请选择客户', trigger: 'change' }],
+  rfqType: [{ required: true, message: '请选择需求类型', trigger: 'change' }],
+  quoteMethod: [{ required: true, message: '请选择报价方式', trigger: 'change' }],
+  assignMethod: [{ required: true, message: '请选择分配方式', trigger: 'change' }]
 }
 
 function onRfqCreateSalesUserChange(p: { id: string; label: string }) {
@@ -409,22 +605,39 @@ async function onCustomerFilterInput(query: string) {
   }, 300)
 }
 
-// 客户选择后同步 customerName
-function onCustomerChange(val: string) {
+// 客户选择后同步 customerName、联系人列表
+async function onCustomerChange(val: string) {
   const found = customerOptions.value.find(c => c.value === val)
   if (found) {
     formData.value.customerName = found.label
+  }
+  formData.value.contactId = ''
+  await loadContactsForCustomer(val || '')
+}
+
+function onContactChange(contactId: string) {
+  if (!contactId) return
+  const row = contactOptions.value.find(c => c.value === contactId)
+  if (row?.email) {
+    formData.value.contactEmail = row.email
   }
 }
 
 // 添加/删除明细
 const addItem = () => {
   formData.value.items.push({
+    customerMpn: '',
+    customerBrand: '',
     mpn: '',
     brand: '',
-    customerMpn: '',
     quantity: 1,
     targetPrice: undefined,
+    productionDate: '',
+    expiryDate: '',
+    minPackageQty: undefined,
+    minOrderQty: undefined,
+    alternativeMaterials: '',
+    remark: '',
     priceCurrency: 1
   })
 }
@@ -434,12 +647,38 @@ const removeItem = (index: number) => {
 }
 
 function buildItemPayload(): CreateRFQItemRequest[] {
-  return formData.value.items.map((it: Record<string, unknown>) => ({
-    ...it,
-    customerBrand: (it.customerBrand as string) || (it.brand as string) || '',
-    brand: (it.brand as string) || '',
-    quantity: Math.max(1, Number(it.quantity) || 1)
-  })) as CreateRFQItemRequest[]
+  return formData.value.items.map((it: any, idx: number) => {
+    const qty = Math.max(1, Number(it.quantity) || 1)
+    const moq =
+      it.minOrderQty != null && it.minOrderQty !== ''
+        ? Number(it.minOrderQty)
+        : undefined
+    const minPkg =
+      it.minPackageQty != null && it.minPackageQty !== ''
+        ? Number(it.minPackageQty)
+        : undefined
+    const expiryRaw = it.expiryDate
+    const expiryDate =
+      expiryRaw && typeof expiryRaw === 'string'
+        ? expiryRaw
+        : undefined
+    return {
+      lineNo: idx + 1,
+      customerMpn: (it.customerMpn || '').trim() || undefined,
+      mpn: (it.mpn || '').trim(),
+      customerBrand: (it.customerBrand || '').trim(),
+      brand: (it.brand || '').trim(),
+      targetPrice: it.targetPrice != null ? Number(it.targetPrice) : undefined,
+      priceCurrency: Number(it.priceCurrency) || 1,
+      quantity: qty,
+      productionDate: (it.productionDate || '').trim() || undefined,
+      expiryDate,
+      minPackageQty: minPkg,
+      moq: moq,
+      alternatives: (it.alternativeMaterials || '').trim() || undefined,
+      remark: (it.remark || '').trim() || undefined
+    } as CreateRFQItemRequest
+  })
 }
 
 // 提交
@@ -452,12 +691,15 @@ const handleSubmit = async () => {
       if (editMode && id) {
         const payload: UpdateRFQRequest = {
           customerId: formData.value.customerId,
+          contactId: formData.value.contactId || undefined,
           contactEmail: formData.value.contactEmail,
           salesUserId: formData.value.salesUserId,
           industry: formData.value.industry,
           product: formData.value.product,
           rfqType: formData.value.rfqType,
           targetType: formData.value.targetType,
+          quoteMethod: formData.value.quoteMethod,
+          assignMethod: formData.value.assignMethod,
           importance: formData.value.importance,
           projectBackground: formData.value.projectBackground,
           competitor: formData.value.competitor,
@@ -467,11 +709,24 @@ const handleSubmit = async () => {
         await rfqApi.updateRFQ(id, payload)
         return 'edit' as const
       }
-      const data = {
-        ...formData.value,
+      const createPayload: CreateRFQRequest = {
+        customerId: formData.value.customerId,
+        contactId: formData.value.contactId || undefined,
+        contactEmail: formData.value.contactEmail,
+        salesUserId: formData.value.salesUserId,
+        rfqType: formData.value.rfqType,
+        quoteMethod: formData.value.quoteMethod,
+        assignMethod: formData.value.assignMethod,
+        industry: formData.value.industry,
+        product: formData.value.product,
+        targetType: formData.value.targetType,
+        importance: formData.value.importance,
+        projectBackground: formData.value.projectBackground,
+        competitor: formData.value.competitor,
+        remark: formData.value.remark,
         items: buildItemPayload()
       }
-      await rfqApi.createRFQ(data as any)
+      await rfqApi.createRFQ(createPayload)
       return 'create' as const
     },
     formatSuccess: (mode) => (mode === 'edit' ? '需求已更新' : '需求创建成功'),
@@ -548,6 +803,26 @@ const handleSubmit = async () => {
     color: $text-muted;
     font-size: 13px;
   }
+
+  .rfq-field-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .rfq-label-help {
+    font-size: 14px;
+    color: rgba(0, 212, 255, 0.55);
+    cursor: help;
+    vertical-align: middle;
+  }
+
+  /* 背景 / 竞争对手 / 重要程度 同行：星级与单行输入区垂直对齐 */
+  .rfq-row-bg-comp-importance {
+    align-items: flex-start;
+    .importance-inline-item :deep(.el-form-item__content) {
+      padding-top: 6px;
+    }
+  }
 }
 
 // 输入框统一暗色风格（参考 CustomerEdit.vue）
@@ -605,24 +880,10 @@ const handleSubmit = async () => {
   }
 }
 
-// 重要程度星级
-.importance-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .q-rate {
   :deep(.el-rate__icon) {
     font-size: 20px;
   }
-}
-
-.importance-label {
-  color: $color-amber;
-  font-size: 13px;
-  font-weight: 500;
-  min-width: 32px;
 }
 
 // 客户搜索提示
@@ -631,6 +892,24 @@ const handleSubmit = async () => {
   color: $text-muted;
   font-size: 12px;
   text-align: center;
+}
+
+.items-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.q-date {
+  :deep(.el-input__wrapper) {
+    background-color: $layer-3 !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+    box-shadow: none !important;
+    &.is-focus { border-color: rgba(0, 212, 255, 0.5) !important; }
+  }
+  :deep(.el-input__inner) {
+    color: $text-primary !important;
+  }
 }
 
 // 明细表格

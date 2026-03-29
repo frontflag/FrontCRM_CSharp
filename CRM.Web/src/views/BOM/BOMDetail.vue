@@ -144,21 +144,23 @@
               <span v-else class="text-muted">—</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="160" fixed="right">
+          <el-table-column label="操作" width="160" fixed="right" class-name="op-col" label-class-name="op-col">
             <template #default="{ row }">
-              <div class="action-btns">
-                <el-button
-                  v-if="row.quoteStatus === 0 || row.quoteStatus === 3"
-                  size="small"
-                  type="primary"
-                  @click="openManualQuote(row, false)"
-                >人工报价</el-button>
-                <el-button
-                  v-else
-                  size="small"
-                  type="warning"
-                  @click="openManualQuote(row, true)"
-                >修改报价</el-button>
+              <div @click.stop @dblclick.stop>
+                <div class="action-btns">
+                  <el-button
+                    v-if="row.quoteStatus === 0 || row.quoteStatus === 3"
+                    size="small"
+                    type="primary"
+                    @click.stop="openManualQuote(row, false)"
+                  >人工报价</el-button>
+                  <el-button
+                    v-else
+                    size="small"
+                    type="warning"
+                    @click.stop="openManualQuote(row, true)"
+                  >修改报价</el-button>
+                </div>
               </div>
             </template>
           </el-table-column>
@@ -195,10 +197,12 @@
           <el-col :span="12">
             <el-form-item label="报价货币">
               <el-select v-model="quoteForm.quotedCurrency" class="w-full">
-                <el-option label="RMB" value="RMB" />
-                <el-option label="USD" value="USD" />
-                <el-option label="EUR" value="EUR" />
-                <el-option label="HKD" value="HKD" />
+                <el-option
+                  v-for="opt in SETTLEMENT_CURRENCY_STRING_OPTIONS"
+                  :key="opt.value"
+                  :label="opt.label"
+                  :value="opt.value"
+                />
               </el-select>
             </el-form-item>
           </el-col>
@@ -243,6 +247,7 @@ import { bomApi } from '@/api/bom'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import type { BOM, BOMItem } from '@/types/bom'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import { SETTLEMENT_CURRENCY_STRING_OPTIONS } from '@/constants/currency'
 
 const router = useRouter()
 const route = useRoute()

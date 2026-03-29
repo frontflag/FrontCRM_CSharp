@@ -149,7 +149,7 @@
         <div class="menu-section-label" v-if="!isCollapsed">基础资料</div>
 
         <SidebarMenuGroupFlyout
-          v-if="(isSysAdmin || identityType !== 6) && hasPermission('customer.read')"
+          v-if="showCustomerMenuSection && hasPermission('customer.read')"
           :collapsed="isCollapsed"
           :expanded="openGroups.customers"
           @toggle="toggleGroup('customers')"
@@ -171,14 +171,15 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/customers" class="submenu-item" active-class="active" exact>客户列表</router-link>
-            <router-link to="/customers/recycle-bin" class="submenu-item" active-class="active">回收站</router-link>
+            <router-link to="/custome" class="submenu-item" active-class="active" exact>客户</router-link>
+            <router-link to="/customers/frozen" class="submenu-item" active-class="active">冻结管理</router-link>
             <router-link to="/customers/blacklist" class="submenu-item" active-class="active">黑名单管理</router-link>
+            <router-link to="/customers/recycle-bin" class="submenu-item" active-class="active">回收站</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
         <SidebarMenuGroupFlyout
-          v-if="(isSysAdmin || identityType !== 6) && hasPermission('vendor.read')"
+          v-if="showVendorMenuSection && hasPermission('vendor.read')"
           :collapsed="isCollapsed"
           :expanded="openGroups.vendors"
           @toggle="toggleGroup('vendors')"
@@ -202,9 +203,10 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/vendors" class="submenu-item" active-class="active" exact>供应商列表</router-link>
-            <router-link to="/vendors/recycle-bin" class="submenu-item" active-class="active">回收站</router-link>
+            <router-link to="/vendor" class="submenu-item" active-class="active" exact>供应商</router-link>
+            <router-link to="/vendors/frozen" class="submenu-item" active-class="active">冻结管理</router-link>
             <router-link to="/vendors/blacklist" class="submenu-item" active-class="active">黑名单管理</router-link>
+            <router-link to="/vendors/recycle-bin" class="submenu-item" active-class="active">回收站</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -244,7 +246,7 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/rfqs" class="submenu-item" active-class="active" exact>需求列表</router-link>
+            <router-link to="/rfq" class="submenu-item" active-class="active" exact>需求列表</router-link>
             <router-link to="/rfq-items" class="submenu-item" active-class="active">需求明细</router-link>
           </template>
         </SidebarMenuGroupFlyout>
@@ -718,8 +720,20 @@
           </div>
         </div>
         <div class="aux-panel-body">
-          <p class="aux-placeholder">左侧面板 · {{ leftPanelTitle }}</p>
-          <p class="aux-hint">子页面可 inject(WorkspaceLayoutKey)；或 window 派发 workspace:toggle-left / workspace:toggle-right</p>
+          <CustomerSearchPanel v-if="showCustomerSearchPanel" />
+          <CustomerFavoritePanel v-else-if="showCustomerFavoritePanel" />
+          <CustomerRecentHistoryPanel v-else-if="showCustomerRecentHistoryPanel" />
+          <VendorSearchPanel v-else-if="showVendorSearchPanel" />
+          <VendorFavoritePanel v-else-if="showVendorFavoritePanel" />
+          <VendorRecentHistoryPanel v-else-if="showVendorRecentHistoryPanel" />
+          <RFQSearchPanel v-else-if="showRfqSearchPanel" />
+          <RFQItemSearchPanel v-else-if="showRfqItemSearchPanel" />
+          <RFQFavoritePanel v-else-if="showRfqFavoritePanel || showRfqItemFavoritePanel" />
+          <RFQRecentHistoryPanel v-else-if="showRfqRecentHistoryPanel || showRfqItemRecentHistoryPanel" />
+          <template v-else>
+            <p class="aux-placeholder">左侧面板 · {{ leftPanelTitle }}</p>
+            <p class="aux-hint">子页面可 inject(WorkspaceLayoutKey)；或 window 派发 workspace:toggle-left / workspace:toggle-right</p>
+          </template>
         </div>
       </aside>
 
@@ -862,7 +876,7 @@
         @mousedown="onResizeStart('right', $event)"
       />
 
-      <!-- 右侧面板（辅助 / 多 Tab） -->
+      <!-- 右侧面板（帮助） -->
       <aside
         v-show="rightPanelVisible"
         class="aux-panel aux-right"
@@ -888,8 +902,7 @@
           </div>
         </div>
         <div class="aux-panel-body">
-          <p class="aux-placeholder">右侧面板 · {{ rightPanelTitle }}</p>
-          <p class="aux-hint">事件：window.dispatchEvent(new CustomEvent('workspace:toggle-left', { detail: { visible: true } }))</p>
+          <HelpManualPanel />
         </div>
       </aside>
     </div>
@@ -907,6 +920,17 @@ import { ElMessageBox, ElNotification } from 'element-plus'
 import { useWorkspaceLayout } from '@/composables/useWorkspaceLayout'
 import SidebarMenuGroupFlyout from '@/layouts/components/SidebarMenuGroupFlyout.vue'
 import SidebarMenuTooltipWrap from '@/layouts/components/SidebarMenuTooltipWrap.vue'
+import CustomerSearchPanel from '@/components/Customer/CustomerSearchPanel.vue'
+import CustomerFavoritePanel from '@/components/Customer/CustomerFavoritePanel.vue'
+import CustomerRecentHistoryPanel from '@/components/Customer/CustomerRecentHistoryPanel.vue'
+import VendorSearchPanel from '@/components/Vendor/VendorSearchPanel.vue'
+import VendorFavoritePanel from '@/components/Vendor/VendorFavoritePanel.vue'
+import VendorRecentHistoryPanel from '@/components/Vendor/VendorRecentHistoryPanel.vue'
+import RFQSearchPanel from '@/components/RFQ/RFQSearchPanel.vue'
+import RFQItemSearchPanel from '@/components/RFQ/RFQItemSearchPanel.vue'
+import RFQFavoritePanel from '@/components/RFQ/RFQFavoritePanel.vue'
+import RFQRecentHistoryPanel from '@/components/RFQ/RFQRecentHistoryPanel.vue'
+import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -936,11 +960,101 @@ const {
   toggleCenterFullscreen
 } = useWorkspaceLayout()
 
+/** 客户首页 / 列表 / 详情 / 新建编辑：左栏「检索 / 收藏 / 历史」 */
+const isCustomerLeftAuxRoute = computed(() => {
+  const n = route.name
+  return (
+    n === 'CustomerHome' ||
+    n === 'CustomerList' ||
+    n === 'CustomerDetail' ||
+    n === 'CustomerEdit' ||
+    n === 'CustomerCreate' ||
+    n === 'CustomerRecycleBin' ||
+    n === 'CustomerBlacklist' ||
+    n === 'CustomerFreezeManagement' ||
+    n === 'CustomerContactCreate' ||
+    n === 'CustomerContactEdit'
+  )
+})
+
+const showCustomerSearchPanel = computed(
+  () => leftActiveTabId.value === 'l1' && isCustomerLeftAuxRoute.value
+)
+
+const showCustomerFavoritePanel = computed(
+  () => leftActiveTabId.value === 'l2' && isCustomerLeftAuxRoute.value
+)
+
+const showCustomerRecentHistoryPanel = computed(
+  () => leftActiveTabId.value === 'l3' && isCustomerLeftAuxRoute.value
+)
+
+/** 供应商列表 / 详情 / 新建编辑：左栏「收藏 / 历史」（与客户模块对齐） */
+const isVendorLeftAuxRoute = computed(() => {
+  const n = route.name
+  return (
+    n === 'VendorHome' ||
+    n === 'VendorList' ||
+    n === 'VendorDetail' ||
+    n === 'VendorEdit' ||
+    n === 'VendorCreate' ||
+    n === 'VendorRecycleBin' ||
+    n === 'VendorBlacklist' ||
+    n === 'VendorFreezeManagement' ||
+    n === 'VendorContactCreate' ||
+    n === 'VendorContactEdit'
+  )
+})
+
+const showVendorSearchPanel = computed(
+  () => leftActiveTabId.value === 'l1' && isVendorLeftAuxRoute.value
+)
+
+const showVendorFavoritePanel = computed(
+  () => leftActiveTabId.value === 'l2' && isVendorLeftAuxRoute.value
+)
+
+const showVendorRecentHistoryPanel = computed(
+  () => leftActiveTabId.value === 'l3' && isVendorLeftAuxRoute.value
+)
+
+/** 需求列表 / 详情 / 新建编辑：左栏「检索 / 收藏 / 历史」（与客户模块一致） */
+const isRfqLeftAuxRoute = computed(() => {
+  const n = route.name
+  return n === 'RFQList' || n === 'RFQDetail' || n === 'RFQCreate' || n === 'RFQEdit'
+})
+
+const showRfqSearchPanel = computed(
+  () => leftActiveTabId.value === 'l1' && isRfqLeftAuxRoute.value
+)
+
+const showRfqFavoritePanel = computed(
+  () => leftActiveTabId.value === 'l2' && isRfqLeftAuxRoute.value
+)
+
+const showRfqRecentHistoryPanel = computed(
+  () => leftActiveTabId.value === 'l3' && isRfqLeftAuxRoute.value
+)
+
+/** 需求明细列表 /rfq-items：左栏「检索 / 收藏(主表) / 历史(主表)」 */
+const isRfqItemListLeftAuxRoute = computed(() => route.name === 'RFQItemList')
+
+const showRfqItemSearchPanel = computed(
+  () => leftActiveTabId.value === 'l1' && isRfqItemListLeftAuxRoute.value
+)
+
+const showRfqItemFavoritePanel = computed(
+  () => leftActiveTabId.value === 'l2' && isRfqItemListLeftAuxRoute.value
+)
+
+const showRfqItemRecentHistoryPanel = computed(
+  () => leftActiveTabId.value === 'l3' && isRfqItemListLeftAuxRoute.value
+)
+
 /** 模板沿用 isCollapsed：仅「边条」模式隐藏菜单文字 */
 const isCollapsed = isSidebarCollapsed
 
 const leftPanelTitle = computed(() => leftTabs.value.find(t => t.id === leftActiveTabId.value)?.label ?? '')
-const rightPanelTitle = computed(() => rightTabs.value.find(t => t.id === rightActiveTabId.value)?.label ?? '')
 const openGroups = ref({
   purchase: false,
   sales: false,
@@ -999,12 +1113,18 @@ const headerNotifyCount = ref(1)
 const pageTitleMap: Record<string, string> = {
   '/dashboard': '控制台',
   '/pending-approvals': '待审批',
-  '/customers': '客户管理',
+  '/custome': '客户首页',
+  '/customerlist': '客户',
   '/customers/create': '新增客户',
   '/customers/recycle-bin': '客户回收站',
   '/customers/blacklist': '黑名单管理',
-  '/vendors': '供应商管理',
+  '/customers/frozen': '冻结管理',
+  '/vendor': '供应商首页',
+  '/vendorlist': '供应商',
   '/vendors/create': '新增供应商',
+  '/vendors/recycle-bin': '供应商回收站',
+  '/vendors/blacklist': '供应商黑名单',
+  '/vendors/frozen': '冻结管理',
   '/system/users': '员工管理',
   '/system/users/create': '新增员工',
   '/system/roles': '角色管理',
@@ -1021,7 +1141,9 @@ const pageTitleMap: Record<string, string> = {
   '/inventory/check': '库存盘点',
   '/reports': '报表分析',
   '/dashboard/settings': '系统设置',
-  '/rfqs': 'RFQ 管理',
+  '/rfq': '需求首页',
+  '/rfqlist': '需求列表',
+  '/pn': '物料列表',
   '/rfq-items': '需求明细',
   '/quotes': '报价列表',
   '/quotes/create': '新建报价',
@@ -1077,6 +1199,20 @@ const hasPermission = (code: string) => authStore.hasPermission(code)
 const identityType = computed(() => authStore.user?.identityType ?? 0)
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 
+/** 客户板块：采购(2)、采购助理(3)、物流(6) 不显示 */
+const showCustomerMenuSection = computed(() => {
+  if (isSysAdmin.value) return true
+  const t = identityType.value
+  return t !== 2 && t !== 3 && t !== 6
+})
+
+/** 供应商板块：销售(1)、物流(6) 不显示 */
+const showVendorMenuSection = computed(() => {
+  if (isSysAdmin.value) return true
+  const t = identityType.value
+  return t !== 1 && t !== 6
+})
+
 // 管理员登录时默认展开所有分组（不强制主菜单宽度，以便可缩为边条/隐藏）
 watch(
   isSysAdmin,
@@ -1096,7 +1232,13 @@ const hasAnyApprovalPermission = computed(() => {
 watch(
   () => route.path,
   (p) => {
-    if (p === '/rfqs' || p.startsWith('/rfqs/') || p === '/rfq-items') {
+    if (
+      p === '/rfq' ||
+      p === '/rfqlist' ||
+      p.startsWith('/rfqs/') ||
+      p === '/rfq-items' ||
+      p === '/pn'
+    ) {
       openGroups.value.rfqs = true
     }
     if (p === '/quotes' || p.startsWith('/quotes/')) {
@@ -1627,15 +1769,14 @@ onBeforeUnmount(() => {
   // 图2：整体更紧凑，行距接近字高
   padding: 10px 8px;
 
+  /* 隐藏滚动条，保留滚轮/触控滚动 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
   &::-webkit-scrollbar {
-    width: 3px;
-  }
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: rgba(0, 212, 255, 0.2);
-    border-radius: 2px;
+    width: 0;
+    height: 0;
+    display: none;
   }
 }
 
@@ -2061,7 +2202,7 @@ onBeforeUnmount(() => {
   overflow-x: auto;
   min-width: 0;
   &::-webkit-scrollbar {
-    height: 2px;
+    height: 4px;
   }
 }
 
@@ -2243,14 +2384,14 @@ onBeforeUnmount(() => {
   background: vars.$layer-1;
 
   &::-webkit-scrollbar {
-    width: 4px;
+    width: 8px;
   }
   &::-webkit-scrollbar-track {
     background: transparent;
   }
   &::-webkit-scrollbar-thumb {
     background: rgba(0, 212, 255, 0.2);
-    border-radius: 2px;
+    border-radius: 4px;
   }
 }
 
@@ -2411,14 +2552,14 @@ onBeforeUnmount(() => {
   flex-shrink: 1;
 
   &::-webkit-scrollbar {
-    height: 2px;
+    height: 4px;
   }
   &::-webkit-scrollbar-track {
     background: transparent;
   }
   &::-webkit-scrollbar-thumb {
     background: rgba(0, 212, 255, 0.2);
-    border-radius: 1px;
+    border-radius: 2px;
   }
 }
 

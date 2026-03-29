@@ -13,9 +13,10 @@
         <el-button class="btn-ghost btn-sm" @click="importDialogVisible = true">
           <el-icon><Upload /></el-icon>导入 Excel 创建
         </el-button>
-        <el-button class="btn-primary" type="primary" @click="router.push({ name: 'RFQCreate' })">
-          <el-icon><Plus /></el-icon>新增需求
-        </el-button>
+        <button class="btn-success" type="button" @click="router.push({ name: 'RFQCreate' })">
+          <el-icon class="btn-success__icon"><Plus /></el-icon>
+          新增需求
+        </button>
       </div>
     </div>
 
@@ -72,11 +73,13 @@
     </el-card>
 
     <!-- 数据表格 -->
-    <el-card class="table-card table-wrapper">
+    <!-- 勿在 el-card 上再加 table-wrapper：会与 CrmDataTable 内层 .table-wrapper 叠套，overflow 影响固定列叠层 -->
+    <el-card class="table-card rfq-list-table-card">
       <CrmDataTable
         :data="rfqList"
         v-loading="loading"
         highlight-current-row
+        @row-dblclick="handleView"
       >
         <el-table-column prop="rfqCode" label="需求编号" width="160" min-width="160" show-overflow-tooltip sortable>
           <template #default="{ row }">
@@ -115,12 +118,18 @@
             {{ row.createUserName || row.createdBy || row.salesUserName || '—' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="280" min-width="280" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
-            <el-button class="action-btn" link type="primary" @click="handleView(row)">查看</el-button>
-            <el-button class="action-btn" link type="primary" @click="handleEdit(row)">编辑</el-button>
-            <el-button class="action-btn" link type="success" @click="handleGenerateQuote(row)">生成报价</el-button>
-            <el-button class="action-btn" link type="danger" @click="handleDelete(row)">删除</el-button>
+            <div @click.stop @dblclick.stop>
+              <div class="action-btns">
+                <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">查看</button>
+                <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">编辑</button>
+                <button type="button" class="action-btn action-btn--warning" @click.stop="handleGenerateQuote(row)">
+                  生成报价
+                </button>
+                <button type="button" class="action-btn action-btn--danger" @click.stop="handleDelete(row)">删除</button>
+              </div>
+            </div>
           </template>
         </el-table-column>
       </CrmDataTable>
@@ -149,15 +158,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { Plus, Search, Upload } from '@element-plus/icons-vue'
 import ImportRFQDialog from './components/ImportRFQDialog.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatRfqTypeLabel } from '@/constants/rfqFormEnums'
 
 const router = useRouter()
+const route = useRoute()
 
 const loading = ref(false)
 const rfqList = ref<any[]>([])
@@ -198,8 +209,8 @@ const getStatusText = (status: number) => {
 }
 
 const getTypeText = (type: number) => {
-  const map: Record<number, string> = { 1: '现货', 2: '期货', 3: '样品', 4: '批量' }
-  return map[type] || '未知'
+  const s = formatRfqTypeLabel(type)
+  return s === '—' ? '未知' : s
 }
 
 // 加载数据
@@ -229,16 +240,40 @@ const loadData = async () => {
   }
 }
 
-// 搜索和重置
+// 与左侧「检索」面板共用 URL 查询参数（keyword、status）
 const handleSearch = () => {
   pageInfo.value.page = 1
-  loadData()
+  const q: Record<string, string> = {}
+  const kw = searchForm.value.keyword.trim()
+  if (kw) q.keyword = kw
+  if (searchForm.value.status !== undefined && searchForm.value.status !== null) {
+    q.status = String(searchForm.value.status)
+  }
+  router.replace({ name: 'RFQList', query: q })
 }
 
 const handleReset = () => {
-  searchForm.value = { keyword: '', status: undefined }
-  loadData()
+  router.replace({ name: 'RFQList', query: {} })
 }
+
+watch(
+  () => [route.name, route.query] as const,
+  () => {
+    if (route.name !== 'RFQList') return
+    const kw = typeof route.query.keyword === 'string' ? route.query.keyword : ''
+    let st: number | undefined = undefined
+    const qs = route.query.status
+    if (qs !== undefined && qs !== null && qs !== '') {
+      const raw = Array.isArray(qs) ? qs[0] : qs
+      const n = Number(raw)
+      if (!Number.isNaN(n)) st = n
+    }
+    searchForm.value = { keyword: kw, status: st }
+    pageInfo.value.page = 1
+    loadData()
+  },
+  { deep: true, immediate: true }
+)
 
 // 分页
 const handleSizeChange = (val: number) => {
@@ -283,7 +318,6 @@ const handleDelete = async (row: any) => {
   }
 }
 
-onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
@@ -349,6 +383,10 @@ onMounted(loadData)
 .table-card {
   background: $layer-2;
   border: 1px solid $border-panel;
+  // 避免卡片 body 形成裁剪/叠层，导致固定操作列无法盖住横向滚动区
+  &.rfq-list-table-card :deep(.el-card__body) {
+    overflow: visible;
+  }
   :deep(.el-table) {
     background: transparent;
     --el-table-header-bg-color: rgba(255, 255, 255, 0.03);
@@ -356,7 +394,6 @@ onMounted(loadData)
     --el-table-border-color: $border-panel;
     color: $text-primary;
 
-    .el-table__cell .el-button { white-space: nowrap !important; }
     .el-table__cell .cell { white-space: nowrap; }
   }
 }
@@ -371,9 +408,33 @@ onMounted(loadData)
   border-radius: $border-radius-md;
 }
 
-.action-btn {
-  color: $cyan-primary !important;
+// 新建/新增/创建（列表操作按钮颜色规范 PRD：success 绿）
+.btn-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(46, 160, 67, 0.85), rgba(70, 191, 145, 0.75));
+  border: 1px solid rgba(70, 191, 145, 0.45);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+
+  .btn-success__icon {
+    font-size: 14px;
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(70, 191, 145, 0.3);
+  }
 }
+
+// 操作列 op-col 底色与固定列叠层：main.scss 全局 .el-table 规则；按钮：crm-unified-list.scss .crm-data-table
 
 .quantum-pagination {
   :deep(.el-pagination__total) { color: $text-muted; }

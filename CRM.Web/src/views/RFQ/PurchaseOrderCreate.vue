@@ -136,9 +136,12 @@
               <el-col :span="8">
                 <el-form-item label="币别">
                   <el-select v-model="item.currency" style="width: 100%">
-                    <el-option label="RMB" :value="1" />
-                    <el-option label="USD" :value="2" />
-                    <el-option label="EUR" :value="3" />
+                    <el-option
+                      v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
+                      :key="opt.value"
+                      :label="opt.label"
+                      :value="opt.value"
+                    />
                   </el-select>
                 </el-form-item>
               </el-col>
@@ -209,6 +212,7 @@ import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
 import { runSaveTask } from '@/composables/useFormSubmit'
 import { useAuthStore } from '@/stores/auth'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
+import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 
 const router = useRouter()
 const route = useRoute()
@@ -275,7 +279,8 @@ function onPurchaserChange(payload: { id: string; label: string }) {
 }
 
 const formatCurrency = (value: number, currency?: number) => {
-  const symbol = currency === 2 ? '$' : currency === 3 ? '€' : '¥'
+  const symbol =
+    currency === 2 ? '$' : currency === 3 ? '€' : currency === 4 ? 'HK$' : '¥'
   return symbol + (value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 

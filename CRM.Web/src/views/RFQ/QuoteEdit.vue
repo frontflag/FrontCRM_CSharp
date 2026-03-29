@@ -112,7 +112,7 @@
               <template #default="{ $index }">
                 <el-select v-model="formData.items[$index].currency" size="small" style="width: 100%">
                   <el-option
-                    v-for="opt in CURRENCY_ISO_OPTIONS"
+                    v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
                     :key="opt.value"
                     :label="opt.label"
                     :value="opt.value"
@@ -127,9 +127,9 @@
               </template>
             </el-table-column>
 
-            <el-table-column label="操作" width="80" align="center">
+            <el-table-column label="操作" width="80" align="center" class-name="op-col" label-class-name="op-col">
               <template #default="{ $index }">
-                <el-button link type="danger" @click="removeItem($index)">删除</el-button>
+                <el-button link type="danger" @click.stop="removeItem($index)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -146,7 +146,7 @@ import { ArrowLeft, Check, Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { quoteApi } from '@/api/quote'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
-import { CURRENCY_ISO_OPTIONS } from '@/constants/currency'
+import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
 

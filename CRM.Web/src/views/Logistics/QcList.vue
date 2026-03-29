@@ -14,7 +14,7 @@
       <el-button @click="resetFilters">重置</el-button>
     </div>
 
-    <CrmDataTable :data="list" v-loading="loading">
+    <CrmDataTable :data="list" v-loading="loading" @row-dblclick="goView">
       <el-table-column prop="qcCode" label="质检单号" width="160" min-width="160" />
       <el-table-column prop="model" label="型号" min-width="180" show-overflow-tooltip />
       <el-table-column prop="vendorName" label="供应商名称" min-width="180" show-overflow-tooltip />
@@ -39,10 +39,14 @@
       <el-table-column label="创建人" width="120" show-overflow-tooltip>
         <template #default="{ row }">{{ row.createUserName || row.createdBy || '--' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="260" fixed="right">
+      <el-table-column label="操作" width="260" fixed="right" class-name="op-col" label-class-name="op-col">
         <template #default="{ row }">
-          <el-button link type="primary" @click="goView(row)">查看</el-button>
-          <el-button link type="success" v-if="canCreateStockIn(row)" @click="createStockIn(row)">生成入库</el-button>
+          <div @click.stop @dblclick.stop>
+            <div class="action-btns">
+              <el-button link type="primary" @click.stop="goView(row)">查看</el-button>
+              <el-button link type="warning" v-if="canCreateStockIn(row)" @click.stop="createStockIn(row)">生成入库</el-button>
+            </div>
+          </div>
         </template>
       </el-table-column>
     </CrmDataTable>

@@ -143,9 +143,13 @@
                 </template>
               </el-table-column>
               <el-table-column prop="comment" label="备注" min-width="120" />
-              <el-table-column label="操作" width="110" fixed="right">
+              <el-table-column label="操作" width="110" fixed="right" class-name="op-col" label-class-name="op-col">
                 <template #default="{ row }">
-                  <button v-if="canWriteSo" class="btn-warning btn-warning--sm" @click="handleOpenApplyStockOut(row)">申请出库</button>
+                  <div @click.stop @dblclick.stop>
+                    <div v-if="canWriteSo" class="action-btns">
+                      <button type="button" class="action-btn action-btn--warning" @click.stop="handleOpenApplyStockOut(row)">申请出库</button>
+                    </div>
+                  </div>
                 </template>
               </el-table-column>
             </CrmDataTable>
@@ -273,9 +277,12 @@
         </el-form-item>
         <el-form-item label="币别">
           <el-select v-model="editForm.currency" style="width: 100%">
-            <el-option label="RMB" :value="1" />
-            <el-option label="USD" :value="2" />
-            <el-option label="EUR" :value="3" />
+            <el-option
+              v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="交货日期">
@@ -326,6 +333,7 @@ import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
+import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 
 const router = useRouter()
 const route = useRoute()
@@ -529,7 +537,8 @@ const getInvoiceStatusType = (v?: number): '' | 'info' | 'success' | 'warning' |
 }
 
 const formatCurrency = (amount: number, currency?: number) => {
-  const symbol = currency === 2 ? '$' : currency === 3 ? '€' : '¥'
+  const symbol =
+    currency === 2 ? '$' : currency === 3 ? '€' : currency === 4 ? 'HK$' : '¥'
   return `${symbol}${(amount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 const formatDateTime = (v?: string) => (v ? formatDisplayDateTime(v) : '--')

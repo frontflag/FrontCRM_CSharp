@@ -87,6 +87,7 @@
         row-key="id"
         highlight-current-row
         @selection-change="onQuoteSelectionChange"
+        @row-dblclick="handleEdit"
       >
         <el-table-column type="selection" width="48" :reserve-selection="true" />
         <el-table-column prop="quoteCode" label="报价编号" width="160" min-width="160" show-overflow-tooltip sortable>
@@ -130,10 +131,14 @@
             {{ row.createUserName || row.createdBy || row.salesUserName || row.purchaseUserName || '—' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+            <div @click.stop @dblclick.stop>
+              <div class="action-btns">
+                <el-button link type="primary" @click.stop="handleEdit(row)">编辑</el-button>
+                <el-button link type="danger" @click.stop="handleDelete(row)">删除</el-button>
+              </div>
+            </div>
           </template>
         </el-table-column>
       </CrmDataTable>
@@ -327,6 +332,8 @@ onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
 .quote-list-page {
   padding: 20px;
 }

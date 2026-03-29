@@ -72,6 +72,7 @@
         :data="filteredList"
         v-loading="loading"
         highlight-current-row
+        @row-dblclick="handleView"
       >
         <el-table-column prop="purchaseOrderCode" label="订单号" width="160" min-width="160" show-overflow-tooltip sortable>
           <template #default="{ row }">
@@ -115,43 +116,47 @@
             {{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" min-width="400" fixed="right">
+        <el-table-column label="操作" min-width="400" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
-            <el-button link type="primary" @click="handleView(row)">详情</el-button>
-            <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-            <el-button
-              v-if="row.status < 10"
-              link
-              type="danger"
-              @click="cancelOrder(row)"
-            >
-              取消订单
-            </el-button>
-            <el-button
-              v-if="(row.status >= 1 && row.status < 10) || row.status === -1"
-              link
-              type="warning"
-              @click="submitAudit(row)"
-            >
-              提交审核
-            </el-button>
-            <el-button
-              v-if="row.status >= 10 && row.status < 30"
-              link
-              type="success"
-              @click="confirmBySupplier(row)"
-            >
-              供应商确认
-            </el-button>
-            <el-button
-              v-if="row.status === 30"
-              link
-              type="danger"
-              @click="cancelSupplierConfirm(row)"
-            >
-              取消供应商确认
-            </el-button>
-            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+            <div @click.stop @dblclick.stop>
+              <div class="action-btns">
+                <el-button link type="primary" @click.stop="handleView(row)">详情</el-button>
+                <el-button link type="primary" @click.stop="handleEdit(row)">编辑</el-button>
+                <el-button
+                  v-if="row.status < 10"
+                  link
+                  type="danger"
+                  @click.stop="cancelOrder(row)"
+                >
+                  取消订单
+                </el-button>
+                <el-button
+                  v-if="(row.status >= 1 && row.status < 10) || row.status === -1"
+                  link
+                  type="warning"
+                  @click.stop="submitAudit(row)"
+                >
+                  提交审核
+                </el-button>
+                <el-button
+                  v-if="row.status >= 10 && row.status < 30"
+                  link
+                  type="warning"
+                  @click.stop="confirmBySupplier(row)"
+                >
+                  供应商确认
+                </el-button>
+                <el-button
+                  v-if="row.status === 30"
+                  link
+                  type="danger"
+                  @click.stop="cancelSupplierConfirm(row)"
+                >
+                  取消供应商确认
+                </el-button>
+                <el-button link type="danger" @click.stop="handleDelete(row)">删除</el-button>
+              </div>
+            </div>
           </template>
         </el-table-column>
       </CrmDataTable>

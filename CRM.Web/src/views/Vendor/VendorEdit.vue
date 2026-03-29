@@ -83,16 +83,32 @@
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="信用评级">
-                <el-select v-model="formData.credit" placeholder="请选择评级" clearable class="q-select">
-                  <el-option label="★☆☆☆☆ 1星" :value="1" />
-                  <el-option label="★★☆☆☆ 2星" :value="2" />
-                  <el-option label="★★★☆☆ 3星" :value="3" />
-                  <el-option label="★★★★☆ 4星" :value="4" />
-                  <el-option label="★★★★★ 5星" :value="5" />
+              <el-form-item label="等级">
+                <el-select v-model="formData.level" placeholder="请选择等级" clearable class="q-select">
+                  <el-option
+                    v-for="opt in VENDOR_LEVEL_OPTIONS"
+                    :key="opt.value"
+                    :label="opt.label"
+                    :value="opt.value"
+                  />
                 </el-select>
               </el-form-item>
             </el-col>
+            <el-col :span="8">
+              <el-form-item label="身份">
+                <el-select v-model="formData.credit" placeholder="请选择身份" clearable class="q-select">
+                  <el-option
+                    v-for="opt in VENDOR_IDENTITY_OPTIONS"
+                    :key="opt.value"
+                    :label="opt.label"
+                    :value="opt.value"
+                  />
+                </el-select>
+              </el-form-item>
+            </el-col>
+          </el-row>
+
+          <el-row :gutter="24">
             <el-col :span="8">
               <el-form-item label="合作状态">
                 <el-select v-model="formData.status" placeholder="请选择状态" class="q-select">
@@ -102,9 +118,6 @@
                 </el-select>
               </el-form-item>
             </el-col>
-          </el-row>
-
-          <el-row :gutter="24">
             <el-col :span="8">
               <el-form-item label="采购员">
                 <PurchaserCascader
@@ -120,6 +133,8 @@
                 <el-input v-model="formData.officeAddress" placeholder="详细办公地址" class="q-input" />
               </el-form-item>
             </el-col>
+          </el-row>
+          <el-row :gutter="24">
             <el-col :span="8">
               <el-form-item label="官方网站">
                 <el-input v-model="formData.website" placeholder="https://..." class="q-input" />
@@ -319,7 +334,10 @@ import { draftApi } from '@/api/draft';
 import type { CreateVendorRequest, UpdateVendorRequest, Vendor, VendorContactInfo } from '@/types/vendor';
 import { runValidatedFormSave } from '@/composables/useFormSubmit';
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency';
+import { VENDOR_LEVEL_OPTIONS, VENDOR_IDENTITY_OPTIONS } from '@/constants/vendorEnums';
 import PurchaserCascader from '@/components/PurchaserCascader.vue';
+import { logRecentApi } from '@/api/logRecent';
+import { VENDOR_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/vendorRecentHistory';
 
 const route = useRoute();
 const router = useRouter();
@@ -337,6 +355,8 @@ const formData = reactive({
   officialName: '',
   nickName: '',
   industry: '',
+  level: undefined as number | undefined,
+  /** 身份（vendorinfo.Credit） */
   credit: undefined as number | undefined,
   status: 0 as number,
   contactName: '',
@@ -368,12 +388,13 @@ function onPurchaserChange(p: { id: string; label: string }) {
 type VendorContactDraft = Omit<VendorContactInfo, 'vendorId' | 'id'> & { id?: string; vendorId?: string; _key?: string };
 const contacts = ref<VendorContactDraft[]>([]);
 
-const goBack = () => router.push('/vendors');
+const goBack = () => router.push({ name: 'VendorList' });
 
 const buildVendorApiPayload = (): CreateVendorRequest & UpdateVendorRequest => ({
   name: formData.officialName.trim(),
   nickName: formData.nickName?.trim(),
   industry: formData.industry || undefined,
+  level: formData.level,
   credit: formData.credit,
   status: formData.status,
   officeAddress: formData.officeAddress?.trim(),
@@ -426,6 +447,7 @@ const fetchVendorDetail = async () => {
     formData.officialName = data.officialName ?? data.name ?? '';
     formData.nickName = data.nickName ?? '';
     formData.industry = data.industry ?? '';
+    formData.level = data.level;
     formData.credit = data.credit;
     formData.status = data.status ?? 0;
     formData.officeAddress = data.officeAddress ?? '';
@@ -447,6 +469,15 @@ const fetchVendorDetail = async () => {
       ...c,
       _key: c.id || `srv-${idx}`
     }));
+    logRecentApi
+      .record({
+        bizType: 'Vendor',
+        recordId: data.id,
+        recordCode: data.code || undefined,
+        openKind: 'edit'
+      })
+      .then(() => window.dispatchEvent(new CustomEvent(VENDOR_RECENT_HISTORY_CHANGED_EVENT)))
+      .catch(() => {});
   } catch (e) {
     ElMessage.error('获取供应商详情失败');
   }
@@ -533,7 +564,7 @@ const handleSave = async () => {
     },
     formatSuccess: (mode) => (mode === 'edit' ? '保存成功' : '创建成功'),
     onSuccess: (mode) => {
-      if (mode === 'create') router.replace('/vendors');
+      if (mode === 'create') router.replace({ name: 'VendorList' });
       else void fetchVendorDetail();
     },
     errorMessage: (error: unknown) => {

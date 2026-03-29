@@ -36,11 +36,17 @@
         <p>当前没有黑名单供应商</p>
       </div>
 
-      <div v-for="item in items" :key="item.id" class="record-card">
+      <div v-for="item in items" :key="item.id" class="record-card" @dblclick="goDetail(item)">
         <div class="record-avatar">{{ (item.officialName || '?')[0] }}</div>
         <div class="record-body">
           <div class="record-name-row">
-            <span class="record-name">{{ item.officialName }}</span>
+            <span class="record-name record-name--muted">{{ item.officialName }}</span>
+            <PartyStatusIcons
+              :entity-id="item.id"
+              :frozen="!!item.isDisenable"
+              :blacklist="true"
+              size="sm"
+            />
             <span class="blacklist-tag">黑名单</span>
           </div>
           <div class="record-meta">
@@ -49,7 +55,7 @@
             <span class="meta-text">行业：{{ item.industry || '--' }}</span>
           </div>
         </div>
-        <div class="record-actions">
+        <div class="record-actions" @dblclick.stop>
           <el-button size="small" style="margin-right:8px" @click="goDetail(item)">查看详情</el-button>
           <el-button type="warning" size="small" :loading="removingId === item.id" @click="handleRemove(item)">
             移出黑名单
@@ -68,13 +74,33 @@
         @current-change="fetchData"
       />
     </div>
+
+    <el-dialog v-model="showRemoveDialog" title="移出黑名单" width="440px" :close-on-click-modal="false">
+      <div style="color:rgba(200,216,232,0.75);font-size:13px;margin-bottom:16px">
+        确定要将「{{ pendingRemove?.officialName || pendingRemove?.code || '' }}」移出黑名单吗？原因将记入操作日志。
+      </div>
+      <el-form label-width="90px">
+        <el-form-item label="移出原因" required>
+          <el-input
+            v-model="removeReason"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入移出黑名单原因（必填）"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showRemoveDialog = false">取消</el-button>
+        <el-button type="primary" :loading="removingId !== null" @click="confirmRemoveFromBlacklist">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElNotification, ElMessageBox } from 'element-plus';
+import { ElNotification } from 'element-plus';
 import { vendorApi } from '@/api/vendor';
 import type { Vendor } from '@/types/vendor';
 
@@ -86,6 +112,9 @@ const pageIndex = ref(1);
 const pageSize = 20;
 const keyword = ref('');
 const removingId = ref<string | null>(null);
+const showRemoveDialog = ref(false);
+const pendingRemove = ref<Vendor | null>(null);
+const removeReason = ref('');
 
 const fetchData = async () => {
   loading.value = true;
@@ -100,15 +129,29 @@ const fetchData = async () => {
   }
 };
 
-const handleRemove = async (item: Vendor) => {
+const handleRemove = (item: Vendor) => {
+  pendingRemove.value = item;
+  removeReason.value = '';
+  showRemoveDialog.value = true;
+};
+
+const confirmRemoveFromBlacklist = async () => {
+  const item = pendingRemove.value;
+  if (!item?.id) return;
+  if (!removeReason.value.trim()) {
+    ElNotification.warning({ title: '请填写原因', message: '请输入移出黑名单原因' });
+    return;
+  }
+  removingId.value = item.id;
   try {
-    await ElMessageBox.confirm(`确定要将「${item.officialName || item.code}」移出黑名单吗？`, '移出黑名单', { type: 'warning' });
-    removingId.value = item.id;
-    await vendorApi.removeFromBlacklist(item.id);
+    await vendorApi.removeFromBlacklist(item.id, removeReason.value.trim());
     ElNotification.success({ title: '操作成功', message: '供应商已移出黑名单' });
+    showRemoveDialog.value = false;
+    pendingRemove.value = null;
+    removeReason.value = '';
     fetchData();
-  } catch (e) {
-    if (e !== 'cancel') ElNotification.error({ title: '操作失败', message: '移出黑名单失败，请稍后重试' });
+  } catch {
+    ElNotification.error({ title: '操作失败', message: '移出黑名单失败，请稍后重试' });
   } finally {
     removingId.value = null;
   }
@@ -226,6 +269,10 @@ onMounted(fetchData);
   font-size: 15px;
   font-weight: 600;
   color: $text-primary;
+
+  &--muted {
+    color: rgba(150, 170, 195, 0.82);
+  }
 }
 
 .blacklist-tag {

@@ -133,14 +133,19 @@ namespace CRM.Core.Interfaces
         Task AddToBlacklistAsync(string id, string? reason);
 
         /// <summary>
-        /// 移出黑名单
+        /// 移出黑名单（需原因，写入操作日志）
         /// </summary>
-        Task RemoveFromBlacklistAsync(string id);
+        Task RemoveFromBlacklistAsync(string id, string reason, string? operatorUserId, string? operatorUserName);
 
         /// <summary>
         /// 获取黑名单供应商分页列表
         /// </summary>
         Task<PagedResult<VendorInfo>> GetBlacklistAsync(VendorQueryRequest request);
+
+        /// <summary>
+        /// 获取已冻结（禁用）供应商分页列表
+        /// </summary>
+        Task<PagedResult<VendorInfo>> GetFrozenAsync(VendorQueryRequest request);
 
         /// <summary>
         /// 获取已删除供应商（回收站）分页列表
@@ -181,6 +186,23 @@ namespace CRM.Core.Interfaces
         /// 获取供应商字段变更日志
         /// </summary>
         Task<IEnumerable<VendorChangeLog>> GetChangeLogsAsync(string vendorId);
+
+        /// <summary>冻结供应商（禁用）</summary>
+        Task FreezeVendorAsync(string id, string reason, string? operatorUserId, string? operatorUserName);
+
+        /// <summary>启用供应商（解除冻结）</summary>
+        Task UnfreezeVendorAsync(string id, string reason, string? operatorUserId, string? operatorUserName);
+
+        /// <summary>记录供应商主体操作日志（写入 log_operation）</summary>
+        Task AddOperationLogAsync(string vendorId, string operationType, string? desc, string? userId, string? userName, string? remark = null);
+    }
+
+    /// <summary>
+    /// 冻结/启用供应商请求（原因写入操作日志）
+    /// </summary>
+    public class FreezeVendorRequest
+    {
+        public string Reason { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -299,6 +321,8 @@ namespace CRM.Core.Interfaces
         public string? Content { get; set; }
         public string? ContactPerson { get; set; }
         public DateTime? Time { get; set; }
+        /// <summary>ContactTime 是 Time 的别名，与客户模块一致</summary>
+        public DateTime? ContactTime { get => Time; set => Time = value; }
         public DateTime? NextFollowUpTime { get; set; }
         public string? Result { get; set; }
     }
@@ -343,7 +367,9 @@ namespace CRM.Core.Interfaces
         public string? NickName { get; set; }
         /// <summary>行业分类</summary>
         public string? Industry { get; set; }
-        /// <summary>信用评级 1-5</summary>
+        /// <summary>等级（VendorLevelCode → vendorinfo.Level）</summary>
+        public short? Level { get; set; }
+        /// <summary>身份（VendorIdentityCode → vendorinfo.Credit）</summary>
         public short? Credit { get; set; }
         /// <summary>状态：1新建 2待审核 10已审核 12待财务审核 20财务建档 -1审核失败</summary>
         public short? Status { get; set; }
@@ -379,7 +405,7 @@ namespace CRM.Core.Interfaces
         public string? Industry { get; set; }
         /// <summary>供应商分类/主营产品</summary>
         public string? Product { get; set; }
-        /// <summary>信用评级 1-5星</summary>
+        /// <summary>身份（VendorIdentityCode → vendorinfo.Credit）</summary>
         public short? Credit { get; set; }
         /// <summary>合作状态</summary>
         public short? Status { get; set; }
@@ -416,6 +442,17 @@ namespace CRM.Core.Interfaces
         public int PageSize { get; set; } = 10;
         public string? Keyword { get; set; }
         public short? Status { get; set; }
+        /// <summary>供应商等级（与 vendorinfo.Level 一致）</summary>
+        public short? Level { get; set; }
+        /// <summary>行业关键字（包含匹配）</summary>
+        public string? Industry { get; set; }
+        /// <summary>身份（vendorinfo.Credit，VendorIdentityCode）</summary>
+        public short? Credit { get; set; }
+        /// <summary>供应商归属：1 专属 2 公海（AscriptionType）</summary>
+        public short? AscriptionType { get; set; }
+        public string? PurchaseUserId { get; set; }
+        public DateTime? CreatedFrom { get; set; }
+        public DateTime? CreatedTo { get; set; }
         public string? CurrentUserId { get; set; }
     }
 
@@ -432,6 +469,8 @@ namespace CRM.Core.Interfaces
         public string? OperatorUserName { get; set; }
         public DateTime OperationTime { get; set; }
         public string? Remark { get; set; }
+        public string? BizType { get; set; }
+        public string? RecordCode { get; set; }
     }
 
     /// <summary>
@@ -448,5 +487,7 @@ namespace CRM.Core.Interfaces
         public string? ChangedByUserId { get; set; }
         public string? ChangedByUserName { get; set; }
         public DateTime ChangedAt { get; set; }
+        public string? BizType { get; set; }
+        public string? RecordCode { get; set; }
     }
 }

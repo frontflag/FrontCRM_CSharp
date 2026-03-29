@@ -59,7 +59,7 @@
     <CrmDataTable
       :data="tableData"
       v-loading="loading"
-      @row-click="openDetail"
+      @row-dblclick="openDetail"
       row-class-name="table-row-pointer"
     >
         <el-table-column prop="financePaymentCode" label="付款单号" width="160" min-width="160" fixed>
@@ -98,12 +98,16 @@
             {{ (row as any).createUserName || (row as any).createdBy || (row as any).paymentUserName || '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
-            <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
-            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="[1,-1,10].includes(row.status)">编辑</el-button>
-            <el-button size="small" text type="success" @click.stop="submitAudit(row)" v-if="row.status === 1">提交审核</el-button>
-            <el-button size="small" text type="danger" @click.stop="cancelPayment(row)" v-if="[1,2].includes(row.status)">取消</el-button>
+            <div @click.stop @dblclick.stop>
+              <div class="action-btns">
+                <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
+                <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="[1,-1,10].includes(row.status)">编辑</el-button>
+                <el-button size="small" text type="warning" @click.stop="submitAudit(row)" v-if="row.status === 1">提交审核</el-button>
+                <el-button size="small" text type="danger" @click.stop="cancelPayment(row)" v-if="[1,2].includes(row.status)">取消</el-button>
+              </div>
+            </div>
           </template>
         </el-table-column>
     </CrmDataTable>
@@ -154,7 +158,12 @@
           <el-col :span="12">
             <el-form-item label="币别">
               <el-select v-model="form.paymentCurrency" style="width:100%">
-                <el-option v-for="(v, k) in CURRENCY_MAP" :key="k" :label="v" :value="Number(k)" />
+                <el-option
+                  v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
+                  :key="opt.value"
+                  :label="opt.label"
+                  :value="opt.value"
+                />
               </el-select>
             </el-form-item>
           </el-col>
@@ -226,6 +235,7 @@ import {
   type FinancePayment,
   type PageQuery,
 } from '@/api/finance'
+import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()

@@ -86,7 +86,13 @@ const makeStatistics = (): any => ({
   totalCustomers: 256,
   activeCustomers: 198,
   newThisMonth: 12,
+  newLast30Days: 8,
+  customersWithDeals: 120,
   totalBalance: 3850000.00,
+  receivableGoodsAmount: 1200000.5,
+  receivableCustomerCount: 45,
+  pendingOutboundAmount: 980000.25,
+  pendingOutboundCustomerCount: 32,
   byLevel: { VIP: 30, BPO: 45, B: 80, C: 60, D: 41 },
   byIndustry: { Technology: 90, Manufacturing: 70, Trading: 60, Other: 36 }
 })
@@ -170,6 +176,21 @@ describe('searchCustomers - 分页查询客户列表', () => {
       expect(url).toContain('isActive=true')
       expect(url).toContain('sortBy=createdAt')
       expect(url).toContain('sortDescending=true')
+    })
+
+    it('TC-SEARCH-011: 按工作流状态筛选，URL 包含 status=10', async () => {
+      mockGet.mockResolvedValue({ items: [], totalCount: 0 })
+      await customerApi.searchCustomers({ pageNumber: 1, pageSize: 20, status: 10 })
+      const url = mockGet.mock.calls[0][0] as string
+      expect(url).toContain('status=10')
+    })
+
+    it('TC-SEARCH-012: 同时传 status 与 isActive 时优先 status', async () => {
+      mockGet.mockResolvedValue({ items: [], totalCount: 0 })
+      await customerApi.searchCustomers({ pageNumber: 1, pageSize: 20, status: 10, isActive: true })
+      const url = mockGet.mock.calls[0][0] as string
+      expect(url).toContain('status=10')
+      expect(url).not.toContain('isActive')
     })
 
     it('TC-SEARCH-009: 正常返回时，透传后端 items 和 totalCount', async () => {

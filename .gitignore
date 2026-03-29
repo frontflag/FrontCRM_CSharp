@@ -34,4 +34,6 @@ Thumbs.db
 ## Build
 dist/
 dist-ssr/
+## 由 scripts/sync-help.mjs 从仓库根目录 help/ 生成，勿提交
+CRM.Web/public/help/
 CRM.API/publish*/

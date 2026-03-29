@@ -145,8 +145,14 @@ namespace CRM.Core.Interfaces
         /// <summary>设置黑名单（带理由）</summary>
         Task SetBlackListAsync(string id, string reason, string? operatorUserId, string? operatorUserName);
 
-        /// <summary>移出黑名单</summary>
-        Task RemoveFromBlackListAsync(string id, string? operatorUserId, string? operatorUserName);
+        /// <summary>移出黑名单（需原因，写入操作日志）</summary>
+        Task RemoveFromBlackListAsync(string id, string reason, string? operatorUserId, string? operatorUserName);
+
+        /// <summary>冻结客户（设置禁用状态）</summary>
+        Task FreezeCustomerAsync(string id, string reason, string? operatorUserId, string? operatorUserName);
+
+        /// <summary>启用客户（解除冻结）</summary>
+        Task UnfreezeCustomerAsync(string id, string reason, string? operatorUserId, string? operatorUserName);
 
         /// <summary>恢复已删除的客户</summary>
         Task RestoreCustomerAsync(string id, string? operatorUserId, string? operatorUserName);
@@ -156,6 +162,9 @@ namespace CRM.Core.Interfaces
 
         /// <summary>获取黑名单客户列表</summary>
         Task<PagedResult<CustomerInfo>> GetBlackListCustomersAsync(int pageIndex, int pageSize, string? keyword);
+
+        /// <summary>获取已冻结（禁用）客户列表</summary>
+        Task<PagedResult<CustomerInfo>> GetFrozenCustomersAsync(int pageIndex, int pageSize, string? keyword);
 
         /// <summary>获取客户操作日志</summary>
         Task<IEnumerable<CustomerOperationLog>> GetOperationLogsAsync(string customerId);
@@ -183,6 +192,10 @@ namespace CRM.Core.Interfaces
         public string? OperatorUserName { get; set; }
         public DateTime OperationTime { get; set; }
         public string? Remark { get; set; }
+        /// <summary>统一日志业务类型（如 Customer、CustomerContact）</summary>
+        public string? BizType { get; set; }
+        /// <summary>被操作记录单号（如客户编号）</summary>
+        public string? RecordCode { get; set; }
     }
 
     /// <summary>
@@ -199,6 +212,8 @@ namespace CRM.Core.Interfaces
         public string? ChangedByUserId { get; set; }
         public string? ChangedByUserName { get; set; }
         public DateTime ChangedAt { get; set; }
+        public string? BizType { get; set; }
+        public string? RecordCode { get; set; }
     }
 
     /// <summary>
@@ -210,11 +225,27 @@ namespace CRM.Core.Interfaces
     }
 
     /// <summary>
+    /// 移出黑名单请求
+    /// </summary>
+    public class RemoveBlackListRequest
+    {
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    /// <summary>
     /// 删除客户请求（带理由）
     /// </summary>
     public class DeleteCustomerRequest
     {
         public string? Reason { get; set; }
+    }
+
+    /// <summary>
+    /// 冻结/启用客户请求（需填写原因，写入操作日志）
+    /// </summary>
+    public class FreezeCustomerRequest
+    {
+        public string Reason { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -651,6 +682,15 @@ namespace CRM.Core.Interfaces
         public short? Level { get; set; }
         public short? Type { get; set; }
         public string? SalesUserId { get; set; }
+        /// <summary>行业（与 Industry 字段精确匹配，如 Manufacturing）</summary>
+        public string? Industry { get; set; }
+        /// <summary>地区关键词（匹配省/市包含）</summary>
+        public string? Region { get; set; }
+        /// <summary>创建时间起（含当日 00:00:00 UTC 起算，由 API 解析）</summary>
+        public DateTime? CreatedFrom { get; set; }
+        /// <summary>创建时间止（含当日，按日期边界过滤）</summary>
+        public DateTime? CreatedTo { get; set; }
+        /// <summary>工作流状态：1 新建、2 待审核、10 已审核、12 待财务审核、20 财务建档、-1 审核失败等</summary>
         public short? Status { get; set; }
         public string? CurrentUserId { get; set; }
     }

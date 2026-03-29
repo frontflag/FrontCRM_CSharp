@@ -1,5 +1,5 @@
 <template>
-  <div class="sales-order-list-page">
+  <div class="sales-order-list-page customer-list-theme">
     <div class="page-header">
       <h2>销售订单管理</h2>
       <el-button type="primary" @click="handleCreate">
@@ -64,6 +64,7 @@
         :data="filteredList"
         v-loading="loading"
         highlight-current-row
+        @row-dblclick="handleView"
       >
         <el-table-column prop="sellOrderCode" label="订单号" width="160" min-width="160" show-overflow-tooltip sortable>
           <template #default="{ row }">
@@ -107,21 +108,26 @@
             {{ row.createUserName || row.createdBy || row.salesUserName || '—' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="420" fixed="right" class-name="op-col">
+        <!-- 操作列须为最后一列 + fixed="right"，结构对齐客户列表 CustomerList 末列 td -->
+        <el-table-column label="操作" width="480" min-width="480" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
-            <div class="op-actions">
-              <el-button link type="primary" @click.stop="handleView(row)">查看</el-button>
-              <el-button link type="primary" @click.stop="handleEdit(row)">编辑</el-button>
-              <el-button
-                v-if="row.status === 1 && canSubmitSalesOrderAudit"
-                link
-                type="warning"
-                @click.stop="submitForAudit(row)"
-              >
-                提交审核
-              </el-button>
-              <el-button link type="success" @click.stop="handleGeneratePO(row)">生成采购单</el-button>
-              <el-button link type="danger" @click.stop="handleDelete(row)">删除</el-button>
+            <div @click.stop @dblclick.stop>
+              <div class="action-btns">
+                <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">详情</button>
+                <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">编辑</button>
+                <button
+                  v-if="row.status === 1 && canSubmitSalesOrderAudit"
+                  type="button"
+                  class="action-btn action-btn--warning"
+                  @click.stop="submitForAudit(row)"
+                >
+                  提交审核
+                </button>
+                <button type="button" class="action-btn action-btn--warning" @click.stop="handleGeneratePO(row)">
+                  生成采购单
+                </button>
+                <button type="button" class="action-btn action-btn--danger" @click.stop="handleDelete(row)">删除</button>
+              </div>
             </div>
           </template>
         </el-table-column>
@@ -381,10 +387,6 @@ onMounted(loadData)
     --el-table-border-color: rgba(0, 212, 255, 0.1);
     color: #E8F4FF;
 
-    // 操作列按钮禁止折行
-    .el-table__cell .el-button {
-      white-space: nowrap !important;
-    }
     .el-table__cell .cell {
       white-space: nowrap;
     }
@@ -400,20 +402,6 @@ onMounted(loadData)
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
-}
-
-/* 操作列禁止省略号，确保按钮文字完整可见 */
-:deep(.op-col .cell) {
-  overflow: visible !important;
-  text-overflow: clip !important;
-  white-space: nowrap !important;
-}
-
-.op-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
 }
 
 .items-section {

@@ -120,6 +120,7 @@
         row-key="id"
         class="bom-table"
         @selection-change="handleSelectionChange"
+        @row-dblclick="onRowDblclick"
       >
         <el-table-column type="selection" width="44" />
         <el-table-column label="BOM 单号" width="160" min-width="160">
@@ -156,17 +157,19 @@
         <el-table-column label="创建人" width="90" show-overflow-tooltip>
           <template #default="{ row }">{{ row.salesUserName || row.createdBy || '—' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
-            <div class="action-btns">
-              <el-button size="small" type="primary" @click="goDetail(row.id)">详情</el-button>
-              <el-button
-                v-if="row.status === 1 || row.status === 2"
-                size="small"
-                type="success"
-                @click="handleAutoQuote(row)"
-              >一键报价</el-button>
-              <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <div @click.stop @dblclick.stop>
+              <div class="action-btns">
+                <el-button size="small" type="primary" @click.stop="goDetail(row.id)">详情</el-button>
+                <el-button
+                  v-if="row.status === 1 || row.status === 2"
+                  size="small"
+                  type="warning"
+                  @click.stop="handleAutoQuote(row)"
+                >一键报价</el-button>
+                <el-button size="small" type="danger" @click.stop="handleDelete(row)">删除</el-button>
+              </div>
             </div>
           </template>
         </el-table-column>
@@ -289,6 +292,7 @@ const handleSelectionChange = (rows: BOM[]) => {
 // ── 路由跳转 ──
 const goCreate = () => router.push({ name: 'BOMCreate' })
 const goDetail = (id: string) => router.push({ name: 'BOMDetail', params: { id } })
+const onRowDblclick = (row: BOM) => goDetail(row.id)
 
 // ── 删除 ──
 const handleDelete = async (row: BOM) => {

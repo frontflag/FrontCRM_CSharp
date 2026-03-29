@@ -349,14 +349,14 @@ describe('customerAddressApi - 地址接口', () => {
       expect(mockPost.mock.calls[0][0]).toBe('/api/v1/customers/cust-001/addresses')
     })
 
-    it('TC-ADDR-006: 请求体包含必填字段（addressType, streetAddress）', async () => {
+    it('TC-ADDR-006: 请求体映射为后端 AddAddressRequest（addressType 数字 + address）', async () => {
       mockPost.mockResolvedValue(makeAddress())
       await customerAddressApi.createAddress('cust-001', {
         addressType: 'Billing', streetAddress: '福田区中心三路8号', isDefault: false
       } as any)
       const body = mockPost.mock.calls[0][1]
-      expect(body.addressType).toBe('Billing')
-      expect(body.streetAddress).toBe('福田区中心三路8号')
+      expect(body.addressType).toBe(2)
+      expect(body.address).toBe('福田区中心三路8号')
     })
 
     it('TC-ADDR-007: 请求体包含省市区字段', async () => {
@@ -368,7 +368,7 @@ describe('customerAddressApi - 地址接口', () => {
       const body = mockPost.mock.calls[0][1]
       expect(body.province).toBe('广东省')
       expect(body.city).toBe('深圳市')
-      expect(body.district).toBe('福田区')
+      expect(body.area).toBe('福田区')
     })
 
     it('TC-ADDR-008: 请求体包含联系人和联系电话', async () => {
@@ -378,16 +378,16 @@ describe('customerAddressApi - 地址接口', () => {
         contactPerson: '收货人', contactPhone: '13800138000', isDefault: false
       } as any)
       const body = mockPost.mock.calls[0][1]
-      expect(body.contactPerson).toBe('收货人')
+      expect(body.contactName).toBe('收货人')
       expect(body.contactPhone).toBe('13800138000')
     })
 
-    it('TC-ADDR-009: 请求体包含邮编字段', async () => {
+    it('TC-ADDR-009: 邮编仅前端收集，POST 体不传 zipCode（后端表无此列）', async () => {
       mockPost.mockResolvedValue(makeAddress())
       await customerAddressApi.createAddress('cust-001', {
         addressType: 'Office', streetAddress: '测试地址', zipCode: '518057', isDefault: true
       } as any)
-      expect(mockPost.mock.calls[0][1].zipCode).toBe('518057')
+      expect(mockPost.mock.calls[0][1].zipCode).toBeUndefined()
     })
 
     it('TC-ADDR-010: 创建成功，返回包含 id 的地址对象', async () => {
@@ -398,12 +398,12 @@ describe('customerAddressApi - 地址接口', () => {
       expect(result.id).toBe('new-addr-001')
     })
 
-    it('TC-ADDR-011: 地址类型为 Registered（注册地址），正确传递', async () => {
+    it('TC-ADDR-011: 地址类型为 Registered（注册地址），正确传递为 short', async () => {
       mockPost.mockResolvedValue(makeAddress({ addressType: 'Registered' }))
       await customerAddressApi.createAddress('cust-001', {
         addressType: 'Registered', streetAddress: '注册地址', isDefault: false
       } as any)
-      expect(mockPost.mock.calls[0][1].addressType).toBe('Registered')
+      expect(mockPost.mock.calls[0][1].addressType).toBe(4)
     })
   })
 
@@ -416,12 +416,12 @@ describe('customerAddressApi - 地址接口', () => {
       expect(mockPut.mock.calls[0][0]).toBe('/api/v1/addresses/addr-001')
     })
 
-    it('TC-ADDR-013: 请求体包含更新字段', async () => {
+    it('TC-ADDR-013: 请求体映射为后端字段（address；不传 zipCode）', async () => {
       mockPut.mockResolvedValue(makeAddress({ streetAddress: '更新后地址' }))
       await customerAddressApi.updateAddress('addr-001', { streetAddress: '更新后地址', zipCode: '518000' })
       const body = mockPut.mock.calls[0][1]
-      expect(body.streetAddress).toBe('更新后地址')
-      expect(body.zipCode).toBe('518000')
+      expect(body.address).toBe('更新后地址')
+      expect(body.zipCode).toBeUndefined()
     })
 
     it('TC-ADDR-014: 更新成功，返回更新后的地址对象', async () => {

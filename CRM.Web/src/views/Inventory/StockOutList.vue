@@ -55,11 +55,20 @@
         <el-table-column label="创建人" width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right">
+        <el-table-column label="操作" width="140" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
-            <button class="action-btn" @click.stop="handleMarkFinish(row)" v-if="row.status !== 4">
-              标记完成
-            </button>
+            <div @click.stop @dblclick.stop>
+              <div class="action-btns">
+                <button
+                  v-if="row.status !== 4"
+                  type="button"
+                  class="action-btn action-btn--warning"
+                  @click.stop="handleMarkFinish(row)"
+                >
+                  标记完成
+                </button>
+              </div>
+            </div>
           </template>
         </el-table-column>
     </CrmDataTable>

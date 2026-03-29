@@ -145,7 +145,12 @@
       <!-- 底部操作 -->
       <div class="form-card-footer">
         <button class="footer-btn footer-btn--cancel" @click="handleBack">取消</button>
-        <button class="footer-btn footer-btn--submit" :disabled="submitting" @click="handleSubmit">
+        <button
+          class="footer-btn"
+          :class="isEdit ? 'footer-btn--submit' : 'footer-btn--create'"
+          :disabled="submitting"
+          @click="handleSubmit"
+        >
           <svg v-if="submitting" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin">
             <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
           </svg>
@@ -472,6 +477,19 @@ $text-secondary: rgba(130, 170, 200, 0.7);
     min-width: 110px;
     justify-content: center;
     &:hover { background: linear-gradient(135deg, rgba(0, 102, 255, 0.95), rgba(0, 212, 255, 0.85)); }
+    &:disabled { opacity: 0.6; cursor: not-allowed; }
+  }
+
+  // 新增联系人（UI 规范：success 绿）
+  &--create {
+    background: linear-gradient(135deg, rgba(46, 160, 67, 0.88), rgba(70, 191, 145, 0.78));
+    border: 1px solid rgba(70, 191, 145, 0.45);
+    color: #fff;
+    min-width: 110px;
+    justify-content: center;
+    &:hover {
+      background: linear-gradient(135deg, rgba(46, 160, 67, 0.98), rgba(70, 191, 145, 0.9));
+    }
     &:disabled { opacity: 0.6; cursor: not-allowed; }
   }
 }

@@ -19,9 +19,13 @@
       <el-table-column prop="createTime" label="创建时间" width="170">
         <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="220">
+      <el-table-column label="操作" width="220" class-name="op-col" label-class-name="op-col">
         <template #default="{ row }">
-          <button class="action-btn" @click="openSubmit(row.id)">提交盘点结果</button>
+          <div @click.stop @dblclick.stop>
+            <div class="action-btns">
+              <button type="button" class="action-btn action-btn--warning" @click.stop="openSubmit(row.id)">提交盘点结果</button>
+            </div>
+          </div>
         </template>
       </el-table-column>
     </CrmDataTable>
@@ -40,8 +44,10 @@
         <el-table-column prop="countAmount" label="实盘金额" width="140">
           <template #default="{ row }"><el-input-number v-model="row.countAmount" :min="0" :step="0.01" /></template>
         </el-table-column>
-        <el-table-column label="操作" width="90">
-          <template #default="{ $index }"><button class="action-btn" @click="removeRow($index)">删除</button></template>
+        <el-table-column label="操作" width="90" class-name="op-col" label-class-name="op-col">
+          <template #default="{ $index }">
+            <button type="button" class="action-btn action-btn--danger" @click.stop="removeRow($index)">删除</button>
+          </template>
         </el-table-column>
       </el-table>
       <div class="submit-footer">

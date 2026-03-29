@@ -156,32 +156,40 @@
             <!-- 需求类型 -->
             <el-col :span="6">
               <el-form-item label="需求类型" prop="rfqType">
-                <el-select v-model="formData.rfqType" placeholder="请选择" style="width: 100%" class="q-select">
-                  <el-option label="现货" :value="1" />
-                  <el-option label="期货" :value="2" />
-                  <el-option label="样品" :value="3" />
-                  <el-option label="批量" :value="4" />
+                <el-select v-model="formData.rfqType" placeholder="请选择需求类型" style="width: 100%" class="q-select">
+                  <el-option v-for="o in RFQ_TYPE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
                 </el-select>
               </el-form-item>
             </el-col>
             <!-- 报价方式 -->
             <el-col :span="6">
-              <el-form-item label="报价方式" prop="quoteMethod">
-                <el-select v-model="formData.quoteMethod" placeholder="请选择" style="width: 100%" class="q-select">
-                  <el-option label="不接受任何消息" :value="1" />
-                  <el-option label="仅邮件" :value="2" />
-                  <el-option label="仅系统" :value="3" />
-                  <el-option label="全部方式" :value="4" />
+              <el-form-item prop="quoteMethod">
+                <template #label>
+                  <span class="rfq-field-label">
+                    报价方式
+                    <el-tooltip content="选择报价结果与通知的触达方式（系统推送 / 邮件 / 短信等）" placement="top">
+                      <el-icon class="rfq-label-help" aria-hidden="true"><QuestionFilled /></el-icon>
+                    </el-tooltip>
+                  </span>
+                </template>
+                <el-select v-model="formData.quoteMethod" placeholder="请选择报价方式" style="width: 100%" class="q-select">
+                  <el-option v-for="o in QUOTE_METHOD_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
                 </el-select>
               </el-form-item>
             </el-col>
             <!-- 分配方式 -->
             <el-col :span="6">
-              <el-form-item label="分配方式" prop="assignMethod">
-                <el-select v-model="formData.assignMethod" placeholder="请选择" style="width: 100%" class="q-select">
-                  <el-option label="系统分配多人采购" :value="1" />
-                  <el-option label="系统分配单人采购" :value="2" />
-                  <el-option label="手动分配" :value="3" />
+              <el-form-item prop="assignMethod">
+                <template #label>
+                  <span class="rfq-field-label">
+                    分配方式
+                    <el-tooltip content="询价明细如何分配给采购员（同一采购、多人、按品牌或指定人员）" placement="top">
+                      <el-icon class="rfq-label-help" aria-hidden="true"><QuestionFilled /></el-icon>
+                    </el-tooltip>
+                  </span>
+                </template>
+                <el-select v-model="formData.assignMethod" placeholder="请选择分配方式" style="width: 100%" class="q-select">
+                  <el-option v-for="o in ASSIGN_METHOD_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
                 </el-select>
               </el-form-item>
             </el-col>
@@ -373,10 +381,12 @@
                       placeholder="0"
                     />
                     <el-select v-model="item.currency" style="width: 80px; flex-shrink: 0" class="q-select currency-select">
-                      <el-option label="RMB" value="RMB" />
-                      <el-option label="USD" value="USD" />
-                      <el-option label="EUR" value="EUR" />
-                      <el-option label="HKD" value="HKD" />
+                      <el-option
+                        v-for="opt in SETTLEMENT_CURRENCY_STRING_OPTIONS"
+                        :key="opt.value"
+                        :label="opt.label"
+                        :value="opt.value"
+                      />
                     </el-select>
                   </div>
                 </el-form-item>
@@ -481,6 +491,13 @@ import { draftApi } from '@/api/draft'
 import type { CreateRFQRequest, CreateRFQItemRequest } from '@/types/rfq'
 import { getApiErrorMessage } from '@/utils/apiError'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
+import { SETTLEMENT_CURRENCY_STRING_OPTIONS } from '@/constants/currency'
+import {
+  RFQ_TYPE_OPTIONS,
+  QUOTE_METHOD_OPTIONS,
+  ASSIGN_METHOD_OPTIONS
+} from '@/constants/rfqFormEnums'
+import { QuestionFilled } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -536,8 +553,8 @@ const formData = reactive<{
   source: 1,
   currency: 'RMB',
   rfqType: 1,
-  quoteMethod: 1,
-  assignMethod: 1,
+  quoteMethod: 2,
+  assignMethod: 2,
   industry: '',
   product: '',
   targetType: 1,
@@ -814,7 +831,7 @@ async function handleSave() {
       title: '保存成功',
       message: isEdit.value ? '需求信息已成功更新' : '需求已成功创建'
     })
-    setTimeout(() => router.push('/rfqs'), 1500)
+    setTimeout(() => router.push('/rfqlist'), 1500)
   } catch (err: unknown) {
     ElNotification.error({
       title: '保存失败',
@@ -870,8 +887,8 @@ function applyDraftPayload(payload: any) {
   formData.source = payload.source ?? 1
     formData.currency = payload.currency || 'RMB'
   formData.rfqType = payload.rfqType ?? 1
-  formData.quoteMethod = payload.quoteMethod ?? 1
-  formData.assignMethod = payload.assignMethod ?? 1
+  formData.quoteMethod = payload.quoteMethod ?? 2
+  formData.assignMethod = payload.assignMethod ?? 2
   formData.industry = payload.industry || ''
   formData.product = payload.product || ''
   formData.targetType = payload.targetType ?? 1
@@ -949,14 +966,14 @@ async function handleConvertToFormal() {
     if (!currentDraftId.value) throw new Error('草稿ID为空，无法转正式')
     const result = await draftApi.convertDraft(currentDraftId.value)
     ElNotification.success({ title: '转正式成功', message: `RFQ已创建，ID：${result.entityId}` })
-    setTimeout(() => router.push('/rfqs'), 1500)
+    setTimeout(() => router.push('/rfqlist'), 1500)
   } catch (err: any) {
     ElNotification.error({ title: '转正式失败', message: err?.message || '草稿转正式失败' })
   }
 }
 
 function goBack() {
-  router.push('/rfqs')
+  router.push('/rfqlist')
 }
 
 onMounted(async () => {
@@ -997,6 +1014,18 @@ onMounted(async () => {
   min-height: 100%;
   background: $layer-1;
   font-family: 'Noto Sans SC', sans-serif;
+}
+
+.rfq-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.rfq-label-help {
+  font-size: 14px;
+  color: rgba(0, 212, 255, 0.55);
+  cursor: help;
+  vertical-align: middle;
 }
 
 // ---- 页面头部 ----

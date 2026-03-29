@@ -1,0 +1,4 @@
+-- 已废弃：客户专用表 customer_operation_log / customer_change_log 已合并为
+--   public.log_operation、public.log_change_fldval
+-- 请使用 EF 迁移 20260328210000_UnifiedLogOperationAndChangeFldval，
+-- 或执行 scripts/ensure-unified-operation-logs.sql（仅建表，不含数据迁移）。

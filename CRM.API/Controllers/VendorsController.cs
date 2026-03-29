@@ -2,30 +2,47 @@ using Microsoft.AspNetCore.Mvc;
 using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Vendor;
 using System.Security.Claims;
 
 namespace CRM.API.Controllers
 {
     [ApiController]
-    [Route("api/v1/[controller]")]
+    [Route("api/v1/vendors")]
     [RequirePermission("vendor.read")]
     public class VendorsController : ControllerBase
     {
         private readonly IVendorService _vendorService;
         private readonly IApprovalRecordService _approvalRecordService;
         private readonly IDataPermissionService _dataPermissionService;
+        private readonly IRepository<PurchaseOrder> _purchaseOrderRepository;
         private readonly ILogger<VendorsController> _logger;
 
-        public VendorsController(IVendorService vendorService, IApprovalRecordService approvalRecordService, IDataPermissionService dataPermissionService, ILogger<VendorsController> logger)
+        public VendorsController(
+            IVendorService vendorService,
+            IApprovalRecordService approvalRecordService,
+            IDataPermissionService dataPermissionService,
+            IRepository<PurchaseOrder> purchaseOrderRepository,
+            ILogger<VendorsController> logger)
         {
             _vendorService = vendorService;
             _approvalRecordService = approvalRecordService;
             _dataPermissionService = dataPermissionService;
+            _purchaseOrderRepository = purchaseOrderRepository;
             _logger = logger;
         }
 
+        /// <summary>有效采购单：已审核通过且未取消/未审核失败</summary>
+        private static bool IsCommercialPurchaseOrder(PurchaseOrder o) =>
+            o.Status >= 10 && o.Status != -1 && o.Status != -2;
+
         public class VendorBlacklistRequest
+        {
+            public string? Reason { get; set; }
+        }
+
+        public class VendorRemoveFromBlacklistRequest
         {
             public string? Reason { get; set; }
         }
@@ -61,16 +78,34 @@ namespace CRM.API.Controllers
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? keyword = null,
-            [FromQuery] short? status = null)
+            /// <summary>与客户列表 searchTerm 对齐的别名</summary>
+            [FromQuery] string? searchTerm = null,
+            [FromQuery] short? status = null,
+            [FromQuery] short? level = null,
+            [FromQuery] string? industry = null,
+            /// <summary>身份（vendorinfo.Credit）</summary>
+            [FromQuery] short? credit = null,
+            [FromQuery] short? ascriptionType = null,
+            [FromQuery] string? purchaseUserId = null,
+            [FromQuery] DateTime? createdFrom = null,
+            [FromQuery] DateTime? createdTo = null)
         {
             try
             {
+                var kw = !string.IsNullOrWhiteSpace(searchTerm) ? searchTerm : keyword;
                 var request = new VendorQueryRequest
                 {
                     PageIndex = pageNumber,
                     PageSize = pageSize,
-                    Keyword = keyword,
+                    Keyword = kw,
                     Status = status,
+                    Level = level,
+                    Industry = industry,
+                    Credit = credit,
+                    AscriptionType = ascriptionType,
+                    PurchaseUserId = purchaseUserId,
+                    CreatedFrom = createdFrom,
+                    CreatedTo = createdTo,
                     CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 };
                 var result = await _vendorService.GetPagedAsync(request);
@@ -99,9 +134,39 @@ namespace CRM.API.Controllers
                 var now = DateTime.UtcNow;
                 var firstDayOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
-                var totalVendors = vendors.Count;
-                var activeVendors = vendors.Count(v => (v.Status == 10 || v.Status == 20) && !v.IsDeleted);
-                var newThisMonth = vendors.Count(v => v.CreateTime >= firstDayOfMonth && !v.IsDeleted);
+                var alive = vendors.Where(v => !v.IsDeleted).ToList();
+                var totalVendors = alive.Count;
+                var activeVendors = alive.Count(v => v.Status >= 10);
+                var newThisMonth = alive.Count(v => v.CreateTime >= firstDayOfMonth);
+                var newLast30Days = alive.Count(v => v.CreateTime >= now.AddDays(-30));
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var purchaseOrders = (await _purchaseOrderRepository.GetAllAsync()).ToList();
+                if (!string.IsNullOrWhiteSpace(userId))
+                    purchaseOrders = (await _dataPermissionService.FilterPurchaseOrdersAsync(userId, purchaseOrders)).ToList();
+
+                var commercialPo = purchaseOrders.Where(IsCommercialPurchaseOrder).ToList();
+                var vendorsWithDeals = commercialPo
+                    .Select(o => o.VendorId)
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Distinct()
+                    .Count();
+
+                var payableOrders = commercialPo.Where(o => o.FinanceStatus < 2).ToList();
+                var payableAmount = payableOrders.Sum(o => o.ConvertTotal);
+                var payableVendorCount = payableOrders
+                    .Select(o => o.VendorId)
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Distinct()
+                    .Count();
+
+                var pendingInboundOrders = commercialPo.Where(o => o.StockStatus < 2).ToList();
+                var pendingInboundAmount = pendingInboundOrders.Sum(o => o.ConvertTotal);
+                var pendingInboundVendorCount = pendingInboundOrders
+                    .Select(o => o.VendorId)
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Distinct()
+                    .Count();
 
                 var byLevel = vendors
                     .Where(v => v.Level.HasValue)
@@ -120,6 +185,12 @@ namespace CRM.API.Controllers
                     totalVendors,
                     activeVendors,
                     newThisMonth,
+                    newLast30Days,
+                    vendorsWithDeals,
+                    payableAmount,
+                    payableVendorCount,
+                    pendingInboundAmount,
+                    pendingInboundVendorCount,
                     byLevel,
                     byIndustry
                 }, "获取供应商统计成功"));
@@ -240,12 +311,20 @@ namespace CRM.API.Controllers
         }
 
         [HttpDelete("{id}/blacklist")]
-        public async Task<ActionResult<ApiResponse<object>>> RemoveFromBlacklist(string id)
+        public async Task<ActionResult<ApiResponse<object>>> RemoveFromBlacklist(string id, [FromBody] VendorRemoveFromBlacklistRequest? request)
         {
             try
             {
-                await _vendorService.RemoveFromBlacklistAsync(id);
+                if (request == null || string.IsNullOrWhiteSpace(request.Reason))
+                    return BadRequest(ApiResponse<object>.Fail("请填写移出黑名单原因", 400));
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userName = User.Identity?.Name;
+                await _vendorService.RemoveFromBlacklistAsync(id, request.Reason.Trim(), userId, userName);
                 return Ok(ApiResponse<object>.Ok(null, "移出黑名单成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
             }
             catch (KeyNotFoundException ex)
             {
@@ -257,6 +336,11 @@ namespace CRM.API.Controllers
                 return StatusCode(500, ApiResponse<object>.Fail($"移出供应商黑名单失败: {ex.Message}", 500));
             }
         }
+
+        /// <summary>移出黑名单（与客户模块 POST .../remove-blacklist 对齐，需原因）</summary>
+        [HttpPost("{id}/remove-blacklist")]
+        public Task<ActionResult<ApiResponse<object>>> RemoveFromBlacklistPost(string id, [FromBody] VendorRemoveFromBlacklistRequest? request) =>
+            RemoveFromBlacklist(id, request);
 
         [HttpGet("blacklist")]
         public async Task<ActionResult<ApiResponse<object>>> GetBlacklist(
@@ -286,6 +370,37 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取供应商黑名单失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"获取供应商黑名单失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpGet("frozen")]
+        public async Task<ActionResult<ApiResponse<object>>> GetFrozen(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? keyword = null)
+        {
+            try
+            {
+                var request = new VendorQueryRequest
+                {
+                    PageIndex = pageNumber,
+                    PageSize = pageSize,
+                    Keyword = keyword
+                };
+                var result = await _vendorService.GetFrozenAsync(request);
+                return Ok(ApiResponse<object>.Ok(new
+                {
+                    items = result.Items,
+                    totalCount = result.TotalCount,
+                    pageNumber = result.PageIndex,
+                    pageSize = result.PageSize,
+                    totalPages = (int)Math.Ceiling(result.TotalCount / (double)result.PageSize)
+                }, "获取冻结供应商列表成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取冻结供应商列表失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"获取冻结供应商列表失败: {ex.Message}", 500));
             }
         }
 
@@ -431,6 +546,58 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取供应商字段变更日志失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"获取供应商字段变更日志失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>字段变更日志（与客户模块 change-logs 路径对齐）</summary>
+        [HttpGet("{id}/change-logs")]
+        public Task<ActionResult<ApiResponse<object>>> GetChangeLogsAlias(string id) => GetFieldChangeLogs(id);
+
+        /// <summary>冻结供应商（需原因，写入操作日志）</summary>
+        [HttpPost("{id}/freeze")]
+        [RequirePermission("vendor.write")]
+        public async Task<ActionResult<ApiResponse<object>>> FreezeVendor(string id, [FromBody] FreezeVendorRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.Reason))
+                    return BadRequest(ApiResponse<object>.Fail("请填写冻结原因", 400));
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userName = User.Identity?.Name;
+                await _vendorService.FreezeVendorAsync(id, request.Reason, userId, userName);
+                return Ok(ApiResponse<object>.Ok(null, "供应商已冻结"));
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ApiResponse<object>.Fail(ex.Message, 404)); }
+            catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message, 400)); }
+            catch (ArgumentException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message, 400)); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "冻结供应商失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"冻结供应商失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>启用供应商（解除冻结）</summary>
+        [HttpPost("{id}/unfreeze")]
+        [RequirePermission("vendor.write")]
+        public async Task<ActionResult<ApiResponse<object>>> UnfreezeVendor(string id, [FromBody] FreezeVendorRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.Reason))
+                    return BadRequest(ApiResponse<object>.Fail("请填写启用原因", 400));
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userName = User.Identity?.Name;
+                await _vendorService.UnfreezeVendorAsync(id, request.Reason, userId, userName);
+                return Ok(ApiResponse<object>.Ok(null, "供应商已启用"));
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ApiResponse<object>.Fail(ex.Message, 404)); }
+            catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message, 400)); }
+            catch (ArgumentException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message, 400)); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "启用供应商失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"启用供应商失败: {ex.Message}", 500));
             }
         }
 

@@ -76,7 +76,22 @@ namespace CRM.Core.Services
 
         public async Task<IEnumerable<Quote>> GetAllAsync()
         {
-            return await _quoteRepository.GetAllAsync();
+            var quotes = (await _quoteRepository.GetAllAsync()).ToList();
+            if (quotes.Count == 0)
+                return quotes;
+
+            var quoteIds = quotes.Select(q => q.Id).ToList();
+            var itemRows = await _quoteItemRepository.FindAsync(i => quoteIds.Contains(i.QuoteId));
+            var byQuoteId = itemRows
+                .GroupBy(i => i.QuoteId)
+                .ToDictionary(g => g.Key, g => (ICollection<QuoteItem>)g.ToList());
+
+            foreach (var q in quotes)
+            {
+                q.Items = byQuoteId.TryGetValue(q.Id, out var list) ? list : new List<QuoteItem>();
+            }
+
+            return quotes;
         }
 
         public async Task<Quote> UpdateAsync(string id, UpdateQuoteRequest request)

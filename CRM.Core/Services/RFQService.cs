@@ -348,7 +348,14 @@ namespace CRM.Core.Services
                     (r.CustomerMpn != null && r.CustomerMpn.ToLowerInvariant().Contains(kw))).ToList();
             }
 
-            if (!string.IsNullOrWhiteSpace(request.SalesUserKeyword))
+            if (!string.IsNullOrWhiteSpace(request.SalesUserId))
+            {
+                var sid = request.SalesUserId.Trim();
+                rows = rows.Where(r =>
+                    r.SalesUserId != null &&
+                    string.Equals(r.SalesUserId, sid, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+            else if (!string.IsNullOrWhiteSpace(request.SalesUserKeyword))
             {
                 var kw = request.SalesUserKeyword.Trim().ToLowerInvariant();
                 rows = rows.Where(r =>

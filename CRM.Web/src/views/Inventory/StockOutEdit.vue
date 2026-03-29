@@ -124,9 +124,9 @@
               <el-input v-model="row.warehouseLocation" placeholder="库位编码（可选）" />
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="80" fixed="right">
+          <el-table-column label="操作" width="80" fixed="right" class-name="op-col" label-class-name="op-col">
             <template #default>
-              <button class="action-btn" disabled title="明细来自出库通知，不可手工删除">删除</button>
+              <button type="button" class="action-btn" disabled title="明细来自出库通知，不可手工删除">删除</button>
             </template>
           </el-table-column>
         </el-table>
@@ -161,9 +161,14 @@
         <el-table-column label="创建时间" min-width="168" show-overflow-tooltip>
           <template #default="{ row }">{{ formatTaskTime(row.createTime) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="120">
+        <el-table-column label="操作" width="120" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
-            <button class="action-btn" v-if="row.status !== 100" @click="completePicking(row.id)">完成拣货</button>
+            <button
+              v-if="row.status !== 100"
+              type="button"
+              class="action-btn action-btn--warning"
+              @click.stop="completePicking(row.id)"
+            >完成拣货</button>
           </template>
         </el-table-column>
       </el-table>

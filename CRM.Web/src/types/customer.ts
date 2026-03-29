@@ -130,6 +130,8 @@ export interface Customer {
   /** 审核驳回原因（status=-1 时） */
   auditRemark?: string
   isActive?: boolean
+  /** 冻结/禁用（对应后端 DisenableStatus） */
+  disenableStatus?: boolean
   isFavorite?: boolean
   remarks?: string
   blackList?: boolean
@@ -285,9 +287,18 @@ export interface CustomerSearchRequest {
   pageSize?: number
   searchTerm?: string
   customerType?: number
+  /** 等级字母：D/C/B/BPO/VIP/VPO 等，请求前会映射为后端 level 数字 */
   customerLevel?: string
   industry?: string
   region?: string
+  /** 业务员用户 ID（后端 query: salesUserId） */
+  salesPersonId?: string
+  /** 创建日期起 YYYY-MM-DD */
+  createdFrom?: string
+  /** 创建日期止 YYYY-MM-DD（含当日） */
+  createdTo?: string
+  /** 工作流状态，对应后端 query: status */
+  status?: number
   isActive?: boolean
   sortBy?: string
   sortDescending?: boolean
@@ -307,7 +318,17 @@ export interface CustomerStatistics {
   totalCustomers: number
   activeCustomers: number
   newThisMonth: number
+  /** 近 30 天新建客户（滚动窗口） */
+  newLast30Days: number
+  /** 至少有一条有效销售订单的 distinct 客户数 */
+  customersWithDeals: number
   totalBalance: number
+  /** 未全部收款的销售订单折算总额（本位币） */
+  receivableGoodsAmount: number
+  receivableCustomerCount: number
+  /** 未全部出库的销售订单折算总额（本位币） */
+  pendingOutboundAmount: number
+  pendingOutboundCustomerCount: number
   byLevel: Record<string, number>
   byIndustry: Record<string, number>
 }
@@ -424,12 +445,5 @@ export const genderOptions = [
   { value: 2, label: '女' }
 ]
 
-// 币别选项
-export const currencyOptions = [
-  { value: 1, label: 'RMB' },
-  { value: 2, label: 'USD' },
-  { value: 3, label: 'EUR' },
-  { value: 4, label: 'GBP' },
-  { value: 5, label: 'JPY' },
-  { value: 6, label: 'HKD' }
-]
+/** 与客户「结算货币」一致；请优先从 @/constants/currency 引用 */
+export { SETTLEMENT_CURRENCY_OPTIONS as currencyOptions } from '@/constants/currency'

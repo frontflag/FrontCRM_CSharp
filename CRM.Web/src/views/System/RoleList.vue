@@ -6,7 +6,7 @@
         <el-button type="primary" @click="router.push({ name: 'RoleCreate' })">新增角色</el-button>
       </div>
 
-      <CrmDataTable v-loading="loading" :data="roles">
+      <CrmDataTable v-loading="loading" :data="roles" @row-dblclick="onRowDblclick">
         <el-table-column prop="status" label="状态" width="90">
           <template #default="{ row }">
             <el-tag effect="dark" :type="row.status === 1 ? 'success' : 'info'" size="small">
@@ -23,10 +23,14 @@
         <el-table-column label="创建人" width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.createUserName || row.createdBy || '-' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
-            <el-button link type="primary" @click="goEdit(row.id)">编辑</el-button>
-            <el-button link type="danger" @click="handleDelete(row.id)">删除</el-button>
+            <div @click.stop @dblclick.stop>
+              <div class="action-btns">
+                <el-button link type="primary" @click.stop="goEdit(row.id)">编辑</el-button>
+                <el-button link type="danger" @click.stop="handleDelete(row.id)">删除</el-button>
+              </div>
+            </div>
           </template>
         </el-table-column>
       </CrmDataTable>
@@ -61,6 +65,8 @@ const load = async () => {
 const goEdit = (id: string) => {
   router.push({ name: 'RoleEdit', params: { id } })
 }
+
+const onRowDblclick = (row: RbacRole) => goEdit(row.id)
 
 const handleDelete = async (id: string) => {
   try {

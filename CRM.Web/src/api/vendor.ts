@@ -13,6 +13,10 @@ import type {
   VendorStatistics
 } from '@/types/vendor';
 
+function vendorsPath(id: string, suffix: string): string {
+  return `/api/v1/vendors/${encodeURIComponent(id)}${suffix}`;
+}
+
 // 供应商 API
 export const vendorApi = {
   // 分页查询供应商列表
@@ -20,8 +24,16 @@ export const vendorApi = {
     const queryParams = new URLSearchParams();
     if (params.pageNumber != null) queryParams.append('pageNumber', params.pageNumber.toString());
     if (params.pageSize != null) queryParams.append('pageSize', params.pageSize.toString());
-    if (params.keyword) queryParams.append('keyword', params.keyword);
+    const kw = params.searchTerm?.trim() || params.keyword?.trim();
+    if (kw) queryParams.append('searchTerm', kw);
+    if (params.level != null) queryParams.append('level', String(params.level));
+    if (params.industry) queryParams.append('industry', params.industry);
     if (params.status != null) queryParams.append('status', params.status.toString());
+    if (params.credit != null) queryParams.append('credit', String(params.credit));
+    if (params.ascriptionType != null) queryParams.append('ascriptionType', String(params.ascriptionType));
+    if (params.purchaseUserId) queryParams.append('purchaseUserId', params.purchaseUserId);
+    if (params.createdFrom) queryParams.append('createdFrom', params.createdFrom);
+    if (params.createdTo) queryParams.append('createdTo', params.createdTo);
 
     const response = await apiClient.get<any>(`/api/v1/vendors?${queryParams.toString()}`);
     if (response && typeof response === 'object' && 'data' in response && response.data)
@@ -43,6 +55,7 @@ export const vendorApi = {
       officialName: data.officialName?.trim(),
       nickName: data.nickName?.trim(),
       industry: data.industry?.trim(),
+      level: data.level,
       credit: data.credit,
       status: data.status,
       officeAddress: data.officeAddress?.trim(),
@@ -114,8 +127,18 @@ export const vendorApi = {
     await apiClient.post(`/api/v1/vendors/${id}/blacklist`, { reason });
   },
 
-  async removeFromBlacklist(id: string): Promise<void> {
-    await apiClient.delete(`/api/v1/vendors/${id}/blacklist`);
+  async removeFromBlacklist(id: string, reason: string): Promise<void> {
+    await apiClient.post(vendorsPath(id, '/remove-blacklist'), { reason });
+  },
+
+  /** 冻结供应商（需原因，写入操作日志） */
+  async freezeVendor(id: string, reason: string): Promise<void> {
+    await apiClient.post(vendorsPath(id, '/freeze'), { reason });
+  },
+
+  /** 启用供应商 / 解除冻结（需原因） */
+  async unfreezeVendor(id: string, reason: string): Promise<void> {
+    await apiClient.post(vendorsPath(id, '/unfreeze'), { reason });
   },
 
   async getBlacklist(params: { pageNumber?: number; pageSize?: number; keyword?: string } = {}): Promise<VendorSearchResponse> {
@@ -124,6 +147,16 @@ export const vendorApi = {
     q.append('pageSize', String(params.pageSize ?? 20));
     if (params.keyword) q.append('keyword', params.keyword);
     const res = await apiClient.get<any>(`/api/v1/vendors/blacklist?${q.toString()}`);
+    if (res && typeof res === 'object' && 'items' in res) return res as VendorSearchResponse;
+    return res || { items: [], totalCount: 0 };
+  },
+
+  async getFrozen(params: { pageNumber?: number; pageSize?: number; keyword?: string } = {}): Promise<VendorSearchResponse> {
+    const q = new URLSearchParams();
+    q.append('pageNumber', String(params.pageNumber ?? 1));
+    q.append('pageSize', String(params.pageSize ?? 20));
+    if (params.keyword) q.append('keyword', params.keyword);
+    const res = await apiClient.get<any>(`/api/v1/vendors/frozen?${q.toString()}`);
     if (res && typeof res === 'object' && 'items' in res) return res as VendorSearchResponse;
     return res || { items: [], totalCount: 0 };
   },
@@ -152,7 +185,20 @@ export const vendorApi = {
 
   // 获取供应商统计信息
   async getVendorStatistics(): Promise<VendorStatistics> {
-    return await apiClient.get<VendorStatistics>('/api/v1/vendors/statistics');
+    const raw = (await apiClient.get<Partial<VendorStatistics>>('/api/v1/vendors/statistics')) as Partial<VendorStatistics>
+    return {
+      totalVendors: raw.totalVendors ?? 0,
+      activeVendors: raw.activeVendors ?? 0,
+      newThisMonth: raw.newThisMonth ?? 0,
+      newLast30Days: raw.newLast30Days ?? 0,
+      vendorsWithDeals: raw.vendorsWithDeals ?? 0,
+      payableAmount: raw.payableAmount ?? 0,
+      payableVendorCount: raw.payableVendorCount ?? 0,
+      pendingInboundAmount: raw.pendingInboundAmount ?? 0,
+      pendingInboundVendorCount: raw.pendingInboundVendorCount ?? 0,
+      byLevel: raw.byLevel ?? {},
+      byIndustry: raw.byIndustry ?? {}
+    }
   },
 
   // 获取供应商联系历史
@@ -182,9 +228,9 @@ export const vendorApi = {
     return res?.data ?? res ?? [];
   },
 
-  // 获取供应商字段变更日志
+  // 获取供应商字段变更日志（与客户模块 change-logs 路径一致）
   async getFieldChangeLogs(vendorId: string): Promise<any[]> {
-    const res = await apiClient.get<any>(`/api/v1/vendors/${vendorId}/field-change-logs`);
+    const res = await apiClient.get<any>(`/api/v1/vendors/${vendorId}/change-logs`);
     return res?.data ?? res ?? [];
   }
 };

@@ -76,6 +76,11 @@ namespace CRM.Infrastructure.Repositories
             await _context.Database.ExecuteSqlRawAsync(sql);
         }
 
+        public async Task<int> ExecuteNonQueryAsync(string sql)
+        {
+            return await _context.Database.ExecuteSqlRawAsync(sql);
+        }
+
         public void Dispose()
         {
             _context.Dispose();

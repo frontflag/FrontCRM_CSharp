@@ -67,11 +67,25 @@
       <el-table-column label="创建人" width="120" show-overflow-tooltip>
         <template #default="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || '--' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column label="操作" width="220" fixed="right" class-name="op-col" label-class-name="op-col">
         <template #default="{ row }">
-          <el-button link type="warning" v-if="row.status === 10" @click="markArrived(row)">确认到货</el-button>
-          <el-button link type="success" v-if="row.status === 20" @click="goCreateQc(row)">质检</el-button>
-          <el-button link type="info" @click="viewItems(row)">明细</el-button>
+          <div @click.stop @dblclick.stop>
+            <div class="action-btns">
+              <button
+                v-if="row.status === 10"
+                type="button"
+                class="action-btn action-btn--warning"
+                @click.stop="markArrived(row)"
+              >确认到货</button>
+              <button
+                v-if="row.status === 20"
+                type="button"
+                class="action-btn action-btn--warning"
+                @click.stop="goCreateQc(row)"
+              >质检</button>
+              <button type="button" class="action-btn action-btn--info" @click.stop="viewItems(row)">明细</button>
+            </div>
+          </div>
         </template>
       </el-table-column>
     </CrmDataTable>

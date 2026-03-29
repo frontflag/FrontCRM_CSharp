@@ -58,16 +58,16 @@
       <el-table-column label="创建人" width="140" show-overflow-tooltip>
         <template #default="{ row }">{{ row.createUserName || row.requestUserName || '--' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="140" fixed="right">
+      <el-table-column label="操作" width="140" fixed="right" class-name="op-col" label-class-name="op-col">
         <template #default="{ row }">
-          <button
-            v-if="Number(row.status) !== 1"
-            class="action-btn"
-            @click="goExecute(row)"
-          >
-            执行出库
-          </button>
-          <span v-else class="op-done">已出库</span>
+          <div @click.stop @dblclick.stop>
+            <div v-if="Number(row.status) !== 1" class="action-btns">
+              <button type="button" class="action-btn action-btn--warning" @click.stop="goExecute(row)">
+                执行出库
+              </button>
+            </div>
+            <span v-else class="op-done">已出库</span>
+          </div>
         </template>
       </el-table-column>
     </CrmDataTable>

@@ -40,7 +40,7 @@
     </el-card>
 
     <el-card>
-      <CrmDataTable :data="drafts" v-loading="loading">
+      <CrmDataTable :data="drafts" v-loading="loading" @row-dblclick="restoreDraft">
         <el-table-column label="状态" width="110">
           <template #default="{ row }">
             <el-tag effect="dark" :type="statusTagType(row.status)">{{ statusText(row.status) }}</el-tag>
@@ -58,11 +58,15 @@
         <el-table-column label="创建人" width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="300" fixed="right">
+        <el-table-column label="操作" width="300" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
-            <el-button link type="primary" @click="restoreDraft(row)">恢复到编辑页</el-button>
-            <el-button link type="success" @click="convertDraft(row)" :disabled="row.status !== 0">转正式</el-button>
-            <el-button link type="danger" @click="deleteDraft(row)">删除</el-button>
+            <div @click.stop @dblclick.stop>
+              <div class="action-btns">
+                <el-button link type="primary" @click.stop="restoreDraft(row)">恢复到编辑页</el-button>
+                <el-button link type="success" @click.stop="convertDraft(row)" :disabled="row.status !== 0">转正式</el-button>
+                <el-button link type="danger" @click.stop="deleteDraft(row)">删除</el-button>
+              </div>
+            </div>
           </template>
         </el-table-column>
       </CrmDataTable>

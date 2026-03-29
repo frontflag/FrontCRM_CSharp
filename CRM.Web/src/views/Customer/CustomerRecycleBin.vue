@@ -60,7 +60,7 @@
           </div>
         </div>
         <div class="record-actions">
-          <el-button type="primary" size="small" :loading="restoringId === item.id" @click="handleRestore(item)">
+          <el-button type="warning" size="small" :loading="restoringId === item.id" @click="handleRestore(item)">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px">
               <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
             </svg>

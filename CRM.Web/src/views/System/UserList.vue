@@ -6,7 +6,7 @@
         <el-button type="primary" @click="router.push({ name: 'UserCreate' })">新增员工</el-button>
       </div>
 
-      <CrmDataTable v-loading="loading" :data="users">
+      <CrmDataTable v-loading="loading" :data="users" @row-dblclick="onRowDblclick">
         <el-table-column prop="status" label="状态" width="90">
           <template #default="{ row }">
             <el-tag effect="dark" :type="row.status === 1 ? 'success' : 'info'" size="small">
@@ -34,10 +34,23 @@
         <el-table-column label="创建人" width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.createUserName || row.createdBy || '-' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column label="操作" :width="canImpersonate ? 320 : 240" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
-            <el-button link type="primary" @click="goEdit(row.id)">编辑</el-button>
-            <el-button link type="danger" @click="handleDelete(row.id)">删除</el-button>
+            <div @click.stop @dblclick.stop>
+              <div class="action-btns">
+                <el-button link type="primary" @click.stop="goEdit(row.id)">编辑</el-button>
+                <el-button link type="danger" @click.stop="handleDelete(row.id)">删除</el-button>
+                <el-button
+                  v-if="canImpersonate && impersonateVisibleForRow(row)"
+                  link
+                  type="warning"
+                  :loading="impersonateUserId === row.id"
+                  @click.stop="handleImpersonate(row)"
+                >
+                  模拟登录
+                </el-button>
+              </div>
+            </div>
           </template>
         </el-table-column>
       </CrmDataTable>
@@ -46,16 +59,30 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { rbacAdminApi, type AdminUserDto } from '@/api/rbacAdmin'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const loading = ref(false)
 const users = ref<AdminUserDto[]>([])
+const impersonateUserId = ref<string | null>(null)
+
+/** 仅系统管理员（SYS_ADMIN）可见模拟登录 */
+const canImpersonate = computed(() => authStore.user?.isSysAdmin === true)
+
+function impersonateVisibleForRow(row: AdminUserDto) {
+  if (row.status !== 1) return false
+  const selfId = authStore.user?.id
+  if (selfId && row.id === selfId) return false
+  return true
+}
+
 const formatCreateTime = (v?: string) => formatDisplayDateTime(v)
 
 const load = async () => {
@@ -73,6 +100,8 @@ const goEdit = (id: string) => {
   router.push({ name: 'UserEdit', params: { id } })
 }
 
+const onRowDblclick = (row: AdminUserDto) => goEdit(row.id)
+
 const handleDelete = async (id: string) => {
   try {
     await ElMessageBox.confirm('确定删除该员工吗？', '删除确认', {
@@ -85,6 +114,29 @@ const handleDelete = async (id: string) => {
     await load()
   } catch {
     // cancel
+  }
+}
+
+async function handleImpersonate(row: AdminUserDto) {
+  const label = row.realName || row.userName
+  try {
+    await ElMessageBox.confirm(
+      `将以「${label}」（${row.userName}）身份登录，当前管理员会话将结束。是否继续？`,
+      '模拟登录',
+      { type: 'warning', confirmButtonText: '模拟登录', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  impersonateUserId.value = row.id
+  try {
+    await authStore.impersonate(row.id)
+    ElMessage.success(`已切换为 ${row.userName}`)
+    await router.replace({ name: 'Dashboard' })
+  } catch (e: any) {
+    ElMessage.error(e?.message || '模拟登录失败')
+  } finally {
+    impersonateUserId.value = null
   }
 }
 

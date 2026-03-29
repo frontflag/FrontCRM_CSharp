@@ -1,4 +1,5 @@
 import apiClient from './client';
+import { parseApiBoolean } from '@/utils/parseApiBoolean';
 import type {
   Customer,
   CustomerContactInfo,
@@ -13,6 +14,11 @@ import type {
   CreateAddressRequest,
   CreateBankInfoRequest
 } from '@/types/customer';
+
+/** 客户 ID 可能含需编码字符，统一用于路径段 */
+function customersPath(id: string, suffix: string): string {
+  return `/api/v1/customers/${encodeURIComponent(id)}${suffix}`;
+}
 
 /**
  * P2 修复：将前端 customerLevel 字符串统一映射到后端数字枚举
@@ -41,6 +47,160 @@ export function mapCustomerTypeToLabel(type: number | undefined): string {
   return map[type ?? 0] ?? '未知';
 }
 
+/**
+ * 客户地址：前端下拉值 ↔ 后端 customeraddress.AddressType（short）
+ * 1 收货 2 账单；3/4 为前端扩展（办公、注册），与实体注释可并存。
+ */
+export const ADDRESS_TYPE_UI_TO_SHORT: Record<string, number> = {
+  Shipping: 1,
+  Billing: 2,
+  Office: 3,
+  Registered: 4
+};
+
+export const ADDRESS_TYPE_SHORT_TO_UI: Record<number, string> = {
+  1: 'Shipping',
+  2: 'Billing',
+  3: 'Office',
+  4: 'Registered'
+};
+
+export function mapAddressUiTypeToShort(type: string | number | undefined): number {
+  if (type === undefined || type === null) return 3;
+  if (typeof type === 'number' && Number.isFinite(type)) return Math.trunc(type);
+  return ADDRESS_TYPE_UI_TO_SHORT[String(type)] ?? 3;
+}
+
+/** 后端 AddAddressRequest（camelCase JSON） */
+export function mapCreateAddressRequestToAddBody(data: CreateAddressRequest) {
+  return {
+    addressType: mapAddressUiTypeToShort(data.addressType),
+    province: data.province || undefined,
+    city: data.city || undefined,
+    area: data.district || undefined,
+    address: data.streetAddress || undefined,
+    contactName: data.contactPerson || undefined,
+    contactPhone: data.contactPhone || undefined,
+    isDefault: !!data.isDefault
+  };
+}
+
+/**
+ * 后端 UpdateAddressRequest（camelCase）。
+ * 仅序列化传入的字段；字符串传空串以便清空（C# 中 null 表示不更新）。
+ */
+export function mapPartialCreateAddressToUpdateBody(data: Partial<CreateAddressRequest>): Record<string, unknown> {
+  const o: Record<string, unknown> = {};
+  if (data.addressType !== undefined) o.addressType = mapAddressUiTypeToShort(data.addressType);
+  if (data.province !== undefined) o.province = data.province ?? '';
+  if (data.city !== undefined) o.city = data.city ?? '';
+  if (data.district !== undefined) o.area = data.district ?? '';
+  if (data.streetAddress !== undefined) o.address = data.streetAddress ?? '';
+  if (data.contactPerson !== undefined) o.contactName = data.contactPerson ?? '';
+  if (data.contactPhone !== undefined) o.contactPhone = data.contactPhone ?? '';
+  if (data.isDefault !== undefined) o.isDefault = data.isDefault;
+  return o;
+}
+
+/** 将接口返回的地址行统一为前端 CustomerAddress（兼容 address/area/contactName 与数字 addressType） */
+export function normalizeCustomerAddressFromApi(raw: unknown): CustomerAddress {
+  const r = raw as Record<string, unknown> | null;
+  if (!r || typeof r !== 'object') {
+    return {
+      id: '',
+      customerId: '',
+      addressType: 'Office',
+      streetAddress: '',
+      isDefault: false
+    };
+  }
+  const id = String(r.id ?? r.addressId ?? '');
+  const typeRaw = r.addressType;
+  let addressType: string;
+  if (typeof typeRaw === 'number') {
+    addressType = ADDRESS_TYPE_SHORT_TO_UI[typeRaw] ?? String(typeRaw);
+  } else if (typeof typeRaw === 'string' && ADDRESS_TYPE_UI_TO_SHORT[typeRaw] !== undefined) {
+    addressType = typeRaw;
+  } else {
+    addressType = 'Office';
+  }
+  const street = (r.streetAddress ?? r.address ?? '') as string;
+  const district = (r.district ?? r.area ?? '') as string;
+  const contact = (r.contactPerson ?? r.contactName ?? '') as string;
+  return {
+    id,
+    customerId: String(r.customerId ?? ''),
+    addressType,
+    country: r.country != null && r.country !== '' ? String(r.country) : undefined,
+    province: (r.province as string) || undefined,
+    city: (r.city as string) || undefined,
+    district,
+    streetAddress: street,
+    zipCode: (r.zipCode as string) || undefined,
+    contactPerson: contact,
+    contactPhone: (r.contactPhone as string) || undefined,
+    isDefault: Boolean(r.isDefault),
+    remark: r.remark as string | undefined,
+    createdAt: (r.createdAt ?? r.createTime) as string | undefined,
+    updatedAt: (r.updatedAt ?? r.modifyTime) as string | undefined
+  };
+}
+
+export function formatCustomerAddressTypeLabel(type: string | number | undefined): string {
+  const labels: Record<string, string> = {
+    Office: '办公地址',
+    Billing: '开票地址',
+    Shipping: '收货地址',
+    Registered: '注册地址'
+  };
+  if (typeof type === 'number') {
+    const ui = ADDRESS_TYPE_SHORT_TO_UI[type];
+    return (ui && labels[ui]) || String(type);
+  }
+  return labels[String(type)] || String(type ?? '');
+}
+
+/** 将接口返回的银行行规范为前端 CustomerBankInfo（兼容 bankAccount 等字段） */
+export function normalizeCustomerBankFromApi(raw: unknown): CustomerBankInfo {
+  const r = raw as Record<string, unknown> | null;
+  if (!r || typeof r !== 'object') {
+    return {
+      id: '',
+      customerId: '',
+      bankName: '',
+      accountNumber: '',
+      accountName: '',
+      bankBranch: '',
+      currency: 1,
+      isDefault: false
+    };
+  }
+  const acct = r.accountNumber ?? r.bankAccount ?? '';
+  return {
+    id: String(r.id ?? ''),
+    customerId: String(r.customerId ?? ''),
+    bankName: String(r.bankName ?? ''),
+    accountNumber: typeof acct === 'string' ? acct : String(acct ?? ''),
+    accountName: String(r.accountName ?? ''),
+    bankBranch: String(r.bankBranch ?? ''),
+    currency: typeof r.currency === 'number' && Number.isFinite(r.currency) ? r.currency : Number(r.currency) || 1,
+    swiftCode: r.swiftCode as string | undefined,
+    isDefault: parseApiBoolean(r.isDefault ?? r['IsDefault']),
+    remark: r.remark as string | undefined,
+    createdAt: (r.createdAt ?? r.createTime) as string | undefined,
+    updatedAt: (r.updatedAt ?? r.modifyTime) as string | undefined
+  };
+}
+
+/**
+ * 客户详情 JSON 中银行为 bankAccounts（后端 CustomerInfo.BankAccounts），前端表格使用 banks。
+ */
+export function banksFromCustomerApiPayload(raw: Record<string, unknown>): CustomerBankInfo[] {
+  const list = (raw.banks ?? raw.bankAccounts) as unknown[] | undefined;
+  if (!Array.isArray(list)) return [];
+  return list.map((b) => normalizeCustomerBankFromApi(b));
+}
+
 // 客户API
 export const customerApi = {
   // 搜索客户列表
@@ -50,10 +210,20 @@ export const customerApi = {
     if (params.pageSize) queryParams.append('pageSize', params.pageSize.toString());
     if (params.searchTerm) queryParams.append('searchTerm', params.searchTerm);
     if (params.customerType !== undefined && params.customerType > 0) queryParams.append('customerType', params.customerType.toString());
-    if (params.customerLevel) queryParams.append('customerLevel', params.customerLevel);
+    if (params.customerLevel) {
+      const lv = mapCustomerLevelToInt(params.customerLevel);
+      queryParams.append('customerLevel', String(lv));
+    }
     if (params.industry) queryParams.append('industry', params.industry);
     if (params.region) queryParams.append('region', params.region);
-    if (params.isActive !== undefined) queryParams.append('isActive', params.isActive.toString());
+    if (params.salesPersonId) queryParams.append('salesUserId', params.salesPersonId);
+    if (params.createdFrom) queryParams.append('createdFrom', params.createdFrom);
+    if (params.createdTo) queryParams.append('createdTo', params.createdTo);
+    if (params.status !== undefined && params.status !== null && !Number.isNaN(Number(params.status))) {
+      queryParams.append('status', String(params.status));
+    } else if (params.isActive !== undefined) {
+      queryParams.append('isActive', params.isActive.toString());
+    }
     if (params.sortBy) queryParams.append('sortBy', params.sortBy);
     if (params.sortDescending !== undefined) queryParams.append('sortDescending', params.sortDescending.toString());
 
@@ -63,7 +233,10 @@ export const customerApi = {
 
   // 获取客户详情
   async getCustomerById(id: string): Promise<Customer> {
-    return await apiClient.get<Customer>(`/api/v1/customers/${id}`);
+    const raw = (await apiClient.get<Record<string, unknown>>(`/api/v1/customers/${id}`)) as Record<string, unknown>;
+    const banks = banksFromCustomerApiPayload(raw);
+    const { bankAccounts: _bankAccounts, ...rest } = raw;
+    return { ...(rest as unknown as Customer), banks };
   },
 
   // 创建客户
@@ -120,9 +293,19 @@ export const customerApi = {
     await apiClient.post(`/api/v1/customers/${id}/blacklist`, { reason });
   },
 
-  // 移出黑名单
-  async removeFromBlacklist(id: string): Promise<void> {
-    await apiClient.delete(`/api/v1/customers/${id}/blacklist`);
+  // 移出黑名单（需原因，与后端 POST .../remove-blacklist 一致）
+  async removeFromBlacklist(id: string, reason: string): Promise<void> {
+    await apiClient.post(`/api/v1/customers/${id}/remove-blacklist`, { reason });
+  },
+
+  /** 冻结客户（需原因，写入操作日志） */
+  async freezeCustomer(id: string, reason: string): Promise<void> {
+    await apiClient.post(customersPath(id, '/freeze'), { reason });
+  },
+
+  /** 启用客户/解除冻结（需原因，写入操作日志） */
+  async unfreezeCustomer(id: string, reason: string): Promise<void> {
+    await apiClient.post(customersPath(id, '/unfreeze'), { reason });
   },
 
   // 获取回收站列表
@@ -148,16 +331,25 @@ export const customerApi = {
     return await apiClient.get<any>(`/api/v1/customers/blacklist?${q.toString()}`);
   },
 
+  // 获取冻结客户列表
+  async getFrozen(params: { pageIndex?: number; pageSize?: number; keyword?: string } = {}): Promise<any> {
+    const q = new URLSearchParams();
+    q.append('page', String(params.pageIndex ?? 1));
+    q.append('pageSize', String(params.pageSize ?? 20));
+    if (params.keyword) q.append('keyword', params.keyword);
+    return await apiClient.get<any>(`/api/v1/customers/frozen?${q.toString()}`);
+  },
+
   // 获取操作日志
   async getOperationLogs(customerId: string): Promise<any[]> {
     const res = await apiClient.get<any>(`/api/v1/customers/${customerId}/operation-logs`);
-    return res?.data ?? res ?? [];
+    return Array.isArray(res) ? res : [];
   },
 
-  // 获取字段变更日志
+  // 获取字段变更日志（后端路由为 change-logs）
   async getFieldChangeLogs(customerId: string): Promise<any[]> {
-    const res = await apiClient.get<any>(`/api/v1/customers/${customerId}/field-change-logs`);
-    return res?.data ?? res ?? [];
+    const res = await apiClient.get<any>(`/api/v1/customers/${customerId}/change-logs`);
+    return Array.isArray(res) ? res : [];
   },
 
   // 更新联系历史
@@ -187,7 +379,21 @@ export const customerApi = {
 
   // 获取客户统计信息
   async getCustomerStatistics(): Promise<CustomerStatistics> {
-    return await apiClient.get<CustomerStatistics>('/api/v1/customers/statistics');
+    const raw = (await apiClient.get<Partial<CustomerStatistics>>('/api/v1/customers/statistics')) as Partial<CustomerStatistics>
+    return {
+      totalCustomers: raw.totalCustomers ?? 0,
+      activeCustomers: raw.activeCustomers ?? 0,
+      newThisMonth: raw.newThisMonth ?? 0,
+      newLast30Days: raw.newLast30Days ?? 0,
+      customersWithDeals: raw.customersWithDeals ?? 0,
+      totalBalance: raw.totalBalance ?? 0,
+      receivableGoodsAmount: raw.receivableGoodsAmount ?? 0,
+      receivableCustomerCount: raw.receivableCustomerCount ?? 0,
+      pendingOutboundAmount: raw.pendingOutboundAmount ?? 0,
+      pendingOutboundCustomerCount: raw.pendingOutboundCustomerCount ?? 0,
+      byLevel: raw.byLevel ?? {},
+      byIndustry: raw.byIndustry ?? {}
+    }
   },
 
   // 获取客户联系历史
@@ -264,12 +470,14 @@ export const customerAddressApi = {
 
   // 创建地址
   async createAddress(customerId: string, data: CreateAddressRequest): Promise<CustomerAddress> {
-    return await apiClient.post<CustomerAddress>(`/api/v1/customers/${customerId}/addresses`, data);
+    const body = mapCreateAddressRequestToAddBody(data);
+    return await apiClient.post<CustomerAddress>(`/api/v1/customers/${customerId}/addresses`, body);
   },
 
   // 更新地址
   async updateAddress(addressId: string, data: Partial<CreateAddressRequest>): Promise<CustomerAddress> {
-    return await apiClient.put<CustomerAddress>(`/api/v1/addresses/${addressId}`, data);
+    const body = mapPartialCreateAddressToUpdateBody(data);
+    return await apiClient.put<CustomerAddress>(`/api/v1/addresses/${addressId}`, body);
   },
 
   // 删除地址
@@ -287,17 +495,20 @@ export const customerAddressApi = {
 export const customerBankApi = {
   // 获取客户银行信息列表
   async getBanksByCustomerId(customerId: string): Promise<CustomerBankInfo[]> {
-    return await apiClient.get<CustomerBankInfo[]>(`/api/v1/customers/${customerId}/banks`);
+    const list = await apiClient.get<unknown[]>(`/api/v1/customers/${customerId}/banks`);
+    return Array.isArray(list) ? list.map((b) => normalizeCustomerBankFromApi(b)) : [];
   },
 
   // 创建银行信息
   async createBank(customerId: string, data: CreateBankInfoRequest): Promise<CustomerBankInfo> {
-    return await apiClient.post<CustomerBankInfo>(`/api/v1/customers/${customerId}/banks`, data);
+    const raw = await apiClient.post<unknown>(`/api/v1/customers/${customerId}/banks`, data);
+    return normalizeCustomerBankFromApi(raw);
   },
 
   // 更新银行信息
   async updateBank(bankId: string, data: Partial<CreateBankInfoRequest>): Promise<CustomerBankInfo> {
-    return await apiClient.put<CustomerBankInfo>(`/api/v1/banks/${bankId}`, data);
+    const raw = await apiClient.put<unknown>(`/api/v1/banks/${bankId}`, data);
+    return normalizeCustomerBankFromApi(raw);
   },
 
   // 删除银行信息

@@ -26,6 +26,9 @@ export interface Vendor {
   officialName?: string
   nickName?: string
   industry?: string
+  /** 等级（VendorLevelCode，vendorinfo.Level） */
+  level?: number
+  /** 身份（VendorIdentityCode，存于 vendorinfo.Credit） */
   credit?: number
   officeAddress?: string
   companyInfo?: string
@@ -43,6 +46,8 @@ export interface Vendor {
   /** 审核驳回原因（status=-1 时） */
   auditRemark?: string
   isFavorite?: boolean
+  /** 冻结/禁用（对应后端 IsDisenable） */
+  isDisenable?: boolean
   blackList?: boolean
   isDeleted?: boolean
   deleteTime?: string
@@ -61,6 +66,8 @@ export interface CreateVendorRequest {
   officialName?: string
   nickName?: string
   industry?: string
+  level?: number
+  /** 身份枚举值（vendorinfo.Credit） */
   credit?: number
   status?: number
   officeAddress?: string
@@ -82,6 +89,7 @@ export interface UpdateVendorRequest {
   nickName?: string
   industry?: string
   product?: string
+  /** 身份枚举值（vendorinfo.Credit） */
   credit?: number
   status?: number
   officeAddress?: string
@@ -103,7 +111,18 @@ export interface VendorSearchRequest {
   pageNumber?: number
   pageSize?: number
   keyword?: string
+  /** 与客户列表 searchTerm 对齐 */
+  searchTerm?: string
   status?: number
+  level?: number
+  industry?: string
+  /** 身份（vendorinfo.Credit） */
+  credit?: number
+  /** 1 专属 2 公海 */
+  ascriptionType?: number
+  purchaseUserId?: string
+  createdFrom?: string
+  createdTo?: string
 }
 
 // 供应商列表响应（与后端分页结果对应）
@@ -120,6 +139,16 @@ export interface VendorStatistics {
   totalVendors: number
   activeVendors: number
   newThisMonth: number
+  /** 近 30 天新建供应商（未删除） */
+  newLast30Days: number
+  /** 至少有一条有效采购订单的去重供应商数 */
+  vendorsWithDeals: number
+  /** 未全部付款的采购订单折算总额（本位币） */
+  payableAmount: number
+  payableVendorCount: number
+  /** 未全部入库的采购订单折算总额（本位币） */
+  pendingInboundAmount: number
+  pendingInboundVendorCount: number
   byLevel: Record<string, number>
   byIndustry: Record<string, number>
 }

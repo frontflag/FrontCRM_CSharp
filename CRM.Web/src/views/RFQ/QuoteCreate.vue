@@ -274,7 +274,7 @@
                     size="small"
                   >
                     <el-option
-                      v-for="opt in CURRENCY_ISO_OPTIONS"
+                      v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
                       :key="opt.value"
                       :label="opt.label"
                       :value="opt.value"
@@ -337,7 +337,7 @@ import {
   fetchLinkedRfqItemRecord
 } from '@/utils/rfqLinkedItemSummary'
 import { useAuthStore } from '@/stores/auth'
-import { CURRENCY_ISO_OPTIONS } from '@/constants/currency'
+import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
 

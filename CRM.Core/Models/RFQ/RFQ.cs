@@ -54,17 +54,17 @@ namespace CRM.Core.Models.RFQ
         [Column("sales_user_id")]
         public string? SalesUserId { get; set; }
 
-        /// <summary>需求类型 (1:现货 2:期货 3:样品 4:批量)</summary>
+        /// <summary>需求类型：1现货 2排单 3代理 4自营 5信息服务</summary>
         [Column("rfq_type")]
         public short RfqType { get; set; } = 1;
 
-        /// <summary>报价方式 (1:不接受任何消息 2:仅邮件 3:仅系统 4:全部方式)</summary>
+        /// <summary>报价方式：1不接受任何消息 2系统推送 3邮件 4短信</summary>
         [Column("quote_method")]
         public short QuoteMethod { get; set; } = 1;
 
-        /// <summary>分配方式 (1:系统分配多人采购 2:系统分配单人采购 3:手动分配)</summary>
+        /// <summary>分配方式：1系统分配同一采购 2系统分配多人采购 3相同品牌分配同一采购 4指定采购员</summary>
         [Column("assign_method")]
-        public short AssignMethod { get; set; } = 1;
+        public short AssignMethod { get; set; } = 2;
 
         /// <summary>行业</summary>
         [StringLength(100)]

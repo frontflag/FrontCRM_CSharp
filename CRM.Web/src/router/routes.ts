@@ -30,10 +30,20 @@ const routes: RouteRecordRaw[] = [
       },
       // 客户管理
       {
-        path: 'customers',
+        path: 'custome',
+        name: 'CustomerHome',
+        component: () => import('@/views/Customer/CustomerHome.vue'),
+        meta: { requiresAuth: true, title: '客户首页', permission: 'customer.read' }
+      },
+      {
+        path: 'customerlist',
         name: 'CustomerList',
         component: () => import('@/views/Customer/CustomerList.vue'),
-        meta: { requiresAuth: true, title: '客户管理', permission: 'customer.read' }
+        meta: { requiresAuth: true, title: '客户', permission: 'customer.read' }
+      },
+      {
+        path: 'customers',
+        redirect: '/customerlist'
       },
       {
         path: 'customers/create',
@@ -53,6 +63,12 @@ const routes: RouteRecordRaw[] = [
         name: 'CustomerBlacklist',
         component: () => import('@/views/Customer/CustomerBlacklist.vue'),
         meta: { requiresAuth: true, title: '黑名单管理', permission: 'customer.read' }
+      },
+      {
+        path: 'customers/frozen',
+        name: 'CustomerFreezeManagement',
+        component: () => import('@/views/Customer/CustomerFreezeManagement.vue'),
+        meta: { requiresAuth: true, title: '冻结管理', permission: 'customer.read' }
       },
       {
         path: 'customers/:id',
@@ -78,12 +94,24 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Customer/CustomerContactEdit.vue'),
         meta: { requiresAuth: true, title: '编辑联系人', permission: 'customer.write' }
       },
-      // RFQ 管理
+      // RFQ 管理（首页 / 列表 / 详情仍使用 /rfqs/* 子路径）
       {
-        path: 'rfqs',
+        path: 'rfq',
+        name: 'RFQHome',
+        component: () => import('@/views/RFQ/RFQHome.vue'),
+        meta: { requiresAuth: true, title: '需求首页', permission: 'rfq.read' }
+      },
+      {
+        path: 'rfqlist',
         name: 'RFQList',
         component: () => import('@/views/RFQ/RFQList.vue'),
-        meta: { requiresAuth: true, title: 'RFQ 管理', permission: 'rfq.read' }
+        meta: { requiresAuth: true, title: '需求列表', permission: 'rfq.read' }
+      },
+      {
+        path: 'pn',
+        name: 'PnList',
+        component: () => import('@/views/Material/PnList.vue'),
+        meta: { requiresAuth: true, title: '物料列表' }
       },
       {
         path: 'rfq-items',
@@ -109,6 +137,10 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/RFQ/RFQCreate.vue'),
         meta: { requiresAuth: true, title: '编辑需求' }
       },
+      {
+        path: 'rfqs',
+        redirect: '/rfqlist'
+      },
       // BOM 快速报价
       {
         path: 'boms',
@@ -130,10 +162,20 @@ const routes: RouteRecordRaw[] = [
       },
       // 供应商管理
       {
-        path: 'vendors',
+        path: 'vendor',
+        name: 'VendorHome',
+        component: () => import('@/views/Vendor/VendorHome.vue'),
+        meta: { requiresAuth: true, title: '供应商首页', permission: 'vendor.read' }
+      },
+      {
+        path: 'vendorlist',
         name: 'VendorList',
         component: () => import('@/views/Vendor/VendorList.vue'),
-        meta: { requiresAuth: true, title: '供应商管理', permission: 'vendor.read' }
+        meta: { requiresAuth: true, title: '供应商', permission: 'vendor.read' }
+      },
+      {
+        path: 'vendors',
+        redirect: '/vendorlist'
       },
       {
         path: 'vendors/create',
@@ -152,6 +194,12 @@ const routes: RouteRecordRaw[] = [
         name: 'VendorBlacklist',
         component: () => import('@/views/Vendor/VendorBlacklist.vue'),
         meta: { requiresAuth: true, title: '供应商黑名单', permission: 'vendor.read' }
+      },
+      {
+        path: 'vendors/frozen',
+        name: 'VendorFreezeManagement',
+        component: () => import('@/views/Vendor/VendorFreezeManagement.vue'),
+        meta: { requiresAuth: true, title: '冻结管理', permission: 'vendor.read' }
       },
       {
         path: 'vendors/:id',

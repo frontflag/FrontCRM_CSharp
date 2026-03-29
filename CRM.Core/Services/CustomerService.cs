@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
 using CRM.Core.Utilities;
@@ -92,6 +93,18 @@ namespace CRM.Core.Services
             }
         }
 
+        private static string SqlQ(string? s) => (s ?? "").Replace("'", "''");
+
+        private async Task<string?> ResolveCustomerIdByIdOrCodeAsync(string idOrCode)
+        {
+            if (string.IsNullOrWhiteSpace(idOrCode)) return null;
+            var byId = await _customerRepository.FindAsync(c => c.Id == idOrCode);
+            var c = byId.FirstOrDefault();
+            if (c != null) return c.Id;
+            var byCode = await _customerRepository.FindAsync(c => c.CustomerCode == idOrCode);
+            return byCode.FirstOrDefault()?.Id;
+        }
+
         private static void ValidateCustomerStatusTransition(short current, short target)
         {
             if (current == target) return;
@@ -115,23 +128,30 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(id))
                 return null;
 
-            // 获取客户基本信息
+            // 获取客户基本信息（支持主键 Id 或客户编号 CustomerCode，与路由、日志查询一致）
             var customers = await _customerRepository.FindAsync(c => c.Id == id);
             var customer = customers.FirstOrDefault();
-            
+            if (customer == null)
+            {
+                var byCode = await _customerRepository.FindAsync(c => c.CustomerCode == id.Trim());
+                customer = byCode.FirstOrDefault();
+            }
+
             if (customer == null)
                 return null;
 
+            var canonicalId = customer.Id;
+
             // 加载联系人
-            var contacts = await _contactRepository.FindAsync(c => c.CustomerId == id);
+            var contacts = await _contactRepository.FindAsync(c => c.CustomerId == canonicalId);
             customer.Contacts = contacts.ToList();
 
             // 加载地址
-            var addresses = await _addressRepository.FindAsync(a => a.CustomerId == id);
+            var addresses = await _addressRepository.FindAsync(a => a.CustomerId == canonicalId);
             customer.Addresses = addresses.ToList();
 
             // 加载银行信息
-            var banks = await _bankRepository.FindAsync(b => b.CustomerId == id);
+            var banks = await _bankRepository.FindAsync(b => b.CustomerId == canonicalId);
             customer.BankAccounts = banks.ToList();
 
             return customer;
@@ -184,6 +204,31 @@ namespace CRM.Core.Services
             // 类型筛选
             if (request.Type.HasValue)
                 query = query.Where(c => c.Type == request.Type.Value);
+
+            // 行业（精确匹配存储值）
+            if (!string.IsNullOrWhiteSpace(request.Industry))
+                query = query.Where(c => c.Industry == request.Industry);
+
+            // 地区（省/市包含）
+            if (!string.IsNullOrWhiteSpace(request.Region))
+            {
+                var r = request.Region.Trim();
+                query = query.Where(c =>
+                    (c.City != null && c.City.Contains(r)) ||
+                    (c.Province != null && c.Province.Contains(r)));
+            }
+
+            // 创建日期区间（CreateTime 为 UTC）
+            if (request.CreatedFrom.HasValue)
+            {
+                var from = request.CreatedFrom.Value.Date;
+                query = query.Where(c => c.CreateTime >= from);
+            }
+            if (request.CreatedTo.HasValue)
+            {
+                var toExclusive = request.CreatedTo.Value.Date.AddDays(1);
+                query = query.Where(c => c.CreateTime < toExclusive);
+            }
 
             // 业务员筛选
             if (!string.IsNullOrWhiteSpace(request.SalesUserId))
@@ -925,7 +970,9 @@ namespace CRM.Core.Services
         /// <summary>删除客户（带理由）</summary>
         public async Task DeleteCustomerWithReasonAsync(string id, string? reason, string? operatorUserId, string? operatorUserName)
         {
-            var customers = await _customerRepository.FindAsync(c => c.Id == id);
+            var resolvedId = await ResolveCustomerIdByIdOrCodeAsync(id);
+            if (resolvedId == null) throw new KeyNotFoundException($"客户 {id} 不存在");
+            var customers = await _customerRepository.FindAsync(c => c.Id == resolvedId);
             var customer = customers.FirstOrDefault();
             if (customer == null) throw new KeyNotFoundException($"客户 {id} 不存在");
             customer.IsDeleted = true;
@@ -936,13 +983,15 @@ namespace CRM.Core.Services
             customer.ModifyTime = DateTime.UtcNow;
             await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
-            await AddOperationLogAsync(id, "删除", $"删除客户，理由：{reason ?? "无"}", operatorUserId, operatorUserName);
+            await AddOperationLogAsync(resolvedId, "删除", $"删除客户，理由：{reason ?? "无"}", operatorUserId, operatorUserName);
         }
 
         /// <summary>设置黑名单（带理由）</summary>
         public async Task SetBlackListAsync(string id, string reason, string? operatorUserId, string? operatorUserName)
         {
-            var customers = await _customerRepository.FindAsync(c => c.Id == id);
+            var resolvedId = await ResolveCustomerIdByIdOrCodeAsync(id);
+            if (resolvedId == null) throw new KeyNotFoundException($"客户 {id} 不存在");
+            var customers = await _customerRepository.FindAsync(c => c.Id == resolvedId);
             var customer = customers.FirstOrDefault();
             if (customer == null) throw new KeyNotFoundException($"客户 {id} 不存在");
             customer.BlackList = true;
@@ -953,13 +1002,18 @@ namespace CRM.Core.Services
             customer.ModifyTime = DateTime.UtcNow;
             await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
-            await AddOperationLogAsync(id, "加入黑名单", $"加入黑名单，理由：{reason}", operatorUserId, operatorUserName);
+            await AddOperationLogAsync(resolvedId, "加入黑名单", $"加入黑名单，理由：{reason}", operatorUserId, operatorUserName);
         }
 
         /// <summary>移出黑名单</summary>
-        public async Task RemoveFromBlackListAsync(string id, string? operatorUserId, string? operatorUserName)
+        public async Task RemoveFromBlackListAsync(string id, string reason, string? operatorUserId, string? operatorUserName)
         {
-            var customers = await _customerRepository.FindAsync(c => c.Id == id);
+            if (string.IsNullOrWhiteSpace(reason))
+                throw new ArgumentException("移出黑名单原因不能为空", nameof(reason));
+
+            var resolvedId = await ResolveCustomerIdByIdOrCodeAsync(id);
+            if (resolvedId == null) throw new KeyNotFoundException($"客户 {id} 不存在");
+            var customers = await _customerRepository.FindAsync(c => c.Id == resolvedId);
             var customer = customers.FirstOrDefault();
             if (customer == null) throw new KeyNotFoundException($"客户 {id} 不存在");
             customer.BlackList = false;
@@ -970,14 +1024,74 @@ namespace CRM.Core.Services
             customer.ModifyTime = DateTime.UtcNow;
             await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
-            await AddOperationLogAsync(id, "移出黑名单", "客户已从黑名单移出", operatorUserId, operatorUserName);
+            var r = reason.Trim();
+            await AddOperationLogAsync(resolvedId, "移出黑名单", $"移出黑名单，原因：{r}", operatorUserId, operatorUserName, r);
+        }
+
+        /// <summary>冻结客户（禁用）</summary>
+        public async Task FreezeCustomerAsync(string id, string reason, string? operatorUserId, string? operatorUserName)
+        {
+            if (string.IsNullOrWhiteSpace(reason))
+                throw new ArgumentException("冻结原因不能为空", nameof(reason));
+
+            var resolvedId = await ResolveCustomerIdByIdOrCodeAsync(id);
+            if (resolvedId == null)
+                throw new KeyNotFoundException($"客户 {id} 不存在");
+            var customers = await _customerRepository.FindAsync(c => c.Id == resolvedId);
+            var customer = customers.FirstOrDefault();
+            if (customer == null)
+                throw new KeyNotFoundException($"客户 {id} 不存在");
+            if (customer.DisenableStatus)
+                throw new InvalidOperationException("客户已处于冻结状态");
+
+            // 直接 UPDATE，避免 EF 变更跟踪/Update 未把 DisenableStatus 标为已修改导致未落库
+            var safeId = resolvedId.Replace("'", "''");
+            var rows = await _unitOfWork.ExecuteNonQueryAsync(
+                $@"UPDATE customerinfo SET ""DisenableStatus"" = TRUE, ""ModifyTime"" = NOW() WHERE ""CustomerId"" = '{safeId}'");
+            if (rows == 0)
+                throw new InvalidOperationException("更新客户冻结状态失败，请稍后重试");
+
+            var r = reason.Trim();
+            await AddOperationLogAsync(resolvedId, "冻结客户", $"冻结客户，原因：{r}", operatorUserId, operatorUserName, r);
+        }
+
+        /// <summary>启用客户（解除冻结）</summary>
+        public async Task UnfreezeCustomerAsync(string id, string reason, string? operatorUserId, string? operatorUserName)
+        {
+            if (string.IsNullOrWhiteSpace(reason))
+                throw new ArgumentException("启用原因不能为空", nameof(reason));
+
+            var resolvedId = await ResolveCustomerIdByIdOrCodeAsync(id);
+            if (resolvedId == null)
+                throw new KeyNotFoundException($"客户 {id} 不存在");
+            var customers = await _customerRepository.FindAsync(c => c.Id == resolvedId);
+            var customer = customers.FirstOrDefault();
+            if (customer == null)
+                throw new KeyNotFoundException($"客户 {id} 不存在");
+            if (!customer.DisenableStatus)
+                throw new InvalidOperationException("客户未处于冻结状态，无需启用");
+
+            var safeId = resolvedId.Replace("'", "''");
+            var rows = await _unitOfWork.ExecuteNonQueryAsync(
+                $@"UPDATE customerinfo SET ""DisenableStatus"" = FALSE, ""ModifyTime"" = NOW() WHERE ""CustomerId"" = '{safeId}'");
+            if (rows == 0)
+                throw new InvalidOperationException("更新客户启用状态失败，请稍后重试");
+
+            var r = reason.Trim();
+            await AddOperationLogAsync(resolvedId, "启用客户", $"启用客户，原因：{r}", operatorUserId, operatorUserName, r);
         }
 
         /// <summary>恢复已删除的客户</summary>
         public async Task RestoreCustomerAsync(string id, string? operatorUserId, string? operatorUserName)
         {
+            // 回收站记录需忽略软删过滤，不能走 ResolveCustomerIdByIdOrCodeAsync
             var customers = await _customerRepository.FindIgnoreFiltersAsync(c => c.Id == id);
             var customer = customers.FirstOrDefault();
+            if (customer == null)
+            {
+                var byCode = await _customerRepository.FindIgnoreFiltersAsync(c => c.CustomerCode == id.Trim());
+                customer = byCode.FirstOrDefault();
+            }
             if (customer == null) throw new KeyNotFoundException($"客户 {id} 不存在");
             customer.IsDeleted = false;
             customer.DeletedAt = null;
@@ -988,7 +1102,7 @@ namespace CRM.Core.Services
             customer.ModifyTime = DateTime.UtcNow;
             await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
-            await AddOperationLogAsync(id, "恢复", "客户已从回收站恢复", operatorUserId, operatorUserName);
+            await AddOperationLogAsync(customer.Id, "恢复", "客户已从回收站恢复", operatorUserId, operatorUserName);
         }
 
         /// <summary>获取已删除的客户列表（回收站）</summary>
@@ -1015,38 +1129,109 @@ namespace CRM.Core.Services
             return new PagedResult<CustomerInfo> { Items = items, TotalCount = total, PageIndex = pageIndex, PageSize = pageSize };
         }
 
-        /// <summary>获取客户操作日志</summary>
+        /// <summary>获取已冻结客户列表（DisenableStatus，未删除）</summary>
+        public async Task<PagedResult<CustomerInfo>> GetFrozenCustomersAsync(int pageIndex, int pageSize, string? keyword)
+        {
+            var all = await _customerRepository.FindAsync(c => c.DisenableStatus && !c.IsDeleted);
+            if (!string.IsNullOrWhiteSpace(keyword))
+                all = all.Where(c =>
+                    (c.OfficialName != null && c.OfficialName.Contains(keyword)) ||
+                    (c.CustomerCode != null && c.CustomerCode.Contains(keyword)));
+            var sorted = all.OrderByDescending(c => c.ModifyTime ?? c.CreateTime).ToList();
+            var total = sorted.Count;
+            var items = sorted.Skip((pageIndex - 1) * pageSize).Take(pageSize);
+            return new PagedResult<CustomerInfo> { Items = items, TotalCount = total, PageIndex = pageIndex, PageSize = pageSize };
+        }
+
+        /// <summary>获取客户操作日志（含本客户主体及下属客户联系人的统一 log_operation）</summary>
         public async Task<IEnumerable<CustomerOperationLog>> GetOperationLogsAsync(string customerId)
         {
-            var sql = $"SELECT \"Id\", \"CustomerId\", \"OperationType\", \"OperationDesc\", \"OperatorUserId\", \"OperatorUserName\", \"OperationTime\", \"Remark\" FROM customer_operation_log WHERE \"CustomerId\" = '{customerId.Replace("'", "''")}' ORDER BY \"OperationTime\" DESC";
+            var id = await ResolveCustomerIdByIdOrCodeAsync(customerId);
+            if (id == null) return Enumerable.Empty<CustomerOperationLog>();
+            var safe = SqlQ(id);
+            var sql = $@"
+SELECT o.""Id"",
+       o.""RecordId"" AS ""CustomerId"",
+       o.""ActionType"" AS ""OperationType"",
+       o.""OperationDesc"",
+       o.""OperatorUserId"",
+       o.""OperatorUserName"",
+       o.""OperationTime"",
+       o.""Reason"" AS ""Remark"",
+       o.""BizType"",
+       o.""RecordCode""
+FROM log_operation o
+WHERE (o.""BizType"" = '{BusinessLogTypes.Customer}' AND o.""RecordId"" = '{safe}')
+   OR (o.""BizType"" = '{BusinessLogTypes.CustomerContact}' AND o.""RecordId"" IN (
+        SELECT ""ContactId"" FROM customercontactinfo WHERE ""CustomerId"" = '{safe}'
+      ))
+ORDER BY o.""OperationTime"" DESC";
             return await _unitOfWork.QueryAsync<CustomerOperationLog>(sql);
         }
 
-        /// <summary>获取客户变更日志</summary>
+        /// <summary>获取客户字段变更日志（含本客户及下属联系人）</summary>
         public async Task<IEnumerable<CustomerChangeLog>> GetChangeLogsAsync(string customerId)
         {
-            var sql = $"SELECT \"Id\", \"CustomerId\", \"FieldName\", \"FieldLabel\", \"OldValue\", \"NewValue\", \"ChangedByUserId\", \"ChangedByUserName\", \"ChangedAt\" FROM customer_change_log WHERE \"CustomerId\" = '{customerId.Replace("'", "''")}' ORDER BY \"ChangedAt\" DESC";
+            var id = await ResolveCustomerIdByIdOrCodeAsync(customerId);
+            if (id == null) return Enumerable.Empty<CustomerChangeLog>();
+            var safe = SqlQ(id);
+            var sql = $@"
+SELECT c.""Id"",
+       c.""RecordId"" AS ""CustomerId"",
+       c.""FieldName"",
+       c.""FieldLabel"",
+       c.""OldValue"",
+       c.""NewValue"",
+       c.""ChangedByUserId"",
+       c.""ChangedByUserName"",
+       c.""ChangedAt"",
+       c.""BizType"",
+       c.""RecordCode""
+FROM log_change_fldval c
+WHERE (c.""BizType"" = '{BusinessLogTypes.Customer}' AND c.""RecordId"" = '{safe}')
+   OR (c.""BizType"" = '{BusinessLogTypes.CustomerContact}' AND c.""RecordId"" IN (
+        SELECT ""ContactId"" FROM customercontactinfo WHERE ""CustomerId"" = '{safe}'
+      ))
+ORDER BY c.""ChangedAt"" DESC";
             return await _unitOfWork.QueryAsync<CustomerChangeLog>(sql);
         }
 
-        /// <summary>记录操作日志</summary>
+        /// <summary>记录客户主体操作日志（写入 log_operation）</summary>
         public async Task AddOperationLogAsync(string customerId, string operationType, string? desc, string? userId, string? userName, string? remark = null)
         {
-            var safeDesc = desc?.Replace("'", "''") ?? "";
-            var safeUserName = userName?.Replace("'", "''") ?? "";
-            var safeRemark = remark?.Replace("'", "''");
-            var sql = $"INSERT INTO customer_operation_log (\"Id\", \"CustomerId\", \"OperationType\", \"OperationDesc\", \"OperatorUserId\", \"OperatorUserName\", \"OperationTime\", \"Remark\") VALUES (gen_random_uuid()::text, '{customerId}', '{operationType}', '{safeDesc}', {(userId == null ? "NULL" : $"'{userId}'")}, '{safeUserName}', NOW(), {(safeRemark == null ? "NULL" : $"'{safeRemark}'")})";
+            var canonicalId = await ResolveCustomerIdByIdOrCodeAsync(customerId) ?? customerId.Trim();
+            var custList = await _customerRepository.FindAsync(c => c.Id == canonicalId);
+            var cust = custList.FirstOrDefault();
+            var recordCodeSql = cust?.CustomerCode != null ? $"'{SqlQ(cust.CustomerCode)}'" : "NULL";
+            var safeRecordId = SqlQ(canonicalId);
+            var safeOpType = SqlQ(operationType);
+            var safeDesc = SqlQ(desc);
+            var safeUserName = SqlQ(userName);
+            var safeUserId = userId != null ? SqlQ(userId) : null;
+            var safeRemark = remark != null ? SqlQ(remark) : null;
+            var sql = $@"
+INSERT INTO log_operation (""Id"", ""BizType"", ""RecordId"", ""RecordCode"", ""ActionType"", ""OperationTime"", ""OperatorUserId"", ""OperatorUserName"", ""Reason"", ""ExtraInfo"", ""SysRemark"", ""OperationDesc"")
+VALUES (gen_random_uuid()::text, '{BusinessLogTypes.Customer}', '{safeRecordId}', {recordCodeSql}, '{safeOpType}', NOW(), {(safeUserId == null ? "NULL" : $"'{safeUserId}'")}, '{safeUserName}', {(safeRemark == null ? "NULL" : $"'{safeRemark}'")}, NULL, NULL, '{safeDesc}')";
             await _unitOfWork.ExecuteAsync(sql);
         }
 
-        /// <summary>记录变更日志</summary>
+        /// <summary>记录客户字段变更（写入 log_change_fldval）</summary>
         public async Task AddChangeLogAsync(string customerId, string fieldName, string? fieldLabel, string? oldValue, string? newValue, string? userId, string? userName)
         {
-            var safeOld = oldValue?.Replace("'", "''");
-            var safeNew = newValue?.Replace("'", "''");
-            var safeLabel = fieldLabel?.Replace("'", "''");
-            var safeUserName = userName?.Replace("'", "''") ?? "";
-            var sql = $"INSERT INTO customer_change_log (\"Id\", \"CustomerId\", \"FieldName\", \"FieldLabel\", \"OldValue\", \"NewValue\", \"ChangedByUserId\", \"ChangedByUserName\", \"ChangedAt\") VALUES (gen_random_uuid()::text, '{customerId}', '{fieldName}', {(safeLabel == null ? "NULL" : $"'{safeLabel}'")}, {(safeOld == null ? "NULL" : $"'{safeOld}'")}, {(safeNew == null ? "NULL" : $"'{safeNew}'")}, {(userId == null ? "NULL" : $"'{userId}'")}, '{safeUserName}', NOW())";
+            var canonicalId = await ResolveCustomerIdByIdOrCodeAsync(customerId) ?? customerId.Trim();
+            var custList = await _customerRepository.FindAsync(c => c.Id == canonicalId);
+            var cust = custList.FirstOrDefault();
+            var recordCodeSql = cust?.CustomerCode != null ? $"'{SqlQ(cust.CustomerCode)}'" : "NULL";
+            var safeRecordId = SqlQ(canonicalId);
+            var safeField = SqlQ(fieldName);
+            var safeLabel = fieldLabel != null ? SqlQ(fieldLabel) : null;
+            var safeOld = oldValue != null ? SqlQ(oldValue) : null;
+            var safeNew = newValue != null ? SqlQ(newValue) : null;
+            var safeUserName = SqlQ(userName);
+            var safeUserId = userId != null ? SqlQ(userId) : null;
+            var sql = $@"
+INSERT INTO log_change_fldval (""Id"", ""BizType"", ""RecordId"", ""RecordCode"", ""FieldName"", ""FieldLabel"", ""OldValue"", ""NewValue"", ""ChangedAt"", ""ChangedByUserId"", ""ChangedByUserName"", ""ExtraInfo"", ""SysRemark"")
+VALUES (gen_random_uuid()::text, '{BusinessLogTypes.Customer}', '{safeRecordId}', {recordCodeSql}, '{safeField}', {(safeLabel == null ? "NULL" : $"'{safeLabel}'")}, {(safeOld == null ? "NULL" : $"'{safeOld}'")}, {(safeNew == null ? "NULL" : $"'{safeNew}'")}, NOW(), {(safeUserId == null ? "NULL" : $"'{safeUserId}'")}, '{safeUserName}', NULL, NULL)";
             await _unitOfWork.ExecuteAsync(sql);
         }
     }

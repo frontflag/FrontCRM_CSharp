@@ -49,6 +49,12 @@ $border-radius-md: 8px;
 $border-radius-lg: 12px;
 $border-radius-xl: 16px;
 
+// --- 滚动条（WebKit：竖向条用 width，横向条用 height）---
+/// 数据列表等竖向滚动条宽度（左侧主菜单单独在 AppLayout 内为 3px，与此变量无关）
+$scrollbar-vertical-width: 6px;
+/// 数据表「横向滚动条高度」（可略厚于竖条，便于横向拖动）
+$scrollbar-table-horizontal-height: 12px;
+
 // --- 阴影 ---
 $shadow-sm:   0 2px 8px rgba(0, 0, 0, 0.3);
 $shadow-md:   0 4px 24px rgba(0, 0, 0, 0.4);

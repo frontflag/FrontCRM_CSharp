@@ -12,13 +12,57 @@
         <div class="customer-title-group">
           <div class="customer-avatar-lg">{{ (customer?.customerName || '?')[0] }}</div>
           <div>
-            <h1 class="page-title">{{ customer?.customerName || '客户详情' }}</h1>
+            <div class="page-title-row">
+              <div class="page-title-with-icons">
+                <h1
+                  class="page-title"
+                  :class="{
+                    'page-title--muted':
+                      customer && (customer.disenableStatus || customer.blackList)
+                  }"
+                >
+                  {{ customer?.customerName || '客户详情' }}
+                </h1>
+                <PartyStatusIcons
+                  v-if="customer"
+                  :entity-id="customer.id || customerId"
+                  :frozen="!!customer.disenableStatus"
+                  :blacklist="!!customer.blackList"
+                  size="md"
+                />
+              </div>
+              <button
+                v-if="customer"
+                type="button"
+                class="btn-favorite-star"
+                :class="{ 'is-favorite': isFavorite }"
+                :disabled="favoriteLoading"
+                :title="isFavorite ? '取消收藏' : '收藏'"
+                :aria-label="isFavorite ? '取消收藏' : '收藏客户'"
+                :aria-pressed="isFavorite"
+                @click="toggleFavorite"
+              >
+                <!-- 未收藏：空心星 -->
+                <svg
+                  v-if="!isFavorite"
+                  class="star-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+                <!-- 已收藏：实心星 -->
+                <svg v-else class="star-icon star-icon--solid" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+              </button>
+            </div>
             <div class="title-meta">
               <span class="customer-code">{{ customer?.customerCode }}</span>
-              <span class="status-badge" :class="customer?.isActive ? 'status--active' : 'status--inactive'">
-                {{ customer?.isActive ? '启用' : '停用' }}
-              </span>
-              <span v-if="customer?.blackList" class="status-badge status--blacklist">黑名单</span>
               <span v-if="customer?.customerLevel" class="level-badge" :class="`level-${customer.customerLevel?.toLowerCase()}`">
                 {{ getLevelLabel(customer.customerLevel) }}
               </span>
@@ -31,44 +75,41 @@
         </div>
       </div>
       <div class="header-right">
-        <button class="btn-secondary" @click="handleEdit">
+        <button class="btn-primary" @click="handleEdit">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
           编辑
         </button>
-        <button v-if="!customer?.blackList" class="btn-warning" @click="showBlacklistDialog = true">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-          </svg>
-          加入黑名单
-        </button>
-        <button v-else class="btn-warning btn-warning--active" @click="handleRemoveBlacklist">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>
-          </svg>
-          解除黑名单
-        </button>
-        <button class="btn-danger" @click="showDeleteDialog = true">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-          </svg>
-          删除客户
-        </button>
-        <button class="btn-primary" @click="handleCreateQuote">
+        <el-dropdown
+          v-if="customer"
+          trigger="click"
+          placement="bottom-end"
+          popper-class="customer-detail-header-more-popper"
+          @command="onHeaderMoreCommand"
+        >
+          <button type="button" class="btn-more-actions" title="更多操作" aria-label="更多操作">
+            <span class="btn-more-actions__dots" aria-hidden="true">⋯</span>
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item v-if="!customer.blackList" command="blacklist">加入黑名单</el-dropdown-item>
+              <el-dropdown-item v-else command="unblacklist">解除黑名单</el-dropdown-item>
+              <el-dropdown-item v-if="!customer.disenableStatus" command="freeze">冻结</el-dropdown-item>
+              <el-dropdown-item v-else command="unfreeze">启用</el-dropdown-item>
+              <el-dropdown-item command="delete" divided class="detail-more-item--danger">删除客户</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <button class="btn-success" type="button" @click="handleCreateRfq">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="11" x2="12" y2="17"/>
+            <line x1="9" y1="14" x2="15" y2="14"/>
           </svg>
-          创建报价
-        </button>
-        <button class="btn-primary btn-primary--green" @click="handleCreateOrder">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
-            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-          </svg>
-          创建订单
+          创建需求
         </button>
       </div>
     </div>
@@ -88,11 +129,17 @@
             </div>
             <div class="info-item">
               <span class="info-label">客户名称</span>
-              <span class="info-value">{{ customer.customerName }}</span>
+              <span
+                class="info-value"
+                :class="{
+                  'info-value--party-muted':
+                    customer.disenableStatus || customer.blackList
+                }"
+              >{{ customer.customerName }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">客户类型</span>
-              <span class="type-badge" :class="`type-${customer.customerType ?? 0}`">{{ getTypeLabel(customer.customerType ?? 0) }}</span>
+              <span class="info-value">{{ getTypeLabel(customer.customerType ?? 0) }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">统一社会信用代码</span>
@@ -182,16 +229,19 @@
                 <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip>
                   <template #default="{ row }"><span class="cell-secondary">{{ row.email || '--' }}</span></template>
                 </el-table-column>
-                <el-table-column prop="isDefault" label="默认" width="80" align="center">
+                <el-table-column label="默认" width="80" align="center">
                   <template #default="{ row }">
-                    <span v-if="row.isDefault" class="default-badge">默认</span>
-                    <span v-else class="cell-muted">--</span>
+                    <span v-if="parseApiBoolean(row.isDefault)" class="default-badge">默认</span>
                   </template>
                 </el-table-column>
-                <el-table-column label="操作" width="150" fixed="right">
+                <el-table-column label="操作" width="200" fixed="right" class-name="op-col" label-class-name="op-col">
                   <template #default="{ row }">
-                    <button class="action-btn" @click="goEditContact(row)">编辑</button>
-                    <button class="action-btn action-btn--danger" @click="deleteContact(row)">删除</button>
+                    <div @click.stop @dblclick.stop>
+                      <div class="action-btns">
+                        <button type="button" class="action-btn action-btn--primary" @click.stop="goEditContact(row)">编辑</button>
+                        <button type="button" class="action-btn action-btn--danger" @click.stop="deleteContact(row)">删除</button>
+                      </div>
+                    </div>
                   </template>
                 </el-table-column>
               </CrmDataTable>
@@ -211,7 +261,7 @@
                 :header-cell-style="tableHeaderStyle" :cell-style="tableCellStyle" :row-style="tableRowStyle">
                 <el-table-column prop="addressType" label="地址类型" width="110">
                   <template #default="{ row }">
-                    <span class="type-badge type-0">{{ getAddressTypeLabel(row.addressType) }}</span>
+                    <span class="type-badge type-0">{{ formatCustomerAddressTypeLabel(row.addressType) }}</span>
                   </template>
                 </el-table-column>
                 <el-table-column prop="contactPerson" label="联系人" width="100">
@@ -223,16 +273,19 @@
                 <el-table-column label="详细地址" min-width="250" show-overflow-tooltip>
                   <template #default="{ row }"><span class="cell-secondary">{{ formatFullAddress(row) }}</span></template>
                 </el-table-column>
-                <el-table-column prop="isDefault" label="默认" width="80" align="center">
+                <el-table-column label="默认" width="80" align="center">
                   <template #default="{ row }">
-                    <span v-if="row.isDefault" class="default-badge">默认</span>
-                    <span v-else class="cell-muted">--</span>
+                    <span v-if="parseApiBoolean(row.isDefault)" class="default-badge">默认</span>
                   </template>
                 </el-table-column>
-                <el-table-column label="操作" width="150" fixed="right">
+                <el-table-column label="操作" width="200" fixed="right" class-name="op-col" label-class-name="op-col">
                   <template #default="{ row }">
-                    <button class="action-btn" @click="editAddress(row)">编辑</button>
-                    <button class="action-btn action-btn--danger" @click="deleteAddress(row)">删除</button>
+                    <div @click.stop @dblclick.stop>
+                      <div class="action-btns">
+                        <button type="button" class="action-btn action-btn--primary" @click.stop="editAddress(row)">编辑</button>
+                        <button type="button" class="action-btn action-btn--danger" @click.stop="deleteAddress(row)">删除</button>
+                      </div>
+                    </div>
                   </template>
                 </el-table-column>
               </CrmDataTable>
@@ -265,16 +318,19 @@
                 <el-table-column prop="currency" label="币种" width="80">
                   <template #default="{ row }"><span class="cell-muted">{{ getCurrencyLabel(row.currency) }}</span></template>
                 </el-table-column>
-                <el-table-column prop="isDefault" label="默认" width="80" align="center">
+                <el-table-column label="默认" width="80" align="center">
                   <template #default="{ row }">
-                    <span v-if="row.isDefault" class="default-badge">默认</span>
-                    <span v-else class="cell-muted">--</span>
+                    <span v-if="parseApiBoolean(row.isDefault)" class="default-badge">默认</span>
                   </template>
                 </el-table-column>
-                <el-table-column label="操作" width="150" fixed="right">
+                <el-table-column label="操作" width="200" fixed="right" class-name="op-col" label-class-name="op-col">
                   <template #default="{ row }">
-                    <button class="action-btn" @click="editBank(row)">编辑</button>
-                    <button class="action-btn action-btn--danger" @click="deleteBank(row)">删除</button>
+                    <div @click.stop @dblclick.stop>
+                      <div class="action-btns">
+                        <button type="button" class="action-btn action-btn--primary" @click.stop="editBank(row)">编辑</button>
+                        <button type="button" class="action-btn action-btn--danger" @click.stop="deleteBank(row)">删除</button>
+                      </div>
+                    </div>
                   </template>
                 </el-table-column>
               </CrmDataTable>
@@ -314,7 +370,7 @@
                   <div style="display:flex;justify-content:space-between;align-items:center">
                     <span class="timeline-text"><strong>{{ h.contactType || h.type }}</strong> · {{ h.content }}</span>
                     <div>
-                      <button class="action-btn" style="margin-right:4px" @click="deleteHistory(h)">删除</button>
+                      <button class="action-btn action-btn--danger" style="margin-right:4px" @click="deleteHistory(h)">删除</button>
                     </div>
                   </div>
                   <span v-if="h.followUpResult" class="timeline-time">跟进结果：{{ h.followUpResult }}</span>
@@ -337,7 +393,15 @@
                 <div v-for="log in operationLogs" :key="log.id" class="timeline-item">
                   <div class="timeline-dot dot--primary"></div>
                   <div class="timeline-content">
-                    <span class="timeline-text">{{ log.operationType }} · {{ log.description }}</span>
+                    <span class="timeline-text">
+                      <template v-if="log.bizType && log.bizType !== 'Customer'">
+                        <span class="log-biz-pill">{{ operationBizTypeLabel(log.bizType) }}</span>
+                        ·
+                      </template>
+                      {{ log.operationType }} · {{ log.operationDesc || log.description || '—' }}
+                      <template v-if="log.remark"> · 原因：{{ log.remark }}</template>
+                      <template v-if="log.recordCode"> · 单号 {{ log.recordCode }}</template>
+                    </span>
                     <span class="timeline-time">{{ log.operatorUserName || '系统' }} · {{ formatDateTime(log.operationTime || log.createTime) }}</span>
                   </div>
                 </div>
@@ -350,8 +414,15 @@
                 <div v-for="log in fieldChangeLogs" :key="log.id" class="timeline-item">
                   <div class="timeline-dot dot--warning"></div>
                   <div class="timeline-content">
-                    <span class="timeline-text">{{ log.fieldName }}：{{ log.oldValue || '(空)' }} → {{ log.newValue || '(空)' }}</span>
-                    <span class="timeline-time">{{ log.operatorUserName || '系统' }} · {{ formatDateTime(log.operationTime || log.createTime) }}</span>
+                    <span class="timeline-text">
+                      <template v-if="log.bizType && log.bizType !== 'Customer'">
+                        <span class="log-biz-pill">{{ operationBizTypeLabel(log.bizType) }}</span>
+                        ·
+                      </template>
+                      {{ log.fieldLabel || log.fieldName }}：{{ log.oldValue || '(空)' }} → {{ log.newValue || '(空)' }}
+                      <template v-if="log.recordCode"> · 单号 {{ log.recordCode }}</template>
+                    </span>
+                    <span class="timeline-time">{{ log.changedByUserName || log.operatorUserName || '系统' }} · {{ formatDateTime(log.changedAt || log.operationTime || log.createTime) }}</span>
                   </div>
                 </div>
               </div>
@@ -397,6 +468,39 @@
     </el-dialog>
 
     <!-- 加入黑名单弹窗 -->
+    <!-- 冻结 / 启用客户 -->
+    <el-dialog
+      v-model="showFreezeDialog"
+      :title="freezeDialogTitle"
+      width="440px"
+      :close-on-click-modal="false"
+      @closed="freezeReason = ''"
+    >
+      <div style="color:rgba(200,216,232,0.75);font-size:13px;margin-bottom:16px">
+        {{ freezeDialogHint }}
+      </div>
+      <el-form label-width="90px">
+        <el-form-item :label="freezeReasonLabel" required>
+          <el-input
+            v-model="freezeReason"
+            type="textarea"
+            :rows="3"
+            :placeholder="freezeReasonPlaceholder"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showFreezeDialog = false">取消</el-button>
+        <el-button
+          :type="freezeMode === 'freeze' ? 'warning' : 'primary'"
+          :loading="actionLoading"
+          @click="handleConfirmFreezeOrUnfreeze"
+        >
+          确定
+        </el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="showBlacklistDialog" title="加入黑名单" width="440px" :close-on-click-modal="false">
       <div style="color:rgba(200,216,232,0.75);font-size:13px;margin-bottom:16px">加入黑名单后可在黑名单管理中查看并移出。</div>
       <el-form label-width="90px">
@@ -409,28 +513,64 @@
         <el-button type="warning" :loading="actionLoading" @click="handleAddBlacklist">确认加入黑名单</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="showRemoveBlacklistDialog" title="解除黑名单" width="440px" :close-on-click-modal="false">
+      <div style="color:rgba(200,216,232,0.75);font-size:13px;margin-bottom:16px">
+        解除后该客户将不再处于黑名单状态，原因将记入操作日志。
+      </div>
+      <el-form label-width="90px">
+        <el-form-item label="移出原因" required>
+          <el-input
+            v-model="removeFromBlacklistReason"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入移出黑名单原因（必填）"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showRemoveBlacklistDialog = false">取消</el-button>
+        <el-button type="primary" :loading="actionLoading" @click="handleConfirmRemoveBlacklist">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElNotification, ElMessageBox } from 'element-plus';
-import { customerApi, customerContactApi, customerAddressApi, customerBankApi } from '@/api/customer';
+import {
+  customerApi,
+  customerContactApi,
+  customerAddressApi,
+  customerBankApi,
+  normalizeCustomerAddressFromApi,
+  formatCustomerAddressTypeLabel
+} from '@/api/customer';
+import { favoriteApi } from '@/api/favorite';
 import { tagApi, type TagDefinitionDto } from '@/api/tag';
 import TagListDisplay from '@/components/Tag/TagListDisplay.vue';
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue';
+import PartyStatusIcons from '@/components/party/PartyStatusIcons.vue';
 import type { Customer, CustomerContactInfo, CustomerAddress, CustomerBankInfo } from '@/types/customer';
 
 import AddressDialog from './components/AddressDialog.vue';
 import BankDialog from './components/BankDialog.vue';
 import { formatDisplayDateTime } from '@/utils/displayDateTime';
+import { parseApiBoolean } from '@/utils/parseApiBoolean';
+import { operationBizTypeLabel } from '@/utils/businessLogLabels';
+import { CUSTOMER_FAVORITES_CHANGED_EVENT } from '@/constants/customerFavorites';
+import { logRecentApi } from '@/api/logRecent';
+import { CUSTOMER_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/customerRecentHistory';
+import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency';
 
 const route = useRoute();
 const router = useRouter();
 const customerId = route.params.id as string;
 const loading = ref(false);
 const customer = ref<Customer | null>(null);
+
 const customerTags = ref<TagDefinitionDto[]>([]);
 const activeTab = ref('contacts');
 const showAddressDialog = ref(false);
@@ -458,20 +598,92 @@ const fieldChangeLogs = ref<any[]>([]);
 // 删除 / 黑名单
 const showDeleteDialog = ref(false);
 const showBlacklistDialog = ref(false);
+const showRemoveBlacklistDialog = ref(false);
+const showFreezeDialog = ref(false);
+/** freeze = 冻结客户；unfreeze = 启用（解除冻结） */
+const freezeMode = ref<'freeze' | 'unfreeze'>('freeze');
+const freezeReason = ref('');
 const deleteReason = ref('');
 const blacklistReason = ref('');
+const removeFromBlacklistReason = ref('');
+
+const freezeDialogTitle = computed(() => (freezeMode.value === 'freeze' ? '冻结客户' : '启用客户'));
+const freezeDialogHint = computed(() =>
+  freezeMode.value === 'freeze'
+    ? '冻结后客户将标记为冻结状态，是否确认冻结？'
+    : '启用后客户将解除冻结状态，是否确认启用？'
+);
+const freezeReasonLabel = computed(() => (freezeMode.value === 'freeze' ? '冻结原因' : '启用原因'));
+const freezeReasonPlaceholder = computed(() =>
+  freezeMode.value === 'freeze' ? '请输入冻结原因（必填）' : '请输入启用原因（必填）'
+);
 const actionLoading = ref(false);
 const showTagDialog = ref(false);
+const isFavorite = ref(false);
+const favoriteLoading = ref(false);
 
 const tableHeaderStyle = () => ({ background: '#0A1628', color: 'rgba(200,216,232,0.55)', fontSize: '12px', fontWeight: '500', letterSpacing: '0.5px', borderBottom: '1px solid rgba(0,212,255,0.12)', padding: '10px 0' });
 const tableCellStyle = () => ({ background: 'transparent', borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'rgba(224,244,255,0.85)', fontSize: '13px' });
 const tableRowStyle = () => ({ background: 'transparent' });
 
+const refreshFavoriteStatus = async () => {
+  try {
+    isFavorite.value = await favoriteApi.checkFavorite('CUSTOMER', customerId);
+  } catch {
+    isFavorite.value = false;
+  }
+};
+
+function trackRecentDetail() {
+  const c = customer.value;
+  if (!c?.id) return;
+  logRecentApi
+    .record({
+      bizType: 'Customer',
+      recordId: String(c.id),
+      recordCode: c.customerCode || undefined,
+      openKind: 'detail'
+    })
+    .then(() => window.dispatchEvent(new CustomEvent(CUSTOMER_RECENT_HISTORY_CHANGED_EVENT)))
+    .catch(() => {});
+}
+
 const fetchCustomerDetail = async () => {
   loading.value = true;
-  try { customer.value = await customerApi.getCustomerById(customerId); }
-  catch { ElNotification.error({ title: '加载失败', message: '获取客户详情失败，请刷新重试' }); }
-  finally { loading.value = false; }
+  try {
+    const c = await customerApi.getCustomerById(customerId);
+    if (c.addresses?.length) {
+      c.addresses = c.addresses.map((a) => normalizeCustomerAddressFromApi(a));
+    }
+    customer.value = c;
+    await refreshFavoriteStatus();
+    trackRecentDetail();
+  } catch {
+    ElNotification.error({ title: '加载失败', message: '获取客户详情失败，请刷新重试' });
+  } finally {
+    loading.value = false;
+  }
+};
+
+const toggleFavorite = async () => {
+  if (!customer.value?.id || favoriteLoading.value) return;
+  favoriteLoading.value = true;
+  try {
+    if (isFavorite.value) {
+      await favoriteApi.removeFavorite('CUSTOMER', customerId);
+      isFavorite.value = false;
+      ElNotification.success({ title: '已取消收藏', message: customer.value.customerName || '' });
+    } else {
+      await favoriteApi.addFavorite({ entityType: 'CUSTOMER', entityId: customerId });
+      isFavorite.value = true;
+      ElNotification.success({ title: '收藏成功', message: customer.value.customerName || '' });
+    }
+    window.dispatchEvent(new CustomEvent(CUSTOMER_FAVORITES_CHANGED_EVENT));
+  } catch (error: any) {
+    ElNotification.error({ title: '操作失败', message: error?.message || '收藏操作失败，请稍后重试' });
+  } finally {
+    favoriteLoading.value = false;
+  }
 };
 
 const fetchCustomerTags = async () => {
@@ -527,7 +739,7 @@ const handleDelete = async () => {
     await customerApi.deleteCustomer(customerId, deleteReason.value);
     ElNotification.success({ title: '删除成功', message: '客户已移至回收站' });
     showDeleteDialog.value = false;
-    router.push('/customers');
+    router.push({ name: 'CustomerList' });
   } catch { ElNotification.error({ title: '删除失败', message: '客户删除失败，请稍后重试' }); }
   finally { actionLoading.value = false; }
 };
@@ -540,23 +752,88 @@ const handleAddBlacklist = async () => {
     ElNotification.success({ title: '操作成功', message: '客户已加入黑名单' });
     showBlacklistDialog.value = false;
     blacklistReason.value = '';
-    fetchCustomerDetail();
+    await fetchCustomerDetail();
+    await fetchLogs();
   } catch { ElNotification.error({ title: '操作失败', message: '加入黑名单失败，请稍后重试' }); }
   finally { actionLoading.value = false; }
 };
 
-const handleRemoveBlacklist = async () => {
+const handleConfirmRemoveBlacklist = async () => {
+  if (!removeFromBlacklistReason.value.trim()) {
+    ElNotification.warning({ title: '请填写原因', message: '请输入移出黑名单原因' });
+    return;
+  }
+  actionLoading.value = true;
   try {
-    await ElMessageBox.confirm('确定要解除该客户的黑名单状态吗？', '解除黑名单', { type: 'warning' });
-    await customerApi.removeFromBlacklist(customerId);
-    ElNotification.success({ title: '操作成功', message: '已解除黑名单状态' }); fetchCustomerDetail();
-  } catch (e) { if (e !== 'cancel') ElNotification.error({ title: '操作失败', message: '解除黑名单失败' }); }
+    await customerApi.removeFromBlacklist(customerId, removeFromBlacklistReason.value.trim());
+    ElNotification.success({ title: '操作成功', message: '已解除黑名单状态' });
+    showRemoveBlacklistDialog.value = false;
+    removeFromBlacklistReason.value = '';
+    await fetchCustomerDetail();
+    await fetchLogs();
+  } catch {
+    ElNotification.error({ title: '操作失败', message: '解除黑名单失败，请稍后重试' });
+  } finally {
+    actionLoading.value = false;
+  }
 };
 
-const goBack = () => router.push('/customers');
+const goBack = () => router.push({ name: 'CustomerList' });
 const handleEdit = () => router.push(`/customers/${customerId}/edit`);
-const handleCreateQuote = () => ElNotification.info({ title: '功能开发中', message: '报价单功能正在开发中，敬请期待' });
-const handleCreateOrder = () => ElNotification.info({ title: '功能开发中', message: '订单功能正在开发中，敬请期待' });
+
+function onHeaderMoreCommand(command: string) {
+  if (command === 'blacklist') showBlacklistDialog.value = true;
+  else if (command === 'unblacklist') {
+    removeFromBlacklistReason.value = '';
+    showRemoveBlacklistDialog.value = true;
+  }
+  else if (command === 'freeze') {
+    freezeMode.value = 'freeze';
+    freezeReason.value = '';
+    showFreezeDialog.value = true;
+  } else if (command === 'unfreeze') {
+    freezeMode.value = 'unfreeze';
+    freezeReason.value = '';
+    showFreezeDialog.value = true;
+  } else if (command === 'delete') showDeleteDialog.value = true;
+}
+
+const handleConfirmFreezeOrUnfreeze = async () => {
+  if (!freezeReason.value.trim()) {
+    ElNotification.warning({
+      title: '请填写原因',
+      message: freezeMode.value === 'freeze' ? '请输入冻结原因' : '请输入启用原因'
+    });
+    return;
+  }
+  actionLoading.value = true;
+  try {
+    if (freezeMode.value === 'freeze') {
+      await customerApi.freezeCustomer(customerId, freezeReason.value.trim());
+      ElNotification.success({ title: '操作成功', message: '客户已冻结' });
+    } else {
+      await customerApi.unfreezeCustomer(customerId, freezeReason.value.trim());
+      ElNotification.success({ title: '操作成功', message: '客户已启用' });
+    }
+    showFreezeDialog.value = false;
+    freezeReason.value = '';
+    await fetchCustomerDetail();
+    await fetchLogs();
+  } catch (e: any) {
+    ElNotification.error({ title: '操作失败', message: e?.message || '请求失败，请稍后重试' });
+  } finally {
+    actionLoading.value = false;
+  }
+};
+
+/** 跳转新建需求并带上当前客户，由 RFQCreate 根据 query 预填「客户」 */
+const handleCreateRfq = () => {
+  if (!customer.value?.id) {
+    ElNotification.warning({ title: '无法创建', message: '客户信息未加载完成' });
+    return;
+  }
+  router.push({ name: 'RFQCreate', query: { customerId: customer.value.id } });
+};
 
 const goAddContact = () => router.push({ name: 'CustomerContactCreate', params: { id: customerId } });
 const goEditContact = (contact: CustomerContactInfo) => router.push({ name: 'CustomerContactEdit', params: { id: customerId, contactId: contact.id } });
@@ -598,9 +875,9 @@ const getTypeLabel = (type: number) => ({ 0: '企业', 1: '个人', 2: '政府' 
 const getLevelLabel = (level: string) => ({ VIP: 'VIP客户', Important: '重要客户', Normal: '普通客户', Lead: '潜在客户' }[level] || level);
 // const getLevelType = (level: string) => ({ VIP: 'danger', Important: 'warning', Normal: 'info', Lead: '' }[level] || '');
 const getIndustryLabel = (industry: string) => ({ Manufacturing: '制造业', Trading: '贸易/零售', Technology: '科技/IT', Construction: '建筑/工程', Healthcare: '医疗/健康', Education: '教育', Finance: '金融', Other: '其他' }[industry] || industry);
-const getAddressTypeLabel = (type: string) => ({ Office: '办公地址', Billing: '开票地址', Shipping: '收货地址', Registered: '注册地址' }[type] || type);
-const formatFullAddress = (address: CustomerAddress) => [address.country, address.province, address.city, address.district, address.streetAddress].filter(Boolean).join(' ');
-const getCurrencyLabel = (currency: number) => ({ 1: 'RMB', 2: 'USD', 3: 'EUR', 4: 'JPY', 5: 'GBP', 6: 'HKD' }[currency] || 'RMB');
+const formatFullAddress = (address: CustomerAddress) =>
+  [address.country, address.province, address.city, address.district, address.streetAddress].filter(Boolean).join(' ');
+const getCurrencyLabel = (currency: number) => CURRENCY_CODE_TO_TEXT[currency] || 'RMB';
 
 onMounted(() => {
   fetchCustomerDetail();
@@ -678,11 +955,77 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
+.page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.page-title-with-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 .page-title {
   font-size: 20px;
   font-weight: 600;
   color: $text-primary;
-  margin: 0 0 6px 0;
+  margin: 0;
+
+  &--muted {
+    color: rgba(150, 170, 195, 0.82);
+  }
+}
+
+.info-value--party-muted {
+  color: rgba(150, 170, 195, 0.82);
+}
+
+.btn-favorite-star {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(200, 220, 240, 0.5);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, transform 0.12s;
+
+  .star-icon {
+    width: 22px;
+    height: 22px;
+    display: block;
+  }
+
+  &:hover:not(:disabled) {
+    color: #00d4ff;
+    background: rgba(0, 212, 255, 0.1);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.92);
+  }
+
+  &.is-favorite {
+    color: #ffc94d;
+  }
+
+  &.is-favorite:hover:not(:disabled) {
+    color: #ffd666;
+    background: rgba(255, 201, 77, 0.12);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 }
 
 .title-meta {
@@ -717,16 +1060,6 @@ onMounted(() => {
   font-family: 'Space Mono', monospace;
   font-size: 11px;
   color: $text-muted;
-}
-
-.status-badge {
-  font-size: 10px;
-  padding: 2px 7px;
-  border-radius: 3px;
-
-  &--active     { background: rgba(70,191,145,0.15); color: $color-mint-green; border: 1px solid rgba(70,191,145,0.3); }
-  &--inactive   { background: rgba(107,122,141,0.15); color: #8A9BB0; border: 1px solid rgba(107,122,141,0.3); }
-  &--blacklist  { background: rgba(201,87,69,0.15); color: $color-red-brown; border: 1px solid rgba(201,87,69,0.3); }
 }
 
 .level-badge {
@@ -797,11 +1130,26 @@ onMounted(() => {
   transition: all 0.2s;
 
   &:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,212,255,0.25); }
+}
 
-  &--green {
-    background: linear-gradient(135deg, rgba(50,149,201,0.8), rgba(70,191,145,0.7));
-    border-color: rgba(70,191,145,0.4);
-    &:hover { box-shadow: 0 4px 16px rgba(70,191,145,0.25); }
+// 新建/新增/创建（含「创建需求」入口）（UI 规范：success 绿）
+.btn-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, rgba(46, 160, 67, 0.88), rgba(70, 191, 145, 0.78));
+  border: 1px solid rgba(70, 191, 145, 0.45);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(70, 191, 145, 0.3);
   }
 }
 
@@ -820,6 +1168,37 @@ onMounted(() => {
   transition: all 0.2s;
 
   &:hover { background: rgba(255,255,255,0.08); border-color: rgba(0,212,255,0.25); }
+}
+
+.btn-more-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-secondary;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Noto Sans SC', sans-serif;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(0, 212, 255, 0.25);
+    color: $text-primary;
+  }
+
+  &__dots {
+    font-size: 18px;
+    line-height: 1;
+    letter-spacing: 0.5px;
+    transform: translateY(-1px);
+    font-weight: 700;
+  }
 }
 
 // ---- 基本信息 ----
@@ -947,16 +1326,19 @@ onMounted(() => {
   align-items: center;
   gap: 5px;
   padding: 5px 12px;
-  background: rgba(0,212,255,0.08);
-  border: 1px solid rgba(0,212,255,0.25);
+  background: rgba(70, 191, 145, 0.12);
+  border: 1px solid rgba(70, 191, 145, 0.35);
   border-radius: $border-radius-sm;
-  color: $cyan-primary;
+  color: $color-mint-green;
   font-size: 12px;
   font-family: 'Noto Sans SC', sans-serif;
   cursor: pointer;
   transition: all 0.2s;
 
-  &:hover { background: rgba(0,212,255,0.14); }
+  &:hover {
+    background: rgba(70, 191, 145, 0.2);
+    border-color: rgba(70, 191, 145, 0.5);
+  }
 }
 
 // ---- 表格 ----
@@ -966,7 +1348,6 @@ onMounted(() => {
 
   :deep(.el-table__inner-wrapper) { background: transparent; }
   :deep(tr) { background: transparent !important; &:hover td { background: rgba(0,212,255,0.04) !important; } }
-  :deep(.el-table__fixed-right) { background: $layer-2 !important; }
   // 操作列按钮禁止折行
   :deep(.el-table__cell) {
     .el-button { white-space: nowrap !important; }
@@ -994,9 +1375,9 @@ onMounted(() => {
   align-items: center;
   padding: 3px 8px;
   background: transparent;
-  border: 1px solid rgba(0,212,255,0.2);
+  border: 1px solid $border-panel;
   border-radius: 4px;
-  color: $color-ice-blue;
+  color: $text-muted;
   font-size: 12px;
   font-family: 'Noto Sans SC', sans-serif;
   cursor: pointer;
@@ -1005,12 +1386,25 @@ onMounted(() => {
   white-space: nowrap;
   flex-shrink: 0;
 
-  &:hover { background: rgba(0,212,255,0.08); border-color: rgba(0,212,255,0.4); color: $cyan-primary; }
+  &:hover {
+    border-color: rgba(0, 212, 255, 0.25);
+    color: $text-secondary;
+  }
+
+  &--primary {
+    border: 1px solid rgba(0, 212, 255, 0.35);
+    color: $color-ice-blue;
+    &:hover {
+      background: rgba(0, 102, 255, 0.12);
+      border-color: rgba(0, 212, 255, 0.5);
+      color: $cyan-primary;
+    }
+  }
 
   &--danger {
-    border-color: rgba(201,87,69,0.2);
+    border: 1px solid rgba(201, 87, 69, 0.25);
     color: $color-red-brown;
-    &:hover { background: rgba(201,87,69,0.08); border-color: rgba(201,87,69,0.4); }
+    &:hover { background: rgba(201, 87, 69, 0.1); border-color: rgba(201, 87, 69, 0.45); }
   }
 }
 
@@ -1061,6 +1455,18 @@ onMounted(() => {
   .timeline-time { font-size: 11px; color: $text-muted; font-family: 'Space Mono', monospace; }
 }
 
+.log-biz-pill {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(165, 243, 252, 0.95);
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  vertical-align: middle;
+}
+
 // ---- 空状态 ----
 .empty-state {
   text-align: center;
@@ -1069,5 +1475,45 @@ onMounted(() => {
 
   svg { margin-bottom: 12px; opacity: 0.3; }
   p { font-size: 14px; margin: 0; }
+}
+</style>
+
+<!-- 下拉 Teleport 到 body，需非 scoped -->
+<style lang="scss">
+@import '@/assets/styles/variables.scss';
+
+.customer-detail-header-more-popper.el-dropdown__popper,
+.customer-detail-header-more-popper.el-popper {
+  background: $layer-2 !important;
+  border: 1px solid rgba(0, 212, 255, 0.15) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+}
+
+.customer-detail-header-more-popper .el-dropdown-menu {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 4px 0 !important;
+}
+
+.customer-detail-header-more-popper .el-dropdown-menu__item {
+  color: rgba(200, 220, 240, 0.92) !important;
+  font-size: 13px;
+
+  &:hover,
+  &:focus {
+    background: rgba(0, 212, 255, 0.1) !important;
+    color: #e8f4ff !important;
+  }
+}
+
+.customer-detail-header-more-popper .detail-more-item--danger {
+  color: $color-red-brown !important;
+
+  &:hover,
+  &:focus {
+    color: #e8a090 !important;
+    background: rgba(201, 87, 69, 0.12) !important;
+  }
 }
 </style>

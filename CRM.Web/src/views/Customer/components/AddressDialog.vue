@@ -85,7 +85,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { ElNotification, type FormInstance, type FormRules } from 'element-plus';
-import { customerAddressApi } from '@/api/customer';
+import { customerAddressApi, normalizeCustomerAddressFromApi } from '@/api/customer';
+import { getApiErrorMessage } from '@/utils/apiError';
 import { regionData } from '@/data/regions';
 import type { CustomerAddress, CreateAddressRequest } from '@/types/customer';
 
@@ -166,20 +167,21 @@ const handleRegionChange = (value: string[]) => {
 // 监听address变化
 watch(() => props.address, (newVal) => {
   if (newVal) {
+    const n = normalizeCustomerAddressFromApi(newVal);
     formData.value = {
-      addressType: newVal.addressType,
-      country: newVal.country || '中国',
-      province: newVal.province || '',
-      city: newVal.city || '',
-      district: newVal.district || '',
-      streetAddress: newVal.streetAddress,
-      zipCode: newVal.zipCode || '',
-      contactPerson: newVal.contactPerson || '',
-      contactPhone: newVal.contactPhone || '',
-      isDefault: newVal.isDefault
+      addressType: n.addressType,
+      country: n.country || '中国',
+      province: n.province || '',
+      city: n.city || '',
+      district: n.district || '',
+      streetAddress: n.streetAddress,
+      zipCode: n.zipCode || '',
+      contactPerson: n.contactPerson || '',
+      contactPhone: n.contactPhone || '',
+      isDefault: n.isDefault
     };
-    if (newVal.province && newVal.city && newVal.district) {
-      regionValue.value = [newVal.province, newVal.city, newVal.district];
+    if (n.province && n.city && n.district) {
+      regionValue.value = [n.province, n.city, n.district];
     }
   } else {
     resetForm();
@@ -209,7 +211,10 @@ const handleSubmit = async () => {
     emit('update:modelValue', false);
   } catch (error) {
     console.error('保存失败:', error);
-    ElNotification.error({ title: '保存失败', message: '地址保存失败，请稍后重试' });
+    ElNotification.error({
+      title: '保存失败',
+      message: getApiErrorMessage(error, '地址保存失败，请稍后重试')
+    });
   } finally {
     submitting.value = false;
   }

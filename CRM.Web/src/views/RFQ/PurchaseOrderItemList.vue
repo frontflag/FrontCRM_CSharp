@@ -59,6 +59,7 @@
       v-loading="loading"
       row-key="purchaseOrderItemId"
       @selection-change="onSelectionChange"
+      @row-dblclick="goDetail"
     >
       <el-table-column type="selection" width="48" :reserve-selection="true" />
 
@@ -105,27 +106,31 @@
         <template #default="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}</template>
       </el-table-column>
 
-      <el-table-column label="操作" width="260" fixed="right" align="center" class-name="op-col" label-class-name="op-col-head">
+      <el-table-column label="操作" width="260" fixed="right" align="center" class-name="op-col" label-class-name="op-col">
         <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="goDetail(row)">详情</el-button>
-          <el-button
-            v-if="row.itemStatus === 30 && canCreateArrivalNotice"
-            link
-            type="warning"
-            size="small"
-            @click="openArrivalDialog(row)"
-          >
-            通知到货
-          </el-button>
-          <el-button
-            v-if="row.canApplyPayment"
-            link
-            type="success"
-            size="small"
-            @click="openPaymentDialog(row)"
-          >
-            申请付款
-          </el-button>
+          <div @click.stop @dblclick.stop>
+            <div class="action-btns">
+              <el-button link type="primary" size="small" @click.stop="goDetail(row)">详情</el-button>
+              <el-button
+                v-if="row.itemStatus === 30 && canCreateArrivalNotice"
+                link
+                type="warning"
+                size="small"
+                @click.stop="openArrivalDialog(row)"
+              >
+                通知到货
+              </el-button>
+              <el-button
+                v-if="row.canApplyPayment"
+                link
+                type="warning"
+                size="small"
+                @click.stop="openPaymentDialog(row)"
+              >
+                申请付款
+              </el-button>
+            </div>
+          </div>
         </template>
       </el-table-column>
     </CrmDataTable>
@@ -943,37 +948,6 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* 右侧固定操作列浮层：全层级强制不透明，覆盖全局透明表格样式 */
-.po-item-list-page :deep(.el-table__fixed-right),
-.po-item-list-page :deep(.el-table__fixed-right-patch),
-.po-item-list-page :deep(.el-table__fixed-right .el-table__fixed-header-wrapper),
-.po-item-list-page :deep(.el-table__fixed-right .el-table__fixed-body-wrapper),
-.po-item-list-page :deep(.el-table__fixed-right .el-table__fixed-footer-wrapper),
-.po-item-list-page :deep(.el-table__fixed-right table),
-.po-item-list-page :deep(.el-table__fixed-right tr),
-.po-item-list-page :deep(.el-table__fixed-right th.el-table__cell),
-.po-item-list-page :deep(.el-table__fixed-right td.el-table__cell),
-.po-item-list-page :deep(.el-table__fixed-right .cell),
-.po-item-list-page :deep(.el-table .el-table-fixed-column--right),
-.po-item-list-page :deep(.el-table .el-table-fixed-column--right.is-leaf),
-.po-item-list-page :deep(.el-table .el-table-fixed-column--right .cell) {
-  background-color: $layer-2 !important;
-}
-
-/* fixed 列 hover 时也保持不透明，避免出现“透视缝隙” */
-.po-item-list-page :deep(.el-table__fixed-right .el-table__row:hover td.el-table__cell),
-.po-item-list-page :deep(.el-table__fixed-right .el-table__row.hover-row td.el-table__cell) {
-  background-color: $layer-2 !important;
-}
-
-/* 固定列与普通列边界：左侧阴影 + 细分隔线 */
-.po-item-list-page :deep(.el-table__fixed-right) {
-  box-shadow: -12px 0 18px -10px rgba(0, 0, 0, 0.72) !important;
-}
-.po-item-list-page :deep(.el-table__fixed-right::before),
-.po-item-list-page :deep(.el-table__fixed-right-patch) {
-  background-color: rgba(255, 255, 255, 0.08) !important;
-}
 .pagination-wrapper {
   display: flex;
   justify-content: flex-end;

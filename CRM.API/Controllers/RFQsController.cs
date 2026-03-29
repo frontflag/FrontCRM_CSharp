@@ -65,7 +65,7 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>需求明细分页（须放在 {id} 之前，否则 "items" 会被当成 id）</summary>
-        // GET api/v1/rfqs/items?pageNumber=1&pageSize=20&startDate=&endDate=&customerKeyword=&materialModel=&salesUserKeyword=
+        // GET api/v1/rfqs/items?...&salesUserId=&salesUserKeyword=
         [HttpGet("items")]
         public async Task<ActionResult<ApiResponse<object>>> GetRFQItems(
             [FromQuery] int pageNumber = 1,
@@ -74,6 +74,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? endDate = null,
             [FromQuery] string? customerKeyword = null,
             [FromQuery] string? materialModel = null,
+            [FromQuery] string? salesUserId = null,
             [FromQuery] string? salesUserKeyword = null)
         {
             try
@@ -86,6 +87,7 @@ namespace CRM.API.Controllers
                     EndDate = string.IsNullOrEmpty(endDate) ? null : DateTime.Parse(endDate),
                     CustomerKeyword = customerKeyword,
                     MaterialModel = materialModel,
+                    SalesUserId = salesUserId,
                     SalesUserKeyword = salesUserKeyword,
                     CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 };

@@ -25,7 +25,7 @@
         </template>
         <template v-else>
           <button class="btn-secondary" @click="saveDraftOnly">保存草稿</button>
-          <button class="btn-primary" @click="handleConvertToFormal">
+          <button class="btn-warning" @click="handleConvertToFormal">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
               <polyline points="17 21 17 13 7 13 7 21"/>
@@ -300,6 +300,8 @@ import { regionData } from '@/data/regions';
 import type { CreateCustomerRequest } from '@/types/customer';
 import { runValidatedFormSave } from '@/composables/useFormSubmit';
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency';
+import { logRecentApi } from '@/api/logRecent';
+import { CUSTOMER_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/customerRecentHistory';
 
 const route = useRoute();
 const router = useRouter();
@@ -366,6 +368,15 @@ const fetchCustomerDetail = async () => {
         ...c, contactName: c.contactName || c.name, mobilePhone: c.mobilePhone || c.mobile
       }));
     }
+    logRecentApi
+      .record({
+        bizType: 'Customer',
+        recordId: customerId.value,
+        recordCode: formData.customerCode || undefined,
+        openKind: 'edit'
+      })
+      .then(() => window.dispatchEvent(new CustomEvent(CUSTOMER_RECENT_HISTORY_CHANGED_EVENT)))
+      .catch(() => {});
   } catch (error) {
     ElNotification.error({ title: '加载失败', message: '获取客户详情失败，请刷新重试' });
   }
@@ -505,7 +516,7 @@ const handleSave = async () => {
       }
     },
     formatSuccess: () => (editing ? '客户信息已成功更新' : '客户已成功创建'),
-    onSuccess: () => router.push('/customers'),
+    onSuccess: () => router.push({ name: 'CustomerList' }),
     errorMessage: (err: unknown) => {
       const e = err as {
         response?: { data?: { message?: string; errors?: string[] } };
@@ -651,6 +662,27 @@ onMounted(() => {
   &:hover {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(0, 212, 255, 0.25);
+  }
+}
+
+// 业务流转：草稿转正式（禁止用蓝/红/绿）
+.btn-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(201, 154, 69, 0.18);
+  border: 1px solid rgba(201, 154, 69, 0.45);
+  border-radius: $border-radius-md;
+  color: $color-amber;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(201, 154, 69, 0.28);
+    box-shadow: 0 2px 12px rgba(201, 154, 69, 0.15);
   }
 }
 

@@ -20,10 +20,10 @@ html, body {
   height: 100%;
 }
 
-// --- 全局滚动条样式 ---
+// --- 全局滚动条样式（竖向 width / 横向 height，便于鼠标拖拽）---
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 12px;
+  height: 12px;
 }
 
 ::-webkit-scrollbar-track {
@@ -32,11 +32,19 @@ html, body {
 
 ::-webkit-scrollbar-thumb {
   background: rgba(0, 212, 255, 0.25);
-  border-radius: 3px;
+  border-radius: 6px;
+  min-height: 32px;
+  min-width: 32px;
 
   &:hover {
     background: rgba(0, 212, 255, 0.45);
   }
+}
+
+// Firefox：用系统默认宽度（通常比 thin 更易点中），配色与 webkit 接近
+html {
+  scrollbar-color: rgba(0, 212, 255, 0.35) #{$layer-2};
+  scrollbar-width: auto;
 }
 
 // --- Element Plus 深色主题覆盖 ---
@@ -142,42 +150,72 @@ html, body {
     color: $text-muted;
   }
 
-  // 固定列：统一深色底板，避免右侧操作列浮层“透视”
+  // 左侧固定列：与主表体同色（透明表体 + 淡青表头）
   .el-table__fixed,
+  .el-table__fixed table,
+  .el-table__fixed .el-table__fixed-header-wrapper,
+  .el-table__fixed .el-table__fixed-body-wrapper,
+  .el-table__fixed .el-table__fixed-footer-wrapper {
+    background: transparent !important;
+  }
+
+  .el-table__fixed th.el-table__cell {
+    background: rgba(0, 212, 255, 0.04) !important;
+  }
+
+  .el-table__fixed td.el-table__cell {
+    background: transparent !important;
+  }
+
+  .el-table__fixed .el-table__row:hover td.el-table__cell,
+  .el-table__fixed .el-table__row.hover-row td.el-table__cell {
+    background: rgba(0, 212, 255, 0.04) !important;
+  }
+
+  .el-table__fixed::before {
+    background: transparent !important;
+  }
+
+  // 右侧固定列：《列表操作列视觉规范》$layer-3 条带 + 左分隔线 + 行 hover（全站 el-table / CrmDataTable 统一）
   .el-table__fixed-right,
   .el-table__fixed-right-patch,
-  .el-table__fixed-header-wrapper,
-  .el-table__fixed-body-wrapper,
-  .el-table__fixed-footer-wrapper,
-  .el-table__fixed table,
+  .el-table__fixed-right .el-table__fixed-header-wrapper,
+  .el-table__fixed-right .el-table__fixed-body-wrapper,
+  .el-table__fixed-right .el-table__fixed-footer-wrapper,
   .el-table__fixed-right table,
-  .el-table__fixed th.el-table__cell,
-  .el-table__fixed td.el-table__cell,
-  .el-table__fixed-right th.el-table__cell,
-  .el-table__fixed-right td.el-table__cell,
-  .el-table .el-table-fixed-column--left,
+  .el-table__fixed-right tr,
+  .el-table__fixed-right .cell,
   .el-table .el-table-fixed-column--right,
-  .el-table .el-table-fixed-column--left .cell,
+  .el-table .el-table-fixed-column--right.is-leaf,
   .el-table .el-table-fixed-column--right .cell {
-    background: $layer-2 !important;
+    background-color: $layer-3 !important;
   }
 
-  // 固定列 hover 也保持不透明，避免出现“缝隙露底”
-  .el-table__fixed .el-table__row:hover td.el-table__cell,
+  .el-table__fixed-right th.el-table__cell,
+  .el-table__fixed-right td.el-table__cell {
+    background-color: $layer-3 !important;
+    box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.1);
+  }
+
   .el-table__fixed-right .el-table__row:hover td.el-table__cell,
-  .el-table__fixed .el-table__row.hover-row td.el-table__cell,
   .el-table__fixed-right .el-table__row.hover-row td.el-table__cell {
-    background: $layer-2 !important;
+    background: linear-gradient(0deg, rgba(0, 212, 255, 0.065), rgba(0, 212, 255, 0.065)), $layer-3 !important;
+    box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.14);
   }
 
-  // 固定右列与普通列的视觉边界
+  // 固定操作列必须在 Z 轴高于滚动区，横向滚动时用不透明底色盖住下方列（避免「操作」与数据列叠在一起）
   .el-table__fixed-right {
     box-shadow: -12px 0 18px -10px rgba(0, 0, 0, 0.72) !important;
+    z-index: 24 !important;
   }
-  .el-table__fixed-right::before,
-  .el-table__fixed::before,
+
   .el-table__fixed-right-patch {
-    background: rgba(255, 255, 255, 0.08) !important;
+    z-index: 23 !important;
+    background-color: $layer-3 !important;
+  }
+
+  .el-table__fixed-right::before {
+    background-color: $layer-3 !important;
   }
 
   // 列分隔线（竖线）全部移除
@@ -561,36 +599,116 @@ html, body {
 }
 
 // ============================================================
-// CrmDataTable 固定操作列特征（全局强制）
-// - 所有列表页固定右列必须有不透明底色
-// - hover 时保持不透明
-// - 左侧阴影边界统一
+// CrmDataTable + quantum-table：固定右列无 .op-col 时仍为 $layer-3；含 .op-col 时由文末「op-col 全局规范」接管
 // ============================================================
-.crm-data-table .el-table__fixed-right,
-.crm-data-table .el-table__fixed-right-patch,
-.crm-data-table .el-table__fixed-right .el-table__fixed-header-wrapper,
-.crm-data-table .el-table__fixed-right .el-table__fixed-body-wrapper,
-.crm-data-table .el-table__fixed-right .el-table__fixed-footer-wrapper,
-.crm-data-table .el-table__fixed-right table,
-.crm-data-table .el-table__fixed-right tr,
-.crm-data-table .el-table__fixed-right th.el-table__cell,
-.crm-data-table .el-table__fixed-right td.el-table__cell,
-.crm-data-table .el-table__fixed-right .cell,
-.crm-data-table .el-table .el-table-fixed-column--right,
-.crm-data-table .el-table .el-table-fixed-column--right .cell {
-  background: $layer-2 !important;
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)),
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .el-table__fixed-header-wrapper,
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .el-table__fixed-body-wrapper,
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .el-table__fixed-footer-wrapper,
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) table,
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) tr,
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .cell,
+.crm-data-table.quantum-table .el-table:not(:has(th.op-col)):not(:has(td.op-col)) .el-table-fixed-column--right,
+.crm-data-table.quantum-table .el-table:not(:has(th.op-col)):not(:has(td.op-col)) .el-table-fixed-column--right.is-leaf,
+.crm-data-table.quantum-table .el-table:not(:has(th.op-col)):not(:has(td.op-col)) .el-table-fixed-column--right .cell {
+  background-color: $layer-3 !important;
 }
 
-.crm-data-table .el-table__fixed-right .el-table__row:hover td.el-table__cell,
-.crm-data-table .el-table__fixed-right .el-table__row.hover-row td.el-table__cell {
-  background: $layer-2 !important;
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) th.el-table__cell,
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) td.el-table__cell {
+  background-color: $layer-3 !important;
+  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.1);
 }
 
-.crm-data-table .el-table__fixed-right {
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .el-table__row:hover td.el-table__cell,
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .el-table__row.hover-row td.el-table__cell {
+  background: linear-gradient(0deg, rgba(0, 212, 255, 0.065), rgba(0, 212, 255, 0.065)), $layer-3 !important;
+  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.14);
+}
+
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) {
+  box-shadow: -12px 0 18px -10px rgba(0, 0, 0, 0.72) !important;
+  z-index: 24 !important;
+}
+
+.crm-data-table.quantum-table .el-table__inner-wrapper .el-table__fixed-right-patch {
+  z-index: 23 !important;
+}
+
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col))::before {
+  background-color: $layer-3 !important;
+}
+
+.crm-data-table.quantum-table .el-table__inner-wrapper:has(.el-table__fixed-right:not(:has(.op-col))) .el-table__fixed-right-patch {
+  background-color: $layer-3 !important;
+}
+
+.crm-data-table.quantum-table .el-table__inner-wrapper:has(.el-table__fixed-right .op-col) .el-table__fixed-right-patch {
+  background-color: $layer-2 !important;
+}
+
+// ============================================================
+// 操作列 op-col（与 /rfqlist RFQList 一致）：表头 #0A1D30，表体 $layer-2
+// el-table-column：class-name="op-col" label-class-name="op-col"
+// ============================================================
+$crm-op-col-header-bg: #0a1d30;
+
+.el-table .el-table__inner-wrapper:has(.el-table__fixed-right .op-col) .el-table__fixed-right-patch {
+  background-color: $layer-2 !important;
+  z-index: 23 !important;
+}
+
+.el-table .el-table__fixed-right:has(.op-col) {
+  z-index: 24 !important;
   box-shadow: -12px 0 18px -10px rgba(0, 0, 0, 0.72) !important;
 }
 
-.crm-data-table .el-table__fixed-right::before,
-.crm-data-table .el-table__fixed-right-patch {
-  background: rgba(255, 255, 255, 0.08) !important;
+.el-table .el-table__fixed-right:has(.op-col) .el-table__fixed-header-wrapper {
+  background-color: $crm-op-col-header-bg !important;
+}
+
+.el-table .el-table__fixed-right:has(.op-col) .el-table__fixed-body-wrapper,
+.el-table .el-table__fixed-right:has(.op-col) .el-table__fixed-footer-wrapper,
+.el-table .el-table__fixed-right:has(.op-col) table,
+.el-table .el-table__fixed-right:has(.op-col) tbody tr,
+.el-table .el-table__fixed-right:has(.op-col) .el-table__fixed-body-wrapper .cell {
+  background-color: $layer-2 !important;
+}
+
+.el-table .el-table__fixed-right:has(.op-col) thead tr {
+  background-color: $crm-op-col-header-bg !important;
+}
+
+.el-table .el-table__fixed-right:has(.op-col) th.op-col.el-table__cell,
+.el-table .el-table__fixed-right:has(.op-col) th.el-table__cell.op-col {
+  background-color: $crm-op-col-header-bg !important;
+  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.1);
+}
+
+.el-table .el-table__fixed-right:has(.op-col) td.op-col.el-table__cell,
+.el-table .el-table__fixed-right:has(.op-col) td.el-table__cell.op-col {
+  background-color: $layer-2 !important;
+  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.1);
+}
+
+.el-table .el-table__fixed-right:has(.op-col) .el-table__row:hover td.op-col.el-table__cell,
+.el-table .el-table__fixed-right:has(.op-col) .el-table__row.hover-row td.op-col.el-table__cell {
+  background: linear-gradient(0deg, rgba(0, 212, 255, 0.065), rgba(0, 212, 255, 0.065)), $layer-2 !important;
+  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.14);
+}
+
+.el-table .el-table__fixed-right:has(.op-col)::before {
+  background-color: $layer-2 !important;
+}
+
+.el-table .el-table__header-wrapper th.op-col.el-table__cell,
+.el-table .el-table__header-wrapper th.el-table__cell.op-col {
+  background-color: $crm-op-col-header-bg !important;
+  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.1);
+}
+
+.el-table .el-table__body-wrapper td.op-col.el-table__cell,
+.el-table .el-table__body-wrapper td.el-table__cell.op-col {
+  background-color: $layer-2 !important;
+  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.1);
 }

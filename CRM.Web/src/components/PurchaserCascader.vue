@@ -13,6 +13,7 @@
 </template>
 
 <script setup lang="ts">
+/** 数据范围：document/PRD/规范/业务规范/业务员与采购员下拉规范.md §4 */
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { authApi } from '@/api/auth'
 import type { OrgUserTreeNode } from '@/api/auth'

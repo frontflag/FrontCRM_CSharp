@@ -16,7 +16,38 @@
             </svg>
           </div>
           <div>
-            <h1 class="page-title">{{ rfq?.rfqCode || 'RFQ 详情' }}</h1>
+            <div class="page-title-row">
+              <div class="page-title-with-icons">
+                <h1 class="page-title">{{ rfq?.rfqCode || 'RFQ 详情' }}</h1>
+                <button
+                  v-if="rfq"
+                  type="button"
+                  class="btn-favorite-star"
+                  :class="{ 'is-favorite': rfqFavorited }"
+                  :disabled="favoriteLoading"
+                  :title="rfqFavorited ? '取消收藏' : '收藏需求'"
+                  :aria-label="rfqFavorited ? '取消收藏' : '收藏需求'"
+                  :aria-pressed="rfqFavorited"
+                  @click="toggleFavorite"
+                >
+                  <svg
+                    v-if="!rfqFavorited"
+                    class="star-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg>
+                  <svg v-else class="star-icon star-icon--solid" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
             <div class="title-meta">
               <span class="rfq-code">{{ rfq?.customerName }}</span>
               <span class="status-badge" :class="`status-${rfq?.status}`">{{ getStatusLabel(rfq?.status) }}</span>
@@ -328,14 +359,24 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElNotification, ElMessageBox } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
+import { favoriteApi } from '@/api/favorite'
+import { RFQ_FAVORITE_ENTITY_TYPE, RFQ_FAVORITES_CHANGED_EVENT } from '@/constants/rfqFavorites'
+import { recordRfqRecentView } from '@/utils/rfqRecentHistory'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
+import {
+  formatRfqTypeLabel as getRFQTypeLabel,
+  formatQuoteMethodLabel as getQuoteMethodLabel,
+  formatAssignMethodLabel as getAssignMethodLabel
+} from '@/constants/rfqFormEnums'
 
 const route = useRoute()
 const router = useRouter()
 const rfqId = route.params.id as string
 
 const loading = ref(false)
+const rfqFavorited = ref(false)
+const favoriteLoading = ref(false)
 const rfq = ref<any>(null)
 const rfqItems = ref<any[]>([])
 const closeRecords = ref<any[]>([])
@@ -386,18 +427,6 @@ function getSourceLabel(source?: number) {
   const map: Record<number, string> = { 1: '线下', 2: '线上', 3: '邮件', 4: '电话', 5: '导入' }
   return source !== undefined ? (map[source] ?? '—') : '—'
 }
-function getRFQTypeLabel(type?: number) {
-  const map: Record<number, string> = { 1: '现货', 2: '期货', 3: '样品', 4: '批量' }
-  return type !== undefined ? (map[type] ?? '—') : '—'
-}
-function getQuoteMethodLabel(method?: number) {
-  const map: Record<number, string> = { 1: '不接受任何消息', 2: '仅邮件', 3: '仅系统', 4: '全部方式' }
-  return method !== undefined ? (map[method] ?? '—') : '—'
-}
-function getAssignMethodLabel(method?: number) {
-  const map: Record<number, string> = { 1: '系统分配多人采购', 2: '系统分配单人采购', 3: '手动分配' }
-  return method !== undefined ? (map[method] ?? '—') : '—'
-}
 function getTargetTypeLabel(type?: number) {
   const map: Record<number, string> = { 1: '比价需求', 2: '独家需求', 3: '紧急需求', 4: '常规需求' }
   return type !== undefined ? (map[type] ?? '—') : '—'
@@ -426,14 +455,56 @@ function formatCloseAt(val?: string) {
   const s = formatDisplayDateTime(val)
   return s === '--' ? '—' : s
 }
-function goBack() { router.push('/rfqs') }
+function goBack() { router.push('/rfqlist') }
 function handleEdit() { router.push(`/rfqs/${rfqId}/edit`) }
+
+async function loadFavoriteState() {
+  if (!rfqId) return
+  try {
+    rfqFavorited.value = await favoriteApi.checkFavorite(RFQ_FAVORITE_ENTITY_TYPE, rfqId)
+  } catch {
+    rfqFavorited.value = false
+  }
+}
+
+async function toggleFavorite() {
+  if (!rfqId || favoriteLoading.value) return
+  favoriteLoading.value = true
+  try {
+    if (rfqFavorited.value) {
+      await favoriteApi.removeFavorite(RFQ_FAVORITE_ENTITY_TYPE, rfqId)
+      rfqFavorited.value = false
+      ElNotification.success({ title: '已取消收藏', message: '可从需求列表中继续查看该需求' })
+    } else {
+      await favoriteApi.addFavorite({ entityType: RFQ_FAVORITE_ENTITY_TYPE, entityId: rfqId })
+      rfqFavorited.value = true
+      ElNotification.success({ title: '已收藏', message: '需求主记录已加入您的收藏' })
+    }
+    window.dispatchEvent(new Event(RFQ_FAVORITES_CHANGED_EVENT))
+  } catch {
+    ElNotification.error({ title: '操作失败', message: '收藏状态更新失败，请稍后重试' })
+  } finally {
+    favoriteLoading.value = false
+  }
+}
 
 async function loadRFQ() {
   loading.value = true
-  try { rfq.value = await rfqApi.getRFQDetail(rfqId) }
-  catch { ElNotification.error({ title: '加载失败', message: '需求详情加载失败，请检查网络连接' }) }
-  finally { loading.value = false }
+  try {
+    rfq.value = await rfqApi.getRFQDetail(rfqId)
+    if (rfq.value) {
+      recordRfqRecentView({
+        id: rfqId,
+        rfqCode: rfq.value.rfqCode,
+        customerName: rfq.value.customerName
+      })
+    }
+    await loadFavoriteState()
+  } catch {
+    ElNotification.error({ title: '加载失败', message: '需求详情加载失败，请检查网络连接' })
+  } finally {
+    loading.value = false
+  }
 }
 
 async function loadItems() {
@@ -500,7 +571,7 @@ async function handleDelete() {
     )
     await rfqApi.deleteRFQ(rfqId)
     ElNotification.success({ title: '删除成功', message: '需求已删除' })
-    router.push('/rfqs')
+    router.push('/rfqlist')
   } catch { /* 取消 */ }
 }
 
@@ -563,11 +634,26 @@ onMounted(() => { loadRFQ(); loadItems(); loadCloseRecords() })
   flex-shrink: 0;
 }
 
+.page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.page-title-with-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 .page-title {
   font-size: 20px;
   font-weight: 600;
   color: $text-primary;
-  margin: 0 0 6px 0;
+  margin: 0;
   font-family: 'Space Mono', monospace;
 }
 
@@ -575,6 +661,49 @@ onMounted(() => { loadRFQ(); loadItems(); loadCloseRecords() })
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.btn-favorite-star {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(200, 220, 240, 0.5);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, transform 0.12s;
+
+  .star-icon {
+    width: 22px;
+    height: 22px;
+    display: block;
+  }
+
+  &:hover:not(:disabled) {
+    color: #00d4ff;
+    background: rgba(0, 212, 255, 0.1);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.92);
+  }
+
+  &.is-favorite {
+    color: #ffc94d;
+  }
+
+  &.is-favorite:hover:not(:disabled) {
+    color: #ffd666;
+    background: rgba(255, 201, 77, 0.12);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 }
 
 .rfq-code {
@@ -778,7 +907,6 @@ onMounted(() => { loadRFQ(); loadItems(); loadCloseRecords() })
     &:last-child td.el-table__cell { border-bottom: none !important; }
     &:hover td.el-table__cell { background: rgba(0, 212, 255, 0.04) !important; }
   }
-  :deep(.el-table__fixed-right) { background: #0A1628 !important; }
   :deep(.el-table__cell) {
     .el-button { white-space: nowrap !important; }
     .cell { white-space: nowrap; }

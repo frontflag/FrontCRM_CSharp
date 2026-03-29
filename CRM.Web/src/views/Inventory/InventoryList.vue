@@ -46,7 +46,7 @@
       </div>
     </div>
 
-    <CrmDataTable :data="list" v-loading="loading">
+    <CrmDataTable :data="list" v-loading="loading" @row-dblclick="onRowDblclick">
       <el-table-column label="物料型号" min-width="220" show-overflow-tooltip>
         <template #default="{ row }">{{ materialModelAndName(row) }}</template>
       </el-table-column>
@@ -74,9 +74,13 @@
       <el-table-column label="创建人" width="120" show-overflow-tooltip>
         <template #default="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right">
+      <el-table-column label="操作" width="100" fixed="right" class-name="op-col" label-class-name="op-col">
         <template #default="{ row }">
-          <button class="action-btn" @click="openTrace(row.materialId)">入库追溯</button>
+          <div @click.stop @dblclick.stop>
+            <div class="action-btns">
+              <button type="button" class="action-btn action-btn--info" @click.stop="openTrace(row.materialId)">入库追溯</button>
+            </div>
+          </div>
         </template>
       </el-table-column>
     </CrmDataTable>
@@ -212,6 +216,8 @@ const fetchList = async () => {
 const openTrace = (materialId: string) => {
   router.push(`/inventory/traces/${encodeURIComponent(materialId)}`)
 }
+
+const onRowDblclick = (row: InventoryOverview) => openTrace(row.materialId)
 
 const openWarehouseDialog = async () => {
   try {

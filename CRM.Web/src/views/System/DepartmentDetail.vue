@@ -132,9 +132,13 @@
                   <span v-else class="cell-muted">—</span>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="100" fixed="right">
+              <el-table-column label="操作" width="100" fixed="right" class-name="op-col" label-class-name="op-col">
                 <template #default="{ row }">
-                  <button type="button" class="action-btn" @click="goEditUser(row.id)">编辑</button>
+                  <div @click.stop @dblclick.stop>
+                    <div class="action-btns">
+                      <button type="button" class="action-btn action-btn--primary" @click.stop="goEditUser(row.id)">编辑</button>
+                    </div>
+                  </div>
                 </template>
               </el-table-column>
             </CrmDataTable>
@@ -551,9 +555,6 @@ const handleDeleteClick = async () => {
     &:hover td {
       background: rgba(0, 212, 255, 0.04) !important;
     }
-  }
-  :deep(.el-table__fixed-right) {
-    background: $layer-2 !important;
   }
 }
 

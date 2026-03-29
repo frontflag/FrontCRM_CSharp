@@ -79,6 +79,31 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>系统管理员模拟登录为指定员工账号（无需密码）。Body: { "userId": "..." }</summary>
+        [Authorize]
+        [HttpPost("impersonate")]
+        public async Task<ActionResult<ApiResponse<AuthResponse>>> Impersonate([FromBody] ImpersonateRequest? request)
+        {
+            try
+            {
+                var userId = request?.UserId?.Trim() ?? "";
+                var actorId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var result = await _authService.ImpersonateAsync(actorId ?? "", userId);
+                if (!result.Success)
+                {
+                    if (result.ErrorCode == 403 || result.ErrorCode == 401)
+                        return StatusCode(result.ErrorCode, result);
+                    return BadRequest(result);
+                }
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Impersonate failed");
+                return StatusCode(500, ApiResponse<AuthResponse>.Fail($"模拟登录失败: {ex.Message}", 500));
+            }
+        }
+
         [Authorize]
         [HttpGet("me")]
         public ActionResult<ApiResponse<object>> GetCurrentUser()
@@ -146,11 +171,19 @@ namespace CRM.API.Controllers
             public string Value { get; set; } = string.Empty;
             public string Label { get; set; } = string.Empty;
             public bool IsUser { get; set; }
+
+            /// <summary>仅人员节点：登录账号，供前端拼接展示</summary>
+            public string? UserName { get; set; }
+
+            /// <summary>仅人员节点：真实姓名</summary>
+            public string? RealName { get; set; }
+
             public IReadOnlyList<SalesUserTreeNodeDto> Children { get; set; } = Array.Empty<SalesUserTreeNodeDto>();
         }
 
         /// <summary>
-        /// 获取销售业务员树（仅销售部门；仅自己及下属）
+        /// 获取销售业务员树（仅销售相关部门）。登录用户在销售部门时：仅自己及下属（按组织锚点与职级）；
+        /// 不在销售部门时：展示全部销售相关部门下的用户。系统管理员为全部挂部门用户后再按销售树过滤。
         /// </summary>
         [Authorize]
         [HttpGet("sales-users-tree")]
@@ -181,30 +214,6 @@ namespace CRM.API.Controllers
                     departments.Count,
                     userDepartments.Count);
 
-                var allowedUserIds = await GetAllowedUserIdsAsync(summary, departments, userDepartments, anchorDepartmentIdOverride: null);
-                _logger.LogInformation(
-                    "sales-users-tree: allowedUserIds={AllowedCount} (includes self={HasSelf})",
-                    allowedUserIds.Count,
-                    allowedUserIds.Contains(currentUserId));
-                if (allowedUserIds.Count == 0)
-                {
-                    _logger.LogWarning(
-                        "sales-users-tree: empty allowedUserIds. primaryDept={PrimaryDeptId} roleCodes={RoleCodes}",
-                        summary.PrimaryDepartmentId,
-                        string.Join(",", summary.RoleCodes ?? Array.Empty<string>()));
-                    return Ok(ApiResponse<object>.Ok(Array.Empty<SalesUserTreeNodeDto>(), "获取销售业务员树成功"));
-                }
-
-                var users = (await _userService.GetAllAsync())
-                    .Where(u => u.Status == 1 && allowedUserIds.Contains(u.Id))
-                    .ToList();
-                _logger.LogInformation("sales-users-tree: scoped active users={UserCount}", users.Count);
-                if (users.Count == 0)
-                {
-                    _logger.LogWarning("sales-users-tree: no active users after allowedUserIds filter");
-                    return Ok(ApiResponse<object>.Ok(Array.Empty<SalesUserTreeNodeDto>(), "获取销售业务员树成功"));
-                }
-
                 bool IsSalesDepartment(RbacDepartment d)
                 {
                     if (d.IdentityType == 1) return true;
@@ -223,6 +232,48 @@ namespace CRM.API.Controllers
                     _logger.LogWarning(
                         "sales-users-tree: no sales departments found. deptNameSamples={DeptNames}",
                         string.Join(" | ", departments.Take(10).Select(d => $"{d.DepartmentName}({d.IdentityType})")));
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<SalesUserTreeNodeDto>(), "获取销售业务员树成功"));
+                }
+
+                var salesDeptIdSet = salesDepartments.Select(d => d.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var salesAnchor = ResolveSalesAnchorDepartmentId(currentUserId, summary, departments, userDepartments);
+
+                HashSet<string> allowedUserIds;
+                if (summary.IsSysAdmin)
+                    allowedUserIds = await GetAllowedUserIdsAsync(summary, departments, userDepartments, null);
+                else if (!string.IsNullOrWhiteSpace(salesAnchor))
+                    allowedUserIds = await GetAllowedUserIdsAsync(summary, departments, userDepartments, salesAnchor);
+                else
+                {
+                    // 登录用户不在销售部门：下拉展示全部销售相关部门下的账号（与客户筛选「业务员」一致）
+                    allowedUserIds = userDepartments
+                        .Where(x => salesDeptIdSet.Contains(x.DepartmentId))
+                        .Select(x => x.UserId)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                }
+
+                _logger.LogInformation(
+                    "sales-users-tree: allowedUserIds={AllowedCount} (includes self={HasSelf}) salesAnchor={SalesAnchor}",
+                    allowedUserIds.Count,
+                    allowedUserIds.Contains(currentUserId),
+                    salesAnchor ?? "(none)");
+                if (allowedUserIds.Count == 0)
+                {
+                    _logger.LogWarning(
+                        "sales-users-tree: empty allowedUserIds. primaryDept={PrimaryDeptId} roleCodes={RoleCodes}",
+                        summary.PrimaryDepartmentId,
+                        string.Join(",", summary.RoleCodes ?? Array.Empty<string>()));
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<SalesUserTreeNodeDto>(), "获取销售业务员树成功"));
+                }
+
+                var users = (await _userService.GetAllAsync())
+                    .Where(u => u.Status == 1 && allowedUserIds.Contains(u.Id))
+                    .ToList();
+                _logger.LogInformation("sales-users-tree: scoped active users={UserCount}", users.Count);
+                if (users.Count == 0)
+                {
+                    _logger.LogWarning("sales-users-tree: no active users after allowedUserIds filter");
                     return Ok(ApiResponse<object>.Ok(Array.Empty<SalesUserTreeNodeDto>(), "获取销售业务员树成功"));
                 }
 
@@ -295,8 +346,9 @@ namespace CRM.API.Controllers
                             .Select(u => new SalesUserTreeNodeDto
                             {
                                 Value = u.Id,
-                                // 控件显示账号，不显示真实姓名
                                 Label = u.UserName,
+                                UserName = u.UserName,
+                                RealName = u.RealName,
                                 IsUser = true,
                                 Children = Array.Empty<SalesUserTreeNodeDto>()
                             }));
@@ -336,7 +388,8 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>
-        /// 获取采购员树（仅采购相关部门；仅自己及下属；组织锚点优先取采购主部门）
+        /// 获取采购员树（仅采购相关部门）。登录用户在采购部门时：仅自己及下属（按组织锚点与职级）；
+        /// 不在采购部门时：展示全部采购相关部门下的用户。系统管理员为全部挂部门用户后再按采购树过滤。
         /// </summary>
         [Authorize]
         [HttpGet("purchase-users-tree")]
@@ -354,17 +407,6 @@ namespace CRM.API.Controllers
                     .ToList();
                 var userDepartments = (await _userDepartmentRepo.GetAllAsync()).ToList();
 
-                var anchor = ResolvePurchaseAnchorDepartmentId(currentUserId, summary, departments, userDepartments);
-                var allowedUserIds = await GetAllowedUserIdsAsync(summary, departments, userDepartments, anchor);
-                if (allowedUserIds.Count == 0)
-                    return Ok(ApiResponse<object>.Ok(Array.Empty<SalesUserTreeNodeDto>(), "获取采购员树成功"));
-
-                var users = (await _userService.GetAllAsync())
-                    .Where(u => u.Status == 1 && allowedUserIds.Contains(u.Id))
-                    .ToList();
-                if (users.Count == 0)
-                    return Ok(ApiResponse<object>.Ok(Array.Empty<SalesUserTreeNodeDto>(), "获取采购员树成功"));
-
                 bool IsPurchaseDepartment(RbacDepartment d)
                 {
                     if (d.IdentityType is 2 or 3) return true;
@@ -375,6 +417,34 @@ namespace CRM.API.Controllers
 
                 var purchaseDepartments = departments.Where(IsPurchaseDepartment).ToList();
                 if (purchaseDepartments.Count == 0)
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<SalesUserTreeNodeDto>(), "获取采购员树成功"));
+
+                var purchaseDeptIdSet = purchaseDepartments.Select(d => d.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                var anchor = ResolvePurchaseAnchorDepartmentId(currentUserId, summary, departments, userDepartments);
+
+                HashSet<string> allowedUserIds;
+                if (summary.IsSysAdmin)
+                    allowedUserIds = await GetAllowedUserIdsAsync(summary, departments, userDepartments, null);
+                else if (!string.IsNullOrWhiteSpace(anchor))
+                    allowedUserIds = await GetAllowedUserIdsAsync(summary, departments, userDepartments, anchor);
+                else
+                {
+                    // 登录用户不在采购部门：下拉展示全部采购相关部门下的账号
+                    allowedUserIds = userDepartments
+                        .Where(x => purchaseDeptIdSet.Contains(x.DepartmentId))
+                        .Select(x => x.UserId)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                }
+
+                if (allowedUserIds.Count == 0)
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<SalesUserTreeNodeDto>(), "获取采购员树成功"));
+
+                var users = (await _userService.GetAllAsync())
+                    .Where(u => u.Status == 1 && allowedUserIds.Contains(u.Id))
+                    .ToList();
+                if (users.Count == 0)
                     return Ok(ApiResponse<object>.Ok(Array.Empty<SalesUserTreeNodeDto>(), "获取采购员树成功"));
 
                 var departmentMap = purchaseDepartments.ToDictionary(d => d.Id, d => d, StringComparer.OrdinalIgnoreCase);
@@ -459,6 +529,37 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex, "GetPurchaseUsersTree failed");
                 return StatusCode(500, ApiResponse<object>.Fail("获取采购员树失败", 500));
             }
+        }
+
+        private static string? ResolveSalesAnchorDepartmentId(
+            string userId,
+            UserPermissionSummaryDto summary,
+            IReadOnlyList<RbacDepartment> departments,
+            IReadOnlyList<RbacUserDepartment> userDepartments)
+        {
+            bool IsSales(RbacDepartment d)
+            {
+                if (d.IdentityType == 1) return true;
+                var n = d.DepartmentName ?? string.Empty;
+                return n.Contains("销售", StringComparison.OrdinalIgnoreCase)
+                       || n.Contains("sales", StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (!string.IsNullOrWhiteSpace(summary.PrimaryDepartmentId))
+            {
+                var pd = departments.FirstOrDefault(x => x.Id == summary.PrimaryDepartmentId);
+                if (pd != null && IsSales(pd))
+                    return summary.PrimaryDepartmentId;
+            }
+
+            foreach (var r in userDepartments.Where(x => x.UserId == userId))
+            {
+                var d = departments.FirstOrDefault(x => x.Id == r.DepartmentId);
+                if (d != null && IsSales(d))
+                    return r.DepartmentId;
+            }
+
+            return null;
         }
 
         private static string? ResolvePurchaseAnchorDepartmentId(

@@ -94,9 +94,9 @@
               <el-input v-model="row.warehouseLocation" placeholder="库位编码" />
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="80" fixed="right">
+          <el-table-column label="操作" width="80" fixed="right" class-name="op-col" label-class-name="op-col">
             <template #default="{ $index }">
-              <button class="action-btn" @click="removeRow($index)">删除</button>
+              <button type="button" class="action-btn action-btn--danger" @click.stop="removeRow($index)">删除</button>
             </template>
           </el-table-column>
         </el-table>

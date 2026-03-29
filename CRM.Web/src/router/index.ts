@@ -27,6 +27,11 @@ router.beforeEach((to, _from, next) => {
     next('/login')
   } else if (to.meta.permission && !authStore.hasPermission(to.meta.permission as string)) {
     next('/dashboard')
+  } else if (
+    to.meta.permission &&
+    authStore.isIdentityBlockedForPermission(to.meta.permission as string)
+  ) {
+    next('/dashboard')
   } else if ((to.path === '/login' || to.path === '/register') && authStore.isAuthenticated) {
     next('/dashboard')
   } else {

@@ -21,7 +21,7 @@
       <el-form-item label="币种">
         <el-select v-model="form.currency" placeholder="请选择" style="width: 200px">
           <el-option
-            v-for="opt in CURRENCY_OPTIONS"
+            v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
             :key="opt.value"
             :label="opt.label"
             :value="opt.value"
@@ -49,7 +49,7 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue';
 import type { VendorBankInfo } from '@/types/vendor';
-import { CURRENCY_OPTIONS } from '@/constants/currency';
+import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency';
 
 const props = defineProps<{
   modelValue: boolean;

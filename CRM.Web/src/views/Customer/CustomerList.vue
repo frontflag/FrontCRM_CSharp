@@ -12,12 +12,12 @@
               <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
           </div>
-          <h1 class="page-title">客户管理</h1>
+          <h1 class="page-title">客户</h1>
         </div>
         <div class="customer-count-badge">共 {{ totalCount }} 个客户</div>
       </div>
       <div class="header-right">
-        <button class="btn-primary" @click="handleCreate">
+        <button class="btn-success" @click="handleCreate">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19"/>
             <line x1="5" y1="12" x2="19" y2="12"/>
@@ -27,65 +27,10 @@
       </div>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="statistics-row" v-if="statistics">
-      <div class="stat-card">
-        <div class="stat-icon stat-icon--blue">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-          </svg>
-        </div>
-        <div class="stat-body">
-          <div class="stat-value">{{ statistics.totalCustomers }}</div>
-          <div class="stat-label">客户总数</div>
-        </div>
-        <div class="stat-glow stat-glow--blue"></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon stat-icon--green">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-        </div>
-        <div class="stat-body">
-          <div class="stat-value">{{ statistics.activeCustomers }}</div>
-          <div class="stat-label">活跃客户</div>
-        </div>
-        <div class="stat-glow stat-glow--green"></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon stat-icon--cyan">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <line x1="12" y1="5" x2="12" y2="19"/>
-            <line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-        </div>
-        <div class="stat-body">
-          <div class="stat-value">{{ statistics.newThisMonth }}</div>
-          <div class="stat-label">本月新增</div>
-        </div>
-        <div class="stat-glow stat-glow--cyan"></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon stat-icon--amber">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <line x1="12" y1="1" x2="12" y2="23"/>
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-          </svg>
-        </div>
-        <div class="stat-body">
-          <div class="stat-value">{{ statistics.totalBalance }}</div>
-          <div class="stat-label">应收余额</div>
-        </div>
-        <div class="stat-glow stat-glow--amber"></div>
-      </div>
-    </div>
-
-    <!-- 搜索栏 -->
+    <!-- 搜索栏：关键词 → 状态 → 级别 → 类型 → 行业 → 业务员 → 创建日期区间 -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="list-title">客户列表</span>
+        <span class="filter-field-label">关键词</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -93,28 +38,69 @@
           <input
             v-model="searchForm.searchTerm"
             class="search-input"
-            :placeholder="canViewCustomerInfo ? '搜索客户名称/联系人...' : '搜索客户编号...'"
+            :placeholder="canViewCustomerInfo ? '客户名称 / 联系人…' : '客户编号…'"
             @keyup.enter="handleSearch"
           />
         </div>
-        <el-select v-model="searchForm.customerType" placeholder="全部类型" clearable class="status-select" @change="handleSearch">
+        <el-select v-model="searchForm.status" placeholder="全部状态" clearable class="status-select" :teleported="false" @change="handleSearch">
+          <el-option
+            v-for="opt in workflowStatusOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <el-select v-model="searchForm.customerLevel" placeholder="全部级别" clearable class="status-select" :teleported="false" @change="handleSearch">
+          <el-option label="D级" value="D" />
+          <el-option label="C级" value="C" />
+          <el-option label="B级" value="B" />
+          <el-option label="BPO" value="BPO" />
+          <el-option label="VIP" value="VIP" />
+          <el-option label="VPO" value="VPO" />
+        </el-select>
+        <el-select v-model="searchForm.customerType" placeholder="全部类型" clearable class="status-select" :teleported="false" @change="handleSearch">
           <el-option label="OEM" :value="1" />
           <el-option label="ODM" :value="2" />
           <el-option label="终端用户" :value="3" />
           <el-option label="贸易商" :value="5" />
           <el-option label="代理商" :value="6" />
         </el-select>
-        <el-select v-model="searchForm.industry" placeholder="全部行业" clearable class="status-select" @change="handleSearch">
+        <el-select v-model="searchForm.industry" placeholder="全部行业" clearable class="status-select" :teleported="false" @change="handleSearch">
           <el-option label="制造业" value="Manufacturing" />
           <el-option label="科技/IT" value="Technology" />
           <el-option label="贸易/零售" value="Trading" />
           <el-option label="建筑/工程" value="Construction" />
           <el-option label="其他" value="Other" />
         </el-select>
+        <el-select
+          v-model="searchForm.salesPersonId"
+          placeholder="全部业务员"
+          clearable
+          filterable
+          class="status-select status-select--sales"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option
+            v-for="u in salesUsers"
+            :key="u.id"
+            :label="salesUserLabel(u)"
+            :value="u.id"
+          />
+        </el-select>
+        <el-date-picker
+          v-model="createdDateRange"
+          type="daterange"
+          range-separator="至"
+          start-placeholder="创建起"
+          end-placeholder="创建止"
+          value-format="YYYY-MM-DD"
+          clearable
+          class="filter-date-range"
+          :teleported="false"
+          @change="onCreatedRangeChange"
+        />
         <button class="btn-primary btn-sm" @click="handleSearch">搜索</button>
-        <button class="btn-ghost btn-sm" :class="{ 'btn-favorite-active': favoriteOnly }" @click="toggleFavoriteOnly">
-          {{ favoriteOnly ? '仅收藏中' : '仅收藏' }}
-        </button>
         <button class="btn-ghost btn-sm" @click="handleReset">重置</button>
       </div>
     </div>
@@ -132,7 +118,7 @@
             <th style="width:110px">行业</th>
             <th v-if="canViewCustomerInfo" style="width:130px">联系人</th>
             <th v-if="canViewCustomerInfo" style="width:130px">联系电话</th>
-            <th style="width:90px">地区</th>
+            <th style="min-width:100px">地区</th>
             <th style="width:160px">创建日期</th>
             <th style="width:120px">创建人</th>
             <th style="width:200px">操作</th>
@@ -143,7 +129,7 @@
             v-for="customer in customerList"
             :key="customer.id"
             class="table-row"
-            @click="handleView(customer)"
+            @dblclick="handleView(customer)"
           >
             <td class="td-code">{{ customer.customerCode }}</td>
             <td>
@@ -157,7 +143,18 @@
                   <span>{{ (customer.customerName || customer.customerShortName || '?')[0] }}</span>
                 </div>
                 <div class="cell-name-group">
-                  <div class="cell-name">{{ customer.customerName || customer.customerShortName }}</div>
+                  <div class="cell-name-line">
+                    <span
+                      class="cell-name"
+                      :class="{ 'party-entity-name--muted': isPartyStatusMuted(customer) }"
+                    >{{ customer.customerName || customer.customerShortName }}</span>
+                    <PartyStatusIcons
+                      :entity-id="customer.id"
+                      :frozen="!!customer.disenableStatus"
+                      :blacklist="!!customer.blackList"
+                      size="sm"
+                    />
+                  </div>
                   <div class="cell-short" v-if="customer.customerShortName && customer.customerShortName !== customer.customerName">
                     {{ customer.customerShortName }}
                   </div>
@@ -188,25 +185,17 @@
             <td class="td-muted">{{ customer.city || customer.region || '--' }}</td>
             <td class="td-muted">{{ formatDate(customer.createdAt ?? (customer as any).createTime) }}</td>
             <td class="td-muted">{{ (customer as any).createUserName || (customer as any).createdBy || (customer as any).salesPersonName || '--' }}</td>
-            <td @click.stop>
+            <td @click.stop @dblclick.stop>
               <div class="action-btns">
-                <button class="action-btn" @click.stop="handleView(customer)">详情</button>
-                <button class="action-btn" @click.stop="handleEdit(customer)">编辑</button>
+                <button class="action-btn action-btn--primary" @click.stop="handleView(customer)">详情</button>
+                <button class="action-btn action-btn--primary" @click.stop="handleEdit(customer)">编辑</button>
                 <button
                   v-if="customer.status === 1"
-                  class="action-btn action-btn--primary"
+                  class="action-btn action-btn--warning"
                   @click.stop="handleSubmitAudit(customer)"
                 >
                   提交审核
                 </button>
-                <button
-                  class="action-btn"
-                  :class="{ 'action-btn--favorite': customer.isFavorite }"
-                  @click.stop="toggleFavorite(customer)"
-                >
-                  {{ customer.isFavorite ? '取消收藏' : '收藏' }}
-                </button>
-                <button class="action-btn action-btn--danger" @click.stop="handleDeleteCustomer(customer)">删除</button>
               </div>
             </td>
           </tr>
@@ -219,7 +208,7 @@
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
         </svg>
         <p>暂无客户数据</p>
-        <button class="btn-primary" @click="handleCreate">新增客户</button>
+        <button class="btn-success" @click="handleCreate">新增客户</button>
       </div>
     </div>
 
@@ -240,16 +229,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, reactive, onMounted, watch, nextTick } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { ElNotification, ElMessageBox } from 'element-plus';
 import { customerApi } from '@/api/customer';
+import { authApi } from '@/api/auth';
 import { favoriteApi } from '@/api/favorite';
 import { formatDisplayDateTime } from '@/utils/displayDateTime';
-import type { Customer, CustomerStatistics, CustomerSearchRequest } from '@/types/customer';
+import type { Customer, CustomerSearchRequest } from '@/types/customer';
 import { useAuthStore } from '@/stores/auth';
+import PartyStatusIcons from '@/components/party/PartyStatusIcons.vue';
+import { buildCustomerListQuery, parseCustomerListQuery } from '@/utils/customerListQuery';
+import { CUSTOMER_WORKFLOW_STATUS_OPTIONS } from '@/constants/customerWorkflowStatus';
 
 const router = useRouter();
+const route = useRoute();
+
+function isPartyStatusMuted(c: Customer) {
+  return !!(c.disenableStatus || c.blackList);
+}
 const authStore = useAuthStore();
 const canViewCustomerInfo = authStore.hasPermission('customer.info.read');
 const canSubmitAudit = authStore.hasPermission('customer.write');
@@ -257,8 +255,16 @@ const canSubmitAudit = authStore.hasPermission('customer.write');
 const loading = ref(false);
 const customerList = ref<Customer[]>([]);
 const totalCount = ref(0);
-const statistics = ref<CustomerStatistics | null>(null);
 const favoriteOnly = ref(false);
+/** 列表内 replace 查询串时避免 watch 与手动 fetch 重复请求 */
+const skipQueryRouteFetch = ref(false);
+
+const workflowStatusOptions = CUSTOMER_WORKFLOW_STATUS_OPTIONS;
+
+type SalesUserOption = { id: string; userName: string; realName?: string; label?: string };
+
+const salesUsers = ref<SalesUserOption[]>([]);
+const createdDateRange = ref<[string, string] | null>(null);
 
 const searchForm = reactive<CustomerSearchRequest>({
   pageNumber: 1,
@@ -268,12 +274,21 @@ const searchForm = reactive<CustomerSearchRequest>({
   customerLevel: undefined,
   industry: undefined,
   region: undefined,
+  salesPersonId: undefined,
+  createdFrom: undefined,
+  createdTo: undefined,
+  status: undefined,
   isActive: undefined,
   sortBy: 'CreatedAt',
   sortDescending: true
 });
 
 const pagination = reactive({ pageNumber: 1, pageSize: 20 });
+
+function salesUserLabel(u: SalesUserOption) {
+  const name = u.realName || u.label || u.userName;
+  return u.userName && name !== u.userName ? `${name}（${u.userName}）` : name;
+}
 
 const fetchCustomerList = async () => {
   loading.value = true;
@@ -326,28 +341,86 @@ const fetchCustomerList = async () => {
   }
 };
 
-const fetchStatistics = async () => {
-  try {
-    const data = await customerApi.getCustomerStatistics();
-    statistics.value = data;
-  } catch {
-    // 统计接口失败时静默处理，不影响列表展示
-  }
-};
+function syncSearchFromRouteQuery() {
+  const p = parseCustomerListQuery(route.query);
+  searchForm.searchTerm = p.searchTerm;
+  searchForm.customerType = p.customerType;
+  searchForm.customerLevel = p.customerLevel;
+  searchForm.industry = p.industry;
+  searchForm.status = p.status;
+  searchForm.salesPersonId = p.salesUserId;
+  searchForm.createdFrom = p.createdFrom;
+  searchForm.createdTo = p.createdTo;
+  createdDateRange.value =
+    p.createdFrom && p.createdTo ? [p.createdFrom, p.createdTo] : null;
+  favoriteOnly.value = p.favoriteOnly;
+}
+
+function replaceRouteQueryAndFetch() {
+  skipQueryRouteFetch.value = true;
+  router
+    .replace({
+      name: 'CustomerList',
+      query: buildCustomerListQuery({
+        searchTerm: searchForm.searchTerm || '',
+        customerType: searchForm.customerType,
+        customerLevel: searchForm.customerLevel,
+        industry: searchForm.industry,
+        status: searchForm.status,
+        salesUserId: searchForm.salesPersonId,
+        createdFrom: searchForm.createdFrom,
+        createdTo: searchForm.createdTo,
+        favoriteOnly: favoriteOnly.value
+      })
+    })
+    .finally(() => {
+      nextTick(() => {
+        skipQueryRouteFetch.value = false;
+      });
+    });
+  fetchCustomerList();
+}
 
 const handleSearch = () => {
   pagination.pageNumber = 1;
-  fetchCustomerList();
+  replaceRouteQueryAndFetch();
 };
 
 const handleReset = () => {
   Object.assign(searchForm, {
-    searchTerm: '', customerType: undefined, customerLevel: undefined,
-    industry: undefined, region: undefined, isActive: undefined
+    searchTerm: '',
+    customerType: undefined,
+    customerLevel: undefined,
+    industry: undefined,
+    region: undefined,
+    salesPersonId: undefined,
+    createdFrom: undefined,
+    createdTo: undefined,
+    status: undefined,
+    isActive: undefined
   });
+  createdDateRange.value = null;
   favoriteOnly.value = false;
-  handleSearch();
+  pagination.pageNumber = 1;
+  skipQueryRouteFetch.value = true;
+  router.replace({ name: 'CustomerList', query: {} }).finally(() => {
+    nextTick(() => {
+      skipQueryRouteFetch.value = false;
+    });
+  });
+  fetchCustomerList();
 };
+
+function onCreatedRangeChange(val: [string, string] | null | undefined) {
+  if (val && val.length === 2) {
+    searchForm.createdFrom = val[0];
+    searchForm.createdTo = val[1];
+  } else {
+    searchForm.createdFrom = undefined;
+    searchForm.createdTo = undefined;
+  }
+  handleSearch();
+}
 
 const handleCreate = () => router.push('/customers/create');
 const handleView = (row: Customer) => router.push(`/customers/${row.id}`);
@@ -396,41 +469,6 @@ const handleSubmitAudit = async (row: Customer) => {
   }
 };
 
-const handleDeleteCustomer = (row: Customer) => {
-  ElMessageBox.confirm(`确定要删除客户 "${row.customerName}" 吗？`, '确认删除', {
-    confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning'
-  }).then(async () => {
-    await customerApi.deleteCustomer(row.id!);
-    ElNotification.success({ title: '删除成功', message: '客户已删除' });
-    fetchCustomerList();
-  }).catch(() => {});
-};
-
-const toggleFavoriteOnly = () => {
-  favoriteOnly.value = !favoriteOnly.value;
-  handleSearch();
-};
-
-const toggleFavorite = async (row: any) => {
-  try {
-    if (row.isFavorite) {
-      await favoriteApi.removeFavorite('CUSTOMER', row.id);
-      row.isFavorite = false;
-      ElNotification.success({ title: '已取消收藏', message: row.customerName || '客户记录已取消收藏' });
-    } else {
-      await favoriteApi.addFavorite({ entityType: 'CUSTOMER', entityId: row.id });
-      row.isFavorite = true;
-      ElNotification.success({ title: '收藏成功', message: row.customerName || '客户记录已收藏' });
-    }
-    if (favoriteOnly.value) {
-      customerList.value = customerList.value.filter((item: any) => item.isFavorite);
-      totalCount.value = customerList.value.length;
-    }
-  } catch (error: any) {
-    ElNotification.error({ title: '操作失败', message: error?.message || '收藏操作失败，请稍后重试' });
-  }
-};
-
 const handleSizeChange = (size: number) => { pagination.pageSize = size; fetchCustomerList(); };
 const handlePageChange = (page: number) => { pagination.pageNumber = page; fetchCustomerList(); };
 
@@ -452,9 +490,26 @@ const formatDate = (v?: string) => {
   return formatDisplayDateTime(v);
 };
 
-onMounted(() => {
+watch(
+  () => route.query,
+  () => {
+    if (route.name !== 'CustomerList') return;
+    if (skipQueryRouteFetch.value) return;
+    syncSearchFromRouteQuery();
+    pagination.pageNumber = 1;
+    fetchCustomerList();
+  },
+  { deep: true }
+);
+
+onMounted(async () => {
+  syncSearchFromRouteQuery();
+  try {
+    salesUsers.value = await authApi.getSalesUsersForSelect();
+  } catch {
+    salesUsers.value = [];
+  }
   fetchCustomerList();
-  fetchStatistics();
 });
 </script>
 
@@ -548,6 +603,28 @@ onMounted(() => {
   &.btn-sm { padding: 6px 12px; font-size: 12px; }
 }
 
+// 新建/新增/创建（UI 规范：success 绿）
+.btn-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(46, 160, 67, 0.85), rgba(70, 191, 145, 0.75));
+  border: 1px solid rgba(70, 191, 145, 0.45);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(70, 191, 145, 0.3);
+  }
+}
+
 .btn-ghost {
   display: inline-flex;
   align-items: center;
@@ -568,84 +645,6 @@ onMounted(() => {
   }
 }
 
-.btn-favorite-active {
-  border-color: rgba(201, 154, 69, 0.45) !important;
-  color: $color-amber !important;
-  background: rgba(201, 154, 69, 0.1) !important;
-}
-
-// ---- 统计卡片 ----
-.statistics-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  background: $layer-2;
-  border: 1px solid $border-card;
-  border-radius: $border-radius-lg;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  position: relative;
-  overflow: hidden;
-  transition: transform 0.2s, box-shadow 0.2s;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: $shadow-md;
-  }
-}
-
-.stat-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  &--blue  { background: rgba(50, 149, 201, 0.15); color: $color-steel-cyan; border: 1px solid rgba(50,149,201,0.25); }
-  &--green { background: rgba(70, 191, 145, 0.15); color: $color-mint-green; border: 1px solid rgba(70,191,145,0.25); }
-  &--cyan  { background: rgba(0, 212, 255, 0.12);  color: $cyan-primary;     border: 1px solid rgba(0,212,255,0.25); }
-  &--amber { background: rgba(201, 154, 69, 0.15); color: $color-amber;      border: 1px solid rgba(201,154,69,0.25); }
-}
-
-.stat-body {
-  .stat-value {
-    font-size: 22px;
-    font-weight: 700;
-    color: $text-primary;
-    font-family: 'Space Mono', monospace;
-    line-height: 1.2;
-  }
-  .stat-label {
-    font-size: 12px;
-    color: $text-muted;
-    margin-top: 3px;
-  }
-}
-
-.stat-glow {
-  position: absolute;
-  right: -20px;
-  top: -20px;
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  filter: blur(30px);
-  opacity: 0.4;
-
-  &--blue  { background: $color-steel-cyan; }
-  &--green { background: $color-mint-green; }
-  &--cyan  { background: $cyan-primary; }
-  &--amber { background: $color-amber; }
-}
-
 // ---- 搜索栏 ----
 .search-bar {
   display: flex;
@@ -661,10 +660,10 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
-.list-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: $text-primary;
+.filter-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
   white-space: nowrap;
 }
 
@@ -702,6 +701,37 @@ onMounted(() => {
   :deep(.el-select__wrapper) { background: $layer-2 !important; box-shadow: none !important; border: 1px solid $border-panel !important; border-radius: $border-radius-md !important; }
   :deep(.el-select__placeholder) { color: $text-muted !important; }
   :deep(.el-select__selected-item) { color: $text-primary !important; }
+}
+
+.status-select--sales {
+  width: 150px;
+}
+
+/* 仅保留容纳 YYYY-MM-DD ×2 +「至」的宽度 */
+.filter-date-range {
+  width: 218px;
+  flex-shrink: 0;
+  :deep(.el-range-editor.el-input__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+    padding-inline: 6px;
+  }
+  :deep(.el-range-input) {
+    color: $text-primary !important;
+    font-size: 12px !important;
+    width: 82px !important;
+    min-width: 82px !important;
+    max-width: 82px !important;
+    flex: 0 0 82px !important;
+  }
+  :deep(.el-range-separator) {
+    color: $text-muted !important;
+    flex-shrink: 0;
+    padding: 0 2px;
+    font-size: 12px;
+  }
 }
 
 // ---- 表格：.table-wrapper / .data-table 全局样式见 assets/styles/crm-unified-list.scss ----
@@ -743,6 +773,22 @@ onMounted(() => {
 
 .cell-name-group {
   min-width: 0;
+}
+
+.cell-name-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cell-name-line .cell-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.party-entity-name--muted {
+  color: rgba(150, 170, 195, 0.82) !important;
 }
 
 .cell-name {
@@ -885,18 +931,22 @@ onMounted(() => {
   transition: all 0.15s;
   white-space: nowrap;
   flex-shrink: 0;
-  background: rgba(0, 212, 255, 0.08);
-  border: 1px solid rgba(0, 212, 255, 0.2);
-  color: $cyan-primary;
 
-  &:hover {
-    background: rgba(0, 212, 255, 0.15);
-    border-color: rgba(0, 212, 255, 0.4);
+  // 查看/详情/编辑：primary 蓝（UI 规范）
+  &--primary {
+    background: rgba(0, 102, 255, 0.12);
+    border: 1px solid rgba(0, 212, 255, 0.35);
+    color: $cyan-primary;
+
+    &:hover {
+      background: rgba(0, 102, 255, 0.2);
+      border-color: rgba(0, 212, 255, 0.5);
+    }
   }
 
   &--danger {
     background: rgba(201, 87, 69, 0.08);
-    border-color: rgba(201, 87, 69, 0.2);
+    border: 1px solid rgba(201, 87, 69, 0.2);
     color: #C95745;
 
     &:hover {
@@ -905,20 +955,16 @@ onMounted(() => {
     }
   }
 
-  &--primary {
-    background: rgba(70,191,145,0.10);
-    border-color: rgba(70,191,145,0.25);
-    color: #46BF91;
-    &:hover {
-      background: rgba(70,191,145,0.18);
-      border-color: rgba(70,191,145,0.40);
-    }
-  }
-
-  &--favorite {
-    background: rgba(201, 154, 69, 0.1);
-    border-color: rgba(201, 154, 69, 0.3);
+  // 业务流转：warning 黄（禁止用蓝/红/绿）
+  &--warning {
+    background: rgba(201, 154, 69, 0.12);
+    border: 1px solid rgba(201, 154, 69, 0.35);
     color: $color-amber;
+
+    &:hover {
+      background: rgba(201, 154, 69, 0.2);
+      border-color: rgba(201, 154, 69, 0.5);
+    }
   }
 }
 

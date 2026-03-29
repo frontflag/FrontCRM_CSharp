@@ -9,25 +9,12 @@
               <polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
           </div>
-          <h1 class="page-title">供应商管理</h1>
+          <h1 class="page-title">供应商</h1>
         </div>
         <div class="vendor-count-badge">共 {{ totalCount }} 个供应商</div>
       </div>
       <div class="header-right">
-        <button class="btn-ghost btn-sm" @click="router.push('/vendors/recycle')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-            <path d="M10 11v6"/><path d="M14 11v6"/>
-          </svg>
-          回收站
-        </button>
-        <button class="btn-ghost btn-sm" @click="router.push('/vendors/blacklist')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-          </svg>
-          黑名单
-        </button>
-        <button class="btn-primary" @click="handleCreate">
+        <button class="btn-success" @click="handleCreate">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19"/>
             <line x1="5" y1="12" x2="19" y2="12"/>
@@ -37,76 +24,30 @@
       </div>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-icon stat-icon--blue">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-            <polyline points="9 22 9 12 15 12 15 22"/>
-          </svg>
-        </div>
-        <div class="stat-body">
-          <div class="stat-value">{{ vendorStats.totalVendors }}</div>
-          <div class="stat-label">供应商总数</div>
-        </div>
-        <div class="stat-glow stat-glow--blue"></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon stat-icon--green">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-        </div>
-        <div class="stat-body">
-          <div class="stat-value">{{ vendorStats.activeVendors }}</div>
-          <div class="stat-label">合作中</div>
-        </div>
-        <div class="stat-glow stat-glow--green"></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon stat-icon--cyan">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <line x1="12" y1="5" x2="12" y2="19"/>
-            <line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-        </div>
-        <div class="stat-body">
-          <div class="stat-value">--</div>
-          <div class="stat-label">采购总单数</div>
-        </div>
-        <div class="stat-glow stat-glow--cyan"></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon stat-icon--amber">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-          </svg>
-        </div>
-        <div class="stat-body">
-          <div class="stat-value">{{ vendorStats.newThisMonth }}</div>
-          <div class="stat-label">主要供应商</div>
-        </div>
-        <div class="stat-glow stat-glow--amber"></div>
-      </div>
-    </div>
-
-    <!-- 搜索栏 -->
+    <!-- 搜索栏：关键词 → 状态 → 等级 → 身份 → 类型 → 行业 → 采购员 → 创建日期区间 -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="list-title">供应商列表</span>
+        <span class="filter-field-label">关键词</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
-            v-model="searchForm.keyword"
+            v-model="searchForm.searchTerm"
             class="search-input"
-            :placeholder="canViewVendorInfo ? '搜索供应商名称/联系人...' : '搜索供应商编号...'"
+            :placeholder="canViewVendorInfo ? '供应商名称 / 编号…' : '供应商编号…'"
             @keyup.enter="handleSearch"
           />
         </div>
-        <el-select v-model="searchForm.status" placeholder="全部状态" clearable class="status-select" @change="handleSearch">
+        <el-select
+          v-model="searchForm.status"
+          placeholder="全部状态"
+          clearable
+          class="status-select"
+          :teleported="false"
+          @change="handleSearch"
+        >
           <el-option label="新建" :value="1" />
           <el-option label="待审核" :value="2" />
           <el-option label="已审核" :value="10" />
@@ -114,11 +55,81 @@
           <el-option label="财务建档" :value="20" />
           <el-option label="审核失败" :value="-1" />
         </el-select>
-        <button class="btn-primary btn-sm" @click="handleSearch">搜索</button>
-        <button class="btn-ghost btn-sm" :class="{ 'btn-favorite-active': favoriteOnly }" @click="toggleFavoriteOnly">
-          {{ favoriteOnly ? '仅收藏中' : '仅收藏' }}
-        </button>
-        <button class="btn-ghost btn-sm" @click="handleReset">重置</button>
+        <el-select
+          v-model="searchForm.level"
+          placeholder="全部等级"
+          clearable
+          class="status-select"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option v-for="opt in VENDOR_LEVEL_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+        </el-select>
+        <el-select
+          v-model="searchForm.credit"
+          placeholder="全部身份"
+          clearable
+          class="status-select status-select--identity"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option v-for="opt in VENDOR_IDENTITY_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+        </el-select>
+        <el-select
+          v-model="searchForm.ascriptionType"
+          placeholder="全部类型"
+          clearable
+          class="status-select"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option label="专属" :value="1" />
+          <el-option label="公海" :value="2" />
+        </el-select>
+        <el-select
+          v-model="searchForm.industry"
+          placeholder="全部行业"
+          clearable
+          class="status-select status-select--industry"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option label="电子/半导体" value="Electronics" />
+          <el-option label="机械/设备" value="Machinery" />
+          <el-option label="化工/材料" value="Chemical" />
+          <el-option label="纺织/服装" value="Textile" />
+          <el-option label="食品/农业" value="Food" />
+          <el-option label="建筑/工程" value="Construction" />
+          <el-option label="贸易/零售" value="Trading" />
+          <el-option label="科技/IT" value="Technology" />
+          <el-option label="医疗/健康" value="Healthcare" />
+          <el-option label="其他" value="Other" />
+        </el-select>
+        <el-select
+          v-model="searchForm.purchaseUserId"
+          placeholder="全部采购员"
+          clearable
+          filterable
+          class="status-select status-select--purchaser"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option v-for="u in purchaseUsers" :key="u.id" :label="purchaserUserLabel(u)" :value="u.id" />
+        </el-select>
+        <el-date-picker
+          v-model="createdDateRange"
+          type="daterange"
+          range-separator="至"
+          start-placeholder="创建起"
+          end-placeholder="创建止"
+          value-format="YYYY-MM-DD"
+          clearable
+          class="filter-date-range"
+          :teleported="false"
+          @change="onCreatedRangeChange"
+        />
+        <button type="button" class="btn-primary btn-sm" @click="handleSearch">搜索</button>
+        <button type="button" class="btn-ghost btn-sm" @click="handleReset">重置</button>
       </div>
     </div>
 
@@ -130,7 +141,8 @@
             <th style="width:160px;min-width:160px">供应商编号</th>
             <th style="width:160px">状态</th>
             <th v-if="canViewVendorInfo" style="min-width:200px">供应商名称</th>
-            <th style="width:80px">评级</th>
+            <th style="width:56px;min-width:56px">等级</th>
+            <th style="width:100px;min-width:100px">身份</th>
             <th style="width:100px">行业</th>
             <th v-if="canViewVendorInfo" style="width:130px">联系人</th>
             <th v-if="canViewVendorInfo" style="width:130px">联系电话</th>
@@ -145,7 +157,7 @@
             v-for="vendor in vendorList"
             :key="vendor.id"
             class="table-row"
-            @click="handleView(vendor)"
+            @dblclick="handleView(vendor)"
           >
             <td class="td-code">{{ vendor.code }}</td>
             <td>
@@ -162,16 +174,24 @@
                   </svg>
                 </div>
                 <div class="cell-name-group">
-                  <div class="cell-name">{{ vendor.officialName || vendor.code }}</div>
+                  <div class="cell-name-line">
+                    <span
+                      class="cell-name"
+                      :class="{ 'party-entity-name--muted': isPartyStatusMuted(vendor) }"
+                    >{{ vendor.officialName || vendor.code }}</span>
+                    <PartyStatusIcons
+                      :entity-id="vendor.id"
+                      :frozen="!!vendor.isDisenable"
+                      :blacklist="!!vendor.blackList"
+                      size="sm"
+                    />
+                  </div>
                   <div class="cell-short" v-if="vendor.code">{{ vendor.code }}</div>
                 </div>
               </div>
             </td>
-            <td>
-              <div class="star-rating">
-                <span v-for="i in 5" :key="i" class="star" :class="{ 'star--active': i <= (vendor.credit || 0) }">★</span>
-              </div>
-            </td>
+            <td class="td-muted">{{ getVendorLevelLabel(vendor.level) }}</td>
+            <td class="td-muted td-identity">{{ getVendorIdentityLabel(vendor.credit) }}</td>
             <td class="td-muted">{{ vendor.industry || '--' }}</td>
             <td v-if="canViewVendorInfo">
               <template v-if="vendor.contacts && vendor.contacts.length > 0">
@@ -190,25 +210,17 @@
             </td>
             <td class="td-muted">{{ formatDate(vendor.createTime) }}</td>
             <td class="td-muted">{{ (vendor as any).createUserName || (vendor as any).createdBy || (vendor as any).purchaseUserName || '--' }}</td>
-            <td @click.stop>
+            <td @click.stop @dblclick.stop>
               <div class="action-btns">
-                <button class="action-btn" @click.stop="handleView(vendor)">详情</button>
-                <button class="action-btn" @click.stop="handleEdit(vendor)">编辑</button>
+                <button class="action-btn action-btn--primary" @click.stop="handleView(vendor)">详情</button>
+                <button class="action-btn action-btn--primary" @click.stop="handleEdit(vendor)">编辑</button>
                 <button
                   v-if="vendor.status === 1"
-                  class="action-btn action-btn--primary"
+                  class="action-btn action-btn--warning"
                   @click.stop="handleSubmitAudit(vendor)"
                 >
                   提交审核
                 </button>
-                <button
-                  class="action-btn"
-                  :class="{ 'action-btn--favorite': vendor.isFavorite }"
-                  @click.stop="toggleFavorite(vendor)"
-                >
-                  {{ vendor.isFavorite ? '取消收藏' : '收藏' }}
-                </button>
-                <button class="action-btn action-btn--danger" @click.stop="handleDelete(vendor)">删除</button>
               </div>
             </td>
           </tr>
@@ -222,7 +234,7 @@
           <polyline points="9 22 9 12 15 12 15 22"/>
         </svg>
         <p>暂无供应商数据</p>
-        <button class="btn-primary" @click="handleCreate">新增供应商</button>
+        <button class="btn-success" @click="handleCreate">新增供应商</button>
       </div>
     </div>
 
@@ -243,37 +255,134 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, reactive, onMounted, watch, nextTick } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { vendorApi } from '@/api/vendor';
 import { favoriteApi } from '@/api/favorite';
+import { authApi, type PurchaseUserSelectOption } from '@/api/auth';
 import { formatDisplayDateTime } from '@/utils/displayDateTime';
-import type { Vendor, VendorSearchRequest, VendorStatistics } from '@/types/vendor';
+import type { Vendor, VendorSearchRequest } from '@/types/vendor';
 import { useAuthStore } from '@/stores/auth';
+import PartyStatusIcons from '@/components/party/PartyStatusIcons.vue';
+import { parseVendorListQuery, buildVendorListQuery } from '@/utils/vendorListQuery';
+import { getVendorLevelLabel, getVendorIdentityLabel, VENDOR_LEVEL_OPTIONS, VENDOR_IDENTITY_OPTIONS } from '@/constants/vendorEnums';
 
+const route = useRoute();
 const router = useRouter();
+
+function isPartyStatusMuted(v: Vendor) {
+  return !!(v.isDisenable || v.blackList);
+}
+
 const authStore = useAuthStore();
 const canViewVendorInfo = authStore.hasPermission('vendor.info.read');
 const canSubmitAudit = authStore.hasPermission('vendor.write');
 const loading = ref(false);
 const vendorList = ref<Vendor[]>([]);
 const totalCount = ref(0);
-const vendorStats = ref<VendorStatistics>({
-  totalVendors: 0,
-  activeVendors: 0,
-  newThisMonth: 0,
-  byLevel: {},
-  byIndustry: {}
-});
 const favoriteOnly = ref(false);
+const skipQueryRouteFetch = ref(false);
 
-const searchForm = reactive<VendorSearchRequest>({
-  pageNumber: 1,
-  pageSize: 20,
-  keyword: '',
-  status: undefined
+const purchaseUsers = ref<PurchaseUserSelectOption[]>([]);
+const createdDateRange = ref<[string, string] | null>(null);
+
+/** 与 URL query / 左侧检索面板同步（不含分页） */
+const searchForm = reactive({
+  searchTerm: '',
+  status: undefined as number | undefined,
+  level: undefined as number | undefined,
+  credit: undefined as number | undefined,
+  ascriptionType: undefined as number | undefined,
+  industry: undefined as string | undefined,
+  purchaseUserId: undefined as string | undefined,
+  createdFrom: undefined as string | undefined,
+  createdTo: undefined as string | undefined
 });
+
+function purchaserUserLabel(u: PurchaseUserSelectOption) {
+  const name = u.realName || u.label || u.userName;
+  return u.userName && name !== u.userName ? `${name}（${u.userName}）` : name;
+}
+
+function applyVendorListQueryFromRoute() {
+  const p = parseVendorListQuery(route.query);
+  searchForm.searchTerm = p.searchTerm;
+  searchForm.status = p.status;
+  searchForm.level = p.level;
+  searchForm.credit = p.credit;
+  searchForm.ascriptionType = p.ascriptionType;
+  searchForm.industry = p.industry;
+  searchForm.purchaseUserId = p.purchaseUserId;
+  searchForm.createdFrom = p.createdFrom;
+  searchForm.createdTo = p.createdTo;
+  createdDateRange.value = p.createdFrom && p.createdTo ? [p.createdFrom, p.createdTo] : null;
+  favoriteOnly.value = p.favoriteOnly;
+}
+
+function replaceRouteQueryAndFetch() {
+  skipQueryRouteFetch.value = true;
+  router
+    .replace({
+      name: 'VendorList',
+      query: buildVendorListQuery({
+        searchTerm: searchForm.searchTerm || '',
+        status: searchForm.status,
+        level: searchForm.level,
+        credit: searchForm.credit,
+        ascriptionType: searchForm.ascriptionType,
+        industry: searchForm.industry,
+        purchaseUserId: searchForm.purchaseUserId,
+        createdFrom: searchForm.createdFrom,
+        createdTo: searchForm.createdTo,
+        favoriteOnly: favoriteOnly.value
+      })
+    })
+    .finally(() => {
+      nextTick(() => {
+        skipQueryRouteFetch.value = false;
+      });
+    });
+  void fetchVendorList();
+}
+
+const handleSearch = () => {
+  pagination.pageNumber = 1;
+  replaceRouteQueryAndFetch();
+};
+
+const handleReset = () => {
+  searchForm.searchTerm = '';
+  searchForm.status = undefined;
+  searchForm.level = undefined;
+  searchForm.credit = undefined;
+  searchForm.ascriptionType = undefined;
+  searchForm.industry = undefined;
+  searchForm.purchaseUserId = undefined;
+  searchForm.createdFrom = undefined;
+  searchForm.createdTo = undefined;
+  createdDateRange.value = null;
+  favoriteOnly.value = false;
+  pagination.pageNumber = 1;
+  skipQueryRouteFetch.value = true;
+  router.replace({ name: 'VendorList', query: {} }).finally(() => {
+    nextTick(() => {
+      skipQueryRouteFetch.value = false;
+    });
+  });
+  void fetchVendorList();
+};
+
+function onCreatedRangeChange(val: [string, string] | null | undefined) {
+  if (val && val.length === 2) {
+    searchForm.createdFrom = val[0];
+    searchForm.createdTo = val[1];
+  } else {
+    searchForm.createdFrom = undefined;
+    searchForm.createdTo = undefined;
+  }
+  handleSearch();
+}
 
 const pagination = reactive({ pageNumber: 1, pageSize: 20 });
 
@@ -308,7 +417,15 @@ const fetchVendorList = async () => {
   loading.value = true;
   try {
     const params: VendorSearchRequest = {
-      ...searchForm,
+      searchTerm: searchForm.searchTerm,
+      status: searchForm.status,
+      level: searchForm.level,
+      credit: searchForm.credit,
+      ascriptionType: searchForm.ascriptionType,
+      industry: searchForm.industry,
+      purchaseUserId: searchForm.purchaseUserId,
+      createdFrom: searchForm.createdFrom,
+      createdTo: searchForm.createdTo,
       pageNumber: pagination.pageNumber,
       pageSize: pagination.pageSize
     };
@@ -343,26 +460,6 @@ const fetchVendorList = async () => {
   }
 };
 
-const fetchVendorStats = async () => {
-  try {
-    vendorStats.value = await vendorApi.getVendorStatistics();
-  } catch {
-    // 统计接口失败时静默处理，不影响列表展示
-  }
-};
-
-const handleSearch = () => {
-  pagination.pageNumber = 1;
-  fetchVendorList();
-};
-
-const handleReset = () => {
-  searchForm.keyword = '';
-  searchForm.status = undefined;
-  favoriteOnly.value = false;
-  handleSearch();
-};
-
 const handleCreate = () => router.push('/vendors/create');
 const handleView = (row: Vendor) => router.push(`/vendors/${row.id}`);
 const handleEdit = (row: Vendor) => router.push(`/vendors/${row.id}/edit`);
@@ -386,54 +483,29 @@ const handleSubmitAudit = async (row: Vendor) => {
   }
 };
 
-const handleDelete = (row: Vendor) => {
-  ElMessageBox.prompt(
-    `确定要删除供应商 "${row.officialName || row.code}" 吗？可填写删除原因。`,
-    '确认删除',
-    {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-      inputPlaceholder: '如：长期停供、信息重复等',
-      inputType: 'textarea'
-    }
-  ).then(async ({ value }) => {
-    await vendorApi.deleteVendorSoft(row.id, value || '');
-    ElMessage.success('删除成功（已进入回收站）');
-    fetchVendorList();
-  }).catch(() => {});
-};
-
-const toggleFavoriteOnly = () => {
-  favoriteOnly.value = !favoriteOnly.value;
-  handleSearch();
-};
-
-const toggleFavorite = async (row: any) => {
-  try {
-    if (row.isFavorite) {
-      await favoriteApi.removeFavorite('VENDOR', row.id);
-      row.isFavorite = false;
-      ElMessage.success('已取消收藏');
-    } else {
-      await favoriteApi.addFavorite({ entityType: 'VENDOR', entityId: row.id });
-      row.isFavorite = true;
-      ElMessage.success('收藏成功');
-    }
-    if (favoriteOnly.value) {
-      vendorList.value = vendorList.value.filter((item: any) => item.isFavorite);
-      totalCount.value = vendorList.value.length;
-    }
-  } catch (error: any) {
-    ElMessage.error(error?.message || '收藏操作失败');
-  }
-};
-
 const handleSizeChange = (size: number) => { pagination.pageSize = size; fetchVendorList(); };
 const handlePageChange = (page: number) => { pagination.pageNumber = page; fetchVendorList(); };
 
-onMounted(() => {
-  fetchVendorList();
-  fetchVendorStats();
+watch(
+  () => [route.name, route.query] as const,
+  () => {
+    if (route.name !== 'VendorList') return;
+    if (skipQueryRouteFetch.value) return;
+    applyVendorListQueryFromRoute();
+    pagination.pageNumber = 1;
+    void fetchVendorList();
+  },
+  { deep: true }
+);
+
+onMounted(async () => {
+  applyVendorListQueryFromRoute();
+  try {
+    purchaseUsers.value = await authApi.getPurchaseUsersForSelect();
+  } catch {
+    purchaseUsers.value = [];
+  }
+  void fetchVendorList();
 });
 </script>
 
@@ -504,13 +576,14 @@ onMounted(() => {
 }
 
 // ---- 按钮 ----
-.btn-primary {
+// 新建/新增/创建（UI 规范：success 绿）
+.btn-success {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
-  border: 1px solid rgba(0, 212, 255, 0.4);
+  background: linear-gradient(135deg, rgba(46, 160, 67, 0.85), rgba(70, 191, 145, 0.75));
+  border: 1px solid rgba(70, 191, 145, 0.45);
   border-radius: $border-radius-md;
   color: #fff;
   font-size: 13px;
@@ -521,10 +594,38 @@ onMounted(() => {
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+    box-shadow: 0 4px 16px rgba(70, 191, 145, 0.3);
   }
 
-  &.btn-sm { padding: 6px 12px; font-size: 12px; }
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.75), rgba(0, 212, 255, 0.65));
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 12px rgba(0, 212, 255, 0.2);
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
 }
 
 .btn-ghost {
@@ -545,87 +646,14 @@ onMounted(() => {
     border-color: rgba(0, 212, 255, 0.3);
     color: $text-secondary;
   }
-}
 
-.btn-favorite-active {
-  border-color: rgba(201, 154, 69, 0.45) !important;
-  color: $color-amber !important;
-  background: rgba(201, 154, 69, 0.1) !important;
-}
-
-// ---- 统计卡片 ----
-.stats-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  background: $layer-2;
-  border: 1px solid $border-card;
-  border-radius: $border-radius-lg;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  position: relative;
-  overflow: hidden;
-  transition: transform 0.2s, box-shadow 0.2s;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: $shadow-md;
-  }
-}
-
-.stat-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  &--blue  { background: rgba(50, 149, 201, 0.15); color: $color-steel-cyan; border: 1px solid rgba(50,149,201,0.25); }
-  &--green { background: rgba(70, 191, 145, 0.15); color: $color-mint-green; border: 1px solid rgba(70,191,145,0.25); }
-  &--cyan  { background: rgba(0, 212, 255, 0.12);  color: $cyan-primary;     border: 1px solid rgba(0,212,255,0.25); }
-  &--amber { background: rgba(201, 154, 69, 0.15); color: $color-amber;      border: 1px solid rgba(201,154,69,0.25); }
-}
-
-.stat-body {
-  .stat-value {
-    font-size: 22px;
-    font-weight: 700;
-    color: $text-primary;
-    font-family: 'Space Mono', monospace;
-    line-height: 1.2;
-  }
-  .stat-label {
+  &.btn-sm {
+    padding: 6px 12px;
     font-size: 12px;
-    color: $text-muted;
-    margin-top: 3px;
   }
 }
 
-.stat-glow {
-  position: absolute;
-  right: -20px;
-  top: -20px;
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  filter: blur(30px);
-  opacity: 0.4;
-
-  &--blue  { background: $color-steel-cyan; }
-  &--green { background: $color-mint-green; }
-  &--cyan  { background: $cyan-primary; }
-  &--amber { background: $color-amber; }
-}
-
-// ---- 搜索栏 ----
+// ---- 搜索栏（与客户列表对齐） ----
 .search-bar {
   display: flex;
   align-items: center;
@@ -640,10 +668,10 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
-.list-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: $text-primary;
+.filter-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
   white-space: nowrap;
 }
 
@@ -661,7 +689,7 @@ onMounted(() => {
 }
 
 .search-input {
-  width: 220px;
+  width: 200px;
   padding: 7px 12px 7px 32px;
   background: $layer-2;
   border: 1px solid $border-panel;
@@ -672,15 +700,74 @@ onMounted(() => {
   outline: none;
   transition: border-color 0.2s;
 
-  &::placeholder { color: $text-muted; }
-  &:focus { border-color: rgba(0,212,255,0.4); }
+  &::placeholder {
+    color: $text-muted;
+  }
+
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+  }
 }
 
 .status-select {
   width: 120px;
-  :deep(.el-select__wrapper) { background: $layer-2 !important; box-shadow: none !important; border: 1px solid $border-panel !important; border-radius: $border-radius-md !important; }
-  :deep(.el-select__placeholder) { color: $text-muted !important; }
-  :deep(.el-select__selected-item) { color: $text-primary !important; }
+
+  :deep(.el-select__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+
+  :deep(.el-select__placeholder) {
+    color: $text-muted !important;
+  }
+
+  :deep(.el-select__selected-item) {
+    color: $text-primary !important;
+  }
+}
+
+.status-select--identity {
+  width: 130px;
+}
+
+.status-select--industry {
+  width: 128px;
+}
+
+.status-select--purchaser {
+  width: 150px;
+}
+
+/* 仅保留容纳 YYYY-MM-DD ×2 +「至」的宽度 */
+.filter-date-range {
+  width: 218px;
+  flex-shrink: 0;
+
+  :deep(.el-range-editor.el-input__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+    padding-inline: 6px;
+  }
+
+  :deep(.el-range-input) {
+    color: $text-primary !important;
+    font-size: 12px !important;
+    width: 82px !important;
+    min-width: 82px !important;
+    max-width: 82px !important;
+    flex: 0 0 82px !important;
+  }
+
+  :deep(.el-range-separator) {
+    color: $text-muted !important;
+    flex-shrink: 0;
+    padding: 0 2px;
+    font-size: 12px;
+  }
 }
 
 // ---- 表格：.table-wrapper / .data-table 全局样式见 assets/styles/crm-unified-list.scss ----
@@ -720,6 +807,22 @@ onMounted(() => {
 
 .cell-name-group {
   min-width: 0;
+}
+
+.cell-name-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cell-name-line .cell-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.party-entity-name--muted {
+  color: rgba(150, 170, 195, 0.82) !important;
 }
 
 .cell-name {
@@ -779,22 +882,6 @@ onMounted(() => {
   color: $text-muted;
   font-size: 12px;
   text-align: center;
-}
-
-// ---- 星级 ----
-.star-rating {
-  display: flex;
-  gap: 1px;
-}
-
-.star {
-  font-size: 13px;
-  color: rgba(255,255,255,0.15);
-  line-height: 1;
-
-  &--active {
-    color: #C99A45;
-  }
 }
 
 // ---- 状态徽章 ----
@@ -863,39 +950,28 @@ onMounted(() => {
   transition: all 0.15s;
   white-space: nowrap;
   flex-shrink: 0;
-  background: rgba(0, 212, 255, 0.08);
-  border: 1px solid rgba(0, 212, 255, 0.2);
-  color: $cyan-primary;
 
-  &:hover {
-    background: rgba(0, 212, 255, 0.15);
-    border-color: rgba(0, 212, 255, 0.4);
-  }
-
-  &--danger {
-    background: rgba(201, 87, 69, 0.08);
-    border-color: rgba(201, 87, 69, 0.2);
-    color: #C95745;
+  // 查看/详情/编辑：primary 蓝（UI 规范）
+  &--primary {
+    background: rgba(0, 102, 255, 0.12);
+    border: 1px solid rgba(0, 212, 255, 0.35);
+    color: $cyan-primary;
 
     &:hover {
-      background: rgba(201, 87, 69, 0.15);
-      border-color: rgba(201, 87, 69, 0.4);
+      background: rgba(0, 102, 255, 0.2);
+      border-color: rgba(0, 212, 255, 0.5);
     }
   }
 
-  &--favorite {
-    background: rgba(201, 154, 69, 0.1);
-    border-color: rgba(201, 154, 69, 0.3);
+  // 业务流转：warning 黄（禁止用蓝/红/绿）
+  &--warning {
+    background: rgba(201, 154, 69, 0.12);
+    border: 1px solid rgba(201, 154, 69, 0.35);
     color: $color-amber;
-  }
 
-  &--primary {
-    background: rgba(70,191,145,0.10);
-    border-color: rgba(70,191,145,0.25);
-    color: #46BF91;
     &:hover {
-      background: rgba(70,191,145,0.18);
-      border-color: rgba(70,191,145,0.40);
+      background: rgba(201, 154, 69, 0.2);
+      border-color: rgba(201, 154, 69, 0.5);
     }
   }
 }

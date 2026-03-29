@@ -25,47 +25,46 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!token.value)
 
+  /** 将登录/注册/模拟登录返回的载荷写入会话（含 permission-summary） */
+  async function applyAuthPayload(authData: any): Promise<boolean> {
+    const tokenVal = authData?.token
+    if (!tokenVal) return false
+    token.value = tokenVal
+    user.value = {
+      email: authData.email,
+      userName: authData.userName,
+      id: authData.userId || '0',
+      isSysAdmin: !!authData.isSysAdmin,
+      roleCodes: authData.roleCodes || [],
+      permissionCodes: authData.permissionCodes || [],
+      departmentIds: authData.departmentIds || []
+    }
+    localStorage.setItem('token', tokenVal)
+    const summary = await authApi.getPermissionSummary().catch(() => null) as any
+    if (summary) {
+      const prevIsSysAdmin = user.value.isSysAdmin === true
+      user.value = {
+        ...user.value,
+        isSysAdmin: prevIsSysAdmin || !!summary?.isSysAdmin,
+        roleCodes: summary?.roleCodes || [],
+        permissionCodes: summary?.permissionCodes || [],
+        departmentIds: summary?.departmentIds || [],
+        identityType: Number(summary?.identityType ?? 0),
+        saleDataScope: Number(summary?.saleDataScope ?? 1),
+        purchaseDataScope: Number(summary?.purchaseDataScope ?? 1)
+      }
+    } else {
+      user.value.identityType = user.value.identityType ?? 0
+    }
+    localStorage.setItem('user', JSON.stringify(user.value))
+    return true
+  }
+
   async function login(credentials: LoginRequest): Promise<boolean> {
     try {
       loading.value = true
-      // client.ts 拦截器已解包 data 层，返回的直接是 { token, userName, email }
       const authData = await authApi.login(credentials) as any
-      const tokenVal = authData?.token
-      if (tokenVal) {
-        token.value = tokenVal
-        user.value = {
-          email: authData.email,
-          userName: authData.userName,
-          id: authData.userId || '0',
-          isSysAdmin: !!authData.isSysAdmin,
-          roleCodes: authData.roleCodes || [],
-          permissionCodes: authData.permissionCodes || [],
-          departmentIds: authData.departmentIds || []
-        }
-        localStorage.setItem('token', tokenVal)
-        // 登录后补齐 permission-summary（用于 identityType / dataScope），否则菜单隔离可能失效
-        const summary = await authApi.getPermissionSummary().catch(() => null) as any
-        if (summary) {
-          const prevIsSysAdmin = user.value.isSysAdmin === true
-          user.value = {
-            ...user.value,
-            // 不要让 permission-summary 覆盖掉原本的 SYS_ADMIN 标识（避免 identityType 门禁误触发）
-            isSysAdmin: prevIsSysAdmin || !!summary?.isSysAdmin,
-            roleCodes: summary?.roleCodes || [],
-            permissionCodes: summary?.permissionCodes || [],
-            departmentIds: summary?.departmentIds || [],
-            identityType: Number(summary?.identityType ?? 0),
-            saleDataScope: Number(summary?.saleDataScope ?? 1),
-            purchaseDataScope: Number(summary?.purchaseDataScope ?? 1)
-          }
-        } else {
-          // 兜底：避免 identityType 仍是默认值导致菜单错误
-          user.value.identityType = user.value.identityType ?? 0
-        }
-        localStorage.setItem('user', JSON.stringify(user.value))
-        return true
-      }
-      return false
+      return await applyAuthPayload(authData)
     } catch (error) {
       console.error('Login failed:', error)
       return false
@@ -77,44 +76,23 @@ export const useAuthStore = defineStore('auth', () => {
   async function register(data: RegisterRequest): Promise<boolean> {
     try {
       loading.value = true
-      // client.ts 拦截器已解包 data 层，返回的直接是 { token, userName, email }
       const authData = await authApi.register(data) as any
-      const tokenVal = authData?.token
-      if (tokenVal) {
-        token.value = tokenVal
-        user.value = {
-          email: authData.email,
-          userName: authData.userName,
-          id: authData.userId || '0',
-          isSysAdmin: !!authData.isSysAdmin,
-          roleCodes: authData.roleCodes || [],
-          permissionCodes: authData.permissionCodes || [],
-          departmentIds: authData.departmentIds || []
-        }
-        localStorage.setItem('token', tokenVal)
-        // 注册后同样补齐 permission-summary（用于菜单隔离）
-        const summary = await authApi.getPermissionSummary().catch(() => null) as any
-        if (summary) {
-          const prevIsSysAdmin = user.value.isSysAdmin === true
-          user.value = {
-            ...user.value,
-            // 不要让 permission-summary 覆盖掉原本的 SYS_ADMIN 标识
-            isSysAdmin: prevIsSysAdmin || !!summary?.isSysAdmin,
-            roleCodes: summary?.roleCodes || [],
-            permissionCodes: summary?.permissionCodes || [],
-            departmentIds: summary?.departmentIds || [],
-            identityType: Number(summary?.identityType ?? 0),
-            saleDataScope: Number(summary?.saleDataScope ?? 1),
-            purchaseDataScope: Number(summary?.purchaseDataScope ?? 1)
-          }
-        }
-        localStorage.setItem('user', JSON.stringify(user.value))
-        return true
-      }
-      return false
+      return await applyAuthPayload(authData)
     } catch (error) {
       console.error('Registration failed:', error)
       return false
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /** 管理员模拟登录为员工：服务端校验 SYS_ADMIN 后签发目标账号 JWT；失败时抛错（含后端 message） */
+  async function impersonate(targetUserId: string): Promise<void> {
+    try {
+      loading.value = true
+      const authData = await authApi.impersonate(targetUserId) as any
+      const ok = await applyAuthPayload(authData)
+      if (!ok) throw new Error('模拟登录失败')
     } finally {
       loading.value = false
     }
@@ -162,6 +140,22 @@ export const useAuthStore = defineStore('auth', () => {
     return (user.value.permissionCodes || []).includes(permissionCode)
   }
 
+  /**
+   * 主部门身份与「客户 / 供应商」路由隔离（与 AppLayout 主菜单一致）。
+   * IdentityType: 0 None, 1 Sales, 2 Purchaser, 3 PurchaseAssistant, 4 CustService, 5 Finance, 6 Logistics
+   */
+  function isIdentityBlockedForPermission(permissionCode: string): boolean {
+    if (!user.value || user.value.isSysAdmin) return false
+    const t = user.value.identityType ?? 0
+    if (permissionCode.startsWith('customer.')) {
+      return t === 2 || t === 3 || t === 6
+    }
+    if (permissionCode.startsWith('vendor.')) {
+      return t === 1 || t === 6
+    }
+    return false
+  }
+
   return {
     token,
     user,
@@ -169,8 +163,10 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     login,
     register,
+    impersonate,
     logout,
     fetchCurrentUser,
-    hasPermission
+    hasPermission,
+    isIdentityBlockedForPermission
   }
 })

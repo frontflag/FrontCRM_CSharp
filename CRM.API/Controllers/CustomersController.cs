@@ -3,27 +3,41 @@ using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
+using CRM.Core.Models.Sales;
 using System.Security.Claims;
 
 namespace CRM.API.Controllers
 {
     [ApiController]
-    [Route("api/v1/[controller]")]
+    // 显式小写路径，与前端 /api/v1/customers 一致，避免反向代理等环境下大小写敏感导致 404
+    [Route("api/v1/customers")]
     [RequirePermission("customer.read")]
     public class CustomersController : ControllerBase
     {
         private readonly ICustomerService _customerService;
         private readonly IApprovalRecordService _approvalRecordService;
         private readonly IDataPermissionService _dataPermissionService;
+        private readonly IRepository<SellOrder> _sellOrderRepository;
         private readonly ILogger<CustomersController> _logger;
 
-        public CustomersController(ICustomerService customerService, IApprovalRecordService approvalRecordService, IDataPermissionService dataPermissionService, ILogger<CustomersController> logger)
+        public CustomersController(
+            ICustomerService customerService,
+            IApprovalRecordService approvalRecordService,
+            IDataPermissionService dataPermissionService,
+            IRepository<SellOrder> sellOrderRepository,
+            ILogger<CustomersController> logger)
         {
             _customerService = customerService;
             _approvalRecordService = approvalRecordService;
             _dataPermissionService = dataPermissionService;
+            _sellOrderRepository = sellOrderRepository;
             _logger = logger;
         }
+
+        private static bool IsCommercialSellOrder(SellOrder o) =>
+            o.Status >= SellOrderMainStatus.Approved
+            && o.Status != SellOrderMainStatus.Cancelled
+            && o.Status != SellOrderMainStatus.AuditFailed;
 
         // ─── Customer CRUD ────────────────────────────────────────────────────────
 
@@ -36,12 +50,23 @@ namespace CRM.API.Controllers
             [FromQuery] short? customerLevel = null,
             [FromQuery] string? industry = null,
             [FromQuery] string? region = null,
+            [FromQuery] string? salesUserId = null,
+            [FromQuery] DateTime? createdFrom = null,
+            [FromQuery] DateTime? createdTo = null,
             [FromQuery] bool? isActive = null,
+            /// <summary>工作流状态（与 customerinfo.Status 一致）；传入时优先于 isActive 的兼容映射</summary>
+            [FromQuery] short? status = null,
             [FromQuery] string? sortBy = null,
             [FromQuery] bool? sortDescending = null)
         {
             try
             {
+                short? statusFilter = null;
+                if (status.HasValue)
+                    statusFilter = status.Value;
+                else if (isActive.HasValue)
+                    statusFilter = isActive.Value ? (short)1 : (short)0;
+
                 var request = new CustomerQueryRequest
                 {
                     PageIndex = pageNumber,
@@ -49,7 +74,12 @@ namespace CRM.API.Controllers
                     Keyword = searchTerm,
                     Type = customerType,
                     Level = customerLevel,
-                    Status = isActive.HasValue ? (isActive.Value ? (short)1 : (short)0) : null,
+                    Industry = industry,
+                    Region = region,
+                    SalesUserId = salesUserId,
+                    CreatedFrom = createdFrom,
+                    CreatedTo = createdTo,
+                    Status = statusFilter,
                     CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 };
 
@@ -81,9 +111,39 @@ namespace CRM.API.Controllers
                 var firstDayOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
                 var totalCustomers = customers.Count;
-                var activeCustomers = customers.Count(c => c.Status == 1);
+                // 与前端 IsActive（Status >= 10）一致：已审核及以上视为活跃
+                var activeCustomers = customers.Count(c => c.Status >= 10);
                 var newThisMonth = customers.Count(c => c.CreateTime >= firstDayOfMonth);
+                var newLast30Days = customers.Count(c => c.CreateTime >= now.AddDays(-30));
                 var totalBalance = customers.Sum(c => c.CreditLineRemain);
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var sellOrders = (await _sellOrderRepository.GetAllAsync()).ToList();
+                if (!string.IsNullOrWhiteSpace(userId))
+                    sellOrders = (await _dataPermissionService.FilterSalesOrdersAsync(userId, sellOrders)).ToList();
+
+                var commercial = sellOrders.Where(IsCommercialSellOrder).ToList();
+                var customersWithDeals = commercial
+                    .Select(o => o.CustomerId)
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Distinct()
+                    .Count();
+
+                var receivableOrders = commercial.Where(o => o.FinanceReceiptStatus < 2).ToList();
+                var receivableGoodsAmount = receivableOrders.Sum(o => o.ConvertTotal);
+                var receivableCustomerCount = receivableOrders
+                    .Select(o => o.CustomerId)
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Distinct()
+                    .Count();
+
+                var pendingOutboundOrders = commercial.Where(o => o.StockOutStatus < 2).ToList();
+                var pendingOutboundAmount = pendingOutboundOrders.Sum(o => o.ConvertTotal);
+                var pendingOutboundCustomerCount = pendingOutboundOrders
+                    .Select(o => o.CustomerId)
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Distinct()
+                    .Count();
 
                 var byLevel = customers
                     .GroupBy(c => c.Level)
@@ -99,7 +159,13 @@ namespace CRM.API.Controllers
                     totalCustomers,
                     activeCustomers,
                     newThisMonth,
+                    newLast30Days,
+                    customersWithDeals,
                     totalBalance,
+                    receivableGoodsAmount,
+                    receivableCustomerCount,
+                    pendingOutboundAmount,
+                    pendingOutboundCustomerCount,
                     byLevel,
                     byIndustry
                 }, "获取客户统计成功"));
@@ -645,17 +711,70 @@ namespace CRM.API.Controllers
             catch (Exception ex) { return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500)); }
         }
 
-        // ===== 移出黑名单 =====
+        // ===== 移出黑名单（需原因，写入操作日志） =====
         [HttpPost("{id}/remove-blacklist")]
-        public async Task<ActionResult<ApiResponse<object>>> RemoveBlackList(string id)
+        public async Task<ActionResult<ApiResponse<object>>> RemoveBlackList(string id, [FromBody] RemoveBlackListRequest request)
         {
             try
             {
-                await _customerService.RemoveFromBlackListAsync(id, null, "系统用户");
+                if (request == null || string.IsNullOrWhiteSpace(request.Reason))
+                    return BadRequest(ApiResponse<object>.Fail("请填写移出黑名单原因", 400));
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userName = User.Identity?.Name;
+                await _customerService.RemoveFromBlackListAsync(id, request.Reason.Trim(), userId, userName);
                 return Ok(ApiResponse<object>.Ok(null, "已移出黑名单"));
             }
+            catch (ArgumentException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message, 400)); }
             catch (KeyNotFoundException ex) { return NotFound(ApiResponse<object>.Fail(ex.Message, 404)); }
             catch (Exception ex) { return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500)); }
+        }
+
+        /// <summary>冻结客户（禁用），原因写入操作日志</summary>
+        [HttpPost("{id}/freeze")]
+        [RequirePermission("customer.write")]
+        public async Task<ActionResult<ApiResponse<object>>> FreezeCustomer(string id, [FromBody] FreezeCustomerRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.Reason))
+                    return BadRequest(ApiResponse<object>.Fail("请填写冻结原因", 400));
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userName = User.Identity?.Name;
+                await _customerService.FreezeCustomerAsync(id, request.Reason, userId, userName);
+                return Ok(ApiResponse<object>.Ok(null, "客户已冻结"));
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ApiResponse<object>.Fail(ex.Message, 404)); }
+            catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message, 400)); }
+            catch (ArgumentException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message, 400)); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "冻结客户失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"冻结客户失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>启用客户（解除冻结），原因写入操作日志</summary>
+        [HttpPost("{id}/unfreeze")]
+        [RequirePermission("customer.write")]
+        public async Task<ActionResult<ApiResponse<object>>> UnfreezeCustomer(string id, [FromBody] FreezeCustomerRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.Reason))
+                    return BadRequest(ApiResponse<object>.Fail("请填写启用原因", 400));
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userName = User.Identity?.Name;
+                await _customerService.UnfreezeCustomerAsync(id, request.Reason, userId, userName);
+                return Ok(ApiResponse<object>.Ok(null, "客户已启用"));
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ApiResponse<object>.Fail(ex.Message, 404)); }
+            catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message, 400)); }
+            catch (ArgumentException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message, 400)); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "启用客户失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"启用客户失败: {ex.Message}", 500));
+            }
         }
 
         // ===== 恢复已删除客户 =====
@@ -690,6 +809,18 @@ namespace CRM.API.Controllers
             try
             {
                 var result = await _customerService.GetBlackListCustomersAsync(page, pageSize, keyword);
+                return Ok(ApiResponse<object>.Ok(new { items = result.Items, totalCount = result.TotalCount, pageNumber = result.PageIndex, pageSize = result.PageSize, totalPages = result.TotalPages }));
+            }
+            catch (Exception ex) { return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500)); }
+        }
+
+        // ===== 冻结客户列表 =====
+        [HttpGet("frozen")]
+        public async Task<ActionResult<ApiResponse<object>>> GetFrozen([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? keyword = null)
+        {
+            try
+            {
+                var result = await _customerService.GetFrozenCustomersAsync(page, pageSize, keyword);
                 return Ok(ApiResponse<object>.Ok(new { items = result.Items, totalCount = result.TotalCount, pageNumber = result.PageIndex, pageSize = result.PageSize, totalPages = result.TotalPages }));
             }
             catch (Exception ex) { return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500)); }

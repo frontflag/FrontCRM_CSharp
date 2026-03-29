@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Vendor;
 using CRM.Core.Utilities;
@@ -38,6 +39,8 @@ namespace CRM.Core.Services
             _dataPermissionService = dataPermissionService;
         }
 
+        private static string SqlQ(string? s) => (s ?? "").Replace("'", "''");
+
         /// <summary>
         /// 按主键 Id 或业务编号 Code 解析供应商（路由、列表可能传任一种）。
         /// </summary>
@@ -69,6 +72,7 @@ namespace CRM.Core.Services
                 OfficialName = string.IsNullOrEmpty(official) ? null : official,
                 NickName = string.IsNullOrWhiteSpace(request.NickName) ? null : request.NickName.Trim(),
                 Industry = string.IsNullOrWhiteSpace(request.Industry) ? null : request.Industry.Trim(),
+                Level = request.Level,
                 Credit = request.Credit,
                 Status = request.Status ?? 1,
                 OfficeAddress = string.IsNullOrWhiteSpace(request.OfficeAddress) ? null : request.OfficeAddress.Trim(),
@@ -131,6 +135,39 @@ namespace CRM.Core.Services
             if (request.Status.HasValue)
                 query = query.Where(e => e.Status == request.Status.Value);
 
+            if (request.Level.HasValue)
+                query = query.Where(e => e.Level == request.Level.Value);
+
+            if (!string.IsNullOrWhiteSpace(request.Industry))
+            {
+                var ind = request.Industry.Trim();
+                query = query.Where(e => e.Industry != null && e.Industry.Contains(ind));
+            }
+
+            if (request.Credit.HasValue)
+                query = query.Where(e => e.Credit == request.Credit.Value);
+
+            if (request.AscriptionType.HasValue)
+                query = query.Where(e => e.AscriptionType == request.AscriptionType.Value);
+
+            if (!string.IsNullOrWhiteSpace(request.PurchaseUserId))
+            {
+                var pid = request.PurchaseUserId.Trim();
+                query = query.Where(e => e.PurchaseUserId == pid);
+            }
+
+            if (request.CreatedFrom.HasValue)
+            {
+                var from = request.CreatedFrom.Value.Date;
+                query = query.Where(e => e.CreateTime >= from);
+            }
+
+            if (request.CreatedTo.HasValue)
+            {
+                var toExclusive = request.CreatedTo.Value.Date.AddDays(1);
+                query = query.Where(e => e.CreateTime < toExclusive);
+            }
+
             // 数据权限过滤（在分页前）
             if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
             {
@@ -173,7 +210,7 @@ namespace CRM.Core.Services
         public async Task<PagedResult<VendorInfo>> GetBlacklistAsync(VendorQueryRequest request)
         {
             var allEntities = await _repository.GetAllAsync();
-            var query = allEntities.Where(e => e.BlackList).AsQueryable();
+            var query = allEntities.Where(e => e.BlackList && !e.IsDeleted).AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(request.Keyword))
             {
@@ -186,6 +223,36 @@ namespace CRM.Core.Services
 
             var totalCount = query.Count();
             var items = query
+                .Skip((request.PageIndex - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToList();
+
+            return new PagedResult<VendorInfo>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageIndex = request.PageIndex,
+                PageSize = request.PageSize
+            };
+        }
+
+        public async Task<PagedResult<VendorInfo>> GetFrozenAsync(VendorQueryRequest request)
+        {
+            var allEntities = await _repository.GetAllAsync();
+            var query = allEntities.Where(e => e.IsDisenable && !e.IsDeleted).AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Keyword))
+            {
+                var keyword = request.Keyword.Trim().ToLower();
+                query = query.Where(e =>
+                    (e.Code != null && e.Code.ToLower().Contains(keyword)) ||
+                    (e.OfficialName != null && e.OfficialName.ToLower().Contains(keyword)) ||
+                    (e.NickName != null && e.NickName.ToLower().Contains(keyword)));
+            }
+
+            var totalCount = query.Count();
+            var items = query
+                .OrderByDescending(e => e.ModifyTime ?? e.CreateTime)
                 .Skip((request.PageIndex - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .ToList();
@@ -272,6 +339,7 @@ namespace CRM.Core.Services
             entity.ModifyTime = DateTime.UtcNow;
             await _repository.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
+            await AddOperationLogAsync(entity.Id, "删除", $"删除供应商，理由：{reason ?? "无"}", null, "系统用户");
         }
 
         /// <summary>
@@ -334,6 +402,7 @@ namespace CRM.Core.Services
 
             await _repository.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
+            await AddOperationLogAsync(entity.Id, "恢复", "供应商已从回收站恢复", null, "系统用户");
         }
 
         public async Task AddToBlacklistAsync(string id, string? reason)
@@ -349,12 +418,16 @@ namespace CRM.Core.Services
             entity.ModifyTime = DateTime.UtcNow;
             await _repository.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
+            var r = string.IsNullOrWhiteSpace(reason) ? "无" : reason.Trim();
+            await AddOperationLogAsync(entity.Id, "加入黑名单", $"加入黑名单，理由：{r}", null, "系统用户");
         }
 
-        public async Task RemoveFromBlacklistAsync(string id)
+        public async Task RemoveFromBlacklistAsync(string id, string reason, string? operatorUserId, string? operatorUserName)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("ID不能为空", nameof(id));
+            if (string.IsNullOrWhiteSpace(reason))
+                throw new ArgumentException("移出黑名单原因不能为空", nameof(reason));
 
             var entity = await GetByIdAsync(id);
             if (entity == null)
@@ -364,6 +437,8 @@ namespace CRM.Core.Services
             entity.ModifyTime = DateTime.UtcNow;
             await _repository.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
+            var r = reason.Trim();
+            await AddOperationLogAsync(entity.Id, "移出黑名单", $"移出黑名单，原因：{r}", operatorUserId, operatorUserName, r);
         }
 
         private static void ValidateVendorStatusTransition(short current, short target)
@@ -871,9 +946,23 @@ namespace CRM.Core.Services
             var effectiveId = vendor?.Id ?? vendorId;
 
             var safeId = effectiveId.Replace("'", "''");
-            var sql =
-                $"SELECT \"Id\", \"VendorId\", \"OperationType\", \"OperationDesc\", \"OperatorUserId\", \"OperatorUserName\", \"OperationTime\", \"Remark\" " +
-                $"FROM vendor_operation_log WHERE \"VendorId\" = '{safeId}' ORDER BY \"OperationTime\" DESC";
+            var sql = $@"
+SELECT o.""Id"",
+       o.""RecordId"" AS ""VendorId"",
+       o.""ActionType"" AS ""OperationType"",
+       o.""OperationDesc"",
+       o.""OperatorUserId"",
+       o.""OperatorUserName"",
+       o.""OperationTime"",
+       o.""Reason"" AS ""Remark"",
+       o.""BizType"",
+       o.""RecordCode""
+FROM log_operation o
+WHERE (o.""BizType"" = '{BusinessLogTypes.Vendor}' AND o.""RecordId"" = '{safeId}')
+   OR (o.""BizType"" = '{BusinessLogTypes.VendorContact}' AND o.""RecordId"" IN (
+        SELECT ""ContactId"" FROM vendorcontactinfo WHERE ""VendorId"" = '{safeId}'
+      ))
+ORDER BY o.""OperationTime"" DESC";
             return await _unitOfWork.QueryAsync<VendorOperationLog>(sql);
         }
 
@@ -886,10 +975,96 @@ namespace CRM.Core.Services
             var effectiveId = vendor?.Id ?? vendorId;
 
             var safeId = effectiveId.Replace("'", "''");
-            var sql =
-                $"SELECT \"Id\", \"VendorId\", \"FieldName\", \"FieldLabel\", \"OldValue\", \"NewValue\", \"ChangedByUserId\", \"ChangedByUserName\", \"ChangedAt\" " +
-                $"FROM vendor_change_log WHERE \"VendorId\" = '{safeId}' ORDER BY \"ChangedAt\" DESC";
+            var sql = $@"
+SELECT c.""Id"",
+       c.""RecordId"" AS ""VendorId"",
+       c.""FieldName"",
+       c.""FieldLabel"",
+       c.""OldValue"",
+       c.""NewValue"",
+       c.""ChangedByUserId"",
+       c.""ChangedByUserName"",
+       c.""ChangedAt"",
+       c.""BizType"",
+       c.""RecordCode""
+FROM log_change_fldval c
+WHERE (c.""BizType"" = '{BusinessLogTypes.Vendor}' AND c.""RecordId"" = '{safeId}')
+   OR (c.""BizType"" = '{BusinessLogTypes.VendorContact}' AND c.""RecordId"" IN (
+        SELECT ""ContactId"" FROM vendorcontactinfo WHERE ""VendorId"" = '{safeId}'
+      ))
+ORDER BY c.""ChangedAt"" DESC";
             return await _unitOfWork.QueryAsync<VendorChangeLog>(sql);
+        }
+
+        /// <summary>冻结供应商（禁用）</summary>
+        public async Task FreezeVendorAsync(string id, string reason, string? operatorUserId, string? operatorUserName)
+        {
+            if (string.IsNullOrWhiteSpace(reason))
+                throw new ArgumentException("冻结原因不能为空", nameof(reason));
+
+            var resolvedId = (await ResolveVendorByIdOrCodeAsync(id))?.Id;
+            if (resolvedId == null)
+                throw new KeyNotFoundException($"供应商 {id} 不存在");
+            var vendors = await _repository.FindAsync(e => e.Id == resolvedId);
+            var vendor = vendors.FirstOrDefault();
+            if (vendor == null)
+                throw new KeyNotFoundException($"供应商 {id} 不存在");
+            if (vendor.IsDisenable)
+                throw new InvalidOperationException("供应商已处于冻结状态");
+
+            var safeId = SqlQ(resolvedId);
+            var rows = await _unitOfWork.ExecuteNonQueryAsync(
+                $@"UPDATE vendorinfo SET ""IsDisenable"" = TRUE, ""ModifyTime"" = NOW() WHERE ""VendorId"" = '{safeId}'");
+            if (rows == 0)
+                throw new InvalidOperationException("更新供应商冻结状态失败，请稍后重试");
+
+            var r = reason.Trim();
+            await AddOperationLogAsync(resolvedId, "冻结供应商", $"冻结供应商，原因：{r}", operatorUserId, operatorUserName, r);
+        }
+
+        /// <summary>启用供应商（解除冻结）</summary>
+        public async Task UnfreezeVendorAsync(string id, string reason, string? operatorUserId, string? operatorUserName)
+        {
+            if (string.IsNullOrWhiteSpace(reason))
+                throw new ArgumentException("启用原因不能为空", nameof(reason));
+
+            var resolvedId = (await ResolveVendorByIdOrCodeAsync(id))?.Id;
+            if (resolvedId == null)
+                throw new KeyNotFoundException($"供应商 {id} 不存在");
+            var vendors = await _repository.FindAsync(e => e.Id == resolvedId);
+            var vendor = vendors.FirstOrDefault();
+            if (vendor == null)
+                throw new KeyNotFoundException($"供应商 {id} 不存在");
+            if (!vendor.IsDisenable)
+                throw new InvalidOperationException("供应商未处于冻结状态，无需启用");
+
+            var safeId = SqlQ(resolvedId);
+            var rows = await _unitOfWork.ExecuteNonQueryAsync(
+                $@"UPDATE vendorinfo SET ""IsDisenable"" = FALSE, ""ModifyTime"" = NOW() WHERE ""VendorId"" = '{safeId}'");
+            if (rows == 0)
+                throw new InvalidOperationException("更新供应商启用状态失败，请稍后重试");
+
+            var r = reason.Trim();
+            await AddOperationLogAsync(resolvedId, "启用供应商", $"启用供应商，原因：{r}", operatorUserId, operatorUserName, r);
+        }
+
+        /// <summary>记录供应商主体操作日志（写入 log_operation）</summary>
+        public async Task AddOperationLogAsync(string vendorId, string operationType, string? desc, string? userId, string? userName, string? remark = null)
+        {
+            var canonicalId = (await ResolveVendorByIdOrCodeAsync(vendorId))?.Id ?? vendorId.Trim();
+            var venList = await _repository.FindAsync(e => e.Id == canonicalId);
+            var ven = venList.FirstOrDefault();
+            var recordCodeSql = ven?.Code != null ? $"'{SqlQ(ven.Code)}'" : "NULL";
+            var safeRecordId = SqlQ(canonicalId);
+            var safeOpType = SqlQ(operationType);
+            var safeDesc = SqlQ(desc);
+            var safeUserName = SqlQ(userName);
+            var safeUserId = userId != null ? SqlQ(userId) : null;
+            var safeRemark = remark != null ? SqlQ(remark) : null;
+            var sql = $@"
+INSERT INTO log_operation (""Id"", ""BizType"", ""RecordId"", ""RecordCode"", ""ActionType"", ""OperationTime"", ""OperatorUserId"", ""OperatorUserName"", ""Reason"", ""ExtraInfo"", ""SysRemark"", ""OperationDesc"")
+VALUES (gen_random_uuid()::text, '{BusinessLogTypes.Vendor}', '{safeRecordId}', {recordCodeSql}, '{safeOpType}', NOW(), {(safeUserId == null ? "NULL" : $"'{safeUserId}'")}, '{safeUserName}', {(safeRemark == null ? "NULL" : $"'{safeRemark}'")}, NULL, NULL, '{safeDesc}')";
+            await _unitOfWork.ExecuteAsync(sql);
         }
     }
 }

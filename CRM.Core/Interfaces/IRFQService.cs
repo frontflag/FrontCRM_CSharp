@@ -23,7 +23,7 @@ namespace CRM.Core.Interfaces
         public string? SalesUserId { get; set; }
         public short RfqType { get; set; } = 1;
         public short QuoteMethod { get; set; } = 1;
-        public short AssignMethod { get; set; } = 1;
+        public short AssignMethod { get; set; } = 2;
         public string? Industry { get; set; }
         public string? Product { get; set; }
         public short TargetType { get; set; } = 1;
@@ -110,6 +110,8 @@ namespace CRM.Core.Interfaces
         public DateTime? EndDate { get; set; }
         public string? CustomerKeyword { get; set; }
         public string? MaterialModel { get; set; }
+        /// <summary>按主表业务员用户 ID 精确筛选（与前端下拉一致）</summary>
+        public string? SalesUserId { get; set; }
         public string? SalesUserKeyword { get; set; }
         public string? CurrentUserId { get; set; }
     }

@@ -100,10 +100,7 @@
           </el-form-item>
           <el-form-item label="需求类型">
             <el-select v-model="rfqBaseForm.rfqType" style="width:120px" clearable>
-              <el-option label="现货" :value="1" />
-              <el-option label="期货" :value="2" />
-              <el-option label="样品" :value="3" />
-              <el-option label="批量" :value="4" />
+              <el-option v-for="o in RFQ_TYPE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
             </el-select>
           </el-form-item>
           <el-form-item label="备注">
@@ -221,6 +218,7 @@ import * as XLSX from 'xlsx'
 import { rfqApi } from '@/api/rfq'
 import { customerApi } from '@/api/customer'
 import type { CreateRFQRequest, CreateRFQItemRequest } from '@/types/rfq'
+import { RFQ_TYPE_OPTIONS } from '@/constants/rfqFormEnums'
 
 const router = useRouter()
 const emit = defineEmits<{ (e: 'created', rfqId: string): void }>()
