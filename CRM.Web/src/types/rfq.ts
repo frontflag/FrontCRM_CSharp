@@ -59,12 +59,12 @@ export enum QuoteMethod {
   Sms = 4 // 短信
 }
 
-// 分配方式（与 rfqFormEnums / DB assign_method 一致）
+// 分配方式（与 rfqFormEnums / DB assign_method 一致；表单仅保留 value=2「采购轮询」）
 export enum AssignMethod {
-  SamePurchaser = 1, // 系统分配同一采购
-  MultiPurchaser = 2, // 系统分配多人采购
-  SameBrandSamePurchaser = 3, // 相同品牌分配同一采购
-  DesignatedPurchaser = 4 // 指定采购员
+  SamePurchaser = 1, // 历史：系统分配同一采购
+  PurchaseRoundRobin = 2, // 采购轮询（当前唯一选项）
+  SameBrandSamePurchaser = 3, // 历史：相同品牌分配同一采购
+  DesignatedPurchaser = 4 // 历史：指定采购员
 }
 
 // 目标类型
@@ -252,6 +252,8 @@ export interface RFQItemSearchRequest {
   /** 主表业务员用户 ID（与 auth sales-users-tree 范围一致，由前端下拉传入） */
   salesUserId?: string
   salesUserKeyword?: string
+  /** 为 true 时仅返回至少有一条报价记录的需求明细 */
+  hasQuotesOnly?: boolean
   status?: RFQItemStatus | ''
   startDate?: string
   endDate?: string

@@ -18,12 +18,17 @@ export const QUOTE_METHOD_OPTIONS: ReadonlyArray<{ label: string; value: number 
   { label: '短信', value: 4 }
 ]
 
+/** 产品仅支持「采购轮询」（与 DB assign_method = 2 一致） */
 export const ASSIGN_METHOD_OPTIONS: ReadonlyArray<{ label: string; value: number }> = [
-  { label: '系统分配同一采购', value: 1 },
-  { label: '系统分配多人采购', value: 2 },
-  { label: '相同品牌分配同一采购', value: 3 },
-  { label: '指定采购员', value: 4 }
+  { label: '采购轮询', value: 2 }
 ]
+
+/** 历史数据 1/3/4 仅用于详情只读展示 */
+const ASSIGN_METHOD_LEGACY_LABELS: Readonly<Record<number, string>> = {
+  1: '系统分配同一采购',
+  3: '相同品牌分配同一采购',
+  4: '指定采购员'
+}
 
 function labelFromOptions(options: ReadonlyArray<{ label: string; value: number }>, v?: number | null) {
   if (v == null) return '—'
@@ -40,5 +45,8 @@ export function formatQuoteMethodLabel(v?: number | null) {
 }
 
 export function formatAssignMethodLabel(v?: number | null) {
-  return labelFromOptions(ASSIGN_METHOD_OPTIONS, v)
+  if (v == null) return '—'
+  const hit = ASSIGN_METHOD_OPTIONS.find((o) => o.value === v)
+  if (hit) return hit.label
+  return ASSIGN_METHOD_LEGACY_LABELS[v] ?? '—'
 }

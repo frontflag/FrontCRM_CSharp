@@ -13,6 +13,8 @@ export const salesOrderApi = {
     orderCreateEnd?: string
     customerName?: string
     salesUserName?: string
+    /** 销售订单号（模糊） */
+    sellOrderCode?: string
     pn?: string
     page?: number
     pageSize?: number

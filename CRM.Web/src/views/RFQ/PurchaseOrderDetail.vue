@@ -1,27 +1,110 @@
 <template>
   <div class="purchase-order-detail">
+    <!-- 详情 CaptionBar（对齐 document/PRD/规范/UI规范/详情CaptionBar规范.md） -->
     <div class="page-header">
       <div class="header-left">
-        <button class="btn-back" @click="router.back()">
-          <el-icon><ArrowLeft /></el-icon>
-          返回列表
+        <button class="btn-back" type="button" @click="router.back()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          返回
         </button>
-        <div class="title-group" v-if="order">
-          <div class="title-avatar">采</div>
+        <div v-if="order" class="po-caption-title-group">
+          <div class="caption-avatar-lg">{{ captionAvatarChar }}</div>
           <div>
-            <h1 class="page-title">采购订单详情</h1>
-            <div class="title-meta">
-              <span class="order-code">{{ order.purchaseOrderCode }}</span>
-              <el-tag effect="dark" :type="getStatusType(order.status)" size="small">
-                {{ getStatusText(order.status) }}
-              </el-tag>
+            <div class="page-title-row">
+              <div class="page-title-with-icons">
+                <h1
+                  class="page-title"
+                  :class="{ 'page-title--muted': normalizePurchaseOrderMainStatus(order) === -2 }"
+                >
+                  {{ captionTitle }}
+                </h1>
+                <el-tag effect="dark" :type="getStatusType(normalizePurchaseOrderMainStatus(order))" size="small">
+                  {{ getStatusText(normalizePurchaseOrderMainStatus(order)) }}
+                </el-tag>
+              </div>
+              <button
+                type="button"
+                class="btn-favorite-star"
+                :class="{ 'is-favorite': poFavorited }"
+                :disabled="favoriteLoading"
+                :title="poFavorited ? '取消收藏' : '收藏订单'"
+                :aria-label="poFavorited ? '取消收藏' : '收藏采购订单'"
+                :aria-pressed="poFavorited"
+                @click="toggleFavorite"
+              >
+                <svg
+                  v-if="!poFavorited"
+                  class="star-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+                <svg v-else class="star-icon star-icon--solid" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+              </button>
+            </div>
+            <div v-if="captionMetaVisible" class="title-meta">
+              <span class="caption-code">{{ order.purchaseOrderCode }}</span>
+            </div>
+            <div class="title-tags-row">
+              <TagListDisplay :tags="currentTags" />
+              <button type="button" class="btn-add-tag" @click="tagDialogVisible = true">添加标签</button>
             </div>
           </div>
         </div>
       </div>
-      <div class="header-right" v-if="order">
-        <button class="btn-secondary" @click="handleUpdateStatus">更新状态</button>
-        <button class="btn-primary" @click="handleEdit">编辑</button>
+      <div v-if="order" class="header-right">
+        <button class="btn-primary" type="button" @click="handleEdit">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+          编辑
+        </button>
+        <el-dropdown
+          trigger="click"
+          placement="bottom-end"
+          popper-class="po-detail-header-more-popper"
+          @command="onHeaderMoreCommand"
+        >
+          <button type="button" class="btn-more-actions" title="更多操作" aria-label="更多操作">
+            <span class="btn-more-actions__dots" aria-hidden="true">⋯</span>
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item
+                v-if="canCancelPurchaseOrderFromMenu"
+                command="cancel_order"
+                class="detail-more-item--danger"
+              >
+                取消订单
+              </el-dropdown-item>
+              <el-dropdown-item command="delete" class="detail-more-item--danger">删除订单</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <button
+          v-if="order && purchaseOrderReportAllowed(normalizePurchaseOrderMainStatus(order))"
+          class="btn-success"
+          type="button"
+          @click="handleGoReport"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="12" y1="18" x2="12" y2="12" />
+            <line x1="9" y1="15" x2="15" y2="15" />
+          </svg>
+          采购单报表
+        </button>
       </div>
     </div>
 
@@ -43,7 +126,7 @@
           </div>
           <div class="info-item">
             <span class="info-label">状态</span>
-            <span class="info-value">{{ getStatusText(order.status) }}</span>
+            <span class="info-value">{{ getStatusText(normalizePurchaseOrderMainStatus(order)) }}</span>
           </div>
           <div class="info-item" v-if="canViewVendorInfo">
             <span class="info-label">供应商</span>
@@ -70,13 +153,6 @@
             <span class="info-value info-value--time">{{ formatDateTime(order.createTime) }}</span>
           </div>
           <div class="info-item info-item--span-3">
-            <span class="info-label">标签</span>
-            <div class="tags-row">
-              <TagListDisplay :tags="currentTags" />
-              <button class="btn-add-tag" @click="tagDialogVisible = true">添加标签</button>
-            </div>
-          </div>
-          <div class="info-item info-item--span-3">
             <span class="info-label">送货地址</span>
             <span class="info-value">{{ order.deliveryAddress || '--' }}</span>
           </div>
@@ -99,7 +175,13 @@
         </div>
         <div class="tabs-body">
           <div v-show="activeTab === 'items'">
-            <CrmDataTable :data="order.items" size="small" v-if="order.items?.length" class="items-table">
+            <CrmDataTable
+              :data="order.items"
+              :row-key="poItemRowKey"
+              size="small"
+              v-if="order.items?.length"
+              class="items-table"
+            >
               <el-table-column type="index" width="50" label="#" />
               <el-table-column prop="pn" label="物料型号" min-width="160" />
               <el-table-column prop="brand" label="品牌" width="120" />
@@ -116,6 +198,33 @@
               </el-table-column>
               <el-table-column prop="comment" label="备注" min-width="120" />
               <el-table-column prop="innerComment" label="内部备注" min-width="160" />
+              <el-table-column label="操作" width="240" fixed="right" align="center" class-name="op-col" label-class-name="op-col">
+                <template #default="{ row }">
+                  <div @click.stop @dblclick.stop>
+                    <div class="action-btns action-btns--po-detail-items">
+                      <el-button link type="primary" size="small" @click.stop="goPoItemLines(row)">明细列表</el-button>
+                      <el-button
+                        v-if="poLineShowArrival(row)"
+                        link
+                        type="warning"
+                        size="small"
+                        @click.stop="openPoLineArrival(row)"
+                      >
+                        通知到货
+                      </el-button>
+                      <el-button
+                        v-if="poLineShowPayment(row)"
+                        link
+                        type="warning"
+                        size="small"
+                        @click.stop="openPoLinePayment(row)"
+                      >
+                        申请付款
+                      </el-button>
+                    </div>
+                  </div>
+                </template>
+              </el-table-column>
             </CrmDataTable>
             <el-empty v-else description="暂无明细" :image-size="80" />
           </div>
@@ -150,37 +259,25 @@
       @success="refreshTags"
     />
 
-    <!-- 更新状态弹窗 -->
-    <el-dialog v-model="statusDialogVisible" title="更新状态" width="400px">
-      <el-form label-width="100px">
-        <el-form-item label="新状态">
-          <el-select v-model="newStatus" style="width: 100%">
-            <el-option label="新建" :value="1" />
-            <el-option label="待审核" :value="2" />
-            <el-option label="审核通过" :value="10" />
-            <el-option label="待确认" :value="20" />
-            <el-option label="已确认" :value="30" />
-            <el-option label="进行中" :value="50" />
-            <el-option label="采购完成" :value="100" />
-            <el-option label="审核失败" :value="-1" />
-            <el-option label="取消" :value="-2" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="statusDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="statusLoading" @click="confirmUpdateStatus">确定</el-button>
-      </template>
-    </el-dialog>
+    <PurchaseOrderItemLineDialogs ref="poItemLineDialogsRef" @success="fetchOrder" />
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
+import { favoriteApi } from '@/api/favorite'
+import {
+  PURCHASE_ORDER_FAVORITE_ENTITY_TYPE,
+  PURCHASE_ORDER_FAVORITES_CHANGED_EVENT
+} from '@/constants/purchaseOrderFavorites'
+import {
+  purchaseOrderReportAllowed,
+  normalizePurchaseOrderMainStatus
+} from '@/constants/purchaseOrderStatus'
 import { tagApi, type TagDefinitionDto } from '@/api/tag'
 import { useAuthStore } from '@/stores/auth'
 import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
@@ -188,6 +285,8 @@ import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { recordPurchaseOrderRecentView } from '@/utils/purchaseOrderRecentHistory'
+import PurchaseOrderItemLineDialogs from '@/components/purchaseOrder/PurchaseOrderItemLineDialogs.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -195,9 +294,23 @@ const authStore = useAuthStore()
 
 const canViewVendorInfo = computed(() => authStore.hasPermission('vendor.info.read'))
 const canViewPurchaseAmount = computed(() => authStore.hasPermission('purchase.amount.read'))
+/** 与采购订单明细列表「通知到货」一致 */
+const canCreateArrivalNotice = computed(() => authStore.hasPermission('purchase-order.read'))
 
 const loading = ref(false)
 const order = ref<any>(null)
+
+/** 与原列表「取消订单」一致：审核通过(10)前可标记取消(-2)；已为取消不可再点 */
+const canCancelPurchaseOrderFromMenu = computed(() => {
+  const o = order.value
+  if (!o) return false
+  const s = normalizePurchaseOrderMainStatus(o)
+  if (!Number.isFinite(s) || s === -2) return false
+  return s < 10
+})
+
+const poFavorited = ref(false)
+const favoriteLoading = ref(false)
 const activeTab = ref('items')
 const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
 
@@ -205,16 +318,177 @@ const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
 const currentTags = ref<TagDefinitionDto[]>([])
 const tagDialogVisible = ref(false)
 
-// 状态
-const statusDialogVisible = ref(false)
-const statusLoading = ref(false)
-const newStatus = ref(1)
+const poItemLineDialogsRef = ref<InstanceType<typeof PurchaseOrderItemLineDialogs> | null>(null)
 
 const orderId = computed(() => route.params.id as string)
+
+function poItemRowKey(row: any) {
+  return String(row?.id ?? row?.Id ?? '')
+}
+
+/** 将详情接口返回的明细行转为与「采购订单明细」列表行一致的结构，供通知到货 / 申请付款弹窗使用 */
+function poDetailLineToListShape(it: any) {
+  const o = order.value
+  if (!o) return null
+  const qty = Number(it.qty ?? it.Qty ?? 0)
+  const cost = Number(it.cost ?? it.Cost ?? 0)
+  return {
+    purchaseOrderItemId: String(
+      it.purchaseOrderItemId ?? it.PurchaseOrderItemId ?? it.id ?? it.Id ?? ''
+    ),
+    purchaseOrderId: String(o.id),
+    purchaseOrderCode: o.purchaseOrderCode,
+    vendorId: o.vendorId,
+    vendorName: o.vendorName,
+    purchaseUserName: o.purchaseUserName,
+    itemStatus: Number(it.status ?? it.Status ?? 0),
+    pn: it.pn ?? it.PN,
+    brand: it.brand ?? it.Brand,
+    qty,
+    cost,
+    lineTotal: qty * cost,
+    currency: it.currency ?? it.Currency ?? o.currency,
+    deliveryDate: it.deliveryDate ?? it.DeliveryDate ?? o.deliveryDate,
+    canApplyPayment: Boolean(it.canApplyPayment ?? it.CanApplyPayment)
+  }
+}
+
+function poLineShowArrival(row: any) {
+  const line = poDetailLineToListShape(row)
+  return !!(line && canCreateArrivalNotice.value && line.itemStatus === 30)
+}
+
+function poLineShowPayment(row: any) {
+  const line = poDetailLineToListShape(row)
+  return !!(line && line.canApplyPayment)
+}
+
+function goPoItemLines(row: any) {
+  const pn = String(row?.pn ?? row?.PN ?? '').trim()
+  router.push({
+    name: 'PurchaseOrderItemList',
+    query: pn ? { pn } : {}
+  })
+}
+
+function openPoLineArrival(row: any) {
+  const line = poDetailLineToListShape(row)
+  if (!line) return
+  poItemLineDialogsRef.value?.openArrival(line)
+}
+
+function openPoLinePayment(row: any) {
+  const line = poDetailLineToListShape(row)
+  if (!line) return
+  poItemLineDialogsRef.value?.openPayment(line)
+}
+
+/** CaptionBar：主标题优先供应商名称（有权限且有时），否则单号 */
+const captionTitle = computed(() => {
+  const o = order.value
+  if (!o) return '采购订单'
+  if (canViewVendorInfo.value && o.vendorName?.trim()) return String(o.vendorName).trim()
+  return o.purchaseOrderCode || '采购订单'
+})
+
+const captionMetaVisible = computed(() => {
+  const o = order.value
+  if (!o?.purchaseOrderCode) return false
+  if (canViewVendorInfo.value && o.vendorName?.trim()) return true
+  return false
+})
+
+const captionAvatarChar = computed(() => {
+  const t = captionTitle.value
+  return (t && t[0]) || '采'
+})
+
+function onHeaderMoreCommand(cmd: string) {
+  if (cmd === 'cancel_order') void handleCancelPurchaseOrder()
+  else if (cmd === 'delete') void handleDeleteOrder()
+}
+
+async function handleCancelPurchaseOrder() {
+  if (!order.value?.id || !canCancelPurchaseOrderFromMenu.value) return
+  try {
+    await ElMessageBox.confirm(
+      `确认将采购订单 ${order.value.purchaseOrderCode} 标记为「取消」吗？`,
+      '取消订单',
+      { type: 'warning', confirmButtonText: '确认', cancelButtonText: '关闭' }
+    )
+    await purchaseOrderApi.updateStatus(order.value.id, -2)
+    ElMessage.success('订单已取消')
+    await fetchOrder()
+  } catch {
+    /* 取消 */
+  }
+}
+
+async function handleDeleteOrder() {
+  if (!order.value?.id) return
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除采购订单 ${order.value.purchaseOrderCode} 吗？`,
+      '删除确认',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+    )
+    await purchaseOrderApi.delete(order.value.id)
+    ElMessage.success('已删除')
+    router.push({ name: 'PurchaseOrderList' })
+  } catch {
+    /* 取消 */
+  }
+}
+
+function handleGoReport() {
+  if (!order.value?.id) return
+  if (!purchaseOrderReportAllowed(normalizePurchaseOrderMainStatus(order.value))) {
+    ElMessage.warning('仅供应商已确认后的采购订单可生成采购单报表')
+    return
+  }
+  router.push({ name: 'PurchaseOrderReport', params: { id: String(order.value.id) } })
+}
 
 onMounted(() => {
   fetchOrder()
 })
+
+watch(orderId, () => {
+  fetchOrder()
+})
+
+async function loadFavoriteState() {
+  const id = orderId.value
+  if (!id) {
+    poFavorited.value = false
+    return
+  }
+  try {
+    poFavorited.value = await favoriteApi.checkFavorite(PURCHASE_ORDER_FAVORITE_ENTITY_TYPE, id)
+  } catch {
+    poFavorited.value = false
+  }
+}
+
+async function toggleFavorite() {
+  const id = orderId.value
+  if (!id || favoriteLoading.value) return
+  favoriteLoading.value = true
+  try {
+    if (poFavorited.value) {
+      await favoriteApi.removeFavorite(PURCHASE_ORDER_FAVORITE_ENTITY_TYPE, id)
+      poFavorited.value = false
+    } else {
+      await favoriteApi.addFavorite({ entityType: PURCHASE_ORDER_FAVORITE_ENTITY_TYPE, entityId: id })
+      poFavorited.value = true
+    }
+    window.dispatchEvent(new Event(PURCHASE_ORDER_FAVORITES_CHANGED_EVENT))
+  } catch {
+    /* 全局拦截器已提示 */
+  } finally {
+    favoriteLoading.value = false
+  }
+}
 
 const fetchOrder = async () => {
   loading.value = true
@@ -223,9 +497,18 @@ const fetchOrder = async () => {
     order.value = data ?? null
     if (order.value) {
       refreshTags()
+      recordPurchaseOrderRecentView({
+        id: String(order.value.id),
+        purchaseOrderCode: order.value.purchaseOrderCode,
+        vendorName: order.value.vendorName
+      })
+      await loadFavoriteState()
+    } else {
+      poFavorited.value = false
     }
   } catch {
     order.value = null
+    poFavorited.value = false
   } finally {
     loading.value = false
   }
@@ -259,30 +542,11 @@ const handleEdit = () => {
   router.push({ name: 'PurchaseOrderEdit', params: { id: order.value.id } })
 }
 
-const handleUpdateStatus = () => {
-  if (!order.value) return
-  newStatus.value = order.value.status
-  statusDialogVisible.value = true
-}
-
-const confirmUpdateStatus = async () => {
-  if (!order.value) return
-  statusLoading.value = true
-  try {
-    await purchaseOrderApi.updateStatus(order.value.id, newStatus.value)
-    order.value.status = newStatus.value
-    statusDialogVisible.value = false
-    ElMessage.success('状态已更新')
-  } catch {
-    ElMessage.error('更新失败')
-  } finally {
-    statusLoading.value = false
-  }
-}
 </script>
 
 <style lang="scss" scoped>
 @import '@/assets/styles/variables.scss';
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .purchase-order-detail {
   padding: 24px;
@@ -306,33 +570,42 @@ const confirmUpdateStatus = async () => {
 
 .header-right {
   display: flex;
+  align-items: center;
   gap: 10px;
 }
 
 .btn-back {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   padding: 7px 12px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid $border-panel;
   border-radius: $border-radius-md;
   color: $text-muted;
   font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
   cursor: pointer;
   transition: all 0.2s;
-  &:hover { background: rgba(255,255,255,0.07); color: $text-secondary; border-color: rgba(0,212,255,0.2); }
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: $text-secondary;
+    border-color: rgba(0, 212, 255, 0.2);
+  }
 }
 
-.title-group {
+.po-caption-title-group {
   display: flex;
   align-items: center;
   gap: 14px;
 }
 
-.title-avatar {
+.caption-avatar-lg {
   width: 48px;
   height: 48px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.3), rgba(0, 212, 255, 0.2));
+  border: 1px solid rgba(0, 212, 255, 0.25);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -340,15 +613,32 @@ const confirmUpdateStatus = async () => {
   font-size: 20px;
   font-weight: 700;
   color: $cyan-primary;
-  border: 1px solid rgba(0, 212, 255, 0.25);
-  background: linear-gradient(135deg, rgba(0,102,255,0.3), rgba(0,212,255,0.2));
+}
+
+.page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.page-title-with-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .page-title {
-  margin: 0 0 6px;
   font-size: 20px;
   font-weight: 600;
   color: $text-primary;
+  margin: 0;
+
+  &--muted {
+    color: rgba(150, 170, 195, 0.82);
+  }
 }
 
 .title-meta {
@@ -357,24 +647,148 @@ const confirmUpdateStatus = async () => {
   gap: 8px;
 }
 
-.btn-primary {
-  padding: 8px 14px;
-  border-radius: $border-radius-md;
-  border: 1px solid rgba(0,212,255,0.4);
-  color: #fff;
-  font-size: 13px;
-  background: linear-gradient(135deg, rgba(0,102,255,0.8), rgba(0,212,255,0.7));
-  cursor: pointer;
+.caption-code {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: $text-muted;
 }
 
-.btn-secondary {
-  padding: 8px 14px;
-  border-radius: $border-radius-md;
-  border: 1px solid $border-panel;
-  color: $text-secondary;
-  font-size: 13px;
-  background: rgba(255,255,255,0.05);
+.title-tags-row {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-add-tag {
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px dashed rgba(0, 212, 255, 0.35);
+  background: transparent;
+  color: rgba(200, 216, 232, 0.85);
+  font-size: 11px;
+  font-family: 'Noto Sans SC', sans-serif;
   cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: rgba(0, 212, 255, 0.08);
+  }
+}
+
+.btn-favorite-star {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(200, 220, 240, 0.5);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, transform 0.12s;
+
+  .star-icon {
+    width: 22px;
+    height: 22px;
+    display: block;
+  }
+
+  &:hover:not(:disabled) {
+    color: #00d4ff;
+    background: rgba(0, 212, 255, 0.1);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.92);
+  }
+
+  &.is-favorite {
+    color: #ffc94d;
+  }
+
+  &.is-favorite:hover:not(:disabled) {
+    color: #ffd666;
+    background: rgba(255, 201, 77, 0.12);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+}
+
+.btn-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, rgba(46, 160, 67, 0.88), rgba(70, 191, 145, 0.78));
+  border: 1px solid rgba(70, 191, 145, 0.45);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(70, 191, 145, 0.3);
+  }
+}
+
+.btn-more-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-secondary;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Noto Sans SC', sans-serif;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(0, 212, 255, 0.25);
+    color: $text-primary;
+  }
+
+  &__dots {
+    font-size: 18px;
+    line-height: 1;
+    letter-spacing: 0.5px;
+    transform: translateY(-1px);
+    font-weight: 700;
+  }
 }
 
 .loading-wrap {
@@ -412,12 +826,6 @@ const confirmUpdateStatus = async () => {
   font-size: 14px;
   font-weight: 500;
   color: $text-primary;
-}
-
-.order-code {
-  font-family: 'Space Mono', monospace;
-  font-size: 11px;
-  color: $text-muted;
 }
 
 .info-grid {
@@ -466,23 +874,6 @@ const confirmUpdateStatus = async () => {
 .info-value--time {
   font-size: 12px;
   color: $text-muted;
-}
-
-.tags-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.btn-add-tag {
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px dashed rgba(0, 212, 255, 0.35);
-  background: transparent;
-  color: rgba(200, 216, 232, 0.85);
-  font-size: 11px;
-  cursor: pointer;
 }
 
 .tabs-section {
@@ -561,9 +952,54 @@ const confirmUpdateStatus = async () => {
     .el-button { white-space: nowrap !important; }
     .cell { white-space: nowrap; }
   }
+  :deep(.action-btns--po-detail-items) {
+    opacity: 1;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+  }
 }
 
 .doc-tab-content {
   padding-top: 4px;
+}
+</style>
+
+<!-- 顶栏「更多」下拉 Teleport 到 body，需非 scoped -->
+<style lang="scss">
+@import '@/assets/styles/variables.scss';
+
+.po-detail-header-more-popper.el-dropdown__popper,
+.po-detail-header-more-popper.el-popper {
+  background: $layer-2 !important;
+  border: 1px solid rgba(0, 212, 255, 0.15) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+}
+
+.po-detail-header-more-popper .el-dropdown-menu {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 4px 0 !important;
+}
+
+.po-detail-header-more-popper .el-dropdown-menu__item {
+  color: rgba(200, 220, 240, 0.92) !important;
+  font-size: 13px;
+
+  &:hover,
+  &:focus {
+    background: rgba(0, 212, 255, 0.1) !important;
+    color: #e8f4ff !important;
+  }
+}
+
+.po-detail-header-more-popper .detail-more-item--danger {
+  color: rgba(245, 108, 108, 0.95) !important;
+  &:hover,
+  &:focus {
+    background: rgba(245, 108, 108, 0.12) !important;
+    color: #ff9a9a !important;
+  }
 }
 </style>

@@ -239,10 +239,10 @@
           <el-input v-model="formData.remark" type="textarea" :rows="2" placeholder="请输入备注" />
         </el-form-item>
 
-        <!-- 供应商报价：数量 / 价格 / 折算价（可增删行，默认一行空白） -->
+        <!-- 采购报价：数量 / 价格 / 折算价（可增删行，默认一行空白） -->
         <div class="price-tier-panel">
           <div class="price-tier-header">
-            <h4 class="price-tier-title">供应商报价</h4>
+            <h4 class="price-tier-title">采购报价</h4>
           </div>
           <CrmDataTable class="price-tier-table" :data="formData.quotePriceRows" size="small">
               <el-table-column label="数量" min-width="120">
@@ -442,7 +442,7 @@ const formData = ref({
   salesUserName: '',
   purchaseUserName: '',
   remark: '',
-  /** 供应商报价阶梯：数量 / 价格 / 币别 / 折算价，新建默认一行空白 */
+  /** 采购报价阶梯：数量 / 价格 / 币别 / 折算价，新建默认一行空白 */
   quotePriceRows: [emptyPriceRow()]
 })
 
@@ -781,7 +781,7 @@ const handleSubmit = async () => {
         (r) => Number(r.quantity) >= 1 && r.unitPrice != null && !Number.isNaN(Number(r.unitPrice))
       )
       if (!hasValidTier) {
-        ElMessage.warning('请在「供应商报价」列表中至少填写一行：数量≥1 且 价格有效')
+        ElMessage.warning('请在「采购报价」列表中至少填写一行：数量≥1 且 价格有效')
         return false
       }
       return true

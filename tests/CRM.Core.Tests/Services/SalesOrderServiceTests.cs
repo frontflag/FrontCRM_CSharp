@@ -11,6 +11,7 @@ namespace CRM.Core.Tests.Services
     {
         private readonly IRepository<SellOrder> _orderRepository;
         private readonly IRepository<SellOrderItem> _orderItemRepository;
+        private readonly IRepository<SellOrderItemExtend> _soItemExtendRepository;
         private readonly IRepository<PurchaseOrder> _poRepository;
         private readonly IRepository<PurchaseOrderItem> _poItemRepository;
         private readonly IDataPermissionService _dataPermissionService;
@@ -21,6 +22,7 @@ namespace CRM.Core.Tests.Services
         {
             _orderRepository = Substitute.For<IRepository<SellOrder>>();
             _orderItemRepository = Substitute.For<IRepository<SellOrderItem>>();
+            _soItemExtendRepository = Substitute.For<IRepository<SellOrderItemExtend>>();
             _poRepository = Substitute.For<IRepository<PurchaseOrder>>();
             _poItemRepository = Substitute.For<IRepository<PurchaseOrderItem>>();
             _dataPermissionService = Substitute.For<IDataPermissionService>();
@@ -29,6 +31,7 @@ namespace CRM.Core.Tests.Services
             _orderService = new SalesOrderService(
                 _orderRepository,
                 _orderItemRepository,
+                _soItemExtendRepository,
                 _poRepository,
                 _poItemRepository,
                 _dataPermissionService,

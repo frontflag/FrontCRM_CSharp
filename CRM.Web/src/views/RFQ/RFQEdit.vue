@@ -183,7 +183,7 @@
                 <template #label>
                   <span class="rfq-field-label">
                     分配方式
-                    <el-tooltip content="询价明细如何分配给采购员（同一采购、多人、按品牌或指定人员）" placement="top">
+                    <el-tooltip content="询价明细按采购轮询分配给采购员" placement="top">
                       <el-icon class="rfq-label-help" aria-hidden="true"><QuestionFilled /></el-icon>
                     </el-tooltip>
                   </span>
@@ -742,7 +742,7 @@ async function loadRFQ() {
     formData.currency = data.currency || 'RMB'
     formData.rfqType = data.rfqType
     formData.quoteMethod = data.quoteMethod
-    formData.assignMethod = data.assignMethod
+    formData.assignMethod = 2
     formData.industry = data.industry || ''
     formData.product = data.product || ''
     formData.targetType = data.targetType
@@ -888,7 +888,7 @@ function applyDraftPayload(payload: any) {
     formData.currency = payload.currency || 'RMB'
   formData.rfqType = payload.rfqType ?? 1
   formData.quoteMethod = payload.quoteMethod ?? 2
-  formData.assignMethod = payload.assignMethod ?? 2
+  formData.assignMethod = 2
   formData.industry = payload.industry || ''
   formData.product = payload.product || ''
   formData.targetType = payload.targetType ?? 1

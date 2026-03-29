@@ -20,6 +20,7 @@ namespace CRM.Core.Services
 
         private readonly IRepository<PurchaseOrder> _poRepo;
         private readonly IRepository<PurchaseOrderItem> _poItemRepo;
+        private readonly IRepository<PurchaseOrderItemExtend> _poItemExtendRepo;
         private readonly IRepository<SellOrder> _soRepo;
         private readonly IRepository<SellOrderItem> _soItemRepo;
         private readonly IDataPermissionService _dataPermissionService;
@@ -29,6 +30,7 @@ namespace CRM.Core.Services
         public PurchaseOrderService(
             IRepository<PurchaseOrder> poRepo,
             IRepository<PurchaseOrderItem> poItemRepo,
+            IRepository<PurchaseOrderItemExtend> poItemExtendRepo,
             IRepository<SellOrder> soRepo,
             IRepository<SellOrderItem> soItemRepo,
             IDataPermissionService dataPermissionService,
@@ -37,6 +39,7 @@ namespace CRM.Core.Services
         {
             _poRepo = poRepo;
             _poItemRepo = poItemRepo;
+            _poItemExtendRepo = poItemExtendRepo;
             _soRepo = soRepo;
             _soItemRepo = soItemRepo;
             _dataPermissionService = dataPermissionService;
@@ -101,10 +104,26 @@ namespace CRM.Core.Services
                     CreateTime = DateTime.UtcNow
                 };
                 await _poItemRepo.AddAsync(poItem);
+                await AddPurchaseOrderItemExtendAsync(poItem);
             }
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
             return order;
+        }
+
+        private async Task AddPurchaseOrderItemExtendAsync(PurchaseOrderItem poItem)
+        {
+            var lineTotal = Math.Round(poItem.Qty * poItem.Cost, 2, MidpointRounding.AwayFromZero);
+            await _poItemExtendRepo.AddAsync(new PurchaseOrderItemExtend
+            {
+                Id = poItem.Id,
+                QtyStockInNotifyNot = poItem.Qty,
+                PurchaseInvoiceAmount = lineTotal,
+                PurchaseInvoiceToBe = lineTotal,
+                PaymentAmount = lineTotal,
+                PaymentAmountNot = lineTotal,
+                CreateTime = DateTime.UtcNow
+            });
         }
 
         public async Task<PurchaseOrder?> GetByIdAsync(string id)
@@ -254,7 +273,10 @@ namespace CRM.Core.Services
             {
                 var existing = await _poItemRepo.GetAllAsync();
                 foreach (var d in existing.Where(i => i.PurchaseOrderId == id))
+                {
+                    await _poItemExtendRepo.DeleteAsync(d.Id);
                     await _poItemRepo.DeleteAsync(d.Id);
+                }
 
                 decimal total = 0m;
                 foreach (var item in request.Items)
@@ -279,6 +301,7 @@ namespace CRM.Core.Services
                         CreateTime = DateTime.UtcNow
                     };
                     await _poItemRepo.AddAsync(poItem);
+                    await AddPurchaseOrderItemExtendAsync(poItem);
                     total += item.Qty * item.Cost;
                 }
                 order.Total = total;
@@ -299,7 +322,10 @@ namespace CRM.Core.Services
                 ?? throw new InvalidOperationException($"采购订单 {id} 不存在");
             var items = await _poItemRepo.GetAllAsync();
             foreach (var item in items.Where(i => i.PurchaseOrderId == id))
+            {
+                await _poItemExtendRepo.DeleteAsync(item.Id);
                 await _poItemRepo.DeleteAsync(item.Id);
+            }
             await _poRepo.DeleteAsync(id);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
         }

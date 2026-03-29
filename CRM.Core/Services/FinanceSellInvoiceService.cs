@@ -138,6 +138,9 @@ namespace CRM.Core.Services
             var invoice = await _invoiceRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"销项发票 {id} 不存在");
 
+            if (!string.IsNullOrWhiteSpace(request.CustomerId))
+                invoice.CustomerId = request.CustomerId.Trim();
+            if (request.CustomerName != null) invoice.CustomerName = request.CustomerName;
             if (request.InvoiceNo != null) invoice.InvoiceNo = request.InvoiceNo;
             if (request.InvoiceTotal.HasValue) invoice.InvoiceTotal = request.InvoiceTotal.Value;
             if (request.MakeInvoiceDate.HasValue) invoice.MakeInvoiceDate = PostgreSqlDateTime.ToUtc(request.MakeInvoiceDate.Value);

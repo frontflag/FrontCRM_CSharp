@@ -144,7 +144,11 @@ namespace CRM.Core.Services
             var receipt = await _receiptRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"收款单 {id} 不存在");
 
+            if (!string.IsNullOrWhiteSpace(request.CustomerId))
+                receipt.CustomerId = request.CustomerId.Trim();
+            if (request.CustomerName != null) receipt.CustomerName = request.CustomerName;
             if (request.ReceiptAmount.HasValue) receipt.ReceiptAmount = request.ReceiptAmount.Value;
+            if (request.ReceiptCurrency.HasValue) receipt.ReceiptCurrency = request.ReceiptCurrency.Value;
             if (request.ReceiptDate.HasValue) receipt.ReceiptDate = PostgreSqlDateTime.ToUtc(request.ReceiptDate.Value);
             if (request.ReceiptMode.HasValue) receipt.ReceiptMode = request.ReceiptMode.Value;
             if (request.Remark != null) receipt.Remark = request.Remark;

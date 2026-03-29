@@ -1,10 +1,7 @@
 <template>
   <div class="sales-order-list-page customer-list-theme">
     <div class="page-header">
-      <h2>销售订单管理</h2>
-      <el-button type="primary" @click="handleCreate">
-        <el-icon><Plus /></el-icon>新建销售订单
-      </el-button>
+      <h2>销售订单</h2>
     </div>
 
     <!-- 统计卡片 -->
@@ -35,28 +32,51 @@
       </el-col>
     </el-row>
 
-    <!-- 搜索筛选 -->
-    <el-card class="filter-card">
-      <el-form :inline="true" :model="filterForm">
-        <el-form-item label="订单号">
-          <el-input v-model="filterForm.code" placeholder="请输入订单号" clearable />
-        </el-form-item>
-        <el-form-item v-if="canViewCustomerInfo" label="客户">
-          <el-input v-model="filterForm.customer" placeholder="请输入客户名称" clearable />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="filterForm.status" placeholder="全部状态" clearable>
-            <el-option v-for="opt in statusFilterOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>查询
-          </el-button>
-          <el-button @click="handleReset">重置</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+    <!-- 搜索栏：对齐客户列表 CustomerList search-bar -->
+    <div class="search-bar">
+      <div class="search-left">
+        <span class="filter-field-label">订单号</span>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filterForm.code"
+            class="search-input"
+            placeholder="请输入订单号"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <template v-if="canViewCustomerInfo">
+          <span class="filter-field-label">客户</span>
+          <div class="search-input-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              v-model="filterForm.customer"
+              class="search-input"
+              placeholder="客户名称"
+              @keyup.enter="handleSearch"
+            />
+          </div>
+        </template>
+        <el-select
+          v-model="filterForm.status"
+          placeholder="全部状态"
+          clearable
+          class="status-select"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option v-for="opt in statusFilterOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+        </el-select>
+        <button class="btn-primary btn-sm" type="button" @click="handleSearch">搜索</button>
+        <button class="btn-ghost btn-sm" type="button" @click="handleReset">重置</button>
+      </div>
+    </div>
 
     <!-- 数据表格 -->
     <el-card class="table-card">
@@ -108,8 +128,8 @@
             {{ row.createUserName || row.createdBy || row.salesUserName || '—' }}
           </template>
         </el-table-column>
-        <!-- 操作列须为最后一列 + fixed="right"，结构对齐客户列表 CustomerList 末列 td -->
-        <el-table-column label="操作" width="480" min-width="480" fixed="right" class-name="op-col" label-class-name="op-col">
+        <!-- 操作列：详情/编辑/提交审核（删除在订单详情 CaptionBar「更多」） -->
+        <el-table-column label="操作" width="260" min-width="240" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
             <div @click.stop @dblclick.stop>
               <div class="action-btns">
@@ -123,10 +143,6 @@
                 >
                   提交审核
                 </button>
-                <button type="button" class="action-btn action-btn--warning" @click.stop="handleGeneratePO(row)">
-                  生成采购单
-                </button>
-                <button type="button" class="action-btn action-btn--danger" @click.stop="handleDelete(row)">删除</button>
               </div>
             </div>
           </template>
@@ -151,17 +167,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { Plus, Search } from '@element-plus/icons-vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { salesOrderApi } from '@/api/salesOrder'
 import { salesOrderStatusText, salesOrderStatusTagType } from '@/constants/salesOrderStatus'
-import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
+const route = useRoute()
 
 const loading = ref(false)
 const orderList = ref<any[]>([])
@@ -255,13 +270,43 @@ const loadData = async () => {
   }
 }
 
-// 搜索和重置
+function syncFiltersFromRoute() {
+  if (route.name !== 'SalesOrderList') return
+  const q = route.query
+  filterForm.value.code = typeof q.code === 'string' ? q.code : ''
+  filterForm.value.customer = typeof q.customer === 'string' ? q.customer : ''
+  const st = q.status
+  if (st === undefined || st === null || st === '') {
+    filterForm.value.status = undefined
+  } else {
+    const n = Number(st)
+    filterForm.value.status = Number.isNaN(n) ? undefined : n
+  }
+}
+
+watch(
+  () => [route.name, route.query] as const,
+  () => syncFiltersFromRoute(),
+  { deep: true, immediate: true }
+)
+
+// 搜索和重置（与左侧检索面板共用 query）
 const handleSearch = () => {
+  const query: Record<string, string> = {}
+  const code = filterForm.value.code.trim()
+  if (code) query.code = code
+  const customer = filterForm.value.customer.trim()
+  if (customer) query.customer = customer
+  if (filterForm.value.status !== undefined && filterForm.value.status !== null) {
+    query.status = String(filterForm.value.status)
+  }
+  router.replace({ name: 'SalesOrderList', query })
   pageInfo.value.page = 1
 }
 
 const handleReset = () => {
   filterForm.value = { code: '', customer: '', status: undefined }
+  router.replace({ name: 'SalesOrderList', query: {} })
   pageInfo.value.page = 1
 }
 
@@ -272,11 +317,6 @@ const handleSizeChange = (val: number) => {
 
 const handlePageChange = (val: number) => {
   pageInfo.value.page = val
-}
-
-// 新建
-const handleCreate = () => {
-  router.push({ name: 'SalesOrderCreate' })
 }
 
 // 编辑
@@ -307,44 +347,26 @@ const submitForAudit = async (row: any) => {
   }
 }
 
-// 生成采购单
-const handleGeneratePO = async (row: any) => {
-  try {
-    await ElMessageBox.confirm(`确定要根据销售订单 ${row.sellOrderCode} 生成采购订单吗？`, '提示', { type: 'info' })
-    await purchaseOrderApi.autoGenerate(row.id)
-  } catch {
-    // 取消
-  }
-}
-
-// 删除
-const handleDelete = async (row: any) => {
-  try {
-    await ElMessageBox.confirm(`确定要删除销售订单 ${row.sellOrderCode} 吗？`, '警告', { type: 'warning' })
-    await salesOrderApi.delete(row.id)
-    loadData()
-  } catch {
-    // 取消
-  }
-}
-
 onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
 .sales-order-list-page {
-  padding: 20px;
+  padding: 24px;
+  min-height: 100%;
+  background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
 .page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 20px;
   h2 {
     margin: 0;
-    color: #E8F4FF;
+    color: $text-primary;
     font-size: 20px;
+    font-weight: 600;
   }
 }
 
@@ -371,10 +393,121 @@ onMounted(loadData)
   }
 }
 
-.filter-card {
-  margin-bottom: 20px;
-  background: #0A1628;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+// ---- 搜索栏（与 CustomerList 一致）----
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.search-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
+  white-space: nowrap;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: $text-muted;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 220px;
+  padding: 7px 12px 7px 32px;
+  background: $layer-2;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-primary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: $text-muted;
+  }
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+}
+
+.status-select {
+  width: 160px;
+  :deep(.el-select__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+  :deep(.el-select__placeholder) {
+    color: $text-muted !important;
+  }
+  :deep(.el-select__selected-item) {
+    color: $text-primary !important;
+  }
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: rgba(0, 212, 255, 0.3);
+    color: $text-secondary;
+  }
 }
 
 .table-card {

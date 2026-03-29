@@ -1,9 +1,12 @@
+using System.Linq.Expressions;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Quote;
+using CRM.Core.Models.Rbac;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Models.Sales;
+using CRM.Core.Models.System;
 using CRM.Core.Services;
 using NSubstitute;
 using Xunit;
@@ -25,6 +28,10 @@ namespace CRM.IntegrationTests
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUserService _userService;
         private readonly IEntityLookupService _entityLookup;
+        private readonly IRepository<SysParam> _sysParamRepo;
+        private readonly IRepository<RbacRole> _rbacRoleRepo;
+        private readonly IRepository<RbacUserRole> _rbacUserRoleRepo;
+        private readonly IRepository<User> _userRepo;
         private readonly RFQService _rfqService;
         private readonly QuoteService _quoteService;
         private readonly SalesOrderService _salesOrderService;
@@ -48,6 +55,15 @@ namespace CRM.IntegrationTests
             _serialNumberService.GenerateNextAsync(ModuleCodes.Quotation).Returns("QT-2024-001");
             _serialNumberService.GenerateNextAsync(ModuleCodes.SalesOrder).Returns("SO-2024-001");
             _entityLookup = Substitute.For<IEntityLookupService>();
+            _sysParamRepo = Substitute.For<IRepository<SysParam>>();
+            _rbacRoleRepo = Substitute.For<IRepository<RbacRole>>();
+            _rbacUserRoleRepo = Substitute.For<IRepository<RbacUserRole>>();
+            _userRepo = Substitute.For<IRepository<User>>();
+            _sysParamRepo.FindAsync(Arg.Any<Expression<Func<SysParam, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<SysParam>>(Array.Empty<SysParam>()));
+            _rbacRoleRepo.GetAllAsync().Returns(new List<RbacRole>());
+            _rbacUserRoleRepo.GetAllAsync().Returns(new List<RbacUserRole>());
+            _userRepo.GetAllAsync().Returns(new List<User>());
             _rfqService = new RFQService(
                 _rfqRepository,
                 _rfqItemRepository,
@@ -56,7 +72,12 @@ namespace CRM.IntegrationTests
                 _unitOfWork,
                 _serialNumberService,
                 _dataPermissionService,
-                _userService);
+                _userService,
+                _sysParamRepo,
+                _rbacRoleRepo,
+                _rbacUserRoleRepo,
+                _quoteRepository,
+                _userRepo);
             _quoteService = new QuoteService(_quoteRepository, _quoteItemRepository, _unitOfWork, _serialNumberService);
             _salesOrderService = new SalesOrderService(
                 _salesOrderRepository,
@@ -75,7 +96,16 @@ namespace CRM.IntegrationTests
             {
                 CustomerId = "CUST-001",
                 SalesUserId = "USER-001",
-                RfqDate = DateTime.UtcNow
+                Items =
+                {
+                    new CreateRFQItemRequest
+                    {
+                        Mpn = "REF3430QDBVRQ1",
+                        Brand = "TI",
+                        CustomerBrand = "TI",
+                        Quantity = 1
+                    }
+                }
             };
             _rfqRepository.GetAllAsync().Returns(new List<RFQ>());
             _rfqItemRepository.GetAllAsync().Returns(new List<RFQItem>());
@@ -138,7 +168,7 @@ namespace CRM.IntegrationTests
             Assert.NotNull(order);
             Assert.Equal("SO-2024-001", order.SellOrderCode);
             Assert.Equal(10000m, order.Total);
-            Assert.Equal(0, order.Status);
+            Assert.Equal(SellOrderMainStatus.New, order.Status);
 
             // Step 5: 确认销售订单
             // Note: CreateAsync already called UpdateAsync once (to persist Total),

@@ -7,28 +7,52 @@
       </el-button>
     </div>
 
-    <el-card class="filter-card">
-      <el-form :inline="true" :model="filterForm">
-        <el-form-item label="单号">
-          <el-input v-model="filterForm.billCode" placeholder="请输入采购申请号" clearable />
-        </el-form-item>
-        <el-form-item label="销售订单">
-          <el-input v-model="filterForm.sellOrderId" placeholder="请输入销售订单ID" clearable />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="filterForm.status" placeholder="全部状态" clearable>
-            <el-option :value="0" label="新建" />
-            <el-option :value="1" label="部分完成" />
-            <el-option :value="2" label="全部完成" />
-            <el-option :value="3" label="已取消" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="loadList" :loading="loading">查询</el-button>
-          <el-button @click="handleReset" :disabled="loading">重置</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+    <!-- 搜索栏：对齐客户列表 CustomerList -->
+    <div class="search-bar">
+      <div class="search-left">
+        <span class="filter-field-label">采购申请号</span>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filterForm.billCode"
+            class="search-input"
+            placeholder="请输入采购申请号"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <span class="filter-field-label">销售订单</span>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filterForm.sellOrderId"
+            class="search-input search-input--narrow"
+            placeholder="销售订单 ID"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <el-select
+          v-model="filterForm.status"
+          placeholder="全部状态"
+          clearable
+          class="status-select"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option :value="0" label="新建" />
+          <el-option :value="1" label="部分完成" />
+          <el-option :value="2" label="全部完成" />
+          <el-option :value="3" label="已取消" />
+        </el-select>
+        <button class="btn-primary btn-sm" type="button" :disabled="loading" @click="handleSearch">搜索</button>
+        <button class="btn-ghost btn-sm" type="button" :disabled="loading" @click="handleReset">重置</button>
+      </div>
+    </div>
 
     <el-card class="table-card">
       <CrmDataTable :data="list" v-loading="loading" highlight-current-row @row-dblclick="handleView">
@@ -143,10 +167,6 @@ function getTypeText(t: number) {
 }
 
 async function loadList() {
-  // 用于定位菜单点击后是否真的进入列表页
-  // 用 console.log 避免 console.debug 被浏览器/控制台过滤
-  console.log('[PurchaseRequisitionList] loadList() called')
-
   loading.value = true
   try {
     const data = await purchaseRequisitionApi.getList({
@@ -164,6 +184,11 @@ async function loadList() {
   } finally {
     loading.value = false
   }
+}
+
+function handleSearch() {
+  page.value = 1
+  loadList()
 }
 
 function handleReset() {
@@ -189,42 +214,180 @@ function handleGeneratePurchaseOrder(row: any) {
 onMounted(loadList)
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
 .purchase-requisition-list-page {
-  padding: 20px;
+  padding: 24px;
+  min-height: 100%;
+  background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
 }
+
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
 }
+
 .page-header h2 {
   margin: 0;
-  color: #E8F4FF;
+  color: $text-primary;
   font-size: 20px;
+  font-weight: 600;
 }
-.filter-card {
-  margin-bottom: 20px;
-  background: #0A1628;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+
+// ---- 搜索栏（与 CustomerList 一致）----
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
+
+.search-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
+  white-space: nowrap;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: $text-muted;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 220px;
+  padding: 7px 12px 7px 32px;
+  background: $layer-2;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-primary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &--narrow {
+    width: 180px;
+  }
+
+  &::placeholder {
+    color: $text-muted;
+  }
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+}
+
+.status-select {
+  width: 140px;
+  :deep(.el-select__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+  :deep(.el-select__placeholder) {
+    color: $text-muted !important;
+  }
+  :deep(.el-select__selected-item) {
+    color: $text-primary !important;
+  }
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    border-color: rgba(0, 212, 255, 0.3);
+    color: $text-secondary;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
 .table-card {
   margin-top: 0;
-  background: #0A1628;
+  background: #0a1628;
   border: 1px solid rgba(0, 212, 255, 0.1);
   :deep(.el-table) {
     background: transparent;
     --el-table-header-bg-color: rgba(0, 212, 255, 0.1);
     --el-table-tr-bg-color: transparent;
     --el-table-border-color: rgba(0, 212, 255, 0.1);
-    color: #E8F4FF;
+    color: #e8f4ff;
 
     .el-table__cell .el-button {
       white-space: nowrap !important;
     }
   }
 }
+
 .pagination-wrapper {
   margin-top: 20px;
   display: flex;

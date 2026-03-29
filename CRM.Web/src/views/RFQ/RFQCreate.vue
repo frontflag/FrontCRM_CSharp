@@ -159,7 +159,7 @@
               <template #label>
                 <span class="rfq-field-label">
                   分配方式
-                  <el-tooltip content="询价明细如何分配给采购员（同一采购、多人、按品牌或指定人员）" placement="top">
+                  <el-tooltip content="询价明细按采购轮询分配给采购员" placement="top">
                     <el-icon class="rfq-label-help" aria-hidden="true"><QuestionFilled /></el-icon>
                   </el-tooltip>
                 </span>
@@ -538,7 +538,7 @@ async function loadRfqForEdit() {
       rfqType: data.rfqType ?? 1,
       targetType: data.targetType ?? 1,
       quoteMethod: d.quoteMethod ?? 2,
-      assignMethod: d.assignMethod ?? 2,
+      assignMethod: 2,
       importance: normalizeImportance(d.importanceLevel ?? d.importance),
       projectBackground: data.projectBackground || '',
       competitor: data.competitor || '',

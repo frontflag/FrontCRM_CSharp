@@ -1,5 +1,25 @@
 <template>
   <div class="finance-page">
+    <!-- 统计卡片（置顶） -->
+    <div class="stat-cards">
+      <div class="stat-card">
+        <div class="stat-label">本月付款总额</div>
+        <div class="stat-value">¥ {{ formatAmount(stats.monthTotal) }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">待审核</div>
+        <div class="stat-value warning">{{ stats.pendingCount }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">付款完成</div>
+        <div class="stat-value success">{{ stats.paidCount }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">新建</div>
+        <div class="stat-value">{{ stats.draftCount }}</div>
+      </div>
+    </div>
+
     <!-- 搜索栏 -->
     <div class="search-bar">
       <div class="search-left">
@@ -32,26 +52,6 @@
         <el-button type="primary" @click="loadData">
           <el-icon><Search /></el-icon> 查询
         </el-button>
-      </div>
-    </div>
-
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card">
-        <div class="stat-label">本月付款总额</div>
-        <div class="stat-value">¥ {{ formatAmount(stats.monthTotal) }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">待审核</div>
-        <div class="stat-value warning">{{ stats.pendingCount }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">付款完成</div>
-        <div class="stat-value success">{{ stats.paidCount }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">新建</div>
-        <div class="stat-value">{{ stats.draftCount }}</div>
       </div>
     </div>
 
@@ -103,7 +103,7 @@
             <div @click.stop @dblclick.stop>
               <div class="action-btns">
                 <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
-                <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="[1,-1,10].includes(row.status)">编辑</el-button>
+                <el-button size="small" text type="warning" @click.stop="openEdit(row)" v-if="[1,-1,10].includes(row.status)">付款</el-button>
                 <el-button size="small" text type="warning" @click.stop="submitAudit(row)" v-if="row.status === 1">提交审核</el-button>
                 <el-button size="small" text type="danger" @click.stop="cancelPayment(row)" v-if="[1,2].includes(row.status)">取消</el-button>
               </div>
@@ -306,7 +306,11 @@ const form = reactive<Partial<FinancePayment>>({
 
 const openEdit = (row: FinancePayment) => {
   editingId.value = row.id
-  Object.assign(form, { ...row })
+  const amountForEdit =
+    row.status === 100
+      ? Number(row.paymentAmount ?? row.paymentAmountToBe ?? 0)
+      : Number(row.paymentAmountToBe ?? row.paymentAmount ?? 0)
+  Object.assign(form, { ...row, paymentAmount: amountForEdit })
   dialogVisible.value = true
   loadPaymentDocs(row.id)
 }
@@ -316,8 +320,12 @@ const saveForm = async () => {
   try {
     if (editingId.value) {
       await financePaymentApi.update(editingId.value, {
-        ...form,
-        paymentAmountToBe: form.paymentAmount,
+        paymentAmountToBe: Number(form.paymentAmount ?? 0),
+        paymentCurrency: Number(form.paymentCurrency ?? 1),
+        paymentDate: form.paymentDate,
+        paymentMode: form.paymentMode,
+        bankSlipNo: form.bankSlipNo,
+        remark: form.remark,
       })
     } else {
       await financePaymentApi.create({

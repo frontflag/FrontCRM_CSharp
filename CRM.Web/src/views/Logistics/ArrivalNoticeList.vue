@@ -1,49 +1,58 @@
 <template>
-  <div class="page-wrap">
+  <div class="arrival-notice-list-page">
     <div class="page-header">
       <h2>到货通知</h2>
       <div class="ops">
-        <el-button type="primary" @click="syncFromPurchaseOrders">从采购订单同步</el-button>
         <el-button @click="loadData">刷新</el-button>
       </div>
     </div>
 
-    <el-card class="filter-card">
-      <el-form :inline="true" class="filter-form">
-        <el-form-item label="状态">
-          <el-select v-model="filters.status" placeholder="全部状态" clearable style="width: 140px">
-            <el-option label="新建" :value="1" />
-            <el-option label="未到货" :value="10" />
-            <el-option label="到货待检" :value="20" />
-            <el-option label="已质检" :value="30" />
-            <el-option label="已入库" :value="100" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="采购单号">
-          <el-input
+    <!-- 搜索栏：与客户列表 CustomerList 同款布局与控件皮肤 -->
+    <div class="search-bar">
+      <div class="search-left">
+        <span class="filter-field-label">状态</span>
+        <el-select
+          v-model="filters.status"
+          placeholder="全部状态"
+          clearable
+          class="status-select"
+          :teleported="false"
+          @change="loadData"
+        >
+          <el-option label="新建" :value="1" />
+          <el-option label="未到货" :value="10" />
+          <el-option label="到货待检" :value="20" />
+          <el-option label="已质检" :value="30" />
+          <el-option label="已入库" :value="100" />
+        </el-select>
+        <span class="filter-field-label">采购单号</span>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
             v-model="filters.purchaseOrderCode"
+            class="search-input"
             placeholder="请输入采购单号"
-            clearable
-            style="width: 200px"
             @keyup.enter="loadData"
           />
-        </el-form-item>
-        <el-form-item label="预计到货日期">
-          <el-date-picker
-            v-model="filters.expectedArrivalDate"
-            type="date"
-            value-format="YYYY-MM-DD"
-            placeholder="选择日期"
-            clearable
-            style="width: 170px"
-          />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="loadData">查询</el-button>
-          <el-button @click="resetFilters">重置</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+        </div>
+        <span class="filter-field-label">预计到货日期</span>
+        <el-date-picker
+          v-model="filters.expectedArrivalDate"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="选择日期"
+          clearable
+          class="filter-date-single"
+          :teleported="false"
+          @change="loadData"
+        />
+        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="loadData">搜索</button>
+        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="resetFilters">重置</button>
+      </div>
+    </div>
 
     <CrmDataTable :data="list" v-loading="loading">
       <el-table-column prop="noticeCode" label="到货通知号" width="170" />
@@ -53,13 +62,25 @@
         </template>
       </el-table-column>
       <el-table-column prop="purchaseOrderCode" label="采购单号" width="160" />
+      <el-table-column label="型号" min-width="120" show-overflow-tooltip>
+        <template #default="{ row }">{{ displayPn(row) }}</template>
+      </el-table-column>
+      <el-table-column label="品牌" width="100" show-overflow-tooltip>
+        <template #default="{ row }">{{ displayBrand(row) }}</template>
+      </el-table-column>
       <el-table-column label="预计到货日期" width="130" align="center">
         <template #default="{ row }">{{ formatExpected(row.expectedArrivalDate) }}</template>
       </el-table-column>
       <el-table-column prop="vendorName" label="供应商" min-width="160" />
       <el-table-column prop="purchaseUserName" label="采购员" width="120" />
-      <el-table-column label="到货数量" width="120" align="right">
-        <template #default="{ row }">{{ sumQty(row.items, 'arrivedQty') }}</template>
+      <el-table-column label="通知数量" width="100" align="right">
+        <template #default="{ row }">{{ formatQtyCol(expectQty(row)) }}</template>
+      </el-table-column>
+      <el-table-column label="到货数量" width="100" align="right">
+        <template #default="{ row }">{{ formatQtyCol(receiveQty(row)) }}</template>
+      </el-table-column>
+      <el-table-column label="质检通过" width="100" align="right">
+        <template #default="{ row }">{{ formatQtyCol(passedQty(row)) }}</template>
       </el-table-column>
       <el-table-column prop="createTime" label="创建时间" width="170">
         <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
@@ -90,14 +111,57 @@
       </el-table-column>
     </CrmDataTable>
 
-    <el-dialog v-model="itemsVisible" title="到货通知明细" width="760px">
-      <CrmDataTable :data="currentItems">
-        <el-table-column prop="pn" label="型号" min-width="140" />
-        <el-table-column prop="brand" label="品牌" width="120" />
-        <el-table-column prop="qty" label="通知数量" width="100" align="right" />
-        <el-table-column prop="arrivedQty" label="到货数量" width="100" align="right" />
-        <el-table-column prop="passedQty" label="质检通过" width="100" align="right" />
-      </CrmDataTable>
+    <el-dialog
+      v-model="itemsVisible"
+      title="到货通知明细"
+      width="720px"
+      align-center
+      destroy-on-close
+      class="arrival-detail-dialog"
+      @closed="onDetailClosed"
+    >
+      <el-descriptions
+        v-if="detailNotice"
+        :column="2"
+        border
+        size="small"
+        class="arrival-detail-desc"
+        :label-style="arrivalDetailLabelStyle"
+      >
+        <el-descriptions-item label="供应商名称">
+          {{ detailNotice.vendorName?.trim() || '—' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="供应商编号">
+          {{ detailNotice.vendorCode?.trim() || '—' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="采购订单编号">
+          {{ detailNotice.purchaseOrderCode?.trim() || '—' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="物料型号">
+          {{ displayPn(detailNotice) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="品牌">
+          {{ displayBrand(detailNotice) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="预计到货日期">
+          {{ formatExpected(detailNotice.expectedArrivalDate) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="采购员">
+          {{ detailNotice.purchaseUserName?.trim() || '—' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="到货通知数量">
+          {{ formatQtyCol(expectQty(detailNotice)) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="实际到货数量">
+          {{ formatQtyCol(receiveQty(detailNotice)) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="质检通过数量">
+          {{ formatQtyCol(passedQty(detailNotice)) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="入库数量">
+          {{ stockInQtyText(detailNotice) }}
+        </el-descriptions-item>
+      </el-descriptions>
     </el-dialog>
 
   </div>
@@ -114,7 +178,10 @@ const router = useRouter()
 const loading = ref(false)
 const list = ref<StockInNotifyDto[]>([])
 const itemsVisible = ref(false)
-const currentItems = ref<StockInNotifyItemDto[]>([])
+const detailNotice = ref<StockInNotifyDto | null>(null)
+
+/** 标签区至少单行容纳 6 个汉字 */
+const arrivalDetailLabelStyle = { minWidth: '8.5em', whiteSpace: 'nowrap' as const }
 const filters = ref<{
   status?: number
   purchaseOrderCode: string
@@ -125,8 +192,32 @@ const filters = ref<{
   expectedArrivalDate: ''
 })
 
-const sumQty = (items: StockInNotifyItemDto[], key: 'arrivedQty' | 'qty' | 'passedQty') =>
-  Number((items || []).reduce((s, x) => s + Number(x?.[key] || 0), 0).toFixed(4))
+const num = (v: unknown) => Number(v ?? 0)
+
+const qtyFromItems = (items: StockInNotifyItemDto[] | undefined, key: 'arrivedQty' | 'qty' | 'passedQty') =>
+  Number((items || []).reduce((s, x) => s + num(x?.[key]), 0).toFixed(4))
+
+/** 行级优先，与单表到货通知模型一致；缺省再从 items 汇总 */
+const pickQty = (
+  rowVal: number | undefined | null,
+  items: StockInNotifyItemDto[] | undefined,
+  itemKey: 'qty' | 'arrivedQty' | 'passedQty'
+) => (rowVal != null && !Number.isNaN(Number(rowVal)) ? Number(rowVal) : qtyFromItems(items, itemKey))
+
+const expectQty = (row: StockInNotifyDto) => pickQty(row.expectQty, row.items, 'qty')
+const receiveQty = (row: StockInNotifyDto) => pickQty(row.receiveQty, row.items, 'arrivedQty')
+const passedQty = (row: StockInNotifyDto) => pickQty(row.passedQty, row.items, 'passedQty')
+
+const rawPn = (row: StockInNotifyDto) => (row.pn != null && row.pn !== '' ? row.pn : row.items?.[0]?.pn) || ''
+const rawBrand = (row: StockInNotifyDto) => (row.brand != null && row.brand !== '' ? row.brand : row.items?.[0]?.brand) || ''
+const displayPn = (row: StockInNotifyDto) => rawPn(row) || '—'
+const displayBrand = (row: StockInNotifyDto) => rawBrand(row) || '—'
+
+const formatQtyCol = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(4).replace(/\.?0+$/, '') || '0')
+
+/** 已入库(100)后展示实收入库数量；此前尚无独立「入库数」字段时显示 — */
+const stockInQtyText = (row: StockInNotifyDto) =>
+  row.status === 100 ? formatQtyCol(receiveQty(row)) : '—'
 
 const statusText = (s: number) => ({ 1: '新建', 10: '未到货', 20: '到货待检', 30: '已质检', 100: '已入库' }[s] || '未知')
 const statusType = (s: number) => ({ 1: 'info', 10: 'warning', 20: 'primary', 30: 'success', 100: 'success' }[s] || 'info')
@@ -153,19 +244,6 @@ const resetFilters = () => {
   loadData()
 }
 
-const syncFromPurchaseOrders = async () => {
-  loading.value = true
-  try {
-    const r = await logisticsApi.autoGenerateArrivalNotices()
-    loadData()
-    ElMessage.success(`已处理 ${r.purchaseOrdersScanned} 张PO，新增 ${r.createdCount} 条，已存在 ${r.existingCount} 条`)
-  } catch (e: any) {
-    ElMessage.error(e?.message || '同步失败')
-  } finally {
-    loading.value = false
-  }
-}
-
 const markArrived = async (row: StockInNotifyDto) => {
   await logisticsApi.updateArrivalStatus(row.id, 20)
   loadData()
@@ -177,18 +255,200 @@ const goCreateQc = (row: StockInNotifyDto) => {
 }
 
 const viewItems = (row: StockInNotifyDto) => {
-  currentItems.value = row.items || []
+  detailNotice.value = row
   itemsVisible.value = true
+}
+
+const onDetailClosed = () => {
+  detailNotice.value = null
 }
 
 loadData()
 </script>
 
 <style scoped lang="scss">
-.page-wrap { padding: 20px; }
-.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.ops { display: flex; gap: 8px; }
-.filter-card { margin-bottom: 12px; }
-.filter-form { margin-bottom: -18px; }
-h2 { margin: 0; }
+@import '@/assets/styles/variables.scss';
+
+.arrival-notice-list-page {
+  padding: 24px;
+  min-height: 100%;
+  background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+
+  h2 {
+    margin: 0;
+    color: $text-primary;
+    font-size: 20px;
+    font-weight: 600;
+  }
+}
+
+.ops {
+  display: flex;
+  gap: 8px;
+}
+
+// ---- 搜索栏（与 CustomerList / PurchaseRequisitionListPage 一致）----
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.search-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
+  white-space: nowrap;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: $text-muted;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 220px;
+  padding: 7px 12px 7px 32px;
+  background: $layer-2;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-primary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: $text-muted;
+  }
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+}
+
+.status-select {
+  width: 140px;
+  :deep(.el-select__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+  :deep(.el-select__placeholder) {
+    color: $text-muted !important;
+  }
+  :deep(.el-select__selected-item) {
+    color: $text-primary !important;
+  }
+}
+
+.filter-date-single {
+  width: 170px;
+  flex-shrink: 0;
+  :deep(.el-input__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+  :deep(.el-input__inner) {
+    color: $text-primary !important;
+    font-size: 13px !important;
+  }
+  :deep(.el-input__prefix-inner .el-icon) {
+    color: $text-muted !important;
+  }
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    border-color: rgba(0, 212, 255, 0.3);
+    color: $text-secondary;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.arrival-detail-dialog {
+  :deep(.arrival-detail-desc .el-descriptions__label) {
+    font-weight: 500;
+    color: $text-secondary;
+  }
+  :deep(.arrival-detail-desc .el-descriptions__content) {
+    color: $text-primary;
+  }
+}
 </style>

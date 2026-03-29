@@ -75,7 +75,8 @@ namespace CRM.API.Controllers
             [FromQuery] string? customerKeyword = null,
             [FromQuery] string? materialModel = null,
             [FromQuery] string? salesUserId = null,
-            [FromQuery] string? salesUserKeyword = null)
+            [FromQuery] string? salesUserKeyword = null,
+            [FromQuery] string? hasQuotesOnly = null)
         {
             try
             {
@@ -89,6 +90,7 @@ namespace CRM.API.Controllers
                     MaterialModel = materialModel,
                     SalesUserId = salesUserId,
                     SalesUserKeyword = salesUserKeyword,
+                    HasQuotesOnly = ParseQueryBool(hasQuotesOnly),
                     CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 };
                 var result = await _rfqService.GetPagedItemsAsync(request);
@@ -225,6 +227,20 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex, "更新需求状态失败: {Id}", id);
                 return StatusCode(500, ApiResponse<object>.Fail($"更新状态失败: {ex.Message}", 500));
             }
+        }
+
+        /// <summary>解析查询字符串布尔（兼容 true/True/1/yes），避免模型绑定对 query 的歧义。</summary>
+        private static bool? ParseQueryBool(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var s = raw.Trim();
+            if (string.Equals(s, "true", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(s, "false", StringComparison.OrdinalIgnoreCase)) return false;
+            if (s == "1") return true;
+            if (s == "0") return false;
+            if (string.Equals(s, "yes", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(s, "no", StringComparison.OrdinalIgnoreCase)) return false;
+            return null;
         }
     }
 

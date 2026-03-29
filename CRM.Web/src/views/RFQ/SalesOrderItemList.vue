@@ -12,17 +12,6 @@
         </div>
         <div class="list-count-badge">共 {{ total }} 条</div>
       </div>
-      <div class="header-right">
-        <button
-          v-if="canPurchaseReq"
-          type="button"
-          class="btn-primary btn-sm"
-          :disabled="!selectedRows.length"
-          @click="batchApplyPurchase"
-        >
-          批量申请采购
-        </button>
-      </div>
     </div>
 
     <div class="search-bar">
@@ -37,6 +26,12 @@
           value-format="YYYY-MM-DD"
           class="so-date-range"
           clearable
+        />
+        <input
+          v-model="filters.sellOrderCode"
+          class="search-input so-filter-input"
+          placeholder="销售订单号"
+          @keyup.enter="loadList"
         />
         <input
           v-if="canViewCustomer"
@@ -58,7 +53,7 @@
     </div>
 
     <CrmDataTable
-      ref="tableRef"
+      ref="dataTableRef"
       class="quantum-table-block el-table-host"
       :data="list"
       v-loading="loading"
@@ -99,21 +94,60 @@
         <el-table-column label="创建人" width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.createUserName || row.createdBy || row.salesUserName || '—' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right" align="center" class-name="op-col" label-class-name="op-col">
+        <el-table-column label="操作" width="280" min-width="260" fixed="right" align="center" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
             <div @click.stop @dblclick.stop>
               <div class="action-btns">
                 <el-button link type="primary" size="small" @click.stop="goDetail(row)">详情</el-button>
                 <el-button v-if="canWriteSo" link type="primary" size="small" @click.stop="goEdit(row)">编辑</el-button>
-                <el-button v-if="canPurchaseReq" link type="warning" size="small" @click.stop="applyPurchaseOne(row)">申请采购</el-button>
-                <el-button v-if="canWriteSo" link type="warning" size="small" @click.stop="applyStockOutOne(row)">申请出库</el-button>
+                <el-button
+                  v-if="canPurchaseReq && mainAllowsOps(row)"
+                  link
+                  type="warning"
+                  size="small"
+                  @click.stop="applyPurchaseOne(row)"
+                >
+                  申请采购
+                </el-button>
+                <el-button
+                  v-if="canWriteSo && mainAllowsOps(row)"
+                  link
+                  type="warning"
+                  size="small"
+                  @click.stop="applyStockOutOne(row)"
+                >
+                  申请出库
+                </el-button>
               </div>
             </div>
           </template>
         </el-table-column>
     </CrmDataTable>
 
-    <div v-if="total > 0" class="pagination-wrapper">
+    <div v-if="total > 0" class="table-footer-bar">
+      <div class="basket-footer-left">
+        <el-button class="basket-open-btn" link type="primary" @click="basketDrawerVisible = true">
+          复选篮子<span v-if="basketCount" class="basket-count-label">（{{ basketCount }}）</span>
+        </el-button>
+        <el-button
+          v-if="basketCount"
+          class="basket-clear-btn"
+          link
+          type="warning"
+          @click="handleClearBasket"
+        >
+          清空篮子
+        </el-button>
+        <button
+          v-if="canPurchaseReq"
+          type="button"
+          class="btn-primary btn-sm basket-batch-purchase-btn"
+          :disabled="!basketCount || !basketItems.every((r) => mainAllowsOps(r))"
+          @click="batchApplyPurchase"
+        >
+          批量申请采购
+        </button>
+      </div>
       <el-pagination
         v-model:current-page="page"
         v-model:page-size="pageSize"
@@ -125,6 +159,61 @@
         @size-change="loadList"
       />
     </div>
+
+    <el-drawer
+      v-model="basketDrawerVisible"
+      title="复选篮子"
+      direction="rtl"
+      size="min(560px, 94vw)"
+      class="so-item-basket-drawer"
+    >
+      <p v-if="!basketCount" class="basket-drawer-hint">篮子里暂无记录。在列表中勾选行即可加入篮子，翻页后已选记录会保留。</p>
+      <template v-else>
+        <p class="basket-drawer-summary">
+          共 <strong>{{ basketCount }}</strong> 条，可在此移除单条或点击
+          <el-button
+            class="basket-clear-btn basket-clear-btn--drawer-inline"
+            link
+            type="warning"
+            @click="handleClearBasket"
+          >
+            清空篮子
+          </el-button>
+          全部清除。
+        </p>
+        <div class="crm-items-table crm-data-table">
+          <el-table :data="basketItems" max-height="70vh" size="small" border stripe>
+            <el-table-column prop="sellOrderCode" label="销售单号" min-width="140" show-overflow-tooltip />
+            <el-table-column label="状态" width="100" align="center">
+              <template #default="{ row }">
+                <el-tag effect="dark" :type="statusTagType(Number(row.orderStatus))" size="small">
+                  {{ statusText(Number(row.orderStatus)) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column v-if="canViewCustomer" prop="customerName" label="客户" min-width="120" show-overflow-tooltip />
+            <el-table-column prop="pn" label="物料型号" min-width="130" show-overflow-tooltip />
+            <el-table-column prop="qty" label="数量" width="72" align="right" />
+            <el-table-column label="操作" width="88" fixed="right" align="center" class-name="op-col" label-class-name="op-col">
+              <template #default="{ row }">
+                <div @click.stop @dblclick.stop>
+                  <div class="action-btns">
+                    <el-button
+                      link
+                      type="danger"
+                      size="small"
+                      @click.stop="removeOneFromBasket(String(row.sellOrderItemId ?? ''))"
+                    >
+                      移除
+                    </el-button>
+                  </div>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </template>
+    </el-drawer>
 
     <!-- 新建采购申请弹窗 -->
     <el-dialog v-model="applyDialogVisible" title="新建采购申请" width="720px" destroy-on-close>
@@ -199,33 +288,49 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
+import { useSalesOrderItemListBasketStore } from '@/stores/salesOrderItemListBasket'
+import CrmDataTable from '@/components/CrmDataTable.vue'
 import salesOrderApi from '@/api/salesOrder'
 import purchaseRequisitionApi from '@/api/purchaseRequisition'
 import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
-import { salesOrderStatusText, salesOrderStatusTagType } from '@/constants/salesOrderStatus'
+import {
+  salesOrderStatusText,
+  salesOrderStatusTagType,
+  salesOrderMainAllowsPurchaseAndStockOut
+} from '@/constants/salesOrderStatus'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const authStore = useAuthStore()
+
+const basketStore = useSalesOrderItemListBasketStore()
+const { count: basketCount, items: basketItems } = storeToRefs(basketStore)
+const suppressBasketMerge = ref(false)
+const basketDrawerVisible = ref(false)
+const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const canViewCustomer = computed(() => authStore.hasPermission('customer.info.read'))
 const canViewAmount = computed(() => authStore.hasPermission('sales.amount.read'))
 const canWriteSo = computed(() => authStore.hasPermission('sales-order.write'))
 const canPurchaseReq = computed(() => authStore.hasPermission('purchase-requisition.write'))
+
+function mainAllowsOps(row: { orderStatus?: number }) {
+  return salesOrderMainAllowsPurchaseAndStockOut(Number(row?.orderStatus))
+}
 
 const loading = ref(false)
 const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
-const tableRef = ref()
-const selectedRows = ref<any[]>([])
 
 const dateRange = ref<[string, string] | null>(null)
 const filters = reactive({
+  sellOrderCode: '',
   customerName: '',
   salesUserName: '',
   pn: ''
@@ -309,6 +414,10 @@ const submitApply = async () => {
 }
 
 async function applyPurchaseOne(row: any) {
+  if (!mainAllowsOps(row)) {
+    ElMessage.warning('销售订单主表审核通过后，方可申请采购')
+    return
+  }
   applyFormReset()
   applyDialogVisible.value = true
   try {
@@ -355,7 +464,57 @@ function formatMoney(n: number, currency?: number) {
 }
 
 function onSelectionChange(rows: any[]) {
-  selectedRows.value = rows
+  if (suppressBasketMerge.value) return
+  basketStore.mergePageSelection(list.value as any[], rows as any[])
+}
+
+async function restoreTableSelectionFromBasket() {
+  const table = dataTableRef.value
+  if (!table) return
+  suppressBasketMerge.value = true
+  await nextTick()
+  table.clearSelection()
+  await nextTick()
+  for (const row of list.value) {
+    const id = String((row as any).sellOrderItemId ?? '').trim()
+    if (id && basketStore.has(id)) {
+      table.toggleRowSelection(row, true)
+    }
+  }
+  await nextTick()
+  suppressBasketMerge.value = false
+}
+
+function removeOneFromBasket(sellOrderItemId: string) {
+  if (!sellOrderItemId) return
+  basketStore.remove(sellOrderItemId)
+  suppressBasketMerge.value = true
+  const row = list.value.find((r) => String((r as any).sellOrderItemId ?? '').trim() === sellOrderItemId)
+  if (row) {
+    dataTableRef.value?.toggleRowSelection(row, false)
+  }
+  void nextTick(() => {
+    suppressBasketMerge.value = false
+  })
+}
+
+async function handleClearBasket() {
+  if (!basketStore.count) return
+  try {
+    await ElMessageBox.confirm('确定清空复选篮子中的全部记录？', '清空确认', {
+      type: 'warning',
+      confirmButtonText: '清空',
+      cancelButtonText: '取消'
+    })
+  } catch {
+    return
+  }
+  basketStore.clear()
+  suppressBasketMerge.value = true
+  dataTableRef.value?.clearSelection()
+  await nextTick()
+  suppressBasketMerge.value = false
+  ElMessage.success('已清空复选篮子')
 }
 
 async function loadList() {
@@ -367,9 +526,14 @@ async function loadList() {
     }
     if (dateRange.value?.[0]) params.orderCreateStart = dateRange.value[0]
     if (dateRange.value?.[1]) params.orderCreateEnd = dateRange.value[1]
-    if (filters.customerName.trim()) params.customerName = filters.customerName.trim()
-    if (filters.salesUserName.trim()) params.salesUserName = filters.salesUserName.trim()
-    if (filters.pn.trim()) params.pn = filters.pn.trim()
+    const soc = String(filters.sellOrderCode ?? '').trim()
+    if (soc) params.sellOrderCode = soc
+    const cn = String(filters.customerName ?? '').trim()
+    if (cn) params.customerName = cn
+    const sun = String(filters.salesUserName ?? '').trim()
+    if (sun) params.salesUserName = sun
+    const pnk = String(filters.pn ?? '').trim()
+    if (pnk) params.pn = pnk
 
     const data = await salesOrderApi.getItemLines(params)
     list.value = data?.items ?? []
@@ -379,16 +543,24 @@ async function loadList() {
   } finally {
     loading.value = false
   }
+  await nextTick()
+  await restoreTableSelectionFromBasket()
 }
 
 function resetFilters() {
   dateRange.value = null
+  filters.sellOrderCode = ''
   filters.customerName = ''
   filters.salesUserName = ''
   filters.pn = ''
   page.value = 1
-  tableRef.value?.clearSelection()
-  loadList()
+  basketStore.clear()
+  suppressBasketMerge.value = true
+  dataTableRef.value?.clearSelection()
+  void nextTick(() => {
+    suppressBasketMerge.value = false
+    loadList()
+  })
 }
 
 function goDetail(row: any) {
@@ -406,9 +578,13 @@ function navigateNewPr(sellOrderId: string, itemIds: string[]) {
 }
 
 function batchApplyPurchase() {
-  const rows = selectedRows.value
+  const rows = basketStore.items as any[]
   if (!rows.length) {
-    ElMessage.warning('请先勾选销售订单明细')
+    ElMessage.warning('请先在复选篮子中加入销售订单明细（可跨页勾选）')
+    return
+  }
+  if (!rows.every((r) => mainAllowsOps(r))) {
+    ElMessage.warning('仅当销售订单主表已审核通过（含进行中、完成）时，方可申请采购')
     return
   }
   if (rows.length === 1) {
@@ -444,6 +620,10 @@ function batchApplyPurchase() {
 }
 
 function applyStockOutOne(row: any) {
+  if (!mainAllowsOps(row)) {
+    ElMessage.warning('销售订单主表审核通过后，方可申请出库')
+    return
+  }
   router.push({
     path: `/sales-orders/${row.sellOrderId}`,
     query: { applyStockOut: '1' }
@@ -465,11 +645,9 @@ onMounted(() => loadList())
 .page-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   margin-bottom: 20px;
 }
-.header-left,
-.header-right {
+.header-left {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -568,9 +746,113 @@ onMounted(() => loadList())
   border-radius: $border-radius-lg;
   overflow: hidden;
 }
-.pagination-wrapper {
+.table-footer-bar {
+  flex-shrink: 0;
+  margin-top: 12px;
+  padding-top: 4px;
   display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+}
+
+.basket-footer-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+.basket-open-btn {
+  padding: 4px 6px 4px 8px !important;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.basket-clear-btn {
+  padding: 4px 8px 4px 2px !important;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.basket-batch-purchase-btn {
+  margin-left: 10px;
+}
+
+.basket-count-label {
+  color: $cyan-primary;
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+.table-footer-bar .quantum-pagination {
+  margin-left: auto;
+}
+
+.quantum-pagination {
+  :deep(.el-pagination__total) {
+    color: $text-muted;
+  }
+
+  :deep(.el-pagination__sizes .el-select__wrapper) {
+    background: $layer-2 !important;
+    border: 1px solid $border-panel !important;
+    box-shadow: none !important;
+  }
+
+  :deep(.el-pager li) {
+    background: $layer-2;
+    border: 1px solid $border-panel;
+    color: $text-secondary;
+    border-radius: 6px;
+    margin: 0 2px;
+  }
+
+  :deep(.el-pager li.is-active) {
+    background: rgba(0, 212, 255, 0.15);
+    border-color: rgba(0, 212, 255, 0.4);
+    color: $cyan-primary;
+  }
+
+  :deep(.btn-prev),
+  :deep(.btn-next) {
+    background: $layer-2 !important;
+    border: 1px solid $border-panel !important;
+    color: $text-secondary !important;
+    border-radius: 6px !important;
+  }
+}
+</style>
+
+<!-- 抽屉挂载在 body，需单独样式块 -->
+<style lang="scss">
+@import '@/assets/styles/variables.scss';
+
+.so-item-basket-drawer {
+  .basket-drawer-hint {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1.6;
+    margin: 0 0 12px;
+  }
+
+  .basket-drawer-summary {
+    font-size: 13px;
+    color: rgba(232, 244, 255, 0.75);
+    margin: 0 0 12px;
+    line-height: 1.6;
+  }
+
+  .basket-clear-btn--drawer-inline {
+    vertical-align: baseline;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0 2px !important;
+    margin: 0 1px;
+    font-size: 13px !important;
+    font-weight: 500;
+  }
 }
 </style>

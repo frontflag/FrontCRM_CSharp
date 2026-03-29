@@ -333,7 +333,6 @@
               class="submenu-item"
               active-class="active"
             >销售订单明细</router-link>
-            <button type="button" class="submenu-item" @click="handleUnimplemented('销售退货')">销售退货</button>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -380,7 +379,6 @@
               class="submenu-item"
               active-class="active"
             >采购订单明细</router-link>
-            <button type="button" class="submenu-item" @click="handleUnimplemented('采购退货')">采购退货</button>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -452,7 +450,6 @@
           </template>
           <template #submenu>
             <router-link to="/inventory/list" class="submenu-item" active-class="active">库存管理</router-link>
-            <router-link to="/inventory/transfer" class="submenu-item" active-class="active">库存调拨</router-link>
             <router-link to="/inventory/check" class="submenu-item" active-class="active">库存盘点</router-link>
           </template>
         </SidebarMenuGroupFlyout>
@@ -772,6 +769,14 @@
           <RFQItemSearchPanel v-else-if="showRfqItemSearchPanel" />
           <RFQFavoritePanel v-else-if="showRfqFavoritePanel || showRfqItemFavoritePanel" />
           <RFQRecentHistoryPanel v-else-if="showRfqRecentHistoryPanel || showRfqItemRecentHistoryPanel" />
+          <SalesOrderSearchPanel v-else-if="showSalesOrderSearchPanel" />
+          <SalesOrderFavoritePanel v-else-if="showSalesOrderFavoritePanel" />
+          <SalesOrderRecentHistoryPanel v-else-if="showSalesOrderRecentHistoryPanel" />
+          <QcSearchPanel v-else-if="showQcSearchPanel" />
+          <StockInSearchPanel v-else-if="showStockInSearchPanel" />
+          <StockOutSearchPanel v-else-if="showStockOutSearchPanel" />
+          <PurchaseOrderFavoritePanel v-else-if="showPurchaseOrderFavoritePanel" />
+          <PurchaseOrderRecentHistoryPanel v-else-if="showPurchaseOrderRecentHistoryPanel" />
           <template v-else>
             <p class="aux-placeholder">左侧面板 · {{ leftPanelTitle }}</p>
             <p class="aux-hint">子页面可 inject(WorkspaceLayoutKey)；或 window 派发 workspace:toggle-left / workspace:toggle-right</p>
@@ -972,6 +977,14 @@ import RFQSearchPanel from '@/components/RFQ/RFQSearchPanel.vue'
 import RFQItemSearchPanel from '@/components/RFQ/RFQItemSearchPanel.vue'
 import RFQFavoritePanel from '@/components/RFQ/RFQFavoritePanel.vue'
 import RFQRecentHistoryPanel from '@/components/RFQ/RFQRecentHistoryPanel.vue'
+import SalesOrderSearchPanel from '@/components/SalesOrder/SalesOrderSearchPanel.vue'
+import QcSearchPanel from '@/components/Logistics/QcSearchPanel.vue'
+import StockInSearchPanel from '@/components/Inventory/StockInSearchPanel.vue'
+import StockOutSearchPanel from '@/components/Inventory/StockOutSearchPanel.vue'
+import SalesOrderFavoritePanel from '@/components/SalesOrder/SalesOrderFavoritePanel.vue'
+import SalesOrderRecentHistoryPanel from '@/components/SalesOrder/SalesOrderRecentHistoryPanel.vue'
+import PurchaseOrderFavoritePanel from '@/components/purchaseOrder/PurchaseOrderFavoritePanel.vue'
+import PurchaseOrderRecentHistoryPanel from '@/components/purchaseOrder/PurchaseOrderRecentHistoryPanel.vue'
 import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
 
 const route = useRoute()
@@ -1091,6 +1104,77 @@ const showRfqItemFavoritePanel = computed(
 
 const showRfqItemRecentHistoryPanel = computed(
   () => leftActiveTabId.value === 'l3' && isRfqItemListLeftAuxRoute.value
+)
+
+/** 销售订单列表/详情/新建/明细列表：左栏「检索 / 收藏 / 历史」 */
+const isSalesOrderLeftAuxRoute = computed(() => {
+  const n = route.name
+  return (
+    n === 'SalesOrderList' ||
+    n === 'SalesOrderDetail' ||
+    n === 'SalesOrderCreate' ||
+    n === 'SalesOrderItemList'
+  )
+})
+
+const showSalesOrderSearchPanel = computed(
+  () => leftActiveTabId.value === 'l1' && isSalesOrderLeftAuxRoute.value
+)
+
+const showSalesOrderFavoritePanel = computed(
+  () => leftActiveTabId.value === 'l2' && isSalesOrderLeftAuxRoute.value
+)
+
+const showSalesOrderRecentHistoryPanel = computed(
+  () => leftActiveTabId.value === 'l3' && isSalesOrderLeftAuxRoute.value
+)
+
+/** 质检列表/新建：左栏「检索」 */
+const isQcLeftAuxRoute = computed(() => route.name === 'QcList' || route.name === 'QcCreate')
+
+const showQcSearchPanel = computed(
+  () => leftActiveTabId.value === 'l1' && isQcLeftAuxRoute.value
+)
+
+/** 入库单列表/新建/详情：左栏「检索」 */
+const isStockInLeftAuxRoute = computed(() => {
+  const n = route.name
+  return n === 'StockInList' || n === 'StockInCreate' || n === 'StockInDetail'
+})
+
+const showStockInSearchPanel = computed(
+  () => leftActiveTabId.value === 'l1' && isStockInLeftAuxRoute.value
+)
+
+/** 出库单列表/新建：左栏「检索」 */
+const isStockOutLeftAuxRoute = computed(() => {
+  const n = route.name
+  return n === 'StockOutList' || n === 'StockOutCreate'
+})
+
+const showStockOutSearchPanel = computed(
+  () => leftActiveTabId.value === 'l1' && isStockOutLeftAuxRoute.value
+)
+
+/** 采购订单列表/详情/新建/编辑/明细/报表：左栏「收藏 / 历史」 */
+const isPurchaseOrderLeftAuxRoute = computed(() => {
+  const n = route.name
+  return (
+    n === 'PurchaseOrderList' ||
+    n === 'PurchaseOrderDetail' ||
+    n === 'PurchaseOrderCreate' ||
+    n === 'PurchaseOrderEdit' ||
+    n === 'PurchaseOrderItemList' ||
+    n === 'PurchaseOrderReport'
+  )
+})
+
+const showPurchaseOrderFavoritePanel = computed(
+  () => leftActiveTabId.value === 'l2' && isPurchaseOrderLeftAuxRoute.value
+)
+
+const showPurchaseOrderRecentHistoryPanel = computed(
+  () => leftActiveTabId.value === 'l3' && isPurchaseOrderLeftAuxRoute.value
 )
 
 /** 模板沿用 isCollapsed：仅「边条」模式隐藏菜单文字 */

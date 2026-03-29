@@ -23,23 +23,32 @@
           <span class="section-title">供应信息</span>
         </div>
         <div class="section-body">
-          <el-form label-width="88px" class="qc-form">
+          <el-form label-width="120px" class="qc-form">
           <el-row :gutter="12">
-            <el-col :span="6"><el-form-item label="到货编码"><el-input v-model="form.noticeCode" class="q-input" /></el-form-item></el-col>
-            <el-col :span="6"><el-form-item label="供应商"><el-input v-model="form.vendorName" class="q-input" /></el-form-item></el-col>
             <el-col :span="6">
-              <el-form-item label="采购员">
-                <PurchaserCascader
-                  v-model="form.purchaseUserId"
-                  placeholder="请选择采购员"
-                  class="q-input"
-                  @change="onPurchaseUserChange"
-                />
+              <el-form-item label="到货通知编码">
+                <el-input v-model="form.noticeCode" disabled class="q-input q-input--readonly" />
               </el-form-item>
             </el-col>
-            <el-col :span="6"><el-form-item label="采购日期"><el-date-picker v-model="form.purchaseDate" type="date" value-format="YYYY-MM-DD" style="width:100%" class="q-date" /></el-form-item></el-col>
+            <el-col :span="6">
+              <el-form-item label="供应商">
+                <el-input v-model="form.vendorName" disabled class="q-input q-input--readonly" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="6">
+              <el-form-item label="采购员">
+                <el-input :model-value="form.purchaseUserName?.trim() || '—'" disabled class="q-input q-input--readonly" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="6">
+              <el-form-item label="采购单号">
+                <el-input v-model="form.purchaseOrderCode" disabled class="q-input q-input--readonly" />
+              </el-form-item>
+            </el-col>
           </el-row>
-          <el-form-item label="到货通知备注"><el-input v-model="form.noticeRemark" type="textarea" :rows="2" class="q-input" /></el-form-item>
+          <el-form-item label="到货通知备注">
+            <el-input v-model="form.noticeRemark" type="textarea" :rows="2" disabled class="q-input q-input--readonly" />
+          </el-form-item>
           </el-form>
         </div>
       </div>
@@ -50,7 +59,7 @@
           <span class="section-title">送货信息</span>
         </div>
         <div class="section-body">
-          <el-form label-width="88px" class="qc-form">
+          <el-form label-width="120px" class="qc-form">
           <el-row :gutter="12">
             <el-col :span="6"><el-form-item label="快递单号"><el-input v-model="form.expressNo" class="q-input" /></el-form-item></el-col>
             <el-col :span="6"><el-form-item label="送货方式"><el-input v-model="form.deliveryMethod" class="q-input" /></el-form-item></el-col>
@@ -67,11 +76,23 @@
           <span class="section-title">物料信息</span>
         </div>
         <div class="section-body">
-          <el-form label-width="88px" class="qc-form">
+          <el-form label-width="120px" class="qc-form">
           <el-row :gutter="12">
             <el-col :span="8"><el-form-item label="物料型号"><el-input v-model="form.materialCode" class="q-input" /></el-form-item></el-col>
             <el-col :span="8"><el-form-item label="品牌"><el-input v-model="form.brand" class="q-input" /></el-form-item></el-col>
-            <el-col :span="8"><el-form-item label="数量"><el-input-number v-model="form.arrivedTotalQty" :min="0" :precision="4" style="width:100%" class="q-number" /></el-form-item></el-col>
+            <el-col :span="8">
+              <el-form-item label="到货数量">
+                <el-input-number
+                  v-model="form.arrivedTotalQty"
+                  :min="0"
+                  :precision="0"
+                  :step="1"
+                  step-strictly
+                  style="width:100%"
+                  class="q-number"
+                />
+              </el-form-item>
+            </el-col>
           </el-row>
           </el-form>
         </div>
@@ -83,11 +104,42 @@
           <span class="section-title">质检信息</span>
         </div>
         <div class="section-body">
-          <el-form label-width="88px" class="qc-form">
+          <el-form label-width="120px" class="qc-form">
           <el-row :gutter="12">
-            <el-col :span="6"><el-form-item label="抽检数量"><el-input-number v-model="form.sampleQty" :min="0" :precision="4" style="width:100%" class="q-number" /></el-form-item></el-col>
+            <el-col :span="6">
+              <el-form-item label="抽检数量">
+                <el-input-number
+                  v-model="form.sampleQty"
+                  :min="0"
+                  :precision="0"
+                  :step="1"
+                  step-strictly
+                  style="width:100%"
+                  class="q-number"
+                />
+              </el-form-item>
+            </el-col>
             <el-col :span="6"><el-form-item label="抽检日期"><el-date-picker v-model="form.sampleDate" type="date" value-format="YYYY-MM-DD" style="width:100%" class="q-date" /></el-form-item></el-col>
-            <el-col :span="6"><el-form-item label="质检人"><el-input v-model="form.qcUser" class="q-input" /></el-form-item></el-col>
+            <el-col :span="6">
+              <el-form-item label="质检人">
+                <el-select
+                  v-model="form.qcUserId"
+                  filterable
+                  clearable
+                  placeholder="请选择物流部员工"
+                  style="width:100%"
+                  :class="['q-select', 'qc-inspector-select']"
+                  @change="onQcInspectorChange"
+                >
+                  <el-option
+                    v-for="u in logisticsUserOptions"
+                    :key="u.id"
+                    :label="inspectorOptionLabel(u)"
+                    :value="u.id"
+                  />
+                </el-select>
+              </el-form-item>
+            </el-col>
             <el-col :span="6">
               <el-form-item label="质检结果">
                 <el-select
@@ -101,7 +153,19 @@
                 </el-select>
               </el-form-item>
             </el-col>
-            <el-col :span="6"><el-form-item label="可入库数量"><el-input-number v-model="form.stockInQty" :min="0" :precision="4" style="width:100%" class="q-number" /></el-form-item></el-col>
+            <el-col :span="6">
+              <el-form-item label="可入库数量">
+                <el-input-number
+                  v-model="form.stockInQty"
+                  :min="0"
+                  :precision="0"
+                  :step="1"
+                  step-strictly
+                  style="width:100%"
+                  class="q-number"
+                />
+              </el-form-item>
+            </el-col>
           </el-row>
           <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" :rows="2" class="q-input" /></el-form-item>
           </el-form>
@@ -134,15 +198,18 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { logisticsApi } from '@/api/logistics'
+import { authApi, type SalesUserSelectOption } from '@/api/auth'
+import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { useRoute, useRouter } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
-import PurchaserCascader from '@/components/PurchaserCascader.vue'
 
 const route = useRoute()
 const router = useRouter()
 const submitting = ref(false)
 const isEdit = ref(false)
 const currentQcId = ref('')
+/** 仅物流部门（及仓储等）职员，供质检人下拉 */
+const logisticsUserOptions = ref<SalesUserSelectOption[]>([])
 
 const form = reactive<any>({
   noticeId: '',
@@ -150,7 +217,7 @@ const form = reactive<any>({
   materialCode: '',
   brand: '',
   vendorName: '',
-  purchaseDate: '',
+  purchaseOrderCode: '',
   purchaseUserId: '',
   purchaseUserName: '',
   noticeRemark: '',
@@ -160,6 +227,7 @@ const form = reactive<any>({
   arrivalDate: '',
   sampleQty: 0,
   sampleDate: '',
+  qcUserId: '',
   qcUser: '',
   qcResult: 'pass',
   stockInQty: 0,
@@ -168,8 +236,43 @@ const form = reactive<any>({
   arrivedTotalQty: 0
 })
 
-function onPurchaseUserChange(p: { id: string; label: string }) {
-  form.purchaseUserName = p.label || ''
+function inspectorOptionLabel(u: SalesUserSelectOption) {
+  return (u.realName || u.label || u.userName || '').trim() || u.id
+}
+
+function onQcInspectorChange(id: string | undefined | null) {
+  const sid = id != null && id !== '' ? String(id) : ''
+  if (!sid) {
+    form.qcUser = ''
+    return
+  }
+  const u = logisticsUserOptions.value.find((x) => x.id === sid)
+  form.qcUser = u ? inspectorOptionLabel(u) : ''
+}
+
+async function loadLogisticsUsers() {
+  try {
+    logisticsUserOptions.value = await authApi.getLogisticsUsersForSelect()
+  } catch {
+    logisticsUserOptions.value = []
+  }
+}
+
+/** 按采购订单主键拉取采购员（与采购单号唯一对应），名称以订单数据为准 */
+async function applyPurchaseUserFromPurchaseOrder(purchaseOrderId: string | undefined | null) {
+  const id = String(purchaseOrderId || '').trim()
+  if (!id) return
+  try {
+    const po = (await purchaseOrderApi.getById(id)) as Record<string, unknown> | null | undefined
+    if (!po) return
+    const uid = po.purchaseUserId ?? po.PurchaseUserId
+    const uname = po.purchaseUserName ?? po.PurchaseUserName
+    if (uid != null && uid !== '') form.purchaseUserId = String(uid)
+    const name = String(uname ?? '').trim()
+    if (name) form.purchaseUserName = name
+  } catch {
+    /* 无权限或网络失败时保留到货通知冗余的 purchaseUserName */
+  }
 }
 
 const fillNotice = async (noticeId: string) => {
@@ -179,13 +282,21 @@ const fillNotice = async (noticeId: string) => {
   const row = notices.find(x => x.id === noticeId)
   if (!row) return
   const firstItem = row.items?.[0]
-  const arrivedTotalQty = Number((row.items || []).reduce((s, x) => s + Number(x.arrivedQty || 0), 0))
+  const sumItemArrived = Number((row.items || []).reduce((s, x) => s + Number(x.arrivedQty || 0), 0))
+  const rq = Number(row.receiveQty ?? 0)
+  const eq = Number(row.expectQty ?? 0)
+  /** 与到货单表一致：优先明细汇总；否则用行级实收；仍为 0 则用本批通知数量作送检基准 */
+  const arrivedTotalQty = Math.round(
+    sumItemArrived > 0 ? sumItemArrived : rq > 0 ? rq : eq
+  )
   form.noticeCode = row.noticeCode || ''
-  form.materialCode = firstItem?.pn || ''
-  form.brand = firstItem?.brand || ''
+  form.purchaseOrderCode = row.purchaseOrderCode || ''
+  form.materialCode = firstItem?.pn || row.pn || ''
+  form.brand = firstItem?.brand || row.brand || ''
   form.vendorName = row.vendorName || ''
   form.purchaseUserName = row.purchaseUserName || ''
   form.purchaseUserId = ''
+  await applyPurchaseUserFromPurchaseOrder(row.purchaseOrderId)
   form.stockInQty = arrivedTotalQty
   form.sampleQty = arrivedTotalQty
   form.arrivedTotalQty = arrivedTotalQty
@@ -203,16 +314,19 @@ const loadPageData = async () => {
       // 先回填质检记录本身，保证“查看”打开时一定带出已有判定数据
       form.noticeId = qc.stockInNotifyId || ''
       form.noticeCode = qc.stockInNotifyCode || ''
+      form.purchaseOrderCode = qc.purchaseOrderCode || ''
       form.qcResult = qc.status === -1 ? 'reject' : qc.status === 10 ? 'partial' : 'pass'
-      form.stockInQty = Number(qc.passQty || 0)
-      form.sampleQty = Number(qc.passQty || 0)
-      form.arrivedTotalQty = Number((qc.passQty || 0) + (qc.rejectQty || 0))
+      const passR = Math.round(Number(qc.passQty || 0))
+      const rejectR = Math.round(Number(qc.rejectQty || 0))
+      form.stockInQty = passR
+      form.sampleQty = passR
+      form.arrivedTotalQty = passR + rejectR
 
       // 再补齐到货通知维度的数据（供应商/物料等）
       await fillNotice(qc.stockInNotifyId)
       form.qcResult = qc.status === -1 ? 'reject' : qc.status === 10 ? 'partial' : 'pass'
-      form.stockInQty = Number(qc.passQty || 0)
-      form.sampleQty = Number(qc.passQty || 0)
+      form.stockInQty = Math.round(Number(qc.passQty || 0))
+      form.sampleQty = Math.round(Number(qc.passQty || 0))
     }
     return
   }
@@ -234,8 +348,8 @@ const submitQc = async () => {
       const qc = await logisticsApi.createQc(form.noticeId)
       qcId = qc.id
     }
-    const passQty = Number(form.stockInQty || 0)
-    const rejectQty = Math.max(0, Number(form.arrivedTotalQty || 0) - passQty)
+    const passQty = Math.round(Number(form.stockInQty || 0))
+    const rejectQty = Math.max(0, Math.round(Number(form.arrivedTotalQty || 0)) - passQty)
     await logisticsApi.updateQcResult(qcId, { result: form.qcResult, passQty, rejectQty })
     ElMessage.success(isEdit.value ? '质检已更新' : '质检已保存')
     router.push({ name: 'QcList', query: { qcId } })
@@ -248,7 +362,9 @@ const submitQc = async () => {
 
 const goBack = () => router.back()
 
-onMounted(loadPageData)
+onMounted(async () => {
+  await Promise.all([loadLogisticsUsers(), loadPageData()])
+})
 </script>
 
 <style scoped lang="scss">
@@ -356,7 +472,13 @@ onMounted(loadPageData)
 .qc-upload-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: $text-secondary; }
 
 .qc-form {
-  :deep(.el-form-item__label) { color: $text-muted !important; font-size: 13px; }
+  :deep(.el-form-item__label) {
+    color: $text-muted !important;
+    font-size: 13px;
+    white-space: nowrap;
+    line-height: 1.4;
+    padding-right: 8px;
+  }
 }
 
 .q-input {
@@ -368,6 +490,15 @@ onMounted(loadPageData)
     color: $text-primary !important;
   }
   :deep(.el-input__inner) { color: $text-primary !important; }
+}
+
+.q-input--readonly {
+  :deep(.el-input__wrapper),
+  :deep(.el-textarea__inner) {
+    cursor: default;
+    opacity: 0.92;
+    background-color: rgba(255, 255, 255, 0.04) !important;
+  }
 }
 
 .q-select {

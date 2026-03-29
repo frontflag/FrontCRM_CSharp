@@ -120,6 +120,10 @@ export const authApi = {
     return apiClient.get('/api/v1/auth/purchase-users-tree')
   },
 
+  getLogisticsUsersTree(): Promise<ApiResponse<SalesUserTreeNode[]>> {
+    return apiClient.get('/api/v1/auth/logistics-users-tree')
+  },
+
   /** 供应商/采购筛选下拉：仅采购部门用户；采购员账号仅自己及下属 */
   async getPurchaseUsersForSelect(): Promise<PurchaseUserSelectOption[]> {
     const tree = (await apiClient.get<OrgUserTreeNode[]>('/api/v1/auth/purchase-users-tree')) as OrgUserTreeNode[]
@@ -129,6 +133,12 @@ export const authApi = {
   /** 客户筛选业务员：仅销售部门用户；销售账号仅自己及下属 */
   async getSalesUsersForSelect(): Promise<SalesUserSelectOption[]> {
     const tree = (await apiClient.get<SalesUserTreeNode[]>('/api/v1/auth/sales-users-tree')) as SalesUserTreeNode[]
+    return flattenSalesUserTreeForSelect(Array.isArray(tree) ? tree : [])
+  },
+
+  /** 质检「质检人」：仅物流相关部门用户（身份含物流或部门名匹配）；权限范围与业务员树类似 */
+  async getLogisticsUsersForSelect(): Promise<SalesUserSelectOption[]> {
+    const tree = (await apiClient.get<SalesUserTreeNode[]>('/api/v1/auth/logistics-users-tree')) as SalesUserTreeNode[]
     return flattenSalesUserTreeForSelect(Array.isArray(tree) ? tree : [])
   }
 }

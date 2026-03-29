@@ -26,7 +26,9 @@
       <el-table-column prop="qcStatus" label="质检状态" width="110">
         <template #default="{ row }">{{ qcText(row.qcStatus) }}</template>
       </el-table-column>
-      <el-table-column prop="warehouseId" label="仓库" width="130" />
+      <el-table-column label="仓库" min-width="140" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.warehouseName || row.warehouseId || '--' }}</template>
+      </el-table-column>
       <el-table-column prop="locationId" label="库位" min-width="130" />
     </CrmDataTable>
   </div>

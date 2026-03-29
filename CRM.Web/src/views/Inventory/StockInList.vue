@@ -24,27 +24,27 @@
           v-model="filters.model"
           class="search-input search-input--filter"
           placeholder="型号"
-          @keyup.enter="fetchList"
+          @keyup.enter="handleSearch"
         />
         <input
           v-model="filters.vendorName"
           class="search-input search-input--filter"
           placeholder="供应商名称"
-          @keyup.enter="fetchList"
+          @keyup.enter="handleSearch"
         />
         <input
           v-model="filters.purchaseOrderCode"
           class="search-input search-input--filter"
           placeholder="采购订单号"
-          @keyup.enter="fetchList"
+          @keyup.enter="handleSearch"
         />
         <input
           v-model="filters.salesOrderCode"
           class="search-input search-input--filter"
           placeholder="销售订单号"
-          @keyup.enter="fetchList"
+          @keyup.enter="handleSearch"
         />
-        <button type="button" class="btn-primary btn-sm" @click="fetchList">搜索</button>
+        <button type="button" class="btn-primary btn-sm" @click="handleSearch">搜索</button>
         <button type="button" class="btn-ghost btn-sm" @click="resetFilters">重置</button>
       </div>
     </div>
@@ -65,7 +65,9 @@
           </template>
         </el-table-column>
         <el-table-column prop="sourceDisplayNo" label="来源单号" width="160" show-overflow-tooltip />
-        <el-table-column prop="warehouseId" label="仓库ID" width="140" show-overflow-tooltip />
+        <el-table-column label="仓库" min-width="160" show-overflow-tooltip>
+          <template #default="{ row }">{{ warehouseNameOf(row.warehouseId) }}</template>
+        </el-table-column>
         <el-table-column prop="vendorName" label="供应商" min-width="160" show-overflow-tooltip />
       <el-table-column prop="salesOrderCode" label="销售订单号" min-width="170" show-overflow-tooltip />
         <el-table-column prop="stockInDate" label="入库日期" width="160">
@@ -116,15 +118,26 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, reactive, ref, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { stockInApi, type StockInListItemDto } from '@/api/stockIn'
+import { inventoryCenterApi, type WarehouseInfo } from '@/api/inventoryCenter'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
+const route = useRoute()
 const loading = ref(false)
 const list = ref<StockInListItemDto[]>([])
+const warehouses = ref<WarehouseInfo[]>([])
+
+const warehouseNameOf = (warehouseId?: string) => {
+  if (!warehouseId) return '--'
+  const byId = warehouses.value.find(w => w.id === warehouseId)
+  if (byId?.warehouseName) return byId.warehouseName
+  const byCode = warehouses.value.find(w => (w.warehouseCode || '').trim() === warehouseId.trim())
+  return byCode?.warehouseName || warehouseId
+}
 const filters = reactive({
   model: '',
   vendorName: '',
@@ -152,9 +165,25 @@ const statusLabel = (s: number) => {
   }
 }
 
+function syncFiltersFromRoute() {
+  if (route.name !== 'StockInList') return
+  const q = route.query
+  filters.model = typeof q.model === 'string' ? q.model : ''
+  filters.vendorName = typeof q.vendorName === 'string' ? q.vendorName : ''
+  filters.purchaseOrderCode = typeof q.purchaseOrderCode === 'string' ? q.purchaseOrderCode : ''
+  filters.salesOrderCode = typeof q.salesOrderCode === 'string' ? q.salesOrderCode : ''
+}
+
 const fetchList = async () => {
   loading.value = true
   try {
+    if (!warehouses.value.length) {
+      try {
+        warehouses.value = await inventoryCenterApi.getWarehouses()
+      } catch {
+        warehouses.value = []
+      }
+    }
     list.value = await stockInApi.getAll({
       model: filters.model || undefined,
       vendorName: filters.vendorName || undefined,
@@ -167,6 +196,29 @@ const fetchList = async () => {
   } finally {
     loading.value = false
   }
+}
+
+watch(
+  () => [route.name, route.query] as const,
+  () => {
+    syncFiltersFromRoute()
+    if (route.name === 'StockInList') fetchList()
+  },
+  { deep: true, immediate: true }
+)
+
+/** 与左侧检索面板共用 URL query */
+const handleSearch = () => {
+  const query: Record<string, string> = {}
+  const m = filters.model.trim()
+  if (m) query.model = m
+  const v = filters.vendorName.trim()
+  if (v) query.vendorName = v
+  const p = filters.purchaseOrderCode.trim()
+  if (p) query.purchaseOrderCode = p
+  const s = filters.salesOrderCode.trim()
+  if (s) query.salesOrderCode = s
+  router.replace({ name: 'StockInList', query })
 }
 
 const keywordHit = (text: string | undefined, keyword: string): boolean => {
@@ -199,7 +251,7 @@ const resetFilters = () => {
   filters.vendorName = ''
   filters.purchaseOrderCode = ''
   filters.salesOrderCode = ''
-  fetchList()
+  router.replace({ name: 'StockInList', query: {} })
 }
 
 const handleView = (row: StockInListItemDto) => {
@@ -236,7 +288,6 @@ const handleFinish = async (row: StockInListItemDto) => {
   }
 }
 
-onMounted(fetchList)
 </script>
 
 <style scoped lang="scss">

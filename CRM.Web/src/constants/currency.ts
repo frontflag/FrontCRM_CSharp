@@ -16,12 +16,12 @@ export enum CurrencyCode {
 
 export type CurrencyOption = { label: string; value: CurrencyCode };
 
-/** 客户/供应商「结算货币」及全系统币种下拉（仅四项，顺序固定） */
+/** 客户/供应商「结算货币」及全系统币种下拉（仅四项，顺序固定；展示为 ISO 代码） */
 export const SETTLEMENT_CURRENCY_OPTIONS: CurrencyOption[] = [
-  { label: '人民币(RMB)', value: CurrencyCode.RMB },
-  { label: '港币(HKD)', value: CurrencyCode.HKD },
-  { label: '美金(USD)', value: CurrencyCode.USD },
-  { label: '欧元(EUR)', value: CurrencyCode.EUR },
+  { label: 'RMB', value: CurrencyCode.RMB },
+  { label: 'HKD', value: CurrencyCode.HKD },
+  { label: 'USD', value: CurrencyCode.USD },
+  { label: 'EUR', value: CurrencyCode.EUR },
 ];
 
 /**
@@ -29,10 +29,10 @@ export const SETTLEMENT_CURRENCY_OPTIONS: CurrencyOption[] = [
  * 标签与顺序同 SETTLEMENT_CURRENCY_OPTIONS。
  */
 export const SETTLEMENT_CURRENCY_STRING_OPTIONS: { label: string; value: string }[] = [
-  { label: '人民币(RMB)', value: 'RMB' },
-  { label: '港币(HKD)', value: 'HKD' },
-  { label: '美金(USD)', value: 'USD' },
-  { label: '欧元(EUR)', value: 'EUR' },
+  { label: 'RMB', value: 'RMB' },
+  { label: 'HKD', value: 'HKD' },
+  { label: 'USD', value: 'USD' },
+  { label: 'EUR', value: 'EUR' },
 ];
 
 /**

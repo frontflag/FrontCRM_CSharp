@@ -61,10 +61,12 @@ namespace CRM.Infrastructure.Data
         // ===== 销售订单模块 =====
         public DbSet<SellOrder> SellOrders { get; set; } = null!;
         public DbSet<SellOrderItem> SellOrderItems { get; set; } = null!;
+        public DbSet<SellOrderItemExtend> SellOrderItemExtends { get; set; } = null!;
 
         // ===== 采购订单模块 =====
         public DbSet<PurchaseOrder> PurchaseOrders { get; set; } = null!;
         public DbSet<PurchaseOrderItem> PurchaseOrderItems { get; set; } = null!;
+        public DbSet<PurchaseOrderItemExtend> PurchaseOrderItemExtends { get; set; } = null!;
 
         // ===== 采购申请模块 =====
         public DbSet<PurchaseRequisition> PurchaseRequisitions { get; set; } = null!;
@@ -91,7 +93,6 @@ namespace CRM.Infrastructure.Data
         public DbSet<StockOutItem> StockOutItems { get; set; } = null!;
         public DbSet<StockOutRequest> StockOutRequests { get; set; } = null!;
         public DbSet<StockInNotify> StockInNotifies { get; set; } = null!;
-        public DbSet<StockInNotifyItem> StockInNotifyItems { get; set; } = null!;
         public DbSet<QCInfo> QCInfos { get; set; } = null!;
         public DbSet<QCItem> QCItems { get; set; } = null!;
         public DbSet<WarehouseInfo> Warehouses { get; set; } = null!;
@@ -217,6 +218,26 @@ namespace CRM.Infrastructure.Data
                 entity.HasIndex(e => e.SellOrderId);
             });
 
+            modelBuilder.Entity<SellOrderItemExtend>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("SellOrderItemId");
+                entity.ToTable("sellorderitemextend");
+                entity.Property(e => e.QtyStockOutNotify).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                entity.Property(e => e.QtyStockOutNotifyNot).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                entity.Property(e => e.InvoiceAmount).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.InvoiceAmountNot).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.InvoiceAmountFinish).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.ReceiptAmount).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.ReceiptAmountNot).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.ReceiptAmountFinish).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.PaymentAmount).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.PaymentAmountDone).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.PaymentAmountToBe).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.PurchaseInvoiceAmount).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.PurchaseInvoiceDone).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+            });
+
             // ===== 采购订单模块配置 =====
             modelBuilder.Entity<PurchaseOrder>(entity =>
             {
@@ -246,6 +267,25 @@ namespace CRM.Infrastructure.Data
                       .WithMany()
                       .HasForeignKey(e => e.SellOrderItemId)
                       .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<PurchaseOrderItemExtend>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("PurchaseOrderItemId");
+                entity.ToTable("purchaseorderitemextend");
+                entity.Property(e => e.QtyStockInNotifyNot).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                entity.Property(e => e.QtyStockInNotifyExpectSum).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                entity.Property(e => e.QtyReceiveTotal).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                entity.Property(e => e.PurchaseInvoiceAmount).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.PurchaseInvoiceDone).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.PurchaseInvoiceToBe).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.PaymentAmount).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.PaymentAmountNot).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.PaymentAmountFinish).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.ReceiptAmount).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.ReceiptAmountNot).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.ReceiptAmountFinish).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
             });
 
             // ===== 软删除全局过滤器 =====
@@ -555,27 +595,22 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.NoticeCode).IsRequired().HasMaxLength(32);
                 entity.Property(e => e.PurchaseOrderId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.PurchaseOrderCode).IsRequired().HasMaxLength(32);
+                entity.Property(e => e.PurchaseOrderItemId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.SellOrderItemId).HasMaxLength(36);
                 entity.Property(e => e.VendorId).HasMaxLength(36);
                 entity.Property(e => e.VendorName).HasMaxLength(64);
                 entity.Property(e => e.PurchaseUserName).HasMaxLength(64);
                 entity.Property(e => e.Status).HasDefaultValue((short)10);
                 entity.Property(e => e.ExpectedArrivalDate);
-                entity.HasMany(e => e.Items)
-                    .WithOne(x => x.StockInNotify)
-                    .HasForeignKey(x => x.StockInNotifyId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            modelBuilder.Entity<StockInNotifyItem>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.StockInNotifyId).IsRequired().HasMaxLength(36);
-                entity.Property(e => e.PurchaseOrderItemId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.Pn).HasMaxLength(128);
                 entity.Property(e => e.Brand).HasMaxLength(64);
-                entity.Property(e => e.Qty).HasColumnType("numeric(18,4)");
-                entity.Property(e => e.ArrivedQty).HasColumnType("numeric(18,4)");
-                entity.Property(e => e.PassedQty).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.ExpectQty).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                entity.Property(e => e.ReceiveQty).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                entity.Property(e => e.PassedQty).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                entity.Property(e => e.Cost).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.ExpectTotal).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.ReceiveTotal).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Ignore(e => e.Items);
             });
 
             modelBuilder.Entity<QCInfo>(entity =>
@@ -599,7 +634,7 @@ namespace CRM.Infrastructure.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.QcInfoId).IsRequired().HasMaxLength(36);
-                entity.Property(e => e.StockInNotifyItemId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.ArrivalStockInNotifyId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.ArrivedQty).HasColumnType("numeric(18,4)");
                 entity.Property(e => e.PassedQty).HasColumnType("numeric(18,4)");
                 entity.Property(e => e.RejectQty).HasColumnType("numeric(18,4)");

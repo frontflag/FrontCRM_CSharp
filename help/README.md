@@ -1,37 +1,22 @@
 # 帮助手册（Markdown）
 
-- 按业务模块分子目录，例如客户模块文档放在 `customer/`，供应商模块放在 `vendor/`。
-- 每个页面对应一个文件，**文件名与 Vue Router 的 `route.name` 一致**，扩展名为 `.md`。  
-  例：客户列表路由 `name: 'CustomerList'` → `customer/CustomerList.md`。
-- 开发与生产构建前会执行 `scripts/sync-help.mjs`，将本目录复制到 `CRM.Web/public/help/`，随前端静态资源一并部署。
+## 当前约定（菜单驱动）
 
-## 模块目录约定
+1. **注册表**：`menu-registry.json` 描述每个主菜单项的 `id`、`label`、路由名与路径前缀。
+2. **文档路径**：`pages/{菜单名称}_{菜单ID}.md`（例：`pages/销售订单_MENU_SALES_ORDERS.md`）。
+3. **目录**：根目录 `帮助文档目录.md` 由 `scripts/sync-help.mjs` 根据注册表自动生成，仅展示菜单名称链接。
+4. **同步**：`npm run dev` / `npm run build` 前执行 `sync-help.mjs`，将 `help/` 复制到 `CRM.Web/public/help/`，并补全缺省占位页（不覆盖已有文件）。
+5. **前端解析**：`CRM.Web/src/utils/helpDocPath.ts` 按当前路由解析菜单项并 `fetch` 对应 `.md`；右栏「帮助」内点击 `.md` 链接仅在面板内切换，不跳转整页。
 
-与前端 `CRM.Web/src/utils/helpDocPath.ts` 中路径前缀一致，例如：
+## 单页内容结构（建议）
 
-| 路径前缀 | 子目录名 |
-|---------|---------|
-| `/customers`、`/custome`、`/customerlist` | `customer` |
-| `/vendors`、`/vendor`、`/vendorlist` | `vendor` |
-| `/rfqs`、`/rfq-items` | `rfq` |
-| `/boms` | `bom` |
-| `/inventory`、`/stock-out-notifies` | `inventory` |
-| `/quotes` | `quote` |
-| `/purchase-orders`、`/purchase-requisitions`、`/purchase-order-items` | `purchase` |
-| `/sales-orders`、`/sales-order-items` | `sales` |
-| `/logistics` | `logistics` |
-| `/finance` | `finance` |
-| `/system` | `system` |
-| `/dashboard` | `dashboard` |
-| `/profile` | `profile` |
-| `/drafts` | `draft` |
-| `/pending-approvals` | `approval` |
-| `/documents` | `document` |
-| `/debug` | `debug` |
-| （其他） | `common` |
+占位模板已包含：
 
-未匹配到对应 `.md` 文件（404）时，右栏「帮助」显示「暂无帮助」。
+- 第 1 行：返回 [帮助文档目录](../帮助文档目录.md)
+- 一级标题：`# {菜单名称}`（或与产品约定使用 `help-h1--offset-down` 等扩展 class，见下）
+- `## 页面功能` — 业务说明
+- `## 操作说明` — 操作列按钮及前置条件；**推荐**使用扩展面板.帮助约定的 `.help-op-block` 卡片版式，详见产品文档 [扩展面板.帮助规范](../document/PRD/规范/UI规范/扩展面板.帮助规范.md)。旧内容可用表格，建议逐步迁移。
 
-## 主菜单相关页面（已备帮助）
+## 历史说明
 
-侧栏主菜单可直接进入的路由，已在对应目录下提供与 `route.name` 同名的 `.md`（如 `Dashboard.md`、`PendingApprovals.md`、`CustomerHome.md`、`VendorHome.md`、`RFQList.md`、`BOMList.md`、`QuoteList.md`、销售/采购/库存/财务/系统各列表页等）。子页面（详情、新建、编辑）可按同样规则逐步补充。
+旧版 `help/{模块}/{route.name}.md` 目录结构已移除；帮助内容仅以 `menu-registry.json` + `pages/` 为准。

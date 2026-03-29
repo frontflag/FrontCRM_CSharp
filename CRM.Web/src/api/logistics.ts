@@ -16,12 +16,21 @@ export interface StockInNotifyDto {
   noticeCode: string
   purchaseOrderId: string
   purchaseOrderCode: string
+  purchaseOrderItemId?: string
+  sellOrderItemId?: string | null
   vendorId?: string
   vendorName?: string
+  /** 供应商编号（接口从采购单关联填充） */
+  vendorCode?: string | null
   purchaseUserName?: string
   status: number
   /** 预计到货日期 */
   expectedArrivalDate?: string | null
+  pn?: string | null
+  brand?: string | null
+  expectQty?: number
+  receiveQty?: number
+  passedQty?: number
   createTime: string
   modifyTime?: string
   items: StockInNotifyItemDto[]
@@ -36,6 +45,7 @@ export interface QcInfoDto {
   purchaseOrderCode?: string
   salesOrderCode?: string
   model?: string
+  brand?: string
   status: number
   stockInStatus: number
   passQty: number
@@ -43,12 +53,6 @@ export interface QcInfoDto {
   stockInId?: string
   createTime: string
   modifyTime?: string
-}
-
-export interface AutoGenerateArrivalNoticeResult {
-  purchaseOrdersScanned: number
-  createdCount: number
-  existingCount: number
 }
 
 const unwrap = <T>(res: any): T => (res?.data ?? res) as T
@@ -62,13 +66,12 @@ export const logisticsApi = {
     return unwrap<StockInNotifyDto[]>(await apiClient.get('/api/v1/logistics/arrival-notices', { params }))
   },
   async createArrivalNotice(payload: {
-    purchaseOrderId: string
+    purchaseOrderItemId: string
+    expectQty: number
+    purchaseOrderId?: string
     expectedArrivalDate?: string | null
   }): Promise<StockInNotifyDto> {
     return unwrap<StockInNotifyDto>(await apiClient.post('/api/v1/logistics/arrival-notices', payload))
-  },
-  async autoGenerateArrivalNotices(): Promise<AutoGenerateArrivalNoticeResult> {
-    return unwrap<AutoGenerateArrivalNoticeResult>(await apiClient.post('/api/v1/logistics/arrival-notices/auto-generate', {}))
   },
   async updateArrivalStatus(id: string, status: number): Promise<void> {
     await apiClient.patch(`/api/v1/logistics/arrival-notices/${id}/status?status=${status}`)

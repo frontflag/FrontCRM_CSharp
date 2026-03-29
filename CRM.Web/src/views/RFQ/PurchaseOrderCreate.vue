@@ -13,8 +13,8 @@
         </el-breadcrumb>
       </div>
       <div class="header-right">
-        <el-button @click="router.back()">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
+        <el-button plain class="po-header-btn-cancel" @click="router.back()">取消</el-button>
+        <el-button type="primary" :loading="submitLoading" class="po-header-btn-save" @click="handleSubmit">
           <el-icon><Check /></el-icon> 保存
         </el-button>
       </div>
@@ -87,7 +87,7 @@
       <div class="form-section">
         <div class="section-title">
           <span class="title-bar"></span>订单明细
-          <el-button type="primary" size="small" class="add-item-btn" @click="addItem">
+          <el-button type="success" size="small" class="add-item-btn" @click="addItem">
             <el-icon><Plus /></el-icon> 添加明细
           </el-button>
         </div>
@@ -182,7 +182,7 @@
             </el-row>
 
             <div class="material-card-actions">
-              <el-button link type="danger" @click="removeItem(index)">删除</el-button>
+              <el-button link type="danger" size="small" @click="removeItem(index)">删除</el-button>
             </div>
 
             <div class="line-total-row">
@@ -480,7 +480,9 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-/* PurchaseOrderCreate.vue — 独立新建页面，暗色科技风 */
+@import '@/assets/styles/variables.scss';
+
+/* PurchaseOrderCreate.vue — 独立新建页面，暗色科技风；页头/明细按钮见《列表操作按钮颜色规范》语义 */
 .create-page {
   padding: 20px;
   min-height: 100%;
@@ -537,6 +539,16 @@ onMounted(async () => {
 
     .add-item-btn {
       margin-left: auto;
+    }
+
+    /* success：新增明细行，与规范「新建/新增/创建」同色 */
+    :deep(.add-item-btn.el-button--success) {
+      --el-button-bg-color: rgba(46, 160, 67, 0.2);
+      --el-button-border-color: rgba(70, 191, 145, 0.45);
+      --el-button-text-color: #6fe0a8;
+      --el-button-hover-bg-color: rgba(46, 160, 67, 0.32);
+      --el-button-hover-border-color: rgba(95, 212, 168, 0.55);
+      --el-button-hover-text-color: #9af0c4;
     }
   }
 

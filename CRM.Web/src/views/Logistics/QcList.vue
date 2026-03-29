@@ -1,45 +1,88 @@
 <template>
-  <div class="page-wrap">
+  <div class="qc-list-page">
     <div class="page-header">
       <h2>质检</h2>
-      <el-button @click="loadData">刷新</el-button>
+      <div class="ops">
+        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="loadData">刷新</button>
+      </div>
     </div>
 
+    <!-- 搜索栏：与 CustomerList / ArrivalNoticeList 同款布局与控件皮肤 -->
     <div class="search-bar">
-      <el-input v-model="filters.model" placeholder="物料型号(PN)" clearable class="search-item" @keyup.enter="loadData" />
-      <el-input v-model="filters.vendorName" placeholder="供应商名称" clearable class="search-item" @keyup.enter="loadData" />
-      <el-input v-model="filters.purchaseOrderCode" placeholder="采购订单号" clearable class="search-item" @keyup.enter="loadData" />
-      <el-input v-model="filters.salesOrderCode" placeholder="销售订单号" clearable class="search-item" @keyup.enter="loadData" />
-      <el-button type="primary" @click="loadData">查询</el-button>
-      <el-button @click="resetFilters">重置</el-button>
+      <div class="search-left">
+        <span class="filter-field-label">物料型号</span>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filters.model"
+            class="search-input"
+            placeholder="物料型号(PN)"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <span class="filter-field-label">供应商</span>
+        <div class="search-input-wrap">
+          <input
+            v-model="filters.vendorName"
+            class="search-input--plain"
+            placeholder="供应商名称"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <span class="filter-field-label">采购单号</span>
+        <div class="search-input-wrap">
+          <input
+            v-model="filters.purchaseOrderCode"
+            class="search-input--plain"
+            placeholder="采购订单号"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <span class="filter-field-label">销售单号</span>
+        <div class="search-input-wrap">
+          <input
+            v-model="filters.salesOrderCode"
+            class="search-input--plain"
+            placeholder="销售订单号"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="handleSearch">搜索</button>
+        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="resetFilters">重置</button>
+      </div>
     </div>
 
     <CrmDataTable :data="list" v-loading="loading" @row-dblclick="goView">
       <el-table-column prop="qcCode" label="质检单号" width="160" min-width="160" />
-      <el-table-column prop="model" label="型号" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="vendorName" label="供应商名称" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="purchaseOrderCode" label="采购订单号" width="170" show-overflow-tooltip />
-      <el-table-column prop="salesOrderCode" label="销售订单号" width="170" show-overflow-tooltip />
       <el-table-column label="状态" width="120">
         <template #default="{ row }">
           <el-tag effect="dark" :type="qcType(row.status)">{{ qcText(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="stockInNotifyCode" label="到货通知号" width="170" />
-      <el-table-column label="入库状态" width="120">
-        <template #default="{ row }">
-          <el-tag effect="dark" :type="stockInType(row.stockInStatus)">{{ stockInText(row.stockInStatus) }}</el-tag>
-        </template>
-      </el-table-column>
+      <el-table-column prop="stockInNotifyCode" label="到货通知单号" width="170" />
+      <el-table-column prop="model" label="物料型号" min-width="160" show-overflow-tooltip />
+      <el-table-column prop="brand" label="品牌" min-width="120" show-overflow-tooltip />
+      <el-table-column prop="vendorName" label="供应商" min-width="160" show-overflow-tooltip />
+      <el-table-column prop="purchaseOrderCode" label="采购订单号" width="170" show-overflow-tooltip />
+      <el-table-column prop="salesOrderCode" label="销售订单号" width="170" show-overflow-tooltip />
       <el-table-column prop="passQty" label="通过数量" width="110" align="right" />
       <el-table-column prop="rejectQty" label="拒收数量" width="110" align="right" />
+      <el-table-column label="入库状态" width="120">
+        <template #default="{ row }">
+          <el-tag effect="dark" :type="stockInType(displayStockInStatus(row))">{{ stockInText(displayStockInStatus(row)) }}</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="createTime" label="创建时间" width="170">
         <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
       </el-table-column>
       <el-table-column label="创建人" width="120" show-overflow-tooltip>
         <template #default="{ row }">{{ row.createUserName || row.createdBy || '--' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="260" fixed="right" class-name="op-col" label-class-name="op-col">
+      <!-- 操作：查看 +（条件）生成入库，收窄避免固定列右侧留白 -->
+      <el-table-column label="操作" width="200" min-width="200" fixed="right" class-name="op-col" label-class-name="op-col">
         <template #default="{ row }">
           <div @click.stop @dblclick.stop>
             <div class="action-btns">
@@ -54,16 +97,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, watch } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { logisticsApi, type QcInfoDto } from '@/api/logistics'
 import { stockInApi } from '@/api/stockIn'
 import { inventoryCenterApi } from '@/api/inventoryCenter'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { getApiErrorMessage } from '@/utils/apiError'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDateTime2DigitYear } from '@/utils/displayDateTime'
 
 const router = useRouter()
+const route = useRoute()
 const loading = ref(false)
 const list = ref<QcInfoDto[]>([])
 const filters = ref({
@@ -84,7 +128,23 @@ const qcText = (s: number) => ({ [-1]: '未通过', 10: '部分通过', 100: '�
 const qcType = (s: number) => ({ [-1]: 'danger', 10: 'warning', 100: 'success' }[s] || 'info')
 const stockInText = (s: number) => ({ [-1]: '拒收', 1: '未入库', 10: '部分入库', 100: '全部入库' }[s] || '未知')
 const stockInType = (s: number) => ({ [-1]: 'danger', 1: 'info', 10: 'warning', 100: 'success' }[s] || 'info')
-const formatTime = (v?: string) => formatDisplayDateTime(v)
+
+/** 未绑定入库单时忽略历史脏数据（StockInStatus 误存为 10/100） */
+const displayStockInStatus = (row: QcInfoDto) => {
+  if (row.status === -1) return -1
+  if (!row.stockInId) return 1
+  return row.stockInStatus
+}
+const formatTime = (v?: string) => formatDisplayDateTime2DigitYear(v)
+
+function syncFiltersFromRoute() {
+  if (route.name !== 'QcList') return
+  const q = route.query
+  filters.value.model = typeof q.model === 'string' ? q.model : ''
+  filters.value.vendorName = typeof q.vendorName === 'string' ? q.vendorName : ''
+  filters.value.purchaseOrderCode = typeof q.purchaseOrderCode === 'string' ? q.purchaseOrderCode : ''
+  filters.value.salesOrderCode = typeof q.salesOrderCode === 'string' ? q.salesOrderCode : ''
+}
 
 const loadData = () => {
   loading.value = true
@@ -98,6 +158,29 @@ const loadData = () => {
     .finally(() => { loading.value = false })
 }
 
+watch(
+  () => [route.name, route.query] as const,
+  () => {
+    syncFiltersFromRoute()
+    if (route.name === 'QcList') loadData()
+  },
+  { deep: true, immediate: true }
+)
+
+/** 与左侧检索面板共用 URL query */
+const handleSearch = () => {
+  const query: Record<string, string> = {}
+  const m = filters.value.model.trim()
+  if (m) query.model = m
+  const v = filters.value.vendorName.trim()
+  if (v) query.vendorName = v
+  const p = filters.value.purchaseOrderCode.trim()
+  if (p) query.purchaseOrderCode = p
+  const s = filters.value.salesOrderCode.trim()
+  if (s) query.salesOrderCode = s
+  router.replace({ name: 'QcList', query })
+}
+
 const resetFilters = () => {
   filters.value = {
     model: '',
@@ -105,7 +188,7 @@ const resetFilters = () => {
     purchaseOrderCode: '',
     salesOrderCode: '',
   }
-  loadData()
+  router.replace({ name: 'QcList', query: {} })
 }
 
 const goView = (row: QcInfoDto) => {
@@ -122,6 +205,21 @@ const resolveWarehouseId = async () => {
 }
 
 const createStockIn = async (row: QcInfoDto) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定为质检单「${row.qcCode}」生成入库单并完成过账吗？`,
+      '生成入库',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+        distinguishCancelAndClose: true,
+      }
+    )
+  } catch {
+    return
+  }
+
   const notices = await logisticsApi.getArrivalNotices()
   const notice = notices.find(x => x.id === row.stockInNotifyId)
   if (!notice) {
@@ -180,13 +278,167 @@ const createStockIn = async (row: QcInfoDto) => {
   }
 }
 
-loadData()
 </script>
 
 <style scoped lang="scss">
-.page-wrap { padding: 20px; }
-.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.search-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
-.search-item { width: 180px; }
-h2 { margin: 0; }
+@import '@/assets/styles/variables.scss';
+
+.qc-list-page {
+  padding: 24px;
+  min-height: 100%;
+  background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+
+  h2 {
+    margin: 0;
+    color: $text-primary;
+    font-size: 20px;
+    font-weight: 600;
+  }
+}
+
+.ops {
+  display: flex;
+  gap: 8px;
+}
+
+// ---- 搜索栏（与 CustomerList / ArrivalNoticeList 一致）----
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.search-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
+  white-space: nowrap;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-input--plain {
+  width: 200px;
+  padding: 7px 12px;
+  background: $layer-2;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-primary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: $text-muted;
+  }
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: $text-muted;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 220px;
+  padding: 7px 12px 7px 32px;
+  background: $layer-2;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-primary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: $text-muted;
+  }
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    border-color: rgba(0, 212, 255, 0.3);
+    color: $text-secondary;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
 </style>

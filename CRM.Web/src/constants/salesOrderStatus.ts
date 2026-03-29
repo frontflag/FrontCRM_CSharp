@@ -28,3 +28,9 @@ export function salesOrderStatusTagType(status: number): 'success' | 'warning' |
   }
   return map[status] ?? 'info'
 }
+
+/** 主表为审核通过 / 进行中 / 完成时，明细方可「申请采购」「申请出库」 */
+export function salesOrderMainAllowsPurchaseAndStockOut(status: number): boolean {
+  const s = Number(status)
+  return s === 10 || s === 20 || s === 100
+}

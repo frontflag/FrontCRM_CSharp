@@ -118,7 +118,7 @@
             {{ row.createUserName || row.createdBy || row.salesUserName || '—' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="280" min-width="280" fixed="right" class-name="op-col" label-class-name="op-col">
+        <el-table-column label="操作" width="236" min-width="228" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
             <div @click.stop @dblclick.stop>
               <div class="action-btns">
@@ -127,7 +127,6 @@
                 <button type="button" class="action-btn action-btn--warning" @click.stop="handleGenerateQuote(row)">
                   生成报价
                 </button>
-                <button type="button" class="action-btn action-btn--danger" @click.stop="handleDelete(row)">删除</button>
               </div>
             </div>
           </template>
@@ -162,7 +161,7 @@ import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Plus, Search, Upload } from '@element-plus/icons-vue'
 import ImportRFQDialog from './components/ImportRFQDialog.vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatRfqTypeLabel } from '@/constants/rfqFormEnums'
@@ -304,18 +303,6 @@ const handleView = (row: any) => {
 
 const handleGenerateQuote = (_row: any) => {
   ElMessage.success('已生成报价单')
-}
-
-// 删除
-const handleDelete = async (row: any) => {
-  try {
-    await ElMessageBox.confirm(`确定要删除需求单 ${row.rfqCode} 吗？`, '警告', { type: 'warning' })
-    await rfqApi.deleteRFQ(row.id)
-    ElMessage.success('删除成功')
-    loadData()
-  } catch {
-    // 取消
-  }
 }
 
 </script>

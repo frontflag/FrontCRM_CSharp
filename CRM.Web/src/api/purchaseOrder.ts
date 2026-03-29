@@ -4,6 +4,7 @@ import apiClient from './client'
 export const purchaseOrderApi = {
   // 获取采购订单列表（分页，与后端 PurchaseOrdersController 一致）
   async getList(params?: {
+    /** 采购单号/供应商名称模糊 */
     keyword?: string
     status?: number
     startDate?: string

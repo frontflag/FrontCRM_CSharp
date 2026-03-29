@@ -76,13 +76,21 @@
           </svg>
           关闭需求
         </button>
-        <button class="btn-danger" @click="handleDelete">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="3 6 5 6 21 6"/>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-          </svg>
-          删除需求
-        </button>
+        <el-dropdown
+          trigger="click"
+          placement="bottom-end"
+          popper-class="rfq-detail-header-more-popper"
+          @command="onHeaderMoreCommand"
+        >
+          <button type="button" class="btn-more-actions" title="更多操作" aria-label="更多操作">
+            <span class="btn-more-actions__dots" aria-hidden="true">⋯</span>
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="delete" class="detail-more-item--danger">删除需求</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
 
@@ -458,6 +466,10 @@ function formatCloseAt(val?: string) {
 function goBack() { router.push('/rfqlist') }
 function handleEdit() { router.push(`/rfqs/${rfqId}/edit`) }
 
+function onHeaderMoreCommand(cmd: string) {
+  if (cmd === 'delete') void handleDelete()
+}
+
 async function loadFavoriteState() {
   if (!rfqId) return
   try {
@@ -596,7 +608,7 @@ onMounted(() => { loadRFQ(); loadItems(); loadCloseRecords() })
   justify-content: space-between;
   margin-bottom: 24px;
   .header-left { display: flex; align-items: center; gap: 16px; }
-  .header-right { display: flex; gap: 10px; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
 }
 
 .btn-back {
@@ -755,11 +767,30 @@ onMounted(() => { loadRFQ(); loadItems(); loadCloseRecords() })
   color: $color-amber; font-size: 13px; font-family: 'Noto Sans SC', sans-serif; cursor: pointer; transition: all 0.2s;
   &:hover { background: rgba(201,154,69,0.25); }
 }
-.btn-danger {
-  display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
-  background: rgba(201,87,69,0.15); border: 1px solid rgba(201,87,69,0.4); border-radius: $border-radius-md;
-  color: $color-red-brown; font-size: 13px; font-family: 'Noto Sans SC', sans-serif; cursor: pointer; transition: all 0.2s;
-  &:hover { background: rgba(201,87,69,0.25); }
+.btn-more-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  background: rgba(255, 255, 255, 0.04);
+  color: $text-muted;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Noto Sans SC', sans-serif;
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: $text-secondary;
+    border-color: rgba(0, 212, 255, 0.2);
+  }
+  .btn-more-actions__dots {
+    font-size: 18px;
+    line-height: 1;
+    letter-spacing: 1px;
+  }
 }
 
 // ---- 信息区块 ----
@@ -960,5 +991,39 @@ onMounted(() => { loadRFQ(); loadItems(); loadCloseRecords() })
   cursor: pointer;
   transition: all 0.15s;
   &:hover { background: rgba(0,212,255,0.18); }
+}
+</style>
+
+<style lang="scss">
+@import '@/assets/styles/variables.scss';
+
+.rfq-detail-header-more-popper.el-dropdown__popper,
+.rfq-detail-header-more-popper.el-popper {
+  background: $layer-2 !important;
+  border: 1px solid rgba(0, 212, 255, 0.15) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+}
+.rfq-detail-header-more-popper .el-dropdown-menu {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 4px 0 !important;
+}
+.rfq-detail-header-more-popper .el-dropdown-menu__item {
+  color: rgba(200, 220, 240, 0.92) !important;
+  font-size: 13px;
+  &:hover,
+  &:focus {
+    background: rgba(0, 212, 255, 0.1) !important;
+    color: #e8f4ff !important;
+  }
+}
+.rfq-detail-header-more-popper .detail-more-item--danger {
+  color: rgba(245, 108, 108, 0.95) !important;
+  &:hover,
+  &:focus {
+    background: rgba(245, 108, 108, 0.12) !important;
+    color: #ff9a9a !important;
+  }
 }
 </style>

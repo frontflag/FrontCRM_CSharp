@@ -3,6 +3,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CRM.Core.Models.Inventory
 {
+    /// <summary>
+    /// 到货通知（单表：一条记录 = 采购明细上的一次到货批次）
+    /// </summary>
     [Table("stockinnotify")]
     public class StockInNotify : BaseGuidEntity
     {
@@ -15,11 +18,23 @@ namespace CRM.Core.Models.Inventory
         [StringLength(32)]
         public string PurchaseOrderCode { get; set; } = string.Empty;
 
+        /// <summary>采购订单明细 Id</summary>
+        [StringLength(36)]
+        public string PurchaseOrderItemId { get; set; } = string.Empty;
+
+        /// <summary>销售订单明细 Id（冗余，来自采购明细）</summary>
+        [StringLength(36)]
+        public string? SellOrderItemId { get; set; }
+
         [StringLength(36)]
         public string? VendorId { get; set; }
 
         [StringLength(64)]
         public string? VendorName { get; set; }
+
+        /// <summary>供应商编号（展示用，从采购单关联填充，不落库）</summary>
+        [NotMapped]
+        public string? VendorCode { get; set; }
 
         [StringLength(64)]
         public string? PurchaseUserName { get; set; }
@@ -27,20 +42,8 @@ namespace CRM.Core.Models.Inventory
         /// <summary>1新建 10未到货 20到货待检 30已质检 100已入库</summary>
         public short Status { get; set; } = 10;
 
-        /// <summary>预计到货日期（通知物流人员关注到期接收）</summary>
+        /// <summary>预计到货日期</summary>
         public DateTime? ExpectedArrivalDate { get; set; }
-
-        public ICollection<StockInNotifyItem> Items { get; set; } = new List<StockInNotifyItem>();
-    }
-
-    [Table("stockinnotifyitem")]
-    public class StockInNotifyItem : BaseGuidEntity
-    {
-        [StringLength(36)]
-        public string StockInNotifyId { get; set; } = string.Empty;
-
-        [StringLength(36)]
-        public string PurchaseOrderItemId { get; set; } = string.Empty;
 
         [StringLength(128)]
         public string? Pn { get; set; }
@@ -48,11 +51,45 @@ namespace CRM.Core.Models.Inventory
         [StringLength(64)]
         public string? Brand { get; set; }
 
+        /// <summary>本批次预期到货数量</summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal ExpectQty { get; set; }
+
+        /// <summary>本批次实收数量（入库流程回写）</summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal ReceiveQty { get; set; }
+
+        /// <summary>本批次质检通过数量汇总</summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal PassedQty { get; set; }
+
+        [Column(TypeName = "numeric(18,6)")]
+        public decimal Cost { get; set; }
+
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal ExpectTotal { get; set; }
+
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal ReceiveTotal { get; set; }
+
+        /// <summary>兼容旧前端：明细弹窗 items[]，由服务填充为单元素</summary>
+        [NotMapped]
+        public ICollection<StockInNotifyItemSnapshot>? Items { get; set; }
+    }
+
+    /// <summary>
+    /// 到货通知行快照（非表，仅序列化/API 兼容）
+    /// </summary>
+    public class StockInNotifyItemSnapshot
+    {
+        public string Id { get; set; } = string.Empty;
+        public string StockInNotifyId { get; set; } = string.Empty;
+        public string PurchaseOrderItemId { get; set; } = string.Empty;
+        public string? Pn { get; set; }
+        public string? Brand { get; set; }
         public decimal Qty { get; set; }
         public decimal ArrivedQty { get; set; }
         public decimal PassedQty { get; set; }
-
-        public StockInNotify? StockInNotify { get; set; }
     }
 
     [Table("qcinfo")]
@@ -79,21 +116,20 @@ namespace CRM.Core.Models.Inventory
         [StringLength(36)]
         public string? StockInId { get; set; }
 
-        /// <summary>展示字段：供应商名称（由到货通知带出）</summary>
         [NotMapped]
         public string? VendorName { get; set; }
 
-        /// <summary>展示字段：采购订单号（由到货通知带出）</summary>
         [NotMapped]
         public string? PurchaseOrderCode { get; set; }
 
-        /// <summary>展示字段：销售订单号（由采购明细关联销售明细推导）</summary>
         [NotMapped]
         public string? SalesOrderCode { get; set; }
 
-        /// <summary>展示字段：型号（由到货通知明细聚合）</summary>
         [NotMapped]
         public string? Model { get; set; }
+
+        [NotMapped]
+        public string? Brand { get; set; }
 
         public ICollection<QCItem> Items { get; set; } = new List<QCItem>();
     }
@@ -104,8 +140,9 @@ namespace CRM.Core.Models.Inventory
         [StringLength(36)]
         public string QcInfoId { get; set; } = string.Empty;
 
+        /// <summary>对应单表到货通知行 Id（原 StockInNotifyItemId）</summary>
         [StringLength(36)]
-        public string StockInNotifyItemId { get; set; } = string.Empty;
+        public string ArrivalStockInNotifyId { get; set; } = string.Empty;
 
         public decimal ArrivedQty { get; set; }
         public decimal PassedQty { get; set; }

@@ -31,6 +31,8 @@ namespace CRM.Core.Interfaces
         public DateTime? OrderCreateEnd { get; set; }
         public string? CustomerName { get; set; }
         public string? SalesUserName { get; set; }
+        /// <summary>销售订单号（模糊匹配）</summary>
+        public string? SellOrderCode { get; set; }
         public string? Pn { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;

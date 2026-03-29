@@ -150,6 +150,7 @@ namespace CRM.Core.Services
                 ?? throw new InvalidOperationException($"付款单 {id} 不存在");
 
             if (request.PaymentAmountToBe.HasValue) payment.PaymentAmountToBe = request.PaymentAmountToBe.Value;
+            if (request.PaymentCurrency.HasValue) payment.PaymentCurrency = request.PaymentCurrency.Value;
             if (request.PaymentDate.HasValue) payment.PaymentDate = PostgreSqlDateTime.ToUtc(request.PaymentDate.Value);
             if (request.PaymentMode.HasValue) payment.PaymentMode = request.PaymentMode.Value;
             if (request.BankSlipNo != null) payment.BankSlipNo = request.BankSlipNo;

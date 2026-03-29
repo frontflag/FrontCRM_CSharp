@@ -1,10 +1,14 @@
 <template>
   <div class="purchase-order-list-page">
     <div class="page-header">
-      <h2>采购订单管理</h2>
-      <el-button type="primary" @click="handleCreate">
-        <el-icon><Plus /></el-icon>新建采购订单
-      </el-button>
+      <h2>采购订单</h2>
+      <button type="button" class="btn-success" @click="handleCreate">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        新建采购订单
+      </button>
     </div>
 
     <!-- 统计卡片 -->
@@ -35,36 +39,64 @@
       </el-col>
     </el-row>
 
-    <!-- 搜索筛选 -->
-    <el-card class="filter-card">
-      <el-form :inline="true" :model="filterForm">
-        <el-form-item label="订单号">
-          <el-input v-model="filterForm.code" placeholder="请输入订单号" clearable />
-        </el-form-item>
-        <el-form-item v-if="canViewVendorInfo" label="供应商">
-          <el-input v-model="filterForm.vendor" placeholder="请输入供应商" clearable />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="filterForm.status" placeholder="全部状态" clearable>
-            <el-option label="新建" :value="1" />
-            <el-option label="待审核" :value="2" />
-            <el-option label="审核通过" :value="10" />
-            <el-option label="待确认" :value="20" />
-            <el-option label="已确认" :value="30" />
-            <el-option label="进行中" :value="50" />
-            <el-option label="采购完成" :value="100" />
-            <el-option label="审核失败" :value="-1" />
-            <el-option label="取消" :value="-2" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>查询
-          </el-button>
-          <el-button @click="handleReset">重置</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+    <!-- 搜索栏（与客户列表页 search-bar 一致） -->
+    <div class="search-bar">
+      <div class="search-left">
+        <span class="filter-field-label">订单号</span>
+        <div class="search-input-wrap">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            class="search-icon"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filterForm.code"
+            class="search-input"
+            placeholder="请输入订单号"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <template v-if="canViewVendorInfo">
+          <span class="filter-field-label">供应商</span>
+          <input
+            v-model="filterForm.vendor"
+            class="search-input search-input--plain"
+            placeholder="请输入供应商"
+            @keyup.enter="handleSearch"
+          />
+        </template>
+        <span class="filter-field-label">状态</span>
+        <el-select
+          v-model="filterForm.status"
+          placeholder="全部状态"
+          clearable
+          class="status-select status-select--po"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option label="草稿" :value="0" />
+          <el-option label="新建" :value="1" />
+          <el-option label="待审核" :value="2" />
+          <el-option label="审核通过" :value="10" />
+          <el-option label="待确认" :value="20" />
+          <el-option label="已确认" :value="30" />
+          <el-option label="进行中" :value="50" />
+          <el-option label="采购完成" :value="100" />
+          <el-option label="审核失败" :value="-1" />
+          <el-option label="取消" :value="-2" />
+        </el-select>
+        <button type="button" class="btn-primary btn-sm" @click="handleSearch">搜索</button>
+        <button type="button" class="btn-ghost btn-sm" @click="handleReset">重置</button>
+      </div>
+    </div>
 
     <!-- 数据表格 -->
     <el-card class="table-card">
@@ -81,8 +113,8 @@
         </el-table-column>
         <el-table-column prop="status" label="状态" width="160" align="center">
           <template #default="{ row }">
-            <el-tag effect="dark" :type="getStatusType(row.status)" size="small">
-              {{ getStatusText(row.status) }}
+            <el-tag effect="dark" :type="getStatusType(poListMainStatus(row))" size="small">
+              {{ getStatusText(poListMainStatus(row)) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -116,46 +148,44 @@
             {{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" min-width="480" fixed="right" class-name="op-col" label-class-name="op-col">
+        <el-table-column label="操作" width="300" min-width="292" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
             <div @click.stop @dblclick.stop>
               <div class="action-btns">
-                <el-button link type="primary" @click.stop="handleView(row)">详情</el-button>
-                <el-button link type="primary" @click.stop="handlePrintOrder(row)">打印订单</el-button>
-                <el-button link type="primary" @click.stop="handleEdit(row)">编辑</el-button>
-                <el-button
-                  v-if="row.status < 10"
-                  link
-                  type="danger"
-                  @click.stop="cancelOrder(row)"
-                >
-                  取消订单
-                </el-button>
-                <el-button
-                  v-if="(row.status >= 1 && row.status < 10) || row.status === -1"
-                  link
-                  type="warning"
+                <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">详情</button>
+                <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">编辑</button>
+                <button
+                  v-if="(poListMainStatus(row) >= 1 && poListMainStatus(row) < 10) || poListMainStatus(row) === -1"
+                  type="button"
+                  class="action-btn action-btn--warning"
                   @click.stop="submitAudit(row)"
                 >
                   提交审核
-                </el-button>
-                <el-button
-                  v-if="row.status >= 10 && row.status < 30"
-                  link
-                  type="warning"
+                </button>
+                <button
+                  v-if="poListMainStatus(row) >= 10 && poListMainStatus(row) < 30"
+                  type="button"
+                  class="action-btn action-btn--warning"
                   @click.stop="confirmBySupplier(row)"
                 >
                   供应商确认
-                </el-button>
-                <el-button
-                  v-if="row.status === 30"
-                  link
-                  type="danger"
+                </button>
+                <button
+                  v-if="purchaseOrderReportAllowed(poListMainStatus(row))"
+                  type="button"
+                  class="action-btn action-btn--primary"
+                  @click.stop="handlePrintOrder(row)"
+                >
+                  采购单
+                </button>
+                <button
+                  v-if="poListMainStatus(row) === 30"
+                  type="button"
+                  class="action-btn action-btn--danger"
                   @click.stop="cancelSupplierConfirm(row)"
                 >
-                  取消供应商确认
-                </el-button>
-                <el-button link type="danger" @click.stop="handleDelete(row)">删除</el-button>
+                  取消确认
+                </button>
               </div>
             </div>
           </template>
@@ -182,11 +212,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import {
+  purchaseOrderReportAllowed,
+  normalizePurchaseOrderMainStatus
+} from '@/constants/purchaseOrderStatus'
 
 const router = useRouter()
 
@@ -195,6 +228,8 @@ const orderList = ref<any[]>([])
 const authStore = useAuthStore()
 const canViewVendorInfo = computed(() => authStore.hasPermission('vendor.info.read'))
 const canViewPurchaseAmount = computed(() => authStore.hasPermission('purchase.amount.read'))
+
+const poListMainStatus = normalizePurchaseOrderMainStatus
 
 // 筛选表单
 const filterForm = ref({
@@ -221,7 +256,7 @@ const filteredList = computed(() => {
     result = result.filter(o => o.vendorName?.toLowerCase().includes(filterForm.value.vendor.toLowerCase()))
   }
   if (filterForm.value.status !== undefined) {
-    result = result.filter(o => o.status === filterForm.value.status)
+    result = result.filter(o => poListMainStatus(o) === filterForm.value.status)
   }
   pageInfo.value.total = result.length
   const start = (pageInfo.value.page - 1) * pageInfo.value.pageSize
@@ -230,8 +265,8 @@ const filteredList = computed(() => {
 
 // 统计
 const statTotal = computed(() => orderList.value.length)
-const statPending = computed(() => orderList.value.filter(o => o.status === 20).length)
-const statInProgress = computed(() => orderList.value.filter(o => o.status === 50).length)
+const statPending = computed(() => orderList.value.filter(o => poListMainStatus(o) === 20).length)
+const statInProgress = computed(() => orderList.value.filter(o => poListMainStatus(o) === 50).length)
 const statAmount = computed(() => orderList.value.reduce((sum, o) => sum + (o.total || 0), 0))
 
 // 格式化货币
@@ -242,7 +277,9 @@ const formatCurrency = (value: number, currency?: number) => {
 
 // 状态处理
 const getStatusType = (status: number) => {
-  const map: Record<number, string> = { 
+  if (!Number.isFinite(status)) return 'info'
+  const map: Record<number, string> = {
+    0: 'info',
     1: 'info',
     2: 'warning',
     10: 'success',
@@ -257,7 +294,9 @@ const getStatusType = (status: number) => {
 }
 
 const getStatusText = (status: number) => {
+  if (!Number.isFinite(status)) return '—'
   const map: Record<number, string> = {
+    0: '草稿',
     1: '新建',
     2: '待审核',
     10: '审核通过',
@@ -314,9 +353,9 @@ const handlePageChange = (val: number) => {
   pageInfo.value.page = val
 }
 
-// 新建
+// 新建（手工新建入口暂关，以销定采等其它入口仍可用）
 const handleCreate = () => {
-  router.push({ name: 'PurchaseOrderCreate' })
+  ElMessage.info('功能暂未开放')
 }
 
 // 编辑
@@ -330,6 +369,10 @@ const handleView = (row: any) => {
 }
 
 const handlePrintOrder = (row: any) => {
+  if (!purchaseOrderReportAllowed(poListMainStatus(row))) {
+    ElMessage.warning('仅供应商已确认后的采购订单可生成采购单报表')
+    return
+  }
   router.push({ name: 'PurchaseOrderReport', params: { id: row.id } })
 }
 
@@ -342,7 +385,7 @@ const confirmBySupplier = async (row: any) => {
       { type: 'info', confirmButtonText: '确认', cancelButtonText: '取消' }
     )
     // 允许从“审核通过(10)”推进到“待确认(20)”再到“已确认(30)”
-    if (row.status === 10) {
+    if (poListMainStatus(row) === 10) {
       await purchaseOrderApi.updateStatus(row.id, 20)
     }
     await purchaseOrderApi.updateStatus(row.id, 30)
@@ -353,32 +396,16 @@ const confirmBySupplier = async (row: any) => {
   }
 }
 
-/** 取消供应商确认：仅「已确认(30)」时显示；将订单标记为取消 */
+/** 取消确认：仅「已确认(30)」时显示 */
 const cancelSupplierConfirm = async (row: any) => {
   try {
     await ElMessageBox.confirm(
-      `确认将采购订单 ${row.purchaseOrderCode} 执行“取消供应商确认”吗？`,
-      '取消供应商确认',
+      `确认将采购订单 ${row.purchaseOrderCode} 取消确认吗？`,
+      '取消确认',
       { type: 'warning', confirmButtonText: '确认', cancelButtonText: '取消' }
     )
     await purchaseOrderApi.updateStatus(row.id, -2)
-    ElMessage.success('已取消供应商确认')
-    await loadData()
-  } catch {
-    // 取消或失败已由全局拦截器提示
-  }
-}
-
-/** 取消订单：仅在 status < 10 显示 */
-const cancelOrder = async (row: any) => {
-  try {
-    await ElMessageBox.confirm(
-      `确认将采购订单 ${row.purchaseOrderCode} 标记为“取消”吗？`,
-      '取消订单',
-      { type: 'warning', confirmButtonText: '确认', cancelButtonText: '取消' }
-    )
-    await purchaseOrderApi.updateStatus(row.id, -2)
-    ElMessage.success('订单已取消')
+    ElMessage.success('已取消确认')
     await loadData()
   } catch {
     // 取消或失败已由全局拦截器提示
@@ -394,7 +421,7 @@ const submitAudit = async (row: any) => {
       { type: 'info', confirmButtonText: '确认', cancelButtonText: '取消' }
     )
     // 审核失败(-1)先回到新建(1)，再提交审核(2)
-    if (row.status === -1) {
+    if (poListMainStatus(row) === -1) {
       await purchaseOrderApi.updateStatus(row.id, 1)
     }
     await purchaseOrderApi.updateStatus(row.id, 2)
@@ -405,21 +432,12 @@ const submitAudit = async (row: any) => {
   }
 }
 
-// 删除
-const handleDelete = async (row: any) => {
-  try {
-    await ElMessageBox.confirm(`确定要删除采购订单 ${row.purchaseOrderCode} 吗？`, '警告', { type: 'warning' })
-    await purchaseOrderApi.delete(row.id)
-    loadData()
-  } catch {
-    // 取消
-  }
-}
-
 onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
 .purchase-order-list-page {
   padding: 20px;
 }
@@ -459,10 +477,154 @@ onMounted(loadData)
   }
 }
 
-.filter-card {
-  margin-bottom: 20px;
-  background: #0A1628;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+// ---- 搜索栏（与客户列表一致）----
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.search-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
+  white-space: nowrap;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: $text-muted;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 220px;
+  padding: 7px 12px 7px 32px;
+  background: $layer-2;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-primary;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: $text-muted;
+  }
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+}
+
+.search-input--plain {
+  padding: 7px 12px;
+  width: 200px;
+}
+
+.status-select {
+  width: 120px;
+  :deep(.el-select__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+  :deep(.el-select__placeholder) {
+    color: $text-muted !important;
+  }
+  :deep(.el-select__selected-item) {
+    color: $text-primary !important;
+  }
+}
+
+.status-select--po {
+  width: 150px;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+/* 列表页「新建/新增」：UI 规范 success 绿（见 列表操作按钮颜色规范PRD） */
+.btn-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(46, 160, 67, 0.85), rgba(70, 191, 145, 0.75));
+  border: 1px solid rgba(70, 191, 145, 0.45);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(70, 191, 145, 0.3);
+  }
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  &:hover {
+    border-color: rgba(0, 212, 255, 0.3);
+    color: $text-secondary;
+  }
 }
 
 .table-card {
@@ -475,9 +637,11 @@ onMounted(loadData)
     --el-table-border-color: rgba(0, 212, 255, 0.1);
     color: #E8F4FF;
 
-    // 操作列按钮禁止折行
-    .el-table__cell .el-button {
-      white-space: nowrap !important;
+    // 操作列：列宽随内容收缩（.action-btns / .action-btn 视觉见 crm-unified-list.scss）
+    .el-table__cell.op-col .cell {
+      display: inline-block;
+      width: max-content;
+      max-width: 100%;
     }
     .el-table__cell .cell {
       white-space: nowrap;

@@ -46,6 +46,8 @@ namespace CRM.Core.Interfaces
     public class UpdateFinancePaymentRequest
     {
         public decimal? PaymentAmountToBe { get; set; }
+        /// <summary>付款币别 1:人民币 2:美元 3:欧元</summary>
+        public byte? PaymentCurrency { get; set; }
         public DateTime? PaymentDate { get; set; }
         public short? PaymentMode { get; set; }
         public string? BankSlipNo { get; set; }

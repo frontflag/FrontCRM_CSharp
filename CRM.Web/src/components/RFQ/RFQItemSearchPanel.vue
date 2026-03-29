@@ -12,7 +12,8 @@ const dateRange = ref<[string, string] | null>(null)
 const form = reactive({
   customerKeyword: '',
   materialModel: '',
-  salesUserId: undefined as string | undefined
+  salesUserId: undefined as string | undefined,
+  hasQuotesOnly: false
 })
 
 function salesUserLabel(u: SalesUserSelectOption) {
@@ -34,6 +35,10 @@ function syncFromRoute() {
   form.materialModel = typeof q.materialModel === 'string' ? q.materialModel : ''
   const sid = q.salesUserId
   form.salesUserId = typeof sid === 'string' && sid !== '' ? sid : undefined
+  const hq = q.hasQuotesOnly
+  const hqRaw = Array.isArray(hq) ? hq[0] : hq
+  const hqStr = hqRaw != null && typeof hqRaw !== 'object' ? String(hqRaw).trim().toLowerCase() : ''
+  form.hasQuotesOnly = hqStr === '1' || hqStr === 'true' || hqStr === 'yes'
 }
 
 watch(
@@ -57,6 +62,7 @@ function handleSearch() {
   const mm = form.materialModel.trim()
   if (mm) query.materialModel = mm
   if (form.salesUserId) query.salesUserId = form.salesUserId
+  if (form.hasQuotesOnly) query.hasQuotesOnly = '1'
   router.replace({ name: 'RFQItemList', query })
 }
 
@@ -123,6 +129,12 @@ onMounted(async () => {
         >
           <el-option v-for="u in salesUsers" :key="u.id" :label="salesUserLabel(u)" :value="u.id" />
         </el-select>
+      </div>
+
+      <div class="field-col field-col--checkbox">
+        <el-checkbox v-model="form.hasQuotesOnly" class="field-checkbox-has-quotes" @change="handleSearch">
+          有报价
+        </el-checkbox>
       </div>
     </div>
 
@@ -191,6 +203,19 @@ onMounted(async () => {
 
 .field-date-range {
   width: 100%;
+}
+
+.field-col--checkbox {
+  flex-direction: row;
+  align-items: center;
+  padding-top: 4px;
+}
+
+.field-checkbox-has-quotes {
+  :deep(.el-checkbox__label) {
+    font-size: 12px;
+    color: rgba(200, 220, 240, 0.9);
+  }
 }
 
 .rfq-item-search-panel__actions {

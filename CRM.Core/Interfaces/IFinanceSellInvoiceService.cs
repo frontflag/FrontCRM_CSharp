@@ -46,6 +46,8 @@ namespace CRM.Core.Interfaces
 
     public class UpdateFinanceSellInvoiceRequest
     {
+        public string? CustomerId { get; set; }
+        public string? CustomerName { get; set; }
         public string? InvoiceNo { get; set; }
         public decimal? InvoiceTotal { get; set; }
         public DateTime? MakeInvoiceDate { get; set; }

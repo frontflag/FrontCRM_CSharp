@@ -173,7 +173,6 @@ namespace CRM.API.Controllers
             PurchaseOrder? po = null;
             PurchaseOrderItem? poItem = null;
             StockInNotify? notify = null;
-            StockInNotifyItem? notifyItem = null;
             QCInfo? qc = null;
             QCItem? qcItem = null;
             StockIn? stockIn = null;
@@ -492,37 +491,36 @@ namespace CRM.API.Controllers
 
             if (targetIdx >= 5 && firstCreateIdx <= 5 && po != null && poItem != null)
             {
+                var expectQty = poItem.Qty;
+                var expectTotal = Math.Round(expectQty * poItem.Cost, 2, MidpointRounding.AwayFromZero);
                 notify = new StockInNotify
                 {
                     Id = Guid.NewGuid().ToString(),
                     NoticeCode = $"SN{codeSuffix}",
                     PurchaseOrderId = po.Id,
                     PurchaseOrderCode = po.PurchaseOrderCode,
+                    PurchaseOrderItemId = poItem.Id,
+                    SellOrderItemId = poItem.SellOrderItemId,
                     VendorId = vendorId,
                     VendorName = po.VendorName,
                     PurchaseUserName = po.PurchaseUserName,
                     Status = normalizedNode == "stockinnotify" ? request.Status : (short)30,
-                    CreateTime = now
-                };
-                notifyItem = new StockInNotifyItem
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    StockInNotifyId = notify.Id,
-                    PurchaseOrderItemId = poItem.Id,
                     Pn = poItem.PN,
                     Brand = poItem.Brand,
-                    Qty = poItem.Qty,
-                    ArrivedQty = poItem.Qty,
-                    PassedQty = poItem.Qty,
+                    ExpectQty = expectQty,
+                    ReceiveQty = expectQty,
+                    PassedQty = expectQty,
+                    Cost = poItem.Cost,
+                    ExpectTotal = expectTotal,
+                    ReceiveTotal = expectTotal,
                     CreateTime = now
                 };
                 _context.StockInNotifies.Add(notify);
-                _context.StockInNotifyItems.Add(notifyItem);
                 await _context.SaveChangesAsync();
                 createdNodes.Add($"StockInNotify:{notify.NoticeCode}");
             }
 
-            if (targetIdx >= 6 && firstCreateIdx <= 6 && notify != null && notifyItem != null)
+            if (targetIdx >= 6 && firstCreateIdx <= 6 && notify != null)
             {
                 qc = new QCInfo
                 {
@@ -532,7 +530,7 @@ namespace CRM.API.Controllers
                     StockInNotifyCode = notify.NoticeCode,
                     Status = normalizedNode == "qc" ? request.Status : (short)100,
                     StockInStatus = normalizedNode == "qc" ? (short)1 : (short)100,
-                    PassQty = notifyItem.Qty,
+                    PassQty = notify.ExpectQty,
                     RejectQty = 0,
                     CreateTime = now
                 };
@@ -540,9 +538,9 @@ namespace CRM.API.Controllers
                 {
                     Id = Guid.NewGuid().ToString(),
                     QcInfoId = qc.Id,
-                    StockInNotifyItemId = notifyItem.Id,
-                    ArrivedQty = notifyItem.ArrivedQty,
-                    PassedQty = notifyItem.PassedQty,
+                    ArrivalStockInNotifyId = notify.Id,
+                    ArrivedQty = notify.ExpectQty,
+                    PassedQty = notify.PassedQty,
                     RejectQty = 0,
                     CreateTime = now
                 };

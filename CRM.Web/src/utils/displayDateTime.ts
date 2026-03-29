@@ -46,6 +46,26 @@ export function formatDisplayDateTime(input: Date | string | undefined | null): 
   return `${ymd} ${hm}`.trim()
 }
 
+/** 按配置时区显示：YY-MM-DD HH:mm（年份 2 位，24 小时制） */
+export function formatDisplayDateTime2DigitYear(input: Date | string | undefined | null): string {
+  const d = toDate(input)
+  if (!d) return '--'
+  const tz = getDisplayTimeZoneId()
+  const ymd = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: tz,
+    year: '2-digit',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(d)
+  const hm = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: tz,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(d)
+  return `${ymd} ${hm}`.trim()
+}
+
 /** 按配置时区显示：YYYY-MM-DD */
 export function formatDisplayDate(input: Date | string | undefined | null): string {
   const d = toDate(input)

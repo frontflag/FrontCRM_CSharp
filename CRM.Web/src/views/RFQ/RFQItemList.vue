@@ -68,6 +68,14 @@
         >
           <el-option v-for="u in salesUsers" :key="u.id" :label="salesUserLabel(u)" :value="u.id" />
         </el-select>
+        <el-checkbox
+          v-model="searchForm.hasQuotesOnly"
+          class="filter-checkbox-has-quotes"
+          border
+          @change="handleSearch"
+        >
+          有报价
+        </el-checkbox>
         <button class="btn-primary btn-sm" type="button" @click="handleSearch">查询</button>
         <button class="btn-ghost btn-sm" type="button" @click="handleReset">重置</button>
       </div>
@@ -90,10 +98,17 @@
             <el-tag size="small" effect="dark">{{ itemStatusText(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="需求创建" width="160" min-width="160" resizable>
-          <template #default="{ row }">{{ formatDate(row.rfqCreateTime) }}</template>
-        </el-table-column>
         <el-table-column prop="rfqCode" label="需求编号" width="160" min-width="160" show-overflow-tooltip resizable />
+        <el-table-column label="报价条目" width="120" min-width="112" align="center" resizable>
+          <template #default="{ row }">
+            <span
+              class="rfq-item-quote-count"
+              :class="{ 'rfq-item-quote-count--positive': (quoteRecordCountByRfqItemId[row.id] ?? 0) > 0 }"
+            >
+              {{ quoteRecordCountByRfqItemId[row.id] ?? 0 }}
+            </span>
+          </template>
+        </el-table-column>
         <el-table-column prop="customerName" label="客户" min-width="200" show-overflow-tooltip resizable />
         <el-table-column label="物料型号" min-width="120" show-overflow-tooltip resizable>
           <template #default="{ row }">{{ row.materialModel || row.mpn || '—' }}</template>
@@ -105,11 +120,6 @@
         <el-table-column prop="salesUserName" label="业务员" width="100" min-width="80" show-overflow-tooltip resizable />
         <el-table-column label="采购员" min-width="160" show-overflow-tooltip resizable>
           <template #default="{ row }">{{ formatAssignedPurchasers(row) }}</template>
-        </el-table-column>
-        <el-table-column label="报价条目" width="96" min-width="80" align="center" resizable>
-          <template #default="{ row }">
-            {{ quoteRecordCountByRfqItemId[row.id] ?? 0 }}
-          </template>
         </el-table-column>
         <el-table-column label="创建时间" width="160" show-overflow-tooltip resizable>
           <template #default="{ row }">{{ formatDate(row.createTime || row.rfqCreateTime) }}</template>
@@ -254,12 +264,12 @@
       <div v-show="supplierPanelExpanded" class="dock-body">
         <div v-if="!selectedRfqItem" class="dock-placeholder">请先点击上方需求明细行，查看对应报价</div>
         <template v-else>
-          <div v-loading="quotesLoading" class="dock-table-wrap">
-            <el-empty
-              v-if="!quotesLoading && !quotesForItem.length"
-              description="尚未报价"
-              :image-size="72"
-            />
+          <div
+            v-loading="quotesLoading"
+            class="dock-table-wrap"
+            :class="{ 'dock-table-wrap--quotes-empty': !quotesLoading && !quotesForItem.length }"
+          >
+            <div v-if="!quotesLoading && !quotesForItem.length" class="dock-quote-empty-row">尚未报价</div>
             <CrmDataTable
               v-else-if="quotesForItem.length"
               embedded
@@ -349,7 +359,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -367,6 +377,10 @@ import CrmDataTable from '@/components/CrmDataTable.vue'
 const router = useRouter()
 const route = useRoute()
 
+/** 需求明细列表：按当前筛选与分页自动刷新间隔 */
+const RFQ_ITEM_LIST_AUTO_REFRESH_MS = 5 * 60 * 1000
+let rfqItemListAutoRefreshTimer: ReturnType<typeof setInterval> | null = null
+
 const basketStore = useRfqItemListBasketStore()
 const { count: basketCount, items: basketItems } = storeToRefs(basketStore)
 
@@ -383,7 +397,8 @@ const dateRange = ref<[string, string] | null>(null)
 const searchForm = reactive({
   customerKeyword: '',
   materialModel: '',
-  salesUserId: undefined as string | undefined
+  salesUserId: undefined as string | undefined,
+  hasQuotesOnly: false
 })
 
 const salesUsers = ref<SalesUserSelectOption[]>([])
@@ -575,6 +590,10 @@ function applyRouteQueryToFilters() {
   const sidRaw = Array.isArray(sid) ? sid[0] : sid
   searchForm.salesUserId =
     typeof sidRaw === 'string' && sidRaw !== '' ? sidRaw : undefined
+  const hq = q.hasQuotesOnly
+  const hqRaw = Array.isArray(hq) ? hq[0] : hq
+  const hqStr = hqRaw != null && typeof hqRaw !== 'object' ? String(hqRaw).trim().toLowerCase() : ''
+  searchForm.hasQuotesOnly = hqStr === '1' || hqStr === 'true' || hqStr === 'yes'
 }
 
 async function loadData() {
@@ -588,7 +607,8 @@ async function loadData() {
         endDate: dateRange.value?.[1],
         customerKeyword: searchForm.customerKeyword.trim() || undefined,
         materialModel: searchForm.materialModel.trim() || undefined,
-        salesUserId: searchForm.salesUserId || undefined
+        salesUserId: searchForm.salesUserId || undefined,
+        ...(searchForm.hasQuotesOnly ? { hasQuotesOnly: true } : {})
       }),
       quoteApi.getList({}).catch(() => ({ data: [] as unknown[] }))
     ])
@@ -639,6 +659,7 @@ function handleSearch() {
   const mm = searchForm.materialModel.trim()
   if (mm) query.materialModel = mm
   if (searchForm.salesUserId) query.salesUserId = searchForm.salesUserId
+  if (searchForm.hasQuotesOnly) query.hasQuotesOnly = '1'
   router.replace({ name: 'RFQItemList', query })
 }
 
@@ -843,6 +864,17 @@ onMounted(async () => {
   } catch {
     salesUsers.value = []
   }
+  rfqItemListAutoRefreshTimer = window.setInterval(() => {
+    if (route.name !== 'RFQItemList' || loading.value) return
+    void loadData()
+  }, RFQ_ITEM_LIST_AUTO_REFRESH_MS)
+})
+
+onUnmounted(() => {
+  if (rfqItemListAutoRefreshTimer != null) {
+    clearInterval(rfqItemListAutoRefreshTimer)
+    rfqItemListAutoRefreshTimer = null
+  }
 })
 </script>
 
@@ -970,6 +1002,26 @@ onMounted(async () => {
 
 .dock-table-wrap {
   min-height: 120px;
+}
+
+.dock-table-wrap--quotes-empty {
+  min-height: 0;
+}
+
+/** 采购报价无数据：仅一行文案，高度与 small 表格行一致 */
+.dock-quote-empty-row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 12px;
+  font-size: 12px;
+  line-height: 1;
+  color: rgba(200, 216, 232, 0.55);
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  border-radius: 4px;
+  background: rgba(10, 22, 40, 0.35);
 }
 
 .dock-quote-table {
@@ -1163,6 +1215,24 @@ onMounted(async () => {
 
 .status-select--sales {
   width: 180px;
+}
+
+.filter-checkbox-has-quotes {
+  flex-shrink: 0;
+
+  :deep(.el-checkbox__label) {
+    color: $text-primary;
+    font-size: 12px;
+  }
+}
+
+.rfq-item-quote-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.rfq-item-quote-count--positive {
+  color: $warning-color;
+  font-weight: 600;
 }
 
 .filter-date-range {

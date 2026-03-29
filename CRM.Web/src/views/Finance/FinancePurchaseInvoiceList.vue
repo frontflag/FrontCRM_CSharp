@@ -1,5 +1,25 @@
 <template>
   <div class="finance-page">
+    <!-- 统计卡片（置顶） -->
+    <div class="stat-cards">
+      <div class="stat-card">
+        <div class="stat-label">发票总金额</div>
+        <div class="stat-value">¥ {{ formatAmount(stats.totalAmount) }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">已付款金额</div>
+        <div class="stat-value success">¥ {{ formatAmount(stats.paidAmount) }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">待付款金额</div>
+        <div class="stat-value warning">¥ {{ formatAmount(stats.toPayAmount) }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">已开票数量</div>
+        <div class="stat-value">{{ stats.invoicedCount }}</div>
+      </div>
+    </div>
+
     <!-- 搜索栏 -->
     <div class="search-bar">
       <div class="search-left">
@@ -37,26 +57,6 @@
         <el-button type="primary" @click="openCreate">
           <el-icon><Plus /></el-icon> 新建进项发票
         </el-button>
-      </div>
-    </div>
-
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card">
-        <div class="stat-label">发票总金额</div>
-        <div class="stat-value">¥ {{ formatAmount(stats.totalAmount) }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">已付款金额</div>
-        <div class="stat-value success">¥ {{ formatAmount(stats.paidAmount) }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">待付款金额</div>
-        <div class="stat-value warning">¥ {{ formatAmount(stats.toPayAmount) }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">已开票数量</div>
-        <div class="stat-value">{{ stats.invoicedCount }}</div>
       </div>
     </div>
 

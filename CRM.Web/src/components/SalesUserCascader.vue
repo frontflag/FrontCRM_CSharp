@@ -17,13 +17,9 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { authApi } from '@/api/auth'
 import type { SalesUserTreeNode } from '@/api/auth'
+import { collapseSingleOrgLayersWithUsersBelow, type OrgCascaderNode } from '@/utils/collapseOrgCascaderTree'
 
-type CascaderNode = {
-  value: string
-  label: string
-  isUser: boolean
-  children?: CascaderNode[]
-}
+type CascaderNode = OrgCascaderNode
 
 const props = withDefaults(defineProps<{
   modelValue?: string
@@ -134,7 +130,7 @@ onMounted(async () => {
       : raw && typeof raw === 'object' && 'data' in raw && Array.isArray((raw as { data: unknown }).data)
         ? ((raw as { data: SalesUserTreeNode[] }).data)
         : []
-    options.value = mapTree(data)
+    options.value = collapseSingleOrgLayersWithUsersBelow(mapTree(data))
     if (options.value.length === 0) {
       console.warn('[SalesUserCascader] empty options from /api/v1/auth/sales-users-tree', res)
     }

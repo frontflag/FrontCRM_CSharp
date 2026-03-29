@@ -373,6 +373,19 @@ namespace CRM.Core.Services
                 return Array.Empty<InventoryMaterialTraceDto>();
             }
 
+            Dictionary<string, string> warehouseNameById = new(StringComparer.Ordinal);
+            try
+            {
+                var warehouses = await _warehouseRepository.GetAllAsync();
+                warehouseNameById = warehouses
+                    .Where(x => !string.IsNullOrWhiteSpace(x.Id))
+                    .ToDictionary(x => x.Id, x => x.WarehouseName?.Trim() ?? string.Empty, StringComparer.Ordinal);
+            }
+            catch (Exception ex) when (IsTableMissingException(ex))
+            {
+                // ignore
+            }
+
             return stockInLines
                 .Where(x => stockInMap.ContainsKey(x.StockInId))
                 .Select(line =>
@@ -380,6 +393,8 @@ namespace CRM.Core.Services
                     var stockIn = stockInMap[line.StockInId];
                     poMap.TryGetValue(stockIn.SourceId ?? string.Empty, out var po);
                     qcMap.TryGetValue(stockIn.Id, out var qc);
+                    var wid = stockIn.WarehouseId;
+                    warehouseNameById.TryGetValue(wid ?? string.Empty, out var wName);
                     return new InventoryMaterialTraceDto
                     {
                         StockInTime = stockIn.StockInDate,
@@ -391,12 +406,59 @@ namespace CRM.Core.Services
                         PurchaseUserName = po?.PurchaseUserName,
                         QcStatus = qc?.Status,
                         QcCode = qc?.QcCode,
-                        WarehouseId = stockIn.WarehouseId,
+                        WarehouseId = wid,
+                        WarehouseName = string.IsNullOrWhiteSpace(wName) ? null : wName,
                         LocationId = line.LocationId
                     };
                 })
                 .OrderByDescending(x => x.StockInTime)
                 .ToList();
+        }
+
+        public async Task<SellOrderLineAvailableQtyDto> GetAvailableQtyForSellOrderItemAsync(string sellOrderItemId)
+        {
+            if (string.IsNullOrWhiteSpace(sellOrderItemId))
+                return new SellOrderLineAvailableQtyDto { AvailableQty = 0 };
+
+            var id = sellOrderItemId.Trim();
+            var soItem = await _sellOrderItemRepository.GetByIdAsync(id);
+            if (soItem == null)
+                return new SellOrderLineAvailableQtyDto { AvailableQty = 0 };
+
+            var keySet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(soItem.ProductId)) keySet.Add(soItem.ProductId.Trim());
+            if (!string.IsNullOrWhiteSpace(soItem.PN)) keySet.Add(soItem.PN.Trim());
+
+            try
+            {
+                var linkedPo = (await _purchaseOrderItemRepository.GetAllAsync())
+                    .Where(p => string.Equals(p.SellOrderItemId, id, StringComparison.OrdinalIgnoreCase));
+                foreach (var k in StockMaterialMatch.LinkedPurchaseMaterialKeys(linkedPo))
+                    keySet.Add(k);
+            }
+            catch (Exception ex) when (IsTableMissingException(ex))
+            {
+                // 无采购表明细时仅按销售行 ProductId / PN 匹配
+            }
+
+            if (keySet.Count == 0)
+                return new SellOrderLineAvailableQtyDto { AvailableQty = 0 };
+
+            List<StockInfo> stocks;
+            try
+            {
+                stocks = (await _stockRepository.GetAllAsync()).ToList();
+            }
+            catch (Exception ex) when (IsTableMissingException(ex))
+            {
+                return new SellOrderLineAvailableQtyDto { AvailableQty = 0 };
+            }
+
+            var sum = stocks
+                .Where(s => keySet.Contains(s.MaterialId?.Trim() ?? string.Empty))
+                .Sum(s => s.QtyRepertoryAvailable);
+
+            return new SellOrderLineAvailableQtyDto { AvailableQty = sum };
         }
 
         public async Task<InventoryFinanceSummaryDto> GetFinanceSummaryAsync(int stagnantDays = 90)
@@ -555,6 +617,11 @@ namespace CRM.Core.Services
 
             var soItem = await _sellOrderItemRepository.GetByIdAsync(sor.SalesOrderItemId.Trim());
             var productIdFromLine = string.IsNullOrWhiteSpace(soItem?.ProductId) ? null : soItem!.ProductId!.Trim();
+            var sellLineId = sor.SalesOrderItemId.Trim();
+            var linkedPoItems = (await _purchaseOrderItemRepository.GetAllAsync())
+                .Where(p => string.Equals(p.SellOrderItemId, sellLineId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            var linkedMaterialKeys = StockMaterialMatch.LinkedPurchaseMaterialKeys(linkedPoItems);
 
             var taskCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.PickingTask);
 
@@ -581,7 +648,7 @@ namespace CRM.Core.Services
                 var need = item.Quantity;
                 var outboundCode = item.MaterialId?.Trim() ?? "";
                 foreach (var stock in stocks.Where(s =>
-                             StockMaterialMatch.Matches(s, outboundCode, productIdFromLine) && s.QtyRepertoryAvailable > 0))
+                             StockMaterialMatch.Matches(s, outboundCode, productIdFromLine, linkedMaterialKeys) && s.QtyRepertoryAvailable > 0))
                 {
                     if (need <= 0) break;
                     var qty = Math.Min(need, stock.QtyRepertoryAvailable);
@@ -603,12 +670,12 @@ namespace CRM.Core.Services
                 if (need > 0)
                 {
                     var availableTotal = stocks
-                        .Where(s => StockMaterialMatch.Matches(s, outboundCode, productIdFromLine))
+                        .Where(s => StockMaterialMatch.Matches(s, outboundCode, productIdFromLine, linkedMaterialKeys))
                         .Sum(s => s.QtyRepertoryAvailable);
                     var wh = await _warehouseRepository.GetByIdAsync(request.WarehouseId.Trim());
                     var whLabel = wh != null ? $"{wh.WarehouseName}（{wh.WarehouseCode}）" : request.WarehouseId;
                     throw new InvalidOperationException(
-                        $"仓库「{whLabel}」中物料「{outboundCode}」可用库存合计 {availableTotal}，本单需求 {item.Quantity}，仍缺 {need}。" +
+                        $"仓库「{whLabel}」中物料「{outboundCode}」可用库存合计 {QuantityMessageFormatting.ForUserMessage(availableTotal)}，本单需求 {QuantityMessageFormatting.ForUserMessage(item.Quantity)}，仍缺 {QuantityMessageFormatting.ForUserMessage(need)}。" +
                         " 请入库、更换仓库或调减出库通知数量。" +
                         (string.IsNullOrEmpty(productIdFromLine)
                             ? "（若库存以 ProductId 入库，请为销售订单明细维护 ProductId）"

@@ -8,6 +8,8 @@ namespace CRM.Core.Interfaces
         Task RecordStockOutAsync(string stockOutId);
 
         Task<IEnumerable<InventoryMaterialOverviewDto>> GetMaterialOverviewAsync(string? warehouseId);
+        /// <summary>按销售明细解析物料键（含关联采购行），汇总全仓库可用库存；用于出库申请展示。</summary>
+        Task<SellOrderLineAvailableQtyDto> GetAvailableQtyForSellOrderItemAsync(string sellOrderItemId);
         Task<IEnumerable<InventoryMaterialTraceDto>> GetMaterialTraceAsync(string materialId);
         Task<InventoryFinanceSummaryDto> GetFinanceSummaryAsync(int stagnantDays = 90);
 
@@ -21,6 +23,11 @@ namespace CRM.Core.Interfaces
         Task<IEnumerable<InventoryCountPlan>> GetCountPlansAsync();
         Task<InventoryCountPlan> CreateMonthlyCountPlanAsync(CreateCountPlanRequest request);
         Task SubmitCountPlanAsync(SubmitCountPlanRequest request);
+    }
+
+    public class SellOrderLineAvailableQtyDto
+    {
+        public decimal AvailableQty { get; set; }
     }
 
     public class InventoryMaterialOverviewDto
@@ -50,6 +57,8 @@ namespace CRM.Core.Interfaces
         public short? QcStatus { get; set; }
         public string? QcCode { get; set; }
         public string? WarehouseId { get; set; }
+        /// <summary>仓库名称（由 WarehouseId 解析）</summary>
+        public string? WarehouseName { get; set; }
         public string? LocationId { get; set; }
     }
 

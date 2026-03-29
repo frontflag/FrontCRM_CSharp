@@ -55,6 +55,10 @@ import {
   PURCHASE_ORDER_SERVICE_TERMS,
   PURCHASE_ORDER_REPORT_TAX_RATE
 } from '@/constants/purchaseOrderReportTerms'
+import {
+  purchaseOrderReportAllowed,
+  normalizePurchaseOrderMainStatus
+} from '@/constants/purchaseOrderStatus'
 import PurchaseOrderReportDocument from '@/components/purchaseOrder/PurchaseOrderReportDocument.vue'
 import { renderElementToPdfBlob, blobToDataUrl } from '@/utils/poReportPdf'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -300,6 +304,11 @@ async function load() {
       }
     }
     order.value = data.order as any
+    if (!purchaseOrderReportAllowed(normalizePurchaseOrderMainStatus(order.value))) {
+      errorMsg.value = '仅供应商已确认后的采购订单可生成采购单报表'
+      order.value = null
+      return
+    }
     const profile = data.companyProfile
     const logos =
       profile?.logos ??

@@ -21,7 +21,7 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "../help/menu-registry.json"],
   "exclude": ["src/**/*.test.ts", "src/test/**/*", "src/tests/**/*"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

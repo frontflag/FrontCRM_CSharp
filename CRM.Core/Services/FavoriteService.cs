@@ -1,3 +1,4 @@
+using System.Linq;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Favorite;
 
@@ -70,8 +71,16 @@ namespace CRM.Core.Services
                 return Array.Empty<string>();
 
             var upperEntityType = entityType.Trim().ToUpperInvariant();
-            var list = await _favoriteRepository.FindAsync(f => f.UserId == userId && f.EntityType == upperEntityType);
-            return list.Select(f => f.EntityId).Distinct().ToList();
+            var list = (await _favoriteRepository.FindAsync(f => f.UserId == userId && f.EntityType == upperEntityType))
+                .ToList();
+
+            // 按收藏时间降序（后收藏的记录在前）；同一 entity 若有多条则取最近一条
+            return list
+                .GroupBy(f => f.EntityId)
+                .Select(g => g.OrderByDescending(x => x.CreateTime).First())
+                .OrderByDescending(f => f.CreateTime)
+                .Select(f => f.EntityId)
+                .ToList();
         }
 
         public async Task<bool> IsFavoriteAsync(long userId, string entityType, string entityId)

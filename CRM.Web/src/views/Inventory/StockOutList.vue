@@ -10,7 +10,7 @@
           </div>
           <h1 class="page-title">出库单列表</h1>
         </div>
-        <div class="count-badge">共 {{ list.length }} 条</div>
+        <div class="count-badge">共 {{ filteredList.length }} 条</div>
       </div>
       <div class="header-right">
         <el-input
@@ -18,8 +18,9 @@
           placeholder="出库单号/来源单号"
           clearable
           style="width: 220px; margin-right: 8px;"
-          @keyup.enter="fetchList"
+          @keyup.enter="handleSearch"
         />
+        <button class="btn-secondary" type="button" @click="handleSearch">搜索</button>
         <button class="btn-secondary" @click="fetchList">刷新</button>
       </div>
     </div>
@@ -76,14 +77,38 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { stockOutApi, type StockOutDto } from '@/api/stockOut'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
+const route = useRoute()
+const router = useRouter()
 const loading = ref(false)
 const list = ref<StockOutDto[]>([])
 const keyword = ref('')
+
+function syncKeywordFromRoute() {
+  if (route.name !== 'StockOutList') return
+  const q = route.query
+  keyword.value = typeof q.keyword === 'string' ? q.keyword : ''
+}
+
+watch(
+  () => [route.name, route.query] as const,
+  () => {
+    syncKeywordFromRoute()
+    if (route.name === 'StockOutList') fetchList()
+  },
+  { deep: true, immediate: true }
+)
+
+/** 与左侧检索面板共用 URL query（keyword 仅前端过滤，仍刷新列表数据） */
+const handleSearch = () => {
+  const k = keyword.value.trim()
+  router.replace({ name: 'StockOutList', query: k ? { keyword: k } : {} })
+}
 
 const formatNum = (v: number) => (v == null ? '--' : Number(v).toLocaleString())
 const formatDate = (v?: string) => formatDisplayDateTime(v)
@@ -131,7 +156,6 @@ const handleMarkFinish = async (row: StockOutDto) => {
   }
 }
 
-onMounted(fetchList)
 </script>
 
 <style scoped lang="scss">

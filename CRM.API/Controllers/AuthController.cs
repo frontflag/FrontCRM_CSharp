@@ -531,6 +531,152 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>
+        /// 获取物流部门人员树（仅身份为物流或部门名包含物流/仓储等）。规则与采购员树一致：物流部门登录用户按锚点下级可见，否则展示全部物流相关部门用户。
+        /// </summary>
+        [Authorize]
+        [HttpGet("logistics-users-tree")]
+        public async Task<ActionResult<ApiResponse<object>>> GetLogisticsUsersTree()
+        {
+            try
+            {
+                var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(currentUserId))
+                    return Unauthorized(ApiResponse<object>.Fail("未获取到用户信息", 401));
+
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(currentUserId);
+                var departments = (await _departmentRepo.GetAllAsync())
+                    .Where(d => d.Status == 1)
+                    .ToList();
+                var userDepartments = (await _userDepartmentRepo.GetAllAsync()).ToList();
+
+                bool IsLogisticsDepartment(RbacDepartment d)
+                {
+                    if (d.IdentityType == 6) return true;
+                    var name = d.DepartmentName ?? string.Empty;
+                    return name.Contains("物流", StringComparison.OrdinalIgnoreCase)
+                           || name.Contains("仓储", StringComparison.OrdinalIgnoreCase)
+                           || name.Contains("logistics", StringComparison.OrdinalIgnoreCase)
+                           || name.Contains("warehouse", StringComparison.OrdinalIgnoreCase);
+                }
+
+                var logisticsDepartments = departments.Where(IsLogisticsDepartment).ToList();
+                if (logisticsDepartments.Count == 0)
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<SalesUserTreeNodeDto>(), "获取物流部门人员树成功"));
+
+                var logisticsDeptIdSet = logisticsDepartments.Select(d => d.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                var anchor = ResolveLogisticsAnchorDepartmentId(currentUserId, summary, departments, userDepartments);
+
+                HashSet<string> allowedUserIds;
+                if (summary.IsSysAdmin)
+                    allowedUserIds = await GetAllowedUserIdsAsync(summary, departments, userDepartments, null);
+                else if (!string.IsNullOrWhiteSpace(anchor))
+                    allowedUserIds = await GetAllowedUserIdsAsync(summary, departments, userDepartments, anchor);
+                else
+                {
+                    allowedUserIds = userDepartments
+                        .Where(x => logisticsDeptIdSet.Contains(x.DepartmentId))
+                        .Select(x => x.UserId)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                }
+
+                if (allowedUserIds.Count == 0)
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<SalesUserTreeNodeDto>(), "获取物流部门人员树成功"));
+
+                var users = (await _userService.GetAllAsync())
+                    .Where(u => u.Status == 1 && allowedUserIds.Contains(u.Id))
+                    .ToList();
+                if (users.Count == 0)
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<SalesUserTreeNodeDto>(), "获取物流部门人员树成功"));
+
+                var departmentMap = logisticsDepartments.ToDictionary(d => d.Id, d => d, StringComparer.OrdinalIgnoreCase);
+                var userDepartmentGroups = userDepartments
+                    .Where(x => allowedUserIds.Contains(x.UserId))
+                    .GroupBy(x => x.UserId)
+                    .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+                var usersByDepartment = new Dictionary<string, List<User>>(StringComparer.OrdinalIgnoreCase);
+                foreach (var user in users)
+                {
+                    if (!userDepartmentGroups.TryGetValue(user.Id, out var rels) || rels.Count == 0)
+                        continue;
+
+                    var deptId =
+                        rels.FirstOrDefault(x => x.IsPrimary && departmentMap.ContainsKey(x.DepartmentId))?.DepartmentId
+                        ?? rels.FirstOrDefault(x => departmentMap.ContainsKey(x.DepartmentId))?.DepartmentId;
+                    if (string.IsNullOrWhiteSpace(deptId))
+                        continue;
+
+                    if (!usersByDepartment.TryGetValue(deptId, out var bucket))
+                    {
+                        bucket = new List<User>();
+                        usersByDepartment[deptId] = bucket;
+                    }
+                    bucket.Add(user);
+                }
+
+                var logisticsDepartmentIdsInUse = usersByDepartment.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var candidateDepartments = logisticsDepartments
+                    .Where(d => logisticsDepartmentIdsInUse.Contains(d.Id))
+                    .ToList();
+
+                var departmentChildren = candidateDepartments
+                    .GroupBy(d => d.ParentId ?? string.Empty)
+                    .ToDictionary(g => g.Key, g => g.OrderBy(x => x.DepartmentName).ToList(), StringComparer.OrdinalIgnoreCase);
+
+                SalesUserTreeNodeDto BuildDepartmentNode(RbacDepartment dept)
+                {
+                    var childNodes = new List<SalesUserTreeNodeDto>();
+                    if (departmentChildren.TryGetValue(dept.Id, out var children))
+                    {
+                        childNodes.AddRange(children.Select(BuildDepartmentNode));
+                    }
+
+                    if (usersByDepartment.TryGetValue(dept.Id, out var departmentUsers))
+                    {
+                        childNodes.AddRange(departmentUsers
+                            .OrderBy(u => u.UserName)
+                            .Select(u => new SalesUserTreeNodeDto
+                            {
+                                Value = u.Id,
+                                Label = u.UserName,
+                                UserName = u.UserName,
+                                RealName = u.RealName,
+                                IsUser = true,
+                                Children = Array.Empty<SalesUserTreeNodeDto>()
+                            }));
+                    }
+
+                    return new SalesUserTreeNodeDto
+                    {
+                        Value = dept.Id,
+                        Label = dept.DepartmentName,
+                        IsUser = false,
+                        Children = childNodes
+                    };
+                }
+
+                var rootDepartments = candidateDepartments
+                    .Where(d => string.IsNullOrWhiteSpace(d.ParentId) || !departmentMap.ContainsKey(d.ParentId!))
+                    .OrderBy(d => d.DepartmentName)
+                    .ToList();
+
+                var tree = rootDepartments
+                    .Select(BuildDepartmentNode)
+                    .Where(n => n.Children.Count > 0)
+                    .ToList();
+
+                return Ok(ApiResponse<object>.Ok(tree, "获取物流部门人员树成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetLogisticsUsersTree failed");
+                return StatusCode(500, ApiResponse<object>.Fail("获取物流部门人员树失败", 500));
+            }
+        }
+
         private static string? ResolveSalesAnchorDepartmentId(
             string userId,
             UserPermissionSummaryDto summary,
@@ -587,6 +733,39 @@ namespace CRM.API.Controllers
             {
                 var d = departments.FirstOrDefault(x => x.Id == r.DepartmentId);
                 if (d != null && IsPurchase(d))
+                    return r.DepartmentId;
+            }
+
+            return null;
+        }
+
+        private static string? ResolveLogisticsAnchorDepartmentId(
+            string userId,
+            UserPermissionSummaryDto summary,
+            IReadOnlyList<RbacDepartment> departments,
+            IReadOnlyList<RbacUserDepartment> userDepartments)
+        {
+            bool IsLogistics(RbacDepartment d)
+            {
+                if (d.IdentityType == 6) return true;
+                var n = d.DepartmentName ?? string.Empty;
+                return n.Contains("物流", StringComparison.OrdinalIgnoreCase)
+                       || n.Contains("仓储", StringComparison.OrdinalIgnoreCase)
+                       || n.Contains("logistics", StringComparison.OrdinalIgnoreCase)
+                       || n.Contains("warehouse", StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (!string.IsNullOrWhiteSpace(summary.PrimaryDepartmentId))
+            {
+                var pd = departments.FirstOrDefault(x => x.Id == summary.PrimaryDepartmentId);
+                if (pd != null && IsLogistics(pd))
+                    return summary.PrimaryDepartmentId;
+            }
+
+            foreach (var r in userDepartments.Where(x => x.UserId == userId))
+            {
+                var d = departments.FirstOrDefault(x => x.Id == r.DepartmentId);
+                if (d != null && IsLogistics(d))
                     return r.DepartmentId;
             }
 

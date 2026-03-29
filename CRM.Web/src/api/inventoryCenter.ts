@@ -27,7 +27,13 @@ export interface MaterialTrace {
   qcStatus?: number
   qcCode?: string
   warehouseId?: string
+  warehouseName?: string
   locationId?: string
+}
+
+/** 销售订单明细维度：全仓可用库存合计（与拣货出库物料键解析一致） */
+export interface SellOrderLineAvailableQty {
+  availableQty: number
 }
 
 export interface FinanceSummary {
@@ -74,6 +80,11 @@ export interface CountPlan {
 }
 
 export const inventoryCenterApi = {
+  async getAvailableQtyForSellOrderItem(sellOrderItemId: string): Promise<SellOrderLineAvailableQty> {
+    return unwrap<SellOrderLineAvailableQty>(
+      await apiClient.get(`/api/v1/inventory-center/sell-order-items/${encodeURIComponent(sellOrderItemId)}/available-qty`)
+    )
+  },
   async getOverview(warehouseId?: string): Promise<InventoryOverview[]> {
     const suffix = warehouseId ? `?warehouseId=${encodeURIComponent(warehouseId)}` : ''
     return unwrap<InventoryOverview[]>(await apiClient.get(`/api/v1/inventory-center/overview${suffix}`))

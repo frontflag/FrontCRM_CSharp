@@ -33,6 +33,21 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpGet("sell-order-items/{sellOrderItemId}/available-qty")]
+        public async Task<ActionResult<ApiResponse<SellOrderLineAvailableQtyDto>>> GetAvailableQtyForSellOrderLine(string sellOrderItemId)
+        {
+            try
+            {
+                var dto = await _service.GetAvailableQtyForSellOrderItemAsync(sellOrderItemId);
+                return Ok(ApiResponse<SellOrderLineAvailableQtyDto>.Ok(dto, "获取可出库数量成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取销售明细可用库存失败");
+                return StatusCode(500, ApiResponse<SellOrderLineAvailableQtyDto>.Fail($"获取可用库存失败: {ex.Message}", 500));
+            }
+        }
+
         [HttpGet("materials/{materialId}/traces")]
         public async Task<ActionResult<ApiResponse<IEnumerable<InventoryMaterialTraceDto>>>> GetMaterialTrace(string materialId)
         {

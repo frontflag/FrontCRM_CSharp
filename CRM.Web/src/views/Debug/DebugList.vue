@@ -7,10 +7,6 @@
         （来自 package.json，每次 <code>npm run build</code> 写入；用于核对线上是否为本次构建）
       </div>
       <div class="debug-sub muted">按 PRD：数据库连接（后端脱敏）、debug 表记录；版本号见上。</div>
-      <div class="debug-sub muted debug-nav">
-        <router-link class="debug-link" to="/debug/data">业务链路模拟数据</router-link>
-        <span class="debug-nav-hint">（需登录）</span>
-      </div>
     </div>
 
     <section class="debug-panel panel-version">
@@ -51,7 +47,7 @@ import { computed, onMounted, ref } from 'vue'
 import { getDebugPage } from '@/api/debug'
 
 /** debug 页面展示版本号（按发布批次手动维护） */
-const FRONTEND_DEBUG_VERSION = '1.1.0327-3'
+const FRONTEND_DEBUG_VERSION = '1.1.0330'
 
 const items = ref<{ name: string; value: string }[]>([])
 const databaseConnectionDisplay = ref('')
@@ -110,25 +106,6 @@ onMounted(async () => {
     border-radius: 4px;
     background: rgba(0, 0, 0, 0.25);
   }
-}
-
-.debug-nav {
-  margin-top: 8px;
-}
-
-.debug-link {
-  color: #00d4ff;
-  text-decoration: none;
-  font-weight: 600;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.debug-nav-hint {
-  margin-left: 4px;
-  opacity: 0.85;
 }
 
 .debug-panel {

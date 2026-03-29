@@ -48,7 +48,10 @@ namespace CRM.Core.Interfaces
 
     public class UpdateFinanceReceiptRequest
     {
+        public string? CustomerId { get; set; }
+        public string? CustomerName { get; set; }
         public decimal? ReceiptAmount { get; set; }
+        public byte? ReceiptCurrency { get; set; }
         public DateTime? ReceiptDate { get; set; }
         public short? ReceiptMode { get; set; }
         public string? Remark { get; set; }

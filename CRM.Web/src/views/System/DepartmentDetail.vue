@@ -23,20 +23,28 @@
         </div>
       </div>
       <div class="header-right">
-        <button class="btn-secondary" type="button" @click="handleEdit">
+        <button class="btn-primary" type="button" @click="handleEdit">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
           </svg>
           编辑
         </button>
-        <button class="btn-danger" type="button" @click="handleDeleteClick">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-          </svg>
-          删除部门
-        </button>
+        <el-dropdown
+          trigger="click"
+          placement="bottom-end"
+          popper-class="dept-detail-header-more-popper"
+          @command="onHeaderMoreCommand"
+        >
+          <button type="button" class="btn-more-actions" title="更多操作" aria-label="更多操作">
+            <span class="btn-more-actions__dots" aria-hidden="true">⋯</span>
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="delete" class="detail-more-item--danger">删除部门</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
 
@@ -247,6 +255,10 @@ const goBack = () => router.push({ name: 'DepartmentList' })
 const handleEdit = () => router.push({ name: 'DepartmentEdit', params: { id: departmentId.value } })
 const goEditUser = (userId: string) => router.push({ name: 'UserEdit', params: { id: userId } })
 
+function onHeaderMoreCommand(cmd: string) {
+  if (cmd === 'delete') void handleDeleteClick()
+}
+
 const handleDeleteClick = async () => {
   const d = department.value
   if (!d) return
@@ -290,6 +302,7 @@ const handleDeleteClick = async () => {
 
   .header-right {
     display: flex;
+    align-items: center;
     gap: 10px;
   }
 }
@@ -386,42 +399,47 @@ const handleDeleteClick = async () => {
   border: 1px solid rgba(50, 149, 201, 0.25);
 }
 
-.btn-secondary {
+.btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid $border-panel;
   border-radius: $border-radius-md;
-  color: $text-secondary;
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  color: #fff;
   font-size: 13px;
   font-family: 'Noto Sans SC', sans-serif;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
   cursor: pointer;
   transition: all 0.2s;
-
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(0, 212, 255, 0.25);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
   }
 }
 
-.btn-danger {
+.btn-more-actions {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  background: rgba(201, 87, 69, 0.15);
-  border: 1px solid rgba(201, 87, 69, 0.4);
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid $border-panel;
   border-radius: $border-radius-md;
-  color: $color-red-brown;
-  font-size: 13px;
-  font-family: 'Noto Sans SC', sans-serif;
+  background: rgba(255, 255, 255, 0.04);
+  color: $text-muted;
   cursor: pointer;
   transition: all 0.2s;
-
   &:hover {
-    background: rgba(201, 87, 69, 0.25);
+    background: rgba(255, 255, 255, 0.08);
+    color: $text-secondary;
+    border-color: rgba(0, 212, 255, 0.2);
+  }
+  .btn-more-actions__dots {
+    font-size: 18px;
+    line-height: 1;
+    letter-spacing: 1px;
   }
 }
 
@@ -604,6 +622,44 @@ const handleDeleteClick = async () => {
     background: rgba(0, 212, 255, 0.08);
     border-color: rgba(0, 212, 255, 0.4);
     color: $cyan-primary;
+  }
+}
+</style>
+
+<style lang="scss">
+@import '@/assets/styles/variables.scss';
+
+.dept-detail-header-more-popper.el-dropdown__popper,
+.dept-detail-header-more-popper.el-popper {
+  background: $layer-2 !important;
+  border: 1px solid rgba(0, 212, 255, 0.15) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+}
+
+.dept-detail-header-more-popper .el-dropdown-menu {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 4px 0 !important;
+}
+
+.dept-detail-header-more-popper .el-dropdown-menu__item {
+  color: rgba(200, 220, 240, 0.92) !important;
+  font-size: 13px;
+
+  &:hover,
+  &:focus {
+    background: rgba(0, 212, 255, 0.1) !important;
+    color: #e8f4ff !important;
+  }
+}
+
+.dept-detail-header-more-popper .detail-more-item--danger {
+  color: rgba(245, 108, 108, 0.95) !important;
+  &:hover,
+  &:focus {
+    background: rgba(245, 108, 108, 0.12) !important;
+    color: #ff9a9a !important;
   }
 }
 </style>

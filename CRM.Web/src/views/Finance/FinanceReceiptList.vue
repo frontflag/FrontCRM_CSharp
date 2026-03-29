@@ -128,7 +128,7 @@
     <el-dialog
       v-model="dialogVisible"
       :title="editingId ? '编辑收款单' : '新建收款单'"
-      width="680px"
+      width="min(96vw, 1020px)"
       class="crm-dialog"
       destroy-on-close
     >
@@ -136,7 +136,27 @@
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="客户" required>
-              <el-input v-model="form.customerName" placeholder="请输入客户名称" />
+              <el-select
+                v-model="form.customerId"
+                placeholder="输入关键字搜索客户"
+                style="width: 100%"
+                filterable
+                clearable
+                :filter-method="onCustomerFilterInput"
+                :loading="customerSearchLoading"
+                loading-text="搜索中..."
+                @change="onCustomerChange"
+              >
+                <template #empty>
+                  <div class="select-hint">请输入关键字搜索客户</div>
+                </template>
+                <el-option
+                  v-for="c in customerOptions"
+                  :key="c.value"
+                  :label="c.label"
+                  :value="c.value"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -199,8 +219,48 @@ import {
 } from '@/api/finance'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import { customerApi } from '@/api/customer'
 
 const router = useRouter()
+
+type CustomerOption = { value: string; label: string }
+
+const customerOptions = ref<CustomerOption[]>([])
+const customerSearchLoading = ref(false)
+let customerSearchTimer: ReturnType<typeof setTimeout> | null = null
+
+async function onCustomerFilterInput(query: string) {
+  if (customerSearchTimer) clearTimeout(customerSearchTimer)
+  if (!query || query.trim().length < 1) return
+  customerSearchTimer = setTimeout(async () => {
+    customerSearchLoading.value = true
+    try {
+      const res = await customerApi.searchCustomers({
+        pageNumber: 1,
+        pageSize: 30,
+        searchTerm: query.trim(),
+      })
+      customerOptions.value = (res.items || []).map((c) => ({
+        value: c.id,
+        label: c.customerName || (c as { officialName?: string }).officialName || '未知客户',
+      }))
+    } catch {
+      customerOptions.value = []
+    } finally {
+      customerSearchLoading.value = false
+    }
+  }, 300)
+}
+
+function onCustomerChange(val: string | undefined) {
+  const id = val?.trim() || ''
+  if (!id) {
+    form.customerName = ''
+    return
+  }
+  const found = customerOptions.value.find((c) => c.value === id)
+  if (found) form.customerName = found.label
+}
 
 const query = reactive<PageQuery & { page: number; pageSize: number }>({
   page: 1, pageSize: 20, keyword: '', status: undefined,
@@ -249,29 +309,61 @@ const dialogVisible = ref(false)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
 const form = reactive<Partial<FinanceReceipt>>({
-  customerName: '', receiptAmount: 0, receiptMode: 1, receiptCurrency: 1,
-  receiptDate: undefined, remark: '',
+  customerId: '',
+  customerName: '',
+  receiptAmount: 0,
+  receiptMode: 1,
+  receiptCurrency: 1,
+  receiptDate: undefined,
+  remark: '',
 })
 
 const openCreate = () => {
   editingId.value = null
-  Object.assign(form, { customerName: '', receiptAmount: 0, receiptMode: 1, receiptCurrency: 1, receiptDate: undefined, remark: '' })
+  customerOptions.value = []
+  Object.assign(form, {
+    customerId: '',
+    customerName: '',
+    receiptAmount: 0,
+    receiptMode: 1,
+    receiptCurrency: 1,
+    receiptDate: undefined,
+    remark: '',
+  })
   dialogVisible.value = true
 }
 
 const openEdit = (row: FinanceReceipt) => {
   editingId.value = row.id
   Object.assign(form, { ...row })
+  customerOptions.value = row.customerId
+    ? [{ value: row.customerId, label: row.customerName || '客户' }]
+    : []
   dialogVisible.value = true
 }
 
 const saveForm = async () => {
+  if (!form.customerId?.trim()) {
+    ElMessage.warning('请选择客户')
+    return
+  }
   saving.value = true
   try {
     if (editingId.value) {
-      await financeReceiptApi.update(editingId.value, form)
+      await financeReceiptApi.update(editingId.value, {
+        customerId: form.customerId,
+        customerName: form.customerName,
+        receiptAmount: Number(form.receiptAmount ?? 0),
+        receiptCurrency: Number(form.receiptCurrency ?? 1),
+        receiptDate: form.receiptDate,
+        receiptMode: form.receiptMode,
+        remark: form.remark,
+      })
     } else {
-      await financeReceiptApi.create(form)
+      await financeReceiptApi.create({
+        ...form,
+        items: [],
+      })
     }
     ElMessage.success('保存成功')
     dialogVisible.value = false
@@ -318,4 +410,10 @@ onMounted(loadData)
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as vars;
 @import './finance-common.scss';
+
+.select-hint {
+  padding: 8px 12px;
+  color: rgba(80, 187, 227, 0.55);
+  font-size: 12px;
+}
 </style>

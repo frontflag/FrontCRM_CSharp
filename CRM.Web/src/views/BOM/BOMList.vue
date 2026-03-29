@@ -157,7 +157,7 @@
         <el-table-column label="创建人" width="90" show-overflow-tooltip>
           <template #default="{ row }">{{ row.salesUserName || row.createdBy || '—' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right" class-name="op-col" label-class-name="op-col">
+        <el-table-column label="操作" width="168" fixed="right" class-name="op-col" label-class-name="op-col">
           <template #default="{ row }">
             <div @click.stop @dblclick.stop>
               <div class="action-btns">
@@ -168,7 +168,6 @@
                   type="warning"
                   @click.stop="handleAutoQuote(row)"
                 >一键报价</el-button>
-                <el-button size="small" type="danger" @click.stop="handleDelete(row)">删除</el-button>
               </div>
             </div>
           </template>
@@ -293,20 +292,6 @@ const handleSelectionChange = (rows: BOM[]) => {
 const goCreate = () => router.push({ name: 'BOMCreate' })
 const goDetail = (id: string) => router.push({ name: 'BOMDetail', params: { id } })
 const onRowDblclick = (row: BOM) => goDetail(row.id)
-
-// ── 删除 ──
-const handleDelete = async (row: BOM) => {
-  await ElMessageBox.confirm(`确认删除 BOM「${row.bomCode}」？此操作不可恢复。`, '删除确认', {
-    confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning'
-  })
-  try {
-    await bomApi.deleteBOM(row.id)
-    ElMessage.success('删除成功')
-    loadData()
-  } catch {
-    ElMessage.error('删除失败，请稍后重试')
-  }
-}
 
 const handleBatchDelete = async () => {
   await ElMessageBox.confirm(`确认删除选中的 ${selectedIds.value.length} 条 BOM？`, '批量删除确认', {

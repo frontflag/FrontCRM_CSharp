@@ -32,6 +32,12 @@
         />
 
         <input
+          v-model="filters.purchaseOrderCode"
+          class="search-input po-filter-input"
+          placeholder="采购订单号"
+          @keyup.enter="loadList"
+        />
+        <input
           v-if="canViewVendor"
           v-model="filters.vendorName"
           class="search-input po-filter-input"
@@ -106,7 +112,7 @@
         <template #default="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}</template>
       </el-table-column>
 
-      <el-table-column label="操作" width="260" fixed="right" align="center" class-name="op-col" label-class-name="op-col">
+      <el-table-column label="操作" width="260" min-width="240" fixed="right" align="center" class-name="op-col" label-class-name="op-col">
         <template #default="{ row }">
           <div @click.stop @dblclick.stop>
             <div class="action-btns">
@@ -151,7 +157,7 @@
     <el-dialog
       v-model="paymentDialogVisible"
       title="申请付款窗口"
-      width="980px"
+      width="min(96vw, 1440px)"
       destroy-on-close
       class="payment-dialog"
     >
@@ -282,7 +288,7 @@
       <div class="arrival-form-layout">
 
         <div class="arrival-section">
-          <el-form label-width="90px">
+          <el-form label-width="120px" class="arrival-notice-form">
             <el-row :gutter="12">
               <el-col :span="8"><el-form-item label="单号"><el-input v-model="arrivalForm.purchaseOrderCode" /></el-form-item></el-col>
               <el-col :span="8">
@@ -328,7 +334,8 @@
                 <el-input-number
                   v-model="row.qty"
                   :min="0"
-                  :precision="4"
+                  :precision="0"
+                  :step="1"
                   class="arrival-qty-input"
                   controls-position="right"
                 />
@@ -352,7 +359,7 @@
 
         <!-- 新建到货通知不展示签收/质检/入库；后续若支持编辑已存在通知可改为 v-if="arrivalNoticeShowProcessFields" -->
         <div v-if="arrivalNoticeShowProcessFields" class="arrival-section">
-          <el-form label-width="90px">
+          <el-form label-width="120px" class="arrival-notice-form">
             <el-row :gutter="12">
               <el-col :span="6"><el-form-item label="签收人"><el-input v-model="arrivalForm.signer" /></el-form-item></el-col>
               <el-col :span="6"><el-form-item label="签收日期"><el-date-picker v-model="arrivalForm.signDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
@@ -376,7 +383,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { financePaymentApi } from '@/api/finance'
@@ -385,6 +392,7 @@ import { ElMessage } from 'element-plus'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const canViewVendor = computed(() => authStore.hasPermission('vendor.info.read'))
@@ -408,6 +416,7 @@ const arrivalDialogVisible = ref(false)
 const arrivalNoticeShowProcessFields = ref(false)
 const arrivalSubmitting = ref(false)
 const arrivalForm = reactive<any>({
+  purchaseOrderItemId: '',
   purchaseOrderId: '',
   purchaseOrderCode: '',
   vendorName: '',
@@ -459,6 +468,7 @@ const paymentTotalAmount = computed(() => {
 
 const dateRange = ref<[string, string] | null>(null)
 const filters = reactive({
+  purchaseOrderCode: '',
   vendorName: '',
   purchaseUserName: '',
   pn: ''
@@ -595,6 +605,7 @@ function openPaymentDialog(row: any) {
 
 function openArrivalDialog(row: any) {
   arrivalNoticeShowProcessFields.value = false
+  arrivalForm.purchaseOrderItemId = row.purchaseOrderItemId || row.id || ''
   arrivalForm.purchaseOrderId = row.purchaseOrderId || ''
   arrivalForm.purchaseOrderCode = row.purchaseOrderCode || ''
   arrivalForm.vendorName = row.vendorName || ''
@@ -618,7 +629,7 @@ function openArrivalDialog(row: any) {
   arrivalForm.lines = [{
     pn: row.pn || '',
     brand: row.brand || '',
-    qty: row.qty || 0,
+    qty: Math.max(0, Math.round(Number(row.qty ?? 0))),
     spec: '',
     packaging: ''
   }]
@@ -636,6 +647,10 @@ function toDatePickerValue(v: unknown): string {
 
 async function submitArrivalNotice() {
   if (arrivalSubmitting.value) return
+  if (!arrivalForm.purchaseOrderItemId) {
+    ElMessage.warning('缺少采购明细ID，无法创建到货通知')
+    return
+  }
   if (!arrivalForm.purchaseOrderId) {
     ElMessage.warning('缺少采购订单ID，无法创建到货通知')
     return
@@ -644,9 +659,16 @@ async function submitArrivalNotice() {
     ElMessage.warning('请填写预计到货日期')
     return
   }
+  const expectQty = Number(arrivalForm.lines?.[0]?.qty ?? 0)
+  if (!expectQty || expectQty <= 0) {
+    ElMessage.warning('请填写大于 0 的本次到货数量')
+    return
+  }
   arrivalSubmitting.value = true
   try {
     await logisticsApi.createArrivalNotice({
+      purchaseOrderItemId: arrivalForm.purchaseOrderItemId,
+      expectQty,
       purchaseOrderId: arrivalForm.purchaseOrderId,
       expectedArrivalDate: arrivalForm.expectedArrivalDate
     })
@@ -737,6 +759,7 @@ async function loadList() {
     }
     if (dateRange.value?.[0]) params.startDate = dateRange.value[0]
     if (dateRange.value?.[1]) params.endDate = dateRange.value[1]
+    if (filters.purchaseOrderCode.trim()) params.keyword = filters.purchaseOrderCode.trim()
 
     const res = await purchaseOrderApi.getList(params)
     const orders = (res as { items?: any[] } | undefined)?.items ?? []
@@ -758,12 +781,13 @@ async function loadList() {
     const pnK = filters.pn.trim().toLowerCase()
     const vendorK = filters.vendorName.trim().toLowerCase()
     const purchaseUserK = filters.purchaseUserName.trim().toLowerCase()
+    const poCodeK = filters.purchaseOrderCode.trim().toLowerCase()
 
     const lines = orders.flatMap((o: any) => {
       const detail = detailMap.get(o.id) ?? o
       const items = detail?.items ?? []
       return items.map((it: any) => ({
-        purchaseOrderItemId: it.id,
+        purchaseOrderItemId: it.purchaseOrderItemId ?? it.id ?? it.Id,
         purchaseOrderId: detail.id ?? o.id,
         purchaseOrderCode: detail.purchaseOrderCode ?? o.purchaseOrderCode,
         vendorId: detail.vendorId ?? o.vendorId,
@@ -784,8 +808,9 @@ async function loadList() {
       }))
     })
 
-    // 客户/业务员/物料型号等在前端做过滤（后端采购订单 lines 分页接口尚未补齐）
+    // 采购单号/供应商/采购员/物料型号等在前端做过滤（后端采购订单明细分页接口尚未补齐）
     allLines.value = lines.filter((x: any) => {
+      if (poCodeK && !String(x.purchaseOrderCode || '').toLowerCase().includes(poCodeK)) return false
       if (pnK && !String(x.pn || '').toLowerCase().includes(pnK)) return false
       if (canViewVendor.value && vendorK && !String(x.vendorName || '').toLowerCase().includes(vendorK)) return false
       if (canViewPurchaseUser.value && purchaseUserK && !String(x.purchaseUserName || '').toLowerCase().includes(purchaseUserK)) return false
@@ -805,6 +830,7 @@ async function loadList() {
 
 function resetFilters() {
   dateRange.value = null
+  filters.purchaseOrderCode = ''
   filters.vendorName = ''
   filters.purchaseUserName = ''
   filters.pn = ''
@@ -828,6 +854,10 @@ function goDetail(row: any) {
 }
 
 onMounted(() => {
+  const qpn = route.query.pn
+  if (typeof qpn === 'string' && qpn.trim()) {
+    filters.pn = qpn.trim()
+  }
   loadList()
 })
 </script>
@@ -958,6 +988,13 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* 表单项标题至少单行容纳 6 个汉字（如「预计到货日期」） */
+.arrival-form-layout :deep(.arrival-notice-form .el-form-item__label) {
+  white-space: nowrap;
+  padding-right: 10px;
+  line-height: 1.4;
 }
 .arrival-section {
   border: 1px solid $border-panel;

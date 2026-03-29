@@ -2,13 +2,15 @@
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { marked } from 'marked'
-import { helpMarkdownFetchUrl } from '@/utils/helpDocPath'
+import {
+  helpAssetUrl,
+  helpCatalogRelativePath,
+  helpDocRelativePathForRoute,
+  resolveHelpLinkHref
+} from '@/utils/helpDocPath'
 
 marked.setOptions({ gfm: true, breaks: true })
 
-/**
- * 开发/部署环境下请求不存在的 .md 时，常 200 返回 SPA 的 index.html，不能当帮助正文。
- */
 function isInvalidHelpFetchBody(raw: string, contentType: string | null): boolean {
   const trimmed = raw.trim()
   if (!trimmed) return true
@@ -31,14 +33,11 @@ const route = useRoute()
 const loading = ref(false)
 const html = ref('')
 const missing = ref(false)
+/** 相对 /help/ 根的当前文档路径（如 pages/xxx.md 或 帮助文档目录.md） */
+const activeRel = ref(helpCatalogRelativePath())
 
 async function loadDoc() {
-  const url = helpMarkdownFetchUrl(route)
-  if (!url) {
-    missing.value = true
-    html.value = ''
-    return
-  }
+  const url = helpAssetUrl(activeRel.value)
   loading.value = true
   missing.value = false
   html.value = ''
@@ -67,9 +66,23 @@ async function loadDoc() {
   }
 }
 
+function onPanelClick(ev: MouseEvent) {
+  const a = (ev.target as HTMLElement | null)?.closest?.('a') as HTMLAnchorElement | null
+  if (!a) return
+  const href = a.getAttribute('href')
+  if (!href) return
+  const rel = resolveHelpLinkHref(href, activeRel.value)
+  if (!rel) return
+  ev.preventDefault()
+  ev.stopPropagation()
+  activeRel.value = rel
+  void loadDoc()
+}
+
 watch(
   () => [route.path, route.name, route.fullPath] as const,
   () => {
+    activeRel.value = helpDocRelativePathForRoute(route) ?? helpCatalogRelativePath()
     void loadDoc()
   },
   { immediate: true }
@@ -77,7 +90,7 @@ watch(
 </script>
 
 <template>
-  <div class="help-manual-panel" v-loading="loading">
+  <div class="help-manual-panel" v-loading="loading" @click.capture="onPanelClick">
     <div v-if="missing && !loading" class="help-manual-panel__empty">暂无帮助</div>
     <div v-else-if="!loading && html" class="help-manual-panel__body help-md" v-html="html" />
   </div>
@@ -104,25 +117,29 @@ watch(
 }
 
 .help-md :deep(h1) {
-  font-size: 15px;
+  font-size: 19px;
   font-weight: 600;
-  color: #e8f4ff;
+  color: #ffffff;
   margin: 0 0 10px;
   padding-bottom: 6px;
   border-bottom: 1px solid rgba(0, 212, 255, 0.15);
 }
 
+.help-md :deep(h1.help-h1--offset-down) {
+  margin-top: 8px;
+}
+
 .help-md :deep(h2) {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(180, 220, 255, 0.95);
+  font-size: 16px;
+  font-weight: 400;
+  color: #ffffff;
   margin: 14px 0 8px;
 }
 
 .help-md :deep(h3) {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
-  color: rgba(160, 200, 230, 0.9);
+  color: #ffffff;
   margin: 10px 0 6px;
 }
 
@@ -168,6 +185,7 @@ watch(
   color: #5ec8ff;
   text-decoration: underline;
   text-underline-offset: 2px;
+  cursor: pointer;
 }
 
 .help-md :deep(blockquote) {
@@ -194,5 +212,33 @@ watch(
 
 .help-md :deep(th) {
   background: rgba(0, 212, 255, 0.06);
+}
+
+/* 操作说明：单列多块（标题 + 说明 + 前置条件） */
+.help-md :deep(.help-op-block) {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  background: rgba(0, 212, 255, 0.04);
+}
+
+.help-md :deep(.help-op-block > p) {
+  margin: 0 0 6px;
+  font-size: 12px;
+}
+
+.help-md :deep(.help-op-block > p:last-child) {
+  margin-bottom: 0;
+}
+
+.help-md :deep(.help-op-block > p:first-of-type) {
+  margin-bottom: 8px;
+}
+
+.help-md :deep(.help-op-block > p:first-of-type strong) {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(230, 240, 255, 0.98);
 }
 </style>

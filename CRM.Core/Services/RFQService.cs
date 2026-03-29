@@ -3,6 +3,7 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Rbac;
+using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Models.System;
 using CRM.Core.Utilities;
@@ -26,6 +27,7 @@ namespace CRM.Core.Services
         private readonly IRepository<SysParam> _sysParamRepo;
         private readonly IRepository<RbacRole> _rbacRoleRepo;
         private readonly IRepository<RbacUserRole> _rbacUserRoleRepo;
+        private readonly IRepository<Quote> _quoteRepo;
         private readonly IRepository<User> _userRepo;
 
         public RFQService(
@@ -40,6 +42,7 @@ namespace CRM.Core.Services
             IRepository<SysParam> sysParamRepo,
             IRepository<RbacRole> rbacRoleRepo,
             IRepository<RbacUserRole> rbacUserRoleRepo,
+            IRepository<Quote> quoteRepo,
             IRepository<User> userRepo)
         {
             _rfqRepo = rfqRepo;
@@ -53,6 +56,7 @@ namespace CRM.Core.Services
             _sysParamRepo = sysParamRepo;
             _rbacRoleRepo = rbacRoleRepo;
             _rbacUserRoleRepo = rbacUserRoleRepo;
+            _quoteRepo = quoteRepo;
             _userRepo = userRepo;
         }
 
@@ -364,6 +368,17 @@ namespace CRM.Core.Services
                     (users.TryGetValue(r.SalesUserId ?? "", out var u) &&
                      (u.UserName.ToLowerInvariant().Contains(kw) ||
                       (u.RealName != null && u.RealName.ToLowerInvariant().Contains(kw))))).ToList();
+            }
+
+            if (request.HasQuotesOnly == true)
+            {
+                var quotes = await _quoteRepo.GetAllAsync();
+                var rfqItemIdsWithQuote = new HashSet<string>(
+                    quotes
+                        .Where(q => !string.IsNullOrWhiteSpace(q.RFQItemId))
+                        .Select(q => q.RFQItemId!.Trim()),
+                    StringComparer.OrdinalIgnoreCase);
+                rows = rows.Where(r => rfqItemIdsWithQuote.Contains(r.Id.Trim())).ToList();
             }
 
             rows = rows.OrderByDescending(r => r.RfqCreateTime).ThenBy(r => r.LineNo).ToList();

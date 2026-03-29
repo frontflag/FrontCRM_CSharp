@@ -9,11 +9,11 @@ namespace CRM.Core.Services
     public class LogisticsService : ILogisticsService
     {
         private readonly IRepository<StockInNotify> _notifyRepo;
-        private readonly IRepository<StockInNotifyItem> _notifyItemRepo;
         private readonly IRepository<QCInfo> _qcRepo;
         private readonly IRepository<QCItem> _qcItemRepo;
         private readonly IRepository<PurchaseOrder> _poRepo;
         private readonly IRepository<PurchaseOrderItem> _poItemRepo;
+        private readonly IRepository<PurchaseOrderItemExtend> _poItemExtendRepo;
         private readonly IRepository<SellOrderItem> _sellOrderItemRepo;
         private readonly IRepository<SellOrder> _sellOrderRepo;
         private readonly IUnitOfWork _unitOfWork;
@@ -21,22 +21,22 @@ namespace CRM.Core.Services
 
         public LogisticsService(
             IRepository<StockInNotify> notifyRepo,
-            IRepository<StockInNotifyItem> notifyItemRepo,
             IRepository<QCInfo> qcRepo,
             IRepository<QCItem> qcItemRepo,
             IRepository<PurchaseOrder> poRepo,
             IRepository<PurchaseOrderItem> poItemRepo,
+            IRepository<PurchaseOrderItemExtend> poItemExtendRepo,
             IRepository<SellOrderItem> sellOrderItemRepo,
             IRepository<SellOrder> sellOrderRepo,
             ISerialNumberService serialNumberService,
             IUnitOfWork unitOfWork)
         {
             _notifyRepo = notifyRepo;
-            _notifyItemRepo = notifyItemRepo;
             _qcRepo = qcRepo;
             _qcItemRepo = qcItemRepo;
             _poRepo = poRepo;
             _poItemRepo = poItemRepo;
+            _poItemExtendRepo = poItemExtendRepo;
             _sellOrderItemRepo = sellOrderItemRepo;
             _sellOrderRepo = sellOrderRepo;
             _serialNumberService = serialNumberService;
@@ -46,32 +46,71 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<StockInNotify>> GetArrivalNoticesAsync()
         {
             var list = (await _notifyRepo.GetAllAsync()).OrderByDescending(x => x.CreateTime).ToList();
-            var items = (await _notifyItemRepo.GetAllAsync()).ToList();
-            var map = items.GroupBy(x => x.StockInNotifyId).ToDictionary(g => g.Key, g => (ICollection<StockInNotifyItem>)g.ToList());
+            var poIds = list.Select(x => x.PurchaseOrderId).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
+            var poMap = new Dictionary<string, PurchaseOrder>(StringComparer.Ordinal);
+            if (poIds.Count > 0)
+            {
+                var pos = await _poRepo.FindAsync(x => poIds.Contains(x.Id));
+                foreach (var po in pos)
+                    poMap[po.Id] = po;
+            }
+
             foreach (var row in list)
             {
-                row.Items = map.TryGetValue(row.Id, out var v) ? v : new List<StockInNotifyItem>();
+                if (poMap.TryGetValue(row.PurchaseOrderId, out var po))
+                    row.VendorCode = po.VendorCode;
+                AttachItemSnapshot(row);
             }
+
             return list;
+        }
+
+        private static void AttachItemSnapshot(StockInNotify n)
+        {
+            n.Items = new List<StockInNotifyItemSnapshot>
+            {
+                new()
+                {
+                    Id = n.Id,
+                    StockInNotifyId = n.Id,
+                    PurchaseOrderItemId = n.PurchaseOrderItemId,
+                    Pn = n.Pn,
+                    Brand = n.Brand,
+                    Qty = n.ExpectQty,
+                    ArrivedQty = n.ReceiveQty,
+                    PassedQty = n.PassedQty
+                }
+            };
         }
 
         public async Task<StockInNotify> CreateArrivalNoticeAsync(CreateArrivalNoticeRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.PurchaseOrderId))
-                throw new ArgumentException("采购订单ID不能为空", nameof(request.PurchaseOrderId));
+            if (string.IsNullOrWhiteSpace(request.PurchaseOrderItemId))
+                throw new ArgumentException("采购明细ID不能为空", nameof(request.PurchaseOrderItemId));
 
-            var existed = (await _notifyRepo.FindAsync(x => x.PurchaseOrderId == request.PurchaseOrderId)).FirstOrDefault();
-            if (existed != null)
-                return existed;
+            var poItem = await _poItemRepo.GetByIdAsync(request.PurchaseOrderItemId)
+                         ?? throw new InvalidOperationException("采购订单明细不存在");
 
-            var po = await _poRepo.GetByIdAsync(request.PurchaseOrderId) ?? throw new InvalidOperationException("采购订单不存在");
-            var poItems = (await _poItemRepo.FindAsync(x => x.PurchaseOrderId == po.Id)).ToList();
-            if (!poItems.Any())
-                throw new InvalidOperationException("采购订单无明细，无法创建到货通知");
+            var expectQty = request.ExpectQty;
+            if (expectQty <= 0)
+                throw new InvalidOperationException("预期到货数量必须大于0");
+
+            var po = await _poRepo.GetByIdAsync(poItem.PurchaseOrderId) ?? throw new InvalidOperationException("采购订单不存在");
+            if (po.Status < 30 || po.Status == -1 || po.Status == -2)
+                throw new InvalidOperationException("仅供应商已确认且有效的采购订单可创建到货通知");
+
+            await EnsurePurchaseOrderItemExtendAsync(poItem);
+            await RecalcPurchaseOrderItemExtendAsync(poItem.Id, poItem.Qty);
+            await _unitOfWork.SaveChangesAsync();
+
+            var ext = await _poItemExtendRepo.GetByIdAsync(poItem.Id)
+                      ?? throw new InvalidOperationException("采购明细扩展不存在");
+            if (expectQty > ext.QtyStockInNotifyNot)
+                throw new InvalidOperationException($"预期到货数量不能大于剩余可通知数量（当前剩余 {ext.QtyStockInNotifyNot}）");
 
             var noticeCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.ArrivalNotice);
-
-            var expectedArrival = request.ExpectedArrivalDate ?? po.DeliveryDate;
+            var expectedArrival = request.ExpectedArrivalDate ?? poItem.DeliveryDate ?? po.DeliveryDate;
+            var expectTotal = Math.Round(expectQty * poItem.Cost, 2, MidpointRounding.AwayFromZero);
 
             var notice = new StockInNotify
             {
@@ -79,33 +118,29 @@ namespace CRM.Core.Services
                 NoticeCode = noticeCode,
                 PurchaseOrderId = po.Id,
                 PurchaseOrderCode = po.PurchaseOrderCode,
+                PurchaseOrderItemId = poItem.Id,
+                SellOrderItemId = poItem.SellOrderItemId,
                 VendorId = po.VendorId,
                 VendorName = po.VendorName,
                 PurchaseUserName = po.PurchaseUserName,
                 Status = 10,
                 ExpectedArrivalDate = PostgreSqlDateTime.ToUtc(expectedArrival),
+                Pn = poItem.PN,
+                Brand = poItem.Brand,
+                ExpectQty = expectQty,
+                ReceiveQty = 0,
+                PassedQty = 0,
+                Cost = poItem.Cost,
+                ExpectTotal = expectTotal,
+                ReceiveTotal = 0,
                 CreateTime = DateTime.UtcNow
             };
             await _notifyRepo.AddAsync(notice);
-
-            foreach (var item in poItems)
-            {
-                await _notifyItemRepo.AddAsync(new StockInNotifyItem
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    StockInNotifyId = notice.Id,
-                    PurchaseOrderItemId = item.Id,
-                    Pn = item.PN,
-                    Brand = item.Brand,
-                    Qty = item.Qty,
-                    ArrivedQty = item.Qty,
-                    PassedQty = 0,
-                    CreateTime = DateTime.UtcNow
-                });
-            }
-
             await _unitOfWork.SaveChangesAsync();
-            notice.Items = (await _notifyItemRepo.FindAsync(x => x.StockInNotifyId == notice.Id)).ToList();
+
+            await RecalcPurchaseOrderItemExtendAsync(poItem.Id, poItem.Qty);
+            notice.VendorCode = po.VendorCode;
+            AttachItemSnapshot(notice);
             return notice;
         }
 
@@ -117,20 +152,28 @@ namespace CRM.Core.Services
                 .ToList();
             result.PurchaseOrdersScanned = candidatePos.Count;
 
-            var existingPoIds = (await _notifyRepo.GetAllAsync())
-                .Select(x => x.PurchaseOrderId)
-                .ToHashSet();
-
             foreach (var po in candidatePos)
             {
-                if (existingPoIds.Contains(po.Id))
+                var lines = (await _poItemRepo.FindAsync(x => x.PurchaseOrderId == po.Id)).ToList();
+                foreach (var line in lines)
                 {
-                    result.ExistingCount++;
-                    continue;
+                    await RecalcPurchaseOrderItemExtendAsync(line.Id, line.Qty);
+                    var ext = await _poItemExtendRepo.GetByIdAsync(line.Id);
+                    if (ext == null || ext.QtyStockInNotifyNot <= 0)
+                    {
+                        result.ExistingCount++;
+                        continue;
+                    }
+
+                    await CreateArrivalNoticeAsync(new CreateArrivalNoticeRequest
+                    {
+                        PurchaseOrderItemId = line.Id,
+                        ExpectQty = ext.QtyStockInNotifyNot,
+                        PurchaseOrderId = po.Id,
+                        ExpectedArrivalDate = line.DeliveryDate ?? po.DeliveryDate
+                    });
+                    result.CreatedCount++;
                 }
-                await CreateArrivalNoticeAsync(new CreateArrivalNoticeRequest { PurchaseOrderId = po.Id });
-                existingPoIds.Add(po.Id);
-                result.CreatedCount++;
             }
 
             return result;
@@ -160,12 +203,6 @@ namespace CRM.Core.Services
 
             var notices = (await _notifyRepo.GetAllAsync()).ToList();
             var noticeMap = notices.ToDictionary(x => x.Id, x => x);
-            var noticeIds = list.Select(x => x.StockInNotifyId).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToHashSet();
-            var relatedNoticeItems = (await _notifyItemRepo.GetAllAsync())
-                .Where(x => noticeIds.Contains(x.StockInNotifyId))
-                .ToList();
-            var noticeItemsMap = relatedNoticeItems.GroupBy(x => x.StockInNotifyId).ToDictionary(g => g.Key, g => g.ToList());
-            var notifyItemById = relatedNoticeItems.ToDictionary(x => x.Id, x => x);
 
             var poItems = (await _poItemRepo.GetAllAsync()).ToList();
             var poItemMap = poItems.ToDictionary(x => x.Id, x => x);
@@ -180,27 +217,23 @@ namespace CRM.Core.Services
                 x => x.Id,
                 x => x.SellOrderId != null && sellOrderCodeById.TryGetValue(x.SellOrderId, out var code) ? code : string.Empty);
 
-            // 始终回填列表展示字段（供应商、采购单号、销售单号、型号），避免无筛选时列表列为空
             foreach (var qc in list)
             {
                 noticeMap.TryGetValue(qc.StockInNotifyId, out var notice);
-                noticeItemsMap.TryGetValue(qc.StockInNotifyId, out var noticeItems);
-                noticeItems ??= new List<StockInNotifyItem>();
 
                 qc.VendorName = notice?.VendorName;
                 qc.PurchaseOrderCode = notice?.PurchaseOrderCode;
 
                 var modelSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var ni in noticeItems)
+                if (notice != null)
                 {
-                    if (!string.IsNullOrWhiteSpace(ni.Pn)) modelSet.Add(ni.Pn.Trim());
-                    else if (!string.IsNullOrWhiteSpace(ni.PurchaseOrderItemId)
-                             && poItemMap.TryGetValue(ni.PurchaseOrderItemId, out var poi0)
+                    if (!string.IsNullOrWhiteSpace(notice.Pn)) modelSet.Add(notice.Pn.Trim());
+                    else if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
+                             && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var poi0)
                              && !string.IsNullOrWhiteSpace(poi0.PN))
                         modelSet.Add(poi0.PN.Trim());
                 }
 
-                // 合并同一采购订单下全部明细的 PN，便于列表展示与按物料型号检索（不仅限于到货通知行）
                 if (notice != null
                     && !string.IsNullOrWhiteSpace(notice.PurchaseOrderId)
                     && poItemsByPurchaseOrderId.TryGetValue(notice.PurchaseOrderId, out var poLines))
@@ -213,19 +246,37 @@ namespace CRM.Core.Services
 
                 qc.Model = modelSet.Count == 0 ? null : string.Join(", ", modelSet.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
 
-                var soCodes = noticeItems
-                    .Select(ni =>
+                var brandSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (notice != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(notice.Brand)) brandSet.Add(notice.Brand.Trim());
+                    else if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
+                             && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var poiBrand)
+                             && !string.IsNullOrWhiteSpace(poiBrand.Brand))
+                        brandSet.Add(poiBrand.Brand.Trim());
+                }
+
+                if (notice != null
+                    && !string.IsNullOrWhiteSpace(notice.PurchaseOrderId)
+                    && poItemsByPurchaseOrderId.TryGetValue(notice.PurchaseOrderId, out var poLinesBrand))
+                {
+                    foreach (var pl in poLinesBrand)
                     {
-                        if (string.IsNullOrWhiteSpace(ni.PurchaseOrderItemId)) return string.Empty;
-                        if (!poItemMap.TryGetValue(ni.PurchaseOrderItemId, out var poi)) return string.Empty;
-                        if (string.IsNullOrWhiteSpace(poi.SellOrderItemId)) return string.Empty;
-                        return sellOrderCodeBySellOrderItemId.TryGetValue(poi.SellOrderItemId, out var so) ? so : string.Empty;
-                    })
-                    .Where(x => !string.IsNullOrWhiteSpace(x))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-                qc.SalesOrderCode = soCodes.Count == 0 ? null : string.Join(", ", soCodes);
+                        if (!string.IsNullOrWhiteSpace(pl.Brand)) brandSet.Add(pl.Brand.Trim());
+                    }
+                }
+
+                qc.Brand = brandSet.Count == 0 ? null : string.Join(", ", brandSet.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+
+                if (notice != null && !string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
+                    && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var poiSo)
+                    && !string.IsNullOrWhiteSpace(poiSo.SellOrderItemId)
+                    && sellOrderCodeBySellOrderItemId.TryGetValue(poiSo.SellOrderItemId, out var so)
+                    && !string.IsNullOrWhiteSpace(so))
+                    qc.SalesOrderCode = so;
             }
+
+            await NormalizeUnboundQcStockInDisplayStatusAsync(list);
 
             var modelKeyword = request?.Model?.Trim();
             var vendorKeyword = request?.VendorName?.Trim();
@@ -240,37 +291,29 @@ namespace CRM.Core.Services
                 return list;
             }
 
-            bool MatchModel(QCInfo qc, StockInNotify? notice, List<StockInNotifyItem> noticeItems, string keyword)
+            bool MatchModel(QCInfo qc, StockInNotify? notice, string keyword)
             {
-                // 列表已聚合的型号串（含整单 PN）
                 if (!string.IsNullOrWhiteSpace(qc.Model) && qc.Model.Contains(keyword, StringComparison.OrdinalIgnoreCase))
                     return true;
 
-                bool MatchNi(StockInNotifyItem ni)
-                {
-                    if (!string.IsNullOrWhiteSpace(ni.Pn) && ni.Pn.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-                        return true;
-                    if (!string.IsNullOrWhiteSpace(ni.PurchaseOrderItemId)
-                        && poItemMap.TryGetValue(ni.PurchaseOrderItemId, out var poi)
-                        && !string.IsNullOrWhiteSpace(poi.PN)
-                        && poi.PN.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-                        return true;
-                    return false;
-                }
+                if (notice != null && !string.IsNullOrWhiteSpace(notice.Pn) && notice.Pn.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                    return true;
 
-                if (noticeItems.Any(MatchNi))
+                if (notice != null && !string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
+                    && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var poi)
+                    && !string.IsNullOrWhiteSpace(poi.PN)
+                    && poi.PN.Contains(keyword, StringComparison.OrdinalIgnoreCase))
                     return true;
 
                 if (qc.Items is { Count: > 0 })
                 {
                     foreach (var qci in qc.Items)
                     {
-                        if (notifyItemById.TryGetValue(qci.StockInNotifyItemId, out var ni) && MatchNi(ni))
+                        if (noticeMap.TryGetValue(qci.ArrivalStockInNotifyId, out var n) && MatchModel(qc, n, keyword))
                             return true;
                     }
                 }
 
-                // 整单采购明细 PN（与到货通知行可能不一致）
                 if (notice != null
                     && !string.IsNullOrWhiteSpace(notice.PurchaseOrderId)
                     && poItemsByPurchaseOrderId.TryGetValue(notice.PurchaseOrderId, out var polines))
@@ -285,8 +328,6 @@ namespace CRM.Core.Services
             return list.Where(qc =>
             {
                 noticeMap.TryGetValue(qc.StockInNotifyId, out var notice);
-                noticeItemsMap.TryGetValue(qc.StockInNotifyId, out var noticeItems);
-                noticeItems ??= new List<StockInNotifyItem>();
 
                 if (!string.IsNullOrWhiteSpace(vendorKeyword)
                     && !(notice?.VendorName?.Contains(vendorKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
@@ -296,18 +337,18 @@ namespace CRM.Core.Services
                     && !(notice?.PurchaseOrderCode?.Contains(poCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
                     return false;
 
-                if (!string.IsNullOrWhiteSpace(modelKeyword) && !MatchModel(qc, notice, noticeItems, modelKeyword))
+                if (!string.IsNullOrWhiteSpace(modelKeyword) && !MatchModel(qc, notice, modelKeyword))
                     return false;
 
                 if (!string.IsNullOrWhiteSpace(soCodeKeyword))
                 {
-                    var soMatched = noticeItems.Any(ni =>
-                        !string.IsNullOrWhiteSpace(ni.PurchaseOrderItemId)
-                        && poItemMap.TryGetValue(ni.PurchaseOrderItemId, out var poi)
-                        && !string.IsNullOrWhiteSpace(poi.SellOrderItemId)
-                        && sellOrderCodeBySellOrderItemId.TryGetValue(poi.SellOrderItemId, out var soCode)
-                        && !string.IsNullOrWhiteSpace(soCode)
-                        && soCode.Contains(soCodeKeyword, StringComparison.OrdinalIgnoreCase));
+                    var soMatched = notice != null
+                                    && !string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
+                                    && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var poi)
+                                    && !string.IsNullOrWhiteSpace(poi.SellOrderItemId)
+                                    && sellOrderCodeBySellOrderItemId.TryGetValue(poi.SellOrderItemId, out var soCode)
+                                    && !string.IsNullOrWhiteSpace(soCode)
+                                    && soCode.Contains(soCodeKeyword, StringComparison.OrdinalIgnoreCase);
                     if (!soMatched) return false;
                 }
 
@@ -324,10 +365,8 @@ namespace CRM.Core.Services
             if (existed != null) return existed;
 
             var notice = await _notifyRepo.GetByIdAsync(request.StockInNotifyId) ?? throw new InvalidOperationException("到货通知不存在");
-            var noticeItems = (await _notifyItemRepo.FindAsync(x => x.StockInNotifyId == notice.Id)).ToList();
-            if (!noticeItems.Any()) throw new InvalidOperationException("到货通知无明细，无法创建质检");
 
-            var passQty = noticeItems.Sum(x => x.ArrivedQty);
+            var passQty = notice.ExpectQty;
             var qcCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.QcRecord);
             var qc = new QCInfo
             {
@@ -343,19 +382,16 @@ namespace CRM.Core.Services
             };
             await _qcRepo.AddAsync(qc);
 
-            foreach (var x in noticeItems)
+            await _qcItemRepo.AddAsync(new QCItem
             {
-                await _qcItemRepo.AddAsync(new QCItem
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    QcInfoId = qc.Id,
-                    StockInNotifyItemId = x.Id,
-                    ArrivedQty = x.ArrivedQty,
-                    PassedQty = x.ArrivedQty,
-                    RejectQty = 0,
-                    CreateTime = DateTime.UtcNow
-                });
-            }
+                Id = Guid.NewGuid().ToString(),
+                QcInfoId = qc.Id,
+                ArrivalStockInNotifyId = notice.Id,
+                ArrivedQty = notice.ExpectQty,
+                PassedQty = notice.ExpectQty,
+                RejectQty = 0,
+                CreateTime = DateTime.UtcNow
+            });
 
             notice.Status = 30;
             notice.ModifyTime = DateTime.UtcNow;
@@ -382,13 +418,8 @@ namespace CRM.Core.Services
                 "reject" => -1,
                 _ => throw new ArgumentException("质检结果不合法", nameof(request.Result))
             };
-            qc.StockInStatus = qc.Status switch
-            {
-                100 => 100,
-                10 => 10,
-                -1 => -1,
-                _ => 1
-            };
+            // StockInStatus：入库进度（见 QCInfo 注释），与质检 Status 的 10/100 不可混用；保存质检后尚未入库
+            qc.StockInStatus = request.Result == "reject" ? (short)-1 : (short)1;
             qc.ModifyTime = DateTime.UtcNow;
             await _qcRepo.UpdateAsync(qc);
 
@@ -405,17 +436,15 @@ namespace CRM.Core.Services
             if (notice != null)
             {
                 notice.Status = 30;
+                notice.PassedQty = items.Sum(x => x.PassedQty);
+                notice.ReceiveQty = notice.PassedQty;
+                notice.ReceiveTotal = Math.Round(notice.ReceiveQty * notice.Cost, 2, MidpointRounding.AwayFromZero);
                 notice.ModifyTime = DateTime.UtcNow;
                 await _notifyRepo.UpdateAsync(notice);
 
-                var notifyItems = (await _notifyItemRepo.FindAsync(x => x.StockInNotifyId == notice.Id)).ToDictionary(x => x.Id, x => x);
-                foreach (var qci in items)
-                {
-                    if (!notifyItems.TryGetValue(qci.StockInNotifyItemId, out var ni)) continue;
-                    ni.PassedQty = qci.PassedQty;
-                    ni.ModifyTime = DateTime.UtcNow;
-                    await _notifyItemRepo.UpdateAsync(ni);
-                }
+                if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId))
+                    await RecalcPurchaseOrderItemExtendAsync(notice.PurchaseOrderItemId,
+                        (await _poItemRepo.GetByIdAsync(notice.PurchaseOrderItemId))?.Qty ?? 0);
             }
 
             await _unitOfWork.SaveChangesAsync();
@@ -430,7 +459,7 @@ namespace CRM.Core.Services
 
             var qc = await _qcRepo.GetByIdAsync(id) ?? throw new InvalidOperationException("质检单不存在");
             qc.StockInId = stockInId;
-            qc.StockInStatus = qc.Status == 100 ? (short)100 : qc.Status == 10 ? (short)10 : qc.StockInStatus;
+            // 仅绑定入库单；入库进度在过账完成时由 HandleStockInCompletedAsync 回写
             qc.ModifyTime = DateTime.UtcNow;
             await _qcRepo.UpdateAsync(qc);
 
@@ -479,16 +508,14 @@ namespace CRM.Core.Services
             var poIds = relatedNotices.Select(x => x.PurchaseOrderId).Where(x => !string.IsNullOrWhiteSpace(x)).ToHashSet();
             if (!string.IsNullOrWhiteSpace(purchaseOrderId)) poIds.Add(purchaseOrderId);
 
-            var allNotifyItems = (await _notifyItemRepo.GetAllAsync()).ToList();
             foreach (var poId in poIds)
             {
                 var po = await _poRepo.GetByIdAsync(poId);
                 if (po == null) continue;
 
                 var poItems = (await _poItemRepo.FindAsync(x => x.PurchaseOrderId == poId)).ToList();
-                var noticeIds = relatedNotices.Where(x => x.PurchaseOrderId == poId).Select(x => x.Id).ToHashSet();
-                var notifyItems = allNotifyItems.Where(x => noticeIds.Contains(x.StockInNotifyId)).ToList();
-                var passedMap = notifyItems
+                var allNotifiesForPo = (await _notifyRepo.FindAsync(x => x.PurchaseOrderId == poId)).ToList();
+                var passedMap = allNotifiesForPo
                     .GroupBy(x => x.PurchaseOrderItemId)
                     .ToDictionary(g => g.Key, g => g.Sum(v => v.PassedQty));
 
@@ -531,10 +558,69 @@ namespace CRM.Core.Services
             }
 
             if (hasChanges)
-            {
                 await _unitOfWork.SaveChangesAsync();
-            }
         }
 
+        /// <summary>
+        /// 未绑定入库单时 StockInStatus 只应为「未入库」(1)；历史上曾误将质检结论 10/100 写入该字段，此处加载列表时自愈并落库。
+        /// </summary>
+        private async Task NormalizeUnboundQcStockInDisplayStatusAsync(List<QCInfo> list)
+        {
+            var utc = DateTime.UtcNow;
+            var dirty = false;
+            foreach (var qc in list)
+            {
+                if (!string.IsNullOrWhiteSpace(qc.StockInId) || qc.Status == -1)
+                    continue;
+                if (qc.StockInStatus == 1)
+                    continue;
+                qc.StockInStatus = 1;
+                qc.ModifyTime = utc;
+                await _qcRepo.UpdateAsync(qc);
+                dirty = true;
+            }
+
+            if (dirty)
+                await _unitOfWork.SaveChangesAsync();
+        }
+
+        private async Task<PurchaseOrderItemExtend> EnsurePurchaseOrderItemExtendAsync(PurchaseOrderItem poItem)
+        {
+            var ext = await _poItemExtendRepo.GetByIdAsync(poItem.Id);
+            if (ext != null) return ext;
+
+            var lineTotal = Math.Round(poItem.Qty * poItem.Cost, 2, MidpointRounding.AwayFromZero);
+            ext = new PurchaseOrderItemExtend
+            {
+                Id = poItem.Id,
+                QtyStockInNotifyNot = poItem.Qty,
+                PurchaseInvoiceAmount = lineTotal,
+                PurchaseInvoiceToBe = lineTotal,
+                PaymentAmount = lineTotal,
+                PaymentAmountNot = lineTotal,
+                CreateTime = DateTime.UtcNow
+            };
+            await _poItemExtendRepo.AddAsync(ext);
+            await _unitOfWork.SaveChangesAsync();
+            return ext;
+        }
+
+        /// <summary>
+        /// 文档：QtyStockInNotifyNot = 采购数量 - 累计实收 - 在途(Expect-Receive 未结批次之和)
+        /// </summary>
+        private async Task RecalcPurchaseOrderItemExtendAsync(string purchaseOrderItemId, decimal poLineQty)
+        {
+            var ext = await _poItemExtendRepo.GetByIdAsync(purchaseOrderItemId);
+            if (ext == null) return;
+
+            var lines = (await _notifyRepo.FindAsync(x => x.PurchaseOrderItemId == purchaseOrderItemId)).ToList();
+            var sumReceive = lines.Sum(x => x.ReceiveQty);
+            var inTransit = lines.Sum(x => Math.Max(0m, x.ExpectQty - x.ReceiveQty));
+            ext.QtyReceiveTotal = sumReceive;
+            ext.QtyStockInNotifyExpectSum = lines.Sum(x => x.ExpectQty);
+            ext.QtyStockInNotifyNot = Math.Max(0m, poLineQty - sumReceive - inTransit);
+            ext.ModifyTime = DateTime.UtcNow;
+            await _poItemExtendRepo.UpdateAsync(ext);
+        }
     }
 }

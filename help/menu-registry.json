@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "pagesDir": "pages",
+  "catalogFile": "帮助文档目录.md",
+  "entries": [
+    { "id": "MENU_DASHBOARD", "label": "控制台", "routeNames": ["Dashboard"], "pathPrefixes": ["/dashboard"] },
+    { "id": "MENU_PENDING_APPROVALS", "label": "待审批", "routeNames": ["PendingApprovals"], "pathPrefixes": ["/pending-approvals"] },
+    { "id": "MENU_DRAFTS", "label": "草稿箱", "routeNames": ["DraftList"], "pathPrefixes": ["/drafts"] },
+
+    { "id": "MENU_CUSTOMER_HOME", "label": "客户", "routeNames": ["CustomerHome", "CustomerList", "CustomerDetail", "CustomerCreate", "CustomerEdit", "CustomerContactCreate", "CustomerContactEdit"], "pathPrefixes": ["/custome", "/customerlist", "/customers"] },
+    { "id": "MENU_CUSTOMER_FREEZE", "label": "冻结管理", "routeNames": ["CustomerFreezeManagement"], "pathPrefixes": ["/customers/frozen"] },
+    { "id": "MENU_CUSTOMER_BLACKLIST", "label": "黑名单管理", "routeNames": ["CustomerBlacklist"], "pathPrefixes": ["/customers/blacklist"] },
+    { "id": "MENU_CUSTOMER_RECYCLE", "label": "回收站", "routeNames": ["CustomerRecycleBin"], "pathPrefixes": ["/customers/recycle-bin"] },
+
+    { "id": "MENU_VENDOR_HOME", "label": "供应商", "routeNames": ["VendorHome", "VendorList", "VendorDetail", "VendorCreate", "VendorEdit", "VendorContactCreate", "VendorContactEdit"], "pathPrefixes": ["/vendor", "/vendorlist", "/vendors"] },
+    { "id": "MENU_VENDOR_FREEZE", "label": "冻结管理", "routeNames": ["VendorFreezeManagement"], "pathPrefixes": ["/vendors/frozen"] },
+    { "id": "MENU_VENDOR_BLACKLIST", "label": "黑名单管理", "routeNames": ["VendorBlacklist"], "pathPrefixes": ["/vendors/blacklist"] },
+    { "id": "MENU_VENDOR_RECYCLE", "label": "回收站", "routeNames": ["VendorRecycleBin"], "pathPrefixes": ["/vendors/recycle-bin"] },
+
+    { "id": "MENU_RFQ_LIST", "label": "需求列表", "routeNames": ["RFQHome", "RFQList", "RFQCreate", "RFQDetail", "RFQEdit"], "pathPrefixes": ["/rfq", "/rfqlist", "/rfqs"] },
+    { "id": "MENU_RFQ_ITEMS", "label": "需求明细", "routeNames": ["PnList", "RFQItemList"], "pathPrefixes": ["/pn", "/rfq-items"] },
+    { "id": "MENU_BOM", "label": "BOM 快速报价", "routeNames": ["BOMList", "BOMCreate", "BOMDetail"], "pathPrefixes": ["/boms"] },
+    { "id": "MENU_QUOTE_LIST", "label": "报价列表", "routeNames": ["QuoteList", "QuoteCreate", "QuoteEdit", "QuoteDetail"], "pathPrefixes": ["/quotes"] },
+
+    { "id": "MENU_SALES_ORDERS", "label": "销售订单", "routeNames": ["SalesOrderList", "SalesOrderCreate", "SalesOrderDetail"], "pathPrefixes": ["/sales-orders"] },
+    { "id": "MENU_SALES_ORDER_ITEMS", "label": "销售订单明细", "routeNames": ["SalesOrderItemList"], "pathPrefixes": ["/sales-order-items"] },
+
+    { "id": "MENU_PURCHASE_REQ", "label": "采购申请", "routeNames": ["PurchaseRequisitionList", "PurchaseRequisitionCreate", "PurchaseRequisitionDetail"], "pathPrefixes": ["/purchase-requisitions"] },
+    { "id": "MENU_PURCHASE_ORDERS", "label": "采购订单", "routeNames": ["PurchaseOrderList", "PurchaseOrderCreate", "PurchaseOrderEdit", "PurchaseOrderDetail", "PurchaseOrderReport"], "pathPrefixes": ["/purchase-orders"] },
+    { "id": "MENU_PURCHASE_ORDER_ITEMS", "label": "采购订单明细", "routeNames": ["PurchaseOrderItemList"], "pathPrefixes": ["/purchase-order-items"] },
+
+    { "id": "MENU_ARRIVAL", "label": "到货通知", "routeNames": ["ArrivalNoticeList"], "pathPrefixes": ["/logistics/arrival-notices"] },
+    { "id": "MENU_QC", "label": "质检", "routeNames": ["QcList", "QcCreate"], "pathPrefixes": ["/logistics/qc"] },
+    { "id": "MENU_STOCK_IN", "label": "入库", "routeNames": ["StockInList", "StockInCreate", "StockInDetail"], "pathPrefixes": ["/inventory/stock-in"] },
+    { "id": "MENU_INVENTORY_LIST", "label": "库存管理", "routeNames": ["InventoryList", "InventoryTrace"], "pathPrefixes": ["/inventory/list", "/inventory/traces"] },
+    { "id": "MENU_INVENTORY_TRANSFER", "label": "库存调拨", "routeNames": ["InventoryTransfer"], "pathPrefixes": ["/inventory/transfer"] },
+    { "id": "MENU_INVENTORY_CHECK", "label": "库存盘点", "routeNames": ["InventoryCheck"], "pathPrefixes": ["/inventory/check"] },
+    { "id": "MENU_STOCK_OUT_NOTIFY", "label": "出库通知", "routeNames": ["InventoryStockOutNotifyList", "StockOutNotifyList"], "pathPrefixes": ["/inventory/stock-out-notifies", "/stock-out-notifies"] },
+    { "id": "MENU_STOCK_OUT", "label": "出库", "routeNames": ["StockOutList", "StockOutCreate"], "pathPrefixes": ["/inventory/stock-out"] },
+
+    { "id": "MENU_FINANCE_PAYMENT", "label": "付款记录", "routeNames": ["FinancePaymentList", "FinancePaymentDetail"], "pathPrefixes": ["/finance/payments"] },
+    { "id": "MENU_FINANCE_PURCHASE_INV", "label": "进项发票", "routeNames": ["FinancePurchaseInvoiceList", "FinancePurchaseInvoiceDetail"], "pathPrefixes": ["/finance/purchase-invoices"] },
+    { "id": "MENU_FINANCE_RECEIPT", "label": "收款记录", "routeNames": ["FinanceReceiptList", "FinanceReceiptDetail"], "pathPrefixes": ["/finance/receipts"] },
+    { "id": "MENU_FINANCE_SELL_INV", "label": "销项发票", "routeNames": ["FinanceSellInvoiceList", "FinanceSellInvoiceDetail"], "pathPrefixes": ["/finance/sell-invoices"] },
+
+    { "id": "MENU_REPORT_ANALYSIS", "label": "报表分析", "routeNames": [], "pathPrefixes": [] },
+
+    { "id": "MENU_SYS_USERS", "label": "员工管理", "routeNames": ["UserList", "UserCreate", "UserEdit"], "pathPrefixes": ["/system/users"] },
+    { "id": "MENU_SYS_DEPTS", "label": "部门管理", "routeNames": ["DepartmentList", "DepartmentCreate", "DepartmentEdit", "DepartmentDetail"], "pathPrefixes": ["/system/departments"] },
+    { "id": "MENU_SYS_ROLES", "label": "角色管理", "routeNames": ["RoleList", "RoleCreate", "RoleEdit"], "pathPrefixes": ["/system/roles"] },
+    { "id": "MENU_SYS_PERMS", "label": "权限管理", "routeNames": ["PermissionList", "PermissionCreate", "PermissionEdit"], "pathPrefixes": ["/system/permissions"] },
+
+    { "id": "MENU_COMPANY_INFO", "label": "公司信息", "routeNames": ["CompanyInfo"], "pathPrefixes": ["/system/company-info"] },
+    { "id": "MENU_SETTINGS", "label": "系统设置", "routeNames": ["Settings"], "pathPrefixes": ["/dashboard/settings"] },
+    { "id": "MENU_PROFILE", "label": "个人设置", "routeNames": ["Profile", "WechatBinding"], "pathPrefixes": ["/profile"] }
+  ]
+}

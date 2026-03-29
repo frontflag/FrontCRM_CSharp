@@ -68,6 +68,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? orderCreateEnd,
             [FromQuery] string? customerName,
             [FromQuery] string? salesUserName,
+            [FromQuery] string? sellOrderCode,
             [FromQuery] string? pn,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
@@ -80,6 +81,7 @@ namespace CRM.API.Controllers
                     OrderCreateEnd = DateTime.TryParse(orderCreateEnd, out var de) ? de : null,
                     CustomerName = customerName,
                     SalesUserName = salesUserName,
+                    SellOrderCode = sellOrderCode,
                     Pn = pn,
                     Page = page,
                     PageSize = pageSize,

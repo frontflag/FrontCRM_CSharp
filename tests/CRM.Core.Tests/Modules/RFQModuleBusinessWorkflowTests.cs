@@ -1,8 +1,10 @@
 using System.Collections.Concurrent;
+using System.Linq;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Rbac;
+using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Models.System;
 using CRM.Core.Models.Vendor;
@@ -30,6 +32,7 @@ public sealed class RFQModuleBusinessWorkflowTests
         public MemoryRepository<RbacRole> RbacRoleRepo { get; } = new();
         public MemoryRepository<RbacUserRole> RbacUserRoleRepo { get; } = new();
         public MemoryRepository<User> UserRepo { get; } = new();
+        public MemoryRepository<Quote> QuoteRepo { get; } = new();
         public EntityLookupService Lookup { get; }
         public IDataPermissionService DataPermission { get; }
         public ISerialNumberService Serial { get; }
@@ -65,7 +68,7 @@ public sealed class RFQModuleBusinessWorkflowTests
 
             UnitOfWork = Substitute.For<IUnitOfWork>();
             Lookup = new EntityLookupService(CustomerRepo, ContactRepo, VendorRepo, VendorContactRepo, UserService);
-            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, SysParamRepo, RbacRoleRepo, RbacUserRoleRepo, UserRepo);
+            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, SysParamRepo, RbacRoleRepo, RbacUserRoleRepo, QuoteRepo, UserRepo);
         }
 
         private sealed class ConcurrentInt
@@ -318,6 +321,40 @@ public sealed class RFQModuleBusinessWorkflowTests
             PageSize = 10
         });
         byUserName.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetPagedItemsAsync_HasQuotesOnly_ReturnsOnlyLinesWithQuote()
+    {
+        var h = new RfqInMemoryHarness();
+        await SeedCustomerAsync(h);
+        await h.Service.CreateAsync(BuildCreateRequest());
+        var items = h.ItemRepo.Snapshot().OrderBy(i => i.LineNo).ToList();
+        items.Should().HaveCount(2);
+        var quotedItemId = items[0].Id;
+        await h.QuoteRepo.AddAsync(new Quote
+        {
+            Id = Guid.NewGuid().ToString(),
+            QuoteCode = "QT-WF-FILTER",
+            RFQItemId = quotedItemId
+        });
+
+        var withFilter = await h.Service.GetPagedItemsAsync(new RFQItemQueryRequest
+        {
+            HasQuotesOnly = true,
+            PageIndex = 1,
+            PageSize = 20
+        });
+        withFilter.TotalCount.Should().Be(1);
+        withFilter.Items.Should().HaveCount(1);
+        withFilter.Items.First().Id.Should().Be(quotedItemId);
+
+        var noFilter = await h.Service.GetPagedItemsAsync(new RFQItemQueryRequest
+        {
+            PageIndex = 1,
+            PageSize = 20
+        });
+        noFilter.TotalCount.Should().Be(2);
     }
 
     [Fact]

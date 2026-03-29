@@ -1,28 +1,37 @@
 <template>
   <div class="bom-detail-page">
-    <!-- 面包屑 -->
-    <div class="breadcrumb-bar">
-      <el-button link @click="router.push({ name: 'BOMList' })">
-        <el-icon><ArrowLeft /></el-icon>返回列表
-      </el-button>
-      <span class="sep">/</span>
-      <span class="crumb-link" @click="router.push({ name: 'BOMList' })">BOM 快速报价</span>
-      <span class="sep">/</span>
-      <span class="crumb-current">{{ bom?.bomCode || 'BOM 详情' }}</span>
-    </div>
-
     <!-- 加载中 -->
     <div v-if="loading" class="loading-state">
       <el-icon class="is-loading"><Loading /></el-icon>加载中...
     </div>
 
     <template v-else-if="bom">
-      <!-- 头部信息 -->
-      <div class="detail-header">
+      <!-- 详情 CaptionBar -->
+      <div class="page-header">
         <div class="header-left">
-          <div class="bom-code">{{ bom.bomCode }}</div>
-          <el-tag effect="dark" :type="getStatusTagType(bom.status)" size="large">{{ getStatusText(bom.status) }}</el-tag>
-          <el-tag effect="dark" v-if="bom.bomType" size="small" :type="getBOMTypeTagType(bom.bomType)">{{ getBOMTypeText(bom.bomType) }}</el-tag>
+          <button type="button" class="btn-back" @click="router.push({ name: 'BOMList' })">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            返回
+          </button>
+          <div class="bom-caption-title-group">
+            <div class="caption-avatar-lg">{{ captionAvatarChar }}</div>
+            <div>
+              <div class="page-title-row">
+                <div class="page-title-with-icons">
+                  <h1 class="page-title">{{ bom.bomCode }}</h1>
+                  <el-tag effect="dark" :type="getStatusTagType(bom.status)" size="small">{{ getStatusText(bom.status) }}</el-tag>
+                  <el-tag effect="dark" v-if="bom.bomType" size="small" :type="getBOMTypeTagType(bom.bomType)">
+                    {{ getBOMTypeText(bom.bomType) }}
+                  </el-tag>
+                </div>
+              </div>
+              <div class="title-meta caption-meta-line">
+                <span class="caption-muted">{{ bom.customerName || '—' }}</span>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="header-right">
           <el-button
@@ -33,9 +42,21 @@
           >
             <el-icon><MagicStick /></el-icon>一键快速报价
           </el-button>
-          <el-button type="danger" @click="handleDelete">
-            <el-icon><Delete /></el-icon>删除 BOM
-          </el-button>
+          <el-dropdown
+            trigger="click"
+            placement="bottom-end"
+            popper-class="bom-detail-header-more-popper"
+            @command="onHeaderMoreCommand"
+          >
+            <button type="button" class="btn-more-actions" title="更多操作" aria-label="更多操作">
+              <span class="btn-more-actions__dots" aria-hidden="true">⋯</span>
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="delete" class="detail-more-item--danger">删除 BOM</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </div>
 
@@ -241,7 +262,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft, Delete, MagicStick, Loading } from '@element-plus/icons-vue'
+import { MagicStick, Loading } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { bomApi } from '@/api/bom'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
@@ -269,6 +290,15 @@ const filteredItems = computed(() => {
   if (filterStatus.value === '') return bom.value.items
   return bom.value.items.filter(i => i.quoteStatus === filterStatus.value)
 })
+
+const captionAvatarChar = computed(() => {
+  const c = bom.value?.bomCode?.trim()
+  return (c && c[0]) || 'B'
+})
+
+function onHeaderMoreCommand(cmd: string) {
+  if (cmd === 'delete') void handleDelete()
+}
 
 // ── 加载 ──
 const loadData = async () => {
@@ -413,17 +443,14 @@ onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
-.bom-detail-page {
-  padding: 20px;
-  min-height: 100%;
-}
+@import '@/assets/styles/variables.scss';
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
-/* ── 面包屑 ── */
-.breadcrumb-bar {
-  display: flex; align-items: center; gap: 6px; margin-bottom: 18px; font-size: 13px;
-  .sep { color: #334; }
-  .crumb-link { color: #00d4ff; cursor: pointer; &:hover { text-decoration: underline; } }
-  .crumb-current { color: #8aa0b8; }
+.bom-detail-page {
+  padding: 24px;
+  min-height: 100%;
+  background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
 .loading-state {
@@ -431,19 +458,108 @@ onMounted(loadData)
   justify-content: center; font-size: 14px;
 }
 
-/* ── 头部 ── */
-.detail-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 20px;
-  background: rgba(0, 20, 45, 0.8);
-  border: 1px solid rgba(0, 212, 255, 0.15);
-  border-radius: 10px;
-  margin-bottom: 16px;
-  .header-left { display: flex; align-items: center; gap: 12px; }
-  .header-right { display: flex; gap: 10px; }
-  .bom-code {
-    font-size: 20px; font-weight: 700; color: #00d4ff;
-    font-family: 'Courier New', monospace; letter-spacing: 1px;
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: $text-secondary;
+    border-color: rgba(0, 212, 255, 0.2);
+  }
+}
+.bom-caption-title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.caption-avatar-lg {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: $cyan-primary;
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.3), rgba(0, 212, 255, 0.2));
+}
+.page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.page-title-with-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: $text-primary;
+  font-family: 'Space Mono', monospace;
+}
+.caption-meta-line {
+  margin-top: 0;
+}
+.caption-muted {
+  font-size: 12px;
+  color: $text-muted;
+}
+.btn-more-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  background: rgba(255, 255, 255, 0.04);
+  color: $text-muted;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: $text-secondary;
+    border-color: rgba(0, 212, 255, 0.2);
+  }
+  .btn-more-actions__dots {
+    font-size: 18px;
+    line-height: 1;
+    letter-spacing: 1px;
   }
 }
 
@@ -559,5 +675,39 @@ onMounted(loadData)
     color: #c8d8e8;
   }
   .el-input-number { width: 100%; }
+}
+</style>
+
+<style lang="scss">
+@import '@/assets/styles/variables.scss';
+
+.bom-detail-header-more-popper.el-dropdown__popper,
+.bom-detail-header-more-popper.el-popper {
+  background: $layer-2 !important;
+  border: 1px solid rgba(0, 212, 255, 0.15) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+}
+.bom-detail-header-more-popper .el-dropdown-menu {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 4px 0 !important;
+}
+.bom-detail-header-more-popper .el-dropdown-menu__item {
+  color: rgba(200, 220, 240, 0.92) !important;
+  font-size: 13px;
+  &:hover,
+  &:focus {
+    background: rgba(0, 212, 255, 0.1) !important;
+    color: #e8f4ff !important;
+  }
+}
+.bom-detail-header-more-popper .detail-more-item--danger {
+  color: rgba(245, 108, 108, 0.95) !important;
+  &:hover,
+  &:focus {
+    background: rgba(245, 108, 108, 0.12) !important;
+    color: #ff9a9a !important;
+  }
 }
 </style>

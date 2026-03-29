@@ -13,11 +13,11 @@ public class LogisticsServiceTests
     public async Task GetQcsAsync_ModelFilter_ShouldMatchPnFromPurchaseOrderItems()
     {
         var notifyRepo = Substitute.For<IRepository<StockInNotify>>();
-        var notifyItemRepo = Substitute.For<IRepository<StockInNotifyItem>>();
         var qcRepo = Substitute.For<IRepository<QCInfo>>();
         var qcItemRepo = Substitute.For<IRepository<QCItem>>();
         var poRepo = Substitute.For<IRepository<PurchaseOrder>>();
         var poItemRepo = Substitute.For<IRepository<PurchaseOrderItem>>();
+        var poItemExtendRepo = Substitute.For<IRepository<PurchaseOrderItemExtend>>();
         var sellOrderItemRepo = Substitute.For<IRepository<SellOrderItem>>();
         var sellOrderRepo = Substitute.For<IRepository<SellOrder>>();
         var serial = Substitute.For<ISerialNumberService>();
@@ -41,18 +41,9 @@ public class LogisticsServiceTests
                 Id = "notice-1",
                 PurchaseOrderId = "po-1",
                 PurchaseOrderCode = "PO0001",
-                VendorName = "Vendor A"
-            }
-        });
-        // 到货通知明细里没有目标 PN，模拟历史问题场景
-        notifyItemRepo.GetAllAsync().Returns(new[]
-        {
-            new StockInNotifyItem
-            {
-                Id = "ni-1",
-                StockInNotifyId = "notice-1",
+                VendorName = "Vendor A",
                 PurchaseOrderItemId = "poi-1",
-                Pn = "OTHER-PN"
+                Pn = null
             }
         });
         poItemRepo.GetAllAsync().Returns(new[]
@@ -69,7 +60,7 @@ public class LogisticsServiceTests
         sellOrderRepo.GetAllAsync().Returns(Array.Empty<SellOrder>());
 
         var svc = new LogisticsService(
-            notifyRepo, notifyItemRepo, qcRepo, qcItemRepo, poRepo, poItemRepo,
+            notifyRepo, qcRepo, qcItemRepo, poRepo, poItemRepo, poItemExtendRepo,
             sellOrderItemRepo, sellOrderRepo, serial, uow);
 
         var result = await svc.GetQcsAsync(new QcQueryRequest { Model = "UG-MPN-455565" });

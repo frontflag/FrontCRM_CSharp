@@ -10,6 +10,7 @@ namespace CRM.Core.Services
     {
         private readonly IRepository<SellOrder> _soRepo;
         private readonly IRepository<SellOrderItem> _soItemRepo;
+        private readonly IRepository<SellOrderItemExtend> _soItemExtendRepo;
         private readonly IRepository<PurchaseOrder> _poRepo;
         private readonly IRepository<PurchaseOrderItem> _poItemRepo;
         private readonly IDataPermissionService _dataPermissionService;
@@ -19,6 +20,7 @@ namespace CRM.Core.Services
         public SalesOrderService(
             IRepository<SellOrder> soRepo,
             IRepository<SellOrderItem> soItemRepo,
+            IRepository<SellOrderItemExtend> soItemExtendRepo,
             IRepository<PurchaseOrder> poRepo,
             IRepository<PurchaseOrderItem> poItemRepo,
             IDataPermissionService dataPermissionService,
@@ -27,6 +29,7 @@ namespace CRM.Core.Services
         {
             _soRepo = soRepo;
             _soItemRepo = soItemRepo;
+            _soItemExtendRepo = soItemExtendRepo;
             _poRepo = poRepo;
             _poItemRepo = poItemRepo;
             _dataPermissionService = dataPermissionService;
@@ -83,6 +86,7 @@ namespace CRM.Core.Services
                     CreateTime = DateTime.UtcNow
                 };
                 await _soItemRepo.AddAsync(soItem);
+                await AddSellOrderItemExtendAsync(soItem);
                 total += item.Qty * item.Price;
             }
             order.Total = total;
@@ -91,6 +95,22 @@ namespace CRM.Core.Services
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
             return order;
+        }
+
+        private async Task AddSellOrderItemExtendAsync(SellOrderItem soItem)
+        {
+            var lineTotal = Math.Round(soItem.Qty * soItem.Price, 2, MidpointRounding.AwayFromZero);
+            await _soItemExtendRepo.AddAsync(new SellOrderItemExtend
+            {
+                Id = soItem.Id,
+                QtyStockOutNotifyNot = soItem.Qty,
+                InvoiceAmount = lineTotal,
+                InvoiceAmountNot = lineTotal,
+                ReceiptAmount = lineTotal,
+                ReceiptAmountNot = lineTotal,
+                PaymentAmountToBe = lineTotal,
+                CreateTime = DateTime.UtcNow
+            });
         }
 
         public async Task<SellOrder?> GetByIdAsync(string id)
@@ -178,7 +198,11 @@ namespace CRM.Core.Services
             {
                 var existingItems = await _soItemRepo.GetAllAsync();
                 var toDelete = existingItems.Where(i => i.SellOrderId == id).ToList();
-                foreach (var d in toDelete) await _soItemRepo.DeleteAsync(d.Id);
+                foreach (var d in toDelete)
+                {
+                    await _soItemExtendRepo.DeleteAsync(d.Id);
+                    await _soItemRepo.DeleteAsync(d.Id);
+                }
 
                 decimal total = 0m;
                 foreach (var item in request.Items)
@@ -201,6 +225,7 @@ namespace CRM.Core.Services
                         CreateTime = DateTime.UtcNow
                     };
                     await _soItemRepo.AddAsync(soItem);
+                    await AddSellOrderItemExtendAsync(soItem);
                     total += item.Qty * item.Price;
                 }
                 order.Total = total;
@@ -221,7 +246,10 @@ namespace CRM.Core.Services
                 ?? throw new InvalidOperationException($"销售订单 {id} 不存在");
             var items = await _soItemRepo.GetAllAsync();
             foreach (var item in items.Where(i => i.SellOrderId == id))
+            {
+                await _soItemExtendRepo.DeleteAsync(item.Id);
                 await _soItemRepo.DeleteAsync(item.Id);
+            }
             await _soRepo.DeleteAsync(id);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
         }
@@ -311,6 +339,14 @@ namespace CRM.Core.Services
                 joined = joined.Where(x =>
                     !string.IsNullOrWhiteSpace(x.Order.SalesUserName) &&
                     x.Order.SalesUserName.Contains(k, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.SellOrderCode))
+            {
+                var k = request.SellOrderCode.Trim();
+                joined = joined.Where(x =>
+                    !string.IsNullOrWhiteSpace(x.Order.SellOrderCode) &&
+                    x.Order.SellOrderCode.Contains(k, StringComparison.OrdinalIgnoreCase));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Pn))

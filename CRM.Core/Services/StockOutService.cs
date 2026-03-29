@@ -1,6 +1,7 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
 using System;
@@ -22,6 +23,7 @@ namespace CRM.Core.Services
         private readonly IRepository<StockInfo> _stockRepository;
         private readonly IRepository<SellOrder> _sellOrderRepository;
         private readonly IRepository<SellOrderItem> _sellOrderItemRepository;
+        private readonly IRepository<PurchaseOrderItem> _purchaseOrderItemRepository;
         private readonly IRepository<User> _userRepository;
         private readonly IInventoryCenterService _inventoryCenterService;
         private readonly IUnitOfWork _unitOfWork;
@@ -35,6 +37,7 @@ namespace CRM.Core.Services
             IRepository<StockInfo> stockRepository,
             IRepository<SellOrder> sellOrderRepository,
             IRepository<SellOrderItem> sellOrderItemRepository,
+            IRepository<PurchaseOrderItem> purchaseOrderItemRepository,
             IRepository<User> userRepository,
             IInventoryCenterService inventoryCenterService,
             ISerialNumberService serialNumberService,
@@ -47,6 +50,7 @@ namespace CRM.Core.Services
             _stockRepository = stockRepository;
             _sellOrderRepository = sellOrderRepository;
             _sellOrderItemRepository = sellOrderItemRepository;
+            _purchaseOrderItemRepository = purchaseOrderItemRepository;
             _userRepository = userRepository;
             _inventoryCenterService = inventoryCenterService;
             _serialNumberService = serialNumberService;
@@ -205,6 +209,11 @@ namespace CRM.Core.Services
 
             var soItem = await _sellOrderItemRepository.GetByIdAsync(stockOutRequest.SalesOrderItemId.Trim());
             var productIdFromLine = string.IsNullOrWhiteSpace(soItem?.ProductId) ? null : soItem!.ProductId!.Trim();
+            var sellLineId = stockOutRequest.SalesOrderItemId.Trim();
+            var linkedPoItems = (await _purchaseOrderItemRepository.GetAllAsync())
+                .Where(p => string.Equals(p.SellOrderItemId, sellLineId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            var linkedMaterialKeys = StockMaterialMatch.LinkedPurchaseMaterialKeys(linkedPoItems);
 
             var stockOutCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.StockOut);
 
@@ -233,7 +242,7 @@ namespace CRM.Core.Services
                 // 库存 MaterialId 常与 ProductId 一致；出库明细传 PN，需与订单行 ProductId 一并匹配
                 var candidateStocks = allStocks
                     .Where(s => s.WarehouseId == request.WarehouseId
-                                && StockMaterialMatch.Matches(s, materialId, productIdFromLine)
+                                && StockMaterialMatch.Matches(s, materialId, productIdFromLine, linkedMaterialKeys)
                                 && s.QtyRepertoryAvailable > 0)
                     .OrderBy(s => s.ProductionDate ?? s.CreateTime)
                     .ThenBy(s => s.CreateTime)
@@ -300,7 +309,7 @@ namespace CRM.Core.Services
                 }
 
                 if (remaining > 0)
-                    throw new InvalidOperationException($"物料 {materialId} 在仓库 {request.WarehouseId} 库存不足，缺少 {remaining}");
+                    throw new InvalidOperationException($"物料 {materialId} 在仓库 {request.WarehouseId} 库存不足，缺少 {QuantityMessageFormatting.ForUserMessage(remaining)}");
             }
 
             // 持久化库存变更
