@@ -304,6 +304,7 @@ import {
   salesOrderMainAllowsPurchaseAndStockOut
 } from '@/constants/salesOrderStatus'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import type { SalesOrderItemLineRow } from '@/stores/salesOrderItemListBasket'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -318,8 +319,9 @@ const canViewAmount = computed(() => authStore.hasPermission('sales.amount.read'
 const canWriteSo = computed(() => authStore.hasPermission('sales-order.write'))
 const canPurchaseReq = computed(() => authStore.hasPermission('purchase-requisition.write'))
 
-function mainAllowsOps(row: { orderStatus?: number }) {
-  return salesOrderMainAllowsPurchaseAndStockOut(Number(row?.orderStatus))
+function mainAllowsOps(row: SalesOrderItemLineRow) {
+  const os = row['orderStatus']
+  return salesOrderMainAllowsPurchaseAndStockOut(Number(os))
 }
 
 const loading = ref(false)

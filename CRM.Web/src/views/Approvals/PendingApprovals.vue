@@ -169,7 +169,7 @@
             <div class="info-item"><span class="k">提交日期</span><span class="v">{{ formatDate(auditRow.createdAt) }}</span></div>
             <div class="info-item"><span class="k">状态</span><span class="v">{{ statusText(auditRow.status) }}</span></div>
             <div class="info-item"><span class="k">往来方</span><span class="v">{{ auditRow.counterpartyName || '—' }}</span></div>
-            <div class="info-item"><span class="k">金额</span><span class="v">{{ auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—' }}</span></div>
+            <div class="info-item"><span class="k">金额</span><span class="v">{{ formatAuditAmount(auditRow, auditDetail) }}</span></div>
           </div>
 
           <div class="biz-extra">
@@ -216,7 +216,7 @@
               <div class="extra-title">付款单专属信息</div>
               <div class="extra-line"><span>单号：</span>{{ auditRow.documentCode }}</div>
               <div class="extra-line"><span>供应商：</span>{{ auditDetail?.vendorName || auditRow.counterpartyName || '—' }}</div>
-              <div class="extra-line"><span>付款金额：</span>{{ auditDetail?.paymentAmount != null ? formatAmount(auditDetail.paymentAmount, auditDetail.paymentCurrency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—') }}</div>
+              <div class="extra-line"><span>付款金额：</span>{{ formatFinancePaymentAuditAmount(auditRow, auditDetail) }}</div>
               <div class="extra-line"><span>付款方式：</span>{{ auditDetail?.paymentMode || '—' }}</div>
             </template>
             <template v-else>
@@ -330,6 +330,36 @@ const formatDate = (dateStr: string) => formatDisplayDateTime(dateStr)
 const formatAmount = (amount: number, currency?: number | null) => {
   const sym = currency === 2 ? '$' : currency === 3 ? '€' : '¥'
   return sym + Number(amount).toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+}
+
+const pickDefinedNumber = (v: unknown): number | undefined => {
+  if (v == null || v === '') return undefined
+  const n = Number(v)
+  return Number.isFinite(n) ? n : undefined
+}
+
+const auditMoneyCurrency = (row: PendingApprovalItem, detail: any) =>
+  pickDefinedNumber(row.currency) ??
+  pickDefinedNumber(detail?.paymentCurrency) ??
+  pickDefinedNumber(detail?.PaymentCurrency) ??
+  1
+
+/** 付款请款：主数据为 PaymentAmountToBe，待审核阶段 PaymentAmount 多为 0 */
+const formatFinancePaymentAuditAmount = (row: PendingApprovalItem, detail: any) => {
+  const cur = auditMoneyCurrency(row, detail)
+  const d = detail || {}
+  const toBe = pickDefinedNumber(d.paymentAmountToBe ?? d.PaymentAmountToBe)
+  if (toBe !== undefined) return formatAmount(toBe, cur)
+  const paid = pickDefinedNumber(d.paymentAmount ?? d.PaymentAmount)
+  if (paid !== undefined) return formatAmount(paid, cur)
+  const fromRow = pickDefinedNumber(row.amount)
+  if (fromRow !== undefined) return formatAmount(fromRow, cur)
+  return '—'
+}
+
+const formatAuditAmount = (row: PendingApprovalItem, detail: any) => {
+  if (row.bizType === 'FINANCE_PAYMENT') return formatFinancePaymentAuditAmount(row, detail)
+  return row.amount != null ? formatAmount(row.amount, row.currency) : '—'
 }
 
 const buildItemDescription = (row: PendingApprovalItem) => {

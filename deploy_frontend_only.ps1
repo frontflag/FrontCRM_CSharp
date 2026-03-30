@@ -10,6 +10,8 @@ param(
 
   [string]$LocalWebRoot = "d:\MyProject\FrontCRM_CSharp\CRM.Web",
   [string]$LocalDistPath = "d:\MyProject\FrontCRM_CSharp\CRM.Web\dist",
+  # 仓库根（CRM.Web 的上一级；prebuild 需 ../scripts 与 help/ 相对 repo 根）
+  [string]$RepoRoot = "",
 
   # 需要 sudo 权限但不想自动处理 sudo 密码时，建议设置为 $false
   [bool]$UseSudo = $true
@@ -40,6 +42,13 @@ try {
     throw "LocalWebRoot not found: $LocalWebRoot"
   }
 
+  if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    $RepoRoot = Split-Path -Parent $LocalWebRoot
+  }
+  if (-not (Test-Path $RepoRoot)) {
+    throw "RepoRoot not found: $RepoRoot"
+  }
+
   if (-not (Test-Path $LocalDistPath)) {
     # 允许 dist 不存在（第一次构建会生成）
     Write-Host "Local dist not found yet, will build it: $LocalDistPath" -ForegroundColor Yellow
@@ -61,10 +70,12 @@ try {
     "frontcrm_web_update.tar.gz"
   )
 
-  # 拷贝必要源码/配置到临时目录（不包含 node_modules/dist）
+  $TempWebRoot = Join-Path $TempBuildRoot "CRM.Web"
+  New-Item -ItemType Directory -Path $TempWebRoot -Force | Out-Null
+
   foreach ($item in (Get-ChildItem -Force $LocalWebRoot)) {
     if ($excludeNames -contains $item.Name) { continue }
-    $dest = Join-Path $TempBuildRoot $item.Name
+    $dest = Join-Path $TempWebRoot $item.Name
     if ($item.PSIsContainer) {
       Copy-Item -Recurse -Force $item.FullName $dest
     } else {
@@ -72,10 +83,22 @@ try {
     }
   }
 
-  Push-Location $TempBuildRoot
+  $TempScripts = Join-Path $TempBuildRoot "scripts"
+  New-Item -ItemType Directory -Path $TempScripts -Force | Out-Null
+  $SyncHelpSrc = Join-Path $RepoRoot "scripts\sync-help.mjs"
+  if (-not (Test-Path $SyncHelpSrc)) {
+    throw "sync-help.mjs not found: $SyncHelpSrc"
+  }
+  Copy-Item -Force $SyncHelpSrc (Join-Path $TempScripts "sync-help.mjs")
 
-  # npm ci 比 npm install 更可预测（lockfile 存在时）
-  if (Test-Path (Join-Path $TempBuildRoot "package-lock.json")) {
+  $HelpSrc = Join-Path $RepoRoot "help"
+  if (Test-Path $HelpSrc) {
+    Copy-Item -Recurse -Force $HelpSrc (Join-Path $TempBuildRoot "help")
+  }
+
+  Push-Location $TempWebRoot
+
+  if (Test-Path (Join-Path $TempWebRoot "package-lock.json")) {
     npm ci --no-audit --no-fund
   } else {
     npm install --no-audit --no-fund
@@ -84,12 +107,17 @@ try {
   npm run build
   Pop-Location
 
-  # 将 temp/dist 覆盖拷回本地 dist，供后续 scp 上传
+  $TempDist = Join-Path $TempWebRoot "dist"
+  if (-not (Test-Path $TempDist)) {
+    throw "Build did not produce dist: $TempDist"
+  }
+
+  # 将 temp/CRM.Web/dist 覆盖拷回本地 dist，供后续 scp 上传
   if (-not (Test-Path $LocalDistPath)) {
     New-Item -ItemType Directory -Path $LocalDistPath -Force | Out-Null
   }
   Remove-Item -Recurse -Force (Join-Path $LocalDistPath "*") -ErrorAction SilentlyContinue
-  Copy-Item -Recurse -Force (Join-Path $TempBuildRoot "dist\*") $LocalDistPath
+  Copy-Item -Recurse -Force (Join-Path $TempDist "*") $LocalDistPath
 
   if (-not (Test-Path (Join-Path $LocalDistPath "index.html"))) {
     throw "Build output missing: $LocalDistPath/index.html"

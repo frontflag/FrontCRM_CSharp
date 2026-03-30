@@ -49,6 +49,10 @@ export interface StockInListItemDto {
   vendorId?: string
   vendorName?: string
   salesOrderCode?: string
+  /** 列表汇总：物料型号（多行逗号分隔） */
+  materialModelSummary?: string | null
+  /** 列表汇总：品牌 */
+  materialBrandSummary?: string | null
   stockInDate: string
   totalQuantity: number
   totalAmount: number

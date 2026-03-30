@@ -51,13 +51,13 @@ function handleSearch() {
 
     <div class="si-search-panel__fields">
       <div class="field-col">
-        <label class="field-label">型号</label>
+        <label class="field-label">物料型号</label>
         <div class="field-control">
           <input
             v-model="form.model"
             type="text"
             class="field-input"
-            placeholder="型号"
+            placeholder="物料型号 / 物料ID"
             @keyup.enter="handleSearch"
           />
         </div>

@@ -17,6 +17,10 @@ namespace CRM.Core.Interfaces
         public string? VendorName { get; set; }
         /// <summary>销售订单号（由采购订单明细关联推导，可能多单逗号拼接）</summary>
         public string? SalesOrderCode { get; set; }
+        /// <summary>明细汇总：物料型号（多行去重后逗号分隔）</summary>
+        public string? MaterialModelSummary { get; set; }
+        /// <summary>明细汇总：品牌（多行去重后逗号分隔）</summary>
+        public string? MaterialBrandSummary { get; set; }
         public DateTime StockInDate { get; set; }
         public decimal TotalQuantity { get; set; }
         public decimal TotalAmount { get; set; }

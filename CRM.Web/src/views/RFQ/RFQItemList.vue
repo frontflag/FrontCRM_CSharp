@@ -379,7 +379,8 @@ const route = useRoute()
 
 /** 需求明细列表：按当前筛选与分页自动刷新间隔 */
 const RFQ_ITEM_LIST_AUTO_REFRESH_MS = 5 * 60 * 1000
-let rfqItemListAutoRefreshTimer: ReturnType<typeof setInterval> | null = null
+/** 浏览器 setInterval 句柄；显式用 number 避免与 Node Timeout 类型冲突 */
+let rfqItemListAutoRefreshTimer: number | null = null
 
 const basketStore = useRfqItemListBasketStore()
 const { count: basketCount, items: basketItems } = storeToRefs(basketStore)

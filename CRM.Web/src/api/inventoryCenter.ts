@@ -6,7 +6,7 @@ export interface InventoryOverview {
   materialId: string
   /** 规格型号 */
   materialModel?: string | null
-  /** 物料名称 */
+  /** 库存总览中与品牌同源展示（主数据名称或产品 Brand 回填） */
   materialName?: string | null
   warehouseId: string
   onHandQty: number

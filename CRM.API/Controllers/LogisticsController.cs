@@ -2,6 +2,7 @@ using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace CRM.API.Controllers
 {
@@ -122,6 +123,12 @@ namespace CRM.API.Controllers
             {
                 return Ok(ApiResponse<QCInfo>.Ok(await _service.CreateQcAsync(request), "创建质检单成功"));
             }
+            catch (DbUpdateException ex)
+            {
+                var msg = ex.InnerException?.Message ?? ex.Message;
+                _logger.LogError(ex, "创建质检单保存失败");
+                return BadRequest(ApiResponse<QCInfo>.Fail(msg, 400));
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "创建质检单失败");
@@ -135,6 +142,12 @@ namespace CRM.API.Controllers
             try
             {
                 return Ok(ApiResponse<QCInfo>.Ok(await _service.UpdateQcResultAsync(id, request), "更新质检结果成功"));
+            }
+            catch (DbUpdateException ex)
+            {
+                var msg = ex.InnerException?.Message ?? ex.Message;
+                _logger.LogError(ex, "更新质检结果保存失败");
+                return BadRequest(ApiResponse<QCInfo>.Fail(msg, 400));
             }
             catch (Exception ex)
             {

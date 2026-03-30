@@ -47,8 +47,11 @@
     </div>
 
     <CrmDataTable :data="list" v-loading="loading" @row-dblclick="onRowDblclick">
-      <el-table-column label="物料型号" min-width="220" show-overflow-tooltip>
-        <template #default="{ row }">{{ materialModelAndName(row) }}</template>
+      <el-table-column label="物料型号" min-width="160" show-overflow-tooltip>
+        <template #default="{ row }">{{ materialModelDisplay(row) }}</template>
+      </el-table-column>
+      <el-table-column label="品牌" min-width="120" show-overflow-tooltip>
+        <template #default="{ row }">{{ materialBrandDisplay(row) }}</template>
       </el-table-column>
       <el-table-column label="仓库名称" width="160" show-overflow-tooltip>
         <template #default="{ row }">{{ warehouseNameOf(row.warehouseId) }}</template>
@@ -97,14 +100,21 @@
           <el-input v-model="warehouseForm.address" />
         </el-form-item>
         <el-form-item>
-          <button class="btn-primary" type="button" @click="saveWarehouse">保存仓库</button>
+          <button class="btn-primary" type="button" @click="saveWarehouse">
+            {{ warehouseForm.id ? '保存修改' : '保存仓库' }}
+          </button>
+          <button class="btn-secondary" type="button" style="margin-left: 8px" @click="resetWarehouseForm">新建</button>
         </el-form-item>
       </el-form>
-      <el-table :data="warehouses">
-        <el-table-column prop="id" label="库存ID" width="220" show-overflow-tooltip />
+      <el-table :data="warehouses" class="warehouse-table">
         <el-table-column prop="warehouseCode" label="编码" width="140" />
         <el-table-column prop="warehouseName" label="名称" width="180" />
         <el-table-column prop="address" label="地址" min-width="200" />
+        <el-table-column label="操作" width="88" align="center" fixed="right">
+          <template #default="{ row }">
+            <button type="button" class="action-btn" @click="loadWarehouseForEdit(row)">编辑</button>
+          </template>
+        </el-table-column>
       </el-table>
     </el-dialog>
   </div>
@@ -125,22 +135,52 @@ const warehouseFilter = ref('')
 const finance = ref<FinanceSummary | null>(null)
 const warehouseVisible = ref(false)
 const warehouses = ref<WarehouseInfo[]>([])
-const warehouseForm = ref<WarehouseInfo>({
+const emptyWarehouseForm = (): WarehouseInfo => ({
   warehouseCode: '',
   warehouseName: '',
   address: '',
   status: 1
 })
 
+const warehouseForm = ref<WarehouseInfo>(emptyWarehouseForm())
+
+/** 兼容接口 camelCase / PascalCase */
+function normalizeWarehouseRow(row: WarehouseInfo): WarehouseInfo {
+  const r = row as unknown as Record<string, unknown>
+  const idRaw = r.id ?? r.Id
+  const id = typeof idRaw === 'string' && idRaw.trim() ? idRaw.trim() : undefined
+  const code = String(r.warehouseCode ?? r.WarehouseCode ?? '').trim()
+  const name = String(r.warehouseName ?? r.WarehouseName ?? '').trim()
+  const addr = String(r.address ?? r.Address ?? '')
+  const st = r.status ?? r.Status
+  const status = typeof st === 'number' ? st : 1
+  return { id, warehouseCode: code, warehouseName: name, address: addr, status }
+}
+
+const resetWarehouseForm = () => {
+  warehouseForm.value = emptyWarehouseForm()
+}
+
+const loadWarehouseForEdit = (row: WarehouseInfo) => {
+  warehouseForm.value = normalizeWarehouseRow(row)
+}
+
 const formatNum = (v: number) => (v == null ? '--' : Number(v).toLocaleString())
 const formatMoney = (v: number) => (v == null ? '--' : Number(v).toFixed(2))
 const formatTime = (v?: string) => formatDisplayDateTime(v)
 const warehouseNameOf = (warehouseId?: string) => {
   if (!warehouseId) return '--'
-  const byId = warehouses.value.find(w => w.id === warehouseId)
-  if (byId?.warehouseName) return byId.warehouseName
-  const byCode = warehouses.value.find(w => (w.warehouseCode || '').trim() === warehouseId.trim())
-  return byCode?.warehouseName || warehouseId
+  const byId = warehouses.value.find(w => normalizeWarehouseRow(w).id === warehouseId)
+  if (byId) {
+    const n = normalizeWarehouseRow(byId)
+    if (n.warehouseName) return n.warehouseName
+  }
+  const byCode = warehouses.value.find(w => normalizeWarehouseRow(w).warehouseCode === warehouseId.trim())
+  if (byCode) {
+    const n = normalizeWarehouseRow(byCode)
+    if (n.warehouseName) return n.warehouseName
+  }
+  return warehouseId
 }
 
 function pickRowStr(row: Record<string, unknown>, camel: string, pascal: string): string {
@@ -148,16 +188,19 @@ function pickRowStr(row: Record<string, unknown>, camel: string, pascal: string)
   return typeof v === 'string' ? v : ''
 }
 
-/** 展示：规格型号 + 名称；兼容 PascalCase；无主数据时回退物料 ID */
-const materialModelAndName = (row: InventoryOverview) => {
+/** 规格型号；兼容 PascalCase；无型号时回退物料 ID */
+const materialModelDisplay = (row: InventoryOverview) => {
   const r = row as unknown as Record<string, unknown>
   const model = pickRowStr(r, 'materialModel', 'MaterialModel').trim()
-  const name = pickRowStr(r, 'materialName', 'MaterialName').trim()
   const id = pickRowStr(r, 'materialId', 'MaterialId').trim()
-  if (model && name) return `${model} ${name}`
-  if (model) return model
-  if (name) return name
-  return id || '--'
+  return model || id || '--'
+}
+
+/** 品牌（接口字段为 materialName，总览中常来自主数据名称或产品品牌）；兼容 PascalCase */
+const materialBrandDisplay = (row: InventoryOverview) => {
+  const r = row as unknown as Record<string, unknown>
+  const name = pickRowStr(r, 'materialName', 'MaterialName').trim()
+  return name || '--'
 }
 
 /** 最后移动时间降序；无时间排后 */
@@ -221,6 +264,7 @@ const onRowDblclick = (row: InventoryOverview) => openTrace(row.materialId)
 
 const openWarehouseDialog = async () => {
   try {
+    resetWarehouseForm()
     warehouseVisible.value = true
     warehouses.value = await inventoryCenterApi.getWarehouses()
   } catch (e) {
@@ -233,7 +277,8 @@ const saveWarehouse = async () => {
   try {
     const form = warehouseForm.value
     const trimmedId = form.id?.trim()
-    const shouldSendId = !!trimmedId && warehouses.value.some(w => w.id === trimmedId)
+    const shouldSendId =
+      !!trimmedId && warehouses.value.some(w => normalizeWarehouseRow(w).id === trimmedId)
     const payload: WarehouseInfo = shouldSendId
       ? { ...form, id: trimmedId }
       : {
@@ -245,7 +290,7 @@ const saveWarehouse = async () => {
 
     await inventoryCenterApi.saveWarehouse(payload)
     ElMessage.success('仓库保存成功')
-    warehouseForm.value = { warehouseCode: '', warehouseName: '', address: '', status: 1 }
+    resetWarehouseForm()
     warehouses.value = await inventoryCenterApi.getWarehouses()
   } catch (e) {
     console.error(e)

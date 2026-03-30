@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Models.Material;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.Vendor;
@@ -20,6 +21,7 @@ namespace CRM.Core.Services
         private readonly IRepository<SellOrder> _sellOrderRepository;
         private readonly IRepository<QCInfo> _qcRepository;
         private readonly IRepository<VendorInfo> _vendorRepository;
+        private readonly IRepository<MaterialInfo> _materialRepository;
         private readonly ILogisticsService _logisticsService;
         private readonly IInventoryCenterService _inventoryCenterService;
         private readonly IUnitOfWork _unitOfWork;
@@ -34,6 +36,7 @@ namespace CRM.Core.Services
             IRepository<SellOrder> sellOrderRepository,
             IRepository<QCInfo> qcRepository,
             IRepository<VendorInfo> vendorRepository,
+            IRepository<MaterialInfo> materialRepository,
             ILogisticsService logisticsService,
             IInventoryCenterService inventoryCenterService,
             ISerialNumberService serialNumberService,
@@ -47,6 +50,7 @@ namespace CRM.Core.Services
             _sellOrderRepository = sellOrderRepository;
             _qcRepository = qcRepository;
             _vendorRepository = vendorRepository;
+            _materialRepository = materialRepository;
             _logisticsService = logisticsService;
             _inventoryCenterService = inventoryCenterService;
             _serialNumberService = serialNumberService;
@@ -158,6 +162,21 @@ namespace CRM.Core.Services
                 ? new Dictionary<string, VendorInfo>()
                 : (await _vendorRepository.FindAsync(v => vendorIds.Contains(v.Id))).ToDictionary(v => v.Id);
 
+            Dictionary<string, MaterialInfo> materialById = new(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var m in await _materialRepository.GetAllAsync())
+                {
+                    var id = m.Id?.Trim();
+                    if (string.IsNullOrEmpty(id) || materialById.ContainsKey(id)) continue;
+                    materialById[id] = m;
+                }
+            }
+            catch
+            {
+                // 物料表不可用时仍返回列表，仅不展示型号/品牌
+            }
+
             var poIds = poDict.Keys.ToList();
             var poItems = poIds.Count == 0
                 ? new List<PurchaseOrderItem>()
@@ -220,6 +239,31 @@ namespace CRM.Core.Services
                 }
                 var salesOrderCode = string.Join(", ", salesOrderCodes.Distinct(StringComparer.OrdinalIgnoreCase));
 
+                string? modelSummary = null;
+                string? brandSummary = null;
+                if (stockInItemsMap.TryGetValue(s.Id, out var silForDisplay) && silForDisplay.Count > 0)
+                {
+                    IReadOnlyList<PurchaseOrderItem>? poLinesForS = null;
+                    if (!string.IsNullOrWhiteSpace(s.SourceId) && poItemsMap.TryGetValue(s.SourceId!, out var pl0))
+                        poLinesForS = pl0;
+
+                    var models = new List<string>();
+                    var brands = new List<string>();
+                    foreach (var line in silForDisplay)
+                    {
+                        var mid = line.MaterialId?.Trim();
+                        if (string.IsNullOrEmpty(mid)) continue;
+                        ResolveStockInLineModelBrand(mid, materialById, poLinesForS, out var m1, out var b1);
+                        if (!string.IsNullOrWhiteSpace(m1)) models.Add(m1);
+                        if (!string.IsNullOrWhiteSpace(b1)) brands.Add(b1);
+                    }
+
+                    if (models.Count > 0)
+                        modelSummary = string.Join(", ", models.Distinct(StringComparer.OrdinalIgnoreCase));
+                    if (brands.Count > 0)
+                        brandSummary = string.Join(", ", brands.Distinct(StringComparer.OrdinalIgnoreCase));
+                }
+
                 result.Add(new StockInListItemDto
                 {
                     Id = s.Id,
@@ -230,6 +274,8 @@ namespace CRM.Core.Services
                     VendorId = s.VendorId,
                     VendorName = vendorName,
                     SalesOrderCode = string.IsNullOrWhiteSpace(salesOrderCode) ? null : salesOrderCode,
+                    MaterialModelSummary = modelSummary,
+                    MaterialBrandSummary = brandSummary,
                     StockInDate = s.StockInDate,
                     TotalQuantity = s.TotalQuantity,
                     TotalAmount = s.TotalAmount,
@@ -248,10 +294,13 @@ namespace CRM.Core.Services
             {
                 if (!string.IsNullOrWhiteSpace(modelKeyword))
                 {
-                    var modelHit = stockInItemsMap.TryGetValue(x.Id, out var items)
+                    var idHit = stockInItemsMap.TryGetValue(x.Id, out var items)
                         && items.Any(i => !string.IsNullOrWhiteSpace(i.MaterialId)
                                           && i.MaterialId.Contains(modelKeyword, StringComparison.OrdinalIgnoreCase));
-                    if (!modelHit) return false;
+                    var textHit =
+                        (x.MaterialModelSummary?.Contains(modelKeyword, StringComparison.OrdinalIgnoreCase) ?? false)
+                        || (x.MaterialBrandSummary?.Contains(modelKeyword, StringComparison.OrdinalIgnoreCase) ?? false);
+                    if (!idHit && !textHit) return false;
                 }
                 if (!string.IsNullOrWhiteSpace(vendorKeyword)
                     && !(x.VendorName?.Contains(vendorKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
@@ -326,6 +375,48 @@ namespace CRM.Core.Services
                 await _logisticsService.HandleStockInCompletedAsync(
                     stockIn.Id,
                     !string.IsNullOrWhiteSpace(stockIn.SourceId) ? stockIn.SourceId : stockIn.SourceCode);
+            }
+        }
+
+        /// <summary>
+        /// 入库明细 MaterialId 对齐物料主数据；来源为采购单时再按采购行补 PN/品牌（与库存总览逻辑一致）。
+        /// </summary>
+        private static void ResolveStockInLineModelBrand(
+            string materialIdTrimmed,
+            Dictionary<string, MaterialInfo> materials,
+            IReadOnlyList<PurchaseOrderItem>? poLinesForSource,
+            out string? model,
+            out string? brand)
+        {
+            model = null;
+            brand = null;
+            if (materials.TryGetValue(materialIdTrimmed, out var mat))
+            {
+                if (!string.IsNullOrWhiteSpace(mat.MaterialModel))
+                    model = mat.MaterialModel.Trim();
+                if (!string.IsNullOrWhiteSpace(mat.MaterialName))
+                    brand = mat.MaterialName.Trim();
+            }
+
+            PurchaseOrderItem? hit = null;
+            if (poLinesForSource is { Count: > 0 })
+            {
+                hit = poLinesForSource.FirstOrDefault(p =>
+                    !string.IsNullOrWhiteSpace(p.ProductId) &&
+                    string.Equals(p.ProductId.Trim(), materialIdTrimmed, StringComparison.OrdinalIgnoreCase));
+                if (hit == null)
+                    hit = poLinesForSource.FirstOrDefault(p =>
+                        string.Equals(p.Id, materialIdTrimmed, StringComparison.OrdinalIgnoreCase));
+                if (hit == null && poLinesForSource.Count == 1)
+                    hit = poLinesForSource[0];
+            }
+
+            if (hit != null)
+            {
+                if (string.IsNullOrWhiteSpace(model) && !string.IsNullOrWhiteSpace(hit.PN))
+                    model = hit.PN!.Trim();
+                if (string.IsNullOrWhiteSpace(brand) && !string.IsNullOrWhiteSpace(hit.Brand))
+                    brand = hit.Brand!.Trim();
             }
         }
     }

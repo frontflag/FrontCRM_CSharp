@@ -515,27 +515,29 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(warehouse.WarehouseName))
                 throw new ArgumentException("仓库名称不能为空");
 
-            var isCreate = string.IsNullOrWhiteSpace(warehouse.Id);
-            if (!isCreate)
-            {
-                var existing = await _warehouseRepository.GetByIdAsync(warehouse.Id);
-                isCreate = existing == null;
-            }
+            WarehouseInfo? existing = null;
+            if (!string.IsNullOrWhiteSpace(warehouse.Id))
+                existing = await _warehouseRepository.GetByIdAsync(warehouse.Id);
 
-            if (isCreate)
+            if (existing == null)
             {
                 if (string.IsNullOrWhiteSpace(warehouse.Id))
                     warehouse.Id = Guid.NewGuid().ToString();
                 warehouse.CreateTime = DateTime.UtcNow;
                 await _warehouseRepository.AddAsync(warehouse);
+                await _unitOfWork.SaveChangesAsync();
+                return warehouse;
             }
-            else
-            {
-                warehouse.ModifyTime = DateTime.UtcNow;
-                await _warehouseRepository.UpdateAsync(warehouse);
-            }
+
+            // 必须用已跟踪的 existing 更新，避免与 GetById 跟踪实例冲突（同一 Id 不能跟踪两个实例）
+            existing.WarehouseCode = warehouse.WarehouseCode.Trim();
+            existing.WarehouseName = warehouse.WarehouseName.Trim();
+            existing.Address = string.IsNullOrWhiteSpace(warehouse.Address) ? null : warehouse.Address.Trim();
+            existing.Status = warehouse.Status;
+            existing.ModifyTime = DateTime.UtcNow;
+            await _warehouseRepository.UpdateAsync(existing);
             await _unitOfWork.SaveChangesAsync();
-            return warehouse;
+            return existing;
         }
 
         public async Task<IEnumerable<PickingTaskSummaryDto>> GetPickingTasksAsync(short? status = null)

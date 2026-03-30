@@ -670,8 +670,21 @@ const navItems = [
   { key: 'email' as const, label: '公司邮箱', icon: Promotion }
 ]
 
-function newId() {
-  return crypto.randomUUID()
+/** HTTP 非安全上下文中无 crypto.randomUUID（仅 HTTPS/localhost 可用），需降级。 */
+function newId(): string {
+  const c = globalThis.crypto
+  if (c && typeof c.randomUUID === 'function') {
+    try {
+      return c.randomUUID()
+    } catch {
+      /* 部分环境会抛错 */
+    }
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
+    const r = (Math.random() * 16) | 0
+    const v = ch === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
 }
 
 function emptyBasic(): CompanyBasicRow {

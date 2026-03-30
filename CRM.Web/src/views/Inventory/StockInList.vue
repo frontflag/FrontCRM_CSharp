@@ -20,10 +20,11 @@
     <div class="search-bar">
       <div class="search-left">
         <span class="list-title">入库单查询</span>
+        <span class="filter-field-label">物料型号</span>
         <input
           v-model="filters.model"
           class="search-input search-input--filter"
-          placeholder="型号"
+          placeholder="物料型号 / 物料ID"
           @keyup.enter="handleSearch"
         />
         <input
@@ -65,6 +66,12 @@
           </template>
         </el-table-column>
         <el-table-column prop="sourceDisplayNo" label="来源单号" width="160" show-overflow-tooltip />
+        <el-table-column label="物料型号" min-width="140" show-overflow-tooltip>
+          <template #default="{ row }">{{ stockInMaterialModel(row) }}</template>
+        </el-table-column>
+        <el-table-column label="品牌" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ stockInMaterialBrand(row) }}</template>
+        </el-table-column>
         <el-table-column label="仓库" min-width="160" show-overflow-tooltip>
           <template #default="{ row }">{{ warehouseNameOf(row.warehouseId) }}</template>
         </el-table-column>
@@ -155,6 +162,23 @@ const formatNum = (v: number) => (v == null ? '--' : Number(v).toLocaleString())
 const formatMoney = (v: number) => (v == null ? '--' : Number(v).toFixed(2))
 const formatDate = (v?: string) => formatDisplayDateTime(v)
 
+function pickRowStr(row: Record<string, unknown>, camel: string, pascal: string): string {
+  const v = row[camel] ?? row[pascal]
+  return typeof v === 'string' ? v.trim() : ''
+}
+
+const stockInMaterialModel = (row: StockInListItemDto) => {
+  const r = row as unknown as Record<string, unknown>
+  const s = pickRowStr(r, 'materialModelSummary', 'MaterialModelSummary')
+  return s || '--'
+}
+
+const stockInMaterialBrand = (row: StockInListItemDto) => {
+  const r = row as unknown as Record<string, unknown>
+  const s = pickRowStr(r, 'materialBrandSummary', 'MaterialBrandSummary')
+  return s || '--'
+}
+
 const statusLabel = (s: number) => {
   switch (s) {
     case 0: return '草稿'
@@ -235,7 +259,7 @@ const filteredList = computed(() => {
 
   return list.value.filter((row) => {
     const rowAny = row as any
-    const modelText = `${rowAny.model ?? ''} ${rowAny.materialCode ?? ''} ${rowAny.remark ?? ''}`
+    const modelText = `${rowAny.materialModelSummary ?? rowAny.MaterialModelSummary ?? ''} ${rowAny.materialBrandSummary ?? rowAny.MaterialBrandSummary ?? ''} ${rowAny.model ?? ''} ${rowAny.materialCode ?? ''} ${rowAny.remark ?? ''}`
     const poText = `${row.sourceDisplayNo ?? ''} ${row.stockInCode ?? ''}`
     return (
       keywordHit(modelText, model) &&
@@ -351,6 +375,13 @@ const handleFinish = async (row: StockInListItemDto) => {
   font-size: 14px;
   font-weight: 600;
   color: $text-primary;
+  white-space: nowrap;
+}
+
+.filter-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
   white-space: nowrap;
 }
 

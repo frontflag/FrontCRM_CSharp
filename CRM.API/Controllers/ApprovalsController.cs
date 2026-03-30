@@ -378,6 +378,8 @@ namespace CRM.API.Controllers
 
                     foreach (var p in pr.Items)
                     {
+                        // 请款阶段仅有 PaymentAmountToBe；PaymentAmount 在付款完成后才与待付对齐
+                        var payDisplayAmount = p.PaymentAmountToBe != 0 ? p.PaymentAmountToBe : p.PaymentAmount;
                         allItems.Add(new PendingApprovalItemDto
                         {
                             BizType = cfg.BizType,
@@ -386,7 +388,7 @@ namespace CRM.API.Controllers
                             DocumentCode = p.FinancePaymentCode,
                             Title = p.FinancePaymentCode,
                             CounterpartyName = p.VendorName,
-                            Amount = p.PaymentAmount,
+                            Amount = payDisplayAmount,
                             Currency = p.PaymentCurrency,
                             Submitter = p.PaymentUserId ?? p.CreateUserId?.ToString(),
                             Status = p.Status,
