@@ -77,12 +77,39 @@
       <el-table-column label="创建人" width="120" show-overflow-tooltip>
         <template #default="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right" class-name="op-col" label-class-name="op-col">
+      <el-table-column
+        label="操作"
+        :width="opColMainWidth"
+        :min-width="opColMainMinWidth"
+        fixed="right"
+        class-name="op-col"
+        label-class-name="op-col"
+      >
+        <template #header>
+          <div class="op-col-header">
+            <span class="op-col-header-text">操作</span>
+            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpColMain">
+              {{ opColMainExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
+
         <template #default="{ row }">
           <div @click.stop @dblclick.stop>
-            <div class="action-btns">
+            <div v-if="opColMainExpanded" class="action-btns">
               <button type="button" class="action-btn action-btn--info" @click.stop="openTrace(row.materialId)">入库追溯</button>
             </div>
+
+            <el-dropdown v-else trigger="click" placement="bottom-end">
+              <button type="button" class="op-more-trigger">...</button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click.stop="openTrace(row.materialId)">
+                    <span class="op-more-item op-more-item--info">入库追溯</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </template>
       </el-table-column>
@@ -110,9 +137,40 @@
         <el-table-column prop="warehouseCode" label="编码" width="140" />
         <el-table-column prop="warehouseName" label="名称" width="180" />
         <el-table-column prop="address" label="地址" min-width="200" />
-        <el-table-column label="操作" width="88" align="center" fixed="right">
+        <el-table-column
+          label="操作"
+          :width="opColWarehouseWidth"
+          :min-width="opColWarehouseMinWidth"
+          align="center"
+          fixed="right"
+          class-name="op-col"
+          label-class-name="op-col"
+        >
+          <template #header>
+            <div class="op-col-header">
+              <span class="op-col-header-text">操作</span>
+              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpColWarehouse">
+                {{ opColWarehouseExpanded ? '>' : '<' }}
+              </button>
+            </div>
+          </template>
           <template #default="{ row }">
-            <button type="button" class="action-btn" @click="loadWarehouseForEdit(row)">编辑</button>
+            <div @click.stop @dblclick.stop>
+              <div v-if="opColWarehouseExpanded" class="action-btns">
+                <button type="button" class="action-btn action-btn--primary" @click.stop="loadWarehouseForEdit(row)">编辑</button>
+              </div>
+
+              <el-dropdown v-else trigger="click" placement="bottom-end">
+                <button type="button" class="op-more-trigger">...</button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item @click.stop="loadWarehouseForEdit(row)">
+                      <span class="op-more-item op-more-item--primary">编辑</span>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -121,7 +179,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { inventoryCenterApi, type FinanceSummary, type InventoryOverview, type WarehouseInfo } from '@/api/inventoryCenter'
@@ -135,6 +193,34 @@ const warehouseFilter = ref('')
 const finance = ref<FinanceSummary | null>(null)
 const warehouseVisible = ref(false)
 const warehouses = ref<WarehouseInfo[]>([])
+
+// 列表操作列：主表默认收起（Collapsed）
+const opColMainExpanded = ref(false)
+const OP_COL_MAIN_COLLAPSED_WIDTH = 96
+const OP_COL_MAIN_EXPANDED_WIDTH = 100
+const OP_COL_MAIN_EXPANDED_MIN_WIDTH = 100
+const opColMainWidth = computed(() => (opColMainExpanded.value ? OP_COL_MAIN_EXPANDED_WIDTH : OP_COL_MAIN_COLLAPSED_WIDTH))
+const opColMainMinWidth = computed(() =>
+  opColMainExpanded.value ? OP_COL_MAIN_EXPANDED_MIN_WIDTH : OP_COL_MAIN_COLLAPSED_WIDTH
+)
+function toggleOpColMain() {
+  opColMainExpanded.value = !opColMainExpanded.value
+}
+
+// 列表操作列：弹窗表格默认收起（Collapsed）
+const opColWarehouseExpanded = ref(false)
+const OP_COL_WAREHOUSE_COLLAPSED_WIDTH = 96
+const OP_COL_WAREHOUSE_EXPANDED_WIDTH = 110
+const OP_COL_WAREHOUSE_EXPANDED_MIN_WIDTH = 110
+const opColWarehouseWidth = computed(() =>
+  opColWarehouseExpanded.value ? OP_COL_WAREHOUSE_EXPANDED_WIDTH : OP_COL_WAREHOUSE_COLLAPSED_WIDTH
+)
+const opColWarehouseMinWidth = computed(() =>
+  opColWarehouseExpanded.value ? OP_COL_WAREHOUSE_EXPANDED_MIN_WIDTH : OP_COL_WAREHOUSE_COLLAPSED_WIDTH
+)
+function toggleOpColWarehouse() {
+  opColWarehouseExpanded.value = !opColWarehouseExpanded.value
+}
 const emptyWarehouseForm = (): WarehouseInfo => ({
   warehouseCode: '',
   warehouseName: '',
@@ -385,4 +471,75 @@ onMounted(() => fetchList())
   .label { color: $text-muted; font-size: 12px; }
   .value { color: $cyan-primary; font-size: 18px; font-weight: 600; margin-top: 4px; }
 }
+
+// 列表操作列规范（收起/展开）
+.op-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0;
+  width: 100%;
+}
+
+.op-col-header-text {
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.op-col-toggle-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: $cyan-primary;
+  font-size: 16px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.op-more-trigger {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: $cyan-primary;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+:deep(.el-table__body-wrapper .el-table__body tr:hover .op-more-trigger),
+:deep(.el-table__fixed-body-wrapper .el-table__body tr:hover .op-more-trigger),
+:deep(.el-table__body-wrapper .el-table__body tr.hover-row .op-more-trigger),
+:deep(.el-table__fixed-body-wrapper .el-table__body tr.hover-row .op-more-trigger) {
+  opacity: 1;
+}
+
+.op-more-item {
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.op-more-item--primary {
+  color: $cyan-primary;
+}
+
+.op-more-item--warning {
+  color: $color-amber;
+}
+
+.op-more-item--danger {
+  color: $color-red-brown;
+}
+
+.op-more-item--success {
+  color: $color-mint-green;
+}
+
+.op-more-item--info {
+  color: rgba(200, 216, 232, 0.85);
+}
+
 </style>

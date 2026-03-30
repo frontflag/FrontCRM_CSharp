@@ -131,13 +131,42 @@
             {{ row.createUserName || row.createdBy || row.salesUserName || row.purchaseUserName || '—' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right" class-name="op-col" label-class-name="op-col">
+        <el-table-column
+          label="操作"
+          :width="opColWidth"
+          :min-width="opColMinWidth"
+          fixed="right"
+          class-name="op-col"
+          label-class-name="op-col"
+        >
+          <template #header>
+            <div class="op-col-header">
+              <span class="op-col-header-text">操作</span>
+              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+                {{ opColExpanded ? '>' : '<' }}
+              </button>
+            </div>
+          </template>
           <template #default="{ row }">
             <div @click.stop @dblclick.stop>
-              <div class="action-btns">
+              <div v-if="opColExpanded" class="action-btns">
                 <el-button link type="primary" @click.stop="handleEdit(row)">编辑</el-button>
                 <el-button link type="danger" @click.stop="handleDelete(row)">删除</el-button>
               </div>
+
+              <el-dropdown v-else trigger="click" placement="bottom-end">
+                <button type="button" class="op-more-trigger">...</button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item @click.stop="handleEdit(row)">
+                      <span class="op-more-item op-more-item--primary">编辑</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item @click.stop="handleDelete(row)">
+                      <span class="op-more-item op-more-item--danger">删除</span>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
           </template>
         </el-table-column>
@@ -190,6 +219,17 @@ const pageInfo = ref({
   pageSize: 10,
   total: 0
 })
+
+// 列表操作列：默认收起（Collapsed）
+const opColExpanded = ref(false)
+const OP_COL_COLLAPSED_WIDTH = 96
+const OP_COL_EXPANDED_WIDTH = 200
+const OP_COL_EXPANDED_MIN_WIDTH = 200
+const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
 
 const totalCount = computed(() => quoteList.value.length)
 
@@ -425,4 +465,63 @@ onMounted(loadData)
 .quote-code-cell {
   color: #e8f4ff;
 }
+
+// 列表操作列规范（收起/展开）
+.op-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0;
+  width: 100%;
+}
+
+.op-col-header-text {
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.op-col-toggle-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: $cyan-primary;
+  font-size: 16px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.op-more-trigger {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: $cyan-primary;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+:deep(.el-table__body-wrapper .el-table__body tr:hover .op-more-trigger),
+:deep(.el-table__fixed-body-wrapper .el-table__body tr:hover .op-more-trigger),
+:deep(.el-table__body-wrapper .el-table__body tr.hover-row .op-more-trigger),
+:deep(.el-table__fixed-body-wrapper .el-table__body tr.hover-row .op-more-trigger) {
+  opacity: 1;
+}
+
+.op-more-item {
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.op-more-item--primary {
+  color: $cyan-primary;
+}
+
+.op-more-item--danger {
+  color: $color-red-brown;
+}
+
 </style>

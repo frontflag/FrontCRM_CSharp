@@ -246,6 +246,78 @@
   }
 }
 
+// ============================================================
+// 列表操作列规范：收起/展开（列头 > / < + 行内 ... 下拉）
+// ============================================================
+.op-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0;
+  width: 100%;
+}
+
+.op-col-header-text {
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.op-col-toggle-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: $cyan-primary;
+  font-size: 16px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.op-more-trigger {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: $cyan-primary;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.el-table__body-wrapper .el-table__body tr:hover .op-more-trigger,
+.el-table__fixed-body-wrapper .el-table__body tr:hover .op-more-trigger,
+.el-table__body-wrapper .el-table__body tr.hover-row .op-more-trigger,
+.el-table__fixed-body-wrapper .el-table__body tr.hover-row .op-more-trigger {
+  opacity: 1;
+}
+
+.op-more-item {
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.op-more-item--primary {
+  color: $cyan-primary;
+}
+
+.op-more-item--warning {
+  color: $color-amber;
+}
+
+.op-more-item--danger {
+  color: $color-red-brown;
+}
+
+.op-more-item--success {
+  color: $color-mint-green;
+}
+
+.op-more-item--info {
+  color: rgba(200, 216, 232, 0.85);
+}
+
 // --- 卡片型列表区（筛选 + 表格一体）---
 .crm-list-card {
   background: $layer-2;

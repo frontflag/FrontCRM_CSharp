@@ -112,15 +112,51 @@
         <el-table-column label="创建人" width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '-' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right" class-name="op-col" label-class-name="op-col">
+        <el-table-column
+          label="操作"
+          :width="opColWidth"
+          :min-width="opColMinWidth"
+          fixed="right"
+          class-name="op-col"
+          label-class-name="op-col"
+        >
+          <template #header>
+            <div class="op-col-header">
+              <span class="op-col-header-text">操作</span>
+              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+                {{ opColExpanded ? '>' : '<' }}
+              </button>
+            </div>
+          </template>
+
           <template #default="{ row }">
             <div @click.stop @dblclick.stop>
-              <div class="action-btns">
+              <div v-if="opColExpanded" class="action-btns">
                 <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
                 <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="row.invoiceStatus === 1">编辑</el-button>
                 <el-button size="small" text type="warning" @click.stop="applyInvoice(row)" v-if="row.invoiceStatus === 1">申请开票</el-button>
                 <el-button size="small" text type="danger" @click.stop="voidInvoice(row)" v-if="row.invoiceStatus === 100">作废</el-button>
               </div>
+
+              <el-dropdown v-else trigger="click" placement="bottom-end">
+                <button type="button" class="op-more-trigger">...</button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item @click.stop="openDetail(row)">
+                      <span class="op-more-item op-more-item--primary">详情</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item v-if="row.invoiceStatus === 1" @click.stop="openEdit(row)">
+                      <span class="op-more-item op-more-item--primary">编辑</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item v-if="row.invoiceStatus === 1" @click.stop="applyInvoice(row)">
+                      <span class="op-more-item op-more-item--warning">申请开票</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item v-if="row.invoiceStatus === 100" @click.stop="voidInvoice(row)">
+                      <span class="op-more-item op-more-item--danger">作废</span>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
           </template>
         </el-table-column>
@@ -230,7 +266,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -298,6 +334,18 @@ const filterReceiveStatus = ref<number | undefined>(undefined)
 const total = ref(0)
 const loading = ref(false)
 const tableData = ref<FinanceSellInvoice[]>([])
+
+// 列表操作列：默认收起（Collapsed）
+const opColExpanded = ref(false)
+const OP_COL_COLLAPSED_WIDTH = 96
+const OP_COL_EXPANDED_WIDTH = 120
+const OP_COL_EXPANDED_MIN_WIDTH = 120
+const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
+
 const stats = reactive({ totalAmount: 0, receivedAmount: 0, toReceiveAmount: 0, invoicedCount: 0 })
 
 const loadData = async () => {

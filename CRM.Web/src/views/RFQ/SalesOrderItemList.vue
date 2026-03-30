@@ -94,10 +94,26 @@
         <el-table-column label="创建人" width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.createUserName || row.createdBy || row.salesUserName || '—' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="280" min-width="260" fixed="right" align="center" class-name="op-col" label-class-name="op-col">
+        <el-table-column
+          label="操作"
+          :width="opColWidth"
+          :min-width="opColMinWidth"
+          fixed="right"
+          align="center"
+          class-name="op-col"
+          label-class-name="op-col"
+        >
+          <template #header>
+            <div class="op-col-header">
+              <span class="op-col-header-text">操作</span>
+              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+                {{ opColExpanded ? '>' : '<' }}
+              </button>
+            </div>
+          </template>
           <template #default="{ row }">
             <div @click.stop @dblclick.stop>
-              <div class="action-btns">
+              <div v-if="opColExpanded" class="action-btns">
                 <el-button link type="primary" size="small" @click.stop="goDetail(row)">详情</el-button>
                 <el-button v-if="canWriteSo" link type="primary" size="small" @click.stop="goEdit(row)">编辑</el-button>
                 <el-button
@@ -119,6 +135,26 @@
                   申请出库
                 </el-button>
               </div>
+
+              <el-dropdown v-else trigger="click" placement="bottom-end">
+                <button type="button" class="op-more-trigger">...</button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item @click.stop="goDetail(row)">
+                      <span class="op-more-item op-more-item--primary">详情</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item v-if="canWriteSo" @click.stop="goEdit(row)">
+                      <span class="op-more-item op-more-item--primary">编辑</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item v-if="canPurchaseReq && mainAllowsOps(row)" @click.stop="applyPurchaseOne(row)">
+                      <span class="op-more-item op-more-item--warning">申请采购</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item v-if="canWriteSo && mainAllowsOps(row)" @click.stop="applyStockOutOne(row)">
+                      <span class="op-more-item op-more-item--warning">申请出库</span>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
           </template>
         </el-table-column>
@@ -329,6 +365,18 @@ const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
+
+// 规范：列表进入页面时“操作”列默认处于收起态（Collapsed）
+const opColExpanded = ref(false)
+const OP_COL_EXPANDED_WIDTH = 280 // 与原始配置一致
+// 收起态需要同时显示列头「操作」与「<」按钮；
+// 由于 el-table header/cell 默认 padding 较大，这里给一个偏保守的最小宽度，避免被裁剪。
+const OP_COL_COLLAPSED_WIDTH = 96
+const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() => (opColExpanded.value ? 260 : OP_COL_COLLAPSED_WIDTH))
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
 
 const dateRange = ref<[string, string] | null>(null)
 const filters = reactive({
@@ -825,6 +873,65 @@ onMounted(() => loadList())
     color: $text-secondary !important;
     border-radius: 6px !important;
   }
+}
+
+.op-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0;
+  width: 100%;
+}
+
+.op-col-header-text {
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.op-col-toggle-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: $cyan-primary;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.op-more-trigger {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: $cyan-primary;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.op-more-item {
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.op-more-item--primary {
+  color: $cyan-primary;
+}
+
+.op-more-item--warning {
+  color: $color-amber;
+}
+
+:deep(.el-table__body-wrapper .el-table__body tr:hover .op-more-trigger),
+:deep(.el-table__fixed-body-wrapper .el-table__body tr:hover .op-more-trigger),
+:deep(.el-table__body-wrapper .el-table__body tr.hover-row .op-more-trigger),
+:deep(.el-table__fixed-body-wrapper .el-table__body tr.hover-row .op-more-trigger) {
+  opacity: 1;
 }
 </style>
 

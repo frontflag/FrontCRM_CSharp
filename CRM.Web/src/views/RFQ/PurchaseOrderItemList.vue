@@ -112,10 +112,26 @@
         <template #default="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}</template>
       </el-table-column>
 
-      <el-table-column label="操作" width="260" min-width="240" fixed="right" align="center" class-name="op-col" label-class-name="op-col">
+      <el-table-column
+        label="操作"
+        :width="opColWidth"
+        :min-width="opColMinWidth"
+        fixed="right"
+        align="center"
+        class-name="op-col"
+        label-class-name="op-col"
+      >
+        <template #header>
+          <div class="op-col-header">
+            <span class="op-col-header-text">操作</span>
+            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
         <template #default="{ row }">
           <div @click.stop @dblclick.stop>
-            <div class="action-btns">
+            <div v-if="opColExpanded" class="action-btns">
               <el-button link type="primary" size="small" @click.stop="goDetail(row)">详情</el-button>
               <el-button
                 v-if="row.itemStatus === 30 && canCreateArrivalNotice"
@@ -136,6 +152,26 @@
                 申请付款
               </el-button>
             </div>
+
+            <el-dropdown v-else trigger="click" placement="bottom-end">
+              <button type="button" class="op-more-trigger">...</button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click.stop="goDetail(row)">
+                    <span class="op-more-item op-more-item--primary">详情</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="row.itemStatus === 30 && canCreateArrivalNotice"
+                    @click.stop="openArrivalDialog(row)"
+                  >
+                    <span class="op-more-item op-more-item--warning">通知到货</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item v-if="row.canApplyPayment" @click.stop="openPaymentDialog(row)">
+                    <span class="op-more-item op-more-item--warning">申请付款</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </template>
       </el-table-column>
@@ -407,6 +443,20 @@ const pagedList = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
+
+// 列表操作列：默认收起（Collapsed）
+const opColExpanded = ref(false)
+const OP_COL_COLLAPSED_WIDTH = 96
+const OP_COL_EXPANDED_WIDTH = 260
+const OP_COL_EXPANDED_MIN_WIDTH = 240
+const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() =>
+  opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH
+)
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
+
 const tableRef = ref<any>(null)
 const selectedRows = ref<any[]>([])
 const paymentDialogVisible = ref(false)

@@ -148,10 +148,26 @@
             {{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="300" min-width="292" fixed="right" class-name="op-col" label-class-name="op-col">
+        <el-table-column
+          label="操作"
+          :width="opColWidth"
+          :min-width="opColMinWidth"
+          fixed="right"
+          class-name="op-col"
+          label-class-name="op-col"
+        >
+          <template #header>
+            <div class="op-col-header">
+              <span class="op-col-header-text">操作</span>
+              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+                {{ opColExpanded ? '>' : '<' }}
+              </button>
+            </div>
+          </template>
+
           <template #default="{ row }">
             <div @click.stop @dblclick.stop>
-              <div class="action-btns">
+              <div v-if="opColExpanded" class="action-btns">
                 <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">详情</button>
                 <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">编辑</button>
                 <button
@@ -187,6 +203,44 @@
                   取消确认
                 </button>
               </div>
+
+              <el-dropdown v-else trigger="click" placement="bottom-end">
+                <button type="button" class="op-more-trigger">...</button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item @click.stop="handleView(row)">
+                      <span class="op-more-item op-more-item--primary">详情</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item @click.stop="handleEdit(row)">
+                      <span class="op-more-item op-more-item--primary">编辑</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item
+                      v-if="(poListMainStatus(row) >= 1 && poListMainStatus(row) < 10) || poListMainStatus(row) === -1"
+                      @click.stop="submitAudit(row)"
+                    >
+                      <span class="op-more-item op-more-item--warning">提交审核</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item
+                      v-if="poListMainStatus(row) >= 10 && poListMainStatus(row) < 30"
+                      @click.stop="confirmBySupplier(row)"
+                    >
+                      <span class="op-more-item op-more-item--warning">供应商确认</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item
+                      v-if="purchaseOrderReportAllowed(poListMainStatus(row))"
+                      @click.stop="handlePrintOrder(row)"
+                    >
+                      <span class="op-more-item op-more-item--primary">采购单</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item
+                      v-if="poListMainStatus(row) === 30"
+                      @click.stop="cancelSupplierConfirm(row)"
+                    >
+                      <span class="op-more-item op-more-item--danger">取消确认</span>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
           </template>
         </el-table-column>
@@ -228,6 +282,17 @@ const orderList = ref<any[]>([])
 const authStore = useAuthStore()
 const canViewVendorInfo = computed(() => authStore.hasPermission('vendor.info.read'))
 const canViewPurchaseAmount = computed(() => authStore.hasPermission('purchase.amount.read'))
+
+// 列表操作列：默认收起（Collapsed）
+const opColExpanded = ref(false)
+const OP_COL_COLLAPSED_WIDTH = 96
+const OP_COL_EXPANDED_WIDTH = 300
+const OP_COL_EXPANDED_MIN_WIDTH = 292
+const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
 
 const poListMainStatus = normalizePurchaseOrderMainStatus
 
@@ -702,5 +767,75 @@ onMounted(loadData)
   :deep(.el-tabs__content) {
     min-height: 200px;
   }
+}
+
+// 列表操作列规范（收起/展开）
+.op-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0;
+  width: 100%;
+}
+
+.op-col-header-text {
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.op-col-toggle-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: $cyan-primary;
+  font-size: 16px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.op-more-trigger {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: $cyan-primary;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+:deep(.el-table__body-wrapper .el-table__body tr:hover .op-more-trigger),
+:deep(.el-table__fixed-body-wrapper .el-table__body tr:hover .op-more-trigger),
+:deep(.el-table__body-wrapper .el-table__body tr.hover-row .op-more-trigger),
+:deep(.el-table__fixed-body-wrapper .el-table__body tr.hover-row .op-more-trigger) {
+  opacity: 1;
+}
+
+.op-more-item {
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.op-more-item--primary {
+  color: $cyan-primary;
+}
+
+.op-more-item--warning {
+  color: $color-amber;
+}
+
+.op-more-item--danger {
+  color: $color-red-brown;
+}
+
+.op-more-item--success {
+  color: $color-mint-green;
+}
+
+.op-more-item--info {
+  color: rgba(200, 216, 232, 0.85);
 }
 </style>

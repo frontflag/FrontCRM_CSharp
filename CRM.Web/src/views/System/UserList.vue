@@ -34,10 +34,25 @@
         <el-table-column label="创建人" width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.createUserName || row.createdBy || '-' }}</template>
         </el-table-column>
-        <el-table-column label="操作" :width="canImpersonate ? 320 : 240" fixed="right" class-name="op-col" label-class-name="op-col">
+        <el-table-column
+          label="操作"
+          :width="opColWidth"
+          :min-width="opColMinWidth"
+          fixed="right"
+          class-name="op-col"
+          label-class-name="op-col"
+        >
+          <template #header>
+            <div class="op-col-header">
+              <span class="op-col-header-text">操作</span>
+              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+                {{ opColExpanded ? '>' : '<' }}
+              </button>
+            </div>
+          </template>
           <template #default="{ row }">
             <div @click.stop @dblclick.stop>
-              <div class="action-btns">
+              <div v-if="opColExpanded" class="action-btns">
                 <el-button link type="primary" @click.stop="goEdit(row.id)">编辑</el-button>
                 <el-button link type="danger" @click.stop="handleDelete(row.id)">删除</el-button>
                 <el-button
@@ -50,6 +65,32 @@
                   模拟登录
                 </el-button>
               </div>
+
+              <el-dropdown v-else trigger="click" placement="bottom-end">
+                <button type="button" class="op-more-trigger">...</button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item @click.stop>
+                      <span class="op-more-item op-more-item--primary" @click.stop="goEdit(row.id)">编辑</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item @click.stop>
+                      <span class="op-more-item op-more-item--danger" @click.stop="handleDelete(row.id)">删除</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item
+                      v-if="canImpersonate && impersonateVisibleForRow(row)"
+                      :disabled="impersonateUserId === row.id"
+                      @click.stop
+                    >
+                      <span
+                        class="op-more-item op-more-item--warning"
+                        @click.stop="handleImpersonate(row)"
+                      >
+                        模拟登录
+                      </span>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
           </template>
         </el-table-column>
@@ -75,6 +116,16 @@ const impersonateUserId = ref<string | null>(null)
 
 /** 仅系统管理员（SYS_ADMIN）可见模拟登录 */
 const canImpersonate = computed(() => authStore.user?.isSysAdmin === true)
+
+// 列表操作列：默认收起（Collapsed）
+const opColExpanded = ref(false)
+const OP_COL_COLLAPSED_WIDTH = 96
+const OP_COL_EXPANDED_WIDTH = computed(() => (canImpersonate.value ? 320 : 240))
+const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH.value : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH.value : OP_COL_COLLAPSED_WIDTH))
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
 
 function impersonateVisibleForRow(row: AdminUserDto) {
   if (row.status !== 1) return false
@@ -145,5 +196,67 @@ onMounted(load)
 
 <style scoped lang="scss">
 @import '@/assets/styles/system-list-page.scss';
+@import '@/assets/styles/variables.scss';
+
+.op-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0;
+  width: 100%;
+}
+
+.op-col-header-text {
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.op-col-toggle-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: $cyan-primary;
+  font-size: 16px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.op-more-trigger {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: $cyan-primary;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+:deep(.el-table__body-wrapper .el-table__body tr:hover .op-more-trigger),
+:deep(.el-table__fixed-body-wrapper .el-table__body tr:hover .op-more-trigger),
+:deep(.el-table__body-wrapper .el-table__body tr.hover-row .op-more-trigger),
+:deep(.el-table__fixed-body-wrapper .el-table__body tr.hover-row .op-more-trigger) {
+  opacity: 1;
+}
+
+.op-more-item {
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.op-more-item--primary {
+  color: $cyan-primary;
+}
+
+.op-more-item--warning {
+  color: $color-amber;
+}
+
+.op-more-item--danger {
+  color: $color-red-brown;
+}
 </style>
 

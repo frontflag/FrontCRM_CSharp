@@ -58,15 +58,40 @@
       <el-table-column label="创建人" width="140" show-overflow-tooltip>
         <template #default="{ row }">{{ row.createUserName || row.requestUserName || '--' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="140" fixed="right" class-name="op-col" label-class-name="op-col">
+      <el-table-column
+        label="操作"
+        :width="opColWidth"
+        :min-width="opColMinWidth"
+        fixed="right"
+        class-name="op-col"
+        label-class-name="op-col"
+      >
+        <template #header>
+          <div class="op-col-header">
+            <span class="op-col-header-text">操作</span>
+            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
+
         <template #default="{ row }">
           <div @click.stop @dblclick.stop>
-            <div v-if="Number(row.status) !== 1" class="action-btns">
-              <button type="button" class="action-btn action-btn--warning" @click.stop="goExecute(row)">
-                执行出库
-              </button>
+            <div v-if="opColExpanded" v-show="Number(row.status) !== 1" class="action-btns">
+              <button type="button" class="action-btn action-btn--warning" @click.stop="goExecute(row)">执行出库</button>
             </div>
-            <span v-else class="op-done">已出库</span>
+            <span v-else-if="Number(row.status) === 1" class="op-done">已出库</span>
+
+            <el-dropdown v-else trigger="click" placement="bottom-end" v-if="Number(row.status) !== 1">
+              <button type="button" class="op-more-trigger">...</button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click.stop="goExecute(row)">
+                    <span class="op-more-item op-more-item--warning">执行出库</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </template>
       </el-table-column>
@@ -88,6 +113,19 @@ const keyword = ref('')
 const workflowFilter = ref<string>('all')
 const list = ref<StockOutRequestDto[]>([])
 const pickingTasks = ref<PickingTask[]>([])
+
+// 列表操作列：默认收起（Collapsed）
+const opColExpanded = ref(false)
+const OP_COL_COLLAPSED_WIDTH = 96
+const OP_COL_EXPANDED_WIDTH = 140
+const OP_COL_EXPANDED_MIN_WIDTH = 140
+const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() =>
+  opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH
+)
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
 
 const statusLabel = (s: number) => {
   if (s === 0) return '待出库'
