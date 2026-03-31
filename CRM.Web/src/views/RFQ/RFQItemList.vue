@@ -68,6 +68,17 @@
         >
           <el-option v-for="u in salesUsers" :key="u.id" :label="salesUserLabel(u)" :value="u.id" />
         </el-select>
+        <span class="filter-field-label">采购员</span>
+        <el-select
+          v-model="searchForm.purchaserUserId"
+          placeholder="全部采购员"
+          clearable
+          filterable
+          class="status-select status-select--purchase"
+          :teleported="false"
+        >
+          <el-option v-for="u in purchaseUsers" :key="u.id" :label="purchaseUserLabel(u)" :value="u.id" />
+        </el-select>
         <el-checkbox
           v-model="searchForm.hasQuotesOnly"
           class="filter-checkbox-has-quotes"
@@ -429,7 +440,7 @@ import { buildLinkAlertFieldsFromItem, fetchLinkedRfqItemRecord } from '@/utils/
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
 import type { RFQItem } from '@/types/rfq'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
-import { authApi, type SalesUserSelectOption } from '@/api/auth'
+import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
 import { useRfqItemListBasketStore } from '@/stores/rfqItemListBasket'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 
@@ -482,12 +493,19 @@ const searchForm = reactive({
   customerKeyword: '',
   materialModel: '',
   salesUserId: undefined as string | undefined,
+  purchaserUserId: undefined as string | undefined,
   hasQuotesOnly: false
 })
 
 const salesUsers = ref<SalesUserSelectOption[]>([])
+const purchaseUsers = ref<PurchaseUserSelectOption[]>([])
 
 function salesUserLabel(u: SalesUserSelectOption) {
+  const name = u.realName || u.label || u.userName
+  return u.userName && name !== u.userName ? `${name}（${u.userName}）` : name
+}
+
+function purchaseUserLabel(u: PurchaseUserSelectOption) {
   const name = u.realName || u.label || u.userName
   return u.userName && name !== u.userName ? `${name}（${u.userName}）` : name
 }
@@ -674,6 +692,10 @@ function applyRouteQueryToFilters() {
   const sidRaw = Array.isArray(sid) ? sid[0] : sid
   searchForm.salesUserId =
     typeof sidRaw === 'string' && sidRaw !== '' ? sidRaw : undefined
+  const pid = q.purchaserUserId
+  const pidRaw = Array.isArray(pid) ? pid[0] : pid
+  searchForm.purchaserUserId =
+    typeof pidRaw === 'string' && pidRaw !== '' ? pidRaw : undefined
   const hq = q.hasQuotesOnly
   const hqRaw = Array.isArray(hq) ? hq[0] : hq
   const hqStr = hqRaw != null && typeof hqRaw !== 'object' ? String(hqRaw).trim().toLowerCase() : ''
@@ -692,6 +714,7 @@ async function loadData() {
         customerKeyword: searchForm.customerKeyword.trim() || undefined,
         materialModel: searchForm.materialModel.trim() || undefined,
         salesUserId: searchForm.salesUserId || undefined,
+        purchaserUserId: searchForm.purchaserUserId || undefined,
         ...(searchForm.hasQuotesOnly ? { hasQuotesOnly: true } : {})
       }),
       quoteApi.getList({}).catch(() => ({ data: [] as unknown[] }))
@@ -743,6 +766,7 @@ function handleSearch() {
   const mm = searchForm.materialModel.trim()
   if (mm) query.materialModel = mm
   if (searchForm.salesUserId) query.salesUserId = searchForm.salesUserId
+  if (searchForm.purchaserUserId) query.purchaserUserId = searchForm.purchaserUserId
   if (searchForm.hasQuotesOnly) query.hasQuotesOnly = '1'
   router.replace({ name: 'RFQItemList', query })
 }
@@ -947,6 +971,11 @@ onMounted(async () => {
     salesUsers.value = await authApi.getSalesUsersForSelect()
   } catch {
     salesUsers.value = []
+  }
+  try {
+    purchaseUsers.value = await authApi.getPurchaseUsersForSelect()
+  } catch {
+    purchaseUsers.value = []
   }
   rfqItemListAutoRefreshTimer = window.setInterval(() => {
     if (route.name !== 'RFQItemList' || loading.value) return
@@ -1297,7 +1326,8 @@ onUnmounted(() => {
   }
 }
 
-.status-select--sales {
+.status-select--sales,
+.status-select--purchase {
   width: 180px;
 }
 

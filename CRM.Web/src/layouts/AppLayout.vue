@@ -1470,6 +1470,8 @@ const onOverflowTabSelect = (path: string) => {
 
 // 监听路由变化，自动添加/激活标签
 watch(() => route.path, async (newPath) => {
+  // 中间区全屏时 main 为 fixed 盖满视口（z-index 高于侧栏/顶栏），易误以为「菜单没了」；换页时退出
+  toggleCenterFullscreen(false)
   const title = currentPageTitle.value
   const exists = tabs.value.find(t => t.path === newPath)
   if (!exists) {
@@ -2507,7 +2509,7 @@ onBeforeUnmount(() => {
   border-left: 1px solid rgba(0, 212, 255, 0.1);
 }
 
-// 内容区域
+// 内容区域（仅滚动容器；勿对 router-view 根节点设 flex:1+min-height:0，易把整页压成不可见高度）
 .content-wrapper {
   flex: 1;
   min-width: 0;

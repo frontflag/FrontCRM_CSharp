@@ -12,17 +12,20 @@ namespace CRM.API.Controllers
     public class SalesOrdersController : ControllerBase
     {
         private readonly ISalesOrderService _service;
+        private readonly ISalesOrderJourneyService _journeyService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
         private readonly ILogger<SalesOrdersController> _logger;
 
         public SalesOrdersController(
             ISalesOrderService service,
+            ISalesOrderJourneyService journeyService,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
             ILogger<SalesOrdersController> logger)
         {
             _service = service;
+            _journeyService = journeyService;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
             _logger = logger;
@@ -156,6 +159,26 @@ namespace CRM.API.Controllers
             }
             catch (Exception ex)
             {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet("{id}/journey")]
+        public async Task<IActionResult> GetJourney(string id)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var dto = await _journeyService.GetJourneyAsync(id, userId);
+                return Ok(new { success = true, data = dto });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return StatusCode(403, new { success = false, message = "无权限访问该销售订单" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取订单旅程失败: {Id}", id);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }

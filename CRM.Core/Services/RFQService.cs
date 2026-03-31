@@ -370,6 +370,14 @@ namespace CRM.Core.Services
                       (u.RealName != null && u.RealName.ToLowerInvariant().Contains(kw))))).ToList();
             }
 
+            if (!string.IsNullOrWhiteSpace(request.PurchaserUserId))
+            {
+                var pid = request.PurchaserUserId.Trim();
+                rows = rows.Where(r =>
+                    string.Equals(r.AssignedPurchaserUserId1, pid, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(r.AssignedPurchaserUserId2, pid, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+
             if (request.HasQuotesOnly == true)
             {
                 var quotes = await _quoteRepo.GetAllAsync();

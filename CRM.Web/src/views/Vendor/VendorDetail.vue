@@ -347,6 +347,14 @@
               </el-table-column>
             </CrmDataTable>
           </div>
+          <div v-show="activeTab === 'documents'" class="documents-tab">
+            <DocumentUploadPanel
+              bizType="Vendor"
+              :bizId="canonicalVendorId"
+              @uploaded="documentListRef?.refresh?.()"
+            />
+            <DocumentListPanel ref="documentListRef" bizType="Vendor" :bizId="canonicalVendorId" view-mode="grid" />
+          </div>
           <div v-show="activeTab === 'history'" class="history-tab">
             <div class="tab-toolbar">
               <button class="btn-add-item" @click="showHistoryForm = true">
@@ -398,14 +406,6 @@
                 </div>
               </div>
             </div>
-          </div>
-          <div v-show="activeTab === 'documents'" class="documents-tab">
-            <DocumentUploadPanel
-              bizType="Vendor"
-              :bizId="canonicalVendorId"
-              @uploaded="documentListRef?.refresh?.()"
-            />
-            <DocumentListPanel ref="documentListRef" bizType="Vendor" :bizId="canonicalVendorId" view-mode="grid" />
           </div>
           <div v-show="activeTab === 'logs'" class="logs-tab">
             <div v-if="operationLogs.length === 0 && fieldChangeLogs.length === 0" class="empty-state">
@@ -663,23 +663,31 @@ const tabs = [
   { key: 'contacts', label: '联系人' },
   { key: 'addresses', label: '地址信息' },
   { key: 'banks', label: '银行信息' },
-  { key: 'history', label: '联系历史' },
   { key: 'documents', label: '文档' },
+  { key: 'history', label: '联系历史' },
   { key: 'logs', label: '操作日志' }
 ];
 const activeTab = ref('contacts');
 
+/** 与列表 VendorList / types 一致：1=新建 2=待审核 10=已审核… */
 const vendorStatusText = computed(() => {
-  const s = vendor.value?.status ?? 0;
-  if (s === 2) return '已审';
-  if (s === 1) return '待审';
-  return '草稿';
+  const s = vendor.value?.status;
+  if (s === 1) return '新建';
+  if (s === 2) return '待审核';
+  if (s === 10) return '已审核';
+  if (s === 12) return '待财务审核';
+  if (s === 20) return '财务建档';
+  if (s === -1) return '审核失败';
+  if (s === 0) return '草稿';
+  return '未知';
 });
 
 const vendorStatusClass = computed(() => {
   const s = vendor.value?.status ?? 0;
-  if (s === 2) return 'status--approved';
-  if (s === 1) return 'status--pending';
+  if (s === 2 || s === 12) return 'status--pending';
+  if (s === 10 || s === 20) return 'status--approved';
+  if (s === -1) return 'status--danger';
+  if (s === 1) return 'status--draft';
   return 'status--draft';
 });
 
@@ -1481,6 +1489,11 @@ onMounted(fetchVendorTags);
     background: rgba(70, 191, 145, 0.15);
     color: $color-mint-green;
     border: 1px solid rgba(70, 191, 145, 0.3);
+  }
+  &.status--danger {
+    background: rgba(201, 87, 69, 0.15);
+    color: $color-red-brown;
+    border: 1px solid rgba(201, 87, 69, 0.35);
   }
 }
 

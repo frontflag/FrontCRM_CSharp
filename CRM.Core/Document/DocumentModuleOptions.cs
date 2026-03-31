@@ -7,7 +7,10 @@ namespace CRM.Core.Document
     {
         public const string SectionName = "DocumentModule";
 
-        /// <summary>存储根目录，如 D:\FrontCRM_Uploads</summary>
+        /// <summary>
+        /// 存储根目录。可使用绝对路径（推荐生产环境多实例挂载同一共享盘）；
+        /// 相对路径在启动时解析为「程序内容目录 + 此路径」。
+        /// </summary>
         public string RootPath { get; set; } = "Uploads";
 
         /// <summary>单文件最大大小（MB）</summary>

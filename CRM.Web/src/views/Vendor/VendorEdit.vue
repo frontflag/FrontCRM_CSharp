@@ -110,11 +110,11 @@
 
           <el-row :gutter="24">
             <el-col :span="8">
-              <el-form-item label="合作状态">
+              <el-form-item label="流程状态">
                 <el-select v-model="formData.status" placeholder="请选择状态" class="q-select">
                   <el-option label="草稿" :value="0" />
-                  <el-option label="待审核" :value="1" />
-                  <el-option label="合作中" :value="2" />
+                  <el-option label="新建" :value="1" />
+                  <el-option label="待审核" :value="2" />
                 </el-select>
               </el-form-item>
             </el-col>
@@ -358,7 +358,8 @@ const formData = reactive({
   level: undefined as number | undefined,
   /** 身份（vendorinfo.Credit） */
   credit: undefined as number | undefined,
-  status: 0 as number,
+  /** 与后端一致：1=新建 2=待审核…；新建页默认新建，便于列表出现「提交审核」 */
+  status: 1 as number,
   contactName: '',
   contactPhone: '',
   contactEmail: '',
@@ -396,7 +397,8 @@ const buildVendorApiPayload = (): CreateVendorRequest & UpdateVendorRequest => (
   industry: formData.industry || undefined,
   level: formData.level,
   credit: formData.credit,
-  status: formData.status,
+  /** 新建点「转正式」时若仍为草稿(0)，后端会原样落库为 0，列表不会出现「提交审核」；转正至少应为新建(1) */
+  status: !isEdit.value && formData.status === 0 ? 1 : formData.status,
   officeAddress: formData.officeAddress?.trim(),
   website: formData.website?.trim(),
   purchaserName: formData.purchaserName?.trim(),

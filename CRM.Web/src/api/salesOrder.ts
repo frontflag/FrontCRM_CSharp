@@ -55,6 +55,11 @@ export const salesOrderApi = {
   // 获取关联采购订单
   async getRelatedPurchaseOrders(id: string) {
     return await apiClient.get(`/api/v1/sales-orders/${id}/purchase-orders`)
+  },
+
+  // 订单旅程（聚合链路）
+  async getJourney(id: string) {
+    return await apiClient.get(`/api/v1/sales-orders/${id}/journey`)
   }
 }
 

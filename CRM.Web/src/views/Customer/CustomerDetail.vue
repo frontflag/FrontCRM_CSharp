@@ -336,6 +336,21 @@
               </CrmDataTable>
             </div>
 
+            <!-- 文档 -->
+            <div v-show="activeTab === 'documents'" class="documents-tab">
+              <DocumentUploadPanel
+                bizType="Customer"
+                :bizId="canonicalCustomerId"
+                @uploaded="documentListRef?.refresh?.()"
+              />
+              <DocumentListPanel
+                ref="documentListRef"
+                bizType="Customer"
+                :bizId="canonicalCustomerId"
+                view-mode="grid"
+              />
+            </div>
+
             <!-- 联系历史 -->
             <div v-show="activeTab === 'contactHistory'">
               <div class="tab-toolbar">
@@ -557,6 +572,8 @@ import type { Customer, CustomerContactInfo, CustomerAddress, CustomerBankInfo }
 
 import AddressDialog from './components/AddressDialog.vue';
 import BankDialog from './components/BankDialog.vue';
+import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue';
+import DocumentListPanel from '@/components/Document/DocumentListPanel.vue';
 import { formatDisplayDateTime } from '@/utils/displayDateTime';
 import { parseApiBoolean } from '@/utils/parseApiBoolean';
 import { operationBizTypeLabel } from '@/utils/businessLogLabels';
@@ -568,6 +585,8 @@ import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency';
 const route = useRoute();
 const router = useRouter();
 const customerId = route.params.id as string;
+/** 详情加载后主键（与路由业务编号区分，文档等用主键更稳） */
+const canonicalCustomerId = computed(() => customer.value?.id ?? (route.params.id as string));
 const loading = ref(false);
 const customer = ref<Customer | null>(null);
 
@@ -581,10 +600,13 @@ const editingBank = ref<CustomerBankInfo | undefined>(undefined);
 const tabs = [
   { key: 'contacts', label: '联系人' },
   { key: 'addresses', label: '地址信息' },
-  { key: 'banks', label: '銀行信息' },
+  { key: 'banks', label: '银行信息' },
+  { key: 'documents', label: '文档' },
   { key: 'contactHistory', label: '联系历史' },
   { key: 'logs', label: '操作日志' }
 ];
+
+const documentListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null);
 
 // 联系历史
 const contactHistories = ref<any[]>([]);
@@ -1406,6 +1428,12 @@ onMounted(() => {
     color: $color-red-brown;
     &:hover { background: rgba(201, 87, 69, 0.1); border-color: rgba(201, 87, 69, 0.45); }
   }
+}
+
+.documents-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 // ---- inline-form ----

@@ -1,7 +1,9 @@
 using CRM.API.Extensions;
 using CRM.API.Middlewares;
+using CRM.Core.Document;
 using Microsoft.EntityFrameworkCore;
 using CRM.Infrastructure.Data;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Serilog;
 
@@ -29,6 +31,15 @@ try
             options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
         });
     builder.Services.AddApiServices(builder.Configuration);
+
+    // 将相对路径 DocumentModule:RootPath 固定到程序内容根目录，避免生产环境工作目录变化导致“上传成功但读文件 404”；多实例需共享同一绝对路径（NAS/云盘等）。
+    builder.Services.PostConfigure<DocumentModuleOptions>(opts =>
+    {
+        var root = opts.RootPath?.Trim() ?? "";
+        if (string.IsNullOrEmpty(root)) return;
+        if (!Path.IsPathRooted(root))
+            opts.RootPath = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, root));
+    });
 
     var app = builder.Build();
 

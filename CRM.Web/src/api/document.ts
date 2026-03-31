@@ -86,6 +86,23 @@ export const documentApi = {
     return `${BASE}/${id}/preview`
   },
 
+  /**
+   * 新窗口预览：通过 axios 携带 JWT 拉取文件流，避免直接打开 /preview 时无 Authorization 导致失败。
+   */
+  async openPreviewInNewTab(id: string): Promise<void> {
+    const blob = await apiClient.getBlob(`${BASE}/${encodeURIComponent(id)}/preview`)
+    if (!blob?.size) {
+      throw new Error('文件为空或不存在')
+    }
+    const url = URL.createObjectURL(blob)
+    const w = window.open(url, '_blank', 'noopener,noreferrer')
+    if (!w) {
+      URL.revokeObjectURL(url)
+      throw new Error('无法打开新窗口，请检查浏览器是否拦截弹窗')
+    }
+    window.setTimeout(() => URL.revokeObjectURL(url), 300_000)
+  },
+
   /** 相对路径下载（仅同源且带 Cookie 时可用） */
   getDownloadPath(id: string): string {
     return `${BASE}/${id}/download`

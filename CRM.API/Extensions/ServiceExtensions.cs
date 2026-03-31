@@ -58,6 +58,7 @@ namespace CRM.API.Extensions
 
             // 销售订单模块
             services.AddScoped<ISalesOrderService, SalesOrderService>();
+            services.AddScoped<ISalesOrderJourneyService, SalesOrderJourneyService>();
             services.AddScoped<IRepository<CRM.Core.Models.Sales.SellOrder>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Sales.SellOrder>>();
             services.AddScoped<IRepository<CRM.Core.Models.Sales.SellOrderItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Sales.SellOrderItem>>();
 
@@ -69,6 +70,13 @@ namespace CRM.API.Extensions
             // 采购申请模块
             services.AddScoped<IPurchaseRequisitionService, PurchaseRequisitionService>();
             services.AddScoped<IRepository<CRM.Core.Models.Purchase.PurchaseRequisition>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Purchase.PurchaseRequisition>>();
+
+            // 旅程聚合需要的仓储（库存/物流）
+            services.AddScoped<IRepository<CRM.Core.Models.Inventory.StockOutRequest>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Inventory.StockOutRequest>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Inventory.StockInNotify>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Inventory.StockInNotify>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Inventory.QCInfo>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Inventory.QCInfo>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Inventory.StockIn>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Inventory.StockIn>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Inventory.StockOut>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Inventory.StockOut>>();
 
             // 财务模块 - 付款
             services.AddScoped<IFinancePaymentService, FinancePaymentService>();

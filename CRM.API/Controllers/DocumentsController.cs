@@ -143,14 +143,23 @@ namespace CRM.API.Controllers
             {
                 var doc = await _documentService.GetByIdAsync(id);
                 if (doc == null || doc.IsDeleted)
+                {
+                    _logger.LogWarning("文档下载：记录不存在或已删除。DocumentId={DocumentId}", id);
                     return NotFound();
+                }
 
-                var stream = await _fileStorage.OpenReadAsync(doc.RelativePath);
-                return File(stream, doc.MimeType ?? "application/octet-stream", doc.OriginalFileName);
-            }
-            catch (FileNotFoundException)
-            {
-                return NotFound();
+                try
+                {
+                    var stream = await _fileStorage.OpenReadAsync(doc.RelativePath);
+                    return File(stream, doc.MimeType ?? "application/octet-stream", doc.OriginalFileName);
+                }
+                catch (FileNotFoundException ex)
+                {
+                    _logger.LogWarning(ex,
+                        "文档下载：物理文件缺失（多实例请配置共享存储与相同 RootPath）。DocumentId={DocumentId}, RelativePath={RelativePath}",
+                        doc.Id, doc.RelativePath);
+                    return NotFound();
+                }
             }
             catch (Exception ex)
             {
@@ -167,15 +176,24 @@ namespace CRM.API.Controllers
             {
                 var doc = await _documentService.GetByIdAsync(id);
                 if (doc == null || doc.IsDeleted)
+                {
+                    _logger.LogWarning("文档预览：记录不存在或已删除。DocumentId={DocumentId}", id);
                     return NotFound();
+                }
 
-                var stream = await _fileStorage.OpenReadAsync(doc.RelativePath);
-                var mime = doc.MimeType ?? "application/octet-stream";
-                return File(stream, mime);
-            }
-            catch (FileNotFoundException)
-            {
-                return NotFound();
+                try
+                {
+                    var stream = await _fileStorage.OpenReadAsync(doc.RelativePath);
+                    var mime = doc.MimeType ?? "application/octet-stream";
+                    return File(stream, mime);
+                }
+                catch (FileNotFoundException ex)
+                {
+                    _logger.LogWarning(ex,
+                        "文档预览：物理文件缺失（多实例请配置共享存储与相同 RootPath）。DocumentId={DocumentId}, RelativePath={RelativePath}",
+                        doc.Id, doc.RelativePath);
+                    return NotFound();
+                }
             }
             catch (Exception ex)
             {

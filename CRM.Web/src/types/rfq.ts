@@ -252,6 +252,8 @@ export interface RFQItemSearchRequest {
   /** 主表业务员用户 ID（与 auth sales-users-tree 范围一致，由前端下拉传入） */
   salesUserId?: string
   salesUserKeyword?: string
+  /** 明细分配的询价采购员用户 ID（与 auth purchase-users-tree 一致，匹配采购员1或采购员2） */
+  purchaserUserId?: string
   /** 为 true 时仅返回至少有一条报价记录的需求明细 */
   hasQuotesOnly?: boolean
   status?: RFQItemStatus | ''

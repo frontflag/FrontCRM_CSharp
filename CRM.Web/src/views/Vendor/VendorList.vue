@@ -48,6 +48,7 @@
           :teleported="false"
           @change="handleSearch"
         >
+          <el-option label="草稿" :value="0" />
           <el-option label="新建" :value="1" />
           <el-option label="待审核" :value="2" />
           <el-option label="已审核" :value="10" />
@@ -387,6 +388,7 @@ function onCreatedRangeChange(val: [string, string] | null | undefined) {
 const pagination = reactive({ pageNumber: 1, pageSize: 20 });
 
 const getStatusLabel = (status?: number) => {
+  if (status === 0) return '草稿';
   if (status === 1) return '新建';
   if (status === 2) return '待审核';
   if (status === 10) return '已审核';

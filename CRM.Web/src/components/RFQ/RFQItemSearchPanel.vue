@@ -1,22 +1,29 @@
 <script setup lang="ts">
 import { reactive, ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { authApi, type SalesUserSelectOption } from '@/api/auth'
+import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
 
 const route = useRoute()
 const router = useRouter()
 
 const salesUsers = ref<SalesUserSelectOption[]>([])
+const purchaseUsers = ref<PurchaseUserSelectOption[]>([])
 const dateRange = ref<[string, string] | null>(null)
 
 const form = reactive({
   customerKeyword: '',
   materialModel: '',
   salesUserId: undefined as string | undefined,
+  purchaserUserId: undefined as string | undefined,
   hasQuotesOnly: false
 })
 
 function salesUserLabel(u: SalesUserSelectOption) {
+  const name = u.realName || u.label || u.userName
+  return u.userName && name !== u.userName ? `${name}（${u.userName}）` : name
+}
+
+function purchaseUserLabel(u: PurchaseUserSelectOption) {
   const name = u.realName || u.label || u.userName
   return u.userName && name !== u.userName ? `${name}（${u.userName}）` : name
 }
@@ -35,6 +42,8 @@ function syncFromRoute() {
   form.materialModel = typeof q.materialModel === 'string' ? q.materialModel : ''
   const sid = q.salesUserId
   form.salesUserId = typeof sid === 'string' && sid !== '' ? sid : undefined
+  const pid = q.purchaserUserId
+  form.purchaserUserId = typeof pid === 'string' && pid !== '' ? pid : undefined
   const hq = q.hasQuotesOnly
   const hqRaw = Array.isArray(hq) ? hq[0] : hq
   const hqStr = hqRaw != null && typeof hqRaw !== 'object' ? String(hqRaw).trim().toLowerCase() : ''
@@ -62,6 +71,7 @@ function handleSearch() {
   const mm = form.materialModel.trim()
   if (mm) query.materialModel = mm
   if (form.salesUserId) query.salesUserId = form.salesUserId
+  if (form.purchaserUserId) query.purchaserUserId = form.purchaserUserId
   if (form.hasQuotesOnly) query.hasQuotesOnly = '1'
   router.replace({ name: 'RFQItemList', query })
 }
@@ -71,6 +81,11 @@ onMounted(async () => {
     salesUsers.value = await authApi.getSalesUsersForSelect()
   } catch {
     salesUsers.value = []
+  }
+  try {
+    purchaseUsers.value = await authApi.getPurchaseUsersForSelect()
+  } catch {
+    purchaseUsers.value = []
   }
 })
 </script>
@@ -128,6 +143,20 @@ onMounted(async () => {
           :teleported="false"
         >
           <el-option v-for="u in salesUsers" :key="u.id" :label="salesUserLabel(u)" :value="u.id" />
+        </el-select>
+      </div>
+
+      <div class="field-col">
+        <label class="field-label">采购员</label>
+        <el-select
+          v-model="form.purchaserUserId"
+          placeholder="全部采购员"
+          clearable
+          filterable
+          class="field-select"
+          :teleported="false"
+        >
+          <el-option v-for="u in purchaseUsers" :key="u.id" :label="purchaseUserLabel(u)" :value="u.id" />
         </el-select>
       </div>
 

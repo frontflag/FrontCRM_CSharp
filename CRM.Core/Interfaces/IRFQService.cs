@@ -113,6 +113,8 @@ namespace CRM.Core.Interfaces
         /// <summary>按主表业务员用户 ID 精确筛选（与前端下拉一致）</summary>
         public string? SalesUserId { get; set; }
         public string? SalesUserKeyword { get; set; }
+        /// <summary>按明细分配的询价采购员用户 ID 精确筛选（匹配 AssignedPurchaserUserId1 或 AssignedPurchaserUserId2）</summary>
+        public string? PurchaserUserId { get; set; }
         /// <summary>为 true 时仅返回至少存在一条关联报价单（quote.rfq_item_id）的需求明细</summary>
         public bool? HasQuotesOnly { get; set; }
         public string? CurrentUserId { get; set; }

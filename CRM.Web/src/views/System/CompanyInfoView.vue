@@ -246,10 +246,9 @@
                       <span v-if="row.fileName" class="file-hint">{{ row.fileName }}</span>
                       <a
                         v-if="row.documentId"
+                        href="#"
                         class="preview-link"
-                        :href="`/api/v1/documents/${row.documentId}/preview`"
-                        target="_blank"
-                        rel="noopener"
+                        @click.prevent="openPreviewNewTab(row.documentId)"
                       >新窗口预览</a>
                     </div>
                     <div
@@ -265,10 +264,9 @@
                       <div v-else-if="previewByDocId[row.documentId].kind === 'pdf'" class="asset-preview__pdf">
                         <span class="asset-preview__pdf-label">PDF</span>
                         <a
+                          href="#"
                           class="preview-link"
-                          :href="`/api/v1/documents/${row.documentId}/preview`"
-                          target="_blank"
-                          rel="noopener"
+                          @click.prevent="openPreviewNewTab(row.documentId)"
                         >新窗口打开</a>
                       </div>
                       <div v-else class="asset-preview__other">已上传（非图片）</div>
@@ -346,10 +344,9 @@
                       <span v-if="row.fileName" class="file-hint">{{ row.fileName }}</span>
                       <a
                         v-if="row.documentId"
+                        href="#"
                         class="preview-link"
-                        :href="`/api/v1/documents/${row.documentId}/preview`"
-                        target="_blank"
-                        rel="noopener"
+                        @click.prevent="openPreviewNewTab(row.documentId)"
                       >新窗口预览</a>
                     </div>
                     <div
@@ -365,10 +362,9 @@
                       <div v-else-if="previewByDocId[row.documentId].kind === 'pdf'" class="asset-preview__pdf">
                         <span class="asset-preview__pdf-label">PDF</span>
                         <a
+                          href="#"
                           class="preview-link"
-                          :href="`/api/v1/documents/${row.documentId}/preview`"
-                          target="_blank"
-                          rel="noopener"
+                          @click.prevent="openPreviewNewTab(row.documentId)"
                         >新窗口打开</a>
                       </div>
                       <div v-else class="asset-preview__other">已上传（非图片）</div>
@@ -624,6 +620,14 @@ async function refreshAssetPreviews() {
     if (r.documentId) ids.add(r.documentId)
   })
   await Promise.all([...ids].map((id) => loadPreviewForDocument(id)))
+}
+
+async function openPreviewNewTab(documentId: string) {
+  try {
+    await documentApi.openPreviewInNewTab(documentId)
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '预览失败'))
+  }
 }
 
 function emptySmtp(): CompanySmtpEmailSettings {

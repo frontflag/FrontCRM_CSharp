@@ -1,5 +1,16 @@
 import apiClient from './client'
 
+/** 兼容 axios 拦截器已解包 / 未解包、以及 data / Data */
+function unwrapArray<T>(res: unknown): T[] {
+  if (Array.isArray(res)) return res as T[]
+  if (res && typeof res === 'object') {
+    const o = res as Record<string, unknown>
+    const inner = o.data ?? o.Data
+    if (Array.isArray(inner)) return inner as T[]
+  }
+  return []
+}
+
 export interface StockOutDto {
   id: string
   stockOutCode: string
@@ -38,24 +49,23 @@ export interface StockOutRequestDto {
 
 export const stockOutApi = {
   async getAll(): Promise<StockOutDto[]> {
-    const res = await apiClient.get<any>('/api/v1/stock-out')
-    if (res && typeof res === 'object' && 'data' in res && Array.isArray(res.data))
-      return res.data as StockOutDto[]
-    return Array.isArray(res) ? res : []
+    const res = await apiClient.get<unknown>('/api/v1/stock-out')
+    return unwrapArray<StockOutDto>(res)
   },
 
   async getById(id: string): Promise<StockOutDto | null> {
-    const res = await apiClient.get<any>(`/api/v1/stock-out/${id}`)
-    if (res && typeof res === 'object' && 'data' in res && res.data)
-      return res.data as StockOutDto
-    return res as StockOutDto ?? null
+    const res = await apiClient.get<unknown>(`/api/v1/stock-out/${id}`)
+    if (res && typeof res === 'object') {
+      const o = res as Record<string, unknown>
+      const inner = o.data ?? o.Data
+      if (inner && typeof inner === 'object') return inner as StockOutDto
+    }
+    return (res as StockOutDto) ?? null
   },
 
   async getRequestList(): Promise<StockOutRequestDto[]> {
-    const res = await apiClient.get<any>('/api/v1/stock-out/request')
-    if (res && typeof res === 'object' && 'data' in res && Array.isArray(res.data))
-      return res.data as StockOutRequestDto[]
-    return Array.isArray(res) ? res : []
+    const res = await apiClient.get<unknown>('/api/v1/stock-out/request')
+    return unwrapArray<StockOutRequestDto>(res)
   },
 
   async createRequest(data: {

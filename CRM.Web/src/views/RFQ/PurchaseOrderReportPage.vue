@@ -61,6 +61,7 @@ import {
 } from '@/constants/purchaseOrderStatus'
 import PurchaseOrderReportDocument from '@/components/purchaseOrder/PurchaseOrderReportDocument.vue'
 import { renderElementToPdfBlob, blobToDataUrl } from '@/utils/poReportPdf'
+import { renderPdfBlobFirstPageToPngDataUrl } from '@/utils/pdfSealToPng'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 const route = useRoute()
@@ -113,6 +114,20 @@ function pickReportLogoRow(rows: CompanyLogoRow[] | undefined | null): CompanyLo
   const defWithDoc = rows.find((r) => r.isDefault && hasDoc(r))
   if (defWithDoc) return defWithDoc
   return rows.find((r) => hasDoc(r))
+}
+
+/** 与 Logo 一致：优先「默认且已上传文件」的印章；避免生产库中默认行无 documentId 而另一行有文件时整页无印章 */
+function pickReportSealRow(rows: CompanySealRow[] | undefined | null): CompanySealRow | undefined {
+  if (!rows?.length) return undefined
+  const hasDoc = (r: CompanySealRow) => {
+    const id = r.documentId
+    return typeof id === 'string' && id.trim().length > 0
+  }
+  const defWithDoc = rows.find((r) => r.isDefault && r.enabled !== false && hasDoc(r))
+  if (defWithDoc) return defWithDoc
+  const anyWithDoc = rows.find((r) => hasDoc(r))
+  if (anyWithDoc) return anyWithDoc
+  return rows.find((r) => r.isDefault) ?? rows[0]
 }
 
 function currencyCode(v: number | undefined): string {
@@ -247,19 +262,39 @@ const docBind = computed(() => {
   }
 })
 
+function revokeSealUrlIfBlob() {
+  const u = sealUrl.value
+  if (u && u.startsWith('blob:')) URL.revokeObjectURL(u)
+}
+
 async function loadSealBlobUrl(seal: CompanySealRow | undefined) {
-  if (seal?.documentId) {
-    try {
-      const blob = await apiClient.getBlob(`/api/v1/documents/${seal.documentId}/download`)
-      if (blob.size > 0) {
-        sealUrl.value = URL.createObjectURL(blob)
-        return
-      }
-    } catch {
-      // ignore
-    }
-  }
+  revokeSealUrlIfBlob()
   sealUrl.value = null
+  if (!seal?.documentId?.trim()) return
+
+  try {
+    const blob = await apiClient.getBlob(`/api/v1/documents/${seal.documentId.trim()}/download`)
+    if (!blob.size) return
+
+    const mime = (blob.type || '').toLowerCase()
+    if (mime.startsWith('image/')) {
+      sealUrl.value = URL.createObjectURL(blob)
+      return
+    }
+    if (mime === 'application/pdf' || mime === 'application/x-pdf') {
+      sealUrl.value = await renderPdfBlobFirstPageToPngDataUrl(blob)
+      return
+    }
+    const fn = String(seal.fileName || '')
+    if (/\.pdf$/i.test(fn)) {
+      sealUrl.value = await renderPdfBlobFirstPageToPngDataUrl(blob)
+      return
+    }
+    // 部分环境返回 application/octet-stream，仍按图片尝试 object URL（浏览器多能解码常见图）
+    sealUrl.value = URL.createObjectURL(blob)
+  } catch {
+    sealUrl.value = null
+  }
 }
 
 async function loadCompanyLogoBlobUrl(logo: CompanyLogoRow | undefined) {
@@ -280,10 +315,8 @@ async function loadCompanyLogoBlobUrl(logo: CompanyLogoRow | undefined) {
 async function load() {
   loading.value = true
   errorMsg.value = ''
-  if (sealUrl.value) {
-    URL.revokeObjectURL(sealUrl.value)
-    sealUrl.value = null
-  }
+  revokeSealUrlIfBlob()
+  sealUrl.value = null
   if (companyLogoObjectUrl.value) {
     URL.revokeObjectURL(companyLogoObjectUrl.value)
     companyLogoObjectUrl.value = null
@@ -309,14 +342,18 @@ async function load() {
       order.value = null
       return
     }
-    const profile = data.companyProfile
+    const profile = data.companyProfile as typeof data.companyProfile & { Seals?: CompanySealRow[] }
     const logos =
       profile?.logos ??
       (profile as { Logos?: CompanyLogoRow[] } | undefined)?.Logos ??
       []
+    const seals =
+      profile?.seals ??
+      profile?.Seals ??
+      []
     basicDefault.value = pickDefault(profile.basicInfos) ?? null
     warehouseDefault.value = pickDefault(profile.warehouses) ?? null
-    const seal = pickDefault(profile.seals)
+    const seal = pickReportSealRow(seals)
     await loadSealBlobUrl(seal)
     const logo = pickReportLogoRow(logos)
     await loadCompanyLogoBlobUrl(logo)
@@ -420,7 +457,7 @@ onBeforeUnmount(() => {
 })
 
 onUnmounted(() => {
-  if (sealUrl.value) URL.revokeObjectURL(sealUrl.value)
+  revokeSealUrlIfBlob()
   if (companyLogoObjectUrl.value) URL.revokeObjectURL(companyLogoObjectUrl.value)
 })
 </script>

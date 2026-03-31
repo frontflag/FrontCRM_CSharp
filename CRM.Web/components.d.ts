@@ -81,6 +81,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SalesOrderFavoritePanel: typeof import('./src/components/SalesOrder/SalesOrderFavoritePanel.vue')['default']
+    SalesOrderJourneyPanel: typeof import('./src/components/workspace/SalesOrderJourneyPanel.vue')['default']
     SalesOrderRecentHistoryPanel: typeof import('./src/components/SalesOrder/SalesOrderRecentHistoryPanel.vue')['default']
     SalesOrderSearchPanel: typeof import('./src/components/SalesOrder/SalesOrderSearchPanel.vue')['default']
     SalesUserCascader: typeof import('./src/components/SalesUserCascader.vue')['default']
