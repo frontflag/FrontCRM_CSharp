@@ -6,7 +6,8 @@ export type SidebarMode = 'full' | 'narrow'
 
 export interface WorkspaceTabItem {
   id: string
-  label: string
+  /** vue-i18n key, e.g. layout.auxTabs.search */
+  labelKey: string
 }
 
 export interface WorkspaceLayoutApi {
@@ -44,13 +45,13 @@ export function useWorkspaceLayout() {
   const rightFullscreen = ref(false)
 
   const leftTabs = ref<WorkspaceTabItem[]>([
-    { id: 'l1', label: '检索' },
-    { id: 'l2', label: '收藏' },
-    { id: 'l3', label: '历史' }
+    { id: 'l1', labelKey: 'layout.auxTabs.search' },
+    { id: 'l2', labelKey: 'layout.auxTabs.favorites' },
+    { id: 'l3', labelKey: 'layout.auxTabs.history' }
   ])
   const rightTabs = ref<WorkspaceTabItem[]>([
-    { id: 'r4', label: '帮助' },
-    { id: 'r5', label: '订单旅程' }
+    { id: 'r4', labelKey: 'layout.auxTabs.help' },
+    { id: 'r5', labelKey: 'layout.auxTabs.orderJourney' }
   ])
   const leftActiveTabId = ref('l1')
   const rightActiveTabId = ref('r4')

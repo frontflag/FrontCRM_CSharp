@@ -7,7 +7,7 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="15 18 9 12 15 6"/>
           </svg>
-          返回
+          {{ t('rfqDetail.back') }}
         </button>
         <div class="rfq-title-group">
           <div class="rfq-avatar-lg">
@@ -18,15 +18,15 @@
           <div>
             <div class="page-title-row">
               <div class="page-title-with-icons">
-                <h1 class="page-title">{{ rfq?.rfqCode || 'RFQ 详情' }}</h1>
+                <h1 class="page-title">{{ rfq?.rfqCode || t('rfqDetail.title') }}</h1>
                 <button
                   v-if="rfq"
                   type="button"
                   class="btn-favorite-star"
                   :class="{ 'is-favorite': rfqFavorited }"
                   :disabled="favoriteLoading"
-                  :title="rfqFavorited ? '取消收藏' : '收藏需求'"
-                  :aria-label="rfqFavorited ? '取消收藏' : '收藏需求'"
+                  :title="rfqFavorited ? t('rfqDetail.unfavorite') : t('rfqDetail.favorite')"
+                  :aria-label="rfqFavorited ? t('rfqDetail.unfavorite') : t('rfqDetail.favorite')"
                   :aria-pressed="rfqFavorited"
                   @click="toggleFavorite"
                 >
@@ -62,13 +62,13 @@
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
-          编辑
+          {{ t('rfqDetail.edit') }}
         </button>
         <button class="btn-warning" @click="showCloseDialog" v-if="rfq?.status !== 7 && rfq?.status !== 8">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
           </svg>
-          关闭需求
+          {{ t('rfqDetail.closeRfq') }}
         </button>
         <el-dropdown
           trigger="click"
@@ -76,12 +76,12 @@
           popper-class="rfq-detail-header-more-popper"
           @command="onHeaderMoreCommand"
         >
-          <button type="button" class="btn-more-actions" title="更多操作" aria-label="更多操作">
+          <button type="button" class="btn-more-actions" :title="t('rfqDetail.more')" :aria-label="t('rfqDetail.more')">
             <span class="btn-more-actions__dots" aria-hidden="true">⋯</span>
           </button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="delete" class="detail-more-item--danger">删除需求</el-dropdown-item>
+              <el-dropdown-item command="delete" class="detail-more-item--danger">{{ t('rfqDetail.deleteRfq') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -94,27 +94,27 @@
         <div class="info-section">
           <div class="section-header">
             <div class="section-dot section-dot--cyan"></div>
-            <span class="section-title">基础信息</span>
+            <span class="section-title">{{ t('rfqDetail.sections.basic') }}</span>
           </div>
           <div class="info-grid">
             <div class="info-item">
-              <span class="info-label">需求单号</span>
+              <span class="info-label">{{ t('rfqDetail.fields.rfqCode') }}</span>
               <span class="info-value info-value--code">{{ rfq.rfqCode || '—' }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">客户</span>
+              <span class="info-label">{{ t('rfqDetail.fields.customer') }}</span>
               <span class="info-value">{{ rfq.customerName || '—' }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">客户联系人</span>
+              <span class="info-label">{{ t('rfqDetail.fields.contact') }}</span>
               <span class="info-value">{{ rfq.contactPersonName || '—' }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">联系人邮箱</span>
+              <span class="info-label">{{ t('rfqDetail.fields.contactEmail') }}</span>
               <span class="info-value">{{ rfq.contactPersonEmail || (rfq as any).contactEmail || '—' }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">业务员</span>
+              <span class="info-label">{{ t('rfqDetail.fields.salesUser') }}</span>
               <span class="info-value">{{ rfq.salesUserName || '—' }}</span>
             </div>
           </div>
@@ -124,55 +124,55 @@
         <div class="info-section">
           <div class="section-header">
             <div class="section-dot section-dot--cyan"></div>
-            <span class="section-title">需求信息</span>
+            <span class="section-title">{{ t('rfqDetail.sections.rfq') }}</span>
           </div>
           <div class="info-grid">
             <div class="info-item">
-              <span class="info-label">需求类型</span>
+              <span class="info-label">{{ t('rfqDetail.fields.rfqType') }}</span>
               <span class="info-value">{{ getRFQTypeLabel(rfq.rfqType) }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">报价方式</span>
+              <span class="info-label">{{ t('rfqDetail.fields.quoteMethod') }}</span>
               <span class="info-value">{{ getQuoteMethodLabel(rfq.quoteMethod) }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">分配方式</span>
+              <span class="info-label">{{ t('rfqDetail.fields.assignMethod') }}</span>
               <span class="info-value">{{ getAssignMethodLabel(rfq.assignMethod) }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">行业</span>
+              <span class="info-label">{{ t('rfqDetail.fields.industry') }}</span>
               <span class="info-value">{{ rfq.industry || '—' }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">产品</span>
+              <span class="info-label">{{ t('rfqDetail.fields.product') }}</span>
               <span class="info-value">{{ rfq.product || '—' }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">目标类型</span>
+              <span class="info-label">{{ t('rfqDetail.fields.targetType') }}</span>
               <span class="info-value">{{ getTargetTypeLabel(rfq.targetType) }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">重要程度</span>
+              <span class="info-label">{{ t('rfqDetail.fields.importance') }}</span>
               <span class="info-value">{{ rfq.importanceLevel ?? (rfq as any).importance ?? '—' }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">最后一次询价</span>
-              <span class="info-value">{{ ((rfq as any).isLastInquiry ?? rfq.isLastQuote) ? '是' : '否' }}</span>
+              <span class="info-label">{{ t('rfqDetail.fields.lastInquiry') }}</span>
+              <span class="info-value">{{ ((rfq as any).isLastInquiry ?? rfq.isLastQuote) ? t('rfqDetail.yes') : t('rfqDetail.no') }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">来源</span>
+              <span class="info-label">{{ t('rfqDetail.fields.source') }}</span>
               <span class="info-value">{{ getSourceLabel(rfq.source) }}</span>
             </div>
             <div class="info-item" v-if="rfq.projectBackground">
-              <span class="info-label">项目背景</span>
+              <span class="info-label">{{ t('rfqDetail.fields.projectBackground') }}</span>
               <span class="info-value">{{ rfq.projectBackground }}</span>
             </div>
             <div class="info-item" v-if="rfq.competitor">
-              <span class="info-label">竞争对手</span>
+              <span class="info-label">{{ t('rfqDetail.fields.competitor') }}</span>
               <span class="info-value">{{ rfq.competitor }}</span>
             </div>
             <div class="info-item" v-if="rfq.remark" style="grid-column: span 3">
-              <span class="info-label">备注</span>
+              <span class="info-label">{{ t('rfqDetail.fields.remark') }}</span>
               <span class="info-value">{{ rfq.remark }}</span>
             </div>
           </div>
@@ -182,19 +182,19 @@
         <div class="info-section" v-if="rfq.purchaserName">
           <div class="section-header">
             <div class="section-dot section-dot--cyan"></div>
-            <span class="section-title">采购员信息</span>
+            <span class="section-title">{{ t('rfqDetail.sections.purchaser') }}</span>
           </div>
           <div class="info-grid">
             <div class="info-item">
-              <span class="info-label">当前采购员</span>
+              <span class="info-label">{{ t('rfqDetail.fields.currentPurchaser') }}</span>
               <span class="info-value">{{ rfq.purchaserName }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">分配时间</span>
+              <span class="info-label">{{ t('rfqDetail.fields.assignedAt') }}</span>
               <span class="info-value info-value--time">{{ formatDate(rfq.assignedAt) }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">处理状态</span>
+              <span class="info-label">{{ t('rfqDetail.fields.purchaserStatus') }}</span>
               <span class="info-value">{{ getPurchaserStatusLabel(rfq.purchaserStatus) }}</span>
             </div>
           </div>
@@ -217,11 +217,11 @@
             <!-- 需求明细 -->
             <div v-if="activeTab === 'items'">
               <div class="tab-toolbar">
-                <span class="cell-muted">共 {{ rfqItems.length }} 条明细</span>
+                <span class="cell-muted">{{ t('rfqDetail.itemsCount', { count: rfqItems.length }) }}</span>
                 <div class="tab-toolbar__actions">
                   <el-radio-group v-model="itemsViewMode" size="small" class="items-view-toggle">
-                    <el-radio-button label="list">列表</el-radio-button>
-                    <el-radio-button label="panel">面板</el-radio-button>
+                    <el-radio-button label="list">{{ t('rfqDetail.list') }}</el-radio-button>
+                    <el-radio-button label="panel">{{ t('rfqDetail.panel') }}</el-radio-button>
                   </el-radio-group>
                   <button
                     v-if="showAssignPurchaserToolbar"
@@ -232,13 +232,13 @@
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                     </svg>
-                    分配采购员
+                    {{ t('rfqDetail.assignPurchaser') }}
                   </button>
                   <button type="button" class="btn-add-item" @click="loadItems">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/>
                     </svg>
-                    刷新最优报价
+                    {{ t('rfqDetail.refreshBestQuote') }}
                   </button>
                 </div>
               </div>
@@ -253,7 +253,7 @@
                     <rect x="3" y="4" width="18" height="16" rx="2"/>
                     <path d="M7 8h10M7 12h6"/>
                   </svg>
-                  <p>暂无需求明细</p>
+                  <p>{{ t('rfqDetail.noItems') }}</p>
                 </div>
                 <div v-else class="items-panel-list">
                   <div
@@ -262,7 +262,7 @@
                     class="item-panel-card"
                   >
                     <div class="item-panel-card__head">
-                      <span class="item-panel-card__idx">明细 {{ idx + 1 }}</span>
+                      <span class="item-panel-card__idx">{{ t('rfqDetail.itemN', { n: idx + 1 }) }}</span>
                     </div>
                     <el-row :gutter="16" class="item-panel-row">
                       <el-col :xs="24" :sm="12" :md="6">
@@ -413,7 +413,7 @@
                         <template #dropdown>
                           <el-dropdown-menu>
                             <el-dropdown-item @click.stop="showAssignDialog">
-                              <span class="op-more-item op-more-item--primary">分配采购员</span>
+                            <span class="op-more-item op-more-item--primary">{{ t('rfqDetail.assignPurchaser') }}</span>
                             </el-dropdown-item>
                           </el-dropdown-menu>
                         </template>
@@ -430,7 +430,7 @@
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
                   <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
                 </svg>
-                <p>暂无关闭记录</p>
+                <p>{{ t('rfqDetail.noCloseRecords') }}</p>
               </div>
               <CrmDataTable v-else :data="closeRecords" class="quantum-table" :header-cell-style="headerCellStyle" :cell-style="cellStyle">
                 <el-table-column label="关闭类型" width="120">
@@ -453,54 +453,54 @@
     </div>
 
     <!-- 分配采购员弹窗 -->
-    <el-dialog v-model="assignDialogVisible" title="分配采购员" width="480px" :close-on-click-modal="false">
+    <el-dialog v-model="assignDialogVisible" :title="t('rfqDetail.assignPurchaser')" width="480px" :close-on-click-modal="false">
       <div v-if="recommendedPurchaser" class="recommend-card">
         <div class="recommend-avatar">{{ recommendedPurchaser.name?.charAt(0) }}</div>
         <div>
           <div class="recommend-name">{{ recommendedPurchaser.name }}</div>
-          <div class="recommend-meta">系统推荐 · 当前处理中：{{ recommendedPurchaser.handlingCount ?? 0 }} 条</div>
+          <div class="recommend-meta">{{ t('rfqDetail.recommendMeta', { count: recommendedPurchaser.handlingCount ?? 0 }) }}</div>
         </div>
-        <button class="btn-use-recommend" @click="assignForm.purchaserId = recommendedPurchaser.id">使用推荐</button>
+        <button class="btn-use-recommend" @click="assignForm.purchaserId = recommendedPurchaser.id">{{ t('rfqDetail.useRecommend') }}</button>
       </div>
       <el-form :model="assignForm" label-width="90px" style="margin-top: 16px;">
-        <el-form-item label="采购员" required>
+        <el-form-item :label="t('rfqDetail.fields.purchaser')" required>
           <PurchaserCascader
             v-model="assignForm.purchaserId"
-            placeholder="请选择采购员"
+            :placeholder="t('rfqDetail.selectPurchaser')"
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="assignForm.remark" type="textarea" :rows="2" placeholder="分配备注（可选）" />
+        <el-form-item :label="t('rfqDetail.fields.remark')">
+          <el-input v-model="assignForm.remark" type="textarea" :rows="2" :placeholder="t('rfqDetail.assignRemark')" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <button class="btn-secondary" @click="assignDialogVisible = false">取消</button>
+        <button class="btn-secondary" @click="assignDialogVisible = false">{{ t('common.cancel') }}</button>
         <button class="btn-primary" :disabled="assignLoading" @click="handleAssignConfirm" style="margin-left: 8px;">
-          {{ assignLoading ? '分配中...' : '确认分配' }}
+          {{ assignLoading ? t('rfqDetail.assigning') : t('rfqDetail.confirmAssign') }}
         </button>
       </template>
     </el-dialog>
 
     <!-- 关闭需求弹窗 -->
-    <el-dialog v-model="closeDialogVisible" title="关闭需求" width="420px" :close-on-click-modal="false">
+    <el-dialog v-model="closeDialogVisible" :title="t('rfqDetail.closeRfq')" width="420px" :close-on-click-modal="false">
       <el-form :model="closeForm" label-width="90px">
-        <el-form-item label="关闭类型" required>
-          <el-select v-model="closeForm.closeType" placeholder="请选择" style="width: 100%">
-            <el-option label="正常关闭" :value="1" />
-            <el-option label="客户取消" :value="2" />
-            <el-option label="价格不符" :value="3" />
-            <el-option label="其他原因" :value="9" />
+        <el-form-item :label="t('rfqDetail.fields.closeType')" required>
+          <el-select v-model="closeForm.closeType" :placeholder="t('rfqDetail.select')" style="width: 100%">
+            <el-option :label="t('rfqDetail.closeType.normal')" :value="1" />
+            <el-option :label="t('rfqDetail.closeType.customerCancel')" :value="2" />
+            <el-option :label="t('rfqDetail.closeType.priceMismatch')" :value="3" />
+            <el-option :label="t('rfqDetail.closeType.other')" :value="9" />
           </el-select>
         </el-form-item>
-        <el-form-item label="关闭原因" required>
-          <el-input v-model="closeForm.reason" type="textarea" :rows="3" placeholder="请填写关闭原因" />
+        <el-form-item :label="t('rfqDetail.fields.closeReason')" required>
+          <el-input v-model="closeForm.reason" type="textarea" :rows="3" :placeholder="t('rfqDetail.closeReasonPlaceholder')" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <button class="btn-secondary" @click="closeDialogVisible = false">取消</button>
+        <button class="btn-secondary" @click="closeDialogVisible = false">{{ t('common.cancel') }}</button>
         <button class="btn-primary" :disabled="closeLoading" @click="handleCloseConfirm" style="margin-left: 8px;">
-          {{ closeLoading ? '关闭中...' : '确认关闭' }}
+          {{ closeLoading ? t('rfqDetail.closing') : t('rfqDetail.confirmClose') }}
         </button>
       </template>
     </el-dialog>
@@ -510,6 +510,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElNotification, ElMessageBox } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
 import { favoriteApi } from '@/api/favorite'
@@ -527,6 +528,7 @@ import {
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const authStore = useAuthStore()
 const rfqId = route.params.id as string
 
@@ -555,8 +557,8 @@ const activeTab = ref('items')
 const itemsViewMode = ref<'list' | 'panel'>('list')
 
 const tabs = computed(() => [
-  { key: 'items', label: '需求明细', count: rfqItems.value.length },
-  { key: 'closeRecords', label: '关闭记录', count: closeRecords.value.length }
+  { key: 'items', label: t('rfqDetail.tabs.items'), count: rfqItems.value.length },
+  { key: 'closeRecords', label: t('rfqDetail.tabs.closeRecords'), count: closeRecords.value.length }
 ])
 
 const assignDialogVisible = ref(false)
@@ -589,26 +591,26 @@ const cellStyle = {
 
 function getStatusLabel(status?: number) {
   const map: Record<number, string> = {
-    0: '草稿', 1: '待处理', 2: '已分配', 3: '处理中',
-    4: '已报价', 5: '已接受', 6: '已拒绝', 7: '已关闭', 8: '已取消'
+    0: t('rfqDetail.status.draft'), 1: t('rfqDetail.status.pending'), 2: t('rfqDetail.status.assigned'), 3: t('rfqDetail.status.processing'),
+    4: t('rfqDetail.status.quoted'), 5: t('rfqDetail.status.accepted'), 6: t('rfqDetail.status.rejected'), 7: t('rfqDetail.status.closed'), 8: t('rfqDetail.status.cancelled')
   }
-  return status !== undefined ? (map[status] ?? '未知') : '—'
+  return status !== undefined ? (map[status] ?? t('rfqDetail.unknown')) : t('quoteList.na')
 }
 function getSourceLabel(source?: number) {
-  const map: Record<number, string> = { 1: '线下', 2: '线上', 3: '邮件', 4: '电话', 5: '导入' }
-  return source !== undefined ? (map[source] ?? '—') : '—'
+  const map: Record<number, string> = { 1: t('rfqDetail.source.offline'), 2: t('rfqDetail.source.online'), 3: t('rfqDetail.source.email'), 4: t('rfqDetail.source.phone'), 5: t('rfqDetail.source.import') }
+  return source !== undefined ? (map[source] ?? t('quoteList.na')) : t('quoteList.na')
 }
 function getTargetTypeLabel(type?: number) {
-  const map: Record<number, string> = { 1: '比价需求', 2: '独家需求', 3: '紧急需求', 4: '常规需求' }
-  return type !== undefined ? (map[type] ?? '—') : '—'
+  const map: Record<number, string> = { 1: t('rfqDetail.targetType.priceCompare'), 2: t('rfqDetail.targetType.exclusive'), 3: t('rfqDetail.targetType.urgent'), 4: t('rfqDetail.targetType.normal') }
+  return type !== undefined ? (map[type] ?? t('quoteList.na')) : t('quoteList.na')
 }
 function getPurchaserStatusLabel(status?: number) {
-  const map: Record<number, string> = { 0: '待处理', 1: '处理中', 2: '已完成', 3: '已拒绝' }
-  return status !== undefined ? (map[status] ?? '—') : '—'
+  const map: Record<number, string> = { 0: t('rfqDetail.purchaserStatus.pending'), 1: t('rfqDetail.purchaserStatus.processing'), 2: t('rfqDetail.purchaserStatus.done'), 3: t('rfqDetail.purchaserStatus.rejected') }
+  return status !== undefined ? (map[status] ?? t('quoteList.na')) : t('quoteList.na')
 }
 function getCloseTypeLabel(type?: number) {
-  const map: Record<number, string> = { 1: '正常关闭', 2: '客户取消', 3: '价格不符', 9: '其他原因' }
-  return type !== undefined ? (map[type] ?? '—') : '—'
+  const map: Record<number, string> = { 1: t('rfqDetail.closeType.normal'), 2: t('rfqDetail.closeType.customerCancel'), 3: t('rfqDetail.closeType.priceMismatch'), 9: t('rfqDetail.closeType.other') }
+  return type !== undefined ? (map[type] ?? t('quoteList.na')) : t('quoteList.na')
 }
 function formatDate(val?: string) {
   if (!val) return '—'
@@ -653,15 +655,15 @@ async function toggleFavorite() {
     if (rfqFavorited.value) {
       await favoriteApi.removeFavorite(RFQ_FAVORITE_ENTITY_TYPE, rfqId)
       rfqFavorited.value = false
-      ElNotification.success({ title: '已取消收藏', message: '可从需求列表中继续查看该需求' })
+      ElNotification.success({ title: t('rfqDetail.toast.unfavoritedTitle'), message: t('rfqDetail.toast.unfavoritedMessage') })
     } else {
       await favoriteApi.addFavorite({ entityType: RFQ_FAVORITE_ENTITY_TYPE, entityId: rfqId })
       rfqFavorited.value = true
-      ElNotification.success({ title: '已收藏', message: '需求主记录已加入您的收藏' })
+      ElNotification.success({ title: t('rfqDetail.toast.favoritedTitle'), message: t('rfqDetail.toast.favoritedMessage') })
     }
     window.dispatchEvent(new Event(RFQ_FAVORITES_CHANGED_EVENT))
   } catch {
-    ElNotification.error({ title: '操作失败', message: '收藏状态更新失败，请稍后重试' })
+    ElNotification.error({ title: t('rfqDetail.toast.actionFailedTitle'), message: t('rfqDetail.toast.favoriteFailedMessage') })
   } finally {
     favoriteLoading.value = false
   }
@@ -680,7 +682,7 @@ async function loadRFQ() {
     }
     await loadFavoriteState()
   } catch {
-    ElNotification.error({ title: '加载失败', message: '需求详情加载失败，请检查网络连接' })
+    ElNotification.error({ title: t('rfqDetail.toast.loadFailedTitle'), message: t('rfqDetail.toast.loadFailedMessage') })
   } finally {
     loading.value = false
   }
@@ -717,41 +719,41 @@ function showCloseDialog() {
 
 async function handleAssignConfirm() {
   if (!assignForm.purchaserId) {
-    ElNotification.warning({ title: '请选择采购员', message: '采购员不能为空' }); return
+    ElNotification.warning({ title: t('rfqDetail.toast.selectPurchaserTitle'), message: t('rfqDetail.toast.selectPurchaserMessage') }); return
   }
   assignLoading.value = true
   try {
     await rfqApi.assignPurchaser(rfqId, { purchaserId: assignForm.purchaserId, remark: assignForm.remark })
-    ElNotification.success({ title: '分配成功', message: '采购员已成功分配' })
+    ElNotification.success({ title: t('rfqDetail.toast.assignSuccessTitle'), message: t('rfqDetail.toast.assignSuccessMessage') })
     assignDialogVisible.value = false
     await loadRFQ()
     await loadItems()
-  } catch { ElNotification.error({ title: '分配失败', message: '采购员分配失败，请重试' }) }
+  } catch { ElNotification.error({ title: t('rfqDetail.toast.assignFailedTitle'), message: t('rfqDetail.toast.assignFailedMessage') }) }
   finally { assignLoading.value = false }
 }
 
 async function handleCloseConfirm() {
   if (!closeForm.reason) {
-    ElNotification.warning({ title: '请填写关闭原因', message: '关闭原因不能为空' }); return
+    ElNotification.warning({ title: t('rfqDetail.toast.closeReasonRequiredTitle'), message: t('rfqDetail.toast.closeReasonRequiredMessage') }); return
   }
   closeLoading.value = true
   try {
     await rfqApi.addCloseRecord(rfqId, { closeType: closeForm.closeType, closeReason: closeForm.reason })
-    ElNotification.success({ title: '操作成功', message: '需求已关闭' })
+    ElNotification.success({ title: t('rfqDetail.toast.actionSuccessTitle'), message: t('rfqDetail.toast.closedMessage') })
     closeDialogVisible.value = false; loadRFQ(); loadCloseRecords()
-  } catch { ElNotification.error({ title: '操作失败', message: '关闭需求失败，请重试' }) }
+  } catch { ElNotification.error({ title: t('rfqDetail.toast.actionFailedTitle'), message: t('rfqDetail.toast.closeFailedMessage') }) }
   finally { closeLoading.value = false }
 }
 
 async function handleDelete() {
   try {
     await ElMessageBox.confirm(
-      `确定删除需求「${rfq.value?.rfqCode}」吗？此操作不可撤销。`,
-      '删除确认',
-      { confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'error' }
+      t('rfqDetail.deleteConfirm', { code: rfq.value?.rfqCode }),
+      t('rfqDetail.deleteTitle'),
+      { confirmButtonText: t('rfqDetail.confirmDelete'), cancelButtonText: t('common.cancel'), type: 'error' }
     )
     await rfqApi.deleteRFQ(rfqId)
-    ElNotification.success({ title: '删除成功', message: '需求已删除' })
+    ElNotification.success({ title: t('rfqDetail.toast.deleteSuccessTitle'), message: t('rfqDetail.toast.deleteSuccessMessage') })
     router.push('/rfqlist')
   } catch { /* 取消 */ }
 }

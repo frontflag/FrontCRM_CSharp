@@ -2,30 +2,30 @@
   <div class="system-page">
     <el-card>
       <div class="toolbar">
-        <div class="title">{{ isEdit ? '编辑员工' : '新增员工' }}</div>
+        <div class="title">{{ isEdit ? t('systemUser.edit') : t('systemUser.create') }}</div>
       </div>
 
       <el-form :model="formData" label-width="120px" :disabled="loading">
-        <el-form-item label="员工账号">
+        <el-form-item :label="t('systemUser.colUserName')">
           <el-input v-model="formData.userName" :disabled="isEdit" />
         </el-form-item>
-        <el-form-item v-if="!isEdit" label="密码">
+        <el-form-item v-if="!isEdit" :label="t('login.passwordLabel')">
           <el-input v-model="formData.password" type="password" show-password />
         </el-form-item>
 
-        <el-form-item label="真实姓名">
+        <el-form-item :label="t('systemUser.colRealName')">
           <el-input v-model="formData.realName" />
         </el-form-item>
-        <el-form-item label="邮箱">
+        <el-form-item :label="t('systemUser.colEmail')">
           <el-input v-model="formData.email" />
         </el-form-item>
-        <el-form-item label="手机">
+        <el-form-item :label="t('systemUser.colMobile')">
           <el-input v-model="formData.mobile" />
         </el-form-item>
-        <el-form-item label="状态">
+        <el-form-item :label="t('systemUser.colStatus')">
           <el-select v-model="formData.status" style="width: 160px">
-            <el-option :value="1" label="启用" />
-            <el-option :value="0" label="禁用" />
+            <el-option :value="1" :label="t('systemUser.statusEnabled')" />
+            <el-option :value="0" :label="t('systemUser.statusDisabled')" />
           </el-select>
         </el-form-item>
 
@@ -70,9 +70,9 @@
         </el-form-item>
 
         <div class="footer-bar">
-          <el-button @click="router.push({ name: 'UserList' })">返回</el-button>
+          <el-button @click="router.push({ name: 'UserList' })">{{ t('rfqDetail.back') }}</el-button>
           <el-button type="primary" :loading="saving" @click="handleSubmit">
-            {{ isEdit ? '保存修改' : '创建员工' }}
+            {{ isEdit ? t('common.save') : t('systemUser.create') }}
           </el-button>
         </div>
       </el-form>
@@ -83,6 +83,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { rbacAdminApi, type AdminUserDto, type RbacDepartment, type RbacRole } from '@/api/rbacAdmin'
 import { useAuthStore } from '@/stores/auth'
@@ -90,6 +91,7 @@ import { useAuthStore } from '@/stores/auth'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
 
 const canGrantSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 

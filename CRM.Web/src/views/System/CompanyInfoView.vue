@@ -2,8 +2,8 @@
   <div class="company-info-page">
     <div class="page-header">
       <div class="header-left">
-        <h2 class="page-title">公司信息</h2>
-        <p class="page-sub">维护公司主体、银行、Logo、印章、仓库及系统发信（SMTP）参数；多组资料可设默认与启用状态。</p>
+        <h2 class="page-title">{{ t('companyInfo.pageTitle') }}</h2>
+        <p class="page-sub">{{ t('companyInfo.pageSubtitle') }}</p>
       </div>
     </div>
 
@@ -26,51 +26,67 @@
         <div v-show="activeNav === 'basic'" class="form-section">
           <div class="section-head">
             <div class="section-head__left">
-              <div class="section-title"><span class="title-bar"></span>公司基础信息</div>
-              <p class="section-hint">可维护多组；「默认」整站仅一组；禁用的组不参与默认业务引用。</p>
+              <div class="section-title"><span class="title-bar"></span>{{ t('companyInfo.basic.sectionTitle') }}</div>
+              <p class="section-hint">{{ t('companyInfo.basic.sectionHint') }}</p>
             </div>
-            <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">全部保存</el-button>
+            <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">{{ t('companyInfo.saveAll') }}</el-button>
           </div>
 
           <div v-for="(row, idx) in basicInfos" :key="row.id" class="group-card">
             <div class="group-card__head">
-              <span class="group-card__title">公司资料 #{{ idx + 1 }}</span>
+              <span class="group-card__title">{{ t('companyInfo.basic.groupTitle', { n: idx + 1 }) }}</span>
               <div class="group-card__actions">
                 <el-checkbox
                   :model-value="row.isDefault"
                   @update:model-value="(on: boolean) => toggleDefault(basicInfos, row, on)"
                 >
-                  默认
+                  {{ t('companyInfo.common.default') }}
                 </el-checkbox>
-                <span class="switch-label">启用</span>
+                <span class="switch-label">{{ t('companyInfo.common.enabled') }}</span>
                 <el-switch v-model="row.enabled" />
               </div>
             </div>
             <el-form label-width="120px" class="settings-form" :model="row">
               <el-row :gutter="16">
                 <el-col :span="12">
-                  <el-form-item label="公司名称"><el-input v-model="row.companyName" placeholder="公司名称" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.basic.companyName')">
+                    <el-input v-model="row.companyName" :placeholder="t('companyInfo.basic.phCompanyName')" />
+                  </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="纳税人识别号"><el-input v-model="row.taxId" placeholder="税号" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.basic.taxId')">
+                    <el-input v-model="row.taxId" :placeholder="t('companyInfo.basic.phTaxId')" />
+                  </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="法人"><el-input v-model="row.legalPerson" placeholder="法人" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.basic.legalPerson')">
+                    <el-input v-model="row.legalPerson" :placeholder="t('companyInfo.basic.phLegalPerson')" />
+                  </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="邮政编码"><el-input v-model="row.postalCode" placeholder="邮编" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.basic.postalCode')">
+                    <el-input v-model="row.postalCode" :placeholder="t('companyInfo.basic.phPostalCode')" />
+                  </el-form-item>
                 </el-col>
                 <el-col :span="24">
-                  <el-form-item label="公司地址"><el-input v-model="row.address" placeholder="地址" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.basic.address')">
+                    <el-input v-model="row.address" :placeholder="t('companyInfo.basic.phAddress')" />
+                  </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="公司电话"><el-input v-model="row.phone" placeholder="电话" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.basic.phone')">
+                    <el-input v-model="row.phone" :placeholder="t('companyInfo.basic.phPhone')" />
+                  </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="公司传真"><el-input v-model="row.fax" placeholder="传真" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.basic.fax')">
+                    <el-input v-model="row.fax" :placeholder="t('companyInfo.basic.phFax')" />
+                  </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="公司邮箱"><el-input v-model="row.email" placeholder="邮箱" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.basic.email')">
+                    <el-input v-model="row.email" :placeholder="t('companyInfo.basic.phEmail')" />
+                  </el-form-item>
                 </el-col>
               </el-row>
             </el-form>
@@ -80,7 +96,7 @@
                 circle
                 type="primary"
                 plain
-                title="在本组下方新增一组"
+                :title="t('companyInfo.common.addGroupBelow')"
                 @click="insertBasicAfter(idx)"
               >
                 <el-icon><Plus /></el-icon>
@@ -89,7 +105,7 @@
                 class="group-mini-btn group-mini-btn--minus"
                 circle
                 plain
-                title="删除本组"
+                :title="t('companyInfo.common.removeGroup')"
                 @click="removeBasicAt(idx)"
               >
                 <el-icon><Minus /></el-icon>
@@ -102,54 +118,58 @@
         <div v-show="activeNav === 'bank'" class="form-section">
           <div class="section-head">
             <div class="section-head__left">
-              <div class="section-title"><span class="title-bar"></span>公司银行信息</div>
-              <p class="section-hint">币别：RMB / USD / EUR；银行类型：人民币账户 / 外币账户；用途：付款 / 收款。</p>
+              <div class="section-title"><span class="title-bar"></span>{{ t('companyInfo.bank.sectionTitle') }}</div>
+              <p class="section-hint">{{ t('companyInfo.bank.sectionHint') }}</p>
             </div>
-            <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">全部保存</el-button>
+            <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">{{ t('companyInfo.saveAll') }}</el-button>
           </div>
 
           <div v-for="(row, idx) in bankInfos" :key="row.id" class="group-card">
             <div class="group-card__head">
-              <span class="group-card__title">银行账户 #{{ idx + 1 }}</span>
+              <span class="group-card__title">{{ t('companyInfo.bank.groupTitle', { n: idx + 1 }) }}</span>
               <div class="group-card__actions">
                 <el-checkbox
                   :model-value="row.isDefault"
                   @update:model-value="(on: boolean) => toggleDefault(bankInfos, row, on)"
                 >
-                  默认
+                  {{ t('companyInfo.common.default') }}
                 </el-checkbox>
-                <span class="switch-label">启用</span>
+                <span class="switch-label">{{ t('companyInfo.common.enabled') }}</span>
                 <el-switch v-model="row.enabled" />
               </div>
             </div>
             <el-form label-width="120px" class="settings-form" :model="row">
               <el-row :gutter="16">
                 <el-col :span="12">
-                  <el-form-item label="银行名称"><el-input v-model="row.bankName" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.bank.bankName')"><el-input v-model="row.bankName" /></el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="账户名"><el-input v-model="row.accountName" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.bank.accountName')"><el-input v-model="row.accountName" /></el-form-item>
                 </el-col>
                 <el-col :span="24">
-                  <el-form-item label="银行地址"><el-input v-model="row.bankAddress" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.bank.bankAddress')"><el-input v-model="row.bankAddress" /></el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="SWIFT">
-                    <template #label><span title="国际银行代码">SWIFT</span></template>
-                    <el-input v-model="row.swift" placeholder="国际银行代码" />
+                  <el-form-item>
+                    <template #label>
+                      <span :title="t('companyInfo.bank.swiftTitle')">{{ t('companyInfo.bank.swift') }}</span>
+                    </template>
+                    <el-input v-model="row.swift" :placeholder="t('companyInfo.bank.phSwift')" />
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="IBAN">
-                    <template #label><span title="国际银行账号">IBAN</span></template>
-                    <el-input v-model="row.iban" placeholder="国际银行账号" />
+                  <el-form-item>
+                    <template #label>
+                      <span :title="t('companyInfo.bank.ibanTitle')">{{ t('companyInfo.bank.iban') }}</span>
+                    </template>
+                    <el-input v-model="row.iban" :placeholder="t('companyInfo.bank.phIban')" />
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="联行号"><el-input v-model="row.bankCode" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.bank.bankCode')"><el-input v-model="row.bankCode" /></el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="币别">
+                  <el-form-item :label="t('companyInfo.bank.currency')">
                     <el-select v-model="row.currency" style="width: 100%">
                       <el-option label="RMB" value="RMB" />
                       <el-option label="USD" value="USD" />
@@ -158,23 +178,23 @@
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="银行类型">
+                  <el-form-item :label="t('companyInfo.bank.bankType')">
                     <el-select v-model="row.bankType" style="width: 100%">
-                      <el-option label="人民币账户" value="rmb" />
-                      <el-option label="外币账户" value="foreign" />
+                      <el-option :label="t('companyInfo.bank.bankTypeRmb')" value="rmb" />
+                      <el-option :label="t('companyInfo.bank.bankTypeForeign')" value="foreign" />
                     </el-select>
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="用途类型">
+                  <el-form-item :label="t('companyInfo.bank.purposeType')">
                     <el-select v-model="row.purposeType" style="width: 100%">
-                      <el-option label="付款" value="payment" />
-                      <el-option label="收款" value="receipt" />
+                      <el-option :label="t('companyInfo.bank.purposePayment')" value="payment" />
+                      <el-option :label="t('companyInfo.bank.purposeReceipt')" value="receipt" />
                     </el-select>
                   </el-form-item>
                 </el-col>
                 <el-col :span="24">
-                  <el-form-item label="备注"><el-input v-model="row.remark" type="textarea" :rows="2" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.bank.remark')"><el-input v-model="row.remark" type="textarea" :rows="2" /></el-form-item>
                 </el-col>
               </el-row>
             </el-form>
@@ -184,7 +204,7 @@
                 circle
                 type="primary"
                 plain
-                title="在本组下方新增一组"
+                :title="t('companyInfo.common.addGroupBelow')"
                 @click="insertBankAfter(idx)"
               >
                 <el-icon><Plus /></el-icon>
@@ -193,7 +213,7 @@
                 class="group-mini-btn group-mini-btn--minus"
                 circle
                 plain
-                title="删除本组"
+                :title="t('companyInfo.common.removeGroup')"
                 @click="removeBankAt(idx)"
               >
                 <el-icon><Minus /></el-icon>
@@ -206,42 +226,44 @@
         <div v-show="activeNav === 'logo'" class="form-section">
           <div class="section-head">
             <div class="section-head__left">
-              <div class="section-title"><span class="title-bar"></span>公司 Logo</div>
+              <div class="section-title"><span class="title-bar"></span>{{ t('companyInfo.logo.sectionTitle') }}</div>
               <p class="section-hint">
-                可维护多组 Logo；标记为「默认」且已保存文件的组会用于采购订单报表顶栏。「启用」不影响报表使用该默认 Logo；上传后务必点击「全部保存」，否则报表中仍无文件。
+                {{ t('companyInfo.logo.sectionHint') }}
               </p>
             </div>
-            <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">全部保存</el-button>
+            <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">{{ t('companyInfo.saveAll') }}</el-button>
           </div>
 
           <div v-for="(row, idx) in logos" :key="row.id" class="group-card">
             <div class="group-card__head">
-              <span class="group-card__title">Logo #{{ idx + 1 }}</span>
+              <span class="group-card__title">{{ t('companyInfo.logo.groupTitle', { n: idx + 1 }) }}</span>
               <div class="group-card__actions">
                 <el-checkbox
                   :model-value="row.isDefault"
                   @update:model-value="(on: boolean) => toggleDefault(logos, row, on)"
                 >
-                  默认
+                  {{ t('companyInfo.common.default') }}
                 </el-checkbox>
-                <span class="switch-label">启用</span>
+                <span class="switch-label">{{ t('companyInfo.common.enabled') }}</span>
                 <el-switch v-model="row.enabled" />
               </div>
             </div>
             <el-form label-width="120px" class="settings-form" :model="row">
               <el-row :gutter="16">
                 <el-col :span="24">
-                  <el-form-item label="Logo 名称"><el-input v-model="row.logoName" placeholder="如 主站横版 Logo" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.logo.logoName')">
+                    <el-input v-model="row.logoName" :placeholder="t('companyInfo.logo.phLogoName')" />
+                  </el-form-item>
                 </el-col>
                 <el-col :span="24">
-                  <el-form-item label="Logo 文件">
+                  <el-form-item :label="t('companyInfo.logo.logoFile')">
                     <div class="upload-row">
                       <el-upload
                         :show-file-list="false"
                         accept="image/*,.svg"
                         :http-request="(opt: UploadRequestOptions) => onLogoUpload(row, opt)"
                       >
-                        <el-button size="small" type="primary" plain>上传 Logo 文件</el-button>
+                        <el-button size="small" type="primary" plain>{{ t('companyInfo.logo.upload') }}</el-button>
                       </el-upload>
                       <span v-if="row.fileName" class="file-hint">{{ row.fileName }}</span>
                       <a
@@ -249,7 +271,7 @@
                         href="#"
                         class="preview-link"
                         @click.prevent="openPreviewNewTab(row.documentId)"
-                      >新窗口预览</a>
+                      >{{ t('companyInfo.logo.previewNewTab') }}</a>
                     </div>
                     <div
                       v-if="row.documentId && previewByDocId[row.documentId]"
@@ -267,9 +289,9 @@
                           href="#"
                           class="preview-link"
                           @click.prevent="openPreviewNewTab(row.documentId)"
-                        >新窗口打开</a>
+                        >{{ t('companyInfo.logo.openNewTab') }}</a>
                       </div>
-                      <div v-else class="asset-preview__other">已上传（非图片）</div>
+                      <div v-else class="asset-preview__other">{{ t('companyInfo.logo.uploadedNonImage') }}</div>
                     </div>
                   </el-form-item>
                 </el-col>
@@ -281,7 +303,7 @@
                 circle
                 type="primary"
                 plain
-                title="在本组下方新增一组"
+                :title="t('companyInfo.common.addGroupBelow')"
                 @click="insertLogoAfter(idx)"
               >
                 <el-icon><Plus /></el-icon>
@@ -290,7 +312,7 @@
                 class="group-mini-btn group-mini-btn--minus"
                 circle
                 plain
-                title="删除本组"
+                :title="t('companyInfo.common.removeGroup')"
                 @click="removeLogoAt(idx)"
               >
                 <el-icon><Minus /></el-icon>
@@ -303,43 +325,43 @@
         <div v-show="activeNav === 'seal'" class="form-section">
           <div class="section-head">
             <div class="section-head__left">
-              <div class="section-title"><span class="title-bar"></span>公司印章</div>
-              <p class="section-hint">可维护多组印章；上传文件后请先保存。</p>
+              <div class="section-title"><span class="title-bar"></span>{{ t('companyInfo.seal.sectionTitle') }}</div>
+              <p class="section-hint">{{ t('companyInfo.seal.sectionHint') }}</p>
             </div>
-            <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">全部保存</el-button>
+            <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">{{ t('companyInfo.saveAll') }}</el-button>
           </div>
 
           <div v-for="(row, idx) in seals" :key="row.id" class="group-card">
             <div class="group-card__head">
-              <span class="group-card__title">印章 #{{ idx + 1 }}</span>
+              <span class="group-card__title">{{ t('companyInfo.seal.groupTitle', { n: idx + 1 }) }}</span>
               <div class="group-card__actions">
                 <el-checkbox
                   :model-value="row.isDefault"
                   @update:model-value="(on: boolean) => toggleDefault(seals, row, on)"
                 >
-                  默认
+                  {{ t('companyInfo.common.default') }}
                 </el-checkbox>
-                <span class="switch-label">启用</span>
+                <span class="switch-label">{{ t('companyInfo.common.enabled') }}</span>
                 <el-switch v-model="row.enabled" />
               </div>
             </div>
             <el-form label-width="120px" class="settings-form" :model="row">
               <el-row :gutter="16">
                 <el-col :span="12">
-                  <el-form-item label="印章名称"><el-input v-model="row.sealName" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.seal.sealName')"><el-input v-model="row.sealName" /></el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="使用场景"><el-input v-model="row.useScene" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.seal.useScene')"><el-input v-model="row.useScene" /></el-form-item>
                 </el-col>
                 <el-col :span="24">
-                  <el-form-item label="印章文件">
+                  <el-form-item :label="t('companyInfo.seal.sealFile')">
                     <div class="upload-row">
                       <el-upload
                         :show-file-list="false"
                         accept="image/*,.pdf"
                         :http-request="(opt: UploadRequestOptions) => onSealUpload(row, opt)"
                       >
-                        <el-button size="small" type="primary" plain>上传印章文件</el-button>
+                        <el-button size="small" type="primary" plain>{{ t('companyInfo.seal.upload') }}</el-button>
                       </el-upload>
                       <span v-if="row.fileName" class="file-hint">{{ row.fileName }}</span>
                       <a
@@ -347,7 +369,7 @@
                         href="#"
                         class="preview-link"
                         @click.prevent="openPreviewNewTab(row.documentId)"
-                      >新窗口预览</a>
+                      >{{ t('companyInfo.seal.previewNewTab') }}</a>
                     </div>
                     <div
                       v-if="row.documentId && previewByDocId[row.documentId]"
@@ -365,9 +387,9 @@
                           href="#"
                           class="preview-link"
                           @click.prevent="openPreviewNewTab(row.documentId)"
-                        >新窗口打开</a>
+                        >{{ t('companyInfo.seal.openNewTab') }}</a>
                       </div>
-                      <div v-else class="asset-preview__other">已上传（非图片）</div>
+                      <div v-else class="asset-preview__other">{{ t('companyInfo.seal.uploadedNonImage') }}</div>
                     </div>
                   </el-form-item>
                 </el-col>
@@ -379,7 +401,7 @@
                 circle
                 type="primary"
                 plain
-                title="在本组下方新增一组"
+                :title="t('companyInfo.common.addGroupBelow')"
                 @click="insertSealAfter(idx)"
               >
                 <el-icon><Plus /></el-icon>
@@ -388,7 +410,7 @@
                 class="group-mini-btn group-mini-btn--minus"
                 circle
                 plain
-                title="删除本组"
+                :title="t('companyInfo.common.removeGroup')"
                 @click="removeSealAt(idx)"
               >
                 <el-icon><Minus /></el-icon>
@@ -401,42 +423,44 @@
         <div v-show="activeNav === 'warehouse'" class="form-section">
           <div class="section-head">
             <div class="section-head__left">
-              <div class="section-title"><span class="title-bar"></span>公司仓库信息</div>
-              <p class="section-hint">可维护多组仓库联系信息。</p>
+              <div class="section-title"><span class="title-bar"></span>{{ t('companyInfo.warehouse.sectionTitle') }}</div>
+              <p class="section-hint">{{ t('companyInfo.warehouse.sectionHint') }}</p>
             </div>
-            <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">全部保存</el-button>
+            <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">{{ t('companyInfo.saveAll') }}</el-button>
           </div>
 
           <div v-for="(row, idx) in warehouses" :key="row.id" class="group-card">
             <div class="group-card__head">
-              <span class="group-card__title">仓库 #{{ idx + 1 }}</span>
+              <span class="group-card__title">{{ t('companyInfo.warehouse.groupTitle', { n: idx + 1 }) }}</span>
               <div class="group-card__actions">
                 <el-checkbox
                   :model-value="row.isDefault"
                   @update:model-value="(on: boolean) => toggleDefault(warehouses, row, on)"
                 >
-                  默认
+                  {{ t('companyInfo.common.default') }}
                 </el-checkbox>
-                <span class="switch-label">启用</span>
+                <span class="switch-label">{{ t('companyInfo.common.enabled') }}</span>
                 <el-switch v-model="row.enabled" />
               </div>
             </div>
             <el-form label-width="120px" class="settings-form" :model="row">
               <el-row :gutter="16">
                 <el-col :span="12">
-                  <el-form-item label="仓库名称"><el-input v-model="row.warehouseName" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.warehouse.warehouseName')"><el-input v-model="row.warehouseName" /></el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="联系人"><el-input v-model="row.contactName" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.warehouse.contactName')"><el-input v-model="row.contactName" /></el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="联系人电话"><el-input v-model="row.contactPhone" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.warehouse.contactPhone')"><el-input v-model="row.contactPhone" /></el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="工作时间"><el-input v-model="row.workHours" placeholder="如 9:00-18:00" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.warehouse.workHours')">
+                    <el-input v-model="row.workHours" :placeholder="t('companyInfo.warehouse.phWorkHours')" />
+                  </el-form-item>
                 </el-col>
                 <el-col :span="24">
-                  <el-form-item label="仓库地址"><el-input v-model="row.address" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.warehouse.address')"><el-input v-model="row.address" /></el-form-item>
                 </el-col>
               </el-row>
             </el-form>
@@ -446,7 +470,7 @@
                 circle
                 type="primary"
                 plain
-                title="在本组下方新增一组"
+                :title="t('companyInfo.common.addGroupBelow')"
                 @click="insertWarehouseAfter(idx)"
               >
                 <el-icon><Plus /></el-icon>
@@ -455,7 +479,7 @@
                 class="group-mini-btn group-mini-btn--minus"
                 circle
                 plain
-                title="删除本组"
+                :title="t('companyInfo.common.removeGroup')"
                 @click="removeWarehouseAt(idx)"
               >
                 <el-icon><Minus /></el-icon>
@@ -468,29 +492,29 @@
         <div v-show="activeNav === 'email'" class="form-section">
           <div class="section-head">
             <div class="section-head__left">
-              <div class="section-title"><span class="title-bar"></span>公司邮箱</div>
+              <div class="section-title"><span class="title-bar"></span>{{ t('companyInfo.smtp.sectionTitle') }}</div>
               <p class="section-hint">
-                用于采购订单报表「发送邮件」等系统发信。发信仅读取此处已保存的配置，不再使用 appsettings。
+                {{ t('companyInfo.smtp.sectionHint') }}
               </p>
             </div>
-            <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">全部保存</el-button>
+            <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">{{ t('companyInfo.saveAll') }}</el-button>
           </div>
 
           <div class="group-card group-card--single">
             <el-form label-width="140px" class="settings-form" :model="smtpEmail">
               <el-row :gutter="16">
                 <el-col :span="24">
-                  <el-form-item label="启用系统发信">
+                  <el-form-item :label="t('companyInfo.smtp.enableOutgoing')">
                     <el-switch v-model="smtpEmail.enabled" />
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="SMTP 服务器">
-                    <el-input v-model="smtpEmail.smtpHost" placeholder="如 smtp.example.com" clearable />
+                  <el-form-item :label="t('companyInfo.smtp.smtpHost')">
+                    <el-input v-model="smtpEmail.smtpHost" :placeholder="t('companyInfo.smtp.phSmtpHost')" clearable />
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="SMTP 端口">
+                  <el-form-item :label="t('companyInfo.smtp.smtpPort')">
                     <el-input-number
                       v-model="smtpEmail.smtpPort"
                       :min="1"
@@ -501,17 +525,17 @@
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="SMTP 账号">
-                    <el-input v-model="smtpEmail.user" placeholder="可选" clearable />
+                  <el-form-item :label="t('companyInfo.smtp.smtpUser')">
+                    <el-input v-model="smtpEmail.user" :placeholder="t('companyInfo.smtp.phOptional')" clearable />
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="SMTP 密码/授权码">
+                  <el-form-item :label="t('companyInfo.smtp.smtpPassword')">
                     <el-input
                       :model-value="smtpPasswordUi"
                       :type="smtpPasswordMaskActive ? 'text' : 'password'"
                       :show-password="!smtpPasswordMaskActive"
-                      placeholder="留空表示保留已保存的密码"
+                      :placeholder="t('companyInfo.smtp.phPasswordKeep')"
                       :clearable="!smtpPasswordMaskActive"
                       autocomplete="new-password"
                       @update:model-value="onSmtpPasswordInput"
@@ -521,23 +545,23 @@
                 </el-col>
                 <el-col v-if="smtpEmail.passwordSet" :span="24">
                   <el-alert type="info" :closable="false" show-icon>
-                    已保存的授权码以 ****** 显示；修改时请聚焦输入框后输入新授权码；不修改则直接保存即可。
+                    {{ t('companyInfo.smtp.passwordHintAlert') }}
                   </el-alert>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="发件人邮箱">
-                    <el-input v-model="smtpEmail.fromAddress" placeholder="发件人地址" clearable />
+                  <el-form-item :label="t('companyInfo.smtp.fromAddress')">
+                    <el-input v-model="smtpEmail.fromAddress" :placeholder="t('companyInfo.smtp.phFromAddress')" clearable />
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="发件人显示名">
-                    <el-input v-model="smtpEmail.fromName" placeholder="如 FrontCRM" clearable />
+                  <el-form-item :label="t('companyInfo.smtp.fromName')">
+                    <el-input v-model="smtpEmail.fromName" :placeholder="t('companyInfo.smtp.phFromName')" clearable />
                   </el-form-item>
                 </el-col>
                 <el-col :span="24">
-                  <el-form-item label="使用 TLS (STARTTLS)">
+                  <el-form-item :label="t('companyInfo.smtp.useTls')">
                     <el-switch v-model="smtpEmail.useSsl" />
-                    <span class="form-item-hint">常见 587 端口开启；若使用 465 SSL 需按邮箱服务商说明调整服务器与端口。</span>
+                    <span class="form-item-hint">{{ t('companyInfo.smtp.tlsHint') }}</span>
                   </el-form-item>
                 </el-col>
               </el-row>
@@ -551,6 +575,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, type Ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import type { UploadRequestOptions } from 'element-plus'
 import { OfficeBuilding, Wallet, Picture, PictureFilled, Location, Promotion, Plus, Minus } from '@element-plus/icons-vue'
@@ -569,6 +594,8 @@ import apiClient from '@/api/client'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 type AssetPreview = { url: string; kind: 'image' | 'pdf' | 'other' }
+
+const { t, locale } = useI18n()
 
 const activeNav = ref<'basic' | 'bank' | 'logo' | 'seal' | 'warehouse' | 'email'>('basic')
 const loading = ref(false)
@@ -626,7 +653,7 @@ async function openPreviewNewTab(documentId: string) {
   try {
     await documentApi.openPreviewInNewTab(documentId)
   } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '预览失败'))
+    ElMessage.error(getApiErrorMessage(e, t('companyInfo.messages.previewFailed')))
   }
 }
 
@@ -665,14 +692,17 @@ function onSmtpPasswordInput(v: string) {
   smtpEmail.value.password = v
 }
 
-const navItems = [
-  { key: 'basic' as const, label: '公司基础信息', icon: OfficeBuilding },
-  { key: 'bank' as const, label: '公司银行信息', icon: Wallet },
-  { key: 'logo' as const, label: '公司Logo', icon: Picture },
-  { key: 'seal' as const, label: '公司印章', icon: PictureFilled },
-  { key: 'warehouse' as const, label: '公司仓库信息', icon: Location },
-  { key: 'email' as const, label: '公司邮箱', icon: Promotion }
-]
+const navItems = computed(() => {
+  void locale.value
+  return [
+    { key: 'basic' as const, label: t('companyInfo.nav.basic'), icon: OfficeBuilding },
+    { key: 'bank' as const, label: t('companyInfo.nav.bank'), icon: Wallet },
+    { key: 'logo' as const, label: t('companyInfo.nav.logo'), icon: Picture },
+    { key: 'seal' as const, label: t('companyInfo.nav.seal'), icon: PictureFilled },
+    { key: 'warehouse' as const, label: t('companyInfo.nav.warehouse'), icon: Location },
+    { key: 'email' as const, label: t('companyInfo.nav.email'), icon: Promotion }
+  ]
+})
 
 /** HTTP 非安全上下文中无 crypto.randomUUID（仅 HTTPS/localhost 可用），需降级。 */
 function newId(): string {
@@ -788,7 +818,7 @@ function removeGroupAt<T extends { id: string; isDefault: boolean }>(list: Ref<T
   const arr = list.value
   if (index < 0 || index >= arr.length) return
   if (arr.length <= 1) {
-    ElMessage.warning('至少保留一组')
+    ElMessage.warning(t('companyInfo.messages.keepOneGroup'))
     return
   }
   const wasDefault = arr[index].isDefault
@@ -841,11 +871,11 @@ async function onLogoUpload(row: CompanyLogoRow, opt: UploadRequestOptions) {
     if (d) {
       row.documentId = d.id
       row.fileName = d.originalFileName
-      ElMessage.success('上传成功')
+      ElMessage.success(t('companyInfo.messages.uploadSuccess'))
       await refreshAssetPreviews()
     }
   } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '上传失败'))
+    ElMessage.error(getApiErrorMessage(e, t('companyInfo.messages.uploadFailed')))
   }
 }
 
@@ -857,11 +887,11 @@ async function onSealUpload(row: CompanySealRow, opt: UploadRequestOptions) {
     if (d) {
       row.documentId = d.id
       row.fileName = d.originalFileName
-      ElMessage.success('上传成功')
+      ElMessage.success(t('companyInfo.messages.uploadSuccess'))
       await refreshAssetPreviews()
     }
   } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '上传失败'))
+    ElMessage.error(getApiErrorMessage(e, t('companyInfo.messages.uploadFailed')))
   }
 }
 
@@ -910,7 +940,7 @@ async function load() {
     smtpPasswordMaskActive.value = pwdSet
     await refreshAssetPreviews()
   } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '加载失败'))
+    ElMessage.error(getApiErrorMessage(e, t('companyInfo.messages.loadFailed')))
     basicInfos.value = normalizeGroups([], emptyBasic)
     bankInfos.value = normalizeGroups([], emptyBank)
     logos.value = normalizeGroups([], emptyLogo)
@@ -928,10 +958,10 @@ async function saveAll() {
   saving.value = true
   try {
     await saveCompanyProfile(bundle())
-    ElMessage.success('已保存')
+    ElMessage.success(t('companyInfo.messages.saved'))
     await load()
   } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '保存失败'))
+    ElMessage.error(getApiErrorMessage(e, t('companyInfo.messages.saveFailed')))
   } finally {
     saving.value = false
   }

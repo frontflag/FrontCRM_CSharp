@@ -9,13 +9,13 @@
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
           </svg>
         </div>
-        <h1 class="page-title">客户回收站</h1>
-        <div class="count-badge">共 {{ totalCount }} 条已删除记录</div>
+        <h1 class="page-title">{{ t('customerRecycle.title') }}</h1>
+        <div class="count-badge">{{ t('customerRecycle.count', { count: totalCount }) }}</div>
       </div>
       <div class="header-right">
         <el-input
           v-model="keyword"
-          placeholder="搜索客户名称/编号"
+          :placeholder="t('customerRecycle.searchPlaceholder')"
           clearable
           size="default"
           style="width:220px"
@@ -38,7 +38,7 @@
           <polyline points="3 6 5 6 21 6"/>
           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
         </svg>
-        <p>回收站为空</p>
+        <p>{{ t('customerRecycle.empty') }}</p>
       </div>
 
       <div v-for="item in items" :key="item.id" class="record-card">
@@ -48,15 +48,15 @@
           <div class="record-meta">
             <span class="meta-code">{{ item.customerCode }}</span>
             <span class="meta-sep">·</span>
-            <span class="meta-text">删除时间：{{ formatDateTime(item.deletedAt || item.updatedAt) }}</span>
+            <span class="meta-text">{{ t('customerRecycle.deletedAt') }}{{ formatDateTime(item.deletedAt || item.updatedAt) }}</span>
             <span class="meta-sep">·</span>
-            <span class="meta-text">操作人：{{ item.deletedByUserName || '系统员工' }}</span>
+            <span class="meta-text">{{ t('customerRecycle.operator') }}{{ item.deletedByUserName || t('customerRecycle.systemUser') }}</span>
           </div>
           <div v-if="item.deleteReason || item.remark" class="record-reason">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            删除理由：{{ item.deleteReason || item.remark }}
+            {{ t('customerRecycle.reason') }}{{ item.deleteReason || item.remark }}
           </div>
         </div>
         <div class="record-actions">
@@ -64,7 +64,7 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px">
               <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
             </svg>
-            恢复客户
+            {{ t('customerRecycle.restore') }}
           </el-button>
         </div>
       </div>
@@ -87,10 +87,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { ElNotification, ElMessageBox } from 'element-plus';
+import { useI18n } from 'vue-i18n'
 import { customerApi } from '@/api/customer';
 import { formatDisplayDateTime } from '@/utils/displayDateTime';
 
 const loading = ref(false);
+const { t } = useI18n()
 const items = ref<any[]>([]);
 const totalCount = ref(0);
 const pageIndex = ref(1);
@@ -105,7 +107,7 @@ const fetchData = async () => {
     items.value = res?.items ?? res?.data ?? (Array.isArray(res) ? res : []);
     totalCount.value = res?.totalCount ?? res?.total ?? items.value.length;
   } catch {
-    ElNotification.error({ title: '加载失败', message: '获取回收站数据失败，请刷新重试' });
+    ElNotification.error({ title: t('customerRecycle.loadFailedTitle'), message: t('customerRecycle.loadFailedMessage') });
   } finally {
     loading.value = false;
   }
@@ -113,13 +115,17 @@ const fetchData = async () => {
 
 const handleRestore = async (item: any) => {
   try {
-    await ElMessageBox.confirm(`确定要恢复客户「${item.customerName || item.officialName}」吗？`, '确认恢复', { type: 'info' });
+    await ElMessageBox.confirm(
+      t('customerRecycle.restoreConfirm', { name: item.customerName || item.officialName }),
+      t('customerRecycle.restoreTitle'),
+      { type: 'info' }
+    );
     restoringId.value = item.id;
     await customerApi.restoreCustomer(item.id);
-    ElNotification.success({ title: '恢复成功', message: '客户已恢复到客户列表' });
+    ElNotification.success({ title: t('customerRecycle.restoreSuccessTitle'), message: t('customerRecycle.restoreSuccessMessage') });
     fetchData();
   } catch (e) {
-    if (e !== 'cancel') ElNotification.error({ title: '恢复失败', message: '客户恢复失败，请稍后重试' });
+    if (e !== 'cancel') ElNotification.error({ title: t('customerRecycle.restoreFailedTitle'), message: t('customerRecycle.restoreFailedMessage') });
   } finally {
     restoringId.value = null;
   }

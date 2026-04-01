@@ -2,8 +2,8 @@
   <div class="crm-system-list-page">
     <el-card class="crm-system-list-card" shadow="never">
       <div class="crm-system-list-toolbar">
-        <h1 class="crm-system-list-title">部门管理</h1>
-        <el-button type="primary" @click="router.push({ name: 'DepartmentCreate' })">新增部门</el-button>
+        <h1 class="crm-system-list-title">{{ t('systemDepartment.title') }}</h1>
+        <el-button type="primary" @click="router.push({ name: 'DepartmentCreate' })">{{ t('systemDepartment.create') }}</el-button>
       </div>
 
       <CrmDataTable
@@ -18,7 +18,7 @@
       >
         <template #col-status="{ row }">
           <el-tag effect="dark" :type="row.status === 1 ? 'success' : 'info'" size="small">
-            {{ row.status === 1 ? '启用' : '禁用' }}
+            {{ row.status === 1 ? t('systemUser.statusEnabled') : t('systemUser.statusDisabled') }}
           </el-tag>
         </template>
         <template #col-parentName="{ row }">
@@ -37,11 +37,11 @@
           {{ formatCreateTime(row.createTime || row.createdAt) }}
         </template>
         <template #col-createUser="{ row }">
-          {{ row.createUserName || row.createdBy || '-' }}
+          {{ row.createUserName || row.createdBy || t('quoteList.na') }}
         </template>
         <template #col-actions-header>
           <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
+            <span class="op-col-header-text">{{ t('systemDepartment.columns.actions') }}</span>
             <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
               {{ opColExpanded ? '>' : '<' }}
             </button>
@@ -50,8 +50,8 @@
         <template #col-actions="{ row }">
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
-              <el-button link type="primary" @click.stop="goDetail(row)">详情</el-button>
-              <el-button link type="primary" @click.stop="goEdit(row.id)">编辑</el-button>
+              <el-button link type="primary" @click.stop="goDetail(row)">{{ t('rfqItemList.actions.detail') }}</el-button>
+              <el-button link type="primary" @click.stop="goEdit(row.id)">{{ t('systemUser.edit') }}</el-button>
             </div>
 
             <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -61,10 +61,10 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="goDetail(row)">
-                    <span class="op-more-item op-more-item--primary">详情</span>
+                    <span class="op-more-item op-more-item--primary">{{ t('rfqItemList.actions.detail') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item @click.stop="goEdit(row.id)">
-                    <span class="op-more-item op-more-item--primary">编辑</span>
+                    <span class="op-more-item op-more-item--primary">{{ t('systemUser.edit') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -74,8 +74,8 @@
       </CrmDataTable>
       <div class="pagination-wrapper">
         <div class="list-footer-left">
-          <el-tooltip content="列设置" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+          <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
@@ -89,6 +89,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { rbacAdminApi, type RbacDepartment } from '@/api/rbacAdmin'
@@ -96,6 +97,7 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
+const { t } = useI18n()
 const loading = ref(false)
 const departments = ref<RbacDepartment[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
@@ -114,18 +116,18 @@ function toggleOpCol() {
 }
 
 const departmentTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'status', label: '状态', prop: 'status', width: 90, align: 'center' },
-  { key: 'departmentName', label: '部门名称', prop: 'departmentName', minWidth: 160, showOverflowTooltip: true },
-  { key: 'parentName', label: '上级部门', minWidth: 140, showOverflowTooltip: true },
-  { key: 'level', label: '层级', prop: 'level', width: 72 },
-  { key: 'saleDataScope', label: '销售数据范围', minWidth: 120 },
-  { key: 'purchaseDataScope', label: '采购数据范围', minWidth: 120 },
-  { key: 'identityType', label: '业务身份', minWidth: 100 },
-  { key: 'createTime', label: '创建时间', width: 160 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  { key: 'status', label: t('systemUser.colStatus'), prop: 'status', width: 90, align: 'center' },
+  { key: 'departmentName', label: t('systemDepartment.columns.departmentName'), prop: 'departmentName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'parentName', label: t('systemDepartment.columns.parentName'), minWidth: 140, showOverflowTooltip: true },
+  { key: 'level', label: t('systemDepartment.columns.level'), prop: 'level', width: 72 },
+  { key: 'saleDataScope', label: t('systemDepartment.columns.saleDataScope'), minWidth: 120 },
+  { key: 'purchaseDataScope', label: t('systemDepartment.columns.purchaseDataScope'), minWidth: 120 },
+  { key: 'identityType', label: t('systemDepartment.columns.identityType'), minWidth: 100 },
+  { key: 'createTime', label: t('systemUser.colCreateTime'), width: 160 },
+  { key: 'createUser', label: t('systemUser.colCreateUser'), width: 120, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('systemDepartment.columns.actions'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -148,30 +150,30 @@ const nameById = computed(() => {
 })
 
 const parentLabel = (parentId?: string | null) => {
-  if (!parentId) return '—'
+  if (!parentId) return t('quoteList.na')
   return nameById.value[parentId] || parentId
 }
 
 const scopeLabel = (v: number) => {
   const map: Record<number, string> = {
-    0: '全部',
-    1: '自己',
-    2: '本部门',
-    3: '本部门及下级',
-    4: '禁止'
+    0: t('systemDepartment.scope.all'),
+    1: t('systemDepartment.scope.self'),
+    2: t('systemDepartment.scope.department'),
+    3: t('systemDepartment.scope.departmentAndChildren'),
+    4: t('systemDepartment.scope.forbidden')
   }
   return map[v] ?? String(v)
 }
 
 const identityLabel = (v: number) => {
   const map: Record<number, string> = {
-    0: '无',
-    1: '销售',
-    2: '采购',
-    3: '采购运营',
-    4: '商务',
-    5: '财务',
-    6: '物流'
+    0: t('systemDepartment.identity.none'),
+    1: t('systemDepartment.identity.sales'),
+    2: t('systemDepartment.identity.purchase'),
+    3: t('systemDepartment.identity.purchaseOps'),
+    4: t('systemDepartment.identity.business'),
+    5: t('systemDepartment.identity.finance'),
+    6: t('systemDepartment.identity.logistics')
   }
   return map[v] ?? String(v)
 }
@@ -181,7 +183,7 @@ const load = async () => {
   try {
     departments.value = await rbacAdminApi.getDepartments()
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载部门列表失败')
+    ElMessage.error(e?.message || t('systemDepartment.loadFailed'))
   } finally {
     loading.value = false
   }

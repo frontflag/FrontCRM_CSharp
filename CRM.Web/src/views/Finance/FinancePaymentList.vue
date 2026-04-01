@@ -3,19 +3,19 @@
     <!-- 统计卡片（置顶） -->
     <div class="stat-cards">
       <div class="stat-card">
-        <div class="stat-label">本月付款总额</div>
+        <div class="stat-label">{{ t('financePaymentList.stats.monthTotal') }}</div>
         <div class="stat-value">¥ {{ formatAmount(stats.monthTotal) }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">待审核</div>
+        <div class="stat-label">{{ t('financePaymentList.stats.pending') }}</div>
         <div class="stat-value warning">{{ stats.pendingCount }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">付款完成</div>
+        <div class="stat-label">{{ t('financePaymentList.stats.paid') }}</div>
         <div class="stat-value success">{{ stats.paidCount }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">新建</div>
+        <div class="stat-label">{{ t('financePaymentList.stats.draft') }}</div>
         <div class="stat-value">{{ stats.draftCount }}</div>
       </div>
     </div>
@@ -25,7 +25,7 @@
       <div class="search-left">
         <el-input
           v-model="query.keyword"
-          placeholder="搜索付款单号/供应商"
+          :placeholder="t('financePaymentList.filters.keyword')"
           clearable
           class="search-input"
           @keyup.enter="loadData"
@@ -35,22 +35,27 @@
             <el-icon><Search /></el-icon>
           </template>
         </el-input>
-        <el-select v-model="query.status" placeholder="状态" clearable class="filter-select" @change="loadData">
-          <el-option v-for="(v, k) in PAYMENT_STATUS_MAP" :key="k" :label="v.label" :value="Number(k)" />
+        <el-select v-model="query.status" :placeholder="t('financePaymentList.filters.status')" clearable class="filter-select" @change="loadData">
+          <el-option
+            v-for="k in paymentStatusSelectKeys"
+            :key="k"
+            :label="paymentStatusLabel(k)"
+            :value="k"
+          />
         </el-select>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
-          range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
+          :range-separator="t('financePaymentList.filters.to')"
+          :start-placeholder="t('financePaymentList.filters.startDate')"
+          :end-placeholder="t('financePaymentList.filters.endDate')"
           format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
           class="date-picker"
           @change="loadData"
         />
         <el-button type="primary" @click="loadData">
-          <el-icon><Search /></el-icon> 查询
+          <el-icon><Search /></el-icon> {{ t('financePaymentList.filters.search') }}
         </el-button>
       </div>
     </div>
@@ -70,14 +75,14 @@
         <span class="code-text">{{ row.financePaymentCode }}</span>
       </template>
       <template #col-status="{ row }">
-        <el-tag effect="dark" :type="PAYMENT_STATUS_MAP[row.status]?.type as any" size="small">
-          {{ PAYMENT_STATUS_MAP[row.status]?.label }}
+        <el-tag effect="dark" :type="paymentStatusTag(row.status) as any" size="small">
+          {{ paymentStatusLabel(row.status) }}
         </el-tag>
       </template>
       <template #col-paymentAmount="{ row }">
         <span class="amount-text">{{ CURRENCY_MAP[row.paymentCurrency] }} {{ formatAmount(row.paymentAmount) }}</span>
       </template>
-      <template #col-paymentMode="{ row }">{{ PAYMENT_MODE_MAP[row.paymentMode] }}</template>
+      <template #col-paymentMode="{ row }">{{ paymentModeLabel(row.paymentMode) }}</template>
       <template #col-paymentDate="{ row }">{{ row.paymentDate ? formatDisplayDate(row.paymentDate) : '-' }}</template>
       <template #col-bankSlipNo="{ row }">{{ (row as any).bankSlipNo || '-' }}</template>
       <template #col-createdAt="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
@@ -86,7 +91,7 @@
       </template>
       <template #col-actions-header>
         <div class="op-col-header">
-          <span class="op-col-header-text">操作</span>
+          <span class="op-col-header-text">{{ t('financePaymentList.columns.actions') }}</span>
           <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
             {{ opColExpanded ? '>' : '<' }}
           </button>
@@ -96,7 +101,7 @@
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
-            <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
+            <el-button size="small" text type="primary" @click.stop="openDetail(row)">{{ t('financePaymentList.actions.detail') }}</el-button>
             <el-button
               size="small"
               text
@@ -104,10 +109,10 @@
               @click.stop="openEdit(row)"
               v-if="[1,-1,10].includes(row.status)"
             >
-              付款
+              {{ t('financePaymentList.actions.pay') }}
             </el-button>
             <el-button size="small" text type="warning" @click.stop="submitAudit(row)" v-if="row.status === 1">
-              提交审核
+              {{ t('financePaymentList.actions.submitAudit') }}
             </el-button>
             <el-button
               size="small"
@@ -116,7 +121,7 @@
               @click.stop="cancelPayment(row)"
               v-if="[1,2].includes(row.status)"
             >
-              取消
+              {{ t('financePaymentList.actions.cancel') }}
             </el-button>
           </div>
 
@@ -127,19 +132,19 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click.stop="openDetail(row)">
-                  <span class="op-more-item op-more-item--primary">详情</span>
+                  <span class="op-more-item op-more-item--primary">{{ t('financePaymentList.actions.detail') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item
                   v-if="[1,-1,10].includes(row.status)"
                   @click.stop="openEdit(row)"
                 >
-                  <span class="op-more-item op-more-item--warning">付款</span>
+                  <span class="op-more-item op-more-item--warning">{{ t('financePaymentList.actions.pay') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="row.status === 1" @click.stop="submitAudit(row)">
-                  <span class="op-more-item op-more-item--warning">提交审核</span>
+                  <span class="op-more-item op-more-item--warning">{{ t('financePaymentList.actions.submitAudit') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="[1,2].includes(row.status)" @click.stop="cancelPayment(row)">
-                  <span class="op-more-item op-more-item--danger">取消</span>
+                  <span class="op-more-item op-more-item--danger">{{ t('financePaymentList.actions.cancel') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -149,8 +154,8 @@
     </CrmDataTable>
       <div class="pagination-wrap">
         <div class="list-footer-left">
-          <el-tooltip content="列设置" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+          <el-tooltip :content="t('financePaymentList.columnSettings')" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" :aria-label="t('financePaymentList.columnSettings')" @click="dataTableRef?.openColumnSettings?.()">
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
@@ -170,7 +175,7 @@
     <!-- 新建/编辑弹窗 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="editingId ? '编辑付款单' : '新建付款单'"
+      :title="editingId ? t('financePaymentList.dialogEdit') : t('financePaymentList.dialogCreate')"
       width="680px"
       class="crm-dialog"
       destroy-on-close
@@ -178,29 +183,34 @@
       <el-form :model="form" label-width="100px" class="crm-form">
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="供应商ID" required>
-              <el-input v-model="form.vendorId" placeholder="请输入供应商ID" />
+            <el-form-item :label="t('financePaymentList.formVendorId')" required>
+              <el-input v-model="form.vendorId" :placeholder="t('financePaymentList.formVendorIdPh')" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="供应商" required>
-              <el-input v-model="form.vendorName" placeholder="请输入供应商名称" />
+            <el-form-item :label="t('financePaymentList.formVendorName')" required>
+              <el-input v-model="form.vendorName" :placeholder="t('financePaymentList.formVendorNamePh')" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="付款金额" required>
+            <el-form-item :label="t('financePaymentList.formAmount')" required>
               <el-input-number v-model="form.paymentAmount" :precision="2" :min="0" style="width:100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="付款方式">
+            <el-form-item :label="t('financePaymentList.formMode')">
               <el-select v-model="form.paymentMode" style="width:100%">
-                <el-option v-for="(v, k) in PAYMENT_MODE_MAP" :key="k" :label="v" :value="Number(k)" />
+                <el-option
+                  v-for="k in paymentModeKeys"
+                  :key="k"
+                  :label="paymentModeLabel(k)"
+                  :value="k"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="币别">
+            <el-form-item :label="t('financePaymentList.formCurrency')">
               <el-select v-model="form.paymentCurrency" style="width:100%">
                 <el-option
                   v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
@@ -212,25 +222,25 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="付款日期">
+            <el-form-item :label="t('financePaymentList.formDate')">
               <el-date-picker v-model="form.paymentDate" type="date" value-format="YYYY-MM-DD" style="width:100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="银行水单号">
-              <el-input v-model="form.bankSlipNo" placeholder="请输入银行水单号码" />
+            <el-form-item :label="t('financePaymentList.formBankSlip')">
+              <el-input v-model="form.bankSlipNo" :placeholder="t('financePaymentList.formBankSlipPh')" />
             </el-form-item>
           </el-col>
           <el-col :span="24">
-            <el-form-item label="备注">
-              <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注" />
+            <el-form-item :label="t('financePaymentList.formRemark')">
+              <el-input v-model="form.remark" type="textarea" :rows="2" :placeholder="t('financePaymentList.formRemarkPh')" />
             </el-form-item>
           </el-col>
           <el-col :span="24" v-if="editingId">
-            <el-form-item label="银行水单附件">
+            <el-form-item :label="t('financePaymentList.formSlipAttach')">
               <div style="display:flex;flex-direction:column;gap:8px;width:100%">
                 <input type="file" multiple @change="onSlipFilesSelected" />
-                <div v-if="uploadingSlipDocs">上传中...</div>
+                <div v-if="uploadingSlipDocs">{{ t('financePaymentList.uploadingSlip') }}</div>
                 <div v-if="paymentDocs.length">
                   <el-tag
                     v-for="doc in paymentDocs"
@@ -242,23 +252,23 @@
                     {{ doc.originalFileName }}
                   </el-tag>
                 </div>
-                <div v-else style="color:var(--el-text-color-placeholder)">暂无已上传水单文件</div>
+                <div v-else style="color:var(--el-text-color-placeholder)">{{ t('financePaymentList.noSlipUploaded') }}</div>
               </div>
             </el-form-item>
           </el-col>
         </el-row>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
         <el-button
           v-if="editingId && canShowFinishButton(form as any)"
           type="success"
           @click="completePaymentInDialog"
           :loading="saving"
         >
-          付款完成
+          {{ t('financePaymentList.btnPaymentDone') }}
         </el-button>
-        <el-button type="primary" @click="saveForm" :loading="saving">保存</el-button>
+        <el-button type="primary" @click="saveForm" :loading="saving">{{ t('financePaymentList.btnSave') }}</el-button>
       </template>
     </el-dialog>
 
@@ -268,6 +278,8 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
 import { Search, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
@@ -284,6 +296,11 @@ import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTim
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
+const { t } = useI18n()
+const { paymentStatusLabel, paymentStatusTag, paymentModeLabel } = useFinanceEnumLabels()
+
+const paymentStatusSelectKeys = Object.keys(PAYMENT_STATUS_MAP).map(k => Number(k))
+const paymentModeKeys = Object.keys(PAYMENT_MODE_MAP).map(k => Number(k))
 
 // 查询
 const query = reactive<PageQuery & { page: number; pageSize: number }>({
@@ -308,19 +325,19 @@ function toggleOpCol() {
 }
 
 const paymentTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'financePaymentCode', label: '付款单号', prop: 'financePaymentCode', width: 160, minWidth: 160, fixed: 'left' },
-  { key: 'status', label: '状态', prop: 'status', width: 100, align: 'center' },
-  { key: 'vendorName', label: '供应商', prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
-  { key: 'paymentAmount', label: '付款金额', prop: 'paymentAmount', width: 130, align: 'right' },
-  { key: 'paymentMode', label: '付款方式', prop: 'paymentMode', width: 110 },
-  { key: 'paymentDate', label: '付款日期', prop: 'paymentDate', width: 120 },
-  { key: 'bankSlipNo', label: '银行水单号', prop: 'bankSlipNo', width: 150, showOverflowTooltip: true },
-  { key: 'remark', label: '备注', prop: 'remark', minWidth: 140, showOverflowTooltip: true },
-  { key: 'createdAt', label: '创建时间', prop: 'createdAt', width: 120 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  { key: 'financePaymentCode', label: t('financePaymentList.columns.code'), prop: 'financePaymentCode', width: 160, minWidth: 160, fixed: 'left' },
+  { key: 'status', label: t('financePaymentList.columns.status'), prop: 'status', width: 100, align: 'center' },
+  { key: 'vendorName', label: t('financePaymentList.columns.vendor'), prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'paymentAmount', label: t('financePaymentList.columns.amount'), prop: 'paymentAmount', width: 130, align: 'right' },
+  { key: 'paymentMode', label: t('financePaymentList.columns.mode'), prop: 'paymentMode', width: 110 },
+  { key: 'paymentDate', label: t('financePaymentList.columns.date'), prop: 'paymentDate', width: 120 },
+  { key: 'bankSlipNo', label: t('financePaymentList.columns.bankSlip'), prop: 'bankSlipNo', width: 150, showOverflowTooltip: true },
+  { key: 'remark', label: t('financePaymentList.columns.remark'), prop: 'remark', minWidth: 140, showOverflowTooltip: true },
+  { key: 'createdAt', label: t('financePaymentList.columns.createdAt'), prop: 'createdAt', width: 120 },
+  { key: 'createUser', label: t('financePaymentList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('financePaymentList.columns.actions'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -415,11 +432,11 @@ const saveForm = async () => {
         paymentAmountToBe: form.paymentAmount,
       })
     }
-    ElMessage.success('保存成功')
+    ElMessage.success(t('financePaymentList.messages.saveOk'))
     dialogVisible.value = false
     loadData()
   } catch {
-    ElMessage.success('保存成功（演示模式）')
+    ElMessage.success(t('financePaymentList.messages.saveOkDemo'))
     dialogVisible.value = false
   } finally {
     saving.value = false
@@ -437,7 +454,7 @@ const loadPaymentDocs = async (paymentId: string) => {
 const onSlipFilesSelected = async (e: Event) => {
   const paymentId = editingId.value
   if (!paymentId) {
-    ElMessage.warning('请先保存付款单后再上传水单附件')
+    ElMessage.warning(t('financePaymentList.messages.saveSlipFirst'))
     ;(e.target as HTMLInputElement).value = ''
     return
   }
@@ -445,11 +462,11 @@ const onSlipFilesSelected = async (e: Event) => {
   if (!files.length) return
   try {
     uploadingSlipDocs.value = true
-    await documentApi.uploadDocuments('FINANCE_PAYMENT', paymentId, files, '银行水单')
+    await documentApi.uploadDocuments('FINANCE_PAYMENT', paymentId, files, t('financePaymentList.slipUploadCategory'))
     await loadPaymentDocs(paymentId)
-    ElMessage.success('水单附件上传成功')
+    ElMessage.success(t('financePaymentList.messages.slipUploadOk'))
   } catch (err: any) {
-    ElMessage.error(err?.message || '水单附件上传失败')
+    ElMessage.error(err?.message || t('financePaymentList.messages.slipUploadFail'))
   } finally {
     uploadingSlipDocs.value = false
     ;(e.target as HTMLInputElement).value = ''
@@ -467,33 +484,42 @@ const openDetail = (row: FinancePayment) => {
 
 // 状态操作
 const submitAudit = async (row: FinancePayment) => {
-  await ElMessageBox.confirm(`确认提交付款单 ${row.financePaymentCode} 审核？`, '提交审核', { type: 'info' })
+  await ElMessageBox.confirm(
+    t('financePaymentList.messages.submitAuditMsg', { code: row.financePaymentCode }),
+    t('financePaymentList.messages.submitAuditTitle'),
+    { type: 'info' }
+  )
   await financePaymentApi.submit(row.id)
-  ElMessage.success('已提交审核')
+  ElMessage.success(t('financePaymentList.messages.submitted'))
   await loadData()
 }
 
 const completePaymentInDialog = async () => {
   if (!editingId.value) return
   const code = form.financePaymentCode || editingId.value
-  await ElMessageBox.confirm(`确认将付款单 ${code} 标记为付款完成？`, '付款完成', { type: 'success' })
+  await ElMessageBox.confirm(
+    t('financePaymentList.messages.completeMsg', { code: String(code) }),
+    t('financePaymentList.messages.completeTitle'),
+    { type: 'success' }
+  )
   await financePaymentApi.complete(editingId.value)
-  ElMessage.success('付款已完成')
+  ElMessage.success(t('financePaymentList.messages.completed'))
   dialogVisible.value = false
   await loadData()
 }
 
 const canShowFinishButton = (row: FinancePayment | Record<string, any>) => {
-  const numericStatus = Number((row as any)?.status)
-  if (numericStatus === 10) return true
-  const label = PAYMENT_STATUS_MAP[(row as any)?.status as number]?.label || PAYMENT_STATUS_MAP[numericStatus]?.label
-  return label === '审核通过'
+  return Number((row as any)?.status) === 10
 }
 
 const cancelPayment = async (row: FinancePayment) => {
-  await ElMessageBox.confirm(`确认取消付款单 ${row.financePaymentCode}？`, '取消确认', { type: 'warning' })
+  await ElMessageBox.confirm(
+    t('financePaymentList.messages.cancelMsg', { code: row.financePaymentCode }),
+    t('financePaymentList.messages.cancelTitle'),
+    { type: 'warning' }
+  )
   await financePaymentApi.cancel(row.id)
-  ElMessage.success('已取消')
+  ElMessage.success(t('financePaymentList.messages.cancelled'))
   await loadData()
 }
 

@@ -1,7 +1,7 @@
 <template>
   <div class="sales-order-list-page customer-list-theme">
     <div class="page-header">
-      <h2>销售订单</h2>
+      <h2>{{ t('salesOrderList.title') }}</h2>
     </div>
 
     <!-- 统计卡片 -->
@@ -9,25 +9,25 @@
       <el-col :span="6">
         <el-card class="stat-card">
           <div class="stat-value">{{ statTotal }}</div>
-          <div class="stat-label">订单总数</div>
+          <div class="stat-label">{{ t('salesOrderList.stats.total') }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card stat-warning">
           <div class="stat-value">{{ statPending }}</div>
-          <div class="stat-label">待处理</div>
+          <div class="stat-label">{{ t('salesOrderList.stats.pending') }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card stat-success">
           <div class="stat-value">{{ statApproved }}</div>
-          <div class="stat-label">审核通过及以上</div>
+          <div class="stat-label">{{ t('salesOrderList.stats.approvedPlus') }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card stat-info">
           <div class="stat-value">{{ canViewSalesAmount ? `¥${statAmount.toLocaleString()}` : '--' }}</div>
-          <div class="stat-label">总金额</div>
+          <div class="stat-label">{{ t('salesOrderList.stats.totalAmount') }}</div>
         </el-card>
       </el-col>
     </el-row>
@@ -35,7 +35,7 @@
     <!-- 搜索栏：对齐客户列表 CustomerList search-bar -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">订单号</span>
+        <span class="filter-field-label">{{ t('salesOrderList.filters.orderCode') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -44,12 +44,12 @@
           <input
             v-model="filterForm.code"
             class="search-input"
-            placeholder="请输入订单号"
+            :placeholder="t('salesOrderList.filters.orderCodePlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
         <template v-if="canViewCustomerInfo">
-          <span class="filter-field-label">客户</span>
+          <span class="filter-field-label">{{ t('salesOrderList.filters.customer') }}</span>
           <div class="search-input-wrap">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
               <circle cx="11" cy="11" r="8" />
@@ -58,14 +58,14 @@
             <input
               v-model="filterForm.customer"
               class="search-input"
-              placeholder="客户名称"
+              :placeholder="t('salesOrderList.filters.customerPlaceholder')"
               @keyup.enter="handleSearch"
             />
           </div>
         </template>
         <el-select
           v-model="filterForm.status"
-          placeholder="全部状态"
+          :placeholder="t('salesOrderList.filters.allStatus')"
           clearable
           class="status-select"
           :teleported="false"
@@ -73,8 +73,8 @@
         >
           <el-option v-for="opt in statusFilterOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
-        <button class="btn-primary btn-sm" type="button" @click="handleSearch">搜索</button>
-        <button class="btn-ghost btn-sm" type="button" @click="handleReset">重置</button>
+        <button class="btn-primary btn-sm" type="button" @click="handleSearch">{{ t('salesOrderList.filters.search') }}</button>
+        <button class="btn-ghost btn-sm" type="button" @click="handleReset">{{ t('salesOrderList.filters.reset') }}</button>
       </div>
     </div>
 
@@ -118,7 +118,7 @@
         </template>
         <template #col-actions-header>
           <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
+            <span class="op-col-header-text">{{ t('salesOrderList.columns.actions') }}</span>
             <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
               {{ opColExpanded ? '>' : '<' }}
             </button>
@@ -128,15 +128,15 @@
         <template #col-actions="{ row }">
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
-              <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">详情</button>
-              <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">编辑</button>
+              <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('salesOrderList.actions.detail') }}</button>
+              <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('salesOrderList.actions.edit') }}</button>
               <button
                 v-if="row.status === 1 && canSubmitSalesOrderAudit"
                 type="button"
                 class="action-btn action-btn--warning"
                 @click.stop="submitForAudit(row)"
               >
-                提交审核
+                {{ t('salesOrderList.actions.submitAudit') }}
               </button>
             </div>
 
@@ -147,13 +147,13 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="handleView(row)">
-                    <span class="op-more-item op-more-item--primary">详情</span>
+                    <span class="op-more-item op-more-item--primary">{{ t('salesOrderList.actions.detail') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item @click.stop="handleEdit(row)">
-                    <span class="op-more-item op-more-item--primary">编辑</span>
+                    <span class="op-more-item op-more-item--primary">{{ t('salesOrderList.actions.edit') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item v-if="row.status === 1 && canSubmitSalesOrderAudit" @click.stop="submitForAudit(row)">
-                    <span class="op-more-item op-more-item--warning">提交审核</span>
+                    <span class="op-more-item op-more-item--warning">{{ t('salesOrderList.actions.submitAudit') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -164,8 +164,8 @@
 
       <div class="pagination-wrapper">
         <div class="list-footer-left">
-          <el-tooltip content="列设置" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="listTableRef?.openColumnSettings?.()">
+          <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="listTableRef?.openColumnSettings?.()">
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
@@ -189,10 +189,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { salesOrderApi } from '@/api/salesOrder'
-import { salesOrderStatusText, salesOrderStatusTagType } from '@/constants/salesOrderStatus'
+import { translateSalesOrderStatus, salesOrderStatusTagType } from '@/constants/salesOrderStatus'
 import { useAuthStore } from '@/stores/auth'
 import {
   journeyListFocusedOrderId,
@@ -204,6 +205,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const route = useRoute()
+const { t, locale } = useI18n()
 
 const loading = ref(false)
 const orderList = ref<any[]>([])
@@ -240,30 +242,32 @@ function toggleOpCol() {
 }
 
 /** 销售订单列表主表可配置列（localStorage：crm-table-columns:v1:sales-order-list-main） */
-const salesOrderTableColumns = computed((): CrmTableColumnDef[] => [
+const salesOrderTableColumns = computed((): CrmTableColumnDef[] => {
+  void locale.value
+  return [
   {
     key: 'sellOrderCode',
-    label: '订单号',
+    label: t('salesOrderList.columns.orderCode'),
     prop: 'sellOrderCode',
     width: 160,
     minWidth: 160,
     showOverflowTooltip: true,
     sortable: true
   },
-  { key: 'status', label: '状态', prop: 'status', width: 160, align: 'center' as const },
+  { key: 'status', label: t('salesOrderList.columns.status'), prop: 'status', width: 160, align: 'center' as const },
   ...(canViewCustomerInfo.value
-    ? [{ key: 'customerName', label: '客户', prop: 'customerName', minWidth: 200, showOverflowTooltip: true }]
+    ? [{ key: 'customerName', label: t('salesOrderList.columns.customer'), prop: 'customerName', minWidth: 200, showOverflowTooltip: true }]
     : []),
-  { key: 'salesUserName', label: '业务员', prop: 'salesUserName', width: 100 },
-  ...(canViewSalesAmount.value ? [{ key: 'total', label: '总金额', prop: 'total', width: 160, align: 'right' as const }] : []),
-  { key: 'itemRows', label: '行项目', prop: 'itemRows', width: 80, align: 'center' as const },
-  { key: 'purchaseOrderStatus', label: '采购状态', prop: 'purchaseOrderStatus', width: 160, align: 'center' as const },
-  { key: 'deliveryDate', label: '交货日期', prop: 'deliveryDate', width: 160 },
-  { key: 'createTime', label: '创建时间', prop: 'createTime', width: 160 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  { key: 'salesUserName', label: t('salesOrderList.columns.salesUser'), prop: 'salesUserName', width: 100 },
+  ...(canViewSalesAmount.value ? [{ key: 'total', label: t('salesOrderList.columns.totalAmount'), prop: 'total', width: 160, align: 'right' as const }] : []),
+  { key: 'itemRows', label: t('salesOrderList.columns.itemRows'), prop: 'itemRows', width: 80, align: 'center' as const },
+  { key: 'purchaseOrderStatus', label: t('salesOrderList.columns.purchaseStatus'), prop: 'purchaseOrderStatus', width: 160, align: 'center' as const },
+  { key: 'deliveryDate', label: t('salesOrderList.columns.deliveryDate'), prop: 'deliveryDate', width: 160 },
+  { key: 'createTime', label: t('salesOrderList.columns.createTime'), prop: 'createTime', width: 160 },
+  { key: 'createUser', label: t('salesOrderList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('salesOrderList.columns.actions'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -273,7 +277,8 @@ const salesOrderTableColumns = computed((): CrmTableColumnDef[] => [
     className: 'op-col',
     labelClassName: 'op-col'
   }
-])
+  ]
+})
 
 // 对话框控制
 // 计算属性：筛选后的列表
@@ -295,15 +300,18 @@ const filteredList = computed(() => {
 
 // 统计
 const statTotal = computed(() => orderList.value.length)
-const statusFilterOptions = [
-  { label: '新建', value: 1 },
-  { label: '待审核', value: 2 },
-  { label: '审核通过', value: 10 },
-  { label: '进行中', value: 20 },
-  { label: '完成', value: 100 },
-  { label: '审核失败', value: -1 },
-  { label: '取消', value: -2 }
-] as const
+const statusFilterOptions = computed(() => {
+  void locale.value
+  return [
+    { label: t('salesOrderList.status.new'), value: 1 },
+    { label: t('salesOrderList.status.pendingReview'), value: 2 },
+    { label: t('salesOrderList.status.approved'), value: 10 },
+    { label: t('salesOrderList.status.inProgress'), value: 20 },
+    { label: t('salesOrderList.status.completed'), value: 100 },
+    { label: t('salesOrderList.status.reviewFailed'), value: -1 },
+    { label: t('salesOrderList.status.cancelled'), value: -2 }
+  ]
+})
 
 const terminalOkStatuses = new Set([10, 20, 100])
 
@@ -319,7 +327,7 @@ const formatCurrency = (value: number, currency?: number) => {
 
 // 状态处理
 const getStatusType = (status: number) => salesOrderStatusTagType(status)
-const getStatusText = (status: number) => salesOrderStatusText(status)
+const getStatusText = (status: number) => translateSalesOrderStatus(status, t)
 
 const getPurchaseStatusType = (status: number) => {
   const map: Record<number, string> = { 0: 'info', 1: 'warning', 2: 'success' }
@@ -327,8 +335,8 @@ const getPurchaseStatusType = (status: number) => {
 }
 
 const getPurchaseStatusText = (status: number) => {
-  const map: Record<number, string> = { 0: '未采购', 1: '部分采购', 2: '全部采购' }
-  return map[status] || '未知'
+  const map: Record<number, string> = { 0: t('salesOrderList.purchaseStatus.none'), 1: t('salesOrderList.purchaseStatus.partial'), 2: t('salesOrderList.purchaseStatus.all') }
+  return map[status] || t('rfqDetail.unknown')
 }
 
 /** 与右侧「订单旅程」同步：当前页有命中行则保持，否则用当前页第一行 */
@@ -367,7 +375,7 @@ const loadData = async () => {
     pageInfo.value.total = orderList.value.length
     syncJourneyFocusFromList()
   } catch (error) {
-    ElMessage.error('加载数据失败')
+    ElMessage.error(t('salesOrderList.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -446,16 +454,16 @@ const handleView = (row: any) => {
 const submitForAudit = async (row: any) => {
   try {
     await ElMessageBox.confirm(
-      `确定将销售订单 ${row.sellOrderCode} 提交审核吗？提交后上级可在「待审批」中处理。`,
-      '提交审核',
-      { type: 'info', confirmButtonText: '提交', cancelButtonText: '取消' }
+      t('salesOrderList.submitAuditConfirm', { code: row.sellOrderCode }),
+      t('salesOrderList.actions.submitAudit'),
+      { type: 'info', confirmButtonText: t('salesOrderList.submit'), cancelButtonText: t('common.cancel') }
     )
     await salesOrderApi.updateStatus(row.id, 2)
-    ElMessage.success('已提交审核')
+    ElMessage.success(t('salesOrderList.submitAuditSuccess'))
     await loadData()
   } catch (e) {
     if (e !== 'cancel') {
-      ElMessage.error(e instanceof Error ? e.message : '提交失败')
+      ElMessage.error(e instanceof Error ? e.message : t('salesOrderList.submitAuditFailed'))
     }
   }
 }

@@ -3,11 +3,11 @@
     <!-- 面包屑 + 返回 -->
     <div class="detail-header">
       <el-button link @click="router.back()" class="back-btn">
-        <el-icon><ArrowLeft /></el-icon> 返回列表
+        <el-icon><ArrowLeft /></el-icon> {{ t('financeReceiptDetail.backToList') }}
       </el-button>
       <el-breadcrumb separator="/">
-        <el-breadcrumb-item :to="{ name: 'FinanceReceiptList' }">收款管理</el-breadcrumb-item>
-        <el-breadcrumb-item>{{ detail?.financeReceiptCode || '详情' }}</el-breadcrumb-item>
+        <el-breadcrumb-item :to="{ name: 'FinanceReceiptList' }">{{ t('financeReceiptDetail.breadcrumb') }}</el-breadcrumb-item>
+        <el-breadcrumb-item>{{ detail?.financeReceiptCode || t('financeReceiptDetail.detail') }}</el-breadcrumb-item>
       </el-breadcrumb>
     </div>
 
@@ -20,27 +20,27 @@
       <div class="info-card">
         <div class="card-title">
           <span class="title-bar"></span>
-          <span>基本信息</span>
-          <el-tag effect="dark" :type="RECEIPT_STATUS_MAP[detail.status]?.type as any" size="small" style="margin-left: 12px;">
-            {{ RECEIPT_STATUS_MAP[detail.status]?.label }}
+          <span>{{ t('financeReceiptDetail.basicInfo') }}</span>
+          <el-tag effect="dark" :type="receiptStatusTag(detail.status) as any" size="small" style="margin-left: 12px;">
+            {{ receiptStatusLabel(detail.status) }}
           </el-tag>
         </div>
         <el-descriptions :column="2" border class="order-desc">
-          <el-descriptions-item label="收款单号">
+          <el-descriptions-item :label="t('financeReceiptDetail.labels.code')">
             <span class="order-code">{{ detail.financeReceiptCode }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag effect="dark" :type="RECEIPT_STATUS_MAP[detail.status]?.type as any">
-              {{ RECEIPT_STATUS_MAP[detail.status]?.label }}
+          <el-descriptions-item :label="t('financeReceiptDetail.labels.status')">
+            <el-tag effect="dark" :type="receiptStatusTag(detail.status) as any">
+              {{ receiptStatusLabel(detail.status) }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="客户">{{ detail.customerName }}</el-descriptions-item>
-          <el-descriptions-item label="收款金额">
+          <el-descriptions-item :label="t('financeReceiptDetail.labels.customer')">{{ detail.customerName }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financeReceiptDetail.labels.amount')">
             <span class="amount">{{ CURRENCY_MAP[detail.receiptCurrency] }} {{ formatAmount(detail.receiptAmount) }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="收款方式">{{ PAYMENT_MODE_MAP[detail.receiptMode] }}</el-descriptions-item>
-          <el-descriptions-item label="收款日期">{{ detail.receiptDate ? formatDisplayDate(detail.receiptDate) : '-' }}</el-descriptions-item>
-          <el-descriptions-item label="备注" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financeReceiptDetail.labels.mode')">{{ paymentModeLabel(detail.receiptMode) }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financeReceiptDetail.labels.date')">{{ detail.receiptDate ? formatDisplayDate(detail.receiptDate) : '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financeReceiptDetail.labels.remark')" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
         </el-descriptions>
       </div>
 
@@ -48,22 +48,22 @@
       <div class="tab-card">
         <div class="card-title">
           <span class="title-bar"></span>
-          <span>收款明细</span>
+          <span>{{ t('financeReceiptDetail.receiptLines') }}</span>
         </div>
-        <el-empty v-if="!detail.items?.length" description="暂无明细" :image-size="80" />
+        <el-empty v-if="!detail.items?.length" :description="t('financeReceiptDetail.noItems')" :image-size="80" />
         <CrmDataTable v-else :data="detail.items" size="small" class="items-table">
           <el-table-column type="index" width="50" label="#" />
-          <el-table-column prop="pn" label="型号" min-width="150" />
-          <el-table-column prop="brand" label="品牌" width="120" />
-          <el-table-column prop="receiptAmount" label="已收金额" width="130" align="right">
+          <el-table-column prop="pn" :label="t('financeReceiptDetail.labels.pn')" min-width="150" />
+          <el-table-column prop="brand" :label="t('financeReceiptDetail.labels.brand')" width="120" />
+          <el-table-column prop="receiptAmount" :label="t('financeReceiptDetail.labels.receivedAmount')" width="130" align="right">
             <template #default="{ row }">
               {{ formatAmount(row.receiptAmount) }}
             </template>
           </el-table-column>
-          <el-table-column label="核销状态" width="120" align="center">
+          <el-table-column :label="t('financeReceiptDetail.labels.verifyStatus')" width="120" align="center">
             <template #default="{ row }">
               <el-tag effect="dark" size="small" :type="row.verificationStatus === 2 ? 'success' : row.verificationStatus === 1 ? 'warning' : 'info'">
-                {{ row.verificationStatus === 2 ? '核销完成' : row.verificationStatus === 1 ? '部分核销' : '未核销' }}
+                {{ verificationStatusLabel(row.verificationStatus) }}
               </el-tag>
             </template>
           </el-table-column>
@@ -71,18 +71,18 @@
       </div>
     </template>
 
-    <el-empty v-else description="收款单不存在" />
+    <el-empty v-else :description="t('financeReceiptDetail.notFound')" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import {
   financeReceiptApi,
-  RECEIPT_STATUS_MAP,
-  PAYMENT_MODE_MAP,
   CURRENCY_MAP,
   type FinanceReceipt,
 } from '@/api/finance'
@@ -90,6 +90,8 @@ import { formatDisplayDate } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
+const { receiptStatusLabel, receiptStatusTag, paymentModeLabel, verificationStatusLabel } = useFinanceEnumLabels()
 
 const loading = ref(false)
 const detail = ref<FinanceReceipt | null>(null)

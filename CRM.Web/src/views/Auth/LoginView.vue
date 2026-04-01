@@ -1,7 +1,7 @@
 <template>
   <div class="login-view">
     <!-- 版本号 -->
-    <div class="version-tag">版本号：03160634</div>
+    <div class="version-tag">{{ t('login.version', { version: '03160634' }) }}</div>
 
     <!-- 背景动态粒子网格 -->
     <div class="bg-grid"></div>
@@ -39,14 +39,14 @@
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
               <circle cx="12" cy="7" r="4"/>
             </svg>
-            账号登录
+            {{ t('login.accountLogin') }}
           </button>
           <button
             :class="['tab-btn', { active: loginType === 'wechat' }]"
             @click="switchToWechatLogin"
           >
             <el-icon style="font-size:14px"><ChatDotRound /></el-icon>
-            微信扫码
+            {{ t('login.wechatLogin') }}
           </button>
         </div>
 
@@ -61,7 +61,7 @@
           >
             <!-- 账号 -->
             <div class="form-field">
-              <label class="field-label">登录账号</label>
+              <label class="field-label">{{ t('login.accountLabel') }}</label>
               <el-form-item prop="userName">
                 <div class="input-wrapper">
                   <span class="input-icon">
@@ -72,7 +72,7 @@
                   </span>
                   <el-input
                     v-model="form.userName"
-                    placeholder="请输入登录账号"
+                    :placeholder="t('login.accountPlaceholder')"
                     class="custom-input"
                   />
                 </div>
@@ -81,7 +81,7 @@
 
             <!-- 密码 -->
             <div class="form-field">
-              <label class="field-label">登录密码</label>
+              <label class="field-label">{{ t('login.passwordLabel') }}</label>
               <el-form-item prop="password">
                 <div class="input-wrapper">
                   <span class="input-icon">
@@ -93,7 +93,7 @@
                   <el-input
                     v-model="form.password"
                     type="password"
-                    placeholder="请输入登录密码"
+                    :placeholder="t('login.passwordPlaceholder')"
                     show-password
                     class="custom-input"
                   />
@@ -124,11 +124,11 @@
                   <polyline points="10 17 15 12 10 7"/>
                   <line x1="15" y1="12" x2="3" y2="12"/>
                 </svg>
-                登录系统
+                {{ t('login.loginButton') }}
               </span>
               <span v-else class="btn-loading">
                 <span class="spinner"></span>
-                验证中...
+                {{ t('login.validating') }}
               </span>
             </button>
           </el-form>
@@ -140,49 +140,49 @@
           <div v-if="qrStatus === 0" class="qr-waiting">
             <div v-if="!qrCodeUrl" class="qr-loading">
               <el-icon class="loading-icon"><Loading /></el-icon>
-              <p>正在生成二维码...</p>
+              <p>{{ t('login.generateQr') }}</p>
             </div>
             <div v-else>
               <img :src="qrCodeUrl" class="qr-code" alt="微信扫码登录" />
-              <p class="qr-tip">请使用微信扫一扫登录</p>
+              <p class="qr-tip">{{ t('login.scanTip') }}</p>
             </div>
           </div>
 
           <!-- 已扫码 -->
           <div v-else-if="qrStatus === 1" class="qr-scanned">
             <el-icon :size="48" color="#67C23A"><CircleCheck /></el-icon>
-            <p>已扫码，请在手机上确认</p>
+            <p>{{ t('login.scannedTip') }}</p>
           </div>
 
           <!-- 未绑定提示 -->
           <div v-else-if="qrStatus === 5" class="qr-unbound">
             <el-icon :size="48" color="#E6A23C"><Warning /></el-icon>
-            <h3>微信未绑定账号</h3>
-            <p>该微信尚未绑定系统账号</p>
+            <h3>{{ t('login.unboundTitle') }}</h3>
+            <p>{{ t('login.unboundDesc') }}</p>
             <div class="actions">
-              <el-button type="primary" @click="switchToPasswordLogin">先用账号密码登录</el-button>
+              <el-button type="primary" @click="switchToPasswordLogin">{{ t('login.usePasswordFirst') }}</el-button>
             </div>
-            <p class="tip">登录后可在个人中心绑定微信</p>
+            <p class="tip">{{ t('login.bindTip') }}</p>
           </div>
 
           <!-- 已过期 -->
           <div v-else-if="qrStatus === 3" class="qr-expired">
             <el-icon :size="48" color="#909399"><Timer /></el-icon>
-            <p>二维码已过期</p>
-            <el-button @click="refreshQrCode">刷新二维码</el-button>
+            <p>{{ t('login.expiredTip') }}</p>
+            <el-button @click="refreshQrCode">{{ t('login.refreshQr') }}</el-button>
           </div>
         </div>
 
         <!-- 底部链接 -->
         <div class="card-footer">
-          <span class="footer-text">还没有账号？</span>
-          <router-link to="/register" class="footer-link">立即注册</router-link>
+          <span class="footer-text">{{ t('login.noAccount') }}</span>
+          <router-link to="/register" class="footer-link">{{ t('login.registerNow') }}</router-link>
         </div>
       </div>
 
       <!-- 版权信息 -->
       <div class="copyright">
-        © 2026 FrontCRM · 智能进销存管理系统
+        {{ t('login.copyright') }}
       </div>
     </div>
   </div>
@@ -191,6 +191,7 @@
 <script setup lang="ts">
 import { reactive, ref, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { type FormInstance, type FormRules } from 'element-plus'
 import { ChatDotRound, Loading, CircleCheck, Warning, Timer } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores'
@@ -198,6 +199,7 @@ import { getWechatQrCode, checkWechatLoginStatus } from '@/api/wechatAuth'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
@@ -220,12 +222,12 @@ const form = reactive({
 
 const rules: FormRules = {
   userName: [
-    { required: true, message: '请输入登录账号', trigger: 'blur' },
-    { min: 2, max: 50, message: '账号长度在 2 到 50 个字符', trigger: 'blur' }
+    { required: true, message: t('login.userNameRequired'), trigger: 'blur' },
+    { min: 2, max: 50, message: t('login.userNameLength'), trigger: 'blur' }
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于6个字符', trigger: 'blur' }
+    { required: true, message: t('login.passwordRequired'), trigger: 'blur' },
+    { min: 6, message: t('login.passwordLength'), trigger: 'blur' }
   ]
 }
 
@@ -335,11 +337,11 @@ const handleLogin = async () => {
       if (success) {
         router.push('/dashboard')
       } else {
-        errorMsg.value = '登录失败，请检查账号和密码'
+        errorMsg.value = t('login.loginFailedDefault')
       }
     } catch (error: any) {
       // 拦截器会抛出带 message 的错误对象
-      errorMsg.value = error.message || error.response?.data?.message || '登录失败，请稍后重试'
+      errorMsg.value = error.message || error.response?.data?.message || t('login.loginFailedRetry')
     } finally {
       loading.value = false
     }

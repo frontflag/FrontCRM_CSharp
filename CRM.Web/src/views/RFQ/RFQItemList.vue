@@ -5,13 +5,13 @@
       <div class="header-left">
         <div class="page-title-group">
           <div class="page-icon">明</div>
-          <h1 class="page-title">需求明细</h1>
+          <h1 class="page-title">{{ t('rfqItemList.title') }}</h1>
         </div>
-        <div class="count-badge">共 {{ totalCount }} 条</div>
+        <div class="count-badge">{{ t('rfqItemList.count', { count: totalCount }) }}</div>
       </div>
       <div class="header-right">
         <el-button type="warning" :disabled="!basketCount" @click="handleBatchQuote">
-          批量报价
+          {{ t('rfqItemList.batchQuote') }}
         </el-button>
       </div>
     </div>
@@ -19,19 +19,19 @@
     <!-- 搜索栏：与客户列表 CustomerList 同款布局与控件皮肤 -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">需求创建日期</span>
+        <span class="filter-field-label">{{ t('rfqItemList.filters.createDate') }}</span>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
-          range-separator="至"
-          start-placeholder="创建起"
-          end-placeholder="创建止"
+          :range-separator="t('rfqItemList.filters.to')"
+          :start-placeholder="t('rfqItemList.filters.startDate')"
+          :end-placeholder="t('rfqItemList.filters.endDate')"
           value-format="YYYY-MM-DD"
           clearable
           class="filter-date-range"
           :teleported="false"
         />
-        <span class="filter-field-label">客户</span>
+        <span class="filter-field-label">{{ t('rfqItemList.columns.customer') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -40,11 +40,11 @@
           <input
             v-model="searchForm.customerKeyword"
             class="search-input search-input--w180"
-            placeholder="客户名称模糊"
+            :placeholder="t('rfqItemList.filters.customerPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
-        <span class="filter-field-label">物料型号</span>
+        <span class="filter-field-label">{{ t('rfqItemList.columns.materialModel') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -53,14 +53,14 @@
           <input
             v-model="searchForm.materialModel"
             class="search-input search-input--w160"
-            placeholder="MPN / 客户料号"
+            :placeholder="t('rfqItemList.filters.materialPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
-        <span class="filter-field-label">业务员</span>
+        <span class="filter-field-label">{{ t('rfqItemList.columns.salesUser') }}</span>
         <el-select
           v-model="searchForm.salesUserId"
-          placeholder="全部业务员"
+          :placeholder="t('rfqItemList.filters.allSalesUsers')"
           clearable
           filterable
           class="status-select status-select--sales"
@@ -68,10 +68,10 @@
         >
           <el-option v-for="u in salesUsers" :key="u.id" :label="salesUserLabel(u)" :value="u.id" />
         </el-select>
-        <span class="filter-field-label">采购员</span>
+        <span class="filter-field-label">{{ t('rfqItemList.columns.purchaser') }}</span>
         <el-select
           v-model="searchForm.purchaserUserId"
-          placeholder="全部采购员"
+          :placeholder="t('rfqItemList.filters.allPurchasers')"
           clearable
           filterable
           class="status-select status-select--purchase"
@@ -85,10 +85,10 @@
           border
           @change="handleSearch"
         >
-          有报价
+          {{ t('rfqItemList.filters.hasQuotes') }}
         </el-checkbox>
-        <button class="btn-primary btn-sm" type="button" @click="handleSearch">查询</button>
-        <button class="btn-ghost btn-sm" type="button" @click="handleReset">重置</button>
+        <button class="btn-primary btn-sm" type="button" @click="handleSearch">{{ t('rfqItemList.filters.query') }}</button>
+        <button class="btn-ghost btn-sm" type="button" @click="handleReset">{{ t('rfqItemList.filters.reset') }}</button>
       </div>
     </div>
 
@@ -134,7 +134,7 @@
         </template>
         <template #col-actions-header>
           <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
+            <span class="op-col-header-text">{{ t('rfqItemList.actions.column') }}</span>
             <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
               {{ opColExpanded ? '>' : '<' }}
             </button>
@@ -143,8 +143,8 @@
         <template #col-actions="{ row }">
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
-              <button type="button" class="action-btn action-btn--primary" @click.stop="goDetail(row)">详情</button>
-              <button type="button" class="action-btn action-btn--warning" @click.stop="goQuote(row)">报价</button>
+              <button type="button" class="action-btn action-btn--primary" @click.stop="goDetail(row)">{{ t('rfqItemList.actions.detail') }}</button>
+              <button type="button" class="action-btn action-btn--warning" @click.stop="goQuote(row)">{{ t('rfqItemList.actions.quote') }}</button>
             </div>
 
             <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -154,10 +154,10 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="goDetail(row)">
-                    <span class="op-more-item op-more-item--primary">详情</span>
+                    <span class="op-more-item op-more-item--primary">{{ t('rfqItemList.actions.detail') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item @click.stop="goQuote(row)">
-                    <span class="op-more-item op-more-item--warning">报价</span>
+                    <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.actions.quote') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -169,12 +169,12 @@
 
       <div class="table-footer-bar">
         <div class="table-footer-left">
-          <el-tooltip content="列设置" placement="top" :hide-after="0">
+          <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
             <el-button
               class="table-settings-btn"
               link
               type="primary"
-              aria-label="列设置"
+              :aria-label="t('systemUser.colSetting')"
               @click="dataTableRef?.openColumnSettings?.()"
             >
               <el-icon><Setting /></el-icon>
@@ -433,6 +433,7 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
@@ -450,6 +451,7 @@ import { Setting } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
 /** 需求明细列表：按当前筛选与分页自动刷新间隔 */
 const RFQ_ITEM_LIST_AUTO_REFRESH_MS = 5 * 60 * 1000
@@ -493,7 +495,7 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => [
   },
   {
     key: 'itemStatus',
-    label: '明细状态',
+    label: t('rfqItemList.columns.itemStatus'),
     width: 160,
     minWidth: 160,
     align: 'center',
@@ -501,7 +503,7 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => [
   },
   {
     key: 'rfqCode',
-    label: '需求编号',
+    label: t('rfqItemList.columns.rfqCode'),
     prop: 'rfqCode',
     width: 160,
     minWidth: 160,
@@ -510,7 +512,7 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => [
   },
   {
     key: 'quoteCount',
-    label: '报价条目',
+    label: t('rfqItemList.columns.quoteCount'),
     width: 120,
     minWidth: 112,
     align: 'center',
@@ -518,7 +520,7 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => [
   },
   {
     key: 'customerName',
-    label: '客户',
+    label: t('rfqItemList.columns.customer'),
     prop: 'customerName',
     minWidth: 200,
     showOverflowTooltip: true,
@@ -526,14 +528,14 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => [
   },
   {
     key: 'materialModel',
-    label: '物料型号',
+    label: t('rfqItemList.columns.materialModel'),
     minWidth: 120,
     showOverflowTooltip: true,
     resizable: true
   },
   {
     key: 'customerPart',
-    label: '客户料号',
+    label: t('rfqItemList.columns.customerPart'),
     width: 120,
     minWidth: 88,
     showOverflowTooltip: true,
@@ -541,7 +543,7 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => [
   },
   {
     key: 'quantity',
-    label: '数量',
+    label: t('rfqItemList.columns.quantity'),
     prop: 'quantity',
     width: 90,
     minWidth: 72,
@@ -550,7 +552,7 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => [
   },
   {
     key: 'salesUserName',
-    label: '业务员',
+    label: t('rfqItemList.columns.salesUser'),
     prop: 'salesUserName',
     width: 100,
     minWidth: 80,
@@ -559,28 +561,28 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => [
   },
   {
     key: 'purchasers',
-    label: '采购员',
+    label: t('rfqItemList.columns.purchaser'),
     minWidth: 160,
     showOverflowTooltip: true,
     resizable: true
   },
   {
     key: 'createTime',
-    label: '创建时间',
+    label: t('rfqItemList.columns.createTime'),
     width: 160,
     showOverflowTooltip: true,
     resizable: true
   },
   {
     key: 'createUser',
-    label: '创建人',
+    label: t('rfqItemList.columns.createUser'),
     width: 120,
     showOverflowTooltip: true,
     resizable: true
   },
   {
     key: 'actions',
-    label: '操作',
+    label: t('rfqItemList.actions.column'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -675,13 +677,13 @@ function formatAssignedPurchasers(row: RFQItem) {
 
 function itemStatusText(s?: number) {
   const map: Record<number, string> = {
-    0: '待报价',
-    1: '已报价',
-    2: '已接受',
-    3: '已拒绝',
-    4: '已关闭'
+    0: t('rfqItemList.status.pending'),
+    1: t('rfqItemList.status.quoted'),
+    2: t('rfqItemList.status.accepted'),
+    3: t('rfqItemList.status.rejected'),
+    4: t('rfqItemList.status.closed')
   }
-  return s !== undefined ? map[s] ?? '—' : '—'
+  return s !== undefined ? map[s] ?? t('quoteList.na') : t('quoteList.na')
 }
 
 function quoteStatusText(status: number) {
@@ -862,7 +864,7 @@ async function loadData() {
     selectedRfqItem.value = null
     quotesForItem.value = []
     dockLinkAlert.value = null
-    const msg = e instanceof Error ? e.message : '加载需求明细失败'
+    const msg = e instanceof Error ? e.message : t('rfqItemList.loadFailed')
     ElMessage.error(msg)
   } finally {
     loading.value = false
@@ -1016,7 +1018,7 @@ function goDetail(row: RFQItem) {
 
 function goQuote(row: RFQItem) {
   if (!row.rfqId || !row.id) {
-    ElMessage.warning('缺少需求或明细标识，无法打开新建报价')
+    ElMessage.warning(t('rfqItemList.warnings.missingIds'))
     return
   }
   router.push({
@@ -1061,12 +1063,12 @@ async function handleDockRowGenerateSalesOrder(row: Record<string, unknown>) {
 function handleBatchQuote() {
   const rows = basketStore.items
   if (!rows.length) {
-    ElMessage.warning('请先在复选篮子中加入需求明细（可跨页勾选）')
+    ElMessage.warning(t('rfqItemList.warnings.selectFromBasket'))
     return
   }
   const rfqIds = new Set(rows.map((r) => r.rfqId).filter(Boolean))
   if (rfqIds.size !== 1) {
-    ElMessage.warning('批量报价仅支持同一需求下的多条明细，请重新选择')
+    ElMessage.warning(t('rfqItemList.warnings.sameRfqOnly'))
     return
   }
   const rfqId = [...rfqIds][0]!

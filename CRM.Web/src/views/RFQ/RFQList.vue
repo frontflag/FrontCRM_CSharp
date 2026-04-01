@@ -5,17 +5,17 @@
       <div class="header-left">
         <div class="page-title-group">
           <div class="page-icon">R</div>
-          <h1 class="page-title">需求管理 (RFQ)</h1>
+          <h1 class="page-title">{{ t('rfqList.title') }}</h1>
         </div>
-        <div class="count-badge">共 {{ totalCount }} 条需求</div>
+        <div class="count-badge">{{ t('rfqList.count', { count: totalCount }) }}</div>
       </div>
       <div class="header-right">
         <el-button class="btn-ghost btn-sm" @click="importDialogVisible = true">
-          <el-icon><Upload /></el-icon>导入 Excel 创建
+          <el-icon><Upload /></el-icon>{{ t('rfqList.importExcel') }}
         </el-button>
         <button class="btn-success" type="button" @click="router.push({ name: 'RFQCreate' })">
           <el-icon class="btn-success__icon"><Plus /></el-icon>
-          新增需求
+          {{ t('rfqList.create') }}
         </button>
       </div>
     </div>
@@ -24,50 +24,50 @@
     <div class="statistics-row">
       <div class="stat-card">
         <div class="stat-value">{{ stats.total }}</div>
-        <div class="stat-label">需求总数</div>
+        <div class="stat-label">{{ t('rfqList.stats.total') }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-value">{{ stats.pending }}</div>
-        <div class="stat-label">待分配</div>
+        <div class="stat-label">{{ t('rfqList.stats.pending') }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-value">{{ stats.processing }}</div>
-        <div class="stat-label">报价中</div>
+        <div class="stat-label">{{ t('rfqList.stats.processing') }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-value">{{ stats.quoted }}</div>
-        <div class="stat-label">已报价</div>
+        <div class="stat-label">{{ t('rfqList.stats.quoted') }}</div>
       </div>
     </div>
 
     <!-- 搜索面板 -->
     <el-card class="filter-card search-bar">
       <el-form :inline="true" :model="searchForm">
-        <el-form-item label="搜索">
+        <el-form-item :label="t('rfqList.filters.search')">
           <el-input 
             v-model="searchForm.keyword" 
-            placeholder="需求编号/客户名称/产品"
+            :placeholder="t('rfqList.filters.searchPlaceholder')"
             clearable
             @keyup.enter="handleSearch"
             style="width: 280px"
           />
         </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="全部状态" clearable style="width: 140px">
-            <el-option label="待分配" :value="0" />
-            <el-option label="已分配" :value="1" />
-            <el-option label="报价中" :value="2" />
-            <el-option label="已报价" :value="3" />
-            <el-option label="已选价" :value="4" />
-            <el-option label="已转订单" :value="5" />
-            <el-option label="已关闭" :value="6" />
+        <el-form-item :label="t('rfqList.filters.status')">
+          <el-select v-model="searchForm.status" :placeholder="t('rfqList.filters.allStatus')" clearable style="width: 140px">
+            <el-option :label="t('rfqList.status.pending')" :value="0" />
+            <el-option :label="t('rfqList.status.assigned')" :value="1" />
+            <el-option :label="t('rfqList.status.processing')" :value="2" />
+            <el-option :label="t('rfqList.status.quoted')" :value="3" />
+            <el-option :label="t('rfqList.status.selected')" :value="4" />
+            <el-option :label="t('rfqList.status.converted')" :value="5" />
+            <el-option :label="t('rfqList.status.closed')" :value="6" />
           </el-select>
         </el-form-item>
         <el-form-item>
           <el-button class="btn-primary btn-sm" type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>查询
+            <el-icon><Search /></el-icon>{{ t('rfqList.filters.query') }}
           </el-button>
-          <el-button class="btn-ghost btn-sm" @click="handleReset">重置</el-button>
+          <el-button class="btn-ghost btn-sm" @click="handleReset">{{ t('rfqList.filters.reset') }}</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -107,7 +107,7 @@
         </template>
         <template #col-actions-header>
           <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
+            <span class="op-col-header-text">{{ t('rfqList.actions.column') }}</span>
             <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
               {{ opColExpanded ? '>' : '<' }}
             </button>
@@ -116,10 +116,10 @@
         <template #col-actions="{ row }">
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
-              <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">查看</button>
-              <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">编辑</button>
+              <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('rfqList.actions.view') }}</button>
+              <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('rfqList.actions.edit') }}</button>
               <button type="button" class="action-btn action-btn--warning" @click.stop="handleGenerateQuote(row)">
-                生成报价
+                {{ t('rfqList.actions.generateQuote') }}
               </button>
             </div>
 
@@ -130,13 +130,13 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="handleView(row)">
-                    <span class="op-more-item op-more-item--primary">查看</span>
+                    <span class="op-more-item op-more-item--primary">{{ t('rfqList.actions.view') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item @click.stop="handleEdit(row)">
-                    <span class="op-more-item op-more-item--primary">编辑</span>
+                    <span class="op-more-item op-more-item--primary">{{ t('rfqList.actions.edit') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item @click.stop="handleGenerateQuote(row)">
-                    <span class="op-more-item op-more-item--warning">生成报价</span>
+                    <span class="op-more-item op-more-item--warning">{{ t('rfqList.actions.generateQuote') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -147,8 +147,8 @@
 
       <div class="pagination-wrapper">
         <div class="list-footer-left">
-          <el-tooltip content="列设置" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+          <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
@@ -178,6 +178,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { Plus, Search, Setting, Upload } from '@element-plus/icons-vue'
 import ImportRFQDialog from './components/ImportRFQDialog.vue'
 import { ElMessage } from 'element-plus'
@@ -189,6 +190,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
 const loading = ref(false)
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
@@ -223,26 +225,26 @@ function toggleOpCol() {
 const rfqTableColumns = computed((): CrmTableColumnDef[] => [
   {
     key: 'rfqCode',
-    label: '需求编号',
+    label: t('rfqList.columns.rfqCode'),
     prop: 'rfqCode',
     width: 160,
     minWidth: 160,
     showOverflowTooltip: true,
     sortable: true
   },
-  { key: 'status', label: '状态', prop: 'status', width: 160, align: 'center' as const },
-  { key: 'customerName', label: '客户', prop: 'customerName', minWidth: 200, showOverflowTooltip: true },
-  { key: 'product', label: '产品', prop: 'product', minWidth: 150, showOverflowTooltip: true },
-  { key: 'industry', label: '行业', prop: 'industry', width: 100 },
-  { key: 'itemCount', label: '明细数', prop: 'itemCount', width: 80, align: 'center' as const },
-  { key: 'importance', label: '重要度', prop: 'importance', width: 90, align: 'center' as const },
-  { key: 'rfqType', label: '类型', prop: 'rfqType', width: 90 },
-  { key: 'salesUserName', label: '业务员', prop: 'salesUserName', width: 100 },
-  { key: 'createTime', label: '创建时间', width: 160 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  { key: 'status', label: t('rfqList.columns.status'), prop: 'status', width: 160, align: 'center' as const },
+  { key: 'customerName', label: t('rfqList.columns.customer'), prop: 'customerName', minWidth: 200, showOverflowTooltip: true },
+  { key: 'product', label: t('rfqList.columns.product'), prop: 'product', minWidth: 150, showOverflowTooltip: true },
+  { key: 'industry', label: t('rfqList.columns.industry'), prop: 'industry', width: 100 },
+  { key: 'itemCount', label: t('rfqList.columns.itemCount'), prop: 'itemCount', width: 80, align: 'center' as const },
+  { key: 'importance', label: t('rfqList.columns.importance'), prop: 'importance', width: 90, align: 'center' as const },
+  { key: 'rfqType', label: t('rfqList.columns.type'), prop: 'rfqType', width: 90 },
+  { key: 'salesUserName', label: t('rfqList.columns.salesUser'), prop: 'salesUserName', width: 100 },
+  { key: 'createTime', label: t('rfqList.columns.createTime'), width: 160 },
+  { key: 'createUser', label: t('rfqList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('rfqList.actions.column'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -269,15 +271,15 @@ const getStatusType = (status: number) => {
 
 const getStatusText = (status: number) => {
   const map: Record<number, string> = {
-    0: '待分配', 1: '已分配', 2: '报价中', 3: '已报价',
-    4: '已选价', 5: '已转订单', 6: '已关闭'
+    0: t('rfqList.status.pending'), 1: t('rfqList.status.assigned'), 2: t('rfqList.status.processing'), 3: t('rfqList.status.quoted'),
+    4: t('rfqList.status.selected'), 5: t('rfqList.status.converted'), 6: t('rfqList.status.closed')
   }
-  return map[status] || '未知'
+  return map[status] || t('rfqList.status.unknown')
 }
 
 const getTypeText = (type: number) => {
   const s = formatRfqTypeLabel(type)
-  return s === '—' ? '未知' : s
+  return s === '—' ? t('rfqList.status.unknown') : s
 }
 
 // 加载数据
@@ -301,7 +303,7 @@ const loadData = async () => {
       quoted: rfqList.value.filter((r: any) => r.status >= 3).length
     }
   } catch (error) {
-    ElMessage.error('加载数据失败')
+    ElMessage.error(t('rfqList.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -370,7 +372,7 @@ const handleView = (row: any) => {
 }
 
 const handleGenerateQuote = (_row: any) => {
-  ElMessage.success('已生成报价单')
+  ElMessage.success(t('rfqList.generateQuoteSuccess'))
 }
 
 </script>

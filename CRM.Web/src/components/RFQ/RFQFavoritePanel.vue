@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { favoriteApi } from '@/api/favorite'
 import { rfqApi } from '@/api/rfq'
 import type { RFQ } from '@/types/rfq'
@@ -10,23 +11,24 @@ withDefaults(
   defineProps<{
     title?: string
   }>(),
-  { title: '收藏的需求' }
+  { title: '' }
 )
 
 const router = useRouter()
+const { t } = useI18n()
 
 const loading = ref(false)
 const items = ref<RFQ[]>([])
 
 function getStatusText(status: number) {
   const map: Record<number, string> = {
-    0: '待分配',
-    1: '已分配',
-    2: '报价中',
-    3: '已报价',
-    4: '已选价',
-    5: '已转订单',
-    6: '已关闭'
+    0: t('rfqList.status.pending'),
+    1: t('rfqList.status.assigned'),
+    2: t('rfqList.status.processing'),
+    3: t('rfqList.status.quoted'),
+    4: t('rfqList.status.selected'),
+    5: t('rfqList.status.converted'),
+    6: t('rfqList.status.closed')
   }
   return map[status] ?? '—'
 }
@@ -73,16 +75,16 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="rfq-favorite-panel" v-loading="loading">
-    <div class="rfq-favorite-panel__head">{{ title }}</div>
+    <div class="rfq-favorite-panel__head">{{ title || t('leftPanel.rfqFavoritesTitle') }}</div>
     <div v-if="!loading && items.length === 0" class="rfq-favorite-panel__empty">
-      暂无收藏；可在需求详情页标题旁点击星标进行收藏
+      {{ t('leftPanel.rfqFavoritesEmpty') }}
     </div>
     <table v-else class="rfq-favorite-panel__table">
       <thead>
         <tr>
-          <th>需求编号</th>
-          <th>客户</th>
-          <th>状态</th>
+          <th>{{ t('rfqList.columns.rfqCode') }}</th>
+          <th>{{ t('rfqList.columns.customer') }}</th>
+          <th>{{ t('rfqList.columns.status') }}</th>
         </tr>
       </thead>
       <tbody>

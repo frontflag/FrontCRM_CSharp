@@ -3,11 +3,11 @@
     <!-- 面包屑 + 返回 -->
     <div class="detail-header">
       <el-button link @click="router.back()" class="back-btn">
-        <el-icon><ArrowLeft /></el-icon> 返回列表
+        <el-icon><ArrowLeft /></el-icon> {{ t('financePaymentDetail.backToList') }}
       </el-button>
       <el-breadcrumb separator="/">
-        <el-breadcrumb-item :to="{ name: 'FinancePaymentList' }">付款管理</el-breadcrumb-item>
-        <el-breadcrumb-item>{{ detail?.financePaymentCode || '详情' }}</el-breadcrumb-item>
+        <el-breadcrumb-item :to="{ name: 'FinancePaymentList' }">{{ t('financePaymentDetail.breadcrumb') }}</el-breadcrumb-item>
+        <el-breadcrumb-item>{{ detail?.financePaymentCode || t('financePaymentDetail.detail') }}</el-breadcrumb-item>
       </el-breadcrumb>
     </div>
 
@@ -20,28 +20,28 @@
       <div class="info-card">
         <div class="card-title">
           <span class="title-bar"></span>
-          <span>基本信息</span>
-          <el-tag effect="dark" :type="PAYMENT_STATUS_MAP[detail.status]?.type as any" size="small" style="margin-left: 12px;">
-            {{ PAYMENT_STATUS_MAP[detail.status]?.label }}
+          <span>{{ t('financePaymentDetail.basicInfo') }}</span>
+          <el-tag effect="dark" :type="paymentStatusTag(detail.status) as any" size="small" style="margin-left: 12px;">
+            {{ paymentStatusLabel(detail.status) }}
           </el-tag>
         </div>
         <el-descriptions :column="2" border class="order-desc">
-          <el-descriptions-item label="付款单号">
+          <el-descriptions-item :label="t('financePaymentDetail.labels.code')">
             <span class="order-code">{{ detail.financePaymentCode }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag effect="dark" :type="PAYMENT_STATUS_MAP[detail.status]?.type as any">
-              {{ PAYMENT_STATUS_MAP[detail.status]?.label }}
+          <el-descriptions-item :label="t('financePaymentDetail.labels.status')">
+            <el-tag effect="dark" :type="paymentStatusTag(detail.status) as any">
+              {{ paymentStatusLabel(detail.status) }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="供应商">{{ vendorDisplayName }}</el-descriptions-item>
-          <el-descriptions-item label="付款金额">
+          <el-descriptions-item :label="t('financePaymentDetail.labels.vendor')">{{ vendorDisplayName }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financePaymentDetail.labels.amount')">
             <span class="amount">{{ CURRENCY_MAP[detail.paymentCurrency] }} {{ formatAmount(detail.paymentAmount) }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="付款方式">{{ PAYMENT_MODE_MAP[detail.paymentMode] }}</el-descriptions-item>
-          <el-descriptions-item label="付款日期">{{ detail.paymentDate ? formatDisplayDate(detail.paymentDate) : '-' }}</el-descriptions-item>
-          <el-descriptions-item label="银行水单号">{{ (detail as any).bankSlipNo || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="备注" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financePaymentDetail.labels.mode')">{{ paymentModeLabel(detail.paymentMode) }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financePaymentDetail.labels.date')">{{ detail.paymentDate ? formatDisplayDate(detail.paymentDate) : '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financePaymentDetail.labels.bankSlip')">{{ (detail as any).bankSlipNo || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financePaymentDetail.labels.remark')" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
         </el-descriptions>
       </div>
 
@@ -49,39 +49,39 @@
       <div class="tab-card">
         <div class="card-title">
           <span class="title-bar"></span>
-          <span>付款明细</span>
+          <span>{{ t('financePaymentDetail.paymentLines') }}</span>
         </div>
-        <el-empty v-if="!detail.items?.length" description="暂无明细" :image-size="80" />
+        <el-empty v-if="!detail.items?.length" :description="t('financePaymentDetail.noItems')" :image-size="80" />
         <CrmDataTable v-else :data="paymentLineRows" size="small" class="items-table">
           <el-table-column type="index" width="50" label="#" />
-          <el-table-column prop="purchaseOrderCode" label="采购单号" min-width="160" show-overflow-tooltip />
-          <el-table-column prop="pn" label="型号" min-width="150" />
-          <el-table-column prop="brand" label="品牌" width="120" />
-          <el-table-column prop="qty" label="数量" width="100" align="right">
+          <el-table-column prop="purchaseOrderCode" :label="t('financePaymentDetail.labels.poCode')" min-width="160" show-overflow-tooltip />
+          <el-table-column prop="pn" :label="t('financePaymentDetail.labels.pn')" min-width="150" />
+          <el-table-column prop="brand" :label="t('financePaymentDetail.labels.brand')" width="120" />
+          <el-table-column prop="qty" :label="t('financePaymentDetail.labels.qty')" width="100" align="right">
             <template #default="{ row }">
               {{ row.qty ?? '-' }}
             </template>
           </el-table-column>
-          <el-table-column prop="cost" label="单价" width="130" align="right">
+          <el-table-column prop="cost" :label="t('financePaymentDetail.labels.unitPrice')" width="130" align="right">
             <template #default="{ row }">
               {{ row.cost == null ? '-' : formatAmount(Number(row.cost)) }}
             </template>
           </el-table-column>
-          <el-table-column prop="paymentAmount" label="已付金额" width="130" align="right">
+          <el-table-column prop="paymentAmount" :label="t('financePaymentDetail.labels.paidAmount')" width="130" align="right">
             <template #default="{ row }">
               {{ formatAmount(row.paymentAmount) }}
             </template>
           </el-table-column>
-          <el-table-column prop="purchaseOrderCreateTime" label="采购订单创建日期" width="170">
+          <el-table-column prop="purchaseOrderCreateTime" :label="t('financePaymentDetail.labels.poCreatedAt')" width="170">
             <template #default="{ row }">
               {{ row.purchaseOrderCreateTime ? formatDisplayDateTime(row.purchaseOrderCreateTime) : '-' }}
             </template>
           </el-table-column>
-          <el-table-column prop="purchaseOrderCreateUserName" label="创建人" width="120" show-overflow-tooltip />
-          <el-table-column label="核销状态" width="120" align="center">
+          <el-table-column prop="purchaseOrderCreateUserName" :label="t('financePaymentDetail.labels.creator')" width="120" show-overflow-tooltip />
+          <el-table-column :label="t('financePaymentDetail.labels.verifyStatus')" width="120" align="center">
             <template #default="{ row }">
               <el-tag effect="dark" size="small" :type="row.verificationStatus === 2 ? 'success' : row.verificationStatus === 1 ? 'warning' : 'info'">
-                {{ row.verificationStatus === 2 ? '核销完成' : row.verificationStatus === 1 ? '部分核销' : '未核销' }}
+                {{ verificationStatusLabel(row.verificationStatus) }}
               </el-tag>
             </template>
           </el-table-column>
@@ -92,24 +92,24 @@
       <div class="tab-card">
         <div class="card-title">
           <span class="title-bar"></span>
-          <span>银行水单附件</span>
+          <span>{{ t('financePaymentDetail.bankSlip') }}</span>
         </div>
-        <el-empty v-if="!paymentDocs.length" description="暂无附件" :image-size="80" />
+        <el-empty v-if="!paymentDocs.length" :description="t('financePaymentDetail.noAttachments')" :image-size="80" />
         <CrmDataTable v-else :data="paymentDocs" size="small" class="items-table">
           <el-table-column type="index" width="50" label="#" />
-          <el-table-column prop="originalFileName" label="文件名" min-width="260" show-overflow-tooltip />
-          <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
-          <el-table-column prop="createTime" label="上传时间" width="170">
+          <el-table-column prop="originalFileName" :label="t('financePaymentDetail.labels.fileName')" min-width="260" show-overflow-tooltip />
+          <el-table-column prop="remark" :label="t('financePaymentDetail.labels.remark')" min-width="140" show-overflow-tooltip />
+          <el-table-column prop="createTime" :label="t('financePaymentDetail.labels.uploadTime')" width="170">
             <template #default="{ row }">
               {{ row.createTime ? formatDisplayDateTime(row.createTime) : '-' }}
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="140" fixed="right" class-name="op-col" label-class-name="op-col">
+          <el-table-column :label="t('financePaymentDetail.labels.actions')" width="140" fixed="right" class-name="op-col" label-class-name="op-col">
             <template #default="{ row }">
               <div @click.stop @dblclick.stop>
                 <div class="action-btns">
-                  <el-button size="small" text type="primary" @click.stop="previewDoc(row)">预览</el-button>
-                  <el-button size="small" text type="primary" @click.stop="downloadDoc(row)">下载</el-button>
+                  <el-button size="small" text type="primary" @click.stop="previewDoc(row)">{{ t('financePaymentDetail.preview') }}</el-button>
+                  <el-button size="small" text type="primary" @click.stop="downloadDoc(row)">{{ t('financePaymentDetail.download') }}</el-button>
                 </div>
               </div>
             </template>
@@ -118,18 +118,18 @@
       </div>
     </template>
 
-    <el-empty v-else description="付款单不存在" />
+    <el-empty v-else :description="t('financePaymentDetail.notFound')" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import {
   financePaymentApi,
-  PAYMENT_STATUS_MAP,
-  PAYMENT_MODE_MAP,
   CURRENCY_MAP,
   type FinancePayment,
 } from '@/api/finance'
@@ -140,6 +140,8 @@ import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTim
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
+const { paymentStatusLabel, paymentStatusTag, paymentModeLabel, verificationStatusLabel } = useFinanceEnumLabels()
 
 const loading = ref(false)
 const detail = ref<FinancePayment | null>(null)

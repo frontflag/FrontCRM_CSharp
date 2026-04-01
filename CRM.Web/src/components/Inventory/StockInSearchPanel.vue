@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -47,56 +50,56 @@ function handleSearch() {
 
 <template>
   <div class="si-search-panel">
-    <div class="si-search-panel__head">入库单检索</div>
+    <div class="si-search-panel__head">{{ t('stockInList.leftPanel.title') }}</div>
 
     <div class="si-search-panel__fields">
       <div class="field-col">
-        <label class="field-label">物料型号</label>
+        <label class="field-label">{{ t('stockInList.leftPanel.materialModel') }}</label>
         <div class="field-control">
           <input
             v-model="form.model"
             type="text"
             class="field-input"
-            placeholder="物料型号 / 物料ID"
+            :placeholder="t('stockInList.leftPanel.materialModelPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
       </div>
 
       <div class="field-col">
-        <label class="field-label">供应商名称</label>
+        <label class="field-label">{{ t('stockInList.leftPanel.vendorName') }}</label>
         <div class="field-control">
           <input
             v-model="form.vendorName"
             type="text"
             class="field-input"
-            placeholder="供应商名称"
+            :placeholder="t('stockInList.leftPanel.vendorPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
       </div>
 
       <div class="field-col">
-        <label class="field-label">采购订单号</label>
+        <label class="field-label">{{ t('stockInList.leftPanel.purchaseOrderCode') }}</label>
         <div class="field-control">
           <input
             v-model="form.purchaseOrderCode"
             type="text"
             class="field-input"
-            placeholder="采购订单号"
+            :placeholder="t('stockInList.leftPanel.purchaseOrderPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
       </div>
 
       <div class="field-col">
-        <label class="field-label">销售订单号</label>
+        <label class="field-label">{{ t('stockInList.leftPanel.salesOrderCode') }}</label>
         <div class="field-control">
           <input
             v-model="form.salesOrderCode"
             type="text"
             class="field-input"
-            placeholder="销售订单号"
+            :placeholder="t('stockInList.leftPanel.salesOrderPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
@@ -104,8 +107,8 @@ function handleSearch() {
     </div>
 
     <div class="si-search-panel__actions">
-      <button type="button" class="btn-search" @click="handleSearch">搜索</button>
-      <button type="button" class="btn-reset" @click="handleReset">重置</button>
+      <button type="button" class="btn-search" @click="handleSearch">{{ t('stockInList.leftPanel.search') }}</button>
+      <button type="button" class="btn-reset" @click="handleReset">{{ t('stockInList.leftPanel.reset') }}</button>
     </div>
   </div>
 </template>

@@ -7,13 +7,13 @@
             <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
           </svg>
         </div>
-        <h1 class="page-title">冻结管理</h1>
-        <div class="count-badge">共 {{ totalCount }} 位冻结客户</div>
+        <h1 class="page-title">{{ t('customerFreeze.title') }}</h1>
+        <div class="count-badge">{{ t('customerFreeze.count', { count: totalCount }) }}</div>
       </div>
       <div class="header-right">
         <el-input
           v-model="keyword"
-          placeholder="搜索客户名称/编号"
+          :placeholder="t('customerFreeze.searchPlaceholder')"
           clearable
           size="default"
           style="width:220px"
@@ -34,7 +34,7 @@
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
           <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/>
         </svg>
-        <p>暂无冻结客户</p>
+        <p>{{ t('customerFreeze.empty') }}</p>
       </div>
 
       <div v-for="item in items" :key="item.id" class="record-card" @dblclick="goDetail(item)">
@@ -48,20 +48,20 @@
               :blacklist="!!item.blackList"
               size="sm"
             />
-            <span class="freeze-tag">冻结</span>
+            <span class="freeze-tag">{{ t('customerFreeze.tag') }}</span>
             <span v-if="item.customerLevel" class="level-tag">{{ getLevelLabel(item.customerLevel) }}</span>
           </div>
           <div class="record-meta">
             <span class="meta-code">{{ item.customerCode }}</span>
             <span class="meta-sep">·</span>
-            <span class="meta-text">最近更新：{{ formatDateTime(item.modifyTime || item.updatedAt) }}</span>
+            <span class="meta-text">{{ t('customerFreeze.updatedAt') }}{{ formatDateTime(item.modifyTime || item.updatedAt) }}</span>
           </div>
-          <div class="record-hint">冻结原因见客户详情「操作日志」</div>
+          <div class="record-hint">{{ t('customerFreeze.hint') }}</div>
         </div>
         <div class="record-actions" @dblclick.stop>
-          <el-button type="primary" size="small" style="margin-right:8px" @click="goDetail(item)">查看详情</el-button>
+          <el-button type="primary" size="small" style="margin-right:8px" @click="goDetail(item)">{{ t('customerFreeze.viewDetail') }}</el-button>
           <el-button type="warning" size="small" :loading="removingId === item.id" @click="handleUnfreeze(item)">
-            解除冻结
+            {{ t('customerFreeze.unfreeze') }}
           </el-button>
         </div>
       </div>
@@ -78,23 +78,23 @@
       />
     </div>
 
-    <el-dialog v-model="showUnfreezeDialog" title="解除冻结" width="440px" :close-on-click-modal="false">
+    <el-dialog v-model="showUnfreezeDialog" :title="t('customerFreeze.unfreezeTitle')" width="440px" :close-on-click-modal="false">
       <div style="color:rgba(200,216,232,0.75);font-size:13px;margin-bottom:16px">
-        确定要将「{{ pendingUnfreeze?.customerName || pendingUnfreeze?.officialName || '' }}」解除冻结吗？启用原因将记入操作日志。
+        {{ t('customerFreeze.unfreezeConfirm', { name: pendingUnfreeze?.customerName || pendingUnfreeze?.officialName || '' }) }}
       </div>
       <el-form label-width="90px">
-        <el-form-item label="启用原因" required>
+        <el-form-item :label="t('customerFreeze.reason')" required>
           <el-input
             v-model="unfreezeReason"
             type="textarea"
             :rows="3"
-            placeholder="请输入启用原因（必填）"
+            :placeholder="t('customerFreeze.reasonPlaceholder')"
           />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showUnfreezeDialog = false">取消</el-button>
-        <el-button type="primary" :loading="removingId !== null" @click="confirmUnfreeze">确定</el-button>
+        <el-button @click="showUnfreezeDialog = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="removingId !== null" @click="confirmUnfreeze">{{ t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -104,11 +104,13 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElNotification } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { customerApi } from '@/api/customer'
 import PartyStatusIcons from '@/components/party/PartyStatusIcons.vue'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
+const { t } = useI18n()
 const loading = ref(false)
 const items = ref<any[]>([])
 const totalCount = ref(0)
@@ -127,7 +129,7 @@ const fetchData = async () => {
     items.value = res?.items ?? res?.data ?? (Array.isArray(res) ? res : [])
     totalCount.value = res?.totalCount ?? res?.total ?? items.value.length
   } catch {
-    ElNotification.error({ title: '加载失败', message: '获取冻结客户失败，请刷新重试' })
+    ElNotification.error({ title: t('customerFreeze.loadFailedTitle'), message: t('customerFreeze.loadFailedMessage') })
   } finally {
     loading.value = false
   }
@@ -143,19 +145,19 @@ const confirmUnfreeze = async () => {
   const item = pendingUnfreeze.value
   if (!item?.id) return
   if (!unfreezeReason.value.trim()) {
-    ElNotification.warning({ title: '请填写原因', message: '请输入启用原因' })
+    ElNotification.warning({ title: t('customerFreeze.reasonRequiredTitle'), message: t('customerFreeze.reasonRequiredMessage') })
     return
   }
   removingId.value = item.id
   try {
     await customerApi.unfreezeCustomer(item.id, unfreezeReason.value.trim())
-    ElNotification.success({ title: '操作成功', message: '客户已解除冻结' })
+    ElNotification.success({ title: t('customerFreeze.successTitle'), message: t('customerFreeze.successMessage') })
     showUnfreezeDialog.value = false
     pendingUnfreeze.value = null
     unfreezeReason.value = ''
     fetchData()
   } catch {
-    ElNotification.error({ title: '操作失败', message: '解除冻结失败，请稍后重试' })
+    ElNotification.error({ title: t('customerFreeze.failedTitle'), message: t('customerFreeze.failedMessage') })
   } finally {
     removingId.value = null
   }

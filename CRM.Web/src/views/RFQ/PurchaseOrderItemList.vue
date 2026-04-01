@@ -8,9 +8,9 @@
               <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
             </svg>
           </div>
-          <h1 class="page-title">采购订单明细</h1>
+          <h1 class="page-title">{{ t('purchaseOrderItemList.title') }}</h1>
         </div>
-        <div class="list-count-badge">共 {{ total }} 条</div>
+        <div class="list-count-badge">{{ t('purchaseOrderItemList.totalCount', { total }) }}</div>
       </div>
       <div class="header-right">
         <!-- 采购订单明细目前仅展示；如后续需要批量操作，可在此扩展 -->
@@ -19,13 +19,13 @@
 
     <div class="search-bar">
       <div class="search-left">
-        <span class="list-title">筛选</span>
+        <span class="list-title">{{ t('purchaseOrderItemList.filters.label') }}</span>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
-          range-separator="至"
-          start-placeholder="订单生成起"
-          end-placeholder="订单生成止"
+          :range-separator="t('purchaseOrderItemList.filters.rangeSeparator')"
+          :start-placeholder="t('purchaseOrderItemList.filters.orderCreatedFrom')"
+          :end-placeholder="t('purchaseOrderItemList.filters.orderCreatedTo')"
           value-format="YYYY-MM-DD"
           class="po-date-range"
           clearable
@@ -34,27 +34,36 @@
         <input
           v-model="filters.purchaseOrderCode"
           class="search-input po-filter-input"
-          placeholder="采购订单号"
+          :placeholder="t('purchaseOrderItemList.filters.poCodePlaceholder')"
           @keyup.enter="loadList"
         />
         <input
           v-if="canViewVendor"
           v-model="filters.vendorName"
           class="search-input po-filter-input"
-          placeholder="供应商名称"
+          :placeholder="t('purchaseOrderItemList.filters.vendorPlaceholder')"
           @keyup.enter="loadList"
         />
         <input
           v-if="canViewPurchaseUser"
           v-model="filters.purchaseUserName"
           class="search-input po-filter-input"
-          placeholder="采购员名称"
+          :placeholder="t('purchaseOrderItemList.filters.purchaserPlaceholder')"
           @keyup.enter="loadList"
         />
-        <input v-model="filters.pn" class="search-input po-filter-input" placeholder="物料型号" @keyup.enter="loadList" />
+        <input
+          v-model="filters.pn"
+          class="search-input po-filter-input"
+          :placeholder="t('purchaseOrderItemList.filters.pnPlaceholder')"
+          @keyup.enter="loadList"
+        />
 
-        <button type="button" class="btn-primary btn-sm" @click="loadList">查询</button>
-        <button type="button" class="btn-ghost btn-sm" @click="resetFilters">重置</button>
+        <button type="button" class="btn-primary btn-sm" @click="loadList">
+          {{ t('purchaseOrderItemList.filters.search') }}
+        </button>
+        <button type="button" class="btn-ghost btn-sm" @click="resetFilters">
+          {{ t('purchaseOrderItemList.filters.reset') }}
+        </button>
       </div>
     </div>
 
@@ -90,7 +99,7 @@
       <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}</template>
       <template #col-actions-header>
         <div class="op-col-header">
-          <span class="op-col-header-text">操作</span>
+            <span class="op-col-header-text">{{ t('purchaseOrderItemList.columns.actions') }}</span>
           <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
             {{ opColExpanded ? '>' : '<' }}
           </button>
@@ -99,7 +108,9 @@
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
-            <el-button link type="primary" size="small" @click.stop="goDetail(row)">详情</el-button>
+            <el-button link type="primary" size="small" @click.stop="goDetail(row)">
+              {{ t('purchaseOrderItemList.actions.detail') }}
+            </el-button>
             <el-button
               v-if="row.itemStatus === 30 && canCreateArrivalNotice"
               link
@@ -107,7 +118,7 @@
               size="small"
               @click.stop="openArrivalDialog(row)"
             >
-              通知到货
+              {{ t('purchaseOrderItemList.actions.notifyArrival') }}
             </el-button>
             <el-button
               v-if="row.canApplyPayment"
@@ -116,7 +127,7 @@
               size="small"
               @click.stop="openPaymentDialog(row)"
             >
-              申请付款
+              {{ t('purchaseOrderItemList.actions.applyPayment') }}
             </el-button>
           </div>
 
@@ -127,16 +138,16 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click.stop="goDetail(row)">
-                  <span class="op-more-item op-more-item--primary">详情</span>
+                  <span class="op-more-item op-more-item--primary">{{ t('purchaseOrderItemList.actions.detail') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item
                   v-if="row.itemStatus === 30 && canCreateArrivalNotice"
                   @click.stop="openArrivalDialog(row)"
                 >
-                  <span class="op-more-item op-more-item--warning">通知到货</span>
+                  <span class="op-more-item op-more-item--warning">{{ t('purchaseOrderItemList.actions.notifyArrival') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="row.canApplyPayment" @click.stop="openPaymentDialog(row)">
-                  <span class="op-more-item op-more-item--warning">申请付款</span>
+                  <span class="op-more-item op-more-item--warning">{{ t('purchaseOrderItemList.actions.applyPayment') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -147,8 +158,14 @@
 
     <div v-if="total > 0" class="pagination-wrapper">
       <div class="list-footer-left">
-        <el-tooltip content="列设置" placement="top" :hide-after="0">
-          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="tableRef?.openColumnSettings?.()">
+        <el-tooltip :content="t('purchaseOrderItemList.columnSettings')" placement="top" :hide-after="0">
+          <el-button
+            class="list-settings-btn"
+            link
+            type="primary"
+            :aria-label="t('purchaseOrderItemList.columnSettings')"
+            @click="tableRef?.openColumnSettings?.()"
+          >
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
@@ -168,7 +185,7 @@
 
     <el-dialog
       v-model="paymentDialogVisible"
-      title="申请付款窗口"
+      :title="t('purchaseOrderItemList.paymentDialog.title')"
       width="min(96vw, 1440px)"
       destroy-on-close
       class="payment-dialog"
@@ -176,12 +193,12 @@
       <el-form label-width="120px">
         <el-row :gutter="12">
           <el-col :span="12">
-            <el-form-item label="供应商信息">
+            <el-form-item :label="t('purchaseOrderItemList.paymentDialog.vendorInfo')">
               <el-input :model-value="paymentForm.vendorName || '--'" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="采购员">
+            <el-form-item :label="t('purchaseOrderItemList.paymentDialog.purchaser')">
               <el-input :model-value="paymentForm.purchaseUserName || '--'" disabled />
             </el-form-item>
           </el-col>
@@ -189,88 +206,98 @@
 
         <el-row :gutter="12">
           <el-col :span="12">
-            <el-form-item label="供应商银行" required>
-              <el-select v-model="paymentForm.vendorBankId" placeholder="请选择供应商银行" style="width: 100%">
-                <el-option label="中国银行" value="bank-boc" />
-                <el-option label="工商银行" value="bank-icbc" />
-                <el-option label="建设银行" value="bank-ccb" />
-                <el-option label="农业银行" value="bank-abc" />
+            <el-form-item :label="t('purchaseOrderItemList.paymentDialog.vendorBank')" required>
+              <el-select
+                v-model="paymentForm.vendorBankId"
+                :placeholder="t('purchaseOrderItemList.paymentDialog.vendorBankPlaceholder')"
+                style="width: 100%"
+              >
+                <el-option :label="t('purchaseOrderItemList.paymentDialog.bankBoc')" value="bank-boc" />
+                <el-option :label="t('purchaseOrderItemList.paymentDialog.bankIcbc')" value="bank-icbc" />
+                <el-option :label="t('purchaseOrderItemList.paymentDialog.bankCcb')" value="bank-ccb" />
+                <el-option :label="t('purchaseOrderItemList.paymentDialog.bankAbc')" value="bank-abc" />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="请款方式" required>
+            <el-form-item :label="t('purchaseOrderItemList.paymentDialog.paymentMode')" required>
               <el-select v-model="paymentForm.paymentMode" style="width: 100%">
-                <el-option label="银行转账" :value="1" />
-                <el-option label="现金" :value="2" />
-                <el-option label="支票" :value="3" />
-                <el-option label="承兑汇票" :value="4" />
+                <el-option :label="t('purchaseOrderItemList.paymentDialog.modeWire')" :value="1" />
+                <el-option :label="t('purchaseOrderItemList.paymentDialog.modeCash')" :value="2" />
+                <el-option :label="t('purchaseOrderItemList.paymentDialog.modeCheck')" :value="3" />
+                <el-option :label="t('purchaseOrderItemList.paymentDialog.modeAcceptance')" :value="4" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="请款备注">
+        <el-form-item :label="t('purchaseOrderItemList.paymentDialog.remark')">
           <el-input v-model="paymentForm.remark" type="textarea" :rows="2" />
         </el-form-item>
 
-        <div class="section-title">费用明细</div>
+        <div class="section-title">{{ t('purchaseOrderItemList.paymentDialog.feeSection') }}</div>
         <el-row :gutter="12">
           <el-col :span="8">
-            <el-form-item label="中转行费用">
+            <el-form-item :label="t('purchaseOrderItemList.paymentDialog.intermediateBankFee')">
               <el-input-number v-model="paymentForm.fee.intermediateBankFee" :min="0" :precision="2" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="银行手续费">
+            <el-form-item :label="t('purchaseOrderItemList.paymentDialog.bankCharge')">
               <el-input-number v-model="paymentForm.fee.bankCharge" :min="0" :precision="2" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="运费">
+            <el-form-item :label="t('purchaseOrderItemList.paymentDialog.freight')">
               <el-input-number v-model="paymentForm.fee.freight" :min="0" :precision="2" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="杂费">
+            <el-form-item :label="t('purchaseOrderItemList.paymentDialog.miscFee')">
               <el-input-number v-model="paymentForm.fee.miscFee" :min="0" :precision="2" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="尾差">
+            <el-form-item :label="t('purchaseOrderItemList.paymentDialog.rounding')">
               <el-input-number v-model="paymentForm.fee.rounding" :precision="2" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="费用承担方">
+            <el-form-item :label="t('purchaseOrderItemList.paymentDialog.feePayer')">
               <el-radio-group v-model="paymentForm.fee.intermediateBankFeePayer">
-                <el-radio label="我方">我方</el-radio>
-                <el-radio label="供应商">供应商</el-radio>
+                <el-radio label="我方">{{ t('purchaseOrderItemList.paymentDialog.payerUs') }}</el-radio>
+                <el-radio label="供应商">{{ t('purchaseOrderItemList.paymentDialog.payerVendor') }}</el-radio>
               </el-radio-group>
             </el-form-item>
           </el-col>
         </el-row>
 
-        <div class="section-title">订单明细列表</div>
+        <div class="section-title">{{ t('purchaseOrderItemList.paymentDialog.sectionLines') }}</div>
         <CrmDataTable :data="paymentForm.lines" size="small">
-          <el-table-column prop="purchaseOrderCode" label="采购单号" width="160" min-width="160" show-overflow-tooltip />
-          <el-table-column prop="pn" label="型号" min-width="120" />
-          <el-table-column prop="brand" label="品牌" width="100" />
-          <el-table-column prop="qty" label="数量" width="90" align="right" />
-          <el-table-column prop="cost" label="单价" width="160" align="right">
+          <el-table-column
+            prop="purchaseOrderCode"
+            :label="t('purchaseOrderItemList.paymentDialog.colPoCode')"
+            width="160"
+            min-width="160"
+            show-overflow-tooltip
+          />
+          <el-table-column prop="pn" :label="t('purchaseOrderItemList.paymentDialog.colPn')" min-width="120" />
+          <el-table-column prop="brand" :label="t('purchaseOrderItemList.paymentDialog.colBrand')" width="100" />
+          <el-table-column prop="qty" :label="t('purchaseOrderItemList.paymentDialog.colQty')" width="90" align="right" />
+          <el-table-column prop="cost" :label="t('purchaseOrderItemList.paymentDialog.colUnitPrice')" width="160" align="right">
             <template #default="{ row }">{{ formatCurrencyUnitPrice(row.cost, row.currency) }}</template>
           </el-table-column>
-          <el-table-column prop="alreadyRequested" label="已请款" width="160" align="right">
+          <el-table-column prop="alreadyRequested" :label="t('purchaseOrderItemList.paymentDialog.colAlreadyRequested')" width="160" align="right">
             <template #default="{ row }">{{ formatCurrencyTotal(row.alreadyRequested, row.currency) }}</template>
           </el-table-column>
-          <el-table-column prop="pendingRequested" label="待请款" width="160" align="right">
+          <el-table-column prop="pendingRequested" :label="t('purchaseOrderItemList.paymentDialog.colPending')" width="160" align="right">
             <template #default="{ row }">{{ formatCurrencyTotal(row.pendingRequested, row.currency) }}</template>
           </el-table-column>
-          <el-table-column label="本次请款金额*" width="150">
+          <el-table-column :label="t('purchaseOrderItemList.paymentDialog.colThisRequest')" width="150">
             <template #default="{ row }">
               <el-input-number v-model="row.requestAmount" :min="0" :max="row.pendingRequested" :precision="2" style="width: 130px" />
             </template>
           </el-table-column>
-          <el-table-column label="备注" min-width="140">
+          <el-table-column :label="t('purchaseOrderItemList.paymentDialog.colLineRemark')" min-width="140">
             <template #default="{ row }">
               <el-input v-model="row.remark" />
             </template>
@@ -279,20 +306,26 @@
 
         <el-alert :closable="false" type="info" style="margin-top: 8px">
           <template #title>
-            合计：请款总额 {{ formatCurrencyTotal(paymentTotalAmount, paymentForm.currency) }}
+            {{
+              t('purchaseOrderItemList.paymentDialog.totalAlert', {
+                amount: formatCurrencyTotal(paymentTotalAmount, paymentForm.currency)
+              })
+            }}
           </template>
         </el-alert>
       </el-form>
 
       <template #footer>
-        <el-button @click="paymentDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="paymentSubmitting" @click="submitPayment()">提交审批</el-button>
+        <el-button @click="paymentDialogVisible = false">{{ t('purchaseOrderItemList.paymentDialog.cancel') }}</el-button>
+        <el-button type="primary" :loading="paymentSubmitting" @click="submitPayment()">
+          {{ t('purchaseOrderItemList.paymentDialog.submit') }}
+        </el-button>
       </template>
     </el-dialog>
 
     <el-dialog
       v-model="arrivalDialogVisible"
-      title="新建到货通知"
+      :title="t('purchaseOrderItemList.arrivalDialog.title')"
       width="1180px"
       align-center
       destroy-on-close
@@ -302,46 +335,50 @@
         <div class="arrival-section">
           <el-form label-width="120px" class="arrival-notice-form">
             <el-row :gutter="12">
-              <el-col :span="8"><el-form-item label="单号"><el-input v-model="arrivalForm.purchaseOrderCode" /></el-form-item></el-col>
               <el-col :span="8">
-                <el-form-item label="预计到货日期" required>
+                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.code')"><el-input v-model="arrivalForm.purchaseOrderCode" /></el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.expectedArrival')" required>
                   <el-date-picker
                     v-model="arrivalForm.expectedArrivalDate"
                     type="date"
                     value-format="YYYY-MM-DD"
-                    placeholder="选择预计到货日期"
+                    :placeholder="t('purchaseOrderItemList.arrivalDialog.expectedArrivalPlaceholder')"
                     style="width: 100%"
                   />
                 </el-form-item>
               </el-col>
-              <el-col :span="8"><el-form-item label="公司名称"><el-input v-model="arrivalForm.companyName" /></el-form-item></el-col>
+              <el-col :span="8">
+                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.companyName')"><el-input v-model="arrivalForm.companyName" /></el-form-item>
+              </el-col>
             </el-row>
             <el-row :gutter="12">
-              <el-col :span="8"><el-form-item label="地址"><el-input v-model="arrivalForm.address" /></el-form-item></el-col>
-              <el-col :span="8"><el-form-item label="电话"><el-input v-model="arrivalForm.phone" /></el-form-item></el-col>
-              <el-col :span="8"><el-form-item label="联系人"><el-input v-model="arrivalForm.contact" /></el-form-item></el-col>
+              <el-col :span="8"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.address')"><el-input v-model="arrivalForm.address" /></el-form-item></el-col>
+              <el-col :span="8"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.phone')"><el-input v-model="arrivalForm.phone" /></el-form-item></el-col>
+              <el-col :span="8"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.contact')"><el-input v-model="arrivalForm.contact" /></el-form-item></el-col>
             </el-row>
             <el-row :gutter="12">
-              <el-col :span="8"><el-form-item label="来货方式"><el-input v-model="arrivalForm.arrivalMethod" /></el-form-item></el-col>
-              <el-col :span="8"><el-form-item label="快递方式"><el-input v-model="arrivalForm.expressMethod" /></el-form-item></el-col>
-              <el-col :span="8"><el-form-item label="快递单号"><el-input v-model="arrivalForm.expressNo" /></el-form-item></el-col>
+              <el-col :span="8"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.arrivalMethod')"><el-input v-model="arrivalForm.arrivalMethod" /></el-form-item></el-col>
+              <el-col :span="8"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.expressMethod')"><el-input v-model="arrivalForm.expressMethod" /></el-form-item></el-col>
+              <el-col :span="8"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.expressNo')"><el-input v-model="arrivalForm.expressNo" /></el-form-item></el-col>
             </el-row>
           </el-form>
         </div>
 
         <div class="arrival-section">
-          <div class="section-title">来货明细</div>
+          <div class="section-title">{{ t('purchaseOrderItemList.arrivalDialog.sectionLines') }}</div>
           <CrmDataTable :data="arrivalForm.lines" size="small">
-            <el-table-column label="序号" width="70">
+            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.seq')" width="70">
               <template #default="{ $index }">{{ $index + 1 }}</template>
             </el-table-column>
-            <el-table-column label="原厂型号" min-width="180">
+            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.factoryPn')" min-width="180">
               <template #default="{ row }"><el-input v-model="row.pn" /></template>
             </el-table-column>
-            <el-table-column label="品牌" width="120">
+            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.brand')" width="120">
               <template #default="{ row }"><el-input v-model="row.brand" /></template>
             </el-table-column>
-            <el-table-column label="数量" min-width="168" align="right">
+            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.qty')" min-width="168" align="right">
               <template #default="{ row }">
                 <el-input-number
                   v-model="row.qty"
@@ -353,10 +390,10 @@
                 />
               </template>
             </el-table-column>
-            <el-table-column label="规格参数" min-width="130">
+            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.spec')" min-width="130">
               <template #default="{ row }"><el-input v-model="row.spec" /></template>
             </el-table-column>
-            <el-table-column label="包装" width="120">
+            <el-table-column :label="t('purchaseOrderItemList.arrivalDialog.packaging')" width="120">
               <template #default="{ row }"><el-input v-model="row.packaging" /></template>
             </el-table-column>
           </CrmDataTable>
@@ -364,8 +401,8 @@
 
         <div class="arrival-section">
           <el-form label-width="90px">
-            <el-form-item label="验货要求"><el-input v-model="arrivalForm.inspectionRequirement" /></el-form-item>
-            <el-form-item label="备注"><el-input v-model="arrivalForm.remark" type="textarea" :rows="2" /></el-form-item>
+            <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.inspection')"><el-input v-model="arrivalForm.inspectionRequirement" /></el-form-item>
+            <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.remark')"><el-input v-model="arrivalForm.remark" type="textarea" :rows="2" /></el-form-item>
           </el-form>
         </div>
 
@@ -373,21 +410,21 @@
         <div v-if="arrivalNoticeShowProcessFields" class="arrival-section">
           <el-form label-width="120px" class="arrival-notice-form">
             <el-row :gutter="12">
-              <el-col :span="6"><el-form-item label="签收人"><el-input v-model="arrivalForm.signer" /></el-form-item></el-col>
-              <el-col :span="6"><el-form-item label="签收日期"><el-date-picker v-model="arrivalForm.signDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
-              <el-col :span="6"><el-form-item label="质检员"><el-input v-model="arrivalForm.qcUser" /></el-form-item></el-col>
-              <el-col :span="6"><el-form-item label="质检日期"><el-date-picker v-model="arrivalForm.qcDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
+              <el-col :span="6"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.signer')"><el-input v-model="arrivalForm.signer" /></el-form-item></el-col>
+              <el-col :span="6"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.signDate')"><el-date-picker v-model="arrivalForm.signDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
+              <el-col :span="6"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.qcUser')"><el-input v-model="arrivalForm.qcUser" /></el-form-item></el-col>
+              <el-col :span="6"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.qcDate')"><el-date-picker v-model="arrivalForm.qcDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
             </el-row>
             <el-row :gutter="12">
-              <el-col :span="6"><el-form-item label="入库人"><el-input v-model="arrivalForm.stockInUser" /></el-form-item></el-col>
-              <el-col :span="6"><el-form-item label="入库日期"><el-date-picker v-model="arrivalForm.stockInDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
+              <el-col :span="6"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.stockInUser')"><el-input v-model="arrivalForm.stockInUser" /></el-form-item></el-col>
+              <el-col :span="6"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.stockInDate')"><el-date-picker v-model="arrivalForm.stockInDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
             </el-row>
           </el-form>
         </div>
       </div>
       <template #footer>
-        <el-button @click="arrivalDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="arrivalSubmitting" @click="submitArrivalNotice">确定</el-button>
+        <el-button @click="arrivalDialogVisible = false">{{ t('purchaseOrderItemList.arrivalDialog.cancel') }}</el-button>
+        <el-button type="primary" :loading="arrivalSubmitting" @click="submitArrivalNotice">{{ t('purchaseOrderItemList.arrivalDialog.confirm') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -396,6 +433,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { Setting } from '@element-plus/icons-vue'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
@@ -408,6 +446,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const route = useRoute()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
 
 const canViewVendor = computed(() => authStore.hasPermission('vendor.info.read'))
@@ -437,30 +476,66 @@ function toggleOpCol() {
 }
 
 const purchaseOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
+  void locale.value
   const cols: CrmTableColumnDef[] = [
     { key: 'selection', type: 'selection', width: 48, reserveSelection: true, fixed: 'left', hideable: false, reorderable: false },
-    { key: 'purchaseOrderCode', label: '采购单号', prop: 'purchaseOrderCode', width: 160, minWidth: 160, showOverflowTooltip: true },
-    { key: 'itemStatus', label: '状态', prop: 'itemStatus', width: 160, align: 'center' },
-    { key: 'orderCreateTime', label: '订单生成日期', prop: 'orderCreateTime', width: 160 },
-    { key: 'pn', label: '物料型号', prop: 'pn', minWidth: 130, showOverflowTooltip: true },
-    { key: 'brand', label: '品牌', prop: 'brand', width: 110, showOverflowTooltip: true },
-    { key: 'qty', label: '数量', prop: 'qty', width: 100, align: 'right' },
-    { key: 'financePaymentStatus', label: '付款状态', prop: 'financePaymentStatus', width: 120, align: 'center' },
-    { key: 'stockInStatus', label: '货运状态', prop: 'stockInStatus', width: 120, align: 'center' },
-    { key: 'createTime', label: '创建时间', width: 160 },
-    { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true }
+    {
+      key: 'purchaseOrderCode',
+      label: t('purchaseOrderItemList.columns.purchaseOrderCode'),
+      prop: 'purchaseOrderCode',
+      width: 160,
+      minWidth: 160,
+      showOverflowTooltip: true
+    },
+    { key: 'itemStatus', label: t('purchaseOrderItemList.columns.itemStatus'), prop: 'itemStatus', width: 160, align: 'center' },
+    { key: 'orderCreateTime', label: t('purchaseOrderItemList.columns.orderCreateTime'), prop: 'orderCreateTime', width: 160 },
+    { key: 'pn', label: t('purchaseOrderItemList.columns.pn'), prop: 'pn', minWidth: 130, showOverflowTooltip: true },
+    { key: 'brand', label: t('purchaseOrderItemList.columns.brand'), prop: 'brand', width: 110, showOverflowTooltip: true },
+    { key: 'qty', label: t('purchaseOrderItemList.columns.qty'), prop: 'qty', width: 100, align: 'right' },
+    {
+      key: 'financePaymentStatus',
+      label: t('purchaseOrderItemList.columns.financePaymentStatus'),
+      prop: 'financePaymentStatus',
+      width: 120,
+      align: 'center'
+    },
+    {
+      key: 'stockInStatus',
+      label: t('purchaseOrderItemList.columns.stockInStatus'),
+      prop: 'stockInStatus',
+      width: 120,
+      align: 'center'
+    },
+    { key: 'createTime', label: t('purchaseOrderItemList.columns.createTime'), width: 160 },
+    { key: 'createUser', label: t('purchaseOrderItemList.columns.createUser'), width: 120, showOverflowTooltip: true }
   ]
-  if (canViewVendor.value) cols.splice(4, 0, { key: 'vendorName', label: '供应商名称', prop: 'vendorName', minWidth: 200, showOverflowTooltip: true })
-  if (canViewPurchaseUser.value) cols.splice(canViewVendor.value ? 5 : 4, 0, { key: 'purchaseUserName', label: '采购员', prop: 'purchaseUserName', width: 100, showOverflowTooltip: true })
+  if (canViewVendor.value) {
+    cols.splice(4, 0, {
+      key: 'vendorName',
+      label: t('purchaseOrderItemList.columns.vendorName'),
+      prop: 'vendorName',
+      minWidth: 200,
+      showOverflowTooltip: true
+    })
+  }
+  if (canViewPurchaseUser.value) {
+    cols.splice(canViewVendor.value ? 5 : 4, 0, {
+      key: 'purchaseUserName',
+      label: t('purchaseOrderItemList.columns.purchaseUserName'),
+      prop: 'purchaseUserName',
+      width: 100,
+      showOverflowTooltip: true
+    })
+  }
   if (canViewAmount.value) {
     cols.splice(cols.length - 2, 0,
-      { key: 'cost', label: '单价', prop: 'cost', width: 160, align: 'right' },
-      { key: 'lineTotal', label: '明细总额', prop: 'lineTotal', width: 160, align: 'right' }
+      { key: 'cost', label: t('purchaseOrderItemList.columns.cost'), prop: 'cost', width: 160, align: 'right' },
+      { key: 'lineTotal', label: t('purchaseOrderItemList.columns.lineTotal'), prop: 'lineTotal', width: 160, align: 'right' }
     )
   }
   cols.push({
     key: 'actions',
-    label: '操作',
+    label: t('purchaseOrderItemList.columns.actions'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -551,20 +626,21 @@ const applyPagination = () => {
 }
 
 function statusText(s: number) {
-  const m: Record<number, string> = {
-    1: '新建',
-    2: '待审核',
-    10: '审核通过',
-    20: '待确认',
-    30: '已确认',
-    40: '已付款',
-    50: '已发货',
-    60: '已入库',
-    100: '采购完成',
-    [-1]: '审核失败',
-    [-2]: '取消'
+  const keyMap: Record<number, string> = {
+    1: 'new',
+    2: 'pendingReview',
+    10: 'approved',
+    20: 'pendingConfirm',
+    30: 'confirmed',
+    40: 'paid',
+    50: 'shipped',
+    60: 'stockedIn',
+    100: 'completed',
+    [-1]: 'reviewFailed',
+    [-2]: 'cancelled'
   }
-  return m[s] ?? String(s)
+  const k = keyMap[s]
+  return k ? t(`purchaseOrderItemList.itemStatus.${k}`) : String(s)
 }
 
 function statusTagType(s: number): '' | 'success' | 'warning' | 'info' | 'danger' | 'primary' {
@@ -591,12 +667,13 @@ function formatDt(v: string) {
 }
 
 function financeStatusText(s: number) {
-  const map: Record<number, string> = {
-    0: '未付款',
-    1: '部分付款',
-    2: '全部付款'
+  const map: Record<number, 'unpaid' | 'partial' | 'paid'> = {
+    0: 'unpaid',
+    1: 'partial',
+    2: 'paid'
   }
-  return map[s] ?? String(s)
+  const k = map[s]
+  return k ? t(`purchaseOrderItemList.financePayment.${k}`) : String(s)
 }
 
 function financeStatusTagType(s: number): '' | 'success' | 'warning' | 'info' | 'danger' | 'primary' {
@@ -609,12 +686,13 @@ function financeStatusTagType(s: number): '' | 'success' | 'warning' | 'info' | 
 }
 
 function shippingStatusText(s: number) {
-  const map: Record<number, string> = {
-    0: '未到货',
-    1: '部分到货',
-    2: '全部到货'
+  const map: Record<number, 'none' | 'partial' | 'all'> = {
+    0: 'none',
+    1: 'partial',
+    2: 'all'
   }
-  return map[s] ?? String(s)
+  const k = map[s]
+  return k ? t(`purchaseOrderItemList.stockIn.${k}`) : String(s)
 }
 
 function shippingStatusTagType(s: number): '' | 'success' | 'warning' | 'info' | 'danger' | 'primary' {
@@ -710,20 +788,20 @@ function toDatePickerValue(v: unknown): string {
 async function submitArrivalNotice() {
   if (arrivalSubmitting.value) return
   if (!arrivalForm.purchaseOrderItemId) {
-    ElMessage.warning('缺少采购明细ID，无法创建到货通知')
+    ElMessage.warning(t('purchaseOrderItemList.messages.missingItemId'))
     return
   }
   if (!arrivalForm.purchaseOrderId) {
-    ElMessage.warning('缺少采购订单ID，无法创建到货通知')
+    ElMessage.warning(t('purchaseOrderItemList.messages.missingPoId'))
     return
   }
   if (!arrivalForm.expectedArrivalDate) {
-    ElMessage.warning('请填写预计到货日期')
+    ElMessage.warning(t('purchaseOrderItemList.messages.fillExpectedDate'))
     return
   }
   const expectQty = Number(arrivalForm.lines?.[0]?.qty ?? 0)
   if (!expectQty || expectQty <= 0) {
-    ElMessage.warning('请填写大于 0 的本次到货数量')
+    ElMessage.warning(t('purchaseOrderItemList.messages.qtyMustBePositive'))
     return
   }
   arrivalSubmitting.value = true
@@ -734,10 +812,10 @@ async function submitArrivalNotice() {
       purchaseOrderId: arrivalForm.purchaseOrderId,
       expectedArrivalDate: arrivalForm.expectedArrivalDate
     })
-    ElMessage.success('到货通知已创建')
+    ElMessage.success(t('purchaseOrderItemList.messages.arrivalCreated'))
     arrivalDialogVisible.value = false
   } catch (error: any) {
-    ElMessage.error(error?.message || '创建到货通知失败')
+    ElMessage.error(error?.message || t('purchaseOrderItemList.messages.arrivalFailed'))
   } finally {
     arrivalSubmitting.value = false
   }
@@ -749,15 +827,15 @@ async function submitPayment() {
   }
 
   if (!paymentForm.vendorId) {
-    ElMessage.warning('缺少供应商ID，无法创建请款单')
+    ElMessage.warning(t('purchaseOrderItemList.messages.missingVendorId'))
     return
   }
   if (!paymentForm.vendorBankId) {
-    ElMessage.warning('请选择供应商银行')
+    ElMessage.warning(t('purchaseOrderItemList.messages.selectVendorBank'))
     return
   }
   if (!paymentForm.lines.length || paymentForm.lines.some((x: any) => Number(x.requestAmount || 0) <= 0)) {
-    ElMessage.warning('请填写本次请款金额，且必须大于0')
+    ElMessage.warning(t('purchaseOrderItemList.messages.fillRequestAmount'))
     return
   }
 
@@ -795,14 +873,14 @@ async function submitPayment() {
     // 接口返回可能是 data 或直接对象，做兼容解析
     const paymentId = (created as any)?.id || (created as any)?.data?.id || (created as any)?.data?.data?.id
     if (!paymentId) {
-      throw new Error('创建请款单成功，但未获取到单据ID')
+      throw new Error(t('purchaseOrderItemList.messages.paymentNoId'))
     }
 
     await financePaymentApi.updateStatus(paymentId, 2)
-    ElMessage.success('请款单已提交审批')
+    ElMessage.success(t('purchaseOrderItemList.messages.paymentSubmitted'))
     paymentDialogVisible.value = false
   } catch (error: any) {
-    ElMessage.error(error?.message || '提交审批失败，请稍后重试')
+    ElMessage.error(error?.message || t('purchaseOrderItemList.messages.paymentSubmitFailed'))
   } finally {
     paymentSubmitting.value = false
   }

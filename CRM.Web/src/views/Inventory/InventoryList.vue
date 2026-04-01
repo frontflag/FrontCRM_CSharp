@@ -10,38 +10,38 @@
               <line x1="12" y1="22.08" x2="12" y2="12"/>
             </svg>
           </div>
-          <h1 class="page-title">库存中心</h1>
+          <h1 class="page-title">{{ t('inventoryList.title') }}</h1>
         </div>
-        <div class="count-badge">共 {{ list.length }} 条</div>
+        <div class="count-badge">{{ t('inventoryList.count', { count: list.length }) }}</div>
       </div>
       <div class="header-right">
         <el-input
           v-model="warehouseFilter"
-          placeholder="仓库ID 筛选"
+          :placeholder="t('inventoryList.filters.warehouseId')"
           clearable
           style="width: 180px; margin-right: 8px;"
           @keyup.enter="fetchList"
         />
-        <button class="btn-secondary" @click="openWarehouseDialog">仓库管理</button>
-        <button class="btn-primary" @click="fetchList">刷新</button>
+        <button class="btn-secondary" @click="openWarehouseDialog">{{ t('inventoryList.actions.warehouseManagement') }}</button>
+        <button class="btn-primary" @click="fetchList">{{ t('inventoryList.actions.refresh') }}</button>
       </div>
     </div>
 
     <div class="stat-row" v-if="finance">
       <div class="stat-card">
-        <div class="label">在库资金占用</div>
+        <div class="label">{{ t('inventoryList.stats.capitalOccupied') }}</div>
         <div class="value">{{ formatMoney(finance.inventoryCapital) }}</div>
       </div>
       <div class="stat-card">
-        <div class="label">本月出库成本</div>
+        <div class="label">{{ t('inventoryList.stats.monthlyOutCost') }}</div>
         <div class="value">{{ formatMoney(finance.monthlyOutCost) }}</div>
       </div>
       <div class="stat-card">
-        <div class="label">周转天数</div>
+        <div class="label">{{ t('inventoryList.stats.turnoverDays') }}</div>
         <div class="value">{{ finance.turnoverDays?.toFixed(2) || '0.00' }}</div>
       </div>
       <div class="stat-card">
-        <div class="label">呆滞料数</div>
+        <div class="label">{{ t('inventoryList.stats.stagnantCount') }}</div>
         <div class="value">{{ finance.stagnantMaterialCount }}</div>
       </div>
     </div>
@@ -67,7 +67,7 @@
       <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
       <template #col-actions-header>
         <div class="op-col-header">
-          <span class="op-col-header-text">操作</span>
+          <span class="op-col-header-text">{{ t('inventoryList.columns.actions') }}</span>
           <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpColMain">
             {{ opColMainExpanded ? '>' : '<' }}
           </button>
@@ -76,7 +76,7 @@
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
           <div v-if="opColMainExpanded" class="action-btns">
-            <button type="button" class="action-btn action-btn--info" @click.stop="openTrace(row.materialId)">入库追溯</button>
+            <button type="button" class="action-btn action-btn--info" @click.stop="openTrace(row.materialId)">{{ t('inventoryList.actions.trace') }}</button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -86,7 +86,7 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click.stop="openTrace(row.materialId)">
-                  <span class="op-more-item op-more-item--info">入库追溯</span>
+                  <span class="op-more-item op-more-item--info">{{ t('inventoryList.actions.trace') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -96,8 +96,8 @@
     </CrmDataTable>
     <div class="pagination-wrapper">
       <div class="list-footer-left">
-        <el-tooltip content="列设置" placement="top" :hide-after="0">
-          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+        <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
@@ -105,30 +105,30 @@
       </div>
     </div>
 
-    <el-dialog v-model="warehouseVisible" title="仓库管理" width="720px">
+    <el-dialog v-model="warehouseVisible" :title="t('inventoryList.warehouse.title')" width="720px">
       <el-form :model="warehouseForm" inline>
-        <el-form-item label="仓库编码">
+        <el-form-item :label="t('inventoryList.warehouse.code')">
           <el-input v-model="warehouseForm.warehouseCode" />
         </el-form-item>
-        <el-form-item label="仓库名称">
+        <el-form-item :label="t('inventoryList.warehouse.name')">
           <el-input v-model="warehouseForm.warehouseName" />
         </el-form-item>
-        <el-form-item label="地址">
+        <el-form-item :label="t('inventoryList.warehouse.address')">
           <el-input v-model="warehouseForm.address" />
         </el-form-item>
         <el-form-item>
           <button class="btn-primary" type="button" @click="saveWarehouse">
-            {{ warehouseForm.id ? '保存修改' : '保存仓库' }}
+            {{ warehouseForm.id ? t('inventoryList.warehouse.saveEdit') : t('inventoryList.warehouse.saveNew') }}
           </button>
-          <button class="btn-secondary" type="button" style="margin-left: 8px" @click="resetWarehouseForm">新建</button>
+          <button class="btn-secondary" type="button" style="margin-left: 8px" @click="resetWarehouseForm">{{ t('inventoryList.warehouse.new') }}</button>
         </el-form-item>
       </el-form>
       <el-table :data="warehouses" class="warehouse-table">
-        <el-table-column prop="warehouseCode" label="编码" width="140" />
-        <el-table-column prop="warehouseName" label="名称" width="180" />
-        <el-table-column prop="address" label="地址" min-width="200" />
+        <el-table-column prop="warehouseCode" :label="t('inventoryList.warehouse.codeShort')" width="140" />
+        <el-table-column prop="warehouseName" :label="t('inventoryList.warehouse.nameShort')" width="180" />
+        <el-table-column prop="address" :label="t('inventoryList.warehouse.address')" min-width="200" />
         <el-table-column
-          label="操作"
+          :label="t('inventoryList.columns.actions')"
           :width="opColWarehouseWidth"
           :min-width="opColWarehouseMinWidth"
           align="center"
@@ -138,7 +138,7 @@
         >
           <template #header>
             <div class="op-col-header">
-              <span class="op-col-header-text">操作</span>
+              <span class="op-col-header-text">{{ t('inventoryList.columns.actions') }}</span>
               <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpColWarehouse">
                 {{ opColWarehouseExpanded ? '>' : '<' }}
               </button>
@@ -147,7 +147,7 @@
           <template #default="{ row }">
             <div @click.stop @dblclick.stop>
               <div v-if="opColWarehouseExpanded" class="action-btns">
-                <button type="button" class="action-btn action-btn--primary" @click.stop="loadWarehouseForEdit(row)">编辑</button>
+                <button type="button" class="action-btn action-btn--primary" @click.stop="loadWarehouseForEdit(row)">{{ t('inventoryList.actions.edit') }}</button>
               </div>
 
               <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -157,7 +157,7 @@
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item @click.stop="loadWarehouseForEdit(row)">
-                      <span class="op-more-item op-more-item--primary">编辑</span>
+                      <span class="op-more-item op-more-item--primary">{{ t('inventoryList.actions.edit') }}</span>
                     </el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
@@ -173,6 +173,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { inventoryCenterApi, type FinanceSummary, type InventoryOverview, type WarehouseInfo } from '@/api/inventoryCenter'
@@ -181,6 +182,7 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
+const { t } = useI18n()
 const loading = ref(false)
 const list = ref<InventoryOverview[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
@@ -203,19 +205,19 @@ function toggleOpColMain() {
 }
 
 const inventoryTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'materialModel', label: '物料型号', minWidth: 160, showOverflowTooltip: true },
-  { key: 'materialBrand', label: '品牌', minWidth: 120, showOverflowTooltip: true },
-  { key: 'warehouseName', label: '仓库名称', width: 160, showOverflowTooltip: true },
-  { key: 'onHandQty', label: '在库数量', prop: 'onHandQty', width: 110, align: 'right' },
-  { key: 'availableQty', label: '可用数量', prop: 'availableQty', width: 110, align: 'right' },
-  { key: 'lockedQty', label: '占用数量', prop: 'lockedQty', width: 110, align: 'right' },
-  { key: 'inventoryAmount', label: '库存金额', prop: 'inventoryAmount', width: 120, align: 'right' },
-  { key: 'lastMoveTime', label: '最后移动时间', prop: 'lastMoveTime', width: 170 },
-  { key: 'createTime', label: '创建时间', width: 160 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  { key: 'materialModel', label: t('inventoryList.columns.materialModel'), minWidth: 160, showOverflowTooltip: true },
+  { key: 'materialBrand', label: t('inventoryList.columns.brand'), minWidth: 120, showOverflowTooltip: true },
+  { key: 'warehouseName', label: t('inventoryList.columns.warehouseName'), width: 160, showOverflowTooltip: true },
+  { key: 'onHandQty', label: t('inventoryList.columns.onHandQty'), prop: 'onHandQty', width: 110, align: 'right' },
+  { key: 'availableQty', label: t('inventoryList.columns.availableQty'), prop: 'availableQty', width: 110, align: 'right' },
+  { key: 'lockedQty', label: t('inventoryList.columns.lockedQty'), prop: 'lockedQty', width: 110, align: 'right' },
+  { key: 'inventoryAmount', label: t('inventoryList.columns.inventoryAmount'), prop: 'inventoryAmount', width: 120, align: 'right' },
+  { key: 'lastMoveTime', label: t('inventoryList.columns.lastMoveTime'), prop: 'lastMoveTime', width: 170 },
+  { key: 'createTime', label: t('inventoryList.columns.createTime'), width: 160 },
+  { key: 'createUser', label: t('inventoryList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('inventoryList.columns.actions'),
     width: opColMainWidth.value,
     minWidth: opColMainMinWidth.value,
     fixed: 'right',
@@ -271,11 +273,11 @@ const loadWarehouseForEdit = (row: WarehouseInfo) => {
   warehouseForm.value = normalizeWarehouseRow(row)
 }
 
-const formatNum = (v: number) => (v == null ? '--' : Number(v).toLocaleString())
-const formatMoney = (v: number) => (v == null ? '--' : Number(v).toFixed(2))
+const formatNum = (v: number) => (v == null ? t('quoteList.na') : Number(v).toLocaleString())
+const formatMoney = (v: number) => (v == null ? t('quoteList.na') : Number(v).toFixed(2))
 const formatTime = (v?: string) => formatDisplayDateTime(v)
 const warehouseNameOf = (warehouseId?: string) => {
-  if (!warehouseId) return '--'
+  if (!warehouseId) return t('quoteList.na')
   const byId = warehouses.value.find(w => normalizeWarehouseRow(w).id === warehouseId)
   if (byId) {
     const n = normalizeWarehouseRow(byId)
@@ -299,14 +301,14 @@ const materialModelDisplay = (row: InventoryOverview) => {
   const r = row as unknown as Record<string, unknown>
   const model = pickRowStr(r, 'materialModel', 'MaterialModel').trim()
   const id = pickRowStr(r, 'materialId', 'MaterialId').trim()
-  return model || id || '--'
+  return model || id || t('quoteList.na')
 }
 
 /** 品牌（接口字段为 materialName，总览中常来自主数据名称或产品品牌）；兼容 PascalCase */
 const materialBrandDisplay = (row: InventoryOverview) => {
   const r = row as unknown as Record<string, unknown>
   const name = pickRowStr(r, 'materialName', 'MaterialName').trim()
-  return name || '--'
+  return name || t('quoteList.na')
 }
 
 /** 最后移动时间降序；无时间排后 */
@@ -340,14 +342,14 @@ const fetchList = async () => {
       list.value = sortByLastMoveDesc(overviewRes.value)
     } else {
       list.value = []
-      ElMessage.error(getApiErrorMessage(overviewRes.reason, '加载库存总览失败'))
+      ElMessage.error(getApiErrorMessage(overviewRes.reason, t('inventoryList.messages.loadOverviewFailed')))
     }
 
     if (summaryRes.status === 'fulfilled') {
       finance.value = summaryRes.value
     } else {
       finance.value = null
-      ElMessage.warning(getApiErrorMessage(summaryRes.reason, '加载库存分析失败'))
+      ElMessage.warning(getApiErrorMessage(summaryRes.reason, t('inventoryList.messages.loadFinanceFailed')))
     }
 
     if (warehouseRes.status === 'fulfilled') {
@@ -355,7 +357,7 @@ const fetchList = async () => {
     }
   } catch (e) {
     console.error(e)
-    ElMessage.error(getApiErrorMessage(e, '加载库存中心数据失败'))
+    ElMessage.error(getApiErrorMessage(e, t('inventoryList.messages.loadCenterFailed')))
     list.value = []
   } finally {
     loading.value = false
@@ -375,7 +377,7 @@ const openWarehouseDialog = async () => {
     warehouses.value = await inventoryCenterApi.getWarehouses()
   } catch (e) {
     console.error(e)
-    ElMessage.error(getApiErrorMessage(e, '加载仓库列表失败'))
+    ElMessage.error(getApiErrorMessage(e, t('inventoryList.messages.loadWarehouseFailed')))
   }
 }
 
@@ -395,12 +397,12 @@ const saveWarehouse = async () => {
         }
 
     await inventoryCenterApi.saveWarehouse(payload)
-    ElMessage.success('仓库保存成功')
+    ElMessage.success(t('inventoryList.messages.saveWarehouseSuccess'))
     resetWarehouseForm()
     warehouses.value = await inventoryCenterApi.getWarehouses()
   } catch (e) {
     console.error(e)
-    ElMessage.error(getApiErrorMessage(e, '仓库保存失败'))
+    ElMessage.error(getApiErrorMessage(e, t('inventoryList.messages.saveWarehouseFailed')))
   }
 }
 

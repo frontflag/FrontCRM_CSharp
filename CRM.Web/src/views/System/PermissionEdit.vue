@@ -2,36 +2,36 @@
   <div class="system-page">
     <el-card>
       <div class="toolbar">
-        <div class="title">{{ isEdit ? '编辑权限' : '新增权限' }}</div>
+        <div class="title">{{ isEdit ? t('systemPermission.editTitle') : t('systemPermission.createTitle') }}</div>
       </div>
 
       <el-form :model="formData" label-width="120px" :disabled="loading">
-        <el-form-item label="权限编码">
+        <el-form-item :label="t('systemPermission.columns.permissionCode')">
           <el-input v-model="formData.permissionCode" :disabled="isEdit" />
         </el-form-item>
-        <el-form-item label="权限名称">
+        <el-form-item :label="t('systemPermission.columns.permissionName')">
           <el-input v-model="formData.permissionName" />
         </el-form-item>
-        <el-form-item label="权限类型">
-          <el-input v-model="formData.permissionType" placeholder="api / menu / button" />
+        <el-form-item :label="t('systemPermission.columns.permissionType')">
+          <el-input v-model="formData.permissionType" :placeholder="t('systemPermission.typePlaceholder')" />
         </el-form-item>
-        <el-form-item label="资源">
+        <el-form-item :label="t('systemPermission.columns.resource')">
           <el-input v-model="formData.resource" />
         </el-form-item>
-        <el-form-item label="动作">
+        <el-form-item :label="t('systemPermission.columns.action')">
           <el-input v-model="formData.action" />
         </el-form-item>
-        <el-form-item label="状态">
+        <el-form-item :label="t('systemUser.colStatus')">
           <el-select v-model="formData.status" style="width: 160px">
-            <el-option :value="1" label="启用" />
-            <el-option :value="0" label="禁用" />
+            <el-option :value="1" :label="t('systemUser.statusEnabled')" />
+            <el-option :value="0" :label="t('systemUser.statusDisabled')" />
           </el-select>
         </el-form-item>
 
         <div class="footer-bar">
-          <el-button @click="router.push({ name: 'PermissionList' })">返回</el-button>
+          <el-button @click="router.push({ name: 'PermissionList' })">{{ t('rfqDetail.back') }}</el-button>
           <el-button type="primary" :loading="saving" @click="handleSubmit">
-            {{ isEdit ? '保存修改' : '创建权限' }}
+            {{ isEdit ? t('common.save') : t('systemPermission.create') }}
           </el-button>
         </div>
       </el-form>
@@ -42,11 +42,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { rbacAdminApi } from '@/api/rbacAdmin'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const permissionId = route.params.id as string | undefined
 const isEdit = !!permissionId
@@ -69,7 +71,7 @@ const load = async () => {
     if (isEdit && permissionId) {
       const list = await rbacAdminApi.getPermissions()
       const p = list.find(x => x.id === permissionId)
-      if (!p) throw new Error('权限不存在')
+      if (!p) throw new Error(t('systemPermission.notFound'))
 
       formData.value.permissionCode = p.permissionCode
       formData.value.permissionName = p.permissionName
@@ -79,7 +81,7 @@ const load = async () => {
       formData.value.status = p.status ?? 1
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载权限失败')
+    ElMessage.error(e?.message || t('systemPermission.loadDetailFailed'))
   } finally {
     loading.value = false
   }
@@ -89,11 +91,11 @@ const handleSubmit = async () => {
   if (saving.value) return
 
   if (!formData.value.permissionCode.trim() && !isEdit) {
-    ElMessage.warning('请填写权限编码')
+    ElMessage.warning(t('systemPermission.fillCode'))
     return
   }
   if (!formData.value.permissionName.trim()) {
-    ElMessage.warning('请填写权限名称')
+    ElMessage.warning(t('systemPermission.fillName'))
     return
   }
 
@@ -107,7 +109,7 @@ const handleSubmit = async () => {
         action: formData.value.action || undefined,
         status: formData.value.status
       })
-      ElMessage.success('保存成功')
+      ElMessage.success(t('common.saveSuccess'))
     } else {
       await rbacAdminApi.createPermission({
         permissionCode: formData.value.permissionCode,
@@ -117,12 +119,12 @@ const handleSubmit = async () => {
         action: formData.value.action || undefined,
         status: formData.value.status
       })
-      ElMessage.success('创建成功')
+      ElMessage.success(t('common.createSuccess'))
     }
 
     router.push({ name: 'PermissionList' })
   } catch (e: any) {
-    ElMessage.error(e?.message || '保存失败')
+    ElMessage.error(e?.message || t('common.saveFailed'))
   } finally {
     saving.value = false
   }

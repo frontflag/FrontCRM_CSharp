@@ -25,13 +25,13 @@
                 v-model="keyword"
                 type="search"
                 class="customer-home__pill-input"
-                placeholder="输入客户名称、编号或关键词…"
+                :placeholder="t('customerHome.searchPlaceholder')"
                 autocomplete="off"
                 @keyup.enter="handleSearch"
               />
               </div>
-              <button type="button" class="customer-home__pill-btn" @click="handleSearch">搜索</button>
-              <button type="button" class="customer-home__pill-link" @click="goListPlain">进入列表查询</button>
+              <button type="button" class="customer-home__pill-btn" @click="handleSearch">{{ t('customerHome.search') }}</button>
+              <button type="button" class="customer-home__pill-link" @click="goListPlain">{{ t('customerHome.goList') }}</button>
             </div>
           </div>
         </div>
@@ -45,15 +45,15 @@
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          新建客户
+          {{ t('customerHome.create') }}
         </button>
       </div>
     </div>
 
-    <div v-if="loadingStats" class="customer-home__loading">加载概要数据…</div>
+    <div v-if="loadingStats" class="customer-home__loading">{{ t('customerHome.loading') }}</div>
 
     <template v-else-if="stats">
-      <div class="customer-home__section-title">客户</div>
+      <div class="customer-home__section-title">{{ t('customerHome.sections.customer') }}</div>
       <div class="customer-home__row customer-home__row--4">
         <div class="customer-home__card">
           <div class="customer-home__icon customer-home__icon--blue" aria-hidden="true">
@@ -64,7 +64,7 @@
           </div>
           <div class="customer-home__card-main">
             <div class="customer-home__value">{{ formatInt(stats.totalCustomers) }}</div>
-            <div class="customer-home__label">客户总数</div>
+            <div class="customer-home__label">{{ t('customerHome.cards.totalCustomers') }}</div>
           </div>
         </div>
         <div class="customer-home__card">
@@ -75,7 +75,7 @@
           </div>
           <div class="customer-home__card-main">
             <div class="customer-home__value">{{ formatInt(stats.activeCustomers) }}</div>
-            <div class="customer-home__label">活跃客户</div>
+            <div class="customer-home__label">{{ t('customerHome.cards.activeCustomers') }}</div>
           </div>
         </div>
         <div class="customer-home__card">
@@ -88,7 +88,7 @@
           </div>
           <div class="customer-home__card-main">
             <div class="customer-home__value">{{ formatInt(stats.customersWithDeals) }}</div>
-            <div class="customer-home__label">成单客户</div>
+            <div class="customer-home__label">{{ t('customerHome.cards.customersWithDeals') }}</div>
           </div>
         </div>
         <div class="customer-home__card">
@@ -100,14 +100,14 @@
           </div>
           <div class="customer-home__card-main">
             <div class="customer-home__value">{{ formatInt(stats.newLast30Days) }}</div>
-            <div class="customer-home__label">30 天新增客户</div>
+            <div class="customer-home__label">{{ t('customerHome.cards.newLast30Days') }}</div>
           </div>
         </div>
       </div>
 
       <div class="customer-home__duo">
         <div class="customer-home__duo-col">
-          <div class="customer-home__section-title">应收款</div>
+          <div class="customer-home__section-title">{{ t('customerHome.sections.receivable') }}</div>
           <div class="customer-home__row customer-home__row--2">
             <div class="customer-home__card">
               <div class="customer-home__icon customer-home__icon--blue" aria-hidden="true">
@@ -118,7 +118,7 @@
               </div>
               <div class="customer-home__card-main">
                 <div class="customer-home__value">{{ formatMoney(stats.receivableGoodsAmount) }}</div>
-                <div class="customer-home__label">应收货款</div>
+                <div class="customer-home__label">{{ t('customerHome.cards.receivableGoodsAmount') }}</div>
               </div>
             </div>
             <div class="customer-home__card">
@@ -132,13 +132,13 @@
               </div>
               <div class="customer-home__card-main">
                 <div class="customer-home__value">{{ formatInt(stats.receivableCustomerCount) }}</div>
-                <div class="customer-home__label">应收客户</div>
+                <div class="customer-home__label">{{ t('customerHome.cards.receivableCustomerCount') }}</div>
               </div>
             </div>
           </div>
         </div>
         <div class="customer-home__duo-col">
-          <div class="customer-home__section-title">待出库</div>
+          <div class="customer-home__section-title">{{ t('customerHome.sections.pendingOutbound') }}</div>
           <div class="customer-home__row customer-home__row--2">
             <div class="customer-home__card">
               <div class="customer-home__icon customer-home__icon--mint" aria-hidden="true">
@@ -151,7 +151,7 @@
               </div>
               <div class="customer-home__card-main">
                 <div class="customer-home__value">{{ formatMoney(stats.pendingOutboundAmount) }}</div>
-                <div class="customer-home__label">待出货款</div>
+                <div class="customer-home__label">{{ t('customerHome.cards.pendingOutboundAmount') }}</div>
               </div>
             </div>
             <div class="customer-home__card">
@@ -165,7 +165,7 @@
               </div>
               <div class="customer-home__card-main">
                 <div class="customer-home__value">{{ formatInt(stats.pendingOutboundCustomerCount) }}</div>
-                <div class="customer-home__label">待出客户</div>
+                <div class="customer-home__label">{{ t('customerHome.cards.pendingOutboundCustomerCount') }}</div>
               </div>
             </div>
           </div>
@@ -178,12 +178,14 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { customerApi } from '@/api/customer'
 import { buildCustomerListQuery } from '@/utils/customerListQuery'
 import type { CustomerStatistics } from '@/types/customer'
 
 const router = useRouter()
+const { t } = useI18n()
 const authStore = useAuthStore()
 const canCreateCustomer = computed(() => authStore.hasPermission('customer.write'))
 const keyword = ref('')

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { favoriteApi } from '@/api/favorite'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import {
@@ -12,25 +13,26 @@ withDefaults(
   defineProps<{
     title?: string
   }>(),
-  { title: '收藏的采购订单' }
+  { title: '' }
 )
 
 const router = useRouter()
+const { t } = useI18n()
 
 const loading = ref(false)
 const items = ref<any[]>([])
 
 function getStatusText(status: number) {
   const map: Record<number, string> = {
-    1: '新建',
-    2: '待审核',
-    10: '审核通过',
-    20: '待确认',
-    30: '已确认',
-    50: '进行中',
-    100: '采购完成',
-    [-1]: '审核失败',
-    [-2]: '取消'
+    1: t('purchaseOrderList.status.new'),
+    2: t('purchaseOrderList.status.pendingReview'),
+    10: t('purchaseOrderList.status.approved'),
+    20: t('purchaseOrderList.status.pendingConfirm'),
+    30: t('purchaseOrderList.status.confirmed'),
+    50: t('purchaseOrderList.status.inProgress'),
+    100: t('purchaseOrderList.status.completed'),
+    [-1]: t('purchaseOrderList.status.reviewFailed'),
+    [-2]: t('purchaseOrderList.status.cancelled')
   }
   return map[status] ?? '—'
 }
@@ -77,16 +79,16 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="po-favorite-panel" v-loading="loading">
-    <div class="po-favorite-panel__head">{{ title }}</div>
+    <div class="po-favorite-panel__head">{{ title || t('leftPanel.purchaseOrderFavoritesTitle') }}</div>
     <div v-if="!loading && items.length === 0" class="po-favorite-panel__empty">
-      暂无收藏；可在采购订单详情页标题旁点击星标收藏
+      {{ t('leftPanel.purchaseOrderFavoritesEmpty') }}
     </div>
     <table v-else class="po-favorite-panel__table">
       <thead>
         <tr>
-          <th>订单号</th>
-          <th>供应商</th>
-          <th>状态</th>
+          <th>{{ t('purchaseOrderList.columns.orderCode') }}</th>
+          <th>{{ t('purchaseOrderList.columns.vendor') }}</th>
+          <th>{{ t('purchaseOrderList.columns.status') }}</th>
         </tr>
       </thead>
       <tbody>

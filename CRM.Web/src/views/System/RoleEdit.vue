@@ -2,27 +2,27 @@
   <div class="system-page">
     <el-card>
       <div class="toolbar">
-        <div class="title">{{ isEdit ? '编辑角色' : '新增角色' }}</div>
+        <div class="title">{{ isEdit ? t('systemRole.editTitle') : t('systemRole.createTitle') }}</div>
       </div>
 
       <el-form :model="formData" label-width="120px" :disabled="loading">
-        <el-form-item label="角色编码">
+        <el-form-item :label="t('systemRole.columns.roleCode')">
           <el-input v-model="formData.roleCode" :disabled="isEdit" />
         </el-form-item>
-        <el-form-item label="角色名称">
+        <el-form-item :label="t('systemRole.columns.roleName')">
           <el-input v-model="formData.roleName" />
         </el-form-item>
-        <el-form-item label="描述">
+        <el-form-item :label="t('systemRole.columns.description')">
           <el-input v-model="formData.description" />
         </el-form-item>
-        <el-form-item label="状态">
+        <el-form-item :label="t('systemUser.colStatus')">
           <el-select v-model="formData.status" style="width: 160px">
-            <el-option :value="1" label="启用" />
-            <el-option :value="0" label="禁用" />
+            <el-option :value="1" :label="t('systemUser.statusEnabled')" />
+            <el-option :value="0" :label="t('systemUser.statusDisabled')" />
           </el-select>
         </el-form-item>
 
-        <el-form-item label="权限">
+        <el-form-item :label="t('layout.menu.permissionManagement')">
           <el-select
             v-model="formData.permissionIds"
             multiple
@@ -40,9 +40,9 @@
         </el-form-item>
 
         <div class="footer-bar">
-          <el-button @click="router.push({ name: 'RoleList' })">返回</el-button>
+          <el-button @click="router.push({ name: 'RoleList' })">{{ t('rfqDetail.back') }}</el-button>
           <el-button type="primary" :loading="saving" @click="handleSubmit">
-            {{ isEdit ? '保存修改' : '创建角色' }}
+            {{ isEdit ? t('common.save') : t('systemRole.create') }}
           </el-button>
         </div>
       </el-form>
@@ -53,11 +53,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { rbacAdminApi, type RbacPermission, type RbacRole } from '@/api/rbacAdmin'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const roleId = route.params.id as string | undefined
 const isEdit = !!roleId
@@ -83,7 +85,7 @@ const load = async () => {
     if (isEdit && roleId) {
       const roles: RbacRole[] = await rbacAdminApi.getRoles()
       const role = roles.find(r => r.id === roleId)
-      if (!role) throw new Error('角色不存在')
+      if (!role) throw new Error(t('systemRole.notFound'))
 
       formData.value.roleCode = role.roleCode
       formData.value.roleName = role.roleName
@@ -93,7 +95,7 @@ const load = async () => {
       formData.value.permissionIds = await rbacAdminApi.getRolePermissionIds(roleId)
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载角色数据失败')
+    ElMessage.error(e?.message || t('systemRole.loadDetailFailed'))
   } finally {
     loading.value = false
   }
@@ -103,11 +105,11 @@ const handleSubmit = async () => {
   if (saving.value) return
 
   if (!formData.value.roleCode.trim() && !isEdit) {
-    ElMessage.warning('请填写角色编码')
+    ElMessage.warning(t('systemRole.fillRoleCode'))
     return
   }
   if (!formData.value.roleName.trim()) {
-    ElMessage.warning('请填写角色名称')
+    ElMessage.warning(t('systemRole.fillRoleName'))
     return
   }
 
@@ -121,7 +123,7 @@ const handleSubmit = async () => {
       })
 
       await rbacAdminApi.assignRolePermissions(roleId, formData.value.permissionIds)
-      ElMessage.success('保存成功')
+      ElMessage.success(t('common.saveSuccess'))
     } else {
       const created = await rbacAdminApi.createRole({
         roleCode: formData.value.roleCode,
@@ -130,12 +132,12 @@ const handleSubmit = async () => {
         status: formData.value.status
       })
       await rbacAdminApi.assignRolePermissions(created.id, formData.value.permissionIds)
-      ElMessage.success('创建成功')
+      ElMessage.success(t('common.createSuccess'))
     }
 
     router.push({ name: 'RoleList' })
   } catch (e: any) {
-    ElMessage.error(e?.message || '保存失败')
+    ElMessage.error(e?.message || t('common.saveFailed'))
   } finally {
     saving.value = false
   }

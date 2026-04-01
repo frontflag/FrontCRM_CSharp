@@ -3,7 +3,7 @@
     <!-- 页面标题 -->
     <div class="page-header">
       <div class="header-left">
-        <h2 class="page-title">系统设置</h2>
+        <h2 class="page-title">{{ t('dashboardSettings.title') }}</h2>
       </div>
     </div>
 
@@ -28,48 +28,48 @@
         <!-- 基本信息 -->
         <div v-if="activeTab === 'basic'" class="form-section">
           <div class="section-title">
-            <span class="title-bar"></span>基本信息
+            <span class="title-bar"></span>{{ t('dashboardSettings.tabs.basic') }}
           </div>
           <el-form :model="basicSettings" label-width="120px" class="settings-form">
             <el-row :gutter="24">
               <el-col :span="12">
-                <el-form-item label="系统名称">
-                  <el-input v-model="basicSettings.systemName" placeholder="请输入系统名称" />
+                <el-form-item :label="t('dashboardSettings.basic.systemName')">
+                  <el-input v-model="basicSettings.systemName" :placeholder="t('dashboardSettings.basic.systemNamePlaceholder')" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="系统版本">
-                  <el-input v-model="basicSettings.systemVersion" placeholder="请输入系统版本" />
+                <el-form-item :label="t('dashboardSettings.basic.systemVersion')">
+                  <el-input v-model="basicSettings.systemVersion" :placeholder="t('dashboardSettings.basic.systemVersionPlaceholder')" />
                 </el-form-item>
               </el-col>
             </el-row>
             <el-row :gutter="24">
               <el-col :span="12">
-                <el-form-item label="联系邮箱">
-                  <el-input v-model="basicSettings.contactEmail" type="email" placeholder="请输入联系邮箱" />
+                <el-form-item :label="t('dashboardSettings.basic.contactEmail')">
+                  <el-input v-model="basicSettings.contactEmail" type="email" :placeholder="t('dashboardSettings.basic.contactEmailPlaceholder')" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="联系电话">
-                  <el-input v-model="basicSettings.contactPhone" placeholder="请输入联系电话" />
+                <el-form-item :label="t('dashboardSettings.basic.contactPhone')">
+                  <el-input v-model="basicSettings.contactPhone" :placeholder="t('dashboardSettings.basic.contactPhonePlaceholder')" />
                 </el-form-item>
               </el-col>
             </el-row>
             <el-row :gutter="24">
               <el-col :span="24">
-                <el-form-item label="系统描述">
+                <el-form-item :label="t('dashboardSettings.basic.description')">
                   <el-input
                     v-model="basicSettings.description"
                     type="textarea"
                     :rows="3"
-                    placeholder="请输入系统描述"
+                    :placeholder="t('dashboardSettings.basic.descriptionPlaceholder')"
                   />
                 </el-form-item>
               </el-col>
             </el-row>
             <el-form-item>
               <el-button type="primary" @click="handleSaveBasic">
-                <el-icon><Check /></el-icon> 保存设置
+                <el-icon><Check /></el-icon> {{ t('dashboardSettings.save') }}
               </el-button>
             </el-form-item>
           </el-form>
@@ -78,29 +78,29 @@
         <!-- 安全设置 -->
         <div v-if="activeTab === 'security'" class="form-section">
           <div class="section-title">
-            <span class="title-bar"></span>安全设置
+            <span class="title-bar"></span>{{ t('dashboardSettings.tabs.security') }}
           </div>
           <el-form :model="securitySettings" label-width="150px" class="settings-form">
-            <el-form-item label="密码复杂度">
+            <el-form-item :label="t('dashboardSettings.security.passwordComplexity')">
               <div class="switch-row">
                 <el-switch v-model="securitySettings.requireComplexPassword" />
-                <span class="switch-desc">启用后密码需包含大小写字母、数字和特殊字符</span>
+                <span class="switch-desc">{{ t('dashboardSettings.security.passwordComplexityHint') }}</span>
               </div>
             </el-form-item>
-            <el-form-item label="最小密码长度">
+            <el-form-item :label="t('dashboardSettings.security.minPasswordLength')">
               <el-input-number v-model="securitySettings.minPasswordLength" :min="6" :max="20" />
             </el-form-item>
-            <el-form-item label="登录失败锁定">
+            <el-form-item :label="t('dashboardSettings.security.enableLockout')">
               <el-switch v-model="securitySettings.enableLockout" />
             </el-form-item>
-            <el-form-item label="最大失败次数">
+            <el-form-item :label="t('dashboardSettings.security.maxFailedAttempts')">
               <el-input-number
                 v-model="securitySettings.maxFailedAttempts"
                 :min="3" :max="10"
                 :disabled="!securitySettings.enableLockout"
               />
             </el-form-item>
-            <el-form-item label="锁定时间（分钟）">
+            <el-form-item :label="t('dashboardSettings.security.lockoutDuration')">
               <el-input-number
                 v-model="securitySettings.lockoutDuration"
                 :min="5" :max="60"
@@ -109,7 +109,7 @@
             </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="handleSaveSecurity">
-                <el-icon><Check /></el-icon> 保存设置
+                <el-icon><Check /></el-icon> {{ t('dashboardSettings.save') }}
               </el-button>
             </el-form-item>
           </el-form>
@@ -118,24 +118,24 @@
         <!-- 通知设置 -->
         <div v-if="activeTab === 'notification'" class="form-section">
           <div class="section-title">
-            <span class="title-bar"></span>通知设置
+            <span class="title-bar"></span>{{ t('dashboardSettings.tabs.notification') }}
           </div>
           <el-form :model="notificationSettings" label-width="150px" class="settings-form">
-            <el-form-item label="邮件通知">
+            <el-form-item :label="t('dashboardSettings.notification.emailEnabled')">
               <el-switch v-model="notificationSettings.emailEnabled" />
             </el-form-item>
-            <el-form-item label="新客户注册通知">
+            <el-form-item :label="t('dashboardSettings.notification.newCustomerNotification')">
               <el-switch v-model="notificationSettings.newCustomerNotification" />
             </el-form-item>
-            <el-form-item label="系统更新通知">
+            <el-form-item :label="t('dashboardSettings.notification.systemUpdateNotification')">
               <el-switch v-model="notificationSettings.systemUpdateNotification" />
             </el-form-item>
-            <el-form-item label="安全警报通知">
+            <el-form-item :label="t('dashboardSettings.notification.securityAlertNotification')">
               <el-switch v-model="notificationSettings.securityAlertNotification" />
             </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="handleSaveNotification">
-                <el-icon><Check /></el-icon> 保存设置
+                <el-icon><Check /></el-icon> {{ t('dashboardSettings.save') }}
               </el-button>
             </el-form-item>
           </el-form>
@@ -144,7 +144,7 @@
         <!-- 关于 -->
         <div v-if="activeTab === 'about'" class="form-section">
           <div class="section-title">
-            <span class="title-bar"></span>关于系统
+            <span class="title-bar"></span>{{ t('dashboardSettings.tabs.about') }}
           </div>
           <div class="about-section">
             <div class="about-logo">
@@ -155,34 +155,34 @@
               </svg>
               <div class="about-brand">
                 <h3>FrontCRM</h3>
-                <p>AI 智销系统</p>
+                <p>{{ t('layout.brandSub') }}</p>
               </div>
             </div>
-            <p class="about-desc">一个基于 Vue 3 和 .NET 的现代化客户关系管理系统</p>
+            <p class="about-desc">{{ t('dashboardSettings.about.description') }}</p>
 
             <div class="info-grid">
               <div class="info-item">
-                <span class="label">系统版本</span>
+                <span class="label">{{ t('dashboardSettings.about.systemVersion') }}</span>
                 <span class="value">1.0.0</span>
               </div>
               <div class="info-item">
-                <span class="label">前端框架</span>
+                <span class="label">{{ t('dashboardSettings.about.frontend') }}</span>
                 <span class="value">Vue 3 + TypeScript + Vite</span>
               </div>
               <div class="info-item">
-                <span class="label">后端框架</span>
+                <span class="label">{{ t('dashboardSettings.about.backend') }}</span>
                 <span class="value">ASP.NET Core 9.0</span>
               </div>
               <div class="info-item">
-                <span class="label">UI 框架</span>
+                <span class="label">{{ t('dashboardSettings.about.ui') }}</span>
                 <span class="value">Element Plus</span>
               </div>
               <div class="info-item">
-                <span class="label">数据库</span>
+                <span class="label">{{ t('dashboardSettings.about.database') }}</span>
                 <span class="value">SQL Server / PostgreSQL</span>
               </div>
               <div class="info-item">
-                <span class="label">版权信息</span>
+                <span class="label">{{ t('dashboardSettings.about.copyright') }}</span>
                 <span class="value">© 2026 FrontCRM. All rights reserved.</span>
               </div>
             </div>
@@ -194,18 +194,24 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElNotification } from 'element-plus'
 import { Setting, Lock, Bell, InfoFilled, Check } from '@element-plus/icons-vue'
 
+const { t, locale } = useI18n()
+
 const activeTab = ref('basic')
 
-const tabs = [
-  { key: 'basic', label: '基本信息', icon: Setting },
-  { key: 'security', label: '安全设置', icon: Lock },
-  { key: 'notification', label: '通知设置', icon: Bell },
-  { key: 'about', label: '关于系统', icon: InfoFilled },
-]
+const tabs = computed(() => {
+  void locale.value
+  return [
+    { key: 'basic' as const, label: t('dashboardSettings.tabs.basic'), icon: Setting },
+    { key: 'security' as const, label: t('dashboardSettings.tabs.security'), icon: Lock },
+    { key: 'notification' as const, label: t('dashboardSettings.tabs.notification'), icon: Bell },
+    { key: 'about' as const, label: t('dashboardSettings.tabs.about'), icon: InfoFilled }
+  ]
+})
 
 const basicSettings = reactive({
   systemName: 'FrontCRM',
@@ -231,15 +237,15 @@ const notificationSettings = reactive({
 })
 
 const handleSaveBasic = () => {
-  ElNotification.success({ title: '保存成功', message: '基本信息已保存' })
+  ElNotification.success({ title: t('common.saveSuccess'), message: t('dashboardSettings.messages.basicSaved') })
 }
 
 const handleSaveSecurity = () => {
-  ElNotification.success({ title: '保存成功', message: '安全设置已保存' })
+  ElNotification.success({ title: t('common.saveSuccess'), message: t('dashboardSettings.messages.securitySaved') })
 }
 
 const handleSaveNotification = () => {
-  ElNotification.success({ title: '保存成功', message: '通知设置已保存' })
+  ElNotification.success({ title: t('common.saveSuccess'), message: t('dashboardSettings.messages.notificationSaved') })
 }
 </script>
 

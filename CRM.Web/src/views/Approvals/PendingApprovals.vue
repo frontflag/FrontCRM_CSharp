@@ -1,70 +1,70 @@
 <template>
   <div class="pending-approvals-page">
     <div class="page-header">
-      <h2 class="page-title">审批管理</h2>
+      <h2 class="page-title">{{ t('pendingApprovals.title') }}</h2>
     </div>
 
     <div class="stats-row">
       <div class="stat-card stat-card--pending">
-        <div class="stat-label">待审核数量</div>
+        <div class="stat-label">{{ t('pendingApprovals.stats.pending') }}</div>
         <div class="stat-value">{{ pendingCount }}</div>
       </div>
       <div class="stat-card stat-card--approved">
-        <div class="stat-label">已通过</div>
+        <div class="stat-label">{{ t('pendingApprovals.stats.approved') }}</div>
         <div class="stat-value">{{ approvedCount }}</div>
       </div>
       <div class="stat-card stat-card--rejected">
-        <div class="stat-label">已拒绝</div>
+        <div class="stat-label">{{ t('pendingApprovals.stats.rejected') }}</div>
         <div class="stat-value">{{ rejectedCount }}</div>
       </div>
     </div>
 
     <div class="search-bar">
       <div class="search-left">
-        <span class="search-label">业务类型</span>
+        <span class="search-label">{{ t('pendingApprovals.filters.bizType') }}</span>
         <el-select
           v-model="searchForm.bizType"
-          placeholder="全部"
+          :placeholder="t('pendingApprovals.filters.all')"
           clearable
           style="width: 200px"
           @change="handleSearch"
         >
-          <el-option label="客户" value="CUSTOMER" />
-          <el-option label="供应商" value="VENDOR" />
-          <el-option label="销售订单" value="SALES_ORDER" />
-          <el-option label="采购订单" value="PURCHASE_ORDER" />
-          <el-option label="付款" value="FINANCE_PAYMENT" />
-          <el-option label="收款" value="FINANCE_RECEIPT" />
+          <el-option :label="t('pendingApprovals.bizType.CUSTOMER')" value="CUSTOMER" />
+          <el-option :label="t('pendingApprovals.bizType.VENDOR')" value="VENDOR" />
+          <el-option :label="t('pendingApprovals.bizType.SALES_ORDER')" value="SALES_ORDER" />
+          <el-option :label="t('pendingApprovals.bizType.PURCHASE_ORDER')" value="PURCHASE_ORDER" />
+          <el-option :label="t('pendingApprovals.bizType.FINANCE_PAYMENT')" value="FINANCE_PAYMENT" />
+          <el-option :label="t('pendingApprovals.bizType.FINANCE_RECEIPT')" value="FINANCE_RECEIPT" />
         </el-select>
       </div>
     </div>
 
     <div class="segment-row">
-      <button class="segment-item" :class="{ 'is-active': activeState === 'pending' }" @click="switchState('pending')">审批中 ({{ pendingCount }})</button>
-      <button class="segment-item" :class="{ 'is-active': activeState === 'approved' }" @click="switchState('approved')">审核通过 ({{ approvedCount }})</button>
-      <button class="segment-item" :class="{ 'is-active': activeState === 'rejected' }" @click="switchState('rejected')">审核拒绝 ({{ rejectedCount }})</button>
+      <button class="segment-item" :class="{ 'is-active': activeState === 'pending' }" @click="switchState('pending')">{{ t('pendingApprovals.segment.pending', { count: pendingCount }) }}</button>
+      <button class="segment-item" :class="{ 'is-active': activeState === 'approved' }" @click="switchState('approved')">{{ t('pendingApprovals.segment.approved', { count: approvedCount }) }}</button>
+      <button class="segment-item" :class="{ 'is-active': activeState === 'rejected' }" @click="switchState('rejected')">{{ t('pendingApprovals.segment.rejected', { count: rejectedCount }) }}</button>
     </div>
 
     <CrmDataTable :data="approvalList" v-loading="loading" highlight-current-row @row-dblclick="handleView">
-      <el-table-column label="业务类型" width="100">
+      <el-table-column :label="t('pendingApprovals.columns.bizType')" width="100">
         <template #default="{ row }">
           <el-tag effect="dark" :type="getBizTypeTagType(row.bizType)" size="small">
             {{ row.bizTypeName || getBizTypeText(row.bizType) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="documentCode" label="单据编号" width="160" min-width="160" show-overflow-tooltip>
+      <el-table-column prop="documentCode" :label="t('pendingApprovals.columns.documentCode')" width="160" min-width="160" show-overflow-tooltip>
         <template #default="{ row }">
           <span class="code-link" @click="handleView(row)">{{ row.documentCode }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="counterpartyName" label="客户/供应商" width="200" min-width="200" show-overflow-tooltip />
-      <el-table-column label="事项描述" show-overflow-tooltip>
+      <el-table-column prop="counterpartyName" :label="t('pendingApprovals.columns.counterparty')" width="200" min-width="200" show-overflow-tooltip />
+      <el-table-column :label="t('pendingApprovals.columns.description')" show-overflow-tooltip>
         <template #default="{ row }">
           <span>{{ buildItemDescription(row) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="amount" label="金额" width="160" align="right">
+      <el-table-column prop="amount" :label="t('pendingApprovals.columns.amount')" width="160" align="right">
         <template #default="{ row }">
           <span class="amount-text" v-if="row.amount != null">
             {{ formatAmount(row.amount, row.currency) }}
@@ -72,26 +72,26 @@
           <span class="text-muted" v-else>—</span>
         </template>
       </el-table-column>
-      <el-table-column prop="createdAt" label="提交时间" width="160">
+      <el-table-column prop="createdAt" :label="t('pendingApprovals.columns.submittedAt')" width="160">
         <template #default="{ row }">
           {{ formatDate(row.createdAt) }}
         </template>
       </el-table-column>
-      <el-table-column prop="submitter" label="提交人" width="100" show-overflow-tooltip>
+      <el-table-column prop="submitter" :label="t('pendingApprovals.columns.submitter')" width="100" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.submitter || '—' }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" fixed="right" class-name="op-col" label-class-name="op-col">
+      <el-table-column :label="t('pendingApprovals.columns.actions')" width="180" fixed="right" class-name="op-col" label-class-name="op-col">
         <template #default="{ row }">
           <div @click.stop @dblclick.stop>
             <div class="action-btns">
               <template v-if="activeState === 'pending'">
                 <el-button link type="primary" size="small" @click.stop="openAuditDialog(row)">
-                  审核
+                  {{ t('pendingApprovals.actions.audit') }}
                 </el-button>
               </template>
-              <el-button v-else link type="primary" size="small" @click.stop="handleView(row)">详情</el-button>
+              <el-button v-else link type="primary" size="small" @click.stop="handleView(row)">{{ t('pendingApprovals.actions.detail') }}</el-button>
             </div>
           </div>
         </template>
@@ -110,7 +110,7 @@
       />
     </div>
 
-    <el-dialog v-model="auditDialogVisible" title="审核窗口" width="980px" destroy-on-close>
+    <el-dialog v-model="auditDialogVisible" :title="t('pendingApprovals.dialog.title')" width="980px" destroy-on-close>
       <div v-if="auditRow" class="audit-dialog">
         <div class="audit-top">
           <div class="audit-top-head">
@@ -120,118 +120,118 @@
             </el-tag>
           </div>
           <el-form label-width="88px">
-            <el-form-item label="提交备注">
+            <el-form-item :label="t('pendingApprovals.dialog.submitRemark')">
               <div class="submit-remark">{{ getSubmitRemark() }}</div>
             </el-form-item>
-            <el-form-item label="审批意见">
+            <el-form-item :label="t('pendingApprovals.dialog.auditRemark')">
               <el-input
                 v-model="auditRemark"
                 type="textarea"
                 :rows="3"
-                placeholder="可填写审批意见；驳回时必填"
+                :placeholder="t('pendingApprovals.dialog.auditRemarkPlaceholder')"
               />
             </el-form-item>
           </el-form>
           <div class="audit-attachments">
             <div class="attach-header">
-              <span>附件预览</span>
+              <span>{{ t('pendingApprovals.dialog.attachmentPreview') }}</span>
               <label class="upload-btn">
                 <input type="file" multiple @change="onAuditFilesSelected" />
-                上传附件
+                {{ t('pendingApprovals.dialog.uploadAttachment') }}
               </label>
             </div>
-            <div v-if="auditDocsLoading" class="detail-loading">附件加载中...</div>
-            <div v-else-if="auditDocs.length === 0" class="detail-loading">暂无附件</div>
+            <div v-if="auditDocsLoading" class="detail-loading">{{ t('pendingApprovals.dialog.docsLoading') }}</div>
+            <div v-else-if="auditDocs.length === 0" class="detail-loading">{{ t('pendingApprovals.dialog.noAttachments') }}</div>
             <div v-else class="attach-list">
               <div class="attach-item" v-for="doc in auditDocs" :key="doc.id">
                 <span class="name" :title="doc.originalFileName">{{ doc.originalFileName }}</span>
                 <span class="ops">
-                  <el-button link type="primary" size="small" @click="previewDoc(doc)">预览</el-button>
-                  <el-button link type="primary" size="small" @click="downloadDoc(doc)" :loading="uploadingAuditDocs">下载</el-button>
+                  <el-button link type="primary" size="small" @click="previewDoc(doc)">{{ t('pendingApprovals.dialog.preview') }}</el-button>
+                  <el-button link type="primary" size="small" @click="downloadDoc(doc)" :loading="uploadingAuditDocs">{{ t('pendingApprovals.dialog.download') }}</el-button>
                 </span>
               </div>
             </div>
           </div>
           <div class="audit-actions">
-            <el-button @click="auditDialogVisible = false">取消</el-button>
-            <el-button type="danger" :loading="actionLoading" @click="handleRejectInDialog">驳回</el-button>
-            <el-button type="primary" :loading="actionLoading" @click="handleApproveInDialog">审批通过</el-button>
+            <el-button @click="auditDialogVisible = false">{{ t('common.cancel') }}</el-button>
+            <el-button type="danger" :loading="actionLoading" @click="handleRejectInDialog">{{ t('pendingApprovals.dialog.reject') }}</el-button>
+            <el-button type="primary" :loading="actionLoading" @click="handleApproveInDialog">{{ t('pendingApprovals.dialog.approve') }}</el-button>
           </div>
         </div>
 
         <div class="audit-bottom">
-          <div class="section-title">业务相关信息</div>
-          <div v-if="auditDetailLoading" class="detail-loading">正在加载详情...</div>
+          <div class="section-title">{{ t('pendingApprovals.sectionBusiness') }}</div>
+          <div v-if="auditDetailLoading" class="detail-loading">{{ t('pendingApprovals.detailLoading') }}</div>
           <div v-else-if="auditDetailError" class="detail-error">{{ auditDetailError }}</div>
           <div class="info-grid">
-            <div class="info-item"><span class="k">业务类型</span><span class="v">{{ auditRow.bizTypeName || getBizTypeText(auditRow.bizType) }}</span></div>
-            <div class="info-item"><span class="k">业务单号</span><span class="v">{{ auditRow.documentCode }}</span></div>
-            <div class="info-item"><span class="k">提交日期</span><span class="v">{{ formatDate(auditRow.createdAt) }}</span></div>
-            <div class="info-item"><span class="k">状态</span><span class="v">{{ statusText(auditRow.status) }}</span></div>
-            <div class="info-item"><span class="k">往来方</span><span class="v">{{ auditRow.counterpartyName || '—' }}</span></div>
-            <div class="info-item"><span class="k">金额</span><span class="v">{{ formatAuditAmount(auditRow, auditDetail) }}</span></div>
+            <div class="info-item"><span class="k">{{ t('pendingApprovals.infoLabels.bizType') }}</span><span class="v">{{ auditRow.bizTypeName || getBizTypeText(auditRow.bizType) }}</span></div>
+            <div class="info-item"><span class="k">{{ t('pendingApprovals.infoLabels.documentCode') }}</span><span class="v">{{ auditRow.documentCode }}</span></div>
+            <div class="info-item"><span class="k">{{ t('pendingApprovals.infoLabels.submittedAt') }}</span><span class="v">{{ formatDate(auditRow.createdAt) }}</span></div>
+            <div class="info-item"><span class="k">{{ t('pendingApprovals.infoLabels.status') }}</span><span class="v">{{ statusText(auditRow.status) }}</span></div>
+            <div class="info-item"><span class="k">{{ t('pendingApprovals.infoLabels.counterparty') }}</span><span class="v">{{ auditRow.counterpartyName || '—' }}</span></div>
+            <div class="info-item"><span class="k">{{ t('pendingApprovals.infoLabels.amount') }}</span><span class="v">{{ formatAuditAmount(auditRow, auditDetail) }}</span></div>
           </div>
 
           <div class="biz-extra">
             <template v-if="auditRow.bizType === 'VENDOR'">
-              <div class="extra-title">供应商专属信息</div>
-              <div class="extra-line"><span>供应商名称：</span>{{ auditDetail?.officialName || auditRow.counterpartyName || '—' }}</div>
-              <div class="extra-line"><span>供应商编码：</span>{{ auditRow.documentCode }}</div>
-              <div class="extra-line"><span>付款方式：</span>{{ auditDetail?.paymentMethod || '—' }}</div>
-              <div class="extra-line"><span>账期：</span>{{ auditDetail?.payment ?? '—' }}</div>
-              <div class="extra-line"><span>黑名单：</span>{{ auditDetail?.blackList ? '是' : '否' }}</div>
+              <div class="extra-title">{{ t('pendingApprovals.vendorSection') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.nameLabel') }}</span>{{ auditDetail?.officialName || auditRow.counterpartyName || '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.codeLabel') }}</span>{{ auditRow.documentCode }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.paymentMethod') }}</span>{{ auditDetail?.paymentMethod || '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.paymentTerm') }}</span>{{ auditDetail?.payment ?? '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.blacklist') }}</span>{{ auditDetail?.blackList ? t('pendingApprovals.vendor.yes') : t('pendingApprovals.vendor.no') }}</div>
             </template>
             <template v-else-if="auditRow.bizType === 'CUSTOMER'">
-              <div class="extra-title">客户专属信息</div>
-              <div class="extra-line"><span>客户名称：</span>{{ auditDetail?.customerName || auditDetail?.officialName || auditRow.counterpartyName || '—' }}</div>
-              <div class="extra-line"><span>客户编码：</span>{{ auditRow.documentCode }}</div>
-              <div class="extra-line"><span>区域：</span>{{ [auditDetail?.province, auditDetail?.city, auditDetail?.district].filter(Boolean).join(' / ') || '—' }}</div>
-              <div class="extra-line"><span>信用额度：</span>{{ auditDetail?.creditLimit ?? auditDetail?.creditLine ?? '—' }}</div>
-              <div class="extra-line"><span>业务员：</span>{{ auditDetail?.salesPersonName || auditDetail?.salesUserId || '—' }}</div>
+              <div class="extra-title">{{ t('pendingApprovals.customerSection') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.customer.nameLabel') }}</span>{{ auditDetail?.customerName || auditDetail?.officialName || auditRow.counterpartyName || '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.customer.codeLabel') }}</span>{{ auditRow.documentCode }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.customer.region') }}</span>{{ [auditDetail?.province, auditDetail?.city, auditDetail?.district].filter(Boolean).join(' / ') || '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.customer.creditLimit') }}</span>{{ auditDetail?.creditLimit ?? auditDetail?.creditLine ?? '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.customer.salesPerson') }}</span>{{ auditDetail?.salesPersonName || auditDetail?.salesUserId || '—' }}</div>
             </template>
             <template v-else-if="auditRow.bizType === 'SALES_ORDER'">
-              <div class="extra-title">销售订单专属信息</div>
-              <div class="extra-line"><span>订单号：</span>{{ auditRow.documentCode }}</div>
-              <div class="extra-line"><span>客户：</span>{{ auditDetail?.customerName || auditRow.counterpartyName || '—' }}</div>
-              <div class="extra-line"><span>订单金额：</span>{{ auditDetail?.total != null ? formatAmount(auditDetail.total, auditDetail.currency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—') }}</div>
-              <div class="extra-line"><span>交付日期：</span>{{ auditDetail?.deliveryDate ? formatDate(auditDetail.deliveryDate) : '—' }}</div>
-              <div class="extra-line"><span>销售员：</span>{{ auditDetail?.salesUserName || auditDetail?.salesUserId || '—' }}</div>
+              <div class="extra-title">{{ t('pendingApprovals.salesOrderSection') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.salesOrder.orderNo') }}</span>{{ auditRow.documentCode }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.salesOrder.customer') }}</span>{{ auditDetail?.customerName || auditRow.counterpartyName || '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.salesOrder.orderAmount') }}</span>{{ auditDetail?.total != null ? formatAmount(auditDetail.total, auditDetail.currency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.salesOrder.deliveryDate') }}</span>{{ auditDetail?.deliveryDate ? formatDate(auditDetail.deliveryDate) : '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.salesOrder.salesUser') }}</span>{{ auditDetail?.salesUserName || auditDetail?.salesUserId || '—' }}</div>
             </template>
             <template v-else-if="auditRow.bizType === 'PURCHASE_ORDER'">
-              <div class="extra-title">采购订单专属信息</div>
-              <div class="extra-line"><span>采购单号：</span>{{ auditRow.documentCode }}</div>
-              <div class="extra-line"><span>供应商：</span>{{ auditDetail?.vendorName || auditRow.counterpartyName || '—' }}</div>
-              <div class="extra-line"><span>订单金额：</span>{{ auditDetail?.total != null ? formatAmount(auditDetail.total, auditDetail.currency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—') }}</div>
-              <div class="extra-line"><span>交货日期：</span>{{ auditDetail?.deliveryDate ? formatDate(auditDetail.deliveryDate) : '—' }}</div>
-              <div class="extra-line"><span>采购员：</span>{{ auditDetail?.purchaseUserName || auditDetail?.purchaseUserId || '—' }}</div>
+              <div class="extra-title">{{ t('pendingApprovals.purchaseOrderSection') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.poNo') }}</span>{{ auditRow.documentCode }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.vendor') }}</span>{{ auditDetail?.vendorName || auditRow.counterpartyName || '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.orderAmount') }}</span>{{ auditDetail?.total != null ? formatAmount(auditDetail.total, auditDetail.currency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.deliveryDate') }}</span>{{ auditDetail?.deliveryDate ? formatDate(auditDetail.deliveryDate) : '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.buyer') }}</span>{{ auditDetail?.purchaseUserName || auditDetail?.purchaseUserId || '—' }}</div>
             </template>
             <template v-else-if="auditRow.bizType === 'FINANCE_RECEIPT'">
-              <div class="extra-title">收款单专属信息</div>
-              <div class="extra-line"><span>单号：</span>{{ auditRow.documentCode }}</div>
-              <div class="extra-line"><span>客户：</span>{{ auditDetail?.customerName || auditRow.counterpartyName || '—' }}</div>
-              <div class="extra-line"><span>收款金额：</span>{{ auditDetail?.receiptAmount != null ? formatAmount(auditDetail.receiptAmount, auditDetail.receiptCurrency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—') }}</div>
-              <div class="extra-line"><span>收款方式：</span>{{ auditDetail?.receiveMode || '—' }}</div>
+              <div class="extra-title">{{ t('pendingApprovals.receiptSection') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.receipt.code') }}</span>{{ auditRow.documentCode }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.receipt.customer') }}</span>{{ auditDetail?.customerName || auditRow.counterpartyName || '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.receipt.amount') }}</span>{{ auditDetail?.receiptAmount != null ? formatAmount(auditDetail.receiptAmount, auditDetail.receiptCurrency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.receipt.mode') }}</span>{{ auditDetail?.receiveMode || '—' }}</div>
             </template>
             <template v-else-if="auditRow.bizType === 'FINANCE_PAYMENT'">
-              <div class="extra-title">付款单专属信息</div>
-              <div class="extra-line"><span>单号：</span>{{ auditRow.documentCode }}</div>
-              <div class="extra-line"><span>供应商：</span>{{ auditDetail?.vendorName || auditRow.counterpartyName || '—' }}</div>
-              <div class="extra-line"><span>付款金额：</span>{{ formatFinancePaymentAuditAmount(auditRow, auditDetail) }}</div>
-              <div class="extra-line"><span>付款方式：</span>{{ auditDetail?.paymentMode || '—' }}</div>
+              <div class="extra-title">{{ t('pendingApprovals.paymentSection') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.payment.code') }}</span>{{ auditRow.documentCode }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.payment.vendor') }}</span>{{ auditDetail?.vendorName || auditRow.counterpartyName || '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.payment.amount') }}</span>{{ formatFinancePaymentAuditAmount(auditRow, auditDetail) }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.payment.mode') }}</span>{{ auditDetail?.paymentMode || '—' }}</div>
             </template>
             <template v-else>
-              <div class="extra-line"><span>审批说明：</span>请结合业务详情页面信息进行审批。</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.fallbackApprovalHint') }}</span></div>
             </template>
           </div>
 
           <div class="detail-jump">
-            <el-button type="primary" plain @click="handleView(auditRow)">查看完整业务详情</el-button>
+            <el-button type="primary" plain @click="handleView(auditRow)">{{ t('pendingApprovals.viewFullDetail') }}</el-button>
           </div>
 
           <div class="audit-history">
-            <div class="section-title">审批历史</div>
-            <div v-if="auditHistoryLoading" class="detail-loading">审批历史加载中...</div>
-            <div v-else-if="auditHistory.length === 0" class="detail-loading">暂无审批历史</div>
+            <div class="section-title">{{ t('pendingApprovals.sectionHistory') }}</div>
+            <div v-if="auditHistoryLoading" class="detail-loading">{{ t('pendingApprovals.historyLoading') }}</div>
+            <div v-else-if="auditHistory.length === 0" class="detail-loading">{{ t('pendingApprovals.historyEmpty') }}</div>
             <div v-else class="history-list">
               <div class="history-item" v-for="h in auditHistory" :key="h.id">
                 <div class="dot"></div>
@@ -240,10 +240,10 @@
                     <span class="action">{{ historyActionText(h) }}</span>
                     <span class="time">{{ formatDate(h.actionTime) }}</span>
                   </div>
-                  <div class="line-2">操作人：{{ historyActorText(h) }}</div>
-                  <div class="line-2" v-if="h.itemDescription">事项描述：{{ h.itemDescription }}</div>
-                  <div class="line-2" v-if="h.submitRemark">提交备注：{{ h.submitRemark }}</div>
-                  <div class="line-2" v-if="h.auditRemark">审核意见：{{ h.auditRemark }}</div>
+                  <div class="line-2">{{ t('pendingApprovals.history.actor') }}{{ historyActorText(h) }}</div>
+                  <div class="line-2" v-if="h.itemDescription">{{ t('pendingApprovals.history.itemDesc') }}{{ h.itemDescription }}</div>
+                  <div class="line-2" v-if="h.submitRemark">{{ t('pendingApprovals.history.submitRemark') }}{{ h.submitRemark }}</div>
+                  <div class="line-2" v-if="h.auditRemark">{{ t('pendingApprovals.history.auditRemark') }}{{ h.auditRemark }}</div>
                 </div>
               </div>
             </div>
@@ -257,6 +257,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { approvalsApi, type ApprovalHistoryItem, type BizType, type PendingApprovalItem } from '@/api/approvals'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
@@ -268,6 +269,7 @@ import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
 
 const router = useRouter()
+const { t, te } = useI18n()
 
 const loading = ref(false)
 const actionLoading = ref(false)
@@ -300,16 +302,8 @@ const approvedCount = ref(0)
 const rejectedCount = ref(0)
 
 const getBizTypeText = (type: string) => {
-  const map: Record<string, string> = {
-    VENDOR: '供应商',
-    QUOTE: '报价单',
-    SALES_ORDER: '销售订单',
-    PURCHASE_ORDER: '采购订单',
-    CUSTOMER: '客户',
-    FINANCE_RECEIPT: '收款',
-    FINANCE_PAYMENT: '付款'
-  }
-  return map[type] || type
+  const key = `pendingApprovals.bizType.${type}` as const
+  return te(key) ? t(key) : type
 }
 
 const getBizTypeTagType = (type: string) => {
@@ -363,10 +357,11 @@ const formatAuditAmount = (row: PendingApprovalItem, detail: any) => {
 }
 
 const buildItemDescription = (row: PendingApprovalItem) => {
-  const t = (row.title || '').trim()
+  const titlePart = (row.title || '').trim()
   const cp = (row.counterpartyName || '').trim()
-  if (t && cp && t !== cp) return `${t}；${cp}`
-  if (t) return t
+  const join = t('pendingApprovals.descJoin')
+  if (titlePart && cp && titlePart !== cp) return `${titlePart}${join}${cp}`
+  if (titlePart) return titlePart
   if (cp) return cp
   return row.documentCode || '—'
 }
@@ -435,7 +430,7 @@ const handleSearch = async () => {
     rejectedCount.value = Number(summary.rejectedCount ?? 0)
     if (!pendingCount.value && fallbackPending > 0) pendingCount.value = fallbackPending
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '加载失败')
+    ElMessage.error(e instanceof Error ? e.message : t('pendingApprovals.messages.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -481,7 +476,7 @@ const handleView = (row: PendingApprovalItem) => {
       router.push({ name: 'PurchaseOrderDetail', params: { id } })
       break
     default:
-      ElMessage.warning('暂不支持从待审批跳转该类型')
+      ElMessage.warning(t('pendingApprovals.messages.jumpNotSupported'))
   }
 }
 
@@ -516,7 +511,7 @@ const loadAuditDetail = async (row: PendingApprovalItem) => {
       auditDetail.value = normalizeApiData(await purchaseOrderApi.getById(row.businessId))
     }
   } catch (e: any) {
-    auditDetailError.value = e?.message || '加载业务详情失败'
+    auditDetailError.value = e?.message || t('pendingApprovals.messages.detailLoadFailed')
   } finally {
     auditDetailLoading.value = false
   }
@@ -553,11 +548,11 @@ const onAuditFilesSelected = async (e: Event) => {
   if (!key.bizType || !key.bizId) return
   try {
     uploadingAuditDocs.value = true
-    await documentApi.uploadDocuments(key.bizType, key.bizId, files, '审批附件')
+    await documentApi.uploadDocuments(key.bizType, key.bizId, files, t('pendingApprovals.messages.auditDocCategory'))
     if (auditRow.value) await loadAuditDocs(auditRow.value)
-    ElMessage.success('附件上传成功')
+    ElMessage.success(t('pendingApprovals.messages.uploadSuccess'))
   } catch (err: any) {
-    ElMessage.error(err?.message || '附件上传失败')
+    ElMessage.error(err?.message || t('pendingApprovals.messages.uploadFailed'))
   } finally {
     uploadingAuditDocs.value = false
     ;(e.target as HTMLInputElement).value = ''
@@ -577,15 +572,16 @@ const loadAuditHistory = async (row: PendingApprovalItem) => {
 }
 
 const historyActionText = (item: ApprovalHistoryItem) => {
-  if (item.actionType === 'submit') return '提交审核'
-  if (item.actionType === 'approve') return '审批通过'
-  if (item.actionType === 'reject') return '审批驳回'
+  if (item.actionType === 'submit') return t('pendingApprovals.historyAction.submit')
+  if (item.actionType === 'approve') return t('pendingApprovals.historyAction.approve')
+  if (item.actionType === 'reject') return t('pendingApprovals.historyAction.reject')
   return item.actionType
 }
 
 const historyActorText = (item: ApprovalHistoryItem) => {
-  if (item.actionType === 'submit') return item.submitterUserName || item.submitterUserId || '系统'
-  return item.approverUserName || item.approverUserId || '系统'
+  const sys = t('pendingApprovals.system')
+  if (item.actionType === 'submit') return item.submitterUserName || item.submitterUserId || sys
+  return item.approverUserName || item.approverUserId || sys
 }
 
 const handleApproveInDialog = async () => {
@@ -598,12 +594,12 @@ const handleApproveInDialog = async () => {
       decision: 'approve',
       remark: auditRemark.value.trim() || undefined
     })
-    ElMessage.success('审批通过')
+    ElMessage.success(t('pendingApprovals.messages.approveSuccess'))
     auditDialogVisible.value = false
     await refreshSummaryOnly()
     await handleSearch()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '操作失败')
+    ElMessage.error(e instanceof Error ? e.message : t('pendingApprovals.messages.operationFailed'))
   } finally {
     actionLoading.value = false
   }
@@ -615,7 +611,7 @@ const handleRejectInDialog = async () => {
     auditRow.value.bizType
   )
   if (needReason && !auditRemark.value.trim()) {
-    ElMessage.warning('请输入驳回原因')
+    ElMessage.warning(t('pendingApprovals.messages.rejectReasonRequired'))
     return
   }
   try {
@@ -626,21 +622,21 @@ const handleRejectInDialog = async () => {
       decision: 'reject',
       remark: auditRemark.value.trim() || undefined
     })
-    ElMessage.success('已驳回')
+    ElMessage.success(t('pendingApprovals.messages.rejectSuccess'))
     auditDialogVisible.value = false
     await refreshSummaryOnly()
     await handleSearch()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '操作失败')
+    ElMessage.error(e instanceof Error ? e.message : t('pendingApprovals.messages.operationFailed'))
   } finally {
     actionLoading.value = false
   }
 }
 
 const statusText = (status: number) => {
-  if (status === 2 || status === 1) return '待审核'
-  if (status === 10 || status === 20 || status === 3) return '已通过'
-  if (status < 0 || status === 4 || status === 5) return '已拒绝'
+  if (status === 2 || status === 1) return t('pendingApprovals.rowStatus.pending')
+  if (status === 10 || status === 20 || status === 3) return t('pendingApprovals.rowStatus.passed')
+  if (status < 0 || status === 4 || status === 5) return t('pendingApprovals.rowStatus.rejected')
   return String(status)
 }
 

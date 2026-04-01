@@ -3,7 +3,7 @@
     <div class="profile-header">
       <div class="profile-avatar-wrap">
         <div class="profile-avatar">{{ userInitial }}</div>
-        <div class="avatar-edit-btn" title="更换头像">
+        <div class="avatar-edit-btn" :title="t('profilePage.changeAvatar')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
             <circle cx="12" cy="13" r="4"/>
@@ -13,7 +13,7 @@
       <div class="profile-header-info">
         <h2 class="profile-name">{{ form.userName }}</h2>
         <p class="profile-email">{{ form.email }}</p>
-        <span class="profile-role-badge">系统管理员</span>
+        <span class="profile-role-badge">{{ roleLabel }}</span>
       </div>
     </div>
 
@@ -34,31 +34,31 @@
     <!-- 基本信息 -->
     <div class="tab-content" v-if="activeTab === 'basic'">
       <div class="section-card">
-        <h3 class="section-title">基本信息</h3>
+        <h3 class="section-title">{{ t('profilePage.basic.sectionTitle') }}</h3>
         <div class="form-grid">
           <div class="form-item">
-            <label class="form-label">员工账号</label>
-            <input v-model="form.userName" class="form-input" placeholder="请输入员工账号" />
+            <label class="form-label">{{ t('profilePage.basic.userName') }}</label>
+            <input v-model="form.userName" class="form-input" :placeholder="t('profilePage.basic.phUserName')" />
           </div>
           <div class="form-item">
-            <label class="form-label">邮箱</label>
-            <input v-model="form.email" class="form-input" placeholder="请输入邮箱" type="email" />
+            <label class="form-label">{{ t('profilePage.basic.email') }}</label>
+            <input v-model="form.email" class="form-input" :placeholder="t('profilePage.basic.phEmail')" type="email" />
           </div>
           <div class="form-item">
-            <label class="form-label">手机号</label>
-            <input v-model="form.phone" class="form-input" placeholder="请输入手机号" />
+            <label class="form-label">{{ t('profilePage.basic.phone') }}</label>
+            <input v-model="form.phone" class="form-input" :placeholder="t('profilePage.basic.phPhone')" />
           </div>
           <div class="form-item">
-            <label class="form-label">部门</label>
-            <input v-model="form.department" class="form-input" placeholder="请输入部门" />
+            <label class="form-label">{{ t('profilePage.basic.department') }}</label>
+            <input v-model="form.department" class="form-input" :placeholder="t('profilePage.basic.phDepartment')" />
           </div>
           <div class="form-item full-width">
-            <label class="form-label">个人简介</label>
-            <textarea v-model="form.bio" class="form-textarea" placeholder="请输入个人简介" rows="3"></textarea>
+            <label class="form-label">{{ t('profilePage.basic.bio') }}</label>
+            <textarea v-model="form.bio" class="form-textarea" :placeholder="t('profilePage.basic.phBio')" rows="3"></textarea>
           </div>
         </div>
         <div class="form-actions">
-          <button class="btn-primary" @click="saveBasicInfo">保存更改</button>
+          <button class="btn-primary" @click="saveBasicInfo">{{ t('profilePage.basic.saveChanges') }}</button>
         </div>
       </div>
     </div>
@@ -66,16 +66,16 @@
     <!-- 修改密码 -->
     <div class="tab-content" v-if="activeTab === 'password'">
       <div class="section-card">
-        <h3 class="section-title">修改密码</h3>
+        <h3 class="section-title">{{ t('profilePage.password.sectionTitle') }}</h3>
         <div class="form-grid single-col">
           <div class="form-item">
-            <label class="form-label">当前密码</label>
+            <label class="form-label">{{ t('profilePage.password.current') }}</label>
             <div class="input-with-eye">
               <input
                 v-model="pwdForm.current"
                 :type="showPwd.current ? 'text' : 'password'"
                 class="form-input"
-                placeholder="请输入当前密码"
+                :placeholder="t('profilePage.password.phCurrent')"
               />
               <button class="eye-btn" @click="showPwd.current = !showPwd.current">
                 <svg v-if="!showPwd.current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -90,13 +90,13 @@
             </div>
           </div>
           <div class="form-item">
-            <label class="form-label">新密码</label>
+            <label class="form-label">{{ t('profilePage.password.newPwd') }}</label>
             <div class="input-with-eye">
               <input
                 v-model="pwdForm.newPwd"
                 :type="showPwd.newPwd ? 'text' : 'password'"
                 class="form-input"
-                placeholder="请输入新密码（至少8位）"
+                :placeholder="t('profilePage.password.phNew')"
                 @input="calcStrength"
               />
               <button class="eye-btn" @click="showPwd.newPwd = !showPwd.newPwd">
@@ -119,14 +119,14 @@
             </div>
           </div>
           <div class="form-item">
-            <label class="form-label">确认新密码</label>
+            <label class="form-label">{{ t('profilePage.password.confirm') }}</label>
             <div class="input-with-eye">
               <input
                 v-model="pwdForm.confirm"
                 :type="showPwd.confirm ? 'text' : 'password'"
                 class="form-input"
                 :class="{ 'input-error': pwdForm.confirm && pwdForm.confirm !== pwdForm.newPwd }"
-                placeholder="请再次输入新密码"
+                :placeholder="t('profilePage.password.phConfirm')"
               />
               <button class="eye-btn" @click="showPwd.confirm = !showPwd.confirm">
                 <svg v-if="!showPwd.confirm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -139,11 +139,11 @@
                 </svg>
               </button>
             </div>
-            <p class="input-error-msg" v-if="pwdForm.confirm && pwdForm.confirm !== pwdForm.newPwd">两次密码不一致</p>
+            <p class="input-error-msg" v-if="pwdForm.confirm && pwdForm.confirm !== pwdForm.newPwd">{{ t('profilePage.password.mismatch') }}</p>
           </div>
         </div>
         <div class="form-actions">
-          <button class="btn-primary" @click="changePassword" :disabled="!canChangePassword">更新密码</button>
+          <button class="btn-primary" @click="changePassword" :disabled="!canChangePassword">{{ t('profilePage.password.update') }}</button>
         </div>
       </div>
     </div>
@@ -151,25 +151,25 @@
     <!-- 微信绑定 -->
     <div class="tab-content" v-if="activeTab === 'wechat'">
       <div class="section-card">
-        <h3 class="section-title">微信绑定</h3>
+        <h3 class="section-title">{{ t('profilePage.wechat.sectionTitle') }}</h3>
         <div class="wechat-bind-section">
           <div v-if="wechatBindInfo.isBound" class="wechat-bound">
             <div class="wechat-info">
               <el-avatar :size="64" :src="wechatBindInfo.avatarUrl" />
               <div class="wechat-detail">
                 <p class="nickname">{{ wechatBindInfo.nickname }}</p>
-                <p class="bind-time">绑定时间：{{ formatDate(wechatBindInfo.bindTime) }}</p>
+                <p class="bind-time">{{ t('profilePage.wechat.boundAt') }}{{ formatDate(wechatBindInfo.bindTime) }}</p>
               </div>
             </div>
-            <el-button type="danger" @click="unbindWechatHandler">解除绑定</el-button>
+            <el-button type="danger" @click="unbindWechatHandler">{{ t('profilePage.wechat.unbind') }}</el-button>
           </div>
           <div v-else class="wechat-unbound">
             <div class="bind-intro">
               <el-icon :size="48" color="#07C160"><ChatDotRound /></el-icon>
-              <p class="bind-text">绑定微信后，可以使用微信扫码快速登录</p>
+              <p class="bind-text">{{ t('profilePage.wechat.intro') }}</p>
             </div>
             <el-button type="primary" size="large" @click="goToWechatBind">
-              去绑定微信
+              {{ t('profilePage.wechat.goBind') }}
             </el-button>
           </div>
         </div>
@@ -179,12 +179,12 @@
     <!-- 通知偏好 -->
     <div class="tab-content" v-if="activeTab === 'notifications'">
       <div class="section-card">
-        <h3 class="section-title">通知偏好</h3>
+        <h3 class="section-title">{{ t('profilePage.notifications.sectionTitle') }}</h3>
         <div class="notify-list">
           <div class="notify-item" v-for="item in notifySettings" :key="item.key">
             <div class="notify-info">
-              <span class="notify-name">{{ item.name }}</span>
-              <span class="notify-desc">{{ item.desc }}</span>
+              <span class="notify-name">{{ t(`profilePage.notifications.items.${item.key}.name`) }}</span>
+              <span class="notify-desc">{{ t(`profilePage.notifications.items.${item.key}.desc`) }}</span>
             </div>
             <div class="toggle-switch" :class="{ on: item.enabled }" @click="item.enabled = !item.enabled">
               <div class="toggle-thumb"></div>
@@ -192,7 +192,7 @@
           </div>
         </div>
         <div class="form-actions">
-          <button class="btn-primary" @click="saveNotifications">保存设置</button>
+          <button class="btn-primary" @click="saveNotifications">{{ t('profilePage.notifications.save') }}</button>
         </div>
       </div>
     </div>
@@ -200,11 +200,11 @@
     <!-- 安全设置 -->
     <div class="tab-content" v-if="activeTab === 'security'">
       <div class="section-card">
-        <h3 class="section-title">两步验证</h3>
+        <h3 class="section-title">{{ t('profilePage.security.twoFactorSection') }}</h3>
         <div class="security-row">
           <div class="security-info">
-            <span class="security-name">两步验证（2FA）</span>
-            <span class="security-desc">使用身份验证器 App 增强账户安全</span>
+            <span class="security-name">{{ t('profilePage.security.twoFactorName') }}</span>
+            <span class="security-desc">{{ t('profilePage.security.twoFactorDesc') }}</span>
           </div>
           <div class="toggle-switch" :class="{ on: security.twoFactor }" @click="security.twoFactor = !security.twoFactor">
             <div class="toggle-thumb"></div>
@@ -212,7 +212,7 @@
         </div>
       </div>
       <div class="section-card mt-16">
-        <h3 class="section-title">登录设备</h3>
+        <h3 class="section-title">{{ t('profilePage.security.devicesSection') }}</h3>
         <div class="device-list">
           <div class="device-item" v-for="device in devices" :key="device.id">
             <div class="device-icon">
@@ -224,10 +224,10 @@
             </div>
             <div class="device-info">
               <span class="device-name">{{ device.name }}</span>
-              <span class="device-meta">{{ device.location }} · {{ device.time }}</span>
+              <span class="device-meta">{{ t(`profilePage.devices.${device.locKey}`) }} · {{ t(`profilePage.devices.${device.timeKey}`) }}</span>
             </div>
-            <span class="device-current" v-if="device.current">当前设备</span>
-            <button class="btn-ghost-danger" v-else @click="revokeDevice(device.id)">撤销</button>
+            <span class="device-current" v-if="device.current">{{ t('profilePage.security.currentDevice') }}</span>
+            <button class="btn-ghost-danger" v-else @click="revokeDevice(device.id)">{{ t('profilePage.security.revoke') }}</button>
           </div>
         </div>
       </div>
@@ -238,6 +238,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ChatDotRound } from '@element-plus/icons-vue'
@@ -246,38 +247,46 @@ import { formatDate } from '@/utils/date'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const { t, locale } = useI18n()
 
-const userInitial = computed(() => (authStore.user?.userName || '管')[0].toUpperCase())
+const userInitial = computed(() => (authStore.user?.userName || 'U')[0].toUpperCase())
+
+const roleLabel = computed(() =>
+  authStore.user?.isSysAdmin ? t('profilePage.badge.sysAdmin') : t('profilePage.badge.user')
+)
 
 const activeTab = ref('basic')
 
-const tabList = [
-  {
-    key: 'basic',
-    label: '基本信息',
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
-  },
-  {
-    key: 'password',
-    label: '修改密码',
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>'
-  },
-  {
-    key: 'wechat',
-    label: '微信绑定',
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M9 11a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/><path d="M15 11a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/></svg>'
-  },
-  {
-    key: 'notifications',
-    label: '通知偏好',
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>'
-  },
-  {
-    key: 'security',
-    label: '安全设置',
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>'
-  }
-]
+const tabList = computed(() => {
+  void locale.value
+  return [
+    {
+      key: 'basic',
+      label: t('profilePage.tabs.basic'),
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
+    },
+    {
+      key: 'password',
+      label: t('profilePage.tabs.password'),
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>'
+    },
+    {
+      key: 'wechat',
+      label: t('profilePage.tabs.wechat'),
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M9 11a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/><path d="M15 11a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/></svg>'
+    },
+    {
+      key: 'notifications',
+      label: t('profilePage.tabs.notifications'),
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>'
+    },
+    {
+      key: 'security',
+      label: t('profilePage.tabs.security'),
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>'
+    }
+  ]
+})
 
 // 基本信息表单
 const form = ref({
@@ -289,7 +298,7 @@ const form = ref({
 })
 
 const saveBasicInfo = () => {
-  ElMessage.success('基本信息已保存')
+  ElMessage.success(t('profilePage.messages.basicSaved'))
 }
 
 // 密码表单
@@ -319,8 +328,9 @@ const strengthWidth = computed(() => {
 })
 
 const strengthText = computed(() => {
-  const map = ['弱', '弱', '中等', '强', '非常强']
-  return map[strengthLevel.value] || '弱'
+  const n = strengthLevel.value
+  const key = n <= 1 ? 'weak' : n === 2 ? 'medium' : n === 3 ? 'strong' : 'veryStrong'
+  return t(`profilePage.password.strength.${key}`)
 })
 
 const canChangePassword = computed(() => {
@@ -331,35 +341,43 @@ const canChangePassword = computed(() => {
 
 const changePassword = () => {
   if (!canChangePassword.value) return
-  ElMessage.success('密码已更新')
+  ElMessage.success(t('profilePage.messages.passwordUpdated'))
   pwdForm.value = { current: '', newPwd: '', confirm: '' }
 }
 
-// 通知设置
+// 通知设置（文案随语言切换；enabled 独立存储）
 const notifySettings = ref([
-  { key: 'order', name: '订单通知', desc: '新订单创建、状态变更时通知', enabled: true },
-  { key: 'quote', name: '报价通知', desc: '报价单审批、到期提醒', enabled: true },
-  { key: 'finance', name: '财务通知', desc: '付款、收款、发票相关通知', enabled: false },
-  { key: 'system', name: '系统通知', desc: '系统维护、版本更新通知', enabled: true },
-  { key: 'email', name: '邮件通知', desc: '通过邮件接收重要通知', enabled: false },
+  { key: 'order' as const, enabled: true },
+  { key: 'quote' as const, enabled: true },
+  { key: 'finance' as const, enabled: false },
+  { key: 'system' as const, enabled: true },
+  { key: 'email' as const, enabled: false }
 ])
 
 const saveNotifications = () => {
-  ElMessage.success('通知偏好已保存')
+  ElMessage.success(t('profilePage.messages.notifySaved'))
 }
 
 // 安全设置
 const security = ref({ twoFactor: false })
 
-const devices = ref([
-  { id: 1, name: 'Chrome on Windows', location: '上海', time: '刚刚', current: true },
-  { id: 2, name: 'Safari on macOS', location: '北京', time: '2天前', current: false },
-  { id: 3, name: 'Chrome on Android', location: '广州', time: '7天前', current: false },
+type DeviceRow = {
+  id: number
+  name: string
+  locKey: 'shanghai' | 'beijing' | 'guangzhou'
+  timeKey: 'justNow' | 'daysAgo2' | 'daysAgo7'
+  current: boolean
+}
+
+const devices = ref<DeviceRow[]>([
+  { id: 1, name: 'Chrome on Windows', locKey: 'shanghai', timeKey: 'justNow', current: true },
+  { id: 2, name: 'Safari on macOS', locKey: 'beijing', timeKey: 'daysAgo2', current: false },
+  { id: 3, name: 'Chrome on Android', locKey: 'guangzhou', timeKey: 'daysAgo7', current: false }
 ])
 
 const revokeDevice = (id: number) => {
-  devices.value = devices.value.filter(d => d.id !== id)
-  ElMessage.success('已撤销该设备的登录')
+  devices.value = devices.value.filter((d) => d.id !== id)
+  ElMessage.success(t('profilePage.messages.deviceRevoked'))
 }
 
 // 微信绑定
@@ -390,14 +408,14 @@ const goToWechatBind = () => {
 
 const unbindWechatHandler = async () => {
   try {
-    await ElMessageBox.confirm(
-      '解除绑定后将无法使用微信扫码登录，确定解除吗？',
-      '确认解除绑定',
-      { type: 'warning' }
-    )
+    await ElMessageBox.confirm(t('profilePage.wechat.unbindConfirmMessage'), t('profilePage.wechat.unbindConfirmTitle'), {
+      type: 'warning',
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel')
+    })
     const ok = await unbindWechat()
     if (ok) {
-      ElMessage.success('已解除微信绑定')
+      ElMessage.success(t('profilePage.wechat.unbindSuccess'))
       fetchWechatBindInfo()
     }
   } catch {

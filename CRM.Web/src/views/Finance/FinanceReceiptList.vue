@@ -5,7 +5,7 @@
       <div class="search-left">
         <el-input
           v-model="query.keyword"
-          placeholder="搜索收款单号/客户"
+          :placeholder="t('financeReceiptList.filters.keyword')"
           clearable
           class="search-input"
           @keyup.enter="loadData"
@@ -13,27 +13,32 @@
         >
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-select v-model="query.status" placeholder="状态" clearable class="filter-select" @change="loadData">
-          <el-option v-for="(v, k) in RECEIPT_STATUS_MAP" :key="k" :label="v.label" :value="Number(k)" />
+        <el-select v-model="query.status" :placeholder="t('financeReceiptList.filters.status')" clearable class="filter-select" @change="loadData">
+          <el-option
+            v-for="k in receiptStatusSelectKeys"
+            :key="k"
+            :label="receiptStatusLabel(k)"
+            :value="k"
+          />
         </el-select>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
-          range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
+          :range-separator="t('financeReceiptList.filters.to')"
+          :start-placeholder="t('financeReceiptList.filters.startDate')"
+          :end-placeholder="t('financeReceiptList.filters.endDate')"
           format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
           class="date-picker"
           @change="loadData"
         />
         <el-button type="primary" @click="loadData">
-          <el-icon><Search /></el-icon> 查询
+          <el-icon><Search /></el-icon> {{ t('financeReceiptList.filters.search') }}
         </el-button>
       </div>
       <div class="search-right">
         <el-button type="primary" @click="openCreate">
-          <el-icon><Plus /></el-icon> 新建收款单
+          <el-icon><Plus /></el-icon> {{ t('financeReceiptList.create') }}
         </el-button>
       </div>
     </div>
@@ -41,19 +46,19 @@
     <!-- 统计卡片 -->
     <div class="stat-cards">
       <div class="stat-card">
-        <div class="stat-label">本月收款总额</div>
+        <div class="stat-label">{{ t('financeReceiptList.stats.monthTotal') }}</div>
         <div class="stat-value success">¥ {{ formatAmount(stats.monthTotal) }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">待审核</div>
+        <div class="stat-label">{{ t('financeReceiptList.stats.pending') }}</div>
         <div class="stat-value warning">{{ stats.pendingCount }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">已收款</div>
+        <div class="stat-label">{{ t('financeReceiptList.stats.received') }}</div>
         <div class="stat-value success">{{ stats.receivedCount }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">草稿</div>
+        <div class="stat-label">{{ t('financeReceiptList.stats.draft') }}</div>
         <div class="stat-value">{{ stats.draftCount }}</div>
       </div>
     </div>
@@ -73,14 +78,14 @@
         <span class="code-text">{{ row.financeReceiptCode }}</span>
       </template>
       <template #col-status="{ row }">
-        <el-tag effect="dark" :type="RECEIPT_STATUS_MAP[row.status]?.type as any" size="small">
-          {{ RECEIPT_STATUS_MAP[row.status]?.label }}
+        <el-tag effect="dark" :type="receiptStatusTag(row.status) as any" size="small">
+          {{ receiptStatusLabel(row.status) }}
         </el-tag>
       </template>
       <template #col-receiptAmount="{ row }">
         <span class="amount-text">{{ CURRENCY_MAP[row.receiptCurrency] }} {{ formatAmount(row.receiptAmount) }}</span>
       </template>
-      <template #col-receiptMode="{ row }">{{ PAYMENT_MODE_MAP[row.receiptMode] }}</template>
+      <template #col-receiptMode="{ row }">{{ paymentModeLabel(row.receiptMode) }}</template>
       <template #col-receiptDate="{ row }">{{ row.receiptDate ? formatDisplayDate(row.receiptDate) : '-' }}</template>
       <template #col-createdAt="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
       <template #col-createUser="{ row }">
@@ -88,7 +93,7 @@
       </template>
       <template #col-actions-header>
         <div class="op-col-header">
-          <span class="op-col-header-text">操作</span>
+          <span class="op-col-header-text">{{ t('financeReceiptList.columns.actions') }}</span>
           <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
             {{ opColExpanded ? '>' : '<' }}
           </button>
@@ -97,11 +102,11 @@
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
-            <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
-            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="row.status === 0">编辑</el-button>
-            <el-button size="small" text type="warning" @click.stop="submitAudit(row)" v-if="row.status === 0">提交审核</el-button>
-            <el-button size="small" text type="warning" @click.stop="approveReceipt(row)" v-if="row.status === 1">审核通过</el-button>
-            <el-button size="small" text type="danger" @click.stop="cancelReceipt(row)" v-if="[0,1].includes(row.status)">取消</el-button>
+            <el-button size="small" text type="primary" @click.stop="openDetail(row)">{{ t('financeReceiptList.actions.detail') }}</el-button>
+            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="row.status === 0">{{ t('financeReceiptList.actions.edit') }}</el-button>
+            <el-button size="small" text type="warning" @click.stop="submitAudit(row)" v-if="row.status === 0">{{ t('financeReceiptList.actions.submitAudit') }}</el-button>
+            <el-button size="small" text type="warning" @click.stop="approveReceipt(row)" v-if="row.status === 1">{{ t('financeReceiptList.actions.approve') }}</el-button>
+            <el-button size="small" text type="danger" @click.stop="cancelReceipt(row)" v-if="[0,1].includes(row.status)">{{ t('financeReceiptList.actions.cancel') }}</el-button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -111,19 +116,19 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click.stop="openDetail(row)">
-                  <span class="op-more-item op-more-item--primary">详情</span>
+                  <span class="op-more-item op-more-item--primary">{{ t('financeReceiptList.actions.detail') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="row.status === 0" @click.stop="openEdit(row)">
-                  <span class="op-more-item op-more-item--primary">编辑</span>
+                  <span class="op-more-item op-more-item--primary">{{ t('financeReceiptList.actions.edit') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="row.status === 0" @click.stop="submitAudit(row)">
-                  <span class="op-more-item op-more-item--warning">提交审核</span>
+                  <span class="op-more-item op-more-item--warning">{{ t('financeReceiptList.actions.submitAudit') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="row.status === 1" @click.stop="approveReceipt(row)">
-                  <span class="op-more-item op-more-item--warning">审核通过</span>
+                  <span class="op-more-item op-more-item--warning">{{ t('financeReceiptList.actions.approve') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="[0,1].includes(row.status)" @click.stop="cancelReceipt(row)">
-                  <span class="op-more-item op-more-item--danger">取消</span>
+                  <span class="op-more-item op-more-item--danger">{{ t('financeReceiptList.actions.cancel') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -133,8 +138,8 @@
     </CrmDataTable>
       <div class="pagination-wrap">
         <div class="list-footer-left">
-          <el-tooltip content="列设置" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+          <el-tooltip :content="t('financeReceiptList.columnSettings')" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" :aria-label="t('financeReceiptList.columnSettings')" @click="dataTableRef?.openColumnSettings?.()">
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
@@ -154,7 +159,7 @@
     <!-- 新建/编辑弹窗 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="editingId ? '编辑收款单' : '新建收款单'"
+      :title="editingId ? t('financeReceiptList.dialogEdit') : t('financeReceiptList.dialogCreate')"
       width="min(96vw, 1020px)"
       class="crm-dialog"
       destroy-on-close
@@ -162,20 +167,20 @@
       <el-form :model="form" label-width="100px" class="crm-form">
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="客户" required>
+            <el-form-item :label="t('financeReceiptList.formCustomer')" required>
               <el-select
                 v-model="form.customerId"
-                placeholder="输入关键字搜索客户"
+                :placeholder="t('financeReceiptList.customerPh')"
                 style="width: 100%"
                 filterable
                 clearable
                 :filter-method="onCustomerFilterInput"
                 :loading="customerSearchLoading"
-                loading-text="搜索中..."
+                :loading-text="t('financeReceiptList.customerSearchLoading')"
                 @change="onCustomerChange"
               >
                 <template #empty>
-                  <div class="select-hint">请输入关键字搜索客户</div>
+                  <div class="select-hint">{{ t('financeReceiptList.customerEmptyHint') }}</div>
                 </template>
                 <el-option
                   v-for="c in customerOptions"
@@ -187,19 +192,24 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="收款金额" required>
+            <el-form-item :label="t('financeReceiptList.formAmount')" required>
               <el-input-number v-model="form.receiptAmount" :precision="2" :min="0" style="width:100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="收款方式">
+            <el-form-item :label="t('financeReceiptList.formMode')">
               <el-select v-model="form.receiptMode" style="width:100%">
-                <el-option v-for="(v, k) in PAYMENT_MODE_MAP" :key="k" :label="v" :value="Number(k)" />
+                <el-option
+                  v-for="k in paymentModeKeys"
+                  :key="k"
+                  :label="paymentModeLabel(k)"
+                  :value="k"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="币别">
+            <el-form-item :label="t('financeReceiptList.formCurrency')">
               <el-select v-model="form.receiptCurrency" style="width:100%">
                 <el-option
                   v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
@@ -211,20 +221,20 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="收款日期">
+            <el-form-item :label="t('financeReceiptList.formDate')">
               <el-date-picker v-model="form.receiptDate" type="date" value-format="YYYY-MM-DD" style="width:100%" />
             </el-form-item>
           </el-col>
           <el-col :span="24">
-            <el-form-item label="备注">
-              <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注" />
+            <el-form-item :label="t('financeReceiptList.formRemark')">
+              <el-input v-model="form.remark" type="textarea" :rows="2" :placeholder="t('financeReceiptList.formRemarkPh')" />
             </el-form-item>
           </el-col>
         </el-row>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveForm" :loading="saving">保存</el-button>
+        <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="saveForm" :loading="saving">{{ t('financeReceiptList.btnSave') }}</el-button>
       </template>
     </el-dialog>
 
@@ -234,6 +244,8 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
 import { Search, Plus, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -250,6 +262,11 @@ import { customerApi } from '@/api/customer'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
+const { t } = useI18n()
+const { receiptStatusLabel, receiptStatusTag, paymentModeLabel } = useFinanceEnumLabels()
+
+const receiptStatusSelectKeys = Object.keys(RECEIPT_STATUS_MAP).map(k => Number(k))
+const paymentModeKeys = Object.keys(PAYMENT_MODE_MAP).map(k => Number(k))
 
 type CustomerOption = { value: string; label: string }
 
@@ -270,7 +287,7 @@ async function onCustomerFilterInput(query: string) {
       })
       customerOptions.value = (res.items || []).map((c) => ({
         value: c.id,
-        label: c.customerName || (c as { officialName?: string }).officialName || '未知客户',
+        label: c.customerName || (c as { officialName?: string }).officialName || t('financeReceiptList.unknownCustomer'),
       }))
     } catch {
       customerOptions.value = []
@@ -312,18 +329,18 @@ function toggleOpCol() {
 }
 
 const receiptTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'financeReceiptCode', label: '收款单号', prop: 'financeReceiptCode', width: 160, minWidth: 160, fixed: 'left' },
-  { key: 'status', label: '状态', prop: 'status', width: 100, align: 'center' },
-  { key: 'customerName', label: '客户', prop: 'customerName', minWidth: 160, showOverflowTooltip: true },
-  { key: 'receiptAmount', label: '收款金额', prop: 'receiptAmount', width: 140, align: 'right' },
-  { key: 'receiptMode', label: '收款方式', prop: 'receiptMode', width: 110 },
-  { key: 'receiptDate', label: '收款日期', prop: 'receiptDate', width: 120 },
-  { key: 'remark', label: '备注', prop: 'remark', minWidth: 140, showOverflowTooltip: true },
-  { key: 'createdAt', label: '创建时间', prop: 'createdAt', width: 120 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  { key: 'financeReceiptCode', label: t('financeReceiptList.columns.code'), prop: 'financeReceiptCode', width: 160, minWidth: 160, fixed: 'left' },
+  { key: 'status', label: t('financeReceiptList.columns.status'), prop: 'status', width: 100, align: 'center' },
+  { key: 'customerName', label: t('financeReceiptList.columns.customer'), prop: 'customerName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'receiptAmount', label: t('financeReceiptList.columns.amount'), prop: 'receiptAmount', width: 140, align: 'right' },
+  { key: 'receiptMode', label: t('financeReceiptList.columns.mode'), prop: 'receiptMode', width: 110 },
+  { key: 'receiptDate', label: t('financeReceiptList.columns.date'), prop: 'receiptDate', width: 120 },
+  { key: 'remark', label: t('financeReceiptList.columns.remark'), prop: 'remark', minWidth: 140, showOverflowTooltip: true },
+  { key: 'createdAt', label: t('financeReceiptList.columns.createdAt'), prop: 'createdAt', width: 120 },
+  { key: 'createUser', label: t('financeReceiptList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('financeReceiptList.columns.actions'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -402,14 +419,14 @@ const openEdit = (row: FinanceReceipt) => {
   editingId.value = row.id
   Object.assign(form, { ...row })
   customerOptions.value = row.customerId
-    ? [{ value: row.customerId, label: row.customerName || '客户' }]
+    ? [{ value: row.customerId, label: row.customerName || t('financeReceiptList.customerFallback') }]
     : []
   dialogVisible.value = true
 }
 
 const saveForm = async () => {
   if (!form.customerId?.trim()) {
-    ElMessage.warning('请选择客户')
+    ElMessage.warning(t('financeReceiptList.messages.selectCustomer'))
     return
   }
   saving.value = true
@@ -430,11 +447,11 @@ const saveForm = async () => {
         items: [],
       })
     }
-    ElMessage.success('保存成功')
+    ElMessage.success(t('financeReceiptList.messages.saveOk'))
     dialogVisible.value = false
     loadData()
   } catch {
-    ElMessage.success('保存成功（演示模式）')
+    ElMessage.success(t('financeReceiptList.messages.saveOkDemo'))
     dialogVisible.value = false
   } finally {
     saving.value = false
@@ -446,24 +463,36 @@ const openDetail = (row: FinanceReceipt) => {
 }
 
 const submitAudit = async (row: FinanceReceipt) => {
-  await ElMessageBox.confirm(`确认提交收款单 ${row.financeReceiptCode} 审核？`, '提交审核', { type: 'info' })
+  await ElMessageBox.confirm(
+    t('financeReceiptList.messages.submitMsg', { code: row.financeReceiptCode }),
+    t('financeReceiptList.messages.submitTitle'),
+    { type: 'info' }
+  )
   await financeReceiptApi.submit(row.id)
-  ElMessage.success('已提交审核')
+  ElMessage.success(t('financeReceiptList.messages.submitted'))
   await loadData()
 }
 
 const approveReceipt = async (row: FinanceReceipt) => {
-  await ElMessageBox.confirm('确认审核通过并标记为已收款？', '审核确认', { type: 'success' })
+  await ElMessageBox.confirm(
+    t('financeReceiptList.messages.approveMsg'),
+    t('financeReceiptList.messages.approveTitle'),
+    { type: 'success' }
+  )
   await financeReceiptApi.approve(row.id)
   await financeReceiptApi.confirmReceived(row.id)
-  ElMessage.success('审核通过，已标记为已收款')
+  ElMessage.success(t('financeReceiptList.messages.approved'))
   await loadData()
 }
 
 const cancelReceipt = async (row: FinanceReceipt) => {
-  await ElMessageBox.confirm(`确认取消收款单 ${row.financeReceiptCode}？`, '取消确认', { type: 'warning' })
+  await ElMessageBox.confirm(
+    t('financeReceiptList.messages.cancelMsg', { code: row.financeReceiptCode }),
+    t('financeReceiptList.messages.cancelTitle'),
+    { type: 'warning' }
+  )
   await financeReceiptApi.cancel(row.id)
-  ElMessage.success('已取消')
+  ElMessage.success(t('financeReceiptList.messages.cancelled'))
   await loadData()
 }
 

@@ -6,7 +6,7 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="15 18 9 12 15 6" />
           </svg>
-          返回
+          {{ t('rfqDetail.back') }}
         </button>
         <div v-if="user" class="customer-title-group">
           <div v-if="avatarSrc" class="customer-avatar-lg customer-avatar-lg--photo">
@@ -21,7 +21,7 @@
                 class="status-badge"
                 :class="user.status === 1 ? 'status--active' : 'status--inactive'"
               >
-                {{ user.status === 1 ? '启用' : '禁用' }}
+                {{ user.status === 1 ? t('systemUser.statusEnabled') : t('systemUser.statusDisabled') }}
               </span>
             </div>
           </div>
@@ -33,7 +33,7 @@
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
           </svg>
-          编辑
+          {{ t('systemUser.edit') }}
         </button>
       </div>
     </div>
@@ -47,21 +47,21 @@
         <div class="info-section">
           <div class="section-header">
             <div class="section-dot section-dot--cyan"></div>
-            <span class="section-title">基本信息</span>
+            <span class="section-title">{{ t('dashboardSettings.tabs.basic') }}</span>
           </div>
           <div class="info-grid">
             <div class="info-item">
-              <span class="info-label">员工账号</span>
+              <span class="info-label">{{ t('systemUser.colUserName') }}</span>
               <span class="info-value info-value--code">{{ user.userName }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">状态</span>
+              <span class="info-label">{{ t('systemUser.colStatus') }}</span>
               <span>
                 <span
                   class="status-badge"
                   :class="user.status === 1 ? 'status--active' : 'status--inactive'"
                 >
-                  {{ user.status === 1 ? '启用' : '禁用' }}
+                  {{ user.status === 1 ? t('systemUser.statusEnabled') : t('systemUser.statusDisabled') }}
                 </span>
               </span>
             </div>
@@ -112,12 +112,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { rbacAdminApi, type AdminUserDto } from '@/api/rbacAdmin'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const loading = ref(false)
 const user = ref<AdminUserDto | null>(null)

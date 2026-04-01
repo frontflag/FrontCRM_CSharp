@@ -3,8 +3,8 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">报价列表 (Quote)</h1>
-        <div class="count-badge">共 {{ totalCount }} 条报价</div>
+        <h1 class="page-title">{{ t('quoteList.title') }}</h1>
+        <div class="count-badge">{{ t('quoteList.count', { count: totalCount }) }}</div>
       </div>
       <div class="header-right">
         <el-button
@@ -13,7 +13,7 @@
           :loading="salesOrderPreflightLoading"
           @click="handleGenerateSalesOrder"
         >
-          生成销售订单
+          {{ t('quoteList.generateSalesOrder') }}
         </el-button>
       </div>
     </div>
@@ -23,25 +23,25 @@
       <el-col :span="6">
         <el-card class="stat-card">
           <div class="stat-value">{{ stats.total }}</div>
-          <div class="stat-label">报价总数</div>
+          <div class="stat-label">{{ t('quoteList.stats.total') }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card stat-warning">
           <div class="stat-value">{{ stats.pending }}</div>
-          <div class="stat-label">草稿/待审</div>
+          <div class="stat-label">{{ t('quoteList.stats.pending') }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card stat-cyan">
           <div class="stat-value">{{ stats.sent }}</div>
-          <div class="stat-label">已发送</div>
+          <div class="stat-label">{{ t('quoteList.stats.sent') }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card stat-success">
           <div class="stat-value">{{ stats.accepted }}</div>
-          <div class="stat-label">已接受</div>
+          <div class="stat-label">{{ t('quoteList.stats.accepted') }}</div>
         </el-card>
       </el-col>
     </el-row>
@@ -49,32 +49,32 @@
     <!-- 搜索面板 -->
     <el-card class="filter-card">
       <el-form :inline="true" :model="searchForm">
-        <el-form-item label="搜索">
+        <el-form-item :label="t('quoteList.filters.search')">
           <el-input 
             v-model="searchForm.keyword" 
-            placeholder="报价编号/需求编号/MPN/客户"
+            :placeholder="t('quoteList.filters.placeholder')"
             clearable
             @keyup.enter="handleSearch"
             style="width: 280px"
           />
         </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="全部状态" clearable style="width: 140px">
-            <el-option label="草稿" :value="0" />
-            <el-option label="待审核" :value="1" />
-            <el-option label="已审核" :value="2" />
-            <el-option label="已发送" :value="3" />
-            <el-option label="已接受" :value="4" />
-            <el-option label="已拒绝" :value="5" />
-            <el-option label="已过期" :value="6" />
-            <el-option label="已关闭" :value="7" />
+        <el-form-item :label="t('quoteList.filters.status')">
+          <el-select v-model="searchForm.status" :placeholder="t('quoteList.filters.allStatus')" clearable style="width: 140px">
+            <el-option :label="t('quoteList.status.draft')" :value="0" />
+            <el-option :label="t('quoteList.status.pending')" :value="1" />
+            <el-option :label="t('quoteList.status.approved')" :value="2" />
+            <el-option :label="t('quoteList.status.sent')" :value="3" />
+            <el-option :label="t('quoteList.status.accepted')" :value="4" />
+            <el-option :label="t('quoteList.status.rejected')" :value="5" />
+            <el-option :label="t('quoteList.status.expired')" :value="6" />
+            <el-option :label="t('quoteList.status.closed')" :value="7" />
           </el-select>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>查询
+            <el-icon><Search /></el-icon>{{ t('quoteList.filters.query') }}
           </el-button>
-          <el-button @click="handleReset">重置</el-button>
+          <el-button @click="handleReset">{{ t('quoteList.filters.reset') }}</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -118,7 +118,7 @@
         </template>
         <template #col-actions-header>
           <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
+            <span class="op-col-header-text">{{ t('quoteList.actions.column') }}</span>
             <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
               {{ opColExpanded ? '>' : '<' }}
             </button>
@@ -127,8 +127,8 @@
         <template #col-actions="{ row }">
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
-              <el-button link type="primary" @click.stop="handleEdit(row)">编辑</el-button>
-              <el-button link type="danger" @click.stop="handleDelete(row)">删除</el-button>
+              <el-button link type="primary" @click.stop="handleEdit(row)">{{ t('quoteList.actions.edit') }}</el-button>
+              <el-button link type="danger" @click.stop="handleDelete(row)">{{ t('quoteList.actions.delete') }}</el-button>
             </div>
 
             <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -138,10 +138,10 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="handleEdit(row)">
-                    <span class="op-more-item op-more-item--primary">编辑</span>
+                    <span class="op-more-item op-more-item--primary">{{ t('quoteList.actions.edit') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item @click.stop="handleDelete(row)">
-                    <span class="op-more-item op-more-item--danger">删除</span>
+                    <span class="op-more-item op-more-item--danger">{{ t('quoteList.actions.delete') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -153,8 +153,8 @@
       <!-- 底栏：列设置（图标+Tip+Spacer） + 分页（顶对齐） -->
       <div class="pagination-wrapper">
         <div class="list-footer-left">
-          <el-tooltip content="列设置" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+          <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
@@ -178,6 +178,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { Search, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { quoteApi } from '@/api/quote'
@@ -188,6 +189,7 @@ import CrmDataTable from '@/components/CrmDataTable.vue'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
 const loading = ref(false)
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
@@ -233,26 +235,26 @@ const quoteTableColumns = computed<CrmTableColumnDef[]>(() => [
   },
   {
     key: 'quoteCode',
-    label: '报价编号',
+    label: t('quoteList.columns.quoteCode'),
     prop: 'quoteCode',
     width: 160,
     minWidth: 160,
     showOverflowTooltip: true,
     sortable: true
   },
-  { key: 'status', label: '状态', prop: 'status', width: 160, align: 'center' },
-  { key: 'rfqCode', label: '需求编号', width: 160, minWidth: 160, showOverflowTooltip: true },
-  { key: 'mpn', label: '物料型号', prop: 'mpn', minWidth: 150, showOverflowTooltip: true },
-  { key: 'customerName', label: '客户', prop: 'customerName', minWidth: 200, showOverflowTooltip: true },
-  { key: 'salesUserName', label: '业务员', prop: 'salesUserName', width: 100 },
-  { key: 'purchaseUserName', label: '采购员', prop: 'purchaseUserName', width: 100 },
-  { key: 'vendorCount', label: '供应商数', width: 90, align: 'center' },
-  { key: 'quoteDate', label: '报价日期', prop: 'quoteDate', width: 160 },
-  { key: 'createTime', label: '创建时间', prop: 'createTime', width: 160 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  { key: 'status', label: t('quoteList.columns.status'), prop: 'status', width: 160, align: 'center' },
+  { key: 'rfqCode', label: t('quoteList.columns.rfqCode'), width: 160, minWidth: 160, showOverflowTooltip: true },
+  { key: 'mpn', label: t('quoteList.columns.mpn'), prop: 'mpn', minWidth: 150, showOverflowTooltip: true },
+  { key: 'customerName', label: t('quoteList.columns.customer'), prop: 'customerName', minWidth: 200, showOverflowTooltip: true },
+  { key: 'salesUserName', label: t('quoteList.columns.salesUser'), prop: 'salesUserName', width: 100 },
+  { key: 'purchaseUserName', label: t('quoteList.columns.purchaseUser'), prop: 'purchaseUserName', width: 100 },
+  { key: 'vendorCount', label: t('quoteList.columns.vendorCount'), width: 90, align: 'center' },
+  { key: 'quoteDate', label: t('quoteList.columns.quoteDate'), prop: 'quoteDate', width: 160 },
+  { key: 'createTime', label: t('quoteList.columns.createTime'), prop: 'createTime', width: 160 },
+  { key: 'createUser', label: t('quoteList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('quoteList.actions.column'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -274,14 +276,14 @@ function displayQuoteCode(row: Record<string, unknown>) {
     row.QuoteCode ??
     row.QuoteNumber
   if (v != null && String(v).trim() !== '') return String(v)
-  return '—'
+  return t('quoteList.na')
 }
 
 /** 主需求单需求编号（与明细关联的 rfqId 对应主表 rfqCode；后端可直接返回 rfqCode） */
 function displayRfqCode(row: Record<string, unknown>) {
   const v = row.rfqCode ?? row.RfqCode ?? row.rfqNumber ?? row.RfqNumber
   if (v != null && String(v).trim() !== '') return String(v)
-  return '—'
+  return t('quoteList.na')
 }
 
 // 状态处理
@@ -295,10 +297,10 @@ const getStatusType = (status: number) => {
 
 const getStatusText = (status: number) => {
   const map: Record<number, string> = {
-    0: '草稿', 1: '待审核', 2: '已审核', 3: '已发送',
-    4: '已接受', 5: '已拒绝', 6: '已过期', 7: '已关闭'
+    0: t('quoteList.status.draft'), 1: t('quoteList.status.pending'), 2: t('quoteList.status.approved'), 3: t('quoteList.status.sent'),
+    4: t('quoteList.status.accepted'), 5: t('quoteList.status.rejected'), 6: t('quoteList.status.expired'), 7: t('quoteList.status.closed')
   }
-  return map[status] || '未知'
+  return map[status] || t('quoteList.status.unknown')
 }
 
 // 计算统计
@@ -320,7 +322,7 @@ const loadData = async () => {
     pageInfo.value.total = res.total || 0
     calculateStats()
   } catch (error) {
-    ElMessage.error('加载数据失败')
+    ElMessage.error(t('quoteList.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -361,12 +363,12 @@ function resolveQuoteId(row: Record<string, unknown>): string {
 async function handleGenerateSalesOrder() {
   const rows = selectedQuotes.value
   if (!rows.length) {
-    ElMessage.warning('请先勾选报价记录')
+    ElMessage.warning(t('quoteList.warnings.selectFirst'))
     return
   }
   const ids = [...new Set(rows.map((r) => resolveQuoteId(r)).filter(Boolean))]
   if (!ids.length) {
-    ElMessage.warning('无法识别报价主键')
+    ElMessage.warning(t('quoteList.warnings.invalidId'))
     return
   }
   salesOrderPreflightLoading.value = true
@@ -393,7 +395,11 @@ const handleEdit = (row: any) => {
 // 删除
 const handleDelete = async (row: any) => {
   try {
-    await ElMessageBox.confirm(`确定要删除报价单 ${displayQuoteCode(row)} 吗？`, '警告', { type: 'warning' })
+    await ElMessageBox.confirm(
+      t('quoteList.deleteConfirm', { code: displayQuoteCode(row) }),
+      t('quoteList.deleteTitle'),
+      { type: 'warning' }
+    )
     await quoteApi.delete(row.id)
     loadData()
   } catch {

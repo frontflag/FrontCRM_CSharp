@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { favoriteApi } from '@/api/favorite'
 import { customerApi } from '@/api/customer'
 import type { Customer } from '@/types/customer'
@@ -12,10 +13,11 @@ withDefaults(
     /** 区块标题 */
     title?: string
   }>(),
-  { title: '收藏的客户' }
+  { title: '' }
 )
 
 const router = useRouter()
+const { t } = useI18n()
 const authStore = useAuthStore()
 const canViewCustomerInfo = authStore.hasPermission('customer.info.read')
 
@@ -45,19 +47,19 @@ const getLevelLabel = (level: string | undefined) =>
     VIP: 'VIP',
     VPO: 'VPO',
     BPO: 'BPO',
-    B: 'B级',
-    C: 'C级',
-    D: 'D级',
-    Important: '重要',
-    Normal: '普通',
-    Lead: '潜在'
+    B: t('customerList.level.B'),
+    C: t('customerList.level.C'),
+    D: t('customerList.level.D'),
+    Important: t('customerList.level.Important'),
+    Normal: t('customerList.level.Normal'),
+    Lead: t('customerList.level.Lead')
   }[level || ''] ||
     level ||
     '--')
 
 /** 与 CustomerList 列表「类型」列展示一致 */
 const getTypeLabel = (type: number | undefined) =>
-  ({ 1: 'OEM', 2: 'ODM', 3: '终端用户', 4: 'IDH', 5: '贸易商', 6: '代理商' }[type ?? 0] || '未知')
+  ({ 1: 'OEM', 2: 'ODM', 3: t('customerList.type.endUser'), 4: 'IDH', 5: t('customerList.type.trader'), 6: t('customerList.type.agency') }[type ?? 0] || t('rfqDetail.unknown'))
 
 async function loadFavorites() {
   loading.value = true
@@ -106,17 +108,17 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="customer-favorite-panel" v-loading="loading">
-    <div class="customer-favorite-panel__head">{{ title }}</div>
+    <div class="customer-favorite-panel__head">{{ title || t('leftPanel.customerFavoritesTitle') }}</div>
     <div v-if="!loading && items.length === 0" class="customer-favorite-panel__empty">
-      暂无收藏；可在客户详情页名称旁点击星标进行收藏
+      {{ t('leftPanel.customerFavoritesEmpty') }}
     </div>
     <table v-else class="customer-favorite-panel__table">
       <thead>
         <tr>
-          <th>客户名称</th>
-          <th>客户编号</th>
-          <th>类型</th>
-          <th>级别</th>
+          <th>{{ t('customerList.columns.customerName') }}</th>
+          <th>{{ t('customerList.columns.customerCode') }}</th>
+          <th>{{ t('customerList.columns.type') }}</th>
+          <th>{{ t('customerList.columns.level') }}</th>
         </tr>
       </thead>
       <tbody>

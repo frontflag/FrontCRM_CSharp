@@ -8,13 +8,13 @@
             <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
           </svg>
         </div>
-        <h1 class="page-title">黑名单管理</h1>
-        <div class="count-badge">共 {{ totalCount }} 位黑名单客户</div>
+        <h1 class="page-title">{{ t('customerBlacklist.title') }}</h1>
+        <div class="count-badge">{{ t('customerBlacklist.count', { count: totalCount }) }}</div>
       </div>
       <div class="header-right">
         <el-input
           v-model="keyword"
-          placeholder="搜索客户名称/编号"
+          :placeholder="t('customerBlacklist.searchPlaceholder')"
           clearable
           size="default"
           style="width:220px"
@@ -49,18 +49,18 @@
               :blacklist="true"
               size="sm"
             />
-            <span class="blacklist-tag">黑名单</span>
+            <span class="blacklist-tag">{{ t('customerBlacklist.tag') }}</span>
             <span v-if="row.customerLevel" class="level-tag">{{ getLevelLabel(row.customerLevel) }}</span>
           </div>
         </template>
         <template #col-blackListTime="{ row }">{{ formatDateTime(row.blackListTime || row.updatedAt) }}</template>
-        <template #col-blackListUserName="{ row }">{{ row.blackListUserName || '系统员工' }}</template>
+        <template #col-blackListUserName="{ row }">{{ row.blackListUserName || t('customerBlacklist.systemUser') }}</template>
         <template #col-blackListReason="{ row }">{{ row.blackListReason || '--' }}</template>
         <template #col-actions="{ row }">
           <div class="record-actions" @dblclick.stop>
-            <el-button type="primary" size="small" style="margin-right:8px" @click="goDetail(row)">查看详情</el-button>
+            <el-button type="primary" size="small" style="margin-right:8px" @click="goDetail(row)">{{ t('customerBlacklist.viewDetail') }}</el-button>
             <el-button type="warning" size="small" :loading="removingId === row.id" @click="handleRemove(row)">
-              移出黑名单
+              {{ t('customerBlacklist.remove') }}
             </el-button>
           </div>
         </template>
@@ -70,8 +70,8 @@
     <!-- 分页 -->
     <div v-if="totalCount > pageSize" class="pagination-wrapper">
       <div class="list-footer-left">
-        <el-tooltip content="列设置" placement="top" :hide-after="0">
-          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+        <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
@@ -87,23 +87,23 @@
       />
     </div>
 
-    <el-dialog v-model="showRemoveDialog" title="移出黑名单" width="440px" :close-on-click-modal="false">
+    <el-dialog v-model="showRemoveDialog" :title="t('customerBlacklist.removeTitle')" width="440px" :close-on-click-modal="false">
       <div style="color:rgba(200,216,232,0.75);font-size:13px;margin-bottom:16px">
-        确定要将「{{ pendingRemove?.customerName || pendingRemove?.officialName || '' }}」移出黑名单吗？原因将记入操作日志。
+        {{ t('customerBlacklist.removeConfirm', { name: pendingRemove?.customerName || pendingRemove?.officialName || '' }) }}
       </div>
       <el-form label-width="90px">
-        <el-form-item label="移出原因" required>
+        <el-form-item :label="t('customerBlacklist.removeReason')" required>
           <el-input
             v-model="removeReason"
             type="textarea"
             :rows="3"
-            placeholder="请输入移出黑名单原因（必填）"
+            :placeholder="t('customerBlacklist.removeReasonPlaceholder')"
           />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showRemoveDialog = false">取消</el-button>
-        <el-button type="primary" :loading="removingId !== null" @click="confirmRemoveFromBlacklist">确定</el-button>
+        <el-button @click="showRemoveDialog = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="removingId !== null" @click="confirmRemoveFromBlacklist">{{ t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -113,6 +113,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElNotification } from 'element-plus';
+import { useI18n } from 'vue-i18n'
 import { Setting } from '@element-plus/icons-vue'
 import { customerApi } from '@/api/customer';
 import { formatDisplayDateTime } from '@/utils/displayDateTime';
@@ -120,6 +121,7 @@ import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter();
+const { t } = useI18n()
 const loading = ref(false);
 const items = ref<any[]>([]);
 const totalCount = ref(0);
@@ -133,13 +135,13 @@ const removeReason = ref('');
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 
 const blacklistColumns: CrmTableColumnDef[] = [
-  { key: 'customerCode', label: '客户编号', prop: 'customerCode', width: 180, showOverflowTooltip: true },
-  { key: 'customerName', label: '客户名称', minWidth: 260, showOverflowTooltip: true },
-  { key: 'customerLevel', label: '级别', width: 100, align: 'center' },
-  { key: 'blackListTime', label: '加入时间', width: 180 },
-  { key: 'blackListUserName', label: '操作人', width: 130, showOverflowTooltip: true },
-  { key: 'blackListReason', label: '黑名单理由', minWidth: 220, showOverflowTooltip: true },
-  { key: 'actions', label: '操作', width: 190, fixed: 'right', hideable: false, pinned: 'end', reorderable: false }
+  { key: 'customerCode', label: t('customerBlacklist.columns.customerCode'), prop: 'customerCode', width: 180, showOverflowTooltip: true },
+  { key: 'customerName', label: t('customerBlacklist.columns.customerName'), minWidth: 260, showOverflowTooltip: true },
+  { key: 'customerLevel', label: t('customerBlacklist.columns.level'), width: 100, align: 'center' },
+  { key: 'blackListTime', label: t('customerBlacklist.columns.joinTime'), width: 180 },
+  { key: 'blackListUserName', label: t('customerBlacklist.columns.operator'), width: 130, showOverflowTooltip: true },
+  { key: 'blackListReason', label: t('customerBlacklist.columns.reason'), minWidth: 220, showOverflowTooltip: true },
+  { key: 'actions', label: t('customerBlacklist.columns.actions'), width: 190, fixed: 'right', hideable: false, pinned: 'end', reorderable: false }
 ];
 
 const fetchData = async () => {
@@ -149,7 +151,7 @@ const fetchData = async () => {
     items.value = res?.items ?? res?.data ?? (Array.isArray(res) ? res : []);
     totalCount.value = res?.totalCount ?? res?.total ?? items.value.length;
   } catch {
-    ElNotification.error({ title: '加载失败', message: '获取黑名单数据失败，请刷新重试' });
+    ElNotification.error({ title: t('customerBlacklist.loadFailedTitle'), message: t('customerBlacklist.loadFailedMessage') });
   } finally {
     loading.value = false;
   }
@@ -165,19 +167,19 @@ const confirmRemoveFromBlacklist = async () => {
   const item = pendingRemove.value;
   if (!item?.id) return;
   if (!removeReason.value.trim()) {
-    ElNotification.warning({ title: '请填写原因', message: '请输入移出黑名单原因' });
+    ElNotification.warning({ title: t('customerBlacklist.reasonRequiredTitle'), message: t('customerBlacklist.reasonRequiredMessage') });
     return;
   }
   removingId.value = item.id;
   try {
     await customerApi.removeFromBlacklist(item.id, removeReason.value.trim());
-    ElNotification.success({ title: '操作成功', message: '客户已移出黑名单' });
+    ElNotification.success({ title: t('customerBlacklist.successTitle'), message: t('customerBlacklist.successMessage') });
     showRemoveDialog.value = false;
     pendingRemove.value = null;
     removeReason.value = '';
     fetchData();
   } catch {
-    ElNotification.error({ title: '操作失败', message: '移出黑名单失败，请稍后重试' });
+    ElNotification.error({ title: t('customerBlacklist.failedTitle'), message: t('customerBlacklist.failedMessage') });
   } finally {
     removingId.value = null;
   }

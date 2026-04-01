@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { favoriteApi } from '@/api/favorite'
 import { vendorApi } from '@/api/vendor'
 import type { Vendor } from '@/types/vendor'
@@ -11,10 +12,11 @@ withDefaults(
   defineProps<{
     title?: string
   }>(),
-  { title: '收藏的供应商' }
+  { title: '' }
 )
 
 const router = useRouter()
+const { t } = useI18n()
 const authStore = useAuthStore()
 const canViewVendorInfo = authStore.hasPermission('vendor.info.read')
 
@@ -68,17 +70,17 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="vendor-favorite-panel" v-loading="loading">
-    <div class="vendor-favorite-panel__head">{{ title }}</div>
+    <div class="vendor-favorite-panel__head">{{ title || t('leftPanel.vendorFavoritesTitle') }}</div>
     <div v-if="!loading && items.length === 0" class="vendor-favorite-panel__empty">
-      暂无收藏；可在供应商列表点击星标进行收藏
+      {{ t('leftPanel.vendorFavoritesEmpty') }}
     </div>
     <table v-else class="vendor-favorite-panel__table">
       <thead>
         <tr>
-          <th>供应商名称</th>
-          <th>编号</th>
-          <th>行业</th>
-          <th>信用</th>
+          <th>{{ t('vendorList.columns.name') }}</th>
+          <th>{{ t('vendorList.columns.code') }}</th>
+          <th>{{ t('vendorList.columns.industry') }}</th>
+          <th>{{ t('leftPanel.credit') }}</th>
         </tr>
       </thead>
       <tbody>

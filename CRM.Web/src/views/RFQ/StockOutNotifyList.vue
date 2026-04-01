@@ -8,25 +8,31 @@
               <path d="M3 5h18M3 12h18M3 19h18" />
             </svg>
           </div>
-          <h1 class="page-title">出库通知</h1>
+          <h1 class="page-title">{{ t('stockOutNotifyList.title') }}</h1>
         </div>
-        <div class="count-badge">共 {{ filteredList.length }} 条</div>
+        <div class="count-badge">{{ t('stockOutNotifyList.count', { count: filteredList.length }) }}</div>
       </div>
       <div class="header-right">
         <el-select
           v-model="workflowFilter"
-          placeholder="流程筛选"
+          :placeholder="t('stockOutNotifyList.filters.workflowPlaceholder')"
           clearable
           style="width: 168px"
           class="filter-select"
         >
-          <el-option label="全部" value="all" />
-          <el-option label="待拣货" value="pending_pick" />
-          <el-option label="已拣货待出库" value="picked_pending_out" />
-          <el-option label="已出库" value="done" />
+          <el-option :label="t('stockOutNotifyList.filters.workflowAll')" value="all" />
+          <el-option :label="t('stockOutNotifyList.filters.workflowPendingPick')" value="pending_pick" />
+          <el-option :label="t('stockOutNotifyList.filters.workflowPickedPendingOut')" value="picked_pending_out" />
+          <el-option :label="t('stockOutNotifyList.filters.workflowDone')" value="done" />
         </el-select>
-        <el-input v-model="keyword" placeholder="通知单号/销售单号/客户" clearable style="width: 280px" @keyup.enter="fetchList" />
-        <button class="btn-secondary" @click="fetchList">刷新</button>
+        <el-input
+          v-model="keyword"
+          :placeholder="t('stockOutNotifyList.filters.keywordPlaceholder')"
+          clearable
+          style="width: 280px"
+          @keyup.enter="fetchList"
+        />
+        <button class="btn-secondary" @click="fetchList">{{ t('stockOutNotifyList.filters.refresh') }}</button>
       </div>
     </div>
 
@@ -50,7 +56,7 @@
       <template #col-createUser="{ row }">{{ row.createUserName || row.requestUserName || '--' }}</template>
       <template #col-actions-header>
         <div class="op-col-header">
-          <span class="op-col-header-text">操作</span>
+          <span class="op-col-header-text">{{ t('stockOutNotifyList.columns.actions') }}</span>
           <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
             {{ opColExpanded ? '>' : '<' }}
           </button>
@@ -59,9 +65,11 @@
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" v-show="Number(row.status) !== 1" class="action-btns">
-            <button type="button" class="action-btn action-btn--warning" @click.stop="goExecute(row)">执行出库</button>
+            <button type="button" class="action-btn action-btn--warning" @click.stop="goExecute(row)">
+              {{ t('stockOutNotifyList.actions.executeStockOut') }}
+            </button>
           </div>
-          <span v-else-if="Number(row.status) === 1" class="op-done">已出库</span>
+          <span v-else-if="Number(row.status) === 1" class="op-done">{{ t('stockOutNotifyList.actions.alreadyShipped') }}</span>
 
           <el-dropdown v-else trigger="click" placement="bottom-end" v-if="Number(row.status) !== 1">
             <div class="op-more-dropdown-trigger">
@@ -70,7 +78,7 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click.stop="goExecute(row)">
-                  <span class="op-more-item op-more-item--warning">执行出库</span>
+                  <span class="op-more-item op-more-item--warning">{{ t('stockOutNotifyList.actions.executeStockOut') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -80,8 +88,14 @@
     </CrmDataTable>
     <div class="pagination-wrapper">
       <div class="list-footer-left">
-        <el-tooltip content="列设置" placement="top" :hide-after="0">
-          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+        <el-tooltip :content="t('stockOutNotifyList.columnSettings')" placement="top" :hide-after="0">
+          <el-button
+            class="list-settings-btn"
+            link
+            type="primary"
+            :aria-label="t('stockOutNotifyList.columnSettings')"
+            @click="dataTableRef?.openColumnSettings?.()"
+          >
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
@@ -94,6 +108,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { stockOutApi, type StockOutRequestDto } from '@/api/stockOut'
@@ -102,6 +117,7 @@ import { formatDate as formatDateTimeZh } from '@/utils/date'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
+const { t, locale } = useI18n()
 const loading = ref(false)
 const keyword = ref('')
 const workflowFilter = ref<string>('all')
@@ -122,23 +138,25 @@ function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 
-const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'requestCode', label: '通知单号', prop: 'requestCode', width: 160, minWidth: 160 },
-  { key: 'workflow', label: '流程', width: 130, align: 'center' },
-  { key: 'status', label: '状态', prop: 'status', width: 110, align: 'center' },
-  { key: 'salesOrderCode', label: '销售单号', prop: 'salesOrderCode', width: 160, minWidth: 160 },
-  { key: 'materialModel', label: '物料型号', prop: 'materialModel', width: 180, showOverflowTooltip: true },
-  { key: 'brand', label: '品牌', prop: 'brand', width: 140, showOverflowTooltip: true },
-  { key: 'outQuantity', label: '出库数量', prop: 'outQuantity', width: 110, align: 'right' },
-  { key: 'requestDate', label: '预计出库日期', prop: 'requestDate', width: 170 },
-  { key: 'salesUserName', label: '业务员名称', prop: 'salesUserName', width: 130, showOverflowTooltip: true },
-  { key: 'customerName', label: '客户', prop: 'customerName', minWidth: 180, showOverflowTooltip: true },
-  { key: 'remark', label: '备注', prop: 'remark', minWidth: 180, showOverflowTooltip: true },
-  { key: 'createTime', label: '创建时间', prop: 'createTime', width: 170 },
-  { key: 'createUser', label: '创建人', width: 140, showOverflowTooltip: true },
+const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => {
+  void locale.value
+  return [
+  { key: 'requestCode', label: t('stockOutNotifyList.columns.requestCode'), prop: 'requestCode', width: 160, minWidth: 160 },
+  { key: 'workflow', label: t('stockOutNotifyList.columns.workflow'), width: 130, align: 'center' },
+  { key: 'status', label: t('stockOutNotifyList.columns.status'), prop: 'status', width: 110, align: 'center' },
+  { key: 'salesOrderCode', label: t('stockOutNotifyList.columns.salesOrderCode'), prop: 'salesOrderCode', width: 160, minWidth: 160 },
+  { key: 'materialModel', label: t('stockOutNotifyList.columns.materialModel'), prop: 'materialModel', width: 180, showOverflowTooltip: true },
+  { key: 'brand', label: t('stockOutNotifyList.columns.brand'), prop: 'brand', width: 140, showOverflowTooltip: true },
+  { key: 'outQuantity', label: t('stockOutNotifyList.columns.outQuantity'), prop: 'outQuantity', width: 110, align: 'right' },
+  { key: 'requestDate', label: t('stockOutNotifyList.columns.requestDate'), prop: 'requestDate', width: 170 },
+  { key: 'salesUserName', label: t('stockOutNotifyList.columns.salesUserName'), prop: 'salesUserName', width: 130, showOverflowTooltip: true },
+  { key: 'customerName', label: t('stockOutNotifyList.columns.customer'), prop: 'customerName', minWidth: 180, showOverflowTooltip: true },
+  { key: 'remark', label: t('stockOutNotifyList.columns.remark'), prop: 'remark', minWidth: 180, showOverflowTooltip: true },
+  { key: 'createTime', label: t('stockOutNotifyList.columns.createTime'), prop: 'createTime', width: 170 },
+  { key: 'createUser', label: t('stockOutNotifyList.columns.createUser'), width: 140, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('stockOutNotifyList.columns.actions'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -148,13 +166,14 @@ const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => [
     className: 'op-col',
     labelClassName: 'op-col'
   }
-])
+  ]
+})
 
 const statusLabel = (s: number) => {
-  if (s === 0) return '待出库'
-  if (s === 1) return '已出库'
-  if (s === 2) return '已取消'
-  return '未知'
+  if (s === 0) return t('stockOutNotifyList.status.pendingOut')
+  if (s === 1) return t('stockOutNotifyList.status.done')
+  if (s === 2) return t('stockOutNotifyList.status.cancelled')
+  return t('stockOutNotifyList.status.unknown')
 }
 
 function hasPickingCompleted(requestId: string): boolean {
@@ -169,10 +188,10 @@ function workflowTagKey(row: StockOutRequestDto): string {
 }
 
 function workflowLabel(row: StockOutRequestDto): string {
-  if (Number(row.status) === 1) return '已出库'
-  if (Number(row.status) === 2) return '已取消'
-  if (hasPickingCompleted(row.id)) return '已拣货待出库'
-  return '待拣货'
+  if (Number(row.status) === 1) return t('stockOutNotifyList.workflow.done')
+  if (Number(row.status) === 2) return t('stockOutNotifyList.workflow.cancelled')
+  if (hasPickingCompleted(row.id)) return t('stockOutNotifyList.workflow.pickedPendingOut')
+  return t('stockOutNotifyList.workflow.pendingPick')
 }
 
 /** 按本地时区显示年月日 + 时分 */
@@ -214,7 +233,7 @@ const fetchList = async () => {
     pickingTasks.value = tasks || []
   } catch (e) {
     console.error(e)
-    ElMessage.error('加载出库通知列表失败')
+    ElMessage.error(t('stockOutNotifyList.messages.loadFailed'))
   } finally {
     loading.value = false
   }

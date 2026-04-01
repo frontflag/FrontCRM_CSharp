@@ -8,20 +8,20 @@
               <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM17 14l4 4-4 4M10 17h11" />
             </svg>
           </div>
-          <h1 class="page-title">出库单列表</h1>
+          <h1 class="page-title">{{ t('stockOutList.title') }}</h1>
         </div>
-        <div class="count-badge">共 {{ filteredList.length }} 条</div>
+        <div class="count-badge">{{ t('stockOutList.count', { count: filteredList.length }) }}</div>
       </div>
       <div class="header-right">
         <el-input
           v-model="keyword"
-          placeholder="出库单号/来源单号"
+          :placeholder="t('stockOutList.filters.keywordPlaceholder')"
           clearable
           style="width: 220px"
           @keyup.enter="handleSearch"
         />
-        <button type="button" class="btn-secondary" @click="handleSearch">搜索</button>
-        <button type="button" class="btn-secondary" @click="fetchList">刷新</button>
+        <button type="button" class="btn-secondary" @click="handleSearch">{{ t('stockOutList.filters.search') }}</button>
+        <button type="button" class="btn-secondary" @click="fetchList">{{ t('stockOutList.filters.refresh') }}</button>
       </div>
     </div>
 
@@ -42,10 +42,10 @@
       </template>
       <template #col-totalQuantity="{ row }">{{ formatNum(row.totalQuantity) }}</template>
       <template #col-createTime="{ row }">{{ formatDate((row as any).createTime || (row as any).createdAt) }}</template>
-      <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
+      <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || t('quoteList.na') }}</template>
       <template #col-actions-header>
         <div class="op-col-header">
-          <span class="op-col-header-text">操作</span>
+          <span class="op-col-header-text">{{ t('stockOutList.columns.actions') }}</span>
           <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
             {{ opColExpanded ? '>' : '<' }}
           </button>
@@ -60,7 +60,7 @@
               class="action-btn action-btn--warning"
               @click.stop="handleMarkFinish(row)"
             >
-              标记完成
+              {{ t('stockOutList.actions.markFinished') }}
             </button>
           </div>
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -70,7 +70,7 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item v-if="row.status !== 4" @click.stop="handleMarkFinish(row)">
-                  <span class="op-more-item op-more-item--warning">标记完成</span>
+                  <span class="op-more-item op-more-item--warning">{{ t('stockOutList.actions.markFinished') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -80,8 +80,8 @@
     </CrmDataTable>
     <div class="pagination-wrapper">
       <div class="list-footer-left">
-        <el-tooltip content="列设置" placement="top" :hide-after="0">
-          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+        <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
@@ -94,6 +94,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { stockOutApi, type StockOutDto } from '@/api/stockOut'
@@ -102,6 +103,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const loading = ref(false)
 const list = ref<StockOutDto[]>([])
 const keyword = ref('')
@@ -120,18 +122,18 @@ function toggleOpCol() {
 }
 
 const stockOutTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'stockOutCode', label: '出库单号', prop: 'stockOutCode', width: 160, minWidth: 160, showOverflowTooltip: true },
-  { key: 'status', label: '状态', prop: 'status', width: 110, align: 'center' },
-  { key: 'sourceCode', label: '来源申请', prop: 'sourceCode', width: 160, minWidth: 160, showOverflowTooltip: true },
-  { key: 'warehouseId', label: '仓库ID', prop: 'warehouseId', width: 140, showOverflowTooltip: true },
-  { key: 'stockOutDate', label: '出库日期', prop: 'stockOutDate', width: 170 },
-  { key: 'totalQuantity', label: '出库数量', prop: 'totalQuantity', width: 110, align: 'right' },
-  { key: 'remark', label: '备注', prop: 'remark', minWidth: 160, showOverflowTooltip: true },
-  { key: 'createTime', label: '创建时间', width: 170 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  { key: 'stockOutCode', label: t('stockOutList.columns.stockOutCode'), prop: 'stockOutCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+  { key: 'status', label: t('stockOutList.columns.status'), prop: 'status', width: 110, align: 'center' },
+  { key: 'sourceCode', label: t('stockOutList.columns.sourceCode'), prop: 'sourceCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+  { key: 'warehouseId', label: t('stockOutList.columns.warehouseId'), prop: 'warehouseId', width: 140, showOverflowTooltip: true },
+  { key: 'stockOutDate', label: t('stockOutList.columns.stockOutDate'), prop: 'stockOutDate', width: 170 },
+  { key: 'totalQuantity', label: t('stockOutList.columns.totalQuantity'), prop: 'totalQuantity', width: 110, align: 'right' },
+  { key: 'remark', label: t('stockOutList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
+  { key: 'createTime', label: t('stockOutList.columns.createTime'), width: 170 },
+  { key: 'createUser', label: t('stockOutList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('stockOutList.columns.actions'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -155,23 +157,23 @@ watch(
   { deep: true, immediate: true }
 )
 
-const formatNum = (v: number) => (v == null ? '--' : Number(v).toLocaleString())
+const formatNum = (v: number) => (v == null ? t('quoteList.na') : Number(v).toLocaleString())
 const formatDate = (v?: string) => formatDisplayDateTime(v)
 
 const statusLabel = (s: number) => {
   switch (s) {
     case 0:
-      return '草稿'
+      return t('stockOutList.status.draft')
     case 1:
-      return '待出库'
+      return t('stockOutList.status.pending')
     case 2:
-      return '已出库'
+      return t('stockOutList.status.done')
     case 3:
-      return '已取消'
+      return t('stockOutList.status.cancelled')
     case 4:
-      return '已完成'
+      return t('stockOutList.status.finished')
     default:
-      return '未知'
+      return t('rfqDetail.unknown')
   }
 }
 
@@ -191,7 +193,7 @@ const fetchList = async () => {
     list.value = await stockOutApi.getAll()
   } catch (e) {
     console.error(e)
-    ElMessage.error('加载出库单失败')
+    ElMessage.error(t('stockOutList.messages.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -205,11 +207,11 @@ const handleSearch = () => {
 const handleMarkFinish = async (row: StockOutDto) => {
   try {
     await stockOutApi.updateStatus(row.id, 4)
-    ElMessage.success('已标记为完成')
+    ElMessage.success(t('stockOutList.messages.markFinishedSuccess'))
     await fetchList()
   } catch (e) {
     console.error(e)
-    ElMessage.error('更新状态失败')
+    ElMessage.error(t('stockOutList.messages.updateStatusFailed'))
   }
 }
 

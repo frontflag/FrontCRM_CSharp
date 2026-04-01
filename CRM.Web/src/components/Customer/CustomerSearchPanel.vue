@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { authApi } from '@/api/auth'
 import {
@@ -13,6 +14,7 @@ import { CUSTOMER_WORKFLOW_STATUS_OPTIONS } from '@/constants/customerWorkflowSt
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
 const canViewCustomerInfo = authStore.hasPermission('customer.info.read')
 
 const workflowStatusOptions = CUSTOMER_WORKFLOW_STATUS_OPTIONS
@@ -36,7 +38,7 @@ const form = reactive<CustomerListFilterQuery>({
 
 function salesUserLabel(u: SalesUserOption) {
   const name = u.realName || u.label || u.userName
-  return u.userName && name !== u.userName ? `${name}（${u.userName}）` : name
+  return u.userName && name !== u.userName ? `${name}(${u.userName})` : name
 }
 
 function syncFormFromRoute() {
@@ -100,27 +102,27 @@ onMounted(async () => {
 
 <template>
   <div class="customer-search-panel">
-    <div class="customer-search-panel__head">客户检索</div>
+    <div class="customer-search-panel__head">{{ t('leftPanel.customerSearchTitle') }}</div>
 
     <div class="customer-search-panel__fields">
       <div class="field-col">
-        <label class="field-label">{{ canViewCustomerInfo ? '关键词' : '关键词（编号）' }}</label>
+        <label class="field-label">{{ canViewCustomerInfo ? t('customerList.filters.keyword') : t('leftPanel.keywordCode') }}</label>
         <div class="field-control">
           <input
             v-model="form.searchTerm"
             type="text"
             class="field-input"
-            :placeholder="canViewCustomerInfo ? '客户名称 / 联系人…' : '客户编号…'"
+            :placeholder="canViewCustomerInfo ? t('customerList.filters.keywordPlaceholderFull') : t('customerList.filters.keywordPlaceholderCode')"
             @keyup.enter="handleSearch"
           />
         </div>
       </div>
 
       <div class="field-col">
-        <label class="field-label">状态</label>
+        <label class="field-label">{{ t('customerList.columns.status') }}</label>
         <el-select
           v-model="form.status"
-          placeholder="全部状态"
+          :placeholder="t('customerList.filters.allStatus')"
           clearable
           class="field-select"
           filterable
@@ -136,18 +138,18 @@ onMounted(async () => {
       </div>
 
       <div class="field-col">
-        <label class="field-label">级别</label>
+        <label class="field-label">{{ t('customerList.columns.level') }}</label>
         <el-select
           v-model="form.customerLevel"
-          placeholder="全部级别"
+          :placeholder="t('customerList.filters.allLevel')"
           clearable
           class="field-select"
           filterable
           :teleported="false"
         >
-          <el-option label="D级" value="D" />
-          <el-option label="C级" value="C" />
-          <el-option label="B级" value="B" />
+          <el-option :label="t('customerList.level.D')" value="D" />
+          <el-option :label="t('customerList.level.C')" value="C" />
+          <el-option :label="t('customerList.level.B')" value="B" />
           <el-option label="BPO" value="BPO" />
           <el-option label="VIP" value="VIP" />
           <el-option label="VPO" value="VPO" />
@@ -155,10 +157,10 @@ onMounted(async () => {
       </div>
 
       <div class="field-col">
-        <label class="field-label">客户类型</label>
+        <label class="field-label">{{ t('customerList.columns.type') }}</label>
         <el-select
           v-model="form.customerType"
-          placeholder="全部类型"
+          :placeholder="t('customerList.filters.allType')"
           clearable
           class="field-select"
           filterable
@@ -166,35 +168,35 @@ onMounted(async () => {
         >
           <el-option label="OEM" :value="1" />
           <el-option label="ODM" :value="2" />
-          <el-option label="终端用户" :value="3" />
-          <el-option label="贸易商" :value="5" />
-          <el-option label="代理商" :value="6" />
+          <el-option :label="t('customerList.type.endUser')" :value="3" />
+          <el-option :label="t('customerList.type.trader')" :value="5" />
+          <el-option :label="t('customerList.type.agency')" :value="6" />
         </el-select>
       </div>
 
       <div class="field-col">
-        <label class="field-label">行业</label>
+        <label class="field-label">{{ t('customerList.columns.industry') }}</label>
         <el-select
           v-model="form.industry"
-          placeholder="全部行业"
+          :placeholder="t('customerList.filters.allIndustry')"
           clearable
           class="field-select"
           filterable
           :teleported="false"
         >
-          <el-option label="制造业" value="Manufacturing" />
-          <el-option label="科技/IT" value="Technology" />
-          <el-option label="贸易/零售" value="Trading" />
-          <el-option label="建筑/工程" value="Construction" />
-          <el-option label="其他" value="Other" />
+          <el-option :label="t('customerList.industry.Manufacturing')" value="Manufacturing" />
+          <el-option :label="t('customerList.industry.Technology')" value="Technology" />
+          <el-option :label="t('customerList.industry.Trading')" value="Trading" />
+          <el-option :label="t('customerList.industry.Construction')" value="Construction" />
+          <el-option :label="t('customerList.industry.Other')" value="Other" />
         </el-select>
       </div>
 
       <div class="field-col">
-        <label class="field-label">业务员</label>
+        <label class="field-label">{{ t('customerList.columns.createUser') }}</label>
         <el-select
           v-model="form.salesUserId"
-          placeholder="全部业务员"
+          :placeholder="t('customerList.filters.allSalesUsers')"
           clearable
           filterable
           class="field-select"
@@ -210,13 +212,13 @@ onMounted(async () => {
       </div>
 
       <div class="field-col">
-        <label class="field-label">创建日期区间</label>
+        <label class="field-label">{{ t('leftPanel.createdDateRange') }}</label>
         <el-date-picker
           v-model="createdDateRange"
           type="daterange"
-          range-separator="至"
-          start-placeholder="起"
-          end-placeholder="止"
+          :range-separator="t('rfqItemList.filters.to')"
+          :start-placeholder="t('rfqItemList.filters.startDate')"
+          :end-placeholder="t('rfqItemList.filters.endDate')"
           value-format="YYYY-MM-DD"
           clearable
           class="field-date-range"
@@ -228,14 +230,14 @@ onMounted(async () => {
       <div class="field-col field-col--checkbox">
         <label class="field-check">
           <input v-model="form.favoriteOnly" type="checkbox" />
-          <span>仅显示收藏客户</span>
+          <span>{{ t('leftPanel.onlyFavoriteCustomers') }}</span>
         </label>
       </div>
     </div>
 
     <div class="customer-search-panel__actions">
-      <button type="button" class="btn-search" @click="handleSearch">搜索</button>
-      <button type="button" class="btn-reset" @click="handleReset">重置</button>
+      <button type="button" class="btn-search" @click="handleSearch">{{ t('customerList.filters.search') }}</button>
+      <button type="button" class="btn-reset" @click="handleReset">{{ t('customerList.filters.reset') }}</button>
     </div>
   </div>
 </template>

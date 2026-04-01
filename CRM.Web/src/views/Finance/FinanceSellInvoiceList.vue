@@ -5,7 +5,7 @@
       <div class="search-left">
         <el-input
           v-model="query.keyword"
-          placeholder="搜索发票单号/客户/发票号"
+          :placeholder="t('financeSellInvoiceList.filters.keyword')"
           clearable
           class="search-input"
           style="width:240px"
@@ -14,28 +14,28 @@
         >
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-select v-model="query.status" placeholder="开票状态" clearable class="filter-select" style="width:130px" @change="loadData">
-          <el-option v-for="(v, k) in INVOICE_STATUS_MAP" :key="k" :label="v.label" :value="Number(k)" />
+        <el-select v-model="query.status" :placeholder="t('financeSellInvoiceList.filters.invoiceStatus')" clearable class="filter-select" style="width:130px" @change="loadData">
+          <el-option v-for="k in invoiceStatusSelectKeys" :key="k" :label="invoiceStatusLabel(k)" :value="k" />
         </el-select>
-        <el-select v-model="filterReceiveStatus" placeholder="收款状态" clearable class="filter-select" style="width:120px" @change="loadData">
-          <el-option v-for="(v, k) in RECEIVE_STATUS_MAP" :key="k" :label="v.label" :value="Number(k)" />
+        <el-select v-model="filterReceiveStatus" :placeholder="t('financeSellInvoiceList.filters.receiveStatus')" clearable class="filter-select" style="width:120px" @change="loadData">
+          <el-option v-for="k in receiveStatusSelectKeys" :key="k" :label="receiveStatusLabel(k)" :value="k" />
         </el-select>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
-          range-separator="至"
-          start-placeholder="开票开始"
-          end-placeholder="开票结束"
+          :range-separator="t('financeSellInvoiceList.filters.to')"
+          :start-placeholder="t('financeSellInvoiceList.filters.start')"
+          :end-placeholder="t('financeSellInvoiceList.filters.end')"
           format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
           class="date-picker"
           @change="loadData"
         />
-        <el-button type="primary" @click="loadData"><el-icon><Search /></el-icon> 查询</el-button>
+        <el-button type="primary" @click="loadData"><el-icon><Search /></el-icon> {{ t('financeSellInvoiceList.filters.search') }}</el-button>
       </div>
       <div class="search-right">
         <el-button type="primary" @click="openCreate">
-          <el-icon><Plus /></el-icon> 新建销项发票
+          <el-icon><Plus /></el-icon> {{ t('financeSellInvoiceList.create') }}
         </el-button>
       </div>
     </div>
@@ -43,19 +43,19 @@
     <!-- 统计卡片 -->
     <div class="stat-cards">
       <div class="stat-card">
-        <div class="stat-label">发票总金额</div>
+        <div class="stat-label">{{ t('financeSellInvoiceList.stats.totalAmount') }}</div>
         <div class="stat-value">¥ {{ formatAmount(stats.totalAmount) }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">已收款金额</div>
+        <div class="stat-label">{{ t('financeSellInvoiceList.stats.receivedAmount') }}</div>
         <div class="stat-value success">¥ {{ formatAmount(stats.receivedAmount) }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">待收款金额</div>
+        <div class="stat-label">{{ t('financeSellInvoiceList.stats.toReceiveAmount') }}</div>
         <div class="stat-value warning">¥ {{ formatAmount(stats.toReceiveAmount) }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">已开票数量</div>
+        <div class="stat-label">{{ t('financeSellInvoiceList.stats.invoicedCount') }}</div>
         <div class="stat-value">{{ stats.invoicedCount }}</div>
       </div>
     </div>
@@ -73,8 +73,8 @@
     >
       <template #col-invoiceCode="{ row }"><span class="code-text">{{ row.invoiceCode || '-' }}</span></template>
       <template #col-invoiceStatus="{ row }">
-        <el-tag effect="dark" :type="INVOICE_STATUS_MAP[row.invoiceStatus]?.type as any" size="small">
-          {{ INVOICE_STATUS_MAP[row.invoiceStatus]?.label }}
+        <el-tag effect="dark" :type="invoiceStatusTag(row.invoiceStatus) as any" size="small">
+          {{ invoiceStatusLabel(row.invoiceStatus) }}
         </el-tag>
       </template>
       <template #col-invoiceNo="{ row }">{{ row.invoiceNo || '-' }}</template>
@@ -85,17 +85,17 @@
         <span class="amount-text">{{ CURRENCY_MAP[row.currency] }} {{ formatAmount(row.receiveDone) }}</span>
       </template>
       <template #col-receiveStatus="{ row }">
-        <el-tag effect="dark" :type="RECEIVE_STATUS_MAP[row.receiveStatus]?.type as any" size="small">
-          {{ RECEIVE_STATUS_MAP[row.receiveStatus]?.label }}
+        <el-tag effect="dark" :type="receiveStatusTag(row.receiveStatus) as any" size="small">
+          {{ receiveStatusLabel(row.receiveStatus) }}
         </el-tag>
       </template>
-      <template #col-sellInvoiceType="{ row }">{{ SELL_INVOICE_TYPE_MAP[row.sellInvoiceType] }}</template>
+      <template #col-sellInvoiceType="{ row }">{{ sellInvoiceTypeLabel(row.sellInvoiceType) }}</template>
       <template #col-makeInvoiceDate="{ row }">{{ row.makeInvoiceDate ? formatDisplayDate(row.makeInvoiceDate) : '-' }}</template>
       <template #col-createTime="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
       <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '-' }}</template>
       <template #col-actions-header>
         <div class="op-col-header">
-          <span class="op-col-header-text">操作</span>
+          <span class="op-col-header-text">{{ t('financeSellInvoiceList.columns.actions') }}</span>
           <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
             {{ opColExpanded ? '>' : '<' }}
           </button>
@@ -105,10 +105,10 @@
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
-            <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
-            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="row.invoiceStatus === 1">编辑</el-button>
-            <el-button size="small" text type="warning" @click.stop="applyInvoice(row)" v-if="row.invoiceStatus === 1">申请开票</el-button>
-            <el-button size="small" text type="danger" @click.stop="voidInvoice(row)" v-if="row.invoiceStatus === 100">作废</el-button>
+            <el-button size="small" text type="primary" @click.stop="openDetail(row)">{{ t('financeSellInvoiceList.actions.detail') }}</el-button>
+            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="row.invoiceStatus === 1">{{ t('financeSellInvoiceList.actions.edit') }}</el-button>
+            <el-button size="small" text type="warning" @click.stop="applyInvoice(row)" v-if="row.invoiceStatus === 1">{{ t('financeSellInvoiceList.actions.apply') }}</el-button>
+            <el-button size="small" text type="danger" @click.stop="voidInvoice(row)" v-if="row.invoiceStatus === 100">{{ t('financeSellInvoiceList.actions.void') }}</el-button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -118,16 +118,16 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click.stop="openDetail(row)">
-                  <span class="op-more-item op-more-item--primary">详情</span>
+                  <span class="op-more-item op-more-item--primary">{{ t('financeSellInvoiceList.actions.detail') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="row.invoiceStatus === 1" @click.stop="openEdit(row)">
-                  <span class="op-more-item op-more-item--primary">编辑</span>
+                  <span class="op-more-item op-more-item--primary">{{ t('financeSellInvoiceList.actions.edit') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="row.invoiceStatus === 1" @click.stop="applyInvoice(row)">
-                  <span class="op-more-item op-more-item--warning">申请开票</span>
+                  <span class="op-more-item op-more-item--warning">{{ t('financeSellInvoiceList.actions.apply') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="row.invoiceStatus === 100" @click.stop="voidInvoice(row)">
-                  <span class="op-more-item op-more-item--danger">作废</span>
+                  <span class="op-more-item op-more-item--danger">{{ t('financeSellInvoiceList.actions.void') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -137,8 +137,8 @@
     </CrmDataTable>
       <div class="pagination-wrap">
         <div class="list-footer-left">
-          <el-tooltip content="列设置" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+          <el-tooltip :content="t('financeSellInvoiceList.columnSettings')" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" :aria-label="t('financeSellInvoiceList.columnSettings')" @click="dataTableRef?.openColumnSettings?.()">
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
@@ -158,7 +158,7 @@
     <!-- 新建/编辑弹窗 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="editingId ? '编辑销项发票' : '新建销项发票'"
+      :title="editingId ? t('financeSellInvoiceList.dialogEdit') : t('financeSellInvoiceList.dialogCreate')"
       width="720px"
       class="crm-dialog"
       destroy-on-close
@@ -166,20 +166,20 @@
       <el-form :model="form" label-width="100px" class="crm-form">
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="客户" required>
+            <el-form-item :label="t('financeSellInvoiceList.formCustomer')" required>
               <el-select
                 v-model="form.customerId"
-                placeholder="输入关键字搜索客户"
+                :placeholder="t('financeSellInvoiceList.customerPh')"
                 style="width: 100%"
                 filterable
                 clearable
                 :filter-method="onCustomerFilterInput"
                 :loading="customerSearchLoading"
-                loading-text="搜索中..."
+                :loading-text="t('financeSellInvoiceList.customerSearchLoading')"
                 @change="onCustomerChange"
               >
                 <template #empty>
-                  <div class="select-hint">请输入关键字搜索客户</div>
+                  <div class="select-hint">{{ t('financeSellInvoiceList.customerEmptyHint') }}</div>
                 </template>
                 <el-option
                   v-for="c in customerOptions"
@@ -191,36 +191,36 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="发票号码">
-              <el-input v-model="form.invoiceNo" placeholder="请输入纸质发票号码" />
+            <el-form-item :label="t('financeSellInvoiceList.formInvoiceNo')">
+              <el-input v-model="form.invoiceNo" :placeholder="t('financeSellInvoiceList.formInvoiceNoPh')" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="发票金额" required>
+            <el-form-item :label="t('financeSellInvoiceList.formAmount')" required>
               <el-input-number v-model="form.invoiceTotal" :precision="2" :min="0" style="width:100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="开票日期">
+            <el-form-item :label="t('financeSellInvoiceList.formMakeDate')">
               <el-date-picker v-model="form.makeInvoiceDate" type="date" value-format="YYYY-MM-DD" style="width:100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="发票类型">
+            <el-form-item :label="t('financeSellInvoiceList.formInvoiceType')">
               <el-select v-model="form.sellInvoiceType" style="width:100%">
-                <el-option v-for="(v, k) in SELL_INVOICE_TYPE_MAP" :key="k" :label="v" :value="Number(k)" />
+                <el-option v-for="k in sellInvoiceTypeKeys" :key="k" :label="sellInvoiceTypeLabel(k)" :value="k" />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="蓝/红字">
+            <el-form-item :label="t('financeSellInvoiceList.formBlueRed')">
               <el-select v-model="form.type" style="width:100%">
-                <el-option v-for="(v, k) in INVOICE_TYPE_MAP" :key="k" :label="v" :value="Number(k)" />
+                <el-option v-for="k in invoiceTypeKeys" :key="k" :label="invoiceTypeLabel(k)" :value="k" />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="币别">
+            <el-form-item :label="t('financeSellInvoiceList.formCurrency')">
               <el-select v-model="form.currency" style="width:100%">
                 <el-option
                   v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
@@ -232,15 +232,15 @@
             </el-form-item>
           </el-col>
           <el-col :span="24">
-            <el-form-item label="备注">
-              <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注" />
+            <el-form-item :label="t('financeSellInvoiceList.formRemark')">
+              <el-input v-model="form.remark" type="textarea" :rows="2" :placeholder="t('financeSellInvoiceList.formRemarkPh')" />
             </el-form-item>
           </el-col>
         </el-row>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveForm" :loading="saving">保存</el-button>
+        <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="saveForm" :loading="saving">{{ t('financeSellInvoiceList.btnSave') }}</el-button>
       </template>
     </el-dialog>
 
@@ -250,6 +250,8 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
 import { Search, Plus, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -268,6 +270,20 @@ import { customerApi } from '@/api/customer'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
+const { t } = useI18n()
+const {
+  invoiceStatusLabel,
+  invoiceStatusTag,
+  receiveStatusLabel,
+  receiveStatusTag,
+  sellInvoiceTypeLabel,
+  invoiceTypeLabel,
+} = useFinanceEnumLabels()
+
+const invoiceStatusSelectKeys = Object.keys(INVOICE_STATUS_MAP).map(k => Number(k))
+const receiveStatusSelectKeys = Object.keys(RECEIVE_STATUS_MAP).map(k => Number(k))
+const sellInvoiceTypeKeys = Object.keys(SELL_INVOICE_TYPE_MAP).map(k => Number(k))
+const invoiceTypeKeys = Object.keys(INVOICE_TYPE_MAP).map(k => Number(k))
 
 type CustomerOption = { value: string; label: string }
 
@@ -288,7 +304,7 @@ async function onCustomerFilterInput(query: string) {
       })
       customerOptions.value = (res.items || []).map((c) => ({
         value: c.id,
-        label: c.customerName || (c as { officialName?: string }).officialName || '未知客户',
+        label: c.customerName || (c as { officialName?: string }).officialName || t('financeSellInvoiceList.unknownCustomer'),
       }))
     } catch {
       customerOptions.value = []
@@ -331,20 +347,20 @@ function toggleOpCol() {
 }
 
 const sellInvoiceTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'invoiceCode', label: '发票单号', prop: 'invoiceCode', width: 160, minWidth: 160, fixed: 'left' },
-  { key: 'invoiceStatus', label: '开票状态', prop: 'invoiceStatus', width: 100, align: 'center' },
-  { key: 'customerName', label: '客户', prop: 'customerName', minWidth: 160, showOverflowTooltip: true },
-  { key: 'invoiceNo', label: '发票号码', prop: 'invoiceNo', width: 140, showOverflowTooltip: true },
-  { key: 'invoiceTotal', label: '发票金额', prop: 'invoiceTotal', width: 130, align: 'right' },
-  { key: 'receiveDone', label: '已收金额', prop: 'receiveDone', width: 130, align: 'right' },
-  { key: 'receiveStatus', label: '收款状态', prop: 'receiveStatus', width: 110, align: 'center' },
-  { key: 'sellInvoiceType', label: '发票类型', prop: 'sellInvoiceType', width: 140 },
-  { key: 'makeInvoiceDate', label: '开票日期', prop: 'makeInvoiceDate', width: 120 },
-  { key: 'createTime', label: '创建时间', width: 120 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  { key: 'invoiceCode', label: t('financeSellInvoiceList.columns.code'), prop: 'invoiceCode', width: 160, minWidth: 160, fixed: 'left' },
+  { key: 'invoiceStatus', label: t('financeSellInvoiceList.columns.invoiceStatus'), prop: 'invoiceStatus', width: 100, align: 'center' },
+  { key: 'customerName', label: t('financeSellInvoiceList.columns.customer'), prop: 'customerName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'invoiceNo', label: t('financeSellInvoiceList.columns.invoiceNo'), prop: 'invoiceNo', width: 140, showOverflowTooltip: true },
+  { key: 'invoiceTotal', label: t('financeSellInvoiceList.columns.amount'), prop: 'invoiceTotal', width: 130, align: 'right' },
+  { key: 'receiveDone', label: t('financeSellInvoiceList.columns.received'), prop: 'receiveDone', width: 130, align: 'right' },
+  { key: 'receiveStatus', label: t('financeSellInvoiceList.columns.receiveStatus'), prop: 'receiveStatus', width: 110, align: 'center' },
+  { key: 'sellInvoiceType', label: t('financeSellInvoiceList.columns.invoiceType'), prop: 'sellInvoiceType', width: 140 },
+  { key: 'makeInvoiceDate', label: t('financeSellInvoiceList.columns.makeDate'), prop: 'makeInvoiceDate', width: 120 },
+  { key: 'createTime', label: t('financeSellInvoiceList.columns.createdAt'), width: 120 },
+  { key: 'createUser', label: t('financeSellInvoiceList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('financeSellInvoiceList.columns.actions'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -427,14 +443,14 @@ const openEdit = (row: FinanceSellInvoice) => {
   editingId.value = row.id
   Object.assign(form, { ...row })
   customerOptions.value = row.customerId
-    ? [{ value: row.customerId, label: row.customerName || '客户' }]
+    ? [{ value: row.customerId, label: row.customerName || t('financeSellInvoiceList.customerFallback') }]
     : []
   dialogVisible.value = true
 }
 
 const saveForm = async () => {
   if (!form.customerId?.trim()) {
-    ElMessage.warning('请选择客户')
+    ElMessage.warning(t('financeSellInvoiceList.messages.selectCustomer'))
     return
   }
   saving.value = true
@@ -444,11 +460,11 @@ const saveForm = async () => {
     } else {
       await financeSellInvoiceApi.create(form)
     }
-    ElMessage.success('保存成功')
+    ElMessage.success(t('financeSellInvoiceList.messages.saveOk'))
     dialogVisible.value = false
     loadData()
   } catch {
-    ElMessage.success('保存成功（演示模式）')
+    ElMessage.success(t('financeSellInvoiceList.messages.saveOkDemo'))
     dialogVisible.value = false
   } finally {
     saving.value = false
@@ -460,16 +476,24 @@ const openDetail = (row: FinanceSellInvoice) => {
 }
 
 const applyInvoice = async (row: FinanceSellInvoice) => {
-  await ElMessageBox.confirm(`确认申请开票 ${row.invoiceCode}？`, '申请开票', { type: 'info' })
+  await ElMessageBox.confirm(
+    t('financeSellInvoiceList.messages.applyMsg', { code: row.invoiceCode || '' }),
+    t('financeSellInvoiceList.messages.applyTitle'),
+    { type: 'info' }
+  )
   await financeSellInvoiceApi.submitApplication(row.id)
-  ElMessage.success('已提交开票申请')
+  ElMessage.success(t('financeSellInvoiceList.messages.applied'))
   await loadData()
 }
 
 const voidInvoice = async (row: FinanceSellInvoice) => {
-  await ElMessageBox.confirm(`确认作废发票 ${row.invoiceCode}？此操作不可撤销。`, '作废确认', { type: 'warning' })
+  await ElMessageBox.confirm(
+    t('financeSellInvoiceList.messages.voidMsg', { code: row.invoiceCode || '' }),
+    t('financeSellInvoiceList.messages.voidTitle'),
+    { type: 'warning' }
+  )
   await financeSellInvoiceApi.void(row.id)
-  ElMessage.success('发票已作废')
+  ElMessage.success(t('financeSellInvoiceList.messages.voided'))
   await loadData()
 }
 

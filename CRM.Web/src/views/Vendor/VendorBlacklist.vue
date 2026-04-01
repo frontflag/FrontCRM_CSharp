@@ -7,13 +7,13 @@
             <circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
           </svg>
         </div>
-        <h1 class="page-title">供应商黑名单</h1>
-        <div class="count-badge">共 {{ totalCount }} 个黑名单供应商</div>
+        <h1 class="page-title">{{ t('vendorBlacklist.title') }}</h1>
+        <div class="count-badge">{{ t('vendorBlacklist.count', { count: totalCount }) }}</div>
       </div>
       <div class="header-right">
         <el-input
           v-model="keyword"
-          placeholder="搜索供应商名称/编号"
+          :placeholder="t('vendorBlacklist.searchPlaceholder')"
           clearable
           style="width:220px"
           @keyup.enter="fetchData"
@@ -47,15 +47,15 @@
               :blacklist="true"
               size="sm"
             />
-            <span class="blacklist-tag">黑名单</span>
+            <span class="blacklist-tag">{{ t('vendorBlacklist.tag') }}</span>
           </div>
         </template>
         <template #col-industry="{ row }">{{ row.industry || '--' }}</template>
         <template #col-actions="{ row }">
           <div class="record-actions" @dblclick.stop>
-            <el-button size="small" style="margin-right:8px" @click="goDetail(row)">查看详情</el-button>
+            <el-button size="small" style="margin-right:8px" @click="goDetail(row)">{{ t('vendorBlacklist.viewDetail') }}</el-button>
             <el-button type="warning" size="small" :loading="removingId === row.id" @click="handleRemove(row)">
-              移出黑名单
+              {{ t('vendorBlacklist.remove') }}
             </el-button>
           </div>
         </template>
@@ -64,8 +64,8 @@
 
     <div v-if="totalCount > pageSize" class="pagination-wrapper">
       <div class="list-footer-left">
-        <el-tooltip content="列设置" placement="top" :hide-after="0">
-          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+        <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
@@ -81,23 +81,23 @@
       />
     </div>
 
-    <el-dialog v-model="showRemoveDialog" title="移出黑名单" width="440px" :close-on-click-modal="false">
+    <el-dialog v-model="showRemoveDialog" :title="t('vendorBlacklist.removeTitle')" width="440px" :close-on-click-modal="false">
       <div style="color:rgba(200,216,232,0.75);font-size:13px;margin-bottom:16px">
-        确定要将「{{ pendingRemove?.officialName || pendingRemove?.code || '' }}」移出黑名单吗？原因将记入操作日志。
+        {{ t('vendorBlacklist.removeConfirm', { name: pendingRemove?.officialName || pendingRemove?.code || '' }) }}
       </div>
       <el-form label-width="90px">
-        <el-form-item label="移出原因" required>
+        <el-form-item :label="t('vendorBlacklist.removeReason')" required>
           <el-input
             v-model="removeReason"
             type="textarea"
             :rows="3"
-            placeholder="请输入移出黑名单原因（必填）"
+            :placeholder="t('vendorBlacklist.removeReasonPlaceholder')"
           />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showRemoveDialog = false">取消</el-button>
-        <el-button type="primary" :loading="removingId !== null" @click="confirmRemoveFromBlacklist">确定</el-button>
+        <el-button @click="showRemoveDialog = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="removingId !== null" @click="confirmRemoveFromBlacklist">{{ t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -107,6 +107,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElNotification } from 'element-plus';
+import { useI18n } from 'vue-i18n'
 import { Setting } from '@element-plus/icons-vue'
 import { vendorApi } from '@/api/vendor';
 import type { Vendor } from '@/types/vendor';
@@ -114,6 +115,7 @@ import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter();
+const { t } = useI18n()
 const loading = ref(false);
 const items = ref<Vendor[]>([]);
 const totalCount = ref(0);
@@ -127,10 +129,10 @@ const removeReason = ref('');
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 
 const blacklistColumns: CrmTableColumnDef[] = [
-  { key: 'code', label: '供应商编号', prop: 'code', width: 180, showOverflowTooltip: true },
-  { key: 'officialName', label: '供应商名称', minWidth: 260, showOverflowTooltip: true },
-  { key: 'industry', label: '行业', width: 160, showOverflowTooltip: true },
-  { key: 'actions', label: '操作', width: 190, fixed: 'right', hideable: false, pinned: 'end', reorderable: false }
+  { key: 'code', label: t('vendorBlacklist.columns.code'), prop: 'code', width: 180, showOverflowTooltip: true },
+  { key: 'officialName', label: t('vendorBlacklist.columns.name'), minWidth: 260, showOverflowTooltip: true },
+  { key: 'industry', label: t('vendorBlacklist.columns.industry'), width: 160, showOverflowTooltip: true },
+  { key: 'actions', label: t('vendorBlacklist.columns.actions'), width: 190, fixed: 'right', hideable: false, pinned: 'end', reorderable: false }
 ]
 
 const fetchData = async () => {
@@ -140,7 +142,7 @@ const fetchData = async () => {
     items.value = res?.items ?? (Array.isArray(res) ? res : []);
     totalCount.value = res?.totalCount ?? items.value.length;
   } catch {
-    ElNotification.error({ title: '加载失败', message: '获取供应商黑名单失败，请刷新重试' });
+    ElNotification.error({ title: t('vendorBlacklist.loadFailedTitle'), message: t('vendorBlacklist.loadFailedMessage') });
   } finally {
     loading.value = false;
   }
@@ -156,19 +158,19 @@ const confirmRemoveFromBlacklist = async () => {
   const item = pendingRemove.value;
   if (!item?.id) return;
   if (!removeReason.value.trim()) {
-    ElNotification.warning({ title: '请填写原因', message: '请输入移出黑名单原因' });
+    ElNotification.warning({ title: t('vendorBlacklist.reasonRequiredTitle'), message: t('vendorBlacklist.reasonRequiredMessage') });
     return;
   }
   removingId.value = item.id;
   try {
     await vendorApi.removeFromBlacklist(item.id, removeReason.value.trim());
-    ElNotification.success({ title: '操作成功', message: '供应商已移出黑名单' });
+    ElNotification.success({ title: t('vendorBlacklist.successTitle'), message: t('vendorBlacklist.successMessage') });
     showRemoveDialog.value = false;
     pendingRemove.value = null;
     removeReason.value = '';
     fetchData();
   } catch {
-    ElNotification.error({ title: '操作失败', message: '移出黑名单失败，请稍后重试' });
+    ElNotification.error({ title: t('vendorBlacklist.failedTitle'), message: t('vendorBlacklist.failedMessage') });
   } finally {
     removingId.value = null;
   }

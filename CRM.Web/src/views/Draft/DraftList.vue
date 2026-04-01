@@ -2,39 +2,39 @@
   <div class="draft-list-page">
     <div class="page-header">
       <div>
-        <h1 class="title">草稿箱</h1>
-        <p class="sub-title">Customer / Vendor / RFQ 草稿统一管理</p>
+        <h1 class="title">{{ t('draftList.title') }}</h1>
+        <p class="sub-title">{{ t('draftList.subtitle') }}</p>
       </div>
     </div>
 
     <el-card class="filter-card">
       <el-form :inline="true">
-        <el-form-item label="业务类型">
-          <el-select v-model="filters.entityType" clearable placeholder="全部类型" style="width: 170px">
-            <el-option label="客户" value="CUSTOMER" />
-            <el-option label="供应商" value="VENDOR" />
-            <el-option label="RFQ需求" value="RFQ" />
+        <el-form-item :label="t('draftList.filters.entityType')">
+          <el-select v-model="filters.entityType" clearable :placeholder="t('draftList.filters.allEntityTypes')" style="width: 170px">
+            <el-option :label="t('draftList.entityType.CUSTOMER')" value="CUSTOMER" />
+            <el-option :label="t('draftList.entityType.VENDOR')" value="VENDOR" />
+            <el-option :label="t('draftList.entityType.RFQ')" value="RFQ" />
           </el-select>
         </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="filters.status" clearable placeholder="全部状态" style="width: 140px">
-            <el-option label="草稿" :value="0" />
-            <el-option label="已转正式" :value="1" />
-            <el-option label="已废弃" :value="2" />
+        <el-form-item :label="t('draftList.filters.status')">
+          <el-select v-model="filters.status" clearable :placeholder="t('draftList.filters.allStatus')" style="width: 140px">
+            <el-option :label="t('draftList.status.draft')" :value="0" />
+            <el-option :label="t('draftList.status.converted')" :value="1" />
+            <el-option :label="t('draftList.status.discarded')" :value="2" />
           </el-select>
         </el-form-item>
-        <el-form-item label="关键词">
+        <el-form-item :label="t('draftList.filters.keyword')">
           <el-input
             v-model="filters.keyword"
-            placeholder="草稿名/备注"
+            :placeholder="t('draftList.filters.keywordPlaceholder')"
             clearable
             style="width: 260px"
             @keyup.enter="fetchDrafts"
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="fetchDrafts">查询</el-button>
-          <el-button @click="resetFilters">重置</el-button>
+          <el-button type="primary" @click="fetchDrafts">{{ t('draftList.filters.search') }}</el-button>
+          <el-button @click="resetFilters">{{ t('draftList.filters.reset') }}</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -57,7 +57,7 @@
         <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
         <template #col-actions-header>
           <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
+            <span class="op-col-header-text">{{ t('draftList.columns.actions') }}</span>
             <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
               {{ opColExpanded ? '>' : '<' }}
             </button>
@@ -66,9 +66,9 @@
         <template #col-actions="{ row }">
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
-              <el-button link type="primary" @click.stop="restoreDraft(row)">恢复到编辑页</el-button>
-              <el-button link type="success" @click.stop="convertDraft(row)" :disabled="row.status !== 0">转正式</el-button>
-              <el-button link type="danger" @click.stop="deleteDraft(row)">删除</el-button>
+              <el-button link type="primary" @click.stop="restoreDraft(row)">{{ t('draftList.actions.restore') }}</el-button>
+              <el-button link type="success" @click.stop="convertDraft(row)" :disabled="row.status !== 0">{{ t('draftList.actions.convert') }}</el-button>
+              <el-button link type="danger" @click.stop="deleteDraft(row)">{{ t('draftList.actions.delete') }}</el-button>
             </div>
 
             <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -78,13 +78,13 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="restoreDraft(row)">
-                    <span class="op-more-item op-more-item--primary">恢复到编辑页</span>
+                    <span class="op-more-item op-more-item--primary">{{ t('draftList.actions.restore') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item :disabled="row.status !== 0" @click.stop="convertDraft(row)">
-                    <span class="op-more-item op-more-item--success">转正式</span>
+                    <span class="op-more-item op-more-item--success">{{ t('draftList.actions.convert') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item @click.stop="deleteDraft(row)">
-                    <span class="op-more-item op-more-item--danger">删除</span>
+                    <span class="op-more-item op-more-item--danger">{{ t('draftList.actions.delete') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -94,8 +94,8 @@
       </CrmDataTable>
       <div class="pagination-wrapper">
         <div class="list-footer-left">
-          <el-tooltip content="列设置" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+          <el-tooltip :content="t('draftList.columnSettings')" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" :aria-label="t('draftList.columnSettings')" @click="dataTableRef?.openColumnSettings?.()">
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
@@ -109,6 +109,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { draftApi, type DraftDto } from '@/api/draft'
@@ -116,6 +117,7 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
+const { t } = useI18n()
 const loading = ref(false)
 const drafts = ref<DraftDto[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
@@ -132,16 +134,16 @@ function toggleOpCol() {
 }
 
 const draftTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'status', label: '状态', width: 110, align: 'center' },
-  { key: 'draftId', label: '草稿ID', prop: 'draftId', minWidth: 260, showOverflowTooltip: true },
-  { key: 'draftName', label: '草稿名称', prop: 'draftName', minWidth: 160, showOverflowTooltip: true },
-  { key: 'entityType', label: '业务类型', width: 120, align: 'center' },
-  { key: 'convertedEntityId', label: '正式ID', prop: 'convertedEntityId', minWidth: 220, showOverflowTooltip: true },
-  { key: 'createTime', label: '创建时间', width: 180 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  { key: 'status', label: t('draftList.columns.status'), width: 110, align: 'center' },
+  { key: 'draftId', label: t('draftList.columns.draftId'), prop: 'draftId', minWidth: 260, showOverflowTooltip: true },
+  { key: 'draftName', label: t('draftList.columns.draftName'), prop: 'draftName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'entityType', label: t('draftList.columns.entityType'), width: 120, align: 'center' },
+  { key: 'convertedEntityId', label: t('draftList.columns.convertedEntityId'), prop: 'convertedEntityId', minWidth: 220, showOverflowTooltip: true },
+  { key: 'createTime', label: t('draftList.columns.createTime'), width: 180 },
+  { key: 'createUser', label: t('draftList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('draftList.columns.actions'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -172,7 +174,7 @@ const fetchDrafts = async () => {
       keyword: filters.keyword?.trim() || undefined
     })
   } catch (err: any) {
-    ElMessage.error(err?.message || '获取草稿列表失败')
+    ElMessage.error(err?.message || t('draftList.messages.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -186,16 +188,16 @@ const resetFilters = async () => {
 }
 
 const entityTypeText = (type: string) => {
-  if (type === 'CUSTOMER') return '客户'
-  if (type === 'VENDOR') return '供应商'
-  if (type === 'RFQ') return 'RFQ需求'
+  if (type === 'CUSTOMER') return t('draftList.entityType.CUSTOMER')
+  if (type === 'VENDOR') return t('draftList.entityType.VENDOR')
+  if (type === 'RFQ') return t('draftList.entityType.RFQ')
   return type
 }
 
 const statusText = (status: number) => {
-  if (status === 0) return '草稿'
-  if (status === 1) return '已转正式'
-  if (status === 2) return '已废弃'
+  if (status === 0) return t('draftList.status.draft')
+  if (status === 1) return t('draftList.status.converted')
+  if (status === 2) return t('draftList.status.discarded')
   return String(status)
 }
 
@@ -218,7 +220,7 @@ const getCreatePathByEntityType = (entityType: string) => {
 const restoreDraft = (row: DraftDto) => {
   const path = getCreatePathByEntityType(row.entityType)
   if (!path) {
-    ElMessage.error(`不支持的实体类型：${row.entityType}`)
+    ElMessage.error(t('draftList.messages.unsupportedEntity', { type: row.entityType }))
     return
   }
   router.push({ path, query: { draftId: row.draftId } })
@@ -227,26 +229,30 @@ const restoreDraft = (row: DraftDto) => {
 const convertDraft = async (row: DraftDto) => {
   try {
     const result = await draftApi.convertDraft(row.draftId)
-    ElMessage.success(`转正式成功，实体ID：${result.entityId}`)
+    ElMessage.success(t('draftList.messages.convertSuccess', { id: result.entityId }))
     await fetchDrafts()
   } catch (err: any) {
-    ElMessage.error(err?.message || '草稿转正式失败')
+    ElMessage.error(err?.message || t('draftList.messages.convertFailed'))
   }
 }
 
 const deleteDraft = async (row: DraftDto) => {
   try {
-    await ElMessageBox.confirm('确定删除该草稿吗？删除后不可恢复。', '删除确认', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消'
-    })
+    await ElMessageBox.confirm(
+      t('draftList.messages.deleteConfirmMsg'),
+      t('draftList.messages.deleteConfirmTitle'),
+      {
+        type: 'warning',
+        confirmButtonText: t('draftList.messages.deleteConfirmButton'),
+        cancelButtonText: t('common.cancel')
+      }
+    )
     await draftApi.deleteDraft(row.draftId)
-    ElMessage.success('草稿已删除')
+    ElMessage.success(t('draftList.messages.deleted'))
     await fetchDrafts()
   } catch (err: any) {
     if (err === 'cancel' || err === 'close') return
-    ElMessage.error(err?.message || '删除草稿失败')
+    ElMessage.error(err?.message || t('draftList.messages.deleteFailed'))
   }
 }
 

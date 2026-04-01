@@ -23,14 +23,14 @@
                   v-model="keyword"
                   type="search"
                   class="rfq-home__pill-input"
-                  placeholder="输入物料型号、品牌或关键词…"
+                  :placeholder="t('rfqHome.searchPlaceholder')"
                   autocomplete="off"
                   @keyup.enter="handleMaterialSearch"
                 />
               </div>
-              <button type="button" class="rfq-home__pill-btn" @click="handleMaterialSearch">搜索</button>
-              <button type="button" class="rfq-home__pill-link" @click="goPnPlain">进入物料列表</button>
-              <button type="button" class="rfq-home__pill-link" @click="goRfqList">进入需求列表</button>
+              <button type="button" class="rfq-home__pill-btn" @click="handleMaterialSearch">{{ t('rfqHome.search') }}</button>
+              <button type="button" class="rfq-home__pill-link" @click="goPnPlain">{{ t('rfqHome.goMaterialList') }}</button>
+              <button type="button" class="rfq-home__pill-link" @click="goRfqList">{{ t('rfqHome.goRfqList') }}</button>
             </div>
           </div>
         </div>
@@ -44,15 +44,15 @@
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          新建需求
+          {{ t('rfqHome.create') }}
         </button>
       </div>
     </div>
 
-    <div v-if="loadingStats" class="rfq-home__loading">加载概要数据…</div>
+    <div v-if="loadingStats" class="rfq-home__loading">{{ t('rfqHome.loading') }}</div>
 
     <template v-else-if="stats">
-      <div class="rfq-home__section-title">需求</div>
+      <div class="rfq-home__section-title">{{ t('rfqHome.sections.rfq') }}</div>
       <div class="rfq-home__row rfq-home__row--3">
         <div class="rfq-home__card">
           <div class="rfq-home__icon rfq-home__icon--blue" aria-hidden="true">
@@ -63,7 +63,7 @@
           </div>
           <div class="rfq-home__card-main">
             <div class="rfq-home__value">{{ formatInt(stats.totalRfqs) }}</div>
-            <div class="rfq-home__label">需求总数</div>
+            <div class="rfq-home__label">{{ t('rfqHome.cards.totalRfqs') }}</div>
           </div>
         </div>
         <div class="rfq-home__card">
@@ -75,7 +75,7 @@
           </div>
           <div class="rfq-home__card-main">
             <div class="rfq-home__value">{{ formatInt(stats.newRfqsLast30Days) }}</div>
-            <div class="rfq-home__label">30 天新增需求</div>
+            <div class="rfq-home__label">{{ t('rfqHome.cards.newRfqsLast30Days') }}</div>
           </div>
         </div>
         <div class="rfq-home__card">
@@ -87,14 +87,14 @@
           </div>
           <div class="rfq-home__card-main">
             <div class="rfq-home__value">{{ formatInt(stats.todayRfqs) }}</div>
-            <div class="rfq-home__label">今日需求</div>
+            <div class="rfq-home__label">{{ t('rfqHome.cards.todayRfqs') }}</div>
           </div>
         </div>
       </div>
 
       <div class="rfq-home__duo">
         <div class="rfq-home__duo-col">
-          <div class="rfq-home__section-title">报价（近 30 天）</div>
+          <div class="rfq-home__section-title">{{ t('rfqHome.sections.quoteLast30') }}</div>
           <div class="rfq-home__row rfq-home__row--2">
             <div class="rfq-home__card">
               <div class="rfq-home__icon rfq-home__icon--blue" aria-hidden="true">
@@ -104,7 +104,7 @@
               </div>
               <div class="rfq-home__card-main">
                 <div class="rfq-home__value">{{ formatInt(stats.quotesLast30Days) }}</div>
-                <div class="rfq-home__label">报价数</div>
+                <div class="rfq-home__label">{{ t('rfqHome.cards.quotesLast30Days') }}</div>
               </div>
             </div>
             <div class="rfq-home__card">
@@ -116,13 +116,13 @@
               </div>
               <div class="rfq-home__card-main">
                 <div class="rfq-home__value">{{ formatPct(stats.quoteRateLast30Days) }}</div>
-                <div class="rfq-home__label">报价率</div>
+                <div class="rfq-home__label">{{ t('rfqHome.cards.quoteRateLast30Days') }}</div>
               </div>
             </div>
           </div>
         </div>
         <div class="rfq-home__duo-col">
-          <div class="rfq-home__section-title">成单（近 30 天）</div>
+          <div class="rfq-home__section-title">{{ t('rfqHome.sections.winLast30') }}</div>
           <div class="rfq-home__row rfq-home__row--2">
             <div class="rfq-home__card">
               <div class="rfq-home__icon rfq-home__icon--amber" aria-hidden="true">
@@ -133,7 +133,7 @@
               </div>
               <div class="rfq-home__card-main">
                 <div class="rfq-home__value">{{ formatInt(stats.wonRfqsLast30Days) }}</div>
-                <div class="rfq-home__label">成单需求</div>
+                <div class="rfq-home__label">{{ t('rfqHome.cards.wonRfqsLast30Days') }}</div>
               </div>
             </div>
             <div class="rfq-home__card">
@@ -146,7 +146,7 @@
               </div>
               <div class="rfq-home__card-main">
                 <div class="rfq-home__value">{{ formatPct(stats.winRateLast30Days) }}</div>
-                <div class="rfq-home__label">成单率</div>
+                <div class="rfq-home__label">{{ t('rfqHome.cards.winRateLast30Days') }}</div>
               </div>
             </div>
           </div>
@@ -159,11 +159,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { rfqApi } from '@/api/rfq'
 import { quoteApi } from '@/api/quote'
 
 const router = useRouter()
+const { t } = useI18n()
 const authStore = useAuthStore()
 const canCreateRfq = computed(() => authStore.hasPermission('rfq.write'))
 

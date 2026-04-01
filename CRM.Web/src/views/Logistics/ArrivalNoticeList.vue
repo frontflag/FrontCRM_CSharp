@@ -1,31 +1,31 @@
 <template>
   <div class="arrival-notice-list-page">
     <div class="page-header">
-      <h2>到货通知</h2>
+      <h2>{{ t('arrivalNoticeList.title') }}</h2>
       <div class="ops">
-        <el-button @click="loadData">刷新</el-button>
+        <el-button @click="loadData">{{ t('arrivalNoticeList.refresh') }}</el-button>
       </div>
     </div>
 
     <!-- 搜索栏：与客户列表 CustomerList 同款布局与控件皮肤 -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">状态</span>
+        <span class="filter-field-label">{{ t('arrivalNoticeList.filters.status') }}</span>
         <el-select
           v-model="filters.status"
-          placeholder="全部状态"
+          :placeholder="t('arrivalNoticeList.filters.allStatus')"
           clearable
           class="status-select"
           :teleported="false"
           @change="loadData"
         >
-          <el-option label="新建" :value="1" />
-          <el-option label="未到货" :value="10" />
-          <el-option label="到货待检" :value="20" />
-          <el-option label="已质检" :value="30" />
-          <el-option label="已入库" :value="100" />
+          <el-option :label="t('arrivalNoticeList.status.new')" :value="1" />
+          <el-option :label="t('arrivalNoticeList.status.notArrived')" :value="10" />
+          <el-option :label="t('arrivalNoticeList.status.pendingQc')" :value="20" />
+          <el-option :label="t('arrivalNoticeList.status.qcDone')" :value="30" />
+          <el-option :label="t('arrivalNoticeList.status.stocked')" :value="100" />
         </el-select>
-        <span class="filter-field-label">采购单号</span>
+        <span class="filter-field-label">{{ t('arrivalNoticeList.filters.poCode') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -34,23 +34,27 @@
           <input
             v-model="filters.purchaseOrderCode"
             class="search-input"
-            placeholder="请输入采购单号"
+            :placeholder="t('arrivalNoticeList.filters.poCodePlaceholder')"
             @keyup.enter="loadData"
           />
         </div>
-        <span class="filter-field-label">预计到货日期</span>
+        <span class="filter-field-label">{{ t('arrivalNoticeList.filters.expectedDate') }}</span>
         <el-date-picker
           v-model="filters.expectedArrivalDate"
           type="date"
           value-format="YYYY-MM-DD"
-          placeholder="选择日期"
+          :placeholder="t('arrivalNoticeList.filters.datePlaceholder')"
           clearable
           class="filter-date-single"
           :teleported="false"
           @change="loadData"
         />
-        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="loadData">搜索</button>
-        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="resetFilters">重置</button>
+        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="loadData">
+          {{ t('arrivalNoticeList.filters.search') }}
+        </button>
+        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="resetFilters">
+          {{ t('arrivalNoticeList.filters.reset') }}
+        </button>
       </div>
     </div>
 
@@ -75,7 +79,7 @@
       <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || '--' }}</template>
       <template #col-actions-header>
         <div class="op-col-header">
-          <span class="op-col-header-text">操作</span>
+            <span class="op-col-header-text">{{ t('arrivalNoticeList.columns.actions') }}</span>
           <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
             {{ opColExpanded ? '>' : '<' }}
           </button>
@@ -90,7 +94,7 @@
               class="action-btn action-btn--warning"
               @click.stop="markArrived(row)"
             >
-              确认到货
+              {{ t('arrivalNoticeList.actions.confirmArrived') }}
             </button>
             <button
               v-if="row.status === 20"
@@ -98,9 +102,11 @@
               class="action-btn action-btn--warning"
               @click.stop="goCreateQc(row)"
             >
-              质检
+              {{ t('arrivalNoticeList.actions.qc') }}
             </button>
-            <button type="button" class="action-btn action-btn--info" @click.stop="viewItems(row)">明细</button>
+            <button type="button" class="action-btn action-btn--info" @click.stop="viewItems(row)">
+              {{ t('arrivalNoticeList.actions.detail') }}
+            </button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -110,13 +116,13 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item v-if="row.status === 10" @click.stop="markArrived(row)">
-                  <span class="op-more-item op-more-item--warning">确认到货</span>
+                  <span class="op-more-item op-more-item--warning">{{ t('arrivalNoticeList.actions.confirmArrived') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="row.status === 20" @click.stop="goCreateQc(row)">
-                  <span class="op-more-item op-more-item--warning">质检</span>
+                  <span class="op-more-item op-more-item--warning">{{ t('arrivalNoticeList.actions.qc') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item @click.stop="viewItems(row)">
-                  <span class="op-more-item op-more-item--info">明细</span>
+                  <span class="op-more-item op-more-item--info">{{ t('arrivalNoticeList.actions.detail') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -126,8 +132,14 @@
     </CrmDataTable>
     <div class="pagination-wrapper">
       <div class="list-footer-left">
-        <el-tooltip content="列设置" placement="top" :hide-after="0">
-          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+        <el-tooltip :content="t('arrivalNoticeList.columnSettings')" placement="top" :hide-after="0">
+          <el-button
+            class="list-settings-btn"
+            link
+            type="primary"
+            :aria-label="t('arrivalNoticeList.columnSettings')"
+            @click="dataTableRef?.openColumnSettings?.()"
+          >
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
@@ -137,7 +149,7 @@
 
     <el-dialog
       v-model="itemsVisible"
-      title="到货通知明细"
+      :title="t('arrivalNoticeList.detailDialog.title')"
       width="720px"
       align-center
       destroy-on-close
@@ -152,37 +164,37 @@
         class="arrival-detail-desc"
         :label-style="arrivalDetailLabelStyle"
       >
-        <el-descriptions-item label="供应商名称">
+        <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.vendorName')">
           {{ detailNotice.vendorName?.trim() || '—' }}
         </el-descriptions-item>
-        <el-descriptions-item label="供应商编号">
+        <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.vendorCode')">
           {{ detailNotice.vendorCode?.trim() || '—' }}
         </el-descriptions-item>
-        <el-descriptions-item label="采购订单编号">
+        <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.purchaseOrderCode')">
           {{ detailNotice.purchaseOrderCode?.trim() || '—' }}
         </el-descriptions-item>
-        <el-descriptions-item label="物料型号">
+        <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.pn')">
           {{ displayPn(detailNotice) }}
         </el-descriptions-item>
-        <el-descriptions-item label="品牌">
+        <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.brand')">
           {{ displayBrand(detailNotice) }}
         </el-descriptions-item>
-        <el-descriptions-item label="预计到货日期">
+        <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.expectedArrivalDate')">
           {{ formatExpected(detailNotice.expectedArrivalDate) }}
         </el-descriptions-item>
-        <el-descriptions-item label="采购员">
+        <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.purchaser')">
           {{ detailNotice.purchaseUserName?.trim() || '—' }}
         </el-descriptions-item>
-        <el-descriptions-item label="到货通知数量">
+        <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.noticeQty')">
           {{ formatQtyCol(expectQty(detailNotice)) }}
         </el-descriptions-item>
-        <el-descriptions-item label="实际到货数量">
+        <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.receivedQty')">
           {{ formatQtyCol(receiveQty(detailNotice)) }}
         </el-descriptions-item>
-        <el-descriptions-item label="质检通过数量">
+        <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.passedQty')">
           {{ formatQtyCol(passedQty(detailNotice)) }}
         </el-descriptions-item>
-        <el-descriptions-item label="入库数量">
+        <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.stockInQty')">
           {{ stockInQtyText(detailNotice) }}
         </el-descriptions-item>
       </el-descriptions>
@@ -193,6 +205,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { logisticsApi, type StockInNotifyDto, type StockInNotifyItemDto } from '@/api/logistics'
@@ -201,6 +214,7 @@ import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTim
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
+const { t, locale } = useI18n()
 const loading = ref(false)
 const list = ref<StockInNotifyDto[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
@@ -216,33 +230,41 @@ function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 
-const arrivalNoticeColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'noticeCode', label: '到货通知号', prop: 'noticeCode', width: 170 },
-  { key: 'status', label: '状态', prop: 'status', width: 110, align: 'center' },
-  { key: 'purchaseOrderCode', label: '采购单号', prop: 'purchaseOrderCode', width: 160 },
-  { key: 'pn', label: '型号', minWidth: 120, showOverflowTooltip: true },
-  { key: 'brand', label: '品牌', width: 100, showOverflowTooltip: true },
-  { key: 'expectedArrivalDate', label: '预计到货日期', width: 130, align: 'center' },
-  { key: 'vendorName', label: '供应商', prop: 'vendorName', minWidth: 160 },
-  { key: 'purchaseUserName', label: '采购员', prop: 'purchaseUserName', width: 120 },
-  { key: 'expectQty', label: '通知数量', width: 100, align: 'right' },
-  { key: 'receiveQty', label: '到货数量', width: 100, align: 'right' },
-  { key: 'passedQty', label: '质检通过', width: 100, align: 'right' },
-  { key: 'createTime', label: '创建时间', prop: 'createTime', width: 170 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
-  {
-    key: 'actions',
-    label: '操作',
-    width: opColWidth.value,
-    minWidth: opColMinWidth.value,
-    fixed: 'right',
-    hideable: false,
-    pinned: 'end',
-    reorderable: false,
-    className: 'op-col',
-    labelClassName: 'op-col'
-  }
-])
+const arrivalNoticeColumns = computed<CrmTableColumnDef[]>(() => {
+  void locale.value
+  return [
+    { key: 'noticeCode', label: t('arrivalNoticeList.columns.noticeCode'), prop: 'noticeCode', width: 170 },
+    { key: 'status', label: t('arrivalNoticeList.columns.status'), prop: 'status', width: 110, align: 'center' },
+    { key: 'purchaseOrderCode', label: t('arrivalNoticeList.columns.purchaseOrderCode'), prop: 'purchaseOrderCode', width: 160 },
+    { key: 'pn', label: t('arrivalNoticeList.columns.pn'), minWidth: 120, showOverflowTooltip: true },
+    { key: 'brand', label: t('arrivalNoticeList.columns.brand'), width: 100, showOverflowTooltip: true },
+    {
+      key: 'expectedArrivalDate',
+      label: t('arrivalNoticeList.columns.expectedArrivalDate'),
+      width: 130,
+      align: 'center'
+    },
+    { key: 'vendorName', label: t('arrivalNoticeList.columns.vendorName'), prop: 'vendorName', minWidth: 160 },
+    { key: 'purchaseUserName', label: t('arrivalNoticeList.columns.purchaseUserName'), prop: 'purchaseUserName', width: 120 },
+    { key: 'expectQty', label: t('arrivalNoticeList.columns.expectQty'), width: 100, align: 'right' },
+    { key: 'receiveQty', label: t('arrivalNoticeList.columns.receiveQty'), width: 100, align: 'right' },
+    { key: 'passedQty', label: t('arrivalNoticeList.columns.passedQty'), width: 100, align: 'right' },
+    { key: 'createTime', label: t('arrivalNoticeList.columns.createTime'), prop: 'createTime', width: 170 },
+    { key: 'createUser', label: t('arrivalNoticeList.columns.createUser'), width: 120, showOverflowTooltip: true },
+    {
+      key: 'actions',
+      label: t('arrivalNoticeList.columns.actions'),
+      width: opColWidth.value,
+      minWidth: opColMinWidth.value,
+      fixed: 'right',
+      hideable: false,
+      pinned: 'end',
+      reorderable: false,
+      className: 'op-col',
+      labelClassName: 'op-col'
+    }
+  ]
+})
 
 const itemsVisible = ref(false)
 const detailNotice = ref<StockInNotifyDto | null>(null)
@@ -286,7 +308,17 @@ const formatQtyCol = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed
 const stockInQtyText = (row: StockInNotifyDto) =>
   row.status === 100 ? formatQtyCol(receiveQty(row)) : '—'
 
-const statusText = (s: number) => ({ 1: '新建', 10: '未到货', 20: '到货待检', 30: '已质检', 100: '已入库' }[s] || '未知')
+const statusText = (s: number) => {
+  const keyMap: Record<number, 'new' | 'notArrived' | 'pendingQc' | 'qcDone' | 'stocked'> = {
+    1: 'new',
+    10: 'notArrived',
+    20: 'pendingQc',
+    30: 'qcDone',
+    100: 'stocked'
+  }
+  const k = keyMap[s]
+  return k ? t(`arrivalNoticeList.status.${k}`) : t('arrivalNoticeList.statusUnknown')
+}
 const statusType = (s: number) => ({ 1: 'info', 10: 'warning', 20: 'primary', 30: 'success', 100: 'success' }[s] || 'info')
 const formatTime = (v?: string) => formatDisplayDateTime(v)
 const formatExpected = (v?: string | null) => (v ? formatDisplayDate(v) : '—')
@@ -314,7 +346,7 @@ const resetFilters = () => {
 const markArrived = async (row: StockInNotifyDto) => {
   await logisticsApi.updateArrivalStatus(row.id, 20)
   loadData()
-  ElMessage.success('已确认到货，等待质检')
+  ElMessage.success(t('arrivalNoticeList.messages.arrivedSuccess'))
 }
 
 const goCreateQc = (row: StockInNotifyDto) => {

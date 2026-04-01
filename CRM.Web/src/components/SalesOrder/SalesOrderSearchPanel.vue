@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { reactive, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const route = useRoute()
 const router = useRouter()
+const { t, locale } = useI18n()
 
 const form = reactive({
   code: '',
@@ -11,15 +13,18 @@ const form = reactive({
   status: undefined as number | undefined
 })
 
-const statusOptions = [
-  { label: '新建', value: 1 },
-  { label: '待审核', value: 2 },
-  { label: '审核通过', value: 10 },
-  { label: '进行中', value: 20 },
-  { label: '完成', value: 100 },
-  { label: '审核失败', value: -1 },
-  { label: '取消', value: -2 }
-] as const
+const statusOptions = computed(() => {
+  void locale.value
+  return [
+    { label: t('salesOrderList.status.new'), value: 1 },
+    { label: t('salesOrderList.status.pendingReview'), value: 2 },
+    { label: t('salesOrderList.status.approved'), value: 10 },
+    { label: t('salesOrderList.status.inProgress'), value: 20 },
+    { label: t('salesOrderList.status.completed'), value: 100 },
+    { label: t('salesOrderList.status.reviewFailed'), value: -1 },
+    { label: t('salesOrderList.status.cancelled'), value: -2 }
+  ]
+})
 
 function syncFromRoute() {
   if (route.name !== 'SalesOrderList') return
@@ -57,40 +62,40 @@ function handleSearch() {
 
 <template>
   <div class="so-search-panel">
-    <div class="so-search-panel__head">销售订单检索</div>
+    <div class="so-search-panel__head">{{ t('salesOrderList.searchPanel.title') }}</div>
 
     <div class="so-search-panel__fields">
       <div class="field-col">
-        <label class="field-label">订单号</label>
+        <label class="field-label">{{ t('salesOrderList.filters.orderCode') }}</label>
         <div class="field-control">
           <input
             v-model="form.code"
             type="text"
             class="field-input"
-            placeholder="订单编号"
+            :placeholder="t('salesOrderList.searchPanel.codePlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
       </div>
 
       <div class="field-col">
-        <label class="field-label">客户</label>
+        <label class="field-label">{{ t('salesOrderList.filters.customer') }}</label>
         <div class="field-control">
           <input
             v-model="form.customer"
             type="text"
             class="field-input"
-            placeholder="客户名称"
+            :placeholder="t('salesOrderList.filters.customerPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
       </div>
 
       <div class="field-col">
-        <label class="field-label">状态</label>
+        <label class="field-label">{{ t('salesOrderList.columns.status') }}</label>
         <el-select
           v-model="form.status"
-          placeholder="全部状态"
+          :placeholder="t('salesOrderList.filters.allStatus')"
           clearable
           class="field-select"
           :teleported="false"
@@ -101,8 +106,8 @@ function handleSearch() {
     </div>
 
     <div class="so-search-panel__actions">
-      <button type="button" class="btn-search" @click="handleSearch">搜索</button>
-      <button type="button" class="btn-reset" @click="handleReset">重置</button>
+      <button type="button" class="btn-search" @click="handleSearch">{{ t('salesOrderList.filters.search') }}</button>
+      <button type="button" class="btn-reset" @click="handleReset">{{ t('salesOrderList.filters.reset') }}</button>
     </div>
   </div>
 </template>

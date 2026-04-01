@@ -10,43 +10,43 @@
               <path d="M9 21V9" />
             </svg>
           </div>
-          <h1 class="page-title">入库单列表</h1>
+          <h1 class="page-title">{{ t('stockInList.title') }}</h1>
         </div>
-        <div class="count-badge">共 {{ filteredList.length }} 条</div>
+        <div class="count-badge">{{ t('stockInList.count', { count: filteredList.length }) }}</div>
       </div>
     </div>
 
     <!-- 查询栏（与客户列表一致的结构与样式） -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="list-title">入库单查询</span>
-        <span class="filter-field-label">物料型号</span>
+        <span class="list-title">{{ t('stockInList.filters.title') }}</span>
+        <span class="filter-field-label">{{ t('stockInList.filters.materialModel') }}</span>
         <input
           v-model="filters.model"
           class="search-input search-input--filter"
-          placeholder="物料型号 / 物料ID"
+          :placeholder="t('stockInList.filters.materialModelPlaceholder')"
           @keyup.enter="handleSearch"
         />
         <input
           v-model="filters.vendorName"
           class="search-input search-input--filter"
-          placeholder="供应商名称"
+          :placeholder="t('stockInList.filters.vendorName')"
           @keyup.enter="handleSearch"
         />
         <input
           v-model="filters.purchaseOrderCode"
           class="search-input search-input--filter"
-          placeholder="采购订单号"
+          :placeholder="t('stockInList.filters.purchaseOrderCode')"
           @keyup.enter="handleSearch"
         />
         <input
           v-model="filters.salesOrderCode"
           class="search-input search-input--filter"
-          placeholder="销售订单号"
+          :placeholder="t('stockInList.filters.salesOrderCode')"
           @keyup.enter="handleSearch"
         />
-        <button type="button" class="btn-primary btn-sm" @click="handleSearch">搜索</button>
-        <button type="button" class="btn-ghost btn-sm" @click="resetFilters">重置</button>
+        <button type="button" class="btn-primary btn-sm" @click="handleSearch">{{ t('stockInList.filters.search') }}</button>
+        <button type="button" class="btn-ghost btn-sm" @click="resetFilters">{{ t('stockInList.filters.reset') }}</button>
       </div>
     </div>
 
@@ -74,10 +74,10 @@
       <template #col-totalQuantity="{ row }">{{ formatNum(row.totalQuantity) }}</template>
       <template #col-totalAmount="{ row }">{{ formatMoney(row.totalAmount) }}</template>
       <template #col-createTime="{ row }">{{ formatDate((row as any).createTime || (row as any).createdAt) }}</template>
-      <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
+      <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || t('quoteList.na') }}</template>
       <template #col-actions-header>
         <div class="op-col-header">
-          <span class="op-col-header-text">操作</span>
+          <span class="op-col-header-text">{{ t('stockInList.columns.actions') }}</span>
           <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
             {{ opColExpanded ? '>' : '<' }}
           </button>
@@ -87,14 +87,14 @@
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
-            <button type="button" class="action-btn action-btn--info" @click.stop="handleEditRemark(row)">修改备注</button>
+            <button type="button" class="action-btn action-btn--info" @click.stop="handleEditRemark(row)">{{ t('stockInList.actions.editRemark') }}</button>
             <button
               v-if="row.status !== 2 && row.status !== 3"
               type="button"
               class="action-btn action-btn--warning"
               @click.stop="handleFinish(row)"
             >
-              标记已入库
+              {{ t('stockInList.actions.markStockedIn') }}
             </button>
           </div>
 
@@ -105,13 +105,13 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click.stop="handleEditRemark(row)">
-                  <span class="op-more-item op-more-item--info">修改备注</span>
+                  <span class="op-more-item op-more-item--info">{{ t('stockInList.actions.editRemark') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item
                   v-if="row.status !== 2 && row.status !== 3"
                   @click.stop="handleFinish(row)"
                 >
-                  <span class="op-more-item op-more-item--warning">标记已入库</span>
+                  <span class="op-more-item op-more-item--warning">{{ t('stockInList.actions.markStockedIn') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -121,8 +121,8 @@
     </CrmDataTable>
     <div class="pagination-wrapper">
       <div class="list-footer-left">
-        <el-tooltip content="列设置" placement="top" :hide-after="0">
-          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+        <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
@@ -130,11 +130,11 @@
       </div>
     </div>
 
-    <el-dialog v-model="remarkDialogVisible" title="修改备注" width="420px">
-      <el-input v-model="remarkForm.remark" type="textarea" :rows="4" placeholder="请输入入库单备注" />
+    <el-dialog v-model="remarkDialogVisible" :title="t('stockInList.actions.editRemark')" width="420px">
+      <el-input v-model="remarkForm.remark" type="textarea" :rows="4" :placeholder="t('stockInList.remarkPlaceholder')" />
       <template #footer>
-        <button class="btn-secondary" @click="remarkDialogVisible = false">取消</button>
-        <button class="btn-primary" @click="submitRemark">保存</button>
+        <button class="btn-secondary" @click="remarkDialogVisible = false">{{ t('common.cancel') }}</button>
+        <button class="btn-primary" @click="submitRemark">{{ t('common.confirm') }}</button>
       </template>
     </el-dialog>
   </div>
@@ -143,6 +143,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { stockInApi, type StockInListItemDto } from '@/api/stockIn'
@@ -152,6 +153,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 const loading = ref(false)
 const list = ref<StockInListItemDto[]>([])
 const warehouses = ref<WarehouseInfo[]>([])
@@ -169,23 +171,23 @@ function toggleOpCol() {
 }
 
 const stockInTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'stockInCode', label: '入库单号', prop: 'stockInCode', width: 160, minWidth: 160, showOverflowTooltip: true },
-  { key: 'status', label: '状态', prop: 'status', width: 110, align: 'center' },
-  { key: 'sourceDisplayNo', label: '来源单号', prop: 'sourceDisplayNo', width: 160, showOverflowTooltip: true },
-  { key: 'materialModel', label: '物料型号', minWidth: 140, showOverflowTooltip: true },
-  { key: 'materialBrand', label: '品牌', minWidth: 120, showOverflowTooltip: true },
-  { key: 'warehouseName', label: '仓库', minWidth: 160, showOverflowTooltip: true },
-  { key: 'vendorName', label: '供应商', prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
-  { key: 'salesOrderCode', label: '销售订单号', prop: 'salesOrderCode', minWidth: 170, showOverflowTooltip: true },
-  { key: 'stockInDate', label: '入库日期', prop: 'stockInDate', width: 160 },
-  { key: 'totalQuantity', label: '入库数量', prop: 'totalQuantity', width: 110, align: 'right' },
-  { key: 'totalAmount', label: '入库金额', prop: 'totalAmount', width: 110, align: 'right' },
-  { key: 'remark', label: '备注', prop: 'remark', minWidth: 160, showOverflowTooltip: true },
-  { key: 'createTime', label: '创建时间', width: 160 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  { key: 'stockInCode', label: t('stockInList.columns.stockInCode'), prop: 'stockInCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+  { key: 'status', label: t('stockInList.columns.status'), prop: 'status', width: 110, align: 'center' },
+  { key: 'sourceDisplayNo', label: t('stockInList.columns.sourceCode'), prop: 'sourceDisplayNo', width: 160, showOverflowTooltip: true },
+  { key: 'materialModel', label: t('stockInList.columns.materialModel'), minWidth: 140, showOverflowTooltip: true },
+  { key: 'materialBrand', label: t('stockInList.columns.brand'), minWidth: 120, showOverflowTooltip: true },
+  { key: 'warehouseName', label: t('stockInList.columns.warehouse'), minWidth: 160, showOverflowTooltip: true },
+  { key: 'vendorName', label: t('stockInList.columns.vendor'), prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'salesOrderCode', label: t('stockInList.columns.salesOrderCode'), prop: 'salesOrderCode', minWidth: 170, showOverflowTooltip: true },
+  { key: 'stockInDate', label: t('stockInList.columns.stockInDate'), prop: 'stockInDate', width: 160 },
+  { key: 'totalQuantity', label: t('stockInList.columns.totalQuantity'), prop: 'totalQuantity', width: 110, align: 'right' },
+  { key: 'totalAmount', label: t('stockInList.columns.totalAmount'), prop: 'totalAmount', width: 110, align: 'right' },
+  { key: 'remark', label: t('stockInList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
+  { key: 'createTime', label: t('stockInList.columns.createTime'), width: 160 },
+  { key: 'createUser', label: t('stockInList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('stockInList.columns.actions'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -198,7 +200,7 @@ const stockInTableColumns = computed<CrmTableColumnDef[]>(() => [
 ])
 
 const warehouseNameOf = (warehouseId?: string) => {
-  if (!warehouseId) return '--'
+  if (!warehouseId) return t('quoteList.na')
   const byId = warehouses.value.find(w => w.id === warehouseId)
   if (byId?.warehouseName) return byId.warehouseName
   const byCode = warehouses.value.find(w => (w.warehouseCode || '').trim() === warehouseId.trim())
@@ -217,8 +219,8 @@ const remarkForm = reactive<{ id: string; remark: string }>({
   remark: ''
 })
 
-const formatNum = (v: number) => (v == null ? '--' : Number(v).toLocaleString())
-const formatMoney = (v: number) => (v == null ? '--' : Number(v).toFixed(2))
+const formatNum = (v: number) => (v == null ? t('quoteList.na') : Number(v).toLocaleString())
+const formatMoney = (v: number) => (v == null ? t('quoteList.na') : Number(v).toFixed(2))
 const formatDate = (v?: string) => formatDisplayDateTime(v)
 
 function pickRowStr(row: Record<string, unknown>, camel: string, pascal: string): string {
@@ -229,22 +231,22 @@ function pickRowStr(row: Record<string, unknown>, camel: string, pascal: string)
 const stockInMaterialModel = (row: StockInListItemDto) => {
   const r = row as unknown as Record<string, unknown>
   const s = pickRowStr(r, 'materialModelSummary', 'MaterialModelSummary')
-  return s || '--'
+  return s || t('quoteList.na')
 }
 
 const stockInMaterialBrand = (row: StockInListItemDto) => {
   const r = row as unknown as Record<string, unknown>
   const s = pickRowStr(r, 'materialBrandSummary', 'MaterialBrandSummary')
-  return s || '--'
+  return s || t('quoteList.na')
 }
 
 const statusLabel = (s: number) => {
   switch (s) {
-    case 0: return '草稿'
-    case 1: return '待入库'
-    case 2: return '已入库'
-    case 3: return '已取消'
-    default: return '未知'
+    case 0: return t('stockInList.status.draft')
+    case 1: return t('stockInList.status.pending')
+    case 2: return t('stockInList.status.done')
+    case 3: return t('stockInList.status.cancelled')
+    default: return t('rfqDetail.unknown')
   }
 }
 
@@ -275,7 +277,7 @@ const fetchList = async () => {
     })
   } catch (e) {
     console.error(e)
-    ElMessage.error('加载入库单失败')
+    ElMessage.error(t('stockInList.messages.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -351,23 +353,23 @@ const handleEditRemark = (row: StockInListItemDto) => {
 const submitRemark = async () => {
   try {
     await stockInApi.update(remarkForm.id, { remark: remarkForm.remark })
-    ElMessage.success('备注已更新')
+    ElMessage.success(t('stockInList.messages.remarkUpdated'))
     remarkDialogVisible.value = false
     fetchList()
   } catch (e) {
     console.error(e)
-    ElMessage.error('更新备注失败')
+    ElMessage.error(t('stockInList.messages.remarkUpdateFailed'))
   }
 }
 
 const handleFinish = async (row: StockInListItemDto) => {
   try {
     await stockInApi.updateStatus(row.id, 2)
-    ElMessage.success('已标记为已入库')
+    ElMessage.success(t('stockInList.messages.markDoneSuccess'))
     fetchList()
   } catch (e) {
     console.error(e)
-    ElMessage.error('更新状态失败')
+    ElMessage.error(t('stockInList.messages.updateStatusFailed'))
   }
 }
 

@@ -12,9 +12,9 @@
               <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
           </div>
-          <h1 class="page-title">客户</h1>
+          <h1 class="page-title">{{ t('customerList.title') }}</h1>
         </div>
-        <div class="customer-count-badge">共 {{ totalCount }} 个客户</div>
+        <div class="customer-count-badge">{{ t('customerList.count', { count: totalCount }) }}</div>
       </div>
       <div class="header-right">
         <template v-if="canSubmitAudit">
@@ -24,17 +24,17 @@
                 <line x1="12" y1="5" x2="12" y2="19"/>
                 <line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
-              新增客户
+              {{ t('customerList.create') }}
             </button>
             <el-dropdown trigger="click" @command="onCreateDropdownCommand">
-              <button type="button" class="btn-success btn-success--caret" aria-label="展开菜单">
+              <button type="button" class="btn-success btn-success--caret" :aria-label="t('customerList.expandMenu')">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
               </button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="import">通过Excel导入</el-dropdown-item>
+                  <el-dropdown-item command="import">{{ t('customerList.importExcel') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -45,7 +45,7 @@
             <line x1="12" y1="5" x2="12" y2="19"/>
             <line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          新增客户
+          {{ t('customerList.create') }}
         </button>
       </div>
     </div>
@@ -53,7 +53,7 @@
     <!-- 搜索栏：关键词 → 状态 → 级别 → 类型 → 行业 → 业务员 → 创建日期区间 -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">关键词</span>
+        <span class="filter-field-label">{{ t('customerList.filters.keyword') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -61,11 +61,11 @@
           <input
             v-model="searchForm.searchTerm"
             class="search-input"
-            :placeholder="canViewCustomerInfo ? '客户名称 / 联系人…' : '客户编号…'"
+            :placeholder="canViewCustomerInfo ? t('customerList.filters.keywordPlaceholderFull') : t('customerList.filters.keywordPlaceholderCode')"
             @keyup.enter="handleSearch"
           />
         </div>
-        <el-select v-model="searchForm.status" placeholder="全部状态" clearable class="status-select" :teleported="false" @change="handleSearch">
+        <el-select v-model="searchForm.status" :placeholder="t('customerList.filters.allStatus')" clearable class="status-select" :teleported="false" @change="handleSearch">
           <el-option
             v-for="opt in workflowStatusOptions"
             :key="opt.value"
@@ -73,7 +73,7 @@
             :value="opt.value"
           />
         </el-select>
-        <el-select v-model="searchForm.customerLevel" placeholder="全部级别" clearable class="status-select" :teleported="false" @change="handleSearch">
+        <el-select v-model="searchForm.customerLevel" :placeholder="t('customerList.filters.allLevel')" clearable class="status-select" :teleported="false" @change="handleSearch">
           <el-option label="D级" value="D" />
           <el-option label="C级" value="C" />
           <el-option label="B级" value="B" />
@@ -81,23 +81,23 @@
           <el-option label="VIP" value="VIP" />
           <el-option label="VPO" value="VPO" />
         </el-select>
-        <el-select v-model="searchForm.customerType" placeholder="全部类型" clearable class="status-select" :teleported="false" @change="handleSearch">
+        <el-select v-model="searchForm.customerType" :placeholder="t('customerList.filters.allType')" clearable class="status-select" :teleported="false" @change="handleSearch">
           <el-option label="OEM" :value="1" />
           <el-option label="ODM" :value="2" />
-          <el-option label="终端用户" :value="3" />
-          <el-option label="贸易商" :value="5" />
-          <el-option label="代理商" :value="6" />
+          <el-option :label="t('customerList.type.endUser')" :value="3" />
+          <el-option :label="t('customerList.type.trader')" :value="5" />
+          <el-option :label="t('customerList.type.agency')" :value="6" />
         </el-select>
-        <el-select v-model="searchForm.industry" placeholder="全部行业" clearable class="status-select" :teleported="false" @change="handleSearch">
-          <el-option label="制造业" value="Manufacturing" />
-          <el-option label="科技/IT" value="Technology" />
-          <el-option label="贸易/零售" value="Trading" />
-          <el-option label="建筑/工程" value="Construction" />
-          <el-option label="其他" value="Other" />
+        <el-select v-model="searchForm.industry" :placeholder="t('customerList.filters.allIndustry')" clearable class="status-select" :teleported="false" @change="handleSearch">
+          <el-option :label="t('customerList.industry.Manufacturing')" value="Manufacturing" />
+          <el-option :label="t('customerList.industry.Technology')" value="Technology" />
+          <el-option :label="t('customerList.industry.Trading')" value="Trading" />
+          <el-option :label="t('customerList.industry.Construction')" value="Construction" />
+          <el-option :label="t('customerList.industry.Other')" value="Other" />
         </el-select>
         <el-select
           v-model="searchForm.salesPersonId"
-          placeholder="全部业务员"
+          :placeholder="t('customerList.filters.allSalesUsers')"
           clearable
           filterable
           class="status-select status-select--sales"
@@ -114,17 +114,17 @@
         <el-date-picker
           v-model="createdDateRange"
           type="daterange"
-          range-separator="至"
-          start-placeholder="创建起"
-          end-placeholder="创建止"
+          :range-separator="t('customerList.filters.to')"
+          :start-placeholder="t('customerList.filters.startDate')"
+          :end-placeholder="t('customerList.filters.endDate')"
           value-format="YYYY-MM-DD"
           clearable
           class="filter-date-range"
           :teleported="false"
           @change="onCreatedRangeChange"
         />
-        <button class="btn-primary btn-sm" @click="handleSearch">搜索</button>
-        <button class="btn-ghost btn-sm" @click="handleReset">重置</button>
+        <button class="btn-primary btn-sm" @click="handleSearch">{{ t('customerList.filters.search') }}</button>
+        <button class="btn-ghost btn-sm" @click="handleReset">{{ t('customerList.filters.reset') }}</button>
       </div>
     </div>
 
@@ -190,7 +190,7 @@
         </template>
         <template #col-actions-header>
           <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
+            <span class="op-col-header-text">{{ t('customerList.actions.column') }}</span>
             <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
               {{ opColExpanded ? '>' : '<' }}
             </button>
@@ -199,14 +199,14 @@
         <template #col-actions="{ row }">
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns always-visible">
-              <button class="action-btn action-btn--primary" @click.stop="handleView(row)">详情</button>
-              <button class="action-btn action-btn--primary" @click.stop="handleEdit(row)">编辑</button>
+              <button class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('customerList.actions.detail') }}</button>
+              <button class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('customerList.actions.edit') }}</button>
               <button
                 v-if="row.status === 1"
                 class="action-btn action-btn--warning"
                 @click.stop="handleSubmitAudit(row)"
               >
-                提交审核
+                {{ t('customerList.actions.submitAudit') }}
               </button>
             </div>
             <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -215,10 +215,10 @@
               </div>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item @click.stop="handleView(row)">详情</el-dropdown-item>
-                  <el-dropdown-item @click.stop="handleEdit(row)">编辑</el-dropdown-item>
+                  <el-dropdown-item @click.stop="handleView(row)">{{ t('customerList.actions.detail') }}</el-dropdown-item>
+                  <el-dropdown-item @click.stop="handleEdit(row)">{{ t('customerList.actions.edit') }}</el-dropdown-item>
                   <el-dropdown-item v-if="row.status === 1" @click.stop="handleSubmitAudit(row)">
-                    提交审核
+                    {{ t('customerList.actions.submitAudit') }}
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -231,33 +231,33 @@
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
         </svg>
-        <p>暂无客户数据</p>
+        <p>{{ t('customerList.empty') }}</p>
         <template v-if="canSubmitAudit">
           <div class="btn-split-group empty-split">
-            <button type="button" class="btn-success" @click="handleCreate">新增客户</button>
+            <button type="button" class="btn-success" @click="handleCreate">{{ t('customerList.create') }}</button>
             <el-dropdown trigger="click" @command="onCreateDropdownCommand">
-              <button type="button" class="btn-success btn-success--caret" aria-label="展开菜单">
+              <button type="button" class="btn-success btn-success--caret" :aria-label="t('customerList.expandMenu')">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
               </button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="import">通过Excel导入</el-dropdown-item>
+                  <el-dropdown-item command="import">{{ t('customerList.importExcel') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
           </div>
         </template>
-        <button v-else type="button" class="btn-success" @click="handleCreate">新增客户</button>
+        <button v-else type="button" class="btn-success" @click="handleCreate">{{ t('customerList.create') }}</button>
       </div>
     </div>
 
     <!-- 分页 -->
     <div class="pagination-wrapper" v-if="totalCount > 0">
       <div class="list-footer-left">
-        <el-tooltip content="列设置" placement="top" :hide-after="0">
-          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+        <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
@@ -282,6 +282,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch, nextTick, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n'
 import { ElNotification, ElMessageBox } from 'element-plus';
 import { Setting } from '@element-plus/icons-vue'
 import { customerApi } from '@/api/customer';
@@ -299,6 +300,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter();
 const route = useRoute();
+const { t } = useI18n()
 
 function isPartyStatusMuted(c: Customer) {
   return !!(c.disenableStatus || c.blackList);
@@ -353,25 +355,25 @@ const pagination = reactive({ pageNumber: 1, pageSize: 20 });
 
 const customerTableColumns = computed<CrmTableColumnDef[]>(() => {
   const cols: CrmTableColumnDef[] = [
-    { key: 'customerCode', label: '客户编号', prop: 'customerCode', width: 160, minWidth: 160, showOverflowTooltip: true },
-    { key: 'status', label: '状态', prop: 'status', width: 160, align: 'center' },
-    { key: 'customerType', label: '类型', width: 80, align: 'center' },
-    { key: 'customerLevel', label: '级别', width: 80, align: 'center' },
-    { key: 'industry', label: '行业', width: 110, showOverflowTooltip: true },
-    { key: 'region', label: '地区', minWidth: 100, showOverflowTooltip: true },
-    { key: 'createdAt', label: '创建日期', width: 160 },
-    { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true }
+    { key: 'customerCode', label: t('customerList.columns.customerCode'), prop: 'customerCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+    { key: 'status', label: t('customerList.columns.status'), prop: 'status', width: 160, align: 'center' },
+    { key: 'customerType', label: t('customerList.columns.type'), width: 80, align: 'center' },
+    { key: 'customerLevel', label: t('customerList.columns.level'), width: 80, align: 'center' },
+    { key: 'industry', label: t('customerList.columns.industry'), width: 110, showOverflowTooltip: true },
+    { key: 'region', label: t('customerList.columns.region'), minWidth: 100, showOverflowTooltip: true },
+    { key: 'createdAt', label: t('customerList.columns.createdAt'), width: 160 },
+    { key: 'createUser', label: t('customerList.columns.createUser'), width: 120, showOverflowTooltip: true }
   ]
   if (canViewCustomerInfo) {
-    cols.splice(2, 0, { key: 'customerName', label: '客户名称', minWidth: 200, showOverflowTooltip: true })
+    cols.splice(2, 0, { key: 'customerName', label: t('customerList.columns.customerName'), minWidth: 200, showOverflowTooltip: true })
     cols.splice(6, 0,
-      { key: 'contactName', label: '联系人', width: 130, showOverflowTooltip: true },
-      { key: 'mobilePhone', label: '联系电话', width: 130, showOverflowTooltip: true }
+      { key: 'contactName', label: t('customerList.columns.contactName'), width: 130, showOverflowTooltip: true },
+      { key: 'mobilePhone', label: t('customerList.columns.mobilePhone'), width: 130, showOverflowTooltip: true }
     )
   }
   cols.push({
     key: 'actions',
-    label: '操作',
+    label: t('customerList.actions.column'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -427,8 +429,8 @@ const fetchCustomerList = async () => {
     // 仅在真实网络/服务器错误时提示，空数据不报错
     const isEmptyResult = !error?.response || error?.response?.status === 404;
     if (!isEmptyResult) {
-      console.error('获取客户列表失败', error);
-      ElNotification.error({ title: '加载失败', message: '获取客户列表失败，请检查网络或后端服务' });
+      console.error(t('customerList.errors.fetchFailed'), error);
+      ElNotification.error({ title: t('customerList.errors.loadTitle'), message: t('customerList.errors.fetchFailed') });
     } else {
       customerList.value = [];
       totalCount.value = 0;
@@ -530,12 +532,12 @@ const handleEdit = (row: Customer) => router.push(`/customers/${row.id}/edit`);
 const getStatusText = (status: number | undefined) => {
   const s = Number(status ?? 0);
   const map: Record<number, string> = {
-    1: '新建',
-    2: '待审核',
-    10: '已审核',
-    12: '待财务审核',
-    20: '财务建档',
-    [-1]: '审核失败'
+    1: t('customerList.status.new'),
+    2: t('customerList.status.pending'),
+    10: t('customerList.status.approved'),
+    12: t('customerList.status.pendingFinance'),
+    20: t('customerList.status.financeFiled'),
+    [-1]: t('customerList.status.failed')
   };
   return map[s] ?? String(status ?? '');
 };
@@ -550,21 +552,21 @@ const getStatusDotClass = (status: number | undefined) => {
 
 const handleSubmitAudit = async (row: Customer) => {
   if (!canSubmitAudit) {
-    ElNotification.warning({ title: '无权限', message: '没有权限提交审核' });
+    ElNotification.warning({ title: t('customerList.audit.noPermissionTitle'), message: t('customerList.audit.noPermissionMessage') });
     return;
   }
   await ElMessageBox.confirm(
-    '确定提交审核？提交后将进入“待审批”列表，由上级角色审批。',
-    '提交审核',
-    { type: 'warning', confirmButtonText: '提交', cancelButtonText: '取消' }
+    t('customerList.audit.confirmMessage'),
+    t('customerList.audit.confirmTitle'),
+    { type: 'warning', confirmButtonText: t('customerList.audit.confirmButton'), cancelButtonText: t('common.cancel') }
   );
   try {
     loading.value = true;
     await customerApi.submitAudit(row.id);
-    ElNotification.success({ title: '成功', message: '已提交审核' });
+    ElNotification.success({ title: t('customerList.audit.successTitle'), message: t('customerList.audit.successMessage') });
     await fetchCustomerList();
   } catch (error: any) {
-    ElNotification.error({ title: '提交失败', message: error?.message || '提交审核失败，请稍后重试' });
+    ElNotification.error({ title: t('customerList.audit.failedTitle'), message: error?.message || t('customerList.audit.failedMessage') });
   } finally {
     loading.value = false;
   }
@@ -573,12 +575,16 @@ const handleSubmitAudit = async (row: Customer) => {
 const handleSizeChange = (size: number) => { pagination.pageSize = size; fetchCustomerList(); };
 const handlePageChange = (page: number) => { pagination.pageNumber = page; fetchCustomerList(); };
 
-const getLevelLabel = (level: string) => ({ VIP: 'VIP', VPO: 'VPO', BPO: 'BPO', B: 'B级', C: 'C级', D: 'D级', Important: '重要', Normal: '普通', Lead: '潜在' }[level] || level || '--');
-const getTypeLabel = (type: number) => ({ 1: 'OEM', 2: 'ODM', 3: '终端用户', 4: 'IDH', 5: '贸易商', 6: '代理商' }[type] || '未知');
+const getLevelLabel = (level: string) => ({
+  VIP: 'VIP', VPO: 'VPO', BPO: 'BPO',
+  B: t('customerList.level.B'), C: t('customerList.level.C'), D: t('customerList.level.D'),
+  Important: t('customerList.level.Important'), Normal: t('customerList.level.Normal'), Lead: t('customerList.level.Lead')
+}[level] || level || '--');
+const getTypeLabel = (type: number) => ({ 1: 'OEM', 2: 'ODM', 3: t('customerList.type.endUser'), 4: 'IDH', 5: t('customerList.type.trader'), 6: t('customerList.type.agency') }[type] || t('customerList.status.unknown'));
 const getIndustryLabel = (industry: string) => ({
-  Manufacturing: '制造业', Trading: '贸易/零售', Technology: '科技/IT',
-  Construction: '建筑/工程', Healthcare: '医疗/健康', Education: '教育',
-  Finance: '金融', Other: '其他'
+  Manufacturing: t('customerList.industry.Manufacturing'), Trading: t('customerList.industry.Trading'), Technology: t('customerList.industry.Technology'),
+  Construction: t('customerList.industry.Construction'), Healthcare: t('customerList.industry.Healthcare'), Education: t('customerList.industry.Education'),
+  Finance: t('customerList.industry.Finance'), Other: t('customerList.industry.Other')
 }[industry] || industry || '--');
 
 const parseDateMs = (v?: string) => {

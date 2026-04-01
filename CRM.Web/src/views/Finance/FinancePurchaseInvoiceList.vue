@@ -3,19 +3,19 @@
     <!-- 统计卡片（置顶） -->
     <div class="stat-cards">
       <div class="stat-card">
-        <div class="stat-label">发票总金额</div>
+        <div class="stat-label">{{ t('financePurchaseInvoiceList.stats.totalAmount') }}</div>
         <div class="stat-value">¥ {{ formatAmount(stats.totalAmount) }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">已付款金额</div>
+        <div class="stat-label">{{ t('financePurchaseInvoiceList.stats.paidAmount') }}</div>
         <div class="stat-value success">¥ {{ formatAmount(stats.paidAmount) }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">待付款金额</div>
+        <div class="stat-label">{{ t('financePurchaseInvoiceList.stats.toPayAmount') }}</div>
         <div class="stat-value warning">¥ {{ formatAmount(stats.toPayAmount) }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">已开票数量</div>
+        <div class="stat-label">{{ t('financePurchaseInvoiceList.stats.invoicedCount') }}</div>
         <div class="stat-value">{{ stats.invoicedCount }}</div>
       </div>
     </div>
@@ -25,7 +25,7 @@
       <div class="search-left">
         <el-input
           v-model="query.keyword"
-          placeholder="搜索发票单号/供应商/发票号"
+          :placeholder="t('financePurchaseInvoiceList.filters.keyword')"
           clearable
           class="search-input"
           style="width:240px"
@@ -34,28 +34,28 @@
         >
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-select v-model="query.status" placeholder="开票状态" clearable class="filter-select" style="width:130px" @change="loadData">
-          <el-option v-for="(v, k) in INVOICE_STATUS_MAP" :key="k" :label="v.label" :value="Number(k)" />
+        <el-select v-model="query.status" :placeholder="t('financePurchaseInvoiceList.filters.invoiceStatus')" clearable class="filter-select" style="width:130px" @change="loadData">
+          <el-option v-for="k in invoiceStatusSelectKeys" :key="k" :label="invoiceStatusLabel(k)" :value="k" />
         </el-select>
-        <el-select v-model="filterPayStatus" placeholder="付款状态" clearable class="filter-select" style="width:120px" @change="loadData">
-          <el-option v-for="(v, k) in PAYMENT_DONE_STATUS_MAP" :key="k" :label="v.label" :value="Number(k)" />
+        <el-select v-model="filterPayStatus" :placeholder="t('financePurchaseInvoiceList.filters.payStatus')" clearable class="filter-select" style="width:120px" @change="loadData">
+          <el-option v-for="k in paymentDoneSelectKeys" :key="k" :label="paymentDoneStatusLabel(k)" :value="k" />
         </el-select>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
-          range-separator="至"
-          start-placeholder="开票开始"
-          end-placeholder="开票结束"
+          :range-separator="t('financePurchaseInvoiceList.filters.to')"
+          :start-placeholder="t('financePurchaseInvoiceList.filters.start')"
+          :end-placeholder="t('financePurchaseInvoiceList.filters.end')"
           format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
           class="date-picker"
           @change="loadData"
         />
-        <el-button type="primary" @click="loadData"><el-icon><Search /></el-icon> 查询</el-button>
+        <el-button type="primary" @click="loadData"><el-icon><Search /></el-icon> {{ t('financePurchaseInvoiceList.filters.search') }}</el-button>
       </div>
       <div class="search-right">
         <el-button type="primary" @click="openCreate">
-          <el-icon><Plus /></el-icon> 新建进项发票
+          <el-icon><Plus /></el-icon> {{ t('financePurchaseInvoiceList.create') }}
         </el-button>
       </div>
     </div>
@@ -75,8 +75,8 @@
         <span class="code-text">{{ row.financePurchaseInvoiceCode }}</span>
       </template>
       <template #col-invoiceStatus="{ row }">
-        <el-tag effect="dark" :type="INVOICE_STATUS_MAP[row.invoiceStatus]?.type as any" size="small">
-          {{ INVOICE_STATUS_MAP[row.invoiceStatus]?.label }}
+        <el-tag effect="dark" :type="invoiceStatusTag(row.invoiceStatus) as any" size="small">
+          {{ invoiceStatusLabel(row.invoiceStatus) }}
         </el-tag>
       </template>
       <template #col-invoiceNo="{ row }">{{ row.invoiceNo || '-' }}</template>
@@ -87,17 +87,17 @@
         <span class="amount-text">¥ {{ formatAmount(row.paymentDone) }}</span>
       </template>
       <template #col-paymentStatus="{ row }">
-        <el-tag effect="dark" :type="PAYMENT_DONE_STATUS_MAP[row.paymentStatus]?.type as any" size="small">
-          {{ PAYMENT_DONE_STATUS_MAP[row.paymentStatus]?.label }}
+        <el-tag effect="dark" :type="paymentDoneStatusTag(row.paymentStatus) as any" size="small">
+          {{ paymentDoneStatusLabel(row.paymentStatus) }}
         </el-tag>
       </template>
-      <template #col-purchaseInvoiceType="{ row }">{{ PURCHASE_INVOICE_TYPE_MAP[row.purchaseInvoiceType] }}</template>
+      <template #col-purchaseInvoiceType="{ row }">{{ purchaseInvoiceTypeLabel(row.purchaseInvoiceType) }}</template>
       <template #col-makeInvoiceDate="{ row }">{{ row.makeInvoiceDate ? formatDisplayDate(row.makeInvoiceDate) : '-' }}</template>
       <template #col-createTime="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
       <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '-' }}</template>
       <template #col-actions-header>
         <div class="op-col-header">
-          <span class="op-col-header-text">操作</span>
+          <span class="op-col-header-text">{{ t('financePurchaseInvoiceList.columns.actions') }}</span>
           <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
             {{ opColExpanded ? '>' : '<' }}
           </button>
@@ -107,7 +107,7 @@
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
-            <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
+            <el-button size="small" text type="primary" @click.stop="openDetail(row)">{{ t('financePurchaseInvoiceList.actions.detail') }}</el-button>
             <el-button
               size="small"
               text
@@ -115,7 +115,7 @@
               @click.stop="openEdit(row)"
               v-if="row.invoiceStatus === 1"
             >
-              编辑
+              {{ t('financePurchaseInvoiceList.actions.edit') }}
             </el-button>
             <el-button
               size="small"
@@ -124,7 +124,7 @@
               @click.stop="voidInvoice(row)"
               v-if="row.invoiceStatus === 100"
             >
-              作废
+              {{ t('financePurchaseInvoiceList.actions.void') }}
             </el-button>
           </div>
 
@@ -135,13 +135,13 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click.stop="openDetail(row)">
-                  <span class="op-more-item op-more-item--primary">详情</span>
+                  <span class="op-more-item op-more-item--primary">{{ t('financePurchaseInvoiceList.actions.detail') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="row.invoiceStatus === 1" @click.stop="openEdit(row)">
-                  <span class="op-more-item op-more-item--primary">编辑</span>
+                  <span class="op-more-item op-more-item--primary">{{ t('financePurchaseInvoiceList.actions.edit') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="row.invoiceStatus === 100" @click.stop="voidInvoice(row)">
-                  <span class="op-more-item op-more-item--danger">作废</span>
+                  <span class="op-more-item op-more-item--danger">{{ t('financePurchaseInvoiceList.actions.void') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -151,8 +151,8 @@
     </CrmDataTable>
       <div class="pagination-wrap">
         <div class="list-footer-left">
-          <el-tooltip content="列设置" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+          <el-tooltip :content="t('financePurchaseInvoiceList.columnSettings')" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" :aria-label="t('financePurchaseInvoiceList.columnSettings')" @click="dataTableRef?.openColumnSettings?.()">
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
@@ -172,7 +172,7 @@
     <!-- 新建/编辑弹窗 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="editingId ? '编辑进项发票' : '新建进项发票'"
+      :title="editingId ? t('financePurchaseInvoiceList.dialogEdit') : t('financePurchaseInvoiceList.dialogCreate')"
       width="720px"
       class="crm-dialog"
       destroy-on-close
@@ -180,41 +180,41 @@
       <el-form :model="form" label-width="100px" class="crm-form">
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="供应商" required>
-              <el-input v-model="form.vendorName" placeholder="请输入供应商名称" />
+            <el-form-item :label="t('financePurchaseInvoiceList.formVendor')" required>
+              <el-input v-model="form.vendorName" :placeholder="t('financePurchaseInvoiceList.formVendorPh')" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="发票号码">
-              <el-input v-model="form.invoiceNo" placeholder="请输入纸质发票号码" />
+            <el-form-item :label="t('financePurchaseInvoiceList.formInvoiceNo')">
+              <el-input v-model="form.invoiceNo" :placeholder="t('financePurchaseInvoiceList.formInvoiceNoPh')" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="发票金额" required>
+            <el-form-item :label="t('financePurchaseInvoiceList.formAmount')" required>
               <el-input-number v-model="form.invoiceTotal" :precision="2" :min="0" style="width:100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="开票日期">
+            <el-form-item :label="t('financePurchaseInvoiceList.formMakeDate')">
               <el-date-picker v-model="form.makeInvoiceDate" type="date" value-format="YYYY-MM-DD" style="width:100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="发票类型">
+            <el-form-item :label="t('financePurchaseInvoiceList.formInvoiceType')">
               <el-select v-model="form.purchaseInvoiceType" style="width:100%">
-                <el-option v-for="(v, k) in PURCHASE_INVOICE_TYPE_MAP" :key="k" :label="v" :value="Number(k)" />
+                <el-option v-for="k in purchaseInvoiceTypeKeys" :key="k" :label="purchaseInvoiceTypeLabel(k)" :value="k" />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="蓝/红字">
+            <el-form-item :label="t('financePurchaseInvoiceList.formBlueRed')">
               <el-select v-model="form.type" style="width:100%">
-                <el-option v-for="(v, k) in INVOICE_TYPE_MAP" :key="k" :label="v" :value="Number(k)" />
+                <el-option v-for="k in invoiceTypeKeys" :key="k" :label="invoiceTypeLabel(k)" :value="k" />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="币别">
+            <el-form-item :label="t('financePurchaseInvoiceList.formCurrency')">
               <el-select v-model="form.currency" style="width:100%">
                 <el-option
                   v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
@@ -226,15 +226,15 @@
             </el-form-item>
           </el-col>
           <el-col :span="24">
-            <el-form-item label="备注">
-              <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注" />
+            <el-form-item :label="t('financePurchaseInvoiceList.formRemark')">
+              <el-input v-model="form.remark" type="textarea" :rows="2" :placeholder="t('financePurchaseInvoiceList.formRemarkPh')" />
             </el-form-item>
           </el-col>
         </el-row>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveForm" :loading="saving">保存</el-button>
+        <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="saveForm" :loading="saving">{{ t('financePurchaseInvoiceList.btnSave') }}</el-button>
       </template>
     </el-dialog>
 
@@ -244,6 +244,8 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
 import { Search, Plus, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -260,6 +262,20 @@ import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTim
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
+const { t } = useI18n()
+const {
+  invoiceStatusLabel,
+  invoiceStatusTag,
+  paymentDoneStatusLabel,
+  paymentDoneStatusTag,
+  purchaseInvoiceTypeLabel,
+  invoiceTypeLabel,
+} = useFinanceEnumLabels()
+
+const invoiceStatusSelectKeys = Object.keys(INVOICE_STATUS_MAP).map(k => Number(k))
+const paymentDoneSelectKeys = Object.keys(PAYMENT_DONE_STATUS_MAP).map(k => Number(k))
+const purchaseInvoiceTypeKeys = Object.keys(PURCHASE_INVOICE_TYPE_MAP).map(k => Number(k))
+const invoiceTypeKeys = Object.keys(INVOICE_TYPE_MAP).map(k => Number(k))
 
 const query = reactive<PageQuery & { page: number; pageSize: number }>({
   page: 1, pageSize: 20, keyword: '', status: undefined,
@@ -283,20 +299,20 @@ function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 const purchaseInvoiceTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'financePurchaseInvoiceCode', label: '发票单号', prop: 'financePurchaseInvoiceCode', width: 160, minWidth: 160, fixed: 'left' },
-  { key: 'invoiceStatus', label: '开票状态', prop: 'invoiceStatus', width: 100, align: 'center' },
-  { key: 'vendorName', label: '供应商', prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
-  { key: 'invoiceNo', label: '发票号码', prop: 'invoiceNo', width: 140, showOverflowTooltip: true },
-  { key: 'invoiceTotal', label: '发票金额', prop: 'invoiceTotal', width: 130, align: 'right' },
-  { key: 'paymentDone', label: '已付金额', prop: 'paymentDone', width: 130, align: 'right' },
-  { key: 'paymentStatus', label: '付款状态', prop: 'paymentStatus', width: 110, align: 'center' },
-  { key: 'purchaseInvoiceType', label: '发票类型', prop: 'purchaseInvoiceType', width: 140 },
-  { key: 'makeInvoiceDate', label: '开票日期', prop: 'makeInvoiceDate', width: 120 },
-  { key: 'createTime', label: '创建时间', width: 120 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  { key: 'financePurchaseInvoiceCode', label: t('financePurchaseInvoiceList.columns.code'), prop: 'financePurchaseInvoiceCode', width: 160, minWidth: 160, fixed: 'left' },
+  { key: 'invoiceStatus', label: t('financePurchaseInvoiceList.columns.invoiceStatus'), prop: 'invoiceStatus', width: 100, align: 'center' },
+  { key: 'vendorName', label: t('financePurchaseInvoiceList.columns.vendor'), prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'invoiceNo', label: t('financePurchaseInvoiceList.columns.invoiceNo'), prop: 'invoiceNo', width: 140, showOverflowTooltip: true },
+  { key: 'invoiceTotal', label: t('financePurchaseInvoiceList.columns.amount'), prop: 'invoiceTotal', width: 130, align: 'right' },
+  { key: 'paymentDone', label: t('financePurchaseInvoiceList.columns.paid'), prop: 'paymentDone', width: 130, align: 'right' },
+  { key: 'paymentStatus', label: t('financePurchaseInvoiceList.columns.payStatus'), prop: 'paymentStatus', width: 110, align: 'center' },
+  { key: 'purchaseInvoiceType', label: t('financePurchaseInvoiceList.columns.invoiceType'), prop: 'purchaseInvoiceType', width: 140 },
+  { key: 'makeInvoiceDate', label: t('financePurchaseInvoiceList.columns.makeDate'), prop: 'makeInvoiceDate', width: 120 },
+  { key: 'createTime', label: t('financePurchaseInvoiceList.columns.createdAt'), width: 120 },
+  { key: 'createUser', label: t('financePurchaseInvoiceList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('financePurchaseInvoiceList.columns.actions'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -370,11 +386,11 @@ const saveForm = async () => {
     } else {
       await financePurchaseInvoiceApi.create(form)
     }
-    ElMessage.success('保存成功')
+    ElMessage.success(t('financePurchaseInvoiceList.messages.saveOk'))
     dialogVisible.value = false
     loadData()
   } catch {
-    ElMessage.success('保存成功（演示模式）')
+    ElMessage.success(t('financePurchaseInvoiceList.messages.saveOkDemo'))
     dialogVisible.value = false
   } finally {
     saving.value = false
@@ -386,9 +402,13 @@ const openDetail = (row: FinancePurchaseInvoice) => {
 }
 
 const voidInvoice = async (row: FinancePurchaseInvoice) => {
-  await ElMessageBox.confirm(`确认冲红发票 ${row.financePurchaseInvoiceCode}？`, '冲红确认', { type: 'warning' })
+  await ElMessageBox.confirm(
+    t('financePurchaseInvoiceList.messages.voidMsg', { code: row.financePurchaseInvoiceCode }),
+    t('financePurchaseInvoiceList.messages.voidTitle'),
+    { type: 'warning' }
+  )
   await financePurchaseInvoiceApi.redInvoice(row.id)
-  ElMessage.success('发票已冲红')
+  ElMessage.success(t('financePurchaseInvoiceList.messages.voided'))
   await loadData()
 }
 

@@ -2,34 +2,34 @@
   <div class="inventory-trace-page">
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">物料入库追溯</h1>
-        <div class="sub-title">物料ID：{{ materialId || '--' }}</div>
+        <h1 class="page-title">{{ t('inventoryTrace.title') }}</h1>
+        <div class="sub-title">{{ t('inventoryTrace.materialId') }}: {{ materialId || t('quoteList.na') }}</div>
       </div>
       <div class="header-right">
-        <button class="btn-secondary" @click="goBack">返回库存中心</button>
-        <button class="btn-primary" @click="loadTrace">刷新</button>
+        <button class="btn-secondary" @click="goBack">{{ t('inventoryTrace.back') }}</button>
+        <button class="btn-primary" @click="loadTrace">{{ t('inventoryTrace.refresh') }}</button>
       </div>
     </div>
 
     <CrmDataTable :data="traceList" v-loading="loading">
-      <el-table-column prop="stockInTime" label="入库时间" width="170">
+      <el-table-column prop="stockInTime" :label="t('inventoryTrace.columns.stockInTime')" width="170">
         <template #default="{ row }">{{ formatTime(row.stockInTime) }}</template>
       </el-table-column>
-      <el-table-column prop="stockInCode" label="入库单号" width="160" />
-      <el-table-column prop="quantity" label="数量" width="100" align="right" />
-      <el-table-column prop="unitPrice" label="单价" width="110" align="right">
+      <el-table-column prop="stockInCode" :label="t('inventoryTrace.columns.stockInCode')" width="160" />
+      <el-table-column prop="quantity" :label="t('inventoryTrace.columns.quantity')" width="100" align="right" />
+      <el-table-column prop="unitPrice" :label="t('inventoryTrace.columns.unitPrice')" width="110" align="right">
         <template #default="{ row }">{{ formatUnitPriceNumber(row.unitPrice) }}</template>
       </el-table-column>
-      <el-table-column prop="purchaseOrderCode" label="采购单号" width="150" />
-      <el-table-column prop="purchaseUserName" label="采购员" width="130" />
-      <el-table-column prop="qcCode" label="质检单号" width="150" />
-      <el-table-column prop="qcStatus" label="质检状态" width="110">
+      <el-table-column prop="purchaseOrderCode" :label="t('inventoryTrace.columns.purchaseOrderCode')" width="150" />
+      <el-table-column prop="purchaseUserName" :label="t('inventoryTrace.columns.purchaser')" width="130" />
+      <el-table-column prop="qcCode" :label="t('inventoryTrace.columns.qcCode')" width="150" />
+      <el-table-column prop="qcStatus" :label="t('inventoryTrace.columns.qcStatus')" width="110">
         <template #default="{ row }">{{ qcText(row.qcStatus) }}</template>
       </el-table-column>
-      <el-table-column label="仓库" min-width="140" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.warehouseName || row.warehouseId || '--' }}</template>
+      <el-table-column :label="t('inventoryTrace.columns.warehouse')" min-width="140" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.warehouseName || row.warehouseId || t('quoteList.na') }}</template>
       </el-table-column>
-      <el-table-column prop="locationId" label="库位" min-width="130" />
+      <el-table-column prop="locationId" :label="t('inventoryTrace.columns.location')" min-width="130" />
     </CrmDataTable>
   </div>
 </template>
@@ -37,6 +37,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { inventoryCenterApi, type MaterialTrace } from '@/api/inventoryCenter'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -45,13 +46,18 @@ import { formatUnitPriceNumber } from '@/utils/moneyFormat'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const loading = ref(false)
 const traceList = ref<MaterialTrace[]>([])
 
 const materialId = computed(() => String(route.params.materialId || '').trim())
 
 const formatTime = (v?: string) => formatDisplayDateTime(v)
-const qcText = (s?: number) => ({ [-1]: '未通过', 10: '部分通过', 100: '通过' }[s ?? 0] || '--')
+const qcText = (s?: number) => ({
+  [-1]: t('inventoryTrace.qc.failed'),
+  10: t('inventoryTrace.qc.partial'),
+  100: t('inventoryTrace.qc.passed')
+}[s ?? 0] || t('quoteList.na'))
 
 const loadTrace = async () => {
   if (!materialId.value) {
@@ -63,7 +69,7 @@ const loadTrace = async () => {
     traceList.value = await inventoryCenterApi.getMaterialTrace(materialId.value)
   } catch (e) {
     console.error(e)
-    ElMessage.error(getApiErrorMessage(e, '加载入库追溯失败'))
+    ElMessage.error(getApiErrorMessage(e, t('inventoryTrace.loadFailed')))
     traceList.value = []
   } finally {
     loading.value = false

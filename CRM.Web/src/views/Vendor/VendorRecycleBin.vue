@@ -8,13 +8,13 @@
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
           </svg>
         </div>
-        <h1 class="page-title">供应商回收站</h1>
-        <div class="count-badge">共 {{ totalCount }} 条已删除记录</div>
+        <h1 class="page-title">{{ t('vendorRecycle.title') }}</h1>
+        <div class="count-badge">{{ t('vendorRecycle.count', { count: totalCount }) }}</div>
       </div>
       <div class="header-right">
         <el-input
           v-model="keyword"
-          placeholder="搜索供应商名称/编号"
+          :placeholder="t('vendorRecycle.searchPlaceholder')"
           clearable
           style="width:220px"
           @keyup.enter="fetchData"
@@ -35,7 +35,7 @@
           <polyline points="3 6 5 6 21 6" />
           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
         </svg>
-        <p>回收站为空</p>
+        <p>{{ t('vendorRecycle.empty') }}</p>
       </div>
 
       <div v-for="item in items" :key="item.id" class="record-card">
@@ -45,18 +45,18 @@
           <div class="record-meta">
             <span class="meta-code">{{ item.code }}</span>
             <span class="meta-sep">·</span>
-            <span class="meta-text">删除时间：{{ formatDateTime(item.deleteTime || item.modifyTime) }}</span>
+            <span class="meta-text">{{ t('vendorRecycle.deletedAt') }}{{ formatDateTime(item.deleteTime || item.modifyTime) }}</span>
           </div>
           <div v-if="item.deleteReason || item.companyInfo" class="record-reason">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
-            删除理由：{{ item.deleteReason || item.companyInfo }}
+            {{ t('vendorRecycle.reason') }}{{ item.deleteReason || item.companyInfo }}
           </div>
         </div>
         <div class="record-actions">
           <el-button type="primary" size="small" :loading="restoringId === item.id" @click="handleRestore(item)">
-            恢复供应商
+            {{ t('vendorRecycle.restore') }}
           </el-button>
         </div>
       </div>
@@ -78,11 +78,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { ElNotification, ElMessageBox } from 'element-plus';
+import { useI18n } from 'vue-i18n'
 import { vendorApi } from '@/api/vendor';
 import type { Vendor } from '@/types/vendor';
 import { formatDisplayDateTime } from '@/utils/displayDateTime';
 
 const loading = ref(false);
+const { t } = useI18n()
 const items = ref<Vendor[]>([]);
 const totalCount = ref(0);
 const pageIndex = ref(1);
@@ -97,7 +99,7 @@ const fetchData = async () => {
     items.value = res?.items ?? (Array.isArray(res) ? res : []);
     totalCount.value = res?.totalCount ?? items.value.length;
   } catch {
-    ElNotification.error({ title: '加载失败', message: '获取供应商回收站数据失败，请刷新重试' });
+    ElNotification.error({ title: t('vendorRecycle.loadFailedTitle'), message: t('vendorRecycle.loadFailedMessage') });
   } finally {
     loading.value = false;
   }
@@ -105,13 +107,17 @@ const fetchData = async () => {
 
 const handleRestore = async (item: Vendor) => {
   try {
-    await ElMessageBox.confirm(`确定要恢复供应商「${item.officialName || item.code}」吗？`, '确认恢复', { type: 'info' });
+    await ElMessageBox.confirm(
+      t('vendorRecycle.restoreConfirm', { name: item.officialName || item.code }),
+      t('vendorRecycle.restoreTitle'),
+      { type: 'info' }
+    );
     restoringId.value = item.id;
     await vendorApi.restoreVendor(item.id);
-    ElNotification.success({ title: '恢复成功', message: '供应商已恢复到供应商列表' });
+    ElNotification.success({ title: t('vendorRecycle.restoreSuccessTitle'), message: t('vendorRecycle.restoreSuccessMessage') });
     fetchData();
   } catch (e) {
-    if (e !== 'cancel') ElNotification.error({ title: '恢复失败', message: '供应商恢复失败，请稍后重试' });
+    if (e !== 'cancel') ElNotification.error({ title: t('vendorRecycle.restoreFailedTitle'), message: t('vendorRecycle.restoreFailedMessage') });
   } finally {
     restoringId.value = null;
   }

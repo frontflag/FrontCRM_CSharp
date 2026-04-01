@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { vendorApi } from '@/api/vendor'
 import type { Vendor } from '@/types/vendor'
 import type { LogRecentItem } from '@/api/logRecent'
@@ -15,10 +16,11 @@ const props = withDefaults(
     title?: string
     take?: number
   }>(),
-  { title: '最近打开的供应商', take: 20 }
+  { title: '', take: 20 }
 )
 
 const router = useRouter()
+const { t } = useI18n()
 const authStore = useAuthStore()
 const canViewVendorInfo = authStore.hasPermission('vendor.info.read')
 
@@ -74,17 +76,17 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="vendor-recent-panel" v-loading="loading || rowLoading">
-    <div class="vendor-recent-panel__head">{{ title }}</div>
+    <div class="vendor-recent-panel__head">{{ title || t('leftPanel.vendorRecentTitle') }}</div>
     <div v-if="!loading && !rowLoading && items.length === 0" class="vendor-recent-panel__empty">
-      暂无最近打开的详情或编辑记录
+      {{ t('leftPanel.vendorRecentEmpty') }}
     </div>
     <table v-else class="vendor-recent-panel__table">
       <thead>
         <tr>
-          <th>供应商名称</th>
-          <th>编号</th>
-          <th>行业</th>
-          <th>信用</th>
+          <th>{{ t('vendorList.columns.name') }}</th>
+          <th>{{ t('vendorList.columns.code') }}</th>
+          <th>{{ t('vendorList.columns.industry') }}</th>
+          <th>{{ t('leftPanel.credit') }}</th>
         </tr>
       </thead>
       <tbody>

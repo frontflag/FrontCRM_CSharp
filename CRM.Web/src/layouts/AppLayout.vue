@@ -13,14 +13,23 @@
           </span>
           <span class="global-logo-stack">
             <span class="global-logo-title">FrontCRM</span>
-            <span class="global-logo-sub">AI智销系统</span>
+            <span class="global-logo-sub">{{ t('layout.brandSub') }}</span>
           </span>
         </router-link>
         <div class="global-top-right">
           <button
             type="button"
+            class="global-lang-btn"
+            :title="currentLocale === 'zh-CN' ? 'Switch to English' : '切换为中文'"
+            :aria-label="currentLocale === 'zh-CN' ? 'Switch to English' : '切换为中文'"
+            @click="toggleLocale"
+          >
+            {{ currentLocale === 'zh-CN' ? 'EN' : 'CN' }}
+          </button>
+          <button
+            type="button"
             class="global-theme-btn"
-            :title="isDark ? '切换为浅色主题' : '切换为深色主题'"
+            :title="isDark ? t('layout.switchToLight') : t('layout.switchToDark')"
             @click="toggleTheme"
           >
             <span class="global-theme-icon-wrap" aria-hidden="true">
@@ -33,8 +42,8 @@
           <button
             type="button"
             class="global-notify-btn"
-            title="消息通知"
-            @click="handleUnimplemented('消息通知')"
+            :title="t('layout.notifications')"
+            @click="handleUnimplemented(t('layout.notifications'))"
           >
             <span class="global-notify-icon-wrap" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -67,7 +76,7 @@
                     <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
                     <circle cx="12" cy="7" r="4"/>
                   </svg>
-                  个人设置
+                  {{ t('layout.profile') }}
                 </router-link>
                 <div class="dropdown-divider"></div>
                 <button class="dropdown-item danger" @click="handleLogout">
@@ -76,7 +85,7 @@
                     <polyline points="16 17 21 12 16 7"/>
                     <line x1="21" y1="12" x2="9" y2="12"/>
                   </svg>
-                  退出系统
+                  {{ t('layout.logout') }}
                 </button>
               </div>
             </transition>
@@ -95,10 +104,10 @@
       <!-- 菜单区域 -->
       <nav class="sidebar-nav">
         <!-- 主菜单标签 -->
-        <div class="menu-section-label" v-if="!isCollapsed">主菜单</div>
+        <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.mainMenu') }}</div>
 
         <!-- 控制台：展开时不包 el-tooltip，避免触发器层把菜单项挤成纵向 -->
-        <SidebarMenuTooltipWrap :collapsed="isCollapsed" tooltip="控制台">
+        <SidebarMenuTooltipWrap :collapsed="isCollapsed" :tooltip="t('layout.menu.dashboard')">
           <router-link to="/dashboard" class="menu-item" active-class="active" exact>
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -108,17 +117,17 @@
                 <rect x="14" y="14" width="7" height="7" rx="1"/>
               </svg>
             </span>
-            <span class="menu-label" v-if="!isCollapsed">控制台</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.dashboard') }}</span>
             <span class="active-dot" v-if="!isCollapsed"></span>
           </router-link>
         </SidebarMenuTooltipWrap>
 
         <!-- 待办 -->
-        <div class="menu-section-label" v-if="!isCollapsed">待办</div>
+        <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.todo') }}</div>
         <SidebarMenuTooltipWrap
           v-if="hasAnyApprovalPermission"
           :collapsed="isCollapsed"
-          tooltip="待审批"
+          :tooltip="t('layout.menu.pendingApprovals')"
         >
           <router-link
             to="/pending-approvals"
@@ -132,7 +141,7 @@
                 <circle cx="12" cy="12" r="9" />
               </svg>
             </span>
-            <span class="menu-label" v-if="!isCollapsed">待审批</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.pendingApprovals') }}</span>
             <span class="active-dot" v-if="!isCollapsed"></span>
           </router-link>
         </SidebarMenuTooltipWrap>
@@ -140,7 +149,7 @@
         <SidebarMenuTooltipWrap
           v-if="hasPermission('draft.read')"
           :collapsed="isCollapsed"
-          tooltip="草稿箱"
+          :tooltip="t('layout.menu.drafts')"
         >
           <router-link
             to="/drafts"
@@ -153,13 +162,13 @@
                 <path d="M8 8h8M8 12h8M8 16h5"/>
               </svg>
             </span>
-            <span class="menu-label" v-if="!isCollapsed">草稿箱</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.drafts') }}</span>
             <span class="active-dot" v-if="!isCollapsed"></span>
           </router-link>
         </SidebarMenuTooltipWrap>
 
         <!-- 基础资料 -->
-        <div class="menu-section-label" v-if="!isCollapsed">基础资料</div>
+        <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.masterData') }}</div>
 
         <SidebarMenuGroupFlyout
           v-if="showCustomerMenuSection && hasPermission('customer.read')"
@@ -176,7 +185,7 @@
             </span>
           </template>
           <template #label>
-            <span class="menu-label" v-if="!isCollapsed">客户管理</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.customerManagement') }}</span>
           </template>
           <template #chevron>
             <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.customers }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -184,10 +193,10 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/custome" class="submenu-item" active-class="active" exact>客户</router-link>
-            <router-link to="/customers/frozen" class="submenu-item" active-class="active">冻结管理</router-link>
-            <router-link to="/customers/blacklist" class="submenu-item" active-class="active">黑名单管理</router-link>
-            <router-link to="/customers/recycle-bin" class="submenu-item" active-class="active">回收站</router-link>
+            <router-link to="/custome" class="submenu-item" active-class="active" exact>{{ t('layout.menu.customers') }}</router-link>
+            <router-link to="/customers/frozen" class="submenu-item" active-class="active">{{ t('layout.menu.freezeManagement') }}</router-link>
+            <router-link to="/customers/blacklist" class="submenu-item" active-class="active">{{ t('layout.menu.blacklistManagement') }}</router-link>
+            <router-link to="/customers/recycle-bin" class="submenu-item" active-class="active">{{ t('layout.menu.recycleBin') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -208,7 +217,7 @@
             </span>
           </template>
           <template #label>
-            <span class="menu-label" v-if="!isCollapsed">供应商管理</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.vendorManagement') }}</span>
           </template>
           <template #chevron>
             <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.vendors }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -216,15 +225,15 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/vendor" class="submenu-item" active-class="active" exact>供应商</router-link>
-            <router-link to="/vendors/frozen" class="submenu-item" active-class="active">冻结管理</router-link>
-            <router-link to="/vendors/blacklist" class="submenu-item" active-class="active">黑名单管理</router-link>
-            <router-link to="/vendors/recycle-bin" class="submenu-item" active-class="active">回收站</router-link>
+            <router-link to="/vendor" class="submenu-item" active-class="active" exact>{{ t('layout.menu.vendors') }}</router-link>
+            <router-link to="/vendors/frozen" class="submenu-item" active-class="active">{{ t('layout.menu.freezeManagement') }}</router-link>
+            <router-link to="/vendors/blacklist" class="submenu-item" active-class="active">{{ t('layout.menu.blacklistManagement') }}</router-link>
+            <router-link to="/vendors/recycle-bin" class="submenu-item" active-class="active">{{ t('layout.menu.recycleBin') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
         <!-- 询价 -->
-        <div class="menu-section-label" v-if="!isCollapsed">询价</div>
+        <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.rfq') }}</div>
 
         <SidebarMenuGroupFlyout
           v-if="hasPermission('rfq.read')"
@@ -243,7 +252,7 @@
             </span>
           </template>
           <template #label>
-            <span class="menu-label" v-if="!isCollapsed">需求管理</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.rfqManagement') }}</span>
           </template>
           <template #chevron>
             <svg
@@ -259,12 +268,12 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/rfq" class="submenu-item" active-class="active" exact>需求列表</router-link>
-            <router-link to="/rfq-items" class="submenu-item" active-class="active">需求明细</router-link>
+            <router-link to="/rfq" class="submenu-item" active-class="active" exact>{{ t('layout.menu.rfqList') }}</router-link>
+            <router-link to="/rfq-items" class="submenu-item" active-class="active">{{ t('layout.menu.rfqItems') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
-        <SidebarMenuTooltipWrap :collapsed="isCollapsed" tooltip="BOM 快速报价">
+        <SidebarMenuTooltipWrap :collapsed="isCollapsed" :tooltip="t('layout.menu.bomQuickQuote')">
           <router-link to="/boms" class="menu-item" active-class="active">
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -274,7 +283,7 @@
                 <path d="M13 13h5M13 17h3"/>
               </svg>
             </span>
-            <span class="menu-label" v-if="!isCollapsed">BOM 快速报价</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.bomQuickQuote') }}</span>
             <span class="active-dot" v-if="!isCollapsed"></span>
           </router-link>
         </SidebarMenuTooltipWrap>
@@ -293,7 +302,7 @@
             </span>
           </template>
           <template #label>
-            <span class="menu-label" v-if="!isCollapsed">报价管理</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.quoteManagement') }}</span>
           </template>
           <template #chevron>
             <svg
@@ -309,12 +318,12 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/quotes" class="submenu-item" active-class="active" exact>报价列表</router-link>
+            <router-link to="/quotes" class="submenu-item" active-class="active" exact>{{ t('layout.menu.quoteList') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
         <!-- 订单 -->
-        <div class="menu-section-label" v-if="!isCollapsed">订单</div>
+        <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.orders') }}</div>
 
         <!-- 销售管理：必须具备销售订单读取权限才显示入口 -->
         <SidebarMenuGroupFlyout
@@ -331,7 +340,7 @@
             </span>
           </template>
           <template #label>
-            <span class="menu-label" v-if="!isCollapsed">销售管理</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.salesManagement') }}</span>
           </template>
           <template #chevron>
             <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.sales }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -339,13 +348,13 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/sales-orders" class="submenu-item" active-class="active">销售订单</router-link>
+            <router-link to="/sales-orders" class="submenu-item" active-class="active">{{ t('layout.menu.salesOrders') }}</router-link>
             <router-link
               v-if="hasPermission('sales-order.read')"
               to="/sales-order-items"
               class="submenu-item"
               active-class="active"
-            >销售订单明细</router-link>
+            >{{ t('layout.menu.salesOrderItems') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -366,7 +375,7 @@
             </span>
           </template>
           <template #label>
-            <span class="menu-label" v-if="!isCollapsed">采购管理</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.purchaseManagement') }}</span>
           </template>
           <template #chevron>
             <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.purchase }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -379,24 +388,24 @@
               to="/purchase-requisitions"
               class="submenu-item"
               active-class="active"
-            >采购申请</router-link>
+            >{{ t('layout.menu.purchaseRequisitions') }}</router-link>
             <router-link
               v-if="hasPermission('purchase-order.read')"
               to="/purchase-orders"
               class="submenu-item"
               active-class="active"
-            >采购订单</router-link>
+            >{{ t('layout.menu.purchaseOrders') }}</router-link>
             <router-link
               v-if="hasPermission('purchase-order.read')"
               to="/purchase-order-items"
               class="submenu-item"
               active-class="active"
-            >采购订单明细</router-link>
+            >{{ t('layout.menu.purchaseOrderItems') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
         <!-- 库存 -->
-        <div class="menu-section-label" v-if="!isCollapsed">库存</div>
+        <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.inventory') }}</div>
 
         <!-- 入库管理 -->
         <SidebarMenuGroupFlyout
@@ -414,7 +423,7 @@
             </span>
           </template>
           <template #label>
-            <span class="menu-label" v-if="!isCollapsed">入库管理</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.stockInManagement') }}</span>
           </template>
           <template #chevron>
             <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.stockInManagement }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -427,14 +436,14 @@
               to="/logistics/arrival-notices"
               class="submenu-item"
               active-class="active"
-            >到货通知</router-link>
+            >{{ t('layout.menu.arrivalNotices') }}</router-link>
             <router-link
               v-if="hasPermission('purchase-order.read')"
               to="/logistics/qc"
               class="submenu-item"
               active-class="active"
-            >质检</router-link>
-            <router-link to="/inventory/stock-in" class="submenu-item" active-class="active">入库</router-link>
+            >{{ t('layout.menu.qualityCheck') }}</router-link>
+            <router-link to="/inventory/stock-in" class="submenu-item" active-class="active">{{ t('layout.menu.stockIn') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -454,7 +463,7 @@
             </span>
           </template>
           <template #label>
-            <span class="menu-label" v-if="!isCollapsed">库存管理</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.inventoryManagement') }}</span>
           </template>
           <template #chevron>
             <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.inventory }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -462,8 +471,8 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/inventory/list" class="submenu-item" active-class="active">库存管理</router-link>
-            <router-link to="/inventory/check" class="submenu-item" active-class="active">库存盘点</router-link>
+            <router-link to="/inventory/list" class="submenu-item" active-class="active">{{ t('layout.menu.inventoryManagement') }}</router-link>
+            <router-link to="/inventory/check" class="submenu-item" active-class="active">{{ t('layout.menu.inventoryCheck') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -484,7 +493,7 @@
             </span>
           </template>
           <template #label>
-            <span class="menu-label" v-if="!isCollapsed">出库管理</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.stockOutManagement') }}</span>
           </template>
           <template #chevron>
             <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.stockOutManagement }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -492,14 +501,14 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/inventory/stock-out-notifies" class="submenu-item" active-class="active">出库通知</router-link>
-            <router-link to="/inventory/stock-out" class="submenu-item" active-class="active">出库</router-link>
+            <router-link to="/inventory/stock-out-notifies" class="submenu-item" active-class="active">{{ t('layout.menu.stockOutNotifies') }}</router-link>
+            <router-link to="/inventory/stock-out" class="submenu-item" active-class="active">{{ t('layout.menu.stockOut') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
         <!-- 财务：按部门隔离维度拆分“付款管理/收款管理”
              红框（财务管理折叠按钮）已移除；这里以“付款管理/收款管理”作为二级菜单组（带图标与收起展开）。 -->
-        <div class="menu-section-label" v-if="!isCollapsed && (isSysAdmin || identityType !== 6)">财务</div>
+        <div class="menu-section-label" v-if="!isCollapsed && (isSysAdmin || identityType !== 6)">{{ t('layout.sections.finance') }}</div>
         <div v-if="(isSysAdmin || identityType !== 6)" class="sidebar-nav-inline-group">
           <!-- 付款管理组：销售部门（identityType=1）不显示 -->
           <SidebarMenuGroupFlyout
@@ -521,7 +530,7 @@
               </span>
             </template>
             <template #label>
-              <span class="menu-label" v-if="!isCollapsed">付款管理</span>
+              <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.paymentManagement') }}</span>
             </template>
             <template #chevron>
               <svg
@@ -542,13 +551,13 @@
                 to="/finance/payments"
                 class="submenu-item"
                 active-class="active"
-              >付款记录</router-link>
+              >{{ t('layout.menu.paymentRecords') }}</router-link>
               <router-link
                 v-if="hasPermission('finance-purchase-invoice.read')"
                 to="/finance/purchase-invoices"
                 class="submenu-item"
                 active-class="active"
-              >进项发票</router-link>
+              >{{ t('layout.menu.purchaseInvoices') }}</router-link>
             </template>
           </SidebarMenuGroupFlyout>
 
@@ -573,7 +582,7 @@
               </span>
             </template>
             <template #label>
-              <span class="menu-label" v-if="!isCollapsed">收款管理</span>
+              <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.receiptManagement') }}</span>
             </template>
             <template #chevron>
               <svg
@@ -594,22 +603,22 @@
                 to="/finance/receipts"
                 class="submenu-item"
                 active-class="active"
-              >收款记录</router-link>
+              >{{ t('layout.menu.receiptRecords') }}</router-link>
               <router-link
                 v-if="hasPermission('finance-sell-invoice.read')"
                 to="/finance/sell-invoices"
                 class="submenu-item"
                 active-class="active"
-              >销项发票</router-link>
+              >{{ t('layout.menu.sellInvoices') }}</router-link>
             </template>
           </SidebarMenuGroupFlyout>
         </div>
 
         <!-- 数据分析 -->
-        <div class="menu-section-label" v-if="!isCollapsed">数据分析</div>
+        <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.analytics') }}</div>
 
-        <SidebarMenuTooltipWrap :collapsed="isCollapsed" tooltip="报表分析">
-          <button type="button" class="menu-item" @click="handleUnimplemented('报表分析')">
+        <SidebarMenuTooltipWrap :collapsed="isCollapsed" :tooltip="t('layout.menu.reportAnalytics')">
+          <button type="button" class="menu-item" @click="handleUnimplemented(t('layout.menu.reportAnalytics'))">
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <line x1="18" y1="20" x2="18" y2="10"/>
@@ -617,12 +626,12 @@
                 <line x1="6" y1="20" x2="6" y2="14"/>
               </svg>
             </span>
-            <span class="menu-label" v-if="!isCollapsed">报表分析</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.reportAnalytics') }}</span>
           </button>
         </SidebarMenuTooltipWrap>
 
         <!-- 系统管理 -->
-        <div class="menu-section-label" v-if="!isCollapsed">系统管理</div>
+        <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.systemManagement') }}</div>
         <SidebarMenuGroupFlyout
           v-if="hasPermission('rbac.manage')"
           :collapsed="isCollapsed"
@@ -640,7 +649,7 @@
             </span>
           </template>
           <template #label>
-            <span class="menu-label" v-if="!isCollapsed">系统管理</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.systemManagement') }}</span>
           </template>
           <template #chevron>
             <svg
@@ -656,10 +665,10 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/system/users" class="submenu-item" active-class="active" exact>员工管理</router-link>
-            <router-link to="/system/departments" class="submenu-item" active-class="active" exact>部门管理</router-link>
-            <router-link to="/system/roles" class="submenu-item" active-class="active" exact>角色管理</router-link>
-            <router-link to="/system/permissions" class="submenu-item" active-class="active" exact>权限管理</router-link>
+            <router-link to="/system/users" class="submenu-item" active-class="active" exact>{{ t('layout.menu.userManagement') }}</router-link>
+            <router-link to="/system/departments" class="submenu-item" active-class="active" exact>{{ t('layout.menu.departmentManagement') }}</router-link>
+            <router-link to="/system/roles" class="submenu-item" active-class="active" exact>{{ t('layout.menu.roleManagement') }}</router-link>
+            <router-link to="/system/permissions" class="submenu-item" active-class="active" exact>{{ t('layout.menu.permissionManagement') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -685,7 +694,7 @@
             </span>
           </template>
           <template #label>
-            <span class="menu-label" v-if="!isCollapsed">参数管理</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.paramManagement') }}</span>
           </template>
           <template #chevron>
             <svg
@@ -701,14 +710,14 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/system/company-info" class="submenu-item" active-class="active" exact>公司信息</router-link>
+            <router-link to="/system/company-info" class="submenu-item" active-class="active" exact>{{ t('layout.menu.companyInfo') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
         <!-- 系统 -->
-        <div class="menu-section-label" v-if="!isCollapsed">系统</div>
+        <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.system') }}</div>
 
-        <SidebarMenuTooltipWrap :collapsed="isCollapsed" tooltip="系统设置">
+        <SidebarMenuTooltipWrap :collapsed="isCollapsed" :tooltip="t('layout.menu.systemSettings')">
           <router-link to="/dashboard/settings" class="menu-item" active-class="active">
             <span class="menu-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -716,7 +725,7 @@
                 <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
               </svg>
             </span>
-            <span class="menu-label" v-if="!isCollapsed">系统设置</span>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.systemSettings') }}</span>
           </router-link>
         </SidebarMenuTooltipWrap>
       </nav>
@@ -726,7 +735,7 @@
           type="button"
           class="collapse-btn"
           @click="toggleCollapse"
-          :title="sidebarMode === 'full' ? '缩窄为边条' : '展开主菜单'"
+          :title="sidebarMode === 'full' ? t('layout.sidebarCollapse') : t('layout.sidebarExpand')"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path v-if="!isCollapsed" d="M15 18l-6-6 6-6"/>
@@ -741,7 +750,7 @@
     <div
       v-if="sidebarMode === 'full'"
       class="col-splitter"
-      title="拖拽调整主菜单宽度"
+      :title="t('layout.dragSidebarWidth')"
       @mousedown="onResizeStart('sidebar', $event)"
     />
 
@@ -756,19 +765,19 @@
         <div class="aux-panel-toolbar">
           <div class="aux-tabs" role="tablist">
             <button
-              v-for="t in leftTabs"
-              :key="t.id"
+              v-for="tab in leftTabs"
+              :key="tab.id"
               type="button"
               class="aux-tab"
-              :class="{ active: leftActiveTabId === t.id }"
-              @click="leftActiveTabId = t.id"
+              :class="{ active: leftActiveTabId === tab.id }"
+              @click="leftActiveTabId = tab.id"
             >
-              {{ t.label }}
+              {{ t(tab.labelKey) }}
             </button>
           </div>
           <div class="aux-panel-actions">
-            <button type="button" class="aux-icon-btn" title="全屏" @click="toggleLeftFullscreen()">⛶</button>
-            <button type="button" class="aux-icon-btn" title="隐藏左侧面板" @click="toggleLeftPanel(false)">✕</button>
+            <button type="button" class="aux-icon-btn" :title="t('layout.fullscreen')" @click="toggleLeftFullscreen()">⛶</button>
+            <button type="button" class="aux-icon-btn" :title="t('layout.hideLeftPanel')" @click="toggleLeftPanel(false)">✕</button>
           </div>
         </div>
         <div class="aux-panel-body">
@@ -791,7 +800,7 @@
           <PurchaseOrderFavoritePanel v-else-if="showPurchaseOrderFavoritePanel" />
           <PurchaseOrderRecentHistoryPanel v-else-if="showPurchaseOrderRecentHistoryPanel" />
           <template v-else>
-            <p class="aux-placeholder">左侧面板 · {{ leftPanelTitle }}</p>
+            <p class="aux-placeholder">{{ t('layout.leftPanel') }} · {{ leftPanelTitle }}</p>
             <p class="aux-hint">子页面可 inject(WorkspaceLayoutKey)；或 window 派发 workspace:toggle-left / workspace:toggle-right</p>
           </template>
         </div>
@@ -800,7 +809,7 @@
       <div
         v-show="leftPanelVisible"
         class="col-splitter"
-        title="拖拽调整左侧栏宽度"
+        :title="t('layout.dragLeftWidth')"
         @mousedown="onResizeStart('left', $event)"
       />
 
@@ -813,8 +822,8 @@
             type="button"
             class="ws-tool-btn ws-tool-btn--icon"
             :class="{ active: leftPanelVisible }"
-            :title="leftPanelVisible ? '隐藏左侧面板' : '展开左侧面板'"
-            :aria-label="leftPanelVisible ? '隐藏左侧面板' : '展开左侧面板'"
+            :title="leftPanelVisible ? t('layout.hideLeftPanel') : t('layout.showLeftPanel')"
+            :aria-label="leftPanelVisible ? t('layout.hideLeftPanel') : t('layout.showLeftPanel')"
             @click="toggleLeftPanel()"
           >
             <span class="ws-tool-icon" aria-hidden="true">
@@ -858,7 +867,7 @@
           class="tab-overflow-dropdown"
           @command="onOverflowTabSelect"
         >
-          <button class="tab-overflow-trigger" type="button" title="更多页签">...</button>
+          <button class="tab-overflow-trigger" type="button" :title="t('layout.moreTabs')">...</button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item
@@ -879,8 +888,8 @@
             type="button"
             class="ws-tool-btn ws-tool-btn--icon"
             :class="{ active: centerFullscreen }"
-            title="工作内容区全屏"
-            aria-label="工作内容区全屏"
+            :title="t('layout.contentFullscreen')"
+            :aria-label="t('layout.contentFullscreen')"
             @click="toggleCenterFullscreen()"
           >
             <span class="ws-tool-icon ws-tool-icon--fs" aria-hidden="true">⛶</span>
@@ -889,8 +898,8 @@
             type="button"
             class="ws-tool-btn ws-tool-btn--icon"
             :class="{ active: rightPanelVisible }"
-            :title="rightPanelVisible ? '隐藏右侧面板' : '展开右侧面板'"
-            :aria-label="rightPanelVisible ? '隐藏右侧面板' : '展开右侧面板'"
+            :title="rightPanelVisible ? t('layout.hideRightPanel') : t('layout.showRightPanel')"
+            :aria-label="rightPanelVisible ? t('layout.hideRightPanel') : t('layout.showRightPanel')"
             @click="toggleRightPanel()"
           >
             <span class="ws-tool-icon" aria-hidden="true">
@@ -915,11 +924,11 @@
       >
         <div class="context-menu-title">{{ contextMenu.tab?.title }}</div>
         <div class="context-menu-divider"></div>
-        <button class="context-menu-item" @click="contextMenuClose('current')">关闭当前</button>
-        <button class="context-menu-item" @click="contextMenuClose('others')" :disabled="tabs.length <= 1">关闭其他</button>
-        <button class="context-menu-item" @click="contextMenuClose('right')" :disabled="isLastTab">关闭右侧</button>
+        <button class="context-menu-item" @click="contextMenuClose('current')">{{ t('layout.closeCurrent') }}</button>
+        <button class="context-menu-item" @click="contextMenuClose('others')" :disabled="tabs.length <= 1">{{ t('layout.closeOthers') }}</button>
+        <button class="context-menu-item" @click="contextMenuClose('right')" :disabled="isLastTab">{{ t('layout.closeRight') }}</button>
         <div class="context-menu-divider"></div>
-        <button class="context-menu-item" @click="contextMenuClose('all')">全部关闭</button>
+        <button class="context-menu-item" @click="contextMenuClose('all')">{{ t('layout.closeAll') }}</button>
       </div>
 
       <!-- 页面内容 -->
@@ -932,7 +941,7 @@
       <div
         v-show="rightPanelVisible"
         class="col-splitter"
-        title="拖拽调整右侧栏宽度"
+        :title="t('layout.dragRightWidth')"
         @mousedown="onResizeStart('right', $event)"
       />
 
@@ -946,19 +955,19 @@
         <div class="aux-panel-toolbar">
           <div class="aux-tabs" role="tablist">
             <button
-              v-for="t in rightTabs"
-              :key="t.id"
+              v-for="tab in rightTabs"
+              :key="tab.id"
               type="button"
               class="aux-tab"
-              :class="{ active: rightActiveTabId === t.id }"
-              @click="rightActiveTabId = t.id"
+              :class="{ active: rightActiveTabId === tab.id }"
+              @click="rightActiveTabId = tab.id"
             >
-              {{ t.label }}
+              {{ t(tab.labelKey) }}
             </button>
           </div>
           <div class="aux-panel-actions">
-            <button type="button" class="aux-icon-btn" title="全屏" @click="toggleRightFullscreen()">⛶</button>
-            <button type="button" class="aux-icon-btn" title="隐藏右侧面板" @click="toggleRightPanel(false)">✕</button>
+            <button type="button" class="aux-icon-btn" :title="t('layout.fullscreen')" @click="toggleRightFullscreen()">⛶</button>
+            <button type="button" class="aux-icon-btn" :title="t('layout.hideRightPanel')" @click="toggleRightPanel(false)">✕</button>
           </div>
         </div>
         <div class="aux-panel-body">
@@ -976,6 +985,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, type Directive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { useWorkspaceLayout } from '@/composables/useWorkspaceLayout'
@@ -1003,11 +1013,23 @@ import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
 import SalesOrderJourneyPanel from '@/components/workspace/SalesOrderJourneyPanel.vue'
 import { Sunny, Moon } from '@element-plus/icons-vue'
 import { useUiTheme } from '@/composables/useUiTheme'
+import { setAppLocale, type AppLocale } from '@/plugins/i18n'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const { isDark, toggleTheme } = useUiTheme()
+const { t, locale } = useI18n()
+const currentLocale = ref<AppLocale>(locale.value as AppLocale)
+
+const onLocaleChange = (val: AppLocale) => {
+  console.info('[i18n] switch locale', { from: locale.value, to: val })
+  setAppLocale(val)
+}
+
+const toggleLocale = () => {
+  onLocaleChange(currentLocale.value === 'zh-CN' ? 'en-US' : 'zh-CN')
+}
 
 const {
   sidebarMode,
@@ -1198,7 +1220,11 @@ const showPurchaseOrderRecentHistoryPanel = computed(
 /** 模板沿用 isCollapsed：仅「边条」模式隐藏菜单文字 */
 const isCollapsed = isSidebarCollapsed
 
-const leftPanelTitle = computed(() => leftTabs.value.find(t => t.id === leftActiveTabId.value)?.label ?? '')
+const leftPanelTitle = computed(() => {
+  void locale.value
+  const item = leftTabs.value.find(x => x.id === leftActiveTabId.value)
+  return item ? t(item.labelKey) : ''
+})
 const openGroups = ref({
   purchase: false,
   sales: false,
@@ -1257,66 +1283,169 @@ const userInitial = computed(() => (authStore.user?.userName || '管')[0].toUppe
 const headerNotifyCount = ref(1)
 
 const pageTitleMap: Record<string, string> = {
-  '/dashboard': '控制台',
-  '/pending-approvals': '待审批',
-  '/custome': '客户首页',
-  '/customerlist': '客户',
-  '/customers/create': '新增客户',
-  '/customers/recycle-bin': '客户回收站',
-  '/customers/blacklist': '黑名单管理',
-  '/customers/frozen': '冻结管理',
-  '/vendor': '供应商首页',
-  '/vendorlist': '供应商',
-  '/vendors/create': '新增供应商',
-  '/vendors/recycle-bin': '供应商回收站',
-  '/vendors/blacklist': '供应商黑名单',
-  '/vendors/frozen': '冻结管理',
-  '/system/users': '员工管理',
-  '/system/users/create': '新增员工',
-  '/system/roles': '角色管理',
-  '/system/roles/create': '新增角色',
-  '/system/permissions': '权限管理',
-  '/system/permissions/create': '新增权限',
-  '/system/departments': '部门管理',
-  '/system/departments/create': '新增部门',
-  '/system/company-info': '公司信息',
-  '/inventory/list': '库存列表',
-  '/inventory/stock-in': '入库管理',
-  '/inventory/stock-out': '出库管理',
-  '/inventory/stock-out-notifies': '出库通知',
-  '/inventory/transfer': '库存调拨',
-  '/inventory/check': '库存盘点',
-  '/reports': '报表分析',
-  '/dashboard/settings': '系统设置',
-  '/rfq': '需求首页',
-  '/rfqlist': '需求列表',
-  '/pn': '物料列表',
-  '/rfq-items': '需求明细',
-  '/quotes': '报价列表',
-  '/quotes/create': '新建报价',
-  '/purchase-orders': '采购订单',
-  '/purchase-order-items': '采购订单明细',
-  '/logistics/arrival-notices': '到货通知',
-  '/logistics/qc': '质检',
-  '/sales-orders': '销售订单',
-  '/sales-order-items': '销售订单明细',
-  '/stock-out-notifies': '出库通知',
-  '/profile': '个人设置',
-  '/drafts': '草稿箱',
-  '/debug': 'Debug',
-  '/debug/data': 'Debug 模拟数据',
+  '/dashboard': 'layout.menu.dashboard',
+  '/pending-approvals': 'layout.menu.pendingApprovals',
+  '/custome': 'layout.menu.customers',
+  '/customerlist': 'layout.menu.customers',
+  '/customers/create': 'layout.menu.customers',
+  '/customers/recycle-bin': 'layout.menu.recycleBin',
+  '/customers/blacklist': 'layout.menu.blacklistManagement',
+  '/customers/frozen': 'layout.menu.freezeManagement',
+  '/vendor': 'layout.menu.vendors',
+  '/vendorlist': 'layout.menu.vendors',
+  '/vendors/create': 'layout.menu.vendors',
+  '/vendors/recycle-bin': 'layout.menu.recycleBin',
+  '/vendors/blacklist': 'layout.menu.blacklistManagement',
+  '/vendors/frozen': 'layout.menu.freezeManagement',
+  '/system/users': 'layout.menu.userManagement',
+  '/system/users/create': 'layout.menu.userManagement',
+  '/system/roles': 'layout.menu.roleManagement',
+  '/system/roles/create': 'layout.menu.roleManagement',
+  '/system/permissions': 'layout.menu.permissionManagement',
+  '/system/permissions/create': 'layout.menu.permissionManagement',
+  '/system/departments': 'layout.menu.departmentManagement',
+  '/system/departments/create': 'layout.menu.departmentManagement',
+  '/system/company-info': 'layout.menu.companyInfo',
+  '/inventory/list': 'layout.menu.inventoryManagement',
+  '/inventory/stock-in': 'layout.menu.stockInManagement',
+  '/inventory/stock-out': 'layout.menu.stockOutManagement',
+  '/inventory/stock-out-notifies': 'layout.menu.stockOutNotifies',
+  '/inventory/transfer': 'layout.menu.inventoryManagement',
+  '/inventory/check': 'layout.menu.inventoryCheck',
+  '/reports': 'layout.menu.reportAnalytics',
+  '/dashboard/settings': 'layout.menu.systemSettings',
+  '/rfq': 'layout.menu.rfqList',
+  '/rfqlist': 'layout.menu.rfqList',
+  '/pn': 'layout.menu.rfqItems',
+  '/rfq-items': 'layout.menu.rfqItems',
+  '/quotes': 'layout.menu.quoteList',
+  '/quotes/create': 'layout.menu.quoteManagement',
+  '/purchase-orders': 'layout.menu.purchaseOrders',
+  '/purchase-order-items': 'layout.menu.purchaseOrderItems',
+  '/logistics/arrival-notices': 'layout.menu.arrivalNotices',
+  '/logistics/qc': 'layout.menu.qualityCheck',
+  '/sales-orders': 'layout.menu.salesOrders',
+  '/sales-order-items': 'layout.menu.salesOrderItems',
+  '/stock-out-notifies': 'layout.menu.stockOutNotifies',
+  '/profile': 'layout.profile',
+  '/drafts': 'layout.menu.drafts',
+  '/debug': 'layout.menu.debug',
+  '/debug/data': 'layout.menu.debugData',
+  '/finance/payments': 'layout.menu.paymentManagement',
+  '/finance/receipts': 'layout.menu.receiptManagement',
+  '/finance/purchase-invoices': 'layout.menu.purchaseInvoices',
+  '/finance/sell-invoices': 'layout.menu.sellInvoices'
+}
+
+const routeMetaTitleKeyMap: Record<string, string> = {
+  '控制台': 'layout.menu.dashboard',
+  '客户首页': 'customerHome.search',
+  '客户': 'layout.menu.customers',
+  '新增客户': 'customerList.create',
+  '客户回收站': 'layout.menu.recycleBin',
+  '黑名单管理': 'layout.menu.blacklistManagement',
+  '冻结管理': 'layout.menu.freezeManagement',
+  '客户详情': 'rfqItemList.actions.detail',
+  '编辑客户': 'customerList.actions.edit',
+  '新增联系人': 'common.createSuccess',
+  '编辑联系人': 'systemUser.edit',
+  '需求首页': 'layout.menu.rfqList',
+  '需求列表': 'layout.menu.rfqList',
+  '物料列表': 'layout.menu.rfqItems',
+  '需求明细': 'layout.menu.rfqItems',
+  '新建需求': 'rfqHome.create',
+  'RFQ 详情': 'rfqDetail.title',
+  '编辑需求': 'rfqDetail.edit',
+  'BOM 快速报价': 'layout.menu.bomQuickQuote',
+  '新建 BOM': 'bomList.create',
+  'BOM 详情': 'rfqItemList.actions.detail',
+  '供应商首页': 'vendorHome.search',
+  '供应商': 'layout.menu.vendors',
+  '新增供应商': 'vendorList.create',
+  '供应商回收站': 'layout.menu.recycleBin',
+  '供应商黑名单': 'layout.menu.blacklistManagement',
+  '供应商详情': 'rfqItemList.actions.detail',
+  '编辑供应商': 'vendorList.actions.edit',
+  '库存列表': 'inventoryList.title',
+  '入库追溯': 'inventoryList.actions.trace',
+  '入库单列表': 'stockInList.title',
+  '新建入库单': 'common.createSuccess',
+  '入库单详情': 'rfqItemList.actions.detail',
+  '出库单列表': 'stockOutList.title',
+  '出库通知': 'layout.menu.stockOutNotifies',
+  '执行出库': 'layout.menu.stockOut',
+  '库存调拨': 'layout.menu.inventoryManagement',
+  '库存盘点': 'layout.menu.inventoryCheck',
+  '报价列表': 'layout.menu.quoteList',
+  '新建报价': 'quoteList.generateSalesOrder',
+  '编辑报价': 'quoteList.actions.edit',
+  '报价单详情': 'rfqItemList.actions.detail',
+  '采购订单': 'layout.menu.purchaseOrders',
+  '采购申请': 'layout.menu.purchaseRequisitions',
+  '新建采购申请': 'common.createSuccess',
+  '采购申请详情': 'rfqItemList.actions.detail',
+  '新建采购订单': 'purchaseOrderList.create',
+  '采购订单报表': 'purchaseOrderList.actions.report',
+  '编辑采购订单': 'purchaseOrderList.actions.edit',
+  '采购订单详情': 'layout.menu.purchaseOrderDetail',
+  '销售订单': 'layout.menu.salesOrders',
+  '销售订单明细': 'layout.menu.salesOrderItems',
+  '采购订单明细': 'layout.menu.purchaseOrderItems',
+  '到货通知': 'layout.menu.arrivalNotices',
+  '质检': 'layout.menu.qualityCheck',
+  '新建质检': 'common.createSuccess',
+  '新建销售订单': 'common.createSuccess',
+  '销售订单详情': 'layout.menu.salesOrderDetail',
+  '系统设置': 'layout.menu.systemSettings',
+  '个人设置': 'layout.profile',
+  '微信绑定': 'layout.profile',
+  '草稿箱': 'layout.menu.drafts',
+  '待审批': 'layout.menu.pendingApprovals',
+  '员工管理': 'layout.menu.userManagement',
+  '新增员工': 'systemUser.create',
+  '编辑员工': 'systemUser.edit',
+  '角色管理': 'layout.menu.roleManagement',
+  '新增角色': 'systemRole.create',
+  '编辑角色': 'systemRole.editTitle',
+  '权限管理': 'layout.menu.permissionManagement',
+  '新增权限': 'systemPermission.create',
+  '编辑权限': 'systemPermission.editTitle',
+  '部门管理': 'layout.menu.departmentManagement',
+  '新增部门': 'systemDepartment.create',
+  '编辑部门': 'systemUser.edit',
+  '部门详情': 'rfqItemList.actions.detail',
+  '公司信息': 'layout.menu.companyInfo',
+  '付款管理': 'layout.menu.paymentManagement',
+  '付款单详情': 'rfqItemList.actions.detail',
+  '收款管理': 'layout.menu.receiptRecords',
+  '收款单详情': 'rfqItemList.actions.detail',
+  '进项发票': 'layout.menu.purchaseInvoices',
+  '进项发票详情': 'rfqItemList.actions.detail',
+  '销项发票': 'layout.menu.sellInvoices',
+  '销项发票详情': 'rfqItemList.actions.detail',
+  '文档模块演示': 'layout.menu.system',
+  'Debug 模拟数据': 'layout.menu.debugData',
+  Debug: 'layout.menu.debug'
+}
+
+const resolveRouteTitle = (path: string): string => {
+  if (pageTitleMap[path]) return t(pageTitleMap[path])
+  if (/^\/purchase-orders\/[^/]+\/report$/.test(path)) return t('layout.menu.purchaseOrderItems')
+  if (/^\/quotes\/[^/]+\/edit$/.test(path)) return t('layout.menu.quoteManagement')
+  if (path.includes('/customers/') && path.includes('/edit')) return t('layout.menu.customerManagement')
+  if (path.includes('/customers/')) return t('layout.menu.customers')
+  if (path.includes('/vendors/') && path.includes('/edit')) return t('layout.menu.vendorManagement')
+  if (path === '/vendors/create') return t('layout.menu.vendorManagement')
+
+  const resolved = router.resolve(path)
+  const rawTitle = (resolved.meta?.title as string | undefined) || ''
+  if (!rawTitle) return 'FrontCRM'
+  const key = routeMetaTitleKeyMap[rawTitle]
+  return key ? t(key) : rawTitle
 }
 
 const currentPageTitle = computed(() => {
-  const path = route.path
-  if (pageTitleMap[path]) return pageTitleMap[path]
-  if (/^\/purchase-orders\/[^/]+\/report$/.test(path)) return '采购订单报表'
-  if (/^\/quotes\/[^/]+\/edit$/.test(path)) return '编辑报价'
-  if (path.includes('/customers/') && path.includes('/edit')) return '编辑客户'
-  if (path.includes('/customers/')) return '客户详情'
-  if (path.includes('/vendors/') && path.includes('/edit')) return '编辑供应商'
-  if (path === '/vendors/create') return '新增供应商'
-  return route.meta?.title as string || 'FrontCRM'
+  return resolveRouteTitle(route.path)
 })
 
 // ===== 账号下拉菜单 =====
@@ -1327,9 +1456,9 @@ const closeDropdown = () => { dropdownOpen.value = false }
 const handleLogout = async () => {
   closeDropdown()
   try {
-    await ElMessageBox.confirm('确定要退出登录吗？', '退出登录', {
-      confirmButtonText: '确定退出',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('layout.logoutConfirm'), t('layout.logoutTitle'), {
+      confirmButtonText: t('layout.logoutConfirmButton'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning'
     })
     authStore.logout()
@@ -1340,7 +1469,7 @@ const handleLogout = async () => {
 }
 
 const handleUnimplemented = (name: string) => {
-  ElNotification.info({ title: '功能开发中', message: `「${name}」功能正在开发中，敬请期待` })
+  ElNotification.info({ title: t('layout.underDevelopmentTitle'), message: t('layout.underDevelopmentMessage', { name }) })
 }
 
 const hasPermission = (code: string) => authStore.hasPermission(code)
@@ -1366,6 +1495,14 @@ watch(
   isSysAdmin,
   (v) => {
     if (v) expandAllGroups()
+  },
+  { immediate: true }
+)
+
+watch(
+  () => locale.value,
+  (val) => {
+    currentLocale.value = val as AppLocale
   },
   { immediate: true }
 )
@@ -1430,8 +1567,13 @@ const ACTIVE_KEY = 'crm_active_tab'
 const loadTabs = (): TabItem[] => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
-    return saved ? JSON.parse(saved) : []
-  } catch { return [] }
+    if (!saved) return []
+    const parsed = JSON.parse(saved) as TabItem[]
+    // 仅用 path 还原标题，避免 localStorage 里残留旧语言文案
+    return parsed.map(tab => ({ ...tab, title: resolveRouteTitle(tab.path) }))
+  } catch {
+    return []
+  }
 }
 
 const tabs = ref<TabItem[]>(loadTabs())
@@ -1490,16 +1632,28 @@ const onOverflowTabSelect = (path: string) => {
 watch(() => route.path, async (newPath) => {
   // 中间区全屏时 main 为 fixed 盖满视口（z-index 高于侧栏/顶栏），易误以为「菜单没了」；换页时退出
   toggleCenterFullscreen(false)
-  const title = currentPageTitle.value
-  const exists = tabs.value.find(t => t.path === newPath)
-  if (!exists) {
+  const title = resolveRouteTitle(newPath)
+  const idx = tabs.value.findIndex(t => t.path === newPath)
+  if (idx < 0) {
     tabs.value.push({ path: newPath, title })
+  } else {
+    tabs.value[idx] = { path: newPath, title }
   }
   activeTab.value = newPath
   saveTabs()
   await nextTick()
   recalcTabOverflow()
 }, { immediate: true })
+
+watch(
+  () => locale.value,
+  async () => {
+    tabs.value = tabs.value.map(tab => ({ ...tab, title: resolveRouteTitle(tab.path) }))
+    saveTabs()
+    await nextTick()
+    recalcTabOverflow()
+  }
+)
 
 const activateTab = (tab: TabItem) => {
   activeTab.value = tab.path
@@ -1752,6 +1906,30 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  &:hover {
+    background: var(--crm-theme-btn-hover-bg);
+    border-color: var(--crm-theme-btn-hover-border);
+    color: var(--crm-theme-btn-hover-color);
+  }
+}
+
+.global-lang-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--crm-theme-btn-border);
+  border-radius: 8px;
+  background: var(--crm-theme-btn-bg);
+  color: var(--crm-theme-btn-color);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
   transition: background 0.2s, border-color 0.2s, color 0.2s;
   &:hover {
     background: var(--crm-theme-btn-hover-bg);
@@ -2711,6 +2889,7 @@ onBeforeUnmount(() => {
     }
   }
 }
+
 
 // 下拉动画
 .dropdown-enter-active,

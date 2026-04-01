@@ -1,16 +1,16 @@
 <template>
   <div class="qc-list-page">
     <div class="page-header">
-      <h2>质检</h2>
+      <h2>{{ t('qcList.title') }}</h2>
       <div class="ops">
-        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="loadData">刷新</button>
+        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="loadData">{{ t('qcList.refresh') }}</button>
       </div>
     </div>
 
     <!-- 搜索栏：与 CustomerList / ArrivalNoticeList 同款布局与控件皮肤 -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">物料型号</span>
+        <span class="filter-field-label">{{ t('qcList.filters.model') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -19,39 +19,43 @@
           <input
             v-model="filters.model"
             class="search-input"
-            placeholder="物料型号(PN)"
+            :placeholder="t('qcList.filters.modelPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
-        <span class="filter-field-label">供应商</span>
+        <span class="filter-field-label">{{ t('qcList.filters.vendor') }}</span>
         <div class="search-input-wrap">
           <input
             v-model="filters.vendorName"
             class="search-input--plain"
-            placeholder="供应商名称"
+            :placeholder="t('qcList.filters.vendorPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
-        <span class="filter-field-label">采购单号</span>
+        <span class="filter-field-label">{{ t('qcList.filters.purchaseOrderCode') }}</span>
         <div class="search-input-wrap">
           <input
             v-model="filters.purchaseOrderCode"
             class="search-input--plain"
-            placeholder="采购订单号"
+            :placeholder="t('qcList.filters.purchaseOrderPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
-        <span class="filter-field-label">销售单号</span>
+        <span class="filter-field-label">{{ t('qcList.filters.salesOrderCode') }}</span>
         <div class="search-input-wrap">
           <input
             v-model="filters.salesOrderCode"
             class="search-input--plain"
-            placeholder="销售订单号"
+            :placeholder="t('qcList.filters.salesOrderPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
-        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="handleSearch">搜索</button>
-        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="resetFilters">重置</button>
+        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="handleSearch">
+          {{ t('qcList.filters.search') }}
+        </button>
+        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="resetFilters">
+          {{ t('qcList.filters.reset') }}
+        </button>
       </div>
     </div>
 
@@ -74,7 +78,7 @@
       <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || '--' }}</template>
       <template #col-actions-header>
         <div class="op-col-header">
-          <span class="op-col-header-text">操作</span>
+            <span class="op-col-header-text">{{ t('qcList.columns.actions') }}</span>
           <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
             {{ opColExpanded ? '>' : '<' }}
           </button>
@@ -83,14 +87,14 @@
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
-            <el-button link type="primary" @click.stop="goView(row)">查看</el-button>
+            <el-button link type="primary" @click.stop="goView(row)">{{ t('qcList.actions.view') }}</el-button>
             <el-button
               link
               type="warning"
               v-if="canCreateStockIn(row)"
               @click.stop="createStockIn(row)"
             >
-              生成入库
+              {{ t('qcList.actions.createStockIn') }}
             </el-button>
           </div>
 
@@ -101,10 +105,10 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click.stop="goView(row)">
-                  <span class="op-more-item op-more-item--primary">查看</span>
+                  <span class="op-more-item op-more-item--primary">{{ t('qcList.actions.view') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canCreateStockIn(row)" @click.stop="createStockIn(row)">
-                  <span class="op-more-item op-more-item--warning">生成入库</span>
+                  <span class="op-more-item op-more-item--warning">{{ t('qcList.actions.createStockIn') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -114,8 +118,14 @@
     </CrmDataTable>
     <div class="pagination-wrapper">
       <div class="list-footer-left">
-        <el-tooltip content="列设置" placement="top" :hide-after="0">
-          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+        <el-tooltip :content="t('qcList.columnSettings')" placement="top" :hide-after="0">
+          <el-button
+            class="list-settings-btn"
+            link
+            type="primary"
+            :aria-label="t('qcList.columnSettings')"
+            @click="dataTableRef?.openColumnSettings?.()"
+          >
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
@@ -127,6 +137,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { logisticsApi, type QcInfoDto } from '@/api/logistics'
@@ -139,6 +150,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const route = useRoute()
+const { t, locale } = useI18n()
 const loading = ref(false)
 const list = ref<QcInfoDto[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
@@ -154,33 +166,53 @@ function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 
-const qcTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'qcCode', label: '质检单号', prop: 'qcCode', width: 160, minWidth: 160 },
-  { key: 'status', label: '状态', prop: 'status', width: 120, align: 'center' },
-  { key: 'stockInNotifyCode', label: '到货通知单号', prop: 'stockInNotifyCode', width: 170 },
-  { key: 'model', label: '物料型号', prop: 'model', minWidth: 160, showOverflowTooltip: true },
-  { key: 'brand', label: '品牌', prop: 'brand', minWidth: 120, showOverflowTooltip: true },
-  { key: 'vendorName', label: '供应商', prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
-  { key: 'purchaseOrderCode', label: '采购订单号', prop: 'purchaseOrderCode', width: 170, showOverflowTooltip: true },
-  { key: 'salesOrderCode', label: '销售订单号', prop: 'salesOrderCode', width: 170, showOverflowTooltip: true },
-  { key: 'passQty', label: '通过数量', prop: 'passQty', width: 110, align: 'right' },
-  { key: 'rejectQty', label: '拒收数量', prop: 'rejectQty', width: 110, align: 'right' },
-  { key: 'stockInStatus', label: '入库状态', width: 120, align: 'center' },
-  { key: 'createTime', label: '创建时间', prop: 'createTime', width: 170 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
-  {
-    key: 'actions',
-    label: '操作',
-    width: opColWidth.value,
-    minWidth: opColMinWidth.value,
-    fixed: 'right',
-    hideable: false,
-    pinned: 'end',
-    reorderable: false,
-    className: 'op-col',
-    labelClassName: 'op-col'
-  }
-])
+const qcTableColumns = computed<CrmTableColumnDef[]>(() => {
+  void locale.value
+  return [
+    { key: 'qcCode', label: t('qcList.columns.qcCode'), prop: 'qcCode', width: 160, minWidth: 160 },
+    { key: 'status', label: t('qcList.columns.status'), prop: 'status', width: 120, align: 'center' },
+    {
+      key: 'stockInNotifyCode',
+      label: t('qcList.columns.stockInNotifyCode'),
+      prop: 'stockInNotifyCode',
+      width: 170
+    },
+    { key: 'model', label: t('qcList.columns.model'), prop: 'model', minWidth: 160, showOverflowTooltip: true },
+    { key: 'brand', label: t('qcList.columns.brand'), prop: 'brand', minWidth: 120, showOverflowTooltip: true },
+    { key: 'vendorName', label: t('qcList.columns.vendorName'), prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
+    {
+      key: 'purchaseOrderCode',
+      label: t('qcList.columns.purchaseOrderCode'),
+      prop: 'purchaseOrderCode',
+      width: 170,
+      showOverflowTooltip: true
+    },
+    {
+      key: 'salesOrderCode',
+      label: t('qcList.columns.salesOrderCode'),
+      prop: 'salesOrderCode',
+      width: 170,
+      showOverflowTooltip: true
+    },
+    { key: 'passQty', label: t('qcList.columns.passQty'), prop: 'passQty', width: 110, align: 'right' },
+    { key: 'rejectQty', label: t('qcList.columns.rejectQty'), prop: 'rejectQty', width: 110, align: 'right' },
+    { key: 'stockInStatus', label: t('qcList.columns.stockInStatus'), width: 120, align: 'center' },
+    { key: 'createTime', label: t('qcList.columns.createTime'), prop: 'createTime', width: 170 },
+    { key: 'createUser', label: t('qcList.columns.createUser'), width: 120, showOverflowTooltip: true },
+    {
+      key: 'actions',
+      label: t('qcList.columns.actions'),
+      width: opColWidth.value,
+      minWidth: opColMinWidth.value,
+      fixed: 'right',
+      hideable: false,
+      pinned: 'end',
+      reorderable: false,
+      className: 'op-col',
+      labelClassName: 'op-col'
+    }
+  ]
+})
 
 const filters = ref({
   model: '',
@@ -196,10 +228,29 @@ const getYYMMDD = (d: Date) => {
 }
 const random4 = () => String(Math.floor(Math.random() * 10000)).padStart(4, '0')
 
-const qcText = (s: number) => ({ [-1]: '未通过', 10: '部分通过', 100: '已通过' }[s] || '未知')
+const qcText = (s: number) => {
+  const keyMap: Record<number, 'failed' | 'partial' | 'passed'> = {
+    [-1]: 'failed',
+    10: 'partial',
+    100: 'passed'
+  }
+  const k = keyMap[s]
+  return k ? t(`qcList.qcStatus.${k}`) : t('qcList.qcStatus.unknown')
+}
 const qcType = (s: number) => ({ [-1]: 'danger', 10: 'warning', 100: 'success' }[s] || 'info')
-const stockInText = (s: number) => ({ [-1]: '拒收', 1: '未入库', 10: '部分入库', 100: '全部入库' }[s] || '未知')
-const stockInType = (s: number) => ({ [-1]: 'danger', 1: 'info', 10: 'warning', 100: 'success' }[s] || 'info')
+const stockInText = (s: number | undefined) => {
+  const keyMap: Record<number, 'rejected' | 'notStocked' | 'partial' | 'all'> = {
+    [-1]: 'rejected',
+    1: 'notStocked',
+    10: 'partial',
+    100: 'all'
+  }
+  if (s === undefined || s === null) return t('qcList.stockInStatus.unknown')
+  const k = keyMap[s]
+  return k ? t(`qcList.stockInStatus.${k}`) : t('qcList.stockInStatus.unknown')
+}
+const stockInType = (s: number | undefined) =>
+  (s === undefined || s === null ? 'info' : ({ [-1]: 'danger', 1: 'info', 10: 'warning', 100: 'success' }[s] || 'info'))
 
 /** 未绑定入库单时忽略历史脏数据（StockInStatus 误存为 10/100） */
 const displayStockInStatus = (row: QcInfoDto) => {
@@ -279,11 +330,11 @@ const resolveWarehouseId = async () => {
 const createStockIn = async (row: QcInfoDto) => {
   try {
     await ElMessageBox.confirm(
-      `确定为质检单「${row.qcCode}」生成入库单并完成过账吗？`,
-      '生成入库',
+      t('qcList.messages.stockInConfirm', { code: row.qcCode }),
+      t('qcList.messages.stockInTitle'),
       {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
+        confirmButtonText: t('qcList.messages.confirm'),
+        cancelButtonText: t('common.cancel'),
         type: 'warning',
         distinguishCancelAndClose: true,
       }
@@ -295,7 +346,7 @@ const createStockIn = async (row: QcInfoDto) => {
   const notices = await logisticsApi.getArrivalNotices()
   const notice = notices.find(x => x.id === row.stockInNotifyId)
   if (!notice) {
-    ElMessage.error('关联到货通知不存在')
+    ElMessage.error(t('qcList.messages.noticeMissing'))
     return
   }
   const buildMaterialCode = (x: { purchaseOrderItemId?: string; pn?: string }, idx: number) => {
@@ -309,14 +360,14 @@ const createStockIn = async (row: QcInfoDto) => {
     .map((x, idx) => ({
       lineNo: idx + 1,
       materialCode: buildMaterialCode(x, idx),
-      materialName: x.pn || '物料',
+      materialName: x.pn || t('qcList.messages.defaultMaterialName'),
       quantity: Number(x.passedQty || 0),
       unit: 'PCS',
       unitPrice: 0
     }))
 
   if (!items.length) {
-    ElMessage.warning('无可入库的通过明细')
+    ElMessage.warning(t('qcList.messages.noPassingLines'))
     return
   }
 
@@ -330,21 +381,21 @@ const createStockIn = async (row: QcInfoDto) => {
       warehouseId,
       stockInDate: new Date().toISOString(),
       totalQuantity: Number(items.reduce((s, x) => s + Number(x.quantity || 0), 0).toFixed(4)),
-      remark: `由质检单 ${row.qcCode} 生成`,
+      remark: t('qcList.messages.remarkFromQc', { code: row.qcCode }),
       items
     }
     const created = await stockInApi.create(payload as any)
     const stockInId = (created as any)?.id || ''
     if (!stockInId) {
-      throw new Error('生成入库单失败：未返回入库单ID')
+      throw new Error(t('qcList.messages.createStockInFailedNoId'))
     }
     // 质检生成的入库单默认直接完成入库，触发库存中心过账
     await stockInApi.updateStatus(stockInId, 2)
     await logisticsApi.bindQcStockIn(row.id, stockInId)
     loadData()
-    ElMessage.success('已生成并过账入库单')
+    ElMessage.success(t('qcList.messages.successPosted'))
   } catch (error) {
-    ElMessage.error(getApiErrorMessage(error, '生成入库失败'))
+    ElMessage.error(getApiErrorMessage(error, t('qcList.messages.stockInErrorFallback')))
   } finally {
     loading.value = false
   }

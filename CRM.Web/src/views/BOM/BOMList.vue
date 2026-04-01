@@ -3,12 +3,12 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">BOM 快速报价</h1>
-        <div class="count-badge">共 {{ totalCount }} 条 BOM</div>
+        <h1 class="page-title">{{ t('bomList.title') }}</h1>
+        <div class="count-badge">{{ t('bomList.count', { count: totalCount }) }}</div>
       </div>
       <div class="header-right">
         <el-button type="primary" @click="goCreate">
-          <el-icon><Plus /></el-icon>新建 BOM
+          <el-icon><Plus /></el-icon>{{ t('bomList.create') }}
         </el-button>
       </div>
     </div>
@@ -22,7 +22,7 @@
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.total }}</div>
-            <div class="stat-label">BOM 总数</div>
+            <div class="stat-label">{{ t('bomList.stats.total') }}</div>
           </div>
         </div>
       </el-col>
@@ -33,7 +33,7 @@
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.pending }}</div>
-            <div class="stat-label">待报价</div>
+            <div class="stat-label">{{ t('bomList.stats.pending') }}</div>
           </div>
         </div>
       </el-col>
@@ -44,7 +44,7 @@
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.quoting }}</div>
-            <div class="stat-label">报价中</div>
+            <div class="stat-label">{{ t('bomList.stats.quoting') }}</div>
           </div>
         </div>
       </el-col>
@@ -55,7 +55,7 @@
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.quoted }}</div>
-            <div class="stat-label">已报价</div>
+            <div class="stat-label">{{ t('bomList.stats.quoted') }}</div>
           </div>
         </div>
       </el-col>
@@ -65,51 +65,51 @@
     <div class="search-bar">
       <el-input
         v-model="searchForm.keyword"
-        placeholder="搜索 BOM 单号 / 客户名称..."
+        :placeholder="t('bomList.filters.searchPlaceholder')"
         clearable
         class="search-input"
         @keyup.enter="handleSearch"
       >
         <template #prefix><el-icon><Search /></el-icon></template>
       </el-input>
-      <el-select v-model="searchForm.status" placeholder="全部状态" clearable class="filter-select">
-        <el-option label="草稿" :value="0" />
-        <el-option label="待报价" :value="1" />
-        <el-option label="报价中" :value="2" />
-        <el-option label="已报价" :value="3" />
-        <el-option label="已接受" :value="4" />
-        <el-option label="已关闭" :value="5" />
-        <el-option label="已取消" :value="6" />
+      <el-select v-model="searchForm.status" :placeholder="t('bomList.filters.allStatus')" clearable class="filter-select">
+        <el-option :label="t('bomList.status.draft')" :value="0" />
+        <el-option :label="t('bomList.status.pending')" :value="1" />
+        <el-option :label="t('bomList.status.quoting')" :value="2" />
+        <el-option :label="t('bomList.status.quoted')" :value="3" />
+        <el-option :label="t('bomList.status.accepted')" :value="4" />
+        <el-option :label="t('bomList.status.closed')" :value="5" />
+        <el-option :label="t('bomList.status.cancelled')" :value="6" />
       </el-select>
-      <el-select v-model="searchForm.bomType" placeholder="全部类型" clearable class="filter-select">
-        <el-option label="现货" :value="1" />
-        <el-option label="期货" :value="2" />
-        <el-option label="样品" :value="3" />
-        <el-option label="批量" :value="4" />
+      <el-select v-model="searchForm.bomType" :placeholder="t('bomList.filters.allType')" clearable class="filter-select">
+        <el-option :label="t('bomList.type.spot')" :value="1" />
+        <el-option :label="t('bomList.type.future')" :value="2" />
+        <el-option :label="t('bomList.type.sample')" :value="3" />
+        <el-option :label="t('bomList.type.bulk')" :value="4" />
       </el-select>
       <el-date-picker
         v-model="dateRange"
         type="daterange"
-        range-separator="至"
-        start-placeholder="开始日期"
-        end-placeholder="结束日期"
+        :range-separator="t('bomList.filters.to')"
+        :start-placeholder="t('bomList.filters.startDate')"
+        :end-placeholder="t('bomList.filters.endDate')"
         value-format="YYYY-MM-DD"
         class="date-picker"
         @change="handleSearch"
       />
       <el-button type="primary" @click="handleSearch">
-        <el-icon><Search /></el-icon>搜索
+        <el-icon><Search /></el-icon>{{ t('bomList.filters.search') }}
       </el-button>
-      <el-button @click="handleReset">重置</el-button>
+      <el-button @click="handleReset">{{ t('bomList.filters.reset') }}</el-button>
     </div>
 
     <!-- 批量操作栏 -->
     <div v-if="selectedIds.length > 0" class="batch-bar">
-      <span class="batch-tip">已选 {{ selectedIds.length }} 条</span>
+      <span class="batch-tip">{{ t('bomList.batch.selected', { count: selectedIds.length }) }}</span>
       <el-button type="danger" size="small" @click="handleBatchDelete">
-        <el-icon><Delete /></el-icon>批量删除
+        <el-icon><Delete /></el-icon>{{ t('bomList.batch.delete') }}
       </el-button>
-      <el-button size="small" @click="selectedIds = []">取消选择</el-button>
+      <el-button size="small" @click="selectedIds = []">{{ t('bomList.batch.clearSelection') }}</el-button>
     </div>
 
     <!-- 数据表格 -->
@@ -146,7 +146,7 @@
         <template #col-createUser="{ row }">{{ row.salesUserName || row.createdBy || '—' }}</template>
         <template #col-actions-header>
           <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
+            <span class="op-col-header-text">{{ t('bomList.columns.actions') }}</span>
             <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
               {{ opColExpanded ? '>' : '<' }}
             </button>
@@ -155,14 +155,14 @@
         <template #col-actions="{ row }">
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
-              <el-button size="small" type="primary" @click.stop="goDetail(row.id)">详情</el-button>
+              <el-button size="small" type="primary" @click.stop="goDetail(row.id)">{{ t('bomList.actions.detail') }}</el-button>
               <el-button
                 v-if="row.status === 1 || row.status === 2"
                 size="small"
                 type="warning"
                 @click.stop="handleAutoQuote(row)"
               >
-                一键报价
+                {{ t('bomList.actions.autoQuote') }}
               </el-button>
             </div>
 
@@ -173,13 +173,13 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="goDetail(row.id)">
-                    <span class="op-more-item op-more-item--primary">详情</span>
+                    <span class="op-more-item op-more-item--primary">{{ t('bomList.actions.detail') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item
                     v-if="row.status === 1 || row.status === 2"
                     @click.stop="handleAutoQuote(row)"
                   >
-                    <span class="op-more-item op-more-item--warning">一键报价</span>
+                    <span class="op-more-item op-more-item--warning">{{ t('bomList.actions.autoQuote') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -191,8 +191,8 @@
       <!-- 分页 -->
       <div class="pagination-bar">
         <div class="list-footer-left">
-          <el-tooltip content="列设置" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+          <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
@@ -215,6 +215,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { Plus, Search, Delete, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { bomApi } from '@/api/bom'
@@ -223,6 +224,7 @@ import type { BOM } from '@/types/bom'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
+const { t } = useI18n()
 
 const loading = ref(false)
 const bomList = ref<BOM[]>([])
@@ -243,17 +245,17 @@ function toggleOpCol() {
 
 const bomTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'selection', type: 'selection', width: 44, fixed: 'left', hideable: false, reorderable: false },
-  { key: 'bomCode', label: 'BOM 单号', width: 160, minWidth: 160 },
-  { key: 'status', label: '状态', width: 90, align: 'center' },
-  { key: 'customerName', label: '客户', minWidth: 160, showOverflowTooltip: true },
-  { key: 'itemCount', label: '明细数', width: 80, align: 'center' },
-  { key: 'quotedCount', label: '已报价', width: 80, align: 'center' },
-  { key: 'bomType', label: '类型', width: 80, align: 'center' },
-  { key: 'createdAt', label: '创建时间', width: 150 },
-  { key: 'createUser', label: '创建人', width: 90, showOverflowTooltip: true },
+  { key: 'bomCode', label: t('bomList.columns.bomCode'), width: 160, minWidth: 160 },
+  { key: 'status', label: t('bomList.columns.status'), width: 90, align: 'center' },
+  { key: 'customerName', label: t('bomList.columns.customer'), minWidth: 160, showOverflowTooltip: true },
+  { key: 'itemCount', label: t('bomList.columns.itemCount'), width: 80, align: 'center' },
+  { key: 'quotedCount', label: t('bomList.columns.quotedCount'), width: 80, align: 'center' },
+  { key: 'bomType', label: t('bomList.columns.type'), width: 80, align: 'center' },
+  { key: 'createdAt', label: t('bomList.columns.createdAt'), width: 150 },
+  { key: 'createUser', label: t('bomList.columns.createUser'), width: 90, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('bomList.columns.actions'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -279,8 +281,16 @@ const totalCount = computed(() => pageInfo.value.total)
 
 // ── 状态/类型文本 ──
 const getStatusText = (s: number) => {
-  const map: Record<number, string> = { 0: '草稿', 1: '待报价', 2: '报价中', 3: '已报价', 4: '已接受', 5: '已关闭', 6: '已取消' }
-  return map[s] ?? '未知'
+  const map: Record<number, string> = {
+    0: t('bomList.status.draft'),
+    1: t('bomList.status.pending'),
+    2: t('bomList.status.quoting'),
+    3: t('bomList.status.quoted'),
+    4: t('bomList.status.accepted'),
+    5: t('bomList.status.closed'),
+    6: t('bomList.status.cancelled')
+  }
+  return map[s] ?? t('rfqDetail.unknown')
 }
 const getStatusTagType = (s: number): '' | 'success' | 'warning' | 'danger' | 'info' => {
   const map: Record<number, '' | 'success' | 'warning' | 'danger' | 'info'> = {
@@ -288,15 +298,20 @@ const getStatusTagType = (s: number): '' | 'success' | 'warning' | 'danger' | 'i
   }
   return map[s] ?? 'info'
 }
-const getBOMTypeText = (t: number) => {
-  const map: Record<number, string> = { 1: '现货', 2: '期货', 3: '样品', 4: '批量' }
-  return map[t] ?? '—'
+const getBOMTypeText = (type: number) => {
+  const map: Record<number, string> = {
+    1: t('bomList.type.spot'),
+    2: t('bomList.type.future'),
+    3: t('bomList.type.sample'),
+    4: t('bomList.type.bulk')
+  }
+  return map[type] ?? t('quoteList.na')
 }
-const getBOMTypeTagType = (t: number): '' | 'success' | 'warning' | 'danger' | 'info' => {
+const getBOMTypeTagType = (type: number): '' | 'success' | 'warning' | 'danger' | 'info' => {
   const map: Record<number, '' | 'success' | 'warning' | 'danger' | 'info'> = {
     1: '', 2: 'warning', 3: 'success', 4: 'info'
   }
-  return map[t] ?? 'info'
+  return map[type] ?? 'info'
 }
 const formatDate = (d?: string) => {
   if (!d) return '—'
@@ -353,16 +368,16 @@ const goDetail = (id: string) => router.push({ name: 'BOMDetail', params: { id }
 const onRowDblclick = (row: BOM) => goDetail(row.id)
 
 const handleBatchDelete = async () => {
-  await ElMessageBox.confirm(`确认删除选中的 ${selectedIds.value.length} 条 BOM？`, '批量删除确认', {
-    confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning'
+  await ElMessageBox.confirm(t('bomList.batch.deleteConfirm', { count: selectedIds.value.length }), t('bomList.batch.deleteTitle'), {
+    confirmButtonText: t('bomList.batch.deleteConfirmButton'), cancelButtonText: t('common.cancel'), type: 'warning'
   })
   try {
     await bomApi.deleteBOMs({ ids: selectedIds.value })
-    ElMessage.success('批量删除成功')
+    ElMessage.success(t('bomList.batch.deleteSuccess'))
     selectedIds.value = []
     loadData()
   } catch {
-    ElMessage.error('批量删除失败，请稍后重试')
+    ElMessage.error(t('bomList.batch.deleteFailed'))
   }
 }
 
@@ -370,10 +385,10 @@ const handleBatchDelete = async () => {
 const handleAutoQuote = async (row: BOM) => {
   try {
     const res = await bomApi.autoQuote({ bomId: row.id })
-    ElMessage.success(`报价完成：${res.quotedItems} 条已报价，${res.noStockItems} 条无货`)
+    ElMessage.success(t('bomList.actions.autoQuoteDone', { quoted: res.quotedItems, noStock: res.noStockItems }))
     loadData()
   } catch {
-    ElMessage.error('一键报价失败，请稍后重试')
+    ElMessage.error(t('bomList.actions.autoQuoteFailed'))
   }
 }
 

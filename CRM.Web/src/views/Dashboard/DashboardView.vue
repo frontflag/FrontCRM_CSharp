@@ -11,7 +11,7 @@
           </svg>
         </div>
         <div class="stat-info">
-          <span class="stat-label">总客户数</span>
+          <span class="stat-label">{{ t('dashboard.stats.totalCustomers') }}</span>
           <span class="stat-value">{{ stats.totalCustomers }}</span>
         </div>
       </div>
@@ -23,7 +23,7 @@
           </svg>
         </div>
         <div class="stat-info">
-          <span class="stat-label">待处理事项</span>
+          <span class="stat-label">{{ t('dashboard.stats.pendingTasks') }}</span>
           <span class="stat-value">{{ stats.pendingTasks }}</span>
         </div>
       </div>
@@ -35,7 +35,7 @@
           </svg>
         </div>
         <div class="stat-info">
-          <span class="stat-label">本月新增</span>
+          <span class="stat-label">{{ t('dashboard.stats.monthlyNew') }}</span>
           <span class="stat-value">{{ stats.monthlyNew }}</span>
         </div>
       </div>
@@ -48,7 +48,7 @@
           </svg>
         </div>
         <div class="stat-info">
-          <span class="stat-label">本月销售额</span>
+          <span class="stat-label">{{ t('dashboard.stats.monthlySales') }}</span>
           <span class="stat-value">¥ {{ stats.monthlySales }}</span>
         </div>
       </div>
@@ -57,8 +57,10 @@
     <!-- 欢迎卡片 -->
     <div class="welcome-card">
       <div class="welcome-left">
-        <h2 class="welcome-title">欢迎回来，{{ authStore.user?.userName }}！</h2>
-        <p class="welcome-sub">这是 FrontCRM 智能进销存管理系统的控制台，您可以从左侧菜单进入各功能模块。</p>
+        <h2 class="welcome-title">
+          {{ t('dashboard.welcomeBack', { name: authStore.user?.userName || t('dashboard.fallbackName') }) }}
+        </h2>
+        <p class="welcome-sub">{{ t('dashboard.welcomeSub') }}</p>
       </div>
       <div class="welcome-right">
         <div class="quick-links">
@@ -67,21 +69,21 @@
               <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
               <circle cx="12" cy="7" r="4"/>
             </svg>
-            客户管理
+            {{ t('dashboard.quickCustomerManagement') }}
           </router-link>
           <router-link to="/customers/create" class="quick-link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <line x1="12" y1="5" x2="12" y2="19"/>
               <line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
-            新增客户
+            {{ t('dashboard.quickNewCustomer') }}
           </router-link>
           <router-link to="/dashboard/settings" class="quick-link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <circle cx="12" cy="12" r="3"/>
               <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
             </svg>
-            系统设置
+            {{ t('dashboard.quickSystemSettings') }}
           </router-link>
         </div>
       </div>
@@ -91,8 +93,10 @@
 
 <script setup lang="ts">
 import { reactive } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores'
 
+const { t } = useI18n()
 const authStore = useAuthStore()
 
 const stats = reactive({

@@ -2,8 +2,8 @@
   <div class="crm-system-list-page">
     <el-card class="crm-system-list-card" shadow="never">
       <div class="crm-system-list-toolbar">
-        <h1 class="crm-system-list-title">角色管理</h1>
-        <el-button type="primary" @click="router.push({ name: 'RoleCreate' })">新增角色</el-button>
+        <h1 class="crm-system-list-title">{{ t('systemRole.title') }}</h1>
+        <el-button type="primary" @click="router.push({ name: 'RoleCreate' })">{{ t('systemRole.create') }}</el-button>
       </div>
 
       <CrmDataTable
@@ -17,18 +17,18 @@
       >
         <template #col-status="{ row }">
           <el-tag effect="dark" :type="row.status === 1 ? 'success' : 'info'" size="small">
-            {{ row.status === 1 ? '启用' : '禁用' }}
+            {{ row.status === 1 ? t('systemUser.statusEnabled') : t('systemUser.statusDisabled') }}
           </el-tag>
         </template>
         <template #col-createTime="{ row }">
           {{ formatCreateTime(row.createTime || row.createdAt) }}
         </template>
         <template #col-createUser="{ row }">
-          {{ row.createUserName || row.createdBy || '-' }}
+          {{ row.createUserName || row.createdBy || t('quoteList.na') }}
         </template>
         <template #col-actions-header>
           <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
+            <span class="op-col-header-text">{{ t('systemRole.columns.actions') }}</span>
             <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
               {{ opColExpanded ? '>' : '<' }}
             </button>
@@ -37,8 +37,8 @@
         <template #col-actions="{ row }">
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
-              <el-button link type="primary" @click.stop="goEdit(row.id)">编辑</el-button>
-              <el-button link type="danger" @click.stop="handleDelete(row.id)">删除</el-button>
+              <el-button link type="primary" @click.stop="goEdit(row.id)">{{ t('systemUser.edit') }}</el-button>
+              <el-button link type="danger" @click.stop="handleDelete(row.id)">{{ t('systemUser.delete') }}</el-button>
             </div>
 
             <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -48,10 +48,10 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="goEdit(row.id)">
-                    <span class="op-more-item op-more-item--primary">编辑</span>
+                    <span class="op-more-item op-more-item--primary">{{ t('systemUser.edit') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item @click.stop="handleDelete(row.id)">
-                    <span class="op-more-item op-more-item--danger">删除</span>
+                    <span class="op-more-item op-more-item--danger">{{ t('systemUser.delete') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -61,8 +61,8 @@
       </CrmDataTable>
       <div class="pagination-wrapper">
         <div class="list-footer-left">
-          <el-tooltip content="列设置" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+          <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
@@ -76,6 +76,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { rbacAdminApi, type RbacRole } from '@/api/rbacAdmin'
@@ -83,6 +84,7 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
+const { t } = useI18n()
 
 const loading = ref(false)
 const roles = ref<RbacRole[]>([])
@@ -101,15 +103,15 @@ function toggleOpCol() {
 }
 
 const roleTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'status', label: '状态', prop: 'status', width: 90, align: 'center' },
-  { key: 'roleCode', label: '角色编码', prop: 'roleCode', minWidth: 160, showOverflowTooltip: true },
-  { key: 'roleName', label: '角色名称', prop: 'roleName', minWidth: 180, showOverflowTooltip: true },
-  { key: 'description', label: '描述', prop: 'description', minWidth: 240, showOverflowTooltip: true },
-  { key: 'createTime', label: '创建时间', width: 160 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  { key: 'status', label: t('systemUser.colStatus'), prop: 'status', width: 90, align: 'center' },
+  { key: 'roleCode', label: t('systemRole.columns.roleCode'), prop: 'roleCode', minWidth: 160, showOverflowTooltip: true },
+  { key: 'roleName', label: t('systemRole.columns.roleName'), prop: 'roleName', minWidth: 180, showOverflowTooltip: true },
+  { key: 'description', label: t('systemRole.columns.description'), prop: 'description', minWidth: 240, showOverflowTooltip: true },
+  { key: 'createTime', label: t('systemUser.colCreateTime'), width: 160 },
+  { key: 'createUser', label: t('systemUser.colCreateUser'), width: 120, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('systemRole.columns.actions'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -126,7 +128,7 @@ const load = async () => {
   try {
     roles.value = await rbacAdminApi.getRoles()
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载角色列表失败')
+    ElMessage.error(e?.message || t('systemRole.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -140,13 +142,13 @@ const onRowDblclick = (row: RbacRole) => goEdit(row.id)
 
 const handleDelete = async (id: string) => {
   try {
-    await ElMessageBox.confirm('确定删除该角色吗？', '删除确认', {
+    await ElMessageBox.confirm(t('systemRole.deleteConfirmMessage'), t('systemRole.deleteConfirmTitle'), {
       type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消'
+      confirmButtonText: t('systemUser.delete'),
+      cancelButtonText: t('common.cancel')
     })
     await rbacAdminApi.deleteRole(id)
-    ElMessage.success('删除成功')
+    ElMessage.success(t('systemRole.deleteSuccess'))
     await load()
   } catch {
     // cancel

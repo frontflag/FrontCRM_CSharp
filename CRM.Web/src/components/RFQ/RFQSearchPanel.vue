@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const form = reactive({
   keyword: '',
@@ -43,46 +45,46 @@ function handleSearch() {
 
 <template>
   <div class="rfq-search-panel">
-    <div class="rfq-search-panel__head">需求检索</div>
+    <div class="rfq-search-panel__head">{{ t('leftPanel.rfqSearchTitle') }}</div>
 
     <div class="rfq-search-panel__fields">
       <div class="field-col">
-        <label class="field-label">关键词</label>
+        <label class="field-label">{{ t('rfqList.filters.search') }}</label>
         <div class="field-control">
           <input
             v-model="form.keyword"
             type="text"
             class="field-input"
-            placeholder="需求编号 / 客户 / 产品"
+            :placeholder="t('leftPanel.rfqKeywordPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
       </div>
 
       <div class="field-col">
-        <label class="field-label">状态</label>
+        <label class="field-label">{{ t('rfqList.filters.status') }}</label>
         <el-select
           v-model="form.status"
-          placeholder="全部状态"
+          :placeholder="t('rfqList.filters.allStatus')"
           clearable
           class="field-select"
           filterable
           :teleported="false"
         >
-          <el-option label="待分配" :value="0" />
-          <el-option label="已分配" :value="1" />
-          <el-option label="报价中" :value="2" />
-          <el-option label="已报价" :value="3" />
-          <el-option label="已选价" :value="4" />
-          <el-option label="已转订单" :value="5" />
-          <el-option label="已关闭" :value="6" />
+          <el-option :label="t('rfqList.status.pending')" :value="0" />
+          <el-option :label="t('rfqList.status.assigned')" :value="1" />
+          <el-option :label="t('rfqList.status.processing')" :value="2" />
+          <el-option :label="t('rfqList.status.quoted')" :value="3" />
+          <el-option :label="t('rfqList.status.selected')" :value="4" />
+          <el-option :label="t('rfqList.status.converted')" :value="5" />
+          <el-option :label="t('rfqList.status.closed')" :value="6" />
         </el-select>
       </div>
     </div>
 
     <div class="rfq-search-panel__actions">
-      <button type="button" class="btn-search" @click="handleSearch">搜索</button>
-      <button type="button" class="btn-reset" @click="handleReset">重置</button>
+      <button type="button" class="btn-search" @click="handleSearch">{{ t('rfqList.filters.query') }}</button>
+      <button type="button" class="btn-reset" @click="handleReset">{{ t('rfqList.filters.reset') }}</button>
     </div>
   </div>
 </template>

@@ -16,6 +16,23 @@ export function salesOrderStatusText(status: number): string {
   return SALES_ORDER_STATUS_TEXT[status] ?? '未知'
 }
 
+/** i18n keys under salesOrderList.status.* */
+export const SALES_ORDER_STATUS_I18N_KEY: Record<number, string> = {
+  1: 'salesOrderList.status.new',
+  2: 'salesOrderList.status.pendingReview',
+  10: 'salesOrderList.status.approved',
+  20: 'salesOrderList.status.inProgress',
+  100: 'salesOrderList.status.completed',
+  [-1]: 'salesOrderList.status.reviewFailed',
+  [-2]: 'salesOrderList.status.cancelled'
+}
+
+export function translateSalesOrderStatus(status: number, t: (key: string) => string): string {
+  const key = SALES_ORDER_STATUS_I18N_KEY[status]
+  if (key) return t(key)
+  return t('salesOrderList.status.unknown')
+}
+
 export function salesOrderStatusTagType(status: number): 'success' | 'warning' | 'info' | 'danger' | 'primary' {
   const map: Record<number, 'success' | 'warning' | 'info' | 'danger' | 'primary'> = {
     1: 'info',

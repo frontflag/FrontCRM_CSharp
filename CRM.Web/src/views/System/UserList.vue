@@ -2,8 +2,8 @@
   <div class="crm-system-list-page">
     <el-card class="crm-system-list-card" shadow="never">
       <div class="crm-system-list-toolbar">
-        <h1 class="crm-system-list-title">员工管理</h1>
-        <el-button type="primary" @click="router.push({ name: 'UserCreate' })">新增员工</el-button>
+        <h1 class="crm-system-list-title">{{ t('systemUser.title') }}</h1>
+        <el-button type="primary" @click="router.push({ name: 'UserCreate' })">{{ t('systemUser.create') }}</el-button>
       </div>
 
       <CrmDataTable
@@ -17,7 +17,7 @@
       >
         <template #col-status="{ row }">
           <el-tag effect="dark" :type="row.status === 1 ? 'success' : 'info'" size="small">
-            {{ row.status === 1 ? '启用' : '禁用' }}
+            {{ row.status === 1 ? t('systemUser.statusEnabled') : t('systemUser.statusDisabled') }}
           </el-tag>
         </template>
         <template #col-roleCodes="{ row }">
@@ -34,7 +34,7 @@
         </template>
         <template #col-actions-header>
           <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
+            <span class="op-col-header-text">{{ t('systemUser.action') }}</span>
             <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
               {{ opColExpanded ? '>' : '<' }}
             </button>
@@ -43,8 +43,8 @@
         <template #col-actions="{ row }">
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
-              <el-button link type="primary" @click.stop="goEdit(row.id)">编辑</el-button>
-              <el-button link type="danger" @click.stop="requestDelete(row.id)">删除</el-button>
+              <el-button link type="primary" @click.stop="goEdit(row.id)">{{ t('systemUser.edit') }}</el-button>
+              <el-button link type="danger" @click.stop="requestDelete(row.id)">{{ t('systemUser.delete') }}</el-button>
               <el-button
                 v-if="canImpersonate && impersonateVisibleForRow(row)"
                 link
@@ -52,7 +52,7 @@
                 :loading="impersonateUserId === row.id"
                 @click.stop="handleImpersonate(row)"
               >
-                模拟登录
+                {{ t('systemUser.impersonate') }}
               </el-button>
             </div>
 
@@ -63,10 +63,10 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="edit">
-                    <span class="op-more-item op-more-item--primary">编辑</span>
+                    <span class="op-more-item op-more-item--primary">{{ t('systemUser.edit') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item command="delete">
-                    <span class="op-more-item op-more-item--danger">删除</span>
+                    <span class="op-more-item op-more-item--danger">{{ t('systemUser.delete') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item
                     v-if="canImpersonate && impersonateVisibleForRow(row)"
@@ -74,7 +74,7 @@
                     command="impersonate"
                   >
                     <span class="op-more-item op-more-item--warning">
-                      模拟登录
+                      {{ t('systemUser.impersonate') }}
                     </span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
@@ -85,8 +85,8 @@
       </CrmDataTable>
       <div class="pagination-wrapper">
         <div class="list-footer-left">
-          <el-tooltip content="列设置" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+          <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
@@ -102,6 +102,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import { rbacAdminApi, type AdminUserDto } from '@/api/rbacAdmin'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { useAuthStore } from '@/stores/auth'
@@ -109,6 +110,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
 
 const loading = ref(false)
 const users = ref<AdminUserDto[]>([])
@@ -129,18 +131,18 @@ function toggleOpCol() {
 }
 
 const userTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'status', label: '状态', prop: 'status', width: 90, align: 'center' },
-  { key: 'userName', label: '员工账号', prop: 'userName', minWidth: 160, showOverflowTooltip: true },
-  { key: 'realName', label: '真实姓名', prop: 'realName', minWidth: 160, showOverflowTooltip: true },
-  { key: 'email', label: '邮箱', prop: 'email', minWidth: 200, showOverflowTooltip: true },
-  { key: 'mobile', label: '手机', prop: 'mobile', width: 140 },
-  { key: 'roleCodes', label: '角色', minWidth: 220, showOverflowTooltip: true },
-  { key: 'primaryDepartmentName', label: '主部门', minWidth: 220, showOverflowTooltip: true },
-  { key: 'createTime', label: '创建时间', width: 160 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  { key: 'status', label: t('systemUser.colStatus'), prop: 'status', width: 90, align: 'center' },
+  { key: 'userName', label: t('systemUser.colUserName'), prop: 'userName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'realName', label: t('systemUser.colRealName'), prop: 'realName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'email', label: t('systemUser.colEmail'), prop: 'email', minWidth: 200, showOverflowTooltip: true },
+  { key: 'mobile', label: t('systemUser.colMobile'), prop: 'mobile', width: 140 },
+  { key: 'roleCodes', label: t('systemUser.colRoleCodes'), minWidth: 220, showOverflowTooltip: true },
+  { key: 'primaryDepartmentName', label: t('systemUser.colPrimaryDept'), minWidth: 220, showOverflowTooltip: true },
+  { key: 'createTime', label: t('systemUser.colCreateTime'), width: 160 },
+  { key: 'createUser', label: t('systemUser.colCreateUser'), width: 120, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('systemUser.action'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -166,7 +168,7 @@ const load = async () => {
   try {
     users.value = await rbacAdminApi.getUsers()
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载员工列表失败')
+    ElMessage.error(e?.message || t('systemUser.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -202,14 +204,14 @@ const onRowCommand = (cmd: string, row: AdminUserDto) => {
 const handleDelete = async (id: string) => {
   try {
     console.info('[UserList] open delete confirm', { id })
-    await ElMessageBox.confirm('确定删除该员工吗？', '删除确认', {
+    await ElMessageBox.confirm(t('systemUser.deleteConfirmMessage'), t('systemUser.deleteConfirmTitle'), {
       type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消'
+      confirmButtonText: t('systemUser.delete'),
+      cancelButtonText: t('common.cancel')
     })
     console.info('[UserList] delete confirmed, calling api', { id })
     await rbacAdminApi.deleteUser(id)
-    ElMessage.success('删除成功')
+    ElMessage.success(t('systemUser.deleteSuccess'))
     console.info('[UserList] delete api success, reloading list', { id })
     await load()
   } catch (e: unknown) {
@@ -219,7 +221,7 @@ const handleDelete = async (id: string) => {
       return
     }
     console.error('[UserList] delete failed', { id, error: e })
-    const msg = e instanceof Error ? e.message : '删除失败'
+    const msg = e instanceof Error ? e.message : t('systemUser.deleteFailed')
     ElMessage.error(msg)
   }
 }

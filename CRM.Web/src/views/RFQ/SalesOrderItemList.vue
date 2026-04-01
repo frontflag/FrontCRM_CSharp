@@ -8,21 +8,21 @@
               <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
             </svg>
           </div>
-          <h1 class="page-title">销售订单明细</h1>
+          <h1 class="page-title">{{ t('salesOrderItemList.title') }}</h1>
         </div>
-        <div class="list-count-badge">共 {{ total }} 条</div>
+        <div class="list-count-badge">{{ t('salesOrderItemList.count', { count: total }) }}</div>
       </div>
     </div>
 
     <div class="search-bar">
       <div class="search-left">
-        <span class="list-title">筛选</span>
+        <span class="list-title">{{ t('salesOrderItemList.filters.title') }}</span>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
-          range-separator="至"
-          start-placeholder="订单生成起"
-          end-placeholder="订单生成止"
+          :range-separator="t('salesOrderItemList.filters.rangeTo')"
+          :start-placeholder="t('salesOrderItemList.filters.dateStart')"
+          :end-placeholder="t('salesOrderItemList.filters.dateEnd')"
           value-format="YYYY-MM-DD"
           class="so-date-range"
           clearable
@@ -30,25 +30,30 @@
         <input
           v-model="filters.sellOrderCode"
           class="search-input so-filter-input"
-          placeholder="销售订单号"
+          :placeholder="t('salesOrderItemList.filters.sellOrderCode')"
           @keyup.enter="loadList"
         />
         <input
           v-if="canViewCustomer"
           v-model="filters.customerName"
           class="search-input so-filter-input"
-          placeholder="客户名称"
+          :placeholder="t('salesOrderItemList.filters.customerName')"
           @keyup.enter="loadList"
         />
         <input
           v-model="filters.salesUserName"
           class="search-input so-filter-input"
-          placeholder="业务员名称"
+          :placeholder="t('salesOrderItemList.filters.salesUserName')"
           @keyup.enter="loadList"
         />
-        <input v-model="filters.pn" class="search-input so-filter-input" placeholder="物料型号" @keyup.enter="loadList" />
-        <button type="button" class="btn-primary btn-sm" @click="loadList">查询</button>
-        <button type="button" class="btn-ghost btn-sm" @click="resetFilters">重置</button>
+        <input
+          v-model="filters.pn"
+          class="search-input so-filter-input"
+          :placeholder="t('salesOrderItemList.filters.pn')"
+          @keyup.enter="loadList"
+        />
+        <button type="button" class="btn-primary btn-sm" @click="loadList">{{ t('salesOrderItemList.filters.query') }}</button>
+        <button type="button" class="btn-ghost btn-sm" @click="resetFilters">{{ t('salesOrderItemList.filters.reset') }}</button>
       </div>
     </div>
 
@@ -76,7 +81,7 @@
       <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || row.salesUserName || '—' }}</template>
       <template #col-actions-header>
         <div class="op-col-header">
-          <span class="op-col-header-text">操作</span>
+          <span class="op-col-header-text">{{ t('salesOrderItemList.columns.actions') }}</span>
           <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
             {{ opColExpanded ? '>' : '<' }}
           </button>
@@ -85,8 +90,8 @@
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
-            <el-button link type="primary" size="small" @click.stop="goDetail(row)">详情</el-button>
-            <el-button v-if="canWriteSo" link type="primary" size="small" @click.stop="goEdit(row)">编辑</el-button>
+            <el-button link type="primary" size="small" @click.stop="goDetail(row)">{{ t('salesOrderItemList.actions.detail') }}</el-button>
+            <el-button v-if="canWriteSo" link type="primary" size="small" @click.stop="goEdit(row)">{{ t('salesOrderItemList.actions.edit') }}</el-button>
             <el-button
               v-if="canPurchaseReq && mainAllowsOps(row)"
               link
@@ -94,7 +99,7 @@
               size="small"
               @click.stop="applyPurchaseOne(row)"
             >
-              申请采购
+              {{ t('salesOrderItemList.actions.applyPurchase') }}
             </el-button>
             <el-button
               v-if="canWriteSo && mainAllowsOps(row)"
@@ -103,7 +108,7 @@
               size="small"
               @click.stop="applyStockOutOne(row)"
             >
-              申请出库
+              {{ t('salesOrderItemList.actions.applyStockOut') }}
             </el-button>
           </div>
 
@@ -114,16 +119,16 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click.stop="goDetail(row)">
-                  <span class="op-more-item op-more-item--primary">详情</span>
+                  <span class="op-more-item op-more-item--primary">{{ t('salesOrderItemList.actions.detail') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canWriteSo" @click.stop="goEdit(row)">
-                  <span class="op-more-item op-more-item--primary">编辑</span>
+                  <span class="op-more-item op-more-item--primary">{{ t('salesOrderItemList.actions.edit') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canPurchaseReq && mainAllowsOps(row)" @click.stop="applyPurchaseOne(row)">
-                  <span class="op-more-item op-more-item--warning">申请采购</span>
+                  <span class="op-more-item op-more-item--warning">{{ t('salesOrderItemList.actions.applyPurchase') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canWriteSo && mainAllowsOps(row)" @click.stop="applyStockOutOne(row)">
-                  <span class="op-more-item op-more-item--warning">申请出库</span>
+                  <span class="op-more-item op-more-item--warning">{{ t('salesOrderItemList.actions.applyStockOut') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -134,14 +139,20 @@
 
     <div v-if="total > 0" class="table-footer-bar">
       <div class="basket-footer-left">
-        <el-tooltip content="列设置" placement="top" :hide-after="0">
-          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+        <el-tooltip :content="t('salesOrderItemList.columnSettings')" placement="top" :hide-after="0">
+          <el-button
+            class="list-settings-btn"
+            link
+            type="primary"
+            :aria-label="t('salesOrderItemList.columnSettings')"
+            @click="dataTableRef?.openColumnSettings?.()"
+          >
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
         <div class="list-footer-spacer" aria-hidden="true"></div>
         <el-button class="basket-open-btn" link type="primary" @click="basketDrawerVisible = true">
-          复选篮子<span v-if="basketCount" class="basket-count-label">（{{ basketCount }}）</span>
+          {{ t('salesOrderItemList.basket.open') }}<span v-if="basketCount" class="basket-count-label">（{{ basketCount }}）</span>
         </el-button>
         <el-button
           v-if="basketCount"
@@ -150,7 +161,7 @@
           type="warning"
           @click="handleClearBasket"
         >
-          清空篮子
+          {{ t('salesOrderItemList.basket.clear') }}
         </el-button>
         <button
           v-if="canPurchaseReq"
@@ -159,7 +170,7 @@
           :disabled="!basketCount || !basketItems.every((r) => mainAllowsOps(r))"
           @click="batchApplyPurchase"
         >
-          批量申请采购
+          {{ t('salesOrderItemList.basket.batchPurchase') }}
         </button>
       </div>
       <el-pagination
@@ -176,39 +187,57 @@
 
     <el-drawer
       v-model="basketDrawerVisible"
-      title="复选篮子"
+      :title="t('salesOrderItemList.basket.drawerTitle')"
       direction="rtl"
       size="min(560px, 94vw)"
       class="so-item-basket-drawer"
     >
-      <p v-if="!basketCount" class="basket-drawer-hint">篮子里暂无记录。在列表中勾选行即可加入篮子，翻页后已选记录会保留。</p>
+      <p v-if="!basketCount" class="basket-drawer-hint">{{ t('salesOrderItemList.basket.emptyHint') }}</p>
       <template v-else>
         <p class="basket-drawer-summary">
-          共 <strong>{{ basketCount }}</strong> 条，可在此移除单条或点击
+          {{ t('salesOrderItemList.basket.summaryBeforeBtn', { count: basketCount }) }}
           <el-button
             class="basket-clear-btn basket-clear-btn--drawer-inline"
             link
             type="warning"
             @click="handleClearBasket"
           >
-            清空篮子
+            {{ t('salesOrderItemList.basket.clear') }}
           </el-button>
-          全部清除。
+          {{ t('salesOrderItemList.basket.summaryAfterBtn') }}
         </p>
         <div class="crm-items-table crm-data-table">
           <el-table :data="basketItems" max-height="70vh" size="small" border stripe>
-            <el-table-column prop="sellOrderCode" label="销售单号" min-width="140" show-overflow-tooltip />
-            <el-table-column label="状态" width="100" align="center">
+            <el-table-column
+              prop="sellOrderCode"
+              :label="t('salesOrderItemList.columns.sellOrderCode')"
+              min-width="140"
+              show-overflow-tooltip
+            />
+            <el-table-column :label="t('salesOrderItemList.columns.status')" width="100" align="center">
               <template #default="{ row }">
                 <el-tag effect="dark" :type="statusTagType(Number(row.orderStatus))" size="small">
                   {{ statusText(Number(row.orderStatus)) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column v-if="canViewCustomer" prop="customerName" label="客户" min-width="120" show-overflow-tooltip />
-            <el-table-column prop="pn" label="物料型号" min-width="130" show-overflow-tooltip />
-            <el-table-column prop="qty" label="数量" width="72" align="right" />
-            <el-table-column label="操作" width="88" fixed="right" align="center" class-name="op-col" label-class-name="op-col">
+            <el-table-column
+              v-if="canViewCustomer"
+              prop="customerName"
+              :label="t('salesOrderItemList.columns.customerName')"
+              min-width="120"
+              show-overflow-tooltip
+            />
+            <el-table-column prop="pn" :label="t('salesOrderItemList.columns.pn')" min-width="130" show-overflow-tooltip />
+            <el-table-column prop="qty" :label="t('salesOrderItemList.columns.qty')" width="72" align="right" />
+            <el-table-column
+              :label="t('salesOrderItemList.columns.actions')"
+              width="88"
+              fixed="right"
+              align="center"
+              class-name="op-col"
+              label-class-name="op-col"
+            >
               <template #default="{ row }">
                 <div @click.stop @dblclick.stop>
                   <div class="action-btns">
@@ -218,7 +247,7 @@
                       size="small"
                       @click.stop="removeOneFromBasket(String(row.sellOrderItemId ?? ''))"
                     >
-                      移除
+                      {{ t('salesOrderItemList.actions.remove') }}
                     </el-button>
                   </div>
                 </div>
@@ -230,16 +259,16 @@
     </el-drawer>
 
     <!-- 新建采购申请弹窗 -->
-    <el-dialog v-model="applyDialogVisible" title="新建采购申请" width="720px" destroy-on-close>
+    <el-dialog v-model="applyDialogVisible" :title="t('salesOrderItemList.dialog.createPrTitle')" width="720px" destroy-on-close>
       <el-form ref="applyFormRef" :model="applyForm" :rules="applyRules" label-width="140px" v-loading="applyLoading">
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="物料型号">
+            <el-form-item :label="t('salesOrderItemList.dialog.pn')">
               <el-input v-model="applyForm.pn" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="品牌">
+            <el-form-item :label="t('salesOrderItemList.dialog.brand')">
               <el-input v-model="applyForm.brand" disabled />
             </el-form-item>
           </el-col>
@@ -247,12 +276,12 @@
 
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="订单明细数量">
+            <el-form-item :label="t('salesOrderItemList.dialog.orderLineQty')">
               <el-input :model-value="applyFormSalesOrderQtyText" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="可申请数量">
+            <el-form-item :label="t('salesOrderItemList.dialog.availableQty')">
               <el-input :model-value="applyFormRemainingQtyText" disabled />
             </el-form-item>
           </el-col>
@@ -260,7 +289,7 @@
 
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="本次申请数量" prop="requestQty">
+            <el-form-item :label="t('salesOrderItemList.dialog.requestQty')" prop="requestQty">
               <el-input-number
                 v-model="applyForm.requestQty"
                 :min="0"
@@ -273,11 +302,11 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="预计采购日期" prop="expectedPurchaseDate">
+            <el-form-item :label="t('salesOrderItemList.dialog.expectedPurchaseDate')" prop="expectedPurchaseDate">
               <el-date-picker
                 v-model="applyForm.expectedPurchaseDate"
                 type="date"
-                placeholder="请选择预计采购日期"
+                :placeholder="t('salesOrderItemList.dialog.expectedDatePlaceholder')"
                 value-format="YYYY-MM-DD"
                 style="width: 100%"
               />
@@ -285,15 +314,15 @@
           </el-col>
         </el-row>
 
-        <el-form-item label="备注">
-          <el-input v-model="applyForm.remark" type="textarea" rows="3" placeholder="请输入备注" />
+        <el-form-item :label="t('salesOrderItemList.dialog.remark')">
+          <el-input v-model="applyForm.remark" type="textarea" rows="3" :placeholder="t('salesOrderItemList.dialog.remarkPlaceholder')" />
         </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="applyDialogVisible = false">取消</el-button>
+          <el-button @click="applyDialogVisible = false">{{ t('salesOrderItemList.dialog.cancel') }}</el-button>
           <el-button type="primary" :loading="applySubmitting" @click="submitApply" :disabled="applyLoading">
-            确认
+            {{ t('salesOrderItemList.dialog.confirm') }}
           </el-button>
         </span>
       </template>
@@ -304,6 +333,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
@@ -314,7 +344,7 @@ import salesOrderApi from '@/api/salesOrder'
 import purchaseRequisitionApi from '@/api/purchaseRequisition'
 import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
 import {
-  salesOrderStatusText,
+  translateSalesOrderStatus,
   salesOrderStatusTagType,
   salesOrderMainAllowsPurchaseAndStockOut
 } from '@/constants/salesOrderStatus'
@@ -324,6 +354,7 @@ import type { SalesOrderItemLineRow } from '@/stores/salesOrderItemListBasket'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
 
 const basketStore = useSalesOrderItemListBasketStore()
@@ -360,30 +391,46 @@ function toggleOpCol() {
 }
 
 const salesOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
+  void locale.value
   const cols: CrmTableColumnDef[] = [
     { key: 'selection', type: 'selection', width: 48, reserveSelection: true, fixed: 'left', hideable: false, reorderable: false },
-    { key: 'sellOrderCode', label: '销售单号', prop: 'sellOrderCode', width: 160, minWidth: 160, showOverflowTooltip: true },
-    { key: 'orderStatus', label: '状态', prop: 'orderStatus', width: 160, align: 'center' },
-    { key: 'orderCreateTime', label: '订单生成日期', prop: 'orderCreateTime', width: 160 },
-    { key: 'salesUserName', label: '业务员', prop: 'salesUserName', width: 100, showOverflowTooltip: true },
-    { key: 'pn', label: '物料型号', prop: 'pn', minWidth: 130, showOverflowTooltip: true },
-    { key: 'brand', label: '品牌', prop: 'brand', width: 110, showOverflowTooltip: true },
-    { key: 'qty', label: '数量', prop: 'qty', width: 100, align: 'right' },
-    { key: 'createTime', label: '创建时间', width: 160 },
-    { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true }
+    {
+      key: 'sellOrderCode',
+      label: t('salesOrderItemList.columns.sellOrderCode'),
+      prop: 'sellOrderCode',
+      width: 160,
+      minWidth: 160,
+      showOverflowTooltip: true
+    },
+    { key: 'orderStatus', label: t('salesOrderItemList.columns.status'), prop: 'orderStatus', width: 160, align: 'center' },
+    { key: 'orderCreateTime', label: t('salesOrderItemList.columns.orderCreateDate'), prop: 'orderCreateTime', width: 160 },
+    { key: 'salesUserName', label: t('salesOrderItemList.columns.salesUser'), prop: 'salesUserName', width: 100, showOverflowTooltip: true },
+    { key: 'pn', label: t('salesOrderItemList.columns.pn'), prop: 'pn', minWidth: 130, showOverflowTooltip: true },
+    { key: 'brand', label: t('salesOrderItemList.columns.brand'), prop: 'brand', width: 110, showOverflowTooltip: true },
+    { key: 'qty', label: t('salesOrderItemList.columns.qty'), prop: 'qty', width: 100, align: 'right' },
+    { key: 'createTime', label: t('salesOrderItemList.columns.createTime'), width: 160 },
+    { key: 'createUser', label: t('salesOrderItemList.columns.createUser'), width: 120, showOverflowTooltip: true }
   ]
-  if (canViewCustomer.value) cols.splice(4, 0, { key: 'customerName', label: '客户名称', prop: 'customerName', minWidth: 200, showOverflowTooltip: true })
+  if (canViewCustomer.value) {
+    cols.splice(4, 0, {
+      key: 'customerName',
+      label: t('salesOrderItemList.columns.customerName'),
+      prop: 'customerName',
+      minWidth: 200,
+      showOverflowTooltip: true
+    })
+  }
   if (canViewAmount.value) {
     cols.splice(cols.length - 2, 0,
-      { key: 'price', label: '单价', prop: 'price', width: 160, align: 'right' },
-      { key: 'lineTotal', label: '明细总额', prop: 'lineTotal', width: 160, align: 'right' },
-      { key: 'usdUnitPrice', label: '折算美金单价', width: 160, align: 'right' },
-      { key: 'usdLineTotal', label: '折算美金总额', width: 160, align: 'right' }
+      { key: 'price', label: t('salesOrderItemList.columns.unitPrice'), prop: 'price', width: 160, align: 'right' },
+      { key: 'lineTotal', label: t('salesOrderItemList.columns.lineTotal'), prop: 'lineTotal', width: 160, align: 'right' },
+      { key: 'usdUnitPrice', label: t('salesOrderItemList.columns.usdUnitPrice'), width: 160, align: 'right' },
+      { key: 'usdLineTotal', label: t('salesOrderItemList.columns.usdLineTotal'), width: 160, align: 'right' }
     )
   }
   cols.push({
     key: 'actions',
-    label: '操作',
+    label: t('salesOrderItemList.columns.actions'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -422,12 +469,12 @@ const applyForm = reactive({
   expectedPurchaseDate: '' as string,
   remark: ''
 })
-const applyRules: FormRules = {
-  requestQty: [
-    { required: true, message: '请输入本次申请数量', trigger: 'change' }
-  ],
-  expectedPurchaseDate: [{ required: true, message: '请选择预计采购日期', trigger: 'change' }]
-}
+const applyRules = computed<FormRules>(() => ({
+  requestQty: [{ required: true, message: t('salesOrderItemList.validation.requestQtyRequired'), trigger: 'change' }],
+  expectedPurchaseDate: [
+    { required: true, message: t('salesOrderItemList.validation.expectedDateRequired'), trigger: 'change' }
+  ]
+}))
 
 const applyFormReset = () => {
   applyForm.sellOrderItemId = ''
@@ -447,15 +494,15 @@ const submitApply = async () => {
 
   // 附加校验：不能超过可申请数量
   if (applyForm.requestQty <= 0) {
-    ElMessage.warning('本次申请数量必须大于 0')
+    ElMessage.warning(t('salesOrderItemList.validation.requestQtyPositive'))
     return
   }
   if (applyForm.requestQty > applyForm.remainingQty) {
-    ElMessage.warning('本次申请数量不能大于可申请数量')
+    ElMessage.warning(t('salesOrderItemList.validation.requestQtyMax'))
     return
   }
   if (!applyForm.expectedPurchaseDate) {
-    ElMessage.warning('请选择预计采购日期')
+    ElMessage.warning(t('salesOrderItemList.validation.expectedDatePick'))
     return
   }
 
@@ -471,10 +518,10 @@ const submitApply = async () => {
         remark: applyForm.remark || undefined
       })
     },
-    formatSuccess: () => '采购申请已创建',
+    formatSuccess: () => t('salesOrderItemList.messages.prCreated'),
     errorMessage: (e: unknown) => {
       const err = e as { response?: { data?: { message?: string } }; message?: string }
-      return err?.response?.data?.message || err?.message || '创建失败'
+      return err?.response?.data?.message || err?.message || t('salesOrderItemList.messages.createFailed')
     }
   })
   if (!created) return
@@ -484,7 +531,7 @@ const submitApply = async () => {
 
 async function applyPurchaseOne(row: any) {
   if (!mainAllowsOps(row)) {
-    ElMessage.warning('销售订单主表审核通过后，方可申请采购')
+    ElMessage.warning(t('salesOrderItemList.messages.applyPurchaseNeedAudit'))
     return
   }
   applyFormReset()
@@ -504,7 +551,7 @@ async function applyPurchaseOne(row: any) {
     applyForm.remainingQty = toInt(line?.remainingQty ?? row.qty ?? 0)
     applyForm.requestQty = applyForm.remainingQty
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '加载明细失败')
+    ElMessage.error(e?.response?.data?.message || e?.message || t('salesOrderItemList.messages.loadLineFailed'))
     applyDialogVisible.value = false
   }
 }
@@ -514,7 +561,7 @@ const applyFormSalesOrderQtyText = computed(() => String(Math.trunc(Number(apply
 const applyFormRemainingQtyText = computed(() => String(Math.trunc(Number(applyForm.remainingQty ?? 0) || 0)))
 
 function statusText(s: number) {
-  return salesOrderStatusText(s)
+  return translateSalesOrderStatus(s, t)
 }
 
 function statusTagType(s: number): '' | 'success' | 'warning' | 'info' | 'danger' {
@@ -565,11 +612,15 @@ function removeOneFromBasket(sellOrderItemId: string) {
 async function handleClearBasket() {
   if (!basketStore.count) return
   try {
-    await ElMessageBox.confirm('确定清空复选篮子中的全部记录？', '清空确认', {
-      type: 'warning',
-      confirmButtonText: '清空',
-      cancelButtonText: '取消'
-    })
+    await ElMessageBox.confirm(
+      t('salesOrderItemList.messages.clearBasketConfirm'),
+      t('salesOrderItemList.messages.clearBasketTitle'),
+      {
+        type: 'warning',
+        confirmButtonText: t('salesOrderItemList.messages.clearButton'),
+        cancelButtonText: t('common.cancel')
+      }
+    )
   } catch {
     return
   }
@@ -578,7 +629,7 @@ async function handleClearBasket() {
   dataTableRef.value?.clearSelection()
   await nextTick()
   suppressBasketMerge.value = false
-  ElMessage.success('已清空复选篮子')
+  ElMessage.success(t('salesOrderItemList.messages.basketCleared'))
 }
 
 async function loadList() {
@@ -603,7 +654,7 @@ async function loadList() {
     list.value = data?.items ?? []
     total.value = data?.total ?? 0
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载失败')
+    ElMessage.error(e?.message || t('salesOrderItemList.messages.loadListFailed'))
   } finally {
     loading.value = false
   }
@@ -644,11 +695,11 @@ function navigateNewPr(sellOrderId: string, itemIds: string[]) {
 function batchApplyPurchase() {
   const rows = basketStore.items as any[]
   if (!rows.length) {
-    ElMessage.warning('请先在复选篮子中加入销售订单明细（可跨页勾选）')
+    ElMessage.warning(t('salesOrderItemList.messages.basketNeedRows'))
     return
   }
   if (!rows.every((r) => mainAllowsOps(r))) {
-    ElMessage.warning('仅当销售订单主表已审核通过（含进行中、完成）时，方可申请采购')
+    ElMessage.warning(t('salesOrderItemList.messages.applyPurchaseNeedAudit'))
     return
   }
   if (rows.length === 1) {
@@ -657,12 +708,12 @@ function batchApplyPurchase() {
     return
   }
 
-  ElMessage.warning('批量申请采购暂未改造成弹窗，请逐条使用“申请采购”')
+  ElMessage.warning(t('salesOrderItemList.messages.batchNotImplemented'))
   return
 
   const orderIds = new Set(rows.map((r) => r.sellOrderId))
   if (orderIds.size !== 1) {
-    ElMessage.warning('批量申请采购仅支持同一销售订单下的明细，请分次操作')
+    ElMessage.warning(t('salesOrderItemList.messages.batchSameOrderOnly'))
     return
   }
   if (canViewCustomer.value) {
@@ -670,12 +721,12 @@ function batchApplyPurchase() {
     const names = rows.map((r) => r.customerName).filter(Boolean)
     if (cids.length === rows.length) {
       if (!cids.every((id) => id === cids[0])) {
-        ElMessage.warning('所选明细必须属于同一客户')
+        ElMessage.warning(t('salesOrderItemList.messages.sameCustomer'))
         return
       }
     } else if (names.length === rows.length) {
       if (!names.every((n) => n === names[0])) {
-        ElMessage.warning('所选明细必须属于同一客户')
+        ElMessage.warning(t('salesOrderItemList.messages.sameCustomer'))
         return
       }
     }
@@ -685,7 +736,7 @@ function batchApplyPurchase() {
 
 function applyStockOutOne(row: any) {
   if (!mainAllowsOps(row)) {
-    ElMessage.warning('销售订单主表审核通过后，方可申请出库')
+    ElMessage.warning(t('salesOrderItemList.messages.applyStockOutNeedAudit'))
     return
   }
   router.push({

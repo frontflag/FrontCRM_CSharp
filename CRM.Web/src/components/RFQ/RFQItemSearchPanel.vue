@@ -2,9 +2,11 @@
 import { reactive, ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
+import { useI18n } from 'vue-i18n'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const salesUsers = ref<SalesUserSelectOption[]>([])
 const purchaseUsers = ref<PurchaseUserSelectOption[]>([])
@@ -20,12 +22,12 @@ const form = reactive({
 
 function salesUserLabel(u: SalesUserSelectOption) {
   const name = u.realName || u.label || u.userName
-  return u.userName && name !== u.userName ? `${name}（${u.userName}）` : name
+  return u.userName && name !== u.userName ? `${name}(${u.userName})` : name
 }
 
 function purchaseUserLabel(u: PurchaseUserSelectOption) {
   const name = u.realName || u.label || u.userName
-  return u.userName && name !== u.userName ? `${name}（${u.userName}）` : name
+  return u.userName && name !== u.userName ? `${name}(${u.userName})` : name
 }
 
 function syncFromRoute() {
@@ -92,17 +94,17 @@ onMounted(async () => {
 
 <template>
   <div class="rfq-item-search-panel">
-    <div class="rfq-item-search-panel__head">需求明细检索</div>
+    <div class="rfq-item-search-panel__head">{{ t('leftPanel.rfqItemSearchTitle') }}</div>
 
     <div class="rfq-item-search-panel__fields">
       <div class="field-col">
-        <label class="field-label">需求创建日期</label>
+        <label class="field-label">{{ t('rfqItemList.filters.createDate') }}</label>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
-          range-separator="至"
-          start-placeholder="起"
-          end-placeholder="止"
+          :range-separator="t('rfqItemList.filters.to')"
+          :start-placeholder="t('rfqItemList.filters.startDate')"
+          :end-placeholder="t('rfqItemList.filters.endDate')"
           value-format="YYYY-MM-DD"
           clearable
           class="field-date-range"
@@ -111,32 +113,32 @@ onMounted(async () => {
       </div>
 
       <div class="field-col">
-        <label class="field-label">客户</label>
+        <label class="field-label">{{ t('rfqItemList.columns.customer') }}</label>
         <input
           v-model="form.customerKeyword"
           type="text"
           class="field-input"
-          placeholder="客户名称模糊"
+          :placeholder="t('rfqItemList.filters.customerPlaceholder')"
           @keyup.enter="handleSearch"
         />
       </div>
 
       <div class="field-col">
-        <label class="field-label">物料型号</label>
+        <label class="field-label">{{ t('rfqItemList.columns.materialModel') }}</label>
         <input
           v-model="form.materialModel"
           type="text"
           class="field-input"
-          placeholder="MPN / 客户料号"
+          :placeholder="t('rfqItemList.filters.materialPlaceholder')"
           @keyup.enter="handleSearch"
         />
       </div>
 
       <div class="field-col">
-        <label class="field-label">业务员</label>
+        <label class="field-label">{{ t('rfqItemList.columns.salesUser') }}</label>
         <el-select
           v-model="form.salesUserId"
-          placeholder="全部业务员"
+          :placeholder="t('rfqItemList.filters.allSalesUsers')"
           clearable
           filterable
           class="field-select"
@@ -147,10 +149,10 @@ onMounted(async () => {
       </div>
 
       <div class="field-col">
-        <label class="field-label">采购员</label>
+        <label class="field-label">{{ t('rfqItemList.columns.purchaser') }}</label>
         <el-select
           v-model="form.purchaserUserId"
-          placeholder="全部采购员"
+          :placeholder="t('rfqItemList.filters.allPurchasers')"
           clearable
           filterable
           class="field-select"
@@ -162,14 +164,14 @@ onMounted(async () => {
 
       <div class="field-col field-col--checkbox">
         <el-checkbox v-model="form.hasQuotesOnly" class="field-checkbox-has-quotes" @change="handleSearch">
-          有报价
+          {{ t('rfqItemList.filters.hasQuotes') }}
         </el-checkbox>
       </div>
     </div>
 
     <div class="rfq-item-search-panel__actions">
-      <button type="button" class="btn-search" @click="handleSearch">搜索</button>
-      <button type="button" class="btn-reset" @click="handleReset">重置</button>
+      <button type="button" class="btn-search" @click="handleSearch">{{ t('rfqItemList.filters.query') }}</button>
+      <button type="button" class="btn-reset" @click="handleReset">{{ t('rfqItemList.filters.reset') }}</button>
     </div>
   </div>
 </template>

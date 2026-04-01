@@ -1,58 +1,58 @@
 <template>
   <div class="inventory-check-page">
     <div class="page-header">
-      <h2>库存盘点</h2>
+      <h2>{{ t('inventoryCheck.title') }}</h2>
       <div class="actions">
-        <el-input v-model="createForm.planMonth" placeholder="yyyy-MM" style="width: 120px" />
-        <el-input v-model="createForm.warehouseId" placeholder="仓库ID" style="width: 140px" />
-        <button class="btn-primary" @click="createPlan">创建月度盘点</button>
+        <el-input v-model="createForm.planMonth" :placeholder="t('inventoryCheck.filters.planMonthPlaceholder')" style="width: 120px" />
+        <el-input v-model="createForm.warehouseId" :placeholder="t('inventoryCheck.filters.warehouseId')" style="width: 140px" />
+        <button class="btn-primary" @click="createPlan">{{ t('inventoryCheck.actions.createPlan') }}</button>
       </div>
     </div>
 
     <CrmDataTable :data="plans" v-loading="loading">
-      <el-table-column prop="planMonth" label="盘点月份" width="120" />
-      <el-table-column prop="warehouseId" label="仓库ID" width="140" />
-      <el-table-column prop="status" label="状态" width="100">
+      <el-table-column prop="planMonth" :label="t('inventoryCheck.columns.planMonth')" width="120" />
+      <el-table-column prop="warehouseId" :label="t('inventoryCheck.columns.warehouseId')" width="140" />
+      <el-table-column prop="status" :label="t('inventoryCheck.columns.status')" width="100">
         <template #default="{ row }">{{ statusText(row.status) }}</template>
       </el-table-column>
-      <el-table-column prop="remark" label="备注" min-width="180" />
-      <el-table-column prop="createTime" label="创建时间" width="170">
+      <el-table-column prop="remark" :label="t('inventoryCheck.columns.remark')" min-width="180" />
+      <el-table-column prop="createTime" :label="t('inventoryCheck.columns.createTime')" width="170">
         <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="220" class-name="op-col" label-class-name="op-col">
+      <el-table-column :label="t('inventoryCheck.columns.actions')" width="220" class-name="op-col" label-class-name="op-col">
         <template #default="{ row }">
           <div @click.stop @dblclick.stop>
             <div class="action-btns">
-              <button type="button" class="action-btn action-btn--warning" @click.stop="openSubmit(row.id)">提交盘点结果</button>
+              <button type="button" class="action-btn action-btn--warning" @click.stop="openSubmit(row.id)">{{ t('inventoryCheck.actions.submitResult') }}</button>
             </div>
           </div>
         </template>
       </el-table-column>
     </CrmDataTable>
 
-    <el-dialog v-model="submitVisible" title="提交盘点结果" width="760px">
+    <el-dialog v-model="submitVisible" :title="t('inventoryCheck.actions.submitResult')" width="760px">
       <el-table :data="submitItems">
-        <el-table-column prop="materialId" label="物料ID" width="180">
+        <el-table-column prop="materialId" :label="t('inventoryCheck.columns.materialId')" width="180">
           <template #default="{ row }"><el-input v-model="row.materialId" /></template>
         </el-table-column>
-        <el-table-column prop="locationId" label="库位ID" width="140">
+        <el-table-column prop="locationId" :label="t('inventoryCheck.columns.locationId')" width="140">
           <template #default="{ row }"><el-input v-model="row.locationId" /></template>
         </el-table-column>
-        <el-table-column prop="countQty" label="实盘数量" width="120">
+        <el-table-column prop="countQty" :label="t('inventoryCheck.columns.countQty')" width="120">
           <template #default="{ row }"><el-input-number v-model="row.countQty" :min="0" /></template>
         </el-table-column>
-        <el-table-column prop="countAmount" label="实盘金额" width="140">
+        <el-table-column prop="countAmount" :label="t('inventoryCheck.columns.countAmount')" width="140">
           <template #default="{ row }"><el-input-number v-model="row.countAmount" :min="0" :step="0.01" /></template>
         </el-table-column>
-        <el-table-column label="操作" width="90" class-name="op-col" label-class-name="op-col">
+        <el-table-column :label="t('inventoryCheck.columns.actions')" width="90" class-name="op-col" label-class-name="op-col">
           <template #default="{ $index }">
-            <button type="button" class="action-btn action-btn--danger" @click.stop="removeRow($index)">删除</button>
+            <button type="button" class="action-btn action-btn--danger" @click.stop="removeRow($index)">{{ t('inventoryCheck.actions.delete') }}</button>
           </template>
         </el-table-column>
       </el-table>
       <div class="submit-footer">
-        <button class="btn-secondary" @click="addRow">新增一行</button>
-        <button class="btn-primary" @click="submitPlan">提交</button>
+        <button class="btn-secondary" @click="addRow">{{ t('inventoryCheck.actions.addRow') }}</button>
+        <button class="btn-primary" @click="submitPlan">{{ t('inventoryCheck.actions.submit') }}</button>
       </div>
     </el-dialog>
   </div>
@@ -60,18 +60,25 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { inventoryCenterApi, type CountPlan } from '@/api/inventoryCenter'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const loading = ref(false)
+const { t } = useI18n()
 const plans = ref<CountPlan[]>([])
 const submitVisible = ref(false)
 const currentPlanId = ref('')
 const submitItems = ref<Array<{ materialId: string; locationId?: string; countQty: number; countAmount: number }>>([])
 const createForm = ref({ planMonth: new Date().toISOString().slice(0, 7), warehouseId: '', creatorId: 'SYSTEM' })
 
-const statusText = (s: number) => ({ 1: '草稿', 10: '盘点中', 100: '已完成', [-1]: '已取消' }[s] || '未知')
+const statusText = (s: number) => ({
+  1: t('inventoryCheck.status.draft'),
+  10: t('inventoryCheck.status.counting'),
+  100: t('inventoryCheck.status.completed'),
+  [-1]: t('inventoryCheck.status.cancelled')
+}[s] || t('rfqDetail.unknown'))
 const formatTime = (v?: string) => formatDisplayDateTime(v)
 
 const loadPlans = async () => {
@@ -85,16 +92,16 @@ const loadPlans = async () => {
 
 const createPlan = async () => {
   if (!createForm.value.planMonth || !createForm.value.warehouseId) {
-    ElMessage.warning('请填写盘点月份和仓库ID')
+    ElMessage.warning(t('inventoryCheck.messages.fillMonthAndWarehouse'))
     return
   }
   try {
     await inventoryCenterApi.createCountPlan(createForm.value)
-    ElMessage.success('盘点计划创建成功')
+    ElMessage.success(t('inventoryCheck.messages.createSuccess'))
     await loadPlans()
   } catch (e) {
     console.error(e)
-    ElMessage.error('创建盘点计划失败')
+    ElMessage.error(t('inventoryCheck.messages.createFailed'))
   }
 }
 
@@ -111,7 +118,7 @@ const submitPlan = async () => {
   if (!currentPlanId.value) return
   const valid = submitItems.value.filter(x => x.materialId && x.countQty >= 0)
   if (!valid.length) {
-    ElMessage.warning('请填写至少一条有效盘点明细')
+    ElMessage.warning(t('inventoryCheck.messages.atLeastOneItem'))
     return
   }
   try {
@@ -120,12 +127,12 @@ const submitPlan = async () => {
       submitterId: 'SYSTEM',
       items: valid
     })
-    ElMessage.success('盘点提交成功')
+    ElMessage.success(t('inventoryCheck.messages.submitSuccess'))
     submitVisible.value = false
     await loadPlans()
   } catch (e) {
     console.error(e)
-    ElMessage.error('盘点提交失败')
+    ElMessage.error(t('inventoryCheck.messages.submitFailed'))
   }
 }
 

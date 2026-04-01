@@ -1,13 +1,13 @@
 <template>
   <div class="purchase-order-list-page">
     <div class="page-header">
-      <h2>采购订单</h2>
+      <h2>{{ t('purchaseOrderList.title') }}</h2>
       <button type="button" class="btn-success" @click="handleCreate">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
-        新建采购订单
+        {{ t('purchaseOrderList.create') }}
       </button>
     </div>
 
@@ -16,25 +16,25 @@
       <el-col :span="6">
         <el-card class="stat-card">
           <div class="stat-value">{{ statTotal }}</div>
-          <div class="stat-label">订单总数</div>
+          <div class="stat-label">{{ t('purchaseOrderList.stats.total') }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card stat-warning">
           <div class="stat-value">{{ statPending }}</div>
-          <div class="stat-label">待确认</div>
+          <div class="stat-label">{{ t('purchaseOrderList.stats.pendingConfirm') }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card stat-success">
           <div class="stat-value">{{ statInProgress }}</div>
-          <div class="stat-label">进行中</div>
+          <div class="stat-label">{{ t('purchaseOrderList.stats.inProgress') }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card stat-info">
           <div class="stat-value">{{ canViewPurchaseAmount ? `¥${statAmount.toLocaleString()}` : '--' }}</div>
-          <div class="stat-label">采购总额</div>
+          <div class="stat-label">{{ t('purchaseOrderList.stats.totalAmount') }}</div>
         </el-card>
       </el-col>
     </el-row>
@@ -42,7 +42,7 @@
     <!-- 搜索栏（与客户列表页 search-bar 一致） -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">订单号</span>
+        <span class="filter-field-label">{{ t('purchaseOrderList.filters.orderCode') }}</span>
         <div class="search-input-wrap">
           <svg
             width="14"
@@ -60,41 +60,41 @@
           <input
             v-model="filterForm.code"
             class="search-input"
-            placeholder="请输入订单号"
+            :placeholder="t('purchaseOrderList.filters.orderCodePlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
         <template v-if="canViewVendorInfo">
-          <span class="filter-field-label">供应商</span>
+          <span class="filter-field-label">{{ t('purchaseOrderList.filters.vendor') }}</span>
           <input
             v-model="filterForm.vendor"
             class="search-input search-input--plain"
-            placeholder="请输入供应商"
+            :placeholder="t('purchaseOrderList.filters.vendorPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </template>
-        <span class="filter-field-label">状态</span>
+        <span class="filter-field-label">{{ t('purchaseOrderList.filters.status') }}</span>
         <el-select
           v-model="filterForm.status"
-          placeholder="全部状态"
+          :placeholder="t('purchaseOrderList.filters.allStatus')"
           clearable
           class="status-select status-select--po"
           :teleported="false"
           @change="handleSearch"
         >
-          <el-option label="草稿" :value="0" />
-          <el-option label="新建" :value="1" />
-          <el-option label="待审核" :value="2" />
-          <el-option label="审核通过" :value="10" />
-          <el-option label="待确认" :value="20" />
-          <el-option label="已确认" :value="30" />
-          <el-option label="进行中" :value="50" />
-          <el-option label="采购完成" :value="100" />
-          <el-option label="审核失败" :value="-1" />
-          <el-option label="取消" :value="-2" />
+          <el-option :label="t('purchaseOrderList.status.draft')" :value="0" />
+          <el-option :label="t('purchaseOrderList.status.new')" :value="1" />
+          <el-option :label="t('purchaseOrderList.status.pendingReview')" :value="2" />
+          <el-option :label="t('purchaseOrderList.status.approved')" :value="10" />
+          <el-option :label="t('purchaseOrderList.status.pendingConfirm')" :value="20" />
+          <el-option :label="t('purchaseOrderList.status.confirmed')" :value="30" />
+          <el-option :label="t('purchaseOrderList.status.inProgress')" :value="50" />
+          <el-option :label="t('purchaseOrderList.status.completed')" :value="100" />
+          <el-option :label="t('purchaseOrderList.status.reviewFailed')" :value="-1" />
+          <el-option :label="t('purchaseOrderList.status.cancelled')" :value="-2" />
         </el-select>
-        <button type="button" class="btn-primary btn-sm" @click="handleSearch">搜索</button>
-        <button type="button" class="btn-ghost btn-sm" @click="handleReset">重置</button>
+        <button type="button" class="btn-primary btn-sm" @click="handleSearch">{{ t('purchaseOrderList.filters.search') }}</button>
+        <button type="button" class="btn-ghost btn-sm" @click="handleReset">{{ t('purchaseOrderList.filters.reset') }}</button>
       </div>
     </div>
 
@@ -137,7 +137,7 @@
         </template>
         <template #col-actions-header>
           <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
+            <span class="op-col-header-text">{{ t('purchaseOrderList.columns.actions') }}</span>
             <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
               {{ opColExpanded ? '>' : '<' }}
             </button>
@@ -146,15 +146,15 @@
         <template #col-actions="{ row }">
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
-              <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">详情</button>
-              <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">编辑</button>
+              <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('purchaseOrderList.actions.detail') }}</button>
+              <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('purchaseOrderList.actions.edit') }}</button>
               <button
                 v-if="(poListMainStatus(row) >= 1 && poListMainStatus(row) < 10) || poListMainStatus(row) === -1"
                 type="button"
                 class="action-btn action-btn--warning"
                 @click.stop="submitAudit(row)"
               >
-                提交审核
+                {{ t('purchaseOrderList.actions.submitAudit') }}
               </button>
               <button
                 v-if="poListMainStatus(row) >= 10 && poListMainStatus(row) < 30"
@@ -162,7 +162,7 @@
                 class="action-btn action-btn--warning"
                 @click.stop="confirmBySupplier(row)"
               >
-                供应商确认
+                {{ t('purchaseOrderList.actions.confirmBySupplier') }}
               </button>
               <button
                 v-if="purchaseOrderReportAllowed(poListMainStatus(row))"
@@ -170,7 +170,7 @@
                 class="action-btn action-btn--primary"
                 @click.stop="handlePrintOrder(row)"
               >
-                采购单
+                {{ t('purchaseOrderList.actions.report') }}
               </button>
               <button
                 v-if="poListMainStatus(row) === 30"
@@ -178,7 +178,7 @@
                 class="action-btn action-btn--danger"
                 @click.stop="cancelSupplierConfirm(row)"
               >
-                取消确认
+                {{ t('purchaseOrderList.actions.cancelConfirm') }}
               </button>
             </div>
 
@@ -189,31 +189,31 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="handleView(row)">
-                    <span class="op-more-item op-more-item--primary">详情</span>
+                    <span class="op-more-item op-more-item--primary">{{ t('purchaseOrderList.actions.detail') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item @click.stop="handleEdit(row)">
-                    <span class="op-more-item op-more-item--primary">编辑</span>
+                    <span class="op-more-item op-more-item--primary">{{ t('purchaseOrderList.actions.edit') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item
                     v-if="(poListMainStatus(row) >= 1 && poListMainStatus(row) < 10) || poListMainStatus(row) === -1"
                     @click.stop="submitAudit(row)"
                   >
-                    <span class="op-more-item op-more-item--warning">提交审核</span>
+                    <span class="op-more-item op-more-item--warning">{{ t('purchaseOrderList.actions.submitAudit') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item
                     v-if="poListMainStatus(row) >= 10 && poListMainStatus(row) < 30"
                     @click.stop="confirmBySupplier(row)"
                   >
-                    <span class="op-more-item op-more-item--warning">供应商确认</span>
+                    <span class="op-more-item op-more-item--warning">{{ t('purchaseOrderList.actions.confirmBySupplier') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item
                     v-if="purchaseOrderReportAllowed(poListMainStatus(row))"
                     @click.stop="handlePrintOrder(row)"
                   >
-                    <span class="op-more-item op-more-item--primary">采购单</span>
+                    <span class="op-more-item op-more-item--primary">{{ t('purchaseOrderList.actions.report') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item v-if="poListMainStatus(row) === 30" @click.stop="cancelSupplierConfirm(row)">
-                    <span class="op-more-item op-more-item--danger">取消确认</span>
+                    <span class="op-more-item op-more-item--danger">{{ t('purchaseOrderList.actions.cancelConfirm') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -225,8 +225,8 @@
       <!-- 底栏：列设置（图标+Tip+Spacer） + 分页（顶对齐） -->
       <div class="pagination-wrapper">
         <div class="list-footer-left">
-          <el-tooltip content="列设置" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+          <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
@@ -250,6 +250,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
@@ -263,6 +264,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 
 const router = useRouter()
+const { t } = useI18n()
 
 const loading = ref(false)
 const orderList = ref<any[]>([])
@@ -288,29 +290,29 @@ const poListMainStatus = normalizePurchaseOrderMainStatus
 const purchaseOrderTableColumns = computed((): CrmTableColumnDef[] => [
   {
     key: 'purchaseOrderCode',
-    label: '订单号',
+    label: t('purchaseOrderList.columns.orderCode'),
     prop: 'purchaseOrderCode',
     width: 160,
     minWidth: 160,
     showOverflowTooltip: true,
     sortable: true
   },
-  { key: 'status', label: '状态', prop: 'status', width: 160, align: 'center' as const },
+  { key: 'status', label: t('purchaseOrderList.columns.status'), prop: 'status', width: 160, align: 'center' as const },
   ...(canViewVendorInfo.value
-    ? [{ key: 'vendorName', label: '供应商', prop: 'vendorName', minWidth: 200, showOverflowTooltip: true }]
+    ? [{ key: 'vendorName', label: t('purchaseOrderList.columns.vendor'), prop: 'vendorName', minWidth: 200, showOverflowTooltip: true }]
     : []),
-  { key: 'purchaseUserName', label: '采购员', prop: 'purchaseUserName', width: 100 },
+  { key: 'purchaseUserName', label: t('purchaseOrderList.columns.purchaser'), prop: 'purchaseUserName', width: 100 },
   ...(canViewPurchaseAmount.value
-    ? [{ key: 'total', label: '总金额', prop: 'total', width: 160, align: 'right' as const }]
+    ? [{ key: 'total', label: t('purchaseOrderList.columns.totalAmount'), prop: 'total', width: 160, align: 'right' as const }]
     : []),
-  { key: 'itemRows', label: '行项目', prop: 'itemRows', width: 80, align: 'center' as const },
-  { key: 'stockStatus', label: '入库状态', prop: 'stockStatus', width: 160, align: 'center' as const },
-  { key: 'deliveryDate', label: '交货日期', prop: 'deliveryDate', width: 160 },
-  { key: 'createTime', label: '创建时间', prop: 'createTime', width: 160 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  { key: 'itemRows', label: t('purchaseOrderList.columns.itemRows'), prop: 'itemRows', width: 80, align: 'center' as const },
+  { key: 'stockStatus', label: t('purchaseOrderList.columns.stockStatus'), prop: 'stockStatus', width: 160, align: 'center' as const },
+  { key: 'deliveryDate', label: t('purchaseOrderList.columns.deliveryDate'), prop: 'deliveryDate', width: 160 },
+  { key: 'createTime', label: t('purchaseOrderList.columns.createTime'), prop: 'createTime', width: 160 },
+  { key: 'createUser', label: t('purchaseOrderList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
     key: 'actions',
-    label: '操作',
+    label: t('purchaseOrderList.columns.actions'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -385,20 +387,20 @@ const getStatusType = (status: number) => {
 }
 
 const getStatusText = (status: number) => {
-  if (!Number.isFinite(status)) return '—'
+  if (!Number.isFinite(status)) return t('quoteList.na')
   const map: Record<number, string> = {
-    0: '草稿',
-    1: '新建',
-    2: '待审核',
-    10: '审核通过',
-    20: '待确认',
-    30: '已确认',
-    50: '进行中',
-    100: '采购完成',
-    '-1': '审核失败',
-    '-2': '取消'
+    0: t('purchaseOrderList.status.draft'),
+    1: t('purchaseOrderList.status.new'),
+    2: t('purchaseOrderList.status.pendingReview'),
+    10: t('purchaseOrderList.status.approved'),
+    20: t('purchaseOrderList.status.pendingConfirm'),
+    30: t('purchaseOrderList.status.confirmed'),
+    50: t('purchaseOrderList.status.inProgress'),
+    100: t('purchaseOrderList.status.completed'),
+    '-1': t('purchaseOrderList.status.reviewFailed'),
+    '-2': t('purchaseOrderList.status.cancelled')
   }
-  return map[status] || '未知'
+  return map[status] || t('rfqDetail.unknown')
 }
 
 const getStockStatusType = (status: number) => {
@@ -407,8 +409,12 @@ const getStockStatusType = (status: number) => {
 }
 
 const getStockStatusText = (status: number) => {
-  const map: Record<number, string> = { 0: '未入库', 1: '部分入库', 2: '全部入库' }
-  return map[status] || '未知'
+  const map: Record<number, string> = {
+    0: t('purchaseOrderList.stock.none'),
+    1: t('purchaseOrderList.stock.partial'),
+    2: t('purchaseOrderList.stock.all')
+  }
+  return map[status] || t('rfqDetail.unknown')
 }
 
 // 加载数据
@@ -419,7 +425,7 @@ const loadData = async () => {
     orderList.value = (res as { items?: unknown[] }).items || []
     pageInfo.value.total = orderList.value.length
   } catch (error) {
-    ElMessage.error('加载数据失败')
+    ElMessage.error(t('purchaseOrderList.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -446,7 +452,7 @@ const handlePageChange = (val: number) => {
 
 // 新建（手工新建入口暂关，以销定采等其它入口仍可用）
 const handleCreate = () => {
-  ElMessage.info('功能暂未开放')
+  ElMessage.info(t('purchaseOrderList.createDisabled'))
 }
 
 // 编辑
@@ -461,7 +467,7 @@ const handleView = (row: any) => {
 
 const handlePrintOrder = (row: any) => {
   if (!purchaseOrderReportAllowed(poListMainStatus(row))) {
-    ElMessage.warning('仅供应商已确认后的采购订单可生成采购单报表')
+    ElMessage.warning(t('purchaseOrderList.reportNotAllowed'))
     return
   }
   router.push({ name: 'PurchaseOrderReport', params: { id: row.id } })
@@ -471,16 +477,16 @@ const handlePrintOrder = (row: any) => {
 const confirmBySupplier = async (row: any) => {
   try {
     await ElMessageBox.confirm(
-      `确认将采购订单 ${row.purchaseOrderCode} 标记为“已确认”吗？`,
-      '供应商确认',
-      { type: 'info', confirmButtonText: '确认', cancelButtonText: '取消' }
+      t('purchaseOrderList.confirmBySupplierConfirm', { code: row.purchaseOrderCode }),
+      t('purchaseOrderList.actions.confirmBySupplier'),
+      { type: 'info', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
     )
     // 允许从“审核通过(10)”推进到“待确认(20)”再到“已确认(30)”
     if (poListMainStatus(row) === 10) {
       await purchaseOrderApi.updateStatus(row.id, 20)
     }
     await purchaseOrderApi.updateStatus(row.id, 30)
-    ElMessage.success('供应商确认成功')
+    ElMessage.success(t('purchaseOrderList.confirmBySupplierSuccess'))
     await loadData()
   } catch {
     // 取消或失败已由全局拦截器提示
@@ -491,12 +497,12 @@ const confirmBySupplier = async (row: any) => {
 const cancelSupplierConfirm = async (row: any) => {
   try {
     await ElMessageBox.confirm(
-      `确认将采购订单 ${row.purchaseOrderCode} 取消确认吗？`,
-      '取消确认',
-      { type: 'warning', confirmButtonText: '确认', cancelButtonText: '取消' }
+      t('purchaseOrderList.cancelConfirmMessage', { code: row.purchaseOrderCode }),
+      t('purchaseOrderList.actions.cancelConfirm'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
     )
     await purchaseOrderApi.updateStatus(row.id, -2)
-    ElMessage.success('已取消确认')
+    ElMessage.success(t('purchaseOrderList.cancelConfirmSuccess'))
     await loadData()
   } catch {
     // 取消或失败已由全局拦截器提示
@@ -507,16 +513,16 @@ const cancelSupplierConfirm = async (row: any) => {
 const submitAudit = async (row: any) => {
   try {
     await ElMessageBox.confirm(
-      `确认将采购订单 ${row.purchaseOrderCode} 提交审核吗？`,
-      '提交审核',
-      { type: 'info', confirmButtonText: '确认', cancelButtonText: '取消' }
+      t('purchaseOrderList.submitAuditConfirm', { code: row.purchaseOrderCode }),
+      t('purchaseOrderList.actions.submitAudit'),
+      { type: 'info', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
     )
     // 审核失败(-1)先回到新建(1)，再提交审核(2)
     if (poListMainStatus(row) === -1) {
       await purchaseOrderApi.updateStatus(row.id, 1)
     }
     await purchaseOrderApi.updateStatus(row.id, 2)
-    ElMessage.success('提交审核成功')
+    ElMessage.success(t('purchaseOrderList.submitAuditSuccess'))
     await loadData()
   } catch {
     // 取消或失败已由全局拦截器提示

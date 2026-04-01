@@ -449,13 +449,14 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import salesOrderApi from '@/api/salesOrder'
 import purchaseRequisitionApi from '@/api/purchaseRequisition'
 import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
 import { favoriteApi } from '@/api/favorite'
 import {
-  salesOrderStatusText,
+  translateSalesOrderStatus,
   salesOrderStatusTagType,
   salesOrderMainAllowsPurchaseAndStockOut
 } from '@/constants/salesOrderStatus'
@@ -479,6 +480,7 @@ import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 const authStore = useAuthStore()
 
 const canViewCustomerInfo = computed(() => authStore.hasPermission('customer.info.read'))
@@ -853,7 +855,7 @@ const refreshTags = async () => {
 }
 
 const getStatusType = (status: number) => salesOrderStatusTagType(status)
-const getStatusText = (status: number) => salesOrderStatusText(status)
+const getStatusText = (status: number) => translateSalesOrderStatus(status, t)
 // ===== 明细状态辅助函数 =====
 // 审核状态
 const getItemAuditStatusText = (v?: number) => {

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -33,17 +36,17 @@ function handleSearch() {
 
 <template>
   <div class="so-search-panel">
-    <div class="so-search-panel__head">出库单检索</div>
+    <div class="so-search-panel__head">{{ t('stockOutList.leftPanel.title') }}</div>
 
     <div class="so-search-panel__fields">
       <div class="field-col">
-        <label class="field-label">关键词</label>
+        <label class="field-label">{{ t('stockOutList.leftPanel.keyword') }}</label>
         <div class="field-control">
           <input
             v-model="form.keyword"
             type="text"
             class="field-input"
-            placeholder="出库单号 / 来源单号"
+            :placeholder="t('stockOutList.leftPanel.keywordPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
@@ -51,8 +54,8 @@ function handleSearch() {
     </div>
 
     <div class="so-search-panel__actions">
-      <button type="button" class="btn-search" @click="handleSearch">搜索</button>
-      <button type="button" class="btn-reset" @click="handleReset">重置</button>
+      <button type="button" class="btn-search" @click="handleSearch">{{ t('stockOutList.leftPanel.search') }}</button>
+      <button type="button" class="btn-reset" @click="handleReset">{{ t('stockOutList.leftPanel.reset') }}</button>
     </div>
   </div>
 </template>

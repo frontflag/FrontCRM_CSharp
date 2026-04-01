@@ -24,13 +24,13 @@
                   v-model="keyword"
                   type="search"
                   class="vendor-home__pill-input"
-                  :placeholder="canViewVendorInfo ? '输入供应商名称、编号或关键词…' : '输入供应商编号…'"
+                  :placeholder="canViewVendorInfo ? t('vendorHome.searchPlaceholderFull') : t('vendorHome.searchPlaceholderCode')"
                   autocomplete="off"
                   @keyup.enter="handleSearch"
                 />
               </div>
-              <button type="button" class="vendor-home__pill-btn" @click="handleSearch">搜索</button>
-              <button type="button" class="vendor-home__pill-link" @click="goListPlain">进入列表查询</button>
+              <button type="button" class="vendor-home__pill-btn" @click="handleSearch">{{ t('vendorHome.search') }}</button>
+              <button type="button" class="vendor-home__pill-link" @click="goListPlain">{{ t('vendorHome.goList') }}</button>
             </div>
           </div>
         </div>
@@ -44,15 +44,15 @@
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          新建供应商
+          {{ t('vendorHome.create') }}
         </button>
       </div>
     </div>
 
-    <div v-if="loadingStats" class="vendor-home__loading">加载概要数据…</div>
+    <div v-if="loadingStats" class="vendor-home__loading">{{ t('vendorHome.loading') }}</div>
 
     <template v-else-if="stats">
-      <div class="vendor-home__section-title">供应商</div>
+      <div class="vendor-home__section-title">{{ t('vendorHome.sections.vendor') }}</div>
       <div class="vendor-home__row vendor-home__row--4">
         <div class="vendor-home__card">
           <div class="vendor-home__icon vendor-home__icon--blue" aria-hidden="true">
@@ -63,7 +63,7 @@
           </div>
           <div class="vendor-home__card-main">
             <div class="vendor-home__value">{{ formatInt(stats.totalVendors) }}</div>
-            <div class="vendor-home__label">供应商总数</div>
+            <div class="vendor-home__label">{{ t('vendorHome.cards.totalVendors') }}</div>
           </div>
         </div>
         <div class="vendor-home__card">
@@ -74,7 +74,7 @@
           </div>
           <div class="vendor-home__card-main">
             <div class="vendor-home__value">{{ formatInt(stats.activeVendors) }}</div>
-            <div class="vendor-home__label">活跃供应商</div>
+            <div class="vendor-home__label">{{ t('vendorHome.cards.activeVendors') }}</div>
           </div>
         </div>
         <div class="vendor-home__card">
@@ -87,7 +87,7 @@
           </div>
           <div class="vendor-home__card-main">
             <div class="vendor-home__value">{{ formatInt(stats.vendorsWithDeals) }}</div>
-            <div class="vendor-home__label">成单供应商</div>
+            <div class="vendor-home__label">{{ t('vendorHome.cards.vendorsWithDeals') }}</div>
           </div>
         </div>
         <div class="vendor-home__card">
@@ -99,14 +99,14 @@
           </div>
           <div class="vendor-home__card-main">
             <div class="vendor-home__value">{{ formatInt(stats.newLast30Days) }}</div>
-            <div class="vendor-home__label">30 天新增供应商</div>
+            <div class="vendor-home__label">{{ t('vendorHome.cards.newLast30Days') }}</div>
           </div>
         </div>
       </div>
 
       <div class="vendor-home__duo">
         <div class="vendor-home__duo-col">
-          <div class="vendor-home__section-title">应付款</div>
+          <div class="vendor-home__section-title">{{ t('vendorHome.sections.payable') }}</div>
           <div class="vendor-home__row vendor-home__row--2">
             <div class="vendor-home__card">
               <div class="vendor-home__icon vendor-home__icon--blue" aria-hidden="true">
@@ -117,7 +117,7 @@
               </div>
               <div class="vendor-home__card-main">
                 <div class="vendor-home__value">{{ formatMoney(stats.payableAmount) }}</div>
-                <div class="vendor-home__label">应付货款</div>
+                <div class="vendor-home__label">{{ t('vendorHome.cards.payableAmount') }}</div>
               </div>
             </div>
             <div class="vendor-home__card">
@@ -131,13 +131,13 @@
               </div>
               <div class="vendor-home__card-main">
                 <div class="vendor-home__value">{{ formatInt(stats.payableVendorCount) }}</div>
-                <div class="vendor-home__label">应付供应商</div>
+                <div class="vendor-home__label">{{ t('vendorHome.cards.payableVendorCount') }}</div>
               </div>
             </div>
           </div>
         </div>
         <div class="vendor-home__duo-col">
-          <div class="vendor-home__section-title">待入库</div>
+          <div class="vendor-home__section-title">{{ t('vendorHome.sections.pendingInbound') }}</div>
           <div class="vendor-home__row vendor-home__row--2">
             <div class="vendor-home__card">
               <div class="vendor-home__icon vendor-home__icon--mint" aria-hidden="true">
@@ -149,7 +149,7 @@
               </div>
               <div class="vendor-home__card-main">
                 <div class="vendor-home__value">{{ formatMoney(stats.pendingInboundAmount) }}</div>
-                <div class="vendor-home__label">待入货款</div>
+                <div class="vendor-home__label">{{ t('vendorHome.cards.pendingInboundAmount') }}</div>
               </div>
             </div>
             <div class="vendor-home__card">
@@ -163,7 +163,7 @@
               </div>
               <div class="vendor-home__card-main">
                 <div class="vendor-home__value">{{ formatInt(stats.pendingInboundVendorCount) }}</div>
-                <div class="vendor-home__label">待入供应商</div>
+                <div class="vendor-home__label">{{ t('vendorHome.cards.pendingInboundVendorCount') }}</div>
               </div>
             </div>
           </div>
@@ -176,12 +176,14 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { vendorApi } from '@/api/vendor'
 import { buildVendorListQuery } from '@/utils/vendorListQuery'
 import type { VendorStatistics } from '@/types/vendor'
 
 const router = useRouter()
+const { t } = useI18n()
 const authStore = useAuthStore()
 const canViewVendorInfo = authStore.hasPermission('vendor.info.read')
 const canCreateVendor = computed(() => authStore.hasPermission('vendor.write'))

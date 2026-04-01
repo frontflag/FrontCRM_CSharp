@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import {
   readSalesOrderRecentEntries,
@@ -14,10 +15,11 @@ const props = withDefaults(
     title?: string
     take?: number
   }>(),
-  { title: '最近打开的销售订单', take: 20 }
+  { title: '', take: 20 }
 )
 
 const router = useRouter()
+const { t } = useI18n()
 const rows = ref<SalesOrderRecentEntry[]>([])
 
 function reload() {
@@ -54,26 +56,26 @@ onBeforeUnmount(() => {
 <template>
   <div class="so-recent-panel">
     <div class="so-recent-panel__head-row">
-      <div class="so-recent-panel__head">{{ title }}</div>
+      <div class="so-recent-panel__head">{{ title || t('leftPanel.salesOrderRecentTitle') }}</div>
       <button
         v-if="rows.length > 0"
         type="button"
         class="so-recent-panel__clear"
-        title="清空本地浏览记录"
+        :title="t('leftPanel.clearLocalHistory')"
         @click="handleClear"
       >
-        清空
+        {{ t('leftPanel.clear') }}
       </button>
     </div>
     <div v-if="rows.length === 0" class="so-recent-panel__empty">
-      暂无记录；打开销售订单详情后会出现在此列表（仅保存在本机浏览器）
+      {{ t('leftPanel.salesOrderRecentEmpty') }}
     </div>
     <table v-else class="so-recent-panel__table">
       <thead>
         <tr>
-          <th>订单号</th>
-          <th>客户</th>
-          <th>时间</th>
+          <th>{{ t('salesOrderList.columns.orderCode') }}</th>
+          <th>{{ t('salesOrderList.columns.customer') }}</th>
+          <th>{{ t('leftPanel.time') }}</th>
         </tr>
       </thead>
       <tbody>

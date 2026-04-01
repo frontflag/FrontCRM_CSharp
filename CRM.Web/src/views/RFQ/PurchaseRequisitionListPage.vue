@@ -1,16 +1,16 @@
 <template>
   <div class="purchase-requisition-list-page">
     <div class="page-header">
-      <h2>采购申请列表</h2>
+      <h2>{{ t('purchaseRequisitionList.title') }}</h2>
       <el-button type="primary" @click="handleCreate">
-        <el-icon><Plus /></el-icon>新建采购申请
+        <el-icon><Plus /></el-icon>{{ t('purchaseRequisitionList.create') }}
       </el-button>
     </div>
 
     <!-- 搜索栏：对齐客户列表 CustomerList -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">采购申请号</span>
+        <span class="filter-field-label">{{ t('purchaseRequisitionList.filters.billCode') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -19,11 +19,11 @@
           <input
             v-model="filterForm.billCode"
             class="search-input"
-            placeholder="请输入采购申请号"
+            :placeholder="t('purchaseRequisitionList.filters.billCodePlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
-        <span class="filter-field-label">销售订单</span>
+        <span class="filter-field-label">{{ t('purchaseRequisitionList.filters.sellOrder') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -32,25 +32,29 @@
           <input
             v-model="filterForm.sellOrderId"
             class="search-input search-input--narrow"
-            placeholder="销售订单 ID"
+            :placeholder="t('purchaseRequisitionList.filters.sellOrderPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
         <el-select
           v-model="filterForm.status"
-          placeholder="全部状态"
+          :placeholder="t('purchaseRequisitionList.filters.allStatus')"
           clearable
           class="status-select"
           :teleported="false"
           @change="handleSearch"
         >
-          <el-option :value="0" label="新建" />
-          <el-option :value="1" label="部分完成" />
-          <el-option :value="2" label="全部完成" />
-          <el-option :value="3" label="已取消" />
+          <el-option :value="0" :label="t('purchaseRequisitionList.status.new')" />
+          <el-option :value="1" :label="t('purchaseRequisitionList.status.partialDone')" />
+          <el-option :value="2" :label="t('purchaseRequisitionList.status.allDone')" />
+          <el-option :value="3" :label="t('purchaseRequisitionList.status.cancelled')" />
         </el-select>
-        <button class="btn-primary btn-sm" type="button" :disabled="loading" @click="handleSearch">搜索</button>
-        <button class="btn-ghost btn-sm" type="button" :disabled="loading" @click="handleReset">重置</button>
+        <button class="btn-primary btn-sm" type="button" :disabled="loading" @click="handleSearch">
+          {{ t('purchaseRequisitionList.filters.search') }}
+        </button>
+        <button class="btn-ghost btn-sm" type="button" :disabled="loading" @click="handleReset">
+          {{ t('purchaseRequisitionList.filters.reset') }}
+        </button>
       </div>
     </div>
 
@@ -71,12 +75,12 @@
           </el-tag>
         </template>
         <template #col-expectedPurchaseTime="{ row }">{{ formatDisplayDateTime(row.expectedPurchaseTime) }}</template>
-        <template #col-type="{ row }">{{ getTypeText(row.type) }}</template>
+        <template #col-type="{ row }">{{ getPrTypeLabel(row.type) }}</template>
         <template #col-createTime="{ row }">{{ row.createTime ? formatDisplayDateTime(row.createTime) : '--' }}</template>
         <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || row.purchaseUserId || '--' }}</template>
         <template #col-actions-header>
           <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
+            <span class="op-col-header-text">{{ t('purchaseRequisitionList.columns.actions') }}</span>
             <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
               {{ opColExpanded ? '>' : '<' }}
             </button>
@@ -85,9 +89,9 @@
         <template #col-actions="{ row }">
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
-              <el-button link type="primary" @click.stop="handleView(row)">查看</el-button>
+              <el-button link type="primary" @click.stop="handleView(row)">{{ t('purchaseRequisitionList.actions.view') }}</el-button>
               <el-button link type="warning" size="small" @click.stop="handleGeneratePurchaseOrder(row)">
-                生成采购订单
+                {{ t('purchaseRequisitionList.actions.generatePo') }}
               </el-button>
             </div>
 
@@ -98,10 +102,10 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="handleView(row)">
-                    <span class="op-more-item op-more-item--primary">查看</span>
+                    <span class="op-more-item op-more-item--primary">{{ t('purchaseRequisitionList.actions.view') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item @click.stop="handleGeneratePurchaseOrder(row)">
-                    <span class="op-more-item op-more-item--warning">生成采购订单</span>
+                    <span class="op-more-item op-more-item--warning">{{ t('purchaseRequisitionList.actions.generatePo') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -112,8 +116,14 @@
 
       <div class="pagination-wrapper">
         <div class="list-footer-left">
-          <el-tooltip content="列设置" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+          <el-tooltip :content="t('purchaseRequisitionList.columnSettings')" placement="top" :hide-after="0">
+            <el-button
+              class="list-settings-btn"
+              link
+              type="primary"
+              :aria-label="t('purchaseRequisitionList.columnSettings')"
+              @click="dataTableRef?.openColumnSettings?.()"
+            >
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
@@ -136,6 +146,7 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { Plus, Setting } from '@element-plus/icons-vue'
 import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
 import CrmDataTable from '@/components/CrmDataTable.vue'
@@ -143,6 +154,7 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
+const { t, locale } = useI18n()
 
 const loading = ref(false)
 const list = ref<any[]>([])
@@ -162,32 +174,60 @@ function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 
-const purchaseReqColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'billCode', label: '采购申请号', prop: 'billCode', width: 160, minWidth: 160, showOverflowTooltip: true },
-  { key: 'status', label: '状态', prop: 'status', width: 160, align: 'center' },
-  { key: 'sellOrderCode', label: '销售订单', prop: 'sellOrderCode', width: 160, minWidth: 160, showOverflowTooltip: true },
-  { key: 'pn', label: '物料型号', prop: 'pn', minWidth: 140, showOverflowTooltip: true },
-  { key: 'brand', label: '品牌', prop: 'brand', minWidth: 120, showOverflowTooltip: true },
-  { key: 'qty', label: '申请数量', prop: 'qty', width: 120, align: 'right' },
-  { key: 'expectedPurchaseTime', label: '预计采购日期', prop: 'expectedPurchaseTime', width: 160 },
-  { key: 'type', label: '类型', prop: 'type', width: 110, align: 'center' },
-  { key: 'purchaseUserId', label: '采购员ID', prop: 'purchaseUserId', width: 140, showOverflowTooltip: true },
-  { key: 'remark', label: '备注', prop: 'remark', minWidth: 180, showOverflowTooltip: true },
-  { key: 'createTime', label: '创建时间', width: 160 },
-  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
-  {
-    key: 'actions',
-    label: '操作',
-    width: opColWidth.value,
-    minWidth: opColMinWidth.value,
-    fixed: 'right',
-    hideable: false,
-    pinned: 'end',
-    reorderable: false,
-    className: 'op-col',
-    labelClassName: 'op-col'
-  }
-])
+const purchaseReqColumns = computed<CrmTableColumnDef[]>(() => {
+  void locale.value
+  return [
+    {
+      key: 'billCode',
+      label: t('purchaseRequisitionList.columns.billCode'),
+      prop: 'billCode',
+      width: 160,
+      minWidth: 160,
+      showOverflowTooltip: true
+    },
+    { key: 'status', label: t('purchaseRequisitionList.columns.status'), prop: 'status', width: 160, align: 'center' },
+    {
+      key: 'sellOrderCode',
+      label: t('purchaseRequisitionList.columns.sellOrder'),
+      prop: 'sellOrderCode',
+      width: 160,
+      minWidth: 160,
+      showOverflowTooltip: true
+    },
+    { key: 'pn', label: t('purchaseRequisitionList.columns.pn'), prop: 'pn', minWidth: 140, showOverflowTooltip: true },
+    { key: 'brand', label: t('purchaseRequisitionList.columns.brand'), prop: 'brand', minWidth: 120, showOverflowTooltip: true },
+    { key: 'qty', label: t('purchaseRequisitionList.columns.qty'), prop: 'qty', width: 120, align: 'right' },
+    {
+      key: 'expectedPurchaseTime',
+      label: t('purchaseRequisitionList.columns.expectedPurchaseTime'),
+      prop: 'expectedPurchaseTime',
+      width: 160
+    },
+    { key: 'type', label: t('purchaseRequisitionList.columns.type'), prop: 'type', width: 110, align: 'center' },
+    {
+      key: 'purchaseUserId',
+      label: t('purchaseRequisitionList.columns.purchaseUserId'),
+      prop: 'purchaseUserId',
+      width: 140,
+      showOverflowTooltip: true
+    },
+    { key: 'remark', label: t('purchaseRequisitionList.columns.remark'), prop: 'remark', minWidth: 180, showOverflowTooltip: true },
+    { key: 'createTime', label: t('purchaseRequisitionList.columns.createTime'), width: 160 },
+    { key: 'createUser', label: t('purchaseRequisitionList.columns.createUser'), width: 120, showOverflowTooltip: true },
+    {
+      key: 'actions',
+      label: t('purchaseRequisitionList.columns.actions'),
+      width: opColWidth.value,
+      minWidth: opColMinWidth.value,
+      fixed: 'right',
+      hideable: false,
+      pinned: 'end',
+      reorderable: false,
+      className: 'op-col',
+      labelClassName: 'op-col'
+    }
+  ]
+})
 
 const filterForm = reactive({
   billCode: '',
@@ -197,10 +237,10 @@ const filterForm = reactive({
 
 function getStatusText(s: number) {
   const m: Record<number, string> = {
-    0: '新建',
-    1: '部分完成',
-    2: '全部完成',
-    3: '已取消'
+    0: t('purchaseRequisitionList.status.new'),
+    1: t('purchaseRequisitionList.status.partialDone'),
+    2: t('purchaseRequisitionList.status.allDone'),
+    3: t('purchaseRequisitionList.status.cancelled')
   }
   return m[s] ?? String(s)
 }
@@ -212,12 +252,12 @@ function getStatusTagType(s: number): '' | 'success' | 'warning' | 'info' | 'dan
   return ''
 }
 
-function getTypeText(t: number) {
+function getPrTypeLabel(typeVal: number) {
   const m: Record<number, string> = {
-    0: '专属',
-    1: '公开备货'
+    0: t('purchaseRequisitionList.type.exclusive'),
+    1: t('purchaseRequisitionList.type.publicStock')
   }
-  return m[t] ?? String(t)
+  return m[typeVal] ?? String(typeVal)
 }
 
 async function loadList() {

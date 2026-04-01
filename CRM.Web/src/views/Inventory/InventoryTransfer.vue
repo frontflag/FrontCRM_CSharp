@@ -6,12 +6,15 @@
         <path d="M7.5 4.21l4.5 2.6 4.5-2.6M12 21.08V12"/>
       </svg>
     </div>
-    <h2>库存调拨</h2>
-    <p>功能开发中，敬请期待。</p>
+    <h2>{{ t('inventoryTransfer.title') }}</h2>
+    <p>{{ t('inventoryTransfer.comingSoon') }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 </script>
 
 <style scoped lang="scss">

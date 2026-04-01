@@ -1,26 +1,28 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { favoriteApi } from '@/api/favorite'
 import salesOrderApi from '@/api/salesOrder'
-import { salesOrderStatusText } from '@/constants/salesOrderStatus'
+import { translateSalesOrderStatus } from '@/constants/salesOrderStatus'
 import { SALES_ORDER_FAVORITE_ENTITY_TYPE, SALES_ORDER_FAVORITES_CHANGED_EVENT } from '@/constants/salesOrderFavorites'
 
 withDefaults(
   defineProps<{
     title?: string
   }>(),
-  { title: '收藏的销售订单' }
+  { title: '' }
 )
 
 const router = useRouter()
+const { t } = useI18n()
 
 const loading = ref(false)
 const items = ref<any[]>([])
 
 function getStatusText(status: number) {
   try {
-    return salesOrderStatusText(status)
+    return translateSalesOrderStatus(status, t)
   } catch {
     return '—'
   }
@@ -68,16 +70,16 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="so-favorite-panel" v-loading="loading">
-    <div class="so-favorite-panel__head">{{ title }}</div>
+    <div class="so-favorite-panel__head">{{ title || t('leftPanel.salesOrderFavoritesTitle') }}</div>
     <div v-if="!loading && items.length === 0" class="so-favorite-panel__empty">
-      暂无收藏；可在销售订单详情页标题旁点击星标收藏
+      {{ t('leftPanel.salesOrderFavoritesEmpty') }}
     </div>
     <table v-else class="so-favorite-panel__table">
       <thead>
         <tr>
-          <th>订单号</th>
-          <th>客户</th>
-          <th>状态</th>
+          <th>{{ t('salesOrderList.columns.orderCode') }}</th>
+          <th>{{ t('salesOrderList.columns.customer') }}</th>
+          <th>{{ t('salesOrderList.columns.status') }}</th>
         </tr>
       </thead>
       <tbody>

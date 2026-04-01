@@ -1,13 +1,12 @@
 <template>
   <div class="finance-detail">
-    <!-- 面包屑 + 返回 -->
     <div class="detail-header">
       <el-button link @click="router.back()" class="back-btn">
-        <el-icon><ArrowLeft /></el-icon> 返回列表
+        <el-icon><ArrowLeft /></el-icon> {{ t('financeSellInvoiceDetail.backToList') }}
       </el-button>
       <el-breadcrumb separator="/">
-        <el-breadcrumb-item :to="{ name: 'FinanceSellInvoiceList' }">销项发票</el-breadcrumb-item>
-        <el-breadcrumb-item>{{ detail?.invoiceCode || '详情' }}</el-breadcrumb-item>
+        <el-breadcrumb-item :to="{ name: 'FinanceSellInvoiceList' }">{{ t('financeSellInvoiceDetail.breadcrumb') }}</el-breadcrumb-item>
+        <el-breadcrumb-item>{{ detail?.invoiceCode || t('financeSellInvoiceDetail.detail') }}</el-breadcrumb-item>
       </el-breadcrumb>
     </div>
 
@@ -16,66 +15,64 @@
     </div>
 
     <template v-else-if="detail">
-      <!-- 基本信息卡片 -->
       <div class="info-card">
         <div class="card-title">
           <span class="title-bar"></span>
-          <span>基本信息</span>
-          <el-tag effect="dark" :type="INVOICE_STATUS_MAP[detail.invoiceStatus]?.type as any" size="small" style="margin-left: 12px;">
-            {{ INVOICE_STATUS_MAP[detail.invoiceStatus]?.label }}
+          <span>{{ t('financeSellInvoiceDetail.basicInfo') }}</span>
+          <el-tag effect="dark" :type="invoiceStatusTag(detail.invoiceStatus) as any" size="small" style="margin-left: 12px;">
+            {{ invoiceStatusLabel(detail.invoiceStatus) }}
           </el-tag>
-          <el-tag effect="dark" :type="RECEIVE_STATUS_MAP[detail.receiveStatus]?.type as any" size="small" style="margin-left: 4px;">
-            {{ RECEIVE_STATUS_MAP[detail.receiveStatus]?.label }}
+          <el-tag effect="dark" :type="receiveStatusTag(detail.receiveStatus) as any" size="small" style="margin-left: 4px;">
+            {{ receiveStatusLabel(detail.receiveStatus) }}
           </el-tag>
         </div>
         <el-descriptions :column="2" border class="order-desc">
-          <el-descriptions-item label="发票单号">
-            <span class="order-code">{{ detail.invoiceCode || '（未生成单号）' }}</span>
+          <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.code')">
+            <span class="order-code">{{ detail.invoiceCode || t('financeSellInvoiceDetail.codeNotGenerated') }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="发票号码">{{ detail.invoiceNo || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="客户">{{ detail.customerName }}</el-descriptions-item>
-          <el-descriptions-item label="发票金额">
+          <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.invoiceNo')">{{ detail.invoiceNo || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.customer')">{{ detail.customerName }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.amount')">
             <span class="amount">{{ CURRENCY_MAP[detail.currency] }} {{ formatAmount(detail.invoiceTotal) }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="已收金额">
+          <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.received')">
             <span class="amount">{{ CURRENCY_MAP[detail.currency] }} {{ formatAmount(detail.receiveDone) }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="待收金额">
+          <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.toReceive')">
             <span style="color:#E8A838; font-weight: 600;">{{ CURRENCY_MAP[detail.currency] }} {{ formatAmount(detail.receiveToBe) }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="开票日期">{{ detail.makeInvoiceDate ? formatDisplayDate(detail.makeInvoiceDate) : '-' }}</el-descriptions-item>
-          <el-descriptions-item label="发票类型">{{ SELL_INVOICE_TYPE_MAP[detail.sellInvoiceType] }}</el-descriptions-item>
-          <el-descriptions-item label="蓝/红字">{{ INVOICE_TYPE_MAP[detail.type] }}</el-descriptions-item>
-          <el-descriptions-item label="备注" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.makeDate')">{{ detail.makeInvoiceDate ? formatDisplayDate(detail.makeInvoiceDate) : '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.invoiceType')">{{ sellInvoiceTypeLabel(detail.sellInvoiceType) }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.blueRed')">{{ invoiceTypeLabel(detail.type) }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.remark')" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
         </el-descriptions>
       </div>
 
-      <!-- 发票明细 -->
       <div class="tab-card">
         <div class="card-title">
           <span class="title-bar"></span>
-          <span>发票明细</span>
+          <span>{{ t('financeSellInvoiceDetail.invoiceLines') }}</span>
         </div>
-        <el-empty v-if="!detail.items?.length" description="暂无明细" :image-size="80" />
+        <el-empty v-if="!detail.items?.length" :description="t('financeSellInvoiceDetail.noItems')" :image-size="80" />
         <CrmDataTable v-else :data="detail.items" size="small" class="items-table">
           <el-table-column type="index" width="50" label="#" />
-          <el-table-column prop="qty" label="数量" width="80" align="right" />
-          <el-table-column prop="price" label="单价" width="120" align="right">
+          <el-table-column prop="qty" :label="t('financeSellInvoiceDetail.labels.qty')" width="80" align="right" />
+          <el-table-column prop="price" :label="t('financeSellInvoiceDetail.labels.unitPrice')" width="120" align="right">
             <template #default="{ row }">
               ¥ {{ formatAmount(row.price) }}
             </template>
           </el-table-column>
-          <el-table-column prop="invoiceTotal" label="开票总额" width="130" align="right">
+          <el-table-column prop="invoiceTotal" :label="t('financeSellInvoiceDetail.labels.lineTotal')" width="130" align="right">
             <template #default="{ row }">
               ¥ {{ formatAmount(row.invoiceTotal) }}
             </template>
           </el-table-column>
-          <el-table-column prop="valueAddedTax" label="增值税额" width="130" align="right">
+          <el-table-column prop="valueAddedTax" :label="t('financeSellInvoiceDetail.labels.vat')" width="130" align="right">
             <template #default="{ row }">
               ¥ {{ formatAmount(row.valueAddedTax) }}
             </template>
           </el-table-column>
-          <el-table-column prop="taxRate" label="税率" width="80" align="center">
+          <el-table-column prop="taxRate" :label="t('financeSellInvoiceDetail.labels.taxRate')" width="80" align="center">
             <template #default="{ row }">
               {{ (row.taxRate * 100).toFixed(0) }}%
             </template>
@@ -84,20 +81,18 @@
       </div>
     </template>
 
-    <el-empty v-else description="销项发票不存在" />
+    <el-empty v-else :description="t('financeSellInvoiceDetail.notFound')" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import {
   financeSellInvoiceApi,
-  INVOICE_STATUS_MAP,
-  RECEIVE_STATUS_MAP,
-  SELL_INVOICE_TYPE_MAP,
-  INVOICE_TYPE_MAP,
   CURRENCY_MAP,
   type FinanceSellInvoice,
 } from '@/api/finance'
@@ -105,6 +100,15 @@ import { formatDisplayDate } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
+const {
+  invoiceStatusLabel,
+  invoiceStatusTag,
+  receiveStatusLabel,
+  receiveStatusTag,
+  sellInvoiceTypeLabel,
+  invoiceTypeLabel,
+} = useFinanceEnumLabels()
 
 const loading = ref(false)
 const detail = ref<FinanceSellInvoice | null>(null)
@@ -204,7 +208,6 @@ const formatAmount = (val: number) => {
 }
 
 .items-table {
-  // 无外边框，行间细线分隔，对标客户管理列表风格
   --el-table-border-color: transparent;
   --el-table-header-bg-color: rgba(0, 212, 255, 0.04);
   --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.04);

@@ -9,9 +9,9 @@
               <polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
           </div>
-          <h1 class="page-title">供应商</h1>
+          <h1 class="page-title">{{ t('vendorList.title') }}</h1>
         </div>
-        <div class="vendor-count-badge">共 {{ totalCount }} 个供应商</div>
+        <div class="vendor-count-badge">{{ t('vendorList.count', { count: totalCount }) }}</div>
       </div>
       <div class="header-right">
         <template v-if="canSubmitAudit">
@@ -21,17 +21,17 @@
                 <line x1="12" y1="5" x2="12" y2="19"/>
                 <line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
-              新增供应商
+              {{ t('vendorList.create') }}
             </button>
             <el-dropdown trigger="click" @command="onCreateDropdownCommand">
-              <button type="button" class="btn-success btn-success--caret" aria-label="展开菜单">
+              <button type="button" class="btn-success btn-success--caret" :aria-label="t('vendorList.expandMenu')">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
               </button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="import">通过Excel导入</el-dropdown-item>
+                  <el-dropdown-item command="import">{{ t('vendorList.importExcel') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -42,7 +42,7 @@
             <line x1="12" y1="5" x2="12" y2="19"/>
             <line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          新增供应商
+          {{ t('vendorList.create') }}
         </button>
       </div>
     </div>
@@ -50,7 +50,7 @@
     <!-- 搜索栏：关键词 → 状态 → 等级 → 身份 → 类型 → 行业 → 采购员 → 创建日期区间 -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">关键词</span>
+        <span class="filter-field-label">{{ t('vendorList.filters.keyword') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -59,29 +59,29 @@
           <input
             v-model="searchForm.searchTerm"
             class="search-input"
-            :placeholder="canViewVendorInfo ? '供应商名称 / 编号…' : '供应商编号…'"
+            :placeholder="canViewVendorInfo ? t('vendorList.filters.keywordPlaceholderFull') : t('vendorList.filters.keywordPlaceholderCode')"
             @keyup.enter="handleSearch"
           />
         </div>
         <el-select
           v-model="searchForm.status"
-          placeholder="全部状态"
+          :placeholder="t('vendorList.filters.allStatus')"
           clearable
           class="status-select"
           :teleported="false"
           @change="handleSearch"
         >
-          <el-option label="草稿" :value="0" />
-          <el-option label="新建" :value="1" />
-          <el-option label="待审核" :value="2" />
-          <el-option label="已审核" :value="10" />
-          <el-option label="待财务审核" :value="12" />
-          <el-option label="财务建档" :value="20" />
-          <el-option label="审核失败" :value="-1" />
+          <el-option :label="t('vendorList.status.draft')" :value="0" />
+          <el-option :label="t('vendorList.status.new')" :value="1" />
+          <el-option :label="t('vendorList.status.pending')" :value="2" />
+          <el-option :label="t('vendorList.status.approved')" :value="10" />
+          <el-option :label="t('vendorList.status.pendingFinance')" :value="12" />
+          <el-option :label="t('vendorList.status.financeFiled')" :value="20" />
+          <el-option :label="t('vendorList.status.failed')" :value="-1" />
         </el-select>
         <el-select
           v-model="searchForm.level"
-          placeholder="全部等级"
+          :placeholder="t('vendorList.filters.allLevel')"
           clearable
           class="status-select"
           :teleported="false"
@@ -91,7 +91,7 @@
         </el-select>
         <el-select
           v-model="searchForm.credit"
-          placeholder="全部身份"
+          :placeholder="t('vendorList.filters.allIdentity')"
           clearable
           class="status-select status-select--identity"
           :teleported="false"
@@ -101,37 +101,37 @@
         </el-select>
         <el-select
           v-model="searchForm.ascriptionType"
-          placeholder="全部类型"
+          :placeholder="t('vendorList.filters.allType')"
           clearable
           class="status-select"
           :teleported="false"
           @change="handleSearch"
         >
-          <el-option label="专属" :value="1" />
-          <el-option label="公海" :value="2" />
+          <el-option :label="t('vendorList.type.private')" :value="1" />
+          <el-option :label="t('vendorList.type.pool')" :value="2" />
         </el-select>
         <el-select
           v-model="searchForm.industry"
-          placeholder="全部行业"
+          :placeholder="t('vendorList.filters.allIndustry')"
           clearable
           class="status-select status-select--industry"
           :teleported="false"
           @change="handleSearch"
         >
-          <el-option label="电子/半导体" value="Electronics" />
-          <el-option label="机械/设备" value="Machinery" />
-          <el-option label="化工/材料" value="Chemical" />
-          <el-option label="纺织/服装" value="Textile" />
-          <el-option label="食品/农业" value="Food" />
-          <el-option label="建筑/工程" value="Construction" />
-          <el-option label="贸易/零售" value="Trading" />
-          <el-option label="科技/IT" value="Technology" />
-          <el-option label="医疗/健康" value="Healthcare" />
-          <el-option label="其他" value="Other" />
+          <el-option :label="t('vendorList.industry.Electronics')" value="Electronics" />
+          <el-option :label="t('vendorList.industry.Machinery')" value="Machinery" />
+          <el-option :label="t('vendorList.industry.Chemical')" value="Chemical" />
+          <el-option :label="t('vendorList.industry.Textile')" value="Textile" />
+          <el-option :label="t('vendorList.industry.Food')" value="Food" />
+          <el-option :label="t('vendorList.industry.Construction')" value="Construction" />
+          <el-option :label="t('vendorList.industry.Trading')" value="Trading" />
+          <el-option :label="t('vendorList.industry.Technology')" value="Technology" />
+          <el-option :label="t('vendorList.industry.Healthcare')" value="Healthcare" />
+          <el-option :label="t('vendorList.industry.Other')" value="Other" />
         </el-select>
         <el-select
           v-model="searchForm.purchaseUserId"
-          placeholder="全部采购员"
+          :placeholder="t('vendorList.filters.allPurchasers')"
           clearable
           filterable
           class="status-select status-select--purchaser"
@@ -143,17 +143,17 @@
         <el-date-picker
           v-model="createdDateRange"
           type="daterange"
-          range-separator="至"
-          start-placeholder="创建起"
-          end-placeholder="创建止"
+          :range-separator="t('vendorList.filters.to')"
+          :start-placeholder="t('vendorList.filters.startDate')"
+          :end-placeholder="t('vendorList.filters.endDate')"
           value-format="YYYY-MM-DD"
           clearable
           class="filter-date-range"
           :teleported="false"
           @change="onCreatedRangeChange"
         />
-        <button type="button" class="btn-primary btn-sm" @click="handleSearch">搜索</button>
-        <button type="button" class="btn-ghost btn-sm" @click="handleReset">重置</button>
+        <button type="button" class="btn-primary btn-sm" @click="handleSearch">{{ t('vendorList.filters.search') }}</button>
+        <button type="button" class="btn-ghost btn-sm" @click="handleReset">{{ t('vendorList.filters.reset') }}</button>
       </div>
     </div>
 
@@ -208,7 +208,7 @@
         <template #col-createUser="{ row }"><span class="td-muted">{{ (row as any).createUserName || (row as any).createdBy || (row as any).purchaseUserName || '--' }}</span></template>
         <template #col-actions-header>
           <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
+            <span class="op-col-header-text">{{ t('vendorList.actions.column') }}</span>
             <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
               {{ opColExpanded ? '>' : '<' }}
             </button>
@@ -217,14 +217,14 @@
         <template #col-actions="{ row }">
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns always-visible">
-              <button class="action-btn action-btn--primary" @click.stop="handleView(row)">详情</button>
-              <button class="action-btn action-btn--primary" @click.stop="handleEdit(row)">编辑</button>
+              <button class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('vendorList.actions.detail') }}</button>
+              <button class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('vendorList.actions.edit') }}</button>
               <button
                 v-if="row.status === 1"
                 class="action-btn action-btn--warning"
                 @click.stop="handleSubmitAudit(row)"
               >
-                提交审核
+                {{ t('vendorList.actions.submitAudit') }}
               </button>
             </div>
             <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -233,10 +233,10 @@
               </div>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item @click.stop="handleView(row)">详情</el-dropdown-item>
-                  <el-dropdown-item @click.stop="handleEdit(row)">编辑</el-dropdown-item>
+                  <el-dropdown-item @click.stop="handleView(row)">{{ t('vendorList.actions.detail') }}</el-dropdown-item>
+                  <el-dropdown-item @click.stop="handleEdit(row)">{{ t('vendorList.actions.edit') }}</el-dropdown-item>
                   <el-dropdown-item v-if="row.status === 1" @click.stop="handleSubmitAudit(row)">
-                    提交审核
+                    {{ t('vendorList.actions.submitAudit') }}
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -251,33 +251,33 @@
           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
           <polyline points="9 22 9 12 15 12 15 22"/>
         </svg>
-        <p>暂无供应商数据</p>
+        <p>{{ t('vendorList.empty') }}</p>
         <template v-if="canSubmitAudit">
           <div class="btn-split-group empty-split">
-            <button type="button" class="btn-success" @click="handleCreate">新增供应商</button>
+            <button type="button" class="btn-success" @click="handleCreate">{{ t('vendorList.create') }}</button>
             <el-dropdown trigger="click" @command="onCreateDropdownCommand">
-              <button type="button" class="btn-success btn-success--caret" aria-label="展开菜单">
+              <button type="button" class="btn-success btn-success--caret" :aria-label="t('vendorList.expandMenu')">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
               </button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="import">通过Excel导入</el-dropdown-item>
+                  <el-dropdown-item command="import">{{ t('vendorList.importExcel') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
           </div>
         </template>
-        <button v-else type="button" class="btn-success" @click="handleCreate">新增供应商</button>
+        <button v-else type="button" class="btn-success" @click="handleCreate">{{ t('vendorList.create') }}</button>
       </div>
     </div>
 
     <!-- 分页 -->
     <div class="pagination-wrapper" v-if="totalCount > 0">
       <div class="list-footer-left">
-        <el-tooltip content="列设置" placement="top" :hide-after="0">
-          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+        <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
@@ -302,6 +302,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch, nextTick, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Setting } from '@element-plus/icons-vue'
 import { vendorApi } from '@/api/vendor';
@@ -319,6 +320,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const route = useRoute();
 const router = useRouter();
+const { t } = useI18n()
 
 function isPartyStatusMuted(v: Vendor) {
   return !!(v.isDisenable || v.blackList);
@@ -446,25 +448,25 @@ function onCreatedRangeChange(val: [string, string] | null | undefined) {
 const pagination = reactive({ pageNumber: 1, pageSize: 20 });
 const vendorTableColumns = computed<CrmTableColumnDef[]>(() => {
   const cols: CrmTableColumnDef[] = [
-    { key: 'code', label: '供应商编号', prop: 'code', width: 160, minWidth: 160, showOverflowTooltip: true },
-    { key: 'status', label: '状态', prop: 'status', width: 160, align: 'center' },
-    { key: 'level', label: '等级', prop: 'level', width: 80, align: 'center' },
-    { key: 'credit', label: '身份', prop: 'credit', width: 100, align: 'center' },
-    { key: 'industry', label: '行业', prop: 'industry', width: 100, showOverflowTooltip: true },
-    { key: 'officeAddress', label: '地址', prop: 'officeAddress', width: 160, showOverflowTooltip: true },
-    { key: 'createTime', label: '创建日期', prop: 'createTime', width: 160 },
-    { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true }
+    { key: 'code', label: t('vendorList.columns.code'), prop: 'code', width: 160, minWidth: 160, showOverflowTooltip: true },
+    { key: 'status', label: t('vendorList.columns.status'), prop: 'status', width: 160, align: 'center' },
+    { key: 'level', label: t('vendorList.columns.level'), prop: 'level', width: 80, align: 'center' },
+    { key: 'credit', label: t('vendorList.columns.identity'), prop: 'credit', width: 100, align: 'center' },
+    { key: 'industry', label: t('vendorList.columns.industry'), prop: 'industry', width: 100, showOverflowTooltip: true },
+    { key: 'officeAddress', label: t('vendorList.columns.address'), prop: 'officeAddress', width: 160, showOverflowTooltip: true },
+    { key: 'createTime', label: t('vendorList.columns.createdAt'), prop: 'createTime', width: 160 },
+    { key: 'createUser', label: t('vendorList.columns.createUser'), width: 120, showOverflowTooltip: true }
   ]
   if (canViewVendorInfo) {
-    cols.splice(2, 0, { key: 'officialName', label: '供应商名称', minWidth: 200, showOverflowTooltip: true })
+    cols.splice(2, 0, { key: 'officialName', label: t('vendorList.columns.name'), minWidth: 200, showOverflowTooltip: true })
     cols.splice(7, 0,
-      { key: 'contactName', label: '联系人', width: 130, showOverflowTooltip: true },
-      { key: 'phone', label: '联系电话', width: 130, showOverflowTooltip: true }
+      { key: 'contactName', label: t('vendorList.columns.contactName'), width: 130, showOverflowTooltip: true },
+      { key: 'phone', label: t('vendorList.columns.phone'), width: 130, showOverflowTooltip: true }
     )
   }
   cols.push({
     key: 'actions',
-    label: '操作',
+    label: t('vendorList.actions.column'),
     width: opColWidth.value,
     minWidth: opColMinWidth.value,
     fixed: 'right',
@@ -476,14 +478,14 @@ const vendorTableColumns = computed<CrmTableColumnDef[]>(() => {
 })
 
 const getStatusLabel = (status?: number) => {
-  if (status === 0) return '草稿';
-  if (status === 1) return '新建';
-  if (status === 2) return '待审核';
-  if (status === 10) return '已审核';
-  if (status === 12) return '待财务审核';
-  if (status === 20) return '财务建档';
-  if (status === -1) return '审核失败';
-  return '未知';
+  if (status === 0) return t('vendorList.status.draft');
+  if (status === 1) return t('vendorList.status.new');
+  if (status === 2) return t('vendorList.status.pending');
+  if (status === 10) return t('vendorList.status.approved');
+  if (status === 12) return t('vendorList.status.pendingFinance');
+  if (status === 20) return t('vendorList.status.financeFiled');
+  if (status === -1) return t('vendorList.status.failed');
+  return t('vendorList.status.unknown');
 };
 const getStatusClass = (status?: number) => {
   if (status === 2 || status === 12) return 'status-pending';
@@ -539,8 +541,8 @@ const fetchVendorList = async () => {
     // 仅在非空结果（真实网络/服务器错误）时提示，空数据不报错
     const isEmptyResult = !error?.response || error?.response?.status === 404;
     if (!isEmptyResult) {
-      console.error('获取供应商列表失败', error);
-      ElMessage.error('获取供应商列表失败，请检查网络或后端服务');
+      console.error(t('vendorList.errors.fetchFailed'), error);
+      ElMessage.error(t('vendorList.errors.fetchFailed'));
     } else {
       vendorList.value = [];
       totalCount.value = 0;
@@ -560,20 +562,20 @@ const handleEdit = (row: Vendor) => router.push(`/vendors/${row.id}/edit`);
 
 const handleSubmitAudit = async (row: Vendor) => {
   if (!canSubmitAudit) {
-    ElMessage.warning('没有权限提交审核');
+    ElMessage.warning(t('vendorList.audit.noPermission'));
     return;
   }
   try {
-    await ElMessageBox.confirm('确定提交审核？提交后将进入“待审批”列表，由上级角色审批。', '提交审核', {
-      confirmButtonText: '提交',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('vendorList.audit.confirmMessage'), t('vendorList.audit.confirmTitle'), {
+      confirmButtonText: t('vendorList.audit.confirmButton'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning'
     });
     await vendorApi.submitAudit(row.id);
-    ElMessage.success('已提交审核');
+    ElMessage.success(t('vendorList.audit.success'));
     fetchVendorList();
   } catch (e: any) {
-    if (e !== 'cancel') ElMessage.error(e?.message || '提交审核失败');
+    if (e !== 'cancel') ElMessage.error(e?.message || t('vendorList.audit.failed'));
   }
 };
 
