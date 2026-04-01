@@ -55,115 +55,91 @@
     <CrmDataTable
       ref="dataTableRef"
       class="quantum-table-block el-table-host"
+      column-layout-key="sales-order-item-list-main"
+      :columns="salesOrderItemColumns"
+      :show-column-settings="false"
       :data="list"
       v-loading="loading"
       row-key="sellOrderItemId"
       @selection-change="onSelectionChange"
       @row-dblclick="goDetail"
     >
-        <el-table-column type="selection" width="48" :reserve-selection="true" />
-        <el-table-column prop="sellOrderCode" label="销售单号" width="160" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="orderStatus" label="状态" width="160" align="center">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="statusTagType(row.orderStatus)" size="small">{{ statusText(row.orderStatus) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="orderCreateTime" label="订单生成日期" width="160">
-          <template #default="{ row }">{{ formatDt(row.orderCreateTime) }}</template>
-        </el-table-column>
-        <el-table-column v-if="canViewCustomer" prop="customerName" label="客户名称" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="salesUserName" label="业务员" width="100" show-overflow-tooltip />
-        <el-table-column prop="pn" label="物料型号" min-width="130" show-overflow-tooltip />
-        <el-table-column prop="brand" label="品牌" width="110" show-overflow-tooltip />
-        <el-table-column prop="qty" label="数量" width="100" align="right" />
-        <el-table-column v-if="canViewAmount" prop="price" label="单价" width="160" align="right">
-          <template #default="{ row }">{{ formatCurrencyUnitPrice(row.price, row.currency) }}</template>
-        </el-table-column>
-        <el-table-column v-if="canViewAmount" prop="lineTotal" label="明细总额" width="160" align="right">
-          <template #default="{ row }">{{ formatCurrencyTotal(row.lineTotal, row.currency) }}</template>
-        </el-table-column>
-        <el-table-column v-if="canViewAmount" label="折算美金单价" width="160" align="right">
-          <template #default="{ row }">{{ row.usdUnitPrice != null ? `$${Number(row.usdUnitPrice).toFixed(6)}` : '—' }}</template>
-        </el-table-column>
-        <el-table-column v-if="canViewAmount" label="折算美金总额" width="160" align="right">
-          <template #default="{ row }">{{ row.usdLineTotal != null ? `$${Number(row.usdLineTotal).toFixed(2)}` : '—' }}</template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="160">
-          <template #default="{ row }">{{ formatDt(row.createTime || row.orderCreateTime) }}</template>
-        </el-table-column>
-        <el-table-column label="创建人" width="120" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.createUserName || row.createdBy || row.salesUserName || '—' }}</template>
-        </el-table-column>
-        <el-table-column
-          label="操作"
-          :width="opColWidth"
-          :min-width="opColMinWidth"
-          fixed="right"
-          align="center"
-          class-name="op-col"
-          label-class-name="op-col"
-        >
-          <template #header>
-            <div class="op-col-header">
-              <span class="op-col-header-text">操作</span>
-              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-                {{ opColExpanded ? '>' : '<' }}
-              </button>
-            </div>
-          </template>
-          <template #default="{ row }">
-            <div @click.stop @dblclick.stop>
-              <div v-if="opColExpanded" class="action-btns">
-                <el-button link type="primary" size="small" @click.stop="goDetail(row)">详情</el-button>
-                <el-button v-if="canWriteSo" link type="primary" size="small" @click.stop="goEdit(row)">编辑</el-button>
-                <el-button
-                  v-if="canPurchaseReq && mainAllowsOps(row)"
-                  link
-                  type="warning"
-                  size="small"
-                  @click.stop="applyPurchaseOne(row)"
-                >
-                  申请采购
-                </el-button>
-                <el-button
-                  v-if="canWriteSo && mainAllowsOps(row)"
-                  link
-                  type="warning"
-                  size="small"
-                  @click.stop="applyStockOutOne(row)"
-                >
-                  申请出库
-                </el-button>
-              </div>
+      <template #col-orderStatus="{ row }">
+        <el-tag effect="dark" :type="statusTagType(row.orderStatus)" size="small">{{ statusText(row.orderStatus) }}</el-tag>
+      </template>
+      <template #col-orderCreateTime="{ row }">{{ formatDt(row.orderCreateTime) }}</template>
+      <template #col-price="{ row }">{{ formatCurrencyUnitPrice(row.price, row.currency) }}</template>
+      <template #col-lineTotal="{ row }">{{ formatCurrencyTotal(row.lineTotal, row.currency) }}</template>
+      <template #col-usdUnitPrice="{ row }">{{ row.usdUnitPrice != null ? `$${Number(row.usdUnitPrice).toFixed(6)}` : '—' }}</template>
+      <template #col-usdLineTotal="{ row }">{{ row.usdLineTotal != null ? `$${Number(row.usdLineTotal).toFixed(2)}` : '—' }}</template>
+      <template #col-createTime="{ row }">{{ formatDt(row.createTime || row.orderCreateTime) }}</template>
+      <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || row.salesUserName || '—' }}</template>
+      <template #col-actions-header>
+        <div class="op-col-header">
+          <span class="op-col-header-text">操作</span>
+          <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+            {{ opColExpanded ? '>' : '<' }}
+          </button>
+        </div>
+      </template>
+      <template #col-actions="{ row }">
+        <div @click.stop @dblclick.stop>
+          <div v-if="opColExpanded" class="action-btns">
+            <el-button link type="primary" size="small" @click.stop="goDetail(row)">详情</el-button>
+            <el-button v-if="canWriteSo" link type="primary" size="small" @click.stop="goEdit(row)">编辑</el-button>
+            <el-button
+              v-if="canPurchaseReq && mainAllowsOps(row)"
+              link
+              type="warning"
+              size="small"
+              @click.stop="applyPurchaseOne(row)"
+            >
+              申请采购
+            </el-button>
+            <el-button
+              v-if="canWriteSo && mainAllowsOps(row)"
+              link
+              type="warning"
+              size="small"
+              @click.stop="applyStockOutOne(row)"
+            >
+              申请出库
+            </el-button>
+          </div>
 
-              <el-dropdown v-else trigger="click" placement="bottom-end">
-                <div class="op-more-dropdown-trigger">
-                  <button type="button" class="op-more-trigger">...</button>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item @click.stop="goDetail(row)">
-                      <span class="op-more-item op-more-item--primary">详情</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item v-if="canWriteSo" @click.stop="goEdit(row)">
-                      <span class="op-more-item op-more-item--primary">编辑</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item v-if="canPurchaseReq && mainAllowsOps(row)" @click.stop="applyPurchaseOne(row)">
-                      <span class="op-more-item op-more-item--warning">申请采购</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item v-if="canWriteSo && mainAllowsOps(row)" @click.stop="applyStockOutOne(row)">
-                      <span class="op-more-item op-more-item--warning">申请出库</span>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+          <el-dropdown v-else trigger="click" placement="bottom-end">
+            <div class="op-more-dropdown-trigger">
+              <button type="button" class="op-more-trigger">...</button>
             </div>
-          </template>
-        </el-table-column>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click.stop="goDetail(row)">
+                  <span class="op-more-item op-more-item--primary">详情</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="canWriteSo" @click.stop="goEdit(row)">
+                  <span class="op-more-item op-more-item--primary">编辑</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="canPurchaseReq && mainAllowsOps(row)" @click.stop="applyPurchaseOne(row)">
+                  <span class="op-more-item op-more-item--warning">申请采购</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="canWriteSo && mainAllowsOps(row)" @click.stop="applyStockOutOne(row)">
+                  <span class="op-more-item op-more-item--warning">申请出库</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </template>
     </CrmDataTable>
 
     <div v-if="total > 0" class="table-footer-bar">
       <div class="basket-footer-left">
+        <el-tooltip content="列设置" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <div class="list-footer-spacer" aria-hidden="true"></div>
         <el-button class="basket-open-btn" link type="primary" @click="basketDrawerVisible = true">
           复选篮子<span v-if="basketCount" class="basket-count-label">（{{ basketCount }}）</span>
         </el-button>
@@ -329,6 +305,7 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { useSalesOrderItemListBasketStore } from '@/stores/salesOrderItemListBasket'
@@ -344,6 +321,7 @@ import {
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
 import type { SalesOrderItemLineRow } from '@/stores/salesOrderItemListBasket'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -380,6 +358,44 @@ const opColMinWidth = computed(() => (opColExpanded.value ? 260 : OP_COL_COLLAPS
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+const salesOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
+  const cols: CrmTableColumnDef[] = [
+    { key: 'selection', type: 'selection', width: 48, reserveSelection: true, fixed: 'left', hideable: false, reorderable: false },
+    { key: 'sellOrderCode', label: '销售单号', prop: 'sellOrderCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+    { key: 'orderStatus', label: '状态', prop: 'orderStatus', width: 160, align: 'center' },
+    { key: 'orderCreateTime', label: '订单生成日期', prop: 'orderCreateTime', width: 160 },
+    { key: 'salesUserName', label: '业务员', prop: 'salesUserName', width: 100, showOverflowTooltip: true },
+    { key: 'pn', label: '物料型号', prop: 'pn', minWidth: 130, showOverflowTooltip: true },
+    { key: 'brand', label: '品牌', prop: 'brand', width: 110, showOverflowTooltip: true },
+    { key: 'qty', label: '数量', prop: 'qty', width: 100, align: 'right' },
+    { key: 'createTime', label: '创建时间', width: 160 },
+    { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true }
+  ]
+  if (canViewCustomer.value) cols.splice(4, 0, { key: 'customerName', label: '客户名称', prop: 'customerName', minWidth: 200, showOverflowTooltip: true })
+  if (canViewAmount.value) {
+    cols.splice(cols.length - 2, 0,
+      { key: 'price', label: '单价', prop: 'price', width: 160, align: 'right' },
+      { key: 'lineTotal', label: '明细总额', prop: 'lineTotal', width: 160, align: 'right' },
+      { key: 'usdUnitPrice', label: '折算美金单价', width: 160, align: 'right' },
+      { key: 'usdLineTotal', label: '折算美金总额', width: 160, align: 'right' }
+    )
+  }
+  cols.push({
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    align: 'center',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  })
+  return cols
+})
 
 const dateRange = ref<[string, string] | null>(null)
 const filters = reactive({
@@ -808,9 +824,19 @@ onMounted(() => loadList())
 .basket-footer-left {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   flex-wrap: nowrap;
   flex-shrink: 0;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 18px;
+  flex: 0 0 18px;
 }
 
 .basket-open-btn {

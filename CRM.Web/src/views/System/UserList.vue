@@ -6,97 +6,93 @@
         <el-button type="primary" @click="router.push({ name: 'UserCreate' })">新增员工</el-button>
       </div>
 
-      <CrmDataTable v-loading="loading" :data="users" @row-dblclick="onRowDblclick">
-        <el-table-column prop="status" label="状态" width="90">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="row.status === 1 ? 'success' : 'info'" size="small">
-              {{ row.status === 1 ? '启用' : '禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="userName" label="员工账号" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="realName" label="真实姓名" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="email" label="邮箱" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="mobile" label="手机" width="140" />
-        <el-table-column label="角色" min-width="220" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span>{{ row.roleCodes?.join(', ') || '-' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="主部门" min-width="220" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span>{{ row.primaryDepartmentName || '-' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="160">
-          <template #default="{ row }">{{ formatCreateTime(row.createTime || row.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="创建人" width="120" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.createUserName || row.createdBy || '-' }}</template>
-        </el-table-column>
-        <el-table-column
-          label="操作"
-          :width="opColWidth"
-          :min-width="opColMinWidth"
-          fixed="right"
-          class-name="op-col"
-          label-class-name="op-col"
-        >
-          <template #header>
-            <div class="op-col-header">
-              <span class="op-col-header-text">操作</span>
-              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-                {{ opColExpanded ? '>' : '<' }}
-              </button>
+      <CrmDataTable
+        ref="dataTableRef"
+        v-loading="loading"
+        column-layout-key="system-user-list-main"
+        :columns="userTableColumns"
+        :show-column-settings="false"
+        :data="users"
+        @row-dblclick="onRowDblclick"
+      >
+        <template #col-status="{ row }">
+          <el-tag effect="dark" :type="row.status === 1 ? 'success' : 'info'" size="small">
+            {{ row.status === 1 ? '启用' : '禁用' }}
+          </el-tag>
+        </template>
+        <template #col-roleCodes="{ row }">
+          <span>{{ row.roleCodes?.join(', ') || '-' }}</span>
+        </template>
+        <template #col-primaryDepartmentName="{ row }">
+          <span>{{ row.primaryDepartmentName || '-' }}</span>
+        </template>
+        <template #col-createTime="{ row }">
+          {{ formatCreateTime(row.createTime || row.createdAt) }}
+        </template>
+        <template #col-createUser="{ row }">
+          {{ row.createUserName || row.createdBy || '-' }}
+        </template>
+        <template #col-actions-header>
+          <div class="op-col-header">
+            <span class="op-col-header-text">操作</span>
+            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
+        <template #col-actions="{ row }">
+          <div @click.stop @dblclick.stop>
+            <div v-if="opColExpanded" class="action-btns">
+              <el-button link type="primary" @click.stop="goEdit(row.id)">编辑</el-button>
+              <el-button link type="danger" @click.stop="requestDelete(row.id)">删除</el-button>
+              <el-button
+                v-if="canImpersonate && impersonateVisibleForRow(row)"
+                link
+                type="warning"
+                :loading="impersonateUserId === row.id"
+                @click.stop="handleImpersonate(row)"
+              >
+                模拟登录
+              </el-button>
             </div>
-          </template>
-          <template #default="{ row }">
-            <div @click.stop @dblclick.stop>
-              <div v-if="opColExpanded" class="action-btns">
-                <el-button link type="primary" @click.stop="goEdit(row.id)">编辑</el-button>
-                <el-button link type="danger" @click.stop="handleDelete(row.id)">删除</el-button>
-                <el-button
-                  v-if="canImpersonate && impersonateVisibleForRow(row)"
-                  link
-                  type="warning"
-                  :loading="impersonateUserId === row.id"
-                  @click.stop="handleImpersonate(row)"
-                >
-                  模拟登录
-                </el-button>
-              </div>
 
-              <el-dropdown v-else trigger="click" placement="bottom-end">
-                <div class="op-more-dropdown-trigger">
-                  <button type="button" class="op-more-trigger">...</button>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item @click.stop>
-                      <span class="op-more-item op-more-item--primary" @click.stop="goEdit(row.id)">编辑</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item @click.stop>
-                      <span class="op-more-item op-more-item--danger" @click.stop="handleDelete(row.id)">删除</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item
-                      v-if="canImpersonate && impersonateVisibleForRow(row)"
-                      :disabled="impersonateUserId === row.id"
-                      @click.stop
-                    >
-                      <span
-                        class="op-more-item op-more-item--warning"
-                        @click.stop="handleImpersonate(row)"
-                      >
-                        模拟登录
-                      </span>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
+            <el-dropdown v-else trigger="click" placement="bottom-end" @command="(cmd: string) => onRowCommand(cmd, row)">
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="edit">
+                    <span class="op-more-item op-more-item--primary">编辑</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item command="delete">
+                    <span class="op-more-item op-more-item--danger">删除</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="canImpersonate && impersonateVisibleForRow(row)"
+                    :disabled="impersonateUserId === row.id"
+                    command="impersonate"
+                  >
+                    <span class="op-more-item op-more-item--warning">
+                      模拟登录
+                    </span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </template>
       </CrmDataTable>
+      <div class="pagination-wrapper">
+        <div class="list-footer-left">
+          <el-tooltip content="列设置" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+              <el-icon><Setting /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <div class="list-footer-spacer" aria-hidden="true"></div>
+        </div>
+      </div>
     </el-card>
   </div>
 </template>
@@ -105,9 +101,11 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
 import { rbacAdminApi, type AdminUserDto } from '@/api/rbacAdmin'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { useAuthStore } from '@/stores/auth'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -115,6 +113,7 @@ const authStore = useAuthStore()
 const loading = ref(false)
 const users = ref<AdminUserDto[]>([])
 const impersonateUserId = ref<string | null>(null)
+const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 
 /** 仅系统管理员（SYS_ADMIN）可见模拟登录 */
 const canImpersonate = computed(() => authStore.user?.isSysAdmin === true)
@@ -128,6 +127,30 @@ const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDT
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+const userTableColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'status', label: '状态', prop: 'status', width: 90, align: 'center' },
+  { key: 'userName', label: '员工账号', prop: 'userName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'realName', label: '真实姓名', prop: 'realName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'email', label: '邮箱', prop: 'email', minWidth: 200, showOverflowTooltip: true },
+  { key: 'mobile', label: '手机', prop: 'mobile', width: 140 },
+  { key: 'roleCodes', label: '角色', minWidth: 220, showOverflowTooltip: true },
+  { key: 'primaryDepartmentName', label: '主部门', minWidth: 220, showOverflowTooltip: true },
+  { key: 'createTime', label: '创建时间', width: 160 },
+  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  }
+])
 
 function impersonateVisibleForRow(row: AdminUserDto) {
   if (row.status !== 1) return false
@@ -155,18 +178,49 @@ const goEdit = (id: string) => {
 
 const onRowDblclick = (row: AdminUserDto) => goEdit(row.id)
 
+const requestDelete = (id: string) => {
+  // 便于排查“点击删除无反应”：确认点击事件是否触发
+  console.info('[UserList] delete click', { id })
+  void handleDelete(id)
+}
+
+const onRowCommand = (cmd: string, row: AdminUserDto) => {
+  console.info('[UserList] row command', { cmd, id: row.id, userName: row.userName })
+  if (cmd === 'edit') {
+    goEdit(row.id)
+    return
+  }
+  if (cmd === 'delete') {
+    requestDelete(row.id)
+    return
+  }
+  if (cmd === 'impersonate') {
+    void handleImpersonate(row)
+  }
+}
+
 const handleDelete = async (id: string) => {
   try {
+    console.info('[UserList] open delete confirm', { id })
     await ElMessageBox.confirm('确定删除该员工吗？', '删除确认', {
       type: 'warning',
       confirmButtonText: '删除',
       cancelButtonText: '取消'
     })
+    console.info('[UserList] delete confirmed, calling api', { id })
     await rbacAdminApi.deleteUser(id)
     ElMessage.success('删除成功')
+    console.info('[UserList] delete api success, reloading list', { id })
     await load()
-  } catch {
-    // cancel
+  } catch (e: unknown) {
+    // 用户点击取消：静默返回；其它异常明确提示，避免“删除后还在”却无反馈
+    if (e === 'cancel' || e === 'close') {
+      console.info('[UserList] delete canceled', { id, reason: e })
+      return
+    }
+    console.error('[UserList] delete failed', { id, error: e })
+    const msg = e instanceof Error ? e.message : '删除失败'
+    ElMessage.error(msg)
   }
 }
 
@@ -259,6 +313,29 @@ onMounted(load)
 
 .op-more-item--danger {
   color: $color-red-brown;
+}
+
+.pagination-wrapper {
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 </style>
 

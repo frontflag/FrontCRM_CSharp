@@ -244,6 +244,8 @@ const handleSaveNotification = () => {
 </script>
 
 <style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
 .settings-page {
   padding: 20px;
   min-height: 100%;
@@ -254,7 +256,7 @@ const handleSaveNotification = () => {
   .page-title {
     font-size: 18px;
     font-weight: 600;
-    color: #e0f4ff;
+    color: $text-primary;
     margin: 0;
   }
 }
@@ -269,8 +271,8 @@ const handleSaveNotification = () => {
 .settings-nav {
   width: 180px;
   flex-shrink: 0;
-  background: #0a1828;
-  border: 1px solid #1a2d45;
+  background: $layer-2;
+  border: 1px solid $border-card;
   border-radius: 8px;
   padding: 8px;
 
@@ -281,7 +283,7 @@ const handleSaveNotification = () => {
     padding: 10px 14px;
     border-radius: 6px;
     cursor: pointer;
-    color: #5a7a9a;
+    color: $text-muted;
     font-size: 13px;
     transition: all 0.2s;
 
@@ -291,12 +293,12 @@ const handleSaveNotification = () => {
 
     &:hover {
       background: rgba(0, 212, 255, 0.06);
-      color: #a8c0d6;
+      color: $text-secondary;
     }
 
     &.active {
       background: rgba(0, 212, 255, 0.1);
-      color: #00d4ff;
+      color: $cyan-primary;
       font-weight: 500;
     }
   }
@@ -309,8 +311,8 @@ const handleSaveNotification = () => {
 }
 
 .form-section {
-  background: #0a1828;
-  border: 1px solid #1a2d45;
+  background: $layer-2;
+  border: 1px solid $border-card;
   border-radius: 8px;
   padding: 20px 24px;
 }
@@ -321,7 +323,7 @@ const handleSaveNotification = () => {
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: #c8dff0;
+  color: $text-primary;
   margin-bottom: 24px;
 
   .title-bar {
@@ -335,29 +337,29 @@ const handleSaveNotification = () => {
 
 .settings-form {
   :deep(.el-form-item__label) {
-    color: #5a7a9a;
+    color: $text-muted;
     font-size: 13px;
   }
 
   :deep(.el-input__wrapper),
   :deep(.el-textarea__inner) {
-    background: #0d1e35;
-    border-color: #1a2d45;
+    background: $layer-3;
+    border-color: $border-panel;
     box-shadow: none;
-    &:hover { border-color: #2a4d75; }
-    &.is-focus { border-color: #00c8ff; }
+    &:hover { border-color: rgba(0, 212, 255, 0.35); }
+    &.is-focus { border-color: $cyan-primary; }
   }
 
   :deep(.el-input__inner),
   :deep(.el-textarea__inner) {
-    color: #c8dff0;
+    color: $text-primary;
     background: transparent;
-    &::placeholder { color: #3a5a7a; }
+    &::placeholder { color: $text-placeholder; }
   }
 
   :deep(.el-input-number .el-input__wrapper) {
-    background: #0d1e35;
-    border-color: #1a2d45;
+    background: $layer-3;
+    border-color: $border-panel;
   }
 
   :deep(.el-switch.is-checked .el-switch__core) {
@@ -371,7 +373,7 @@ const handleSaveNotification = () => {
     gap: 12px;
 
     .switch-desc {
-      color: #5a7a9a;
+      color: $text-muted;
       font-size: 12px;
     }
   }
@@ -389,19 +391,19 @@ const handleSaveNotification = () => {
       h3 {
         font-size: 20px;
         font-weight: 700;
-        color: #e0f4ff;
+        color: $text-primary;
         margin: 0 0 4px;
       }
       p {
         font-size: 12px;
-        color: #5a7a9a;
+        color: $text-muted;
         margin: 0;
       }
     }
   }
 
   .about-desc {
-    color: #6b8cae;
+    color: $text-secondary;
     font-size: 13px;
     margin-bottom: 24px;
     line-height: 1.6;
@@ -414,7 +416,7 @@ const handleSaveNotification = () => {
 
     .info-item {
       background: rgba(0, 212, 255, 0.03);
-      border: 1px solid #1a2d45;
+      border: 1px solid $border-panel;
       border-radius: 6px;
       padding: 12px 16px;
       display: flex;
@@ -423,14 +425,14 @@ const handleSaveNotification = () => {
 
       .label {
         font-size: 11px;
-        color: #5a7a9a;
+        color: $text-muted;
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
 
       .value {
         font-size: 13px;
-        color: #a8c0d6;
+        color: $text-secondary;
         font-weight: 500;
       }
     }

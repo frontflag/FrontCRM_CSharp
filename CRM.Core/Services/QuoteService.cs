@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Quote;
+using CRM.Core.Models.RFQ;
 using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
@@ -11,17 +12,20 @@ namespace CRM.Core.Services
     {
         private readonly IRepository<Quote> _quoteRepository;
         private readonly IRepository<QuoteItem> _quoteItemRepository;
+        private readonly IRepository<RFQItem> _rfqItemRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
 
         public QuoteService(
             IRepository<Quote> quoteRepository,
             IRepository<QuoteItem> quoteItemRepository,
+            IRepository<RFQItem> rfqItemRepository,
             IUnitOfWork unitOfWork,
             ISerialNumberService serialNumberService)
         {
             _quoteRepository = quoteRepository;
             _quoteItemRepository = quoteItemRepository;
+            _rfqItemRepository = rfqItemRepository;
             _unitOfWork = unitOfWork;
             _serialNumberService = serialNumberService;
         }
@@ -54,6 +58,18 @@ namespace CRM.Core.Services
             {
                 var item = MapToQuoteItem(quote.Id, itemReq);
                 await _quoteItemRepository.AddAsync(item);
+            }
+
+            // 创建报价后，回写对应 RFQ 明细为「已报价」(1)
+            if (!string.IsNullOrWhiteSpace(request.RFQItemId))
+            {
+                var rfqItem = await _rfqItemRepository.GetByIdAsync(request.RFQItemId.Trim());
+                if (rfqItem != null && rfqItem.Status == 0)
+                {
+                    rfqItem.Status = 1;
+                    rfqItem.ModifyTime = DateTime.UtcNow;
+                    await _rfqItemRepository.UpdateAsync(rfqItem);
+                }
             }
 
             await _unitOfWork.SaveChangesAsync();
@@ -149,6 +165,24 @@ namespace CRM.Core.Services
                 await _quoteItemRepository.DeleteAsync(item.Id);
 
             await _quoteRepository.DeleteAsync(id);
+
+            // 删除报价后，如果该 RFQ 明细已无任何报价，则回退为「待报价」(0)
+            if (!string.IsNullOrWhiteSpace(quote.RFQItemId))
+            {
+                var rfqItemId = quote.RFQItemId.Trim();
+                var remainingQuotes = await _quoteRepository.FindAsync(q => q.RFQItemId == rfqItemId && q.Id != id);
+                if (!remainingQuotes.Any())
+                {
+                    var rfqItem = await _rfqItemRepository.GetByIdAsync(rfqItemId);
+                    if (rfqItem != null && rfqItem.Status == 1)
+                    {
+                        rfqItem.Status = 0;
+                        rfqItem.ModifyTime = DateTime.UtcNow;
+                        await _rfqItemRepository.UpdateAsync(rfqItem);
+                    }
+                }
+            }
+
             await _unitOfWork.SaveChangesAsync();
         }
 

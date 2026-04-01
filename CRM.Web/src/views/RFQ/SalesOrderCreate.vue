@@ -817,6 +817,8 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
 .create-page {
   padding: 20px;
   min-height: 100%;
@@ -834,9 +836,9 @@ const handleSubmit = async () => {
     gap: 12px;
 
     .el-button.is-link {
-      color: #5a7a9a;
+      color: $text-muted;
       font-size: 13px;
-      &:hover { color: #00c8ff; }
+      &:hover { color: $cyan-primary; }
     }
   }
 
@@ -852,8 +854,8 @@ const handleSubmit = async () => {
     background: transparent;
   }
   :deep(.so-collapse .el-collapse-item) {
-    background: #0a1828;
-    border: 1px solid #1a2d45;
+    background: $layer-2;
+    border: 1px solid $border-card;
     border-radius: 8px;
     margin-bottom: 14px;
     overflow: hidden;
@@ -861,7 +863,7 @@ const handleSubmit = async () => {
   :deep(.so-collapse .el-collapse-item__header) {
     background: rgba(0, 212, 255, 0.06);
     border-bottom: 1px solid rgba(0, 212, 255, 0.12);
-    color: #c8dff0;
+    color: $text-primary;
     font-weight: 600;
     font-size: 14px;
     padding: 0 18px;
@@ -873,23 +875,23 @@ const handleSubmit = async () => {
   }
   :deep(.so-collapse .el-collapse-item__content) {
     padding: 16px 18px 8px;
-    color: #c8dff0;
+    color: $text-primary;
   }
 
   :deep(.el-form-item__label) {
-    color: #5a7a9a;
+    color: $text-muted;
     font-size: 13px;
   }
 
   :deep(.el-input__wrapper),
   :deep(.el-textarea__inner),
   :deep(.el-select .el-input__wrapper) {
-    background: #0d1e35;
-    border-color: #1a2d45;
+    background: $layer-3;
+    border-color: $border-panel;
     box-shadow: none;
     color: #c8dff0;
-    &:hover { border-color: #2a4d75; }
-    &.is-focus { border-color: #00c8ff; }
+    &:hover { border-color: rgba(0, 212, 255, 0.35); }
+    &.is-focus { border-color: $cyan-primary; }
   }
 
   :deep(.el-input.is-disabled .el-input__wrapper) {
@@ -900,9 +902,9 @@ const handleSubmit = async () => {
 
   :deep(.el-input__inner),
   :deep(.el-textarea__inner) {
-    color: #c8dff0;
+    color: $text-primary;
     background: transparent;
-    &::placeholder { color: #3a5a7a; }
+    &::placeholder { color: $text-placeholder; }
   }
 
   :deep(.el-date-editor .el-input__wrapper) {
@@ -913,7 +915,7 @@ const handleSubmit = async () => {
 
 .select-hint {
   padding: 8px 12px;
-  color: #5a7a9a;
+  color: $text-muted;
   font-size: 12px;
 }
 
@@ -928,7 +930,7 @@ const handleSubmit = async () => {
 }
 
 .items-empty {
-  color: #5a7a9a;
+  color: $text-muted;
   font-size: 13px;
   padding: 16px 0;
 }
@@ -938,7 +940,7 @@ const handleSubmit = async () => {
   border-radius: 8px;
   margin-bottom: 14px;
   overflow: hidden;
-  background: rgba(0, 30, 60, 0.25);
+  background: rgba(0, 212, 255, 0.03);
 }
 
 .material-card-head {
@@ -950,8 +952,8 @@ const handleSubmit = async () => {
   background: rgba(0, 200, 255, 0.08);
   border-bottom: 1px solid rgba(0, 212, 255, 0.12);
   font-size: 13px;
-  .head-mpn { color: #c8dff0; font-weight: 600; }
-  .head-quote { color: #5a7a9a; }
+  .head-mpn { color: $text-primary; font-weight: 600; }
+  .head-quote { color: $text-muted; }
 }
 
 .material-card-body {
@@ -971,11 +973,12 @@ const handleSubmit = async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #00c8ff;
+  color: $cyan-primary;
   font-weight: 600;
   .ccy-tag {
     font-size: 12px;
     color: #5a7a9a;
+    color: $text-muted;
     font-weight: 500;
   }
 }
@@ -992,8 +995,8 @@ const handleSubmit = async () => {
   align-items: center;
   padding: 12px 4px 8px;
   gap: 8px;
-  .gt-label { color: #5a7a9a; font-size: 13px; }
-  .gt-amount { color: #00c8ff; font-size: 16px; font-weight: 700; }
+  .gt-label { color: $text-muted; font-size: 13px; }
+  .gt-amount { color: $cyan-primary; font-size: 16px; font-weight: 700; }
 }
 
 :deep(.el-input-number .el-input__wrapper) {

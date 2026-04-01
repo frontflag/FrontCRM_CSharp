@@ -30,54 +30,53 @@
       </div>
     </div>
 
-    <!-- 列表 -->
     <div v-loading="loading" element-loading-background="rgba(10,22,40,0.8)" class="list-container">
-      <div v-if="!loading && items.length === 0" class="empty-state">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-          <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-        </svg>
-        <p>黑名单为空</p>
-      </div>
-
-      <div v-for="item in items" :key="item.id" class="record-card" @dblclick="goDetail(item)">
-        <div class="record-avatar">{{ (item.customerName || item.officialName || '?')[0] }}</div>
-        <div class="record-body">
+      <CrmDataTable
+        ref="dataTableRef"
+        column-layout-key="customer-blacklist-main"
+        :columns="blacklistColumns"
+        :show-column-settings="false"
+        :data="items"
+        row-key="id"
+        @row-dblclick="goDetail"
+      >
+        <template #col-customerName="{ row }">
           <div class="record-name-row">
-            <span class="record-name record-name--muted">{{ item.customerName || item.officialName }}</span>
+            <span class="record-name record-name--muted">{{ row.customerName || row.officialName }}</span>
             <PartyStatusIcons
-              :entity-id="item.id"
-              :frozen="!!item.disenableStatus"
+              :entity-id="row.id"
+              :frozen="!!row.disenableStatus"
               :blacklist="true"
               size="sm"
             />
             <span class="blacklist-tag">黑名单</span>
-            <span v-if="item.customerLevel" class="level-tag">{{ getLevelLabel(item.customerLevel) }}</span>
+            <span v-if="row.customerLevel" class="level-tag">{{ getLevelLabel(row.customerLevel) }}</span>
           </div>
-          <div class="record-meta">
-            <span class="meta-code">{{ item.customerCode }}</span>
-            <span class="meta-sep">·</span>
-            <span class="meta-text">加入时间：{{ formatDateTime(item.blackListTime || item.updatedAt) }}</span>
-            <span class="meta-sep">·</span>
-            <span class="meta-text">操作人：{{ item.blackListUserName || '系统员工' }}</span>
+        </template>
+        <template #col-blackListTime="{ row }">{{ formatDateTime(row.blackListTime || row.updatedAt) }}</template>
+        <template #col-blackListUserName="{ row }">{{ row.blackListUserName || '系统员工' }}</template>
+        <template #col-blackListReason="{ row }">{{ row.blackListReason || '--' }}</template>
+        <template #col-actions="{ row }">
+          <div class="record-actions" @dblclick.stop>
+            <el-button type="primary" size="small" style="margin-right:8px" @click="goDetail(row)">查看详情</el-button>
+            <el-button type="warning" size="small" :loading="removingId === row.id" @click="handleRemove(row)">
+              移出黑名单
+            </el-button>
           </div>
-          <div v-if="item.blackListReason" class="record-reason">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            黑名单理由：{{ item.blackListReason }}
-          </div>
-        </div>
-        <div class="record-actions" @dblclick.stop>
-          <el-button type="primary" size="small" style="margin-right:8px" @click="goDetail(item)">查看详情</el-button>
-          <el-button type="warning" size="small" :loading="removingId === item.id" @click="handleRemove(item)">
-            移出黑名单
-          </el-button>
-        </div>
-      </div>
+        </template>
+      </CrmDataTable>
     </div>
 
     <!-- 分页 -->
     <div v-if="totalCount > pageSize" class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip content="列设置" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <div class="list-footer-spacer" aria-hidden="true"></div>
+      </div>
       <el-pagination
         v-model:current-page="pageIndex"
         :page-size="pageSize"
@@ -114,8 +113,11 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElNotification } from 'element-plus';
+import { Setting } from '@element-plus/icons-vue'
 import { customerApi } from '@/api/customer';
 import { formatDisplayDateTime } from '@/utils/displayDateTime';
+import CrmDataTable from '@/components/CrmDataTable.vue'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter();
 const loading = ref(false);
@@ -128,6 +130,17 @@ const removingId = ref<string | null>(null);
 const showRemoveDialog = ref(false);
 const pendingRemove = ref<any | null>(null);
 const removeReason = ref('');
+const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+
+const blacklistColumns: CrmTableColumnDef[] = [
+  { key: 'customerCode', label: '客户编号', prop: 'customerCode', width: 180, showOverflowTooltip: true },
+  { key: 'customerName', label: '客户名称', minWidth: 260, showOverflowTooltip: true },
+  { key: 'customerLevel', label: '级别', width: 100, align: 'center' },
+  { key: 'blackListTime', label: '加入时间', width: 180 },
+  { key: 'blackListUserName', label: '操作人', width: 130, showOverflowTooltip: true },
+  { key: 'blackListReason', label: '黑名单理由', minWidth: 220, showOverflowTooltip: true },
+  { key: 'actions', label: '操作', width: 190, fixed: 'right', hideable: false, pinned: 'end', reorderable: false }
+];
 
 const fetchData = async () => {
   loading.value = true;
@@ -362,7 +375,24 @@ onMounted(() => fetchData());
 
 .pagination-wrapper {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-top: 24px;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 </style>

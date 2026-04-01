@@ -61,125 +61,99 @@
     <CrmDataTable
       ref="tableRef"
       class="quantum-table-block el-table-host"
+      column-layout-key="purchase-order-item-list-main"
+      :columns="purchaseOrderItemColumns"
+      :show-column-settings="false"
       :data="pagedList"
       v-loading="loading"
       row-key="purchaseOrderItemId"
       @selection-change="onSelectionChange"
       @row-dblclick="goDetail"
     >
-      <el-table-column type="selection" width="48" :reserve-selection="true" />
-
-      <el-table-column prop="purchaseOrderCode" label="采购单号" width="160" min-width="160" show-overflow-tooltip />
-      <el-table-column prop="itemStatus" label="状态" width="160" align="center">
-        <template #default="{ row }">
-          <el-tag effect="dark" :type="statusTagType(row.itemStatus)" size="small">{{ statusText(row.itemStatus) }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="orderCreateTime" label="订单生成日期" width="160">
-        <template #default="{ row }">{{ formatDt(row.orderCreateTime) }}</template>
-      </el-table-column>
-
-      <el-table-column v-if="canViewVendor" prop="vendorName" label="供应商名称" min-width="200" show-overflow-tooltip />
-      <el-table-column v-if="canViewPurchaseUser" prop="purchaseUserName" label="采购员" width="100" show-overflow-tooltip />
-      <el-table-column prop="pn" label="物料型号" min-width="130" show-overflow-tooltip />
-      <el-table-column prop="brand" label="品牌" width="110" show-overflow-tooltip />
-
-      <el-table-column prop="qty" label="数量" width="100" align="right" />
-      <el-table-column prop="financePaymentStatus" label="付款状态" width="120" align="center">
-        <template #default="{ row }">
-          <el-tag effect="dark" size="small" :type="financeStatusTagType(Number(row.financePaymentStatus ?? 0))">
-            {{ financeStatusText(Number(row.financePaymentStatus ?? 0)) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="stockInStatus" label="货运状态" width="120" align="center">
-        <template #default="{ row }">
-          <el-tag effect="dark" size="small" :type="shippingStatusTagType(Number(row.stockInStatus ?? 0))">
-            {{ shippingStatusText(Number(row.stockInStatus ?? 0)) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column v-if="canViewAmount" prop="cost" label="单价" width="160" align="right">
-        <template #default="{ row }">{{ formatCurrencyUnitPrice(row.cost, row.currency) }}</template>
-      </el-table-column>
-      <el-table-column v-if="canViewAmount" prop="lineTotal" label="明细总额" width="160" align="right">
-        <template #default="{ row }">{{ formatCurrencyTotal(row.lineTotal, row.currency) }}</template>
-      </el-table-column>
-      <el-table-column label="创建时间" width="160">
-        <template #default="{ row }">{{ formatDt(row.createTime || row.orderCreateTime) }}</template>
-      </el-table-column>
-      <el-table-column label="创建人" width="120" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}</template>
-      </el-table-column>
-
-      <el-table-column
-        label="操作"
-        :width="opColWidth"
-        :min-width="opColMinWidth"
-        fixed="right"
-        align="center"
-        class-name="op-col"
-        label-class-name="op-col"
-      >
-        <template #header>
-          <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
-            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-              {{ opColExpanded ? '>' : '<' }}
-            </button>
+      <template #col-itemStatus="{ row }">
+        <el-tag effect="dark" :type="statusTagType(row.itemStatus)" size="small">{{ statusText(row.itemStatus) }}</el-tag>
+      </template>
+      <template #col-orderCreateTime="{ row }">{{ formatDt(row.orderCreateTime) }}</template>
+      <template #col-financePaymentStatus="{ row }">
+        <el-tag effect="dark" size="small" :type="financeStatusTagType(Number(row.financePaymentStatus ?? 0))">
+          {{ financeStatusText(Number(row.financePaymentStatus ?? 0)) }}
+        </el-tag>
+      </template>
+      <template #col-stockInStatus="{ row }">
+        <el-tag effect="dark" size="small" :type="shippingStatusTagType(Number(row.stockInStatus ?? 0))">
+          {{ shippingStatusText(Number(row.stockInStatus ?? 0)) }}
+        </el-tag>
+      </template>
+      <template #col-cost="{ row }">{{ formatCurrencyUnitPrice(row.cost, row.currency) }}</template>
+      <template #col-lineTotal="{ row }">{{ formatCurrencyTotal(row.lineTotal, row.currency) }}</template>
+      <template #col-createTime="{ row }">{{ formatDt(row.createTime || row.orderCreateTime) }}</template>
+      <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}</template>
+      <template #col-actions-header>
+        <div class="op-col-header">
+          <span class="op-col-header-text">操作</span>
+          <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+            {{ opColExpanded ? '>' : '<' }}
+          </button>
+        </div>
+      </template>
+      <template #col-actions="{ row }">
+        <div @click.stop @dblclick.stop>
+          <div v-if="opColExpanded" class="action-btns">
+            <el-button link type="primary" size="small" @click.stop="goDetail(row)">详情</el-button>
+            <el-button
+              v-if="row.itemStatus === 30 && canCreateArrivalNotice"
+              link
+              type="warning"
+              size="small"
+              @click.stop="openArrivalDialog(row)"
+            >
+              通知到货
+            </el-button>
+            <el-button
+              v-if="row.canApplyPayment"
+              link
+              type="warning"
+              size="small"
+              @click.stop="openPaymentDialog(row)"
+            >
+              申请付款
+            </el-button>
           </div>
-        </template>
-        <template #default="{ row }">
-          <div @click.stop @dblclick.stop>
-            <div v-if="opColExpanded" class="action-btns">
-              <el-button link type="primary" size="small" @click.stop="goDetail(row)">详情</el-button>
-              <el-button
-                v-if="row.itemStatus === 30 && canCreateArrivalNotice"
-                link
-                type="warning"
-                size="small"
-                @click.stop="openArrivalDialog(row)"
-              >
-                通知到货
-              </el-button>
-              <el-button
-                v-if="row.canApplyPayment"
-                link
-                type="warning"
-                size="small"
-                @click.stop="openPaymentDialog(row)"
-              >
-                申请付款
-              </el-button>
+
+          <el-dropdown v-else trigger="click" placement="bottom-end">
+            <div class="op-more-dropdown-trigger">
+              <button type="button" class="op-more-trigger">...</button>
             </div>
-
-            <el-dropdown v-else trigger="click" placement="bottom-end">
-              <div class="op-more-dropdown-trigger">
-                <button type="button" class="op-more-trigger">...</button>
-              </div>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click.stop="goDetail(row)">
-                    <span class="op-more-item op-more-item--primary">详情</span>
-                  </el-dropdown-item>
-                  <el-dropdown-item
-                    v-if="row.itemStatus === 30 && canCreateArrivalNotice"
-                    @click.stop="openArrivalDialog(row)"
-                  >
-                    <span class="op-more-item op-more-item--warning">通知到货</span>
-                  </el-dropdown-item>
-                  <el-dropdown-item v-if="row.canApplyPayment" @click.stop="openPaymentDialog(row)">
-                    <span class="op-more-item op-more-item--warning">申请付款</span>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-        </template>
-      </el-table-column>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click.stop="goDetail(row)">
+                  <span class="op-more-item op-more-item--primary">详情</span>
+                </el-dropdown-item>
+                <el-dropdown-item
+                  v-if="row.itemStatus === 30 && canCreateArrivalNotice"
+                  @click.stop="openArrivalDialog(row)"
+                >
+                  <span class="op-more-item op-more-item--warning">通知到货</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="row.canApplyPayment" @click.stop="openPaymentDialog(row)">
+                  <span class="op-more-item op-more-item--warning">申请付款</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </template>
     </CrmDataTable>
 
     <div v-if="total > 0" class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip content="列设置" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="tableRef?.openColumnSettings?.()">
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <div class="list-footer-spacer" aria-hidden="true"></div>
+      </div>
       <el-pagination
         v-model:current-page="page"
         v-model:page-size="pageSize"
@@ -423,12 +397,14 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { Setting } from '@element-plus/icons-vue'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { financePaymentApi } from '@/api/finance'
 import { logisticsApi } from '@/api/logistics'
 import { ElMessage } from 'element-plus'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const route = useRoute()
@@ -459,6 +435,44 @@ const opColMinWidth = computed(() =>
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+const purchaseOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
+  const cols: CrmTableColumnDef[] = [
+    { key: 'selection', type: 'selection', width: 48, reserveSelection: true, fixed: 'left', hideable: false, reorderable: false },
+    { key: 'purchaseOrderCode', label: '采购单号', prop: 'purchaseOrderCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+    { key: 'itemStatus', label: '状态', prop: 'itemStatus', width: 160, align: 'center' },
+    { key: 'orderCreateTime', label: '订单生成日期', prop: 'orderCreateTime', width: 160 },
+    { key: 'pn', label: '物料型号', prop: 'pn', minWidth: 130, showOverflowTooltip: true },
+    { key: 'brand', label: '品牌', prop: 'brand', width: 110, showOverflowTooltip: true },
+    { key: 'qty', label: '数量', prop: 'qty', width: 100, align: 'right' },
+    { key: 'financePaymentStatus', label: '付款状态', prop: 'financePaymentStatus', width: 120, align: 'center' },
+    { key: 'stockInStatus', label: '货运状态', prop: 'stockInStatus', width: 120, align: 'center' },
+    { key: 'createTime', label: '创建时间', width: 160 },
+    { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true }
+  ]
+  if (canViewVendor.value) cols.splice(4, 0, { key: 'vendorName', label: '供应商名称', prop: 'vendorName', minWidth: 200, showOverflowTooltip: true })
+  if (canViewPurchaseUser.value) cols.splice(canViewVendor.value ? 5 : 4, 0, { key: 'purchaseUserName', label: '采购员', prop: 'purchaseUserName', width: 100, showOverflowTooltip: true })
+  if (canViewAmount.value) {
+    cols.splice(cols.length - 2, 0,
+      { key: 'cost', label: '单价', prop: 'cost', width: 160, align: 'right' },
+      { key: 'lineTotal', label: '明细总额', prop: 'lineTotal', width: 160, align: 'right' }
+    )
+  }
+  cols.push({
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    align: 'center',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  })
+  return cols
+})
 
 const tableRef = ref<any>(null)
 const selectedRows = ref<any[]>([])
@@ -1028,8 +1042,25 @@ onMounted(() => {
 
 .pagination-wrapper {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-top: 16px;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 
 .arrival-form-layout {

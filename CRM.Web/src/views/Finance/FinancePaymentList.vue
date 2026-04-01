@@ -57,120 +57,105 @@
 
     <!-- 数据表格 -->
     <CrmDataTable
+      ref="dataTableRef"
+      column-layout-key="finance-payment-list-main"
+      :columns="paymentTableColumns"
+      :show-column-settings="false"
       :data="tableData"
       v-loading="loading"
       @row-dblclick="openDetail"
       row-class-name="table-row-pointer"
     >
-        <el-table-column prop="financePaymentCode" label="付款单号" width="160" min-width="160" fixed>
-          <template #default="{ row }">
-            <span class="code-text">{{ row.financePaymentCode }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="PAYMENT_STATUS_MAP[row.status]?.type as any" size="small">
-              {{ PAYMENT_STATUS_MAP[row.status]?.label }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="vendorName" label="供应商" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="paymentAmount" label="付款金额" width="130" align="right">
-          <template #default="{ row }">
-            <span class="amount-text">{{ CURRENCY_MAP[row.paymentCurrency] }} {{ formatAmount(row.paymentAmount) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="paymentMode" label="付款方式" width="110">
-          <template #default="{ row }">{{ PAYMENT_MODE_MAP[row.paymentMode] }}</template>
-        </el-table-column>
-        <el-table-column prop="paymentDate" label="付款日期" width="120">
-          <template #default="{ row }">{{ row.paymentDate ? formatDisplayDate(row.paymentDate) : '-' }}</template>
-        </el-table-column>
-        <el-table-column prop="bankSlipNo" label="银行水单号" width="150" show-overflow-tooltip>
-          <template #default="{ row }">{{ (row as any).bankSlipNo || '-' }}</template>
-        </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="createdAt" label="创建时间" width="120">
-          <template #default="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
-        </el-table-column>
-        <el-table-column label="创建人" width="120" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ (row as any).createUserName || (row as any).createdBy || (row as any).paymentUserName || '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="操作"
-          :width="opColWidth"
-          :min-width="opColMinWidth"
-          fixed="right"
-          class-name="op-col"
-          label-class-name="op-col"
-        >
-          <template #header>
-            <div class="op-col-header">
-              <span class="op-col-header-text">操作</span>
-              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-                {{ opColExpanded ? '>' : '<' }}
-              </button>
-            </div>
-          </template>
+      <template #col-financePaymentCode="{ row }">
+        <span class="code-text">{{ row.financePaymentCode }}</span>
+      </template>
+      <template #col-status="{ row }">
+        <el-tag effect="dark" :type="PAYMENT_STATUS_MAP[row.status]?.type as any" size="small">
+          {{ PAYMENT_STATUS_MAP[row.status]?.label }}
+        </el-tag>
+      </template>
+      <template #col-paymentAmount="{ row }">
+        <span class="amount-text">{{ CURRENCY_MAP[row.paymentCurrency] }} {{ formatAmount(row.paymentAmount) }}</span>
+      </template>
+      <template #col-paymentMode="{ row }">{{ PAYMENT_MODE_MAP[row.paymentMode] }}</template>
+      <template #col-paymentDate="{ row }">{{ row.paymentDate ? formatDisplayDate(row.paymentDate) : '-' }}</template>
+      <template #col-bankSlipNo="{ row }">{{ (row as any).bankSlipNo || '-' }}</template>
+      <template #col-createdAt="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
+      <template #col-createUser="{ row }">
+        {{ (row as any).createUserName || (row as any).createdBy || (row as any).paymentUserName || '-' }}
+      </template>
+      <template #col-actions-header>
+        <div class="op-col-header">
+          <span class="op-col-header-text">操作</span>
+          <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+            {{ opColExpanded ? '>' : '<' }}
+          </button>
+        </div>
+      </template>
 
-          <template #default="{ row }">
-            <div @click.stop @dblclick.stop>
-              <div v-if="opColExpanded" class="action-btns">
-                <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
-                <el-button
-                  size="small"
-                  text
-                  type="warning"
-                  @click.stop="openEdit(row)"
+      <template #col-actions="{ row }">
+        <div @click.stop @dblclick.stop>
+          <div v-if="opColExpanded" class="action-btns">
+            <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
+            <el-button
+              size="small"
+              text
+              type="warning"
+              @click.stop="openEdit(row)"
+              v-if="[1,-1,10].includes(row.status)"
+            >
+              付款
+            </el-button>
+            <el-button size="small" text type="warning" @click.stop="submitAudit(row)" v-if="row.status === 1">
+              提交审核
+            </el-button>
+            <el-button
+              size="small"
+              text
+              type="danger"
+              @click.stop="cancelPayment(row)"
+              v-if="[1,2].includes(row.status)"
+            >
+              取消
+            </el-button>
+          </div>
+
+          <el-dropdown v-else trigger="click" placement="bottom-end">
+            <div class="op-more-dropdown-trigger">
+              <button type="button" class="op-more-trigger">...</button>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click.stop="openDetail(row)">
+                  <span class="op-more-item op-more-item--primary">详情</span>
+                </el-dropdown-item>
+                <el-dropdown-item
                   v-if="[1,-1,10].includes(row.status)"
+                  @click.stop="openEdit(row)"
                 >
-                  付款
-                </el-button>
-                <el-button size="small" text type="warning" @click.stop="submitAudit(row)" v-if="row.status === 1">
-                  提交审核
-                </el-button>
-                <el-button
-                  size="small"
-                  text
-                  type="danger"
-                  @click.stop="cancelPayment(row)"
-                  v-if="[1,2].includes(row.status)"
-                >
-                  取消
-                </el-button>
-              </div>
-
-              <el-dropdown v-else trigger="click" placement="bottom-end">
-                <div class="op-more-dropdown-trigger">
-                  <button type="button" class="op-more-trigger">...</button>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item @click.stop="openDetail(row)">
-                      <span class="op-more-item op-more-item--primary">详情</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item
-                      v-if="[1,-1,10].includes(row.status)"
-                      @click.stop="openEdit(row)"
-                    >
-                      <span class="op-more-item op-more-item--warning">付款</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item v-if="row.status === 1" @click.stop="submitAudit(row)">
-                      <span class="op-more-item op-more-item--warning">提交审核</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item v-if="[1,2].includes(row.status)" @click.stop="cancelPayment(row)">
-                      <span class="op-more-item op-more-item--danger">取消</span>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
+                  <span class="op-more-item op-more-item--warning">付款</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="row.status === 1" @click.stop="submitAudit(row)">
+                  <span class="op-more-item op-more-item--warning">提交审核</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="[1,2].includes(row.status)" @click.stop="cancelPayment(row)">
+                  <span class="op-more-item op-more-item--danger">取消</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </template>
     </CrmDataTable>
       <div class="pagination-wrap">
+        <div class="list-footer-left">
+          <el-tooltip content="列设置" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+              <el-icon><Setting /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <div class="list-footer-spacer" aria-hidden="true"></div>
+        </div>
         <el-pagination
           v-model:current-page="query.page"
           v-model:page-size="query.pageSize"
@@ -283,7 +268,7 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search } from '@element-plus/icons-vue'
+import { Search, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
 import {
@@ -296,6 +281,7 @@ import {
 } from '@/api/finance'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 
@@ -308,6 +294,7 @@ const dateRange = ref<[string, string] | null>(null)
 const total = ref(0)
 const loading = ref(false)
 const tableData = ref<FinancePayment[]>([])
+const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -319,6 +306,31 @@ const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+const paymentTableColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'financePaymentCode', label: '付款单号', prop: 'financePaymentCode', width: 160, minWidth: 160, fixed: 'left' },
+  { key: 'status', label: '状态', prop: 'status', width: 100, align: 'center' },
+  { key: 'vendorName', label: '供应商', prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'paymentAmount', label: '付款金额', prop: 'paymentAmount', width: 130, align: 'right' },
+  { key: 'paymentMode', label: '付款方式', prop: 'paymentMode', width: 110 },
+  { key: 'paymentDate', label: '付款日期', prop: 'paymentDate', width: 120 },
+  { key: 'bankSlipNo', label: '银行水单号', prop: 'bankSlipNo', width: 150, showOverflowTooltip: true },
+  { key: 'remark', label: '备注', prop: 'remark', minWidth: 140, showOverflowTooltip: true },
+  { key: 'createdAt', label: '创建时间', prop: 'createdAt', width: 120 },
+  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  }
+])
 
 // 统计
 const stats = reactive({ monthTotal: 0, pendingCount: 0, paidCount: 0, draftCount: 0 })
@@ -493,4 +505,26 @@ onMounted(loadData)
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as vars;
 @import './finance-common.scss';
+
+.pagination-wrap {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
+}
 </style>

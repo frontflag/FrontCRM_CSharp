@@ -84,10 +84,13 @@ try
                 throw new InvalidOperationException("无法连接到数据库，请检查数据库连接字符串和数据库服务状态。");
             }
             
-            if (app.Environment.IsDevelopment())
+            // 安全策略：
+            // API 启动只检查数据库连通性，不允许自动更改数据库结构或数据。
+            // 结构变更必须通过手工 SQL 或独立开发工具执行。
+            var pendingMigrations = context.Database.GetPendingMigrations().ToList();
+            if (pendingMigrations.Count > 0)
             {
-                // 应用所有待处理的迁移
-                context.Database.Migrate();
+                Log.Warning("检测到待执行迁移数量: {Count}。API 启动不会自动迁移数据库。", pendingMigrations.Count);
             }
             
             Log.Information("数据库连接成功");

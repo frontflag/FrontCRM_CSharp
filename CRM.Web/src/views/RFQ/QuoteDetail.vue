@@ -201,6 +201,8 @@ const confirmUpdateStatus = async () => {
 </script>
 
 <style lang="scss" scoped>
+@import '@/assets/styles/variables.scss';
+
 .quote-detail {
   padding: 20px;
   min-height: 100%;
@@ -212,8 +214,8 @@ const confirmUpdateStatus = async () => {
   gap: 12px;
   margin-bottom: 20px;
   .back-btn {
-    color: rgba(200, 220, 240, 0.7);
-    &:hover { color: #00d4ff; }
+    color: $text-secondary;
+    &:hover { color: $cyan-primary; }
   }
   .header-actions {
     margin-left: auto;
@@ -224,13 +226,13 @@ const confirmUpdateStatus = async () => {
 
 .loading-wrap {
   padding: 20px;
-  background: #0a1828;
+  background: $layer-2;
   border-radius: 8px;
 }
 
 .info-card {
-  background: #0a1828;
-  border: 1px solid #1a2d45;
+  background: $layer-2;
+  border: 1px solid $border-card;
   border-radius: 8px;
   padding: 16px 20px;
   margin-bottom: 16px;
@@ -242,36 +244,36 @@ const confirmUpdateStatus = async () => {
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: #e0f0ff;
+  color: $text-primary;
   margin-bottom: 14px;
   .title-bar {
     width: 4px;
     height: 16px;
-    background: #00c8ff;
+    background: $cyan-primary;
     border-radius: 2px;
   }
 }
 
 .order-desc {
   :deep(.el-descriptions__label) {
-    color: #5a7a9a;
-    background: #0d1e35;
+    color: $text-muted;
+    background: $layer-3;
     width: 100px;
   }
   :deep(.el-descriptions__content) {
-    background: #0a1828;
+    background: $layer-2;
   }
 }
 
 .order-code {
   font-family: 'Courier New', monospace;
-  color: #7ecfff;
+  color: $text-secondary;
   font-weight: 600;
 }
 
 .tab-card {
-  background: #0a1828;
-  border: 1px solid #1a2d45;
+  background: $layer-2;
+  border: 1px solid $border-card;
   border-radius: 8px;
   padding: 0 20px 20px;
 }
@@ -279,7 +281,7 @@ const confirmUpdateStatus = async () => {
 .detail-tabs {
   :deep(.el-tabs__header) {
     margin-bottom: 16px;
-    border-bottom: 1px solid #1a2d45;
+    border-bottom: 1px solid $border-panel;
     background: transparent;
   }
   :deep(.el-tabs__nav-wrap::after) {
@@ -298,7 +300,7 @@ const confirmUpdateStatus = async () => {
     border: 1px solid transparent;
     border-bottom: none;
     background: rgba(255, 255, 255, 0.03);
-    color: rgba(180, 210, 230, 0.6);
+    color: $text-muted;
     font-size: 12px;
     font-family: 'Noto Sans SC', sans-serif;
     transition: all 0.15s;
@@ -306,11 +308,12 @@ const confirmUpdateStatus = async () => {
       background: rgba(0, 212, 255, 0.06);
       border-color: rgba(0, 212, 255, 0.1);
       color: rgba(180, 210, 230, 0.9);
+      color: $text-secondary;
     }
     &.is-active {
       background: linear-gradient(180deg, rgba(0, 212, 255, 0.12) 0%, rgba(0, 212, 255, 0.05) 100%);
       border-color: rgba(0, 212, 255, 0.25);
-      color: #00D4FF;
+      color: $cyan-primary;
       font-weight: 600;
       text-shadow: 0 0 8px rgba(0, 212, 255, 0.4);
       box-shadow: 0 0 14px rgba(0, 212, 255, 0.15);

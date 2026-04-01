@@ -388,27 +388,35 @@ namespace CRM.API.Controllers
                 if (string.IsNullOrWhiteSpace(userId))
                     return BadRequest(ApiResponse<object>.Fail("userId 不能为空", 400));
 
+                var operatorUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                _logger.LogInformation("DeleteAdminUser start: targetUserId={TargetUserId}, operatorUserId={OperatorUserId}", userId, operatorUserId);
+
                 // 先清理用户与角色/部门的关联，避免出现孤儿关联
                 var userRoles = (await _userRoleRepo.FindAsync(x => x.UserId == userId)).ToList();
+                _logger.LogInformation("DeleteAdminUser cleaning user roles: targetUserId={TargetUserId}, roleCount={RoleCount}", userId, userRoles.Count);
                 foreach (var ur in userRoles)
                     await _userRoleRepo.DeleteAsync(ur.Id);
 
                 var userDepartments = (await _userDepartmentRepo.FindAsync(x => x.UserId == userId)).ToList();
+                _logger.LogInformation("DeleteAdminUser cleaning user departments: targetUserId={TargetUserId}, departmentRelationCount={DepartmentRelationCount}", userId, userDepartments.Count);
                 foreach (var ud in userDepartments)
                     await _userDepartmentRepo.DeleteAsync(ud.Id);
 
+                _logger.LogInformation("DeleteAdminUser deleting user entity: targetUserId={TargetUserId}", userId);
                 await _userService.DeleteAsync(userId);
 
                 await _unitOfWork.SaveChangesAsync();
+                _logger.LogInformation("DeleteAdminUser success: targetUserId={TargetUserId}", userId);
                 return Ok(ApiResponse<object>.Ok(null, "删除用户成功"));
             }
             catch (KeyNotFoundException ex)
             {
+                _logger.LogWarning(ex, "DeleteAdminUser not found: targetUserId={TargetUserId}", userId);
                 return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "删除用户失败");
+                _logger.LogError(ex, "DeleteAdminUser failed: targetUserId={TargetUserId}", userId);
                 return StatusCode(500, ApiResponse<object>.Fail($"删除用户失败: {ex.Message}", 500));
             }
         }

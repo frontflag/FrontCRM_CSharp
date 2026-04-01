@@ -138,6 +138,9 @@ const formData = ref<CreateContactRequest>({
   remarks: ''
 });
 
+const mobilePhonePattern = /^1[3-9]\d{9}$/;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // 表单校验规则
 const formRules: FormRules = {
   contactName: [
@@ -145,10 +148,38 @@ const formRules: FormRules = {
   ],
   mobilePhone: [
     { required: true, message: '请输入手机号码', trigger: 'blur' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码', trigger: 'blur' }
+    {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+        const v = (value || '').trim();
+        if (v === '-') {
+          callback();
+          return;
+        }
+        if (!mobilePhonePattern.test(v)) {
+          callback(new Error('请输入正确的手机号码'));
+          return;
+        }
+        callback();
+      },
+      trigger: 'blur'
+    }
   ],
   email: [
-    { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }
+    {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+        const v = (value || '').trim();
+        if (!v || v === '-') {
+          callback();
+          return;
+        }
+        if (!emailPattern.test(v)) {
+          callback(new Error('请输入正确的邮箱地址'));
+          return;
+        }
+        callback();
+      },
+      trigger: 'blur'
+    }
   ]
 };
 

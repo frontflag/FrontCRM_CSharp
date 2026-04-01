@@ -55,87 +55,70 @@
     </div>
 
     <el-card class="table-card">
-      <CrmDataTable :data="list" v-loading="loading" highlight-current-row @row-dblclick="handleView">
-        <el-table-column prop="billCode" label="采购申请号" width="160" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="status" label="状态" width="160" align="center">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="getStatusTagType(row.status)" size="small">
-              {{ getStatusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="sellOrderCode" label="销售订单" width="160" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="pn" label="物料型号" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="brand" label="品牌" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="qty" label="申请数量" width="120" align="right" />
-        <el-table-column prop="expectedPurchaseTime" label="预计采购日期" width="160">
-          <template #default="{ row }">
-            {{ formatDisplayDateTime(row.expectedPurchaseTime) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="type" label="类型" width="110" align="center">
-          <template #default="{ row }">
-            {{ getTypeText(row.type) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="purchaseUserId" label="采购员ID" width="140" show-overflow-tooltip />
-        <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
-        <el-table-column label="创建时间" width="160">
-          <template #default="{ row }">
-            {{ row.createTime ? formatDisplayDateTime(row.createTime) : '--' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="创建人" width="120" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ row.createUserName || row.createdBy || row.purchaseUserName || row.purchaseUserId || '--' }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="操作"
-          :width="opColWidth"
-          :min-width="opColMinWidth"
-          fixed="right"
-          class-name="op-col"
-          label-class-name="op-col"
-        >
-          <template #header>
-            <div class="op-col-header">
-              <span class="op-col-header-text">操作</span>
-              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-                {{ opColExpanded ? '>' : '<' }}
-              </button>
+      <CrmDataTable
+        ref="dataTableRef"
+        column-layout-key="purchase-requisition-list-main"
+        :columns="purchaseReqColumns"
+        :show-column-settings="false"
+        :data="list"
+        v-loading="loading"
+        highlight-current-row
+        @row-dblclick="handleView"
+      >
+        <template #col-status="{ row }">
+          <el-tag effect="dark" :type="getStatusTagType(row.status)" size="small">
+            {{ getStatusText(row.status) }}
+          </el-tag>
+        </template>
+        <template #col-expectedPurchaseTime="{ row }">{{ formatDisplayDateTime(row.expectedPurchaseTime) }}</template>
+        <template #col-type="{ row }">{{ getTypeText(row.type) }}</template>
+        <template #col-createTime="{ row }">{{ row.createTime ? formatDisplayDateTime(row.createTime) : '--' }}</template>
+        <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || row.purchaseUserId || '--' }}</template>
+        <template #col-actions-header>
+          <div class="op-col-header">
+            <span class="op-col-header-text">操作</span>
+            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
+        <template #col-actions="{ row }">
+          <div @click.stop @dblclick.stop>
+            <div v-if="opColExpanded" class="action-btns">
+              <el-button link type="primary" @click.stop="handleView(row)">查看</el-button>
+              <el-button link type="warning" size="small" @click.stop="handleGeneratePurchaseOrder(row)">
+                生成采购订单
+              </el-button>
             </div>
-          </template>
-          <template #default="{ row }">
-            <div @click.stop @dblclick.stop>
-              <div v-if="opColExpanded" class="action-btns">
-                <el-button link type="primary" @click.stop="handleView(row)">查看</el-button>
-                <el-button link type="warning" size="small" @click.stop="handleGeneratePurchaseOrder(row)">
-                  生成采购订单
-                </el-button>
-              </div>
 
-              <el-dropdown v-else trigger="click" placement="bottom-end">
-                <div class="op-more-dropdown-trigger">
-                  <button type="button" class="op-more-trigger">...</button>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item @click.stop="handleView(row)">
-                      <span class="op-more-item op-more-item--primary">查看</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item @click.stop="handleGeneratePurchaseOrder(row)">
-                      <span class="op-more-item op-more-item--warning">生成采购订单</span>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
+            <el-dropdown v-else trigger="click" placement="bottom-end">
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click.stop="handleView(row)">
+                    <span class="op-more-item op-more-item--primary">查看</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item @click.stop="handleGeneratePurchaseOrder(row)">
+                    <span class="op-more-item op-more-item--warning">生成采购订单</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </template>
       </CrmDataTable>
 
       <div class="pagination-wrapper">
+        <div class="list-footer-left">
+          <el-tooltip content="列设置" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+              <el-icon><Setting /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <div class="list-footer-spacer" aria-hidden="true"></div>
+        </div>
         <el-pagination
           v-model:current-page="page"
           v-model:page-size="pageSize"
@@ -153,10 +136,11 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Setting } from '@element-plus/icons-vue'
 import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 
@@ -165,6 +149,7 @@ const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
+const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -176,6 +161,33 @@ const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+const purchaseReqColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'billCode', label: '采购申请号', prop: 'billCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+  { key: 'status', label: '状态', prop: 'status', width: 160, align: 'center' },
+  { key: 'sellOrderCode', label: '销售订单', prop: 'sellOrderCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+  { key: 'pn', label: '物料型号', prop: 'pn', minWidth: 140, showOverflowTooltip: true },
+  { key: 'brand', label: '品牌', prop: 'brand', minWidth: 120, showOverflowTooltip: true },
+  { key: 'qty', label: '申请数量', prop: 'qty', width: 120, align: 'right' },
+  { key: 'expectedPurchaseTime', label: '预计采购日期', prop: 'expectedPurchaseTime', width: 160 },
+  { key: 'type', label: '类型', prop: 'type', width: 110, align: 'center' },
+  { key: 'purchaseUserId', label: '采购员ID', prop: 'purchaseUserId', width: 140, showOverflowTooltip: true },
+  { key: 'remark', label: '备注', prop: 'remark', minWidth: 180, showOverflowTooltip: true },
+  { key: 'createTime', label: '创建时间', width: 160 },
+  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  }
+])
 
 const filterForm = reactive({
   billCode: '',
@@ -433,7 +445,24 @@ onMounted(loadList)
 .pagination-wrapper {
   margin-top: 20px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 </style>
 

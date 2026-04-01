@@ -55,100 +55,93 @@
       </div>
     </div>
 
-    <CrmDataTable :data="list" v-loading="loading" @row-dblclick="goView">
-      <el-table-column prop="qcCode" label="质检单号" width="160" min-width="160" />
-      <el-table-column label="状态" width="120">
-        <template #default="{ row }">
-          <el-tag effect="dark" :type="qcType(row.status)">{{ qcText(row.status) }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="stockInNotifyCode" label="到货通知单号" width="170" />
-      <el-table-column prop="model" label="物料型号" min-width="160" show-overflow-tooltip />
-      <el-table-column prop="brand" label="品牌" min-width="120" show-overflow-tooltip />
-      <el-table-column prop="vendorName" label="供应商" min-width="160" show-overflow-tooltip />
-      <el-table-column prop="purchaseOrderCode" label="采购订单号" width="170" show-overflow-tooltip />
-      <el-table-column prop="salesOrderCode" label="销售订单号" width="170" show-overflow-tooltip />
-      <el-table-column prop="passQty" label="通过数量" width="110" align="right" />
-      <el-table-column prop="rejectQty" label="拒收数量" width="110" align="right" />
-      <el-table-column label="入库状态" width="120">
-        <template #default="{ row }">
-          <el-tag effect="dark" :type="stockInType(displayStockInStatus(row))">{{ stockInText(displayStockInStatus(row)) }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="createTime" label="创建时间" width="170">
-        <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
-      </el-table-column>
-      <el-table-column label="创建人" width="120" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.createUserName || row.createdBy || '--' }}</template>
-      </el-table-column>
-      <!-- 操作：列表操作列规范（收起/展开） -->
-      <el-table-column
-        label="操作"
-        :width="opColWidth"
-        :min-width="opColMinWidth"
-        fixed="right"
-        class-name="op-col"
-        label-class-name="op-col"
-      >
-        <template #header>
-          <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
-            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-              {{ opColExpanded ? '>' : '<' }}
-            </button>
+    <CrmDataTable
+      ref="dataTableRef"
+      column-layout-key="qc-list-main"
+      :columns="qcTableColumns"
+      :show-column-settings="false"
+      :data="list"
+      v-loading="loading"
+      @row-dblclick="goView"
+    >
+      <template #col-status="{ row }">
+        <el-tag effect="dark" :type="qcType(row.status)">{{ qcText(row.status) }}</el-tag>
+      </template>
+      <template #col-stockInStatus="{ row }">
+        <el-tag effect="dark" :type="stockInType(displayStockInStatus(row))">{{ stockInText(displayStockInStatus(row)) }}</el-tag>
+      </template>
+      <template #col-createTime="{ row }">{{ formatTime(row.createTime) }}</template>
+      <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || '--' }}</template>
+      <template #col-actions-header>
+        <div class="op-col-header">
+          <span class="op-col-header-text">操作</span>
+          <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+            {{ opColExpanded ? '>' : '<' }}
+          </button>
+        </div>
+      </template>
+      <template #col-actions="{ row }">
+        <div @click.stop @dblclick.stop>
+          <div v-if="opColExpanded" class="action-btns">
+            <el-button link type="primary" @click.stop="goView(row)">查看</el-button>
+            <el-button
+              link
+              type="warning"
+              v-if="canCreateStockIn(row)"
+              @click.stop="createStockIn(row)"
+            >
+              生成入库
+            </el-button>
           </div>
-        </template>
 
-        <template #default="{ row }">
-          <div @click.stop @dblclick.stop>
-            <div v-if="opColExpanded" class="action-btns">
-              <el-button link type="primary" @click.stop="goView(row)">查看</el-button>
-              <el-button
-                link
-                type="warning"
-                v-if="canCreateStockIn(row)"
-                @click.stop="createStockIn(row)"
-              >
-                生成入库
-              </el-button>
+          <el-dropdown v-else trigger="click" placement="bottom-end">
+            <div class="op-more-dropdown-trigger">
+              <button type="button" class="op-more-trigger">...</button>
             </div>
-
-            <el-dropdown v-else trigger="click" placement="bottom-end">
-              <div class="op-more-dropdown-trigger">
-                <button type="button" class="op-more-trigger">...</button>
-              </div>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click.stop="goView(row)">
-                    <span class="op-more-item op-more-item--primary">查看</span>
-                  </el-dropdown-item>
-                  <el-dropdown-item v-if="canCreateStockIn(row)" @click.stop="createStockIn(row)">
-                    <span class="op-more-item op-more-item--warning">生成入库</span>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-        </template>
-      </el-table-column>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click.stop="goView(row)">
+                  <span class="op-more-item op-more-item--primary">查看</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="canCreateStockIn(row)" @click.stop="createStockIn(row)">
+                  <span class="op-more-item op-more-item--warning">生成入库</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </template>
     </CrmDataTable>
+    <div class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip content="列设置" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <div class="list-footer-spacer" aria-hidden="true"></div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
 import { logisticsApi, type QcInfoDto } from '@/api/logistics'
 import { stockInApi } from '@/api/stockIn'
 import { inventoryCenterApi } from '@/api/inventoryCenter'
 import { useRouter, useRoute } from 'vue-router'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime2DigitYear } from '@/utils/displayDateTime'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const route = useRoute()
 const loading = ref(false)
 const list = ref<QcInfoDto[]>([])
+const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -160,6 +153,34 @@ const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+const qcTableColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'qcCode', label: '质检单号', prop: 'qcCode', width: 160, minWidth: 160 },
+  { key: 'status', label: '状态', prop: 'status', width: 120, align: 'center' },
+  { key: 'stockInNotifyCode', label: '到货通知单号', prop: 'stockInNotifyCode', width: 170 },
+  { key: 'model', label: '物料型号', prop: 'model', minWidth: 160, showOverflowTooltip: true },
+  { key: 'brand', label: '品牌', prop: 'brand', minWidth: 120, showOverflowTooltip: true },
+  { key: 'vendorName', label: '供应商', prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'purchaseOrderCode', label: '采购订单号', prop: 'purchaseOrderCode', width: 170, showOverflowTooltip: true },
+  { key: 'salesOrderCode', label: '销售订单号', prop: 'salesOrderCode', width: 170, showOverflowTooltip: true },
+  { key: 'passQty', label: '通过数量', prop: 'passQty', width: 110, align: 'right' },
+  { key: 'rejectQty', label: '拒收数量', prop: 'rejectQty', width: 110, align: 'right' },
+  { key: 'stockInStatus', label: '入库状态', width: 120, align: 'center' },
+  { key: 'createTime', label: '创建时间', prop: 'createTime', width: 170 },
+  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  }
+])
 
 const filters = ref({
   model: '',
@@ -491,5 +512,28 @@ const createStockIn = async (row: QcInfoDto) => {
     opacity: 0.55;
     cursor: not-allowed;
   }
+}
+
+.pagination-wrapper {
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 </style>

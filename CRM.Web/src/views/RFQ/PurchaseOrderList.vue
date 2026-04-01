@@ -101,155 +101,137 @@
     <!-- 数据表格 -->
     <el-card class="table-card">
       <CrmDataTable
+        ref="dataTableRef"
+        column-layout-key="purchase-order-list-main"
+        :columns="purchaseOrderTableColumns"
+        :show-column-settings="false"
         :data="filteredList"
         v-loading="loading"
         highlight-current-row
         @row-dblclick="handleView"
       >
-        <el-table-column prop="purchaseOrderCode" label="订单号" width="160" min-width="160" show-overflow-tooltip sortable>
-          <template #default="{ row }">
-            <el-link type="primary" @click="handleView(row)">{{ row.purchaseOrderCode }}</el-link>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="160" align="center">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="getStatusType(poListMainStatus(row))" size="small">
-              {{ getStatusText(poListMainStatus(row)) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column v-if="canViewVendorInfo" prop="vendorName" label="供应商" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="purchaseUserName" label="采购员" width="100" />
-        <el-table-column v-if="canViewPurchaseAmount" prop="total" label="总金额" width="160" align="right">
-          <template #default="{ row }">
-            <span class="amount">{{ formatCurrency(row.total, row.currency) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="itemRows" label="行项目" width="80" align="center" />
-        <el-table-column prop="stockStatus" label="入库状态" width="160" align="center">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="getStockStatusType(row.stockStatus)" size="small">
-              {{ getStockStatusText(row.stockStatus) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="deliveryDate" label="交货日期" width="160">
-          <template #default="{ row }">
-            {{ formatDisplayDate(row.deliveryDate) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="160">
-          <template #default="{ row }">
-            {{ formatDisplayDateTime(row.createTime) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="创建人" width="120" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="操作"
-          :width="opColWidth"
-          :min-width="opColMinWidth"
-          fixed="right"
-          class-name="op-col"
-          label-class-name="op-col"
-        >
-          <template #header>
-            <div class="op-col-header">
-              <span class="op-col-header-text">操作</span>
-              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-                {{ opColExpanded ? '>' : '<' }}
+        <template #col-purchaseOrderCode="{ row }">
+          <el-link type="primary" @click="handleView(row)">{{ row.purchaseOrderCode }}</el-link>
+        </template>
+        <template #col-status="{ row }">
+          <el-tag effect="dark" :type="getStatusType(poListMainStatus(row))" size="small">
+            {{ getStatusText(poListMainStatus(row)) }}
+          </el-tag>
+        </template>
+        <template #col-total="{ row }">
+          <span class="amount">{{ formatCurrency(row.total, row.currency) }}</span>
+        </template>
+        <template #col-stockStatus="{ row }">
+          <el-tag effect="dark" :type="getStockStatusType(row.stockStatus)" size="small">
+            {{ getStockStatusText(row.stockStatus) }}
+          </el-tag>
+        </template>
+        <template #col-deliveryDate="{ row }">
+          {{ formatDisplayDate(row.deliveryDate) }}
+        </template>
+        <template #col-createTime="{ row }">
+          {{ formatDisplayDateTime(row.createTime) }}
+        </template>
+        <template #col-createUser="{ row }">
+          {{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}
+        </template>
+        <template #col-actions-header>
+          <div class="op-col-header">
+            <span class="op-col-header-text">操作</span>
+            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
+        <template #col-actions="{ row }">
+          <div @click.stop @dblclick.stop>
+            <div v-if="opColExpanded" class="action-btns">
+              <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">详情</button>
+              <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">编辑</button>
+              <button
+                v-if="(poListMainStatus(row) >= 1 && poListMainStatus(row) < 10) || poListMainStatus(row) === -1"
+                type="button"
+                class="action-btn action-btn--warning"
+                @click.stop="submitAudit(row)"
+              >
+                提交审核
+              </button>
+              <button
+                v-if="poListMainStatus(row) >= 10 && poListMainStatus(row) < 30"
+                type="button"
+                class="action-btn action-btn--warning"
+                @click.stop="confirmBySupplier(row)"
+              >
+                供应商确认
+              </button>
+              <button
+                v-if="purchaseOrderReportAllowed(poListMainStatus(row))"
+                type="button"
+                class="action-btn action-btn--primary"
+                @click.stop="handlePrintOrder(row)"
+              >
+                采购单
+              </button>
+              <button
+                v-if="poListMainStatus(row) === 30"
+                type="button"
+                class="action-btn action-btn--danger"
+                @click.stop="cancelSupplierConfirm(row)"
+              >
+                取消确认
               </button>
             </div>
-          </template>
 
-          <template #default="{ row }">
-            <div @click.stop @dblclick.stop>
-              <div v-if="opColExpanded" class="action-btns">
-                <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">详情</button>
-                <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">编辑</button>
-                <button
-                  v-if="(poListMainStatus(row) >= 1 && poListMainStatus(row) < 10) || poListMainStatus(row) === -1"
-                  type="button"
-                  class="action-btn action-btn--warning"
-                  @click.stop="submitAudit(row)"
-                >
-                  提交审核
-                </button>
-                <button
-                  v-if="poListMainStatus(row) >= 10 && poListMainStatus(row) < 30"
-                  type="button"
-                  class="action-btn action-btn--warning"
-                  @click.stop="confirmBySupplier(row)"
-                >
-                  供应商确认
-                </button>
-                <button
-                  v-if="purchaseOrderReportAllowed(poListMainStatus(row))"
-                  type="button"
-                  class="action-btn action-btn--primary"
-                  @click.stop="handlePrintOrder(row)"
-                >
-                  采购单
-                </button>
-                <button
-                  v-if="poListMainStatus(row) === 30"
-                  type="button"
-                  class="action-btn action-btn--danger"
-                  @click.stop="cancelSupplierConfirm(row)"
-                >
-                  取消确认
-                </button>
+            <el-dropdown v-else trigger="click" placement="bottom-end">
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
               </div>
-
-              <el-dropdown v-else trigger="click" placement="bottom-end">
-                <div class="op-more-dropdown-trigger">
-                  <button type="button" class="op-more-trigger">...</button>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item @click.stop="handleView(row)">
-                      <span class="op-more-item op-more-item--primary">详情</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item @click.stop="handleEdit(row)">
-                      <span class="op-more-item op-more-item--primary">编辑</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item
-                      v-if="(poListMainStatus(row) >= 1 && poListMainStatus(row) < 10) || poListMainStatus(row) === -1"
-                      @click.stop="submitAudit(row)"
-                    >
-                      <span class="op-more-item op-more-item--warning">提交审核</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item
-                      v-if="poListMainStatus(row) >= 10 && poListMainStatus(row) < 30"
-                      @click.stop="confirmBySupplier(row)"
-                    >
-                      <span class="op-more-item op-more-item--warning">供应商确认</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item
-                      v-if="purchaseOrderReportAllowed(poListMainStatus(row))"
-                      @click.stop="handlePrintOrder(row)"
-                    >
-                      <span class="op-more-item op-more-item--primary">采购单</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item
-                      v-if="poListMainStatus(row) === 30"
-                      @click.stop="cancelSupplierConfirm(row)"
-                    >
-                      <span class="op-more-item op-more-item--danger">取消确认</span>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click.stop="handleView(row)">
+                    <span class="op-more-item op-more-item--primary">详情</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item @click.stop="handleEdit(row)">
+                    <span class="op-more-item op-more-item--primary">编辑</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="(poListMainStatus(row) >= 1 && poListMainStatus(row) < 10) || poListMainStatus(row) === -1"
+                    @click.stop="submitAudit(row)"
+                  >
+                    <span class="op-more-item op-more-item--warning">提交审核</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="poListMainStatus(row) >= 10 && poListMainStatus(row) < 30"
+                    @click.stop="confirmBySupplier(row)"
+                  >
+                    <span class="op-more-item op-more-item--warning">供应商确认</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="purchaseOrderReportAllowed(poListMainStatus(row))"
+                    @click.stop="handlePrintOrder(row)"
+                  >
+                    <span class="op-more-item op-more-item--primary">采购单</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item v-if="poListMainStatus(row) === 30" @click.stop="cancelSupplierConfirm(row)">
+                    <span class="op-more-item op-more-item--danger">取消确认</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </template>
       </CrmDataTable>
 
-      <!-- 分页 -->
+      <!-- 底栏：列设置（图标+Tip+Spacer） + 分页（顶对齐） -->
       <div class="pagination-wrapper">
+        <div class="list-footer-left">
+          <el-tooltip content="列设置" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+              <el-icon><Setting /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <div class="list-footer-spacer" aria-hidden="true"></div>
+        </div>
         <el-pagination
           v-model:current-page="pageInfo.page"
           v-model:page-size="pageInfo.pageSize"
@@ -269,6 +251,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
@@ -276,11 +259,14 @@ import {
   purchaseOrderReportAllowed,
   normalizePurchaseOrderMainStatus
 } from '@/constants/purchaseOrderStatus'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import CrmDataTable from '@/components/CrmDataTable.vue'
 
 const router = useRouter()
 
 const loading = ref(false)
 const orderList = ref<any[]>([])
+const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const authStore = useAuthStore()
 const canViewVendorInfo = computed(() => authStore.hasPermission('vendor.info.read'))
 const canViewPurchaseAmount = computed(() => authStore.hasPermission('purchase.amount.read'))
@@ -297,6 +283,44 @@ function toggleOpCol() {
 }
 
 const poListMainStatus = normalizePurchaseOrderMainStatus
+
+/** 采购订单列表主表可配置列（localStorage：crm-table-columns:v1:purchase-order-list-main） */
+const purchaseOrderTableColumns = computed((): CrmTableColumnDef[] => [
+  {
+    key: 'purchaseOrderCode',
+    label: '订单号',
+    prop: 'purchaseOrderCode',
+    width: 160,
+    minWidth: 160,
+    showOverflowTooltip: true,
+    sortable: true
+  },
+  { key: 'status', label: '状态', prop: 'status', width: 160, align: 'center' as const },
+  ...(canViewVendorInfo.value
+    ? [{ key: 'vendorName', label: '供应商', prop: 'vendorName', minWidth: 200, showOverflowTooltip: true }]
+    : []),
+  { key: 'purchaseUserName', label: '采购员', prop: 'purchaseUserName', width: 100 },
+  ...(canViewPurchaseAmount.value
+    ? [{ key: 'total', label: '总金额', prop: 'total', width: 160, align: 'right' as const }]
+    : []),
+  { key: 'itemRows', label: '行项目', prop: 'itemRows', width: 80, align: 'center' as const },
+  { key: 'stockStatus', label: '入库状态', prop: 'stockStatus', width: 160, align: 'center' as const },
+  { key: 'deliveryDate', label: '交货日期', prop: 'deliveryDate', width: 160 },
+  { key: 'createTime', label: '创建时间', prop: 'createTime', width: 160 },
+  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  }
+])
 
 // 筛选表单
 const filterForm = ref({
@@ -733,7 +757,27 @@ onMounted(loadData)
 .pagination-wrapper {
   margin-top: 20px;
   display: flex;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 
 .items-section {

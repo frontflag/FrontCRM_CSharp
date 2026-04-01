@@ -51,103 +51,84 @@
     </div>
 
     <CrmDataTable
+      ref="dataTableRef"
+      column-layout-key="stock-in-list-main"
+      :columns="stockInTableColumns"
+      :show-column-settings="false"
       :data="filteredList"
       v-loading="loading"
       @row-dblclick="handleView"
     >
-        <el-table-column prop="stockInCode" label="入库单号" width="160">
-          <template #default="{ row }">
-            <span class="code-link" @click.stop="handleView(row)">{{ row.stockInCode }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="110">
-          <template #default="{ row }">
-            <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="sourceDisplayNo" label="来源单号" width="160" show-overflow-tooltip />
-        <el-table-column label="物料型号" min-width="140" show-overflow-tooltip>
-          <template #default="{ row }">{{ stockInMaterialModel(row) }}</template>
-        </el-table-column>
-        <el-table-column label="品牌" min-width="120" show-overflow-tooltip>
-          <template #default="{ row }">{{ stockInMaterialBrand(row) }}</template>
-        </el-table-column>
-        <el-table-column label="仓库" min-width="160" show-overflow-tooltip>
-          <template #default="{ row }">{{ warehouseNameOf(row.warehouseId) }}</template>
-        </el-table-column>
-        <el-table-column prop="vendorName" label="供应商" min-width="160" show-overflow-tooltip />
-      <el-table-column prop="salesOrderCode" label="销售订单号" min-width="170" show-overflow-tooltip />
-        <el-table-column prop="stockInDate" label="入库日期" width="160">
-          <template #default="{ row }">
-            <span class="text-secondary">{{ formatDate(row.stockInDate) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="totalQuantity" label="入库数量" width="110" align="right">
-          <template #default="{ row }">{{ formatNum(row.totalQuantity) }}</template>
-        </el-table-column>
-        <el-table-column prop="totalAmount" label="入库金额" width="110" align="right">
-          <template #default="{ row }">{{ formatMoney(row.totalAmount) }}</template>
-        </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
-        <el-table-column label="创建时间" width="160">
-          <template #default="{ row }">{{ formatDate((row as any).createTime || (row as any).createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="创建人" width="120" show-overflow-tooltip>
-          <template #default="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
-        </el-table-column>
-        <el-table-column
-          label="操作"
-          :width="opColWidth"
-          :min-width="opColMinWidth"
-          fixed="right"
-          class-name="op-col"
-          label-class-name="op-col"
-        >
-          <template #header>
-            <div class="op-col-header">
-              <span class="op-col-header-text">操作</span>
-              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-                {{ opColExpanded ? '>' : '<' }}
-              </button>
-            </div>
-          </template>
+      <template #col-stockInCode="{ row }">
+        <span class="code-link" @click.stop="handleView(row)">{{ row.stockInCode }}</span>
+      </template>
+      <template #col-status="{ row }">
+        <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
+      </template>
+      <template #col-materialModel="{ row }">{{ stockInMaterialModel(row) }}</template>
+      <template #col-materialBrand="{ row }">{{ stockInMaterialBrand(row) }}</template>
+      <template #col-warehouseName="{ row }">{{ warehouseNameOf(row.warehouseId) }}</template>
+      <template #col-stockInDate="{ row }">
+        <span class="text-secondary">{{ formatDate(row.stockInDate) }}</span>
+      </template>
+      <template #col-totalQuantity="{ row }">{{ formatNum(row.totalQuantity) }}</template>
+      <template #col-totalAmount="{ row }">{{ formatMoney(row.totalAmount) }}</template>
+      <template #col-createTime="{ row }">{{ formatDate((row as any).createTime || (row as any).createdAt) }}</template>
+      <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
+      <template #col-actions-header>
+        <div class="op-col-header">
+          <span class="op-col-header-text">操作</span>
+          <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+            {{ opColExpanded ? '>' : '<' }}
+          </button>
+        </div>
+      </template>
 
-          <template #default="{ row }">
-            <div @click.stop @dblclick.stop>
-              <div v-if="opColExpanded" class="action-btns">
-                <button type="button" class="action-btn action-btn--info" @click.stop="handleEditRemark(row)">修改备注</button>
-                <button
+      <template #col-actions="{ row }">
+        <div @click.stop @dblclick.stop>
+          <div v-if="opColExpanded" class="action-btns">
+            <button type="button" class="action-btn action-btn--info" @click.stop="handleEditRemark(row)">修改备注</button>
+            <button
+              v-if="row.status !== 2 && row.status !== 3"
+              type="button"
+              class="action-btn action-btn--warning"
+              @click.stop="handleFinish(row)"
+            >
+              标记已入库
+            </button>
+          </div>
+
+          <el-dropdown v-else trigger="click" placement="bottom-end">
+            <div class="op-more-dropdown-trigger">
+              <button type="button" class="op-more-trigger">...</button>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click.stop="handleEditRemark(row)">
+                  <span class="op-more-item op-more-item--info">修改备注</span>
+                </el-dropdown-item>
+                <el-dropdown-item
                   v-if="row.status !== 2 && row.status !== 3"
-                  type="button"
-                  class="action-btn action-btn--warning"
                   @click.stop="handleFinish(row)"
                 >
-                  标记已入库
-                </button>
-              </div>
-
-              <el-dropdown v-else trigger="click" placement="bottom-end">
-                <div class="op-more-dropdown-trigger">
-                  <button type="button" class="op-more-trigger">...</button>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item @click.stop="handleEditRemark(row)">
-                      <span class="op-more-item op-more-item--info">修改备注</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item
-                      v-if="row.status !== 2 && row.status !== 3"
-                      @click.stop="handleFinish(row)"
-                    >
-                      <span class="op-more-item op-more-item--warning">标记已入库</span>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
+                  <span class="op-more-item op-more-item--warning">标记已入库</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </template>
     </CrmDataTable>
+    <div class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip content="列设置" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <div class="list-footer-spacer" aria-hidden="true"></div>
+      </div>
+    </div>
 
     <el-dialog v-model="remarkDialogVisible" title="修改备注" width="420px">
       <el-input v-model="remarkForm.remark" type="textarea" :rows="4" placeholder="请输入入库单备注" />
@@ -163,15 +144,18 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
 import { stockInApi, type StockInListItemDto } from '@/api/stockIn'
 import { inventoryCenterApi, type WarehouseInfo } from '@/api/inventoryCenter'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const route = useRoute()
 const loading = ref(false)
 const list = ref<StockInListItemDto[]>([])
 const warehouses = ref<WarehouseInfo[]>([])
+const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -183,6 +167,35 @@ const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+const stockInTableColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'stockInCode', label: '入库单号', prop: 'stockInCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+  { key: 'status', label: '状态', prop: 'status', width: 110, align: 'center' },
+  { key: 'sourceDisplayNo', label: '来源单号', prop: 'sourceDisplayNo', width: 160, showOverflowTooltip: true },
+  { key: 'materialModel', label: '物料型号', minWidth: 140, showOverflowTooltip: true },
+  { key: 'materialBrand', label: '品牌', minWidth: 120, showOverflowTooltip: true },
+  { key: 'warehouseName', label: '仓库', minWidth: 160, showOverflowTooltip: true },
+  { key: 'vendorName', label: '供应商', prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'salesOrderCode', label: '销售订单号', prop: 'salesOrderCode', minWidth: 170, showOverflowTooltip: true },
+  { key: 'stockInDate', label: '入库日期', prop: 'stockInDate', width: 160 },
+  { key: 'totalQuantity', label: '入库数量', prop: 'totalQuantity', width: 110, align: 'right' },
+  { key: 'totalAmount', label: '入库金额', prop: 'totalAmount', width: 110, align: 'right' },
+  { key: 'remark', label: '备注', prop: 'remark', minWidth: 160, showOverflowTooltip: true },
+  { key: 'createTime', label: '创建时间', width: 160 },
+  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  }
+])
 
 const warehouseNameOf = (warehouseId?: string) => {
   if (!warehouseId) return '--'
@@ -541,6 +554,29 @@ const handleFinish = async (row: StockInListItemDto) => {
   white-space: nowrap;
   flex-shrink: 0;
   &:hover { text-decoration: underline; }
+}
+
+.pagination-wrapper {
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 </style>
 

@@ -29,42 +29,48 @@
     </div>
 
     <div v-loading="loading" element-loading-background="rgba(10,22,40,0.8)" class="list-container">
-      <div v-if="!loading && items.length === 0" class="empty-state">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-          <circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-        </svg>
-        <p>当前没有黑名单供应商</p>
-      </div>
-
-      <div v-for="item in items" :key="item.id" class="record-card" @dblclick="goDetail(item)">
-        <div class="record-avatar">{{ (item.officialName || '?')[0] }}</div>
-        <div class="record-body">
+      <CrmDataTable
+        ref="dataTableRef"
+        column-layout-key="vendor-blacklist-main"
+        :columns="blacklistColumns"
+        :show-column-settings="false"
+        :data="items"
+        row-key="id"
+        @row-dblclick="goDetail"
+      >
+        <template #col-officialName="{ row }">
           <div class="record-name-row">
-            <span class="record-name record-name--muted">{{ item.officialName }}</span>
+            <span class="record-name record-name--muted">{{ row.officialName }}</span>
             <PartyStatusIcons
-              :entity-id="item.id"
-              :frozen="!!item.isDisenable"
+              :entity-id="row.id"
+              :frozen="!!row.isDisenable"
               :blacklist="true"
               size="sm"
             />
             <span class="blacklist-tag">黑名单</span>
           </div>
-          <div class="record-meta">
-            <span class="meta-code">{{ item.code }}</span>
-            <span class="meta-sep">·</span>
-            <span class="meta-text">行业：{{ item.industry || '--' }}</span>
+        </template>
+        <template #col-industry="{ row }">{{ row.industry || '--' }}</template>
+        <template #col-actions="{ row }">
+          <div class="record-actions" @dblclick.stop>
+            <el-button size="small" style="margin-right:8px" @click="goDetail(row)">查看详情</el-button>
+            <el-button type="warning" size="small" :loading="removingId === row.id" @click="handleRemove(row)">
+              移出黑名单
+            </el-button>
           </div>
-        </div>
-        <div class="record-actions" @dblclick.stop>
-          <el-button size="small" style="margin-right:8px" @click="goDetail(item)">查看详情</el-button>
-          <el-button type="warning" size="small" :loading="removingId === item.id" @click="handleRemove(item)">
-            移出黑名单
-          </el-button>
-        </div>
-      </div>
+        </template>
+      </CrmDataTable>
     </div>
 
     <div v-if="totalCount > pageSize" class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip content="列设置" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <div class="list-footer-spacer" aria-hidden="true"></div>
+      </div>
       <el-pagination
         v-model:current-page="pageIndex"
         :page-size="pageSize"
@@ -101,8 +107,11 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElNotification } from 'element-plus';
+import { Setting } from '@element-plus/icons-vue'
 import { vendorApi } from '@/api/vendor';
 import type { Vendor } from '@/types/vendor';
+import CrmDataTable from '@/components/CrmDataTable.vue'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter();
 const loading = ref(false);
@@ -115,6 +124,14 @@ const removingId = ref<string | null>(null);
 const showRemoveDialog = ref(false);
 const pendingRemove = ref<Vendor | null>(null);
 const removeReason = ref('');
+const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+
+const blacklistColumns: CrmTableColumnDef[] = [
+  { key: 'code', label: '供应商编号', prop: 'code', width: 180, showOverflowTooltip: true },
+  { key: 'officialName', label: '供应商名称', minWidth: 260, showOverflowTooltip: true },
+  { key: 'industry', label: '行业', width: 160, showOverflowTooltip: true },
+  { key: 'actions', label: '操作', width: 190, fixed: 'right', hideable: false, pinned: 'end', reorderable: false }
+]
 
 const fetchData = async () => {
   loading.value = true;
@@ -312,7 +329,24 @@ onMounted(fetchData);
 .pagination-wrapper {
   margin-top: 16px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 </style>
 

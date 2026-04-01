@@ -82,6 +82,10 @@
     <!-- 数据表格 -->
     <el-card class="table-card">
       <CrmDataTable
+        ref="dataTableRef"
+        column-layout-key="quote-list-main"
+        :columns="quoteTableColumns"
+        :show-column-settings="false"
         :data="quoteList"
         v-loading="loading"
         row-key="id"
@@ -89,93 +93,73 @@
         @selection-change="onQuoteSelectionChange"
         @row-dblclick="handleEdit"
       >
-        <el-table-column type="selection" width="48" :reserve-selection="true" />
-        <el-table-column prop="quoteCode" label="报价编号" width="160" min-width="160" show-overflow-tooltip sortable>
-          <template #default="{ row }">
-            <span class="quote-code-cell">{{ displayQuoteCode(row) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="160" align="center">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="getStatusType(row.status)" size="small">
-              {{ getStatusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="需求编号" width="160" min-width="160" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span>{{ displayRfqCode(row) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="mpn" label="物料型号" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="customerName" label="客户" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="salesUserName" label="业务员" width="100" />
-        <el-table-column prop="purchaseUserName" label="采购员" width="100" />
-        <el-table-column label="供应商数" width="90" align="center">
-          <template #default="{ row }">
-            {{ row.items?.length || 0 }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="quoteDate" label="报价日期" width="160">
-          <template #default="{ row }">
-            {{ formatDisplayDate(row.quoteDate) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="160">
-          <template #default="{ row }">
-            {{ formatDisplayDateTime(row.createTime) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="创建人" width="120" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ row.createUserName || row.createdBy || row.salesUserName || row.purchaseUserName || '—' }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="操作"
-          :width="opColWidth"
-          :min-width="opColMinWidth"
-          fixed="right"
-          class-name="op-col"
-          label-class-name="op-col"
-        >
-          <template #header>
-            <div class="op-col-header">
-              <span class="op-col-header-text">操作</span>
-              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-                {{ opColExpanded ? '>' : '<' }}
-              </button>
+        <template #col-quoteCode="{ row }">
+          <span class="quote-code-cell">{{ displayQuoteCode(row) }}</span>
+        </template>
+        <template #col-status="{ row }">
+          <el-tag effect="dark" :type="getStatusType(row.status)" size="small">
+            {{ getStatusText(row.status) }}
+          </el-tag>
+        </template>
+        <template #col-rfqCode="{ row }">
+          <span>{{ displayRfqCode(row) }}</span>
+        </template>
+        <template #col-vendorCount="{ row }">
+          {{ row.items?.length || 0 }}
+        </template>
+        <template #col-quoteDate="{ row }">
+          {{ formatDisplayDate(row.quoteDate) }}
+        </template>
+        <template #col-createTime="{ row }">
+          {{ formatDisplayDateTime(row.createTime) }}
+        </template>
+        <template #col-createUser="{ row }">
+          {{ row.createUserName || row.createdBy || row.salesUserName || row.purchaseUserName || '—' }}
+        </template>
+        <template #col-actions-header>
+          <div class="op-col-header">
+            <span class="op-col-header-text">操作</span>
+            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
+        <template #col-actions="{ row }">
+          <div @click.stop @dblclick.stop>
+            <div v-if="opColExpanded" class="action-btns">
+              <el-button link type="primary" @click.stop="handleEdit(row)">编辑</el-button>
+              <el-button link type="danger" @click.stop="handleDelete(row)">删除</el-button>
             </div>
-          </template>
-          <template #default="{ row }">
-            <div @click.stop @dblclick.stop>
-              <div v-if="opColExpanded" class="action-btns">
-                <el-button link type="primary" @click.stop="handleEdit(row)">编辑</el-button>
-                <el-button link type="danger" @click.stop="handleDelete(row)">删除</el-button>
-              </div>
 
-              <el-dropdown v-else trigger="click" placement="bottom-end">
-                <div class="op-more-dropdown-trigger">
-                  <button type="button" class="op-more-trigger">...</button>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item @click.stop="handleEdit(row)">
-                      <span class="op-more-item op-more-item--primary">编辑</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item @click.stop="handleDelete(row)">
-                      <span class="op-more-item op-more-item--danger">删除</span>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
+            <el-dropdown v-else trigger="click" placement="bottom-end">
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click.stop="handleEdit(row)">
+                    <span class="op-more-item op-more-item--primary">编辑</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item @click.stop="handleDelete(row)">
+                    <span class="op-more-item op-more-item--danger">删除</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </template>
       </CrmDataTable>
 
-      <!-- 分页 -->
+      <!-- 底栏：列设置（图标+Tip+Spacer） + 分页（顶对齐） -->
       <div class="pagination-wrapper">
+        <div class="list-footer-left">
+          <el-tooltip content="列设置" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+              <el-icon><Setting /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <div class="list-footer-spacer" aria-hidden="true"></div>
+        </div>
         <el-pagination
           v-model:current-page="pageInfo.page"
           v-model:page-size="pageInfo.pageSize"
@@ -194,16 +178,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Search } from '@element-plus/icons-vue'
+import { Search, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { quoteApi } from '@/api/quote'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import CrmDataTable from '@/components/CrmDataTable.vue'
 
 const router = useRouter()
 const route = useRoute()
 
 const loading = ref(false)
+const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const selectedQuotes = ref<any[]>([])
 const salesOrderPreflightLoading = ref(false)
 const quoteList = ref<any[]>([])
@@ -232,6 +219,50 @@ const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+/** 报价列表主表可配置列（localStorage：crm-table-columns:v1:quote-list-main） */
+const quoteTableColumns = computed<CrmTableColumnDef[]>(() => [
+  {
+    key: 'sel',
+    type: 'selection',
+    width: 48,
+    hideable: false,
+    pinned: 'start',
+    resizable: false,
+    reserveSelection: true
+  },
+  {
+    key: 'quoteCode',
+    label: '报价编号',
+    prop: 'quoteCode',
+    width: 160,
+    minWidth: 160,
+    showOverflowTooltip: true,
+    sortable: true
+  },
+  { key: 'status', label: '状态', prop: 'status', width: 160, align: 'center' },
+  { key: 'rfqCode', label: '需求编号', width: 160, minWidth: 160, showOverflowTooltip: true },
+  { key: 'mpn', label: '物料型号', prop: 'mpn', minWidth: 150, showOverflowTooltip: true },
+  { key: 'customerName', label: '客户', prop: 'customerName', minWidth: 200, showOverflowTooltip: true },
+  { key: 'salesUserName', label: '业务员', prop: 'salesUserName', width: 100 },
+  { key: 'purchaseUserName', label: '采购员', prop: 'purchaseUserName', width: 100 },
+  { key: 'vendorCount', label: '供应商数', width: 90, align: 'center' },
+  { key: 'quoteDate', label: '报价日期', prop: 'quoteDate', width: 160 },
+  { key: 'createTime', label: '创建时间', prop: 'createTime', width: 160 },
+  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  }
+])
 
 const totalCount = computed(() => quoteList.value.length)
 
@@ -467,7 +498,27 @@ onMounted(loadData)
 .pagination-wrapper {
   margin-top: 20px;
   display: flex;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 
 .quote-code-cell {

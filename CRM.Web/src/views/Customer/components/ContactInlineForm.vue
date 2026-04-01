@@ -137,13 +137,46 @@ const formData = ref<CreateContactRequest>({
   remarks: ''
 });
 
+const mobilePhonePattern = /^1[3-9]\d{9}$/;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const formRules: FormRules = {
   contactName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
   mobilePhone: [
     { required: true, message: '请输入手机号码', trigger: 'blur' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码', trigger: 'blur' }
+    {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+        const v = (value || '').trim();
+        if (v === '-') {
+          callback();
+          return;
+        }
+        if (!mobilePhonePattern.test(v)) {
+          callback(new Error('请输入正确的手机号码'));
+          return;
+        }
+        callback();
+      },
+      trigger: 'blur'
+    }
   ],
-  email: [{ type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }]
+  email: [
+    {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+        const v = (value || '').trim();
+        if (!v || v === '-') {
+          callback();
+          return;
+        }
+        if (!emailPattern.test(v)) {
+          callback(new Error('请输入正确的邮箱地址'));
+          return;
+        }
+        callback();
+      },
+      trigger: 'blur'
+    }
+  ]
 };
 
 const resetForm = () => {
@@ -205,12 +238,9 @@ const handleSubmit = async () => {
 </script>
 
 <style lang="scss" scoped>
-$cyan: #00D4FF;
-$layer-2: #0d1e35;
-$layer-3: #162233;
-$border: rgba(0, 212, 255, 0.15);
-$text-primary: rgba(224, 244, 255, 0.92);
-$text-muted: rgba(130, 170, 200, 0.6);
+@import '@/assets/styles/variables.scss';
+
+$cyan: $cyan-primary;
 
 /* ── 过渡动画 ── */
 .panel-slide-enter-active,

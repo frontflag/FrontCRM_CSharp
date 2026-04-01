@@ -34,6 +34,7 @@
         <el-form
           ref="formRef"
           :model="formData"
+          :rules="formRules"
           label-width="100px"
           label-position="left"
         >
@@ -63,7 +64,7 @@
           <div class="section-title">联系方式</div>
           <el-row :gutter="32">
             <el-col :span="12">
-              <el-form-item label="手机">
+              <el-form-item label="手机" prop="mobile">
                 <el-input v-model="formData.mobile" placeholder="手机号" />
               </el-form-item>
             </el-col>
@@ -75,7 +76,7 @@
           </el-row>
           <el-row :gutter="32">
             <el-col :span="12">
-              <el-form-item label="邮箱">
+              <el-form-item label="邮箱" prop="email">
                 <el-input v-model="formData.email" placeholder="邮箱" />
               </el-form-item>
             </el-col>
@@ -138,7 +139,7 @@
 import { ref, computed, onMounted, reactive } from 'vue';
 import BusinessCardUploader from '@/components/Contact/BusinessCardUploader.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
 import { vendorApi, vendorContactApi } from '@/api/vendor';
 import type { AddVendorContactRequest, UpdateVendorContactRequest } from '@/types/vendor';
 
@@ -152,14 +153,63 @@ const isEdit = computed(() => !!contactId);
 const vendorName = ref('供应商详情');
 const pageLoading = ref(false);
 const submitting = ref(false);
+const formRef = ref<FormInstance>();
 // 新建成功后保存联系人 ID，用于名片上传
 const savedContactId = ref<string | null>(contactId || null);
+
+const mobilePhonePattern = /^1[3-9]\d{9}$/;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const formData = reactive<AddVendorContactRequest & { id?: string }>({
   cName: '', title: '', department: '',
   mobile: '', tel: '', email: '',
   isMain: false, remark: ''
 });
+
+const formRules: FormRules = {
+  mobile: [
+    {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+        const v = (value || '').trim();
+        if (!v) {
+          callback();
+          return;
+        }
+        if (v === '-') {
+          callback();
+          return;
+        }
+        if (!mobilePhonePattern.test(v)) {
+          callback(new Error('请输入正确的手机号码'));
+          return;
+        }
+        callback();
+      },
+      trigger: ['blur', 'change']
+    }
+  ],
+  email: [
+    {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+        const v = (value || '').trim();
+        if (!v) {
+          callback();
+          return;
+        }
+        if (v === '-') {
+          callback();
+          return;
+        }
+        if (!emailPattern.test(v)) {
+          callback(new Error('请输入正确的邮箱地址'));
+          return;
+        }
+        callback();
+      },
+      trigger: ['blur', 'change']
+    }
+  ]
+};
 
 onMounted(async () => {
   pageLoading.value = true;
@@ -194,6 +244,8 @@ const handleBack = () => {
 };
 
 const handleSubmit = async () => {
+  const valid = await formRef.value?.validate().catch(() => false);
+  if (!valid) return;
   submitting.value = true;
   try {
     if (isEdit.value && contactId) {
@@ -217,13 +269,13 @@ const handleSubmit = async () => {
 </script>
 
 <style lang="scss" scoped>
-$cyan: #00D4FF;
-$bg-page: #071525;
-$bg-card: #0d1e35;
-$bg-card-header: #0a1929;
-$border: rgba(0, 212, 255, 0.15);
-$text-primary: rgba(224, 244, 255, 0.92);
-$text-secondary: rgba(130, 170, 200, 0.7);
+@import '@/assets/styles/variables.scss';
+
+$cyan: $cyan-primary;
+$bg-page: $layer-1;
+$bg-card: $layer-2;
+$bg-card-header: $layer-2;
+$border: $border-card;
 
 .contact-edit-page {
   min-height: 100vh;
@@ -236,7 +288,7 @@ $text-secondary: rgba(130, 170, 200, 0.7);
   align-items: center;
   padding: 16px 28px;
   background: $bg-card-header;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+  border-bottom: 1px solid $border-panel;
 }
 
 .header-left {
@@ -251,13 +303,13 @@ $text-secondary: rgba(130, 170, 200, 0.7);
   gap: 5px;
   padding: 5px 12px;
   background: transparent;
-  border: 1px solid rgba(0, 212, 255, 0.2);
+  border: 1px solid $border-panel;
   border-radius: 5px;
   color: $text-secondary;
   font-size: 13px;
   cursor: pointer;
   transition: all 0.15s;
-  &:hover { border-color: rgba(0, 212, 255, 0.4); color: $text-primary; background: rgba(0, 212, 255, 0.05); }
+  &:hover { border-color: rgba(0, 212, 255, 0.35); color: $text-primary; background: rgba(0, 212, 255, 0.08); }
 }
 
 .header-breadcrumb {
@@ -283,7 +335,7 @@ $text-secondary: rgba(130, 170, 200, 0.7);
   border: 1px solid $border;
   border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+  box-shadow: $shadow-sm;
 }
 
 .form-card-header {
@@ -291,8 +343,8 @@ $text-secondary: rgba(130, 170, 200, 0.7);
   align-items: center;
   justify-content: space-between;
   padding: 14px 24px;
-  background: rgba(0, 212, 255, 0.05);
-  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+  background: rgba(0, 212, 255, 0.06);
+  border-bottom: 1px solid $border-panel;
 }
 
 .form-card-title {
@@ -314,8 +366,8 @@ $text-secondary: rgba(130, 170, 200, 0.7);
 
   :deep(.el-input__wrapper),
   :deep(.el-textarea__inner) {
-    background: rgba(0, 212, 255, 0.04);
-    border-color: rgba(0, 212, 255, 0.15);
+    background: $layer-3;
+    border-color: $border-panel;
     box-shadow: none;
     color: $text-primary;
     &:hover { border-color: rgba(0, 212, 255, 0.3); }
@@ -349,8 +401,8 @@ $text-secondary: rgba(130, 170, 200, 0.7);
   justify-content: flex-end;
   gap: 12px;
   padding: 16px 28px;
-  border-top: 1px solid rgba(0, 212, 255, 0.08);
-  background: rgba(0, 0, 0, 0.1);
+  border-top: 1px solid $border-panel;
+  background: rgba(0, 212, 255, 0.03);
 }
 
 .footer-btn {

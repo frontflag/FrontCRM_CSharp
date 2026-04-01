@@ -30,74 +30,64 @@
       </div>
     </div>
 
-    <CrmDataTable :data="filteredList" v-loading="loading">
-      <el-table-column prop="requestCode" label="通知单号" width="160" min-width="160" />
-      <el-table-column label="流程" width="130">
-        <template #default="{ row }">
-          <span class="flow-tag" :class="`flow-tag--${workflowTagKey(row)}`">{{ workflowLabel(row) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="status" label="状态" width="110">
-        <template #default="{ row }">
-          <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="salesOrderCode" label="销售单号" width="160" min-width="160" />
-      <el-table-column prop="materialModel" label="物料型号" width="180" show-overflow-tooltip />
-      <el-table-column prop="brand" label="品牌" width="140" show-overflow-tooltip />
-      <el-table-column prop="outQuantity" label="出库数量" width="110" align="right" />
-      <el-table-column prop="requestDate" label="预计出库日期" width="170">
-        <template #default="{ row }">{{ formatRequestDateTime(row.requestDate) }}</template>
-      </el-table-column>
-      <el-table-column prop="salesUserName" label="业务员名称" width="130" show-overflow-tooltip />
-      <el-table-column prop="customerName" label="客户" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="createTime" label="创建时间" width="170">
-        <template #default="{ row }">{{ formatRequestDateTime(row.createTime) }}</template>
-      </el-table-column>
-      <el-table-column label="创建人" width="140" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.createUserName || row.requestUserName || '--' }}</template>
-      </el-table-column>
-      <el-table-column
-        label="操作"
-        :width="opColWidth"
-        :min-width="opColMinWidth"
-        fixed="right"
-        class-name="op-col"
-        label-class-name="op-col"
-      >
-        <template #header>
-          <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
-            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-              {{ opColExpanded ? '>' : '<' }}
-            </button>
+    <CrmDataTable
+      ref="dataTableRef"
+      column-layout-key="stock-out-notify-list-main"
+      :columns="stockOutNotifyColumns"
+      :show-column-settings="false"
+      :data="filteredList"
+      v-loading="loading"
+    >
+      <template #col-workflow="{ row }">
+        <span class="flow-tag" :class="`flow-tag--${workflowTagKey(row)}`">{{ workflowLabel(row) }}</span>
+      </template>
+      <template #col-status="{ row }">
+        <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
+      </template>
+      <template #col-outQuantity="{ row }">{{ row.outQuantity }}</template>
+      <template #col-requestDate="{ row }">{{ formatRequestDateTime(row.requestDate) }}</template>
+      <template #col-createTime="{ row }">{{ formatRequestDateTime(row.createTime) }}</template>
+      <template #col-createUser="{ row }">{{ row.createUserName || row.requestUserName || '--' }}</template>
+      <template #col-actions-header>
+        <div class="op-col-header">
+          <span class="op-col-header-text">操作</span>
+          <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+            {{ opColExpanded ? '>' : '<' }}
+          </button>
+        </div>
+      </template>
+      <template #col-actions="{ row }">
+        <div @click.stop @dblclick.stop>
+          <div v-if="opColExpanded" v-show="Number(row.status) !== 1" class="action-btns">
+            <button type="button" class="action-btn action-btn--warning" @click.stop="goExecute(row)">执行出库</button>
           </div>
-        </template>
+          <span v-else-if="Number(row.status) === 1" class="op-done">已出库</span>
 
-        <template #default="{ row }">
-          <div @click.stop @dblclick.stop>
-            <div v-if="opColExpanded" v-show="Number(row.status) !== 1" class="action-btns">
-              <button type="button" class="action-btn action-btn--warning" @click.stop="goExecute(row)">执行出库</button>
+          <el-dropdown v-else trigger="click" placement="bottom-end" v-if="Number(row.status) !== 1">
+            <div class="op-more-dropdown-trigger">
+              <button type="button" class="op-more-trigger">...</button>
             </div>
-            <span v-else-if="Number(row.status) === 1" class="op-done">已出库</span>
-
-            <el-dropdown v-else trigger="click" placement="bottom-end" v-if="Number(row.status) !== 1">
-              <div class="op-more-dropdown-trigger">
-                <button type="button" class="op-more-trigger">...</button>
-              </div>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click.stop="goExecute(row)">
-                    <span class="op-more-item op-more-item--warning">执行出库</span>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-        </template>
-      </el-table-column>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click.stop="goExecute(row)">
+                  <span class="op-more-item op-more-item--warning">执行出库</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </template>
     </CrmDataTable>
+    <div class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip content="列设置" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <div class="list-footer-spacer" aria-hidden="true"></div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -105,9 +95,11 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
 import { stockOutApi, type StockOutRequestDto } from '@/api/stockOut'
 import { inventoryCenterApi, type PickingTask } from '@/api/inventoryCenter'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const loading = ref(false)
@@ -115,6 +107,7 @@ const keyword = ref('')
 const workflowFilter = ref<string>('all')
 const list = ref<StockOutRequestDto[]>([])
 const pickingTasks = ref<PickingTask[]>([])
+const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -128,6 +121,34 @@ const opColMinWidth = computed(() =>
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'requestCode', label: '通知单号', prop: 'requestCode', width: 160, minWidth: 160 },
+  { key: 'workflow', label: '流程', width: 130, align: 'center' },
+  { key: 'status', label: '状态', prop: 'status', width: 110, align: 'center' },
+  { key: 'salesOrderCode', label: '销售单号', prop: 'salesOrderCode', width: 160, minWidth: 160 },
+  { key: 'materialModel', label: '物料型号', prop: 'materialModel', width: 180, showOverflowTooltip: true },
+  { key: 'brand', label: '品牌', prop: 'brand', width: 140, showOverflowTooltip: true },
+  { key: 'outQuantity', label: '出库数量', prop: 'outQuantity', width: 110, align: 'right' },
+  { key: 'requestDate', label: '预计出库日期', prop: 'requestDate', width: 170 },
+  { key: 'salesUserName', label: '业务员名称', prop: 'salesUserName', width: 130, showOverflowTooltip: true },
+  { key: 'customerName', label: '客户', prop: 'customerName', minWidth: 180, showOverflowTooltip: true },
+  { key: 'remark', label: '备注', prop: 'remark', minWidth: 180, showOverflowTooltip: true },
+  { key: 'createTime', label: '创建时间', prop: 'createTime', width: 170 },
+  { key: 'createUser', label: '创建人', width: 140, showOverflowTooltip: true },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  }
+])
 
 const statusLabel = (s: number) => {
   if (s === 0) return '待出库'
@@ -310,5 +331,28 @@ onMounted(fetchList)
 .op-done {
   font-size: 12px;
   color: $text-muted;
+}
+
+.pagination-wrapper {
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 </style>

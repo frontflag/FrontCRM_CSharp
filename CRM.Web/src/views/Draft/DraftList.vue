@@ -40,71 +40,68 @@
     </el-card>
 
     <el-card>
-      <CrmDataTable :data="drafts" v-loading="loading" @row-dblclick="restoreDraft">
-        <el-table-column label="状态" width="110">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="statusTagType(row.status)">{{ statusText(row.status) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="draftId" label="草稿ID" min-width="260" show-overflow-tooltip />
-        <el-table-column prop="draftName" label="草稿名称" min-width="160" show-overflow-tooltip />
-        <el-table-column label="业务类型" width="120">
-          <template #default="{ row }">{{ entityTypeText(row.entityType) }}</template>
-        </el-table-column>
-        <el-table-column prop="convertedEntityId" label="正式ID" min-width="220" show-overflow-tooltip />
-        <el-table-column label="创建时间" width="180">
-          <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
-        </el-table-column>
-        <el-table-column label="创建人" width="120" show-overflow-tooltip>
-          <template #default="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
-        </el-table-column>
-        <el-table-column
-          label="操作"
-          :width="opColWidth"
-          :min-width="opColMinWidth"
-          fixed="right"
-          class-name="op-col"
-          label-class-name="op-col"
-        >
-          <template #header>
-            <div class="op-col-header">
-              <span class="op-col-header-text">操作</span>
-              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-                {{ opColExpanded ? '>' : '<' }}
-              </button>
+      <CrmDataTable
+        ref="dataTableRef"
+        column-layout-key="draft-list-main"
+        :columns="draftTableColumns"
+        :show-column-settings="false"
+        :data="drafts"
+        v-loading="loading"
+        @row-dblclick="restoreDraft"
+      >
+        <template #col-status="{ row }">
+          <el-tag effect="dark" :type="statusTagType(row.status)">{{ statusText(row.status) }}</el-tag>
+        </template>
+        <template #col-entityType="{ row }">{{ entityTypeText(row.entityType) }}</template>
+        <template #col-createTime="{ row }">{{ formatTime(row.createTime) }}</template>
+        <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
+        <template #col-actions-header>
+          <div class="op-col-header">
+            <span class="op-col-header-text">操作</span>
+            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
+        <template #col-actions="{ row }">
+          <div @click.stop @dblclick.stop>
+            <div v-if="opColExpanded" class="action-btns">
+              <el-button link type="primary" @click.stop="restoreDraft(row)">恢复到编辑页</el-button>
+              <el-button link type="success" @click.stop="convertDraft(row)" :disabled="row.status !== 0">转正式</el-button>
+              <el-button link type="danger" @click.stop="deleteDraft(row)">删除</el-button>
             </div>
-          </template>
 
-          <template #default="{ row }">
-            <div @click.stop @dblclick.stop>
-              <div v-if="opColExpanded" class="action-btns">
-                <el-button link type="primary" @click.stop="restoreDraft(row)">恢复到编辑页</el-button>
-                <el-button link type="success" @click.stop="convertDraft(row)" :disabled="row.status !== 0">转正式</el-button>
-                <el-button link type="danger" @click.stop="deleteDraft(row)">删除</el-button>
+            <el-dropdown v-else trigger="click" placement="bottom-end">
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
               </div>
-
-              <el-dropdown v-else trigger="click" placement="bottom-end">
-                <div class="op-more-dropdown-trigger">
-                  <button type="button" class="op-more-trigger">...</button>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item @click.stop="restoreDraft(row)">
-                      <span class="op-more-item op-more-item--primary">恢复到编辑页</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item :disabled="row.status !== 0" @click.stop="convertDraft(row)">
-                      <span class="op-more-item op-more-item--success">转正式</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item @click.stop="deleteDraft(row)">
-                      <span class="op-more-item op-more-item--danger">删除</span>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click.stop="restoreDraft(row)">
+                    <span class="op-more-item op-more-item--primary">恢复到编辑页</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item :disabled="row.status !== 0" @click.stop="convertDraft(row)">
+                    <span class="op-more-item op-more-item--success">转正式</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item @click.stop="deleteDraft(row)">
+                    <span class="op-more-item op-more-item--danger">删除</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </template>
       </CrmDataTable>
+      <div class="pagination-wrapper">
+        <div class="list-footer-left">
+          <el-tooltip content="列设置" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+              <el-icon><Setting /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <div class="list-footer-spacer" aria-hidden="true"></div>
+        </div>
+      </div>
     </el-card>
   </div>
 </template>
@@ -113,12 +110,15 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
 import { draftApi, type DraftDto } from '@/api/draft'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const loading = ref(false)
 const drafts = ref<DraftDto[]>([])
+const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -130,6 +130,28 @@ const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+const draftTableColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'status', label: '状态', width: 110, align: 'center' },
+  { key: 'draftId', label: '草稿ID', prop: 'draftId', minWidth: 260, showOverflowTooltip: true },
+  { key: 'draftName', label: '草稿名称', prop: 'draftName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'entityType', label: '业务类型', width: 120, align: 'center' },
+  { key: 'convertedEntityId', label: '正式ID', prop: 'convertedEntityId', minWidth: 220, showOverflowTooltip: true },
+  { key: 'createTime', label: '创建时间', width: 180 },
+  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  }
+])
 
 const filters = reactive<{
   entityType?: string
@@ -310,5 +332,28 @@ onMounted(fetchDrafts)
 
 .op-more-item--danger {
   color: #C95745;
+}
+
+.pagination-wrapper {
+  margin-top: 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 </style>

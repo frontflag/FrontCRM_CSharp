@@ -382,6 +382,9 @@ const formRules: FormRules = {
   officialName: [{ required: true, message: '请输入供应商全称', trigger: 'blur' }]
 };
 
+const mobilePhonePattern = /^1[3-9]\d{9}$/;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function onPurchaserChange(p: { id: string; label: string }) {
   formData.purchaserName = p.label || '';
 }
@@ -544,6 +547,7 @@ const handleSave = async () => {
   await runValidatedFormSave(formRef, {
     loading: saving,
     task: async () => {
+      validateVendorContacts();
       let targetVendorId = '';
       let mode: 'edit' | 'create' = 'create';
       const payload = buildVendorApiPayload();
@@ -574,6 +578,27 @@ const handleSave = async () => {
       return e?.message || e?.data?.message || '保存失败';
     }
   });
+};
+
+const validateVendorContacts = () => {
+  for (let i = 0; i < contacts.value.length; i++) {
+    const contact = contacts.value[i];
+    const name = (contact.cName || '').trim();
+    if (!name) {
+      continue;
+    }
+
+    const mobile = (contact.mobile || '').trim();
+    const email = (contact.email || '').trim();
+
+    if (mobile && mobile !== '-' && !mobilePhonePattern.test(mobile)) {
+      throw new Error(`联系人 ${i + 1} 手机号格式不正确`);
+    }
+
+    if (email && email !== '-' && !emailPattern.test(email)) {
+      throw new Error(`联系人 ${i + 1} 邮箱格式不正确`);
+    }
+  }
 };
 
 const handleConvertToFormal = async () => {

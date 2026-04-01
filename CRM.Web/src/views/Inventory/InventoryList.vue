@@ -46,76 +46,64 @@
       </div>
     </div>
 
-    <CrmDataTable :data="list" v-loading="loading" @row-dblclick="onRowDblclick">
-      <el-table-column label="物料型号" min-width="160" show-overflow-tooltip>
-        <template #default="{ row }">{{ materialModelDisplay(row) }}</template>
-      </el-table-column>
-      <el-table-column label="品牌" min-width="120" show-overflow-tooltip>
-        <template #default="{ row }">{{ materialBrandDisplay(row) }}</template>
-      </el-table-column>
-      <el-table-column label="仓库名称" width="160" show-overflow-tooltip>
-        <template #default="{ row }">{{ warehouseNameOf(row.warehouseId) }}</template>
-      </el-table-column>
-      <el-table-column prop="onHandQty" label="在库数量" width="110" align="right">
-        <template #default="{ row }">{{ formatNum(row.onHandQty) }}</template>
-      </el-table-column>
-      <el-table-column prop="availableQty" label="可用数量" width="110" align="right">
-        <template #default="{ row }">{{ formatNum(row.availableQty) }}</template>
-      </el-table-column>
-      <el-table-column prop="lockedQty" label="占用数量" width="110" align="right">
-        <template #default="{ row }">{{ formatNum(row.lockedQty) }}</template>
-      </el-table-column>
-      <el-table-column prop="inventoryAmount" label="库存金额" width="120" align="right">
-        <template #default="{ row }">{{ formatMoney(row.inventoryAmount) }}</template>
-      </el-table-column>
-      <el-table-column prop="lastMoveTime" label="最后移动时间" width="170">
-        <template #default="{ row }">{{ formatTime(row.lastMoveTime) }}</template>
-      </el-table-column>
-      <el-table-column label="创建时间" width="160">
-        <template #default="{ row }">{{ formatTime((row as any).createTime || (row as any).createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="创建人" width="120" show-overflow-tooltip>
-        <template #default="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
-      </el-table-column>
-      <el-table-column
-        label="操作"
-        :width="opColMainWidth"
-        :min-width="opColMainMinWidth"
-        fixed="right"
-        class-name="op-col"
-        label-class-name="op-col"
-      >
-        <template #header>
-          <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
-            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpColMain">
-              {{ opColMainExpanded ? '>' : '<' }}
-            </button>
+    <CrmDataTable
+      ref="dataTableRef"
+      column-layout-key="inventory-list-main"
+      :columns="inventoryTableColumns"
+      :show-column-settings="false"
+      :data="list"
+      v-loading="loading"
+      @row-dblclick="onRowDblclick"
+    >
+      <template #col-materialModel="{ row }">{{ materialModelDisplay(row) }}</template>
+      <template #col-materialBrand="{ row }">{{ materialBrandDisplay(row) }}</template>
+      <template #col-warehouseName="{ row }">{{ warehouseNameOf(row.warehouseId) }}</template>
+      <template #col-onHandQty="{ row }">{{ formatNum(row.onHandQty) }}</template>
+      <template #col-availableQty="{ row }">{{ formatNum(row.availableQty) }}</template>
+      <template #col-lockedQty="{ row }">{{ formatNum(row.lockedQty) }}</template>
+      <template #col-inventoryAmount="{ row }">{{ formatMoney(row.inventoryAmount) }}</template>
+      <template #col-lastMoveTime="{ row }">{{ formatTime(row.lastMoveTime) }}</template>
+      <template #col-createTime="{ row }">{{ formatTime((row as any).createTime || (row as any).createdAt) }}</template>
+      <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
+      <template #col-actions-header>
+        <div class="op-col-header">
+          <span class="op-col-header-text">操作</span>
+          <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpColMain">
+            {{ opColMainExpanded ? '>' : '<' }}
+          </button>
+        </div>
+      </template>
+      <template #col-actions="{ row }">
+        <div @click.stop @dblclick.stop>
+          <div v-if="opColMainExpanded" class="action-btns">
+            <button type="button" class="action-btn action-btn--info" @click.stop="openTrace(row.materialId)">入库追溯</button>
           </div>
-        </template>
 
-        <template #default="{ row }">
-          <div @click.stop @dblclick.stop>
-            <div v-if="opColMainExpanded" class="action-btns">
-              <button type="button" class="action-btn action-btn--info" @click.stop="openTrace(row.materialId)">入库追溯</button>
+          <el-dropdown v-else trigger="click" placement="bottom-end">
+            <div class="op-more-dropdown-trigger">
+              <button type="button" class="op-more-trigger">...</button>
             </div>
-
-            <el-dropdown v-else trigger="click" placement="bottom-end">
-              <div class="op-more-dropdown-trigger">
-                <button type="button" class="op-more-trigger">...</button>
-              </div>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click.stop="openTrace(row.materialId)">
-                    <span class="op-more-item op-more-item--info">入库追溯</span>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-        </template>
-      </el-table-column>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click.stop="openTrace(row.materialId)">
+                  <span class="op-more-item op-more-item--info">入库追溯</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </template>
     </CrmDataTable>
+    <div class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip content="列设置" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <div class="list-footer-spacer" aria-hidden="true"></div>
+      </div>
+    </div>
 
     <el-dialog v-model="warehouseVisible" title="仓库管理" width="720px">
       <el-form :model="warehouseForm" inline>
@@ -186,13 +174,16 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
 import { inventoryCenterApi, type FinanceSummary, type InventoryOverview, type WarehouseInfo } from '@/api/inventoryCenter'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const loading = ref(false)
 const list = ref<InventoryOverview[]>([])
+const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const warehouseFilter = ref('')
 const finance = ref<FinanceSummary | null>(null)
 const warehouseVisible = ref(false)
@@ -210,6 +201,31 @@ const opColMainMinWidth = computed(() =>
 function toggleOpColMain() {
   opColMainExpanded.value = !opColMainExpanded.value
 }
+
+const inventoryTableColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'materialModel', label: '物料型号', minWidth: 160, showOverflowTooltip: true },
+  { key: 'materialBrand', label: '品牌', minWidth: 120, showOverflowTooltip: true },
+  { key: 'warehouseName', label: '仓库名称', width: 160, showOverflowTooltip: true },
+  { key: 'onHandQty', label: '在库数量', prop: 'onHandQty', width: 110, align: 'right' },
+  { key: 'availableQty', label: '可用数量', prop: 'availableQty', width: 110, align: 'right' },
+  { key: 'lockedQty', label: '占用数量', prop: 'lockedQty', width: 110, align: 'right' },
+  { key: 'inventoryAmount', label: '库存金额', prop: 'inventoryAmount', width: 120, align: 'right' },
+  { key: 'lastMoveTime', label: '最后移动时间', prop: 'lastMoveTime', width: 170 },
+  { key: 'createTime', label: '创建时间', width: 160 },
+  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColMainWidth.value,
+    minWidth: opColMainMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  }
+])
 
 // 列表操作列：弹窗表格默认收起（Collapsed）
 const opColWarehouseExpanded = ref(false)
@@ -552,6 +568,29 @@ onMounted(() => fetchList())
 
 .op-more-item--info {
   color: rgba(200, 216, 232, 0.85);
+}
+
+.pagination-wrapper {
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 
 </style>

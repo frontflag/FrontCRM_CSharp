@@ -124,6 +124,8 @@ const formatAmount = (val: number) => {
 </script>
 
 <style lang="scss" scoped>
+@import '@/assets/styles/variables.scss';
+
 .finance-detail {
   padding: 20px;
   min-height: 100%;
@@ -135,20 +137,20 @@ const formatAmount = (val: number) => {
   gap: 12px;
   margin-bottom: 20px;
   .back-btn {
-    color: rgba(200, 220, 240, 0.7);
-    &:hover { color: #00d4ff; }
+    color: $text-secondary;
+    &:hover { color: $cyan-primary; }
   }
 }
 
 .loading-wrap {
   padding: 20px;
-  background: #0a1828;
+  background: $layer-2;
   border-radius: 8px;
 }
 
 .info-card, .tab-card {
-  background: #0a1828;
-  border: 1px solid #1a2d45;
+  background: $layer-2;
+  border: 1px solid $border-card;
   border-radius: 8px;
   padding: 16px 20px;
   margin-bottom: 16px;
@@ -160,35 +162,35 @@ const formatAmount = (val: number) => {
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: #e0f0ff;
+  color: $text-primary;
   margin-bottom: 14px;
   .title-bar {
     width: 4px;
     height: 16px;
-    background: #00c8ff;
+    background: $cyan-primary;
     border-radius: 2px;
   }
 }
 
 .order-desc {
   :deep(.el-descriptions__label) {
-    color: #5a7a9a;
-    background: #0d1e35;
+    color: $text-muted;
+    background: $layer-3;
     width: 100px;
   }
   :deep(.el-descriptions__content) {
-    background: #0a1828;
+    background: $layer-2;
   }
 }
 
 .order-code {
   font-family: 'Courier New', monospace;
-  color: #7ecfff;
+  color: $text-secondary;
   font-weight: 600;
 }
 
 .amount {
-  color: #00c8ff;
+  color: $cyan-primary;
   font-weight: 600;
 }
 

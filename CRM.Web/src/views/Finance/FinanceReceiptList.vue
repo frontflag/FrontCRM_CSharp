@@ -60,100 +60,86 @@
 
     <!-- 数据表格 -->
     <CrmDataTable
+      ref="dataTableRef"
+      column-layout-key="finance-receipt-list-main"
+      :columns="receiptTableColumns"
+      :show-column-settings="false"
       :data="tableData"
       v-loading="loading"
       @row-dblclick="openDetail"
       row-class-name="table-row-pointer"
     >
-        <el-table-column prop="financeReceiptCode" label="收款单号" width="160" min-width="160" fixed>
-          <template #default="{ row }">
-            <span class="code-text">{{ row.financeReceiptCode }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="RECEIPT_STATUS_MAP[row.status]?.type as any" size="small">
-              {{ RECEIPT_STATUS_MAP[row.status]?.label }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="customerName" label="客户" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="receiptAmount" label="收款金额" width="140" align="right">
-          <template #default="{ row }">
-            <span class="amount-text">{{ CURRENCY_MAP[row.receiptCurrency] }} {{ formatAmount(row.receiptAmount) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="receiptMode" label="收款方式" width="110">
-          <template #default="{ row }">{{ PAYMENT_MODE_MAP[row.receiptMode] }}</template>
-        </el-table-column>
-        <el-table-column prop="receiptDate" label="收款日期" width="120">
-          <template #default="{ row }">{{ row.receiptDate ? formatDisplayDate(row.receiptDate) : '-' }}</template>
-        </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="createdAt" label="创建时间" width="120">
-          <template #default="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
-        </el-table-column>
-        <el-table-column label="创建人" width="120" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ (row as any).createUserName || (row as any).createdBy || (row as any).receiptUserName || '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="操作"
-          :width="opColWidth"
-          :min-width="opColMinWidth"
-          fixed="right"
-          class-name="op-col"
-          label-class-name="op-col"
-        >
-          <template #header>
-            <div class="op-col-header">
-              <span class="op-col-header-text">操作</span>
-              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-                {{ opColExpanded ? '>' : '<' }}
-              </button>
-            </div>
-          </template>
+      <template #col-financeReceiptCode="{ row }">
+        <span class="code-text">{{ row.financeReceiptCode }}</span>
+      </template>
+      <template #col-status="{ row }">
+        <el-tag effect="dark" :type="RECEIPT_STATUS_MAP[row.status]?.type as any" size="small">
+          {{ RECEIPT_STATUS_MAP[row.status]?.label }}
+        </el-tag>
+      </template>
+      <template #col-receiptAmount="{ row }">
+        <span class="amount-text">{{ CURRENCY_MAP[row.receiptCurrency] }} {{ formatAmount(row.receiptAmount) }}</span>
+      </template>
+      <template #col-receiptMode="{ row }">{{ PAYMENT_MODE_MAP[row.receiptMode] }}</template>
+      <template #col-receiptDate="{ row }">{{ row.receiptDate ? formatDisplayDate(row.receiptDate) : '-' }}</template>
+      <template #col-createdAt="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
+      <template #col-createUser="{ row }">
+        {{ (row as any).createUserName || (row as any).createdBy || (row as any).receiptUserName || '-' }}
+      </template>
+      <template #col-actions-header>
+        <div class="op-col-header">
+          <span class="op-col-header-text">操作</span>
+          <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+            {{ opColExpanded ? '>' : '<' }}
+          </button>
+        </div>
+      </template>
+      <template #col-actions="{ row }">
+        <div @click.stop @dblclick.stop>
+          <div v-if="opColExpanded" class="action-btns">
+            <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
+            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="row.status === 0">编辑</el-button>
+            <el-button size="small" text type="warning" @click.stop="submitAudit(row)" v-if="row.status === 0">提交审核</el-button>
+            <el-button size="small" text type="warning" @click.stop="approveReceipt(row)" v-if="row.status === 1">审核通过</el-button>
+            <el-button size="small" text type="danger" @click.stop="cancelReceipt(row)" v-if="[0,1].includes(row.status)">取消</el-button>
+          </div>
 
-          <template #default="{ row }">
-            <div @click.stop @dblclick.stop>
-              <div v-if="opColExpanded" class="action-btns">
-                <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
-                <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="row.status === 0">编辑</el-button>
-                <el-button size="small" text type="warning" @click.stop="submitAudit(row)" v-if="row.status === 0">提交审核</el-button>
-                <el-button size="small" text type="warning" @click.stop="approveReceipt(row)" v-if="row.status === 1">审核通过</el-button>
-                <el-button size="small" text type="danger" @click.stop="cancelReceipt(row)" v-if="[0,1].includes(row.status)">取消</el-button>
-              </div>
-
-              <el-dropdown v-else trigger="click" placement="bottom-end">
-                <div class="op-more-dropdown-trigger">
-                  <button type="button" class="op-more-trigger">...</button>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item @click.stop="openDetail(row)">
-                      <span class="op-more-item op-more-item--primary">详情</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item v-if="row.status === 0" @click.stop="openEdit(row)">
-                      <span class="op-more-item op-more-item--primary">编辑</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item v-if="row.status === 0" @click.stop="submitAudit(row)">
-                      <span class="op-more-item op-more-item--warning">提交审核</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item v-if="row.status === 1" @click.stop="approveReceipt(row)">
-                      <span class="op-more-item op-more-item--warning">审核通过</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item v-if="[0,1].includes(row.status)" @click.stop="cancelReceipt(row)">
-                      <span class="op-more-item op-more-item--danger">取消</span>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+          <el-dropdown v-else trigger="click" placement="bottom-end">
+            <div class="op-more-dropdown-trigger">
+              <button type="button" class="op-more-trigger">...</button>
             </div>
-          </template>
-        </el-table-column>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click.stop="openDetail(row)">
+                  <span class="op-more-item op-more-item--primary">详情</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="row.status === 0" @click.stop="openEdit(row)">
+                  <span class="op-more-item op-more-item--primary">编辑</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="row.status === 0" @click.stop="submitAudit(row)">
+                  <span class="op-more-item op-more-item--warning">提交审核</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="row.status === 1" @click.stop="approveReceipt(row)">
+                  <span class="op-more-item op-more-item--warning">审核通过</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="[0,1].includes(row.status)" @click.stop="cancelReceipt(row)">
+                  <span class="op-more-item op-more-item--danger">取消</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </template>
     </CrmDataTable>
       <div class="pagination-wrap">
+        <div class="list-footer-left">
+          <el-tooltip content="列设置" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+              <el-icon><Setting /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <div class="list-footer-spacer" aria-hidden="true"></div>
+        </div>
         <el-pagination
           v-model:current-page="query.page"
           v-model:page-size="query.pageSize"
@@ -248,7 +234,7 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Plus } from '@element-plus/icons-vue'
+import { Search, Plus, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   financeReceiptApi,
@@ -261,6 +247,7 @@ import {
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { customerApi } from '@/api/customer'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 
@@ -311,6 +298,7 @@ const dateRange = ref<[string, string] | null>(null)
 const total = ref(0)
 const loading = ref(false)
 const tableData = ref<FinanceReceipt[]>([])
+const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -322,6 +310,30 @@ const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+const receiptTableColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'financeReceiptCode', label: '收款单号', prop: 'financeReceiptCode', width: 160, minWidth: 160, fixed: 'left' },
+  { key: 'status', label: '状态', prop: 'status', width: 100, align: 'center' },
+  { key: 'customerName', label: '客户', prop: 'customerName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'receiptAmount', label: '收款金额', prop: 'receiptAmount', width: 140, align: 'right' },
+  { key: 'receiptMode', label: '收款方式', prop: 'receiptMode', width: 110 },
+  { key: 'receiptDate', label: '收款日期', prop: 'receiptDate', width: 120 },
+  { key: 'remark', label: '备注', prop: 'remark', minWidth: 140, showOverflowTooltip: true },
+  { key: 'createdAt', label: '创建时间', prop: 'createdAt', width: 120 },
+  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  }
+])
 
 const stats = reactive({ monthTotal: 0, pendingCount: 0, receivedCount: 0, draftCount: 0 })
 
@@ -468,5 +480,27 @@ onMounted(loadData)
   padding: 8px 12px;
   color: rgba(80, 187, 227, 0.55);
   font-size: 12px;
+}
+
+.pagination-wrap {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 </style>

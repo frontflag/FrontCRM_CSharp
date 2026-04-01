@@ -249,12 +249,20 @@
                 </el-form-item>
               </el-col>
               <el-col :span="6">
-                <el-form-item label="手机" :prop="`contacts.${index}.mobilePhone`" :rules="{ required: true, message: '请输入手机', trigger: 'blur' }">
+                <el-form-item
+                  label="手机"
+                  :prop="`contacts.${index}.mobilePhone`"
+                  :rules="[{ validator: validateContactMobilePhone, trigger: ['blur', 'change'] }]"
+                >
                   <el-input v-model="contact.mobilePhone" placeholder="手机" class="q-input" />
                 </el-form-item>
               </el-col>
               <el-col :span="8">
-                <el-form-item label="邮箱">
+                <el-form-item
+                  label="邮箱"
+                  :prop="`contacts.${index}.email`"
+                  :rules="[{ validator: validateContactEmail, trigger: ['blur', 'change'] }]"
+                >
                   <el-input v-model="contact.email" placeholder="邮箱" class="q-input" />
                 </el-form-item>
               </el-col>
@@ -335,6 +343,9 @@ const formRules: FormRules = {
   customerLevel: [{ required: true, message: '请选择客户等级', trigger: 'change' }]
 };
 
+const mobilePhonePattern = /^1[3-9]\d{9}$/;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const regionOptions = regionData;
 
 function onSalesPersonChange(p: { id: string; label: string }) {
@@ -414,6 +425,40 @@ const addContact = () => {
     contactName: '', gender: 0, department: '', position: '',
     mobilePhone: '', phone: '', email: '', isDefault: formData.contacts.length === 0
   });
+};
+
+const validateContactMobilePhone = (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+  const v = (value || '').trim();
+  if (v === '-') {
+    callback();
+    return;
+  }
+  if (!v) {
+    callback(new Error('请输入手机'));
+    return;
+  }
+  if (!mobilePhonePattern.test(v)) {
+    callback(new Error('请输入正确的手机号码'));
+    return;
+  }
+  callback();
+};
+
+const validateContactEmail = (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+  const v = (value || '').trim();
+  if (v === '-') {
+    callback();
+    return;
+  }
+  if (!v) {
+    callback();
+    return;
+  }
+  if (!emailPattern.test(v)) {
+    callback(new Error('请输入正确的邮箱地址'));
+    return;
+  }
+  callback();
 };
 
 const removeContact = async (index: number) => {

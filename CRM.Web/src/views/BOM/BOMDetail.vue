@@ -570,12 +570,12 @@ onMounted(loadData)
 }
 .info-card {
   padding: 12px 16px;
-  background: rgba(0, 20, 45, 0.6);
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  background: rgba(0, 212, 255, 0.03);
+  border: 1px solid $border-panel;
   border-radius: 8px;
   min-width: 120px;
-  .info-label { font-size: 11px; color: #556; margin-bottom: 4px; }
-  .info-value { font-size: 14px; color: #c8d8e8; font-weight: 600; }
+  .info-label { font-size: 11px; color: $text-muted; margin-bottom: 4px; }
+  .info-value { font-size: 14px; color: $text-primary; font-weight: 600; }
   .info-value.highlight { color: #00d4ff; }
   .info-value.success { color: #27ae60; }
   .info-value.warning { color: #e6a23c; }
@@ -583,8 +583,8 @@ onMounted(loadData)
 
 /* ── 明细列表 ── */
 .items-panel {
-  background: rgba(0, 20, 45, 0.6);
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  background: $layer-2;
+  border: 1px solid $border-card;
   border-radius: 10px;
   overflow: hidden;
 }
@@ -594,14 +594,14 @@ onMounted(loadData)
   border-bottom: 1px solid rgba(0, 212, 255, 0.08);
   .items-title {
     display: flex; align-items: center; gap: 8px;
-    font-size: 14px; font-weight: 700; color: #e0f0ff;
+    font-size: 14px; font-weight: 700; color: $text-primary;
     .dot { width: 4px; height: 16px; background: linear-gradient(180deg, #00d4ff, #0066cc); border-radius: 2px; }
   }
 }
 
-.mpn-text { font-family: 'Courier New', monospace; color: #c8d8e8; font-size: 12px; }
+.mpn-text { font-family: 'Courier New', monospace; color: $text-primary; font-size: 12px; }
 .quoted-price { color: #27ae60; font-weight: 600; }
-.text-muted { color: #445; }
+.text-muted { color: $text-muted; }
 
 .action-btns {
   display: flex; gap: 6px; flex-wrap: nowrap;
@@ -660,20 +660,20 @@ onMounted(loadData)
   border-radius: 6px;
   margin-bottom: 16px;
   .qi-row { display: flex; align-items: center; margin-bottom: 4px; font-size: 13px; }
-  .qi-label { color: #6a7f94; min-width: 50px; }
-  .qi-value { color: #c8d8e8; font-weight: 600; }
+  .qi-label { color: $text-muted; min-width: 50px; }
+  .qi-value { color: $text-primary; font-weight: 600; }
   .qi-value.mpn { font-family: 'Courier New', monospace; color: #00d4ff; }
 }
 .w-full { width: 100%; }
 
 :deep(.quote-dialog) {
-  .el-dialog { background: #0d1e35; border: 1px solid rgba(0, 212, 255, 0.2); }
-  .el-dialog__title { color: #e0f0ff; }
-  .el-form-item__label { color: #8aa0b8; }
+  .el-dialog { background: $layer-2; border: 1px solid rgba(0, 212, 255, 0.2); }
+  .el-dialog__title { color: $text-primary; }
+  .el-form-item__label { color: $text-muted; }
   .el-input__wrapper, .el-select .el-input__wrapper, .el-textarea__inner {
     background: rgba(255, 255, 255, 0.04);
     border-color: rgba(255, 255, 255, 0.12);
-    color: #c8d8e8;
+    color: $text-primary;
   }
   .el-input-number { width: 100%; }
 }

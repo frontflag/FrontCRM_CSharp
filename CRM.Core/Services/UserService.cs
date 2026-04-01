@@ -36,14 +36,14 @@ namespace CRM.Core.Services
         public async Task<User?> GetByIdAsync(string id)
         {
             if (string.IsNullOrWhiteSpace(id)) return null;
-            var users = await _repository.FindAsync(u => u.Id == id);
+            var users = await _repository.FindAsync(u => u.Id == id && u.IsActive);
             return users.FirstOrDefault();
         }
 
         public async Task<User?> GetByUserNameAsync(string userName)
         {
             if (string.IsNullOrWhiteSpace(userName)) return null;
-            var users = await _repository.FindAsync(u => u.UserName == userName.Trim());
+            var users = await _repository.FindAsync(u => u.UserName == userName.Trim() && u.IsActive);
             return users.FirstOrDefault();
         }
 
@@ -65,12 +65,16 @@ namespace CRM.Core.Services
         {
             var user = await GetByIdAsync(id);
             if (user == null) throw new KeyNotFoundException($"用户不存在: {id}");
-            await _repository.DeleteAsync(user.Id);
+            // 软删除：保留历史数据，不物理删除
+            user.IsActive = false;
+            user.Status = 0;
+            user.ModifyTime = DateTime.UtcNow;
+            await _repository.UpdateAsync(user);
         }
 
         public async Task<IEnumerable<User>> GetAllAsync()
         {
-            return await _repository.GetAllAsync();
+            return await _repository.FindAsync(u => u.IsActive);
         }
 
         public async Task<bool> ValidateCredentialsAsync(string userName, string password)
@@ -104,7 +108,7 @@ namespace CRM.Core.Services
 
         public async Task<IEnumerable<User>> SearchAsync(string keyword)
         {
-            var all = await _repository.GetAllAsync();
+            var all = await _repository.FindAsync(u => u.IsActive);
             if (string.IsNullOrWhiteSpace(keyword)) return all;
             
             var key = keyword.Trim().ToLower();

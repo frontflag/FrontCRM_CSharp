@@ -1117,8 +1117,8 @@ const handleSubmit = async () => {
 }
 
 .item-panel-card {
-  background: rgba(0, 0, 0, 0.15);
-  border: 1px solid $border-panel;
+  background: rgba(0, 212, 255, 0.028);
+  border: 1px solid rgba(0, 212, 255, 0.14);
   border-radius: $border-radius-md;
   padding: 14px 16px 16px;
 }

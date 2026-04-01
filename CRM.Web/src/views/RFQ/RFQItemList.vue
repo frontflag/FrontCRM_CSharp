@@ -96,6 +96,9 @@
       <div class="table-card-scroll rfq-items-main-table" v-loading="loading">
       <CrmDataTable
         ref="dataTableRef"
+        column-layout-key="rfq-item-list-main"
+        :columns="rfqItemMainTableColumns"
+        :show-column-settings="false"
         :data="tableData"
         row-key="id"
         highlight-current-row
@@ -103,102 +106,97 @@
         @row-dblclick="goDetail"
         @selection-change="onSelectionChange"
       >
-        <el-table-column type="selection" width="48" :resizable="false" :reserve-selection="true" />
-        <el-table-column label="明细状态" width="160" min-width="160" align="center" resizable>
-          <template #default="{ row }">
-            <el-tag size="small" effect="dark">{{ itemStatusText(row.status) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="rfqCode" label="需求编号" width="160" min-width="160" show-overflow-tooltip resizable />
-        <el-table-column label="报价条目" width="120" min-width="112" align="center" resizable>
-          <template #default="{ row }">
-            <span
-              class="rfq-item-quote-count"
-              :class="{ 'rfq-item-quote-count--positive': (quoteRecordCountByRfqItemId[row.id] ?? 0) > 0 }"
-            >
-              {{ quoteRecordCountByRfqItemId[row.id] ?? 0 }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="customerName" label="客户" min-width="200" show-overflow-tooltip resizable />
-        <el-table-column label="物料型号" min-width="120" show-overflow-tooltip resizable>
-          <template #default="{ row }">{{ row.materialModel || row.mpn || '—' }}</template>
-        </el-table-column>
-        <el-table-column label="客户料号" width="120" min-width="88" show-overflow-tooltip resizable>
-          <template #default="{ row }">{{ row.customerMaterialModel || row.customerMpn || '—' }}</template>
-        </el-table-column>
-        <el-table-column prop="quantity" label="数量" width="90" min-width="72" align="right" resizable />
-        <el-table-column prop="salesUserName" label="业务员" width="100" min-width="80" show-overflow-tooltip resizable />
-        <el-table-column label="采购员" min-width="160" show-overflow-tooltip resizable>
-          <template #default="{ row }">{{ formatAssignedPurchasers(row) }}</template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="160" show-overflow-tooltip resizable>
-          <template #default="{ row }">{{ formatDate(row.createTime || row.rfqCreateTime) }}</template>
-        </el-table-column>
-        <el-table-column label="创建人" width="120" show-overflow-tooltip resizable>
-          <template #default="{ row }">{{ row.createUserName || row.createdBy || row.salesUserName || '—' }}</template>
-        </el-table-column>
-        <!-- 操作列：列表操作列规范（收起/展开） -->
-        <el-table-column
-          label="操作"
-          :width="opColWidth"
-          :min-width="opColMinWidth"
-          fixed="right"
-          resizable
-          class-name="op-col"
-          label-class-name="op-col"
-        >
-          <template #header>
-            <div class="op-col-header">
-              <span class="op-col-header-text">操作</span>
-              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-                {{ opColExpanded ? '>' : '<' }}
-              </button>
+        <template #col-itemStatus="{ row }">
+          <el-tag size="small" effect="dark">{{ itemStatusText(row.status) }}</el-tag>
+        </template>
+        <template #col-quoteCount="{ row }">
+          <span
+            class="rfq-item-quote-count"
+            :class="{ 'rfq-item-quote-count--positive': (quoteRecordCountByRfqItemId[row.id] ?? 0) > 0 }"
+          >
+            {{ quoteRecordCountByRfqItemId[row.id] ?? 0 }}
+          </span>
+        </template>
+        <template #col-materialModel="{ row }">
+          {{ row.materialModel || row.mpn || '—' }}
+        </template>
+        <template #col-customerPart="{ row }">
+          {{ row.customerMaterialModel || row.customerMpn || '—' }}
+        </template>
+        <template #col-purchasers="{ row }">
+          {{ formatAssignedPurchasers(row) }}
+        </template>
+        <template #col-createTime="{ row }">
+          {{ formatDate(row.createTime || row.rfqCreateTime) }}
+        </template>
+        <template #col-createUser="{ row }">
+          {{ row.createUserName || row.createdBy || row.salesUserName || '—' }}
+        </template>
+        <template #col-actions-header>
+          <div class="op-col-header">
+            <span class="op-col-header-text">操作</span>
+            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
+        <template #col-actions="{ row }">
+          <div @click.stop @dblclick.stop>
+            <div v-if="opColExpanded" class="action-btns">
+              <button type="button" class="action-btn action-btn--primary" @click.stop="goDetail(row)">详情</button>
+              <button type="button" class="action-btn action-btn--warning" @click.stop="goQuote(row)">报价</button>
             </div>
-          </template>
 
-          <template #default="{ row }">
-            <div @click.stop @dblclick.stop>
-              <div v-if="opColExpanded" class="action-btns">
-                <button type="button" class="action-btn action-btn--primary" @click.stop="goDetail(row)">详情</button>
-                <button type="button" class="action-btn action-btn--warning" @click.stop="goQuote(row)">报价</button>
+            <el-dropdown v-else trigger="click" placement="bottom-end">
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
               </div>
-
-              <el-dropdown v-else trigger="click" placement="bottom-end">
-                <div class="op-more-dropdown-trigger">
-                  <button type="button" class="op-more-trigger">...</button>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item @click.stop="goDetail(row)">
-                      <span class="op-more-item op-more-item--primary">详情</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item @click.stop="goQuote(row)">
-                      <span class="op-more-item op-more-item--warning">报价</span>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click.stop="goDetail(row)">
+                    <span class="op-more-item op-more-item--primary">详情</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item @click.stop="goQuote(row)">
+                    <span class="op-more-item op-more-item--warning">报价</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </template>
       </CrmDataTable>
       </div>
 
       <div class="table-footer-bar">
-        <div class="basket-footer-left">
-          <el-button class="basket-open-btn" link type="primary" @click="basketDrawerVisible = true">
-            复选篮子<span v-if="basketCount" class="basket-count-label">（{{ basketCount }}）</span>
-          </el-button>
-          <el-button
-            v-if="basketCount"
-            class="basket-clear-btn"
-            link
-            type="warning"
-            @click="handleClearBasket"
-          >
-            清空篮子
-          </el-button>
+        <div class="table-footer-left">
+          <el-tooltip content="列设置" placement="top" :hide-after="0">
+            <el-button
+              class="table-settings-btn"
+              link
+              type="primary"
+              aria-label="列设置"
+              @click="dataTableRef?.openColumnSettings?.()"
+            >
+              <el-icon><Setting /></el-icon>
+            </el-button>
+          </el-tooltip>
+
+          <div class="table-footer-spacer" aria-hidden="true"></div>
+
+          <div class="basket-footer-left">
+            <el-button class="basket-open-btn" link type="primary" @click="basketDrawerVisible = true">
+              复选篮子<span v-if="basketCount" class="basket-count-label">（{{ basketCount }}）</span>
+            </el-button>
+            <el-button
+              v-if="basketCount"
+              class="basket-clear-btn"
+              link
+              type="warning"
+              @click="handleClearBasket"
+            >
+              清空篮子
+            </el-button>
+          </div>
         </div>
         <el-pagination
           class="quantum-pagination"
@@ -447,6 +445,8 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
 import { useRfqItemListBasketStore } from '@/stores/rfqItemListBasket'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { Setting } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -479,6 +479,119 @@ const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+/** 主表可配置列（列设置 / 顺序 / localStorage：crm-table-columns:v1:rfq-item-list-main） */
+const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => [
+  {
+    key: 'sel',
+    type: 'selection',
+    width: 48,
+    hideable: false,
+    pinned: 'start',
+    resizable: false,
+    reserveSelection: true
+  },
+  {
+    key: 'itemStatus',
+    label: '明细状态',
+    width: 160,
+    minWidth: 160,
+    align: 'center',
+    resizable: true
+  },
+  {
+    key: 'rfqCode',
+    label: '需求编号',
+    prop: 'rfqCode',
+    width: 160,
+    minWidth: 160,
+    showOverflowTooltip: true,
+    resizable: true
+  },
+  {
+    key: 'quoteCount',
+    label: '报价条目',
+    width: 120,
+    minWidth: 112,
+    align: 'center',
+    resizable: true
+  },
+  {
+    key: 'customerName',
+    label: '客户',
+    prop: 'customerName',
+    minWidth: 200,
+    showOverflowTooltip: true,
+    resizable: true
+  },
+  {
+    key: 'materialModel',
+    label: '物料型号',
+    minWidth: 120,
+    showOverflowTooltip: true,
+    resizable: true
+  },
+  {
+    key: 'customerPart',
+    label: '客户料号',
+    width: 120,
+    minWidth: 88,
+    showOverflowTooltip: true,
+    resizable: true
+  },
+  {
+    key: 'quantity',
+    label: '数量',
+    prop: 'quantity',
+    width: 90,
+    minWidth: 72,
+    align: 'right',
+    resizable: true
+  },
+  {
+    key: 'salesUserName',
+    label: '业务员',
+    prop: 'salesUserName',
+    width: 100,
+    minWidth: 80,
+    showOverflowTooltip: true,
+    resizable: true
+  },
+  {
+    key: 'purchasers',
+    label: '采购员',
+    minWidth: 160,
+    showOverflowTooltip: true,
+    resizable: true
+  },
+  {
+    key: 'createTime',
+    label: '创建时间',
+    width: 160,
+    showOverflowTooltip: true,
+    resizable: true
+  },
+  {
+    key: 'createUser',
+    label: '创建人',
+    width: 120,
+    showOverflowTooltip: true,
+    resizable: true
+  },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col',
+    resizable: true
+  }
+])
 
 // 底部抽屉内子表格操作列：默认收起（Collapsed）
 const opDockColExpanded = ref(false)
@@ -1500,13 +1613,32 @@ onUnmounted(() => {
 
 .table-footer-bar {
   flex-shrink: 0;
-  margin-top: 12px;
-  padding-top: 4px;
+  margin-top: 6px;
+  padding-top: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-start;
   gap: 12px 16px;
   flex-wrap: wrap;
+}
+
+.table-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+.table-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+  margin-left: 14px;
+}
+
+.table-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 
 .basket-footer-left {
@@ -1531,6 +1663,7 @@ onUnmounted(() => {
 
 .table-footer-bar .quantum-pagination {
   margin-left: auto;
+  align-self: flex-start;
 }
 
 // 主列表操作列 .action-btns / .action-btn / op-col：crm-unified-list.scss 中 .crm-data-table 统一提供

@@ -2,8 +2,11 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
 import { inventoryCenterApi, type InventoryOverview } from '@/api/inventoryCenter'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import CrmDataTable from '@/components/CrmDataTable.vue'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const route = useRoute()
 const router = useRouter()
@@ -11,6 +14,7 @@ const router = useRouter()
 const loading = ref(false)
 const allRows = ref<InventoryOverview[]>([])
 const keywordInput = ref('')
+const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 
 function norm(s: string) {
   return s.trim().toLowerCase()
@@ -72,6 +76,15 @@ function formatTime(v?: string | null) {
   return s === '--' ? '—' : s
 }
 
+const pnTableColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'materialModel', label: '物料型号', prop: 'materialModel', minWidth: 200, showOverflowTooltip: true },
+  { key: 'materialName', label: '物料名称', prop: 'materialName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'warehouse', label: '仓库', width: 160, showOverflowTooltip: true },
+  { key: 'onHandQty', label: '在库', prop: 'onHandQty', width: 100, align: 'right' },
+  { key: 'availableQty', label: '可用', prop: 'availableQty', width: 100, align: 'right' },
+  { key: 'lastMoveTime', label: '最后移动', prop: 'lastMoveTime', width: 170 }
+])
+
 onMounted(() => {
   loadOverview()
 })
@@ -110,22 +123,30 @@ onMounted(() => {
     </div>
 
     <el-card class="table-card" v-loading="loading">
-      <el-table :data="filteredRows" stripe class="pn-table" max-height="72vh">
-        <el-table-column label="物料型号" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.materialModel || '—' }}</template>
-        </el-table-column>
-        <el-table-column label="物料名称" min-width="160" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.materialName || '—' }}</template>
-        </el-table-column>
-        <el-table-column label="仓库" width="160" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.warehouseCode?.trim() || row.warehouseId || '—' }}</template>
-        </el-table-column>
-        <el-table-column prop="onHandQty" label="在库" width="100" align="right" />
-        <el-table-column prop="availableQty" label="可用" width="100" align="right" />
-        <el-table-column label="最后移动" width="170">
-          <template #default="{ row }">{{ formatTime(row.lastMoveTime) }}</template>
-        </el-table-column>
-      </el-table>
+      <CrmDataTable
+        ref="dataTableRef"
+        column-layout-key="pn-list-main"
+        :columns="pnTableColumns"
+        :show-column-settings="false"
+        :data="filteredRows"
+        stripe
+        class="pn-table"
+      >
+        <template #col-materialModel="{ row }">{{ row.materialModel || '—' }}</template>
+        <template #col-materialName="{ row }">{{ row.materialName || '—' }}</template>
+        <template #col-warehouse="{ row }">{{ row.warehouseCode?.trim() || row.warehouseId || '—' }}</template>
+        <template #col-lastMoveTime="{ row }">{{ formatTime(row.lastMoveTime) }}</template>
+      </CrmDataTable>
+      <div class="pagination-wrapper">
+        <div class="list-footer-left">
+          <el-tooltip content="列设置" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+              <el-icon><Setting /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <div class="list-footer-spacer" aria-hidden="true"></div>
+        </div>
+      </div>
     </el-card>
   </div>
 </template>
@@ -228,5 +249,28 @@ onMounted(() => {
 
 .pn-table {
   background: transparent;
+}
+
+.pagination-wrapper {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 </style>

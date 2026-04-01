@@ -130,102 +130,103 @@
 
     <!-- 表格列表 -->
     <div class="table-wrapper" v-loading="loading">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th style="width:160px;min-width:160px">客户编号</th>
-            <th style="width:160px">状态</th>
-            <th v-if="canViewCustomerInfo" style="min-width:200px">客户名称</th>
-            <th style="width:80px">类型</th>
-            <th style="width:80px">级别</th>
-            <th style="width:110px">行业</th>
-            <th v-if="canViewCustomerInfo" style="width:130px">联系人</th>
-            <th v-if="canViewCustomerInfo" style="width:130px">联系电话</th>
-            <th style="min-width:100px">地区</th>
-            <th style="width:160px">创建日期</th>
-            <th style="width:120px">创建人</th>
-            <th style="width:200px">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="customer in customerList"
-            :key="customer.id"
-            class="table-row"
-            @dblclick="handleView(customer)"
-          >
-            <td class="td-code">{{ customer.customerCode }}</td>
-            <td>
-              <span class="status-dot" :class="getStatusDotClass(customer.status)">
-                {{ getStatusText(customer.status) }}
-              </span>
-            </td>
-            <td v-if="canViewCustomerInfo">
-              <div class="customer-name-cell">
-                <div class="cell-avatar">
-                  <span>{{ (customer.customerName || customer.customerShortName || '?')[0] }}</span>
-                </div>
-                <div class="cell-name-group">
-                  <div class="cell-name-line">
-                    <span
-                      class="cell-name"
-                      :class="{ 'party-entity-name--muted': isPartyStatusMuted(customer) }"
-                    >{{ customer.customerName || customer.customerShortName }}</span>
-                    <PartyStatusIcons
-                      :entity-id="customer.id"
-                      :frozen="!!customer.disenableStatus"
-                      :blacklist="!!customer.blackList"
-                      size="sm"
-                    />
-                  </div>
-                  <div class="cell-short" v-if="customer.customerShortName && customer.customerShortName !== customer.customerName">
-                    {{ customer.customerShortName }}
-                  </div>
-                </div>
+      <CrmDataTable
+        ref="dataTableRef"
+        column-layout-key="customer-list-main"
+        :columns="customerTableColumns"
+        :show-column-settings="false"
+        :data="customerList"
+        row-key="id"
+        @row-dblclick="handleView"
+      >
+        <template #col-status="{ row }">
+          <span class="status-dot" :class="getStatusDotClass(row.status)">
+            {{ getStatusText(row.status) }}
+          </span>
+        </template>
+        <template #col-customerName="{ row }">
+          <div class="customer-name-cell">
+            <div class="cell-avatar">
+              <span>{{ (row.customerName || row.customerShortName || '?')[0] }}</span>
+            </div>
+            <div class="cell-name-group">
+              <div class="cell-name-line">
+                <span
+                  class="cell-name"
+                  :class="{ 'party-entity-name--muted': isPartyStatusMuted(row) }"
+                >{{ row.customerName || row.customerShortName }}</span>
+                <PartyStatusIcons
+                  :entity-id="row.id"
+                  :frozen="!!row.disenableStatus"
+                  :blacklist="!!row.blackList"
+                  size="sm"
+                />
               </div>
-            </td>
-            <td>
-              <span class="badge badge-type" v-if="customer.customerType">{{ getTypeLabel(customer.customerType) }}</span>
-            </td>
-            <td>
-              <span class="badge" :class="`badge-level-${(customer.customerLevel || '').toLowerCase()}`" v-if="customer.customerLevel">
-                {{ getLevelLabel(customer.customerLevel) }}
-              </span>
-            </td>
-            <td class="td-muted">{{ getIndustryLabel(customer.industry || '') }}</td>
-            <td v-if="canViewCustomerInfo">
-              <template v-if="customer.contacts && customer.contacts.length > 0">
-                <span class="td-contact">{{ customer.contacts[0].contactName }}</span>
-              </template>
-              <span v-else class="td-empty">--</span>
-            </td>
-            <td v-if="canViewCustomerInfo">
-              <template v-if="customer.contacts && customer.contacts.length > 0">
-                <span class="td-phone">{{ customer.contacts[0].mobilePhone }}</span>
-              </template>
-              <span v-else class="td-empty">--</span>
-            </td>
-            <td class="td-muted">{{ customer.city || customer.region || '--' }}</td>
-            <td class="td-muted">{{ formatDate(customer.createdAt ?? (customer as any).createTime) }}</td>
-            <td class="td-muted">{{ (customer as any).createUserName || (customer as any).createdBy || (customer as any).salesPersonName || '--' }}</td>
-            <td @click.stop @dblclick.stop>
-              <div class="action-btns">
-                <button class="action-btn action-btn--primary" @click.stop="handleView(customer)">详情</button>
-                <button class="action-btn action-btn--primary" @click.stop="handleEdit(customer)">编辑</button>
-                <button
-                  v-if="customer.status === 1"
-                  class="action-btn action-btn--warning"
-                  @click.stop="handleSubmitAudit(customer)"
-                >
-                  提交审核
-                </button>
+              <div class="cell-short" v-if="row.customerShortName && row.customerShortName !== row.customerName">
+                {{ row.customerShortName }}
               </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            </div>
+          </div>
+        </template>
+        <template #col-customerType="{ row }">
+          <span class="badge badge-type" v-if="row.customerType">{{ getTypeLabel(row.customerType) }}</span>
+        </template>
+        <template #col-customerLevel="{ row }">
+          <span class="badge" :class="`badge-level-${(row.customerLevel || '').toLowerCase()}`" v-if="row.customerLevel">
+            {{ getLevelLabel(row.customerLevel) }}
+          </span>
+        </template>
+        <template #col-industry="{ row }"><span class="td-muted">{{ getIndustryLabel(row.industry || '') }}</span></template>
+        <template #col-contactName="{ row }">
+          <span class="td-contact">{{ row.contacts && row.contacts.length > 0 ? row.contacts[0].contactName : '--' }}</span>
+        </template>
+        <template #col-mobilePhone="{ row }">
+          <span class="td-phone">{{ row.contacts && row.contacts.length > 0 ? row.contacts[0].mobilePhone : '--' }}</span>
+        </template>
+        <template #col-region="{ row }"><span class="td-muted">{{ row.city || row.region || '--' }}</span></template>
+        <template #col-createdAt="{ row }"><span class="td-muted">{{ formatDate(row.createdAt ?? (row as any).createTime) }}</span></template>
+        <template #col-createUser="{ row }">
+          <span class="td-muted">{{ (row as any).createUserName || (row as any).createdBy || (row as any).salesPersonName || '--' }}</span>
+        </template>
+        <template #col-actions-header>
+          <div class="op-col-header">
+            <span class="op-col-header-text">操作</span>
+            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
+        <template #col-actions="{ row }">
+          <div @click.stop @dblclick.stop>
+            <div v-if="opColExpanded" class="action-btns always-visible">
+              <button class="action-btn action-btn--primary" @click.stop="handleView(row)">详情</button>
+              <button class="action-btn action-btn--primary" @click.stop="handleEdit(row)">编辑</button>
+              <button
+                v-if="row.status === 1"
+                class="action-btn action-btn--warning"
+                @click.stop="handleSubmitAudit(row)"
+              >
+                提交审核
+              </button>
+            </div>
+            <el-dropdown v-else trigger="click" placement="bottom-end">
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click.stop="handleView(row)">详情</el-dropdown-item>
+                  <el-dropdown-item @click.stop="handleEdit(row)">编辑</el-dropdown-item>
+                  <el-dropdown-item v-if="row.status === 1" @click.stop="handleSubmitAudit(row)">
+                    提交审核
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </template>
+      </CrmDataTable>
 
-      <!-- 空状态 -->
       <div v-if="!loading && customerList.length === 0" class="empty-state">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
@@ -254,6 +255,14 @@
 
     <!-- 分页 -->
     <div class="pagination-wrapper" v-if="totalCount > 0">
+      <div class="list-footer-left">
+        <el-tooltip content="列设置" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <div class="list-footer-spacer" aria-hidden="true"></div>
+      </div>
       <el-pagination
         v-model:current-page="pagination.pageNumber"
         v-model:page-size="pagination.pageSize"
@@ -271,9 +280,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch, nextTick } from 'vue';
+import { ref, reactive, onMounted, watch, nextTick, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElNotification, ElMessageBox } from 'element-plus';
+import { Setting } from '@element-plus/icons-vue'
 import { customerApi } from '@/api/customer';
 import { authApi } from '@/api/auth';
 import { favoriteApi } from '@/api/favorite';
@@ -282,8 +292,10 @@ import type { Customer, CustomerSearchRequest } from '@/types/customer';
 import { useAuthStore } from '@/stores/auth';
 import PartyStatusIcons from '@/components/party/PartyStatusIcons.vue';
 import CustomerImportDialog from '@/components/Customer/CustomerImportDialog.vue';
+import CrmDataTable from '@/components/CrmDataTable.vue'
 import { buildCustomerListQuery, parseCustomerListQuery } from '@/utils/customerListQuery';
 import { CUSTOMER_WORKFLOW_STATUS_OPTIONS } from '@/constants/customerWorkflowStatus';
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter();
 const route = useRoute();
@@ -296,6 +308,15 @@ const canViewCustomerInfo = authStore.hasPermission('customer.info.read');
 const canSubmitAudit = authStore.hasPermission('customer.write');
 
 const importDialogVisible = ref(false);
+const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+const opColExpanded = ref(false)
+const OP_COL_COLLAPSED_WIDTH = 96
+const OP_COL_EXPANDED_WIDTH = 220
+const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() => (opColExpanded.value ? 220 : OP_COL_COLLAPSED_WIDTH))
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
 
 const loading = ref(false);
 const customerList = ref<Customer[]>([]);
@@ -329,6 +350,37 @@ const searchForm = reactive<CustomerSearchRequest>({
 });
 
 const pagination = reactive({ pageNumber: 1, pageSize: 20 });
+
+const customerTableColumns = computed<CrmTableColumnDef[]>(() => {
+  const cols: CrmTableColumnDef[] = [
+    { key: 'customerCode', label: '客户编号', prop: 'customerCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+    { key: 'status', label: '状态', prop: 'status', width: 160, align: 'center' },
+    { key: 'customerType', label: '类型', width: 80, align: 'center' },
+    { key: 'customerLevel', label: '级别', width: 80, align: 'center' },
+    { key: 'industry', label: '行业', width: 110, showOverflowTooltip: true },
+    { key: 'region', label: '地区', minWidth: 100, showOverflowTooltip: true },
+    { key: 'createdAt', label: '创建日期', width: 160 },
+    { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true }
+  ]
+  if (canViewCustomerInfo) {
+    cols.splice(2, 0, { key: 'customerName', label: '客户名称', minWidth: 200, showOverflowTooltip: true })
+    cols.splice(6, 0,
+      { key: 'contactName', label: '联系人', width: 130, showOverflowTooltip: true },
+      { key: 'mobilePhone', label: '联系电话', width: 130, showOverflowTooltip: true }
+    )
+  }
+  cols.push({
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false
+  })
+  return cols
+})
 
 function salesUserLabel(u: SalesUserOption) {
   const name = u.realName || u.label || u.userName;
@@ -992,6 +1044,41 @@ onMounted(async () => {
   white-space: nowrap;
   flex-wrap: nowrap;
 }
+.action-btns.always-visible {
+  opacity: 1;
+}
+
+.op-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.op-col-header-text {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.op-col-toggle-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: $cyan-primary;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.op-more-trigger {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: $cyan-primary;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
 
 .action-btn {
   padding: 4px 10px;
@@ -1055,8 +1142,25 @@ onMounted(async () => {
 // ---- 分页 ----
 .pagination-wrapper {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-top: 16px;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 
 .quantum-pagination {

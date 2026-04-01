@@ -82,112 +82,95 @@
     <el-card class="table-card">
       <CrmDataTable
         ref="listTableRef"
+        column-layout-key="sales-order-list-main"
+        :columns="salesOrderTableColumns"
+        :show-column-settings="false"
         :data="filteredList"
         v-loading="loading"
         highlight-current-row
         @row-dblclick="handleView"
         @current-change="onJourneyRowFocus"
       >
-        <el-table-column prop="sellOrderCode" label="订单号" width="160" min-width="160" show-overflow-tooltip sortable>
-          <template #default="{ row }">
-            <el-link type="primary" @click="handleView(row)">{{ row.sellOrderCode }}</el-link>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="160" align="center">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="getStatusType(row.status)" size="small">
-              {{ getStatusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column v-if="canViewCustomerInfo" prop="customerName" label="客户" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="salesUserName" label="业务员" width="100" />
-        <el-table-column v-if="canViewSalesAmount" prop="total" label="总金额" width="160" align="right">
-          <template #default="{ row }">
-            <span class="amount">{{ formatCurrency(row.total, row.currency) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="itemRows" label="行项目" width="80" align="center" />
-        <el-table-column prop="purchaseOrderStatus" label="采购状态" width="160" align="center">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="getPurchaseStatusType(row.purchaseOrderStatus)" size="small">
-              {{ getPurchaseStatusText(row.purchaseOrderStatus) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="deliveryDate" label="交货日期" width="160">
-          <template #default="{ row }">
-            {{ formatDisplayDate(row.deliveryDate) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="160">
-          <template #default="{ row }">
-            {{ formatDisplayDateTime(row.createTime) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="创建人" width="120" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ row.createUserName || row.createdBy || row.salesUserName || '—' }}
-          </template>
-        </el-table-column>
-        <!-- 操作列：列表操作列规范（收起/展开 + 列头 >/< + 行内 ... 菜单） -->
-        <el-table-column
-          label="操作"
-          :width="opColWidth"
-          :min-width="opColMinWidth"
-          fixed="right"
-          class-name="op-col"
-          label-class-name="op-col"
-        >
-          <template #header>
-            <div class="op-col-header">
-              <span class="op-col-header-text">操作</span>
-              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-                {{ opColExpanded ? '>' : '<' }}
+        <template #col-sellOrderCode="{ row }">
+          <el-link type="primary" @click="handleView(row)">{{ row.sellOrderCode }}</el-link>
+        </template>
+        <template #col-status="{ row }">
+          <el-tag effect="dark" :type="getStatusType(row.status)" size="small">
+            {{ getStatusText(row.status) }}
+          </el-tag>
+        </template>
+        <template #col-total="{ row }">
+          <span class="amount">{{ formatCurrency(row.total, row.currency) }}</span>
+        </template>
+        <template #col-purchaseOrderStatus="{ row }">
+          <el-tag effect="dark" :type="getPurchaseStatusType(row.purchaseOrderStatus)" size="small">
+            {{ getPurchaseStatusText(row.purchaseOrderStatus) }}
+          </el-tag>
+        </template>
+        <template #col-deliveryDate="{ row }">
+          {{ formatDisplayDate(row.deliveryDate) }}
+        </template>
+        <template #col-createTime="{ row }">
+          {{ formatDisplayDateTime(row.createTime) }}
+        </template>
+        <template #col-createUser="{ row }">
+          {{ row.createUserName || row.createdBy || row.salesUserName || '—' }}
+        </template>
+        <template #col-actions-header>
+          <div class="op-col-header">
+            <span class="op-col-header-text">操作</span>
+            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
+
+        <template #col-actions="{ row }">
+          <div @click.stop @dblclick.stop>
+            <div v-if="opColExpanded" class="action-btns">
+              <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">详情</button>
+              <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">编辑</button>
+              <button
+                v-if="row.status === 1 && canSubmitSalesOrderAudit"
+                type="button"
+                class="action-btn action-btn--warning"
+                @click.stop="submitForAudit(row)"
+              >
+                提交审核
               </button>
             </div>
-          </template>
 
-          <template #default="{ row }">
-            <div @click.stop @dblclick.stop>
-              <div v-if="opColExpanded" class="action-btns">
-                <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">详情</button>
-                <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">编辑</button>
-                <button
-                  v-if="row.status === 1 && canSubmitSalesOrderAudit"
-                  type="button"
-                  class="action-btn action-btn--warning"
-                  @click.stop="submitForAudit(row)"
-                >
-                  提交审核
-                </button>
+            <el-dropdown v-else trigger="click" placement="bottom-end">
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
               </div>
-
-              <el-dropdown v-else trigger="click" placement="bottom-end">
-                <div class="op-more-dropdown-trigger">
-                  <button type="button" class="op-more-trigger">...</button>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item @click.stop="handleView(row)">
-                      <span class="op-more-item op-more-item--primary">详情</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item @click.stop="handleEdit(row)">
-                      <span class="op-more-item op-more-item--primary">编辑</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item v-if="row.status === 1 && canSubmitSalesOrderAudit" @click.stop="submitForAudit(row)">
-                      <span class="op-more-item op-more-item--warning">提交审核</span>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click.stop="handleView(row)">
+                    <span class="op-more-item op-more-item--primary">详情</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item @click.stop="handleEdit(row)">
+                    <span class="op-more-item op-more-item--primary">编辑</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item v-if="row.status === 1 && canSubmitSalesOrderAudit" @click.stop="submitForAudit(row)">
+                    <span class="op-more-item op-more-item--warning">提交审核</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </template>
       </CrmDataTable>
 
-      <!-- 分页 -->
       <div class="pagination-wrapper">
+        <div class="list-footer-left">
+          <el-tooltip content="列设置" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="listTableRef?.openColumnSettings?.()">
+              <el-icon><Setting /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <div class="list-footer-spacer" aria-hidden="true"></div>
+        </div>
         <el-pagination
           v-model:current-page="pageInfo.page"
           v-model:page-size="pageInfo.pageSize"
@@ -207,6 +190,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
 import { salesOrderApi } from '@/api/salesOrder'
 import { salesOrderStatusText, salesOrderStatusTagType } from '@/constants/salesOrderStatus'
 import { useAuthStore } from '@/stores/auth'
@@ -216,6 +200,7 @@ import {
 } from '@/composables/salesOrderJourneyContext'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const route = useRoute()
@@ -253,6 +238,42 @@ const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+/** 销售订单列表主表可配置列（localStorage：crm-table-columns:v1:sales-order-list-main） */
+const salesOrderTableColumns = computed((): CrmTableColumnDef[] => [
+  {
+    key: 'sellOrderCode',
+    label: '订单号',
+    prop: 'sellOrderCode',
+    width: 160,
+    minWidth: 160,
+    showOverflowTooltip: true,
+    sortable: true
+  },
+  { key: 'status', label: '状态', prop: 'status', width: 160, align: 'center' as const },
+  ...(canViewCustomerInfo.value
+    ? [{ key: 'customerName', label: '客户', prop: 'customerName', minWidth: 200, showOverflowTooltip: true }]
+    : []),
+  { key: 'salesUserName', label: '业务员', prop: 'salesUserName', width: 100 },
+  ...(canViewSalesAmount.value ? [{ key: 'total', label: '总金额', prop: 'total', width: 160, align: 'right' as const }] : []),
+  { key: 'itemRows', label: '行项目', prop: 'itemRows', width: 80, align: 'center' as const },
+  { key: 'purchaseOrderStatus', label: '采购状态', prop: 'purchaseOrderStatus', width: 160, align: 'center' as const },
+  { key: 'deliveryDate', label: '交货日期', prop: 'deliveryDate', width: 160 },
+  { key: 'createTime', label: '创建时间', prop: 'createTime', width: 160 },
+  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  }
+])
 
 // 对话框控制
 // 计算属性：筛选后的列表
@@ -635,7 +656,27 @@ onMounted(loadData)
 .pagination-wrapper {
   margin-top: 20px;
   display: flex;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 
 .items-section {

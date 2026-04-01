@@ -32,9 +32,16 @@
       <!-- 记录面板 -->
       <section class="debug-panel panel-records">
         <h2 class="panel-title">记录面板</h2>
-        <CrmDataTable embedded :data="items" class="debug-table">
-          <el-table-column prop="name" label="Name" min-width="200" />
-          <el-table-column prop="value" label="Value" min-width="320" show-overflow-tooltip />
+        <CrmDataTable
+          embedded
+          class="debug-table"
+          column-layout-key="debug-records"
+          :columns="debugTableColumns"
+          :data="items"
+        >
+          <template #col-value="{ row }">
+            <span class="mono">{{ row.value }}</span>
+          </template>
         </CrmDataTable>
         <div v-if="items.length === 0" class="debug-empty">没有 debug 记录</div>
       </section>
@@ -45,9 +52,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { getDebugPage } from '@/api/debug'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 /** debug 页面展示版本号（按发布批次手动维护） */
-const FRONTEND_DEBUG_VERSION = '1.1.0401-4'
+const FRONTEND_DEBUG_VERSION = '1.1.0401-9'
+
+/** 可配置列示例（列设置 / 顺序 / localStorage 持久化） */
+const debugTableColumns: CrmTableColumnDef[] = [
+  { key: 'name', label: 'Name', prop: 'name', minWidth: 200 },
+  { key: 'value', label: 'Value', prop: 'value', minWidth: 320, showOverflowTooltip: true }
+]
 
 const items = ref<{ name: string; value: string }[]>([])
 const databaseConnectionDisplay = ref('')
@@ -115,6 +129,17 @@ onMounted(async () => {
   background: rgba(0, 212, 255, 0.06);
 }
 
+/* 记录面板在空数据时提升底色和边界对比 */
+.panel-records {
+  border-color: rgba(0, 212, 255, 0.2);
+  background: rgba(0, 212, 255, 0.06);
+  box-shadow: none;
+}
+
+.panel-records .panel-title {
+  color: #e8f4ff;
+}
+
 .panel-title {
   margin: 0 0 12px;
   font-size: 15px;
@@ -172,17 +197,42 @@ onMounted(async () => {
 
 .debug-empty {
   margin-top: 10px;
-  color: rgba(200, 220, 240, 0.7);
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 212, 255, 0.55);
+  background: rgba(0, 212, 255, 0.14);
+  color: rgba(242, 250, 255, 0.98);
   font-size: 13px;
+  font-weight: 500;
 }
 
 .debug-table {
+  :deep(.crm-data-table-root) {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 6px 8px;
+  }
+  :deep(.el-table__inner-wrapper::before) {
+    background-color: rgba(255, 255, 255, 0.16);
+  }
   :deep(.el-table__header-wrapper th) {
-    background: rgba(0, 212, 255, 0.08);
-    color: rgba(200, 216, 232, 0.9);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(225, 238, 250, 0.95);
   }
   :deep(.el-table__body-wrapper td) {
     color: #e8f4ff;
+  }
+  :deep(.el-table__empty-block) {
+    min-height: 116px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    margin: 8px 0;
+  }
+  :deep(.el-table__empty-text) {
+    color: rgba(220, 235, 250, 0.92);
+    font-weight: 500;
   }
 }
 </style>

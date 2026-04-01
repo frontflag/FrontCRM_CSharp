@@ -62,120 +62,102 @@
 
     <!-- 数据表格 -->
     <CrmDataTable
+      ref="dataTableRef"
+      column-layout-key="finance-purchase-invoice-list-main"
+      :columns="purchaseInvoiceTableColumns"
+      :show-column-settings="false"
       :data="tableData"
       v-loading="loading"
       @row-dblclick="openDetail"
       row-class-name="table-row-pointer"
     >
-        <el-table-column prop="financePurchaseInvoiceCode" label="发票单号" width="160" min-width="160" fixed>
-          <template #default="{ row }">
-            <span class="code-text">{{ row.financePurchaseInvoiceCode }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="invoiceStatus" label="开票状态" width="100">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="INVOICE_STATUS_MAP[row.invoiceStatus]?.type as any" size="small">
-              {{ INVOICE_STATUS_MAP[row.invoiceStatus]?.label }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="vendorName" label="供应商" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="invoiceNo" label="发票号码" width="140" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.invoiceNo || '-' }}</template>
-        </el-table-column>
-        <el-table-column prop="invoiceTotal" label="发票金额" width="130" align="right">
-          <template #default="{ row }">
-            <span class="amount-text">¥ {{ formatAmount(row.invoiceTotal) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="paymentDone" label="已付金额" width="130" align="right">
-          <template #default="{ row }">
-            <span class="amount-text">¥ {{ formatAmount(row.paymentDone) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="paymentStatus" label="付款状态" width="110">
-          <template #default="{ row }">
-            <el-tag effect="dark" :type="PAYMENT_DONE_STATUS_MAP[row.paymentStatus]?.type as any" size="small">
-              {{ PAYMENT_DONE_STATUS_MAP[row.paymentStatus]?.label }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="purchaseInvoiceType" label="发票类型" width="140">
-          <template #default="{ row }">{{ PURCHASE_INVOICE_TYPE_MAP[row.purchaseInvoiceType] }}</template>
-        </el-table-column>
-        <el-table-column prop="makeInvoiceDate" label="开票日期" width="120">
-          <template #default="{ row }">{{ row.makeInvoiceDate ? formatDisplayDate(row.makeInvoiceDate) : '-' }}</template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="120">
-          <template #default="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
-        </el-table-column>
-        <el-table-column label="创建人" width="120" show-overflow-tooltip>
-          <template #default="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '-' }}</template>
-        </el-table-column>
-        <el-table-column
-          label="操作"
-          :width="opColWidth"
-          :min-width="opColMinWidth"
-          fixed="right"
-          class-name="op-col"
-          label-class-name="op-col"
-        >
-          <template #header>
-            <div class="op-col-header">
-              <span class="op-col-header-text">操作</span>
-              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-                {{ opColExpanded ? '>' : '<' }}
-              </button>
-            </div>
-          </template>
+      <template #col-financePurchaseInvoiceCode="{ row }">
+        <span class="code-text">{{ row.financePurchaseInvoiceCode }}</span>
+      </template>
+      <template #col-invoiceStatus="{ row }">
+        <el-tag effect="dark" :type="INVOICE_STATUS_MAP[row.invoiceStatus]?.type as any" size="small">
+          {{ INVOICE_STATUS_MAP[row.invoiceStatus]?.label }}
+        </el-tag>
+      </template>
+      <template #col-invoiceNo="{ row }">{{ row.invoiceNo || '-' }}</template>
+      <template #col-invoiceTotal="{ row }">
+        <span class="amount-text">¥ {{ formatAmount(row.invoiceTotal) }}</span>
+      </template>
+      <template #col-paymentDone="{ row }">
+        <span class="amount-text">¥ {{ formatAmount(row.paymentDone) }}</span>
+      </template>
+      <template #col-paymentStatus="{ row }">
+        <el-tag effect="dark" :type="PAYMENT_DONE_STATUS_MAP[row.paymentStatus]?.type as any" size="small">
+          {{ PAYMENT_DONE_STATUS_MAP[row.paymentStatus]?.label }}
+        </el-tag>
+      </template>
+      <template #col-purchaseInvoiceType="{ row }">{{ PURCHASE_INVOICE_TYPE_MAP[row.purchaseInvoiceType] }}</template>
+      <template #col-makeInvoiceDate="{ row }">{{ row.makeInvoiceDate ? formatDisplayDate(row.makeInvoiceDate) : '-' }}</template>
+      <template #col-createTime="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
+      <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '-' }}</template>
+      <template #col-actions-header>
+        <div class="op-col-header">
+          <span class="op-col-header-text">操作</span>
+          <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+            {{ opColExpanded ? '>' : '<' }}
+          </button>
+        </div>
+      </template>
 
-          <template #default="{ row }">
-            <div @click.stop @dblclick.stop>
-              <div v-if="opColExpanded" class="action-btns">
-                <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
-                <el-button
-                  size="small"
-                  text
-                  type="primary"
-                  @click.stop="openEdit(row)"
-                  v-if="row.invoiceStatus === 1"
-                >
-                  编辑
-                </el-button>
-                <el-button
-                  size="small"
-                  text
-                  type="danger"
-                  @click.stop="voidInvoice(row)"
-                  v-if="row.invoiceStatus === 100"
-                >
-                  作废
-                </el-button>
-              </div>
+      <template #col-actions="{ row }">
+        <div @click.stop @dblclick.stop>
+          <div v-if="opColExpanded" class="action-btns">
+            <el-button size="small" text type="primary" @click.stop="openDetail(row)">详情</el-button>
+            <el-button
+              size="small"
+              text
+              type="primary"
+              @click.stop="openEdit(row)"
+              v-if="row.invoiceStatus === 1"
+            >
+              编辑
+            </el-button>
+            <el-button
+              size="small"
+              text
+              type="danger"
+              @click.stop="voidInvoice(row)"
+              v-if="row.invoiceStatus === 100"
+            >
+              作废
+            </el-button>
+          </div>
 
-              <el-dropdown v-else trigger="click" placement="bottom-end">
-                <div class="op-more-dropdown-trigger">
-                  <button type="button" class="op-more-trigger">...</button>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item @click.stop="openDetail(row)">
-                      <span class="op-more-item op-more-item--primary">详情</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item v-if="row.invoiceStatus === 1" @click.stop="openEdit(row)">
-                      <span class="op-more-item op-more-item--primary">编辑</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item v-if="row.invoiceStatus === 100" @click.stop="voidInvoice(row)">
-                      <span class="op-more-item op-more-item--danger">作废</span>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+          <el-dropdown v-else trigger="click" placement="bottom-end">
+            <div class="op-more-dropdown-trigger">
+              <button type="button" class="op-more-trigger">...</button>
             </div>
-          </template>
-        </el-table-column>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click.stop="openDetail(row)">
+                  <span class="op-more-item op-more-item--primary">详情</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="row.invoiceStatus === 1" @click.stop="openEdit(row)">
+                  <span class="op-more-item op-more-item--primary">编辑</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="row.invoiceStatus === 100" @click.stop="voidInvoice(row)">
+                  <span class="op-more-item op-more-item--danger">作废</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </template>
     </CrmDataTable>
       <div class="pagination-wrap">
+        <div class="list-footer-left">
+          <el-tooltip content="列设置" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+              <el-icon><Setting /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <div class="list-footer-spacer" aria-hidden="true"></div>
+        </div>
         <el-pagination
           v-model:current-page="query.page"
           v-model:page-size="query.pageSize"
@@ -262,7 +244,7 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Plus } from '@element-plus/icons-vue'
+import { Search, Plus, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   financePurchaseInvoiceApi,
@@ -275,6 +257,7 @@ import {
 } from '@/api/finance'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 
@@ -287,6 +270,7 @@ const filterPayStatus = ref<number | undefined>(undefined)
 const total = ref(0)
 const loading = ref(false)
 const tableData = ref<FinancePurchaseInvoice[]>([])
+const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -298,6 +282,31 @@ const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+const purchaseInvoiceTableColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'financePurchaseInvoiceCode', label: '发票单号', prop: 'financePurchaseInvoiceCode', width: 160, minWidth: 160, fixed: 'left' },
+  { key: 'invoiceStatus', label: '开票状态', prop: 'invoiceStatus', width: 100, align: 'center' },
+  { key: 'vendorName', label: '供应商', prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
+  { key: 'invoiceNo', label: '发票号码', prop: 'invoiceNo', width: 140, showOverflowTooltip: true },
+  { key: 'invoiceTotal', label: '发票金额', prop: 'invoiceTotal', width: 130, align: 'right' },
+  { key: 'paymentDone', label: '已付金额', prop: 'paymentDone', width: 130, align: 'right' },
+  { key: 'paymentStatus', label: '付款状态', prop: 'paymentStatus', width: 110, align: 'center' },
+  { key: 'purchaseInvoiceType', label: '发票类型', prop: 'purchaseInvoiceType', width: 140 },
+  { key: 'makeInvoiceDate', label: '开票日期', prop: 'makeInvoiceDate', width: 120 },
+  { key: 'createTime', label: '创建时间', width: 120 },
+  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  }
+])
 const stats = reactive({ totalAmount: 0, paidAmount: 0, toPayAmount: 0, invoicedCount: 0 })
 
 const loadData = async () => {
@@ -391,4 +400,26 @@ onMounted(loadData)
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as vars;
 @import './finance-common.scss';
+
+.pagination-wrap {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
+}
 </style>

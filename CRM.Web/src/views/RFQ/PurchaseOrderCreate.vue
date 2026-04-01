@@ -495,9 +495,9 @@ onMounted(async () => {
     gap: 12px;
 
     .el-button.is-link {
-      color: #5a7a9a;
+      color: $text-muted;
       font-size: 13px;
-      &:hover { color: #00c8ff; }
+      &:hover { color: $cyan-primary; }
     }
   }
 
@@ -509,8 +509,8 @@ onMounted(async () => {
 
 .create-form {
   .form-section {
-    background: #0a1828;
-    border: 1px solid #1a2d45;
+    background: $layer-2;
+    border: 1px solid $border-card;
     border-radius: 8px;
     padding: 20px 24px;
     margin-bottom: 16px;
@@ -522,7 +522,7 @@ onMounted(async () => {
     gap: 8px;
     font-size: 14px;
     font-weight: 600;
-    color: #c8dff0;
+    color: $text-primary;
     margin-bottom: 20px;
 
     .title-bar {
@@ -548,19 +548,19 @@ onMounted(async () => {
   }
 
   :deep(.el-form-item__label) {
-    color: #5a7a9a;
+    color: $text-muted;
     font-size: 13px;
   }
 
   :deep(.el-input__wrapper),
   :deep(.el-textarea__inner),
   :deep(.el-select .el-input__wrapper) {
-    background: #0d1e35;
-    border-color: #1a2d45;
+    background: $layer-3;
+    border-color: $border-panel;
     box-shadow: none;
     color: #c8dff0;
-    &:hover { border-color: #2a4d75; }
-    &.is-focus { border-color: #00c8ff; }
+    &:hover { border-color: rgba(0, 212, 255, 0.35); }
+    &.is-focus { border-color: $cyan-primary; }
   }
 
   :deep(.el-input.is-disabled .el-input__wrapper) {
@@ -571,9 +571,9 @@ onMounted(async () => {
 
   :deep(.el-input__inner),
   :deep(.el-textarea__inner) {
-    color: #c8dff0;
+    color: $text-primary;
     background: transparent;
-    &::placeholder { color: #3a5a7a; }
+    &::placeholder { color: $text-placeholder; }
   }
 
   :deep(.el-date-editor .el-input__wrapper) {
@@ -635,7 +635,7 @@ onMounted(async () => {
 }
 
 .items-empty {
-  color: #5a7a9a;
+  color: $text-muted;
   font-size: 13px;
   padding: 16px 0;
 }
@@ -645,7 +645,7 @@ onMounted(async () => {
   border-radius: 8px;
   margin-bottom: 14px;
   overflow: hidden;
-  background: rgba(0, 30, 60, 0.25);
+  background: rgba(0, 212, 255, 0.03);
 }
 
 .material-card-head {
@@ -659,11 +659,11 @@ onMounted(async () => {
   font-size: 13px;
 
   .head-mpn {
-    color: #c8dff0;
+    color: $text-primary;
     font-weight: 600;
   }
   .head-quote {
-    color: #5a7a9a;
+    color: $text-muted;
   }
 }
 
@@ -685,19 +685,19 @@ onMounted(async () => {
   gap: 8px;
 
   .total-label {
-    color: #5a7a9a;
+    color: $text-muted;
     font-size: 13px;
   }
 
   .total-amount {
-    color: #00c8ff;
+    color: $cyan-primary;
     font-size: 16px;
     font-weight: 700;
   }
 }
 
 .subtotal {
-  color: #00c8ff;
+  color: $cyan-primary;
   font-size: 13px;
 }
 
@@ -710,12 +710,12 @@ onMounted(async () => {
 }
 
 .line-total-label {
-  color: #5a7a9a;
+  color: $text-muted;
   font-size: 13px;
 }
 
 .line-total-amount {
-  color: #00c8ff;
+  color: $cyan-primary;
   font-size: 14px;
   font-weight: 700;
 }

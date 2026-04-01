@@ -54,100 +54,86 @@
       </div>
     </div>
 
-    <CrmDataTable :data="list" v-loading="loading">
-      <el-table-column prop="noticeCode" label="到货通知号" width="170" />
-      <el-table-column label="状态" width="110">
-        <template #default="{ row }">
-          <el-tag effect="dark" :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="purchaseOrderCode" label="采购单号" width="160" />
-      <el-table-column label="型号" min-width="120" show-overflow-tooltip>
-        <template #default="{ row }">{{ displayPn(row) }}</template>
-      </el-table-column>
-      <el-table-column label="品牌" width="100" show-overflow-tooltip>
-        <template #default="{ row }">{{ displayBrand(row) }}</template>
-      </el-table-column>
-      <el-table-column label="预计到货日期" width="130" align="center">
-        <template #default="{ row }">{{ formatExpected(row.expectedArrivalDate) }}</template>
-      </el-table-column>
-      <el-table-column prop="vendorName" label="供应商" min-width="160" />
-      <el-table-column prop="purchaseUserName" label="采购员" width="120" />
-      <el-table-column label="通知数量" width="100" align="right">
-        <template #default="{ row }">{{ formatQtyCol(expectQty(row)) }}</template>
-      </el-table-column>
-      <el-table-column label="到货数量" width="100" align="right">
-        <template #default="{ row }">{{ formatQtyCol(receiveQty(row)) }}</template>
-      </el-table-column>
-      <el-table-column label="质检通过" width="100" align="right">
-        <template #default="{ row }">{{ formatQtyCol(passedQty(row)) }}</template>
-      </el-table-column>
-      <el-table-column prop="createTime" label="创建时间" width="170">
-        <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
-      </el-table-column>
-      <el-table-column label="创建人" width="120" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || '--' }}</template>
-      </el-table-column>
-      <el-table-column
-        label="操作"
-        :width="opColWidth"
-        :min-width="opColMinWidth"
-        fixed="right"
-        class-name="op-col"
-        label-class-name="op-col"
-      >
-        <template #header>
-          <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
-            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-              {{ opColExpanded ? '>' : '<' }}
+    <CrmDataTable
+      ref="dataTableRef"
+      column-layout-key="arrival-notice-list-main"
+      :columns="arrivalNoticeColumns"
+      :show-column-settings="false"
+      :data="list"
+      v-loading="loading"
+    >
+      <template #col-status="{ row }">
+        <el-tag effect="dark" :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag>
+      </template>
+      <template #col-pn="{ row }">{{ displayPn(row) }}</template>
+      <template #col-brand="{ row }">{{ displayBrand(row) }}</template>
+      <template #col-expectedArrivalDate="{ row }">{{ formatExpected(row.expectedArrivalDate) }}</template>
+      <template #col-expectQty="{ row }">{{ formatQtyCol(expectQty(row)) }}</template>
+      <template #col-receiveQty="{ row }">{{ formatQtyCol(receiveQty(row)) }}</template>
+      <template #col-passedQty="{ row }">{{ formatQtyCol(passedQty(row)) }}</template>
+      <template #col-createTime="{ row }">{{ formatTime(row.createTime) }}</template>
+      <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || '--' }}</template>
+      <template #col-actions-header>
+        <div class="op-col-header">
+          <span class="op-col-header-text">操作</span>
+          <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+            {{ opColExpanded ? '>' : '<' }}
+          </button>
+        </div>
+      </template>
+      <template #col-actions="{ row }">
+        <div @click.stop @dblclick.stop>
+          <div v-if="opColExpanded" class="action-btns">
+            <button
+              v-if="row.status === 10"
+              type="button"
+              class="action-btn action-btn--warning"
+              @click.stop="markArrived(row)"
+            >
+              确认到货
             </button>
+            <button
+              v-if="row.status === 20"
+              type="button"
+              class="action-btn action-btn--warning"
+              @click.stop="goCreateQc(row)"
+            >
+              质检
+            </button>
+            <button type="button" class="action-btn action-btn--info" @click.stop="viewItems(row)">明细</button>
           </div>
-        </template>
-        <template #default="{ row }">
-          <div @click.stop @dblclick.stop>
-            <div v-if="opColExpanded" class="action-btns">
-              <button
-                v-if="row.status === 10"
-                type="button"
-                class="action-btn action-btn--warning"
-                @click.stop="markArrived(row)"
-              >
-                确认到货
-              </button>
-              <button
-                v-if="row.status === 20"
-                type="button"
-                class="action-btn action-btn--warning"
-                @click.stop="goCreateQc(row)"
-              >
-                质检
-              </button>
-              <button type="button" class="action-btn action-btn--info" @click.stop="viewItems(row)">明细</button>
-            </div>
 
-            <el-dropdown v-else trigger="click" placement="bottom-end">
-              <div class="op-more-dropdown-trigger">
-                <button type="button" class="op-more-trigger">...</button>
-              </div>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item v-if="row.status === 10" @click.stop="markArrived(row)">
-                    <span class="op-more-item op-more-item--warning">确认到货</span>
-                  </el-dropdown-item>
-                  <el-dropdown-item v-if="row.status === 20" @click.stop="goCreateQc(row)">
-                    <span class="op-more-item op-more-item--warning">质检</span>
-                  </el-dropdown-item>
-                  <el-dropdown-item @click.stop="viewItems(row)">
-                    <span class="op-more-item op-more-item--info">明细</span>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-        </template>
-      </el-table-column>
+          <el-dropdown v-else trigger="click" placement="bottom-end">
+            <div class="op-more-dropdown-trigger">
+              <button type="button" class="op-more-trigger">...</button>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item v-if="row.status === 10" @click.stop="markArrived(row)">
+                  <span class="op-more-item op-more-item--warning">确认到货</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="row.status === 20" @click.stop="goCreateQc(row)">
+                  <span class="op-more-item op-more-item--warning">质检</span>
+                </el-dropdown-item>
+                <el-dropdown-item @click.stop="viewItems(row)">
+                  <span class="op-more-item op-more-item--info">明细</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </template>
     </CrmDataTable>
+    <div class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip content="列设置" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <div class="list-footer-spacer" aria-hidden="true"></div>
+      </div>
+    </div>
 
     <el-dialog
       v-model="itemsVisible"
@@ -208,13 +194,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
 import { logisticsApi, type StockInNotifyDto, type StockInNotifyItemDto } from '@/api/logistics'
 import { useRouter } from 'vue-router'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const loading = ref(false)
 const list = ref<StockInNotifyDto[]>([])
+const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -226,6 +215,34 @@ const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+const arrivalNoticeColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'noticeCode', label: '到货通知号', prop: 'noticeCode', width: 170 },
+  { key: 'status', label: '状态', prop: 'status', width: 110, align: 'center' },
+  { key: 'purchaseOrderCode', label: '采购单号', prop: 'purchaseOrderCode', width: 160 },
+  { key: 'pn', label: '型号', minWidth: 120, showOverflowTooltip: true },
+  { key: 'brand', label: '品牌', width: 100, showOverflowTooltip: true },
+  { key: 'expectedArrivalDate', label: '预计到货日期', width: 130, align: 'center' },
+  { key: 'vendorName', label: '供应商', prop: 'vendorName', minWidth: 160 },
+  { key: 'purchaseUserName', label: '采购员', prop: 'purchaseUserName', width: 120 },
+  { key: 'expectQty', label: '通知数量', width: 100, align: 'right' },
+  { key: 'receiveQty', label: '到货数量', width: 100, align: 'right' },
+  { key: 'passedQty', label: '质检通过', width: 100, align: 'right' },
+  { key: 'createTime', label: '创建时间', prop: 'createTime', width: 170 },
+  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  }
+])
 
 const itemsVisible = ref(false)
 const detailNotice = ref<StockInNotifyDto | null>(null)
@@ -500,5 +517,28 @@ loadData()
   :deep(.arrival-detail-desc .el-descriptions__content) {
     color: $text-primary;
   }
+}
+
+.pagination-wrapper {
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 </style>

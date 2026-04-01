@@ -115,6 +115,10 @@
     <!-- 数据表格 -->
     <div class="table-panel">
       <CrmDataTable
+        ref="dataTableRef"
+        column-layout-key="bom-list-main"
+        :columns="bomTableColumns"
+        :show-column-settings="false"
         v-loading="loading"
         :data="bomList"
         row-key="id"
@@ -122,97 +126,78 @@
         @selection-change="handleSelectionChange"
         @row-dblclick="onRowDblclick"
       >
-        <el-table-column type="selection" width="44" />
-        <el-table-column label="BOM 单号" width="160" min-width="160">
-          <template #default="{ row }">
-            <span class="bom-code" @click="goDetail(row.id)">{{ row.bomCode }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="90" align="center">
-          <template #default="{ row }">
-            <el-tag effect="dark" size="small" :type="getStatusTagType(row.status)">{{ getStatusText(row.status) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="客户" min-width="160" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.customerName || '—' }}</template>
-        </el-table-column>
-        <el-table-column label="明细数" width="80" align="center">
-          <template #default="{ row }">{{ row.itemCount ?? 0 }}</template>
-        </el-table-column>
-        <el-table-column label="已报价" width="80" align="center">
-          <template #default="{ row }">
-            <span :class="row.quotedCount > 0 ? 'text-success' : 'text-muted'">
-              {{ row.quotedCount ?? 0 }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="类型" width="80" align="center">
-          <template #default="{ row }">
-            <el-tag effect="dark" size="small" :type="getBOMTypeTagType(row.bomType)">{{ getBOMTypeText(row.bomType) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="150">
-          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-        </el-table-column>
-        <el-table-column label="创建人" width="90" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.salesUserName || row.createdBy || '—' }}</template>
-        </el-table-column>
-        <el-table-column
-          label="操作"
-          :width="opColWidth"
-          :min-width="opColMinWidth"
-          fixed="right"
-          class-name="op-col"
-          label-class-name="op-col"
-        >
-          <template #header>
-            <div class="op-col-header">
-              <span class="op-col-header-text">操作</span>
-              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-                {{ opColExpanded ? '>' : '<' }}
-              </button>
+        <template #col-bomCode="{ row }">
+          <span class="bom-code" @click="goDetail(row.id)">{{ row.bomCode }}</span>
+        </template>
+        <template #col-status="{ row }">
+          <el-tag effect="dark" size="small" :type="getStatusTagType(row.status)">{{ getStatusText(row.status) }}</el-tag>
+        </template>
+        <template #col-customerName="{ row }">{{ row.customerName || '—' }}</template>
+        <template #col-itemCount="{ row }">{{ row.itemCount ?? 0 }}</template>
+        <template #col-quotedCount="{ row }">
+          <span :class="row.quotedCount > 0 ? 'text-success' : 'text-muted'">
+            {{ row.quotedCount ?? 0 }}
+          </span>
+        </template>
+        <template #col-bomType="{ row }">
+          <el-tag effect="dark" size="small" :type="getBOMTypeTagType(row.bomType)">{{ getBOMTypeText(row.bomType) }}</el-tag>
+        </template>
+        <template #col-createdAt="{ row }">{{ formatDate(row.createdAt) }}</template>
+        <template #col-createUser="{ row }">{{ row.salesUserName || row.createdBy || '—' }}</template>
+        <template #col-actions-header>
+          <div class="op-col-header">
+            <span class="op-col-header-text">操作</span>
+            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
+        <template #col-actions="{ row }">
+          <div @click.stop @dblclick.stop>
+            <div v-if="opColExpanded" class="action-btns">
+              <el-button size="small" type="primary" @click.stop="goDetail(row.id)">详情</el-button>
+              <el-button
+                v-if="row.status === 1 || row.status === 2"
+                size="small"
+                type="warning"
+                @click.stop="handleAutoQuote(row)"
+              >
+                一键报价
+              </el-button>
             </div>
-          </template>
 
-          <template #default="{ row }">
-            <div @click.stop @dblclick.stop>
-              <div v-if="opColExpanded" class="action-btns">
-                <el-button size="small" type="primary" @click.stop="goDetail(row.id)">详情</el-button>
-                <el-button
-                  v-if="row.status === 1 || row.status === 2"
-                  size="small"
-                  type="warning"
-                  @click.stop="handleAutoQuote(row)"
-                >
-                  一键报价
-                </el-button>
+            <el-dropdown v-else trigger="click" placement="bottom-end">
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
               </div>
-
-              <el-dropdown v-else trigger="click" placement="bottom-end">
-                <div class="op-more-dropdown-trigger">
-                  <button type="button" class="op-more-trigger">...</button>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item @click.stop="goDetail(row.id)">
-                      <span class="op-more-item op-more-item--primary">详情</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item
-                      v-if="row.status === 1 || row.status === 2"
-                      @click.stop="handleAutoQuote(row)"
-                    >
-                      <span class="op-more-item op-more-item--warning">一键报价</span>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click.stop="goDetail(row.id)">
+                    <span class="op-more-item op-more-item--primary">详情</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="row.status === 1 || row.status === 2"
+                    @click.stop="handleAutoQuote(row)"
+                  >
+                    <span class="op-more-item op-more-item--warning">一键报价</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </template>
       </CrmDataTable>
 
       <!-- 分页 -->
       <div class="pagination-bar">
+        <div class="list-footer-left">
+          <el-tooltip content="列设置" placement="top" :hide-after="0">
+            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+              <el-icon><Setting /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <div class="list-footer-spacer" aria-hidden="true"></div>
+        </div>
         <el-pagination
           v-model:current-page="pageInfo.page"
           v-model:page-size="pageInfo.pageSize"
@@ -230,11 +215,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Search, Delete } from '@element-plus/icons-vue'
+import { Plus, Search, Delete, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { bomApi } from '@/api/bom'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { BOM } from '@/types/bom'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 
@@ -242,6 +228,7 @@ const loading = ref(false)
 const bomList = ref<BOM[]>([])
 const selectedIds = ref<string[]>([])
 const dateRange = ref<[string, string] | null>(null)
+const dataTableRef = ref<any>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -253,6 +240,30 @@ const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+const bomTableColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'selection', type: 'selection', width: 44, fixed: 'left', hideable: false, reorderable: false },
+  { key: 'bomCode', label: 'BOM 单号', width: 160, minWidth: 160 },
+  { key: 'status', label: '状态', width: 90, align: 'center' },
+  { key: 'customerName', label: '客户', minWidth: 160, showOverflowTooltip: true },
+  { key: 'itemCount', label: '明细数', width: 80, align: 'center' },
+  { key: 'quotedCount', label: '已报价', width: 80, align: 'center' },
+  { key: 'bomType', label: '类型', width: 80, align: 'center' },
+  { key: 'createdAt', label: '创建时间', width: 150 },
+  { key: 'createUser', label: '创建人', width: 90, showOverflowTooltip: true },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  }
+])
 
 const stats = ref({ total: 0, pending: 0, quoting: 0, quoted: 0 })
 
@@ -517,9 +528,26 @@ onMounted(loadData)
 
 .pagination-bar {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: flex-start;
   padding: 12px 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 
 /* ── el-table 深色覆盖 ── */

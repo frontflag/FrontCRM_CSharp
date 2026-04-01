@@ -26,74 +26,68 @@
     </div>
 
     <!-- 结构与 StockOutNotifyList / StockInList 一致：无 row-key、无额外包裹 -->
-    <CrmDataTable :data="filteredList" v-loading="loading">
-      <el-table-column prop="stockOutCode" label="出库单号" width="160" min-width="160" show-overflow-tooltip />
-      <el-table-column prop="status" label="状态" width="110">
-        <template #default="{ row }">
-          <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="sourceCode" label="来源申请" width="160" min-width="160" show-overflow-tooltip />
-      <el-table-column prop="warehouseId" label="仓库ID" width="140" show-overflow-tooltip />
-      <el-table-column prop="stockOutDate" label="出库日期" width="170">
-        <template #default="{ row }">
-          <span class="text-secondary">{{ formatDate(row.stockOutDate) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="totalQuantity" label="出库数量" width="110" align="right">
-        <template #default="{ row }">{{ formatNum(row.totalQuantity) }}</template>
-      </el-table-column>
-      <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
-      <el-table-column label="创建时间" width="170">
-        <template #default="{ row }">{{ formatDate((row as any).createTime || (row as any).createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="创建人" width="120" show-overflow-tooltip>
-        <template #default="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
-      </el-table-column>
-      <el-table-column
-        label="操作"
-        :width="opColWidth"
-        :min-width="opColMinWidth"
-        fixed="right"
-        class-name="op-col"
-        label-class-name="op-col"
-      >
-        <template #header>
-          <div class="op-col-header">
-            <span class="op-col-header-text">操作</span>
-            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-              {{ opColExpanded ? '>' : '<' }}
+    <CrmDataTable
+      ref="dataTableRef"
+      column-layout-key="stock-out-list-main"
+      :columns="stockOutTableColumns"
+      :show-column-settings="false"
+      :data="filteredList"
+      v-loading="loading"
+    >
+      <template #col-status="{ row }">
+        <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
+      </template>
+      <template #col-stockOutDate="{ row }">
+        <span class="text-secondary">{{ formatDate(row.stockOutDate) }}</span>
+      </template>
+      <template #col-totalQuantity="{ row }">{{ formatNum(row.totalQuantity) }}</template>
+      <template #col-createTime="{ row }">{{ formatDate((row as any).createTime || (row as any).createdAt) }}</template>
+      <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
+      <template #col-actions-header>
+        <div class="op-col-header">
+          <span class="op-col-header-text">操作</span>
+          <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+            {{ opColExpanded ? '>' : '<' }}
+          </button>
+        </div>
+      </template>
+      <template #col-actions="{ row }">
+        <div @click.stop @dblclick.stop>
+          <div v-if="opColExpanded" class="action-btns">
+            <button
+              v-if="row.status !== 4"
+              type="button"
+              class="action-btn action-btn--warning"
+              @click.stop="handleMarkFinish(row)"
+            >
+              标记完成
             </button>
           </div>
-        </template>
-        <template #default="{ row }">
-          <div @click.stop @dblclick.stop>
-            <div v-if="opColExpanded" class="action-btns">
-              <button
-                v-if="row.status !== 4"
-                type="button"
-                class="action-btn action-btn--warning"
-                @click.stop="handleMarkFinish(row)"
-              >
-                标记完成
-              </button>
+          <el-dropdown v-else trigger="click" placement="bottom-end">
+            <div class="op-more-dropdown-trigger">
+              <button type="button" class="op-more-trigger">...</button>
             </div>
-            <el-dropdown v-else trigger="click" placement="bottom-end">
-              <div class="op-more-dropdown-trigger">
-                <button type="button" class="op-more-trigger">...</button>
-              </div>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item v-if="row.status !== 4" @click.stop="handleMarkFinish(row)">
-                    <span class="op-more-item op-more-item--warning">标记完成</span>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-        </template>
-      </el-table-column>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item v-if="row.status !== 4" @click.stop="handleMarkFinish(row)">
+                  <span class="op-more-item op-more-item--warning">标记完成</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </template>
     </CrmDataTable>
+    <div class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip content="列设置" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <div class="list-footer-spacer" aria-hidden="true"></div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -101,14 +95,17 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
 import { stockOutApi, type StockOutDto } from '@/api/stockOut'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const list = ref<StockOutDto[]>([])
 const keyword = ref('')
+const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 96
@@ -121,6 +118,30 @@ const opColMinWidth = computed(() =>
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
+
+const stockOutTableColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'stockOutCode', label: '出库单号', prop: 'stockOutCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+  { key: 'status', label: '状态', prop: 'status', width: 110, align: 'center' },
+  { key: 'sourceCode', label: '来源申请', prop: 'sourceCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+  { key: 'warehouseId', label: '仓库ID', prop: 'warehouseId', width: 140, showOverflowTooltip: true },
+  { key: 'stockOutDate', label: '出库日期', prop: 'stockOutDate', width: 170 },
+  { key: 'totalQuantity', label: '出库数量', prop: 'totalQuantity', width: 110, align: 'right' },
+  { key: 'remark', label: '备注', prop: 'remark', minWidth: 160, showOverflowTooltip: true },
+  { key: 'createTime', label: '创建时间', width: 170 },
+  { key: 'createUser', label: '创建人', width: 120, showOverflowTooltip: true },
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col'
+  }
+])
 
 function syncKeywordFromRoute() {
   if (route.name !== 'StockOutList') return
@@ -296,5 +317,28 @@ onMounted(() => {
   &:hover {
     text-decoration: underline;
   }
+}
+
+.pagination-wrapper {
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 </style>

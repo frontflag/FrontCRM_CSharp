@@ -947,6 +947,8 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
 .company-info-page {
   padding: 20px;
   min-height: 100%;
@@ -957,13 +959,13 @@ onUnmounted(() => {
   .page-title {
     font-size: 18px;
     font-weight: 600;
-    color: #e0f4ff;
+    color: $text-primary;
     margin: 0 0 6px;
   }
   .page-sub {
     margin: 0;
     font-size: 13px;
-    color: #5a7a9a;
+    color: $text-muted;
     line-height: 1.5;
   }
 }
@@ -977,8 +979,8 @@ onUnmounted(() => {
 .settings-nav {
   width: 200px;
   flex-shrink: 0;
-  background: #0a1828;
-  border: 1px solid #1a2d45;
+  background: $layer-2;
+  border: 1px solid $border-card;
   border-radius: 8px;
   padding: 8px;
 
@@ -989,7 +991,7 @@ onUnmounted(() => {
     padding: 10px 14px;
     border-radius: 6px;
     cursor: pointer;
-    color: #5a7a9a;
+    color: $text-muted;
     font-size: 13px;
     transition: all 0.2s;
 
@@ -999,12 +1001,12 @@ onUnmounted(() => {
 
     &:hover {
       background: rgba(0, 212, 255, 0.06);
-      color: #a8c0d6;
+      color: $text-secondary;
     }
 
     &.active {
       background: rgba(0, 212, 255, 0.18);
-      color: #00d4ff;
+      color: $cyan-primary;
       font-weight: 500;
     }
   }
@@ -1016,8 +1018,8 @@ onUnmounted(() => {
 }
 
 .form-section {
-  background: #0a1828;
-  border: 1px solid #1a2d45;
+  background: $layer-2;
+  border: 1px solid $border-card;
   border-radius: 8px;
   padding: 20px 24px;
 }
@@ -1043,7 +1045,7 @@ onUnmounted(() => {
 .form-item-hint {
   margin-left: 12px;
   font-size: 12px;
-  color: #6b8cae;
+  color: $text-muted;
   line-height: 1.4;
 }
 
@@ -1089,7 +1091,7 @@ onUnmounted(() => {
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: #c8dff0;
+  color: $text-primary;
   margin: 0 0 6px;
 
   .title-bar {
@@ -1103,14 +1105,14 @@ onUnmounted(() => {
 
 .section-hint {
   font-size: 12px;
-  color: #5a7a9a;
+  color: $text-muted;
   margin: 0;
   line-height: 1.5;
 }
 
 .group-card {
   background: rgba(0, 212, 255, 0.03);
-  border: 1px solid #1a2d45;
+  border: 1px solid $border-panel;
   border-radius: 8px;
   padding: 14px 16px 8px;
   margin-bottom: 14px;
@@ -1130,7 +1132,7 @@ onUnmounted(() => {
 .group-card__title {
   font-size: 13px;
   font-weight: 600;
-  color: #8eb4d4;
+  color: $text-secondary;
 }
 
 .group-card__actions {
@@ -1142,7 +1144,7 @@ onUnmounted(() => {
 
 .switch-label {
   font-size: 12px;
-  color: #5a7a9a;
+  color: $text-muted;
 }
 
 .upload-row {
@@ -1154,12 +1156,12 @@ onUnmounted(() => {
 
 .file-hint {
   font-size: 12px;
-  color: #8eb4d4;
+  color: $text-secondary;
 }
 
 .preview-link {
   font-size: 12px;
-  color: #00d4ff;
+  color: $cyan-primary;
   text-decoration: none;
   &:hover {
     text-decoration: underline;
@@ -1169,8 +1171,8 @@ onUnmounted(() => {
 .asset-preview {
   margin-top: 10px;
   padding: 10px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px dashed #2a4d75;
+  background: rgba(0, 212, 255, 0.04);
+  border: 1px dashed $border-panel;
   border-radius: 6px;
   max-width: 280px;
 }
@@ -1189,7 +1191,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px;
   font-size: 13px;
-  color: #8eb4d4;
+  color: $text-secondary;
 }
 
 .asset-preview__pdf-label {
@@ -1198,48 +1200,48 @@ onUnmounted(() => {
   justify-content: center;
   min-width: 40px;
   padding: 4px 8px;
-  background: #1a2d45;
+  background: $layer-3;
   border-radius: 4px;
   font-weight: 600;
-  color: #c8dff0;
+  color: $text-primary;
 }
 
 .asset-preview__other {
   font-size: 12px;
-  color: #5a7a9a;
+  color: $text-muted;
 }
 
 .settings-form {
   :deep(.el-form-item__label) {
-    color: #5a7a9a;
+    color: $text-muted;
     font-size: 13px;
   }
 
   :deep(.el-input__wrapper),
   :deep(.el-textarea__inner) {
-    background: #0d1e35;
-    border-color: #1a2d45;
+    background: $layer-3;
+    border-color: $border-panel;
     box-shadow: none;
     &:hover {
-      border-color: #2a4d75;
+      border-color: rgba(0, 212, 255, 0.35);
     }
     &.is-focus {
-      border-color: #00c8ff;
+      border-color: $cyan-primary;
     }
   }
 
   :deep(.el-input__inner),
   :deep(.el-textarea__inner) {
-    color: #c8dff0;
+    color: $text-primary;
     background: transparent;
     &::placeholder {
-      color: #3a5a7a;
+      color: $text-placeholder;
     }
   }
 
   :deep(.el-select .el-select__wrapper) {
-    background: #0d1e35 !important;
-    border: 1px solid #1a2d45 !important;
+    background: $layer-3 !important;
+    border: 1px solid $border-panel !important;
     box-shadow: none !important;
   }
 }
