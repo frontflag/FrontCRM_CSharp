@@ -229,7 +229,7 @@
                       <el-input-number
                         v-model="formData.items[meta.index].price"
                         :min="0"
-                        :precision="4"
+                        :precision="6"
                         :controls="false"
                         class="price-input"
                       />
@@ -246,7 +246,7 @@
                 </el-col>
                 <el-col :span="8">
                   <el-form-item label="买入价" label-width="72px">
-                    <el-input :model-value="formatMoney(formData.items[meta.index].purchasePriceDisplay)" disabled />
+                    <el-input :model-value="formatUnitPriceNumber(formData.items[meta.index].purchasePriceDisplay)" disabled />
                   </el-form-item>
                 </el-col>
               </el-row>
@@ -269,7 +269,7 @@
                 <el-col :span="8">
                   <el-form-item label="销售总额" label-width="100px">
                     <div class="total-inline">
-                      <span>{{ formatMoney(lineLineTotal(meta.index)) }}</span>
+                      <span>{{ formatTotalAmountNumber(lineLineTotal(meta.index)) }}</span>
                       <span class="ccy-tag">{{ currencyCode(formData.items[meta.index].currency) }}</span>
                     </div>
                   </el-form-item>
@@ -345,6 +345,7 @@ import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import { useAuthStore } from '@/stores/auth'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
+import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
 
 const router = useRouter()
 const route = useRoute()
@@ -361,10 +362,6 @@ function currencyCode(c?: number) {
   if (c === 2) return 'USD'
   if (c === 3) return 'EUR'
   return 'RMB'
-}
-
-function formatMoney(n: number) {
-  return (n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 6 })
 }
 
 const MANUAL_CUSTOMER_ID = '00000000-0000-0000-0000-000000000001'
@@ -668,7 +665,7 @@ function purchaseQuoteLabelFromRow(first: Record<string, unknown> | undefined): 
   const p = Number(first.unitPrice) || 0
   const cur = mapQuoteCurrencyToOrderCurrency(Number(first.currency ?? 0))
   const code = currencyCode(cur)
-  return `采购报价：${formatMoney(p)} ${code}`
+  return `采购报价：${formatUnitPriceNumber(p)} ${code}`
 }
 
 onMounted(async () => {

@@ -97,7 +97,7 @@
           <div class="material-card-head">
             <span class="head-mpn">物料型号：{{ item.pn || '—' }}</span>
             <span class="head-quote">
-              预期采购单价：{{ formatCurrency(item.cost || 0, formData.currency) }}
+              预期采购单价：{{ formatCurrencyUnitPrice(item.cost || 0, formData.currency) }}
             </span>
           </div>
           <div class="material-card-body">
@@ -117,12 +117,12 @@
             <el-row :gutter="16">
               <el-col :span="8">
                 <el-form-item label="采购单价">
-                  <el-input-number v-model="item.targetPrice" :precision="4" :controls="false" style="width: 100%" />
+                  <el-input-number v-model="item.targetPrice" :precision="6" :controls="false" style="width: 100%" />
                 </el-form-item>
               </el-col>
               <el-col :span="8">
                 <el-form-item label="预期采购单价">
-                  <el-input-number v-model="item.cost" :min="0" :precision="2" :controls="false" disabled style="width: 100%" />
+                  <el-input-number v-model="item.cost" :min="0" :precision="6" :controls="false" disabled style="width: 100%" />
                 </el-form-item>
               </el-col>
               <el-col :span="8">
@@ -187,14 +187,14 @@
 
             <div class="line-total-row">
               <span class="line-total-label">预计采购总额：</span>
-              <span class="line-total-amount">{{ formatCurrency((item.qty || 0) * (item.targetPrice || 0), item.currency ?? formData.currency) }}</span>
+              <span class="line-total-amount">{{ formatCurrencyTotal((item.qty || 0) * (item.targetPrice || 0), item.currency ?? formData.currency) }}</span>
             </div>
           </div>
         </div>
 
         <div class="total-row">
           <span class="total-label">合计金额：</span>
-          <span class="total-amount">{{ formatCurrency(calculateTotal, formData.currency) }}</span>
+          <span class="total-amount">{{ formatCurrencyTotal(calculateTotal, formData.currency) }}</span>
         </div>
       </div>
 
@@ -213,6 +213,7 @@ import { runSaveTask } from '@/composables/useFormSubmit'
 import { useAuthStore } from '@/stores/auth'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
+import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
 
 const router = useRouter()
 const route = useRoute()
@@ -276,12 +277,6 @@ const calculateTotal = computed(() =>
 function onPurchaserChange(payload: { id: string; label: string }) {
   formData.value.purchaseUserId = payload?.id || ''
   formData.value.purchaseUserName = payload?.label || ''
-}
-
-const formatCurrency = (value: number, currency?: number) => {
-  const symbol =
-    currency === 2 ? '$' : currency === 3 ? '€' : currency === 4 ? 'HK$' : '¥'
-  return symbol + (value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 const addItem = () => {

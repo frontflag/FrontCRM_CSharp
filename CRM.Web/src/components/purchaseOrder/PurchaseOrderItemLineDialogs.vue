@@ -88,13 +88,13 @@
           <el-table-column prop="brand" label="品牌" width="100" />
           <el-table-column prop="qty" label="数量" width="90" align="right" />
           <el-table-column prop="cost" label="单价" width="160" align="right">
-            <template #default="{ row }">{{ formatMoney(row.cost, row.currency) }}</template>
+            <template #default="{ row }">{{ formatCurrencyUnitPrice(row.cost, row.currency) }}</template>
           </el-table-column>
           <el-table-column prop="alreadyRequested" label="已请款" width="160" align="right">
-            <template #default="{ row }">{{ formatMoney(row.alreadyRequested, row.currency) }}</template>
+            <template #default="{ row }">{{ formatCurrencyTotal(row.alreadyRequested, row.currency) }}</template>
           </el-table-column>
           <el-table-column prop="pendingRequested" label="待请款" width="160" align="right">
-            <template #default="{ row }">{{ formatMoney(row.pendingRequested, row.currency) }}</template>
+            <template #default="{ row }">{{ formatCurrencyTotal(row.pendingRequested, row.currency) }}</template>
           </el-table-column>
           <el-table-column label="本次请款金额*" width="150">
             <template #default="{ row }">
@@ -109,7 +109,7 @@
         </CrmDataTable>
         <el-alert :closable="false" type="info" style="margin-top: 8px">
           <template #title>
-            合计：请款总额 {{ formatMoney(paymentTotalAmount, paymentForm.currency) }}
+            合计：请款总额 {{ formatCurrencyTotal(paymentTotalAmount, paymentForm.currency) }}
           </template>
         </el-alert>
       </el-form>
@@ -202,6 +202,7 @@ import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import { formatDisplayDate } from '@/utils/displayDateTime'
+import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
 import { financePaymentApi } from '@/api/finance'
 import { logisticsApi } from '@/api/logistics'
 
@@ -261,11 +262,6 @@ const paymentTotalAmount = computed(() => {
     Number(fee.rounding || 0)
   return Math.max(0, linesTotal + feeTotal)
 })
-
-function formatMoney(n: number, currency?: number) {
-  const sym = currency === 2 ? '$' : currency === 3 ? '€' : '¥'
-  return `${sym}${Number(n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}`
-}
 
 function buildFinancePaymentCode() {
   const d = new Date()

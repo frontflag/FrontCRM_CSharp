@@ -1,4 +1,4 @@
-// 全国省市区数据（三级联动）
+// 全国省市区数据（三级联动）；含香港、台湾（未细分区县时省/市/区同选）
 export interface RegionNode {
   value: string
   label: string
@@ -65,6 +65,24 @@ export const regionData: RegionNode[] = [
         { value: '荣昌区', label: '荣昌区' }, { value: '开州区', label: '开州区' },
         { value: '梁平区', label: '梁平区' }, { value: '武隆区', label: '武隆区' }
       ]}
+    ]
+  },
+  {
+    value: '香港', label: '香港', children: [
+      {
+        value: '香港', label: '香港', children: [
+          { value: '香港', label: '香港' }
+        ]
+      }
+    ]
+  },
+  {
+    value: '台湾', label: '台湾', children: [
+      {
+        value: '台湾', label: '台湾', children: [
+          { value: '台湾', label: '台湾' }
+        ]
+      }
     ]
   },
   {

@@ -75,6 +75,7 @@ declare module 'vue' {
     PurchaserCascader: typeof import('./src/components/PurchaserCascader.vue')['default']
     QcSearchPanel: typeof import('./src/components/Logistics/QcSearchPanel.vue')['default']
     RecentHistoryList: typeof import('./src/components/workspace/RecentHistoryList.vue')['default']
+    RegionCascaderWithQuickPick: typeof import('./src/components/RegionCascaderWithQuickPick.vue')['default']
     RFQFavoritePanel: typeof import('./src/components/RFQ/RFQFavoritePanel.vue')['default']
     RFQItemSearchPanel: typeof import('./src/components/RFQ/RFQItemSearchPanel.vue')['default']
     RFQRecentHistoryPanel: typeof import('./src/components/RFQ/RFQRecentHistoryPanel.vue')['default']

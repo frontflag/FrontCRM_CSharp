@@ -231,6 +231,47 @@ namespace CRM.API.Controllers
             }
         }
 
+        // POST api/v1/rfqs/{id}/assign
+        [HttpPost("{id}/assign")]
+        [RequirePermission("rfq.write")]
+        public async Task<ActionResult<ApiResponse<object>>> AssignPurchaser(string id, [FromBody] AssignPurchaserRequest request)
+        {
+            try
+            {
+                var existing = await _rfqService.GetByIdAsync(id);
+                if (existing == null)
+                    return NotFound(ApiResponse<object>.Fail("需求不存在", 404));
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessRFQAsync(userId, existing))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权限操作该需求", 403));
+
+                var rfq = await _rfqService.AssignPurchaserAsync(id, request);
+                var resolvedPurchaserId = rfq.Items?.FirstOrDefault()?.AssignedPurchaserUserId1 ?? request.PurchaserId.Trim();
+                return Ok(ApiResponse<object>.Ok(new
+                {
+                    id = Guid.NewGuid().ToString("N"),
+                    rfqId = rfq.Id,
+                    purchaserId = resolvedPurchaserId,
+                    assignedAt = DateTime.UtcNow,
+                    handleStatus = 0,
+                    remark = request.Remark
+                }, "分配成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "分配采购员失败: {Id}", id);
+                return StatusCode(500, ApiResponse<object>.Fail($"分配失败: {ex.Message}", 500));
+            }
+        }
+
         /// <summary>解析查询字符串布尔（兼容 true/True/1/yes），避免模型绑定对 query 的歧义。</summary>
         private static bool? ParseQueryBool(string? raw)
         {

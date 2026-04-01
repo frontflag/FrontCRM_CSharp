@@ -327,11 +327,11 @@ namespace CRM.Core.Models.Finance
         public string? PurchaseOrderCode { get; set; }
 
         /// <summary>采购单价（入库）</summary>
-        [Column(TypeName = "numeric(18,4)")]
+        [Column(TypeName = "numeric(18,6)")]
         public decimal StockInCost { get; set; } = 0m;
 
         /// <summary>票据采购单价</summary>
-        [Column(TypeName = "numeric(18,4)")]
+        [Column(TypeName = "numeric(18,6)")]
         public decimal BillCost { get; set; } = 0m;
 
         /// <summary>发票物料数量</summary>
@@ -451,7 +451,7 @@ namespace CRM.Core.Models.Finance
         public decimal TaxFreeTotal { get; set; } = 0m;
 
         /// <summary>销售单价</summary>
-        [Column(TypeName = "numeric(18,4)")]
+        [Column(TypeName = "numeric(18,6)")]
         public decimal Price { get; set; } = 0m;
 
         /// <summary>数量</summary>

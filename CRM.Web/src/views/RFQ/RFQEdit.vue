@@ -374,7 +374,7 @@
                     <el-input-number
                       v-model="item.targetPrice"
                       :min="0"
-                      :precision="4"
+                      :precision="6"
                       :controls="false"
                       style="width: 100%"
                       class="q-number"

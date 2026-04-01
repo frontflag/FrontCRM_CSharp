@@ -260,7 +260,7 @@
                   <el-input-number
                     v-model="formData.quotePriceRows[$index].unitPrice"
                     :min="0"
-                    :precision="4"
+                    :precision="6"
                     :controls="false"
                     style="width: 100%"
                   />
@@ -287,7 +287,7 @@
                   <el-input-number
                     v-model="formData.quotePriceRows[$index].convertedPrice"
                     :min="0"
-                    :precision="4"
+                    :precision="6"
                     :controls="false"
                     placeholder="折算价"
                     style="width: 100%"

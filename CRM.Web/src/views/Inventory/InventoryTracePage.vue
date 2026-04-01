@@ -18,7 +18,7 @@
       <el-table-column prop="stockInCode" label="入库单号" width="160" />
       <el-table-column prop="quantity" label="数量" width="100" align="right" />
       <el-table-column prop="unitPrice" label="单价" width="110" align="right">
-        <template #default="{ row }">{{ formatMoney(row.unitPrice) }}</template>
+        <template #default="{ row }">{{ formatUnitPriceNumber(row.unitPrice) }}</template>
       </el-table-column>
       <el-table-column prop="purchaseOrderCode" label="采购单号" width="150" />
       <el-table-column prop="purchaseUserName" label="采购员" width="130" />
@@ -41,6 +41,7 @@ import { ElMessage } from 'element-plus'
 import { inventoryCenterApi, type MaterialTrace } from '@/api/inventoryCenter'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatUnitPriceNumber } from '@/utils/moneyFormat'
 
 const route = useRoute()
 const router = useRouter()
@@ -49,7 +50,6 @@ const traceList = ref<MaterialTrace[]>([])
 
 const materialId = computed(() => String(route.params.materialId || '').trim())
 
-const formatMoney = (v: number) => (v == null ? '--' : Number(v).toFixed(2))
 const formatTime = (v?: string) => formatDisplayDateTime(v)
 const qcText = (s?: number) => ({ [-1]: '未通过', 10: '部分通过', 100: '通过' }[s ?? 0] || '--')
 

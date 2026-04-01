@@ -279,8 +279,8 @@ namespace CRM.Core.Models.Inventory
         /// <summary>
         /// 单价
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal Price { get; set; } = 0.0000m;
+        [Column(TypeName = "numeric(18,6)")]
+        public decimal Price { get; set; } = 0.000000m;
 
         /// <summary>
         /// 金额
@@ -492,8 +492,8 @@ namespace CRM.Core.Models.Inventory
         /// <summary>
         /// 单价
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal Price { get; set; } = 0.0000m;
+        [Column(TypeName = "numeric(18,6)")]
+        public decimal Price { get; set; } = 0.000000m;
 
         /// <summary>
         /// 金额

@@ -83,7 +83,9 @@
             <span v-else-if="Number(row.status) === 1" class="op-done">已出库</span>
 
             <el-dropdown v-else trigger="click" placement="bottom-end" v-if="Number(row.status) !== 1">
-              <button type="button" class="op-more-trigger">...</button>
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
+              </div>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="goExecute(row)">

@@ -101,7 +101,9 @@
             </div>
 
             <el-dropdown v-else trigger="click" placement="bottom-end">
-              <button type="button" class="op-more-trigger">...</button>
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
+              </div>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="openTrace(row.materialId)">
@@ -161,7 +163,9 @@
               </div>
 
               <el-dropdown v-else trigger="click" placement="bottom-end">
-                <button type="button" class="op-more-trigger">...</button>
+                <div class="op-more-dropdown-trigger">
+                  <button type="button" class="op-more-trigger">...</button>
+                </div>
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item @click.stop="loadWarehouseForEdit(row)">

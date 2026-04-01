@@ -78,6 +78,9 @@ namespace CRM.Core.Services
             // 自动生成需求单号 (格式: RF + 年月日 + 4位序号)
             var rfqCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.RFQ);
 
+            // 每个需求取轮询队列中连续 2 名采购员，写入该需求下全部明细；游标全局 +2
+            var (purchaser1, purchaser2) = await TakeNextRoundRobinPurchaserPairAsync();
+
             var rfq = new RFQ
             {
                 Id = Guid.NewGuid().ToString(),
@@ -88,7 +91,7 @@ namespace CRM.Core.Services
                 SalesUserId = request.SalesUserId,
                 RfqType = request.RfqType,
                 QuoteMethod = request.QuoteMethod,
-                AssignMethod = request.AssignMethod,
+                AssignMethod = purchaser1 != null ? (short)2 : request.AssignMethod,
                 Industry = request.Industry,
                 Product = request.Product,
                 TargetType = request.TargetType,
@@ -97,32 +100,18 @@ namespace CRM.Core.Services
                 ProjectBackground = request.ProjectBackground,
                 Competitor = request.Competitor,
                 Remark = request.Remark,
-                Status = 0,
+                Status = purchaser1 != null ? (short)1 : (short)0,
                 ItemCount = request.Items?.Count ?? 0,
                 CreateTime = DateTime.UtcNow
             };
 
             await _rfqRepo.AddAsync(rfq);
 
-            // 保存明细（每条自动分配 2 名询价采购员，全局轮询）
             if (request.Items != null && request.Items.Count > 0)
             {
-                var pool = await GetPurchaserPoolOrderedAsync();
-                var n = pool.Count;
-                var cursor = n > 0 ? await GetRoundRobinCursorAsync() : 0;
-
                 for (int i = 0; i < request.Items.Count; i++)
                 {
                     var itemReq = request.Items[i];
-                    string? a1 = null;
-                    string? a2 = null;
-                    if (n > 0)
-                    {
-                        a1 = pool[cursor % n];
-                        a2 = pool[(cursor + 1) % n];
-                        cursor += 2;
-                    }
-
                     var item = new RFQItem
                     {
                         Id = Guid.NewGuid().ToString(),
@@ -142,15 +131,12 @@ namespace CRM.Core.Services
                         Alternatives = itemReq.Alternatives,
                         Remark = itemReq.Remark,
                         Status = 0,
-                        AssignedPurchaserUserId1 = a1,
-                        AssignedPurchaserUserId2 = a2,
+                        AssignedPurchaserUserId1 = purchaser1,
+                        AssignedPurchaserUserId2 = purchaser2,
                         CreateTime = DateTime.UtcNow
                     };
                     await _itemRepo.AddAsync(item);
                 }
-
-                if (n > 0)
-                    await SaveRoundRobinCursorAsync(cursor);
             }
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
@@ -430,29 +416,21 @@ namespace CRM.Core.Services
             if (request.Remark != null) rfq.Remark = request.Remark;
             rfq.ModifyTime = DateTime.UtcNow;
 
-            // 更新明细：删除旧的，重新插入
+            // 更新明细：删除旧的，重新插入（全单共用新一轮询的一对采购员；无明细时不消耗游标）
             if (request.Items != null)
             {
                 var oldItems = await _itemRepo.FindAsync(i => i.RfqId == id);
                 foreach (var old in oldItems)
                     await _itemRepo.DeleteAsync(old.Id);
 
-                var pool = await GetPurchaserPoolOrderedAsync();
-                var n = pool.Count;
-                var cursor = n > 0 ? await GetRoundRobinCursorAsync() : 0;
+                string? purchaser1 = null;
+                string? purchaser2 = null;
+                if (request.Items.Count > 0)
+                    (purchaser1, purchaser2) = await TakeNextRoundRobinPurchaserPairAsync();
 
                 for (int i = 0; i < request.Items.Count; i++)
                 {
                     var itemReq = request.Items[i];
-                    string? a1 = null;
-                    string? a2 = null;
-                    if (n > 0)
-                    {
-                        a1 = pool[cursor % n];
-                        a2 = pool[(cursor + 1) % n];
-                        cursor += 2;
-                    }
-
                     var item = new RFQItem
                     {
                         Id = Guid.NewGuid().ToString(),
@@ -472,15 +450,19 @@ namespace CRM.Core.Services
                         Alternatives = itemReq.Alternatives,
                         Remark = itemReq.Remark,
                         Status = 0,
-                        AssignedPurchaserUserId1 = a1,
-                        AssignedPurchaserUserId2 = a2,
+                        AssignedPurchaserUserId1 = purchaser1,
+                        AssignedPurchaserUserId2 = purchaser2,
                         CreateTime = DateTime.UtcNow
                     };
                     await _itemRepo.AddAsync(item);
                 }
 
-                if (n > 0)
-                    await SaveRoundRobinCursorAsync(cursor);
+                if (purchaser1 != null)
+                {
+                    rfq.AssignMethod = 2;
+                    if (rfq.Status == 0)
+                        rfq.Status = 1;
+                }
 
                 rfq.ItemCount = request.Items.Count;
             }
@@ -516,6 +498,62 @@ namespace CRM.Core.Services
             rfq.ModifyTime = DateTime.UtcNow;
             await _rfqRepo.UpdateAsync(rfq);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+        }
+
+        /// <inheritdoc />
+        public async Task<RFQ> AssignPurchaserAsync(string rfqId, AssignPurchaserRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(rfqId)) throw new ArgumentException("ID不能为空");
+            if (request == null || string.IsNullOrWhiteSpace(request.PurchaserId))
+                throw new ArgumentException("请选择采购员");
+
+            var rfq = await _rfqRepo.GetByIdAsync(rfqId);
+            if (rfq == null) throw new InvalidOperationException($"需求 {rfqId} 不存在");
+
+            if (rfq.Status == 7 || rfq.Status == 8)
+                throw new ArgumentException("需求已关闭或已取消，无法分配采购员");
+
+            var raw = request.PurchaserId.Trim();
+            var purchaser = await _userService.GetByIdAsync(raw)
+                ?? await _userService.GetByUserNameAsync(raw);
+            if (purchaser == null || !purchaser.IsActive)
+                throw new ArgumentException("采购员不存在或已停用");
+
+            var items = await _itemRepo.FindAsync(i => i.RfqId == rfqId);
+            foreach (var item in items)
+            {
+                item.AssignedPurchaserUserId1 = purchaser.Id;
+                item.AssignedPurchaserUserId2 = null;
+                item.ModifyTime = DateTime.UtcNow;
+                await _itemRepo.UpdateAsync(item);
+            }
+
+            rfq.AssignMethod = 4;
+            if (rfq.Status == 0)
+                rfq.Status = 1;
+            rfq.ModifyTime = DateTime.UtcNow;
+            await _rfqRepo.UpdateAsync(rfq);
+
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            return await GetByIdAsync(rfqId) ?? rfq;
+        }
+
+        /// <summary>
+        /// 从全局轮询池取连续 2 名采购员（同一需求下所有明细相同）；游标 +2。
+        /// 池仅 1 人时两人相同；池为空时返回 (null,null)。
+        /// </summary>
+        private async Task<(string? UserId1, string? UserId2)> TakeNextRoundRobinPurchaserPairAsync()
+        {
+            var pool = await GetPurchaserPoolOrderedAsync();
+            var n = pool.Count;
+            if (n == 0)
+                return (null, null);
+            var cursor = await GetRoundRobinCursorAsync();
+            var a1 = pool[cursor % n];
+            var a2 = pool[(cursor + 1) % n];
+            await SaveRoundRobinCursorAsync(cursor + 2);
+            return (a1, a2);
         }
 
         private async Task<List<string>> GetPurchaserPoolOrderedAsync()
@@ -559,7 +597,29 @@ namespace CRM.Core.Services
         {
             var rows = await _sysParamRepo.FindAsync(p => p.ParamCode == SysParamCodes.RfqPurchaserRoundRobinCursor);
             var row = rows.FirstOrDefault();
-            if (row == null) return;
+            if (row == null)
+            {
+                var groupFrom = (await _sysParamRepo.FindAsync(p => p.ParamCode == SysParamCodes.RfqRoundRobinPurchaserRoleCodes))
+                    .FirstOrDefault();
+                row = new SysParam
+                {
+                    Id = "00000000-0000-4000-8000-000000000013",
+                    ParamCode = SysParamCodes.RfqPurchaserRoundRobinCursor,
+                    ParamName = "需求采购员轮询游标",
+                    GroupId = groupFrom?.GroupId,
+                    DataType = ParamDataType.String,
+                    ValueString = cursor.ToString(),
+                    Status = 1,
+                    IsSystem = true,
+                    IsEditable = true,
+                    IsVisible = false,
+                    SortOrder = 11,
+                    CreateTime = DateTime.UtcNow
+                };
+                await _sysParamRepo.AddAsync(row);
+                return;
+            }
+
             row.ValueString = cursor.ToString();
             row.ModifyTime = DateTime.UtcNow;
             await _sysParamRepo.UpdateAsync(row);

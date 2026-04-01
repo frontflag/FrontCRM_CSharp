@@ -13,6 +13,16 @@ namespace CRM.Core.Interfaces
         Task<RFQ> UpdateAsync(string id, UpdateRFQRequest request);
         Task DeleteAsync(string id);
         Task UpdateStatusAsync(string id, short status);
+
+        /// <summary>手动将需求下全部明细的询价采购员设为指定用户（AssignMethod=4 指定采购员）。</summary>
+        Task<RFQ> AssignPurchaserAsync(string rfqId, AssignPurchaserRequest request);
+    }
+
+    /// <summary>分配采购员请求（与前端 purchaserId / remark 对齐）</summary>
+    public class AssignPurchaserRequest
+    {
+        public string PurchaserId { get; set; } = string.Empty;
+        public string? Remark { get; set; }
     }
 
     public class CreateRFQRequest

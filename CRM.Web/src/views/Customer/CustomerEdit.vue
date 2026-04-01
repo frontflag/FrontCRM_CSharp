@@ -126,13 +126,12 @@
             </el-col>
             <el-col :span="8">
               <el-form-item label="地区">
-                <el-cascader
+                <RegionCascaderWithQuickPick
                   v-model="regionValue"
                   :options="regionOptions"
                   placeholder="请选择地区"
-                  style="width: 100%"
+                  cascader-class="q-cascader"
                   @change="handleRegionChange"
-                  class="q-cascader"
                 />
               </el-form-item>
             </el-col>
@@ -296,12 +295,17 @@ import { ElNotification, ElMessageBox, type FormInstance, type FormRules } from 
 import { customerApi, customerContactApi } from '@/api/customer';
 import { draftApi } from '@/api/draft';
 import SalesUserCascader from '@/components/SalesUserCascader.vue';
+import RegionCascaderWithQuickPick from '@/components/RegionCascaderWithQuickPick.vue';
 import { regionData } from '@/data/regions';
 import type { CreateCustomerRequest } from '@/types/customer';
 import { runValidatedFormSave } from '@/composables/useFormSubmit';
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency';
 import { logRecentApi } from '@/api/logRecent';
 import { CUSTOMER_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/customerRecentHistory';
+import {
+  REGION_DISTRICT_PLACEHOLDER,
+  regionCascaderValueFromFields
+} from '@/constants/region';
 
 const route = useRoute();
 const router = useRouter();
@@ -360,8 +364,12 @@ const fetchCustomerDetail = async () => {
       contacts: customer.contacts || []
     };
     Object.assign(formData, mappedData);
-    if (mappedData.province && mappedData.city && mappedData.district) {
-      regionValue.value = [mappedData.province, mappedData.city, mappedData.district];
+    if (mappedData.province && mappedData.city) {
+      regionValue.value = regionCascaderValueFromFields(
+        mappedData.province,
+        mappedData.city,
+        mappedData.district
+      );
     }
     if (mappedData.contacts) {
       formData.contacts = mappedData.contacts.map((c: any) => ({
@@ -383,9 +391,21 @@ const fetchCustomerDetail = async () => {
 };
 
 const handleRegionChange = (value: string[]) => {
-  if (value && value.length >= 3) {
-    formData.province = value[0]; formData.city = value[1];
-    formData.district = value[2]; formData.country = '中国';
+  if (value && value.length >= 2) {
+    formData.province = value[0];
+    formData.city = value[1];
+    formData.district = value.length >= 3 ? value[2] : REGION_DISTRICT_PLACEHOLDER;
+    formData.country = '中国';
+  } else if (value?.length === 1) {
+    formData.province = value[0];
+    formData.city = '';
+    formData.district = '';
+    formData.country = '中国';
+  } else if (!value?.length) {
+    formData.province = '';
+    formData.city = '';
+    formData.district = '';
+    formData.country = '';
   }
 };
 
@@ -419,8 +439,12 @@ const applyDraftPayload = (payload: any) => {
   formData.contacts = Array.isArray(payload?.contacts)
     ? payload.contacts.map((c: any) => ({ ...c }))
     : [];
-  if (formData.province && formData.city && formData.district) {
-    regionValue.value = [formData.province, formData.city, formData.district];
+  if (formData.province && formData.city) {
+    regionValue.value = regionCascaderValueFromFields(
+      formData.province,
+      formData.city,
+      formData.district
+    );
   }
 };
 

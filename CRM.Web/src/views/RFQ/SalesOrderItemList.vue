@@ -77,10 +77,10 @@
         <el-table-column prop="brand" label="品牌" width="110" show-overflow-tooltip />
         <el-table-column prop="qty" label="数量" width="100" align="right" />
         <el-table-column v-if="canViewAmount" prop="price" label="单价" width="160" align="right">
-          <template #default="{ row }">{{ formatMoney(row.price, row.currency) }}</template>
+          <template #default="{ row }">{{ formatCurrencyUnitPrice(row.price, row.currency) }}</template>
         </el-table-column>
         <el-table-column v-if="canViewAmount" prop="lineTotal" label="明细总额" width="160" align="right">
-          <template #default="{ row }">{{ formatMoney(row.lineTotal, row.currency) }}</template>
+          <template #default="{ row }">{{ formatCurrencyTotal(row.lineTotal, row.currency) }}</template>
         </el-table-column>
         <el-table-column v-if="canViewAmount" label="折算美金单价" width="160" align="right">
           <template #default="{ row }">{{ row.usdUnitPrice != null ? `$${Number(row.usdUnitPrice).toFixed(6)}` : '—' }}</template>
@@ -137,7 +137,9 @@
               </div>
 
               <el-dropdown v-else trigger="click" placement="bottom-end">
-                <button type="button" class="op-more-trigger">...</button>
+                <div class="op-more-dropdown-trigger">
+                  <button type="button" class="op-more-trigger">...</button>
+                </div>
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item @click.stop="goDetail(row)">
@@ -340,6 +342,7 @@ import {
   salesOrderMainAllowsPurchaseAndStockOut
 } from '@/constants/salesOrderStatus'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
 import type { SalesOrderItemLineRow } from '@/stores/salesOrderItemListBasket'
 
 const router = useRouter()
@@ -506,11 +509,6 @@ function formatDt(v: string) {
   if (!v) return '—'
   const s = formatDisplayDateTime(v)
   return s === '--' ? '—' : s
-}
-
-function formatMoney(n: number, currency?: number) {
-  const sym = currency === 2 ? '$' : currency === 3 ? '€' : '¥'
-  return `${sym}${Number(n || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}`
 }
 
 function onSelectionChange(rows: any[]) {

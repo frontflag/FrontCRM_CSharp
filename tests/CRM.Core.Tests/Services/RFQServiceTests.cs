@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Rbac;
@@ -6,6 +7,7 @@ using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Models.System;
 using CRM.Core.Services;
+using CRM.Core.Tests.Fakes;
 using NSubstitute;
 using Xunit;
 
@@ -109,6 +111,92 @@ namespace CRM.Core.Tests.Services
             await _rfqRepository.Received(1).AddAsync(Arg.Any<RFQ>());
             await _rfqItemRepository.Received(1).AddAsync(Arg.Any<RFQItem>());
             await _unitOfWork.Received(1).SaveChangesAsync();
+        }
+
+        /// <summary>有采购员池时：主单已分配、明细共用一对采购员、全局游标每单 +2。</summary>
+        [Fact]
+        public async Task CreateAsync_WithPurchaserPool_AssignsPairToAllLinesAndAdvancesCursor()
+        {
+            var rfqRepo = Substitute.For<IRepository<RFQ>>();
+            var itemRepo = Substitute.For<IRepository<RFQItem>>();
+            var serial = Substitute.For<ISerialNumberService>();
+            serial.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001", "RF20260002");
+            rfqRepo.GetAllAsync().Returns(new List<RFQ>());
+            itemRepo.GetAllAsync().Returns(new List<RFQItem>());
+
+            var sysParamRepo = new MemoryRepository<SysParam>();
+            await sysParamRepo.AddAsync(new SysParam
+            {
+                Id = "sp-role",
+                ParamCode = SysParamCodes.RfqRoundRobinPurchaserRoleCodes,
+                ParamName = "roles",
+                ValueString = "buyer",
+                Status = 1
+            });
+            await sysParamRepo.AddAsync(new SysParam
+            {
+                Id = "sp-cursor",
+                ParamCode = SysParamCodes.RfqPurchaserRoundRobinCursor,
+                ParamName = "cursor",
+                ValueString = "0",
+                Status = 1
+            });
+
+            var roleRepo = new MemoryRepository<RbacRole>();
+            await roleRepo.AddAsync(new RbacRole { Id = "ROLE-1", RoleCode = "buyer", RoleName = "Buyer" });
+
+            var userRoleRepo = new MemoryRepository<RbacUserRole>();
+            await userRoleRepo.AddAsync(new RbacUserRole { Id = "ur-1", UserId = "U-Z", RoleId = "ROLE-1" });
+            await userRoleRepo.AddAsync(new RbacUserRole { Id = "ur-2", UserId = "U-A", RoleId = "ROLE-1" });
+            await userRoleRepo.AddAsync(new RbacUserRole { Id = "ur-3", UserId = "U-M", RoleId = "ROLE-1" });
+
+            var userRepo = new MemoryRepository<User>();
+            foreach (var id in new[] { "U-Z", "U-A", "U-M" })
+            {
+                await userRepo.AddAsync(new User
+                {
+                    Id = id,
+                    UserName = id.ToLowerInvariant(),
+                    PasswordHash = "x",
+                    Salt = "y",
+                    IsActive = true
+                });
+            }
+
+            var svc = new RFQService(
+                rfqRepo,
+                itemRepo,
+                null!,
+                Substitute.For<IEntityLookupService>(),
+                Substitute.For<IUnitOfWork>(),
+                serial,
+                Substitute.For<IDataPermissionService>(),
+                Substitute.For<IUserService>(),
+                sysParamRepo,
+                roleRepo,
+                userRoleRepo,
+                Substitute.For<IRepository<Quote>>(),
+                userRepo);
+
+            var req = BuildValidCreateRequest(r =>
+            {
+                r.Items.Add(new CreateRFQItemRequest { Mpn = "MPN-002", Brand = "B2", Quantity = 1 });
+            });
+
+            var first = await svc.CreateAsync(req);
+            Assert.Equal(1, first.Status);
+            Assert.Equal(2, first.AssignMethod);
+            await itemRepo.Received(2).AddAsync(Arg.Is<RFQItem>(i =>
+                i.AssignedPurchaserUserId1 == "U-A" && i.AssignedPurchaserUserId2 == "U-M"));
+
+            var cursorRow = (await sysParamRepo.FindAsync(p => p.ParamCode == SysParamCodes.RfqPurchaserRoundRobinCursor)).First();
+            Assert.Equal("2", cursorRow.ValueString);
+
+            await svc.CreateAsync(BuildValidCreateRequest());
+            cursorRow = (await sysParamRepo.FindAsync(p => p.ParamCode == SysParamCodes.RfqPurchaserRoundRobinCursor)).First();
+            Assert.Equal("4", cursorRow.ValueString);
+            await itemRepo.Received().AddAsync(Arg.Is<RFQItem>(i =>
+                i.AssignedPurchaserUserId1 == "U-Z" && i.AssignedPurchaserUserId2 == "U-A"));
         }
 
         [Fact]

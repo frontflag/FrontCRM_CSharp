@@ -262,8 +262,8 @@ namespace CRM.Core.Models.Finance
         /// <summary>
         /// 单价(不含税)
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal UnitPrice { get; set; } = 0.0000m;
+        [Column(TypeName = "numeric(18,6)")]
+        public decimal UnitPrice { get; set; } = 0.000000m;
 
         /// <summary>
         /// 金额(不含税)

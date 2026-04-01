@@ -33,11 +33,10 @@
       <el-row :gutter="20">
         <el-col :span="24">
           <el-form-item label="所在地区" prop="region">
-            <el-cascader
+            <RegionCascaderWithQuickPick
               v-model="regionValue"
               :options="regionOptions"
               placeholder="请选择省/市/区"
-              style="width: 100%"
               @change="handleRegionChange"
             />
           </el-form-item>
@@ -88,6 +87,11 @@ import { ElNotification, type FormInstance, type FormRules } from 'element-plus'
 import { customerAddressApi, normalizeCustomerAddressFromApi } from '@/api/customer';
 import { getApiErrorMessage } from '@/utils/apiError';
 import { regionData } from '@/data/regions';
+import RegionCascaderWithQuickPick from '@/components/RegionCascaderWithQuickPick.vue';
+import {
+  REGION_DISTRICT_PLACEHOLDER,
+  regionCascaderValueFromFields
+} from '@/constants/region';
 import type { CustomerAddress, CreateAddressRequest } from '@/types/customer';
 
 const props = defineProps<{
@@ -156,10 +160,20 @@ const resetForm = () => {
 
 // 地区变更
 const handleRegionChange = (value: string[]) => {
-  if (value && value.length >= 3) {
+  if (value && value.length >= 2) {
     formData.value.province = value[0];
     formData.value.city = value[1];
-    formData.value.district = value[2];
+    formData.value.district = value.length >= 3 ? value[2] : REGION_DISTRICT_PLACEHOLDER;
+    formData.value.country = '中国';
+  } else if (value?.length === 1) {
+    formData.value.province = value[0];
+    formData.value.city = '';
+    formData.value.district = '';
+    formData.value.country = '中国';
+  } else if (!value?.length) {
+    formData.value.province = '';
+    formData.value.city = '';
+    formData.value.district = '';
     formData.value.country = '中国';
   }
 };
@@ -180,8 +194,8 @@ watch(() => props.address, (newVal) => {
       contactPhone: n.contactPhone || '',
       isDefault: n.isDefault
     };
-    if (n.province && n.city && n.district) {
-      regionValue.value = [n.province, n.city, n.district];
+    if (n.province && n.city) {
+      regionValue.value = regionCascaderValueFromFields(n.province, n.city, n.district);
     }
   } else {
     resetForm();

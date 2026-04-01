@@ -160,6 +160,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.AssignedPurchaserUserId1).HasMaxLength(36);
                 entity.Property(e => e.AssignedPurchaserUserId2).HasMaxLength(36);
                 entity.Property(e => e.Quantity).HasColumnType("numeric(18,4)").HasDefaultValue(1m);
+                entity.Property(e => e.TargetPrice).HasColumnType("numeric(18,6)");
                 entity.HasIndex(e => e.RfqId);
             });
 
@@ -919,8 +920,8 @@ namespace CRM.Infrastructure.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("FinancePurchaseInvoiceItemId");
-                entity.Property(e => e.StockInCost).HasColumnType("numeric(18,4)");
-                entity.Property(e => e.BillCost).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.StockInCost).HasColumnType("numeric(18,6)");
+                entity.Property(e => e.BillCost).HasColumnType("numeric(18,6)");
                 entity.Property(e => e.BillAmount).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.TaxRate).HasColumnType("numeric(18,4)");
                 entity.Property(e => e.TaxAmount).HasColumnType("numeric(18,2)");
@@ -950,7 +951,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.TaxRate).HasColumnType("numeric(18,4)");
                 entity.Property(e => e.ValueAddedTax).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.TaxFreeTotal).HasColumnType("numeric(18,2)");
-                entity.Property(e => e.Price).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.Price).HasColumnType("numeric(18,6)");
                 entity.HasIndex(e => e.FinanceSellInvoiceId);
             });
 

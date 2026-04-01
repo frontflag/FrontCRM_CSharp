@@ -136,8 +136,16 @@ function currencyCode(v: number | undefined): string {
   return 'RMB'
 }
 
-function formatMoney(n: number): string {
+function formatReportQty(n: number): string {
+  return (n ?? 0).toLocaleString('zh-CN', { maximumFractionDigits: 4 })
+}
+
+function formatReportLineTotal(n: number): string {
   return (n ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function formatReportUnitPrice(n: number): string {
+  return (n ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 6 })
 }
 
 /** 签章区日期：2026年3月27日 */
@@ -196,10 +204,10 @@ const docBind = computed(() => {
       brand: row.brand || '—',
       unit: '个',
       currency: cur,
-      qty: formatMoney(qty),
-      unitPrice: formatMoney(cost),
+      qty: formatReportQty(qty),
+      unitPrice: formatReportUnitPrice(cost),
       taxRate: String(PURCHASE_ORDER_REPORT_TAX_RATE),
-      lineTotal: formatMoney(lineTotal),
+      lineTotal: formatReportLineTotal(lineTotal),
       productName: (row.comment && String(row.comment).trim()) || '—',
       spec: row.pn || '—'
     }
@@ -242,11 +250,11 @@ const docBind = computed(() => {
     },
     currencyLabel: cur,
     lines,
-    totalQty: formatMoney(qtySum),
-    totalIncl: formatMoney(inclSum),
-    exclTax: formatMoney(excl),
-    taxAmount: formatMoney(tax),
-    grandIncl: formatMoney(inclSum),
+    totalQty: formatReportQty(qtySum),
+    totalIncl: formatReportLineTotal(inclSum),
+    exclTax: formatReportLineTotal(excl),
+    taxAmount: formatReportLineTotal(tax),
+    grandIncl: formatReportLineTotal(inclSum),
     taxRateLabel: String(PURCHASE_ORDER_REPORT_TAX_RATE),
     extraLines: [
       '运费承担：供方承担',

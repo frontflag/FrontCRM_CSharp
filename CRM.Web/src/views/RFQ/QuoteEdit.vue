@@ -101,7 +101,7 @@
                 <el-input-number
                   v-model="formData.items[$index].unitPrice"
                   :min="0"
-                  :precision="4"
+                  :precision="6"
                   :controls="false"
                   style="width: 100%"
                 />

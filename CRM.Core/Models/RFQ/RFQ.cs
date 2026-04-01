@@ -177,8 +177,8 @@ namespace CRM.Core.Models.RFQ
         [Column("brand")]
         public string Brand { get; set; } = string.Empty;
 
-        /// <summary>目标价格</summary>
-        [Column("target_price", TypeName = "numeric(18,4)")]
+        /// <summary>目标价格（单价精度，6 位小数）</summary>
+        [Column("target_price", TypeName = "numeric(18,6)")]
         public decimal? TargetPrice { get; set; }
 
         /// <summary>目标价币种 (1:RMB 2:USD 3:EUR 4:HKD)</summary>

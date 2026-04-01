@@ -116,7 +116,7 @@
           </div>
           <div class="info-item" v-if="canViewSalesAmount">
             <span class="info-label">总金额</span>
-            <span class="info-value info-value--amount">{{ formatCurrency(order.total, order.currency) }}</span>
+            <span class="info-value info-value--amount">{{ formatCurrencyTotal(order.total, order.currency) }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">行项目数</span>
@@ -167,12 +167,12 @@
               <el-table-column prop="qty" label="数量" align="right" width="100" />
               <el-table-column v-if="canViewSalesAmount" prop="price" label="单价" align="right" width="120">
                 <template #default="{ row }">
-                  {{ formatCurrency(row.price, row.currency) }}
+                  {{ formatCurrencyUnitPrice(row.price, row.currency) }}
                 </template>
               </el-table-column>
               <el-table-column v-if="canViewSalesAmount" label="金额" align="right" width="130">
                 <template #default="{ row }">
-                  {{ formatCurrency(row.qty * row.price, row.currency) }}
+                  {{ formatCurrencyTotal(row.qty * row.price, row.currency) }}
                 </template>
               </el-table-column>
               <el-table-column label="审核状态" width="90" align="center">
@@ -473,6 +473,7 @@ import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 
@@ -891,11 +892,6 @@ const getInvoiceStatusType = (v?: number): '' | 'info' | 'success' | 'warning' |
   return v !== undefined ? (map[v] ?? 'info') : 'info'
 }
 
-const formatCurrency = (amount: number, currency?: number) => {
-  const symbol =
-    currency === 2 ? '$' : currency === 3 ? '€' : currency === 4 ? 'HK$' : '¥'
-  return `${symbol}${(amount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
 const formatDateTime = (v?: string) => (v ? formatDisplayDateTime(v) : '--')
 const getYYMMDD = (d: Date) => {
   const yy = String(d.getFullYear()).slice(-2)

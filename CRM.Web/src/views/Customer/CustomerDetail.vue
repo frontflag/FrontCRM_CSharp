@@ -581,6 +581,7 @@ import { CUSTOMER_FAVORITES_CHANGED_EVENT } from '@/constants/customerFavorites'
 import { logRecentApi } from '@/api/logRecent';
 import { CUSTOMER_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/customerRecentHistory';
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency';
+import { isDistrictPlaceholder } from '@/constants/region';
 
 const route = useRoute();
 const router = useRouter();
@@ -898,7 +899,15 @@ const getLevelLabel = (level: string) => ({ VIP: 'VIP客户', Important: '重要
 // const getLevelType = (level: string) => ({ VIP: 'danger', Important: 'warning', Normal: 'info', Lead: '' }[level] || '');
 const getIndustryLabel = (industry: string) => ({ Manufacturing: '制造业', Trading: '贸易/零售', Technology: '科技/IT', Construction: '建筑/工程', Healthcare: '医疗/健康', Education: '教育', Finance: '金融', Other: '其他' }[industry] || industry);
 const formatFullAddress = (address: CustomerAddress) =>
-  [address.country, address.province, address.city, address.district, address.streetAddress].filter(Boolean).join(' ');
+  [
+    address.country,
+    address.province,
+    address.city,
+    isDistrictPlaceholder(address.district) ? '' : address.district,
+    address.streetAddress
+  ]
+    .filter(Boolean)
+    .join(' ');
 const getCurrencyLabel = (currency: number) => CURRENCY_CODE_TO_TEXT[currency] || 'RMB';
 
 onMounted(() => {

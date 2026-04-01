@@ -217,15 +217,170 @@
         </el-row>
       </div>
 
-      <!-- 物料明细 -->
+      <!-- 物料明细：面板（默认） / 列表 可切换 -->
       <div class="form-section">
-        <div class="section-title">
-          <span class="title-bar"></span>物料明细
-          <el-button type="primary" size="small" class="add-item-btn" @click="addItem">
-            <el-icon><Plus /></el-icon> 添加明细
-          </el-button>
+        <div class="section-title section-title--items">
+          <div class="section-title__left">
+            <span class="title-bar"></span>物料明细
+          </div>
+          <div class="section-title__right">
+            <el-radio-group v-model="materialItemsViewMode" size="small" class="items-view-toggle">
+              <el-radio-button label="panel">面板</el-radio-button>
+              <el-radio-button label="list">列表</el-radio-button>
+            </el-radio-group>
+            <el-button type="primary" size="small" class="add-item-btn" @click="addItem">
+              <el-icon><Plus /></el-icon> 添加明细
+            </el-button>
+          </div>
         </div>
-        <div class="items-table-wrap">
+
+        <!-- 面板：每行 4 个字段（span=6） -->
+        <div v-if="materialItemsViewMode === 'panel' && formData.items.length > 0" class="items-panel-list">
+          <div
+            v-for="(row, idx) in formData.items"
+            :key="'panel-' + idx"
+            class="item-panel-card"
+          >
+            <div class="item-panel-card__head">
+              <span class="item-panel-card__idx">明细 {{ idx + 1 }}</span>
+              <el-button link type="danger" @click.stop="removeItem(idx)">删除</el-button>
+            </div>
+            <el-row :gutter="16" class="item-panel-row">
+              <el-col :span="6">
+                <div class="item-panel-field">
+                  <div class="item-panel-field__label">客户物料型号</div>
+                  <el-input v-model="row.customerMpn" placeholder="客户物料型号" class="q-input" />
+                </div>
+              </el-col>
+              <el-col :span="6">
+                <div class="item-panel-field">
+                  <div class="item-panel-field__label">客户品牌</div>
+                  <el-input v-model="row.customerBrand" placeholder="客户品牌" class="q-input" />
+                </div>
+              </el-col>
+              <el-col :span="6">
+                <div class="item-panel-field">
+                  <div class="item-panel-field__label">物料型号</div>
+                  <el-input v-model="row.mpn" placeholder="物料型号(MPN)" class="q-input" />
+                </div>
+              </el-col>
+              <el-col :span="6">
+                <div class="item-panel-field">
+                  <div class="item-panel-field__label">品牌</div>
+                  <el-input v-model="row.brand" placeholder="品牌" class="q-input" />
+                </div>
+              </el-col>
+            </el-row>
+            <el-row :gutter="16" class="item-panel-row">
+              <el-col :span="6">
+                <div class="item-panel-field">
+                  <div class="item-panel-field__label">目标价</div>
+                  <div class="item-price-with-currency">
+                    <el-input-number
+                      v-model="row.targetPrice"
+                      :min="0"
+                      :precision="6"
+                      :controls="false"
+                      class="item-price-with-currency__num q-number"
+                    />
+                    <el-select
+                      v-model="row.priceCurrency"
+                      class="item-price-with-currency__ccy q-select"
+                      popper-class="rfq-item-ccy-popper"
+                    >
+                      <el-option
+                        v-for="o in SETTLEMENT_CURRENCY_OPTIONS"
+                        :key="o.value"
+                        :label="o.label"
+                        :value="o.value"
+                      />
+                    </el-select>
+                  </div>
+                </div>
+              </el-col>
+              <el-col :span="6">
+                <div class="item-panel-field">
+                  <div class="item-panel-field__label">数量</div>
+                  <el-input-number
+                    v-model="row.quantity"
+                    :min="1"
+                    :controls="false"
+                    style="width: 100%"
+                    class="q-number"
+                  />
+                </div>
+              </el-col>
+              <el-col :span="6">
+                <div class="item-panel-field">
+                  <div class="item-panel-field__label">生产日期</div>
+                  <el-input v-model="row.productionDate" placeholder="如 2年内、DC" class="q-input" />
+                </div>
+              </el-col>
+              <el-col :span="6">
+                <div class="item-panel-field">
+                  <div class="item-panel-field__label">失效日期</div>
+                  <el-date-picker
+                    v-model="row.expiryDate"
+                    type="date"
+                    placeholder="选择日期"
+                    value-format="YYYY-MM-DD"
+                    style="width: 100%"
+                    class="q-date"
+                  />
+                </div>
+              </el-col>
+            </el-row>
+            <el-row :gutter="16" class="item-panel-row">
+              <el-col :span="8">
+                <div class="item-panel-field">
+                  <div class="item-panel-field__label">最小包装</div>
+                  <el-input-number
+                    v-model="row.minPackageQty"
+                    :min="0"
+                    :controls="false"
+                    style="width: 100%"
+                    class="q-number"
+                  />
+                </div>
+              </el-col>
+              <el-col :span="8">
+                <div class="item-panel-field">
+                  <div class="item-panel-field__label">最小起订量</div>
+                  <el-input-number
+                    v-model="row.minOrderQty"
+                    :min="0"
+                    :controls="false"
+                    style="width: 100%"
+                    class="q-number"
+                  />
+                </div>
+              </el-col>
+              <el-col :span="8">
+                <div class="item-panel-field">
+                  <div class="item-panel-field__label">可替代料</div>
+                  <el-input v-model="row.alternativeMaterials" placeholder="逗号分隔" class="q-input" />
+                </div>
+              </el-col>
+            </el-row>
+            <el-row :gutter="16" class="item-panel-row">
+              <el-col :span="24">
+                <div class="item-panel-field item-panel-field--remark">
+                  <div class="item-panel-field__label">备注</div>
+                  <el-input
+                    v-model="row.remark"
+                    type="textarea"
+                    :rows="2"
+                    placeholder="备注"
+                    class="q-input"
+                  />
+                </div>
+              </el-col>
+            </el-row>
+          </div>
+        </div>
+
+        <!-- 列表：横向表格 -->
+        <div v-if="materialItemsViewMode === 'list' && formData.items.length > 0" class="items-table-wrap">
           <el-table :data="formData.items" size="small" class="items-table">
             <el-table-column label="客户物料型号" min-width="130">
               <template #default="{ $index }">
@@ -247,16 +402,29 @@
                 <el-input v-model="formData.items[$index].brand" placeholder="品牌" class="q-input" />
               </template>
             </el-table-column>
-            <el-table-column label="目标价" width="118">
+            <el-table-column label="目标价" min-width="168">
               <template #default="{ $index }">
-                <el-input-number
-                  v-model="formData.items[$index].targetPrice"
-                  :min="0"
-                  :precision="4"
-                  :controls="false"
-                  style="width: 100%"
-                  class="q-number"
-                />
+                <div class="item-price-with-currency item-price-with-currency--table">
+                  <el-input-number
+                    v-model="formData.items[$index].targetPrice"
+                    :min="0"
+                    :precision="6"
+                    :controls="false"
+                    class="item-price-with-currency__num q-number"
+                  />
+                  <el-select
+                    v-model="formData.items[$index].priceCurrency"
+                    class="item-price-with-currency__ccy q-select"
+                    popper-class="rfq-item-ccy-popper"
+                  >
+                    <el-option
+                      v-for="o in SETTLEMENT_CURRENCY_OPTIONS"
+                      :key="o.value"
+                      :label="o.label"
+                      :value="o.value"
+                    />
+                  </el-select>
+                </div>
               </template>
             </el-table-column>
             <el-table-column label="数量" width="100">
@@ -352,6 +520,7 @@ import {
   QUOTE_METHOD_OPTIONS,
   ASSIGN_METHOD_OPTIONS
 } from '@/constants/rfqFormEnums'
+import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 
 const route = useRoute()
 const router = useRouter()
@@ -359,6 +528,9 @@ const formRef = ref()
 const submitLoading = ref(false)
 const pageLoading = ref(false)
 const authStore = useAuthStore()
+
+/** 物料明细展示：面板（默认，每行 4 字段） / 列表（横向表格） */
+const materialItemsViewMode = ref<'panel' | 'list'>('panel')
 
 const rfqId = computed(() => {
   const id = route.params.id
@@ -407,6 +579,25 @@ const genRfqCode = () => {
   return `RFQ${date}${seq}`
 }
 
+/** 一条空白物料明细（新建默认 1 条，与「添加明细」结构一致） */
+function createEmptyRfqItem() {
+  return {
+    customerMpn: '',
+    customerBrand: '',
+    mpn: '',
+    brand: '',
+    quantity: 1,
+    targetPrice: undefined,
+    productionDate: '',
+    expiryDate: '',
+    minPackageQty: undefined,
+    minOrderQty: undefined,
+    alternativeMaterials: '',
+    remark: '',
+    priceCurrency: 1
+  }
+}
+
 const emptyForm = () => ({
   rfqCode: genRfqCode(),
   customerId: '',
@@ -431,7 +622,10 @@ const emptyForm = () => ({
 const formData = ref(emptyForm())
 
 function resetFormForCreate() {
-  formData.value = emptyForm()
+  formData.value = {
+    ...emptyForm(),
+    items: [createEmptyRfqItem()]
+  }
   contactOptions.value = []
   const user = authStore.user
   if (user) {
@@ -625,21 +819,7 @@ function onContactChange(contactId: string) {
 
 // 添加/删除明细
 const addItem = () => {
-  formData.value.items.push({
-    customerMpn: '',
-    customerBrand: '',
-    mpn: '',
-    brand: '',
-    quantity: 1,
-    targetPrice: undefined,
-    productionDate: '',
-    expiryDate: '',
-    minPackageQty: undefined,
-    minOrderQty: undefined,
-    alternativeMaterials: '',
-    remark: '',
-    priceCurrency: 1
-  })
+  formData.value.items.push(createEmptyRfqItem())
 }
 
 const removeItem = (index: number) => {
@@ -797,6 +977,42 @@ const handleSubmit = async () => {
     .add-item-btn {
       margin-left: auto;
     }
+
+    &--items {
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+
+      .section-title__left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .section-title__right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-left: auto;
+      }
+    }
+  }
+
+  .items-view-toggle {
+    :deep(.el-radio-button__inner) {
+      background: $layer-3;
+      border-color: $border-panel;
+      color: $text-muted;
+      font-size: 12px;
+      padding: 5px 12px;
+    }
+    :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+      background: rgba(0, 212, 255, 0.12);
+      border-color: rgba(0, 212, 255, 0.45);
+      color: $cyan-primary;
+      box-shadow: none;
+    }
   }
 
   :deep(.el-form-item__label) {
@@ -892,6 +1108,106 @@ const handleSubmit = async () => {
   color: $text-muted;
   font-size: 12px;
   text-align: center;
+}
+
+.items-panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.item-panel-card {
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  padding: 14px 16px 16px;
+}
+
+.item-panel-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.item-panel-card__idx {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(200, 216, 232, 0.75);
+  letter-spacing: 0.3px;
+}
+
+.item-panel-row {
+  margin-bottom: 4px;
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.item-panel-field {
+  margin-bottom: 10px;
+  min-width: 0;
+}
+
+.item-panel-field__label {
+  font-size: 12px;
+  color: $text-muted;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+/** 目标价 + 币别合并为一格 */
+.item-price-with-currency {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  overflow: hidden;
+  background: $layer-3;
+
+  &__num {
+    flex: 1;
+    min-width: 0;
+    :deep(.el-input__wrapper) {
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
+    }
+    :deep(.el-input__inner) {
+      text-align: left;
+    }
+  }
+
+  &__ccy {
+    flex-shrink: 0;
+    width: 70px;
+    :deep(.el-select__wrapper) {
+      border: none !important;
+      border-radius: 0 !important;
+      border-left: 1px solid $border-panel !important;
+      box-shadow: none !important;
+      min-height: 32px;
+      background: rgba(0, 0, 0, 0.12) !important;
+    }
+    :deep(.el-select__selected-item) {
+      font-size: 12px;
+    }
+  }
+
+  &--table {
+    .item-price-with-currency__ccy {
+      width: 62px;
+      :deep(.el-select__wrapper) {
+        min-height: 30px;
+        padding: 0 6px;
+      }
+    }
+  }
 }
 
 .items-table-wrap {

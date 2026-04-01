@@ -328,12 +328,84 @@
   transition: opacity 0.15s;
 }
 
+/** 收起态：整块操作格为 el-dropdown 触发区；格内任意位置点击打开菜单；悬停格内即显示「...」 */
+.op-more-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 32px;
+  margin: 0 -6px;
+  padding: 2px 8px;
+  box-sizing: border-box;
+  cursor: pointer !important;
+  /* 固定右列与主表体叠层时，避免命中穿透到下层滚动格（表现为默认光标、点击无效） */
+  position: relative;
+  z-index: 1;
+}
+
+.op-more-dropdown-trigger .op-more-trigger {
+  flex-shrink: 0;
+  cursor: pointer !important;
+  /* 勿设 pointer-events: none：否则「...」区域命中会落到主表透明叠层，光标非手型且无法打开下拉 */
+  pointer-events: auto;
+}
+
+.op-more-dropdown-trigger:hover .op-more-trigger,
+.op-more-dropdown-trigger:focus-within .op-more-trigger {
+  opacity: 1;
+}
+
+/** 操作列：下拉根节点与常见外层 div 拉满单元格，热区覆盖整格 */
+td.op-col .cell > div {
+  width: 100%;
+}
+
+td.op-col .cell .el-dropdown {
+  display: block;
+  width: 100%;
+}
+
+/*
+ * 存在右侧固定列副本（.el-table__fixed-right）时：主滚动区里仍渲染 sticky 的右固定格，
+ * 会与固定层叠放并抢走命中（光标保持箭头、点击打不开下拉）。主表体镜像格不接收指针，由固定层承接。
+ */
+.table-wrapper.crm-items-table.crm-data-table .el-table__inner-wrapper:has(.el-table__fixed-right)
+  .el-table__body-wrapper
+  tbody
+  td.el-table__cell.el-table-fixed-column--right,
+.crm-items-table.crm-data-table .el-table__inner-wrapper:has(.el-table__fixed-right)
+  .el-table__body-wrapper
+  tbody
+  td.el-table__cell.el-table-fixed-column--right {
+  pointer-events: none !important;
+}
+
+/* 固定层操作格确保可点、且手型不被行级样式盖掉 */
+.table-wrapper.crm-items-table.crm-data-table .el-table__fixed-body-wrapper td.op-col.el-table__cell,
+.table-wrapper.crm-items-table.crm-data-table .el-table__fixed-body-wrapper td.el-table__cell.op-col,
+.crm-items-table.crm-data-table .el-table__fixed-body-wrapper td.op-col.el-table__cell,
+.crm-items-table.crm-data-table .el-table__fixed-body-wrapper td.el-table__cell.op-col {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 4;
+}
+
 .el-table__body-wrapper .el-table__body tr:hover .op-more-trigger,
 .el-table__fixed-body-wrapper .el-table__body tr:hover .op-more-trigger,
 .el-table__body-wrapper .el-table__body tr.hover-row .op-more-trigger,
 .el-table__fixed-body-wrapper .el-table__body tr.hover-row .op-more-trigger,
 .el-table__body-wrapper .el-table__body tr.current-row .op-more-trigger,
 .el-table__fixed-body-wrapper .el-table__body tr.current-row .op-more-trigger {
+  opacity: 1;
+}
+
+.el-table__body-wrapper .el-table__body tr:hover .op-more-dropdown-trigger .op-more-trigger,
+.el-table__fixed-body-wrapper .el-table__body tr:hover .op-more-dropdown-trigger .op-more-trigger,
+.el-table__body-wrapper .el-table__body tr.hover-row .op-more-dropdown-trigger .op-more-trigger,
+.el-table__fixed-body-wrapper .el-table__body tr.hover-row .op-more-dropdown-trigger .op-more-trigger,
+.el-table__body-wrapper .el-table__body tr.current-row .op-more-dropdown-trigger .op-more-trigger,
+.el-table__fixed-body-wrapper .el-table__body tr.current-row .op-more-dropdown-trigger .op-more-trigger {
   opacity: 1;
 }
 

@@ -64,12 +64,6 @@
           </svg>
           编辑
         </button>
-        <button class="btn-secondary" @click="showAssignDialog" v-if="rfq?.status !== 7 && rfq?.status !== 8">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-          </svg>
-          分配采购员
-        </button>
         <button class="btn-warning" @click="showCloseDialog" v-if="rfq?.status !== 7 && rfq?.status !== 8">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
@@ -224,17 +218,140 @@
             <div v-if="activeTab === 'items'">
               <div class="tab-toolbar">
                 <span class="cell-muted">共 {{ rfqItems.length }} 条明细</span>
-                <button class="btn-add-item" @click="loadItems" style="margin-left: auto;">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/>
+                <div class="tab-toolbar__actions">
+                  <el-radio-group v-model="itemsViewMode" size="small" class="items-view-toggle">
+                    <el-radio-button label="list">列表</el-radio-button>
+                    <el-radio-button label="panel">面板</el-radio-button>
+                  </el-radio-group>
+                  <button
+                    v-if="showAssignPurchaserToolbar"
+                    type="button"
+                    class="btn-add-item"
+                    @click="showAssignDialog"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    分配采购员
+                  </button>
+                  <button type="button" class="btn-add-item" @click="loadItems">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/>
+                    </svg>
+                    刷新最优报价
+                  </button>
+                </div>
+              </div>
+              <div
+                v-if="itemsViewMode === 'panel'"
+                v-loading="itemsLoading"
+                element-loading-background="rgba(10,22,40,0.8)"
+                class="items-panel-wrap"
+              >
+                <div v-if="rfqItems.length === 0" class="empty-state empty-state--inline">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
+                    <rect x="3" y="4" width="18" height="16" rx="2"/>
+                    <path d="M7 8h10M7 12h6"/>
                   </svg>
-                  刷新最优报价
-                </button>
+                  <p>暂无需求明细</p>
+                </div>
+                <div v-else class="items-panel-list">
+                  <div
+                    v-for="(row, idx) in rfqItems"
+                    :key="itemRowKey(row, idx)"
+                    class="item-panel-card"
+                  >
+                    <div class="item-panel-card__head">
+                      <span class="item-panel-card__idx">明细 {{ idx + 1 }}</span>
+                    </div>
+                    <el-row :gutter="16" class="item-panel-row">
+                      <el-col :xs="24" :sm="12" :md="6">
+                        <div class="item-panel-field">
+                          <div class="item-panel-field__label">客户物料型号</div>
+                          <div class="item-panel-field__value cell-secondary">
+                            {{ row.customerMaterialModel || (row as any).customerMpn || '—' }}
+                          </div>
+                        </div>
+                      </el-col>
+                      <el-col :xs="24" :sm="12" :md="6">
+                        <div class="item-panel-field">
+                          <div class="item-panel-field__label">物料型号</div>
+                          <div class="item-panel-field__value item-panel-field__value--code">
+                            {{ row.materialModel || (row as any).mpn || '—' }}
+                          </div>
+                        </div>
+                      </el-col>
+                      <el-col :xs="24" :sm="12" :md="6">
+                        <div class="item-panel-field">
+                          <div class="item-panel-field__label">客户品牌</div>
+                          <div class="item-panel-field__value cell-secondary">{{ row.customerBrand || '—' }}</div>
+                        </div>
+                      </el-col>
+                      <el-col :xs="24" :sm="12" :md="6">
+                        <div class="item-panel-field">
+                          <div class="item-panel-field__label">品牌</div>
+                          <div class="item-panel-field__value cell-primary">{{ row.brand || '—' }}</div>
+                        </div>
+                      </el-col>
+                    </el-row>
+                    <el-row :gutter="16" class="item-panel-row">
+                      <el-col :xs="24" :sm="12" :md="6">
+                        <div class="item-panel-field">
+                          <div class="item-panel-field__label">目标价</div>
+                          <div class="item-panel-field__value cell-secondary">
+                            {{ row.targetPrice ? `${row.currency || 'RMB'} ${row.targetPrice}` : '—' }}
+                          </div>
+                        </div>
+                      </el-col>
+                      <el-col :xs="24" :sm="12" :md="6">
+                        <div class="item-panel-field">
+                          <div class="item-panel-field__label">数量</div>
+                          <div class="item-panel-field__value cell-secondary">{{ row.quantity ?? '—' }}</div>
+                        </div>
+                      </el-col>
+                      <el-col :xs="24" :sm="12" :md="6">
+                        <div class="item-panel-field">
+                          <div class="item-panel-field__label">生产日期</div>
+                          <div class="item-panel-field__value cell-muted">{{ row.productionDate || '—' }}</div>
+                        </div>
+                      </el-col>
+                      <el-col :xs="24" :sm="12" :md="6">
+                        <div class="item-panel-field">
+                          <div class="item-panel-field__label">失效日期</div>
+                          <div class="item-panel-field__value cell-muted">{{ formatDate(row.expiryDate) }}</div>
+                        </div>
+                      </el-col>
+                    </el-row>
+                    <el-row :gutter="16" class="item-panel-row">
+                      <el-col :xs="24" :sm="12" :md="12">
+                        <div class="item-panel-field">
+                          <div class="item-panel-field__label">询价采购员</div>
+                          <div class="item-panel-field__value cell-secondary">{{ formatAssignedPurchasers(row) }}</div>
+                        </div>
+                      </el-col>
+                      <el-col :xs="24" :sm="12" :md="6">
+                        <div class="item-panel-field">
+                          <div class="item-panel-field__label">最小起订量</div>
+                          <div class="item-panel-field__value cell-muted">{{ row.minOrderQty ?? '—' }}</div>
+                        </div>
+                      </el-col>
+                      <el-col :xs="24" :sm="12" :md="6">
+                        <div class="item-panel-field">
+                          <div class="item-panel-field__label">状态</div>
+                          <div class="item-panel-field__value">
+                            <span :class="['status-badge', `status-${row.status}`]">{{ getStatusLabel(row.status) }}</span>
+                          </div>
+                        </div>
+                      </el-col>
+                    </el-row>
+                  </div>
+                </div>
               </div>
               <CrmDataTable
+                v-else
                 :data="rfqItems"
                 v-loading="itemsLoading"
-                class="quantum-table"
+                class="quantum-table crm-data-table"
                 :header-cell-style="headerCellStyle"
                 :cell-style="cellStyle"
               >
@@ -274,6 +391,34 @@
                 <el-table-column label="状态" width="90" align="center">
                   <template #default="{ row }">
                     <span :class="['status-badge', `status-${row.status}`]">{{ getStatusLabel(row.status) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  v-if="canAssignRfqPurchaser"
+                  label="操作"
+                  width="100"
+                  min-width="88"
+                  align="center"
+                  fixed="right"
+                  class-name="op-col"
+                  label-class-name="op-col"
+                >
+                  <template #default>
+                    <div v-if="rfqClosedForAssign" class="cell-muted">—</div>
+                    <div v-else @click.stop @dblclick.stop>
+                      <el-dropdown trigger="click" placement="bottom-end">
+                        <div class="op-more-dropdown-trigger">
+                          <button type="button" class="op-more-trigger">...</button>
+                        </div>
+                        <template #dropdown>
+                          <el-dropdown-menu>
+                            <el-dropdown-item @click.stop="showAssignDialog">
+                              <span class="op-more-item op-more-item--primary">分配采购员</span>
+                            </el-dropdown-item>
+                          </el-dropdown-menu>
+                        </template>
+                      </el-dropdown>
+                    </div>
                   </template>
                 </el-table-column>
               </CrmDataTable>
@@ -369,6 +514,8 @@ import { ElNotification, ElMessageBox } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
 import { favoriteApi } from '@/api/favorite'
 import { RFQ_FAVORITE_ENTITY_TYPE, RFQ_FAVORITES_CHANGED_EVENT } from '@/constants/rfqFavorites'
+import { canManualAssignRfqPurchaser } from '@/constants/rfqPurchaserAssign'
+import { useAuthStore } from '@/stores/auth'
 import { recordRfqRecentView } from '@/utils/rfqRecentHistory'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
@@ -380,7 +527,21 @@ import {
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 const rfqId = route.params.id as string
+
+const canAssignRfqPurchaser = computed(() => canManualAssignRfqPurchaser(authStore.user))
+const rfqClosedForAssign = computed(() => {
+  const s = rfq.value?.status
+  return s === 7 || s === 8
+})
+/** 面板视图下无「操作」列，用工具栏提供同一入口 */
+const showAssignPurchaserToolbar = computed(
+  () =>
+    canAssignRfqPurchaser.value &&
+    itemsViewMode.value === 'panel' &&
+    !rfqClosedForAssign.value
+)
 
 const loading = ref(false)
 const rfqFavorited = ref(false)
@@ -390,6 +551,8 @@ const rfqItems = ref<any[]>([])
 const closeRecords = ref<any[]>([])
 const itemsLoading = ref(false)
 const activeTab = ref('items')
+/** 需求明细：列表（默认） / 面板 */
+const itemsViewMode = ref<'list' | 'panel'>('list')
 
 const tabs = computed(() => [
   { key: 'items', label: '需求明细', count: rfqItems.value.length },
@@ -457,6 +620,10 @@ function formatAssignedPurchasers(row: any) {
   const n2 = String(row.assignedPurchaserName2 ?? '').trim()
   const parts = [n1, n2].filter(Boolean)
   return parts.length ? parts.join('、') : '—'
+}
+function itemRowKey(row: any, idx: number) {
+  const id = row?.id
+  return id != null && id !== '' ? String(id) : `rfq-item-${idx}`
 }
 function formatCloseAt(val?: string) {
   if (!val) return '—'
@@ -556,7 +723,9 @@ async function handleAssignConfirm() {
   try {
     await rfqApi.assignPurchaser(rfqId, { purchaserId: assignForm.purchaserId, remark: assignForm.remark })
     ElNotification.success({ title: '分配成功', message: '采购员已成功分配' })
-    assignDialogVisible.value = false; loadRFQ()
+    assignDialogVisible.value = false
+    await loadRFQ()
+    await loadItems()
   } catch { ElNotification.error({ title: '分配失败', message: '采购员分配失败，请重试' }) }
   finally { assignLoading.value = false }
 }
@@ -880,7 +1049,90 @@ onMounted(() => { loadRFQ(); loadItems(); loadCloseRecords() })
 .tab-toolbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 14px;
+}
+.tab-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.items-view-toggle {
+  :deep(.el-radio-button__inner) {
+    background: rgba(0, 0, 0, 0.2);
+    border-color: $border-panel;
+    color: $text-muted;
+    font-size: 12px;
+    padding: 5px 12px;
+  }
+  :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+    background: rgba(0, 212, 255, 0.12);
+    border-color: rgba(0, 212, 255, 0.45);
+    color: $cyan-primary;
+    box-shadow: none;
+  }
+}
+.items-panel-wrap {
+  min-height: 80px;
+}
+.items-panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.item-panel-card {
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  padding: 14px 16px 16px;
+}
+.item-panel-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.item-panel-card__idx {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(200, 216, 232, 0.75);
+  letter-spacing: 0.3px;
+}
+.item-panel-row {
+  margin-bottom: 4px;
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+.item-panel-field {
+  margin-bottom: 10px;
+  min-width: 0;
+}
+.item-panel-field__label {
+  font-size: 12px;
+  color: $text-muted;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+.item-panel-field__value {
+  font-size: 13px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+.item-panel-field__value--code {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: $color-ice-blue;
+}
+.empty-state--inline {
+  padding: 32px 16px;
+  margin: 0;
 }
 .btn-add-item {
   display: inline-flex;

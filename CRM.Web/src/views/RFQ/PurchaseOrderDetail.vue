@@ -138,7 +138,7 @@
           </div>
           <div class="info-item" v-if="canViewPurchaseAmount">
             <span class="info-label">总金额</span>
-            <span class="info-value info-value--amount">{{ formatCurrency(order.total, order.currency) }}</span>
+            <span class="info-value info-value--amount">{{ formatCurrencyTotal(order.total, order.currency) }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">行项目数</span>
@@ -188,12 +188,12 @@
               <el-table-column prop="qty" label="数量" align="right" width="100" />
               <el-table-column v-if="canViewPurchaseAmount" prop="cost" label="单价" align="right" width="120">
                 <template #default="{ row }">
-                  {{ formatCurrency(row.cost, row.currency) }}
+                  {{ formatCurrencyUnitPrice(row.cost, row.currency) }}
                 </template>
               </el-table-column>
               <el-table-column v-if="canViewPurchaseAmount" label="金额" align="right" width="130">
                 <template #default="{ row }">
-                  {{ formatCurrency(row.qty * row.cost, row.currency) }}
+                  {{ formatCurrencyTotal(row.qty * row.cost, row.currency) }}
                 </template>
               </el-table-column>
               <el-table-column prop="comment" label="备注" min-width="120" />
@@ -285,6 +285,7 @@ import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
 import { recordPurchaseOrderRecentView } from '@/utils/purchaseOrderRecentHistory'
 import PurchaseOrderItemLineDialogs from '@/components/purchaseOrder/PurchaseOrderItemLineDialogs.vue'
 
@@ -530,10 +531,6 @@ const getStatusType = (status: number) => {
 const getStatusText = (status: number) => {
   const map: Record<number, string> = { 1: '新建', 2: '待审核', 10: '审核通过', 20: '待确认', 30: '已确认', 50: '进行中', 100: '采购完成', [-1]: '审核失败', [-2]: '取消' }
   return map[status] ?? '未知'
-}
-const formatCurrency = (amount: number, currency?: number) => {
-  const symbol = currency === 2 ? '$' : currency === 3 ? '€' : '¥'
-  return `${symbol}${(amount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 const formatDateTime = (v?: string) => (v ? formatDisplayDateTime(v) : '--')
 

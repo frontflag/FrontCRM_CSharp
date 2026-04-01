@@ -145,7 +145,7 @@
           <el-table-column label="报价单价" width="110" align="right">
             <template #default="{ row }">
               <span v-if="row.quotedPrice" class="quoted-price">
-                {{ row.quotedPrice }} {{ row.quotedCurrency || row.currency }}
+                {{ formatUnitPriceNumber(row.quotedPrice) }} {{ row.quotedCurrency || row.currency }}
               </span>
               <span v-else class="text-muted">—</span>
             </template>
@@ -212,7 +212,7 @@
         <el-row :gutter="14">
           <el-col :span="12">
             <el-form-item label="报价单价" prop="quotedPrice">
-              <el-input-number v-model="quoteForm.quotedPrice" :min="0" :precision="4" class="w-full" />
+              <el-input-number v-model="quoteForm.quotedPrice" :min="0" :precision="6" class="w-full" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -268,6 +268,7 @@ import { bomApi } from '@/api/bom'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import type { BOM, BOMItem } from '@/types/bom'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatUnitPriceNumber } from '@/utils/moneyFormat'
 import { SETTLEMENT_CURRENCY_STRING_OPTIONS } from '@/constants/currency'
 
 const router = useRouter()
