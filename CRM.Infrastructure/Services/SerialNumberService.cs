@@ -12,6 +12,9 @@ namespace CRM.Infrastructure.Services
     /// </summary>
     public class SerialNumberService : ISerialNumberService
     {
+        private const string Base32Alphabet = "0123456789ABCDEFGHKLMNPRSTUVWXYZ";
+        private const int EncodedSequenceLength = 5;
+
         private readonly ApplicationDbContext _context;
         private readonly ILogger<SerialNumberService> _logger;
 
@@ -63,12 +66,8 @@ namespace CRM.Infrastructure.Services
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                // 编号格式：
-                // - Customer/Vendor：Prefix + 4位流水号（例：CUS1234 / VEN1234）
-                // - 其他模块：Prefix + YYMMDD + 4位流水号
-                var result = ShouldUsePlainSequenceCode(moduleCode)
-                    ? FormatPlainSequenceCode(serial.Prefix, serial.CurrentSequence)
-                    : FormatBusinessCode(serial.Prefix, serial.CurrentSequence, now);
+                // 新业务编号规则：3/4位业务标识 + 5位32进制流水号
+                var result = FormatBusinessCode(serial.Prefix, serial.CurrentSequence);
                 _logger.LogDebug("生成流水号：{ModuleCode} -> {SerialNo}", moduleCode, result);
                 return result;
             }
@@ -89,9 +88,7 @@ namespace CRM.Infrastructure.Services
                 throw new InvalidOperationException($"未找到业务模块 '{moduleCode}' 的流水号配置。");
 
             var nextSeq = serial.CurrentSequence + 1;
-            return ShouldUsePlainSequenceCode(moduleCode)
-                ? FormatPlainSequenceCode(serial.Prefix, nextSeq)
-                : FormatBusinessCode(serial.Prefix, nextSeq, DateTime.UtcNow);
+            return FormatBusinessCode(serial.Prefix, nextSeq);
         }
 
         /// <inheritdoc/>
@@ -118,24 +115,54 @@ namespace CRM.Infrastructure.Services
             _logger.LogWarning("流水号已重置：模块={ModuleCode}，起始值={StartFrom}", moduleCode, startFrom);
         }
 
-        private static string FormatBusinessCode(string prefix, int sequence, DateTime nowUtc)
+        private static string FormatBusinessCode(string prefix, int sequence)
         {
-            var datePart = nowUtc.ToString("yyMMdd");
-            var seqPart = sequence.ToString("D4");
-            return $"{prefix}{datePart}{seqPart}";
+            if (string.IsNullOrWhiteSpace(prefix))
+            {
+                throw new InvalidOperationException("流水号前缀不能为空。");
+            }
+
+            var normalizedPrefix = prefix.Trim().ToUpperInvariant();
+            if (normalizedPrefix.Length < 3 || normalizedPrefix.Length > 4)
+            {
+                throw new InvalidOperationException(
+                    $"流水号前缀 '{normalizedPrefix}' 非法：仅支持3位主业务前缀或4位辅助业务前缀。");
+            }
+
+            var seqPart = EncodeBase32(sequence, EncodedSequenceLength);
+            return $"{normalizedPrefix}{seqPart}";
         }
 
-        private static string FormatPlainSequenceCode(string prefix, int sequence)
+        private static string EncodeBase32(int value, int minLength)
         {
-            var seqPart = sequence.ToString("D4");
-            return $"{prefix}{seqPart}";
-        }
+            if (value < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), value, "流水号值不能为负数。");
+            }
 
-        private static bool ShouldUsePlainSequenceCode(string moduleCode)
-        {
-            if (string.IsNullOrWhiteSpace(moduleCode)) return false;
-            return moduleCode.Equals(ModuleCodes.Customer, StringComparison.OrdinalIgnoreCase)
-                || moduleCode.Equals(ModuleCodes.Vendor, StringComparison.OrdinalIgnoreCase);
+            var baseSize = Base32Alphabet.Length;
+            var buffer = new char[Math.Max(minLength, 1)];
+            var index = buffer.Length - 1;
+            var current = value;
+
+            do
+            {
+                var remainder = current % baseSize;
+                buffer[index--] = Base32Alphabet[remainder];
+                current /= baseSize;
+            } while (current > 0 && index >= 0);
+
+            if (current > 0)
+            {
+                throw new InvalidOperationException($"流水号超出{minLength}位32进制可表示范围。");
+            }
+
+            while (index >= 0)
+            {
+                buffer[index--] = '0';
+            }
+
+            return new string(buffer);
         }
     }
 }

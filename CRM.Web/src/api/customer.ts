@@ -239,6 +239,26 @@ export const customerApi = {
     return { ...(rest as unknown as Customer), banks };
   },
 
+  /** Excel 批量导入（解析后的结构化数据） */
+  async importCustomersBatch(payload: {
+    items: Array<{
+      customer: Record<string, unknown>;
+      contacts: Array<Record<string, unknown>>;
+    }>;
+  }): Promise<{
+    successCount: number;
+    failCount: number;
+    items: Array<{
+      index: number;
+      success: boolean;
+      customerCode?: string;
+      customerId?: string;
+      error?: string;
+    }>;
+  }> {
+    return await apiClient.post('/api/v1/customers/import/batch', payload);
+  },
+
   // 创建客户
   async createCustomer(data: CreateCustomerRequest): Promise<Customer> {
     const backendData: any = {

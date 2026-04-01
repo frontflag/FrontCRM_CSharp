@@ -13,6 +13,11 @@ namespace CRM.Core.Interfaces
         Task<CustomerInfo> CreateCustomerAsync(CreateCustomerRequest request);
 
         /// <summary>
+        /// 批量导入客户（Excel 解析后的结构化数据；逐条创建客户并添加联系人）
+        /// </summary>
+        Task<CustomerImportBatchResult> ImportCustomersBatchAsync(CustomerImportBatchRequest request);
+
+        /// <summary>
         /// 根据ID获取客户
         /// </summary>
         Task<CustomerInfo?> GetCustomerByIdAsync(string id);
@@ -291,6 +296,45 @@ namespace CRM.Core.Interfaces
         public DateTime? NextFollowUpTime { get; set; }
         /// <summary>联系结果（前端字段）</summary>
         public string? Result { get; set; }
+    }
+
+    /// <summary>
+    /// Excel 批量导入请求体
+    /// </summary>
+    public class CustomerImportBatchRequest
+    {
+        public List<CustomerImportBatchItem> Items { get; set; } = new();
+    }
+
+    /// <summary>
+    /// 单条导入：一个客户及其联系人
+    /// </summary>
+    public class CustomerImportBatchItem
+    {
+        public CreateCustomerRequest Customer { get; set; } = new();
+        public List<AddContactRequest> Contacts { get; set; } = new();
+    }
+
+    /// <summary>
+    /// 批量导入结果
+    /// </summary>
+    public class CustomerImportBatchResult
+    {
+        public int SuccessCount { get; set; }
+        public int FailCount { get; set; }
+        public List<CustomerImportItemResult> Items { get; set; } = new();
+    }
+
+    /// <summary>
+    /// 单条导入结果
+    /// </summary>
+    public class CustomerImportItemResult
+    {
+        public int Index { get; set; }
+        public bool Success { get; set; }
+        public string? CustomerCode { get; set; }
+        public string? CustomerId { get; set; }
+        public string? Error { get; set; }
     }
 
     /// <summary>

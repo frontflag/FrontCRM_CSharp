@@ -92,6 +92,71 @@ namespace CRM.Core.Services
             return entity;
         }
 
+        /// <inheritdoc />
+        public async Task<VendorImportBatchResult> ImportVendorsBatchAsync(VendorImportBatchRequest request)
+        {
+            var result = new VendorImportBatchResult();
+            if (request.Items == null || request.Items.Count == 0)
+                return result;
+
+            var index = 0;
+            foreach (var item in request.Items)
+            {
+                index++;
+                try
+                {
+                    var vreq = item.Vendor ?? new CreateVendorRequest();
+                    var official = (vreq.Name ?? vreq.OfficialName)?.Trim();
+                    if (string.IsNullOrWhiteSpace(official))
+                        throw new InvalidOperationException("供应商名称不能为空");
+
+                    var vendor = await CreateAsync(vreq);
+                    var contacts = item.Contacts ?? new List<AddVendorContactRequest>();
+                    var anyMain = contacts.Any(c => c != null && c.IsMain);
+                    var added = 0;
+                    for (var i = 0; i < contacts.Count; i++)
+                    {
+                        var cr = contacts[i];
+                        if (cr == null) continue;
+                        var cname = cr.CName?.Trim();
+                        var mobile = cr.Mobile?.Trim();
+                        var tel = cr.Tel?.Trim();
+                        if (string.IsNullOrWhiteSpace(cname) && string.IsNullOrWhiteSpace(mobile) && string.IsNullOrWhiteSpace(tel))
+                            continue;
+                        if (string.IsNullOrWhiteSpace(cname))
+                            throw new InvalidOperationException($"第 {i + 1} 条联系人缺少姓名");
+
+                        if (!anyMain && added == 0)
+                            cr.IsMain = true;
+
+                        await AddContactAsync(vendor.Id, cr);
+                        added++;
+                    }
+
+                    result.Items.Add(new VendorImportItemResult
+                    {
+                        Index = index,
+                        Success = true,
+                        VendorCode = vendor.Code,
+                        VendorId = vendor.Id
+                    });
+                    result.SuccessCount++;
+                }
+                catch (Exception ex)
+                {
+                    result.Items.Add(new VendorImportItemResult
+                    {
+                        Index = index,
+                        Success = false,
+                        Error = ex.Message
+                    });
+                    result.FailCount++;
+                }
+            }
+
+            return result;
+        }
+
         /// <summary>
         /// 根据ID获取（含联系人）
         /// </summary>

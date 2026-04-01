@@ -949,7 +949,8 @@
           </div>
         </div>
         <div class="aux-panel-body">
-          <HelpManualPanel />
+          <HelpManualPanel v-show="rightActiveTabId === 'r4'" class="aux-panel-tab-body" />
+          <SalesOrderJourneyPanel v-show="rightActiveTabId === 'r5'" class="aux-panel-tab-body" />
         </div>
       </aside>
     </div>
@@ -986,6 +987,7 @@ import SalesOrderRecentHistoryPanel from '@/components/SalesOrder/SalesOrderRece
 import PurchaseOrderFavoritePanel from '@/components/purchaseOrder/PurchaseOrderFavoritePanel.vue'
 import PurchaseOrderRecentHistoryPanel from '@/components/purchaseOrder/PurchaseOrderRecentHistoryPanel.vue'
 import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
+import SalesOrderJourneyPanel from '@/components/workspace/SalesOrderJourneyPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -2390,6 +2392,16 @@ onBeforeUnmount(() => {
   padding: 12px 14px;
   font-size: 13px;
   color: rgba(200, 220, 240, 0.85);
+  display: flex;
+  flex-direction: column;
+}
+
+/** 右侧「帮助 / 订单旅程」等多 Tab 共用的内容区，撑满高度以便 G6 布局 */
+.aux-panel-tab-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .aux-placeholder {

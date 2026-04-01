@@ -54,6 +54,7 @@ const wrapperStyle = computed(() => attrs.style as StyleValue | undefined)
 const innerTableRef = ref<{
   clearSelection: () => void
   toggleRowSelection: (row: unknown, selected?: boolean) => void
+  setCurrentRow: (row?: unknown) => void
   getSelectionRows?: () => unknown[]
 } | null>(null)
 
@@ -62,6 +63,7 @@ defineExpose({
   clearSelection: () => innerTableRef.value?.clearSelection(),
   toggleRowSelection: (row: unknown, selected?: boolean) =>
     innerTableRef.value?.toggleRowSelection(row, selected),
+  setCurrentRow: (row?: unknown) => innerTableRef.value?.setCurrentRow(row),
   getSelectionRows: () => innerTableRef.value?.getSelectionRows?.()
 })
 </script>

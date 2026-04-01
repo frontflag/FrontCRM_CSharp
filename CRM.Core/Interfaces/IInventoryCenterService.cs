@@ -38,6 +38,8 @@ namespace CRM.Core.Interfaces
         /// <summary>物料名称</summary>
         public string? MaterialName { get; set; }
         public string WarehouseId { get; set; } = string.Empty;
+        /// <summary>仓库编码（由 WarehouseId 解析；无档案时前端可回退显示 WarehouseId）</summary>
+        public string? WarehouseCode { get; set; }
         public decimal OnHandQty { get; set; }
         public decimal AvailableQty { get; set; }
         public decimal LockedQty { get; set; }

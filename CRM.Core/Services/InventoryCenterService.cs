@@ -300,6 +300,21 @@ namespace CRM.Core.Services
             {
             }
 
+            Dictionary<string, string> warehouseCodeById = new(StringComparer.Ordinal);
+            try
+            {
+                foreach (var w in await _warehouseRepository.GetAllAsync())
+                {
+                    var id = w.Id?.Trim();
+                    if (string.IsNullOrEmpty(id)) continue;
+                    var code = string.IsNullOrWhiteSpace(w.WarehouseCode) ? null : w.WarehouseCode.Trim();
+                    warehouseCodeById[id] = code ?? id;
+                }
+            }
+            catch (Exception ex) when (IsTableMissingException(ex))
+            {
+            }
+
             return stocks
                 .GroupBy(x => new { x.MaterialId, x.WarehouseId })
                 .Select(g =>
@@ -336,12 +351,18 @@ namespace CRM.Core.Services
                         .OrderByDescending(x => x.CreateTime)
                         .FirstOrDefault()?.CreateTime;
 
+                    string? whCode = null;
+                    var whKey = warehouse?.Trim();
+                    if (!string.IsNullOrEmpty(whKey) && warehouseCodeById.TryGetValue(whKey, out var resolved))
+                        whCode = resolved;
+
                     return new InventoryMaterialOverviewDto
                     {
                         MaterialId = material,
                         MaterialModel = model,
                         MaterialName = name,
-                        WarehouseId = warehouse,
+                        WarehouseId = warehouse ?? string.Empty,
+                        WarehouseCode = whCode,
                         OnHandQty = onHand,
                         AvailableQty = available,
                         LockedQty = locked,

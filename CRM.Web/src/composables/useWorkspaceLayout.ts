@@ -48,7 +48,10 @@ export function useWorkspaceLayout() {
     { id: 'l2', label: '收藏' },
     { id: 'l3', label: '历史' }
   ])
-  const rightTabs = ref<WorkspaceTabItem[]>([{ id: 'r4', label: '帮助' }])
+  const rightTabs = ref<WorkspaceTabItem[]>([
+    { id: 'r4', label: '帮助' },
+    { id: 'r5', label: '订单旅程' }
+  ])
   const leftActiveTabId = ref('l1')
   const rightActiveTabId = ref('r4')
 

@@ -17,7 +17,30 @@
         <div class="customer-count-badge">共 {{ totalCount }} 个客户</div>
       </div>
       <div class="header-right">
-        <button class="btn-success" @click="handleCreate">
+        <template v-if="canSubmitAudit">
+          <div class="btn-split-group">
+            <button type="button" class="btn-success" @click="handleCreate">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              新增客户
+            </button>
+            <el-dropdown trigger="click" @command="onCreateDropdownCommand">
+              <button type="button" class="btn-success btn-success--caret" aria-label="展开菜单">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="import">通过Excel导入</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </template>
+        <button v-else type="button" class="btn-success" @click="handleCreate">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19"/>
             <line x1="5" y1="12" x2="19" y2="12"/>
@@ -208,7 +231,24 @@
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
         </svg>
         <p>暂无客户数据</p>
-        <button class="btn-success" @click="handleCreate">新增客户</button>
+        <template v-if="canSubmitAudit">
+          <div class="btn-split-group empty-split">
+            <button type="button" class="btn-success" @click="handleCreate">新增客户</button>
+            <el-dropdown trigger="click" @command="onCreateDropdownCommand">
+              <button type="button" class="btn-success btn-success--caret" aria-label="展开菜单">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="import">通过Excel导入</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </template>
+        <button v-else type="button" class="btn-success" @click="handleCreate">新增客户</button>
       </div>
     </div>
 
@@ -225,6 +265,8 @@
         class="quantum-pagination"
       />
     </div>
+
+    <CustomerImportDialog v-model="importDialogVisible" @success="fetchCustomerList" />
   </div>
 </template>
 
@@ -239,6 +281,7 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime';
 import type { Customer, CustomerSearchRequest } from '@/types/customer';
 import { useAuthStore } from '@/stores/auth';
 import PartyStatusIcons from '@/components/party/PartyStatusIcons.vue';
+import CustomerImportDialog from '@/components/Customer/CustomerImportDialog.vue';
 import { buildCustomerListQuery, parseCustomerListQuery } from '@/utils/customerListQuery';
 import { CUSTOMER_WORKFLOW_STATUS_OPTIONS } from '@/constants/customerWorkflowStatus';
 
@@ -251,6 +294,8 @@ function isPartyStatusMuted(c: Customer) {
 const authStore = useAuthStore();
 const canViewCustomerInfo = authStore.hasPermission('customer.info.read');
 const canSubmitAudit = authStore.hasPermission('customer.write');
+
+const importDialogVisible = ref(false);
 
 const loading = ref(false);
 const customerList = ref<Customer[]>([]);
@@ -423,6 +468,10 @@ function onCreatedRangeChange(val: [string, string] | null | undefined) {
 }
 
 const handleCreate = () => router.push('/customers/create');
+
+function onCreateDropdownCommand(cmd: string) {
+  if (cmd === 'import') importDialogVisible.value = true;
+}
 const handleView = (row: Customer) => router.push(`/customers/${row.id}`);
 const handleEdit = (row: Customer) => router.push(`/customers/${row.id}/edit`);
 
@@ -622,6 +671,28 @@ onMounted(async () => {
   &:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 16px rgba(70, 191, 145, 0.3);
+  }
+
+  &.btn-success--caret {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    min-width: 38px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+.btn-split-group {
+  display: inline-flex;
+  align-items: stretch;
+
+  .btn-success:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  &.empty-split {
+    margin-top: 12px;
   }
 }
 

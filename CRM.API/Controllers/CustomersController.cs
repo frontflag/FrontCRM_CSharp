@@ -215,6 +215,27 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>Excel 批量导入客户（前端解析 Excel 后提交）</summary>
+        [HttpPost("import/batch")]
+        [RequirePermission("customer.write")]
+        public async Task<ActionResult<ApiResponse<CustomerImportBatchResult>>> ImportCustomersBatch([FromBody] CustomerImportBatchRequest request)
+        {
+            try
+            {
+                if (request?.Items == null || request.Items.Count == 0)
+                    return BadRequest(ApiResponse<CustomerImportBatchResult>.Fail("导入数据为空", 400));
+
+                var result = await _customerService.ImportCustomersBatchAsync(request);
+                var msg = $"导入完成：成功 {result.SuccessCount} 条，失败 {result.FailCount} 条";
+                return Ok(ApiResponse<CustomerImportBatchResult>.Ok(result, msg));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "批量导入客户失败");
+                return StatusCode(500, ApiResponse<CustomerImportBatchResult>.Fail($"批量导入失败: {ex.Message}", 500));
+            }
+        }
+
         [HttpPut("{id}")]
         [RequirePermission("customer.write")]
         public async Task<ActionResult<ApiResponse<CustomerInfo>>> UpdateCustomer(string id, [FromBody] UpdateCustomerRequest request)

@@ -78,6 +78,26 @@ export const vendorApi = {
     return response as Vendor;
   },
 
+  /** Excel 批量导入（解析后的结构化数据） */
+  async importVendorsBatch(payload: {
+    items: Array<{
+      vendor: Record<string, unknown>;
+      contacts: Array<Record<string, unknown>>;
+    }>;
+  }): Promise<{
+    successCount: number;
+    failCount: number;
+    items: Array<{
+      index: number;
+      success: boolean;
+      vendorCode?: string;
+      vendorId?: string;
+      error?: string;
+    }>;
+  }> {
+    return await apiClient.post('/api/v1/vendors/import/batch', payload);
+  },
+
   async updateVendor(id: string, data: UpdateVendorRequest): Promise<Vendor> {
     const payload: Record<string, unknown> = {
       name: data.name?.trim(),

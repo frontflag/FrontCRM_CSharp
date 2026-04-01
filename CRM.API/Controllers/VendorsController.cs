@@ -244,6 +244,27 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>Excel 批量导入供应商（前端解析 Excel 后提交）</summary>
+        [HttpPost("import/batch")]
+        [RequirePermission("vendor.write")]
+        public async Task<ActionResult<ApiResponse<VendorImportBatchResult>>> ImportVendorsBatch([FromBody] VendorImportBatchRequest request)
+        {
+            try
+            {
+                if (request?.Items == null || request.Items.Count == 0)
+                    return BadRequest(ApiResponse<VendorImportBatchResult>.Fail("导入数据为空", 400));
+
+                var result = await _vendorService.ImportVendorsBatchAsync(request);
+                var msg = $"导入完成：成功 {result.SuccessCount} 条，失败 {result.FailCount} 条";
+                return Ok(ApiResponse<VendorImportBatchResult>.Ok(result, msg));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "批量导入供应商失败");
+                return StatusCode(500, ApiResponse<VendorImportBatchResult>.Fail($"批量导入失败: {ex.Message}", 500));
+            }
+        }
+
         [HttpPut("{id}")]
         [RequirePermission("vendor.write")]
         public async Task<ActionResult<ApiResponse<VendorInfo>>> UpdateVendor(string id, [FromBody] UpdateVendorRequest request)

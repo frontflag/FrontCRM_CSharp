@@ -9,6 +9,8 @@ export interface InventoryOverview {
   /** 库存总览中与品牌同源展示（主数据名称或产品 Brand 回填） */
   materialName?: string | null
   warehouseId: string
+  /** 仓库编码（接口解析；无档案时前端可回退 warehouseId，如 WH-DEFAULT） */
+  warehouseCode?: string | null
   onHandQty: number
   availableQty: number
   lockedQty: number

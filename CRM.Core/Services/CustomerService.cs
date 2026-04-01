@@ -93,6 +93,71 @@ namespace CRM.Core.Services
             }
         }
 
+        /// <inheritdoc />
+        public async Task<CustomerImportBatchResult> ImportCustomersBatchAsync(CustomerImportBatchRequest request)
+        {
+            var result = new CustomerImportBatchResult();
+            if (request.Items == null || request.Items.Count == 0)
+                return result;
+
+            var index = 0;
+            foreach (var item in request.Items)
+            {
+                index++;
+                try
+                {
+                    var creq = item.Customer ?? new CreateCustomerRequest();
+                    if (string.IsNullOrWhiteSpace(creq.OfficialName) && string.IsNullOrWhiteSpace(creq.CustomerName))
+                        throw new InvalidOperationException("客户名称不能为空");
+
+                    var customer = await CreateCustomerAsync(creq);
+                    var contacts = item.Contacts ?? new List<AddContactRequest>();
+                    var anyMarkedDefault = contacts.Any(c => c != null && c.IsDefault == true);
+                    var added = 0;
+                    for (var i = 0; i < contacts.Count; i++)
+                    {
+                        var cr = contacts[i];
+                        if (cr == null) continue;
+                        var name = (cr.Name ?? cr.ContactName)?.Trim();
+                        var mobile = cr.Mobile?.Trim();
+                        var phone = cr.Phone?.Trim();
+                        if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(mobile) && string.IsNullOrWhiteSpace(phone))
+                            continue;
+
+                        if (string.IsNullOrWhiteSpace(name))
+                            throw new InvalidOperationException($"第 {i + 1} 条联系人缺少姓名");
+
+                        if (!anyMarkedDefault && added == 0)
+                            cr.IsDefault = true;
+
+                        await AddContactAsync(customer.Id, cr);
+                        added++;
+                    }
+
+                    result.Items.Add(new CustomerImportItemResult
+                    {
+                        Index = index,
+                        Success = true,
+                        CustomerCode = customer.CustomerCode,
+                        CustomerId = customer.Id
+                    });
+                    result.SuccessCount++;
+                }
+                catch (Exception ex)
+                {
+                    result.Items.Add(new CustomerImportItemResult
+                    {
+                        Index = index,
+                        Success = false,
+                        Error = ex.Message
+                    });
+                    result.FailCount++;
+                }
+            }
+
+            return result;
+        }
+
         private static string SqlQ(string? s) => (s ?? "").Replace("'", "''");
 
         private async Task<string?> ResolveCustomerIdByIdOrCodeAsync(string idOrCode)

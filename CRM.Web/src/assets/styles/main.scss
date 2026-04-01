@@ -87,7 +87,9 @@ html {
   --el-table-bg-color: transparent;
   --el-table-tr-bg-color: transparent;
   --el-table-header-bg-color: rgba(0, 212, 255, 0.04);
-  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.04);
+  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.14);
+  // 与悬停行同色，避免 highlight-current-row 使用主题浅蓝块且与自定义阴影叠加出「分格」感
+  --el-table-current-row-bg-color: rgba(0, 212, 255, 0.14);
   --el-table-border-color: transparent;
   --el-table-text-color: #a8c0d6;
   --el-table-header-text-color: #6b8cae;
@@ -135,11 +137,33 @@ html {
     border-right: none !important;
     color: #a8c0d6;
     padding: 11px 14px;
+    transition: background-color 0.18s ease;
   }
 
-  // hover 效果
-  tr:hover td.el-table__cell {
-    background: rgba(0, 212, 255, 0.04) !important;
+  // 行悬停 / 当前行：更强底色 + 轻微上浮（勿对每格加外阴影，否则 blur 在列缝叠成竖条）
+  .el-table__body-wrapper .el-table__body tr.el-table__row,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row {
+    transition: transform 0.2s ease;
+  }
+
+  .el-table__body-wrapper .el-table__body tr.el-table__row:hover,
+  .el-table__body-wrapper .el-table__body tr.el-table__row.hover-row,
+  .el-table__body-wrapper .el-table__body tr.el-table__row.current-row,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:hover,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.hover-row,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.current-row {
+    transform: translateY(-2px);
+    position: relative;
+    z-index: 2;
+  }
+
+  tr:hover td.el-table__cell,
+  tr.hover-row td.el-table__cell,
+  tr.current-row td.el-table__cell {
+    background: rgba(0, 212, 255, 0.14) !important;
+    border-right: none !important;
+    border-left: none !important;
+    box-shadow: none !important;
   }
 
   // 最后一行无底线
@@ -169,8 +193,12 @@ html {
   }
 
   .el-table__fixed .el-table__row:hover td.el-table__cell,
-  .el-table__fixed .el-table__row.hover-row td.el-table__cell {
-    background: rgba(0, 212, 255, 0.04) !important;
+  .el-table__fixed .el-table__row.hover-row td.el-table__cell,
+  .el-table__fixed .el-table__row.current-row td.el-table__cell {
+    background: rgba(0, 212, 255, 0.14) !important;
+    border-right: none !important;
+    border-left: none !important;
+    box-shadow: none !important;
   }
 
   .el-table__fixed::before {
@@ -199,9 +227,13 @@ html {
   }
 
   .el-table__fixed-right .el-table__row:hover td.el-table__cell,
-  .el-table__fixed-right .el-table__row.hover-row td.el-table__cell {
-    background: linear-gradient(0deg, rgba(0, 212, 255, 0.065), rgba(0, 212, 255, 0.065)), $layer-3 !important;
-    box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.14);
+  .el-table__fixed-right .el-table__row.hover-row td.el-table__cell,
+  .el-table__fixed-right .el-table__row.current-row td.el-table__cell {
+    background: linear-gradient(0deg, rgba(0, 212, 255, 0.14), rgba(0, 212, 255, 0.14)), $layer-3 !important;
+    border-right: none !important;
+    border-left: none !important;
+    // 仅保留与主表分界的一条内阴影，不再叠加外阴影（避免列缝竖向暗带）
+    box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.22) !important;
   }
 
   // 固定操作列必须在 Z 轴高于滚动区，横向滚动时用不透明底色盖住下方列（避免「操作」与数据列叠在一起）
@@ -622,9 +654,12 @@ html {
 }
 
 .crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .el-table__row:hover td.el-table__cell,
-.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .el-table__row.hover-row td.el-table__cell {
-  background: linear-gradient(0deg, rgba(0, 212, 255, 0.065), rgba(0, 212, 255, 0.065)), $layer-3 !important;
-  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.14);
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .el-table__row.hover-row td.el-table__cell,
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .el-table__row.current-row td.el-table__cell {
+  background: linear-gradient(0deg, rgba(0, 212, 255, 0.14), rgba(0, 212, 255, 0.14)), $layer-3 !important;
+  border-right: none !important;
+  border-left: none !important;
+  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.22) !important;
 }
 
 .crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) {
@@ -693,9 +728,12 @@ $crm-op-col-header-bg: #0a1d30;
 }
 
 .el-table .el-table__fixed-right:has(.op-col) .el-table__row:hover td.op-col.el-table__cell,
-.el-table .el-table__fixed-right:has(.op-col) .el-table__row.hover-row td.op-col.el-table__cell {
-  background: linear-gradient(0deg, rgba(0, 212, 255, 0.065), rgba(0, 212, 255, 0.065)), $layer-2 !important;
-  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.14);
+.el-table .el-table__fixed-right:has(.op-col) .el-table__row.hover-row td.op-col.el-table__cell,
+.el-table .el-table__fixed-right:has(.op-col) .el-table__row.current-row td.op-col.el-table__cell {
+  background: linear-gradient(0deg, rgba(0, 212, 255, 0.14), rgba(0, 212, 255, 0.14)), $layer-2 !important;
+  border-right: none !important;
+  border-left: none !important;
+  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.22) !important;
 }
 
 .el-table .el-table__fixed-right:has(.op-col)::before {
@@ -712,4 +750,17 @@ $crm-op-col-header-bg: #0a1d30;
 .el-table .el-table__body-wrapper td.el-table__cell.op-col {
   background-color: $layer-2 !important;
   box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.1);
+}
+
+// 主表体操作列：行悬停 / 当前行与整行高光一致（避免被通栏 td 规则盖成纯色）
+.el-table .el-table__body-wrapper tr:hover td.op-col.el-table__cell,
+.el-table .el-table__body-wrapper tr.hover-row td.op-col.el-table__cell,
+.el-table .el-table__body-wrapper tr.current-row td.op-col.el-table__cell,
+.el-table .el-table__body-wrapper tr:hover td.el-table__cell.op-col,
+.el-table .el-table__body-wrapper tr.hover-row td.el-table__cell.op-col,
+.el-table .el-table__body-wrapper tr.current-row td.el-table__cell.op-col {
+  background: linear-gradient(0deg, rgba(0, 212, 255, 0.14), rgba(0, 212, 255, 0.14)), $layer-2 !important;
+  border-right: none !important;
+  border-left: none !important;
+  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.22) !important;
 }

@@ -117,9 +117,8 @@ onMounted(() => {
         <el-table-column label="物料名称" min-width="160" show-overflow-tooltip>
           <template #default="{ row }">{{ row.materialName || '—' }}</template>
         </el-table-column>
-        <el-table-column prop="materialId" label="物料ID" width="220" show-overflow-tooltip />
         <el-table-column label="仓库" width="160" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.warehouseId || '—' }}</template>
+          <template #default="{ row }">{{ row.warehouseCode?.trim() || row.warehouseId || '—' }}</template>
         </el-table-column>
         <el-table-column prop="onHandQty" label="在库" width="100" align="right" />
         <el-table-column prop="availableQty" label="可用" width="100" align="right" />

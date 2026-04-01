@@ -81,10 +81,12 @@
     <!-- 数据表格 -->
     <el-card class="table-card">
       <CrmDataTable
+        ref="listTableRef"
         :data="filteredList"
         v-loading="loading"
         highlight-current-row
         @row-dblclick="handleView"
+        @current-change="onJourneyRowFocus"
       >
         <el-table-column prop="sellOrderCode" label="订单号" width="160" min-width="160" show-overflow-tooltip sortable>
           <template #default="{ row }">
@@ -206,13 +208,19 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { salesOrderApi } from '@/api/salesOrder'
 import { salesOrderStatusText, salesOrderStatusTagType } from '@/constants/salesOrderStatus'
 import { useAuthStore } from '@/stores/auth'
+import {
+  journeyListFocusedOrderId,
+  setJourneyListFocus
+} from '@/composables/salesOrderJourneyContext'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import CrmDataTable from '@/components/CrmDataTable.vue'
 
 const router = useRouter()
 const route = useRoute()
 
 const loading = ref(false)
 const orderList = ref<any[]>([])
+const listTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const authStore = useAuthStore()
 const canViewCustomerInfo = computed(() => authStore.hasPermission('customer.info.read'))
 const canViewSalesAmount = computed(() => authStore.hasPermission('sales.amount.read'))
@@ -300,6 +308,33 @@ const getPurchaseStatusText = (status: number) => {
   return map[status] || '未知'
 }
 
+/** 与右侧「订单旅程」同步：当前页有命中行则保持，否则用当前页第一行 */
+function syncJourneyFocusFromList() {
+  const rows = filteredList.value
+  if (!rows.length) {
+    setJourneyListFocus('', '')
+    listTableRef.value?.setCurrentRow(undefined)
+    return
+  }
+  const cur = journeyListFocusedOrderId.value
+  if (cur && rows.some((r) => String(r.id) === cur)) {
+    const hit = rows.find((r) => String(r.id) === cur)
+    if (hit) listTableRef.value?.setCurrentRow(hit)
+    return
+  }
+  const r = rows[0] as { id?: string; sellOrderCode?: string }
+  setJourneyListFocus(String(r.id ?? ''), String(r.sellOrderCode ?? ''))
+  listTableRef.value?.setCurrentRow(rows[0])
+}
+
+function onJourneyRowFocus(row: Record<string, unknown> | null) {
+  if (!row?.id) {
+    setJourneyListFocus('', '')
+    return
+  }
+  setJourneyListFocus(String(row.id), String((row as { sellOrderCode?: string }).sellOrderCode ?? ''))
+}
+
 // 加载数据
 const loadData = async () => {
   loading.value = true
@@ -307,6 +342,7 @@ const loadData = async () => {
     const res = await salesOrderApi.getList({ page: 1, pageSize: 2000 })
     orderList.value = (res as { items?: unknown[] }).items || []
     pageInfo.value.total = orderList.value.length
+    syncJourneyFocusFromList()
   } catch (error) {
     ElMessage.error('加载数据失败')
   } finally {
@@ -362,6 +398,16 @@ const handleSizeChange = (val: number) => {
 const handlePageChange = (val: number) => {
   pageInfo.value.page = val
 }
+
+/** 分页 / 筛选变化时保持与「订单旅程」一致（当前选中行不在本页则落到本页首行） */
+watch(
+  () =>
+    [pageInfo.value.page, pageInfo.value.pageSize, filterForm.value.code, filterForm.value.customer, filterForm.value.status, orderList.value.length] as const,
+  () => {
+    if (!orderList.value.length) return
+    syncJourneyFocusFromList()
+  }
+)
 
 // 编辑
 const handleEdit = (row: any) => {

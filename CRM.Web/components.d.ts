@@ -11,6 +11,7 @@ declare module 'vue' {
     BusinessCardUploader: typeof import('./src/components/Contact/BusinessCardUploader.vue')['default']
     CrmDataTable: typeof import('./src/components/CrmDataTable.vue')['default']
     CustomerFavoritePanel: typeof import('./src/components/Customer/CustomerFavoritePanel.vue')['default']
+    CustomerImportDialog: typeof import('./src/components/Customer/CustomerImportDialog.vue')['default']
     CustomerRecentHistoryPanel: typeof import('./src/components/Customer/CustomerRecentHistoryPanel.vue')['default']
     CustomerSearchPanel: typeof import('./src/components/Customer/CustomerSearchPanel.vue')['default']
     DocumentListPanel: typeof import('./src/components/Document/DocumentListPanel.vue')['default']
@@ -89,6 +90,7 @@ declare module 'vue' {
     StockOutSearchPanel: typeof import('./src/components/Inventory/StockOutSearchPanel.vue')['default']
     TagListDisplay: typeof import('./src/components/Tag/TagListDisplay.vue')['default']
     VendorFavoritePanel: typeof import('./src/components/Vendor/VendorFavoritePanel.vue')['default']
+    VendorImportDialog: typeof import('./src/components/Vendor/VendorImportDialog.vue')['default']
     VendorRecentHistoryPanel: typeof import('./src/components/Vendor/VendorRecentHistoryPanel.vue')['default']
     VendorSearchPanel: typeof import('./src/components/Vendor/VendorSearchPanel.vue')['default']
   }

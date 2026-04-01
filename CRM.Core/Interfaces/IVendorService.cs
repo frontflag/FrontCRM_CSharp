@@ -13,6 +13,11 @@ namespace CRM.Core.Interfaces
         Task<VendorInfo> CreateAsync(CreateVendorRequest request);
 
         /// <summary>
+        /// 批量导入供应商（Excel 解析后的结构化数据）
+        /// </summary>
+        Task<VendorImportBatchResult> ImportVendorsBatchAsync(VendorImportBatchRequest request);
+
+        /// <summary>
         /// 根据ID获取
         /// </summary>
         Task<VendorInfo?> GetByIdAsync(string id);
@@ -352,6 +357,45 @@ namespace CRM.Core.Interfaces
         public DateTime? Time { get; set; }
         public DateTime? NextFollowUpTime { get; set; }
         public string? Result { get; set; }
+    }
+
+    /// <summary>
+    /// Excel 批量导入供应商请求体
+    /// </summary>
+    public class VendorImportBatchRequest
+    {
+        public List<VendorImportBatchItem> Items { get; set; } = new();
+    }
+
+    /// <summary>
+    /// 单条导入：一个供应商及其联系人
+    /// </summary>
+    public class VendorImportBatchItem
+    {
+        public CreateVendorRequest Vendor { get; set; } = new();
+        public List<AddVendorContactRequest> Contacts { get; set; } = new();
+    }
+
+    /// <summary>
+    /// 批量导入结果
+    /// </summary>
+    public class VendorImportBatchResult
+    {
+        public int SuccessCount { get; set; }
+        public int FailCount { get; set; }
+        public List<VendorImportItemResult> Items { get; set; } = new();
+    }
+
+    /// <summary>
+    /// 单条导入结果
+    /// </summary>
+    public class VendorImportItemResult
+    {
+        public int Index { get; set; }
+        public bool Success { get; set; }
+        public string? VendorCode { get; set; }
+        public string? VendorId { get; set; }
+        public string? Error { get; set; }
     }
 
     /// <summary>

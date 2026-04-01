@@ -14,7 +14,30 @@
         <div class="vendor-count-badge">共 {{ totalCount }} 个供应商</div>
       </div>
       <div class="header-right">
-        <button class="btn-success" @click="handleCreate">
+        <template v-if="canSubmitAudit">
+          <div class="btn-split-group">
+            <button type="button" class="btn-success" @click="handleCreate">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              新增供应商
+            </button>
+            <el-dropdown trigger="click" @command="onCreateDropdownCommand">
+              <button type="button" class="btn-success btn-success--caret" aria-label="展开菜单">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="import">通过Excel导入</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </template>
+        <button v-else type="button" class="btn-success" @click="handleCreate">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19"/>
             <line x1="5" y1="12" x2="19" y2="12"/>
@@ -235,7 +258,24 @@
           <polyline points="9 22 9 12 15 12 15 22"/>
         </svg>
         <p>暂无供应商数据</p>
-        <button class="btn-success" @click="handleCreate">新增供应商</button>
+        <template v-if="canSubmitAudit">
+          <div class="btn-split-group empty-split">
+            <button type="button" class="btn-success" @click="handleCreate">新增供应商</button>
+            <el-dropdown trigger="click" @command="onCreateDropdownCommand">
+              <button type="button" class="btn-success btn-success--caret" aria-label="展开菜单">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="import">通过Excel导入</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </template>
+        <button v-else type="button" class="btn-success" @click="handleCreate">新增供应商</button>
       </div>
     </div>
 
@@ -252,6 +292,8 @@
         class="quantum-pagination"
       />
     </div>
+
+    <VendorImportDialog v-model="importDialogVisible" @success="fetchVendorList" />
   </div>
 </template>
 
@@ -266,6 +308,7 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime';
 import type { Vendor, VendorSearchRequest } from '@/types/vendor';
 import { useAuthStore } from '@/stores/auth';
 import PartyStatusIcons from '@/components/party/PartyStatusIcons.vue';
+import VendorImportDialog from '@/components/Vendor/VendorImportDialog.vue';
 import { parseVendorListQuery, buildVendorListQuery } from '@/utils/vendorListQuery';
 import { getVendorLevelLabel, getVendorIdentityLabel, VENDOR_LEVEL_OPTIONS, VENDOR_IDENTITY_OPTIONS } from '@/constants/vendorEnums';
 
@@ -279,6 +322,7 @@ function isPartyStatusMuted(v: Vendor) {
 const authStore = useAuthStore();
 const canViewVendorInfo = authStore.hasPermission('vendor.info.read');
 const canSubmitAudit = authStore.hasPermission('vendor.write');
+const importDialogVisible = ref(false);
 const loading = ref(false);
 const vendorList = ref<Vendor[]>([]);
 const totalCount = ref(0);
@@ -463,6 +507,10 @@ const fetchVendorList = async () => {
 };
 
 const handleCreate = () => router.push('/vendors/create');
+
+function onCreateDropdownCommand(cmd: string) {
+  if (cmd === 'import') importDialogVisible.value = true;
+}
 const handleView = (row: Vendor) => router.push(`/vendors/${row.id}`);
 const handleEdit = (row: Vendor) => router.push(`/vendors/${row.id}/edit`);
 
@@ -602,6 +650,28 @@ onMounted(async () => {
   &.btn-sm {
     padding: 6px 12px;
     font-size: 12px;
+  }
+
+  &.btn-success--caret {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    min-width: 38px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+.btn-split-group {
+  display: inline-flex;
+  align-items: stretch;
+
+  .btn-success:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  &.empty-split {
+    margin-top: 12px;
   }
 }
 
