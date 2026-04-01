@@ -123,15 +123,18 @@ const stats = reactive({
 }
 
 .stat-card {
-  background: vars.$layer-2;
-  border: 1px solid rgba(0, 212, 255, 0.12);
+  background: vars.$layer-3;
+  border: 1px solid vars.$border-card;
   border-radius: 12px;
   padding: 20px;
   display: flex;
   align-items: center;
   gap: 16px;
   transition: border-color 0.2s, transform 0.2s;
-  &:hover { border-color: rgba(0, 212, 255, 0.3); transform: translateY(-2px); }
+  &:hover {
+    border-color: var(--crm-accent-03);
+    transform: translateY(-2px);
+  }
 }
 
 .stat-icon {
@@ -140,15 +143,48 @@ const stats = reactive({
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   svg { width: 22px; height: 22px; }
-  &.cyan  { background: rgba(0, 212, 255, 0.12); svg { stroke: #00D4FF; } }
-  &.amber { background: rgba(201, 154, 69, 0.12); svg { stroke: #C99A45; } }
-  &.mint  { background: rgba(70, 191, 145, 0.12); svg { stroke: #46BF91; } }
-  &.blue  { background: rgba(50, 149, 201, 0.12); svg { stroke: #3295C9; } }
+  &.cyan {
+    background: var(--crm-accent-008);
+    svg {
+      stroke: vars.$cyan-primary;
+    }
+  }
+  &.amber {
+    background: var(--crm-accent-008);
+    svg {
+      stroke: vars.$warning-color;
+    }
+  }
+  &.mint {
+    background: var(--crm-accent-008);
+    svg {
+      stroke: vars.$success-color;
+    }
+  }
+  &.blue {
+    background: var(--crm-accent-008);
+    svg {
+      stroke: vars.$info-color;
+    }
+  }
 }
 
-.stat-info { display: flex; flex-direction: column; gap: 4px; }
-.stat-label { font-family: 'Noto Sans SC', sans-serif; font-size: 12px; color: rgba(200, 220, 240, 0.6); }
-.stat-value { font-family: 'Space Mono', monospace; font-size: 22px; font-weight: 700; color: #E8F4FF; }
+.stat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stat-label {
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 12px;
+  color: vars.$text-muted;
+}
+.stat-value {
+  font-family: 'Space Mono', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  color: vars.$text-primary;
+}
 
 .welcome-card {
   background: vars.$layer-2;

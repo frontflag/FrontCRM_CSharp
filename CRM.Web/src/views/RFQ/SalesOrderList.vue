@@ -468,20 +468,29 @@ onMounted(loadData)
 
 .stat-card {
   text-align: center;
-  background: #0A1628;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  background: $layer-3;
+  border: 1px solid $border-card;
   :deep(.el-card__body) {
     padding: 15px;
   }
   .stat-value {
     font-size: 24px;
     font-weight: bold;
-    color: #00D4FF;
+    color: $cyan-primary;
     margin-bottom: 5px;
   }
   .stat-label {
     font-size: 14px;
-    color: rgba(200, 216, 232, 0.6);
+    color: $text-muted;
+  }
+  &.stat-warning .stat-value {
+    color: $warning-color;
+  }
+  &.stat-success .stat-value {
+    color: $success-color;
+  }
+  &.stat-info .stat-value {
+    color: $info-color;
   }
 }
 

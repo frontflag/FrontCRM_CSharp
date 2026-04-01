@@ -88,15 +88,17 @@ function handleSearch() {
 </template>
 
 <style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
 .rfq-search-panel {
   min-height: 80px;
   font-size: 12px;
-  color: rgba(200, 220, 240, 0.9);
+  color: $text-secondary;
 }
 
 .rfq-search-panel__head {
   font-weight: 600;
-  color: #e8f4ff;
+  color: $text-primary;
   margin-bottom: 12px;
   font-size: 13px;
 }
@@ -116,7 +118,7 @@ function handleSearch() {
 .field-label {
   font-size: 11px;
   font-weight: 500;
-  color: rgba(120, 190, 232, 0.7);
+  color: $text-muted;
 }
 
 .field-control {
@@ -128,18 +130,18 @@ function handleSearch() {
   box-sizing: border-box;
   padding: 7px 10px;
   font-size: 12px;
-  color: rgba(224, 244, 255, 0.92);
-  background: rgba(10, 22, 40, 0.85);
-  border: 1px solid rgba(0, 212, 255, 0.18);
+  color: $text-primary;
+  background: $layer-3;
+  border: 1px solid $border-panel;
   border-radius: 6px;
   outline: none;
 
   &::placeholder {
-    color: rgba(140, 170, 200, 0.45);
+    color: $text-placeholder;
   }
 
   &:focus {
-    border-color: rgba(0, 212, 255, 0.45);
+    border-color: var(--crm-accent-06);
   }
 }
 
@@ -153,7 +155,7 @@ function handleSearch() {
   gap: 8px;
   margin-top: 16px;
   padding-top: 12px;
-  border-top: 1px solid rgba(0, 212, 255, 0.1);
+  border-top: 1px solid $border-panel;
 }
 
 .btn-search {
@@ -163,14 +165,14 @@ function handleSearch() {
   font-size: 12px;
   font-weight: 500;
   color: #fff;
-  background: linear-gradient(135deg, rgba(0, 102, 255, 0.75), rgba(0, 212, 255, 0.65));
-  border: 1px solid rgba(0, 212, 255, 0.35);
+  background: linear-gradient(135deg, $blue-primary, $cyan-primary);
+  border: 1px solid var(--crm-action-primary-border);
   border-radius: 6px;
   cursor: pointer;
   transition: box-shadow 0.15s, transform 0.12s;
 
   &:hover {
-    box-shadow: 0 2px 12px rgba(0, 212, 255, 0.2);
+    box-shadow: var(--crm-shadow-glow);
     transform: translateY(-1px);
   }
 }
@@ -178,15 +180,15 @@ function handleSearch() {
 .btn-reset {
   padding: 8px 12px;
   font-size: 12px;
-  color: rgba(180, 210, 230, 0.85);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(0, 212, 255, 0.12);
+  color: $text-secondary;
+  background: $layer-3;
+  border: 1px solid $border-panel;
   border-radius: 6px;
   cursor: pointer;
 
   &:hover {
-    background: rgba(0, 212, 255, 0.08);
-    border-color: rgba(0, 212, 255, 0.22);
+    background: var(--crm-accent-008);
+    border-color: var(--crm-accent-018);
   }
 }
 </style>

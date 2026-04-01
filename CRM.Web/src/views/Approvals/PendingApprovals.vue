@@ -676,8 +676,8 @@ onMounted(() => {
 }
 
 .stat-card {
-  background: linear-gradient(180deg, rgba(12,36,62,0.9), rgba(8,26,46,0.9));
-  border: 1px solid rgba(0, 212, 255, 0.12);
+  background: $layer-3;
+  border: 1px solid $border-card;
   border-radius: 10px;
   padding: 16px 18px;
 }
@@ -695,9 +695,15 @@ onMounted(() => {
   font-family: 'Space Mono', monospace;
 }
 
-.stat-card--pending .stat-value { color: #f4c84e; }
-.stat-card--approved .stat-value { color: #47d39b; }
-.stat-card--rejected .stat-value { color: #ef6a73; }
+.stat-card--pending .stat-value {
+  color: $warning-color;
+}
+.stat-card--approved .stat-value {
+  color: $success-color;
+}
+.stat-card--rejected .stat-value {
+  color: $danger-color;
+}
 
 .search-bar {
   display: flex;

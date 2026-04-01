@@ -370,7 +370,9 @@ onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
-/* ── 深色科技主题，与 RFQList 风格一致 ── */
+@import '@/assets/styles/variables.scss';
+
+/* ── 与全站主题 token 一致 ── */
 .bom-list-page {
   padding: 20px;
   min-height: 100%;
@@ -390,7 +392,7 @@ onMounted(loadData)
   .page-title {
     font-size: 18px;
     font-weight: 700;
-    color: #e0f0ff;
+    color: $text-primary;
     margin: 0;
   }
   .count-badge {
@@ -417,8 +419,8 @@ onMounted(loadData)
   align-items: center;
   gap: 14px;
   padding: 16px 18px;
-  background: rgba(0, 20, 45, 0.8);
-  border: 1px solid rgba(0, 212, 255, 0.12);
+  background: $layer-3;
+  border: 1px solid $border-card;
   border-radius: 8px;
   .stat-icon {
     width: 44px;
@@ -429,13 +431,34 @@ onMounted(loadData)
     justify-content: center;
     flex-shrink: 0;
     svg { width: 22px; height: 22px; }
-    &.icon-total { background: rgba(0, 212, 255, 0.1); color: #00d4ff; }
-    &.icon-pending { background: rgba(230, 162, 60, 0.1); color: #e6a23c; }
-    &.icon-quoting { background: rgba(64, 158, 255, 0.1); color: #409eff; }
-    &.icon-quoted { background: rgba(39, 174, 96, 0.1); color: #27ae60; }
+    &.icon-total {
+      background: var(--crm-accent-008);
+      color: $cyan-primary;
+    }
+    &.icon-pending {
+      background: var(--crm-accent-008);
+      color: $warning-color;
+    }
+    &.icon-quoting {
+      background: var(--crm-accent-008);
+      color: $info-color;
+    }
+    &.icon-quoted {
+      background: var(--crm-accent-008);
+      color: $success-color;
+    }
   }
-  .stat-value { font-size: 24px; font-weight: 700; color: #e0f0ff; line-height: 1; }
-  .stat-label { font-size: 12px; color: #6a7f94; margin-top: 4px; }
+  .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: $text-primary;
+    line-height: 1;
+  }
+  .stat-label {
+    font-size: 12px;
+    color: $text-muted;
+    margin-top: 4px;
+  }
 }
 
 /* ── 搜索栏 ── */

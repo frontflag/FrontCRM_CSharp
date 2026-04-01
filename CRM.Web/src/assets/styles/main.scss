@@ -32,19 +32,19 @@ html, body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 212, 255, 0.25);
+  background: var(--crm-scrollbar-thumb);
   border-radius: 6px;
   min-height: 32px;
   min-width: 32px;
 
   &:hover {
-    background: rgba(0, 212, 255, 0.45);
+    background: var(--crm-scrollbar-thumb-hover);
   }
 }
 
 // Firefox：用系统默认宽度（通常比 thin 更易点中），配色与 webkit 接近
 html {
-  scrollbar-color: rgba(0, 212, 255, 0.35) #{$layer-2};
+  scrollbar-color: var(--crm-scrollbar-thumb-ff) #{$layer-2};
   scrollbar-width: auto;
 }
 
@@ -55,12 +55,12 @@ html {
   box-shadow: none !important;
 
   &:hover {
-    border-color: rgba(0, 212, 255, 0.3) !important;
+    border-color: var(--crm-accent-03) !important;
   }
 
   &.is-focus {
-    border-color: rgba(0, 212, 255, 0.6) !important;
-    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.12) !important;
+    border-color: var(--crm-accent-06) !important;
+    box-shadow: 0 0 0 2px var(--crm-accent-012) !important;
   }
 }
 
@@ -86,15 +86,15 @@ html {
   // CSS 变量覆盖
   --el-table-bg-color: transparent;
   --el-table-tr-bg-color: transparent;
-  --el-table-header-bg-color: rgba(0, 212, 255, 0.04);
-  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.14);
+  --el-table-header-bg-color: var(--crm-table-header-bg);
+  --el-table-row-hover-bg-color: var(--crm-table-row-hover);
   // 与悬停行同色，避免 highlight-current-row 使用主题浅蓝块且与自定义阴影叠加出「分格」感
-  --el-table-current-row-bg-color: rgba(0, 212, 255, 0.14);
+  --el-table-current-row-bg-color: var(--crm-table-row-hover);
   --el-table-border-color: transparent;
-  --el-table-text-color: #a8c0d6;
-  --el-table-header-text-color: #6b8cae;
+  --el-table-text-color: var(--crm-table-text);
+  --el-table-header-text-color: var(--crm-table-header-text);
   --el-fill-color-lighter: transparent;
-  --el-fill-color-light: rgba(0, 212, 255, 0.04);
+  --el-fill-color-light: var(--crm-table-header-bg);
   background: transparent !important;
   font-size: 13px;
 
@@ -120,9 +120,9 @@ html {
     background: transparent;
   }
   th.el-table__cell {
-    background: rgba(0, 212, 255, 0.04) !important;
-    color: #6b8cae;
-    border-bottom: 1px solid rgba(0, 212, 255, 0.1) !important;
+    background: var(--crm-table-header-bg) !important;
+    color: var(--crm-table-header-text);
+    border-bottom: 1px solid var(--crm-table-header-line) !important;
     border-right: none !important;
     font-weight: 500;
     font-size: 12px;
@@ -132,12 +132,48 @@ html {
 
   // 数据行：透明背景 + 极细白色分隔线
   td.el-table__cell {
-    background: transparent !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+    background: var(--crm-table-row-base) !important;
+    border-bottom: 1px solid var(--crm-table-cell-line) !important;
     border-right: none !important;
-    color: #a8c0d6;
+    color: var(--crm-table-text);
     padding: 11px 14px;
     transition: background-color 0.18s ease;
+  }
+
+  // 斑马线：偶数行（主滚动区 + 左侧固定；不含操作列 class）
+  .el-table__body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell:not(.op-col),
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell:not(.op-col) {
+    background: var(--crm-table-row-stripe) !important;
+  }
+
+  .el-table__body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell.op-col,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell.op-col {
+    background: var(--crm-op-col-row-stripe) !important;
+  }
+
+  // 与斑马线同特异性，否则 :nth-child(even) 会盖住 tr:hover（浅色条纹行看不出悬停）
+  .el-table__body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell:not(.op-col),
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell:not(.op-col),
+  .el-table__body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell:not(.op-col),
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell:not(.op-col),
+  .el-table__body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell:not(.op-col),
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell:not(.op-col) {
+    background: var(--crm-table-row-hover) !important;
+    border-right: none !important;
+    border-left: none !important;
+    box-shadow: none !important;
+  }
+
+  .el-table__body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell.op-col,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell.op-col,
+  .el-table__body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell.op-col,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell.op-col,
+  .el-table__body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell.op-col,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell.op-col {
+    background: linear-gradient(0deg, var(--crm-table-row-hover), var(--crm-table-row-hover)), $layer-2 !important;
+    border-right: none !important;
+    border-left: none !important;
+    box-shadow: none !important;
   }
 
   // 行悬停 / 当前行：更强底色 + 轻微上浮（勿对每格加外阴影，否则 blur 在列缝叠成竖条）
@@ -160,7 +196,7 @@ html {
   tr:hover td.el-table__cell,
   tr.hover-row td.el-table__cell,
   tr.current-row td.el-table__cell {
-    background: rgba(0, 212, 255, 0.14) !important;
+    background: var(--crm-table-row-hover) !important;
     border-right: none !important;
     border-left: none !important;
     box-shadow: none !important;
@@ -185,7 +221,7 @@ html {
   }
 
   .el-table__fixed th.el-table__cell {
-    background: rgba(0, 212, 255, 0.04) !important;
+    background: var(--crm-table-header-bg) !important;
   }
 
   .el-table__fixed td.el-table__cell {
@@ -195,7 +231,7 @@ html {
   .el-table__fixed .el-table__row:hover td.el-table__cell,
   .el-table__fixed .el-table__row.hover-row td.el-table__cell,
   .el-table__fixed .el-table__row.current-row td.el-table__cell {
-    background: rgba(0, 212, 255, 0.14) !important;
+    background: var(--crm-table-row-hover) !important;
     border-right: none !important;
     border-left: none !important;
     box-shadow: none !important;
@@ -223,22 +259,26 @@ html {
   .el-table__fixed-right th.el-table__cell,
   .el-table__fixed-right td.el-table__cell {
     background-color: $layer-3 !important;
-    box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.1);
+    box-shadow: inset 1px 0 0 var(--crm-table-header-line);
   }
 
-  .el-table__fixed-right .el-table__row:hover td.el-table__cell,
-  .el-table__fixed-right .el-table__row.hover-row td.el-table__cell,
-  .el-table__fixed-right .el-table__row.current-row td.el-table__cell {
-    background: linear-gradient(0deg, rgba(0, 212, 255, 0.14), rgba(0, 212, 255, 0.14)), $layer-3 !important;
+  .el-table__fixed-right:not(:has(.op-col)) .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell {
+    background-color: var(--crm-table-fixed-right-stripe) !important;
+  }
+
+  // 与上条同前缀 :not(:has(.op-col))，否则特异性低于偶数行条纹，悬停不生效
+  .el-table__fixed-right:not(:has(.op-col)) .el-table__body tr.el-table__row:hover td.el-table__cell,
+  .el-table__fixed-right:not(:has(.op-col)) .el-table__body tr.el-table__row.hover-row td.el-table__cell,
+  .el-table__fixed-right:not(:has(.op-col)) .el-table__body tr.el-table__row.current-row td.el-table__cell {
+    background: var(--crm-table-row-hover) !important;
     border-right: none !important;
     border-left: none !important;
-    // 仅保留与主表分界的一条内阴影，不再叠加外阴影（避免列缝竖向暗带）
-    box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.22) !important;
+    box-shadow: inset 1px 0 0 var(--crm-accent-022) !important;
   }
 
   // 固定操作列必须在 Z 轴高于滚动区，横向滚动时用不透明底色盖住下方列（避免「操作」与数据列叠在一起）
   .el-table__fixed-right {
-    box-shadow: -12px 0 18px -10px rgba(0, 0, 0, 0.72) !important;
+    box-shadow: var(--crm-fixed-shadow) !important;
     z-index: 24 !important;
   }
 
@@ -279,12 +319,12 @@ html {
     }
     .el-descriptions__label {
       background: $layer-2 !important;
-      color: #6b8cae;
+      color: var(--crm-desc-label);
       border-color: $border-panel !important;
     }
     .el-descriptions__content {
       background: $layer-3 !important;
-      color: #a8c0d6;
+      color: var(--crm-desc-content);
       border-color: $border-panel !important;
     }
     .el-descriptions__cell {
@@ -303,49 +343,49 @@ html {
 // 全局 el-dialog 深色主题覆盖
 // ============================================================
 .el-dialog {
-  --el-dialog-bg-color: #0d1e35;
-  background: #0d1e35 !important;
-  border: 1px solid rgba(0, 212, 255, 0.15);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 212, 255, 0.08);
+  --el-dialog-bg-color: var(--crm-dialog-bg);
+  background: var(--crm-dialog-bg) !important;
+  border: 1px solid var(--crm-dialog-border);
+  box-shadow: var(--crm-dialog-shadow);
   border-radius: 10px;
 
   .el-dialog__header {
     background: transparent;
-    border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+    border-bottom: 1px solid var(--crm-dialog-header-border);
     padding: 16px 20px 14px;
 
     .el-dialog__title {
-      color: rgba(224, 244, 255, 0.92);
+      color: var(--crm-dialog-title);
       font-size: 15px;
       font-weight: 600;
       letter-spacing: 0.3px;
     }
 
     .el-dialog__headerbtn .el-dialog__close {
-      color: rgba(200, 216, 232, 0.5);
+      color: var(--crm-dialog-close);
       &:hover {
-        color: rgba(224, 244, 255, 0.9);
-        background: rgba(255, 255, 255, 0.06);
+        color: var(--crm-dialog-close-hover);
+        background: var(--crm-dialog-close-hover-bg);
       }
     }
   }
 
   .el-dialog__body {
     background: transparent;
-    color: rgba(200, 216, 232, 0.85);
+    color: var(--crm-dialog-body);
     padding: 18px 20px;
   }
 
   .el-dialog__footer {
     background: transparent;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid var(--crm-dialog-footer-border);
     padding: 12px 20px 16px;
   }
 }
 
 // el-overlay 遮罩层深色
 .el-overlay {
-  background-color: rgba(0, 0, 0, 0.65) !important;
+  background-color: var(--crm-overlay-bg) !important;
 }
 
 // ============================================================
@@ -381,12 +421,12 @@ html {
   color: $text-primary !important;
 
   &.is-focused {
-    border-color: rgba(0, 212, 255, 0.6) !important;
-    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.12) !important;
+    border-color: var(--crm-accent-06) !important;
+    box-shadow: 0 0 0 2px var(--crm-accent-012) !important;
   }
 
   &:hover {
-    border-color: rgba(0, 212, 255, 0.3) !important;
+    border-color: var(--crm-accent-03) !important;
   }
 }
 
@@ -408,12 +448,12 @@ html {
 
     &.is-hovering,
     &:hover {
-      background-color: rgba(0, 212, 255, 0.08) !important;
+      background-color: var(--crm-accent-008) !important;
     }
 
     &.is-selected {
       color: $cyan-primary !important;
-      background-color: rgba(0, 212, 255, 0.1) !important;
+      background-color: var(--crm-accent-01) !important;
     }
   }
 }
@@ -432,12 +472,12 @@ html {
   }
 
   &:hover {
-    border-color: rgba(0, 212, 255, 0.3) !important;
+    border-color: var(--crm-accent-03) !important;
   }
 
   &:focus {
-    border-color: rgba(0, 212, 255, 0.6) !important;
-    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.12) !important;
+    border-color: var(--crm-accent-06) !important;
+    box-shadow: 0 0 0 2px var(--crm-accent-012) !important;
     outline: none !important;
   }
 }
@@ -454,13 +494,13 @@ html {
 
   .el-input-number__decrease,
   .el-input-number__increase {
-    background: rgba(255, 255, 255, 0.05) !important;
+    background: var(--crm-white-05) !important;
     border-color: $border-panel !important;
     color: $text-muted !important;
 
     &:hover {
       color: $cyan-primary !important;
-      background: rgba(0, 212, 255, 0.08) !important;
+      background: var(--crm-accent-008) !important;
     }
   }
 }
@@ -475,12 +515,12 @@ html {
     box-shadow: none !important;
 
     &:hover {
-      border-color: rgba(0, 212, 255, 0.3) !important;
+      border-color: var(--crm-accent-03) !important;
     }
 
     &.is-focus {
-      border-color: rgba(0, 212, 255, 0.6) !important;
-      box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.12) !important;
+      border-color: var(--crm-accent-06) !important;
+      box-shadow: 0 0 0 2px var(--crm-accent-012) !important;
     }
   }
 
@@ -509,7 +549,7 @@ html {
   }
 
   .el-date-table td.available:hover .el-date-table-cell__text {
-    background: rgba(0, 212, 255, 0.1) !important;
+    background: var(--crm-accent-01) !important;
   }
 }
 
@@ -518,7 +558,7 @@ html {
 // ============================================================
 .el-rate {
   .el-rate__icon {
-    color: rgba(200, 216, 232, 0.2) !important;
+    color: var(--crm-rate-empty) !important;
   }
 
   .el-rate__icon.is-active {
@@ -526,60 +566,22 @@ html {
   }
 }
 
-// ============================================================
-// 全局 Element Plus CSS 变量覆盖（深色主题）
-// 覆盖 --el-fill-color-blank 等变量，确保输入框不显示白色底色
-// ============================================================
-:root {
-  --el-fill-color-blank: #162233;
-  --el-fill-color: #0d1e35;
-  --el-fill-color-light: #0a1628;
-  --el-fill-color-lighter: #0a1628;
-  --el-fill-color-extra-light: #0a1628;
-  --el-fill-color-dark: #1a2d45;
-  --el-fill-color-darker: #1a2d45;
-  --el-bg-color: #0a1628;
-  --el-bg-color-page: #192a3f;
-  --el-bg-color-overlay: #0d1e35;
-  --el-text-color-primary: #c8dff0;
-  --el-text-color-regular: #a8c0d6;
-  --el-text-color-secondary: #6b8cae;
-  --el-text-color-placeholder: #3a5a7a;
-  --el-text-color-disabled: #3a5a7a;
-  --el-border-color: #1a2d45;
-  --el-border-color-light: #1a2d45;
-  --el-border-color-lighter: #1a2d45;
-  --el-border-color-extra-light: #162233;
-  --el-border-color-dark: #2a4d75;
-  --el-border-color-darker: #2a4d75;
-  --el-input-bg-color: #162233;
-  --el-input-text-color: #c8dff0;
-  --el-input-border-color: #1a2d45;
-  --el-input-hover-border-color: rgba(0, 212, 255, 0.3);
-  --el-input-focus-border-color: rgba(0, 212, 255, 0.6);
-  --el-input-placeholder-color: #3a5a7a;
-  --el-disabled-bg-color: #0a1628;
-  --el-disabled-text-color: #3a5a7a;
-  --el-disabled-border-color: #1a2d45;
-  // el-card 深色主题
-  --el-card-bg-color: #0d1e35;
-  --el-card-border-color: #1a2d45;
-}
+// Element Plus 全局 CSS 变量见 theme-tokens.css（随 html[data-theme] 切换）
 
 // ============================================================
 // 全局 el-card 深色主题覆盖
 // ============================================================
 .el-card {
-  background: #0d1e35 !important;
-  border: 1px solid #1a2d45 !important;
+  background: var(--crm-card-bg) !important;
+  border: 1px solid var(--crm-card-border) !important;
   border-radius: 10px !important;
   box-shadow: none !important;
-  color: #a8c0d6;
+  color: var(--crm-card-text);
 
   .el-card__header {
     background: transparent;
-    border-bottom: 1px solid rgba(0, 212, 255, 0.08);
-    color: #c8dff0;
+    border-bottom: 1px solid var(--crm-card-header-border);
+    color: var(--crm-card-title);
     padding: 14px 18px;
   }
 
@@ -595,38 +597,38 @@ html {
 .el-pagination {
   --el-pagination-bg-color: transparent;
   --el-pagination-button-bg-color: transparent;
-  --el-pagination-hover-color: #00d4ff;
-  color: #6b8cae;
+  --el-pagination-hover-color: var(--crm-pagination-active);
+  color: var(--crm-pagination-color);
 
   .el-pagination__total,
   .el-pagination__sizes {
-    color: #6b8cae;
+    color: var(--crm-pagination-color);
   }
 
   .el-pager li {
     background: transparent;
-    color: #6b8cae;
+    color: var(--crm-pagination-color);
 
     &.is-active {
-      color: #00d4ff;
+      color: var(--crm-pagination-active);
       font-weight: 600;
     }
 
     &:hover {
-      color: #00d4ff;
+      color: var(--crm-pagination-active);
     }
   }
 
   button {
     background: transparent;
-    color: #6b8cae;
+    color: var(--crm-pagination-color);
 
     &:hover {
-      color: #00d4ff;
+      color: var(--crm-pagination-active);
     }
 
     &:disabled {
-      color: #3a5a7a;
+      color: var(--crm-pagination-disabled);
     }
   }
 }
@@ -650,20 +652,24 @@ html {
 .crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) th.el-table__cell,
 .crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) td.el-table__cell {
   background-color: $layer-3 !important;
-  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.1);
+  box-shadow: inset 1px 0 0 var(--crm-table-header-line);
 }
 
-.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .el-table__row:hover td.el-table__cell,
-.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .el-table__row.hover-row td.el-table__cell,
-.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .el-table__row.current-row td.el-table__cell {
-  background: linear-gradient(0deg, rgba(0, 212, 255, 0.14), rgba(0, 212, 255, 0.14)), $layer-3 !important;
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell {
+  background-color: var(--crm-table-fixed-right-stripe) !important;
+}
+
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .el-table__body tr.el-table__row:hover td.el-table__cell,
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .el-table__body tr.el-table__row.hover-row td.el-table__cell,
+.crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) .el-table__body tr.el-table__row.current-row td.el-table__cell {
+  background: var(--crm-table-row-hover) !important;
   border-right: none !important;
   border-left: none !important;
-  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.22) !important;
+  box-shadow: inset 1px 0 0 var(--crm-accent-022) !important;
 }
 
 .crm-data-table.quantum-table .el-table__fixed-right:not(:has(.op-col)) {
-  box-shadow: -12px 0 18px -10px rgba(0, 0, 0, 0.72) !important;
+  box-shadow: var(--crm-fixed-shadow) !important;
   z-index: 24 !important;
 }
 
@@ -687,8 +693,6 @@ html {
 // 操作列 op-col（与 /rfqlist RFQList 一致）：表头 #0A1D30，表体 $layer-2
 // el-table-column：class-name="op-col" label-class-name="op-col"
 // ============================================================
-$crm-op-col-header-bg: #0a1d30;
-
 .el-table .el-table__inner-wrapper:has(.el-table__fixed-right .op-col) .el-table__fixed-right-patch {
   background-color: $layer-2 !important;
   z-index: 23 !important;
@@ -696,11 +700,11 @@ $crm-op-col-header-bg: #0a1d30;
 
 .el-table .el-table__fixed-right:has(.op-col) {
   z-index: 24 !important;
-  box-shadow: -12px 0 18px -10px rgba(0, 0, 0, 0.72) !important;
+  box-shadow: var(--crm-fixed-shadow) !important;
 }
 
 .el-table .el-table__fixed-right:has(.op-col) .el-table__fixed-header-wrapper {
-  background-color: $crm-op-col-header-bg !important;
+  background-color: var(--crm-op-col-header-bg) !important;
 }
 
 .el-table .el-table__fixed-right:has(.op-col) .el-table__fixed-body-wrapper,
@@ -712,28 +716,19 @@ $crm-op-col-header-bg: #0a1d30;
 }
 
 .el-table .el-table__fixed-right:has(.op-col) thead tr {
-  background-color: $crm-op-col-header-bg !important;
+  background-color: var(--crm-op-col-header-bg) !important;
 }
 
 .el-table .el-table__fixed-right:has(.op-col) th.op-col.el-table__cell,
 .el-table .el-table__fixed-right:has(.op-col) th.el-table__cell.op-col {
-  background-color: $crm-op-col-header-bg !important;
-  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.1);
+  background-color: var(--crm-op-col-header-bg) !important;
+  box-shadow: inset 1px 0 0 var(--crm-table-header-line);
 }
 
 .el-table .el-table__fixed-right:has(.op-col) td.op-col.el-table__cell,
 .el-table .el-table__fixed-right:has(.op-col) td.el-table__cell.op-col {
   background-color: $layer-2 !important;
-  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.1);
-}
-
-.el-table .el-table__fixed-right:has(.op-col) .el-table__row:hover td.op-col.el-table__cell,
-.el-table .el-table__fixed-right:has(.op-col) .el-table__row.hover-row td.op-col.el-table__cell,
-.el-table .el-table__fixed-right:has(.op-col) .el-table__row.current-row td.op-col.el-table__cell {
-  background: linear-gradient(0deg, rgba(0, 212, 255, 0.14), rgba(0, 212, 255, 0.14)), $layer-2 !important;
-  border-right: none !important;
-  border-left: none !important;
-  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.22) !important;
+  box-shadow: inset 1px 0 0 var(--crm-table-header-line);
 }
 
 .el-table .el-table__fixed-right:has(.op-col)::before {
@@ -742,25 +737,42 @@ $crm-op-col-header-bg: #0a1d30;
 
 .el-table .el-table__header-wrapper th.op-col.el-table__cell,
 .el-table .el-table__header-wrapper th.el-table__cell.op-col {
-  background-color: $crm-op-col-header-bg !important;
-  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.1);
+  background-color: var(--crm-op-col-header-bg) !important;
+  box-shadow: inset 1px 0 0 var(--crm-table-header-line);
 }
 
 .el-table .el-table__body-wrapper td.op-col.el-table__cell,
 .el-table .el-table__body-wrapper td.el-table__cell.op-col {
   background-color: $layer-2 !important;
-  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.1);
+  box-shadow: inset 1px 0 0 var(--crm-table-header-line);
 }
 
-// 主表体操作列：行悬停 / 当前行与整行高光一致（避免被通栏 td 规则盖成纯色）
-.el-table .el-table__body-wrapper tr:hover td.op-col.el-table__cell,
-.el-table .el-table__body-wrapper tr.hover-row td.op-col.el-table__cell,
-.el-table .el-table__body-wrapper tr.current-row td.op-col.el-table__cell,
-.el-table .el-table__body-wrapper tr:hover td.el-table__cell.op-col,
-.el-table .el-table__body-wrapper tr.hover-row td.el-table__cell.op-col,
-.el-table .el-table__body-wrapper tr.current-row td.el-table__cell.op-col {
-  background: linear-gradient(0deg, rgba(0, 212, 255, 0.14), rgba(0, 212, 255, 0.14)), $layer-2 !important;
+.el-table .el-table__fixed-right:has(.op-col) .el-table__body tr.el-table__row:nth-child(even) td.op-col.el-table__cell,
+.el-table .el-table__fixed-right:has(.op-col) .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell.op-col {
+  background-color: var(--crm-op-col-row-stripe) !important;
+}
+
+.el-table .el-table__fixed-right:has(.op-col) .el-table__body tr.el-table__row:hover td.op-col.el-table__cell,
+.el-table .el-table__fixed-right:has(.op-col) .el-table__body tr.el-table__row:hover td.el-table__cell.op-col,
+.el-table .el-table__fixed-right:has(.op-col) .el-table__body tr.el-table__row.hover-row td.op-col.el-table__cell,
+.el-table .el-table__fixed-right:has(.op-col) .el-table__body tr.el-table__row.hover-row td.el-table__cell.op-col,
+.el-table .el-table__fixed-right:has(.op-col) .el-table__body tr.el-table__row.current-row td.op-col.el-table__cell,
+.el-table .el-table__fixed-right:has(.op-col) .el-table__body tr.el-table__row.current-row td.el-table__cell.op-col {
+  background: linear-gradient(0deg, var(--crm-table-row-hover), var(--crm-table-row-hover)), $layer-2 !important;
   border-right: none !important;
   border-left: none !important;
-  box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.22) !important;
+  box-shadow: inset 1px 0 0 var(--crm-accent-022) !important;
+}
+
+// 主表体操作列：与偶数行条纹同特异性（含 .el-table__body），否则条纹行悬停被盖住
+.el-table .el-table__body-wrapper .el-table__body tr.el-table__row:hover td.op-col.el-table__cell,
+.el-table .el-table__body-wrapper .el-table__body tr.el-table__row.hover-row td.op-col.el-table__cell,
+.el-table .el-table__body-wrapper .el-table__body tr.el-table__row.current-row td.op-col.el-table__cell,
+.el-table .el-table__body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell.op-col,
+.el-table .el-table__body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell.op-col,
+.el-table .el-table__body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell.op-col {
+  background: linear-gradient(0deg, var(--crm-table-row-hover), var(--crm-table-row-hover)), $layer-2 !important;
+  border-right: none !important;
+  border-left: none !important;
+  box-shadow: inset 1px 0 0 var(--crm-accent-022) !important;
 }

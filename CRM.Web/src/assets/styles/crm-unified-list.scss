@@ -22,8 +22,8 @@
   font-size: 13px;
 
   thead tr {
-    background: rgba(0, 212, 255, 0.04);
-    border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+    background: var(--crm-table-header-bg);
+    border-bottom: 1px solid var(--crm-table-header-line);
   }
 
   th {
@@ -38,7 +38,7 @@
 
   td {
     padding: 11px 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid var(--crm-table-cell-line);
     vertical-align: middle;
     color: $text-secondary;
     transition: background-color 0.18s ease;
@@ -54,23 +54,45 @@
     z-index: 1;
   }
 
-  /* 末列（操作列）：第 3 层面板底 + 左侧细分隔线，与客户/供应商列表一致 */
-  thead th:last-child,
-  tbody td:last-child {
+  /* 末列（操作列）：第 3 层面板底 + 左侧细分隔线；偶数行与 el-table 固定右列条纹对齐 */
+  thead th:last-child {
     background: $layer-3 !important;
-    box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.1);
+    box-shadow: inset 1px 0 0 var(--crm-table-header-line);
+  }
+
+  tbody tr:nth-child(odd) td:last-child {
+    background: $layer-3 !important;
+    box-shadow: inset 1px 0 0 var(--crm-table-header-line);
+  }
+
+  tbody tr:nth-child(even) td:not(:last-child) {
+    background-color: var(--crm-table-row-stripe) !important;
+  }
+
+  tbody tr:nth-child(even) td:last-child {
+    background: var(--crm-table-fixed-right-stripe) !important;
+    box-shadow: inset 1px 0 0 var(--crm-table-header-line);
   }
 
   tbody tr:hover td {
-    background: rgba(0, 212, 255, 0.14) !important;
+    background: var(--crm-table-row-hover) !important;
     border-right: none !important;
     border-left: none !important;
     box-shadow: none !important;
   }
 
   tbody tr:hover td:last-child {
-    background: linear-gradient(0deg, rgba(0, 212, 255, 0.14), rgba(0, 212, 255, 0.14)), $layer-3 !important;
-    box-shadow: inset 1px 0 0 rgba(0, 212, 255, 0.22) !important;
+    background: linear-gradient(0deg, var(--crm-table-row-hover), var(--crm-table-row-hover)), $layer-3 !important;
+    box-shadow: inset 1px 0 0 var(--crm-accent-022) !important;
+  }
+
+  tbody tr:nth-child(even):hover td:last-child {
+    background: linear-gradient(
+        0deg,
+        var(--crm-table-row-hover),
+        var(--crm-table-row-hover)
+      ),
+      var(--crm-table-fixed-right-stripe) !important;
   }
 
   tbody tr:last-child td {
@@ -82,14 +104,14 @@
 .crm-items-table {
   .el-table {
     --el-table-border-color: transparent;
-    --el-table-header-bg-color: rgba(0, 212, 255, 0.04);
-    --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.14);
+    --el-table-header-bg-color: var(--crm-table-header-bg);
+    --el-table-row-hover-bg-color: var(--crm-table-row-hover);
     --el-table-bg-color: transparent;
     --el-table-tr-bg-color: transparent;
     --el-table-text-color: #{$text-primary};
     --el-table-header-text-color: #{$text-muted};
     --el-fill-color-lighter: transparent;
-    --el-fill-color-light: rgba(0, 212, 255, 0.04);
+    --el-fill-color-light: var(--crm-table-header-bg);
     background: transparent !important;
     font-size: 13px;
   }
@@ -110,9 +132,9 @@
   }
 
   .el-table__header-wrapper th.el-table__cell {
-    background: rgba(0, 212, 255, 0.04) !important;
+    background: var(--crm-table-header-bg) !important;
     color: $text-muted !important;
-    border-bottom: 1px solid rgba(0, 212, 255, 0.1) !important;
+    border-bottom: 1px solid var(--crm-table-header-line) !important;
     border-right: none !important;
     font-size: 12px;
     font-weight: 500;
@@ -121,12 +143,59 @@
   }
 
   .el-table__body-wrapper td.el-table__cell {
-    background: transparent !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+    background: var(--crm-table-row-base) !important;
+    border-bottom: 1px solid var(--crm-table-cell-line) !important;
     border-right: none !important;
     color: $text-primary;
     padding: 11px 14px;
     transition: background-color 0.18s ease;
+  }
+
+  .el-table__body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell:not(.op-col),
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell:not(.op-col) {
+    background: var(--crm-table-row-stripe) !important;
+  }
+
+  .el-table__body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell.op-col,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell.op-col {
+    background: var(--crm-op-col-row-stripe) !important;
+  }
+
+  .el-table__fixed-right:not(:has(.op-col)) .el-table__body tr.el-table__row:nth-child(even) td.el-table__cell {
+    background-color: var(--crm-table-fixed-right-stripe) !important;
+  }
+
+  .el-table__body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell:not(.op-col),
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell:not(.op-col),
+  .el-table__body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell:not(.op-col),
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell:not(.op-col),
+  .el-table__body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell:not(.op-col),
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell:not(.op-col) {
+    background: var(--crm-table-row-hover) !important;
+    border-right: none !important;
+    border-left: none !important;
+    box-shadow: none !important;
+  }
+
+  .el-table__body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell.op-col,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row:hover td.el-table__cell.op-col,
+  .el-table__body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell.op-col,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.hover-row td.el-table__cell.op-col,
+  .el-table__body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell.op-col,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.current-row td.el-table__cell.op-col {
+    background: linear-gradient(0deg, var(--crm-table-row-hover), var(--crm-table-row-hover)), $layer-2 !important;
+    border-right: none !important;
+    border-left: none !important;
+    box-shadow: none !important;
+  }
+
+  .el-table__fixed-right:not(:has(.op-col)) .el-table__body tr.el-table__row:hover td.el-table__cell,
+  .el-table__fixed-right:not(:has(.op-col)) .el-table__body tr.el-table__row.hover-row td.el-table__cell,
+  .el-table__fixed-right:not(:has(.op-col)) .el-table__body tr.el-table__row.current-row td.el-table__cell {
+    background: var(--crm-table-row-hover) !important;
+    border-right: none !important;
+    border-left: none !important;
+    box-shadow: inset 1px 0 0 var(--crm-accent-022) !important;
   }
 
   .el-table__body-wrapper .el-table__body tr.el-table__row,
@@ -148,7 +217,7 @@
   tr:hover > td.el-table__cell,
   tr.hover-row > td.el-table__cell,
   tr.current-row > td.el-table__cell {
-    background: rgba(0, 212, 255, 0.14) !important;
+    background: var(--crm-table-row-hover) !important;
     border-right: none !important;
     border-left: none !important;
     box-shadow: none !important;
@@ -179,7 +248,7 @@
 .table-wrapper.crm-items-table.crm-data-table,
 .crm-items-table.crm-data-table {
   .el-table.el-table--border {
-    border-color: rgba(0, 212, 255, 0.12);
+    border-color: var(--crm-table-border-accent);
   }
 
   .el-table--border th.el-table__cell,
@@ -232,13 +301,13 @@
     flex-shrink: 0;
 
     &--primary {
-      background: rgba(0, 102, 255, 0.12);
-      border: 1px solid rgba(0, 212, 255, 0.35);
+      background: var(--crm-action-primary-bg);
+      border: 1px solid var(--crm-action-primary-border);
       color: $cyan-primary;
 
       &:hover {
-        background: rgba(0, 102, 255, 0.2);
-        border-color: rgba(0, 212, 255, 0.5);
+        background: var(--crm-action-primary-bg-hover);
+        border-color: var(--crm-action-primary-border-hover);
       }
     }
 
@@ -276,13 +345,13 @@
     }
 
     &--info {
-      background: rgba(120, 140, 160, 0.1);
-      border: 1px solid rgba(148, 163, 184, 0.28);
-      color: rgba(200, 216, 232, 0.85);
+      background: var(--crm-action-info-bg);
+      border: 1px solid var(--crm-action-info-border);
+      color: var(--crm-action-info-color);
 
       &:hover {
-        background: rgba(120, 140, 160, 0.16);
-        border-color: rgba(148, 163, 184, 0.42);
+        background: var(--crm-action-info-bg-hover);
+        border-color: var(--crm-action-info-border-hover);
       }
     }
   }
@@ -431,7 +500,7 @@ td.op-col .cell .el-dropdown {
 }
 
 .op-more-item--info {
-  color: rgba(200, 216, 232, 0.85);
+  color: var(--crm-op-more-info);
 }
 
 // --- 卡片型列表区（筛选 + 表格一体）---

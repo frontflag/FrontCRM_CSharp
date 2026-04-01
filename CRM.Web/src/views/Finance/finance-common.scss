@@ -1,7 +1,8 @@
 // ============================================================
 // 财务模块公共样式 — 深海量子风
-// 设计规范：三层面板 #192A3F / #0A1628 / #162233
+// 设计规范：三层面板由 theme-tokens + variables.scss 驱动
 // ============================================================
+@import '../../assets/styles/variables.scss';
 
 .finance-page {
   padding: 20px 24px;
@@ -47,8 +48,8 @@
 }
 
 .stat-card {
-  background: #162233;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  background: $layer-3;
+  border: 1px solid $border-card;
   border-radius: 10px;
   padding: 16px 20px;
   display: flex;
@@ -57,25 +58,31 @@
   transition: border-color 0.2s;
 
   &:hover {
-    border-color: rgba(0, 212, 255, 0.25);
+    border-color: var(--crm-accent-025);
   }
 }
 
 .stat-label {
   font-family: 'Noto Sans SC', sans-serif;
   font-size: 12.5px;
-  color: rgba(80, 187, 227, 0.6);
+  color: $text-muted;
 }
 
 .stat-value {
   font-family: 'Orbitron', monospace;
   font-size: 20px;
   font-weight: 700;
-  color: #E8F4FF;
+  color: $text-primary;
 
-  &.warning { color: #E8A838; }
-  &.success { color: #3DB88A; }
-  &.danger  { color: #C95745; }
+  &.warning {
+    color: $warning-color;
+  }
+  &.success {
+    color: $success-color;
+  }
+  &.danger {
+    color: $danger-color;
+  }
 }
 
 // 列表表格：统一使用全局 .table-wrapper.crm-items-table（见 crm-unified-list.scss）

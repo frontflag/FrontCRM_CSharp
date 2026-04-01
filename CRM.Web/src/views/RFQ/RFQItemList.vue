@@ -1027,16 +1027,16 @@ onUnmounted(() => {
   flex: 0 0 auto;
   flex-shrink: 0;
   margin-top: 0;
-  background: #0a1628;
-  border: 1px solid rgba(0, 212, 255, 0.15);
+  background: $layer-2;
+  border: 1px solid $border-card;
   border-radius: 8px;
   overflow: hidden;
 }
 
 .dock-header {
   padding: 10px 14px;
-  background: rgba(0, 212, 255, 0.06);
-  border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+  background: var(--crm-table-header-bg);
+  border-bottom: 1px solid $border-panel;
 }
 
 .dock-header-top {
@@ -1054,11 +1054,11 @@ onUnmounted(() => {
 .dock-title {
   font-size: 15px;
   font-weight: 600;
-  color: #e8f4ff;
+  color: $text-primary;
 }
 
 .dock-toggle {
-  color: #00d4ff !important;
+  color: $cyan-primary !important;
 }
 
 .dock-link-alert-wrap {
@@ -1074,7 +1074,7 @@ onUnmounted(() => {
   line-height: 1.55;
   font-size: 14px;
   font-weight: 400;
-  color: #e8f4ff;
+  color: $text-primary;
 }
 
 .dock-link-alert-title-row .la-pre {
@@ -1083,12 +1083,12 @@ onUnmounted(() => {
 }
 
 .dock-link-alert-title-row .la-muted {
-  color: rgba(200, 216, 232, 0.55);
+  color: $text-muted;
   font-weight: 400;
 }
 
 .dock-link-alert-title-row .la-strong {
-  color: #e8f4ff;
+  color: $text-primary;
   font-weight: 600;
 }
 
@@ -1114,7 +1114,7 @@ onUnmounted(() => {
   padding: 24px 12px;
   text-align: center;
   font-size: 13px;
-  color: rgba(200, 216, 232, 0.55);
+  color: $text-muted;
 }
 
 .dock-table-wrap {
@@ -1135,17 +1135,17 @@ onUnmounted(() => {
   padding: 0 12px;
   font-size: 12px;
   line-height: 1;
-  color: rgba(200, 216, 232, 0.55);
-  border: 1px solid rgba(0, 212, 255, 0.12);
+  color: $text-muted;
+  border: 1px solid $border-panel;
   border-radius: 4px;
-  background: rgba(10, 22, 40, 0.35);
+  background: $layer-3;
 }
 
 .dock-quote-table {
   width: 100%;
-  --el-table-header-bg-color: rgba(0, 212, 255, 0.1);
+  --el-table-header-bg-color: var(--crm-table-header-bg);
   --el-table-tr-bg-color: transparent;
-  --el-table-border-color: rgba(0, 212, 255, 0.12);
+  --el-table-border-color: var(--crm-table-border-accent);
   :deep(.el-table__inner-wrapper::before) {
     display: none;
   }
@@ -1153,10 +1153,10 @@ onUnmounted(() => {
     background: transparent;
   }
   :deep(th.el-table__cell) {
-    color: rgba(200, 216, 232, 0.85);
+    color: $text-secondary;
   }
   :deep(td.el-table__cell) {
-    color: #e8f4ff;
+    color: $text-primary;
   }
 
   :deep(.dock-tier-col .cell) {
@@ -1181,7 +1181,7 @@ onUnmounted(() => {
 }
 
 .dock-tier-empty {
-  color: rgba(200, 216, 232, 0.45);
+  color: $text-placeholder;
   font-size: 12px;
 }
 

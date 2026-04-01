@@ -412,24 +412,30 @@ onMounted(loadData)
 
 .stat-card {
   text-align: center;
-  background: #0A1628;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  background: $layer-3;
+  border: 1px solid $border-card;
   :deep(.el-card__body) {
     padding: 15px;
   }
   .stat-value {
     font-size: 24px;
     font-weight: bold;
-    color: #00D4FF;
+    color: $cyan-primary;
     margin-bottom: 5px;
   }
   .stat-label {
     font-size: 14px;
-    color: rgba(200, 216, 232, 0.6);
+    color: $text-muted;
   }
-  &.stat-warning .stat-value { color: #E6A23C; }
-  &.stat-cyan .stat-value { color: #00D4FF; }
-  &.stat-success .stat-value { color: #67C23A; }
+  &.stat-warning .stat-value {
+    color: $warning-color;
+  }
+  &.stat-cyan .stat-value {
+    color: $cyan-primary;
+  }
+  &.stat-success .stat-value {
+    color: $success-color;
+  }
 }
 
 .filter-card {

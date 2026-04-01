@@ -468,12 +468,20 @@ onMounted(() => fetchList())
   margin-bottom: 12px;
 }
 .stat-card {
-  background: $layer-2;
-  border: 1px solid $border-panel;
+  background: $layer-3;
+  border: 1px solid $border-card;
   border-radius: 8px;
   padding: 10px 12px;
-  .label { color: $text-muted; font-size: 12px; }
-  .value { color: $cyan-primary; font-size: 18px; font-weight: 600; margin-top: 4px; }
+  .label {
+    color: $text-muted;
+    font-size: 12px;
+  }
+  .value {
+    color: $cyan-primary;
+    font-size: 18px;
+    font-weight: 600;
+    margin-top: 4px;
+  }
 }
 
 // 列表操作列规范（收起/展开）

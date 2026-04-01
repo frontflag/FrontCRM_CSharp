@@ -392,7 +392,7 @@ const handleGenerateQuote = (_row: any) => {
 
 .statistics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
 .stat-card {
-  background: $layer-2;
+  background: $layer-3;
   border: 1px solid $border-card;
   border-radius: $border-radius-lg;
   padding: 20px;

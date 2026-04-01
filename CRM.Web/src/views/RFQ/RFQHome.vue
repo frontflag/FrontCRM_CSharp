@@ -313,8 +313,8 @@ onMounted(() => {
   padding-bottom: 40px;
   padding-inline: clamp(36px, 14vw, 240px);
   font-family: 'Noto Sans SC', sans-serif;
-  background: #0b0e14;
-  background-image: radial-gradient(ellipse 120% 80% at 50% -20%, rgba(0, 102, 255, 0.12), transparent 55%);
+  background: $layer-1;
+  background-image: radial-gradient(ellipse 120% 80% at 50% -20%, var(--crm-home-hero-glow), transparent 55%);
 }
 
 .rfq-home__search-hero {
@@ -352,10 +352,10 @@ onMounted(() => {
   min-height: 52px;
   padding: 4px 6px 4px 4px;
   gap: 4px;
-  background: rgba(22, 34, 51, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: $layer-2;
+  border: 1px solid $border-panel;
   border-radius: 999px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  box-shadow: $shadow-md;
 }
 
 .rfq-home__pill-field {
@@ -370,7 +370,7 @@ onMounted(() => {
 .rfq-home__pill-mag {
   flex-shrink: 0;
   margin-right: 10px;
-  color: rgba(200, 216, 232, 0.45);
+  color: $text-muted;
 }
 
 .rfq-home__pill-input {
@@ -384,7 +384,7 @@ onMounted(() => {
   outline: none;
 
   &::placeholder {
-    color: rgba(200, 216, 232, 0.38);
+    color: $text-placeholder;
   }
 }
 
@@ -399,8 +399,8 @@ onMounted(() => {
   font-family: inherit;
   color: #fff;
   cursor: pointer;
-  background: linear-gradient(135deg, #0066ff 0%, #00b8e6 100%);
-  box-shadow: 0 2px 14px rgba(0, 212, 255, 0.25);
+  background: linear-gradient(135deg, $blue-primary 0%, $cyan-primary 100%);
+  box-shadow: var(--crm-shadow-glow);
   transition: filter 0.15s ease, transform 0.15s ease;
 
   &:hover {
@@ -421,13 +421,15 @@ onMounted(() => {
   background: none;
   font-size: 13px;
   font-family: inherit;
-  color: rgba(0, 212, 255, 0.85);
+  color: $cyan-primary;
   cursor: pointer;
   white-space: nowrap;
   transition: color 0.15s ease;
+  opacity: 0.92;
 
   &:hover {
-    color: #00d4ff;
+    opacity: 1;
+    color: $cyan-primary;
   }
 }
 
@@ -437,8 +439,8 @@ onMounted(() => {
   gap: 6px;
   flex-shrink: 0;
   padding: 10px 18px;
-  background: linear-gradient(135deg, rgba(46, 160, 67, 0.85), rgba(70, 191, 145, 0.75));
-  border: 1px solid rgba(70, 191, 145, 0.45);
+  background: linear-gradient(135deg, $color-mint-green, $success-color);
+  border: 1px solid color-mix(in srgb, $color-mint-green 55%, transparent);
   border-radius: $border-radius-md;
   color: #fff;
   font-size: 13px;
@@ -451,13 +453,13 @@ onMounted(() => {
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(70, 191, 145, 0.3);
+    box-shadow: 0 4px 16px color-mix(in srgb, $color-mint-green 35%, transparent);
   }
 }
 
 .rfq-home__loading {
   text-align: center;
-  color: rgba(200, 216, 232, 0.5);
+  color: $text-muted;
   padding: 40px;
   font-size: 14px;
 }
@@ -465,7 +467,7 @@ onMounted(() => {
 .rfq-home__section-title {
   font-size: 15px;
   font-weight: 600;
-  color: rgba(224, 244, 255, 0.92);
+  color: $text-primary;
   margin: 0 0 14px;
   letter-spacing: 0.04em;
 }
@@ -516,14 +518,14 @@ onMounted(() => {
   align-items: flex-start;
   gap: 14px;
   padding: 18px 18px 20px;
-  background: rgba(26, 38, 58, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: $layer-2;
+  border: 1px solid $border-panel;
   border-radius: 14px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 
   &:hover {
-    border-color: rgba(0, 212, 255, 0.12);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    border-color: var(--crm-accent-012);
+    box-shadow: $shadow-md;
   }
 }
 
@@ -576,7 +578,7 @@ onMounted(() => {
 .rfq-home__value {
   font-size: 24px;
   font-weight: 700;
-  color: #f0f8ff;
+  color: $text-primary;
   font-family: 'Space Mono', monospace;
   line-height: 1.15;
   letter-spacing: -0.02em;
@@ -585,7 +587,7 @@ onMounted(() => {
 .rfq-home__label {
   margin-top: 6px;
   font-size: 12px;
-  color: rgba(200, 216, 232, 0.52);
+  color: $text-muted;
   line-height: 1.35;
 }
 </style>

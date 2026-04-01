@@ -97,16 +97,18 @@ watch(
 </template>
 
 <style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
 .help-manual-panel {
   min-height: 120px;
   font-size: 12px;
-  color: rgba(210, 225, 240, 0.92);
+  color: $text-secondary;
 }
 
 .help-manual-panel__empty {
   padding: 24px 8px;
   text-align: center;
-  color: rgba(140, 180, 210, 0.75);
+  color: $text-muted;
   font-size: 13px;
 }
 
@@ -119,10 +121,10 @@ watch(
 .help-md :deep(h1) {
   font-size: 19px;
   font-weight: 600;
-  color: #ffffff;
+  color: $text-primary;
   margin: 0 0 10px;
   padding-bottom: 6px;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.15);
+  border-bottom: 1px solid $border-panel;
 }
 
 .help-md :deep(h1.help-h1--offset-down) {
@@ -132,26 +134,27 @@ watch(
 .help-md :deep(h2) {
   font-size: 16px;
   font-weight: 400;
-  color: #ffffff;
+  color: $text-primary;
   margin: 14px 0 8px;
 }
 
 .help-md :deep(h3) {
   font-size: 14px;
   font-weight: 600;
-  color: #ffffff;
+  color: $text-primary;
   margin: 10px 0 6px;
 }
 
 .help-md :deep(p) {
   margin: 0 0 8px;
-  color: rgba(200, 220, 240, 0.88);
+  color: $text-secondary;
 }
 
 .help-md :deep(ul),
 .help-md :deep(ol) {
   margin: 0 0 8px;
   padding-left: 1.25em;
+  color: $text-secondary;
 }
 
 .help-md :deep(li) {
@@ -163,8 +166,9 @@ watch(
   font-size: 11px;
   padding: 1px 4px;
   border-radius: 4px;
-  background: rgba(0, 212, 255, 0.08);
-  color: rgba(190, 230, 255, 0.95);
+  background: var(--crm-accent-008);
+  color: $text-primary;
+  border: 1px solid $border-panel;
 }
 
 .help-md :deep(pre) {
@@ -172,17 +176,20 @@ watch(
   padding: 8px 10px;
   overflow-x: auto;
   border-radius: 6px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(0, 212, 255, 0.12);
+  background: $layer-3;
+  border: 1px solid $border-panel;
+  color: $text-primary;
 }
 
 .help-md :deep(pre code) {
   padding: 0;
   background: none;
+  border: none;
+  color: inherit;
 }
 
 .help-md :deep(a) {
-  color: #5ec8ff;
+  color: $cyan-primary;
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
@@ -191,9 +198,9 @@ watch(
 .help-md :deep(blockquote) {
   margin: 8px 0;
   padding: 6px 10px;
-  border-left: 3px solid rgba(0, 212, 255, 0.35);
-  background: rgba(0, 212, 255, 0.05);
-  color: rgba(190, 210, 230, 0.85);
+  border-left: 3px solid var(--crm-accent-018);
+  background: var(--crm-accent-005);
+  color: $text-secondary;
 }
 
 .help-md :deep(table) {
@@ -201,17 +208,19 @@ watch(
   border-collapse: collapse;
   font-size: 11px;
   margin: 8px 0;
+  color: $text-secondary;
 }
 
 .help-md :deep(th),
 .help-md :deep(td) {
-  border: 1px solid rgba(0, 212, 255, 0.12);
+  border: 1px solid $border-panel;
   padding: 4px 6px;
   text-align: left;
 }
 
 .help-md :deep(th) {
-  background: rgba(0, 212, 255, 0.06);
+  background: var(--crm-table-header-bg);
+  color: $text-primary;
 }
 
 /* 操作说明：单列多块（标题 + 说明 + 前置条件） */
@@ -219,13 +228,14 @@ watch(
   margin: 12px 0;
   padding: 10px 12px;
   border-radius: 8px;
-  border: 1px solid rgba(0, 212, 255, 0.12);
-  background: rgba(0, 212, 255, 0.04);
+  border: 1px solid $border-panel;
+  background: $layer-3;
 }
 
 .help-md :deep(.help-op-block > p) {
   margin: 0 0 6px;
   font-size: 12px;
+  color: $text-secondary;
 }
 
 .help-md :deep(.help-op-block > p:last-child) {
@@ -239,6 +249,6 @@ watch(
 .help-md :deep(.help-op-block > p:first-of-type strong) {
   font-size: 13px;
   font-weight: 700;
-  color: rgba(230, 240, 255, 0.98);
+  color: $text-primary;
 }
 </style>

@@ -1,62 +1,49 @@
 // ============================================================
-// FrontCRM 深海量子风 (Deep Quantum) 设计体系
-// 三层面板颜色体系 + 4种低饱和度颜色范式
+// FrontCRM 设计体系 — 颜色由 theme-tokens.css（html[data-theme]）驱动
 // ============================================================
 
-// --- 三层面板背景色 ---
-$layer-1: #192A3F;      // 第1层：整体页面背景
-$layer-2: #0A1628;      // 第2层：侧边栏、顶部栏、主内容卡片
-$layer-3: #162233;      // 第3层：卡片内嵌套面板、输入框
+$layer-1: var(--crm-layer-1);
+$layer-2: var(--crm-layer-2);
+$layer-3: var(--crm-layer-3);
 
-// --- 主高亮色 ---
-$cyan-primary: #00D4FF;       // 主青色高亮（按钮、图表线条）
-$blue-primary: #0066FF;       // 主蓝色（副线、链接）
+$cyan-primary: var(--crm-cyan-primary);
+$blue-primary: var(--crm-blue-primary);
 
-// --- 4种低饱和度颜色范式 ---
-$color-ice-blue:    #50BBE3;  // 冰蓝：销售额、信息类
-$color-steel-cyan:  #3295C9;  // 钢青：采购额、采购类
-$color-mint-green:  #46BF91;  // 薄荷绿：库存、成功状态
-$color-amber:       #C99A45;  // 琥珀：客户、警告状态
-$color-red-brown:   #C95745;  // 红棕：危险、取消状态
+$color-ice-blue: var(--crm-color-ice-blue);
+$color-steel-cyan: var(--crm-color-steel-cyan);
+$color-mint-green: var(--crm-color-mint-green);
+$color-amber: var(--crm-color-amber);
+$color-red-brown: var(--crm-color-red-brown);
 
-// --- 文字颜色层次 ---
-$text-primary:      #E0F4FF;                  // 主文字（重要标题、数据值）
-$text-secondary:    rgba(224, 244, 255, 0.7); // 次要文字（普通正文）
-$text-muted:        rgba(200, 216, 232, 0.55);// 辅助文字（说明、日期）
-$text-placeholder:  rgba(200, 216, 232, 0.35);// 占位符文字
+$text-primary: var(--crm-text-primary);
+$text-secondary: var(--crm-text-secondary);
+$text-muted: var(--crm-text-muted);
+$text-placeholder: var(--crm-text-placeholder);
 
-// --- 边框颜色 ---
-$border-card:       rgba(0, 212, 255, 0.15);  // 第2层卡片边框（青色）
-$border-panel:      #1a2d45;              // 第3层面板边框（暗蓝色）
+$border-card: var(--crm-border-card);
+$border-panel: var(--crm-border-panel);
 
-// --- 语义色（保留兼容 Element Plus）---
-$primary-color:   #3295C9;
-$success-color:   #46BF91;
-$warning-color:   #C99A45;
-$danger-color:    #C95745;
-$info-color:      #6B7A8D;
+$primary-color: var(--crm-primary-color);
+$success-color: var(--crm-success-color);
+$warning-color: var(--crm-warning-color);
+$danger-color: var(--crm-danger-color);
+$info-color: var(--crm-info-color);
 
-// --- 间距 ---
 $spacing-xs: 4px;
 $spacing-sm: 8px;
 $spacing-md: 16px;
 $spacing-lg: 24px;
 $spacing-xl: 32px;
 
-// --- 圆角 ---
 $border-radius-sm: 4px;
 $border-radius-md: 8px;
 $border-radius-lg: 12px;
 $border-radius-xl: 16px;
 
-// --- 滚动条（WebKit：竖向条用 width，横向条用 height）---
-/// 数据列表等竖向滚动条宽度（左侧主菜单单独在 AppLayout 内为 3px，与此变量无关）
 $scrollbar-vertical-width: 6px;
-/// 数据表「横向滚动条高度」（可略厚于竖条，便于横向拖动）
 $scrollbar-table-horizontal-height: 12px;
 
-// --- 阴影 ---
-$shadow-sm:   0 2px 8px rgba(0, 0, 0, 0.3);
-$shadow-md:   0 4px 24px rgba(0, 0, 0, 0.4);
-$shadow-lg:   0 8px 40px rgba(0, 0, 0, 0.5);
-$shadow-glow: 0 0 20px rgba(0, 212, 255, 0.15);
+$shadow-sm: var(--crm-shadow-sm);
+$shadow-md: var(--crm-shadow-md);
+$shadow-lg: var(--crm-shadow-lg);
+$shadow-glow: var(--crm-shadow-glow);
