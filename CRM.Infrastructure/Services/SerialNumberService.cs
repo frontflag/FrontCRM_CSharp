@@ -66,7 +66,7 @@ namespace CRM.Infrastructure.Services
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                // 新业务编号规则：3/4位业务标识 + 5位32进制流水号
+                // 业务编号：前缀（2～16 字符，见 sys_serial_number）+ 5 位 32 进制流水号
                 var result = FormatBusinessCode(serial.Prefix, serial.CurrentSequence);
                 _logger.LogDebug("生成流水号：{ModuleCode} -> {SerialNo}", moduleCode, result);
                 return result;
@@ -123,10 +123,18 @@ namespace CRM.Infrastructure.Services
             }
 
             var normalizedPrefix = prefix.Trim().ToUpperInvariant();
-            if (normalizedPrefix.Length < 3 || normalizedPrefix.Length > 4)
+            if (normalizedPrefix.Length < 2 || normalizedPrefix.Length > 16)
             {
                 throw new InvalidOperationException(
-                    $"流水号前缀 '{normalizedPrefix}' 非法：仅支持3位主业务前缀或4位辅助业务前缀。");
+                    $"流水号前缀 '{normalizedPrefix}' 非法：长度须在 2～16 之间。");
+            }
+
+            foreach (var c in normalizedPrefix)
+            {
+                if (c is (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_')
+                    continue;
+                throw new InvalidOperationException(
+                    $"流水号前缀 '{normalizedPrefix}' 非法：仅允许字母、数字与下划线。");
             }
 
             var seqPart = EncodeBase32(sequence, EncodedSequenceLength);

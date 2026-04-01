@@ -423,7 +423,7 @@ namespace CRM.Infrastructure.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.ModuleCode).IsRequired().HasMaxLength(50);
-                entity.Property(e => e.Prefix).IsRequired().HasMaxLength(4);
+                entity.Property(e => e.Prefix).IsRequired().HasMaxLength(16);
                 entity.HasIndex(e => e.ModuleCode).IsUnique();
                 entity.HasIndex(e => e.Prefix).IsUnique();
 
@@ -431,26 +431,26 @@ namespace CRM.Infrastructure.Data
                 // 注意：CreateTime 使用静态时间，避免 EF Core PendingModelChangesWarning
                 var seedTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
                 entity.HasData(
-                    new SysSerialNumber { Id = 1,  ModuleCode = "Customer",      ModuleName = "客户",     Prefix = "CUS",  SequenceLength = 5, CurrentSequence = -1,   CreateTime = seedTime },
-                    new SysSerialNumber { Id = 2,  ModuleCode = "Vendor",        ModuleName = "供应商",   Prefix = "VEN",  SequenceLength = 5, CurrentSequence = -1,   CreateTime = seedTime },
-                    new SysSerialNumber { Id = 3,  ModuleCode = "RFQ",           ModuleName = "询价/需求", Prefix = "RFQ",  SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 4,  ModuleCode = "Quotation",     ModuleName = "报价",     Prefix = "QUO",  SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 5,  ModuleCode = "SalesOrder",    ModuleName = "销售订单", Prefix = "SOR",  SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 6,  ModuleCode = "PurchaseOrder", ModuleName = "采购订单", Prefix = "PUR",  SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 7,  ModuleCode = "StockIn",       ModuleName = "入库",     Prefix = "STI",  SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 8,  ModuleCode = "StockOut",      ModuleName = "出库",     Prefix = "SOUT", SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 9,  ModuleCode = "Receipt",       ModuleName = "收款",     Prefix = "REC",  SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 11, ModuleCode = "Payment",       ModuleName = "付款",     Prefix = "PAY",  SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 12, ModuleCode = "InputInvoice",  ModuleName = "进项发票", Prefix = "INVI", SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 13, ModuleCode = "OutputInvoice", ModuleName = "销项发票", Prefix = "OUTI", SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 14, ModuleCode = "Stock",         ModuleName = "库存",     Prefix = "STK",  SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 15, ModuleCode = "PurchaseRequisition", ModuleName = "采购申请", Prefix = "PRQ",  SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 16, ModuleCode = "StockOutRequest",     ModuleName = "出库申请", Prefix = "SORQ", SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 17, ModuleCode = "PickingTask",         ModuleName = "拣货任务", Prefix = "PKT",  SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 18, ModuleCode = "ArrivalNotice",      ModuleName = "到货通知", Prefix = "ARN",  SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 19, ModuleCode = "QcRecord",           ModuleName = "质检",     Prefix = "QCR",  SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 20, ModuleCode = "PaymentRequest",     ModuleName = "请款",     Prefix = "PMR",  SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 21, ModuleCode = "FinancePayment",     ModuleName = "财务付款", Prefix = "FNP",  SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime }
+                    new SysSerialNumber { Id = 1,  ModuleCode = "Customer",      ModuleName = "客户",     Prefix = "CUS",     SequenceLength = 5, CurrentSequence = -1,   CreateTime = seedTime },
+                    new SysSerialNumber { Id = 2,  ModuleCode = "Vendor",        ModuleName = "供应商",   Prefix = "VEN",     SequenceLength = 5, CurrentSequence = -1,   CreateTime = seedTime },
+                    new SysSerialNumber { Id = 3,  ModuleCode = "RFQ",           ModuleName = "询价/需求", Prefix = "RFQ",     SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 4,  ModuleCode = "Quotation",     ModuleName = "报价",     Prefix = "QUO",     SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 5,  ModuleCode = "SalesOrder",    ModuleName = "销售订单", Prefix = "SO",      SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 6,  ModuleCode = "PurchaseOrder", ModuleName = "采购订单", Prefix = "PO",      SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 7,  ModuleCode = "StockIn",       ModuleName = "入库",     Prefix = "STI",     SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 8,  ModuleCode = "StockOut",      ModuleName = "出库",     Prefix = "STO",     SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 9,  ModuleCode = "Receipt",       ModuleName = "收款",     Prefix = "REC",     SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 11, ModuleCode = "Payment",       ModuleName = "付款",     Prefix = "PAY_DEL", SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 12, ModuleCode = "InputInvoice",  ModuleName = "进项发票", Prefix = "INVI",    SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 13, ModuleCode = "OutputInvoice", ModuleName = "销项发票", Prefix = "INVO",    SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 14, ModuleCode = "Stock",         ModuleName = "库存",     Prefix = "STK",     SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 15, ModuleCode = "PurchaseRequisition", ModuleName = "采购申请", Prefix = "POR",     SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 16, ModuleCode = "StockOutRequest",     ModuleName = "出库申请", Prefix = "STOR",    SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 17, ModuleCode = "PickingTask",         ModuleName = "拣货任务", Prefix = "PAK",     SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 18, ModuleCode = "ArrivalNotice",      ModuleName = "到货通知", Prefix = "STIR",    SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 19, ModuleCode = "QcRecord",           ModuleName = "质检",     Prefix = "QC",      SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 20, ModuleCode = "PaymentRequest",     ModuleName = "请款",     Prefix = "PAYR",    SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 21, ModuleCode = "FinancePayment",     ModuleName = "财务付款", Prefix = "PAY",     SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime }
                 );
             });
 

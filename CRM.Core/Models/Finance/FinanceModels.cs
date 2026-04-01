@@ -14,7 +14,7 @@ namespace CRM.Core.Models.Finance
         [Key][StringLength(36)][Column("FinancePaymentId")]
         public override string Id { get; set; } = Guid.NewGuid().ToString();
 
-        /// <summary>付款单号</summary>
+        /// <summary>付款单号（如 PAY + 5 位 32 进制，前缀见 sys_serial_number.FinancePayment）</summary>
         [Required][StringLength(16)]
         public string FinancePaymentCode { get; set; } = string.Empty;
 
@@ -132,7 +132,7 @@ namespace CRM.Core.Models.Finance
         [Key][StringLength(36)][Column("FinanceReceiptId")]
         public override string Id { get; set; } = Guid.NewGuid().ToString();
 
-        /// <summary>收款单号（前缀+YYMMDD+4位流水，如 REC2603240001）</summary>
+        /// <summary>收款单号（如 REC + 5 位 32 进制，前缀见 sys_serial_number.Receipt）</summary>
         [Required][StringLength(32)]
         public string FinanceReceiptCode { get; set; } = string.Empty;
 

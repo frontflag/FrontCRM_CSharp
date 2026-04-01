@@ -32,10 +32,10 @@ namespace CRM.Core.Models.System
         public string ModuleName { get; set; } = string.Empty;
 
         /// <summary>
-        /// 编号前缀（如 Cus、Ven、INQ、QUO、SO、PO、SIN、SOUT、INV、REC、PAY、VINV、SINV）
+        /// 编号前缀（2～16 字符，如 CUS、SO、PAY_DEL、FNP 等；与 sys_serial_number 配置一致）
         /// </summary>
         [Required]
-        [StringLength(10)]
+        [StringLength(16)]
         public string Prefix { get; set; } = string.Empty;
 
         /// <summary>
