@@ -3,6 +3,7 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Models.Material;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
@@ -29,7 +30,9 @@ namespace CRM.Core.Services
         private readonly IRepository<CustomerInfo> _customerRepository;
         private readonly IRepository<PurchaseOrderItem> _purchaseOrderItemRepository;
         private readonly IRepository<PurchaseOrder> _purchaseOrderRepository;
+        private readonly IRepository<MaterialInfo> _materialRepository;
         private readonly IRepository<User> _userRepository;
+        private readonly IRepository<WarehouseInfo> _warehouseRepository;
         private readonly IInventoryCenterService _inventoryCenterService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
@@ -47,7 +50,9 @@ namespace CRM.Core.Services
             IRepository<CustomerInfo> customerRepository,
             IRepository<PurchaseOrderItem> purchaseOrderItemRepository,
             IRepository<PurchaseOrder> purchaseOrderRepository,
+            IRepository<MaterialInfo> materialRepository,
             IRepository<User> userRepository,
+            IRepository<WarehouseInfo> warehouseRepository,
             IInventoryCenterService inventoryCenterService,
             ISerialNumberService serialNumberService,
             ISellOrderItemExtendSyncService sellOrderItemExtendSync,
@@ -64,7 +69,9 @@ namespace CRM.Core.Services
             _customerRepository = customerRepository;
             _purchaseOrderItemRepository = purchaseOrderItemRepository;
             _purchaseOrderRepository = purchaseOrderRepository;
+            _materialRepository = materialRepository;
             _userRepository = userRepository;
+            _warehouseRepository = warehouseRepository;
             _inventoryCenterService = inventoryCenterService;
             _serialNumberService = serialNumberService;
             _sellOrderItemExtendSync = sellOrderItemExtendSync;
@@ -130,6 +137,9 @@ namespace CRM.Core.Services
                 RequestDate = PostgreSqlDateTime.ToUtc(request.RequestDate),
                 Status = 0,
                 Remark = request.Remark,
+                ShipmentMethod = string.IsNullOrWhiteSpace(request.ShipmentMethod)
+                    ? null
+                    : request.ShipmentMethod.Trim(),
                 CreateTime = DateTime.UtcNow,
                 CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
@@ -291,6 +301,7 @@ namespace CRM.Core.Services
                         RequestDate = x.RequestDate,
                         Status = x.Status,
                         Remark = x.Remark,
+                        ShipmentMethod = string.IsNullOrWhiteSpace(x.ShipmentMethod) ? null : x.ShipmentMethod.Trim(),
                         CreateTime = x.CreateTime
                     };
                 })
@@ -332,6 +343,32 @@ namespace CRM.Core.Services
                 .ToList();
             var linkedMaterialKeys = StockMaterialMatch.LinkedPurchaseMaterialKeys(linkedPoItems);
 
+            var poByIdForOut = (await _purchaseOrderRepository.GetAllAsync())
+                .GroupBy(x => x.Id?.Trim() ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var requiredStockTypes = new HashSet<short>();
+            foreach (var pil in linkedPoItems)
+            {
+                var poid = pil.PurchaseOrderId?.Trim();
+                if (string.IsNullOrEmpty(poid) || !poByIdForOut.TryGetValue(poid, out var po))
+                    continue;
+                var t = po.Type is >= 1 and <= 3 ? po.Type : (short)1;
+                requiredStockTypes.Add(t);
+            }
+
+            if (requiredStockTypes.Count == 0)
+                requiredStockTypes.Add(1);
+
+            var materialById = (await _materialRepository.GetAllAsync())
+                .GroupBy(m => m.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Key.Length > 0)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var materialByAltKey = StockMaterialMatch.BuildMaterialCodeModelIndex(materialById.Values);
+            var poItemById = (await _purchaseOrderItemRepository.GetAllAsync())
+                .GroupBy(p => p.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Key.Length > 0)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
             var stockOutCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.StockOut);
 
             _logger.LogInformation(
@@ -349,6 +386,17 @@ namespace CRM.Core.Services
             var allStocks = (await _stockRepository.GetAllAsync()).ToList();
             var changedStocks = new HashSet<StockInfo>();
 
+            bool StockTypeAllowedForLine(StockInfo s)
+            {
+                if (requiredStockTypes.Contains(s.StockType))
+                    return true;
+                if (s.StockType != 2)
+                    return false;
+                var mat = StockMaterialMatch.ResolveMaterialForStockRow(s, materialById, materialByAltKey, poItemById);
+                var poi = StockMaterialMatch.ResolvePurchaseOrderLineForStock(s, poItemById);
+                return StockMaterialMatch.StockingMatchesSellOrderForPicking(s, soItem, mat, poi);
+            }
+
             foreach (var item in request.Items)
             {
                 var materialId = item.MaterialCode?.Trim() ?? string.Empty;
@@ -360,10 +408,15 @@ namespace CRM.Core.Services
                     continue;
 
                 // 1) 找到该物料在指定仓库下的所有可用库存（FIFO：按生产日期 / 创建时间排序）
-                // 库存 MaterialId 常与 ProductId 一致；出库明细传 PN，需与订单行 ProductId 一并匹配
+                // 库存 MaterialId 常与 ProductId 一致；出库明细传 PN，需与订单行 ProductId 一并匹配；备货库存(type=2)按与拣货任务相同规则放行
+                bool MaterialKeysOrStockingMatch(StockInfo s) =>
+                    StockMaterialMatch.Matches(s, materialId, productIdFromLine, linkedMaterialKeys)
+                    || StockMaterialMatch.StockingSupplementEligible(s, soItem, materialById, materialByAltKey, poItemById);
+
                 var candidateStocks = allStocks
                     .Where(s => s.WarehouseId == request.WarehouseId
-                                && StockMaterialMatch.Matches(s, materialId, productIdFromLine, linkedMaterialKeys)
+                                && StockTypeAllowedForLine(s)
+                                && MaterialKeysOrStockingMatch(s)
                                 && s.QtyRepertoryAvailable > 0)
                     .OrderBy(s => s.ProductionDate ?? s.CreateTime)
                     .ThenBy(s => s.CreateTime)
@@ -458,6 +511,9 @@ namespace CRM.Core.Services
                 TotalQuantity = totalQty,
                 TotalAmount = totalAmount,
                 Remark = request.Remark,
+                ShipmentMethod = string.IsNullOrWhiteSpace(stockOutRequest.ShipmentMethod)
+                    ? null
+                    : stockOutRequest.ShipmentMethod.Trim(),
                 Status = 2,
                 ConfirmedBy = request.OperatorId,
                 ConfirmedTime = DateTime.UtcNow,
@@ -501,6 +557,103 @@ namespace CRM.Core.Services
                 return null;
 
             return await _stockOutRepository.GetByIdAsync(id);
+        }
+
+        /// <inheritdoc />
+        public async Task<StockOutDetailViewDto?> GetDetailViewAsync(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                return null;
+            var x = await _stockOutRepository.GetByIdAsync(id.Trim());
+            if (x == null)
+                return null;
+
+            SellOrderItem? line = null;
+            if (!string.IsNullOrWhiteSpace(x.SellOrderItemId))
+                line = await _sellOrderItemRepository.GetByIdAsync(x.SellOrderItemId.Trim());
+
+            SellOrder? so = null;
+            if (line != null && !string.IsNullOrWhiteSpace(line.SellOrderId))
+                so = await _sellOrderRepository.GetByIdAsync(line.SellOrderId.Trim());
+
+            string? customerName = null;
+            if (!string.IsNullOrWhiteSpace(x.CustomerId))
+            {
+                var cust = await _customerRepository.GetByIdAsync(x.CustomerId.Trim());
+                if (cust != null)
+                    customerName = string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.CustomerName : cust.OfficialName;
+            }
+
+            if (customerName == null && so != null)
+                customerName = so.CustomerName;
+
+            var salesUserName = so?.SalesUserName;
+            var sellOrderItemCode = string.IsNullOrWhiteSpace(line?.SellOrderItemCode)
+                ? null
+                : line!.SellOrderItemCode;
+
+            string? createUserName = null;
+            if (!string.IsNullOrWhiteSpace(x.CreateByUserId))
+            {
+                var u = await _userRepository.GetByIdAsync(x.CreateByUserId.Trim());
+                if (u != null)
+                    createUserName = string.IsNullOrWhiteSpace(u.RealName) ? u.UserName : u.RealName;
+            }
+
+            string? warehouseCode = null;
+            if (!string.IsNullOrWhiteSpace(x.WarehouseId))
+            {
+                var wh = await _warehouseRepository.GetByIdAsync(x.WarehouseId.Trim());
+                if (wh != null && !string.IsNullOrWhiteSpace(wh.WarehouseCode))
+                    warehouseCode = wh.WarehouseCode.Trim();
+            }
+
+            var listRow = new StockOutListItemDto
+            {
+                Id = x.Id,
+                StockOutCode = x.StockOutCode,
+                StockOutType = x.StockOutType,
+                SourceCode = x.SourceCode,
+                SourceId = x.SourceId,
+                StockOutDate = x.StockOutDate,
+                TotalQuantity = x.TotalQuantity,
+                TotalAmount = x.TotalAmount,
+                Status = x.Status,
+                Remark = x.Remark,
+                CreateTime = x.CreateTime,
+                CreateByUserId = x.CreateByUserId,
+                CreateUserName = createUserName,
+                CustomerName = customerName,
+                SalesUserName = salesUserName,
+                SellOrderItemCode = sellOrderItemCode,
+                ShipmentMethod = string.IsNullOrWhiteSpace(x.ShipmentMethod) ? null : x.ShipmentMethod.Trim(),
+                CourierTrackingNo = string.IsNullOrWhiteSpace(x.CourierTrackingNo) ? null : x.CourierTrackingNo.Trim()
+            };
+
+            return new StockOutDetailViewDto
+            {
+                Id = listRow.Id,
+                StockOutCode = listRow.StockOutCode,
+                StockOutType = listRow.StockOutType,
+                SourceCode = listRow.SourceCode,
+                SourceId = listRow.SourceId,
+                StockOutDate = listRow.StockOutDate,
+                TotalQuantity = listRow.TotalQuantity,
+                TotalAmount = listRow.TotalAmount,
+                Status = listRow.Status,
+                Remark = listRow.Remark,
+                CreateTime = listRow.CreateTime,
+                CreateByUserId = listRow.CreateByUserId,
+                CreateUserName = listRow.CreateUserName,
+                CustomerName = listRow.CustomerName,
+                SalesUserName = listRow.SalesUserName,
+                SellOrderItemCode = listRow.SellOrderItemCode,
+                ShipmentMethod = listRow.ShipmentMethod,
+                CourierTrackingNo = listRow.CourierTrackingNo,
+                WarehouseId = x.WarehouseId,
+                WarehouseCode = warehouseCode,
+                SellOrderItemId = string.IsNullOrWhiteSpace(x.SellOrderItemId) ? null : x.SellOrderItemId.Trim()
+            };
         }
 
         public async Task<IEnumerable<StockOutListItemDto>> GetStockOutListAsync()
@@ -620,10 +773,38 @@ namespace CRM.Core.Services
                         CreateUserName = createUserName,
                         CustomerName = customerName,
                         SalesUserName = salesUserName,
-                        SellOrderItemCode = sellOrderItemCode
+                        SellOrderItemCode = sellOrderItemCode,
+                        ShipmentMethod = string.IsNullOrWhiteSpace(x.ShipmentMethod) ? null : x.ShipmentMethod.Trim(),
+                        CourierTrackingNo = string.IsNullOrWhiteSpace(x.CourierTrackingNo) ? null : x.CourierTrackingNo.Trim()
                     };
                 })
                 .ToList();
+        }
+
+        /// <inheritdoc />
+        public async Task UpdateHeaderAsync(string id, UpdateStockOutHeaderRequest request, string? actingUserId = null)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("ID不能为空", nameof(id));
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+
+            var stockOut = await _stockOutRepository.GetByIdAsync(id.Trim());
+            if (stockOut == null)
+                throw new InvalidOperationException($"出库单 {id} 不存在");
+
+            stockOut.StockOutDate = PostgreSqlDateTime.ToUtc(request.StockOutDate);
+            stockOut.ShipmentMethod = string.IsNullOrWhiteSpace(request.ShipmentMethod)
+                ? null
+                : request.ShipmentMethod.Trim();
+            stockOut.CourierTrackingNo = string.IsNullOrWhiteSpace(request.CourierTrackingNo)
+                ? null
+                : request.CourierTrackingNo.Trim();
+            stockOut.ModifyTime = DateTime.UtcNow;
+            stockOut.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+
+            await _stockOutRepository.UpdateAsync(stockOut);
+            await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task UpdateStatusAsync(string id, short status, string? actingUserId = null)

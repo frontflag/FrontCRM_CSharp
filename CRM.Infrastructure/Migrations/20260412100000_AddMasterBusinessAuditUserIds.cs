@@ -15,168 +15,87 @@ namespace CRM.Infrastructure.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "create_by_user_id",
-                table: "customerinfo",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-            migrationBuilder.AddColumn<string>(
-                name: "modify_by_user_id",
-                table: "customerinfo",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "create_by_user_id",
-                table: "vendorinfo",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-            migrationBuilder.AddColumn<string>(
-                name: "modify_by_user_id",
-                table: "vendorinfo",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "modify_by_user_id",
-                table: "rfq",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "create_by_user_id",
-                table: "quote",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-            migrationBuilder.AddColumn<string>(
-                name: "modify_by_user_id",
-                table: "quote",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "create_by_user_id",
-                table: "purchaserequisition",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-            migrationBuilder.AddColumn<string>(
-                name: "modify_by_user_id",
-                table: "purchaserequisition",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "create_by_user_id",
-                table: "stockoutrequest",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-            migrationBuilder.AddColumn<string>(
-                name: "modify_by_user_id",
-                table: "stockoutrequest",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "create_by_user_id",
-                table: "qcinfo",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-            migrationBuilder.AddColumn<string>(
-                name: "modify_by_user_id",
-                table: "qcinfo",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "create_by_user_id",
-                table: "stockin",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-            migrationBuilder.AddColumn<string>(
-                name: "modify_by_user_id",
-                table: "stockin",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "create_by_user_id",
-                table: "stockout",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-            migrationBuilder.AddColumn<string>(
-                name: "modify_by_user_id",
-                table: "stockout",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "create_by_user_id",
-                table: "financereceipt",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-            migrationBuilder.AddColumn<string>(
-                name: "modify_by_user_id",
-                table: "financereceipt",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "create_by_user_id",
-                table: "financepayment",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-            migrationBuilder.AddColumn<string>(
-                name: "modify_by_user_id",
-                table: "financepayment",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "create_by_user_id",
-                table: "financepurchaseinvoice",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-            migrationBuilder.AddColumn<string>(
-                name: "modify_by_user_id",
-                table: "financepurchaseinvoice",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "create_by_user_id",
-                table: "financesellinvoice",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-            migrationBuilder.AddColumn<string>(
-                name: "modify_by_user_id",
-                table: "financesellinvoice",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
+            // 与 scripts/ensure_master_business_audit_user_ids_202604.sql 可并存；rfq 仅补 modify（create 见 20260410120000）
+            migrationBuilder.Sql(@"
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'customerinfo' AND column_name = 'create_by_user_id') THEN
+    ALTER TABLE public.customerinfo ADD COLUMN create_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'customerinfo' AND column_name = 'modify_by_user_id') THEN
+    ALTER TABLE public.customerinfo ADD COLUMN modify_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'vendorinfo' AND column_name = 'create_by_user_id') THEN
+    ALTER TABLE public.vendorinfo ADD COLUMN create_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'vendorinfo' AND column_name = 'modify_by_user_id') THEN
+    ALTER TABLE public.vendorinfo ADD COLUMN modify_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'rfq' AND column_name = 'modify_by_user_id') THEN
+    ALTER TABLE public.rfq ADD COLUMN modify_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'quote' AND column_name = 'create_by_user_id') THEN
+    ALTER TABLE public.quote ADD COLUMN create_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'quote' AND column_name = 'modify_by_user_id') THEN
+    ALTER TABLE public.quote ADD COLUMN modify_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'purchaserequisition' AND column_name = 'create_by_user_id') THEN
+    ALTER TABLE public.purchaserequisition ADD COLUMN create_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'purchaserequisition' AND column_name = 'modify_by_user_id') THEN
+    ALTER TABLE public.purchaserequisition ADD COLUMN modify_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'stockoutrequest' AND column_name = 'create_by_user_id') THEN
+    ALTER TABLE public.stockoutrequest ADD COLUMN create_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'stockoutrequest' AND column_name = 'modify_by_user_id') THEN
+    ALTER TABLE public.stockoutrequest ADD COLUMN modify_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'qcinfo' AND column_name = 'create_by_user_id') THEN
+    ALTER TABLE public.qcinfo ADD COLUMN create_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'qcinfo' AND column_name = 'modify_by_user_id') THEN
+    ALTER TABLE public.qcinfo ADD COLUMN modify_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'stockin' AND column_name = 'create_by_user_id') THEN
+    ALTER TABLE public.stockin ADD COLUMN create_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'stockin' AND column_name = 'modify_by_user_id') THEN
+    ALTER TABLE public.stockin ADD COLUMN modify_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'stockout' AND column_name = 'create_by_user_id') THEN
+    ALTER TABLE public.stockout ADD COLUMN create_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'stockout' AND column_name = 'modify_by_user_id') THEN
+    ALTER TABLE public.stockout ADD COLUMN modify_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'financereceipt' AND column_name = 'create_by_user_id') THEN
+    ALTER TABLE public.financereceipt ADD COLUMN create_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'financereceipt' AND column_name = 'modify_by_user_id') THEN
+    ALTER TABLE public.financereceipt ADD COLUMN modify_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'financepayment' AND column_name = 'create_by_user_id') THEN
+    ALTER TABLE public.financepayment ADD COLUMN create_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'financepayment' AND column_name = 'modify_by_user_id') THEN
+    ALTER TABLE public.financepayment ADD COLUMN modify_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'financepurchaseinvoice' AND column_name = 'create_by_user_id') THEN
+    ALTER TABLE public.financepurchaseinvoice ADD COLUMN create_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'financepurchaseinvoice' AND column_name = 'modify_by_user_id') THEN
+    ALTER TABLE public.financepurchaseinvoice ADD COLUMN modify_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'financesellinvoice' AND column_name = 'create_by_user_id') THEN
+    ALTER TABLE public.financesellinvoice ADD COLUMN create_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'financesellinvoice' AND column_name = 'modify_by_user_id') THEN
+    ALTER TABLE public.financesellinvoice ADD COLUMN modify_by_user_id character varying(36) NULL;
+  END IF;
+END $$;
+");
 
             migrationBuilder.Sql(@"
 DO $$
@@ -205,31 +124,33 @@ BEGIN
 END $$;
 ");
 
-            migrationBuilder.DropColumn(name: "modify_by_user_id", table: "financesellinvoice");
-            migrationBuilder.DropColumn(name: "create_by_user_id", table: "financesellinvoice");
-            migrationBuilder.DropColumn(name: "modify_by_user_id", table: "financepurchaseinvoice");
-            migrationBuilder.DropColumn(name: "create_by_user_id", table: "financepurchaseinvoice");
-            migrationBuilder.DropColumn(name: "modify_by_user_id", table: "financepayment");
-            migrationBuilder.DropColumn(name: "create_by_user_id", table: "financepayment");
-            migrationBuilder.DropColumn(name: "modify_by_user_id", table: "financereceipt");
-            migrationBuilder.DropColumn(name: "create_by_user_id", table: "financereceipt");
-            migrationBuilder.DropColumn(name: "modify_by_user_id", table: "stockout");
-            migrationBuilder.DropColumn(name: "create_by_user_id", table: "stockout");
-            migrationBuilder.DropColumn(name: "modify_by_user_id", table: "stockin");
-            migrationBuilder.DropColumn(name: "create_by_user_id", table: "stockin");
-            migrationBuilder.DropColumn(name: "modify_by_user_id", table: "qcinfo");
-            migrationBuilder.DropColumn(name: "create_by_user_id", table: "qcinfo");
-            migrationBuilder.DropColumn(name: "modify_by_user_id", table: "stockoutrequest");
-            migrationBuilder.DropColumn(name: "create_by_user_id", table: "stockoutrequest");
-            migrationBuilder.DropColumn(name: "modify_by_user_id", table: "purchaserequisition");
-            migrationBuilder.DropColumn(name: "create_by_user_id", table: "purchaserequisition");
-            migrationBuilder.DropColumn(name: "modify_by_user_id", table: "quote");
-            migrationBuilder.DropColumn(name: "create_by_user_id", table: "quote");
-            migrationBuilder.DropColumn(name: "modify_by_user_id", table: "rfq");
-            migrationBuilder.DropColumn(name: "modify_by_user_id", table: "vendorinfo");
-            migrationBuilder.DropColumn(name: "create_by_user_id", table: "vendorinfo");
-            migrationBuilder.DropColumn(name: "modify_by_user_id", table: "customerinfo");
-            migrationBuilder.DropColumn(name: "create_by_user_id", table: "customerinfo");
+            migrationBuilder.Sql(@"
+ALTER TABLE IF EXISTS public.financesellinvoice DROP COLUMN IF EXISTS modify_by_user_id;
+ALTER TABLE IF EXISTS public.financesellinvoice DROP COLUMN IF EXISTS create_by_user_id;
+ALTER TABLE IF EXISTS public.financepurchaseinvoice DROP COLUMN IF EXISTS modify_by_user_id;
+ALTER TABLE IF EXISTS public.financepurchaseinvoice DROP COLUMN IF EXISTS create_by_user_id;
+ALTER TABLE IF EXISTS public.financepayment DROP COLUMN IF EXISTS modify_by_user_id;
+ALTER TABLE IF EXISTS public.financepayment DROP COLUMN IF EXISTS create_by_user_id;
+ALTER TABLE IF EXISTS public.financereceipt DROP COLUMN IF EXISTS modify_by_user_id;
+ALTER TABLE IF EXISTS public.financereceipt DROP COLUMN IF EXISTS create_by_user_id;
+ALTER TABLE IF EXISTS public.stockout DROP COLUMN IF EXISTS modify_by_user_id;
+ALTER TABLE IF EXISTS public.stockout DROP COLUMN IF EXISTS create_by_user_id;
+ALTER TABLE IF EXISTS public.stockin DROP COLUMN IF EXISTS modify_by_user_id;
+ALTER TABLE IF EXISTS public.stockin DROP COLUMN IF EXISTS create_by_user_id;
+ALTER TABLE IF EXISTS public.qcinfo DROP COLUMN IF EXISTS modify_by_user_id;
+ALTER TABLE IF EXISTS public.qcinfo DROP COLUMN IF EXISTS create_by_user_id;
+ALTER TABLE IF EXISTS public.stockoutrequest DROP COLUMN IF EXISTS modify_by_user_id;
+ALTER TABLE IF EXISTS public.stockoutrequest DROP COLUMN IF EXISTS create_by_user_id;
+ALTER TABLE IF EXISTS public.purchaserequisition DROP COLUMN IF EXISTS modify_by_user_id;
+ALTER TABLE IF EXISTS public.purchaserequisition DROP COLUMN IF EXISTS create_by_user_id;
+ALTER TABLE IF EXISTS public.quote DROP COLUMN IF EXISTS modify_by_user_id;
+ALTER TABLE IF EXISTS public.quote DROP COLUMN IF EXISTS create_by_user_id;
+ALTER TABLE IF EXISTS public.rfq DROP COLUMN IF EXISTS modify_by_user_id;
+ALTER TABLE IF EXISTS public.vendorinfo DROP COLUMN IF EXISTS modify_by_user_id;
+ALTER TABLE IF EXISTS public.vendorinfo DROP COLUMN IF EXISTS create_by_user_id;
+ALTER TABLE IF EXISTS public.customerinfo DROP COLUMN IF EXISTS modify_by_user_id;
+ALTER TABLE IF EXISTS public.customerinfo DROP COLUMN IF EXISTS create_by_user_id;
+");
         }
     }
 }

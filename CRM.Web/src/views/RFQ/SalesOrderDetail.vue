@@ -338,6 +338,24 @@
               <el-input :model-value="order?.sellOrderCode || '--'" disabled />
             </el-form-item>
           </el-col>
+          <el-col :span="12">
+            <el-form-item label="出货方式">
+              <el-select
+                v-model="applyForm.shipmentMethod"
+                clearable
+                filterable
+                placeholder="请选择"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="o in shipmentMethodOptions"
+                  :key="o.value"
+                  :label="o.label"
+                  :value="o.value"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
           <el-col :span="24">
             <el-form-item label="备注">
               <el-input v-model="applyForm.remark" type="textarea" :rows="2" />
@@ -474,9 +492,9 @@
         </el-form-item>
         <el-form-item label="订单类型">
           <el-select v-model="editForm.type" style="width: 100%">
-            <el-option label="普通订单" :value="1" />
-            <el-option label="紧急订单" :value="2" />
-            <el-option label="样品订单" :value="3" />
+            <el-option :label="t('salesOrderCreate.orderTypes.normal')" :value="1" />
+            <el-option :label="t('salesOrderCreate.orderTypes.urgent')" :value="2" />
+            <el-option :label="t('salesOrderCreate.orderTypes.sample')" :value="3" />
           </el-select>
         </el-form-item>
         <el-form-item label="币别">
@@ -540,12 +558,14 @@ import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyForma
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
+import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMaterialProductionDateDict()
+const { ensureLoaded: ensureLogisticsDict, arrivalOptions: shipmentMethodOptions } = useLogisticsFormDict()
 
 function fmtSoItemDateCode(row: { dateCode?: string; DateCode?: string } | null | undefined) {
   if (!row) return '—'
@@ -720,6 +740,8 @@ const applyStockOutLoading = ref(false)
 const applyForm = ref({
   requestCode: '',
   requestDate: null as Date | null,
+  /** 数据字典 LogisticsArrivalMethod（与物流「来货方式」同源） */
+  shipmentMethod: '' as string,
   remark: '',
   sellOrderItemId: '',
   materialCode: '',
@@ -1059,6 +1081,7 @@ const handleOpenApplyStockOut = async (item?: any) => {
   applyDialogVisible.value = true
   applyStockOutLoading.value = true
   try {
+    await ensureLogisticsDict()
     const ctx = await stockOutApi.getApplyContext(order.value.id, sellOrderItemId)
     const maxQ = Math.max(0, Math.trunc(Number(ctx.suggestedMaxQty) || 0))
     if (maxQ <= 0) {
@@ -1069,6 +1092,7 @@ const handleOpenApplyStockOut = async (item?: any) => {
     applyForm.value = {
       requestCode: '',
       requestDate: new Date(),
+      shipmentMethod: '',
       remark: '',
       sellOrderItemId,
       materialCode: String(line.pn ?? line.PN ?? '').trim(),
@@ -1116,7 +1140,8 @@ const submitApplyStockOut = async () => {
       customerId: order.value.customerId || '',
       requestUserId: (authStore.user as any)?.id || '',
       requestDate: rd.toISOString(),
-      remark: applyForm.value.remark || undefined
+      remark: applyForm.value.remark || undefined,
+      shipmentMethod: applyForm.value.shipmentMethod?.trim() || undefined
     })
     applyDialogVisible.value = false
     ElMessage.success('申请出库成功')

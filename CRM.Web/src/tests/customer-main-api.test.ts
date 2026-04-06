@@ -138,11 +138,12 @@ describe('searchCustomers - 分页查询客户列表', () => {
       expect(url).toContain('customerLevel=5')
     })
 
-    it('TC-SEARCH-005: 按行业筛选（Telecom），URL 包含 industry=Telecom', async () => {
+    it('TC-SEARCH-005: 按行业筛选（英文 code 会规范为中文 label 查询）', async () => {
       mockGet.mockResolvedValue({ items: [], totalCount: 0 })
       await customerApi.searchCustomers({ pageNumber: 1, pageSize: 20, industry: 'Telecom' })
       const url = mockGet.mock.calls[0][0] as string
-      expect(url).toContain('industry=Telecom')
+      const qs = url.includes('?') ? url.split('?')[1] : ''
+      expect(new URLSearchParams(qs).get('industry')).toBe('通讯')
     })
 
     it('TC-SEARCH-006: 按状态筛选（启用），URL 包含 isActive=true', async () => {
@@ -172,7 +173,7 @@ describe('searchCustomers - 分页查询客户列表', () => {
       expect(url).toContain('pageSize=50')
       expect(url).toContain('customerType=2')
       expect(url).toContain('customerLevel=3')
-      expect(url).toContain('industry=ConsumerElectronics')
+      expect(new URLSearchParams(url.split('?')[1] || '').get('industry')).toBe('消费电子')
       expect(url).toContain('isActive=true')
       expect(url).toContain('sortBy=createdAt')
       expect(url).toContain('sortDescending=true')

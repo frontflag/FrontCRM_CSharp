@@ -76,8 +76,9 @@
         </template>
         <template #col-expectedPurchaseTime="{ row }">{{ formatDisplayDateTime(row.expectedPurchaseTime) }}</template>
         <template #col-type="{ row }">{{ getPrTypeLabel(row.type) }}</template>
+        <template #col-purchaseUserId="{ row }">{{ row.purchaseUserAccount || row.purchaseUserId || '--' }}</template>
         <template #col-createTime="{ row }">{{ row.createTime ? formatDisplayDateTime(row.createTime) : '--' }}</template>
-        <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || row.purchaseUserId || '--' }}</template>
+        <template #col-createUser="{ row }">{{ row.createUserAccount || row.createUserName || row.createdBy || '--' }}</template>
         <template #col-actions-header>
           <div class="op-col-header">
             <span class="op-col-header-text">{{ t('purchaseRequisitionList.columns.actions') }}</span>

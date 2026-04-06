@@ -158,11 +158,30 @@ export const useCustomerDictStore = defineStore('customerDict', () => {
     return labelFor(K.invoice, String(v)) || String(v);
   }
 
+  /**
+   * customerinfo / RFQ 等行业落库中文：将字典 code 或已是中文的字符串规范为当前字典的中文 label。
+   */
+  async function resolveIndustryStorageLabel(raw: string | null | undefined): Promise<string> {
+    const s = (raw ?? '').trim();
+    if (!s) return '';
+    await ensureLoaded();
+    const rows = mergedList(K.industry).map((x) => ({ code: x.code, label: x.label }));
+    const byCode = rows.find((o) => o.code === s);
+    if (byCode) return byCode.label;
+    if (rows.some((o) => o.label === s)) return s;
+    await ensureExtraOption(K.industry, s);
+    const rows2 = mergedList(K.industry).map((x) => ({ code: x.code, label: x.label }));
+    const after = rows2.find((o) => o.code === s);
+    if (after) return after.label;
+    return s;
+  }
+
   return {
     loaded,
     ensureLoaded,
     ensureExtraOption,
     hydrateCustomerEditForm,
+    resolveIndustryStorageLabel,
     typeSelectOptions,
     levelStringOptions,
     industryOptions,

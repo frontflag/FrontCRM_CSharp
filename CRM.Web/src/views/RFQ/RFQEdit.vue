@@ -196,7 +196,23 @@
             <!-- 行业 -->
             <el-col :span="6">
               <el-form-item label="行业">
-                <el-input v-model="formData.industry" placeholder="请输入行业" class="q-input" />
+                <el-select
+                  v-model="formData.industry"
+                  placeholder="请选择或输入行业"
+                  style="width: 100%"
+                  class="q-select"
+                  filterable
+                  allow-create
+                  default-first-option
+                  clearable
+                >
+                  <el-option
+                    v-for="opt in customerDict.industryOptions"
+                    :key="opt.value"
+                    :label="opt.label"
+                    :value="opt.label"
+                  />
+                </el-select>
               </el-form-item>
             </el-col>
           </el-row>
@@ -429,7 +445,7 @@
             <!-- 第三行：最小包装数、最小起订量、可替代料、备注 -->
             <el-row :gutter="16">
               <el-col :span="6">
-                <el-form-item label="最小包装数">
+                <el-form-item label="最小包装（PCS）">
                   <el-input-number
                     v-model="item.minPackageQty"
                     :min="0"
@@ -440,7 +456,7 @@
                 </el-form-item>
               </el-col>
               <el-col :span="6">
-                <el-form-item label="最小起订量">
+                <el-form-item label="最小起订量（PCS）">
                   <el-input-number
                     v-model="item.minOrderQty"
                     :min="0"
@@ -498,9 +514,11 @@ import {
   ASSIGN_METHOD_OPTIONS
 } from '@/constants/rfqFormEnums'
 import { QuestionFilled } from '@element-plus/icons-vue'
+import { useCustomerDictStore } from '@/stores/customerDict'
 
 const router = useRouter()
 const route = useRoute()
+const customerDict = useCustomerDictStore()
 const formRef = ref()
 const saving = ref(false)
 const currentDraftId = ref('')
@@ -743,7 +761,7 @@ async function loadRFQ() {
     formData.rfqType = data.rfqType
     formData.quoteMethod = data.quoteMethod
     formData.assignMethod = 2
-    formData.industry = data.industry || ''
+    formData.industry = ''
     formData.product = data.product || ''
     formData.targetType = data.targetType
     formData.importanceLevel = (data as any).importance ?? data.importanceLevel
@@ -769,6 +787,7 @@ async function loadRFQ() {
     }))
     // 加载联系人
     if (formData.customerId) await loadContacts()
+    formData.industry = await customerDict.resolveIndustryStorageLabel(data.industry || '')
   } catch {
     ElNotification.error({ title: '加载失败', message: '需求数据加载失败，请刷新重试' })
   }
@@ -879,7 +898,7 @@ function buildCreatePayload(): CreateRFQRequest {
   }
 }
 
-function applyDraftPayload(payload: any) {
+async function applyDraftPayload(payload: any) {
   formData.customerId = payload.customerId || ''
   formData.contactPersonId = payload.contactId || payload.contactPersonId || ''
   formData.contactPersonEmail = payload.contactEmail || payload.contactPersonEmail || ''
@@ -889,7 +908,7 @@ function applyDraftPayload(payload: any) {
   formData.rfqType = payload.rfqType ?? 1
   formData.quoteMethod = payload.quoteMethod ?? 2
   formData.assignMethod = 2
-  formData.industry = payload.industry || ''
+  formData.industry = await customerDict.resolveIndustryStorageLabel(payload.industry || '')
   formData.product = payload.product || ''
   formData.targetType = payload.targetType ?? 1
   formData.importanceLevel = payload.importance ?? payload.importanceLevel ?? 5
@@ -935,7 +954,7 @@ async function saveDraftOnly() {
 async function restoreDraftById(draftId: string) {
   const draft = await draftApi.getDraftById(draftId)
   if (draft.entityType !== 'RFQ') throw new Error('该草稿不是RFQ类型')
-  applyDraftPayload(JSON.parse(draft.payloadJson || '{}'))
+  await applyDraftPayload(JSON.parse(draft.payloadJson || '{}'))
   currentDraftId.value = draft.draftId
   if (formData.customerId) await loadContacts()
 }
@@ -977,6 +996,7 @@ function goBack() {
 }
 
 onMounted(async () => {
+  await customerDict.ensureLoaded()
   if (isEdit.value) {
     await loadRFQ()
     // 编辑模式下：确保当前客户在选项中（用 getCustomerById 精确回填）

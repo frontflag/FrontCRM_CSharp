@@ -1194,7 +1194,7 @@ const showStockInSearchPanel = computed(
 /** 出库单列表/新建：左栏「检索」 */
 const isStockOutLeftAuxRoute = computed(() => {
   const n = route.name
-  return n === 'StockOutList' || n === 'StockOutCreate'
+  return n === 'StockOutList' || n === 'StockOutCreate' || n === 'StockOutDetail'
 })
 
 const showStockOutSearchPanel = computed(

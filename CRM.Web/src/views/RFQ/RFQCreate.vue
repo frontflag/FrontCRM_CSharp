@@ -175,7 +175,23 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="行业">
-              <el-input v-model="formData.industry" placeholder="请输入行业" class="q-input" />
+              <el-select
+                v-model="formData.industry"
+                placeholder="请选择或输入行业"
+                style="width: 100%"
+                class="q-select"
+                filterable
+                allow-create
+                default-first-option
+                clearable
+              >
+                <el-option
+                  v-for="opt in customerDict.industryOptions"
+                  :key="opt.value"
+                  :label="opt.label"
+                  :value="opt.label"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -199,7 +215,7 @@
             <el-form-item label="重要程度" class="importance-inline-item">
               <el-rate
                 v-model="formData.importance"
-                :max="5"
+                :max="3"
                 :colors="['#C99A45', '#C99A45', '#C99A45']"
                 void-color="rgba(200,216,232,0.2)"
                 class="q-rate"
@@ -318,7 +334,7 @@
             <el-row :gutter="16" class="item-panel-row">
               <el-col :span="8">
                 <div class="item-panel-field">
-                  <div class="item-panel-field__label">最小包装</div>
+                  <div class="item-panel-field__label">最小包装（PCS）</div>
                   <el-input-number
                     v-model="row.minPackageQty"
                     :min="0"
@@ -330,7 +346,7 @@
               </el-col>
               <el-col :span="8">
                 <div class="item-panel-field">
-                  <div class="item-panel-field__label">最小起订量</div>
+                  <div class="item-panel-field__label">最小起订量（PCS）</div>
                   <el-input-number
                     v-model="row.minOrderQty"
                     :min="0"
@@ -427,7 +443,7 @@
                 />
               </template>
             </el-table-column>
-            <el-table-column label="最小包装" width="100">
+            <el-table-column label="最小包装（PCS）" width="100">
               <template #default="{ $index }">
                 <el-input-number
                   v-model="formData.items[$index].minPackageQty"
@@ -438,7 +454,7 @@
                 />
               </template>
             </el-table-column>
-            <el-table-column label="最小起订量" width="100">
+            <el-table-column label="最小起订量（PCS）" width="100">
               <template #default="{ $index }">
                 <el-input-number
                   v-model="formData.items[$index].minOrderQty"
@@ -495,6 +511,7 @@ import {
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
+import { useCustomerDictStore } from '@/stores/customerDict'
 
 const route = useRoute()
 const router = useRouter()
@@ -504,6 +521,7 @@ const pageLoading = ref(false)
 const authStore = useAuthStore()
 const { ensureLoaded: ensureMaterialPdDict, defaultCode: defaultProductionDateCode, coerceProductionDateToCode: coercePd } =
   useMaterialProductionDateDict()
+const customerDict = useCustomerDictStore()
 
 /** 物料明细展示：面板（默认，每行 4 字段） / 列表（横向表格） */
 const materialItemsViewMode = ref<'panel' | 'list'>('panel')
@@ -533,6 +551,28 @@ const contactSelectPlaceholder = computed(() =>
 function contactEmailFromRaw(c: Record<string, unknown>): string {
   const v = c.email ?? c.Email
   return typeof v === 'string' ? v.trim() : ''
+}
+
+/** 从客户主档带出行业（新建客户在客户资料中维护的行业） */
+function pickIndustryFromCustomerRecord(c: Record<string, unknown>): string {
+  const raw = c.industry ?? c.Industry
+  return typeof raw === 'string' ? raw.trim() : raw != null ? String(raw).trim() : ''
+}
+
+async function applyIndustryFromCustomer(customerId: string) {
+  const id = customerId?.trim()
+  if (!id) {
+    formData.value.industry = ''
+    return
+  }
+  try {
+    const c = await customerApi.getCustomerById(id)
+    const ext = c as unknown as Record<string, unknown>
+    const fromCustomer = pickIndustryFromCustomerRecord(ext)
+    formData.value.industry = await customerDict.resolveIndustryStorageLabel(fromCustomer || undefined)
+  } catch {
+    /* 接口失败时不覆盖用户已填行业 */
+  }
 }
 
 /** 拉取联系人；切换客户时由 watch(customerId) 触发，保证与 el-select 同步 */
@@ -623,7 +663,7 @@ const emptyForm = () => ({
   targetType: 1,
   quoteMethod: 2,
   assignMethod: 2,
-  importance: 3,
+  importance: 1,
   projectBackground: '',
   competitor: '',
   remark: '',
@@ -663,16 +703,21 @@ async function applyPrefillCustomerFromQuery() {
     customerOptions.value = [{ value: id, label: name }]
     formData.value.customerId = id
     formData.value.customerName = name
+    const ext = c as unknown as Record<string, unknown>
+    const fromCustomer = pickIndustryFromCustomerRecord(ext)
+    formData.value.industry = await customerDict.resolveIndustryStorageLabel(fromCustomer || undefined)
   } catch {
     ElMessage.warning('无法加载预选客户，请在「客户」中搜索选择')
   }
 }
 
+/** 重要程度：界面为 1–3 星；兼容历史 1–5 星或约 1–10 的存盘值 */
 function normalizeImportance(v: unknown): number {
   const n = Number(v)
-  if (!Number.isFinite(n) || n < 1) return 3
-  if (n <= 5) return Math.round(n)
-  return Math.min(5, Math.max(1, Math.round(n / 2)))
+  if (!Number.isFinite(n) || n < 1) return 1
+  if (n <= 3) return Math.round(n)
+  if (n <= 5) return Math.min(3, Math.max(1, Math.round(n)))
+  return Math.max(1, Math.min(3, Math.round((n * 3) / 10)))
 }
 
 function mapCurrencyToPriceCurrency(c?: string | number): number {
@@ -738,7 +783,7 @@ async function loadRfqForEdit() {
       salesUserName: data.salesUserName || '',
       contactEmail: d.contactEmail || d.contactPersonEmail || '',
       product: data.product || '',
-      industry: data.industry || '',
+      industry: '',
       rfqType: data.rfqType ?? 1,
       targetType: data.targetType ?? 1,
       quoteMethod: d.quoteMethod ?? 2,
@@ -749,6 +794,7 @@ async function loadRfqForEdit() {
       remark: data.remark || '',
       items: data.items?.length ? mapItemsFromApi(data.items) : []
     }
+    formData.value.industry = await customerDict.resolveIndustryStorageLabel(data.industry || '')
   } catch (e) {
     ElMessage.error(getApiErrorMessage(e, '加载需求失败'))
     router.push({ name: 'RFQList' })
@@ -761,6 +807,7 @@ watch(
   () => [route.name, route.params.id, route.query.customerId] as const,
   async () => {
     await ensureMaterialPdDict()
+    await customerDict.ensureLoaded()
     if (route.name === 'RFQEdit' && rfqId.value) {
       await loadRfqForEdit()
     } else if (route.name === 'RFQCreate') {
@@ -778,6 +825,7 @@ watch(
       contactOptions.value = []
       formData.value.contactId = ''
       formData.value.contactEmail = ''
+      formData.value.industry = ''
       return
     }
     if (oldId && oldId !== id) {
@@ -788,7 +836,7 @@ watch(
     if (found) {
       formData.value.customerName = found.label
     }
-    await loadContactsForCustomer(id)
+    await Promise.all([loadContactsForCustomer(id), applyIndustryFromCustomer(id)])
     applyDefaultContactAndEmail()
   }
 )

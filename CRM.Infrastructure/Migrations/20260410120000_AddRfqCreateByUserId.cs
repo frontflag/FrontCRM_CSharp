@@ -15,17 +15,23 @@ namespace CRM.Infrastructure.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "create_by_user_id",
-                table: "rfq",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
+            // 与 scripts/ensure_rfq_create_by_user_id_202604.sql 一致：列已存在（手工脚本或重复执行）时不报错
+            migrationBuilder.Sql(@"
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'rfq' AND column_name = 'create_by_user_id'
+  ) THEN
+    ALTER TABLE public.rfq ADD COLUMN create_by_user_id character varying(36) NULL;
+  END IF;
+END $$;
+");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(name: "create_by_user_id", table: "rfq");
+            migrationBuilder.Sql(@"ALTER TABLE IF EXISTS public.rfq DROP COLUMN IF EXISTS create_by_user_id;");
         }
     }
 }

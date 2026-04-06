@@ -16,5 +16,7 @@ namespace CRM.API.Models.DTOs
         public string RequestUserId { get; set; } = string.Empty;
         public DateTime RequestDate { get; set; }
         public string? Remark { get; set; }
+        /// <summary>出货方式（字典 LogisticsArrivalMethod ItemCode）</summary>
+        public string? ShipmentMethod { get; set; }
     }
 }

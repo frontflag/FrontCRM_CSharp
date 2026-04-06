@@ -343,7 +343,8 @@ namespace CRM.API.Controllers
                 r.StockOutProgressStatus,
                 r.ReceiptProgressStatus,
                 r.InvoiceProgressStatus,
-                r.StockOutApplyPurchaseGateOk
+                r.StockOutApplyPurchaseGateOk,
+                r.PurchaseRemainingQty
             };
         }
 

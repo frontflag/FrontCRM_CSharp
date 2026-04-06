@@ -40,7 +40,7 @@ namespace CRM.Core.Interfaces
         public string? PurchaseUserId { get; set; }
         /// <summary>采购员名称</summary>
         public string? PurchaseUserName { get; set; }
-        /// <summary>订单类型 1=普通 2=紧急 3=样品</summary>
+        /// <summary>订单类型 1=客单采购 2=备货采购 3=样品采购</summary>
         public short Type { get; set; } = 1;
         /// <summary>币别 1=RMB 2=USD 3=EUR</summary>
         public short Currency { get; set; } = 1;
@@ -58,8 +58,8 @@ namespace CRM.Core.Interfaces
 
     public class CreatePurchaseOrderItemRequest
     {
-        /// <summary>销售订单明细ID(以销定采核心字段)</summary>
-        public string SellOrderItemId { get; set; } = string.Empty;
+        /// <summary>销售订单明细ID(以销定采核心字段)；无销售行时省略或传 null</summary>
+        public string? SellOrderItemId { get; set; }
         /// <summary>供应商ID</summary>
         public string VendorId { get; set; } = string.Empty;
         /// <summary>商品/物料ID</summary>

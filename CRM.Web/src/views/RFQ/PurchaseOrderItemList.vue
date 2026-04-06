@@ -58,6 +58,20 @@
           @keyup.enter="loadList"
         />
 
+        <span class="filter-field-label">{{ t('purchaseOrderItemList.filters.orderType') }}</span>
+        <el-select
+          v-model="filters.orderType"
+          :placeholder="t('purchaseOrderItemList.filters.allOrderTypes')"
+          clearable
+          class="po-order-type-select"
+          :teleported="false"
+          @change="applyOrderTypeFilter"
+        >
+          <el-option :label="t('purchaseOrderItemList.filters.orderTypeCustomer')" :value="1" />
+          <el-option :label="t('purchaseOrderItemList.filters.orderTypeStocking')" :value="2" />
+          <el-option :label="t('purchaseOrderItemList.filters.orderTypeSample')" :value="3" />
+        </el-select>
+
         <button type="button" class="btn-primary btn-sm" @click="loadList">
           {{ t('purchaseOrderItemList.filters.search') }}
         </button>
@@ -79,6 +93,20 @@
       @selection-change="onSelectionChange"
       @row-dblclick="goDetail"
     >
+      <template #col-purchaseOrderItemCode="{ row }">
+        <span class="po-line-code-with-badge">
+          <span>{{ row.purchaseOrderItemCode }}</span>
+          <el-tooltip
+            v-if="isLineStockingPurchase(row)"
+            :content="t('purchaseOrderItemList.filters.orderTypeStocking')"
+            placement="top"
+          >
+            <el-tag type="warning" effect="plain" size="small" class="po-stocking-tag" round>
+              {{ t('purchaseOrderItemList.filters.stockingTag') }}
+            </el-tag>
+          </el-tooltip>
+        </span>
+      </template>
       <template #col-itemStatus="{ row }">
         <el-tag effect="dark" :type="statusTagType(row.itemStatus)" size="small">{{ statusText(row.itemStatus) }}</el-tag>
       </template>
@@ -535,6 +563,8 @@ const canCreateArrivalNotice = computed(() => authStore.hasPermission('purchase-
 
 const loading = ref(false)
 const allLines = ref<any[]>([])
+/** 未按采购订单类型筛选前的明细行（便于仅改类型下拉时不重新拉接口） */
+const linesBeforeOrderType = ref<any[]>([])
 const pagedList = ref<any[]>([])
 
 const total = ref(0)
@@ -719,8 +749,28 @@ const filters = reactive({
   purchaseOrderCode: '',
   vendorName: '',
   purchaseUserName: '',
-  pn: ''
+  pn: '',
+  orderType: undefined as number | undefined
 })
+
+function normalizePurchaseOrderType(detail: any, orderSummary: any): number {
+  const n = Number(detail?.type ?? detail?.Type ?? orderSummary?.type ?? orderSummary?.Type ?? 1)
+  return n >= 1 && n <= 3 ? n : 1
+}
+
+function isLineStockingPurchase(row: any) {
+  return Number(row?.purchaseOrderType) === 2
+}
+
+function applyOrderTypeFilter() {
+  const ot = filters.orderType
+  allLines.value = linesBeforeOrderType.value.filter((x: any) => {
+    if (ot === undefined || ot === null) return true
+    return Number(x.purchaseOrderType) === ot
+  })
+  page.value = 1
+  applyPagination()
+}
 
 const applyPagination = () => {
   const start = (page.value - 1) * pageSize.value
@@ -1054,6 +1104,7 @@ async function loadList() {
         purchaseOrderId: detail.id ?? o.id,
         purchaseOrderItemCode: it.purchaseOrderItemCode ?? it.PurchaseOrderItemCode ?? '',
         purchaseOrderCode: detail.purchaseOrderCode ?? o.purchaseOrderCode,
+        purchaseOrderType: normalizePurchaseOrderType(detail, o),
         vendorId: detail.vendorId ?? o.vendorId,
         itemStatus: it.status,
         purchaseProgressStatus: Number(it.purchaseProgressStatus ?? 0),
@@ -1075,7 +1126,7 @@ async function loadList() {
     })
 
     // 采购单号/供应商/采购员/物料型号等在前端做过滤（后端采购订单明细分页接口尚未补齐）
-    allLines.value = lines.filter((x: any) => {
+    linesBeforeOrderType.value = lines.filter((x: any) => {
       if (poCodeK && !String(x.purchaseOrderCode || '').toLowerCase().includes(poCodeK)) return false
       if (pnK && !String(x.pn || '').toLowerCase().includes(pnK)) return false
       if (canViewVendor.value && vendorK && !String(x.vendorName || '').toLowerCase().includes(vendorK)) return false
@@ -1083,9 +1134,7 @@ async function loadList() {
       return true
     })
 
-    // 查询后回到第一页
-    page.value = 1
-    applyPagination()
+    applyOrderTypeFilter()
   } catch (e: any) {
     // eslint-disable-next-line no-console
     console.error(e)
@@ -1100,6 +1149,7 @@ function resetFilters() {
   filters.vendorName = ''
   filters.purchaseUserName = ''
   filters.pn = ''
+  filters.orderType = undefined
   page.value = 1
   loadList()
 }
@@ -1236,6 +1286,35 @@ onMounted(() => {
 }
 .po-filter-input {
   width: 160px;
+}
+
+.filter-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
+  white-space: nowrap;
+}
+
+.po-order-type-select {
+  width: 140px;
+  :deep(.el-select__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+}
+
+.po-line-code-with-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.po-stocking-tag {
+  flex-shrink: 0;
+  cursor: default;
 }
 .table-wrapper {
   background: $layer-2;

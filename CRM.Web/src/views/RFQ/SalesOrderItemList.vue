@@ -132,6 +132,7 @@
               link
               type="warning"
               size="small"
+              :disabled="applyPurchaseDisabled(row)"
               @click.stop="applyPurchaseOne(row)"
             >
               {{ t('salesOrderItemList.actions.applyPurchase') }}
@@ -160,8 +161,15 @@
                 <el-dropdown-item v-if="canWriteSo" @click.stop="goEdit(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('salesOrderItemList.actions.edit') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="canPurchaseReq && mainAllowsOps(row)" @click.stop="applyPurchaseOne(row)">
-                  <span class="op-more-item op-more-item--warning">{{ t('salesOrderItemList.actions.applyPurchase') }}</span>
+                <el-dropdown-item
+                  v-if="canPurchaseReq && mainAllowsOps(row)"
+                  :disabled="applyPurchaseDisabled(row)"
+                  @click.stop="applyPurchaseOne(row)"
+                >
+                  <span
+                    class="op-more-item"
+                    :class="applyPurchaseDisabled(row) ? 'op-more-item--disabled' : 'op-more-item--warning'"
+                  >{{ t('salesOrderItemList.actions.applyPurchase') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item
                   v-if="canWriteSo && mainAllowsOps(row) && stockOutApplyPurchaseGateOk(row)"
@@ -434,6 +442,15 @@ function applyStockOutDisabled(row: Record<string, unknown>) {
   return salesOrderLineApplyStockOutDisabled(row)
 }
 
+/** 剩余可采为 0 时禁用「申请采购」（与行选项 / 服务端创建校验口径一致） */
+function applyPurchaseDisabled(row: Record<string, unknown>) {
+  const raw = (row as { purchaseRemainingQty?: unknown }).purchaseRemainingQty
+  if (raw === undefined || raw === null) return false
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return false
+  return n <= 0
+}
+
 function mainAllowsOps(row: SalesOrderItemLineRow) {
   const os = row['orderStatus']
   return salesOrderMainAllowsPurchaseAndStockOut(Number(os))
@@ -474,7 +491,6 @@ const salesOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
       prop: 'sellOrderItemCode',
       width: 180,
       minWidth: 168,
-      fixed: 'left',
       showOverflowTooltip: true
     },
     {
@@ -734,6 +750,10 @@ function normSellOrderItemId(s: unknown) {
 }
 
 async function applyPurchaseOne(row: any) {
+  if (applyPurchaseDisabled(row)) {
+    ElMessage.warning(t('salesOrderItemList.messages.prLineNotAvailable'))
+    return
+  }
   if (!mainAllowsOps(row)) {
     ElMessage.warning(t('salesOrderItemList.messages.applyPurchaseNeedAudit'))
     return

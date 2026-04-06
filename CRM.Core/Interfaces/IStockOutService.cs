@@ -16,9 +16,13 @@ namespace CRM.Core.Interfaces
         /// </summary>
         Task<StockOut> ExecuteStockOutAsync(ExecuteStockOutRequest request, string? actingUserId = null);
         Task<StockOut?> GetByIdAsync(string id);
+        /// <summary>出库单详情（列表展示字段 + 仓库/明细主键，供前端详情页）</summary>
+        Task<StockOutDetailViewDto?> GetDetailViewAsync(string id);
         /// <summary>出库单列表（含客户、业务员、销售明细编号等展示字段）</summary>
         Task<IEnumerable<StockOutListItemDto>> GetStockOutListAsync();
         Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
+        /// <summary>可改：出库日期、出货方式、快递单号</summary>
+        Task UpdateHeaderAsync(string id, UpdateStockOutHeaderRequest request, string? actingUserId = null);
     }
 
     public class CreateStockOutRequestRequest
@@ -34,6 +38,8 @@ namespace CRM.Core.Interfaces
         public string RequestUserId { get; set; } = string.Empty;
         public DateTime RequestDate { get; set; }
         public string? Remark { get; set; }
+        /// <summary>出货方式（字典 LogisticsArrivalMethod ItemCode）</summary>
+        public string? ShipmentMethod { get; set; }
     }
 
     /// <summary>销售明细「申请出库」弹窗用：数量口径由服务端计算，前端仅展示。</summary>
@@ -69,6 +75,24 @@ namespace CRM.Core.Interfaces
         public string? CustomerName { get; set; }
         public string? SalesUserName { get; set; }
         public string? SellOrderItemCode { get; set; }
+        /// <summary>出货方式（字典 ItemCode）</summary>
+        public string? ShipmentMethod { get; set; }
+        public string? CourierTrackingNo { get; set; }
+    }
+
+    public class StockOutDetailViewDto : StockOutListItemDto
+    {
+        public string? WarehouseId { get; set; }
+        /// <summary>仓库编号（由 WarehouseId 解析；无档案时为空）</summary>
+        public string? WarehouseCode { get; set; }
+        public string? SellOrderItemId { get; set; }
+    }
+
+    public class UpdateStockOutHeaderRequest
+    {
+        public DateTime StockOutDate { get; set; }
+        public string? ShipmentMethod { get; set; }
+        public string? CourierTrackingNo { get; set; }
     }
 
     public class StockOutRequestListItemDto
@@ -91,6 +115,8 @@ namespace CRM.Core.Interfaces
         public DateTime RequestDate { get; set; }
         public short Status { get; set; }
         public string? Remark { get; set; }
+        /// <summary>出货方式（字典 LogisticsArrivalMethod ItemCode）</summary>
+        public string? ShipmentMethod { get; set; }
         public DateTime CreateTime { get; set; }
     }
 

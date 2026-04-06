@@ -1145,6 +1145,7 @@ const enUS = {
     },
     placeholders: {
       select: 'Please select',
+      industrySelectOrInput: 'Select or enter industry',
       customerCodeAuto: 'Auto-generated after save',
       chineseName: 'Enter Chinese full name',
       englishName: 'Enter English full name (optional)',
@@ -1884,7 +1885,7 @@ const enUS = {
       pickDeliveryDate: 'Select delivery date',
       lineRemark: 'Line remarks'
     },
-    orderTypes: { normal: 'Standard', urgent: 'Urgent', sample: 'Sample' },
+    orderTypes: { normal: 'Customer-order purchase', urgent: 'Stocking purchase', sample: 'Sample purchase' },
     productKinds: { spot: 'Spot', futures: 'Futures', backlog: 'Backlog', sample: 'Sample' },
     paymentTermsExtra: { prepayment: 'Prepaid before shipment', cod: 'Cash on delivery' },
     itemsToolbar: { addLine: 'Add line' },
@@ -2049,6 +2050,12 @@ const enUS = {
       vendorPlaceholder: 'Enter vendor',
       status: 'Status',
       allStatus: 'All statuses',
+      orderType: 'Order type',
+      allOrderTypes: 'All types',
+      orderTypeCustomer: 'Customer-order PO',
+      orderTypeStocking: 'Stocking PO',
+      orderTypeSample: 'Sample PO',
+      stockingTag: 'Stocking',
       search: 'Search',
       reset: 'Reset'
     },
@@ -2101,6 +2108,12 @@ const enUS = {
       vendorPlaceholder: 'Vendor name',
       purchaserPlaceholder: 'Buyer name',
       pnPlaceholder: 'Material / MPN',
+      orderType: 'Order type',
+      allOrderTypes: 'All types',
+      orderTypeCustomer: 'Customer-order PO',
+      orderTypeStocking: 'Stocking PO',
+      orderTypeSample: 'Sample PO',
+      stockingTag: 'Stocking',
       search: 'Search',
       reset: 'Reset'
     },
@@ -2419,7 +2432,7 @@ const enUS = {
       qty: 'Requested qty',
       expectedPurchaseTime: 'Expected purchase date',
       type: 'Type',
-      purchaseUserId: 'Purchaser ID',
+      purchaseUserId: 'Purchaser',
       remark: 'Remark',
       createTime: 'Created at',
       createUser: 'Created by',
@@ -2501,17 +2514,34 @@ const enUS = {
   inventoryList: {
     title: 'Inventory Center',
     count: '{count} records total',
-    filters: { warehouseId: 'Filter by Warehouse ID' },
+    filters: {
+      warehouseId: 'Filter by Warehouse ID',
+      stockType: 'Stock type',
+      allStockTypes: 'All types',
+      orderType: 'Order type',
+      allOrderTypes: 'All types',
+      inventoryCode: 'Inventory code',
+      allInventoryCodes: 'All warehouses',
+      search: 'Search',
+      reset: 'Reset'
+    },
     stats: {
       capitalOccupied: 'Capital Occupied',
       monthlyOutCost: 'Monthly Outbound Cost',
       turnoverDays: 'Turnover Days',
       stagnantCount: 'Stagnant Materials'
     },
+    stockTypes: {
+      customer: 'Customer-order stock',
+      stocking: 'Stocking inventory',
+      sample: 'Sample stock',
+      unknown: '—'
+    },
     columns: {
       materialModel: 'Material Model',
       brand: 'Brand',
       warehouseName: 'Warehouse',
+      stockType: 'Stock type',
       onHandQty: 'On Hand',
       availableQty: 'Available',
       lockedQty: 'Locked',
@@ -2605,7 +2635,7 @@ const enUS = {
     title: 'Stock-Out List',
     count: '{count} records total',
     filters: {
-      keywordPlaceholder: 'Stock-out code/source code',
+      keywordPlaceholder: 'Code / source / line no. / ship method / tracking',
       search: 'Search',
       refresh: 'Refresh'
     },
@@ -2624,6 +2654,8 @@ const enUS = {
       salesUserName: 'Sales Rep',
       sellOrderItemCode: 'Sales Order Line No.',
       stockOutDate: 'Stock-Out Date',
+      shipmentMethod: 'Shipment method',
+      courierTrackingNo: 'Tracking no.',
       totalQuantity: 'Stock-Out Qty',
       remark: 'Remark',
       createTime: 'Created At',
@@ -2631,12 +2663,34 @@ const enUS = {
       actions: 'Actions'
     },
     status: { draft: 'Draft', pending: 'Pending Stock-Out', done: 'Stocked Out', cancelled: 'Cancelled', finished: 'Finished' },
-    actions: { markFinished: 'Mark Finished' },
+    actions: { detail: 'Detail', markFinished: 'Mark Finished' },
     messages: {
       loadFailed: 'Failed to load stock-out list',
       markFinishedSuccess: 'Marked as finished',
       updateStatusFailed: 'Failed to update status'
     }
+  },
+  stockOutDetail: {
+    title: 'Stock-Out Detail',
+    back: 'Back to list',
+    save: 'Save',
+    saving: 'Saving…',
+    saveOk: 'Saved',
+    saveFail: 'Save failed',
+    loadFailed: 'Failed to load',
+    notFound: 'Stock-out not found',
+    needDate: 'Please select stock-out date',
+    sectionReadonly: 'Overview',
+    sectionEditable: 'Editable fields',
+    sectionDocs: 'Attachments',
+    docHint: 'Upload multiple files; the list below shows all documents for this stock-out.',
+    sourceCode: 'Source request',
+    warehouseCode: 'Warehouse code',
+    shipmentMethod: 'Shipment method',
+    shipmentPlaceholder: 'Select',
+    courierTrackingNo: 'Courier tracking no.',
+    trackingPlaceholder: 'Optional',
+    pickDate: 'Pick date'
   },
   stockOutNotifyList: {
     title: 'Stock-Out Notices',

@@ -73,6 +73,12 @@ namespace CRM.Core.Models.Inventory
         [StringLength(500)]
         public string? Remark { get; set; }
 
+        /// <summary>
+        /// 出货方式（数据字典 LogisticsArrivalMethod 的 ItemCode，与物流「来货方式」同源）
+        /// </summary>
+        [StringLength(64)]
+        public string? ShipmentMethod { get; set; }
+
         [StringLength(36)]
         [Column("create_by_user_id")]
         public string? CreateByUserId { get; set; }

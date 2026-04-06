@@ -202,6 +202,11 @@ namespace CRM.Core.Models.Inventory
         [Column(TypeName = "numeric(18,4)")]
         public decimal PickedQty { get; set; }
 
+        /// <summary>
+        /// true：来自备货库存补充（销售关联采购类型之外的备货批次，且物料型号/品牌与销单行一致）；false：来自与出库通知销售明细关联采购单类型一致的库存。
+        /// </summary>
+        public bool IsStockingSupplement { get; set; }
+
         public PickingTask? PickingTask { get; set; }
     }
 

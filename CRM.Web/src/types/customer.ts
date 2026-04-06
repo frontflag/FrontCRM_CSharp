@@ -48,7 +48,7 @@ export function customerTypeLabelI18nKey(type: number | undefined): string {
   return CUSTOMER_TYPE_LABEL_I18N_KEY[type] ?? 'customerList.status.unknown'
 }
 
-/** 客户行业（后端 Industry 存英文键；下拉顺序与产品一致） */
+/** 客户行业 English code 列表（导入/校验用；库表 customerinfo.industry 存字典中文 label） */
 export const CUSTOMER_INDUSTRY_VALUES = [
   'FinanceEquipment',
   'Telecom',

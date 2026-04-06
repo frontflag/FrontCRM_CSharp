@@ -234,21 +234,29 @@ namespace CRM.API.Controllers
             try
             {
                 var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                _logger.LogInformation(
+                    "PurchaseOrders Create 入口: Type={Type} ItemCount={ItemCount} VendorId={VendorId} PurchaseUserId={PurchaseUserId} ActorId={ActorId}",
+                    request.Type, request.Items?.Count ?? 0, request.VendorId, request.PurchaseUserId ?? "(null)", actorId ?? "(null)");
                 var order = await _service.CreateAsync(request, actorId);
+                _logger.LogInformation("PurchaseOrders Create 成功: Id={Id} Code={Code}", order.Id, order.PurchaseOrderCode);
                 return CreatedAtAction(nameof(GetById), new { id = order.Id },
                     new { success = true, data = order });
             }
             catch (ArgumentException ex)
             {
+                _logger.LogWarning(ex, "PurchaseOrders Create 参数错误: {Message}", ex.Message);
                 return BadRequest(new { success = false, message = ex.Message });
             }
             catch (InvalidOperationException ex)
             {
+                _logger.LogWarning(ex, "PurchaseOrders Create 冲突: {Message}", ex.Message);
                 return Conflict(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "创建采购订单失败");
+                _logger.LogError(ex,
+                    "创建采购订单失败: {Message}; Inner={Inner}",
+                    ex.Message, ex.InnerException?.Message);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
@@ -260,15 +268,20 @@ namespace CRM.API.Controllers
             try
             {
                 var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                _logger.LogInformation(
+                    "PurchaseOrders Update 入口: Id={Id} ItemCount={ItemCount} ActorId={ActorId}",
+                    id, request.Items?.Count ?? 0, actorId ?? "(null)");
                 var order = await _service.UpdateAsync(id, request, actorId);
                 return Ok(new { success = true, data = order });
             }
             catch (InvalidOperationException ex)
             {
+                _logger.LogWarning(ex, "PurchaseOrders Update 未找到: {Message}", ex.Message);
                 return NotFound(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "PurchaseOrders Update 失败: {Message}; Inner={Inner}", ex.Message, ex.InnerException?.Message);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }

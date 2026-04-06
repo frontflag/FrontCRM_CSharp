@@ -42,6 +42,19 @@
     <!-- 搜索栏（与客户列表页 search-bar 一致） -->
     <div class="search-bar">
       <div class="search-left">
+        <span class="filter-field-label">{{ t('purchaseOrderList.filters.orderType') }}</span>
+        <el-select
+          v-model="filterForm.orderType"
+          :placeholder="t('purchaseOrderList.filters.allOrderTypes')"
+          clearable
+          class="status-select status-select--po-type"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option :label="t('purchaseOrderList.filters.orderTypeCustomer')" :value="1" />
+          <el-option :label="t('purchaseOrderList.filters.orderTypeStocking')" :value="2" />
+          <el-option :label="t('purchaseOrderList.filters.orderTypeSample')" :value="3" />
+        </el-select>
         <span class="filter-field-label">{{ t('purchaseOrderList.filters.orderCode') }}</span>
         <div class="search-input-wrap">
           <svg
@@ -111,7 +124,18 @@
         @row-dblclick="handleView"
       >
         <template #col-purchaseOrderCode="{ row }">
-          <el-link type="primary" @click="handleView(row)">{{ row.purchaseOrderCode }}</el-link>
+          <span class="po-code-with-badge">
+            <el-link type="primary" @click="handleView(row)">{{ row.purchaseOrderCode }}</el-link>
+            <el-tooltip
+              v-if="isPurchaseOrderStocking(row)"
+              :content="t('purchaseOrderList.filters.orderTypeStocking')"
+              placement="top"
+            >
+              <el-tag type="warning" effect="plain" size="small" class="po-stocking-tag" round>
+                {{ t('purchaseOrderList.filters.stockingTag') }}
+              </el-tag>
+            </el-tooltip>
+          </span>
         </template>
         <template #col-status="{ row }">
           <el-tag effect="dark" :type="getStatusType(poListMainStatus(row))" size="small">
@@ -281,6 +305,15 @@ function toggleOpCol() {
 
 const poListMainStatus = normalizePurchaseOrderMainStatus
 
+function purchaseOrderHeaderType(row: Record<string, unknown>): number {
+  const n = Number(row.type ?? row.Type)
+  return n >= 1 && n <= 3 ? n : 1
+}
+
+function isPurchaseOrderStocking(row: Record<string, unknown>) {
+  return purchaseOrderHeaderType(row) === 2
+}
+
 /** 采购订单列表主表可配置列（localStorage：crm-table-columns:v1:purchase-order-list-main） */
 const purchaseOrderTableColumns = computed((): CrmTableColumnDef[] => [
   {
@@ -322,7 +355,8 @@ const purchaseOrderTableColumns = computed((): CrmTableColumnDef[] => [
 const filterForm = ref({
   code: '',
   vendor: '',
-  status: undefined as number | undefined
+  status: undefined as number | undefined,
+  orderType: undefined as number | undefined
 })
 
 // 分页信息
@@ -344,6 +378,10 @@ const filteredList = computed(() => {
   }
   if (filterForm.value.status !== undefined) {
     result = result.filter(o => poListMainStatus(o) === filterForm.value.status)
+  }
+  if (filterForm.value.orderType !== undefined) {
+    const ot = filterForm.value.orderType
+    result = result.filter(o => purchaseOrderHeaderType(o as Record<string, unknown>) === ot)
   }
   pageInfo.value.total = result.length
   const start = (pageInfo.value.page - 1) * pageInfo.value.pageSize
@@ -417,7 +455,7 @@ const handleSearch = () => {
 }
 
 const handleReset = () => {
-  filterForm.value = { code: '', vendor: '', status: undefined }
+  filterForm.value = { code: '', vendor: '', status: undefined, orderType: undefined }
   pageInfo.value.page = 1
 }
 
@@ -430,9 +468,9 @@ const handlePageChange = (val: number) => {
   pageInfo.value.page = val
 }
 
-// 新建（手工新建入口暂关，以销定采等其它入口仍可用）
+// 新建：直接进入创建页，默认备货采购（Type=2），无销售/申请链路
 const handleCreate = () => {
-  ElMessage.info(t('purchaseOrderList.createDisabled'))
+  router.push({ name: 'PurchaseOrderCreate', query: { type: '2' } })
 }
 
 // 编辑
@@ -641,6 +679,22 @@ onMounted(loadData)
 
 .status-select--po {
   width: 150px;
+}
+
+.status-select--po-type {
+  width: 140px;
+}
+
+.po-code-with-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.po-stocking-tag {
+  flex-shrink: 0;
+  cursor: default;
 }
 
 .btn-primary {

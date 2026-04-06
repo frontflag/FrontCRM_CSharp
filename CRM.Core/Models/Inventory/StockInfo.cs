@@ -120,6 +120,12 @@ namespace CRM.Core.Models.Inventory
         public short Status { get; set; } = 1;
 
         /// <summary>
+        /// 库存类型 1=客单库存 2=备货库存 3=样品库存（与销售/采购订单类型口径一致；默认 1）
+        /// </summary>
+        [Column("Type")]
+        public short StockType { get; set; } = 1;
+
+        /// <summary>
         /// 采购订单明细业务编号（过账入库时自 <c>stockin</c> 头冗余）
         /// </summary>
         [StringLength(64)]
@@ -524,6 +530,18 @@ namespace CRM.Core.Models.Inventory
         /// </summary>
         [StringLength(500)]
         public string? Remark { get; set; }
+
+        /// <summary>
+        /// 出货方式（字典 LogisticsArrivalMethod ItemCode，可与出库通知一致并在出库后仍可改）
+        /// </summary>
+        [StringLength(64)]
+        public string? ShipmentMethod { get; set; }
+
+        /// <summary>
+        /// 快递单号
+        /// </summary>
+        [StringLength(128)]
+        public string? CourierTrackingNo { get; set; }
 
         [StringLength(36)]
         [Column("create_by_user_id")]

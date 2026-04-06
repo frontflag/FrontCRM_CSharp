@@ -140,6 +140,7 @@ namespace CRM.Core.Services
             var allStocks = (await _stockRepository.GetAllAsync()).ToList();
             var allLedgers = (await _ledgerRepository.GetAllAsync()).ToList();
             var changed = false;
+            var inboundStockType = await ResolveStockTypeForStockInAsync(stockIn);
 
             foreach (var line in lines)
             {
@@ -150,7 +151,8 @@ namespace CRM.Core.Services
                     s.MaterialId == line.MaterialId &&
                     s.WarehouseId == stockIn.WarehouseId &&
                     (s.LocationId ?? string.Empty) == (line.LocationId ?? string.Empty) &&
-                    (s.BatchNo ?? string.Empty) == (line.BatchNo ?? string.Empty));
+                    (s.BatchNo ?? string.Empty) == (line.BatchNo ?? string.Empty) &&
+                    s.StockType == inboundStockType);
 
                 var isNewStock = stock == null;
                 if (isNewStock)
@@ -164,6 +166,7 @@ namespace CRM.Core.Services
                         BatchNo = line.BatchNo,
                         Unit = "PCS",
                         Status = 1,
+                        StockType = inboundStockType,
                         CreateTime = DateTime.UtcNow
                     };
                     await _stockRepository.AddAsync(stock);
@@ -255,11 +258,57 @@ namespace CRM.Core.Services
                 : stock.SellOrderItemCode.Trim();
         }
 
+        private static short NormalizeStockInventoryType(short type) => type is >= 1 and <= 3 ? type : (short)1;
+
+        /// <summary>入库过账：库存类型与采购订单头 <c>Type</c> 一致（经采购订单明细关联）。</summary>
+        private async Task<short> ResolveStockTypeForStockInAsync(StockIn stockIn)
+        {
+            if (string.IsNullOrWhiteSpace(stockIn.PurchaseOrderItemId))
+                return 1;
+            var poLine = await _purchaseOrderItemRepository.GetByIdAsync(stockIn.PurchaseOrderItemId.Trim());
+            if (poLine == null || string.IsNullOrWhiteSpace(poLine.PurchaseOrderId))
+                return 1;
+            var po = await _purchaseOrderRepository.GetByIdAsync(poLine.PurchaseOrderId.Trim());
+            return po == null ? (short)1 : NormalizeStockInventoryType(po.Type);
+        }
+
+        /// <summary>按销售明细关联的采购单头类型集合（用于出库/拣货/可用量与 <c>stock.StockType</c> 对齐）。</summary>
+        private async Task<HashSet<short>> ResolveStockTypesForSellOrderLineAsync(string sellOrderItemId)
+        {
+            var id = sellOrderItemId.Trim();
+            var poById = (await _purchaseOrderRepository.GetAllAsync())
+                .GroupBy(x => x.Id?.Trim() ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var types = new HashSet<short>();
+            foreach (var pil in await _purchaseOrderItemRepository.GetAllAsync())
+            {
+                if (!string.Equals(pil.SellOrderItemId?.Trim(), id, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                var poid = pil.PurchaseOrderId?.Trim();
+                if (string.IsNullOrEmpty(poid) || !poById.TryGetValue(poid, out var po))
+                    continue;
+                types.Add(NormalizeStockInventoryType(po.Type));
+            }
+
+            if (types.Count == 0)
+                types.Add(1);
+            return types;
+        }
+
+        private async Task<HashSet<short>> ResolveStockTypesForStockOutAsync(StockOut stockOut)
+        {
+            if (string.IsNullOrWhiteSpace(stockOut.SellOrderItemId))
+                return new HashSet<short> { 1 };
+            return await ResolveStockTypesForSellOrderLineAsync(stockOut.SellOrderItemId.Trim());
+        }
+
         public async Task RecordStockOutAsync(string stockOutId)
         {
             if (string.IsNullOrWhiteSpace(stockOutId)) return;
             var stockOut = await _stockOutRepository.GetByIdAsync(stockOutId);
             if (stockOut == null) return;
+
+            var outStockTypes = await ResolveStockTypesForStockOutAsync(stockOut);
 
             var allLedgers = (await _ledgerRepository.GetAllAsync()).ToList();
             var lines = (await _stockOutItemRepository.GetAllAsync()).Where(x => x.StockOutId == stockOutId).ToList();
@@ -282,7 +331,8 @@ namespace CRM.Core.Services
                         s.MaterialId == line.MaterialId &&
                         s.WarehouseId == whOut &&
                         (s.LocationId ?? string.Empty) == (line.LocationId ?? string.Empty) &&
-                        (s.BatchNo ?? string.Empty) == (line.BatchNo ?? string.Empty));
+                        (s.BatchNo ?? string.Empty) == (line.BatchNo ?? string.Empty) &&
+                        outStockTypes.Contains(s.StockType));
                 }
 
                 if (rowStock != null)
@@ -434,11 +484,12 @@ namespace CRM.Core.Services
             }
 
             return stocks
-                .GroupBy(x => new { x.MaterialId, x.WarehouseId })
+                .GroupBy(x => new { x.MaterialId, x.WarehouseId, x.StockType })
                 .Select(g =>
                 {
                     var material = g.Key.MaterialId;
                     var warehouse = g.Key.WarehouseId;
+                    var stockType = g.Key.StockType;
                     materialById.TryGetValue(material, out var mat);
                     var model = string.IsNullOrWhiteSpace(mat?.MaterialModel) ? null : mat!.MaterialModel!.Trim();
                     var name = string.IsNullOrWhiteSpace(mat?.MaterialName) ? null : mat!.MaterialName!.Trim();
@@ -494,6 +545,7 @@ namespace CRM.Core.Services
                         MaterialName = name,
                         WarehouseId = warehouse ?? string.Empty,
                         WarehouseCode = whCode,
+                        StockType = stockType,
                         OnHandQty = onHand,
                         AvailableQty = available,
                         LockedQty = locked,
@@ -504,6 +556,7 @@ namespace CRM.Core.Services
                 })
                 .OrderByDescending(x => x.LastMoveTime ?? DateTime.MinValue)
                 .ThenBy(x => x.WarehouseId, StringComparer.Ordinal)
+                .ThenBy(x => x.StockType)
                 .ThenBy(x => x.MaterialId, StringComparer.Ordinal)
                 .ToList();
         }
@@ -606,6 +659,8 @@ namespace CRM.Core.Services
             if (keySet.Count == 0)
                 return new SellOrderLineAvailableQtyDto { AvailableQty = 0 };
 
+            var lineStockTypes = await ResolveStockTypesForSellOrderLineAsync(id);
+
             List<StockInfo> stocks;
             try
             {
@@ -617,7 +672,7 @@ namespace CRM.Core.Services
             }
 
             var sum = stocks
-                .Where(s => keySet.Contains(s.MaterialId?.Trim() ?? string.Empty))
+                .Where(s => keySet.Contains(s.MaterialId?.Trim() ?? string.Empty) && lineStockTypes.Contains(s.StockType))
                 .Sum(s => s.QtyRepertoryAvailable);
 
             return new SellOrderLineAvailableQtyDto { AvailableQty = sum };
@@ -735,6 +790,23 @@ namespace CRM.Core.Services
                     g => (Plan: g.Sum(x => x.PlanQty), Picked: g.Sum(x => x.PickedQty)),
                     StringComparer.OrdinalIgnoreCase);
 
+            var linesByTask = taskItems
+                .GroupBy(i => i.PickingTaskId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            Dictionary<string, StockInfo> stockById = new(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                stockById = (await _stockRepository.GetAllAsync())
+                    .GroupBy(s => s.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
+                    .Where(g => g.Key.Length > 0)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            }
+            catch (Exception ex) when (IsTableMissingException(ex))
+            {
+                // 忽略，StockType 留空
+            }
+
             return list.Select(t =>
             {
                 decimal plan = 0, picked = 0;
@@ -743,6 +815,39 @@ namespace CRM.Core.Services
                     plan = s.Plan;
                     picked = s.Picked;
                 }
+
+                var lineDtos = new List<PickingTaskLineDto>();
+                if (linesByTask.TryGetValue(t.Id, out var lines))
+                {
+                    foreach (var i in lines.OrderBy(x => x.CreateTime))
+                    {
+                        short? lineStockType = null;
+                        var sid = i.StockId?.Trim();
+                        if (!string.IsNullOrEmpty(sid) && stockById.TryGetValue(sid, out var stRow))
+                            lineStockType = stRow.StockType;
+                        else if (i.IsStockingSupplement)
+                            lineStockType = 2;
+
+                        lineDtos.Add(new PickingTaskLineDto
+                        {
+                            Id = i.Id,
+                            MaterialId = i.MaterialId,
+                            StockId = i.StockId,
+                            StockType = lineStockType,
+                            PlanQty = i.PlanQty,
+                            PickedQty = i.PickedQty,
+                            IsStockingSupplement = i.IsStockingSupplement
+                        });
+                    }
+                }
+
+                var distinctTypes = lineDtos
+                    .Where(x => x.StockType.HasValue)
+                    .Select(x => x.StockType!.Value)
+                    .Distinct()
+                    .OrderBy(x => x)
+                    .ToList();
+
                 return new PickingTaskSummaryDto
                 {
                     Id = t.Id,
@@ -754,7 +859,9 @@ namespace CRM.Core.Services
                     Remark = t.Remark,
                     CreateTime = t.CreateTime,
                     PlanQtyTotal = plan,
-                    PickedQtyTotal = picked
+                    PickedQtyTotal = picked,
+                    DistinctStockTypes = distinctTypes,
+                    Items = lineDtos
                 };
             }).ToList();
         }
@@ -787,6 +894,21 @@ namespace CRM.Core.Services
                 .ToList();
             var linkedMaterialKeys = StockMaterialMatch.LinkedPurchaseMaterialKeys(linkedPoItems);
 
+            var poByIdForPick = (await _purchaseOrderRepository.GetAllAsync())
+                .GroupBy(x => x.Id?.Trim() ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var pickStockTypes = new HashSet<short>();
+            foreach (var pil in linkedPoItems)
+            {
+                var poid = pil.PurchaseOrderId?.Trim();
+                if (string.IsNullOrEmpty(poid) || !poByIdForPick.TryGetValue(poid, out var po))
+                    continue;
+                pickStockTypes.Add(NormalizeStockInventoryType(po.Type));
+            }
+
+            if (pickStockTypes.Count == 0)
+                pickStockTypes.Add(1);
+
             var taskCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.PickingTask);
 
             var task = new PickingTask
@@ -801,41 +923,122 @@ namespace CRM.Core.Services
             };
             await _pickingTaskRepository.AddAsync(task);
 
-            var stocks = (await _stockRepository.GetAllAsync())
+            var whStocks = (await _stockRepository.GetAllAsync())
                 .Where(x => x.WarehouseId == request.WarehouseId)
-                .OrderBy(x => x.ProductionDate ?? x.CreateTime)
-                .ThenBy(x => x.CreateTime)
                 .ToList();
+            var remAvail = whStocks.ToDictionary(s => s.Id, s => s.QtyRepertoryAvailable);
+            var materialById = (await _materialRepository.GetAllAsync())
+                .GroupBy(m => m.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Key.Length > 0)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var materialByAltKey = StockMaterialMatch.BuildMaterialCodeModelIndex(materialById.Values);
+            var poItemById = (await _purchaseOrderItemRepository.GetAllAsync())
+                .GroupBy(p => p.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Key.Length > 0)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            static IEnumerable<StockInfo> OrderFifo(IEnumerable<StockInfo> q) =>
+                q.OrderBy(s => s.ProductionDate ?? s.CreateTime).ThenBy(s => s.CreateTime);
+
+            decimal SumAllocatableForOutbound(
+                string outboundCode,
+                IReadOnlyList<StockInfo> stocks,
+                HashSet<short> poAlignedTypes,
+                string? productId,
+                IReadOnlyCollection<string> linkedKeys,
+                SellOrderItem? sellLine,
+                IReadOnlyDictionary<string, MaterialInfo> materials,
+                IReadOnlyDictionary<string, MaterialInfo> materialAlt,
+                IReadOnlyDictionary<string, PurchaseOrderItem> poItemsById)
+            {
+                decimal sum = 0;
+                foreach (var s in stocks)
+                {
+                    if (s.QtyRepertoryAvailable <= 0m) continue;
+                    var matchesKeys = StockMaterialMatch.Matches(s, outboundCode, productId, linkedKeys);
+                    if (matchesKeys && poAlignedTypes.Contains(s.StockType))
+                    {
+                        sum += s.QtyRepertoryAvailable;
+                        continue;
+                    }
+
+                    if (StockMaterialMatch.StockingSupplementEligible(s, sellLine, materials, materialAlt, poItemsById))
+                        sum += s.QtyRepertoryAvailable;
+                }
+
+                return sum;
+            }
 
             foreach (var item in request.Items)
             {
                 var need = item.Quantity;
+                if (need <= 0m) continue;
                 var outboundCode = item.MaterialId?.Trim() ?? "";
-                foreach (var stock in stocks.Where(s =>
-                             StockMaterialMatch.Matches(s, outboundCode, productIdFromLine, linkedMaterialKeys) && s.QtyRepertoryAvailable > 0))
+
+                // 来源1：与关联采购订单头类型一致的库存（FIFO）
+                foreach (var stock in OrderFifo(whStocks))
                 {
-                    if (need <= 0) break;
-                    var qty = Math.Min(need, stock.QtyRepertoryAvailable);
-                    if (qty <= 0) continue;
+                    if (need <= 0m) break;
+                    if (!pickStockTypes.Contains(stock.StockType)) continue;
+                    if (!StockMaterialMatch.Matches(stock, outboundCode, productIdFromLine, linkedMaterialKeys)) continue;
+                    if (!remAvail.TryGetValue(stock.Id, out var av) || av <= 0m) continue;
+                    var qty = Math.Min(need, av);
+                    if (qty <= 0m) continue;
                     await _pickingTaskItemRepository.AddAsync(new PickingTaskItem
                     {
                         Id = Guid.NewGuid().ToString(),
                         PickingTaskId = task.Id,
-                        MaterialId = stock.MaterialId,
+                        MaterialId = stock.MaterialId?.Trim() ?? outboundCode,
                         StockId = stock.Id,
                         BatchNo = stock.BatchNo,
                         LocationId = stock.LocationId,
                         PlanQty = qty,
                         PickedQty = 0,
+                        IsStockingSupplement = false,
                         CreateTime = DateTime.UtcNow
                     });
+                    remAvail[stock.Id] = av - qty;
                     need -= qty;
                 }
-                if (need > 0)
+
+                // 来源2：备货库存，与销单行 PN/品牌一致即可（不要求 Matches：备货 MaterialId 常为未关联本单的采购明细主键）
+                foreach (var stock in OrderFifo(whStocks))
                 {
-                    var availableTotal = stocks
-                        .Where(s => StockMaterialMatch.Matches(s, outboundCode, productIdFromLine, linkedMaterialKeys))
-                        .Sum(s => s.QtyRepertoryAvailable);
+                    if (need <= 0m) break;
+                    if (stock.StockType != 2) continue;
+                    if (!StockMaterialMatch.StockingSupplementEligible(stock, soItem, materialById, materialByAltKey, poItemById)) continue;
+                    if (!remAvail.TryGetValue(stock.Id, out var av2) || av2 <= 0m) continue;
+                    var qty2 = Math.Min(need, av2);
+                    if (qty2 <= 0m) continue;
+                    await _pickingTaskItemRepository.AddAsync(new PickingTaskItem
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        PickingTaskId = task.Id,
+                        MaterialId = stock.MaterialId?.Trim() ?? outboundCode,
+                        StockId = stock.Id,
+                        BatchNo = stock.BatchNo,
+                        LocationId = stock.LocationId,
+                        PlanQty = qty2,
+                        PickedQty = 0,
+                        IsStockingSupplement = true,
+                        CreateTime = DateTime.UtcNow
+                    });
+                    remAvail[stock.Id] = av2 - qty2;
+                    need -= qty2;
+                }
+
+                if (need > 0m)
+                {
+                    var availableTotal = SumAllocatableForOutbound(
+                        outboundCode,
+                        whStocks,
+                        pickStockTypes,
+                        productIdFromLine,
+                        linkedMaterialKeys,
+                        soItem,
+                        materialById,
+                        materialByAltKey,
+                        poItemById);
                     var wh = await _warehouseRepository.GetByIdAsync(request.WarehouseId.Trim());
                     var whLabel = wh != null ? $"{wh.WarehouseName}（{wh.WarehouseCode}）" : request.WarehouseId;
                     throw new InvalidOperationException(
@@ -953,6 +1156,7 @@ namespace CRM.Core.Services
                             WarehouseId = plan.WarehouseId,
                             LocationId = item.LocationId,
                             Status = 1,
+                            StockType = 1,
                             CreateTime = DateTime.UtcNow
                         };
                         await _stockRepository.AddAsync(target);

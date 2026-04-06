@@ -1129,6 +1129,7 @@ const zhCN = {
     },
     placeholders: {
       select: '请选择',
+      industrySelectOrInput: '请选择或输入行业',
       customerCodeAuto: '保存后自动生成',
       chineseName: '请输入客户中文全称',
       englishName: '请输入客户英文全称（选填）',
@@ -1869,7 +1870,7 @@ const zhCN = {
       pickDeliveryDate: '选择交期',
       lineRemark: '行备注'
     },
-    orderTypes: { normal: '普通订单', urgent: '紧急订单', sample: '样品订单' },
+    orderTypes: { normal: '客单采购', urgent: '备货采购', sample: '样品采购' },
     productKinds: { spot: '现货', futures: '期货', backlog: '排单', sample: '样品' },
     paymentTermsExtra: { prepayment: '款到发货', cod: '货到付款' },
     itemsToolbar: { addLine: '添加明细' },
@@ -2032,6 +2033,12 @@ const zhCN = {
       vendorPlaceholder: '请输入供应商',
       status: '状态',
       allStatus: '全部状态',
+      orderType: '订单类型',
+      allOrderTypes: '全部类型',
+      orderTypeCustomer: '客单采购',
+      orderTypeStocking: '备货采购',
+      orderTypeSample: '样品采购',
+      stockingTag: '备货',
       search: '搜索',
       reset: '重置'
     },
@@ -2084,6 +2091,12 @@ const zhCN = {
       vendorPlaceholder: '供应商名称',
       purchaserPlaceholder: '采购员名称',
       pnPlaceholder: '物料型号',
+      orderType: '订单类型',
+      allOrderTypes: '全部类型',
+      orderTypeCustomer: '客单采购',
+      orderTypeStocking: '备货采购',
+      orderTypeSample: '样品采购',
+      stockingTag: '备货',
       search: '查询',
       reset: '重置'
     },
@@ -2402,7 +2415,7 @@ const zhCN = {
       qty: '申请数量',
       expectedPurchaseTime: '预计采购日期',
       type: '类型',
-      purchaseUserId: '采购员ID',
+      purchaseUserId: '采购员',
       remark: '备注',
       createTime: '创建时间',
       createUser: '创建人',
@@ -2484,17 +2497,36 @@ const zhCN = {
   inventoryList: {
     title: '库存中心',
     count: '共 {count} 条',
-    filters: { warehouseId: '仓库ID 筛选' },
+    filters: {
+      warehouseId: '仓库ID 筛选',
+      stockType: '库存类型',
+      allStockTypes: '全部类型',
+      /** 与采购/销售订单类型语义对齐：1 客单 2 备货 3 样品 */
+      orderType: '订单类型',
+      allOrderTypes: '全部类型',
+      /** 按仓库档案筛选总览（展示为仓库编码） */
+      inventoryCode: '库存编号',
+      allInventoryCodes: '全部仓库',
+      search: '搜索',
+      reset: '重置'
+    },
     stats: {
       capitalOccupied: '在库资金占用',
       monthlyOutCost: '本月出库成本',
       turnoverDays: '周转天数',
       stagnantCount: '呆滞料数'
     },
+    stockTypes: {
+      customer: '客单库存',
+      stocking: '备货库存',
+      sample: '样品库存',
+      unknown: '—'
+    },
     columns: {
       materialModel: '物料型号',
       brand: '品牌',
       warehouseName: '仓库名称',
+      stockType: '库存类型',
       onHandQty: '在库数量',
       availableQty: '可用数量',
       lockedQty: '占用数量',
@@ -2588,7 +2620,7 @@ const zhCN = {
     title: '出库单列表',
     count: '共 {count} 条',
     filters: {
-      keywordPlaceholder: '出库单号/来源单号',
+      keywordPlaceholder: '出库单号/来源/明细编号/出货方式/快递单号',
       search: '搜索',
       refresh: '刷新'
     },
@@ -2607,6 +2639,8 @@ const zhCN = {
       salesUserName: '业务员',
       sellOrderItemCode: '销售订单明细编号',
       stockOutDate: '出库日期',
+      shipmentMethod: '出货方式',
+      courierTrackingNo: '快递单号',
       totalQuantity: '出库数量',
       remark: '备注',
       createTime: '创建时间',
@@ -2614,12 +2648,34 @@ const zhCN = {
       actions: '操作'
     },
     status: { draft: '草稿', pending: '待出库', done: '已出库', cancelled: '已取消', finished: '已完成' },
-    actions: { markFinished: '标记完成' },
+    actions: { detail: '详情', markFinished: '标记完成' },
     messages: {
       loadFailed: '加载出库单失败',
       markFinishedSuccess: '已标记为完成',
       updateStatusFailed: '更新状态失败'
     }
+  },
+  stockOutDetail: {
+    title: '出库单详情',
+    back: '返回列表',
+    save: '保存',
+    saving: '保存中…',
+    saveOk: '已保存',
+    saveFail: '保存失败',
+    loadFailed: '加载失败',
+    notFound: '出库单不存在',
+    needDate: '请选择出库日期',
+    sectionReadonly: '基本信息',
+    sectionEditable: '可编辑信息',
+    sectionDocs: '关联文档',
+    docHint: '可多次上传；下方列表展示本单全部已上传文档，支持预览与下载。',
+    sourceCode: '来源申请',
+    warehouseCode: '仓库编号',
+    shipmentMethod: '出货方式',
+    shipmentPlaceholder: '请选择',
+    courierTrackingNo: '快递单号',
+    trackingPlaceholder: '选填',
+    pickDate: '选择日期'
   },
   stockOutNotifyList: {
     title: '出库通知',

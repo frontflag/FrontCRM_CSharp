@@ -68,7 +68,7 @@ import { ref, computed, watch } from 'vue';
 import * as XLSX from 'xlsx';
 import { ElMessageBox, ElNotification } from 'element-plus';
 import { customerApi } from '@/api/customer';
-import { CUSTOMER_INDUSTRY_VALUES } from '@/types/customer';
+import { industryCellToStorageLabel } from '@/utils/customerIndustryStorage';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -177,48 +177,9 @@ function parseCustomerLevel(raw: string): string {
   return ok.includes(s) ? s : 'B';
 }
 
+/** 导入「行业」列：英文 code / 中文别名 / 标准中文 label → 与库表一致的中文 label */
 function parseIndustry(raw: string): string {
-  const s = raw.trim();
-  if (!s) return '';
-  const allowed = CUSTOMER_INDUSTRY_VALUES as readonly string[];
-  if (allowed.includes(s)) return s;
-  const map: Record<string, string> = {
-    金融设备: 'FinanceEquipment',
-    通讯: 'Telecom',
-    轨道交通: 'RailTransit',
-    航空航天: 'Aerospace',
-    网络安全: 'CyberSecurity',
-    电竞: 'Esports',
-    电源: 'PowerSupply',
-    电子元器件贸易: 'ElectronicComponentsTrading',
-    电子元器件制造: 'ElectronicComponentsManufacturing',
-    电动工具: 'PowerTools',
-    电力电气: 'PowerElectrical',
-    物联网: 'IoT',
-    消费电子: 'ConsumerElectronics',
-    机器人: 'Robotics',
-    智能安防: 'SmartSecurity',
-    智慧城市: 'SmartCity',
-    无人机: 'UAV',
-    新能源汽车: 'NewEnergyVehicles',
-    新能源: 'NewEnergy',
-    工业控制: 'IndustrialControl',
-    医疗设备: 'MedicalEquipment',
-    军工: 'DefenseMilitary',
-    传统车辆: 'TraditionalVehicles',
-    仪器仪表: 'Instrumentation',
-    人工智能: 'ArtificialIntelligence',
-    '云计算IDC': 'CloudComputingIDC',
-    制造业: 'Manufacturing',
-    '科技/IT': 'Technology',
-    '贸易/零售': 'Trading',
-    '建筑/工程': 'Construction',
-    医疗: 'Healthcare',
-    教育: 'Education',
-    金融: 'Finance',
-    其他: 'Other'
-  };
-  return map[s] || '';
+  return industryCellToStorageLabel(raw);
 }
 
 function parseDefaultFlag(raw: string): boolean {

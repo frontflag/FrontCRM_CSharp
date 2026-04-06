@@ -288,7 +288,7 @@ namespace CRM.Core.Services
                 .ToList();
             if (sellOnlyIds.Count > 0)
             {
-                var extraPoLines = (await _purchaseOrderItemRepository.FindAsync(x => sellOnlyIds.Contains(x.SellOrderItemId)))
+                var extraPoLines = (await _purchaseOrderItemRepository.FindAsync(x => x.SellOrderItemId != null && sellOnlyIds.Contains(x.SellOrderItemId)))
                     .ToList();
                 foreach (var pl in extraPoLines)
                 {

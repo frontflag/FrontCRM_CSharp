@@ -141,11 +141,48 @@
     <div class="form-card" v-if="form.stockOutRequestId">
       <h3 class="section-title">拣货任务</h3>
       <p class="picking-hint">
-        每个出库通知仅允许生成<strong>一个</strong>拣货任务。计划拣货量、已拣货量由拣货明细汇总，应与出库明细数量一致；此处只读。点击「完成拣货」后，已拣货量与计划一致。
+        每个出库通知仅允许生成<strong>一个</strong>拣货任务。分配顺序：优先「与关联采购单类型一致」的库存（FIFO），不足时再用「备货库存」中型号/品牌与销售明细一致的批次（展开任务行可见，备货行高亮并带图标）。若关联类型库存已<strong>完全满足</strong>出库数量，则不会生成备货拣货行。计划量由明细汇总，应与出库数量一致；点击「完成拣货」后已拣量与计划一致。
       </p>
       <p v-if="!pickingTasks.length" class="picking-empty">暂无拣货任务，请先确认明细与仓库后点击「生成拣货任务」。</p>
-      <el-table v-else :data="pickingTasks">
+      <el-table v-else :data="pickingTasks" row-key="id" class="picking-task-table">
+        <el-table-column type="expand" width="44">
+          <template #default="{ row }">
+            <div class="picking-expand-inner">
+              <div class="picking-expand-title">拣货明细（备货行已高亮）</div>
+              <el-table
+                :data="pickingTaskLines(row)"
+                size="small"
+                border
+                class="picking-lines-table"
+                :row-class-name="pickingLineRowClassName"
+              >
+                <el-table-column :label="t('inventoryList.columns.stockType')" width="108" align="center" show-overflow-tooltip>
+                  <template #default="{ row: line }">{{ pickingLineStockTypeLabel(line) }}</template>
+                </el-table-column>
+                <el-table-column prop="materialId" label="物料ID" min-width="140" show-overflow-tooltip />
+                <el-table-column label="计划数量" width="110" align="right">
+                  <template #default="{ row: line }">{{ formatQty(Number(line.planQty)) }}</template>
+                </el-table-column>
+                <el-table-column label="已拣" width="100" align="right">
+                  <template #default="{ row: line }">{{ formatQty(Number(line.pickedQty)) }}</template>
+                </el-table-column>
+                <el-table-column label="来源" width="120" align="center">
+                  <template #default="{ row: line }">
+                    <span v-if="isPickingLineStockingSupplement(line)" class="picking-source-stocking">
+                      <el-icon class="picking-stock-icon" aria-hidden="true"><Box /></el-icon>
+                      <span>备货</span>
+                    </span>
+                    <span v-else class="picking-source-normal">关联类型</span>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column prop="taskCode" label="任务号" width="160" />
+        <el-table-column :label="t('inventoryList.columns.stockType')" min-width="120" align="center" show-overflow-tooltip>
+          <template #default="{ row }">{{ pickingTaskStockTypesDisplay(row) }}</template>
+        </el-table-column>
         <el-table-column label="仓库" min-width="160">
           <template #default="{ row }">{{ warehouseLabel(row.warehouseId) }}</template>
         </el-table-column>
@@ -179,9 +216,11 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
+import { Box } from '@element-plus/icons-vue'
 import { stockOutApi, type StockOutRequestDto } from '@/api/stockOut'
-import { inventoryCenterApi, type PickingTask, type WarehouseInfo } from '@/api/inventoryCenter'
+import { inventoryCenterApi, type PickingTask, type PickingTaskLine, type WarehouseInfo } from '@/api/inventoryCenter'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
@@ -206,6 +245,7 @@ type ExecuteForm = {
 
 const router = useRouter()
 const route = useRoute()
+const { t, locale } = useI18n()
 const submitting = ref(false)
 const pickingTasks = ref<PickingTask[]>([])
 const warehouses = ref<WarehouseInfo[]>([])
@@ -252,6 +292,50 @@ const notifyRequestCodeDisplay = computed(() => {
 })
 
 /** 读取拣货汇总数量（兼容 camelCase / PascalCase） */
+function pickingTaskLines(row: PickingTask): PickingTaskLine[] {
+  const r = row as unknown as Record<string, unknown>
+  const raw = row.items ?? r.Items
+  return Array.isArray(raw) ? (raw as PickingTaskLine[]) : []
+}
+
+function isPickingLineStockingSupplement(line: PickingTaskLine) {
+  const x = line as unknown as Record<string, unknown>
+  return Boolean(line.isStockingSupplement ?? x.IsStockingSupplement)
+}
+
+function pickingLineRowClassName({ row }: { row: PickingTaskLine }) {
+  return isPickingLineStockingSupplement(row) ? 'picking-line-row--stocking' : ''
+}
+
+function inventoryStockTypeLabel(code: number): string {
+  const m: Record<number, string> = {
+    1: t('inventoryList.stockTypes.customer'),
+    2: t('inventoryList.stockTypes.stocking'),
+    3: t('inventoryList.stockTypes.sample')
+  }
+  return m[code] ?? t('inventoryList.stockTypes.unknown')
+}
+
+function pickingLineStockTypeLabel(line: PickingTaskLine): string {
+  const x = line as unknown as Record<string, unknown>
+  const n = line.stockType ?? x.StockType
+  if (n == null || n === '') return t('inventoryList.stockTypes.unknown')
+  const num = Number(n)
+  return Number.isFinite(num) ? inventoryStockTypeLabel(num) : t('inventoryList.stockTypes.unknown')
+}
+
+function pickingTaskStockTypesDisplay(row: PickingTask): string {
+  const r = row as unknown as Record<string, unknown>
+  const raw = row.distinctStockTypes ?? r.DistinctStockTypes
+  if (!Array.isArray(raw) || raw.length === 0) return t('inventoryList.stockTypes.unknown')
+  const sep = locale.value === 'zh-CN' ? '、' : ', '
+  return (raw as number[])
+    .map((c) => Number(c))
+    .filter((c) => Number.isFinite(c))
+    .map((c) => inventoryStockTypeLabel(c))
+    .join(sep)
+}
+
 const pickingQty = (row: PickingTask, kind: 'plan' | 'picked') => {
   const r = row as unknown as Record<string, unknown>
   const v =
@@ -692,6 +776,38 @@ init()
   margin: 0 0 12px;
   font-size: 13px;
   color: $text-muted;
+}
+.picking-expand-inner {
+  padding: 8px 12px 14px 40px;
+  background: rgba(0, 0, 0, 0.14);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 212, 255, 0.08);
+}
+.picking-expand-title {
+  font-size: 12px;
+  color: $text-muted;
+  margin-bottom: 8px;
+}
+:deep(.picking-lines-table tr.picking-line-row--stocking td.el-table__cell) {
+  background: rgba(255, 193, 7, 0.14) !important;
+}
+:deep(.picking-lines-table tr.picking-line-row--stocking:hover td.el-table__cell) {
+  background: rgba(255, 193, 7, 0.22) !important;
+}
+.picking-source-stocking {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #ffc107;
+  font-weight: 600;
+  font-size: 12px;
+}
+.picking-stock-icon {
+  font-size: 16px;
+}
+.picking-source-normal {
+  font-size: 12px;
+  color: rgba(200, 216, 232, 0.72);
 }
 .btn-primary:disabled {
   opacity: 0.45;

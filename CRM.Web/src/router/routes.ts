@@ -263,16 +263,22 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '出库单列表' }
       },
       {
-        path: 'inventory/stock-out-notifies',
-        name: 'InventoryStockOutNotifyList',
-        component: () => import('@/views/RFQ/StockOutNotifyList.vue'),
-        meta: { requiresAuth: true, title: '出库通知', permission: 'sales-order.read' }
-      },
-      {
         path: 'inventory/stock-out/create',
         name: 'StockOutCreate',
         component: () => import('@/views/Inventory/StockOutEdit.vue'),
         meta: { requiresAuth: true, title: '执行出库' }
+      },
+      {
+        path: 'inventory/stock-out/:id',
+        name: 'StockOutDetail',
+        component: () => import('@/views/Inventory/StockOutDetail.vue'),
+        meta: { requiresAuth: true, title: '出库单详情' }
+      },
+      {
+        path: 'inventory/stock-out-notifies',
+        name: 'InventoryStockOutNotifyList',
+        component: () => import('@/views/RFQ/StockOutNotifyList.vue'),
+        meta: { requiresAuth: true, title: '出库通知', permission: 'sales-order.read' }
       },
       {
         path: 'inventory/transfer',

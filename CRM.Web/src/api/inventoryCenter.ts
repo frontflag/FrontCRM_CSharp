@@ -11,6 +11,8 @@ export interface InventoryOverview {
   warehouseId: string
   /** 仓库编码（接口解析；无档案时前端可回退 warehouseId，如 WH-DEFAULT） */
   warehouseCode?: string | null
+  /** 库存类型 1=客单 2=备货 3=样品 */
+  stockType?: number
   onHandQty: number
   availableQty: number
   lockedQty: number
@@ -57,6 +59,18 @@ export interface WarehouseInfo {
   status: number
 }
 
+/** 拣货任务明细行（备货补充：isStockingSupplement=true） */
+export interface PickingTaskLine {
+  id: string
+  materialId: string
+  stockId?: string | null
+  /** 1=客单 2=备货 3=样品 */
+  stockType?: number | null
+  planQty: number
+  pickedQty: number
+  isStockingSupplement?: boolean
+}
+
 export interface PickingTask {
   id: string
   taskCode: string
@@ -70,6 +84,10 @@ export interface PickingTask {
   planQtyTotal?: number
   /** 明细已拣货量合计 */
   pickedQtyTotal?: number
+  /** 本任务涉及的库存类型（去重） */
+  distinctStockTypes?: number[]
+  /** 拣货明细（含备货补充标记） */
+  items?: PickingTaskLine[]
 }
 
 export interface CountPlan {

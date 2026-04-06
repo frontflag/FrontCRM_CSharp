@@ -15,41 +15,34 @@ namespace CRM.Infrastructure.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "create_by_user_id",
-                table: "sellorder",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "modify_by_user_id",
-                table: "sellorder",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "create_by_user_id",
-                table: "purchaseorder",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "modify_by_user_id",
-                table: "purchaseorder",
-                type: "character varying(36)",
-                maxLength: 36,
-                nullable: true);
+            // 与 scripts/ensure_master_business_audit_user_ids_202604.sql 可并存：列已存在时不报错
+            migrationBuilder.Sql(@"
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'sellorder' AND column_name = 'create_by_user_id') THEN
+    ALTER TABLE public.sellorder ADD COLUMN create_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'sellorder' AND column_name = 'modify_by_user_id') THEN
+    ALTER TABLE public.sellorder ADD COLUMN modify_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'purchaseorder' AND column_name = 'create_by_user_id') THEN
+    ALTER TABLE public.purchaseorder ADD COLUMN create_by_user_id character varying(36) NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'purchaseorder' AND column_name = 'modify_by_user_id') THEN
+    ALTER TABLE public.purchaseorder ADD COLUMN modify_by_user_id character varying(36) NULL;
+  END IF;
+END $$;
+");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(name: "modify_by_user_id", table: "sellorder");
-            migrationBuilder.DropColumn(name: "create_by_user_id", table: "sellorder");
-            migrationBuilder.DropColumn(name: "modify_by_user_id", table: "purchaseorder");
-            migrationBuilder.DropColumn(name: "create_by_user_id", table: "purchaseorder");
+            migrationBuilder.Sql(@"
+ALTER TABLE IF EXISTS public.sellorder DROP COLUMN IF EXISTS modify_by_user_id;
+ALTER TABLE IF EXISTS public.sellorder DROP COLUMN IF EXISTS create_by_user_id;
+ALTER TABLE IF EXISTS public.purchaseorder DROP COLUMN IF EXISTS modify_by_user_id;
+ALTER TABLE IF EXISTS public.purchaseorder DROP COLUMN IF EXISTS create_by_user_id;
+");
         }
     }
 }

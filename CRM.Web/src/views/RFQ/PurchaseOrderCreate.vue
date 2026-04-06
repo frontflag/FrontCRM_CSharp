@@ -35,14 +35,46 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="供应商">
+            <el-form-item v-if="allowManualVendorPick" label="供应商" prop="vendorId">
+              <el-select
+                v-model="formData.vendorId"
+                class="po-vendor-select"
+                placeholder="请搜索并选择供应商"
+                filterable
+                clearable
+                :filter-method="onVendorFilterInput"
+                :loading="vendorSearchLoading"
+                loading-text="搜索中..."
+                @change="onVendorChange"
+              >
+                <template #empty>
+                  <div class="po-vendor-search-hint">输入关键字搜索供应商</div>
+                </template>
+                <el-option v-for="v in vendorOptions" :key="v.value" :label="v.label" :value="v.value" />
+              </el-select>
+            </el-form-item>
+            <el-form-item v-else label="供应商">
               <el-input v-model="formData.vendorName" disabled placeholder="系统自动带出供应商" />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="24">
           <el-col :span="12">
-            <el-form-item label="供应商联系人">
+            <el-form-item v-if="allowManualVendorPick" label="供应商联系人">
+              <el-select
+                v-model="formData.vendorContactId"
+                class="po-vendor-select"
+                placeholder="请选择联系人（可选）"
+                filterable
+                clearable
+                :disabled="!formData.vendorId"
+                :loading="contactLoading"
+                @change="onVendorContactChange"
+              >
+                <el-option v-for="c in vendorContactOptions" :key="c.value" :label="c.label" :value="c.value" />
+              </el-select>
+            </el-form-item>
+            <el-form-item v-else label="供应商联系人">
               <el-input v-model="formData.vendorContactName" disabled placeholder="系统自动带出联系人" />
             </el-form-item>
           </el-col>
@@ -60,10 +92,10 @@
         <el-row :gutter="24">
           <el-col :span="24">
             <el-form-item label="订单类型">
-              <el-select v-model="formData.type" style="width: 100%">
-                <el-option label="普通订单" :value="1" />
-                <el-option label="紧急订单" :value="2" />
-                <el-option label="样品订单" :value="3" />
+              <el-select v-model="formData.type" style="width: 100%" disabled>
+                <el-option :label="t('salesOrderCreate.orderTypes.normal')" :value="1" />
+                <el-option :label="t('salesOrderCreate.orderTypes.urgent')" :value="2" />
+                <el-option :label="t('salesOrderCreate.orderTypes.sample')" :value="3" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -192,12 +224,17 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Check, Plus } from '@element-plus/icons-vue'
+import type { FormInstance } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
-import { runSaveTask } from '@/composables/useFormSubmit'
+import { vendorApi, vendorContactApi } from '@/api/vendor'
+import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
+import { getApiErrorMessage } from '@/utils/apiError'
+import type { Vendor } from '@/types/vendor'
 import { useAuthStore } from '@/stores/auth'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
@@ -207,16 +244,30 @@ import { useMaterialProductionDateDict } from '@/composables/useMaterialProducti
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 const authStore = useAuthStore()
 const { ensureLoaded: ensureMaterialPdDict, coerceProductionDateToCode: coercePd } = useMaterialProductionDateDict()
 
 const editId = computed(() => (route.name === 'PurchaseOrderEdit' ? String(route.params.id || '').trim() : ''))
-const pageTitle = computed(() => (editId.value ? '编辑采购订单' : '新建采购订单'))
+const pageTitle = computed(() => {
+  if (editId.value) return '编辑采购订单'
+  const qType = Number(route.query.type)
+  if (qType === 2) return '新建备货采购订单'
+  return '新建采购订单'
+})
 
-/** 手工录入时尚无供应商/销售明细主键时的占位（满足后端非空；以销定采时应填真实 ID） */
+/** 手工录入时尚无供应商时的占位（满足后端非空）；销售明细无关联时不应再传占位 GUID */
 const MANUAL_VENDOR_ID = '00000000-0000-0000-0000-000000000002'
 const MANUAL_SELL_ORDER_ITEM_ID = '00000000-0000-0000-0000-000000000000'
-const formRef = ref()
+
+/** 提交 API：无销售行或占位 GUID 时不传，后端存 NULL */
+function linkedSellOrderItemIdForPayload(id: string | undefined): string | undefined {
+  const t = id?.trim()
+  if (!t || t.toLowerCase() === MANUAL_SELL_ORDER_ITEM_ID.toLowerCase()) return undefined
+  return t
+}
+
+const formRef = ref<FormInstance>()
 const submitLoading = ref(false)
 const genLoading = ref(false)
 
@@ -226,6 +277,15 @@ const requisitionId = computed(() => {
   return String(v)
 })
 const generatedFromRequisition = ref(false)
+
+/** 无采购申请链路的纯新建：允许搜索选择供应商/联系人（含备货采购?type=2） */
+const allowManualVendorPick = computed(() => !editId.value && !requisitionId.value)
+
+const vendorOptions = ref<{ value: string; label: string }[]>([])
+const vendorSearchLoading = ref(false)
+let vendorSearchTimer: ReturnType<typeof setTimeout> | null = null
+const vendorContactOptions = ref<{ value: string; label: string }[]>([])
+const contactLoading = ref(false)
 
 const getYYMMDD = (d: Date) => {
   const yy = String(d.getFullYear()).slice(-2)
@@ -257,9 +317,12 @@ const formData = ref({
   items: [] as any[]
 })
 
-const formRules = {
-  // 供应商/采购员由“生成采购订单”自动带出，不参与必填校验
-}
+const formRules = computed(() => {
+  if (!allowManualVendorPick.value) return {}
+  return {
+    vendorId: [{ required: true, message: '请选择供应商', trigger: 'change' }]
+  }
+})
 
 const calculateTotal = computed(() =>
   formData.value.items.reduce((sum, item) => sum + (item.qty || 0) * (item.targetPrice || 0), 0)
@@ -270,11 +333,95 @@ function onPurchaserChange(payload: { id: string; label: string }) {
   formData.value.purchaseUserName = payload?.label || ''
 }
 
+function syncLineVendorIds() {
+  const vid = formData.value.vendorId?.trim()
+  if (!vid) return
+  formData.value.items.forEach((it) => {
+    it.vendorId = vid
+  })
+}
+
+function onVendorFilterInput(query: string) {
+  if (vendorSearchTimer) clearTimeout(vendorSearchTimer)
+  if (!query || query.trim().length < 1) {
+    if (formData.value.vendorId && formData.value.vendorName) {
+      vendorOptions.value = [{ value: formData.value.vendorId, label: formData.value.vendorName }]
+    } else {
+      vendorOptions.value = []
+    }
+    return
+  }
+  vendorSearchTimer = setTimeout(async () => {
+    vendorSearchLoading.value = true
+    try {
+      const res = await vendorApi.searchVendors({
+        pageNumber: 1,
+        pageSize: 30,
+        keyword: query.trim()
+      })
+      vendorOptions.value = (res.items || []).map((v: Vendor) => ({
+        value: v.id,
+        label: v.officialName || v.nickName || v.code || '供应商'
+      }))
+    } catch {
+      vendorOptions.value = []
+    } finally {
+      vendorSearchLoading.value = false
+    }
+  }, 300)
+}
+
+function onVendorChange(val: string | null | undefined) {
+  formData.value.vendorContactId = ''
+  formData.value.vendorContactName = ''
+  vendorContactOptions.value = []
+  if (!val) {
+    formData.value.vendorName = ''
+    formData.value.vendorId = ''
+    formData.value.items.forEach((it) => {
+      it.vendorId = undefined
+    })
+    return
+  }
+  const found = vendorOptions.value.find((x) => x.value === val)
+  if (found) formData.value.vendorName = found.label
+  syncLineVendorIds()
+  void loadVendorContacts(val)
+}
+
+async function loadVendorContacts(vendorId: string) {
+  if (!vendorId) {
+    vendorContactOptions.value = []
+    return
+  }
+  contactLoading.value = true
+  try {
+    const list = await vendorContactApi.getContactsByVendorId(vendorId)
+    vendorContactOptions.value = list.map((c) => ({
+      value: c.id,
+      label: [c.cName, c.mobile].filter(Boolean).join(' / ') || c.id
+    }))
+  } catch {
+    vendorContactOptions.value = []
+  } finally {
+    contactLoading.value = false
+  }
+}
+
+function onVendorContactChange(id: string | null | undefined) {
+  if (!id) {
+    formData.value.vendorContactName = ''
+    return
+  }
+  const row = vendorContactOptions.value.find((c) => c.value === id)
+  formData.value.vendorContactName = row?.label?.split(' / ')[0]?.trim() || ''
+}
+
 const addItem = () => {
   generatedFromRequisition.value = false
   formData.value.items.push({
     sellOrderItemId: undefined,
-    vendorId: undefined,
+    vendorId: formData.value.vendorId?.trim() || undefined,
     pn: '',
     brand: '',
     customerMaterialModel: '',
@@ -294,9 +441,10 @@ const removeItem = (index: number) => {
 }
 
 function buildItemsPayload() {
+  const headerVendor = formData.value.vendorId?.trim() || ''
   return formData.value.items.map((it) => ({
-    sellOrderItemId: it.sellOrderItemId ?? MANUAL_SELL_ORDER_ITEM_ID,
-    vendorId: it.vendorId ?? MANUAL_VENDOR_ID,
+    sellOrderItemId: linkedSellOrderItemIdForPayload(it.sellOrderItemId),
+    vendorId: it.vendorId?.trim() || headerVendor || MANUAL_VENDOR_ID,
     pn: it.pn,
     brand: it.brand,
     qty: it.qty,
@@ -350,6 +498,10 @@ async function loadOrderForEdit(id: string) {
 }
 
 const handleSubmit = async () => {
+  if (allowManualVendorPick.value) {
+    const ok = await validateElFormOrWarn(formRef)
+    if (!ok) return
+  }
   await runSaveTask({
     loading: submitLoading,
     successMessage: editId.value ? '采购订单已保存' : '采购订单创建成功',
@@ -357,7 +509,7 @@ const handleSubmit = async () => {
       const uid = formData.value.purchaseUserId || authStore.user?.id || undefined
       const uname = formData.value.purchaseUserName || authStore.user?.userName || undefined
       if (editId.value) {
-        await purchaseOrderApi.update(editId.value, {
+        const updateBody = {
           purchaseUserId: uid,
           purchaseUserName: uname,
           type: formData.value.type,
@@ -367,10 +519,15 @@ const handleSubmit = async () => {
           comment: formData.value.comment || undefined,
           innerComment: formData.value.innerComment || undefined,
           items: buildItemsPayload()
-        })
+        }
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.info('[PurchaseOrderCreate] PUT purchase-orders', editId.value, JSON.parse(JSON.stringify(updateBody)))
+        }
+        await purchaseOrderApi.update(editId.value, updateBody)
         return
       }
-      await purchaseOrderApi.create({
+      const createBody = {
         purchaseOrderCode: formData.value.purchaseOrderCode,
         vendorId: formData.value.vendorId || MANUAL_VENDOR_ID,
         vendorName: formData.value.vendorName,
@@ -384,13 +541,24 @@ const handleSubmit = async () => {
         comment: formData.value.comment || undefined,
         innerComment: formData.value.innerComment || undefined,
         items: buildItemsPayload()
-      })
+      }
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.info('[PurchaseOrderCreate] POST purchase-orders', JSON.parse(JSON.stringify(createBody)))
+      }
+      await purchaseOrderApi.create(createBody)
     },
     onSuccess: () =>
       editId.value
         ? router.push({ name: 'PurchaseOrderDetail', params: { id: editId.value } })
         : router.push({ name: 'PurchaseOrderList' }),
-    errorMessage: () => (editId.value ? '保存失败，请重试' : '创建失败，请重试')
+    errorMessage: (err) => {
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.error('[PurchaseOrderCreate] 保存/创建失败', err)
+      }
+      return getApiErrorMessage(err, editId.value ? '保存失败，请重试' : '创建失败，请重试')
+    }
   })
 }
 
@@ -399,22 +567,28 @@ async function handleGeneratePurchaseOrder() {
   genLoading.value = true
   try {
     const pr = await purchaseRequisitionApi.getById(requisitionId.value)
+    const prExt = pr as Record<string, unknown>
 
     // 基于采购申请预填采购订单（PRD：预期采购价来自采购申请的 QuoteCost）
     formData.value.purchaseOrderCode = genOrderCode()
-    formData.value.type = pr.type ?? 1
+    // 订单类型：与销售订单一致（客单采购/备货采购/样品采购），非 PR 的专属/公开备货类型
+    const poType = Number(prExt.prefillPurchaseOrderType ?? 0)
+    formData.value.type = poType >= 1 && poType <= 3 ? poType : 1
     formData.value.vendorName = pr.intendedVendorName ?? ''
     formData.value.vendorId = pr.quoteVendorId ?? ''
     formData.value.vendorContactId = pr.intendedVendorContactId ?? ''
     formData.value.vendorContactName = pr.intendedVendorContactName ?? ''
-    // 优先报价单上的采购员（与报价阶段一致）；否则用采购申请上的采购员（如创建时默认当前账号）
-    const prExt = pr as Record<string, unknown>
+    // 采购员：报价单采购员 → 需求明细询价采购员 → 采购申请采购员（均可于本页修改）
     const quoteUid = String(prExt.prefillPurchaseUserId ?? '').trim()
     const quoteName = String(prExt.prefillPurchaseUserName ?? '').trim()
+    const rfqUid = String(prExt.prefillRfqPurchaserUserId ?? '').trim()
+    const rfqName = String(prExt.prefillRfqPurchaserUserName ?? '').trim()
     const prUid = String(pr.purchaseUserId ?? '').trim()
     const prName = String(pr.purchaseUserName ?? '').trim()
-    formData.value.purchaseUserId = quoteUid || prUid || formData.value.purchaseUserId
-    formData.value.purchaseUserName = (quoteUid ? quoteName : prName) || formData.value.purchaseUserName
+    const pickUid = quoteUid || rfqUid || prUid
+    const pickName = quoteUid ? quoteName : rfqUid ? rfqName : prName
+    formData.value.purchaseUserId = pickUid || formData.value.purchaseUserId
+    formData.value.purchaseUserName = pickName || formData.value.purchaseUserName
     formData.value.currency = pr.currency ?? formData.value.currency ?? 1
 
     const deliveryDateStr = pr.deliveryDate ? String(pr.deliveryDate).split('T')[0] : ''
@@ -423,7 +597,7 @@ async function handleGeneratePurchaseOrder() {
     formData.value.comment = ''
     formData.value.items = [
       {
-        sellOrderItemId: pr.sellOrderItemId ?? MANUAL_SELL_ORDER_ITEM_ID,
+        sellOrderItemId: pr.sellOrderItemId ? String(pr.sellOrderItemId).trim() : undefined,
         vendorId: pr.quoteVendorId ?? MANUAL_VENDOR_ID,
         pn: pr.pn ?? '',
         brand: pr.brand ?? '',
@@ -467,6 +641,10 @@ onMounted(async () => {
     formData.value.purchaseUserId = u.id
     formData.value.purchaseUserName = u.userName || ''
   }
+  const qType = Number(route.query.type)
+  if (qType >= 1 && qType <= 3) {
+    formData.value.type = qType
+  }
 })
 </script>
 
@@ -501,6 +679,16 @@ onMounted(async () => {
     display: flex;
     gap: 10px;
   }
+}
+
+.po-vendor-select {
+  width: 100%;
+}
+.po-vendor-search-hint {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: $text-muted;
+  text-align: center;
 }
 
 .create-form {

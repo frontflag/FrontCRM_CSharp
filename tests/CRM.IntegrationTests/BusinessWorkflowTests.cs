@@ -31,6 +31,7 @@ namespace CRM.IntegrationTests
         private readonly IRepository<SellOrderItemExtend> _salesOrderItemExtendRepository;
         private readonly IRepository<PurchaseOrder> _poRepository;
         private readonly IRepository<PurchaseOrderItem> _poItemRepository;
+        private readonly IRepository<PurchaseRequisition> _prRepository;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IDataPermissionService _dataPermissionService;
@@ -57,6 +58,7 @@ namespace CRM.IntegrationTests
             _salesOrderItemExtendRepository = Substitute.For<IRepository<SellOrderItemExtend>>();
             _poRepository = Substitute.For<IRepository<PurchaseOrder>>();
             _poItemRepository = Substitute.For<IRepository<PurchaseOrderItem>>();
+            _prRepository = Substitute.For<IRepository<PurchaseRequisition>>();
             _serialNumberService = Substitute.For<ISerialNumberService>();
             _unitOfWork = Substitute.For<IUnitOfWork>();
             _dataPermissionService = Substitute.For<IDataPermissionService>();
@@ -117,6 +119,7 @@ namespace CRM.IntegrationTests
                 _salesOrderItemExtendRepository,
                 _poRepository,
                 _poItemRepository,
+                _prRepository,
                 _quoteItemRepository,
                 _dataPermissionService,
                 _serialNumberService,
@@ -384,9 +387,13 @@ namespace CRM.IntegrationTests
             // 创建出库服务
             var customerRepoForStockOut = Substitute.For<IRepository<CustomerInfo>>();
             customerRepoForStockOut.GetAllAsync().Returns(new List<CustomerInfo>());
+            var warehouseRepoForStockOut = Substitute.For<IRepository<WarehouseInfo>>();
+            var materialRepoForStockOut = Substitute.For<IRepository<MaterialInfo>>();
+            materialRepoForStockOut.GetAllAsync().Returns(new List<MaterialInfo>());
             var service = new StockOutService(
                 stockOutRepo, stockOutItemRepo, stockOutRequestRepo, pickingTaskRepo, stockRepo,
-                sellOrderRepo, sellOrderItemRepo, customerRepoForStockOut, purchaseOrderItemRepo, purchaseOrderRepo, userRepo,
+                sellOrderRepo, sellOrderItemRepo, customerRepoForStockOut, purchaseOrderItemRepo, purchaseOrderRepo, materialRepoForStockOut, userRepo,
+                warehouseRepoForStockOut,
                 inventoryCenterService, serialNumberService, sellOrderItemExtendSync, unitOfWork,
                 NullLogger<StockOutService>.Instance);
 
@@ -1494,6 +1501,7 @@ namespace CRM.IntegrationTests
                 _dataPermissionService, poSerialNumberService,
                 _financeExchangeRateService, _orderJourneyLog,
                 sellOrderItemExtendSync, poItemExtendSync, poLineSeq,
+                NullLogger<PurchaseOrderService>.Instance,
                 poUnitOfWork);
 
             // 模拟采购订单仓储
@@ -1715,9 +1723,13 @@ namespace CRM.IntegrationTests
             poRepo.GetByIdAsync("PO-002").Returns(new PurchaseOrder { Id = "PO-002", Status = 30 });
             var customerRepoForStockOut2 = Substitute.For<IRepository<CustomerInfo>>();
             customerRepoForStockOut2.GetAllAsync().Returns(new List<CustomerInfo>());
+            var warehouseRepoForStockOut2 = Substitute.For<IRepository<WarehouseInfo>>();
+            var materialRepoForStockOut2 = Substitute.For<IRepository<MaterialInfo>>();
+            materialRepoForStockOut2.GetAllAsync().Returns(new List<MaterialInfo>());
             var stockOutService = new StockOutService(
                 stockOutRepo, stockOutItemRepo, stockOutRequestRepo, pickingTaskRepo, stockRepo,
-                _salesOrderRepository, _salesOrderItemRepository, customerRepoForStockOut2, poItemRepo, poRepo, userRepo,
+                _salesOrderRepository, _salesOrderItemRepository, customerRepoForStockOut2, poItemRepo, poRepo, materialRepoForStockOut2, userRepo,
+                warehouseRepoForStockOut2,
                 inventoryCenterServiceForStockOut, stockOutSerialNumberService, sellOrderItemExtendSyncForStockOut, stockOutUnitOfWork,
                 NullLogger<StockOutService>.Instance);
 
@@ -1795,6 +1807,7 @@ namespace CRM.IntegrationTests
             var receiptUnitOfWork = Substitute.For<IUnitOfWork>();
             var receiptService = new FinanceReceiptService(
                 receiptRepo, receiptItemRepo, financeSellInvoiceRepo, sellInvoiceItemRepoLocal, _salesOrderRepository,
+                _userRepo,
                 dataPermissionServiceLocal, receiptSerialNumberService, sellOrderItemExtendSyncLocal, receiptUnitOfWork);
 
             // 模拟收款仓储

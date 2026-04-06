@@ -16,6 +16,7 @@ namespace CRM.Core.Tests.Services
         private readonly IRepository<SellOrderItemExtend> _soItemExtendRepository;
         private readonly IRepository<PurchaseOrder> _poRepository;
         private readonly IRepository<PurchaseOrderItem> _poItemRepository;
+        private readonly IRepository<PurchaseRequisition> _prRepository;
         private readonly IRepository<QuoteItem> _quoteItemRepository;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly ISerialNumberService _serialNumberService;
@@ -33,6 +34,7 @@ namespace CRM.Core.Tests.Services
             _soItemExtendRepository = Substitute.For<IRepository<SellOrderItemExtend>>();
             _poRepository = Substitute.For<IRepository<PurchaseOrder>>();
             _poItemRepository = Substitute.For<IRepository<PurchaseOrderItem>>();
+            _prRepository = Substitute.For<IRepository<PurchaseRequisition>>();
             _quoteItemRepository = Substitute.For<IRepository<QuoteItem>>();
             _dataPermissionService = Substitute.For<IDataPermissionService>();
             _serialNumberService = Substitute.For<ISerialNumberService>();
@@ -56,6 +58,7 @@ namespace CRM.Core.Tests.Services
                 _soItemExtendRepository,
                 _poRepository,
                 _poItemRepository,
+                _prRepository,
                 _quoteItemRepository,
                 _dataPermissionService,
                 _serialNumberService,

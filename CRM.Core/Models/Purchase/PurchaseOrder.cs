@@ -72,7 +72,10 @@ namespace CRM.Core.Models.Purchase
         [Column("err_status")]
         public short ErrStatus { get; set; } = 0;
 
-        /// <summary>订单类型 1=普通 2=紧急 3=样品</summary>
+        /// <summary>
+        /// 订单类型 1=客单采购 2=备货采购 3=样品采购。
+        /// 客单：由销售明细/采购申请链路生成且明细带销售行关联；备货：无销售明细关联的直采；样品：无销售关联时可选 3。
+        /// </summary>
         [Column("type")]
         public short Type { get; set; } = 1;
 
@@ -165,11 +168,10 @@ namespace CRM.Core.Models.Purchase
         [Column("purchase_order_item_code")]
         public string PurchaseOrderItemCode { get; set; } = string.Empty;
 
-        /// <summary>销售订单明细ID(外键) — 以销定采的核心关联字段</summary>
-        [Required]
+        /// <summary>销售订单明细ID(外键) — 以销定采；备货/手工行可为空</summary>
         [StringLength(36)]
         [Column("sell_order_item_id")]
-        public string SellOrderItemId { get; set; } = string.Empty;
+        public string? SellOrderItemId { get; set; }
 
         /// <summary>供应商ID</summary>
         [Required]

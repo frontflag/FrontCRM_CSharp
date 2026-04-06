@@ -35,19 +35,42 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<ApiResponse<StockOut>>> GetById(string id)
+        public async Task<ActionResult<ApiResponse<StockOutDetailViewDto>>> GetById(string id)
         {
             try
             {
-                var entity = await _service.GetByIdAsync(id);
-                if (entity == null)
-                    return NotFound(ApiResponse<StockOut>.Fail("出库单不存在", 404));
-                return Ok(ApiResponse<StockOut>.Ok(entity, "获取出库单成功"));
+                var dto = await _service.GetDetailViewAsync(id);
+                if (dto == null)
+                    return NotFound(ApiResponse<StockOutDetailViewDto>.Fail("出库单不存在", 404));
+                return Ok(ApiResponse<StockOutDetailViewDto>.Ok(dto, "获取出库单成功"));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取出库单失败");
-                return StatusCode(500, ApiResponse<StockOut>.Fail($"获取出库单失败: {ex.Message}", 500));
+                return StatusCode(500, ApiResponse<StockOutDetailViewDto>.Fail($"获取出库单失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>更新出库日期、出货方式、快递单号</summary>
+        [HttpPatch("{id}/header")]
+        public async Task<ActionResult<ApiResponse<object>>> UpdateHeader(string id, [FromBody] UpdateStockOutHeaderRequest? body)
+        {
+            try
+            {
+                if (body == null)
+                    return BadRequest(ApiResponse<object>.Fail("请求体不能为空", 400));
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.UpdateHeaderAsync(id, body, actorId);
+                return Ok(ApiResponse<object>.Ok(null, "保存成功"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "更新出库单头信息失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"保存失败: {ex.Message}", 500));
             }
         }
 
@@ -96,6 +119,7 @@ namespace CRM.API.Controllers
                     RequestUserId = body.RequestUserId ?? string.Empty,
                     RequestDate = body.RequestDate,
                     Remark = body.Remark,
+                    ShipmentMethod = body.ShipmentMethod,
                 };
                 var entity = await _service.CreateStockOutRequestAsync(request);
                 return Ok(ApiResponse<StockOutRequest>.Ok(entity, "创建出库申请成功"));

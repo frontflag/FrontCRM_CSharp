@@ -4,6 +4,7 @@ using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.System;
 using CRM.Core.Utilities;
+using Microsoft.Extensions.Logging;
 
 namespace CRM.Core.Services
 {
@@ -33,6 +34,7 @@ namespace CRM.Core.Services
         private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
         private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
         private readonly IPurchaseOrderExtendLineSeqService _poLineSeq;
+        private readonly ILogger<PurchaseOrderService> _logger;
 
         public PurchaseOrderService(
             IRepository<PurchaseOrder> poRepo,
@@ -47,6 +49,7 @@ namespace CRM.Core.Services
             ISellOrderItemExtendSyncService sellOrderItemExtendSync,
             IPurchaseOrderItemExtendSyncService poItemExtendSync,
             IPurchaseOrderExtendLineSeqService poLineSeq,
+            ILogger<PurchaseOrderService> logger,
             IUnitOfWork? unitOfWork = null)
         {
             _poRepo = poRepo;
@@ -61,11 +64,35 @@ namespace CRM.Core.Services
             _sellOrderItemExtendSync = sellOrderItemExtendSync;
             _poItemExtendSync = poItemExtendSync;
             _poLineSeq = poLineSeq;
+            _logger = logger;
             _unitOfWork = unitOfWork;
         }
 
         private static string? NormalizeActingUserId(string? actingUserId) =>
             string.IsNullOrWhiteSpace(actingUserId) ? null : actingUserId.Trim();
+
+        /// <summary>前端占位：无销售明细时传入的全零 GUID，不视为以销定采。</summary>
+        private const string EmptySellOrderItemSentinel = "00000000-0000-0000-0000-000000000000";
+
+        private static bool IsLinkedSellOrderPurchaseLine(string? sellOrderItemId) =>
+            !string.IsNullOrWhiteSpace(sellOrderItemId) &&
+            !string.Equals(sellOrderItemId.Trim(), EmptySellOrderItemSentinel, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>写入库：无销售行或前端占位 GUID → NULL，避免违反 sellorderitem 外键。</summary>
+        private static string? NormalizeStoredSellOrderItemId(string? sellOrderItemId) =>
+            IsLinkedSellOrderPurchaseLine(sellOrderItemId) ? sellOrderItemId!.Trim() : null;
+
+        /// <summary>
+        /// 有销售明细关联 → 客单采购(1)；否则备货(2)；无销售关联且请求为样品 → 3。
+        /// </summary>
+        private static short ResolvePurchaseOrderHeaderType(short requestedType, IEnumerable<CreatePurchaseOrderItemRequest> items)
+        {
+            if (items.Any(i => IsLinkedSellOrderPurchaseLine(i.SellOrderItemId)))
+                return 1;
+            if (requestedType == 3)
+                return 3;
+            return 2;
+        }
 
         public async Task<PurchaseOrder> CreateAsync(CreatePurchaseOrderRequest request, string? actingUserId = null)
         {
@@ -77,6 +104,21 @@ namespace CRM.Core.Services
             var purchaseOrderCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.PurchaseOrder);
 
             var total = request.Items.Sum(item => item.Qty * item.Cost);
+            var headerType = ResolvePurchaseOrderHeaderType(request.Type, request.Items);
+
+            _logger.LogInformation(
+                "PO CreateAsync 开始: RequestType={RequestType} HeaderType={HeaderType} ItemCount={ItemCount} VendorId={VendorId} PurchaseUserId={PurchaseUserId} ActingUserId={ActingUserId} GeneratedCode={Code}",
+                request.Type, headerType, request.Items.Count, request.VendorId, request.PurchaseUserId ?? "(null)", actingUserId ?? "(null)", purchaseOrderCode);
+
+            for (var i = 0; i < request.Items.Count; i++)
+            {
+                var it = request.Items[i];
+                var rawSell = it.SellOrderItemId;
+                var stored = NormalizeStoredSellOrderItemId(rawSell);
+                _logger.LogInformation(
+                    "PO CreateAsync 明细[{Index}]: SellOrderItemIdRaw={RawSell} StoredNull={StoredNull} PN={Pn} Qty={Qty} Cost={Cost} VendorId={LineVendorId}",
+                    i, string.IsNullOrEmpty(rawSell) ? "(empty)" : rawSell, stored == null, it.PN ?? "(null)", it.Qty, it.Cost, string.IsNullOrEmpty(it.VendorId) ? "(header)" : it.VendorId);
+            }
 
             var order = new PurchaseOrder
             {
@@ -88,7 +130,7 @@ namespace CRM.Core.Services
                 VendorContactId = request.VendorContactId,
                 PurchaseUserId = request.PurchaseUserId,
                 PurchaseUserName = request.PurchaseUserName,
-                Type = request.Type,
+                Type = headerType,
                 Currency = request.Currency,
                 DeliveryDate = PostgreSqlDateTime.ToUtc(request.DeliveryDate),
                 DeliveryAddress = request.DeliveryAddress,
@@ -102,7 +144,11 @@ namespace CRM.Core.Services
                 CreateByUserId = NormalizeActingUserId(actingUserId)
             };
             await _poRepo.AddAsync(order);
-            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+            if (_unitOfWork != null)
+            {
+                _logger.LogInformation("PO CreateAsync SaveChanges(主表): OrderId={OrderId}", order.Id);
+                await _unitOfWork.SaveChangesAsync();
+            }
 
             var fx = await _financeExchangeRateService.GetCurrentAsync();
             var firstSeq = await _poLineSeq.ReserveNextSequenceBlockAsync(order.Id, request.Items.Count);
@@ -116,7 +162,7 @@ namespace CRM.Core.Services
                     Id = Guid.NewGuid().ToString(),
                     PurchaseOrderId = order.Id,
                     PurchaseOrderItemCode = OrderLineItemCodes.Purchase(order.PurchaseOrderCode, seq),
-                    SellOrderItemId = item.SellOrderItemId,
+                    SellOrderItemId = NormalizeStoredSellOrderItemId(item.SellOrderItemId),
                     VendorId = item.VendorId.Length > 0 ? item.VendorId : request.VendorId,
                     ProductId = item.ProductId,
                     PN = item.PN,
@@ -138,9 +184,17 @@ namespace CRM.Core.Services
                 await AddPurchaseOrderItemExtendAsync(poItem);
             }
 
-            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+            if (_unitOfWork != null)
+            {
+                _logger.LogInformation("PO CreateAsync SaveChanges(明细+扩展): LineCount={Count} OrderId={OrderId}", createdLines.Count, order.Id);
+                await _unitOfWork.SaveChangesAsync();
+            }
 
-            foreach (var sid in createdLines.Select(x => x.SellOrderItemId).Distinct(StringComparer.OrdinalIgnoreCase))
+            foreach (var sid in createdLines
+                         .Select(x => x.SellOrderItemId)
+                         .Where(s => IsLinkedSellOrderPurchaseLine(s))
+                         .Select(s => s!.Trim())
+                         .Distinct(StringComparer.OrdinalIgnoreCase))
                 await _sellOrderItemExtendSync.RecalculateAsync(sid);
 
             foreach (var line in createdLines)
@@ -278,7 +332,7 @@ namespace CRM.Core.Services
             var sellItemIds = soItems.Where(i => i.SellOrderId == so.Id).Select(i => i.Id).ToHashSet();
 
             var poItems = await _poItemRepo.GetAllAsync();
-            var poIds = poItems.Where(i => sellItemIds.Contains(i.SellOrderItemId))
+            var poIds = poItems.Where(i => i.SellOrderItemId != null && sellItemIds.Contains(i.SellOrderItemId))
                                .Select(i => i.PurchaseOrderId).Distinct().ToHashSet();
 
             var allPo = await _poRepo.GetAllAsync();
@@ -288,7 +342,7 @@ namespace CRM.Core.Services
         public async Task<IEnumerable<PurchaseOrderItem>> GetItemsBySellOrderItemIdsAsync(List<string> sellOrderItemIds)
         {
             var all = await _poItemRepo.GetAllAsync();
-            return all.Where(i => sellOrderItemIds.Contains(i.SellOrderItemId));
+            return all.Where(i => i.SellOrderItemId != null && sellOrderItemIds.Contains(i.SellOrderItemId));
         }
 
         public async Task<IEnumerable<PurchaseOrder>> AutoGenerateFromSellOrderAsync(string sellOrderId, string? actingUserId = null)
@@ -308,7 +362,7 @@ namespace CRM.Core.Services
                 {
                     PurchaseOrderCode = string.Empty,
                     VendorId = "PENDING",
-                    Type = so.Type,
+                    Type = 1,
                     Currency = so.Currency,
                     DeliveryDate = item.DeliveryDate ?? so.DeliveryDate,
                     Comment = $"由销售订单 {so.SellOrderCode} 自动生成",
@@ -343,7 +397,6 @@ namespace CRM.Core.Services
             if (request.VendorName != null) order.VendorName = request.VendorName;
             if (request.PurchaseUserId != null) order.PurchaseUserId = request.PurchaseUserId;
             if (request.PurchaseUserName != null) order.PurchaseUserName = request.PurchaseUserName;
-            if (request.Type.HasValue) order.Type = request.Type.Value;
             if (request.Currency.HasValue) order.Currency = request.Currency.Value;
             if (request.DeliveryDate.HasValue) order.DeliveryDate = PostgreSqlDateTime.ToUtc(request.DeliveryDate.Value);
             if (request.DeliveryAddress != null) order.DeliveryAddress = request.DeliveryAddress;
@@ -377,7 +430,7 @@ namespace CRM.Core.Services
                         Id = Guid.NewGuid().ToString(),
                         PurchaseOrderId = id,
                         PurchaseOrderItemCode = OrderLineItemCodes.Purchase(order.PurchaseOrderCode, seq),
-                        SellOrderItemId = item.SellOrderItemId,
+                        SellOrderItemId = NormalizeStoredSellOrderItemId(item.SellOrderItemId),
                         VendorId = item.VendorId.Length > 0 ? item.VendorId : order.VendorId,
                         ProductId = item.ProductId,
                         PN = item.PN,
@@ -405,6 +458,15 @@ namespace CRM.Core.Services
                 order.ConvertTotal = total;
                 order.ItemRows = request.Items.Count;
                 replacedItemCount = request.Items.Count;
+                order.Type = ResolvePurchaseOrderHeaderType(request.Type ?? order.Type, request.Items);
+            }
+            else if (request.Type.HasValue)
+            {
+                var existingLines = (await _poItemRepo.GetAllAsync()).Where(i => i.PurchaseOrderId == id).ToList();
+                var hasSell = existingLines.Any(i => IsLinkedSellOrderPurchaseLine(i.SellOrderItemId));
+                order.Type = hasSell
+                    ? (short)1
+                    : ResolvePurchaseOrderHeaderType(request.Type.Value, Array.Empty<CreatePurchaseOrderItemRequest>());
             }
 
             order.ModifyTime = DateTime.UtcNow;
@@ -481,8 +543,8 @@ namespace CRM.Core.Services
             });
             var items = await _poItemRepo.GetAllAsync();
             var recalcAfterDelete = items
-                .Where(i => i.PurchaseOrderId == id && !string.IsNullOrWhiteSpace(i.SellOrderItemId))
-                .Select(i => i.SellOrderItemId.Trim())
+                .Where(i => i.PurchaseOrderId == id && IsLinkedSellOrderPurchaseLine(i.SellOrderItemId))
+                .Select(i => i.SellOrderItemId!.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
             foreach (var item in items.Where(i => i.PurchaseOrderId == id))
@@ -542,8 +604,8 @@ namespace CRM.Core.Services
             var statusSyncItems = await _poItemRepo.FindAsync(i => i.PurchaseOrderId == id);
             foreach (var sid in statusSyncItems
                          .Select(i => i.SellOrderItemId)
-                         .Where(s => !string.IsNullOrWhiteSpace(s))
-                         .Select(s => s.Trim())
+                         .Where(s => IsLinkedSellOrderPurchaseLine(s))
+                         .Select(s => s!.Trim())
                          .Distinct(StringComparer.OrdinalIgnoreCase))
                 await _sellOrderItemExtendSync.RecalculateAsync(sid);
 

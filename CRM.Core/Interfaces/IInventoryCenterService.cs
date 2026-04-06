@@ -40,6 +40,8 @@ namespace CRM.Core.Interfaces
         public string WarehouseId { get; set; } = string.Empty;
         /// <summary>仓库编码（由 WarehouseId 解析；无档案时前端可回退显示 WarehouseId）</summary>
         public string? WarehouseCode { get; set; }
+        /// <summary>库存类型 1=客单库存 2=备货库存 3=样品库存</summary>
+        public short StockType { get; set; } = 1;
         public decimal OnHandQty { get; set; }
         public decimal AvailableQty { get; set; }
         public decimal LockedQty { get; set; }
@@ -76,6 +78,19 @@ namespace CRM.Core.Interfaces
         public int StagnantMaterialCount { get; set; }
     }
 
+    /// <summary>拣货任务明细行（前端可展示备货补充标记）</summary>
+    public class PickingTaskLineDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string MaterialId { get; set; } = string.Empty;
+        public string? StockId { get; set; }
+        /// <summary>对应库存行类型 1客单 2备货 3样品；无库存记录时可为空</summary>
+        public short? StockType { get; set; }
+        public decimal PlanQty { get; set; }
+        public decimal PickedQty { get; set; }
+        public bool IsStockingSupplement { get; set; }
+    }
+
     /// <summary>拣货任务列表（含明细汇总数量，供前端展示）</summary>
     public class PickingTaskSummaryDto
     {
@@ -91,6 +106,9 @@ namespace CRM.Core.Interfaces
         public decimal PlanQtyTotal { get; set; }
         /// <summary>本任务拣货明细已拣数量合计</summary>
         public decimal PickedQtyTotal { get; set; }
+        /// <summary>本任务涉及的库存类型（去重排序，1客单 2备货 3样品）</summary>
+        public List<short> DistinctStockTypes { get; set; } = new();
+        public List<PickingTaskLineDto> Items { get; set; } = new();
     }
 
     public class GeneratePickingTaskRequest

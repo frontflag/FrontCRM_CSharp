@@ -1,5 +1,6 @@
 import apiClient from './client';
 import { parseApiBoolean } from '@/utils/parseApiBoolean';
+import { industryCellToStorageLabel } from '@/utils/customerIndustryStorage';
 import type {
   Customer,
   CustomerContactInfo,
@@ -276,7 +277,7 @@ export const customerApi = {
       const lv = mapCustomerLevelToInt(params.customerLevel);
       queryParams.append('customerLevel', String(lv));
     }
-    if (params.industry) queryParams.append('industry', params.industry);
+    if (params.industry) queryParams.append('industry', industryCellToStorageLabel(params.industry));
     if (params.region) queryParams.append('region', params.region);
     if (params.salesPersonId) queryParams.append('salesUserId', params.salesPersonId);
     if (params.createdFrom) queryParams.append('createdFrom', params.createdFrom);
@@ -355,6 +356,9 @@ export const customerApi = {
     if (backendData.invoiceType === '' || backendData.invoiceType === 0) {
       backendData.invoiceType = undefined;
     }
+    if (backendData.industry != null && String(backendData.industry).trim() !== '') {
+      backendData.industry = industryCellToStorageLabel(String(backendData.industry));
+    }
     return await apiClient.post<Customer>('/api/v1/customers', backendData);
   },
 
@@ -380,6 +384,9 @@ export const customerApi = {
     delete backendData.ascriptionType;
     if (backendData.invoiceType === '' || backendData.invoiceType === 0) {
       backendData.invoiceType = undefined;
+    }
+    if (backendData.industry != null && String(backendData.industry).trim() !== '') {
+      backendData.industry = industryCellToStorageLabel(String(backendData.industry));
     }
     return await apiClient.put<Customer>(`/api/v1/customers/${id}`, backendData);
   },

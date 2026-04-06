@@ -1,8 +1,10 @@
 using CRM.API.Authorization;
 using CRM.Core.Interfaces;
+using CRM.Core.Models;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.Quote;
+using CRM.Core.Models.RFQ;
 using CRM.Core.Models.Vendor;
 using CRM.Core.Utilities;
 using Microsoft.AspNetCore.Mvc;
@@ -20,9 +22,11 @@ namespace CRM.API.Controllers
         private readonly IRepository<SellOrderItem> _soItemRepo;
         private readonly IVendorService _vendorService;
         private readonly IRepository<QuoteItem> _quoteItemRepo;
+        private readonly IRepository<RFQItem> _rfqItemRepo;
         private readonly IQuoteService _quoteService;
         private readonly ILogger<PurchaseRequisitionsController> _logger;
         private readonly IEntityLookupService _entityLookupService;
+        private readonly IRepository<User> _userRepo;
 
         public PurchaseRequisitionsController(
             IPurchaseRequisitionService service,
@@ -31,8 +35,10 @@ namespace CRM.API.Controllers
             IRepository<SellOrderItem> soItemRepo,
             IVendorService vendorService,
             IRepository<QuoteItem> quoteItemRepo,
+            IRepository<RFQItem> rfqItemRepo,
             IQuoteService quoteService,
             IEntityLookupService entityLookupService,
+            IRepository<User> userRepo,
             ILogger<PurchaseRequisitionsController> logger)
         {
             _service = service;
@@ -41,9 +47,11 @@ namespace CRM.API.Controllers
             _soItemRepo = soItemRepo;
             _vendorService = vendorService;
             _quoteItemRepo = quoteItemRepo;
+            _rfqItemRepo = rfqItemRepo;
             _quoteService = quoteService;
             _logger = logger;
             _entityLookupService = entityLookupService;
+            _userRepo = userRepo;
         }
 
         /// <summary>采购申请列表</summary>
@@ -86,6 +94,32 @@ namespace CRM.API.Controllers
 
                 var soCodeById = (await _soRepo.GetAllAsync()).ToDictionary(s => s.Id, s => s.SellOrderCode);
 
+                var userIds = slice
+                    .SelectMany(p => new[] { p.PurchaseUserId, p.CreateByUserId })
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Select(id => id!.Trim())
+                    .Distinct()
+                    .ToList();
+
+                var userNameById = new Dictionary<string, string>(StringComparer.Ordinal);
+                if (userIds.Count > 0)
+                {
+                    var idSet = userIds.ToHashSet(StringComparer.Ordinal);
+                    var users = await _userRepo.FindIgnoreFiltersAsync(u => idSet.Contains(u.Id));
+                    foreach (var u in users)
+                    {
+                        if (!string.IsNullOrWhiteSpace(u.UserName))
+                            userNameById[u.Id] = u.UserName.Trim();
+                    }
+                }
+
+                string? AccountFor(string? userId)
+                {
+                    if (string.IsNullOrWhiteSpace(userId)) return null;
+                    var key = userId.Trim();
+                    return userNameById.TryGetValue(key, out var name) ? name : null;
+                }
+
                 var items = slice.Select(p => new
                 {
                     id = p.Id,
@@ -100,10 +134,12 @@ namespace CRM.API.Controllers
                     status = p.Status,
                     type = p.Type,
                     purchaseUserId = p.PurchaseUserId,
+                    purchaseUserAccount = AccountFor(p.PurchaseUserId),
                     quoteVendorId = p.QuoteVendorId,
                     quoteCost = p.QuoteCost,
                     remark = p.Remark,
-                    createTime = p.CreateTime
+                    createTime = p.CreateTime,
+                    createUserAccount = AccountFor(p.CreateByUserId)
                 }).ToList();
 
                 return Ok(new
@@ -152,6 +188,29 @@ namespace CRM.API.Controllers
                     prefillPurchaseUserName =
                         await _entityLookupService.GetUserDisplayNameAsync(prefillPurchaseUserId);
                 }
+
+                // 需求明细上的询价采购员（报价阶段未选采购员时，用需求分配采购员兜底）
+                string? prefillRfqPurchaserUserId = null;
+                string? prefillRfqPurchaserUserName = null;
+                if (headerQuote != null && !string.IsNullOrWhiteSpace(headerQuote.RFQItemId))
+                {
+                    var rfqItem = await _rfqItemRepo.GetByIdAsync(headerQuote.RFQItemId.Trim());
+                    if (rfqItem != null)
+                    {
+                        var rid = !string.IsNullOrWhiteSpace(rfqItem.AssignedPurchaserUserId1)
+                            ? rfqItem.AssignedPurchaserUserId1.Trim()
+                            : rfqItem.AssignedPurchaserUserId2?.Trim();
+                        if (!string.IsNullOrWhiteSpace(rid))
+                        {
+                            prefillRfqPurchaserUserId = rid;
+                            prefillRfqPurchaserUserName =
+                                await _entityLookupService.GetUserDisplayNameAsync(rid);
+                        }
+                    }
+                }
+
+                // 采购申请来自销售链路 → 生成采购订单预填客单采购 Type=1（与头字段 PurchaseOrder.Type 语义一致；前端可改）
+                const short prefillPurchaseOrderType = 1;
 
                 // 从报价主表 QuoteId 关联的明细中取一行回填供应商/联系人（不按销单行 PN/品牌/单价等再匹配）
                 QuoteItem? matchedQuoteItem = null;
@@ -218,6 +277,9 @@ namespace CRM.API.Controllers
                         purchaseUserName = purchaseUserName,
                         prefillPurchaseUserId = prefillPurchaseUserId,
                         prefillPurchaseUserName = prefillPurchaseUserName,
+                        prefillRfqPurchaserUserId = prefillRfqPurchaserUserId,
+                        prefillRfqPurchaserUserName = prefillRfqPurchaserUserName,
+                        prefillPurchaseOrderType = prefillPurchaseOrderType,
                         quoteVendorId = vendorIdFromQuote,
                         quoteCost = pr.QuoteCost != 0m ? pr.QuoteCost : (matchedQuoteItem?.UnitPrice ?? 0m),
                         intendedVendorName = intendedVendorName,

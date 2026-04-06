@@ -32,7 +32,9 @@
       :columns="stockOutTableColumns"
       :show-column-settings="false"
       :data="filteredList"
+      row-key="id"
       v-loading="loading"
+      @row-dblclick="onRowDblclick"
     >
       <template #col-status="{ row }">
         <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
@@ -46,6 +48,8 @@
       <template #col-customerName="{ row }">{{ row.customerName || t('quoteList.na') }}</template>
       <template #col-salesUserName="{ row }">{{ row.salesUserName || t('quoteList.na') }}</template>
       <template #col-sellOrderItemCode="{ row }">{{ row.sellOrderItemCode || t('quoteList.na') }}</template>
+      <template #col-shipmentMethod="{ row }">{{ row.shipmentMethod || t('quoteList.na') }}</template>
+      <template #col-courierTrackingNo="{ row }">{{ row.courierTrackingNo || t('quoteList.na') }}</template>
       <template #col-actions-header>
         <div class="op-col-header">
           <span class="op-col-header-text">{{ t('stockOutList.columns.actions') }}</span>
@@ -57,6 +61,7 @@
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
+            <button type="button" class="action-btn" @click.stop="goDetail(row)">{{ t('stockOutList.actions.detail') }}</button>
             <button
               v-if="row.status !== 4"
               type="button"
@@ -72,6 +77,9 @@
             </div>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item @click.stop="goDetail(row)">
+                  <span class="op-more-item op-more-item--primary">{{ t('stockOutList.actions.detail') }}</span>
+                </el-dropdown-item>
                 <el-dropdown-item v-if="row.status !== 4" @click.stop="handleMarkFinish(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('stockOutList.actions.markFinished') }}</span>
                 </el-dropdown-item>
@@ -114,8 +122,8 @@ const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 96
-const OP_COL_EXPANDED_WIDTH = 140
-const OP_COL_EXPANDED_MIN_WIDTH = 140
+const OP_COL_EXPANDED_WIDTH = 200
+const OP_COL_EXPANDED_MIN_WIDTH = 200
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() =>
   opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH
@@ -132,6 +140,8 @@ const stockOutTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'salesUserName', label: t('stockOutList.columns.salesUserName'), prop: 'salesUserName', width: 110, minWidth: 100, showOverflowTooltip: true },
   { key: 'sellOrderItemCode', label: t('stockOutList.columns.sellOrderItemCode'), prop: 'sellOrderItemCode', width: 160, minWidth: 140, showOverflowTooltip: true },
   { key: 'stockOutDate', label: t('stockOutList.columns.stockOutDate'), prop: 'stockOutDate', width: 170 },
+  { key: 'shipmentMethod', label: t('stockOutList.columns.shipmentMethod'), prop: 'shipmentMethod', width: 120, minWidth: 100, showOverflowTooltip: true },
+  { key: 'courierTrackingNo', label: t('stockOutList.columns.courierTrackingNo'), prop: 'courierTrackingNo', width: 140, minWidth: 120, showOverflowTooltip: true },
   { key: 'totalQuantity', label: t('stockOutList.columns.totalQuantity'), prop: 'totalQuantity', width: 110, align: 'right' },
   { key: 'remark', label: t('stockOutList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
   { key: 'createTime', label: t('stockOutList.columns.createTime'), width: 170 },
@@ -188,7 +198,10 @@ const filteredList = computed(() => {
   return list.value.filter(
     (x) =>
       (x.stockOutCode || '').toLowerCase().includes(k) ||
-      (x.sourceCode && x.sourceCode.toLowerCase().includes(k))
+      (x.sourceCode && x.sourceCode.toLowerCase().includes(k)) ||
+      (x.sellOrderItemCode && String(x.sellOrderItemCode).toLowerCase().includes(k)) ||
+      (x.shipmentMethod && String(x.shipmentMethod).toLowerCase().includes(k)) ||
+      (x.courierTrackingNo && String(x.courierTrackingNo).toLowerCase().includes(k))
   )
 })
 
@@ -207,6 +220,15 @@ const fetchList = async () => {
 const handleSearch = () => {
   const k = keyword.value.trim()
   router.replace({ name: 'StockOutList', query: k ? { keyword: k } : {} })
+}
+
+function goDetail(row: StockOutDto) {
+  if (!row?.id) return
+  router.push({ name: 'StockOutDetail', params: { id: row.id } })
+}
+
+function onRowDblclick(row: StockOutDto) {
+  goDetail(row)
 }
 
 const handleMarkFinish = async (row: StockOutDto) => {
@@ -347,5 +369,27 @@ onMounted(() => {
 .list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
+}
+
+.op-more-dropdown-trigger {
+  display: inline-flex;
+}
+.op-more-trigger {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: $cyan-primary;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 6px;
+}
+.op-more-item {
+  font-size: 13px;
+}
+.op-more-item--primary {
+  color: $cyan-primary;
+}
+.op-more-item--warning {
+  color: $color-amber;
 }
 </style>

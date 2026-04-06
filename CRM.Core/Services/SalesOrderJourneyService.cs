@@ -200,7 +200,7 @@ namespace CRM.Core.Services
 
             // 采购订单（PO）：通过 POItem.SellOrderItemId -> SOItem
             var soItemIds = soItems.Select(i => i.Id).ToList();
-            var poItems = soItemIds.Count == 0 ? new List<PurchaseOrderItem>() : (await _poItemRepo.FindAsync(i => soItemIds.Contains(i.SellOrderItemId))).ToList();
+            var poItems = soItemIds.Count == 0 ? new List<PurchaseOrderItem>() : (await _poItemRepo.FindAsync(i => i.SellOrderItemId != null && soItemIds.Contains(i.SellOrderItemId!))).ToList();
             var poIds = poItems.Select(i => i.PurchaseOrderId).Distinct().ToList();
             var pos = poIds.Count == 0 ? new List<PurchaseOrder>() : (await _poRepo.FindAsync(p => poIds.Contains(p.Id))).ToList();
 

@@ -18,6 +18,7 @@ namespace CRM.Core.Services
         private readonly IRepository<SellOrderItemExtend> _soItemExtendRepo;
         private readonly IRepository<PurchaseOrder> _poRepo;
         private readonly IRepository<PurchaseOrderItem> _poItemRepo;
+        private readonly IRepository<PurchaseRequisition> _prRepo;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
@@ -34,6 +35,7 @@ namespace CRM.Core.Services
             IRepository<SellOrderItemExtend> soItemExtendRepo,
             IRepository<PurchaseOrder> poRepo,
             IRepository<PurchaseOrderItem> poItemRepo,
+            IRepository<PurchaseRequisition> prRepo,
             IRepository<QuoteItem> quoteItemRepo,
             IDataPermissionService dataPermissionService,
             ISerialNumberService serialNumberService,
@@ -49,6 +51,7 @@ namespace CRM.Core.Services
             _soItemExtendRepo = soItemExtendRepo;
             _poRepo = poRepo;
             _poItemRepo = poItemRepo;
+            _prRepo = prRepo;
             _quoteItemRepo = quoteItemRepo;
             _dataPermissionService = dataPermissionService;
             _serialNumberService = serialNumberService;
@@ -504,7 +507,7 @@ namespace CRM.Core.Services
             var sellItemIds = soItems.Where(i => i.SellOrderId == sellOrderId)
                                      .Select(i => i.Id).ToHashSet();
             var poItems = await _poItemRepo.GetAllAsync();
-            var relatedPoIds = poItems.Where(i => sellItemIds.Contains(i.SellOrderItemId))
+            var relatedPoIds = poItems.Where(i => i.SellOrderItemId != null && sellItemIds.Contains(i.SellOrderItemId))
                                        .Select(i => i.PurchaseOrderId).Distinct().ToList();
             var allPo = await _poRepo.GetAllAsync();
             return allPo.Where(p => relatedPoIds.Contains(p.Id)).Cast<object>();
@@ -647,6 +650,53 @@ namespace CRM.Core.Services
                     row.StockOutApplyPurchaseGateOk = !string.IsNullOrEmpty(key) &&
                                                       gate.TryGetValue(key, out var g) && g;
                 }
+
+                try
+                {
+                    var idsForQty = list
+                        .Select(x => x.SellOrderItemId)
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Select(s => s.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    if (idsForQty.Count > 0)
+                    {
+                        var poItemsForQty = (await _poItemRepo.FindAsync(i => i.SellOrderItemId != null && idsForQty.Contains(i.SellOrderItemId!)))
+                            .ToList();
+                        var purchasedByLine = poItemsForQty
+                            .Where(i => !string.IsNullOrWhiteSpace(i.SellOrderItemId))
+                            .GroupBy(i => i.SellOrderItemId!.Trim(), StringComparer.OrdinalIgnoreCase)
+                            .ToDictionary(g => g.Key, g => g.Sum(x => x.Qty), StringComparer.OrdinalIgnoreCase);
+
+                        var prForQty = (await _prRepo.FindAsync(r => idsForQty.Contains(r.SellOrderItemId)))
+                            .ToList();
+                        var openPrByLine = prForQty
+                            .Where(r => r.Status == 0 || r.Status == 1)
+                            .Where(r => !string.IsNullOrWhiteSpace(r.SellOrderItemId))
+                            .GroupBy(r => r.SellOrderItemId.Trim(), StringComparer.OrdinalIgnoreCase)
+                            .ToDictionary(g => g.Key, g => g.Sum(x => x.Qty), StringComparer.OrdinalIgnoreCase);
+
+                        foreach (var row in list)
+                        {
+                            var id = row.SellOrderItemId?.Trim() ?? string.Empty;
+                            if (string.IsNullOrEmpty(id))
+                            {
+                                row.PurchaseRemainingQty = 0m;
+                                continue;
+                            }
+
+                            var purchased = purchasedByLine.TryGetValue(id, out var pv) ? pv : 0m;
+                            var openPr = openPrByLine.TryGetValue(id, out var ov) ? ov : 0m;
+                            row.PurchaseRemainingQty = row.Qty - purchased - openPr;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "[SellLinePurchaseRemaining] GetSellOrderItemLinesPagedAsync merge purchase remaining qty failed; PurchaseRemainingQty left unset. LineIdCount={Count}",
+                        list.Count);
+                }
             }
 
             var total = list.Count;
@@ -690,7 +740,7 @@ namespace CRM.Core.Services
 
             var min = PurchaseOrderMainStatusCodes.VendorConfirmedOrBeyond;
             var bySellLine = allPoItems
-                .GroupBy(i => i.SellOrderItemId.Trim(), StringComparer.OrdinalIgnoreCase)
+                .GroupBy(i => i.SellOrderItemId!.Trim(), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
 
             var result = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);

@@ -56,7 +56,7 @@ namespace CRM.Core.Models.Sales
         [Column("err_status")]
         public short ErrStatus { get; set; } = 0;
 
-        /// <summary>订单类型 1=普通 2=紧急 3=样品</summary>
+        /// <summary>订单类型 1=客单采购 2=备货采购 3=样品采购</summary>
         [Column("type")]
         public short Type { get; set; } = 1;
 

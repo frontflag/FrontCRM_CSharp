@@ -94,6 +94,12 @@ namespace CRM.Core.Interfaces
         /// </summary>
         public bool StockOutApplyPurchaseGateOk { get; set; }
 
+        /// <summary>
+        /// 剩余可采数量（订单量 − 已下采购 − 进行中采购申请）；与 <see cref="IPurchaseRequisitionService.GetSellOrderLineOptionsAsync"/> 口径一致。
+        /// 列表计算失败时为 null，前端不因缺字段误禁用。
+        /// </summary>
+        public decimal? PurchaseRemainingQty { get; set; }
+
         /// <summary>扩展表：预计销售利润 USD（销售折 USD − 已确认采购折 USD）</summary>
         public decimal SalesProfitExpected { get; set; }
 
@@ -116,7 +122,7 @@ namespace CRM.Core.Interfaces
         public string? SalesUserId { get; set; }
         /// <summary>业务员名称</summary>
         public string? SalesUserName { get; set; }
-        /// <summary>订单类型 1=普通 2=紧急 3=样品</summary>
+        /// <summary>订单类型 1=客单采购 2=备货采购 3=样品采购</summary>
         public short Type { get; set; } = 1;
         /// <summary>币别 1=RMB 2=USD 3=EUR</summary>
         public short Currency { get; set; } = 1;

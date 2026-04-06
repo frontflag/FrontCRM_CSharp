@@ -1,4 +1,5 @@
 import type { LocationQuery } from 'vue-router'
+import { normalizeIndustryQueryParam } from '@/utils/customerIndustryStorage'
 
 /** 与列表栏、URL query 同步的筛选字段（不含分页、排序） */
 export interface CustomerListFilterQuery {
@@ -32,7 +33,7 @@ export function parseCustomerListQuery(query: LocationQuery): CustomerListFilter
     const n = Number(ctRaw)
     customerType = Number.isFinite(n) ? n : undefined
   }
-  const industry = firstParam(query, 'industry') || undefined
+  const industry = normalizeIndustryQueryParam(firstParam(query, 'industry'))
   const customerLevel = firstParam(query, 'customerLevel') || undefined
   const salesUserId = firstParam(query, 'salesUserId') || undefined
   const createdFrom = firstParam(query, 'createdFrom') || undefined

@@ -51,9 +51,9 @@ namespace CRM.Core.Services
 
             var soItemIds = soItems.Select(i => i.Id).ToList();
 
-            var poItems = (await _poItemRepo.FindAsync(i => soItemIds.Contains(i.SellOrderItemId))).ToList();
+            var poItems = (await _poItemRepo.FindAsync(i => i.SellOrderItemId != null && soItemIds.Contains(i.SellOrderItemId!))).ToList();
             var purchasedQtyBySellItemId = poItems
-                .GroupBy(i => i.SellOrderItemId)
+                .GroupBy(i => i.SellOrderItemId!)
                 .ToDictionary(g => g.Key, g => g.Sum(x => x.Qty));
 
             var prRows = (await _prRepo.FindAsync(r => soItemIds.Contains(r.SellOrderItemId))).ToList();

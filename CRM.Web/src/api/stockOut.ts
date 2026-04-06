@@ -28,6 +28,17 @@ export interface StockOutDto {
   customerName?: string
   salesUserName?: string
   sellOrderItemCode?: string
+  /** 出货方式（字典 LogisticsArrivalMethod ItemCode） */
+  shipmentMethod?: string | null
+  courierTrackingNo?: string | null
+}
+
+/** GET /api/v1/stock-out/:id（详情视图，含仓库与明细主键） */
+export interface StockOutDetailDto extends StockOutDto {
+  warehouseId?: string
+  /** 仓库编号（服务端由 WarehouseId 解析） */
+  warehouseCode?: string | null
+  sellOrderItemId?: string
 }
 
 /** GET /api/v1/stock-out/request/apply-context */
@@ -59,6 +70,8 @@ export interface StockOutRequestDto {
   requestDate: string
   status: number
   remark?: string
+  /** 出货方式（字典 LogisticsArrivalMethod ItemCode） */
+  shipmentMethod?: string | null
   createTime?: string
 }
 
@@ -68,14 +81,21 @@ export const stockOutApi = {
     return unwrapArray<StockOutDto>(res)
   },
 
-  async getById(id: string): Promise<StockOutDto | null> {
+  async getById(id: string): Promise<StockOutDetailDto | null> {
     const res = await apiClient.get<unknown>(`/api/v1/stock-out/${id}`)
     if (res && typeof res === 'object') {
       const o = res as Record<string, unknown>
       const inner = o.data ?? o.Data
-      if (inner && typeof inner === 'object') return inner as StockOutDto
+      if (inner && typeof inner === 'object') return inner as StockOutDetailDto
     }
-    return (res as StockOutDto) ?? null
+    return (res as StockOutDetailDto) ?? null
+  },
+
+  async updateHeader(
+    id: string,
+    body: { stockOutDate: string; shipmentMethod?: string | null; courierTrackingNo?: string | null }
+  ): Promise<void> {
+    await apiClient.patch(`/api/v1/stock-out/${id}/header`, body)
   },
 
   async getRequestList(): Promise<StockOutRequestDto[]> {
@@ -100,6 +120,7 @@ export const stockOutApi = {
     requestUserId: string
     requestDate: string
     remark?: string
+    shipmentMethod?: string | null
   }): Promise<StockOutRequestDto> {
     // 去掉 Vue Proxy / 非枚举属性，保证 quantity 与网络载荷一致
     const body = JSON.parse(JSON.stringify(data)) as typeof data

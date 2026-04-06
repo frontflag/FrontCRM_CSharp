@@ -12,18 +12,12 @@
           </div>
           <h1 class="page-title">{{ t('inventoryList.title') }}</h1>
         </div>
-        <div class="count-badge">{{ t('inventoryList.count', { count: list.length }) }}</div>
+        <div class="count-badge">{{ t('inventoryList.count', { count: filteredInventoryList.length }) }}</div>
       </div>
       <div class="header-right">
-        <el-input
-          v-model="warehouseFilter"
-          :placeholder="t('inventoryList.filters.warehouseId')"
-          clearable
-          style="width: 180px; margin-right: 8px;"
-          @keyup.enter="fetchList"
-        />
-        <button class="btn-secondary" @click="openWarehouseDialog">{{ t('inventoryList.actions.warehouseManagement') }}</button>
-        <button class="btn-primary" @click="fetchList">{{ t('inventoryList.actions.refresh') }}</button>
+        <button class="btn-primary" type="button" @click="openWarehouseDialog">
+          {{ t('inventoryList.actions.warehouseManagement') }}
+        </button>
       </div>
     </div>
 
@@ -46,18 +40,70 @@
       </div>
     </div>
 
+    <!-- 搜索栏：与客户列表 search-bar / search-left / status-select 一致 -->
+    <div class="search-bar">
+      <div class="search-left">
+        <el-select
+          v-model="stockTypeFilter"
+          :placeholder="t('inventoryList.filters.allOrderTypes')"
+          clearable
+          :filterable="false"
+          class="status-select status-select--inv-order"
+          :teleported="false"
+          @change="fetchList"
+        >
+          <el-option :label="t('inventoryList.stockTypes.customer')" :value="1" />
+          <el-option :label="t('inventoryList.stockTypes.stocking')" :value="2" />
+          <el-option :label="t('inventoryList.stockTypes.sample')" :value="3" />
+        </el-select>
+        <el-select
+          v-model="warehouseFilter"
+          :placeholder="t('inventoryList.filters.allInventoryCodes')"
+          clearable
+          :filterable="false"
+          class="status-select status-select--inv-warehouse"
+          :teleported="false"
+          @change="fetchList"
+        >
+          <el-option
+            v-for="opt in warehouseSelectOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <button type="button" class="btn-primary btn-sm" @click="fetchList">
+          {{ t('inventoryList.filters.search') }}
+        </button>
+        <button type="button" class="btn-ghost btn-sm" @click="resetInventorySearch">
+          {{ t('inventoryList.filters.reset') }}
+        </button>
+      </div>
+    </div>
+
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="inventory-list-main"
+      column-layout-key="inventory-list-main-v2"
       :columns="inventoryTableColumns"
       :show-column-settings="false"
-      :data="list"
+      :data="filteredInventoryList"
       v-loading="loading"
       @row-dblclick="onRowDblclick"
     >
       <template #col-materialModel="{ row }">{{ materialModelDisplay(row) }}</template>
       <template #col-materialBrand="{ row }">{{ materialBrandDisplay(row) }}</template>
       <template #col-warehouseName="{ row }">{{ warehouseNameOf(row.warehouseId) }}</template>
+      <template #col-stockType="{ row }">
+        <span
+          class="inv-stock-type-cell"
+          :class="{ 'inv-stock-type-cell--stocking': rowStockTypeNum(row) === 2 }"
+        >
+          <span>{{ stockTypeLabel(row) }}</span>
+          <el-icon v-if="rowStockTypeNum(row) === 2" class="inv-stock-type-icon" aria-hidden="true">
+            <Box />
+          </el-icon>
+        </span>
+      </template>
       <template #col-onHandQty="{ row }">{{ formatNum(row.onHandQty) }}</template>
       <template #col-availableQty="{ row }">{{ formatNum(row.availableQty) }}</template>
       <template #col-lockedQty="{ row }">{{ formatNum(row.lockedQty) }}</template>
@@ -175,7 +221,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Setting } from '@element-plus/icons-vue'
+import { Box, Setting } from '@element-plus/icons-vue'
 import { inventoryCenterApi, type FinanceSummary, type InventoryOverview, type WarehouseInfo } from '@/api/inventoryCenter'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -186,8 +232,11 @@ const router = useRouter()
 const { t } = useI18n()
 const loading = ref(false)
 const list = ref<InventoryOverview[]>([])
+/** 库存类型 1/2/3，空为全部（仅前端筛选当前已加载总览） */
+const stockTypeFilter = ref<number | undefined>(undefined)
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
-const warehouseFilter = ref('')
+/** 筛选总览用的仓库主键或编码（与 stock.warehouseId 一致） */
+const warehouseFilter = ref<string | undefined>(undefined)
 const finance = ref<FinanceSummary | null>(null)
 const warehouseVisible = ref(false)
 const warehouses = ref<WarehouseInfo[]>([])
@@ -206,6 +255,7 @@ function toggleOpColMain() {
 }
 
 const inventoryTableColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'stockType', label: t('inventoryList.columns.stockType'), width: 138, showOverflowTooltip: true },
   { key: 'materialModel', label: t('inventoryList.columns.materialModel'), minWidth: 160, showOverflowTooltip: true },
   { key: 'materialBrand', label: t('inventoryList.columns.brand'), minWidth: 120, showOverflowTooltip: true },
   { key: 'warehouseName', label: t('inventoryList.columns.warehouseName'), width: 160, showOverflowTooltip: true },
@@ -272,6 +322,54 @@ const resetWarehouseForm = () => {
 
 const loadWarehouseForEdit = (row: WarehouseInfo) => {
   warehouseForm.value = normalizeWarehouseRow(row)
+}
+
+/** 库存编号下拉：仓库编码 + 名称，值为 id 优先否则编码 */
+const warehouseSelectOptions = computed(() => {
+  const rows = warehouses.value.map(normalizeWarehouseRow)
+  const opts = rows
+    .map((n) => {
+      const value = (n.id?.trim() || n.warehouseCode || '').trim()
+      if (!value) return null
+      const code = n.warehouseCode?.trim()
+      const name = n.warehouseName?.trim()
+      const label =
+        code && name ? `${code} · ${name}` : code || name || value
+      return { value, label }
+    })
+    .filter((x): x is { value: string; label: string } => x != null)
+  const byVal = new Map<string, { value: string; label: string }>()
+  for (const o of opts) {
+    if (!byVal.has(o.value)) byVal.set(o.value, o)
+  }
+  return [...byVal.values()].sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'))
+})
+
+function rowStockTypeNum(row: InventoryOverview): number {
+  const r = row as unknown as Record<string, unknown>
+  const n = Number(r.stockType ?? r.StockType ?? 1)
+  return n >= 1 && n <= 3 ? n : 1
+}
+
+const stockTypeLabel = (row: InventoryOverview) => {
+  const n = rowStockTypeNum(row)
+  if (n === 2) return t('inventoryList.stockTypes.stocking')
+  if (n === 3) return t('inventoryList.stockTypes.sample')
+  if (n === 1) return t('inventoryList.stockTypes.customer')
+  return t('inventoryList.stockTypes.unknown')
+}
+
+const filteredInventoryList = computed(() => {
+  const rows = list.value
+  const ft = stockTypeFilter.value
+  if (ft === undefined || ft === null) return rows
+  return rows.filter(r => rowStockTypeNum(r) === ft)
+})
+
+function resetInventorySearch() {
+  stockTypeFilter.value = undefined
+  warehouseFilter.value = undefined
+  void fetchList()
 }
 
 const formatNum = (v: number) => (v == null ? t('quoteList.na') : Number(v).toLocaleString())
@@ -345,7 +443,7 @@ const fetchList = async () => {
   loading.value = true
   try {
     const [overviewRes, summaryRes, warehouseRes] = await Promise.allSettled([
-      inventoryCenterApi.getOverview(warehouseFilter.value || undefined),
+      inventoryCenterApi.getOverview(warehouseFilter.value?.trim() || undefined),
       inventoryCenterApi.getFinanceSummary(),
       inventoryCenterApi.getWarehouses()
     ])
@@ -434,10 +532,55 @@ onMounted(() => fetchList())
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   margin-bottom: 20px;
   .header-left { display: flex; align-items: center; gap: 12px; }
-  .header-right { display: flex; align-items: center; gap: 8px; }
+  .header-right {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
 }
+
+// ---- 搜索栏（与客户列表 CustomerList.vue 一致）----
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.search-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.status-select {
+  width: 120px;
+  :deep(.el-select__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+  :deep(.el-select__placeholder) {
+    color: $text-muted !important;
+  }
+  :deep(.el-select__selected-item) {
+    color: $text-primary !important;
+  }
+}
+
+.status-select--inv-order {
+  width: 148px;
+}
+
+.status-select--inv-warehouse {
+  width: 220px;
+}
+
 .page-title-group {
   display: flex;
   align-items: center;
@@ -463,6 +606,21 @@ onMounted(() => fetchList())
   border-radius: 20px;
   padding: 3px 10px;
 }
+
+.inv-stock-type-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.inv-stock-type-cell--stocking {
+  color: #ffc107;
+  font-weight: 600;
+}
+.inv-stock-type-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
 .btn-primary,
 .btn-secondary {
   display: inline-flex;
@@ -471,13 +629,50 @@ onMounted(() => fetchList())
   padding: 8px 14px;
   border-radius: $border-radius-md;
   font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
   cursor: pointer;
   border: 1px solid transparent;
+  transition: all 0.2s;
 }
 .btn-primary {
   background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
   border-color: rgba(0, 212, 255, 0.4);
   color: #fff;
+  letter-spacing: 0.5px;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: rgba(0, 212, 255, 0.3);
+    color: $text-secondary;
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
 }
 .btn-secondary {
   background: rgba(255, 255, 255, 0.05);

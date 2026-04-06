@@ -266,6 +266,7 @@
           <p>{{ t('vendorEdit.contacts.empty') }}</p>
         </div>
 
+        <el-radio-group v-else v-model="mainContactKey" class="vendor-contacts-main-group">
         <div v-for="(contact, index) in contacts" :key="contact._key || index" class="contact-item">
           <div class="contact-item-header">
             <span class="contact-index">{{ t('vendorEdit.contacts.contactIndex', { n: index + 1 }) }}</span>
@@ -319,18 +320,21 @@
             </el-col>
             <el-col :span="6">
               <el-form-item label=" ">
-                <el-checkbox v-model="contact.isMain" class="q-checkbox">{{ t('vendorEdit.contacts.setMain') }}</el-checkbox>
+                <el-radio :value="contact._key" class="vendor-main-contact-radio">
+                  {{ t('vendorEdit.contacts.setMain') }}
+                </el-radio>
               </el-form-item>
             </el-col>
           </el-row>
         </div>
+        </el-radio-group>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
@@ -403,6 +407,38 @@ function onPurchaserChange(p: { id: string; label: string }) {
 
 type VendorContactDraft = Omit<VendorContactInfo, 'vendorId' | 'id'> & { id?: string; vendorId?: string; _key?: string };
 const contacts = ref<VendorContactDraft[]>([]);
+
+/** 默认联系人单选：与每行 contact.isMain 同步，保证仅一人为 true */
+const mainContactKey = ref<string | undefined>(undefined);
+
+function applyMainFlagsFromKey(k: string | undefined) {
+  for (const c of contacts.value) {
+    c.isMain = k != null && c._key === k;
+  }
+}
+
+watch(mainContactKey, (k) => {
+  applyMainFlagsFromKey(k);
+});
+
+function reconcileMainContactKey() {
+  const list = contacts.value;
+  if (!list.length) {
+    mainContactKey.value = undefined;
+    return;
+  }
+  for (let i = 0; i < list.length; i++) {
+    if (!list[i]._key) list[i]._key = `row-${i}-${Date.now()}`;
+  }
+  const keySet = new Set(list.map((c) => c._key).filter(Boolean) as string[]);
+  let k = mainContactKey.value;
+  if (!k || !keySet.has(k)) {
+    const main = list.find((c) => c.isMain);
+    k = (main?._key ?? list[0]._key) as string;
+    mainContactKey.value = k;
+  }
+  applyMainFlagsFromKey(k);
+}
 
 const goBack = () => router.push({ name: 'VendorList' });
 
@@ -488,6 +524,7 @@ const fetchVendorDetail = async () => {
       ...c,
       _key: c.id || `srv-${idx}`
     }));
+    reconcileMainContactKey();
     void vendorDict.hydrateVendorEditForm({
       industry: formData.industry,
       level: formData.level,
@@ -518,8 +555,9 @@ const applyDraftPayload = (payload: any) => {
   if (Array.isArray(payload?.contacts)) {
     contacts.value = payload.contacts.map((c: any, idx: number) => ({
       ...c,
-      _key: c.id || `tmp-${idx}`
+      _key: c.id || c._key || `tmp-${idx}`
     }));
+    reconcileMainContactKey();
   }
   void vendorDict.hydrateVendorEditForm({
     industry: formData.industry,
@@ -635,8 +673,9 @@ const handleConvertToFormal = async () => {
 
 const addContact = () => {
   const isFirst = contacts.value.length === 0;
+  const newKey = `new-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   contacts.value.push({
-    _key: `new-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    _key: newKey,
     cName: '',
     eName: '',
     title: '',
@@ -649,6 +688,9 @@ const addContact = () => {
     isMain: isFirst,
     remark: ''
   } as VendorContactDraft);
+  if (isFirst) {
+    mainContactKey.value = newKey;
+  }
 };
 
 const removeContact = async (index: number) => {
@@ -657,6 +699,7 @@ const removeContact = async (index: number) => {
       type: 'warning'
     });
     contacts.value.splice(index, 1);
+    reconcileMainContactKey();
   } catch (e) {
     if (e !== 'cancel') ElMessage.error(t('vendorEdit.messages.deleteFailed'));
   }
@@ -711,6 +754,7 @@ const syncContactsForVendor = async (targetVendorId: string) => {
   // 同步后拉取一次，保持界面数据与数据库一致
   const latest = await vendorContactApi.getContactsByVendorId(targetVendorId);
   contacts.value = latest.map((c: any, idx: number) => ({ ...c, _key: c.id || `srv-${idx}` }));
+  reconcileMainContactKey();
 };
 
 onMounted(() => {
@@ -959,6 +1003,30 @@ onMounted(() => {
   font-size: 13px;
 
   svg { margin-bottom: 10px; opacity: 0.4; }
+}
+
+.vendor-contacts-main-group {
+  display: block;
+  width: 100%;
+}
+
+.vendor-main-contact-radio {
+  margin-right: 0;
+  white-space: nowrap;
+
+  :deep(.el-radio__label) {
+    color: $text-secondary !important;
+    font-size: 12px;
+    padding-left: 8px;
+  }
+  :deep(.el-radio__inner) {
+    border-color: $border-panel !important;
+    background: $layer-3 !important;
+  }
+  :deep(.el-radio__input.is-checked .el-radio__inner) {
+    background: $color-mint-green !important;
+    border-color: $color-mint-green !important;
+  }
 }
 
 .contact-item {

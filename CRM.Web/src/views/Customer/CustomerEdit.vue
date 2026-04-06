@@ -131,16 +131,19 @@
               <el-form-item :label="t('customerEdit.fields.industry')">
                 <el-select
                   v-model="formData.industry"
-                  :placeholder="t('customerEdit.placeholders.select')"
+                  :placeholder="t('customerEdit.placeholders.industrySelectOrInput')"
                   style="width: 100%"
                   class="q-select"
+                  filterable
+                  allow-create
+                  default-first-option
                   clearable
                 >
                   <el-option
                     v-for="opt in customerDict.industryOptions"
                     :key="opt.value"
                     :label="opt.label"
-                    :value="opt.value"
+                    :value="opt.label"
                   />
                 </el-select>
               </el-form-item>
@@ -291,9 +294,10 @@
             </svg>
             <p>{{ t('customerEdit.contacts.emptyHint') }}</p>
           </div>
+          <el-radio-group v-else v-model="mainContactKey" class="customer-contacts-main-group">
           <div
             v-for="(contact, index) in formData.contacts"
-            :key="index"
+            :key="contact._key || index"
             class="contact-item"
           >
             <div class="contact-item-header">
@@ -361,20 +365,16 @@
                   <el-input v-model="contact.phone" :placeholder="t('customerEdit.contacts.landlinePlaceholder')" class="q-input" />
                 </el-form-item>
               </el-col>
-              <el-col :span="6" class="contact-default-col">
-                <!-- 勿包在 el-form-item 内：会与 EP Checkbox 的 label/for 机制冲突导致无法点击 -->
-                <div class="contact-default-field">
-                  <el-checkbox
-                    v-model="contact.isDefault"
-                    class="q-checkbox contact-default-cb"
-                    @change="() => enforceSingleDefaultContact(index)"
-                  >
+              <el-col :span="6">
+                <el-form-item label=" ">
+                  <el-radio :value="contact._key" class="customer-main-contact-radio">
                     {{ t('customerEdit.contacts.setAsDefault') }}
-                  </el-checkbox>
-                </div>
+                  </el-radio>
+                </el-form-item>
               </el-col>
             </el-row>
           </div>
+          </el-radio-group>
         </div>
       </div>
     </el-form>
@@ -410,30 +410,74 @@ const router = useRouter();
 const { t, locale } = useI18n();
 const customerDict = useCustomerDictStore();
 
-function normalizeContactRow(c: any) {
+/** 草稿/接口可能把 isDefault 落成字符串或数字，必须收成布尔 */
+function coerceContactIsDefault(v: unknown): boolean {
+  if (v === true || v === 1 || v === '1') return true;
+  if (v === false || v === 0 || v === '0' || v === '' || v == null) return false;
+  if (typeof v === 'string') {
+    const u = v.trim().toLowerCase();
+    if (u === 'true' || u === 'yes') return true;
+    if (u === 'false' || u === 'no') return false;
+  }
+  return Boolean(v);
+}
+
+function newCustomerContactRowKey() {
+  return `new-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+/** 默认联系人单选（与新建供应商联系人一致）：稳定 _key 绑定 el-radio-group */
+const mainContactKey = ref<string | undefined>(undefined);
+
+function applyDefaultFlagsFromKey(k: string | undefined) {
+  for (const c of formData.contacts) {
+    c.isDefault = k != null && c._key === k;
+  }
+}
+
+watch(mainContactKey, (k) => {
+  applyDefaultFlagsFromKey(k);
+});
+
+function reconcileMainContactKey() {
+  const list = formData.contacts;
+  if (!list.length) {
+    mainContactKey.value = undefined;
+    return;
+  }
+  for (let i = 0; i < list.length; i++) {
+    if (!list[i]._key) list[i]._key = `row-${i}-${Date.now()}`;
+  }
+  const keySet = new Set(list.map((c) => c._key).filter(Boolean) as string[]);
+  let k = mainContactKey.value;
+  if (!k || !keySet.has(k)) {
+    const def = list.find((c) => coerceContactIsDefault(c.isDefault));
+    k = (def?._key ?? list[0]._key) as string;
+    mainContactKey.value = k;
+  }
+  applyDefaultFlagsFromKey(k);
+}
+
+function normalizeContactRow(c: any, idx?: number) {
   const hasDef = c && Object.prototype.hasOwnProperty.call(c, 'isDefault');
-  const isDefault = hasDef ? !!c.isDefault : !!(c.isMain ?? false);
+  const isDefault = hasDef
+    ? coerceContactIsDefault(c.isDefault)
+    : coerceContactIsDefault(c.isMain ?? false);
   const g = c.gender != null && c.gender !== '' ? Number(c.gender) : NaN;
   const genderUi = g === 1 || g === 2 || g === 0 ? g : 0;
+  const _key =
+    (c._key as string | undefined) ||
+    (c.id as string | undefined) ||
+    (idx !== undefined ? `tmp-${idx}` : newCustomerContactRowKey());
   return {
     ...c,
+    _key,
     contactName: c.contactName || c.name,
     mobilePhone: c.mobilePhone || c.mobile,
     position: c.position ?? c.title ?? '',
     gender: genderUi,
     isDefault
   };
-}
-
-/** 保证最多一个默认联系人（在 el-checkbox 的 v-model 已更新后调用） */
-function enforceSingleDefaultContact(changedIndex: number) {
-  const row = formData.contacts[changedIndex];
-  if (!row) return;
-  if (row.isDefault) {
-    formData.contacts.forEach((c, i) => {
-      if (i !== changedIndex) c.isDefault = false;
-    });
-  }
 }
 
 const isEdit = computed(() => !!route.params.id);
@@ -523,6 +567,8 @@ const fetchCustomerDetail = async () => {
     };
     Object.assign(formData, mappedData);
     normalizeInvoiceTypeModel();
+    await customerDict.ensureLoaded();
+    formData.industry = await customerDict.resolveIndustryStorageLabel(formData.industry || undefined);
     if (mappedData.province && mappedData.city) {
       regionValue.value = regionCascaderValueFromFields(
         mappedData.province,
@@ -531,7 +577,10 @@ const fetchCustomerDetail = async () => {
       );
     }
     if (mappedData.contacts) {
-      formData.contacts = mappedData.contacts.map((c: any) => normalizeContactRow(c));
+      formData.contacts = mappedData.contacts.map((c: any, idx: number) =>
+        normalizeContactRow(c, idx)
+      );
+      reconcileMainContactKey();
     }
     void customerDict.hydrateCustomerEditForm({
       customerType: formData.customerType,
@@ -577,8 +626,11 @@ const handleRegionChange = (value: string[]) => {
 };
 
 const addContact = () => {
+  const isFirst = formData.contacts.length === 0;
+  const newKey = newCustomerContactRowKey();
   formData.contacts.push(
     normalizeContactRow({
+      _key: newKey,
       contactName: '',
       gender: 0,
       department: '',
@@ -586,9 +638,12 @@ const addContact = () => {
       mobilePhone: '',
       phone: '',
       email: '',
-      isDefault: formData.contacts.length === 0
+      isDefault: isFirst
     })
   );
+  if (isFirst) {
+    mainContactKey.value = newKey;
+  }
 };
 
 const validateContactMobilePhone = (_rule: unknown, value: string, callback: (error?: Error) => void) => {
@@ -640,6 +695,7 @@ const removeContact = async (index: number) => {
       }
     );
     formData.contacts.splice(index, 1);
+    reconcileMainContactKey();
   } catch {
     // 用户取消，不做任何操作
   }
@@ -650,12 +706,13 @@ const buildDraftPayload = () => ({
   contacts: formData.contacts.map((c: any) => ({ ...c }))
 });
 
-const applyDraftPayload = (payload: any) => {
+const applyDraftPayload = async (payload: any) => {
   Object.assign(formData, payload || {});
   normalizeInvoiceTypeModel();
   formData.contacts = Array.isArray(payload?.contacts)
-    ? payload.contacts.map((c: any) => normalizeContactRow(c))
+    ? payload.contacts.map((c: any, idx: number) => normalizeContactRow(c, idx))
     : [];
+  reconcileMainContactKey();
   if (formData.province && formData.city) {
     regionValue.value = regionCascaderValueFromFields(
       formData.province,
@@ -663,6 +720,8 @@ const applyDraftPayload = (payload: any) => {
       formData.district
     );
   }
+  await customerDict.ensureLoaded();
+  formData.industry = await customerDict.resolveIndustryStorageLabel(formData.industry || undefined);
   void customerDict.hydrateCustomerEditForm({
     customerType: formData.customerType,
     customerLevel: formData.customerLevel,
@@ -699,7 +758,7 @@ const restoreDraftById = async (draftId: string) => {
   if (draft.entityType !== 'CUSTOMER') {
     throw new Error(t('customerEdit.messages.wrongDraftType'));
   }
-  applyDraftPayload(JSON.parse(draft.payloadJson || '{}'));
+  await applyDraftPayload(JSON.parse(draft.payloadJson || '{}'));
   currentDraftId.value = draft.draftId;
 };
 
@@ -1159,32 +1218,27 @@ onMounted(() => {
   }
 }
 
-.q-checkbox {
-  :deep(.el-checkbox__label) { color: $text-secondary !important; font-size: 12px; }
-  :deep(.el-checkbox__inner) {
-    background: $layer-3 !important;
-    border-color: $border-panel !important;
+.customer-contacts-main-group {
+  display: block;
+  width: 100%;
+}
+
+.customer-main-contact-radio {
+  margin-right: 0;
+  white-space: nowrap;
+
+  :deep(.el-radio__label) {
+    color: $text-secondary !important;
+    font-size: 12px;
+    padding-left: 8px;
   }
-  :deep(.el-checkbox.is-checked .el-checkbox__inner) {
+  :deep(.el-radio__inner) {
+    border-color: $border-panel !important;
+    background: $layer-3 !important;
+  }
+  :deep(.el-radio__input.is-checked .el-radio__inner) {
     background: $color-mint-green !important;
     border-color: $color-mint-green !important;
   }
-}
-
-.contact-default-col {
-  position: relative;
-  z-index: 2;
-}
-
-.contact-default-field {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-height: 32px;
-  box-sizing: border-box;
-}
-
-.contact-default-cb {
-  pointer-events: auto;
 }
 </style>
