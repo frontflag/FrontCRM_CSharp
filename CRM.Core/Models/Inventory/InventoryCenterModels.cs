@@ -124,6 +124,22 @@ namespace CRM.Core.Models.Inventory
         [Column(TypeName = "numeric(18,2)")]
         public decimal Amount { get; set; }
 
+        /// <summary>采购订单明细业务编号（写入时自 <c>stock</c> 冗余）</summary>
+        [StringLength(64)]
+        public string? PurchaseOrderItemCode { get; set; }
+
+        /// <summary>采购订单明细主键</summary>
+        [StringLength(36)]
+        public string? PurchaseOrderItemId { get; set; }
+
+        /// <summary>销售订单明细业务编号</summary>
+        [StringLength(64)]
+        public string? SellOrderItemCode { get; set; }
+
+        /// <summary>销售订单明细主键</summary>
+        [StringLength(36)]
+        public string? SellOrderItemId { get; set; }
+
         [StringLength(500)]
         public string? Remark { get; set; }
     }

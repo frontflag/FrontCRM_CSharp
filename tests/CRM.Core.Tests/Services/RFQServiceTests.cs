@@ -8,6 +8,7 @@ using CRM.Core.Models.RFQ;
 using CRM.Core.Models.System;
 using CRM.Core.Services;
 using CRM.Core.Tests.Fakes;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -71,7 +72,8 @@ namespace CRM.Core.Tests.Services
                 _rbacRoleRepo,
                 _rbacUserRoleRepo,
                 _quoteRepo,
-                _userRepo);
+                _userRepo,
+                NullLogger<RFQService>.Instance);
         }
 
         private static CreateRFQRequest BuildValidCreateRequest(Action<CreateRFQRequest>? tweak = null)
@@ -176,7 +178,8 @@ namespace CRM.Core.Tests.Services
                 roleRepo,
                 userRoleRepo,
                 Substitute.For<IRepository<Quote>>(),
-                userRepo);
+                userRepo,
+                NullLogger<RFQService>.Instance);
 
             var req = BuildValidCreateRequest(r =>
             {

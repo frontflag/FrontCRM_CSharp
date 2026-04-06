@@ -1,6 +1,8 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Sales;
 using CRM.API.Authorization;
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -15,6 +17,7 @@ namespace CRM.API.Controllers
         private readonly ISalesOrderJourneyService _journeyService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
+        private readonly IRepository<SellOrderItemExtend> _soItemExtendRepo;
         private readonly ILogger<SalesOrdersController> _logger;
 
         public SalesOrdersController(
@@ -22,12 +25,14 @@ namespace CRM.API.Controllers
             ISalesOrderJourneyService journeyService,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
+            IRepository<SellOrderItemExtend> soItemExtendRepo,
             ILogger<SalesOrdersController> logger)
         {
             _service = service;
             _journeyService = journeyService;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
+            _soItemExtendRepo = soItemExtendRepo;
             _logger = logger;
         }
 
@@ -125,7 +130,31 @@ namespace CRM.API.Controllers
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessSalesOrderAsync(userId, order))
                     return StatusCode(403, new { success = false, message = "无权限访问该销售订单" });
                 var summary = await GetPermissionSummaryAsync(userId);
-                return Ok(new { success = true, data = MaskSalesOrder(order, summary) });
+                IReadOnlyDictionary<string, SellOrderItemExtend>? itemExtends = null;
+                if (order.Items != null && order.Items.Count > 0)
+                {
+                    try
+                    {
+                        var ids = order.Items.Select(i => i.Id).ToList();
+                        var extRows = (await _soItemExtendRepo.FindAsync(e => ids.Contains(e.Id))).ToList();
+                        itemExtends = extRows.ToDictionary(e => e.Id, e => e, StringComparer.OrdinalIgnoreCase);
+                    }
+                    catch (Exception ex)
+                    {
+                        // 扩展表未迁移或与模型不一致时不阻断主单详情（进度列按 0 展示）
+                        _logger.LogWarning(ex, "加载销售明细扩展失败，已跳过: SellOrderId={SellOrderId}", order.Id);
+                    }
+                }
+
+                IReadOnlyDictionary<string, bool> stockOutGate =
+                    new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                if (order.Items != null && order.Items.Count > 0)
+                {
+                    stockOutGate = await _service.GetStockOutApplyPurchaseGateBySellLineIdsAsync(
+                        order.Items.Select(i => i.Id));
+                }
+
+                return Ok(new { success = true, data = MaskSalesOrder(order, summary, itemExtends, stockOutGate) });
             }
             catch (Exception ex)
             {
@@ -189,7 +218,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var order = await _service.CreateAsync(request);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var order = await _service.CreateAsync(request, actorId);
                 return CreatedAtAction(nameof(GetById), new { id = order.Id },
                     new { success = true, data = order });
             }
@@ -199,6 +229,7 @@ namespace CRM.API.Controllers
             }
             catch (InvalidOperationException ex)
             {
+                _logger.LogWarning(ex, "创建销售订单业务冲突: {Message}", ex.Message);
                 return Conflict(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
@@ -214,7 +245,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var order = await _service.UpdateAsync(id, request);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var order = await _service.UpdateAsync(id, request, actorId);
                 return Ok(new { success = true, data = order });
             }
             catch (InvalidOperationException ex)
@@ -257,7 +289,8 @@ namespace CRM.API.Controllers
                     return BadRequest(new { success = false, message = "无效的销售订单主状态" });
                 if (status == SellOrderMainStatus.Approved || status == SellOrderMainStatus.AuditFailed)
                     return BadRequest(new { success = false, message = "审核通过/拒绝请通过「待审批」菜单处理" });
-                await _service.UpdateStatusAsync(id, status);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.UpdateStatusAsync(id, status, null, actorId);
                 return Ok(new { success = true, message = "状态更新成功" });
             }
             catch (InvalidOperationException ex)
@@ -287,6 +320,7 @@ namespace CRM.API.Controllers
                 r.SellOrderItemId,
                 r.SellOrderId,
                 r.SellOrderCode,
+                r.SellOrderItemCode,
                 r.OrderStatus,
                 r.OrderCreateTime,
                 CustomerId = canViewCustomer ? r.CustomerId : null,
@@ -300,11 +334,43 @@ namespace CRM.API.Controllers
                 r.Currency,
                 UsdUnitPrice = canViewAmount ? r.UsdUnitPrice : null,
                 UsdLineTotal = canViewAmount ? r.UsdLineTotal : null,
-                r.ItemStatus
+                SalesProfitExpected = canViewAmount ? (decimal?)r.SalesProfitExpected : null,
+                ProfitOutBizUsd = canViewAmount ? (decimal?)r.ProfitOutBizUsd : null,
+                ProfitOutRateBiz = canViewAmount ? (decimal?)r.ProfitOutRateBiz : null,
+                r.ItemStatus,
+                r.PurchaseProgressStatus,
+                r.StockInProgressStatus,
+                r.StockOutProgressStatus,
+                r.ReceiptProgressStatus,
+                r.InvoiceProgressStatus,
+                r.StockOutApplyPurchaseGateOk
             };
         }
 
-        private object MaskSalesOrder(CRM.Core.Models.Sales.SellOrder order, UserPermissionSummaryDto? summary)
+        /// <summary>与 <see cref="ISalesOrderService.GetSellOrderItemLinesPagedAsync"/> 中明细行 USD 折算口径一致。</summary>
+        private static (decimal? UsdUnit, decimal? UsdLine) GetSellOrderItemUsdSnapshot(SellOrderItem i)
+        {
+            decimal? usdUnit;
+            decimal? usdLine;
+            if (i.Currency == (short)CurrencyCode.USD)
+            {
+                usdUnit = i.ConvertPrice;
+                usdLine = Math.Round(i.Qty * i.ConvertPrice, 2, MidpointRounding.AwayFromZero);
+            }
+            else
+            {
+                usdUnit = i.ConvertPrice != 0m ? i.ConvertPrice : null;
+                usdLine = usdUnit.HasValue
+                    ? Math.Round(i.Qty * usdUnit.Value, 2, MidpointRounding.AwayFromZero)
+                    : null;
+            }
+
+            return (usdUnit, usdLine);
+        }
+
+        private object MaskSalesOrder(CRM.Core.Models.Sales.SellOrder order, UserPermissionSummaryDto? summary,
+            IReadOnlyDictionary<string, SellOrderItemExtend>? itemExtends = null,
+            IReadOnlyDictionary<string, bool>? stockOutApplyPurchaseGate = null)
         {
             var canViewCustomerInfo = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("customer.info.read") ?? false);
             var canViewSalesAmount = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("sales.amount.read") ?? false);
@@ -335,25 +401,55 @@ namespace CRM.API.Controllers
                 order.AuditRemark,
                 order.CreateTime,
                 order.ModifyTime,
-                Items = (order.Items ?? Enumerable.Empty<CRM.Core.Models.Sales.SellOrderItem>()).Select(i => new
+                order.CreateByUserId,
+                order.ModifyByUserId,
+                Items = (order.Items ?? Enumerable.Empty<CRM.Core.Models.Sales.SellOrderItem>()).Select(i =>
                 {
-                    i.Id,
-                    i.SellOrderId,
-                    i.QuoteId,
-                    i.ProductId,
-                    i.PN,
-                    i.Brand,
-                    CustomerPnNo = canViewCustomerInfo ? i.CustomerPnNo : null,
-                    i.Qty,
-                    i.PurchasedQty,
-                    Price = canViewSalesAmount ? i.Price : 0m,
-                    i.Currency,
-                    i.DateCode,
-                    i.DeliveryDate,
-                    i.Status,
-                    i.Comment,
-                    i.CreateTime,
-                    i.ModifyTime
+                    SellOrderItemExtend? ext = null;
+                    itemExtends?.TryGetValue(i.Id, out ext);
+                    var (usdUnit, usdLine) = GetSellOrderItemUsdSnapshot(i);
+                    return new
+                    {
+                        i.Id,
+                        i.SellOrderId,
+                        i.SellOrderItemCode,
+                        i.QuoteId,
+                        i.ProductId,
+                        i.PN,
+                        i.Brand,
+                        CustomerPnNo = canViewCustomerInfo ? i.CustomerPnNo : null,
+                        i.Qty,
+                        i.PurchasedQty,
+                        Price = canViewSalesAmount ? i.Price : 0m,
+                        ConvertPrice = canViewSalesAmount ? i.ConvertPrice : 0m,
+                        UsdUnitPrice = canViewSalesAmount ? usdUnit : null,
+                        UsdLineTotal = canViewSalesAmount ? usdLine : null,
+                        SalesProfitExpected = canViewSalesAmount
+                            ? (decimal?)(ext?.SalesProfitExpected ?? 0m)
+                            : null,
+                        ProfitOutBizUsd = canViewSalesAmount
+                            ? (decimal?)(ext?.ProfitOutBizUsd ?? 0m)
+                            : null,
+                        ProfitOutRateBiz = canViewSalesAmount
+                            ? (decimal?)(ext?.ProfitOutRateBiz ?? 0m)
+                            : null,
+                        i.Currency,
+                        i.DateCode,
+                        i.DeliveryDate,
+                        i.Status,
+                        i.Comment,
+                        i.CreateTime,
+                        i.ModifyTime,
+                        purchaseProgressStatus = ext?.PurchaseProgressStatus ?? (short)0,
+                        stockInProgressStatus = ext?.StockInProgressStatus ?? (short)0,
+                        stockOutProgressStatus = ext?.StockOutProgressStatus ?? (short)0,
+                        receiptProgressStatus = ext?.ReceiptProgressStatus ?? (short)0,
+                        invoiceProgressStatus = ext?.InvoiceProgressStatus ?? (short)0,
+                        stockOutApplyPurchaseGateOk = stockOutApplyPurchaseGate != null &&
+                            !string.IsNullOrWhiteSpace(i.Id) &&
+                            stockOutApplyPurchaseGate.TryGetValue(i.Id.Trim(), out var gateOk) &&
+                            gateOk
+                    };
                 }).ToList()
             };
         }

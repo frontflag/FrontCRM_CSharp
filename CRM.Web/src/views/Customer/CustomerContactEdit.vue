@@ -27,7 +27,6 @@
           </svg>
           {{ isEdit ? '编辑联系人' : '新增联系人' }}
         </div>
-        <div v-if="isEdit && contactId" class="form-card-subtitle">联系人 ID：{{ contactId }}</div>
       </div>
 
       <div class="form-card-body" v-loading="pageLoading">
@@ -49,9 +48,9 @@
             <el-col :span="12">
               <el-form-item label="性别">
                 <el-radio-group v-model="formData.gender">
-                  <el-radio :label="0">男</el-radio>
-                  <el-radio :label="1">女</el-radio>
-                  <el-radio :label="2">保密</el-radio>
+                  <el-radio :label="0">保密</el-radio>
+                  <el-radio :label="1">男</el-radio>
+                  <el-radio :label="2">女</el-radio>
                 </el-radio-group>
               </el-form-item>
             </el-col>
@@ -405,12 +404,6 @@ $border: $border-card;
   font-size: 14px;
   font-weight: 600;
   color: rgba(0, 212, 255, 0.9);
-}
-
-.form-card-subtitle {
-  font-size: 12px;
-  color: $text-secondary;
-  font-family: monospace;
 }
 
 .form-card-body {

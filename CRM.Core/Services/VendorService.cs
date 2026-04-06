@@ -55,7 +55,7 @@ namespace CRM.Core.Services
         /// <summary>
         /// 创建
         /// </summary>
-        public async Task<VendorInfo> CreateAsync(CreateVendorRequest request)
+        public async Task<VendorInfo> CreateAsync(CreateVendorRequest request, string? actingUserId = null)
         {
             // 若前端未传入编号，则自动生成
             if (string.IsNullOrWhiteSpace(request.Code))
@@ -70,6 +70,9 @@ namespace CRM.Core.Services
                 Id = Guid.NewGuid().ToString(),
                 Code = request.Code.Trim(),
                 OfficialName = string.IsNullOrEmpty(official) ? null : official,
+                EnglishOfficialName = string.IsNullOrWhiteSpace(request.EnglishOfficialName)
+                    ? null
+                    : request.EnglishOfficialName.Trim(),
                 NickName = string.IsNullOrWhiteSpace(request.NickName) ? null : request.NickName.Trim(),
                 Industry = string.IsNullOrWhiteSpace(request.Industry) ? null : request.Industry.Trim(),
                 Level = request.Level,
@@ -84,7 +87,8 @@ namespace CRM.Core.Services
                 CreditCode = string.IsNullOrWhiteSpace(tax) ? null : tax.Trim(),
                 CompanyInfo = string.IsNullOrWhiteSpace(request.CompanyInfo) ? null : request.CompanyInfo.Trim(),
                 Remark = string.IsNullOrWhiteSpace(request.Remark) ? null : request.Remark.Trim(),
-                CreateTime = DateTime.UtcNow
+                CreateTime = DateTime.UtcNow,
+                CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
 
             await _repository.AddAsync(entity);
@@ -93,7 +97,7 @@ namespace CRM.Core.Services
         }
 
         /// <inheritdoc />
-        public async Task<VendorImportBatchResult> ImportVendorsBatchAsync(VendorImportBatchRequest request)
+        public async Task<VendorImportBatchResult> ImportVendorsBatchAsync(VendorImportBatchRequest request, string? actingUserId = null)
         {
             var result = new VendorImportBatchResult();
             if (request.Items == null || request.Items.Count == 0)
@@ -110,7 +114,7 @@ namespace CRM.Core.Services
                     if (string.IsNullOrWhiteSpace(official))
                         throw new InvalidOperationException("供应商名称不能为空");
 
-                    var vendor = await CreateAsync(vreq);
+                    var vendor = await CreateAsync(vreq, actingUserId);
                     var contacts = item.Contacts ?? new List<AddVendorContactRequest>();
                     var anyMain = contacts.Any(c => c != null && c.IsMain);
                     var added = 0;
@@ -334,7 +338,7 @@ namespace CRM.Core.Services
         /// <summary>
         /// 更新
         /// </summary>
-        public async Task<VendorInfo> UpdateAsync(string id, UpdateVendorRequest request)
+        public async Task<VendorInfo> UpdateAsync(string id, UpdateVendorRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("ID不能为空", nameof(id));
@@ -378,8 +382,13 @@ namespace CRM.Core.Services
                 entity.Remark = string.IsNullOrWhiteSpace(request.Remark) ? null : request.Remark.Trim();
             if (request.ExternalNumber != null)
                 entity.ExternalNumber = request.ExternalNumber.Trim();
+            if (request.EnglishOfficialName != null)
+                entity.EnglishOfficialName = string.IsNullOrWhiteSpace(request.EnglishOfficialName)
+                    ? null
+                    : request.EnglishOfficialName.Trim();
 
             entity.ModifyTime = DateTime.UtcNow;
+            entity.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _repository.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
             return entity;
@@ -388,7 +397,7 @@ namespace CRM.Core.Services
         /// <summary>
         /// 删除
         /// </summary>
-        public async Task DeleteAsync(string id, string? reason = null)
+        public async Task DeleteAsync(string id, string? reason = null, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("ID不能为空", nameof(id));
@@ -402,6 +411,7 @@ namespace CRM.Core.Services
             if (!string.IsNullOrWhiteSpace(reason))
                 entity.DeleteReason = reason.Trim();
             entity.ModifyTime = DateTime.UtcNow;
+            entity.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _repository.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
             await AddOperationLogAsync(entity.Id, "删除", $"删除供应商，理由：{reason ?? "无"}", null, "系统用户");
@@ -451,7 +461,7 @@ namespace CRM.Core.Services
             };
         }
 
-        public async Task RestoreAsync(string id)
+        public async Task RestoreAsync(string id, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("ID不能为空", nameof(id));
@@ -470,7 +480,7 @@ namespace CRM.Core.Services
             await AddOperationLogAsync(entity.Id, "恢复", "供应商已从回收站恢复", null, "系统用户");
         }
 
-        public async Task AddToBlacklistAsync(string id, string? reason)
+        public async Task AddToBlacklistAsync(string id, string? reason, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("ID不能为空", nameof(id));
@@ -481,6 +491,7 @@ namespace CRM.Core.Services
 
             entity.BlackList = true;
             entity.ModifyTime = DateTime.UtcNow;
+            entity.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _repository.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
             var r = string.IsNullOrWhiteSpace(reason) ? "无" : reason.Trim();
@@ -500,6 +511,7 @@ namespace CRM.Core.Services
 
             entity.BlackList = false;
             entity.ModifyTime = DateTime.UtcNow;
+            entity.ModifyByUserId = ActingUserIdNormalizer.Normalize(operatorUserId);
             await _repository.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
             var r = reason.Trim();
@@ -513,7 +525,7 @@ namespace CRM.Core.Services
             {
                 1 => target is 2,                 // 新建 -> 待审核
                 2 => target is 10 or -1,          // 待审核 -> 已审核 / 审核失败
-                -1 => target is 1,                // 审核失败 -> 回到新建（可重新提交）
+                -1 => target is 1 or 2,           // 审核失败 -> 新建 / 再次提交待审核
                 10 => target is 12 or 20,         // 已审核 -> 待财务审核 / 财务建档
                 12 => target is 20,               // 待财务审核 -> 财务建档
                 _ => false
@@ -524,7 +536,7 @@ namespace CRM.Core.Services
         /// <summary>
         /// 更新状态
         /// </summary>
-        public async Task UpdateStatusAsync(string id, short status, string? auditRemark = null)
+        public async Task UpdateStatusAsync(string id, short status, string? auditRemark = null, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("ID不能为空", nameof(id));
@@ -533,6 +545,7 @@ namespace CRM.Core.Services
             if (entity == null)
                 throw new KeyNotFoundException($"找不到ID为 '{id}' 的记录");
 
+            var previousStatus = entity.Status;
             ValidateVendorStatusTransition(entity.Status, status);
             entity.Status = status;
             if (status == -1)
@@ -545,7 +558,12 @@ namespace CRM.Core.Services
             {
                 entity.AuditRemark = null;
             }
+            else if (status == 2 && previousStatus == -1)
+            {
+                entity.AuditRemark = null;
+            }
             entity.ModifyTime = DateTime.UtcNow;
+            entity.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _repository.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
         }
@@ -1078,8 +1096,11 @@ ORDER BY c.""ChangedAt"" DESC";
                 throw new InvalidOperationException("供应商已处于冻结状态");
 
             var safeId = SqlQ(resolvedId);
+            var modBy = string.IsNullOrWhiteSpace(operatorUserId)
+                ? "NULL"
+                : $"'{SqlQ(operatorUserId)}'";
             var rows = await _unitOfWork.ExecuteNonQueryAsync(
-                $@"UPDATE vendorinfo SET ""IsDisenable"" = TRUE, ""ModifyTime"" = NOW() WHERE ""VendorId"" = '{safeId}'");
+                $@"UPDATE vendorinfo SET ""IsDisenable"" = TRUE, ""ModifyTime"" = NOW(), modify_by_user_id = {modBy} WHERE ""VendorId"" = '{safeId}'");
             if (rows == 0)
                 throw new InvalidOperationException("更新供应商冻结状态失败，请稍后重试");
 
@@ -1104,8 +1125,11 @@ ORDER BY c.""ChangedAt"" DESC";
                 throw new InvalidOperationException("供应商未处于冻结状态，无需启用");
 
             var safeId = SqlQ(resolvedId);
+            var modByU = string.IsNullOrWhiteSpace(operatorUserId)
+                ? "NULL"
+                : $"'{SqlQ(operatorUserId)}'";
             var rows = await _unitOfWork.ExecuteNonQueryAsync(
-                $@"UPDATE vendorinfo SET ""IsDisenable"" = FALSE, ""ModifyTime"" = NOW() WHERE ""VendorId"" = '{safeId}'");
+                $@"UPDATE vendorinfo SET ""IsDisenable"" = FALSE, ""ModifyTime"" = NOW(), modify_by_user_id = {modByU} WHERE ""VendorId"" = '{safeId}'");
             if (rows == 0)
                 throw new InvalidOperationException("更新供应商启用状态失败，请稍后重试");
 

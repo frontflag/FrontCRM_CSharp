@@ -6,7 +6,9 @@
       </el-button>
       <el-breadcrumb separator="/">
         <el-breadcrumb-item :to="{ name: 'FinanceSellInvoiceList' }">{{ t('financeSellInvoiceDetail.breadcrumb') }}</el-breadcrumb-item>
-        <el-breadcrumb-item>{{ detail?.invoiceCode || t('financeSellInvoiceDetail.detail') }}</el-breadcrumb-item>
+        <el-breadcrumb-item>
+          <span class="order-code">{{ detail?.invoiceCode || t('financeSellInvoiceDetail.detail') }}</span>
+        </el-breadcrumb-item>
       </el-breadcrumb>
     </div>
 
@@ -197,12 +199,17 @@ const formatAmount = (val: number) => {
 }
 
 .order-code {
-  font-family: 'Courier New', monospace;
-  color: $text-secondary;
-  font-weight: 600;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: $text-primary;
+  font-weight: 500;
+  letter-spacing: normal;
 }
 
 .amount {
+  font-family: 'Noto Sans SC', sans-serif;
+  font-variant-numeric: tabular-nums;
   color: $cyan-primary;
   font-weight: 600;
 }

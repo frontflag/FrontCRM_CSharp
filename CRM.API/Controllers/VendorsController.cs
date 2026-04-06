@@ -463,7 +463,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>提交审核：新建(1) -> 待审核(2)</summary>
+        /// <summary>提交审核：新建(1) 或 审核失败(-1) -> 待审核(2)</summary>
         [HttpPost("{id}/submit-audit")]
         [RequirePermission("vendor.write")]
         public async Task<ActionResult<ApiResponse<object>>> SubmitAudit(string id)

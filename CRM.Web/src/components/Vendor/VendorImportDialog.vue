@@ -69,6 +69,7 @@ import * as XLSX from 'xlsx';
 import { ElMessageBox, ElNotification } from 'element-plus';
 import { vendorApi } from '@/api/vendor';
 import { VENDOR_LEVEL_OPTIONS, VENDOR_IDENTITY_OPTIONS } from '@/constants/vendorEnums';
+import { VENDOR_INDUSTRY_FILTER_VALUES } from '@/constants/vendorIndustry';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -167,32 +168,37 @@ function parseVendorCredit(raw: string): number {
 
 function parseVendorIndustry(raw: string): string {
   const s = raw.trim();
-  if (!s) return 'Other';
+  if (!s) return 'Semiconductors';
   const map: Record<string, string> = {
-    '电子/半导体': 'Electronics',
-    '机械/设备': 'Machinery',
-    '化工/材料': 'Chemical',
-    '纺织/服装': 'Textile',
-    '食品/农业': 'Food',
-    '建筑/工程': 'Construction',
-    '贸易/零售': 'Trading',
-    '科技/IT': 'Technology',
-    '医疗/健康': 'Healthcare',
-    其他: 'Other'
+    IGUS: 'IGUS',
+    'LED照明、光电设备及显示器': 'LedLightingOptoDisplay',
+    半导体: 'Semiconductors',
+    '工具及设备': 'ToolsEquipment',
+    工控: 'IndustrialControl',
+    '开发套件和工具': 'DevKitsTools',
+    '显示市场': 'DisplayMarket',
+    '机电编码器': 'MechatronicEncoders',
+    '测试和测量': 'TestMeasurement',
+    '热管理': 'ThermalManagement',
+    '电线及电缆': 'WiresCables',
+    '电路保护': 'CircuitProtection',
+    '结构件': 'StructuralParts',
+    '网络通讯器件': 'NetworkCommDevices',
+    '计算机外设、机电': 'ComputerPeripheralsMech',
+    '负极、电源': 'CathodePower',
+    '电子/半导体': 'Semiconductors',
+    '机械/设备': 'ToolsEquipment',
+    '化工/材料': 'IndustrialControl',
+    '纺织/服装': 'StructuralParts',
+    '食品/农业': 'ToolsEquipment',
+    '建筑/工程': 'StructuralParts',
+    '贸易/零售': 'ElectronicComponentsTrading',
+    '科技/IT': 'ComputerPeripheralsMech',
+    '医疗/健康': 'ToolsEquipment',
+    其他: 'Semiconductors'
   };
-  const codes = [
-    'Electronics',
-    'Machinery',
-    'Chemical',
-    'Textile',
-    'Food',
-    'Construction',
-    'Trading',
-    'Technology',
-    'Healthcare',
-    'Other'
-  ];
-  return map[s] || (codes.includes(s) ? s : 'Other');
+  const codes = VENDOR_INDUSTRY_FILTER_VALUES as readonly string[];
+  return map[s] || (codes.includes(s) ? s : 'Semiconductors');
 }
 
 function parseMainFlag(raw: string): boolean {
@@ -234,7 +240,7 @@ function downloadTemplate() {
       '示例供应商',
       'A',
       '原厂',
-      '电子/半导体',
+      '半导体',
       '深圳市南山区示例路1号',
       '可删除本行后填写真实数据',
       ''

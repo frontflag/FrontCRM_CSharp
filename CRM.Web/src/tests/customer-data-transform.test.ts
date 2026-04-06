@@ -44,7 +44,7 @@ function mapBackendToForm(customer: BackendCustomer): any {
   return {
     customerName: customer.customerName || customerAny.officialName || '',
     customerShortName: customer.customerShortName || customerAny.nickName || '',
-    customerLevel: customer.customerLevel || 'Normal',
+    customerLevel: customer.customerLevel || 'B',
     customerType: customer.customerType ?? 1,
     salesPersonId: customer.salesPersonId || customerAny.salesUserId || '',
     unifiedSocialCreditCode: customer.unifiedSocialCreditCode || customerAny.creditCode || '',
@@ -66,8 +66,12 @@ function mapBackendToForm(customer: BackendCustomer): any {
 /** 模拟 customer.ts 中的前端表单 → 后端请求体映射逻辑 */
 function mapFormToBackend(data: any): any {
   const levelMap: Record<string, number> = {
-    'D': 1, 'C': 2, 'B': 3, 'BPO': 4, 'VIP': 5, 'VPO': 6,
-    'Normal': 3, 'Important': 5, 'Lead': 1
+    D: 1,
+    C: 2,
+    B: 3,
+    BPO: 4,
+    VIP: 5,
+    VPO: 6
   };
   return {
     ...data,
@@ -124,9 +128,9 @@ describe('CustomerEdit - 后端数据映射到前端表单 (mapBackendToForm)', 
     expect(result.customerLevel).toBe('VIP');
   });
 
-  it('UT-TRANSFORM-006: customerLevel 为空时，默认为 "Normal"', () => {
+  it('UT-TRANSFORM-006: customerLevel 为空时，默认为 "B"', () => {
     const result = mapBackendToForm({});
-    expect(result.customerLevel).toBe('Normal');
+    expect(result.customerLevel).toBe('B');
   });
 
   it('UT-TRANSFORM-007: customerType 有值时使用原值', () => {
@@ -282,19 +286,10 @@ describe('customer.ts - 前端表单映射到后端请求体 (mapFormToBackend)'
     expect(result.level).toBe(6);
   });
 
-  it('UT-TRANSFORM-038: customerLevel="Normal"（旧值）→ level=3', () => {
-    const result = mapFormToBackend({ customerLevel: 'Normal' });
-    expect(result.level).toBe(3);
-  });
-
-  it('UT-TRANSFORM-039: customerLevel="Important"（旧值）→ level=5', () => {
-    const result = mapFormToBackend({ customerLevel: 'Important' });
-    expect(result.level).toBe(5);
-  });
-
-  it('UT-TRANSFORM-040: customerLevel="Lead"（旧值）→ level=1', () => {
-    const result = mapFormToBackend({ customerLevel: 'Lead' });
-    expect(result.level).toBe(1);
+  it('UT-TRANSFORM-038: 非标准等级文案（如 Normal/Important/Lead）→ level=3 默认', () => {
+    expect(mapFormToBackend({ customerLevel: 'Normal' }).level).toBe(3);
+    expect(mapFormToBackend({ customerLevel: 'Important' }).level).toBe(3);
+    expect(mapFormToBackend({ customerLevel: 'Lead' }).level).toBe(3);
   });
 
   it('UT-TRANSFORM-041: customerLevel 未知值 → level=3（默认 B）', () => {

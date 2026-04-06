@@ -7,25 +7,34 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { formatDisplayDateTime } from '@/utils/displayDateTime';
 import { setDisplayTimeZoneId } from '@/utils/displayTimeZone';
+import { mapCustomerTypeToLabel } from '@/api/customer';
 
 // ─── 从 CustomerList.vue 提取的显示逻辑函数 ───
 
 /** 客户等级 → 显示标签（CustomerList.vue 版本） */
 function getLevelLabelList(level: string): string {
-  return ({ VIP: 'VIP', VPO: 'VPO', BPO: 'BPO', B: 'B级', C: 'C级', D: 'D级', Important: '重要', Normal: '普通', Lead: '潜在' } as Record<string, string>)[level] || level || '--';
+  return ({ VIP: 'VIP', VPO: 'VPO', BPO: 'BPO', B: 'B级', C: 'C级', D: 'D级' } as Record<string, string>)[level] || level || '--';
 }
 
-/** 客户类型 → 显示标签（CustomerList.vue 版本，后端枚举 1-6） */
+/** 客户类型 → 显示标签（与 mapCustomerTypeToLabel 一致） */
 function getTypeLabelList(type: number): string {
-  return ({ 1: 'OEM', 2: 'ODM', 3: '终端用户', 4: 'IDH', 5: '贸易商', 6: '代理商' } as Record<number, string>)[type] || '未知';
+  return mapCustomerTypeToLabel(type);
 }
 
-/** 行业 → 显示标签 */
+/** 行业 → 显示标签（与 customerList.industry 一致） */
 function getIndustryLabel(industry: string): string {
   return ({
-    Manufacturing: '制造业', Trading: '贸易/零售', Technology: '科技/IT',
-    Construction: '建筑/工程', Healthcare: '医疗/健康', Education: '教育',
-    Finance: '金融', Other: '其他'
+    FinanceEquipment: '金融设备',
+    Telecom: '通讯',
+    ConsumerElectronics: '消费电子',
+    Manufacturing: '制造业',
+    Trading: '贸易/零售',
+    Technology: '科技/IT',
+    Construction: '建筑/工程',
+    Healthcare: '医疗/健康',
+    Education: '教育',
+    Finance: '金融',
+    Other: '其他'
   } as Record<string, string>)[industry] || industry || '--';
 }
 
@@ -43,14 +52,14 @@ function formatCurrencyDetail(value: number | undefined): string {
   return `¥${value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 }
 
-/** 客户类型 → 显示标签（CustomerDetail.vue 版本，旧枚举 0-2） */
+/** 客户类型 → 显示标签（CustomerDetail.vue 与 mapCustomerTypeToLabel 一致） */
 function getTypeLabelDetail(type: number): string {
-  return ({ 0: '企业', 1: '个人', 2: '政府' } as Record<number, string>)[type] || '未知';
+  return mapCustomerTypeToLabel(type);
 }
 
 /** 客户等级 → 显示标签（CustomerDetail.vue 版本） */
 function getLevelLabelDetail(level: string): string {
-  return ({ VIP: 'VIP客户', Important: '重要客户', Normal: '普通客户', Lead: '潜在客户' } as Record<string, string>)[level] || level;
+  return ({ VIP: 'VIP', VPO: 'VPO', BPO: 'BPO', B: 'B级', C: 'C级', D: 'D级' } as Record<string, string>)[level] || level;
 }
 
 /** 地址类型 → 显示标签 */
@@ -95,16 +104,10 @@ describe('CustomerList - 等级标签显示 (getLevelLabelList)', () => {
     expect(getLevelLabelList('D')).toBe('D级');
   });
 
-  it('UT-DISPLAY-007: "Important"（旧值）→ "重要"', () => {
-    expect(getLevelLabelList('Important')).toBe('重要');
-  });
-
-  it('UT-DISPLAY-008: "Normal"（旧值）→ "普通"', () => {
-    expect(getLevelLabelList('Normal')).toBe('普通');
-  });
-
-  it('UT-DISPLAY-009: "Lead"（旧值）→ "潜在"', () => {
-    expect(getLevelLabelList('Lead')).toBe('潜在');
+  it('UT-DISPLAY-007: 非标准等级 → 原样返回', () => {
+    expect(getLevelLabelList('Important')).toBe('Important');
+    expect(getLevelLabelList('Normal')).toBe('Normal');
+    expect(getLevelLabelList('Lead')).toBe('Lead');
   });
 
   it('UT-DISPLAY-010: 未知值 → 原样返回', () => {
@@ -125,8 +128,8 @@ describe('CustomerList - 类型标签显示 (getTypeLabelList)', () => {
     expect(getTypeLabelList(2)).toBe('ODM');
   });
 
-  it('UT-DISPLAY-022: 3 → "终端用户"', () => {
-    expect(getTypeLabelList(3)).toBe('终端用户');
+  it('UT-DISPLAY-022: 3 → "终端"', () => {
+    expect(getTypeLabelList(3)).toBe('终端');
   });
 
   it('UT-DISPLAY-023: 4 → "IDH"', () => {
@@ -145,46 +148,54 @@ describe('CustomerList - 类型标签显示 (getTypeLabelList)', () => {
     expect(getTypeLabelList(0)).toBe('未知');
   });
 
-  it('UT-DISPLAY-027: 7（超出范围）→ "未知"', () => {
-    expect(getTypeLabelList(7)).toBe('未知');
+  it('UT-DISPLAY-027: 7 → "EMS"', () => {
+    expect(getTypeLabelList(7)).toBe('EMS');
+  });
+
+  it('UT-DISPLAY-028: 11 → "原厂"', () => {
+    expect(getTypeLabelList(11)).toBe('原厂');
+  });
+
+  it('UT-DISPLAY-029: 12（无效）→ "未知"', () => {
+    expect(getTypeLabelList(12)).toBe('未知');
   });
 });
 
 describe('CustomerList - 行业标签显示 (getIndustryLabel)', () => {
-  it('UT-DISPLAY-030: "Manufacturing" → "制造业"', () => {
+  it('UT-DISPLAY-030: "FinanceEquipment" → "金融设备"', () => {
+    expect(getIndustryLabel('FinanceEquipment')).toBe('金融设备');
+  });
+
+  it('UT-DISPLAY-031: "Telecom" → "通讯"', () => {
+    expect(getIndustryLabel('Telecom')).toBe('通讯');
+  });
+
+  it('UT-DISPLAY-032: "ConsumerElectronics" → "消费电子"', () => {
+    expect(getIndustryLabel('ConsumerElectronics')).toBe('消费电子');
+  });
+
+  it('UT-DISPLAY-033: "Manufacturing"（旧码）→ "制造业"', () => {
     expect(getIndustryLabel('Manufacturing')).toBe('制造业');
   });
 
-  it('UT-DISPLAY-031: "Trading" → "贸易/零售"', () => {
-    expect(getIndustryLabel('Trading')).toBe('贸易/零售');
-  });
-
-  it('UT-DISPLAY-032: "Technology" → "科技/IT"', () => {
+  it('UT-DISPLAY-034: "Technology"（旧码）→ "科技/IT"', () => {
     expect(getIndustryLabel('Technology')).toBe('科技/IT');
   });
 
-  it('UT-DISPLAY-033: "Construction" → "建筑/工程"', () => {
+  it('UT-DISPLAY-035: "Construction"（旧码）→ "建筑/工程"', () => {
     expect(getIndustryLabel('Construction')).toBe('建筑/工程');
   });
 
-  it('UT-DISPLAY-034: "Healthcare" → "医疗/健康"', () => {
+  it('UT-DISPLAY-036: "Healthcare"（旧码）→ "医疗/健康"', () => {
     expect(getIndustryLabel('Healthcare')).toBe('医疗/健康');
   });
 
-  it('UT-DISPLAY-035: "Education" → "教育"', () => {
-    expect(getIndustryLabel('Education')).toBe('教育');
-  });
-
-  it('UT-DISPLAY-036: "Finance" → "金融"', () => {
-    expect(getIndustryLabel('Finance')).toBe('金融');
-  });
-
-  it('UT-DISPLAY-037: "Other" → "其他"', () => {
+  it('UT-DISPLAY-037: "Other"（旧码）→ "其他"', () => {
     expect(getIndustryLabel('Other')).toBe('其他');
   });
 
-  it('UT-DISPLAY-038: 未知行业 → 原样返回', () => {
-    expect(getIndustryLabel('Aerospace')).toBe('Aerospace');
+  it('UT-DISPLAY-038: 未知行业码 → 原样返回', () => {
+    expect(getIndustryLabel('UnknownSector')).toBe('UnknownSector');
   });
 
   it('UT-DISPLAY-039: 空字符串 → "--"', () => {
@@ -277,41 +288,35 @@ describe('CustomerDetail - 日期时间格式化 (formatDisplayDateTime, UTC)', 
 });
 
 describe('CustomerDetail - 类型标签显示 (getTypeLabelDetail)', () => {
-  it('UT-DISPLAY-070: 0 → "企业"', () => {
-    expect(getTypeLabelDetail(0)).toBe('企业');
+  it('UT-DISPLAY-070: 0 → "未知"', () => {
+    expect(getTypeLabelDetail(0)).toBe('未知');
   });
 
-  it('UT-DISPLAY-071: 1 → "个人"', () => {
-    expect(getTypeLabelDetail(1)).toBe('个人');
+  it('UT-DISPLAY-071: 1 → "OEM"', () => {
+    expect(getTypeLabelDetail(1)).toBe('OEM');
   });
 
-  it('UT-DISPLAY-072: 2 → "政府"', () => {
-    expect(getTypeLabelDetail(2)).toBe('政府');
+  it('UT-DISPLAY-072: 2 → "ODM"', () => {
+    expect(getTypeLabelDetail(2)).toBe('ODM');
   });
 
-  it('UT-DISPLAY-073: 3（超出范围）→ "未知"', () => {
-    expect(getTypeLabelDetail(3)).toBe('未知');
+  it('UT-DISPLAY-073: 3 → "终端"', () => {
+    expect(getTypeLabelDetail(3)).toBe('终端');
   });
 });
 
 describe('CustomerDetail - 等级标签显示 (getLevelLabelDetail)', () => {
-  it('UT-DISPLAY-080: "VIP" → "VIP客户"', () => {
-    expect(getLevelLabelDetail('VIP')).toBe('VIP客户');
+  it('UT-DISPLAY-080: "VIP" → "VIP"', () => {
+    expect(getLevelLabelDetail('VIP')).toBe('VIP');
   });
 
-  it('UT-DISPLAY-081: "Important" → "重要客户"', () => {
-    expect(getLevelLabelDetail('Important')).toBe('重要客户');
+  it('UT-DISPLAY-081: 非标准等级 → 原样返回', () => {
+    expect(getLevelLabelDetail('Important')).toBe('Important');
+    expect(getLevelLabelDetail('Normal')).toBe('Normal');
+    expect(getLevelLabelDetail('Lead')).toBe('Lead');
   });
 
-  it('UT-DISPLAY-082: "Normal" → "普通客户"', () => {
-    expect(getLevelLabelDetail('Normal')).toBe('普通客户');
-  });
-
-  it('UT-DISPLAY-083: "Lead" → "潜在客户"', () => {
-    expect(getLevelLabelDetail('Lead')).toBe('潜在客户');
-  });
-
-  it('UT-DISPLAY-084: 未知值 → 原样返回', () => {
+  it('UT-DISPLAY-084: "BPO" → "BPO"', () => {
     expect(getLevelLabelDetail('BPO')).toBe('BPO');
   });
 });

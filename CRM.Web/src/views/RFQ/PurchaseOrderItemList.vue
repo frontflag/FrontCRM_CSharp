@@ -83,14 +83,24 @@
         <el-tag effect="dark" :type="statusTagType(row.itemStatus)" size="small">{{ statusText(row.itemStatus) }}</el-tag>
       </template>
       <template #col-orderCreateTime="{ row }">{{ formatDt(row.orderCreateTime) }}</template>
-      <template #col-financePaymentStatus="{ row }">
-        <el-tag effect="dark" size="small" :type="financeStatusTagType(Number(row.financePaymentStatus ?? 0))">
-          {{ financeStatusText(Number(row.financePaymentStatus ?? 0)) }}
+      <template #col-paymentProgressStatus="{ row }">
+        <el-tag effect="dark" size="small" :type="poExtendTriTagType(Number(row.paymentProgressStatus ?? 0))">
+          {{ poPaymentProgressText(Number(row.paymentProgressStatus ?? 0)) }}
         </el-tag>
       </template>
-      <template #col-stockInStatus="{ row }">
-        <el-tag effect="dark" size="small" :type="shippingStatusTagType(Number(row.stockInStatus ?? 0))">
-          {{ shippingStatusText(Number(row.stockInStatus ?? 0)) }}
+      <template #col-purchaseProgressStatus="{ row }">
+        <el-tag effect="dark" size="small" :type="poExtendTriTagType(Number(row.purchaseProgressStatus ?? 0))">
+          {{ poPurchaseProgressText(Number(row.purchaseProgressStatus ?? 0)) }}
+        </el-tag>
+      </template>
+      <template #col-stockInProgressStatus="{ row }">
+        <el-tag effect="dark" size="small" :type="poExtendTriTagType(Number(row.stockInProgressStatus ?? 0))">
+          {{ poStockInProgressText(Number(row.stockInProgressStatus ?? 0)) }}
+        </el-tag>
+      </template>
+      <template #col-invoiceProgressStatus="{ row }">
+        <el-tag effect="dark" size="small" :type="poExtendTriTagType(Number(row.invoiceProgressStatus ?? 0))">
+          {{ poInvoiceProgressText(Number(row.invoiceProgressStatus ?? 0)) }}
         </el-tag>
       </template>
       <template #col-cost="{ row }">{{ formatCurrencyUnitPrice(row.cost, row.currency) }}</template>
@@ -238,27 +248,51 @@
         <el-row :gutter="12">
           <el-col :span="8">
             <el-form-item :label="t('purchaseOrderItemList.paymentDialog.intermediateBankFee')">
-              <el-input-number v-model="paymentForm.fee.intermediateBankFee" :min="0" :precision="2" style="width: 100%" />
+              <SettlementCurrencyAmountInput
+                v-model="paymentForm.fee.intermediateBankFee"
+                v-model:currency="paymentForm.currency"
+                :min="0"
+                :precision="2"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item :label="t('purchaseOrderItemList.paymentDialog.bankCharge')">
-              <el-input-number v-model="paymentForm.fee.bankCharge" :min="0" :precision="2" style="width: 100%" />
+              <SettlementCurrencyAmountInput
+                v-model="paymentForm.fee.bankCharge"
+                v-model:currency="paymentForm.currency"
+                :min="0"
+                :precision="2"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item :label="t('purchaseOrderItemList.paymentDialog.freight')">
-              <el-input-number v-model="paymentForm.fee.freight" :min="0" :precision="2" style="width: 100%" />
+              <SettlementCurrencyAmountInput
+                v-model="paymentForm.fee.freight"
+                v-model:currency="paymentForm.currency"
+                :min="0"
+                :precision="2"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item :label="t('purchaseOrderItemList.paymentDialog.miscFee')">
-              <el-input-number v-model="paymentForm.fee.miscFee" :min="0" :precision="2" style="width: 100%" />
+              <SettlementCurrencyAmountInput
+                v-model="paymentForm.fee.miscFee"
+                v-model:currency="paymentForm.currency"
+                :min="0"
+                :precision="2"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item :label="t('purchaseOrderItemList.paymentDialog.rounding')">
-              <el-input-number v-model="paymentForm.fee.rounding" :precision="2" style="width: 100%" />
+              <SettlementCurrencyAmountInput
+                v-model="paymentForm.fee.rounding"
+                v-model:currency="paymentForm.currency"
+                :precision="2"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -292,9 +326,15 @@
           <el-table-column prop="pendingRequested" :label="t('purchaseOrderItemList.paymentDialog.colPending')" width="160" align="right">
             <template #default="{ row }">{{ formatCurrencyTotal(row.pendingRequested, row.currency) }}</template>
           </el-table-column>
-          <el-table-column :label="t('purchaseOrderItemList.paymentDialog.colThisRequest')" width="150">
+          <el-table-column :label="t('purchaseOrderItemList.paymentDialog.colThisRequest')" min-width="220" width="220">
             <template #default="{ row }">
-              <el-input-number v-model="row.requestAmount" :min="0" :max="row.pendingRequested" :precision="2" style="width: 130px" />
+              <SettlementCurrencyAmountInput
+                v-model="row.requestAmount"
+                v-model:currency="paymentForm.currency"
+                :min="0"
+                :max="row.pendingRequested"
+                :precision="2"
+              />
             </template>
           </el-table-column>
           <el-table-column :label="t('purchaseOrderItemList.paymentDialog.colLineRemark')" min-width="140">
@@ -359,8 +399,42 @@
               <el-col :span="8"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.contact')"><el-input v-model="arrivalForm.contact" /></el-form-item></el-col>
             </el-row>
             <el-row :gutter="12">
-              <el-col :span="8"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.arrivalMethod')"><el-input v-model="arrivalForm.arrivalMethod" /></el-form-item></el-col>
-              <el-col :span="8"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.expressMethod')"><el-input v-model="arrivalForm.expressMethod" /></el-form-item></el-col>
+              <el-col :span="8">
+                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.arrivalMethod')">
+                  <el-select
+                    v-model="arrivalForm.arrivalMethod"
+                    clearable
+                    filterable
+                    :placeholder="t('purchaseOrderItemList.arrivalDialog.selectPlaceholder')"
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="o in arrivalMethodDictOptions"
+                      :key="o.value"
+                      :label="o.label"
+                      :value="o.value"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.expressMethod')">
+                  <el-select
+                    v-model="arrivalForm.expressMethod"
+                    clearable
+                    filterable
+                    :placeholder="t('purchaseOrderItemList.arrivalDialog.selectPlaceholder')"
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="o in expressMethodDictOptions"
+                      :key="o.value"
+                      :label="o.label"
+                      :value="o.value"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-col>
               <el-col :span="8"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.expressNo')"><el-input v-model="arrivalForm.expressNo" /></el-form-item></el-col>
             </el-row>
           </el-form>
@@ -443,11 +517,16 @@ import { ElMessage } from 'element-plus'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
+import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+
+const { ensureLoaded: ensureLogisticsDict, arrivalOptions: arrivalMethodDictOptions, expressOptions: expressMethodDictOptions } =
+  useLogisticsFormDict()
 
 const canViewVendor = computed(() => authStore.hasPermission('vendor.info.read'))
 const canViewPurchaseUser = computed(() => authStore.hasPermission('purchase.user.read') || authStore.hasPermission('purchase-order.read'))
@@ -480,6 +559,15 @@ const purchaseOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
   const cols: CrmTableColumnDef[] = [
     { key: 'selection', type: 'selection', width: 48, reserveSelection: true, fixed: 'left', hideable: false, reorderable: false },
     {
+      key: 'purchaseOrderItemCode',
+      label: t('purchaseOrderItemList.columns.purchaseOrderItemCode'),
+      prop: 'purchaseOrderItemCode',
+      width: 180,
+      minWidth: 168,
+      fixed: 'left',
+      showOverflowTooltip: true
+    },
+    {
       key: 'purchaseOrderCode',
       label: t('purchaseOrderItemList.columns.purchaseOrderCode'),
       prop: 'purchaseOrderCode',
@@ -488,29 +576,10 @@ const purchaseOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
       showOverflowTooltip: true
     },
     { key: 'itemStatus', label: t('purchaseOrderItemList.columns.itemStatus'), prop: 'itemStatus', width: 160, align: 'center' },
-    { key: 'orderCreateTime', label: t('purchaseOrderItemList.columns.orderCreateTime'), prop: 'orderCreateTime', width: 160 },
-    { key: 'pn', label: t('purchaseOrderItemList.columns.pn'), prop: 'pn', minWidth: 130, showOverflowTooltip: true },
-    { key: 'brand', label: t('purchaseOrderItemList.columns.brand'), prop: 'brand', width: 110, showOverflowTooltip: true },
-    { key: 'qty', label: t('purchaseOrderItemList.columns.qty'), prop: 'qty', width: 100, align: 'right' },
-    {
-      key: 'financePaymentStatus',
-      label: t('purchaseOrderItemList.columns.financePaymentStatus'),
-      prop: 'financePaymentStatus',
-      width: 120,
-      align: 'center'
-    },
-    {
-      key: 'stockInStatus',
-      label: t('purchaseOrderItemList.columns.stockInStatus'),
-      prop: 'stockInStatus',
-      width: 120,
-      align: 'center'
-    },
-    { key: 'createTime', label: t('purchaseOrderItemList.columns.createTime'), width: 160 },
-    { key: 'createUser', label: t('purchaseOrderItemList.columns.createUser'), width: 120, showOverflowTooltip: true }
+    { key: 'orderCreateTime', label: t('purchaseOrderItemList.columns.orderCreateTime'), prop: 'orderCreateTime', width: 160 }
   ]
   if (canViewVendor.value) {
-    cols.splice(4, 0, {
+    cols.push({
       key: 'vendorName',
       label: t('purchaseOrderItemList.columns.vendorName'),
       prop: 'vendorName',
@@ -519,7 +588,7 @@ const purchaseOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
     })
   }
   if (canViewPurchaseUser.value) {
-    cols.splice(canViewVendor.value ? 5 : 4, 0, {
+    cols.push({
       key: 'purchaseUserName',
       label: t('purchaseOrderItemList.columns.purchaseUserName'),
       prop: 'purchaseUserName',
@@ -527,12 +596,49 @@ const purchaseOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
       showOverflowTooltip: true
     })
   }
+  cols.push(
+    { key: 'pn', label: t('purchaseOrderItemList.columns.pn'), prop: 'pn', minWidth: 130, showOverflowTooltip: true },
+    { key: 'brand', label: t('purchaseOrderItemList.columns.brand'), prop: 'brand', width: 110, showOverflowTooltip: true },
+    { key: 'qty', label: t('purchaseOrderItemList.columns.qty'), prop: 'qty', width: 100, align: 'right' }
+  )
   if (canViewAmount.value) {
-    cols.splice(cols.length - 2, 0,
+    cols.push(
       { key: 'cost', label: t('purchaseOrderItemList.columns.cost'), prop: 'cost', width: 160, align: 'right' },
       { key: 'lineTotal', label: t('purchaseOrderItemList.columns.lineTotal'), prop: 'lineTotal', width: 160, align: 'right' }
     )
   }
+  cols.push(
+    { key: 'createTime', label: t('purchaseOrderItemList.columns.createTime'), width: 160 },
+    { key: 'createUser', label: t('purchaseOrderItemList.columns.createUser'), width: 120, showOverflowTooltip: true },
+    {
+      key: 'paymentProgressStatus',
+      label: t('purchaseOrderItemList.columns.paymentProgressStatus'),
+      prop: 'paymentProgressStatus',
+      width: 120,
+      align: 'center'
+    },
+    {
+      key: 'purchaseProgressStatus',
+      label: t('purchaseOrderItemList.columns.purchaseProgressStatus'),
+      prop: 'purchaseProgressStatus',
+      width: 120,
+      align: 'center'
+    },
+    {
+      key: 'stockInProgressStatus',
+      label: t('purchaseOrderItemList.columns.stockInProgressStatus'),
+      prop: 'stockInProgressStatus',
+      width: 120,
+      align: 'center'
+    },
+    {
+      key: 'invoiceProgressStatus',
+      label: t('purchaseOrderItemList.columns.invoiceProgressStatus'),
+      prop: 'invoiceProgressStatus',
+      width: 120,
+      align: 'center'
+    }
+  )
   cols.push({
     key: 'actions',
     label: t('purchaseOrderItemList.columns.actions'),
@@ -666,42 +772,54 @@ function formatDt(v: string) {
   return s === '--' ? '—' : s
 }
 
-function financeStatusText(s: number) {
-  const map: Record<number, 'unpaid' | 'partial' | 'paid'> = {
-    0: 'unpaid',
-    1: 'partial',
-    2: 'paid'
-  }
-  const k = map[s]
-  return k ? t(`purchaseOrderItemList.financePayment.${k}`) : String(s)
-}
-
-function financeStatusTagType(s: number): '' | 'success' | 'warning' | 'info' | 'danger' | 'primary' {
-  const map: Record<number, '' | 'success' | 'warning' | 'info' | 'danger' | 'primary'> = {
+/** 扩展表三态进度：0=待 1=部分 2=完成（与采购订单详情一致） */
+function poExtendTriTagType(v: number): '' | 'info' | 'success' | 'warning' | 'danger' {
+  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = {
     0: 'info',
     1: 'warning',
     2: 'success'
   }
-  return map[s] ?? 'info'
+  return map[v] ?? 'info'
 }
 
-function shippingStatusText(s: number) {
-  const map: Record<number, 'none' | 'partial' | 'all'> = {
-    0: 'none',
-    1: 'partial',
-    2: 'all'
+function poPurchaseProgressText(v: number) {
+  const map: Record<number, string> = {
+    0: 'purchasePending',
+    1: 'purchasePartial',
+    2: 'purchaseDone'
   }
-  const k = map[s]
-  return k ? t(`purchaseOrderItemList.stockIn.${k}`) : String(s)
+  const k = map[v]
+  return k ? t(`purchaseOrderItemList.extendProgress.${k}`) : String(v)
 }
 
-function shippingStatusTagType(s: number): '' | 'success' | 'warning' | 'info' | 'danger' | 'primary' {
-  const map: Record<number, '' | 'success' | 'warning' | 'info' | 'danger' | 'primary'> = {
-    0: 'info',
-    1: 'warning',
-    2: 'success'
+function poStockInProgressText(v: number) {
+  const map: Record<number, string> = {
+    0: 'stockInPending',
+    1: 'stockInPartial',
+    2: 'stockInDone'
   }
-  return map[s] ?? 'info'
+  const k = map[v]
+  return k ? t(`purchaseOrderItemList.extendProgress.${k}`) : String(v)
+}
+
+function poPaymentProgressText(v: number) {
+  const map: Record<number, string> = {
+    0: 'paymentPending',
+    1: 'paymentPartial',
+    2: 'paymentDone'
+  }
+  const k = map[v]
+  return k ? t(`purchaseOrderItemList.extendProgress.${k}`) : String(v)
+}
+
+function poInvoiceProgressText(v: number) {
+  const map: Record<number, string> = {
+    0: 'invoicePending',
+    1: 'invoicePartial',
+    2: 'invoiceDone'
+  }
+  const k = map[v]
+  return k ? t(`purchaseOrderItemList.extendProgress.${k}`) : String(v)
 }
 
 function buildFinancePaymentCode() {
@@ -743,7 +861,12 @@ function openPaymentDialog(row: any) {
   paymentDialogVisible.value = true
 }
 
-function openArrivalDialog(row: any) {
+async function openArrivalDialog(row: any) {
+  try {
+    await ensureLogisticsDict()
+  } catch {
+    /* 字典加载失败仍允许打开 */
+  }
   arrivalNoticeShowProcessFields.value = false
   arrivalForm.purchaseOrderItemId = row.purchaseOrderItemId || row.id || ''
   arrivalForm.purchaseOrderId = row.purchaseOrderId || ''
@@ -929,11 +1052,14 @@ async function loadList() {
       return items.map((it: any) => ({
         purchaseOrderItemId: it.purchaseOrderItemId ?? it.id ?? it.Id,
         purchaseOrderId: detail.id ?? o.id,
+        purchaseOrderItemCode: it.purchaseOrderItemCode ?? it.PurchaseOrderItemCode ?? '',
         purchaseOrderCode: detail.purchaseOrderCode ?? o.purchaseOrderCode,
         vendorId: detail.vendorId ?? o.vendorId,
         itemStatus: it.status,
-        stockInStatus: it.stockInStatus ?? 0,
-        financePaymentStatus: it.financePaymentStatus ?? 0,
+        purchaseProgressStatus: Number(it.purchaseProgressStatus ?? 0),
+        stockInProgressStatus: Number(it.stockInProgressStatus ?? 0),
+        paymentProgressStatus: Number(it.paymentProgressStatus ?? 0),
+        invoiceProgressStatus: Number(it.invoiceProgressStatus ?? 0),
         canApplyPayment: Boolean(it.canApplyPayment ?? it.CanApplyPayment ?? false),
         orderCreateTime: detail.createTime ?? o.createTime,
         vendorName: detail.vendorName ?? o.vendorName,

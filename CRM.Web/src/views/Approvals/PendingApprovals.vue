@@ -46,7 +46,7 @@
     </div>
 
     <CrmDataTable :data="approvalList" v-loading="loading" highlight-current-row @row-dblclick="handleView">
-      <el-table-column :label="t('pendingApprovals.columns.bizType')" width="100">
+      <el-table-column :label="t('pendingApprovals.columns.bizType')" width="140" min-width="140" align="center">
         <template #default="{ row }">
           <el-tag effect="dark" :type="getBizTypeTagType(row.bizType)" size="small">
             {{ row.bizTypeName || getBizTypeText(row.bizType) }}
@@ -135,10 +135,6 @@
           <div class="audit-attachments">
             <div class="attach-header">
               <span>{{ t('pendingApprovals.dialog.attachmentPreview') }}</span>
-              <label class="upload-btn">
-                <input type="file" multiple @change="onAuditFilesSelected" />
-                {{ t('pendingApprovals.dialog.uploadAttachment') }}
-              </label>
             </div>
             <div v-if="auditDocsLoading" class="detail-loading">{{ t('pendingApprovals.dialog.docsLoading') }}</div>
             <div v-else-if="auditDocs.length === 0" class="detail-loading">{{ t('pendingApprovals.dialog.noAttachments') }}</div>
@@ -147,7 +143,7 @@
                 <span class="name" :title="doc.originalFileName">{{ doc.originalFileName }}</span>
                 <span class="ops">
                   <el-button link type="primary" size="small" @click="previewDoc(doc)">{{ t('pendingApprovals.dialog.preview') }}</el-button>
-                  <el-button link type="primary" size="small" @click="downloadDoc(doc)" :loading="uploadingAuditDocs">{{ t('pendingApprovals.dialog.download') }}</el-button>
+                  <el-button link type="primary" size="small" @click="downloadDoc(doc)">{{ t('pendingApprovals.dialog.download') }}</el-button>
                 </span>
               </div>
             </div>
@@ -281,7 +277,6 @@ const auditDetailError = ref('')
 const auditDetail = ref<any>(null)
 const auditDocsLoading = ref(false)
 const auditDocs = ref<UploadDocumentDto[]>([])
-const uploadingAuditDocs = ref(false)
 const auditHistoryLoading = ref(false)
 const auditHistory = ref<ApprovalHistoryItem[]>([])
 
@@ -490,7 +485,6 @@ const openAuditDialog = (row: PendingApprovalItem) => {
 }
 
 const normalizeApiData = <T = any>(res: any): T => (res?.data ?? res) as T
-const currentBizKey = () => ({ bizType: auditRow.value?.bizType || '', bizId: auditRow.value?.businessId || '' })
 
 const loadAuditDetail = async (row: PendingApprovalItem) => {
   auditDetailLoading.value = true
@@ -539,24 +533,6 @@ const previewDoc = (doc: UploadDocumentDto) => {
 
 const downloadDoc = async (doc: UploadDocumentDto) => {
   await documentApi.downloadDocument(doc.id, doc.originalFileName)
-}
-
-const onAuditFilesSelected = async (e: Event) => {
-  const files = Array.from((e.target as HTMLInputElement).files || [])
-  if (!files.length) return
-  const key = currentBizKey()
-  if (!key.bizType || !key.bizId) return
-  try {
-    uploadingAuditDocs.value = true
-    await documentApi.uploadDocuments(key.bizType, key.bizId, files, t('pendingApprovals.messages.auditDocCategory'))
-    if (auditRow.value) await loadAuditDocs(auditRow.value)
-    ElMessage.success(t('pendingApprovals.messages.uploadSuccess'))
-  } catch (err: any) {
-    ElMessage.error(err?.message || t('pendingApprovals.messages.uploadFailed'))
-  } finally {
-    uploadingAuditDocs.value = false
-    ;(e.target as HTMLInputElement).value = ''
-  }
 }
 
 const loadAuditHistory = async (row: PendingApprovalItem) => {
@@ -866,27 +842,8 @@ onMounted(() => {
   .attach-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     color: $text-primary;
     margin-bottom: 8px;
-  }
-
-  .upload-btn {
-    position: relative;
-    display: inline-block;
-    font-size: 12px;
-    color: $cyan-primary;
-    border: 1px solid rgba(0, 212, 255, 0.3);
-    border-radius: 6px;
-    padding: 2px 8px;
-    cursor: pointer;
-  }
-
-  .upload-btn input {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
   }
 
   .attach-list {

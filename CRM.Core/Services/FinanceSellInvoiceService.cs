@@ -26,7 +26,7 @@ namespace CRM.Core.Services
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<FinanceSellInvoice> CreateAsync(CreateFinanceSellInvoiceRequest request)
+        public async Task<FinanceSellInvoice> CreateAsync(CreateFinanceSellInvoiceRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(request.CustomerId))
                 throw new ArgumentException("客户ID不能为空", nameof(request.CustomerId));
@@ -50,7 +50,8 @@ namespace CRM.Core.Services
                 InvoiceStatus = 1,
                 SellInvoiceType = request.SellInvoiceType,
                 Remark = request.Remark,
-                CreateTime = DateTime.UtcNow
+                CreateTime = DateTime.UtcNow,
+                CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
             await _invoiceRepo.AddAsync(invoice);
 
@@ -133,7 +134,7 @@ namespace CRM.Core.Services
             };
         }
 
-        public async Task<FinanceSellInvoice> UpdateAsync(string id, UpdateFinanceSellInvoiceRequest request)
+        public async Task<FinanceSellInvoice> UpdateAsync(string id, UpdateFinanceSellInvoiceRequest request, string? actingUserId = null)
         {
             var invoice = await _invoiceRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"销项发票 {id} 不存在");
@@ -146,6 +147,7 @@ namespace CRM.Core.Services
             if (request.MakeInvoiceDate.HasValue) invoice.MakeInvoiceDate = PostgreSqlDateTime.ToUtc(request.MakeInvoiceDate.Value);
             if (request.Remark != null) invoice.Remark = request.Remark;
             invoice.ModifyTime = DateTime.UtcNow;
+            invoice.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
 
             await _invoiceRepo.UpdateAsync(invoice);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
@@ -163,7 +165,7 @@ namespace CRM.Core.Services
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task UpdateInvoiceStatusAsync(string id, short invoiceStatus)
+        public async Task UpdateInvoiceStatusAsync(string id, short invoiceStatus, string? actingUserId = null)
         {
             var invoice = await _invoiceRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"销项发票 {id} 不存在");
@@ -179,11 +181,12 @@ namespace CRM.Core.Services
 
             invoice.InvoiceStatus = invoiceStatus;
             invoice.ModifyTime = DateTime.UtcNow;
+            invoice.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _invoiceRepo.UpdateAsync(invoice);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task VoidAsync(string id)
+        public async Task VoidAsync(string id, string? actingUserId = null)
         {
             var invoice = await _invoiceRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"销项发票 {id} 不存在");
@@ -193,6 +196,7 @@ namespace CRM.Core.Services
                 throw new InvalidOperationException("已有收款核销记录，禁止作废销项发票");
             invoice.InvoiceStatus = -1; // 已作废
             invoice.ModifyTime = DateTime.UtcNow;
+            invoice.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _invoiceRepo.UpdateAsync(invoice);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
         }

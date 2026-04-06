@@ -162,8 +162,19 @@
           <div v-show="activeTab === 'items'">
             <CrmDataTable :data="order.items" size="small" v-if="order.items?.length" class="items-table">
               <el-table-column type="index" width="50" label="#" />
+              <el-table-column
+                prop="sellOrderItemCode"
+                :label="t('salesOrderItemList.columns.sellOrderItemCode')"
+                min-width="168"
+                show-overflow-tooltip
+              />
               <el-table-column prop="pn" label="物料型号" min-width="160" />
               <el-table-column prop="brand" label="品牌" width="120" />
+              <el-table-column label="生产日期" width="108" align="center">
+                <template #default="{ row }">
+                  {{ fmtSoItemDateCode(row) }}
+                </template>
+              </el-table-column>
               <el-table-column prop="qty" label="数量" align="right" width="100" />
               <el-table-column v-if="canViewSalesAmount" prop="price" label="单价" align="right" width="120">
                 <template #default="{ row }">
@@ -175,31 +186,63 @@
                   {{ formatCurrencyTotal(row.qty * row.price, row.currency) }}
                 </template>
               </el-table-column>
-              <el-table-column label="审核状态" width="90" align="center">
+              <el-table-column v-if="canViewSalesAmount" label="折算美金单价" align="right" width="140">
                 <template #default="{ row }">
-                  <el-tag :type="getItemAuditStatusType(row.itemAuditStatus)" size="small" effect="dark">
-                    {{ getItemAuditStatusText(row.itemAuditStatus) }}
+                  {{ row.usdUnitPrice != null ? `$${Number(row.usdUnitPrice).toFixed(6)}` : '—' }}
+                </template>
+              </el-table-column>
+              <el-table-column v-if="canViewSalesAmount" label="折算美金总额" align="right" width="140">
+                <template #default="{ row }">
+                  {{ row.usdLineTotal != null ? `$${Number(row.usdLineTotal).toFixed(2)}` : '—' }}
+                </template>
+              </el-table-column>
+              <el-table-column v-if="canViewSalesAmount" :label="t('salesOrderItemList.columns.salesProfitExpected')" align="right" width="140">
+                <template #default="{ row }">
+                  {{ row.salesProfitExpected != null ? `$${Number(row.salesProfitExpected).toFixed(2)}` : '—' }}
+                </template>
+              </el-table-column>
+              <el-table-column v-if="canViewSalesAmount" :label="t('salesOrderItemList.columns.profitOutBizUsd')" align="right" width="120">
+                <template #default="{ row }">
+                  {{ row.profitOutBizUsd != null ? `$${Number(row.profitOutBizUsd).toFixed(2)}` : '—' }}
+                </template>
+              </el-table-column>
+              <el-table-column v-if="canViewSalesAmount" :label="t('salesOrderItemList.columns.profitOutRateBiz')" align="right" width="120">
+                <template #default="{ row }">
+                  {{ row.profitOutRateBiz != null ? Number(row.profitOutRateBiz).toFixed(6) : '—' }}
+                </template>
+              </el-table-column>
+              <el-table-column label="采购状态" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="getExtendTriStatusTagType(row.purchaseProgressStatus)" size="small" effect="dark">
+                    {{ getPurchaseProgressText(row.purchaseProgressStatus) }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="货运状态" width="100" align="center">
+              <el-table-column label="入库状态" width="100" align="center">
                 <template #default="{ row }">
-                  <el-tag :type="getShippingStatusType(row.shippingStatus)" size="small" effect="dark">
-                    {{ getShippingStatusText(row.shippingStatus) }}
+                  <el-tag :type="getExtendTriStatusTagType(row.stockInProgressStatus)" size="small" effect="dark">
+                    {{ getStockInProgressText(row.stockInProgressStatus) }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="款项状态" width="100" align="center">
+              <el-table-column label="出库状态" width="100" align="center">
                 <template #default="{ row }">
-                  <el-tag :type="getPaymentStatusType(row.paymentStatus)" size="small" effect="dark">
-                    {{ getPaymentStatusText(row.paymentStatus) }}
+                  <el-tag :type="getExtendTriStatusTagType(row.stockOutProgressStatus)" size="small" effect="dark">
+                    {{ getStockOutProgressText(row.stockOutProgressStatus) }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="票据状态" width="100" align="center">
+              <el-table-column label="收款状态" width="100" align="center">
                 <template #default="{ row }">
-                  <el-tag :type="getInvoiceStatusType(row.invoiceStatus)" size="small" effect="dark">
-                    {{ getInvoiceStatusText(row.invoiceStatus) }}
+                  <el-tag :type="getExtendTriStatusTagType(row.receiptProgressStatus)" size="small" effect="dark">
+                    {{ getReceiptProgressText(row.receiptProgressStatus) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="开票状态" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="getExtendTriStatusTagType(row.invoiceProgressStatus)" size="small" effect="dark">
+                    {{ getSellInvoiceProgressText(row.invoiceProgressStatus) }}
                   </el-tag>
                 </template>
               </el-table-column>
@@ -220,7 +263,7 @@
                         申请采购
                       </button>
                       <button
-                        v-if="canWriteSo"
+                        v-if="canWriteSo && stockOutApplyPurchaseGateOk(row)"
                         type="button"
                         class="action-btn action-btn--warning"
                         @click.stop="handleOpenApplyStockOut(row)"
@@ -254,7 +297,7 @@
       </div>
     </template>
 
-    <el-empty v-else description="订单不存在" />
+    <el-empty v-else :description="loadError || '订单不存在'" />
 
     <!-- 标签弹窗 -->
     <ApplyTagsDialog
@@ -265,12 +308,13 @@
       @success="refreshTags"
     />
 
-    <el-dialog v-model="applyDialogVisible" title="新建出货通知" width="900px" destroy-on-close>
+    <el-dialog v-model="applyDialogVisible" title="新建出货通知" width="960px" destroy-on-close>
+      <div v-loading="applyStockOutLoading">
       <el-form :model="applyForm" label-width="140px">
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="通知单号" required>
-              <el-input v-model="applyForm.requestCode" readonly />
+            <el-form-item label="通知单号">
+              <el-input :model-value="applyForm.requestCode || '（提交时由系统生成）'" readonly />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -307,16 +351,20 @@
           <span class="cell cell--idx">#</span>
           <span class="cell cell--pn">物料型号</span>
           <span class="cell cell--brand">品牌</span>
-          <span class="cell cell--max">订单数量</span>
-          <span class="cell cell--stock">在库数量</span>
-          <span class="cell cell--qty">出库通知数量</span>
+          <span class="cell cell--num">订单数量</span>
+          <span class="cell cell--num">已占用通知</span>
+          <span class="cell cell--num">尚可申请</span>
+          <span class="cell cell--num">在库可用</span>
+          <span class="cell cell--qty">本次数量</span>
         </div>
         <div class="apply-stock-lines__row">
           <span class="cell cell--idx">1</span>
           <span class="cell cell--pn">{{ applyForm.materialCode }}</span>
           <span class="cell cell--brand">{{ applyForm.materialName }}</span>
-          <span class="cell cell--max">{{ applyForm.maxQty }}</span>
-          <span class="cell cell--stock">{{ applyStockQtyText }}</span>
+          <span class="cell cell--num">{{ applyFormSalesOrderQtyText }}</span>
+          <span class="cell cell--num">{{ applyFormAlreadyNotifiedText }}</span>
+          <span class="cell cell--num">{{ applyFormRemainingNotifyText }}</span>
+          <span class="cell cell--num">{{ applyStockQtyText }}</span>
           <span class="cell cell--qty">
             <el-input-number
               v-model="applyForm.notifyQty"
@@ -330,6 +378,7 @@
         </div>
       </div>
       <el-empty v-else description="请从上方明细行点击「申请出库」" :image-size="64" />
+      </div>
       <template #footer>
         <el-button @click="applyDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="applySubmitting" @click="submitApplyStockOut">确定</el-button>
@@ -355,6 +404,18 @@
           <el-col :span="12">
             <el-form-item label="订单明细数量">
               <el-input :model-value="prApplyFormSalesOrderQtyText" disabled />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="已下采购量">
+              <el-input :model-value="prApplyFormPurchasedQtyText" disabled />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="进行中申请">
+              <el-input :model-value="prApplyFormOpenPrQtyText" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -452,13 +513,15 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import salesOrderApi from '@/api/salesOrder'
+import { getApiErrorMessage } from '@/utils/apiError'
 import purchaseRequisitionApi from '@/api/purchaseRequisition'
 import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
 import { favoriteApi } from '@/api/favorite'
 import {
   translateSalesOrderStatus,
   salesOrderStatusTagType,
-  salesOrderMainAllowsPurchaseAndStockOut
+  salesOrderMainAllowsPurchaseAndStockOut,
+  salesOrderLineApplyStockOutDisabled
 } from '@/constants/salesOrderStatus'
 import {
   SALES_ORDER_FAVORITE_ENTITY_TYPE,
@@ -466,7 +529,6 @@ import {
 } from '@/constants/salesOrderFavorites'
 import { recordSalesOrderRecentView } from '@/utils/salesOrderRecentHistory'
 import { stockOutApi } from '@/api/stockOut'
-import { inventoryCenterApi } from '@/api/inventoryCenter'
 import { tagApi, type TagDefinitionDto } from '@/api/tag'
 import { useAuthStore } from '@/stores/auth'
 import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
@@ -477,11 +539,20 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
+import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMaterialProductionDateDict()
+
+function fmtSoItemDateCode(row: { dateCode?: string; DateCode?: string } | null | undefined) {
+  if (!row) return '—'
+  const raw = String(row.dateCode ?? row.DateCode ?? '').trim()
+  if (!raw) return '—'
+  return productionDateDisplayLabel(raw, materialPdOptions.value) || raw
+}
 
 const canViewCustomerInfo = computed(() => authStore.hasPermission('customer.info.read'))
 const canViewSalesAmount = computed(() => authStore.hasPermission('sales.amount.read'))
@@ -502,6 +573,10 @@ const canApplyStockOutForItems = computed(() =>
   order.value != null && salesOrderMainAllowsPurchaseAndStockOut(Number(order.value.status))
 )
 
+function stockOutApplyPurchaseGateOk(row: any) {
+  return row?.stockOutApplyPurchaseGateOk === true
+}
+
 // —— 明细行「申请采购」弹窗（与 SalesOrderItemList 一致）——
 const prApplyDialogVisible = ref(false)
 const prApplyLoading = ref(false)
@@ -512,6 +587,8 @@ const prApplyForm = reactive({
   pn: '',
   brand: '',
   salesOrderQty: 0,
+  purchasedQty: 0,
+  openPurchaseRequisitionQty: 0,
   remainingQty: 0,
   requestQty: 0,
   expectedPurchaseDate: '' as string,
@@ -522,6 +599,8 @@ const prApplyRules: FormRules = {
   expectedPurchaseDate: [{ required: true, message: '请选择预计采购日期', trigger: 'change' }]
 }
 const prApplyFormSalesOrderQtyText = computed(() => String(Math.trunc(Number(prApplyForm.salesOrderQty ?? 0) || 0)))
+const prApplyFormPurchasedQtyText = computed(() => String(Math.trunc(Number(prApplyForm.purchasedQty ?? 0) || 0)))
+const prApplyFormOpenPrQtyText = computed(() => String(Math.trunc(Number(prApplyForm.openPurchaseRequisitionQty ?? 0) || 0)))
 const prApplyFormRemainingQtyText = computed(() => String(Math.trunc(Number(prApplyForm.remainingQty ?? 0) || 0)))
 
 function prApplyFormReset() {
@@ -529,6 +608,8 @@ function prApplyFormReset() {
   prApplyForm.pn = ''
   prApplyForm.brand = ''
   prApplyForm.salesOrderQty = 0
+  prApplyForm.purchasedQty = 0
+  prApplyForm.openPurchaseRequisitionQty = 0
   prApplyForm.remainingQty = 0
   prApplyForm.requestQty = 0
   prApplyForm.remark = ''
@@ -574,6 +655,12 @@ async function submitPrApply() {
   await fetchOrder()
 }
 
+function normId(s: unknown) {
+  return String(s ?? '')
+    .trim()
+    .toLowerCase()
+}
+
 async function handleOpenApplyPurchase(row: any) {
   if (!order.value) return
   if (!salesOrderMainAllowsPurchaseAndStockOut(Number(order.value.status))) {
@@ -582,28 +669,40 @@ async function handleOpenApplyPurchase(row: any) {
   }
   prApplyFormReset()
   prApplyDialogVisible.value = true
+  prApplyLoading.value = true
   try {
     const sellOrderId = order.value.id as string
     const sellOrderItemId = String(row.sellOrderItemId ?? row.id ?? row.Id ?? '').trim()
 
-    const options = await purchaseRequisitionApi.getLineOptions(sellOrderId)
-    const line = (options || []).find((x: any) => x.sellOrderItemId === sellOrderItemId)
+    const options = (await purchaseRequisitionApi.getLineOptions(sellOrderId)) || []
+    const line = options.find((x: any) => normId(x.sellOrderItemId) === normId(sellOrderItemId))
+    if (!line) {
+      ElMessage.warning(t('salesOrderItemList.messages.prLineNotAvailable'))
+      prApplyDialogVisible.value = false
+      return
+    }
 
     prApplyForm.sellOrderItemId = sellOrderItemId
-    prApplyForm.pn = line?.pn ?? row.pn ?? ''
-    prApplyForm.brand = line?.brand ?? row.brand ?? ''
+    prApplyForm.pn = line.pn ?? row.pn ?? ''
+    prApplyForm.brand = line.brand ?? row.brand ?? ''
     const toInt = (v: unknown) => Math.trunc(Number(v) || 0)
-    prApplyForm.salesOrderQty = toInt(line?.salesOrderQty ?? row.qty ?? 0)
-    prApplyForm.remainingQty = toInt(line?.remainingQty ?? row.qty ?? 0)
-    prApplyForm.requestQty = prApplyForm.remainingQty
+    prApplyForm.salesOrderQty = toInt(line.salesOrderQty ?? row.qty ?? 0)
+    prApplyForm.purchasedQty = toInt(line.purchasedQty ?? 0)
+    prApplyForm.openPurchaseRequisitionQty = toInt(line.openPurchaseRequisitionQty ?? 0)
+    prApplyForm.remainingQty = toInt(line.remainingQty)
+    prApplyForm.requestQty = Math.max(0, prApplyForm.remainingQty)
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || e?.message || '加载明细失败')
     prApplyDialogVisible.value = false
+  } finally {
+    prApplyLoading.value = false
   }
 }
 
 const loading = ref(false)
 const order = ref<any>(null)
+/** 加载失败时展示具体原因（权限/网络/库表等），避免一律显示「订单不存在」 */
+const loadError = ref('')
 const soFavorited = ref(false)
 const favoriteLoading = ref(false)
 const activeTab = ref('items')
@@ -617,6 +716,7 @@ const editDialogVisible = ref(false)
 const editSaving = ref(false)
 const applyDialogVisible = ref(false)
 const applySubmitting = ref(false)
+const applyStockOutLoading = ref(false)
 const applyForm = ref({
   requestCode: '',
   requestDate: null as Date | null,
@@ -624,18 +724,26 @@ const applyForm = ref({
   sellOrderItemId: '',
   materialCode: '',
   materialName: '',
+  /** 销售明细数量（服务端 apply-context） */
+  salesOrderQty: 0,
+  alreadyNotifiedQty: 0,
+  remainingNotifyQty: 0,
+  /** 本次输入上限 = min(尚可申请, 在库可用)，由服务端计算 */
   maxQty: 0,
-  /** 全仓可用库存（接口按销售明细+关联采购行解析物料键，与出库一致）；请求失败为 null */
-  stockAvailableQty: null as number | null,
+  stockAvailableQty: 0,
   notifyQty: 0
 })
 
-/** 在库数量展示：库存中心汇总的可发货数量 */
-const applyStockQtyText = computed(() => {
-  const v = applyForm.value.stockAvailableQty
-  if (v == null) return '—'
-  return Number.isFinite(v) ? String(Math.trunc(Number(v))) : '—'
-})
+const intQtyText = (v: unknown) => {
+  const n = Math.trunc(Number(v) || 0)
+  return String(Number.isFinite(n) ? n : 0)
+}
+
+/** 在库可用：来自出库申请上下文接口 */
+const applyStockQtyText = computed(() => intQtyText(applyForm.value.stockAvailableQty ?? 0))
+const applyFormSalesOrderQtyText = computed(() => intQtyText(applyForm.value.salesOrderQty))
+const applyFormAlreadyNotifiedText = computed(() => intQtyText(applyForm.value.alreadyNotifiedQty))
+const applyFormRemainingNotifyText = computed(() => intQtyText(applyForm.value.remainingNotifyQty))
 const editForm = ref({
   customerName: '',
   salesUserId: '',
@@ -651,7 +759,11 @@ function onEditSalesUserChange(p: { id: string; label: string }) {
   editForm.value.salesUserName = p.label || ''
 }
 
-const orderId = computed(() => route.params.id as string)
+const orderId = computed(() => {
+  const raw = route.params.id
+  if (Array.isArray(raw)) return String(raw[0] ?? '').trim()
+  return String(raw ?? '').trim()
+})
 
 /** CaptionBar 主标题：有客户读权限且有名称为客户名，否则为销售单号 */
 const captionTitle = computed(() => {
@@ -711,6 +823,7 @@ async function handleDeleteOrder() {
 }
 
 onMounted(() => {
+  void ensureMaterialPdDict()
   fetchOrder()
 })
 
@@ -733,6 +846,12 @@ watch(
     if (route.query.applyStockOut === '1' && order.value && canWriteSo.value) {
       if (!salesOrderMainAllowsPurchaseAndStockOut(Number(order.value.status))) {
         ElMessage.warning('销售订单主表审核通过后，方可申请出库')
+        router.replace({ path: route.path, query: { ...route.query, applyStockOut: undefined } })
+        return
+      }
+      const lines = order.value.items || []
+      if (lines.length === 1 && !stockOutApplyPurchaseGateOk(lines[0])) {
+        ElMessage.warning(t('salesOrderItemList.messages.applyStockOutNeedPurchaseGate'))
         router.replace({ path: route.path, query: { ...route.query, applyStockOut: undefined } })
         return
       }
@@ -777,10 +896,18 @@ async function toggleFavorite() {
 
 const fetchOrder = async () => {
   loading.value = true
+  loadError.value = ''
   try {
     const id = orderId.value
+    if (!id) {
+      order.value = null
+      loadError.value = '链接中缺少订单编号'
+      soFavorited.value = false
+      return
+    }
     order.value = await salesOrderApi.getById(id)
     if (order.value) {
+      loadError.value = ''
       refreshTags()
       recordSalesOrderRecentView({
         id: String(order.value.id),
@@ -790,10 +917,13 @@ const fetchOrder = async () => {
       await loadFavoriteState()
     } else {
       soFavorited.value = false
+      loadError.value = '未找到该销售订单'
     }
-  } catch {
+  } catch (e) {
     order.value = null
     soFavorited.value = false
+    loadError.value = getApiErrorMessage(e, '加载失败，请稍后重试')
+    ElMessage.error(loadError.value)
   } finally {
     loading.value = false
   }
@@ -856,65 +986,37 @@ const refreshTags = async () => {
 
 const getStatusType = (status: number) => salesOrderStatusTagType(status)
 const getStatusText = (status: number) => translateSalesOrderStatus(status, t)
-// ===== 明细状态辅助函数 =====
-// 审核状态
-const getItemAuditStatusText = (v?: number) => {
-  const map: Record<number, string> = { 0: '新建', 1: '待审核', 2: '已审核' }
-  return v !== undefined ? (map[v] ?? '-') : '-'
+// ===== 销售明细扩展：执行进度（0=待 1=部分 2=完成）=====
+const getExtendTriStatusTagType = (v?: number): '' | 'info' | 'success' | 'warning' | 'danger' => {
+  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = {
+    0: 'info',
+    1: 'warning',
+    2: 'success'
+  }
+  return v !== undefined && v !== null ? (map[v] ?? 'info') : 'info'
 }
-const getItemAuditStatusType = (v?: number): '' | 'info' | 'success' | 'warning' | 'danger' => {
-  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = { 0: 'info', 1: 'warning', 2: 'success' }
-  return v !== undefined ? (map[v] ?? 'info') : 'info'
+const getPurchaseProgressText = (v?: number) => {
+  const map: Record<number, string> = { 0: '待采购', 1: '部分采购', 2: '采购完成' }
+  return v !== undefined && v !== null ? (map[v] ?? '--') : '--'
 }
-// 货运状态
-const getShippingStatusText = (v?: number) => {
-  const map: Record<number, string> = { 0: '待发货', 1: '在途', 2: '部分送达', 3: '货运完成' }
-  return v !== undefined ? (map[v] ?? '-') : '-'
+const getStockInProgressText = (v?: number) => {
+  const map: Record<number, string> = { 0: '待入库', 1: '部分入库', 2: '入库完成' }
+  return v !== undefined && v !== null ? (map[v] ?? '--') : '--'
 }
-const getShippingStatusType = (v?: number): '' | 'info' | 'success' | 'warning' | 'danger' => {
-  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = { 0: 'info', 1: 'warning', 2: '', 3: 'success' }
-  return v !== undefined ? (map[v] ?? 'info') : 'info'
+const getStockOutProgressText = (v?: number) => {
+  const map: Record<number, string> = { 0: '待出库', 1: '部分出库', 2: '出库完成' }
+  return v !== undefined && v !== null ? (map[v] ?? '--') : '--'
 }
-// 款项状态
-const getPaymentStatusText = (v?: number) => {
-  const map: Record<number, string> = { 0: '部分付款', 1: '付款完成' }
-  return v !== undefined ? (map[v] ?? '-') : '-'
+const getReceiptProgressText = (v?: number) => {
+  const map: Record<number, string> = { 0: '待收款', 1: '部分收款', 2: '收款完成' }
+  return v !== undefined && v !== null ? (map[v] ?? '--') : '--'
 }
-const getPaymentStatusType = (v?: number): '' | 'info' | 'success' | 'warning' | 'danger' => {
-  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = { 0: 'warning', 1: 'success' }
-  return v !== undefined ? (map[v] ?? 'info') : 'info'
-}
-// 票据状态
-const getInvoiceStatusText = (v?: number) => {
+const getSellInvoiceProgressText = (v?: number) => {
   const map: Record<number, string> = { 0: '待开票', 1: '部分开票', 2: '开票完成' }
-  return v !== undefined ? (map[v] ?? '-') : '-'
-}
-const getInvoiceStatusType = (v?: number): '' | 'info' | 'success' | 'warning' | 'danger' => {
-  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = { 0: 'info', 1: 'warning', 2: 'success' }
-  return v !== undefined ? (map[v] ?? 'info') : 'info'
+  return v !== undefined && v !== null ? (map[v] ?? '--') : '--'
 }
 
 const formatDateTime = (v?: string) => (v ? formatDisplayDateTime(v) : '--')
-const getYYMMDD = (d: Date) => {
-  const yy = String(d.getFullYear()).slice(-2)
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${yy}${mm}${dd}`
-}
-
-const makeRequestCode = async () => {
-  const datePart = getYYMMDD(new Date())
-  const prefix = `SON${datePart}`
-  const list = await stockOutApi.getRequestList()
-  const maxSeq = (list || [])
-    .map(x => (x.requestCode || '').trim())
-    .filter(code => code.startsWith(prefix) && code.length >= prefix.length + 4)
-    .map(code => Number(code.slice(prefix.length, prefix.length + 4)))
-    .filter(n => Number.isFinite(n))
-    .reduce((m, n) => Math.max(m, n), 0)
-  const nextSeq = String(maxSeq + 1).padStart(4, '0')
-  return `${prefix}${nextSeq}`
-}
 
 const handleEdit = () => {
   if (!canWriteSo.value) {
@@ -941,40 +1043,49 @@ const handleOpenApplyStockOut = async (item?: any) => {
     }
     line = list[0]
   }
-  let requestCode = ''
-  try {
-    requestCode = await makeRequestCode()
-  } catch {
-    const datePart = getYYMMDD(new Date())
-    requestCode = `SON${datePart}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`
+  if (!stockOutApplyPurchaseGateOk(line)) {
+    ElMessage.warning(t('salesOrderItemList.messages.applyStockOutNeedPurchaseGate'))
+    return
+  }
+  if (salesOrderLineApplyStockOutDisabled(line)) {
+    ElMessage.warning(t('salesOrderItemList.messages.applyStockOutDisabledByProgress'))
+    return
   }
   const sellOrderItemId = String(line.id ?? line.Id ?? '').trim()
   if (!sellOrderItemId) {
     ElMessage.error('销售订单明细缺少主键，无法申请出库')
     return
   }
-  const maxQty = Number(line.qty ?? line.Qty ?? 0)
-
-  let stockAvailableQty: number | null = null
-  try {
-    const res = await inventoryCenterApi.getAvailableQtyForSellOrderItem(sellOrderItemId)
-    stockAvailableQty = Number(res?.availableQty ?? 0)
-  } catch {
-    stockAvailableQty = null
-  }
-
-  applyForm.value = {
-    requestCode,
-    requestDate: new Date(),
-    remark: '',
-    sellOrderItemId,
-    materialCode: String(line.pn ?? line.PN ?? '').trim(),
-    materialName: String(line.brand ?? line.Brand ?? '').trim(),
-    maxQty,
-    stockAvailableQty,
-    notifyQty: maxQty
-  }
   applyDialogVisible.value = true
+  applyStockOutLoading.value = true
+  try {
+    const ctx = await stockOutApi.getApplyContext(order.value.id, sellOrderItemId)
+    const maxQ = Math.max(0, Math.trunc(Number(ctx.suggestedMaxQty) || 0))
+    if (maxQ <= 0) {
+      ElMessage.warning('当前无可申请的出库数量（请核对订单行、在库可用与已占用通知）')
+      applyDialogVisible.value = false
+      return
+    }
+    applyForm.value = {
+      requestCode: '',
+      requestDate: new Date(),
+      remark: '',
+      sellOrderItemId,
+      materialCode: String(line.pn ?? line.PN ?? '').trim(),
+      materialName: String(line.brand ?? line.Brand ?? '').trim(),
+      salesOrderQty: Number(ctx.salesOrderQty ?? 0),
+      alreadyNotifiedQty: Number(ctx.alreadyNotifiedQty ?? 0),
+      remainingNotifyQty: Number(ctx.remainingNotifyQty ?? 0),
+      maxQty: maxQ,
+      stockAvailableQty: Number(ctx.availableStockQty ?? 0),
+      notifyQty: maxQ
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.message || '加载出库申请数据失败')
+    applyDialogVisible.value = false
+  } finally {
+    applyStockOutLoading.value = false
+  }
 }
 
 const submitApplyStockOut = async () => {
@@ -996,7 +1107,7 @@ const submitApplyStockOut = async () => {
   applySubmitting.value = true
   try {
     await stockOutApi.createRequest({
-      requestCode: applyForm.value.requestCode.trim(),
+      requestCode: applyForm.value.requestCode?.trim() || undefined,
       salesOrderId: order.value.id,
       salesOrderItemId: applyForm.value.sellOrderItemId,
       materialCode: applyForm.value.materialCode,
@@ -1385,14 +1496,21 @@ const submitApplyStockOut = async () => {
 }
 
 .items-table {
-  // 无外边框，行间细线分隔，对标客户管理列表风格
+  // 与全站 .crm-items-table 一致：文字色跟随 html[data-theme]（勿写死浅色字，否则浅色主题下看不清）
   --el-table-border-color: transparent;
-  --el-table-header-bg-color: rgba(0, 212, 255, 0.04);
-  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.04);
+  --el-table-header-bg-color: var(--crm-table-header-bg);
+  --el-table-row-hover-bg-color: var(--crm-table-row-hover);
   --el-table-bg-color: transparent;
   --el-table-tr-bg-color: transparent;
+  --el-table-text-color: #{$text-primary};
+  --el-table-header-text-color: #{$text-muted};
   --el-table-fixed-box-shadow: none;
   background: transparent !important;
+  :deep(.el-table) {
+    // 与 td/.cell 双保险，避免 EP 默认色在浅色卡片上偏灰、难辨认
+    --el-table-text-color: #{$text-primary};
+    color: $text-primary;
+  }
   :deep(.el-table__inner-wrapper) {
     background: transparent;
     &::before { display: none !important; }
@@ -1401,26 +1519,27 @@ const submitApplyStockOut = async () => {
   :deep(.el-table__border-left-patch) { display: none !important; }
   :deep(.el-table__header-wrapper) {
     th.el-table__cell {
-      background: rgba(0, 212, 255, 0.04) !important;
-      border-bottom: 1px solid rgba(0, 212, 255, 0.1) !important;
+      background: var(--crm-table-header-bg) !important;
+      border-bottom: 1px solid var(--crm-table-header-line) !important;
       border-right: none !important;
-      color: rgba(200, 216, 232, 0.55);
+      color: $text-muted !important;
       font-size: 12px;
       font-weight: 500;
       letter-spacing: 0.3px;
     }
-  }
-  :deep(.el-table__row) {
-    background: transparent !important;
-    td.el-table__cell {
-      background: transparent !important;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
-      border-right: none !important;
-      color: rgba(224, 244, 255, 0.85);
-      font-size: 13px;
+    th.el-table__cell .cell {
+      color: inherit !important;
     }
-    &:last-child td.el-table__cell { border-bottom: none !important; }
-    &:hover td.el-table__cell { background: rgba(0, 212, 255, 0.04) !important; }
+  }
+  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row td.el-table__cell),
+  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row td.el-table__cell) {
+    color: $text-primary !important;
+    font-size: 13px;
+  }
+  // 正文实际文字多在 .cell 内，须单独拉高对比度（否则仅 td 上色仍可能被 EP 覆盖）
+  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row td.el-table__cell .cell),
+  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row td.el-table__cell .cell) {
+    color: $text-primary !important;
   }
   :deep(.el-table__cell) {
     .el-button { white-space: nowrap !important; }
@@ -1430,35 +1549,41 @@ const submitApplyStockOut = async () => {
 
 .apply-stock-lines {
   margin-top: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid $border-panel;
   border-radius: $border-radius-md;
   overflow: hidden;
+  background: $layer-2;
 }
 .apply-stock-lines__head,
 .apply-stock-lines__row {
   display: grid;
-  grid-template-columns: 44px minmax(120px, 1fr) 100px 88px 92px 148px;
+  grid-template-columns: 44px minmax(100px, 1fr) 88px 72px 72px 72px 72px 148px;
   gap: 8px;
   align-items: center;
   padding: 10px 12px;
 }
 .apply-stock-lines__head {
-  background: rgba(0, 212, 255, 0.04);
+  background: var(--crm-table-header-bg);
   font-size: 12px;
-  color: rgba(200, 216, 232, 0.55);
-  font-weight: 500;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+  color: var(--crm-table-header-text);
+  font-weight: 600;
+  border-bottom: 1px solid var(--crm-table-header-line);
+  .cell {
+    color: inherit;
+  }
 }
 .apply-stock-lines__row {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid $border-panel;
   font-size: 13px;
-  color: rgba(224, 244, 255, 0.85);
+  color: $text-primary;
+  .cell {
+    color: inherit;
+  }
   &:last-child {
     border-bottom: none;
   }
 }
-.apply-stock-lines .cell--max,
-.apply-stock-lines .cell--stock {
+.apply-stock-lines .cell--num {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }

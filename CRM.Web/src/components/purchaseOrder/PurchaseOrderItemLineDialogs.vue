@@ -49,27 +49,51 @@
         <el-row :gutter="12">
           <el-col :span="8">
             <el-form-item label="中转行费用">
-              <el-input-number v-model="paymentForm.fee.intermediateBankFee" :min="0" :precision="2" style="width: 100%" />
+              <SettlementCurrencyAmountInput
+                v-model="paymentForm.fee.intermediateBankFee"
+                v-model:currency="paymentForm.currency"
+                :min="0"
+                :precision="2"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="银行手续费">
-              <el-input-number v-model="paymentForm.fee.bankCharge" :min="0" :precision="2" style="width: 100%" />
+              <SettlementCurrencyAmountInput
+                v-model="paymentForm.fee.bankCharge"
+                v-model:currency="paymentForm.currency"
+                :min="0"
+                :precision="2"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="运费">
-              <el-input-number v-model="paymentForm.fee.freight" :min="0" :precision="2" style="width: 100%" />
+              <SettlementCurrencyAmountInput
+                v-model="paymentForm.fee.freight"
+                v-model:currency="paymentForm.currency"
+                :min="0"
+                :precision="2"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="杂费">
-              <el-input-number v-model="paymentForm.fee.miscFee" :min="0" :precision="2" style="width: 100%" />
+              <SettlementCurrencyAmountInput
+                v-model="paymentForm.fee.miscFee"
+                v-model:currency="paymentForm.currency"
+                :min="0"
+                :precision="2"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="尾差">
-              <el-input-number v-model="paymentForm.fee.rounding" :precision="2" style="width: 100%" />
+              <SettlementCurrencyAmountInput
+                v-model="paymentForm.fee.rounding"
+                v-model:currency="paymentForm.currency"
+                :precision="2"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -96,9 +120,15 @@
           <el-table-column prop="pendingRequested" label="待请款" width="160" align="right">
             <template #default="{ row }">{{ formatCurrencyTotal(row.pendingRequested, row.currency) }}</template>
           </el-table-column>
-          <el-table-column label="本次请款金额*" width="150">
+          <el-table-column label="本次请款金额*" min-width="220" width="220">
             <template #default="{ row }">
-              <el-input-number v-model="row.requestAmount" :min="0" :max="row.pendingRequested" :precision="2" style="width: 130px" />
+              <SettlementCurrencyAmountInput
+                v-model="row.requestAmount"
+                v-model:currency="paymentForm.currency"
+                :min="0"
+                :max="row.pendingRequested"
+                :precision="2"
+              />
             </template>
           </el-table-column>
           <el-table-column label="备注" min-width="140">
@@ -144,8 +174,42 @@
               <el-col :span="8"><el-form-item label="联系人"><el-input v-model="arrivalForm.contact" /></el-form-item></el-col>
             </el-row>
             <el-row :gutter="12">
-              <el-col :span="8"><el-form-item label="来货方式"><el-input v-model="arrivalForm.arrivalMethod" /></el-form-item></el-col>
-              <el-col :span="8"><el-form-item label="快递方式"><el-input v-model="arrivalForm.expressMethod" /></el-form-item></el-col>
+              <el-col :span="8">
+                <el-form-item label="来货方式">
+                  <el-select
+                    v-model="arrivalForm.arrivalMethod"
+                    clearable
+                    filterable
+                    placeholder="请选择"
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="o in arrivalMethodDictOptions"
+                      :key="o.value"
+                      :label="o.label"
+                      :value="o.value"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="快递方式">
+                  <el-select
+                    v-model="arrivalForm.expressMethod"
+                    clearable
+                    filterable
+                    placeholder="请选择"
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="o in expressMethodDictOptions"
+                      :key="o.value"
+                      :label="o.label"
+                      :value="o.value"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-col>
               <el-col :span="8"><el-form-item label="快递单号"><el-input v-model="arrivalForm.expressNo" /></el-form-item></el-col>
             </el-row>
           </el-form>
@@ -201,12 +265,17 @@
 import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
 import { financePaymentApi } from '@/api/finance'
 import { logisticsApi } from '@/api/logistics'
+import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 
 const emit = defineEmits<{ success: [] }>()
+
+const { ensureLoaded: ensureLogisticsDict, arrivalOptions: arrivalMethodDictOptions, expressOptions: expressMethodDictOptions } =
+  useLogisticsFormDict()
 
 const paymentDialogVisible = ref(false)
 const paymentSubmitting = ref(false)
@@ -320,7 +389,12 @@ function openPayment(row: any) {
   paymentDialogVisible.value = true
 }
 
-function openArrival(row: any) {
+async function openArrival(row: any) {
+  try {
+    await ensureLogisticsDict()
+  } catch {
+    /* 字典失败时仍打开弹窗，下拉为空 */
+  }
   arrivalForm.purchaseOrderItemId = row.purchaseOrderItemId || row.id || ''
   arrivalForm.purchaseOrderId = row.purchaseOrderId || ''
   arrivalForm.purchaseOrderCode = row.purchaseOrderCode || ''

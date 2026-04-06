@@ -6,7 +6,9 @@
       </el-button>
       <el-breadcrumb separator="/">
         <el-breadcrumb-item :to="{ name: 'FinancePurchaseInvoiceList' }">{{ t('financePurchaseInvoiceDetail.breadcrumb') }}</el-breadcrumb-item>
-        <el-breadcrumb-item>{{ detail?.financePurchaseInvoiceCode || t('financePurchaseInvoiceDetail.detail') }}</el-breadcrumb-item>
+        <el-breadcrumb-item>
+          <span class="order-code">{{ detail?.financePurchaseInvoiceCode || t('financePurchaseInvoiceDetail.detail') }}</span>
+        </el-breadcrumb-item>
       </el-breadcrumb>
     </div>
 
@@ -85,6 +87,7 @@ import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import {
   financePurchaseInvoiceApi,
+  normalizeFinancePurchaseInvoice,
   type FinancePurchaseInvoice,
 } from '@/api/finance'
 import { formatDisplayDate } from '@/utils/displayDateTime'
@@ -113,7 +116,8 @@ onMounted(() => {
 const fetchDetail = async () => {
   loading.value = true
   try {
-    detail.value = await financePurchaseInvoiceApi.getById(invoiceId.value)
+    const raw = await financePurchaseInvoiceApi.getById(invoiceId.value)
+    detail.value = normalizeFinancePurchaseInvoice(raw)
   } catch {
     detail.value = null
   } finally {
@@ -121,9 +125,10 @@ const fetchDetail = async () => {
   }
 }
 
-const formatAmount = (val: number) => {
-  if (val == null) return '-'
-  return val.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const formatAmount = (val: number | unknown) => {
+  const n = Number(val)
+  if (!Number.isFinite(n)) return '0.00'
+  return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 </script>
 
@@ -188,12 +193,17 @@ const formatAmount = (val: number) => {
 }
 
 .order-code {
-  font-family: 'Courier New', monospace;
-  color: $text-secondary;
-  font-weight: 600;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: $text-primary;
+  font-weight: 500;
+  letter-spacing: normal;
 }
 
 .amount {
+  font-family: 'Noto Sans SC', sans-serif;
+  font-variant-numeric: tabular-nums;
   color: $cyan-primary;
   font-weight: 600;
 }

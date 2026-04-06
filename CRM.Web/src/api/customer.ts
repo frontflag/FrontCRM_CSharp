@@ -20,29 +20,47 @@ function customersPath(id: string, suffix: string): string {
   return `/api/v1/customers/${encodeURIComponent(id)}${suffix}`;
 }
 
+/** 不在前端展示客户「归属」(ascriptionType：专属/公海)，从接口对象上剥离。 */
+function stripCustomerAscriptionType(obj: Record<string, unknown> | null | undefined): void {
+  if (!obj || typeof obj !== 'object') return;
+  delete obj.ascriptionType;
+  delete obj.AscriptionType;
+}
+
 /**
- * P2 修复：将前端 customerLevel 字符串统一映射到后端数字枚举
- * 后端枚举: D=1, C=2, B=3, BPO=4, VIP=5, VPO=6
- * 兼容旧前端字符串值: Normal->3(B), Important->5(VIP), Lead->1(D)
+ * 将前端 customerLevel 字符串映射到后端 Level：D=1 … VPO=6
  */
 export function mapCustomerLevelToInt(level: string | number | undefined): number {
-  if (level === undefined || level === null) return 3; // 默认 B(Normal)
+  if (level === undefined || level === null) return 3;
   if (typeof level === 'number') return level > 0 ? level : 3;
   const map: Record<string, number> = {
-    'D': 1, 'C': 2, 'B': 3, 'BPO': 4, 'VIP': 5, 'VPO': 6,
-    // 兼容旧前端字符串值
-    'Normal': 3, 'Important': 5, 'Lead': 1
+    D: 1,
+    C: 2,
+    B: 3,
+    BPO: 4,
+    VIP: 5,
+    VPO: 6
   };
   return map[level] ?? 3;
 }
 
 /**
- * P3 修复：将后端 customerType 数字映射到前端显示标签
- * 后端枚举: OEM=1, ODM=2, EndUser=3, IDH=4, Trader=5, Agent=6
+ * 将后端 customerType（Type）数字映射为中文标签（无 i18n 场景）
+ * 1:历史 OEM；2–6 沿用；7–11 为扩展类型
  */
 export function mapCustomerTypeToLabel(type: number | undefined): string {
   const map: Record<number, string> = {
-    1: 'OEM', 2: 'ODM', 3: '终端用户', 4: 'IDH', 5: '贸易商', 6: '代理商'
+    1: 'OEM',
+    2: 'ODM',
+    3: '终端',
+    4: 'IDH',
+    5: '贸易商',
+    6: '代理商',
+    7: 'EMS',
+    8: '非行业',
+    9: '科研机构',
+    10: '供应链',
+    11: '原厂'
   };
   return map[type ?? 0] ?? '未知';
 }
@@ -146,6 +164,50 @@ export function normalizeCustomerAddressFromApi(raw: unknown): CustomerAddress {
   };
 }
 
+/**
+ * 客户联系人：与「编辑联系人」表单一致。
+ * - 姓名：兼容 API 的 contactName / name（NotMapped 别名序列化差异）
+ * - 性别：0=保密、1=男、2=女（兼容字符串数字）
+ * - 手机：兼容 mobilePhone / mobile
+ */
+export function normalizeCustomerContactFromApi(raw: unknown): CustomerContactInfo {
+  const r = raw as Record<string, unknown> | null;
+  if (!r || typeof r !== 'object') {
+    return {
+      id: '',
+      customerId: '',
+      contactName: '',
+      gender: 0,
+      mobilePhone: '',
+      isDecisionMaker: false,
+      isDefault: false
+    };
+  }
+  const name = String(r.contactName ?? r.name ?? r.cName ?? '').trim();
+  const gRaw = r.gender;
+  const gNum = gRaw === null || gRaw === undefined || gRaw === '' ? NaN : Number(gRaw);
+  const gender = gNum === 0 || gNum === 1 || gNum === 2 ? gNum : 0;
+  const mobile = String(r.mobilePhone ?? r.mobile ?? '').trim();
+  return {
+    id: String(r.id ?? ''),
+    customerId: String(r.customerId ?? ''),
+    contactName: name,
+    gender,
+    position: (r.position ?? r.title) as string | undefined,
+    department: r.department as string | undefined,
+    mobilePhone: mobile,
+    phone: (r.phone ?? r.tel) as string | undefined,
+    fax: r.fax as string | undefined,
+    email: r.email as string | undefined,
+    socialAccount: (r.socialAccount ?? r.qq ?? r.weChat) as string | undefined,
+    isDecisionMaker: parseApiBoolean(r.isDecisionMaker),
+    isDefault: parseApiBoolean(r.isDefault ?? r.isMain),
+    remarks: (r.remarks ?? r.remark) as string | undefined,
+    createdAt: (r.createdAt ?? r.createTime) as string | undefined,
+    updatedAt: (r.updatedAt ?? r.modifyTime) as string | undefined
+  };
+}
+
 export function formatCustomerAddressTypeLabel(type: string | number | undefined): string {
   const labels: Record<string, string> = {
     Office: '办公地址',
@@ -228,15 +290,26 @@ export const customerApi = {
     if (params.sortDescending !== undefined) queryParams.append('sortDescending', params.sortDescending.toString());
 
     const response = await apiClient.get<any>(`/api/v1/customers?${queryParams.toString()}`);
-    return response || { items: [], totalCount: 0 };
+    const data = response || { items: [], totalCount: 0 };
+    if (Array.isArray(data.items)) {
+      for (const it of data.items) {
+        stripCustomerAscriptionType(it as Record<string, unknown>);
+      }
+    }
+    return data;
   },
 
   // 获取客户详情
   async getCustomerById(id: string): Promise<Customer> {
     const raw = (await apiClient.get<Record<string, unknown>>(`/api/v1/customers/${id}`)) as Record<string, unknown>;
+    stripCustomerAscriptionType(raw);
     const banks = banksFromCustomerApiPayload(raw);
     const { bankAccounts: _bankAccounts, ...rest } = raw;
-    return { ...(rest as unknown as Customer), banks };
+    const customer = { ...(rest as unknown as Customer), banks };
+    if (Array.isArray(customer.contacts)) {
+      customer.contacts = customer.contacts.map((c) => normalizeCustomerContactFromApi(c));
+    }
+    return customer;
   },
 
   /** Excel 批量导入（解析后的结构化数据） */
@@ -278,6 +351,10 @@ export const customerApi = {
       // P1 修复：新建时包含联系人数组
       contacts: (data as any).contacts || []
     };
+    delete backendData.ascriptionType;
+    if (backendData.invoiceType === '' || backendData.invoiceType === 0) {
+      backendData.invoiceType = undefined;
+    }
     return await apiClient.post<Customer>('/api/v1/customers', backendData);
   },
 
@@ -300,6 +377,10 @@ export const customerApi = {
       // P1 修复：更新时包含联系人数组
       contacts: (data as any).contacts || []
     };
+    delete backendData.ascriptionType;
+    if (backendData.invoiceType === '' || backendData.invoiceType === 0) {
+      backendData.invoiceType = undefined;
+    }
     return await apiClient.put<Customer>(`/api/v1/customers/${id}`, backendData);
   },
 
@@ -334,7 +415,11 @@ export const customerApi = {
     q.append('pageIndex', String(params.pageIndex ?? 1));
     q.append('pageSize', String(params.pageSize ?? 20));
     if (params.keyword) q.append('keyword', params.keyword);
-    return await apiClient.get<any>(`/api/v1/customers/recycle-bin?${q.toString()}`);
+    const res = await apiClient.get<any>(`/api/v1/customers/recycle-bin?${q.toString()}`);
+    if (Array.isArray(res?.items)) {
+      for (const it of res.items) stripCustomerAscriptionType(it as Record<string, unknown>);
+    }
+    return res;
   },
 
   // 从回收站恢复客户
@@ -348,7 +433,11 @@ export const customerApi = {
     q.append('pageIndex', String(params.pageIndex ?? 1));
     q.append('pageSize', String(params.pageSize ?? 20));
     if (params.keyword) q.append('keyword', params.keyword);
-    return await apiClient.get<any>(`/api/v1/customers/blacklist?${q.toString()}`);
+    const res = await apiClient.get<any>(`/api/v1/customers/blacklist?${q.toString()}`);
+    if (Array.isArray(res?.items)) {
+      for (const it of res.items) stripCustomerAscriptionType(it as Record<string, unknown>);
+    }
+    return res;
   },
 
   // 获取冻结客户列表
@@ -357,7 +446,11 @@ export const customerApi = {
     q.append('page', String(params.pageIndex ?? 1));
     q.append('pageSize', String(params.pageSize ?? 20));
     if (params.keyword) q.append('keyword', params.keyword);
-    return await apiClient.get<any>(`/api/v1/customers/frozen?${q.toString()}`);
+    const res = await apiClient.get<any>(`/api/v1/customers/frozen?${q.toString()}`);
+    if (Array.isArray(res?.items)) {
+      for (const it of res.items) stripCustomerAscriptionType(it as Record<string, unknown>);
+    }
+    return res;
   },
 
   // 获取操作日志
@@ -430,32 +523,42 @@ export const customerApi = {
 // 客户联系人API
 export const customerContactApi = {
   normalizeContactPayload(data: Partial<CreateContactRequest> & Record<string, any>) {
+    /** 0=保密、1=男、2=女（后端 Gender 存 short） */
     const normalizedGender = (() => {
-      const g = Number(data.gender)
-      if (g === 0) return 1
-      if (g === 1) return 2
-      return Number.isFinite(g) ? g : undefined
+      const raw: unknown = data.gender
+      if (raw === null || raw === undefined || raw === '') return 0
+      const n = Number(raw)
+      if (!Number.isFinite(n)) return 0
+      if (n === 0 || n === 1 || n === 2) return n
+      return 0
     })()
 
-    return {
-      Name: data.contactName ?? data.name ?? '',
-      ContactName: data.contactName ?? data.name ?? '',
-      Gender: normalizedGender,
-      Department: data.department ?? '',
-      Position: data.position ?? '',
-      Phone: data.phone ?? data.tel ?? '',
-      Mobile: data.mobilePhone ?? data.mobile ?? '',
-      Email: data.email ?? '',
-      Fax: data.fax ?? '',
-      IsDefault: Boolean(data.isDefault),
-      // 兼容历史字段命名
-      Tel: data.phone ?? data.tel ?? '',
+    const name = data.contactName ?? data.name ?? ''
+    const mobile = data.mobilePhone ?? data.mobile ?? ''
+    const o: Record<string, unknown> = {
+      name,
+      contactName: name,
+      gender: normalizedGender,
+      department: data.department ?? '',
+      position: data.position ?? '',
+      phone: data.phone ?? data.tel ?? '',
+      mobile,
+      mobilePhone: mobile,
+      email: data.email ?? '',
+      fax: data.fax ?? '',
+      isDefault: Boolean(data.isDefault),
+      tel: data.phone ?? data.tel ?? ''
     }
+    if (data.isDecisionMaker !== undefined) {
+      o.isDecisionMaker = Boolean(data.isDecisionMaker)
+    }
+    return o
   },
 
   // 获取客户联系人列表
   async getContactsByCustomerId(customerId: string): Promise<CustomerContactInfo[]> {
-    return await apiClient.get<CustomerContactInfo[]>(`/api/v1/customers/${customerId}/contacts`);
+    const raw = await apiClient.get<unknown>(`/api/v1/customers/${encodeURIComponent(customerId)}/contacts`);
+    return Array.isArray(raw) ? (raw as CustomerContactInfo[]) : [];
   },
 
   // 创建联系人

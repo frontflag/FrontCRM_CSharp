@@ -89,7 +89,7 @@
         v-loading="loading"
         highlight-current-row
         @row-dblclick="handleView"
-        @current-change="onJourneyRowFocus"
+        @current-change="onTableCurrentRowChange"
       >
         <template #col-sellOrderCode="{ row }">
           <el-link type="primary" @click="handleView(row)">{{ row.sellOrderCode }}</el-link>
@@ -101,14 +101,6 @@
         </template>
         <template #col-total="{ row }">
           <span class="amount">{{ formatCurrency(row.total, row.currency) }}</span>
-        </template>
-        <template #col-purchaseOrderStatus="{ row }">
-          <el-tag effect="dark" :type="getPurchaseStatusType(row.purchaseOrderStatus)" size="small">
-            {{ getPurchaseStatusText(row.purchaseOrderStatus) }}
-          </el-tag>
-        </template>
-        <template #col-deliveryDate="{ row }">
-          {{ formatDisplayDate(row.deliveryDate) }}
         </template>
         <template #col-createTime="{ row }">
           {{ formatDisplayDateTime(row.createTime) }}
@@ -195,11 +187,7 @@ import { Setting } from '@element-plus/icons-vue'
 import { salesOrderApi } from '@/api/salesOrder'
 import { translateSalesOrderStatus, salesOrderStatusTagType } from '@/constants/salesOrderStatus'
 import { useAuthStore } from '@/stores/auth'
-import {
-  journeyListFocusedOrderId,
-  setJourneyListFocus
-} from '@/composables/salesOrderJourneyContext'
-import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
@@ -215,6 +203,9 @@ const canViewCustomerInfo = computed(() => authStore.hasPermission('customer.inf
 const canViewSalesAmount = computed(() => authStore.hasPermission('sales.amount.read'))
 /** 提交审核（新建→待审核） */
 const canSubmitSalesOrderAudit = computed(() => authStore.hasPermission('sales-order.write'))
+
+/** 当前高亮行 id（分页/筛选时尽量保持同一订单行） */
+const listFocusedOrderId = ref('')
 
 // 筛选表单
 const filterForm = ref({
@@ -261,8 +252,6 @@ const salesOrderTableColumns = computed((): CrmTableColumnDef[] => {
   { key: 'salesUserName', label: t('salesOrderList.columns.salesUser'), prop: 'salesUserName', width: 100 },
   ...(canViewSalesAmount.value ? [{ key: 'total', label: t('salesOrderList.columns.totalAmount'), prop: 'total', width: 160, align: 'right' as const }] : []),
   { key: 'itemRows', label: t('salesOrderList.columns.itemRows'), prop: 'itemRows', width: 80, align: 'center' as const },
-  { key: 'purchaseOrderStatus', label: t('salesOrderList.columns.purchaseStatus'), prop: 'purchaseOrderStatus', width: 160, align: 'center' as const },
-  { key: 'deliveryDate', label: t('salesOrderList.columns.deliveryDate'), prop: 'deliveryDate', width: 160 },
   { key: 'createTime', label: t('salesOrderList.columns.createTime'), prop: 'createTime', width: 160 },
   { key: 'createUser', label: t('salesOrderList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
@@ -317,7 +306,12 @@ const terminalOkStatuses = new Set([10, 20, 100])
 
 const statPending = computed(() => orderList.value.filter(o => o.status === 1 || o.status === 2).length)
 const statApproved = computed(() => orderList.value.filter(o => terminalOkStatuses.has(o.status)).length)
-const statAmount = computed(() => orderList.value.reduce((sum, o) => sum + (o.total || 0), 0))
+const statAmount = computed(() =>
+  orderList.value.reduce((sum, o) => {
+    const n = Number((o as { total?: unknown }).total)
+    return sum + (Number.isFinite(n) ? n : 0)
+  }, 0)
+)
 
 // 格式化货币
 const formatCurrency = (value: number, currency?: number) => {
@@ -329,41 +323,31 @@ const formatCurrency = (value: number, currency?: number) => {
 const getStatusType = (status: number) => salesOrderStatusTagType(status)
 const getStatusText = (status: number) => translateSalesOrderStatus(status, t)
 
-const getPurchaseStatusType = (status: number) => {
-  const map: Record<number, string> = { 0: 'info', 1: 'warning', 2: 'success' }
-  return map[status] || 'info'
-}
-
-const getPurchaseStatusText = (status: number) => {
-  const map: Record<number, string> = { 0: t('salesOrderList.purchaseStatus.none'), 1: t('salesOrderList.purchaseStatus.partial'), 2: t('salesOrderList.purchaseStatus.all') }
-  return map[status] || t('rfqDetail.unknown')
-}
-
-/** 与右侧「订单旅程」同步：当前页有命中行则保持，否则用当前页第一行 */
-function syncJourneyFocusFromList() {
+/** 分页/筛选后同步表格当前行：仍在本页则保持，否则落到本页首行 */
+function syncTableCurrentRowFromPage() {
   const rows = filteredList.value
   if (!rows.length) {
-    setJourneyListFocus('', '')
+    listFocusedOrderId.value = ''
     listTableRef.value?.setCurrentRow(undefined)
     return
   }
-  const cur = journeyListFocusedOrderId.value
+  const cur = listFocusedOrderId.value
   if (cur && rows.some((r) => String(r.id) === cur)) {
     const hit = rows.find((r) => String(r.id) === cur)
     if (hit) listTableRef.value?.setCurrentRow(hit)
     return
   }
-  const r = rows[0] as { id?: string; sellOrderCode?: string }
-  setJourneyListFocus(String(r.id ?? ''), String(r.sellOrderCode ?? ''))
+  const r = rows[0] as { id?: string }
+  listFocusedOrderId.value = String(r.id ?? '')
   listTableRef.value?.setCurrentRow(rows[0])
 }
 
-function onJourneyRowFocus(row: Record<string, unknown> | null) {
+function onTableCurrentRowChange(row: Record<string, unknown> | null) {
   if (!row?.id) {
-    setJourneyListFocus('', '')
+    listFocusedOrderId.value = ''
     return
   }
-  setJourneyListFocus(String(row.id), String((row as { sellOrderCode?: string }).sellOrderCode ?? ''))
+  listFocusedOrderId.value = String(row.id)
 }
 
 // 加载数据
@@ -373,7 +357,7 @@ const loadData = async () => {
     const res = await salesOrderApi.getList({ page: 1, pageSize: 2000 })
     orderList.value = (res as { items?: unknown[] }).items || []
     pageInfo.value.total = orderList.value.length
-    syncJourneyFocusFromList()
+    syncTableCurrentRowFromPage()
   } catch (error) {
     ElMessage.error(t('salesOrderList.loadFailed'))
   } finally {
@@ -430,13 +414,13 @@ const handlePageChange = (val: number) => {
   pageInfo.value.page = val
 }
 
-/** 分页 / 筛选变化时保持与「订单旅程」一致（当前选中行不在本页则落到本页首行） */
+/** 分页 / 筛选变化时同步表格当前行 */
 watch(
   () =>
     [pageInfo.value.page, pageInfo.value.pageSize, filterForm.value.code, filterForm.value.customer, filterForm.value.status, orderList.value.length] as const,
   () => {
     if (!orderList.value.length) return
-    syncJourneyFocusFromList()
+    syncTableCurrentRowFromPage()
   }
 )
 

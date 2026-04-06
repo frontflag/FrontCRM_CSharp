@@ -64,7 +64,7 @@
             <div class="title-meta">
               <span class="customer-code">{{ customer?.customerCode }}</span>
               <span v-if="customer?.customerLevel" class="level-badge" :class="`level-${customer.customerLevel?.toLowerCase()}`">
-                {{ getLevelLabel(customer.customerLevel) }}
+                {{ customerDict.levelLabel(customer.customerLevel) }}
               </span>
             </div>
             <div class="title-tags-row">
@@ -139,7 +139,7 @@
             </div>
             <div class="info-item">
               <span class="info-label">客户类型</span>
-              <span class="info-value">{{ getTypeLabel(customer.customerType ?? 0) }}</span>
+              <span class="info-value">{{ customerDict.typeLabel(customer.customerType ?? 0) }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">统一社会信用代码</span>
@@ -147,7 +147,7 @@
             </div>
             <div class="info-item">
               <span class="info-label">行业</span>
-              <span class="info-value">{{ getIndustryLabel(customer.industry || '') }}</span>
+              <span class="info-value">{{ customerDict.industryLabel(customer.industry) }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">地区</span>
@@ -209,22 +209,22 @@
               </div>
               <CrmDataTable :data="customer.contacts" class="quantum-table"
                 :header-cell-style="tableHeaderStyle" :cell-style="tableCellStyle" :row-style="tableRowStyle">
-                <el-table-column prop="contactName" label="姓名" width="100">
-                  <template #default="{ row }"><span class="cell-primary">{{ row.contactName }}</span></template>
+                <el-table-column prop="contactName" label="姓名" min-width="140" show-overflow-tooltip>
+                  <template #default="{ row }"><span class="cell-primary">{{ row.contactName || '--' }}</span></template>
                 </el-table-column>
-                <el-table-column prop="gender" label="性别" width="70">
+                <el-table-column prop="gender" label="性别" width="72">
                   <template #default="{ row }">
-                    <span class="cell-muted">{{ row.gender === 0 ? '男' : row.gender === 1 ? '女' : '未知' }}</span>
+                    <span class="cell-muted">{{ formatCustomerContactGenderLabel(row.gender) }}</span>
                   </template>
                 </el-table-column>
                 <el-table-column prop="department" label="部门" width="120">
                   <template #default="{ row }"><span class="cell-secondary">{{ row.department || '--' }}</span></template>
                 </el-table-column>
                 <el-table-column prop="position" label="职位" width="120">
-                  <template #default="{ row }"><span class="cell-secondary">{{ row.position || '--' }}</span></template>
+                  <template #default="{ row }"><span class="cell-secondary">{{ row.position || row.title || '--' }}</span></template>
                 </el-table-column>
-                <el-table-column prop="mobilePhone" label="手机" width="140">
-                  <template #default="{ row }"><span class="cell-code">{{ row.mobilePhone }}</span></template>
+                <el-table-column prop="mobilePhone" label="手机" min-width="130">
+                  <template #default="{ row }"><span class="cell-code">{{ row.mobilePhone || '--' }}</span></template>
                 </el-table-column>
                 <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip>
                   <template #default="{ row }"><span class="cell-secondary">{{ row.email || '--' }}</span></template>
@@ -561,7 +561,7 @@ import {
   customerAddressApi,
   customerBankApi,
   normalizeCustomerAddressFromApi,
-  formatCustomerAddressTypeLabel
+  formatCustomerAddressTypeLabel,
 } from '@/api/customer';
 import { favoriteApi } from '@/api/favorite';
 import { tagApi, type TagDefinitionDto } from '@/api/tag';
@@ -569,6 +569,7 @@ import TagListDisplay from '@/components/Tag/TagListDisplay.vue';
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue';
 import PartyStatusIcons from '@/components/party/PartyStatusIcons.vue';
 import type { Customer, CustomerContactInfo, CustomerAddress, CustomerBankInfo } from '@/types/customer';
+import { useCustomerDictStore } from '@/stores/customerDict';
 
 import AddressDialog from './components/AddressDialog.vue';
 import BankDialog from './components/BankDialog.vue';
@@ -585,7 +586,18 @@ import { isDistrictPlaceholder } from '@/constants/region';
 
 const route = useRoute();
 const router = useRouter();
+const customerDict = useCustomerDictStore();
 const customerId = route.params.id as string;
+
+/** 客户联系人性别：0=保密、1=男、2=女 */
+function formatCustomerContactGenderLabel(v: unknown): string {
+  const g = v === null || v === undefined || v === '' ? NaN : Number(v);
+  if (g === 0) return '保密';
+  if (g === 1) return '男';
+  if (g === 2) return '女';
+  return '未知';
+}
+
 /** 详情加载后主键（与路由业务编号区分，文档等用主键更稳） */
 const canonicalCustomerId = computed(() => customer.value?.id ?? (route.params.id as string));
 const loading = ref(false);
@@ -681,6 +693,13 @@ const fetchCustomerDetail = async () => {
     customer.value = c;
     await refreshFavoriteStatus();
     trackRecentDetail();
+    void customerDict.hydrateCustomerEditForm({
+      customerType: c.customerType,
+      customerLevel: c.customerLevel,
+      industry: c.industry,
+      taxRate: c.taxRate,
+      invoiceType: c.invoiceType
+    });
   } catch {
     ElNotification.error({ title: '加载失败', message: '获取客户详情失败，请刷新重试' });
   } finally {
@@ -894,10 +913,6 @@ const formatCurrency = (value: number | undefined) => {
   return `¥${value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 };
 const formatDateTime = (date: string | undefined) => (date ? formatDisplayDateTime(date) : '--');
-const getTypeLabel = (type: number) => ({ 0: '企业', 1: '个人', 2: '政府' }[type] || '未知');
-const getLevelLabel = (level: string) => ({ VIP: 'VIP客户', Important: '重要客户', Normal: '普通客户', Lead: '潜在客户' }[level] || level);
-// const getLevelType = (level: string) => ({ VIP: 'danger', Important: 'warning', Normal: 'info', Lead: '' }[level] || '');
-const getIndustryLabel = (industry: string) => ({ Manufacturing: '制造业', Trading: '贸易/零售', Technology: '科技/IT', Construction: '建筑/工程', Healthcare: '医疗/健康', Education: '教育', Finance: '金融', Other: '其他' }[industry] || industry);
 const formatFullAddress = (address: CustomerAddress) =>
   [
     address.country,
@@ -911,6 +926,7 @@ const formatFullAddress = (address: CustomerAddress) =>
 const getCurrencyLabel = (currency: number) => CURRENCY_CODE_TO_TEXT[currency] || 'RMB';
 
 onMounted(() => {
+  void customerDict.ensureLoaded();
   fetchCustomerDetail();
   fetchCustomerTags();
   fetchContactHistory();

@@ -81,7 +81,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var invoice = await _service.CreateAsync(request);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var invoice = await _service.CreateAsync(request, userId);
                 return CreatedAtAction(nameof(GetById), new { id = invoice.Id },
                     new { success = true, data = invoice });
             }
@@ -107,7 +108,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var invoice = await _service.UpdateAsync(id, request);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var invoice = await _service.UpdateAsync(id, request, userId);
                 return Ok(new { success = true, data = invoice });
             }
             catch (KeyNotFoundException)
@@ -128,7 +130,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.UpdateInvoiceStatusAsync(id, request.InvoiceStatus);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.UpdateInvoiceStatusAsync(id, request.InvoiceStatus, userId);
                 return Ok(new { success = true, message = "开票状态更新成功" });
             }
             catch (KeyNotFoundException)
@@ -149,7 +152,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.UpdateInvoiceStatusAsync(id, 2);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.UpdateInvoiceStatusAsync(id, 2, userId);
                 return Ok(new { success = true, message = "已提交开票申请" });
             }
             catch (InvalidOperationException ex)
@@ -170,7 +174,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.UpdateInvoiceStatusAsync(id, 100);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.UpdateInvoiceStatusAsync(id, 100, userId);
                 return Ok(new { success = true, message = "已标记开票成功" });
             }
             catch (InvalidOperationException ex)
@@ -191,7 +196,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.UpdateInvoiceStatusAsync(id, 101);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.UpdateInvoiceStatusAsync(id, 101, userId);
                 return Ok(new { success = true, message = "已标记开票失败" });
             }
             catch (InvalidOperationException ex)
@@ -212,7 +218,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.VoidAsync(id);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.VoidAsync(id, userId);
                 return Ok(new { success = true, message = "发票作废成功" });
             }
             catch (KeyNotFoundException)

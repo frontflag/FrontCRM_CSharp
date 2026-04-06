@@ -1,5 +1,6 @@
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -64,7 +65,12 @@ if (string.IsNullOrWhiteSpace(connectionString))
 }
 
 var services = new ServiceCollection();
-services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(connectionString));
+services.AddDbContext<ApplicationDbContext>(options =>
+{
+    options.UseNpgsql(connectionString);
+    // 与 CRM.API AddInfrastructure 一致：快照与模型暂不完全对齐时仍可执行已提交的迁移 SQL
+    options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
+});
 await using var provider = services.BuildServiceProvider();
 await using var scope = provider.CreateAsyncScope();
 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

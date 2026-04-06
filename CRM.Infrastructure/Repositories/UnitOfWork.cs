@@ -1,6 +1,8 @@
+using System.Data;
 using CRM.Core.Interfaces;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.Reflection;
 
 namespace CRM.Infrastructure.Repositories
@@ -8,15 +10,69 @@ namespace CRM.Infrastructure.Repositories
     public class UnitOfWork : IUnitOfWork
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<UnitOfWork> _logger;
 
-        public UnitOfWork(ApplicationDbContext context)
+        public UnitOfWork(ApplicationDbContext context, ILogger<UnitOfWork> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public async Task<int> SaveChangesAsync()
         {
             return await _context.SaveChangesAsync();
+        }
+
+        /// <inheritdoc />
+        public async Task<string?> GetPurchaseOrderIdByPurchaseOrderItemLineCodeAsync(string purchaseOrderItemCode,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(purchaseOrderItemCode)) return null;
+            var code = purchaseOrderItemCode.Trim();
+            _logger.LogInformation(
+                "[InboundStatus2] RawSql GetPurchaseOrderIdByPoItemLineCode begin Code={Code}",
+                code);
+            var conn = _context.Database.GetDbConnection();
+            var wasOpen = conn.State == ConnectionState.Open;
+            if (!wasOpen) await conn.OpenAsync(cancellationToken);
+            try
+            {
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText =
+                    @"SELECT purchase_order_id FROM purchaseorderitem WHERE purchase_order_item_code = @code LIMIT 1";
+                var p = cmd.CreateParameter();
+                p.ParameterName = "code";
+                p.Value = code;
+                cmd.Parameters.Add(p);
+                var scalar = await cmd.ExecuteScalarAsync(cancellationToken);
+                if (scalar == null || scalar == DBNull.Value)
+                {
+                    _logger.LogInformation(
+                        "[InboundStatus2] RawSql GetPurchaseOrderIdByPoItemLineCode end Code={Code} Result=(null)",
+                        code);
+                    return null;
+                }
+
+                var s = Convert.ToString(scalar);
+                var result = string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+                _logger.LogInformation(
+                    "[InboundStatus2] RawSql GetPurchaseOrderIdByPoItemLineCode end Code={Code} Result={PoId}",
+                    code,
+                    result ?? "(null)");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "[InboundStatus2] RawSql GetPurchaseOrderIdByPoItemLineCode failed Code={Code}",
+                    code);
+                throw;
+            }
+            finally
+            {
+                if (!wasOpen) await conn.CloseAsync();
+            }
         }
 
         /// <summary>执行原生 SQL 查询，将结果映射到 T 类型</summary>

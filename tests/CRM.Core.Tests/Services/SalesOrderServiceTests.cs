@@ -1,7 +1,9 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Purchase;
+using CRM.Core.Models.Quote;
 using CRM.Core.Models.Sales;
 using CRM.Core.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -14,8 +16,14 @@ namespace CRM.Core.Tests.Services
         private readonly IRepository<SellOrderItemExtend> _soItemExtendRepository;
         private readonly IRepository<PurchaseOrder> _poRepository;
         private readonly IRepository<PurchaseOrderItem> _poItemRepository;
+        private readonly IRepository<QuoteItem> _quoteItemRepository;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly ISerialNumberService _serialNumberService;
+        private readonly IFinanceExchangeRateService _financeExchangeRateService;
+        private readonly IOrderJourneyLogService _orderJourneyLog;
+        private readonly ISellOrderItemExtendSyncService _soItemExtendSync;
+        private readonly ISellOrderExtendLineSeqService _soLineSeq;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly SalesOrderService _orderService;
 
         public SalesOrderServiceTests()
@@ -25,17 +33,38 @@ namespace CRM.Core.Tests.Services
             _soItemExtendRepository = Substitute.For<IRepository<SellOrderItemExtend>>();
             _poRepository = Substitute.For<IRepository<PurchaseOrder>>();
             _poItemRepository = Substitute.For<IRepository<PurchaseOrderItem>>();
+            _quoteItemRepository = Substitute.For<IRepository<QuoteItem>>();
             _dataPermissionService = Substitute.For<IDataPermissionService>();
             _serialNumberService = Substitute.For<ISerialNumberService>();
+            _financeExchangeRateService = Substitute.For<IFinanceExchangeRateService>();
+            _financeExchangeRateService.GetCurrentAsync(default).ReturnsForAnyArgs(new FinanceExchangeRateDto
+            {
+                UsdToCny = 6.9194m,
+                UsdToHkd = 7.8367m,
+                UsdToEur = 0.8725m
+            });
             _serialNumberService.GenerateNextAsync(ModuleCodes.SalesOrder).Returns("SO2603240001");
+            _orderJourneyLog = Substitute.For<IOrderJourneyLogService>();
+            _soItemExtendSync = Substitute.For<ISellOrderItemExtendSyncService>();
+            _soLineSeq = Substitute.For<ISellOrderExtendLineSeqService>();
+            _soLineSeq.ReserveNextSequenceBlockAsync(default!, default, default).ReturnsForAnyArgs(1);
+            _unitOfWork = Substitute.For<IUnitOfWork>();
+            _unitOfWork.SaveChangesAsync().Returns(1);
             _orderService = new SalesOrderService(
                 _orderRepository,
                 _orderItemRepository,
                 _soItemExtendRepository,
                 _poRepository,
                 _poItemRepository,
+                _quoteItemRepository,
                 _dataPermissionService,
-                _serialNumberService);
+                _serialNumberService,
+                _financeExchangeRateService,
+                _orderJourneyLog,
+                _soItemExtendSync,
+                _soLineSeq,
+                _unitOfWork,
+                NullLogger<SalesOrderService>.Instance);
         }
 
         [Fact]
@@ -215,7 +244,8 @@ namespace CRM.Core.Tests.Services
             await _orderService.RequestStockOutAsync(orderId, "USER-001");
 
             // Assert
-            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Status == SellOrderMainStatus.InProgress));
+            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o =>
+                o.Status == SellOrderMainStatus.InProgress && o.ModifyByUserId == "USER-001"));
         }
 
         [Fact]

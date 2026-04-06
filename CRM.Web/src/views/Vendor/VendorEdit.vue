@@ -7,7 +7,7 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="15 18 9 12 15 6"/>
           </svg>
-          返回
+          {{ t('vendorEdit.back') }}
         </button>
         <div class="page-title-group">
           <div class="page-icon">
@@ -16,20 +16,20 @@
               <polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
           </div>
-          <h1 class="page-title">{{ isEdit ? '编辑供应商' : '新增供应商' }}</h1>
+          <h1 class="page-title">{{ isEdit ? t('vendorEdit.titleEdit') : t('vendorEdit.titleCreate') }}</h1>
         </div>
       </div>
       <div class="header-right">
-        <button v-if="isEdit" class="btn-ghost" @click="handleRestoreDraft" :disabled="saving">从草稿恢复</button>
-        <button class="btn-ghost" @click="saveDraftOnly" :disabled="saving">保存草稿</button>
-        <button class="btn-ghost" @click="goBack">取消</button>
+        <button v-if="isEdit" class="btn-ghost" @click="handleRestoreDraft" :disabled="saving">{{ t('vendorEdit.restoreDraft') }}</button>
+        <button class="btn-ghost" @click="saveDraftOnly" :disabled="saving">{{ t('vendorEdit.saveDraft') }}</button>
+        <button class="btn-ghost" @click="goBack">{{ t('vendorEdit.cancel') }}</button>
         <button class="btn-primary" @click="handleConvertToFormal" :disabled="saving">
           <svg v-if="!saving" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
             <polyline points="17 21 17 13 7 13 7 21"/>
             <polyline points="7 3 7 8 15 8"/>
           </svg>
-          {{ saving ? '处理中...' : (isEdit ? '保存' : '转正式') }}
+          {{ saving ? t('vendorEdit.saving') : (isEdit ? t('vendorEdit.save') : t('vendorEdit.convertFormal')) }}
         </button>
       </div>
     </div>
@@ -40,53 +40,46 @@
       <div class="form-section">
         <div class="section-header">
           <div class="section-dot section-dot--cyan"></div>
-          <span class="section-title">基本信息</span>
+          <span class="section-title">{{ t('vendorEdit.sections.basic') }}</span>
         </div>
         <div class="section-body">
           <el-row :gutter="24">
             <el-col :span="8">
-              <el-form-item label="供应商编号">
+              <el-form-item :label="t('vendorEdit.fields.vendorCode')">
                 <el-input
                   :model-value="isEdit ? formData.code : ''"
-                  :placeholder="isEdit ? '' : '系统生成'"
+                  :placeholder="isEdit ? '' : t('vendorEdit.fields.codeSystemGen')"
                   disabled
                   class="q-input readonly-code"
                 />
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="供应商全称" prop="officialName">
-                <el-input v-model="formData.officialName" placeholder="请输入供应商全称" class="q-input" />
+              <el-form-item :label="t('vendorEdit.fields.officialName')" prop="officialName">
+                <el-input v-model="formData.officialName" :placeholder="t('vendorEdit.fields.officialNamePh')" class="q-input" />
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="简称/别名">
-                <el-input v-model="formData.nickName" placeholder="常用简称" class="q-input" />
+              <el-form-item :label="t('vendorEdit.fields.englishOfficialName')">
+                <el-input
+                  v-model="formData.englishOfficialName"
+                  :placeholder="t('vendorEdit.fields.englishOfficialNamePh')"
+                  class="q-input"
+                />
               </el-form-item>
             </el-col>
           </el-row>
           <el-row :gutter="24">
             <el-col :span="8">
-              <el-form-item label="所属行业">
-                <el-select v-model="formData.industry" placeholder="请选择行业" clearable class="q-select">
-                  <el-option label="电子/半导体" value="Electronics" />
-                  <el-option label="机械/设备" value="Machinery" />
-                  <el-option label="化工/材料" value="Chemical" />
-                  <el-option label="纺织/服装" value="Textile" />
-                  <el-option label="食品/农业" value="Food" />
-                  <el-option label="建筑/工程" value="Construction" />
-                  <el-option label="贸易/零售" value="Trading" />
-                  <el-option label="科技/IT" value="Technology" />
-                  <el-option label="医疗/健康" value="Healthcare" />
-                  <el-option label="其他" value="Other" />
-                </el-select>
+              <el-form-item :label="t('vendorEdit.fields.nickName')">
+                <el-input v-model="formData.nickName" :placeholder="t('vendorEdit.fields.nickNamePh')" class="q-input" />
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="等级">
-                <el-select v-model="formData.level" placeholder="请选择等级" clearable class="q-select">
+              <el-form-item :label="t('vendorEdit.fields.industry')">
+                <el-select v-model="formData.industry" :placeholder="t('vendorEdit.fields.industryPh')" clearable class="q-select">
                   <el-option
-                    v-for="opt in VENDOR_LEVEL_OPTIONS"
+                    v-for="opt in vendorDict.industryOptions"
                     :key="opt.value"
                     :label="opt.label"
                     :value="opt.value"
@@ -95,10 +88,10 @@
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="身份">
-                <el-select v-model="formData.credit" placeholder="请选择身份" clearable class="q-select">
+              <el-form-item :label="t('vendorEdit.fields.level')">
+                <el-select v-model="formData.level" :placeholder="t('vendorEdit.fields.levelPh')" clearable class="q-select">
                   <el-option
-                    v-for="opt in VENDOR_IDENTITY_OPTIONS"
+                    v-for="opt in vendorDict.levelSelectOptions"
                     :key="opt.value"
                     :label="opt.label"
                     :value="opt.value"
@@ -107,37 +100,48 @@
               </el-form-item>
             </el-col>
           </el-row>
-
           <el-row :gutter="24">
             <el-col :span="8">
-              <el-form-item label="流程状态">
-                <el-select v-model="formData.status" placeholder="请选择状态" class="q-select">
-                  <el-option label="草稿" :value="0" />
-                  <el-option label="新建" :value="1" />
-                  <el-option label="待审核" :value="2" />
+              <el-form-item :label="t('vendorEdit.fields.identity')">
+                <el-select v-model="formData.credit" :placeholder="t('vendorEdit.fields.identityPh')" clearable class="q-select">
+                  <el-option
+                    v-for="opt in vendorDict.identitySelectOptions"
+                    :key="opt.value"
+                    :label="opt.label"
+                    :value="opt.value"
+                  />
                 </el-select>
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="采购员">
+              <el-form-item :label="t('vendorEdit.fields.workflowStatus')">
+                <el-select v-model="formData.status" :placeholder="t('vendorEdit.fields.statusPh')" class="q-select">
+                  <el-option :label="t('vendorEdit.fields.statusDraft')" :value="0" />
+                  <el-option :label="t('vendorEdit.fields.statusNew')" :value="1" />
+                  <el-option :label="t('vendorEdit.fields.statusPending')" :value="2" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item :label="t('vendorEdit.fields.purchaser')">
                 <PurchaserCascader
                   v-model="formData.purchaseUserId"
-                  placeholder="请选择负责采购员"
+                  :placeholder="t('vendorEdit.fields.purchaserPh')"
                   class="q-select"
                   @change="onPurchaserChange"
                 />
               </el-form-item>
             </el-col>
-            <el-col :span="8">
-              <el-form-item label="办公地址">
-                <el-input v-model="formData.officeAddress" placeholder="详细办公地址" class="q-input" />
-              </el-form-item>
-            </el-col>
           </el-row>
           <el-row :gutter="24">
             <el-col :span="8">
-              <el-form-item label="官方网站">
-                <el-input v-model="formData.website" placeholder="https://..." class="q-input" />
+              <el-form-item :label="t('vendorEdit.fields.officeAddress')">
+                <el-input v-model="formData.officeAddress" :placeholder="t('vendorEdit.fields.officeAddressPh')" class="q-input" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="16">
+              <el-form-item :label="t('vendorEdit.fields.website')">
+                <el-input v-model="formData.website" :placeholder="t('vendorEdit.fields.websitePh')" class="q-input" />
               </el-form-item>
             </el-col>
           </el-row>
@@ -148,13 +152,13 @@
       <div class="form-section">
         <div class="section-header">
           <div class="section-dot section-dot--amber"></div>
-          <span class="section-title">财务信息</span>
+          <span class="section-title">{{ t('vendorEdit.sections.finance') }}</span>
         </div>
         <div class="section-body">
           <el-row :gutter="24">
             <el-col :span="8">
-              <el-form-item label="结算货币">
-                <el-select v-model="formData.currency" placeholder="请选择货币" class="q-select">
+              <el-form-item :label="t('vendorEdit.fields.settlementCurrency')">
+                <el-select v-model="formData.currency" :placeholder="t('vendorEdit.fields.currencyPh')" class="q-select">
                   <el-option
                     v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
                     :key="opt.value"
@@ -165,44 +169,44 @@
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="付款方式">
-                <el-select v-model="formData.paymentMethod" placeholder="请选择付款方式" class="q-select">
-                  <el-option label="预付款" value="Prepaid" />
-                  <el-option label="货到付款" value="COD" />
-                  <el-option label="月结" value="Monthly" />
-                  <el-option label="账期" value="Credit" />
-                  <el-option label="电汇 T/T" value="TT" />
-                  <el-option label="信用证 L/C" value="LC" />
+              <el-form-item :label="t('vendorEdit.fields.paymentMethod')">
+                <el-select v-model="formData.paymentMethod" :placeholder="t('vendorEdit.fields.paymentPh')" class="q-select">
+                  <el-option
+                    v-for="opt in vendorDict.paymentMethodOptions"
+                    :key="opt.value"
+                    :label="opt.label"
+                    :value="opt.value"
+                  />
                 </el-select>
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="账期（天）">
+              <el-form-item :label="t('vendorEdit.fields.paymentDays')">
                 <el-input-number v-model="formData.paymentDays" :min="0" :max="365" placeholder="0" class="q-input" style="width:100%" />
               </el-form-item>
             </el-col>
           </el-row>
           <el-row :gutter="24">
             <el-col :span="8">
-              <el-form-item label="税号">
-                <el-input v-model="formData.taxNumber" placeholder="统一社会信用代码" class="q-input" />
+              <el-form-item :label="t('vendorEdit.fields.taxNumber')">
+                <el-input v-model="formData.taxNumber" :placeholder="t('vendorEdit.fields.taxNumberPh')" class="q-input" />
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="开户银行">
-                <el-input v-model="formData.bankName" placeholder="开户银行名称" class="q-input" />
+              <el-form-item :label="t('vendorEdit.fields.bankName')">
+                <el-input v-model="formData.bankName" :placeholder="t('vendorEdit.fields.bankNamePh')" class="q-input" />
               </el-form-item>
             </el-col>
           </el-row>
           <el-row :gutter="24">
             <el-col :span="8">
-              <el-form-item label="银行账号">
-                <el-input v-model="formData.bankAccount" placeholder="银行账号" class="q-input" />
+              <el-form-item :label="t('vendorEdit.fields.bankAccount')">
+                <el-input v-model="formData.bankAccount" :placeholder="t('vendorEdit.fields.bankAccountPh')" class="q-input" />
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="账户名称">
-                <el-input v-model="formData.bankAccountName" placeholder="开户名称" class="q-input" />
+              <el-form-item :label="t('vendorEdit.fields.bankAccountName')">
+                <el-input v-model="formData.bankAccountName" :placeholder="t('vendorEdit.fields.bankAccountNamePh')" class="q-input" />
               </el-form-item>
             </el-col>
           </el-row>
@@ -213,24 +217,24 @@
       <div class="form-section">
         <div class="section-header">
           <div class="section-dot section-dot--purple"></div>
-          <span class="section-title">备注信息</span>
+          <span class="section-title">{{ t('vendorEdit.sections.remark') }}</span>
         </div>
         <div class="section-body">
-          <el-form-item label="公司简介">
+          <el-form-item :label="t('vendorEdit.fields.companyInfo')">
             <el-input
               v-model="formData.companyInfo"
               type="textarea"
               :rows="3"
-              placeholder="供应商公司简介、主营业务等"
+              :placeholder="t('vendorEdit.fields.companyInfoPh')"
               class="q-input"
             />
           </el-form-item>
-          <el-form-item label="备注">
+          <el-form-item :label="t('vendorEdit.fields.remark')">
             <el-input
               v-model="formData.remark"
               type="textarea"
               :rows="2"
-              placeholder="其他备注信息"
+              :placeholder="t('vendorEdit.fields.remarkPh')"
               class="q-input"
             />
           </el-form-item>
@@ -243,12 +247,12 @@
     <div class="form-section">
       <div class="section-header">
         <div class="section-dot section-dot--green"></div>
-        <span class="section-title">联系人信息</span>
+        <span class="section-title">{{ t('vendorEdit.sections.contacts') }}</span>
         <button type="button" class="btn-add-contact" @click="addContact">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          添加联系人
+          {{ t('vendorEdit.contacts.add') }}
         </button>
       </div>
       <div class="section-body">
@@ -259,63 +263,63 @@
             <line x1="23" y1="11" x2="17" y2="11"/>
             <line x1="20" y1="8" x2="20" y2="14"/>
           </svg>
-          <p>暂无联系人，点击上方按钮添加</p>
+          <p>{{ t('vendorEdit.contacts.empty') }}</p>
         </div>
 
         <div v-for="(contact, index) in contacts" :key="contact._key || index" class="contact-item">
           <div class="contact-item-header">
-            <span class="contact-index">联系人 {{ index + 1 }}</span>
+            <span class="contact-index">{{ t('vendorEdit.contacts.contactIndex', { n: index + 1 }) }}</span>
             <button type="button" class="btn-remove" @click="removeContact(index)">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="3 6 5 6 21 6"/>
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
               </svg>
-              删除
+              {{ t('vendorEdit.contacts.remove') }}
             </button>
           </div>
 
           <el-row :gutter="16">
             <el-col :span="6">
-              <el-form-item label="姓名">
-                <el-input v-model="contact.cName" placeholder="联系人姓名" class="q-input" />
+              <el-form-item :label="t('vendorEdit.contacts.name')">
+                <el-input v-model="contact.cName" :placeholder="t('vendorEdit.contacts.namePh')" class="q-input" />
               </el-form-item>
             </el-col>
             <el-col :span="6">
-              <el-form-item label="职位">
-                <el-input v-model="contact.title" placeholder="职位/角色" class="q-input" />
+              <el-form-item :label="t('vendorEdit.contacts.title')">
+                <el-input v-model="contact.title" :placeholder="t('vendorEdit.contacts.titlePh')" class="q-input" />
               </el-form-item>
             </el-col>
             <el-col :span="6">
-              <el-form-item label="手机">
-                <el-input v-model="contact.mobile" placeholder="手机号" class="q-input" />
+              <el-form-item :label="t('vendorEdit.contacts.mobile')">
+                <el-input v-model="contact.mobile" :placeholder="t('vendorEdit.contacts.mobilePh')" class="q-input" />
               </el-form-item>
             </el-col>
             <el-col :span="6">
-              <el-form-item label="邮箱">
-                <el-input v-model="contact.email" placeholder="邮箱" class="q-input" />
+              <el-form-item :label="t('vendorEdit.contacts.email')">
+                <el-input v-model="contact.email" :placeholder="t('vendorEdit.contacts.emailPh')" class="q-input" />
               </el-form-item>
             </el-col>
           </el-row>
 
           <el-row :gutter="16" style="margin-top: 6px;">
             <el-col :span="6">
-              <el-form-item label="部门">
-                <el-input v-model="contact.department" placeholder="所属部门" class="q-input" />
+              <el-form-item :label="t('vendorEdit.contacts.department')">
+                <el-input v-model="contact.department" :placeholder="t('vendorEdit.contacts.departmentPh')" class="q-input" />
               </el-form-item>
             </el-col>
             <el-col :span="6">
-              <el-form-item label="固话">
-                <el-input v-model="contact.tel" placeholder="座机电话" class="q-input" />
+              <el-form-item :label="t('vendorEdit.contacts.tel')">
+                <el-input v-model="contact.tel" :placeholder="t('vendorEdit.contacts.telPh')" class="q-input" />
               </el-form-item>
             </el-col>
             <el-col :span="6">
-              <el-form-item label="备注">
-                <el-input v-model="contact.remark" placeholder="备注" class="q-input" />
+              <el-form-item :label="t('vendorEdit.contacts.remark')">
+                <el-input v-model="contact.remark" :placeholder="t('vendorEdit.contacts.remarkPh')" class="q-input" />
               </el-form-item>
             </el-col>
             <el-col :span="6">
               <el-form-item label=" ">
-                <el-checkbox v-model="contact.isMain" class="q-checkbox">设为主联系人</el-checkbox>
+                <el-checkbox v-model="contact.isMain" class="q-checkbox">{{ t('vendorEdit.contacts.setMain') }}</el-checkbox>
               </el-form-item>
             </el-col>
           </el-row>
@@ -328,19 +332,23 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
 import { vendorApi, vendorBankApi, vendorContactApi } from '@/api/vendor';
 import { draftApi } from '@/api/draft';
 import type { CreateVendorRequest, UpdateVendorRequest, Vendor, VendorContactInfo } from '@/types/vendor';
 import { runValidatedFormSave } from '@/composables/useFormSubmit';
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency';
-import { VENDOR_LEVEL_OPTIONS, VENDOR_IDENTITY_OPTIONS } from '@/constants/vendorEnums';
 import PurchaserCascader from '@/components/PurchaserCascader.vue';
+import { useVendorDictStore } from '@/stores/vendorDict';
 import { logRecentApi } from '@/api/logRecent';
 import { VENDOR_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/vendorRecentHistory';
 
 const route = useRoute();
 const router = useRouter();
+const { t, locale } = useI18n();
+
+const vendorDict = useVendorDictStore();
 
 /** 与 CustomerEdit 一致：create 路由无 id，:id/edit 有 id */
 const isEdit = computed(() => !!route.params.id);
@@ -353,6 +361,7 @@ const currentDraftId = ref('');
 const formData = reactive({
   code: '',
   officialName: '',
+  englishOfficialName: '',
   nickName: '',
   industry: '',
   level: undefined as number | undefined,
@@ -378,9 +387,12 @@ const formData = reactive({
   remark: ''
 });
 
-const formRules: FormRules = {
-  officialName: [{ required: true, message: '请输入供应商全称', trigger: 'blur' }]
-};
+const formRules = computed<FormRules>(() => {
+  void locale.value;
+  return {
+    officialName: [{ required: true, message: t('vendorEdit.rules.officialNameRequired'), trigger: 'blur' }]
+  };
+});
 
 const mobilePhonePattern = /^1[3-9]\d{9}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -396,6 +408,7 @@ const goBack = () => router.push({ name: 'VendorList' });
 
 const buildVendorApiPayload = (): CreateVendorRequest & UpdateVendorRequest => ({
   name: formData.officialName.trim(),
+  englishOfficialName: formData.englishOfficialName?.trim() || undefined,
   nickName: formData.nickName?.trim(),
   industry: formData.industry || undefined,
   level: formData.level,
@@ -450,6 +463,7 @@ const fetchVendorDetail = async () => {
     const data: Vendor = await vendorApi.getVendorById(vendorId.value);
     formData.code = data.code ?? '';
     formData.officialName = data.officialName ?? data.name ?? '';
+    formData.englishOfficialName = data.englishOfficialName ?? '';
     formData.nickName = data.nickName ?? '';
     formData.industry = data.industry ?? '';
     formData.level = data.level;
@@ -474,6 +488,12 @@ const fetchVendorDetail = async () => {
       ...c,
       _key: c.id || `srv-${idx}`
     }));
+    void vendorDict.hydrateVendorEditForm({
+      industry: formData.industry,
+      level: formData.level,
+      credit: formData.credit,
+      paymentMethod: formData.paymentMethod
+    });
     logRecentApi
       .record({
         bizType: 'Vendor',
@@ -484,7 +504,7 @@ const fetchVendorDetail = async () => {
       .then(() => window.dispatchEvent(new CustomEvent(VENDOR_RECENT_HISTORY_CHANGED_EVENT)))
       .catch(() => {});
   } catch (e) {
-    ElMessage.error('获取供应商详情失败');
+    ElMessage.error(t('vendorEdit.messages.fetchFailed'));
   }
 };
 
@@ -501,6 +521,12 @@ const applyDraftPayload = (payload: any) => {
       _key: c.id || `tmp-${idx}`
     }));
   }
+  void vendorDict.hydrateVendorEditForm({
+    industry: formData.industry,
+    level: formData.level,
+    credit: formData.credit,
+    paymentMethod: formData.paymentMethod
+  });
 };
 
 const saveDraftOnly = async () => {
@@ -508,37 +534,37 @@ const saveDraftOnly = async () => {
     const draft = await draftApi.saveDraft({
       draftId: currentDraftId.value || undefined,
       entityType: 'VENDOR',
-      draftName: formData.officialName || formData.nickName || '供应商草稿',
+      draftName: formData.officialName || formData.nickName || t('vendorEdit.draftNameDefault'),
       payloadJson: JSON.stringify(buildDraftPayload()),
-      remark: isEdit.value ? `来源供应商ID:${vendorId.value}` : undefined
+      remark: isEdit.value ? t('vendorEdit.draftRemarkFromVendor', { id: vendorId.value }) : undefined
     });
     currentDraftId.value = draft.draftId;
-    ElMessage.success(`草稿已保存（${draft.draftId}）`);
+    ElMessage.success(t('vendorEdit.messages.draftSaved', { id: draft.draftId }));
   } catch (error: any) {
-    ElMessage.error(error?.message || '草稿保存失败');
+    ElMessage.error(error?.message || t('vendorEdit.messages.draftSaveFailed'));
   }
 };
 
 const restoreDraftById = async (draftId: string) => {
   const draft = await draftApi.getDraftById(draftId);
-  if (draft.entityType !== 'VENDOR') throw new Error('该草稿不是供应商类型');
+  if (draft.entityType !== 'VENDOR') throw new Error(t('vendorEdit.messages.wrongDraftType'));
   applyDraftPayload(JSON.parse(draft.payloadJson || '{}'));
   currentDraftId.value = draft.draftId;
 };
 
 const handleRestoreDraft = async () => {
   try {
-    const { value } = await ElMessageBox.prompt('请输入草稿ID', '从草稿恢复', {
-      confirmButtonText: '恢复',
-      cancelButtonText: '取消',
+    const { value } = await ElMessageBox.prompt(t('vendorEdit.messages.promptDraftId'), t('vendorEdit.messages.promptRestoreTitle'), {
+      confirmButtonText: t('vendorEdit.messages.restore'),
+      cancelButtonText: t('common.cancel'),
       inputPlaceholder: 'DraftId'
     });
     if (!value) return;
     await restoreDraftById(value);
-    ElMessage.success('供应商草稿已恢复');
+    ElMessage.success(t('vendorEdit.messages.draftRestored'));
   } catch (e: any) {
     if (e === 'cancel' || e === 'close') return;
-    ElMessage.error(e?.message || '草稿恢复失败');
+    ElMessage.error(e?.message || t('vendorEdit.messages.draftRestoreFailed'));
   }
 };
 
@@ -568,14 +594,14 @@ const handleSave = async () => {
 
       return mode;
     },
-    formatSuccess: (mode) => (mode === 'edit' ? '保存成功' : '创建成功'),
+    formatSuccess: (mode) => (mode === 'edit' ? t('vendorEdit.messages.saveSuccess') : t('vendorEdit.messages.createSuccess')),
     onSuccess: (mode) => {
       if (mode === 'create') router.replace({ name: 'VendorList' });
       else void fetchVendorDetail();
     },
     errorMessage: (error: unknown) => {
       const e = error as { message?: string; data?: { message?: string } };
-      return e?.message || e?.data?.message || '保存失败';
+      return e?.message || e?.data?.message || t('vendorEdit.messages.saveFailed');
     }
   });
 };
@@ -592,11 +618,11 @@ const validateVendorContacts = () => {
     const email = (contact.email || '').trim();
 
     if (mobile && mobile !== '-' && !mobilePhonePattern.test(mobile)) {
-      throw new Error(`联系人 ${i + 1} 手机号格式不正确`);
+      throw new Error(t('vendorEdit.messages.contactMobileInvalid', { n: i + 1 }));
     }
 
     if (email && email !== '-' && !emailPattern.test(email)) {
-      throw new Error(`联系人 ${i + 1} 邮箱格式不正确`);
+      throw new Error(t('vendorEdit.messages.contactEmailInvalid', { n: i + 1 }));
     }
   }
 };
@@ -627,10 +653,12 @@ const addContact = () => {
 
 const removeContact = async (index: number) => {
   try {
-    await ElMessageBox.confirm('确定要删除该联系人吗？', '确认删除', { type: 'warning' });
+    await ElMessageBox.confirm(t('vendorEdit.messages.deleteContactConfirm'), t('vendorEdit.messages.deleteContactTitle'), {
+      type: 'warning'
+    });
     contacts.value.splice(index, 1);
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error('删除失败');
+    if (e !== 'cancel') ElMessage.error(t('vendorEdit.messages.deleteFailed'));
   }
 };
 
@@ -686,11 +714,12 @@ const syncContactsForVendor = async (targetVendorId: string) => {
 };
 
 onMounted(() => {
+  void vendorDict.ensureLoaded();
   void fetchVendorDetail();
   const draftId = route.query.draftId;
   if (!isEdit.value && typeof draftId === 'string' && draftId) {
     restoreDraftById(draftId).catch((err: any) => {
-      ElMessage.error(err?.message || '草稿恢复失败');
+      ElMessage.error(err?.message || t('vendorEdit.messages.draftRestoreFailed'));
     });
   }
 });

@@ -39,7 +39,11 @@ namespace CRM.API.Extensions
             services.AddScoped<IVendorService, VendorService>();
             services.AddScoped<IStockInService, StockInService>();
             services.AddScoped<IDisplayTimeZoneService, DisplayTimeZoneService>();
+            services.AddScoped<IDictionaryService, DictionaryService>();
+            services.AddScoped<ISysDictItemAdminService, SysDictItemAdminService>();
             services.AddScoped<IStockOutService, StockOutService>();
+            services.AddScoped<ISellOrderItemExtendSyncService, SellOrderItemExtendSyncService>();
+            services.AddScoped<IPurchaseOrderItemExtendSyncService, PurchaseOrderItemExtendSyncService>();
             services.AddScoped<ILogisticsService, LogisticsService>();
             services.AddScoped<IStockService, StockService>();
             services.AddScoped<IInventoryCenterService, InventoryCenterService>();
@@ -54,6 +58,8 @@ namespace CRM.API.Extensions
             services.AddScoped<IRbacService, RbacService>();
             services.AddScoped<IDataPermissionService, DataPermissionService>();
             services.AddScoped<IApprovalRecordService, ApprovalRecordService>();
+            services.AddScoped<IOrderJourneyLogService, OrderJourneyLogService>();
+            services.AddScoped<IRepository<CRM.Core.Models.System.OrderJourneyLog>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.System.OrderJourneyLog>>();
             services.AddDocumentModule(configuration);
 
             // 销售订单模块
@@ -94,6 +100,9 @@ namespace CRM.API.Extensions
             services.AddScoped<IFinanceSellInvoiceService, FinanceSellInvoiceService>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceSellInvoice>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceSellInvoice>>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.SellInvoiceItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.SellInvoiceItem>>();
+            services.AddScoped<IFinanceExchangeRateService, FinanceExchangeRateService>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceExchangeRateSetting>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceExchangeRateSetting>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceExchangeRateChangeLog>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceExchangeRateChangeLog>>();
 
             // 微信认证
             services.AddScoped<IWechatAuthService, WechatAuthService>();

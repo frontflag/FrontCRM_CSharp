@@ -535,6 +535,26 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/System/CompanyInfoView.vue'),
         meta: { requiresAuth: true, title: '公司信息', permission: 'rbac.manage' }
       },
+      {
+        path: 'system/dict-items',
+        name: 'DictItemList',
+        component: () => import('@/views/System/DictItemList.vue'),
+        meta: { requiresAuth: true, title: '数据字典', permission: 'rbac.manage' }
+      },
+      {
+        path: 'system/finance-params',
+        component: () => import('@/views/System/FinanceParamsLayout.vue'),
+        meta: { requiresAuth: true, title: '财务参数', permission: 'rbac.manage' },
+        children: [
+          { path: '', redirect: '/system/finance-params/exchange-rates' },
+          {
+            path: 'exchange-rates',
+            name: 'FinanceExchangeRates',
+            component: () => import('@/views/System/FinanceExchangeRateSettings.vue'),
+            meta: { requiresAuth: true, title: '财务参数', permission: 'rbac.manage' }
+          }
+        ]
+      },
       // 财务模块
       {
         path: 'finance/payments',

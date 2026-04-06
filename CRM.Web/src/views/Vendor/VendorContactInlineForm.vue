@@ -48,7 +48,7 @@
             <!-- 主联系人 跨两列 -->
             <el-form-item label="主联系人" class="form-item form-item--full form-item--switch">
               <el-switch v-model="form.isMain" />
-              <span class="switch-hint">{{ form.isMain ? '设为主联系人' : '普通联系人' }}</span>
+              <span class="switch-hint">{{ form.isMain ? '设为默认联系人' : '普通联系人' }}</span>
             </el-form-item>
             <!-- 备注 跨两列 -->
             <el-form-item label="备注" class="form-item form-item--full">

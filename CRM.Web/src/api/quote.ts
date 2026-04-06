@@ -140,13 +140,19 @@ export const quoteApi = {
     if (params?.keyword) {
       const kw = params.keyword.toLowerCase()
       result = result.filter((q) => {
+        const items = (q.items ?? q.Items) as Record<string, unknown>[] | undefined
+        const it0 = Array.isArray(items) && items.length > 0 ? items[0] : null
         const parts = [
           q.quoteCode,
           q.quoteNumber,
           q.rfqCode,
           q.mpn,
           q.customerName,
-          q.salesUserName
+          q.salesUserName,
+          it0?.brand,
+          it0?.Brand,
+          it0?.unitPrice,
+          it0?.UnitPrice
         ]
           .filter((x) => x != null)
           .map((x) => String(x).toLowerCase())

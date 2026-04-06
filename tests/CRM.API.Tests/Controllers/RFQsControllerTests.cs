@@ -72,7 +72,6 @@ public sealed class RFQsControllerTests
                     RfqType = 1,
                     Importance = 5,
                     ItemCount = 1,
-                    RfqDate = DateTime.UtcNow,
                     CreateTime = DateTime.UtcNow
                 }
             },
@@ -105,7 +104,7 @@ public sealed class RFQsControllerTests
             });
 
         var c = CreateController(rfq, Substitute.For<IDataPermissionService>());
-        var action = await c.GetRFQItems(2, 10, "2026-01-01", "2026-01-31", "kw", "mpn", "sales");
+        var action = await c.GetRFQItems(2, 10, "2026-01-01", "2026-01-31", "kw", "mpn", salesUserId: null, salesUserKeyword: "sales");
 
         action.Result.Should().BeOfType<OkObjectResult>();
         await rfq.Received(1).GetPagedItemsAsync(Arg.Is<RFQItemQueryRequest>(q =>
@@ -169,7 +168,7 @@ public sealed class RFQsControllerTests
     public async Task CreateRFQ_Returns400_OnArgumentException()
     {
         var rfq = Substitute.For<IRFQService>();
-        rfq.CreateAsync(Arg.Any<CreateRFQRequest>())
+        rfq.CreateAsync(Arg.Any<CreateRFQRequest>(), Arg.Any<string>())
             .Returns(Task.FromException<RFQ>(new ArgumentException("请选择客户")));
 
         var c = CreateController(rfq, Substitute.For<IDataPermissionService>());
@@ -186,7 +185,7 @@ public sealed class RFQsControllerTests
     {
         var rfq = Substitute.For<IRFQService>();
         var created = new RFQ { Id = "new-id", RfqCode = "RF99", CustomerId = "c1" };
-        rfq.CreateAsync(Arg.Any<CreateRFQRequest>()).Returns(created);
+        rfq.CreateAsync(Arg.Any<CreateRFQRequest>(), Arg.Any<string>()).Returns(created);
 
         var c = CreateController(rfq, Substitute.For<IDataPermissionService>());
         var action = await c.CreateRFQ(new CreateRFQRequest { CustomerId = "c1", Items = { new CreateRFQItemRequest { Mpn = "M", Brand = "B" } } });

@@ -181,7 +181,24 @@
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item :label="t('financePurchaseInvoiceList.formVendor')" required>
-              <el-input v-model="form.vendorName" :placeholder="t('financePurchaseInvoiceList.formVendorPh')" />
+              <el-select
+                v-model="form.vendorId"
+                class="fpi-vendor-select"
+                :placeholder="t('financePurchaseInvoiceList.formVendorPh')"
+                style="width: 100%"
+                filterable
+                clearable
+                :disabled="!!editingId"
+                :filter-method="onVendorFilterInput"
+                :loading="vendorSearchLoading"
+                :loading-text="t('financePurchaseInvoiceList.vendorSearchLoading')"
+                @change="onVendorChange"
+              >
+                <template #empty>
+                  <div class="vendor-search-hint">{{ t('financePurchaseInvoiceList.vendorSearchHint') }}</div>
+                </template>
+                <el-option v-for="v in vendorOptions" :key="v.value" :label="v.label" :value="v.value" />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -250,6 +267,7 @@ import { Search, Plus, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   financePurchaseInvoiceApi,
+  normalizeFinancePurchaseInvoice,
   INVOICE_STATUS_MAP,
   PAYMENT_DONE_STATUS_MAP,
   PURCHASE_INVOICE_TYPE_MAP,
@@ -260,6 +278,8 @@ import {
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { vendorApi } from '@/api/vendor'
+import type { Vendor } from '@/types/vendor'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -336,16 +356,17 @@ const loadData = async () => {
   }
   try {
     const res = await financePurchaseInvoiceApi.getList(query)
-    tableData.value = res.items || []
+    tableData.value = (res.items || []).map(normalizeFinancePurchaseInvoice)
     total.value = res.total || 0
   } catch {
     tableData.value = getMockData()
     total.value = tableData.value.length
   } finally {
     loading.value = false
-    stats.totalAmount = tableData.value.reduce((s, r) => s + r.invoiceTotal, 0)
-    stats.paidAmount = tableData.value.reduce((s, r) => s + r.paymentDone, 0)
-    stats.toPayAmount = tableData.value.reduce((s, r) => s + r.paymentToBe, 0)
+    const safeNum = (v: number) => (Number.isFinite(v) ? v : 0)
+    stats.totalAmount = tableData.value.reduce((s, r) => s + safeNum(r.invoiceTotal), 0)
+    stats.paidAmount = tableData.value.reduce((s, r) => s + safeNum(r.paymentDone), 0)
+    stats.toPayAmount = tableData.value.reduce((s, r) => s + safeNum(r.paymentToBe), 0)
     stats.invoicedCount = tableData.value.filter(r => r.invoiceStatus === 100).length
   }
 }
@@ -362,29 +383,118 @@ const dialogVisible = ref(false)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
 const form = reactive<Partial<FinancePurchaseInvoice>>({
-  vendorName: '', invoiceNo: '', invoiceTotal: 0, makeInvoiceDate: undefined,
-  purchaseInvoiceType: 100, type: 10, currency: 1, remark: '',
+  vendorId: '',
+  vendorName: '',
+  invoiceNo: '',
+  invoiceTotal: 0,
+  makeInvoiceDate: undefined,
+  purchaseInvoiceType: 100,
+  type: 10,
+  currency: 1,
+  remark: ''
 })
+
+const vendorOptions = ref<{ value: string; label: string }[]>([])
+const vendorSearchLoading = ref(false)
+let vendorSearchTimer: ReturnType<typeof setTimeout> | null = null
+
+function onVendorFilterInput(query: string) {
+  if (vendorSearchTimer) clearTimeout(vendorSearchTimer)
+  if (!query || query.trim().length < 1) {
+    if (form.vendorId && form.vendorName) {
+      vendorOptions.value = [{ value: String(form.vendorId), label: String(form.vendorName) }]
+    } else {
+      vendorOptions.value = []
+    }
+    return
+  }
+  vendorSearchTimer = setTimeout(async () => {
+    vendorSearchLoading.value = true
+    try {
+      const res = await vendorApi.searchVendors({
+        pageNumber: 1,
+        pageSize: 30,
+        keyword: query.trim()
+      })
+      vendorOptions.value = (res.items || []).map((v: Vendor) => ({
+        value: v.id,
+        label: v.officialName || v.nickName || v.code || '—'
+      }))
+    } catch {
+      vendorOptions.value = []
+    } finally {
+      vendorSearchLoading.value = false
+    }
+  }, 300)
+}
+
+function onVendorChange(val: string | null | undefined) {
+  if (!val) {
+    form.vendorName = ''
+    return
+  }
+  const found = vendorOptions.value.find((x) => x.value === val)
+  if (found) form.vendorName = found.label
+}
 
 const openCreate = () => {
   editingId.value = null
-  Object.assign(form, { vendorName: '', invoiceNo: '', invoiceTotal: 0, makeInvoiceDate: undefined, purchaseInvoiceType: 100, type: 10, currency: 1, remark: '' })
+  vendorOptions.value = []
+  Object.assign(form, {
+    vendorId: '',
+    vendorName: '',
+    invoiceNo: '',
+    invoiceTotal: 0,
+    makeInvoiceDate: undefined,
+    purchaseInvoiceType: 100,
+    type: 10,
+    currency: 1,
+    remark: ''
+  })
   dialogVisible.value = true
 }
 
 const openEdit = (row: FinancePurchaseInvoice) => {
   editingId.value = row.id
   Object.assign(form, { ...row })
+  const vid = String(row.vendorId ?? '').trim()
+  const vname = String(row.vendorName ?? '').trim()
+  if (vid) {
+    vendorOptions.value = [{ value: vid, label: vname || vid }]
+  } else {
+    vendorOptions.value = []
+  }
   dialogVisible.value = true
 }
 
 const saveForm = async () => {
+  if (!editingId.value && !String(form.vendorId ?? '').trim()) {
+    ElMessage.warning(t('financePurchaseInvoiceList.validation.vendorRequired'))
+    return
+  }
   saving.value = true
   try {
     if (editingId.value) {
-      await financePurchaseInvoiceApi.update(editingId.value, form)
+      await financePurchaseInvoiceApi.update(editingId.value, {
+        invoiceNo: form.invoiceNo,
+        invoiceAmount: form.invoiceTotal,
+        invoiceDate: form.makeInvoiceDate,
+        remark: form.remark
+      } as Partial<FinancePurchaseInvoice>)
     } else {
-      await financePurchaseInvoiceApi.create(form)
+      const amt = Number(form.invoiceTotal) || 0
+      await financePurchaseInvoiceApi.create({
+        vendorId: String(form.vendorId).trim(),
+        vendorName: form.vendorName || undefined,
+        invoiceNo: form.invoiceNo || undefined,
+        invoiceAmount: amt,
+        billAmount: amt,
+        taxAmount: 0,
+        excludTaxAmount: amt,
+        invoiceDate: form.makeInvoiceDate || undefined,
+        remark: form.remark || undefined,
+        items: []
+      } as unknown as Partial<FinancePurchaseInvoice>)
     }
     ElMessage.success(t('financePurchaseInvoiceList.messages.saveOk'))
     dialogVisible.value = false
@@ -412,7 +522,11 @@ const voidInvoice = async (row: FinancePurchaseInvoice) => {
   await loadData()
 }
 
-const formatAmount = (v: number) => v?.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'
+const formatAmount = (v: number | unknown) => {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '0.00'
+  return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
 onMounted(loadData)
 </script>
@@ -441,5 +555,12 @@ onMounted(loadData)
 .list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
+}
+
+.vendor-search-hint {
+  padding: 8px 12px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  text-align: center;
 }
 </style>

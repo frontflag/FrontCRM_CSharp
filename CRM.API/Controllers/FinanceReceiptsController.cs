@@ -79,7 +79,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var receipt = await _service.CreateAsync(request);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var receipt = await _service.CreateAsync(request, userId);
                 return CreatedAtAction(nameof(GetById), new { id = receipt.Id },
                     new { success = true, data = receipt });
             }
@@ -105,7 +106,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var receipt = await _service.UpdateAsync(id, request);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var receipt = await _service.UpdateAsync(id, request, userId);
                 return Ok(new { success = true, data = receipt });
             }
             catch (KeyNotFoundException)
@@ -126,7 +128,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.UpdateStatusAsync(id, request.Status);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.UpdateStatusAsync(id, request.Status, userId);
                 return Ok(new { success = true, message = "状态更新成功" });
             }
             catch (KeyNotFoundException)
@@ -147,7 +150,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.UpdateStatusAsync(id, 1);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.UpdateStatusAsync(id, 1, userId);
                 return Ok(new { success = true, message = "提交审核成功" });
             }
             catch (InvalidOperationException ex)
@@ -168,7 +172,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.UpdateStatusAsync(id, 2);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.UpdateStatusAsync(id, 2, userId);
                 return Ok(new { success = true, message = "审核通过" });
             }
             catch (InvalidOperationException ex)
@@ -189,7 +194,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.UpdateStatusAsync(id, 3);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.UpdateStatusAsync(id, 3, userId);
                 return Ok(new { success = true, message = "确认收款成功" });
             }
             catch (InvalidOperationException ex)
@@ -210,7 +216,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.UpdateStatusAsync(id, 4);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.UpdateStatusAsync(id, 4, userId);
                 return Ok(new { success = true, message = "已取消" });
             }
             catch (InvalidOperationException ex)
@@ -252,7 +259,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.VerifyReceiptItemAsync(receiptItemId, request.SellInvoiceId, request.Amount);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.VerifyReceiptItemAsync(receiptItemId, request.SellInvoiceId, request.Amount, userId);
                 return Ok(new { success = true, message = "核销成功" });
             }
             catch (Exception ex)

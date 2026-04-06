@@ -11,6 +11,7 @@ using CRM.Core.Models.Vendor;
 using CRM.Core.Services;
 using CRM.Core.Tests.Fakes;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace CRM.Core.Tests.Modules;
@@ -68,7 +69,7 @@ public sealed class RFQModuleBusinessWorkflowTests
 
             UnitOfWork = Substitute.For<IUnitOfWork>();
             Lookup = new EntityLookupService(CustomerRepo, ContactRepo, VendorRepo, VendorContactRepo, UserService);
-            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, SysParamRepo, RbacRoleRepo, RbacUserRoleRepo, QuoteRepo, UserRepo);
+            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, SysParamRepo, RbacRoleRepo, RbacUserRoleRepo, QuoteRepo, UserRepo, NullLogger<RFQService>.Instance);
         }
 
         private sealed class ConcurrentInt

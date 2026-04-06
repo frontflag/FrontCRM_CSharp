@@ -7,7 +7,9 @@
       </el-button>
       <el-breadcrumb separator="/">
         <el-breadcrumb-item :to="{ name: 'FinancePaymentList' }">{{ t('financePaymentDetail.breadcrumb') }}</el-breadcrumb-item>
-        <el-breadcrumb-item>{{ detail?.financePaymentCode || t('financePaymentDetail.detail') }}</el-breadcrumb-item>
+        <el-breadcrumb-item>
+          <span class="order-code">{{ detail?.financePaymentCode || t('financePaymentDetail.detail') }}</span>
+        </el-breadcrumb-item>
       </el-breadcrumb>
     </div>
 
@@ -52,7 +54,7 @@
           <span>{{ t('financePaymentDetail.paymentLines') }}</span>
         </div>
         <el-empty v-if="!detail.items?.length" :description="t('financePaymentDetail.noItems')" :image-size="80" />
-        <CrmDataTable v-else :data="paymentLineRows" size="small" class="items-table">
+        <CrmDataTable v-else :data="paymentLineRows" size="small">
           <el-table-column type="index" width="50" label="#" />
           <el-table-column prop="purchaseOrderCode" :label="t('financePaymentDetail.labels.poCode')" min-width="160" show-overflow-tooltip />
           <el-table-column prop="pn" :label="t('financePaymentDetail.labels.pn')" min-width="150" />
@@ -95,7 +97,7 @@
           <span>{{ t('financePaymentDetail.bankSlip') }}</span>
         </div>
         <el-empty v-if="!paymentDocs.length" :description="t('financePaymentDetail.noAttachments')" :image-size="80" />
-        <CrmDataTable v-else :data="paymentDocs" size="small" class="items-table">
+        <CrmDataTable v-else :data="paymentDocs" size="small">
           <el-table-column type="index" width="50" label="#" />
           <el-table-column prop="originalFileName" :label="t('financePaymentDetail.labels.fileName')" min-width="260" show-overflow-tooltip />
           <el-table-column prop="remark" :label="t('financePaymentDetail.labels.remark')" min-width="140" show-overflow-tooltip />
@@ -361,57 +363,18 @@ const downloadDoc = async (doc: UploadDocumentDto) => {
 }
 
 .order-code {
-  font-family: 'Courier New', monospace;
-  color: $text-secondary;
-  font-weight: 600;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: $text-primary;
+  font-weight: 500;
+  letter-spacing: normal;
 }
 
 .amount {
+  font-family: 'Noto Sans SC', sans-serif;
+  font-variant-numeric: tabular-nums;
   color: $cyan-primary;
   font-weight: 600;
-}
-
-.items-table {
-  // 无外边框，行间细线分隔，对标客户管理列表风格
-  --el-table-border-color: transparent;
-  --el-table-header-bg-color: rgba(0, 212, 255, 0.04);
-  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.04);
-  --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: transparent;
-  --el-table-fixed-box-shadow: none;
-  background: transparent !important;
-  :deep(.el-table__inner-wrapper) {
-    background: transparent;
-    &::before { display: none !important; }
-    &::after  { display: none !important; }
-  }
-  :deep(.el-table__border-left-patch) { display: none !important; }
-  :deep(.el-table__header-wrapper) {
-    th.el-table__cell {
-      background: rgba(0, 212, 255, 0.04) !important;
-      border-bottom: 1px solid rgba(0, 212, 255, 0.1) !important;
-      border-right: none !important;
-      color: rgba(200, 216, 232, 0.55);
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 0.3px;
-    }
-  }
-  :deep(.el-table__row) {
-    background: transparent !important;
-    td.el-table__cell {
-      background: transparent !important;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
-      border-right: none !important;
-      color: rgba(224, 244, 255, 0.85);
-      font-size: 13px;
-    }
-    &:last-child td.el-table__cell { border-bottom: none !important; }
-    &:hover td.el-table__cell { background: rgba(0, 212, 255, 0.04) !important; }
-  }
-  :deep(.el-table__cell) {
-    .el-button { white-space: nowrap !important; }
-    .cell { white-space: nowrap; }
-  }
 }
 </style>

@@ -51,10 +51,11 @@ import apiClient from '@/api/client'
 import { sendPurchaseOrderReportEmail } from '@/api/purchaseOrderReport'
 import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDate } from '@/utils/displayDateTime'
+import { PURCHASE_ORDER_SERVICE_TERMS } from '@/constants/purchaseOrderReportTerms'
 import {
-  PURCHASE_ORDER_SERVICE_TERMS,
-  PURCHASE_ORDER_REPORT_TAX_RATE
-} from '@/constants/purchaseOrderReportTerms'
+  CURRENCY_CODE_TO_TEXT,
+  settlementVatRateDecimal
+} from '@/constants/currency'
 import {
   purchaseOrderReportAllowed,
   normalizePurchaseOrderMainStatus
@@ -130,10 +131,19 @@ function pickReportSealRow(rows: CompanySealRow[] | undefined | null): CompanySe
   return rows.find((r) => r.isDefault) ?? rows[0]
 }
 
-function currencyCode(v: number | undefined): string {
-  if (v === 2) return 'USD'
-  if (v === 3) return 'EUR'
-  return 'RMB'
+function currencyCode(v: number | undefined | null): string {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return CURRENCY_CODE_TO_TEXT[1]
+  return CURRENCY_CODE_TO_TEXT[n] ?? CURRENCY_CODE_TO_TEXT[1]
+}
+
+/** 页脚「货币」行展示的税率：无税为 0；单一 13% 为 0.13；混币时为有效税率 */
+function formatFooterTaxRateLabel(exclSum: number, taxSum: number): string {
+  if (!taxSum || taxSum < 1e-9) return '0'
+  if (!exclSum || exclSum < 1e-9) return '0'
+  const eff = taxSum / exclSum
+  const s = eff.toFixed(4).replace(/\.?0+$/, '')
+  return s || '0'
 }
 
 function formatReportQty(n: number): string {
@@ -175,7 +185,7 @@ const docBind = computed(() => {
       exclTax: '0.00',
       taxAmount: '0.00',
       grandIncl: '0.00',
-      taxRateLabel: String(PURCHASE_ORDER_REPORT_TAX_RATE),
+      taxRateLabel: '0',
       extraLines: [] as string[],
       terms: PURCHASE_ORDER_SERVICE_TERMS,
       sealUrl: null as string | null,
@@ -189,33 +199,42 @@ const docBind = computed(() => {
   const seller = basicDefault.value
   const wh = warehouseDefault.value
   const items = (o.items as any[]) || []
+  const headerCurNum = Number(o.currency)
   const cur = currencyCode(o.currency)
 
   let qtySum = 0
   let inclSum = 0
+  let exclSum = 0
+  let taxSum = 0
   const lines = items.map((row, i) => {
     const qty = Number(row.qty) || 0
     const cost = Number(row.cost) || 0
     const lineTotal = qty * cost
+    const lineCur = row.currency != null && row.currency !== '' ? Number(row.currency) : headerCurNum
+    const rate = settlementVatRateDecimal(Number.isFinite(lineCur) ? lineCur : headerCurNum)
+    const lineExcl = rate > 0 ? lineTotal / (1 + rate) : lineTotal
+    const lineTax = lineTotal - lineExcl
     qtySum += qty
     inclSum += lineTotal
+    exclSum += lineExcl
+    taxSum += lineTax
     return {
       index: i + 1,
       brand: row.brand || '—',
-      unit: '个',
-      currency: cur,
+      unit: 'PCS',
+      currency: currencyCode(Number.isFinite(lineCur) ? lineCur : headerCurNum),
       qty: formatReportQty(qty),
       unitPrice: formatReportUnitPrice(cost),
-      taxRate: String(PURCHASE_ORDER_REPORT_TAX_RATE),
+      taxRate: String(rate),
       lineTotal: formatReportLineTotal(lineTotal),
       productName: (row.comment && String(row.comment).trim()) || '—',
       spec: row.pn || '—'
     }
   })
 
-  const rate = PURCHASE_ORDER_REPORT_TAX_RATE
-  const excl = inclSum / (1 + rate)
-  const tax = inclSum - excl
+  const excl = exclSum
+  const tax = taxSum
+  const taxRateLabel = formatFooterTaxRateLabel(exclSum, taxSum)
 
   const shipTo = [
     seller?.companyName,
@@ -255,7 +274,7 @@ const docBind = computed(() => {
     exclTax: formatReportLineTotal(excl),
     taxAmount: formatReportLineTotal(tax),
     grandIncl: formatReportLineTotal(inclSum),
-    taxRateLabel: String(PURCHASE_ORDER_REPORT_TAX_RATE),
+    taxRateLabel,
     extraLines: [
       '运费承担：供方承担',
       `收货地址：${shipTo || '—'}`,

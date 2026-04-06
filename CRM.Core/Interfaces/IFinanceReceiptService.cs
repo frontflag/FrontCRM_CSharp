@@ -7,13 +7,13 @@ namespace CRM.Core.Interfaces
     /// </summary>
     public interface IFinanceReceiptService
     {
-        Task<FinanceReceipt> CreateAsync(CreateFinanceReceiptRequest request);
+        Task<FinanceReceipt> CreateAsync(CreateFinanceReceiptRequest request, string? actingUserId = null);
         Task<FinanceReceipt?> GetByIdAsync(string id);
         Task<IEnumerable<FinanceReceipt>> GetAllAsync();
-        Task<FinanceReceipt> UpdateAsync(string id, UpdateFinanceReceiptRequest request);
+        Task<FinanceReceipt> UpdateAsync(string id, UpdateFinanceReceiptRequest request, string? actingUserId = null);
         Task DeleteAsync(string id);
-        Task UpdateStatusAsync(string id, short status);
-        Task VerifyReceiptItemAsync(string receiptItemId, string sellInvoiceId, decimal amount);
+        Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
+        Task VerifyReceiptItemAsync(string receiptItemId, string sellInvoiceId, decimal amount, string? actingUserId = null);
         Task<PagedResult<FinanceReceipt>> GetPagedAsync(FinanceReceiptQueryRequest request);
     }
 
@@ -29,6 +29,7 @@ namespace CRM.Core.Interfaces
         public string? ReceiptUserId { get; set; }
         public short ReceiptMode { get; set; } = 1;
         public string? ReceiptBankId { get; set; }
+        public string? BankSlipNo { get; set; }
         public string? Remark { get; set; }
         public List<CreateFinanceReceiptItemRequest> Items { get; set; } = new();
     }
@@ -54,6 +55,7 @@ namespace CRM.Core.Interfaces
         public byte? ReceiptCurrency { get; set; }
         public DateTime? ReceiptDate { get; set; }
         public short? ReceiptMode { get; set; }
+        public string? BankSlipNo { get; set; }
         public string? Remark { get; set; }
     }
 

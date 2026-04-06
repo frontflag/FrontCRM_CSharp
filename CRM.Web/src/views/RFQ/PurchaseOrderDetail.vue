@@ -183,6 +183,7 @@
               class="items-table"
             >
               <el-table-column type="index" width="50" label="#" />
+              <el-table-column prop="purchaseOrderItemCode" label="明细编号" min-width="168" show-overflow-tooltip />
               <el-table-column prop="pn" label="物料型号" min-width="160" />
               <el-table-column prop="brand" label="品牌" width="120" />
               <el-table-column prop="qty" label="数量" align="right" width="100" />
@@ -194,6 +195,58 @@
               <el-table-column v-if="canViewPurchaseAmount" label="金额" align="right" width="130">
                 <template #default="{ row }">
                   {{ formatCurrencyTotal(row.qty * row.cost, row.currency) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="采购状态" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="poExtendTriTagType(row.purchaseProgressStatus)" size="small" effect="dark">
+                    {{ poPurchaseProgressText(row.purchaseProgressStatus) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="入库状态" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="poExtendTriTagType(row.stockInProgressStatus)" size="small" effect="dark">
+                    {{ poStockInProgressText(row.stockInProgressStatus) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="付款状态" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="poExtendTriTagType(row.paymentProgressStatus)" size="small" effect="dark">
+                    {{ poPaymentProgressText(row.paymentProgressStatus) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="开票状态" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="poExtendTriTagType(row.invoiceProgressStatus)" size="small" effect="dark">
+                    {{ poInvoiceProgressText(row.invoiceProgressStatus) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="采购数量" width="108" align="right" class-name="po-item-progress-qty-col">
+                <template #default="{ row }">
+                  <div>{{ formatPoProgressQty(row.purchaseProgressQty) }}</div>
+                  <div
+                    v-if="poShowSellLinePurchaseSum(row)"
+                    class="po-item-progress-sub"
+                  >
+                    同销单行 {{ formatPoProgressQty(row.sellLinePurchaseQtySum) }}
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="入库数量" width="96" align="right">
+                <template #default="{ row }">{{ formatPoProgressQty(row.stockInProgressQty) }}</template>
+              </el-table-column>
+              <el-table-column v-if="canViewPurchaseAmount" label="已付款" width="100" align="right">
+                <template #default="{ row }">
+                  {{ formatCurrencyTotal(row.paymentProgressAmount, row.currency) }}
+                </template>
+              </el-table-column>
+              <el-table-column v-if="canViewPurchaseAmount" label="已开票额" width="100" align="right">
+                <template #default="{ row }">
+                  {{ formatCurrencyTotal(row.invoiceProgressAmount, row.currency) }}
                 </template>
               </el-table-column>
               <el-table-column prop="comment" label="备注" min-width="120" />
@@ -325,6 +378,47 @@ const orderId = computed(() => route.params.id as string)
 
 function poItemRowKey(row: any) {
   return String(row?.id ?? row?.Id ?? '')
+}
+
+/** 扩展表进度：0=待 1=部分 2=完成 */
+function poExtendTriTagType(v?: number): '' | 'info' | 'success' | 'warning' | 'danger' {
+  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = {
+    0: 'info',
+    1: 'warning',
+    2: 'success'
+  }
+  return v !== undefined && v !== null ? (map[v] ?? 'info') : 'info'
+}
+function poPurchaseProgressText(v?: number) {
+  const map: Record<number, string> = { 0: '待采购', 1: '部分采购', 2: '采购完成' }
+  return v !== undefined && v !== null ? (map[v] ?? '--') : '--'
+}
+function poStockInProgressText(v?: number) {
+  const map: Record<number, string> = { 0: '待入库', 1: '部分入库', 2: '入库完成' }
+  return v !== undefined && v !== null ? (map[v] ?? '--') : '--'
+}
+function poPaymentProgressText(v?: number) {
+  const map: Record<number, string> = { 0: '待付款', 1: '部分付款', 2: '付款完成' }
+  return v !== undefined && v !== null ? (map[v] ?? '--') : '--'
+}
+function poInvoiceProgressText(v?: number) {
+  const map: Record<number, string> = { 0: '待开票', 1: '部分开票', 2: '开票完成' }
+  return v !== undefined && v !== null ? (map[v] ?? '--') : '--'
+}
+
+function formatPoProgressQty(q: unknown): string {
+  const n = Number(q)
+  if (!Number.isFinite(n)) return '--'
+  return n.toLocaleString(undefined, { maximumFractionDigits: 4 })
+}
+
+/** 同一销售明细拆成多行采购时，展示「同销单行」累计有效采购数量 */
+function poShowSellLinePurchaseSum(row: any): boolean {
+  const a = Number(row?.purchaseProgressQty)
+  const b = Number(row?.sellLinePurchaseQtySum)
+  if (!Number.isFinite(b) || b <= 0) return false
+  if (!Number.isFinite(a)) return true
+  return Math.abs(b - a) > 1e-6
 }
 
 /** 将详情接口返回的明细行转为与「采购订单明细」列表行一致的结构，供通知到货 / 申请付款弹窗使用 */
@@ -954,6 +1048,16 @@ const handleEdit = () => {
     flex-wrap: wrap;
     justify-content: center;
     gap: 4px;
+  }
+  .po-item-progress-sub {
+    margin-top: 2px;
+    font-size: 11px;
+    color: rgba(160, 190, 210, 0.78);
+    line-height: 1.25;
+    white-space: normal;
+  }
+  :deep(.po-item-progress-qty-col .cell) {
+    white-space: normal;
   }
 }
 

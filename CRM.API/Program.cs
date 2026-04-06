@@ -1,6 +1,9 @@
+using System.Net.Sockets;
+using System.Reflection;
 using CRM.API.Extensions;
 using CRM.API.Middlewares;
 using CRM.Core.Document;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using CRM.Infrastructure.Data;
 using Microsoft.Extensions.DependencyInjection;
@@ -65,6 +68,42 @@ try
 
     app.MapControllers();
 
+    // 生产曾出现「DLL 含路由字符串但 Swagger/路由无 exchange-rates、dictionaries/mgmt」：多为依赖程序集与 CRM.API.dll 不同步或类型加载失败。
+    try
+    {
+        var actionProvider = app.Services.GetRequiredService<IActionDescriptorCollectionProvider>();
+        var items = actionProvider.ActionDescriptors.Items;
+        var hasExchange = items.Any(a =>
+            (a.AttributeRouteInfo?.Template ?? string.Empty).Contains("exchange-rates", StringComparison.OrdinalIgnoreCase));
+        var hasDictMgmt = items.Any(a =>
+            (a.AttributeRouteInfo?.Template ?? string.Empty).Contains("dictionaries/mgmt", StringComparison.OrdinalIgnoreCase));
+        if (!hasExchange || !hasDictMgmt)
+        {
+            Log.Warning(
+                "路由自检: Swagger/Action 表未包含预期模板 (exchange-rates={Ex}, dictionaries/mgmt={Mgmt})，已注册 Action 数={Total}。请整包同步 publish 内全部 DLL，并查日志是否曾有 ReflectionTypeLoadException。",
+                hasExchange, hasDictMgmt, items.Count);
+
+            try
+            {
+                var asm = typeof(Program).Assembly;
+                foreach (var t in asm.GetExportedTypes().Where(x =>
+                             x.Name is "FinanceExchangeRateController" or "DictionariesAdminController"))
+                    Log.Warning("程序集中仍可反射到类型: {Type}", t.FullName);
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                Log.Error(ex, "GetExportedTypes 失败 (ReflectionTypeLoadException)，请核对 CRM.Core.dll / CRM.Infrastructure.dll 版本是否与 CRM.API.dll 同属一次 publish");
+                foreach (var le in ex.LoaderExceptions ?? Array.Empty<Exception?>())
+                    if (le != null)
+                        Log.Error("Loader: {Msg}", le.Message);
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Debug(ex, "启动期路由自检异常（可忽略）");
+    }
+
     // 数据库连接检查 - 无法连接时直接报错停止
     using (var scope = app.Services.CreateScope())
     {
@@ -102,12 +141,33 @@ try
         }
     }
 
-    Log.Information("Starting FrontCRM API");
+    var aspnetUrls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
+    var cfgUrls = app.Configuration["urls"] ?? app.Configuration["Urls"];
+    Log.Information(
+        "启动诊断: Environment={Environment}; PID={ProcessId}; ContentRoot={ContentRoot}; ASPNETCORE_URLS={AspNetCoreUrls}; 配置Urls={ConfigUrls}; Kestrel端点计数={UrlCount}",
+        app.Environment.EnvironmentName,
+        Environment.ProcessId,
+        app.Environment.ContentRootPath,
+        aspnetUrls ?? "(未设置)",
+        cfgUrls ?? "(未设置)",
+        app.Urls.Count);
+    if (app.Urls.Count > 0)
+        Log.Information("Kestrel 已注册地址: {Urls}", string.Join(", ", app.Urls));
+
+    Log.Information("即将调用 Kestrel 监听（若失败请查是否端口已被占用）");
     app.Run();
 }
 catch (Exception ex)
 {
-    Log.Fatal(ex, "Application terminated unexpectedly");
+    if (IsAddressAlreadyInUse(ex))
+    {
+        Log.Fatal(
+            ex,
+            "Kestrel 绑定失败：端口已被占用。请在服务器执行: sudo ss -tlnp | grep :5000 或 sudo lsof -i :5000；停止旧 dotnet/Docker 后再启动。PID={ProcessId}",
+            Environment.ProcessId);
+    }
+    else
+        Log.Fatal(ex, "Application terminated unexpectedly");
 }
 finally
 {
@@ -115,6 +175,18 @@ finally
 }
 
 /// <summary>仅用于日志：解析 Npgsql 连接串并隐藏密码，切勿记录明文。</summary>
+static bool IsAddressAlreadyInUse(Exception ex)
+{
+    for (var e = ex; e != null; e = e.InnerException)
+    {
+        if (e is IOException io && io.Message.Contains("already in use", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (e is SocketException se && se.SocketErrorCode == SocketError.AddressAlreadyInUse)
+            return true;
+    }
+    return false;
+}
+
 static string MaskConnectionStringForLog(string? connectionString)
 {
     if (string.IsNullOrWhiteSpace(connectionString))

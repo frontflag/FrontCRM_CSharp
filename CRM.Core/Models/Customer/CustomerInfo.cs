@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace CRM.Core.Models.Customer
 {
@@ -44,6 +45,12 @@ namespace CRM.Core.Models.Customer
         /// </summary>
         [StringLength(128)]
         public string? StandardOfficialName { get; set; }
+
+        /// <summary>
+        /// 公司英文全称
+        /// </summary>
+        [StringLength(128)]
+        public string? EnglishOfficialName { get; set; }
 
         /// <summary>
         /// 公司简称
@@ -95,7 +102,7 @@ namespace CRM.Core.Models.Customer
         }
 
         /// <summary>
-        /// 客户类型 (1:OEM 2:ODM 3:终端 4:IDH 5:贸易商 6:代理商)
+        /// 客户类型：1 OEM（历史）；2 ODM；3 终端；4 IDH；5 贸易商；6 代理商；7 EMS；8 非行业；9 科研机构；10 供应链；11 原厂
         /// </summary>
         public short? Type { get; set; }
 
@@ -220,8 +227,9 @@ namespace CRM.Core.Models.Customer
         }
 
         /// <summary>
-        /// 客户类型 (1:专属 2:公海)
+        /// 客户归属 (1:专属 2:公海)。由服务端维护，不对 API/前端 JSON 暴露。
         /// </summary>
+        [JsonIgnore]
         public short AscriptionType { get; set; } = 1;
 
         /// <summary>
@@ -489,6 +497,16 @@ namespace CRM.Core.Models.Customer
         /// </summary>
         [StringLength(64)]
         public string? BlackListByUserName { get; set; }
+
+        /// <summary>创建客户时的登录用户 ID（GUID）</summary>
+        [StringLength(36)]
+        [Column("create_by_user_id")]
+        public string? CreateByUserId { get; set; }
+
+        /// <summary>最后修改时的登录用户 ID（GUID）</summary>
+        [StringLength(36)]
+        [Column("modify_by_user_id")]
+        public string? ModifyByUserId { get; set; }
 
         // 导航属性
         public virtual ICollection<CustomerContactInfo> Contacts { get; set; } = new List<CustomerContactInfo>();

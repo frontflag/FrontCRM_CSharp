@@ -51,3 +51,19 @@ export function salesOrderMainAllowsPurchaseAndStockOut(status: number): boolean
   const s = Number(status)
   return s === 10 || s === 20 || s === 100
 }
+
+/**
+ * 销售明细「申请出库」置灰（与列表/详情 extend 三态一致：0=待 1=部分 2=完成）
+ * - 出库状态=完成(2)
+ * - 或 采购状态=待采购(0)
+ */
+export function salesOrderLineApplyStockOutDisabled(row: {
+  purchaseProgressStatus?: unknown
+  stockOutProgressStatus?: unknown
+}): boolean {
+  const so = row.stockOutProgressStatus
+  if (so !== undefined && so !== null && Number(so) === 2) return true
+  const po = row.purchaseProgressStatus
+  if (po !== undefined && po !== null && Number(po) === 0) return true
+  return false
+}

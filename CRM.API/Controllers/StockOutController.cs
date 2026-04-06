@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
@@ -19,17 +20,17 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponse<IEnumerable<StockOut>>>> GetAll()
+        public async Task<ActionResult<ApiResponse<IEnumerable<StockOutListItemDto>>>> GetAll()
         {
             try
             {
-                var list = await _service.GetAllAsync();
-                return Ok(ApiResponse<IEnumerable<StockOut>>.Ok(list, "获取出库单列表成功"));
+                var list = await _service.GetStockOutListAsync();
+                return Ok(ApiResponse<IEnumerable<StockOutListItemDto>>.Ok(list, "获取出库单列表成功"));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取出库单列表失败");
-                return StatusCode(500, ApiResponse<IEnumerable<StockOut>>.Fail($"获取出库单列表失败: {ex.Message}", 500));
+                return StatusCode(500, ApiResponse<IEnumerable<StockOutListItemDto>>.Fail($"获取出库单列表失败: {ex.Message}", 500));
             }
         }
 
@@ -47,6 +48,32 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取出库单失败");
                 return StatusCode(500, ApiResponse<StockOut>.Fail($"获取出库单失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>销售明细申请出库前的数量上下文（服务端计算，前端只读展示）</summary>
+        [HttpGet("request/apply-context")]
+        public async Task<ActionResult<ApiResponse<StockOutApplyContextDto>>> GetRequestApplyContext(
+            [FromQuery] string salesOrderId,
+            [FromQuery] string salesOrderItemId)
+        {
+            try
+            {
+                var dto = await _service.GetApplyContextAsync(salesOrderId ?? string.Empty, salesOrderItemId ?? string.Empty);
+                return Ok(ApiResponse<StockOutApplyContextDto>.Ok(dto, "ok"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<StockOutApplyContextDto>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<StockOutApplyContextDto>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取出库申请上下文失败");
+                return StatusCode(500, ApiResponse<StockOutApplyContextDto>.Fail($"获取出库申请上下文失败: {ex.Message}", 500));
             }
         }
 
@@ -110,7 +137,18 @@ namespace CRM.API.Controllers
             {
                 if (request == null)
                     return BadRequest(ApiResponse<StockOut>.Fail("请求体不能为空", 400));
-                var entity = await _service.ExecuteStockOutAsync(request);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                _logger.LogInformation(
+                    "[SellLineStockOutSync] API ExecuteStockOut request StockOutRequestId={RequestId} StockOutCode={Code} ItemCount={Count}",
+                    request.StockOutRequestId,
+                    request.StockOutCode,
+                    request.Items?.Count ?? 0);
+                var entity = await _service.ExecuteStockOutAsync(request, actorId);
+                _logger.LogInformation(
+                    "[SellLineStockOutSync] API ExecuteStockOut ok StockOutId={StockOutId} StockOutCode={Code} SellOrderItemId={SellOrderItemId}",
+                    entity.Id,
+                    entity.StockOutCode,
+                    entity.SellOrderItemId ?? "(null)");
                 return Ok(ApiResponse<StockOut>.Ok(entity, "执行出库成功"));
             }
             catch (ArgumentException ex)
@@ -133,7 +171,14 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.UpdateStatusAsync(id, status);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                _logger.LogInformation(
+                    "[SellLineStockOutSync] API PatchStockOutStatus StockOutId={StockOutId} Status={Status} Actor={Actor}",
+                    id,
+                    status,
+                    actorId ?? "(null)");
+                await _service.UpdateStatusAsync(id, status, actorId);
+                _logger.LogInformation("[SellLineStockOutSync] API PatchStockOutStatus done StockOutId={StockOutId}", id);
                 return Ok(ApiResponse<object>.Ok(null, "更新状态成功"));
             }
             catch (InvalidOperationException ex)

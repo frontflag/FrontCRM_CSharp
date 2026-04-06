@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
@@ -121,7 +122,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                return Ok(ApiResponse<QCInfo>.Ok(await _service.CreateQcAsync(request), "创建质检单成功"));
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                return Ok(ApiResponse<QCInfo>.Ok(await _service.CreateQcAsync(request, actorId), "创建质检单成功"));
             }
             catch (DbUpdateException ex)
             {
@@ -161,7 +163,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.BindQcStockInAsync(id, stockInId);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.BindQcStockInAsync(id, stockInId, actorId);
                 return Ok(ApiResponse<object>.Ok(null, "绑定入库单成功"));
             }
             catch (Exception ex)

@@ -10,12 +10,12 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 创建客户
         /// </summary>
-        Task<CustomerInfo> CreateCustomerAsync(CreateCustomerRequest request);
+        Task<CustomerInfo> CreateCustomerAsync(CreateCustomerRequest request, string? actingUserId = null);
 
         /// <summary>
         /// 批量导入客户（Excel 解析后的结构化数据；逐条创建客户并添加联系人）
         /// </summary>
-        Task<CustomerImportBatchResult> ImportCustomersBatchAsync(CustomerImportBatchRequest request);
+        Task<CustomerImportBatchResult> ImportCustomersBatchAsync(CustomerImportBatchRequest request, string? actingUserId = null);
 
         /// <summary>
         /// 根据ID获取客户
@@ -40,7 +40,7 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 更新客户信息
         /// </summary>
-        Task<CustomerInfo> UpdateCustomerAsync(string id, UpdateCustomerRequest request);
+        Task<CustomerInfo> UpdateCustomerAsync(string id, UpdateCustomerRequest request, string? actingUserId = null);
 
         /// <summary>
         /// 删除客户（软删除）
@@ -125,7 +125,7 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 更新客户状态
         /// </summary>
-        Task UpdateCustomerStatusAsync(string id, short status, string? auditRemark = null);
+        Task UpdateCustomerStatusAsync(string id, short status, string? auditRemark = null, string? actingUserId = null);
 
         /// <summary>
         /// 检查客户编码是否已存在
@@ -525,6 +525,9 @@ namespace CRM.Core.Interfaces
 
         /// <summary>区/县</summary>
         public string? District { get; set; }
+
+        /// <summary>公司英文全称</summary>
+        public string? EnglishOfficialName { get; set; }
     }
 
     /// <summary>
@@ -548,6 +551,9 @@ namespace CRM.Core.Interfaces
         }
         
         public string? StandardOfficialName { get; set; }
+
+        /// <summary>公司英文全称</summary>
+        public string? EnglishOfficialName { get; set; }
         
         /// <summary>
         /// 公司简称（后端字段名）
@@ -726,7 +732,7 @@ namespace CRM.Core.Interfaces
         public short? Level { get; set; }
         public short? Type { get; set; }
         public string? SalesUserId { get; set; }
-        /// <summary>行业（与 Industry 字段精确匹配，如 Manufacturing）</summary>
+        /// <summary>行业（与 Industry 字段精确匹配，英文键如 FinanceEquipment、Telecom；旧值如 Manufacturing 仍有效）</summary>
         public string? Industry { get; set; }
         /// <summary>地区关键词（匹配省/市包含）</summary>
         public string? Region { get; set; }

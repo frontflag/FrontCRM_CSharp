@@ -37,6 +37,12 @@ namespace CRM.Core.Models.Vendor
         public string? NickName { get; set; }
 
         /// <summary>
+        /// 公司英文全称
+        /// </summary>
+        [StringLength(128)]
+        public string? EnglishOfficialName { get; set; }
+
+        /// <summary>
         /// CRM系统供应商ID
         /// </summary>
         [StringLength(50)]
@@ -268,6 +274,16 @@ namespace CRM.Core.Models.Vendor
         /// </summary>
         [StringLength(200)]
         public string? DeleteReason { get; set; }
+
+        /// <summary>创建供应商时的登录用户 ID（GUID）</summary>
+        [StringLength(36)]
+        [Column("create_by_user_id")]
+        public string? CreateByUserId { get; set; }
+
+        /// <summary>最后修改时的登录用户 ID（GUID）</summary>
+        [StringLength(36)]
+        [Column("modify_by_user_id")]
+        public string? ModifyByUserId { get; set; }
 
         // 导航属性
         public virtual ICollection<VendorContactInfo> Contacts { get; set; } = new List<VendorContactInfo>();

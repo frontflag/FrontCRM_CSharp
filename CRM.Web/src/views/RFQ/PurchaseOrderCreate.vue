@@ -117,7 +117,12 @@
             <el-row :gutter="16">
               <el-col :span="8">
                 <el-form-item label="采购单价">
-                  <el-input-number v-model="item.targetPrice" :precision="6" :controls="false" style="width: 100%" />
+                  <SettlementCurrencyAmountInput
+                    v-model="item.targetPrice"
+                    v-model:currency="item.currency"
+                    :min="0"
+                    :precision="6"
+                  />
                 </el-form-item>
               </el-col>
               <el-col :span="8">
@@ -133,29 +138,12 @@
             </el-row>
 
             <el-row :gutter="16">
-              <el-col :span="8">
-                <el-form-item label="币别">
-                  <el-select v-model="item.currency" style="width: 100%">
-                    <el-option
-                      v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
-                      :key="opt.value"
-                      :label="opt.label"
-                      :value="opt.value"
-                    />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-              <el-col :span="8">
+              <el-col :span="12">
                 <el-form-item label="生产日期要求">
-                  <el-select v-model="item.dateCode" style="width: 100%">
-                    <el-option label="2年内" value="2年内" />
-                    <el-option label="1年内" value="1年内" />
-                    <el-option label="无要求" value="无要求" />
-                    <el-option label="—" value="" />
-                  </el-select>
+                  <MaterialProductionDateSelect v-model="item.dateCode" placeholder="选填" />
                 </el-form-item>
               </el-col>
-              <el-col :span="8">
+              <el-col :span="12">
                 <el-form-item label="交货日期">
                   <el-date-picker
                     v-model="item.deliveryDate"
@@ -212,12 +200,15 @@ import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
 import { runSaveTask } from '@/composables/useFormSubmit'
 import { useAuthStore } from '@/stores/auth'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
-import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
+import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
+import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
+import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const { ensureLoaded: ensureMaterialPdDict, coerceProductionDateToCode: coercePd } = useMaterialProductionDateDict()
 
 const editId = computed(() => (route.name === 'PurchaseOrderEdit' ? String(route.params.id || '').trim() : ''))
 const pageTitle = computed(() => (editId.value ? '编辑采购订单' : '新建采购订单'))
@@ -416,10 +407,14 @@ async function handleGeneratePurchaseOrder() {
     formData.value.vendorId = pr.quoteVendorId ?? ''
     formData.value.vendorContactId = pr.intendedVendorContactId ?? ''
     formData.value.vendorContactName = pr.intendedVendorContactName ?? ''
-    const prUid = pr.purchaseUserId != null && String(pr.purchaseUserId).trim() ? String(pr.purchaseUserId).trim() : ''
-    formData.value.purchaseUserId = prUid || formData.value.purchaseUserId
-    formData.value.purchaseUserName =
-      (pr.purchaseUserName as string | undefined) ?? (prUid ? '' : formData.value.purchaseUserName)
+    // 优先报价单上的采购员（与报价阶段一致）；否则用采购申请上的采购员（如创建时默认当前账号）
+    const prExt = pr as Record<string, unknown>
+    const quoteUid = String(prExt.prefillPurchaseUserId ?? '').trim()
+    const quoteName = String(prExt.prefillPurchaseUserName ?? '').trim()
+    const prUid = String(pr.purchaseUserId ?? '').trim()
+    const prName = String(pr.purchaseUserName ?? '').trim()
+    formData.value.purchaseUserId = quoteUid || prUid || formData.value.purchaseUserId
+    formData.value.purchaseUserName = (quoteUid ? quoteName : prName) || formData.value.purchaseUserName
     formData.value.currency = pr.currency ?? formData.value.currency ?? 1
 
     const deliveryDateStr = pr.deliveryDate ? String(pr.deliveryDate).split('T')[0] : ''
@@ -437,7 +432,7 @@ async function handleGeneratePurchaseOrder() {
         qty: pr.qty ?? 1,
         cost: pr.quoteCost ?? 0,
         currency: pr.currency ?? formData.value.currency,
-        dateCode: pr.dateCode ?? '',
+        dateCode: coercePd(String(pr.dateCode ?? '').trim()),
         deliveryDate: deliveryDateStr || formData.value.deliveryDate || '',
         comment: pr.itemRemark ?? '',
         innerComment: ''
@@ -454,6 +449,7 @@ async function handleGeneratePurchaseOrder() {
 }
 
 onMounted(async () => {
+  await ensureMaterialPdDict()
   if (editId.value) {
     try {
       await loadOrderForEdit(editId.value)

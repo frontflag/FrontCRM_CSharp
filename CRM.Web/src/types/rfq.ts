@@ -91,6 +91,9 @@ export interface RFQ {
   contactPersonEmail?: string        // 联系人邮箱
   salesUserId?: string
   salesUserName?: string
+  /** 创建人用户 ID（与 JWT 一致）；列表项可能带 createUserName */
+  createByUserId?: string
+  createUserName?: string
 
   // 需求信息
   rfqType?: RFQType                  // 需求类型（见 rfqFormEnums）

@@ -35,6 +35,12 @@ namespace CRM.Core.Services
             _unitOfWork = unitOfWork;
         }
 
+        /// <summary>
+        /// 「可申请采购」明细行（与创建校验一致）：
+        /// purchasedQty = 同一销售明细下采购订单明细数量之和；
+        /// openPR = 采购申请状态 0/1（新建、部分完成）的数量之和；3=已取消不计；2=全部完成视为已闭环，不再占用本条额度（由已下采购量体现）；
+        /// remainingQty = 销售明细数量 − purchasedQty − openPR；≤0 不返回。同一明细可多次申请，但总占用受 remaining 约束。
+        /// </summary>
         public async Task<IEnumerable<SellOrderLineOptionDto>> GetSellOrderLineOptionsAsync(string sellOrderId)
         {
             if (string.IsNullOrWhiteSpace(sellOrderId))
@@ -45,26 +51,23 @@ namespace CRM.Core.Services
 
             var soItemIds = soItems.Select(i => i.Id).ToList();
 
-            // 已采购数量（采购订单明细）
             var poItems = (await _poItemRepo.FindAsync(i => soItemIds.Contains(i.SellOrderItemId))).ToList();
             var purchasedQtyBySellItemId = poItems
                 .GroupBy(i => i.SellOrderItemId)
                 .ToDictionary(g => g.Key, g => g.Sum(x => x.Qty));
 
-            // 已存在采购申请（非取消：status != 3） -> 该销售明细不再展示
-            var existingReqs = (await _prRepo.FindAsync(r => soItemIds.Contains(r.SellOrderItemId) && r.Status != 3)).ToList();
-            var hasActiveReqBySellItemId = existingReqs
+            var prRows = (await _prRepo.FindAsync(r => soItemIds.Contains(r.SellOrderItemId))).ToList();
+            var openPrQtyBySellItemId = prRows
+                .Where(r => r.Status == 0 || r.Status == 1)
                 .GroupBy(r => r.SellOrderItemId)
-                .ToDictionary(g => g.Key, g => g.Any());
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.Qty));
 
             var result = new List<SellOrderLineOptionDto>();
             foreach (var item in soItems)
             {
-                if (hasActiveReqBySellItemId.TryGetValue(item.Id, out var hasActive) && hasActive)
-                    continue;
-
-                var purchasedQty = purchasedQtyBySellItemId.TryGetValue(item.Id, out var v) ? v : 0m;
-                var remainingQty = item.Qty - purchasedQty;
+                var purchasedQty = purchasedQtyBySellItemId.TryGetValue(item.Id, out var pv) ? pv : 0m;
+                var openPr = openPrQtyBySellItemId.TryGetValue(item.Id, out var ov) ? ov : 0m;
+                var remainingQty = item.Qty - purchasedQty - openPr;
                 if (remainingQty <= 0m) continue;
 
                 result.Add(new SellOrderLineOptionDto
@@ -73,6 +76,8 @@ namespace CRM.Core.Services
                     pn = item.PN,
                     brand = item.Brand,
                     salesOrderQty = item.Qty,
+                    purchasedQty = purchasedQty,
+                    openPurchaseRequisitionQty = openPr,
                     remainingQty = remainingQty
                 });
             }
@@ -80,7 +85,7 @@ namespace CRM.Core.Services
             return result;
         }
 
-        public async Task<PurchaseRequisition> CreateAsync(CreatePurchaseRequisitionRequest request)
+        public async Task<PurchaseRequisition> CreateAsync(CreatePurchaseRequisitionRequest request, string? actingUserId = null)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
             if (string.IsNullOrWhiteSpace(request.SellOrderItemId)) throw new ArgumentException("SellOrderItemId不能为空");
@@ -89,37 +94,23 @@ namespace CRM.Core.Services
             var soItem = await _soItemRepo.GetByIdAsync(request.SellOrderItemId);
             if (soItem == null) throw new InvalidOperationException($"销售订单明细不存在: {request.SellOrderItemId}");
 
-            // 校验剩余数量与可创建性
             var remainingOptions = await GetSellOrderLineOptionsAsync(soItem.SellOrderId);
-            var line = remainingOptions.FirstOrDefault(x => x.sellOrderItemId == soItem.Id);
+            var line = remainingOptions.FirstOrDefault(x =>
+                string.Equals(x.sellOrderItemId, soItem.Id, StringComparison.OrdinalIgnoreCase));
             if (line == null)
-                throw new InvalidOperationException("该销售明细当前不可创建采购申请（可能已创建或剩余数量为0）");
+                throw new InvalidOperationException("该销售明细当前不可创建采购申请（剩余可采数量为 0）");
 
             if (request.Qty > line.remainingQty)
-                throw new InvalidOperationException("申请采购数量不能大于剩余数量");
-
-            // 防重：非取消状态下同一明细只能存在一条采购申请
-            var existingReq = (await _prRepo.FindAsync(r =>
-                    r.SellOrderItemId == request.SellOrderItemId && r.Status != 3))
-                .FirstOrDefault();
-            if (existingReq != null)
-                throw new InvalidOperationException("该销售明细已创建采购申请");
+                throw new InvalidOperationException("申请采购数量不能大于剩余可采数量");
 
             var so = await _soRepo.GetByIdAsync(soItem.SellOrderId);
 
-            // 从“对应报价记录”取供应商与报价单价
+            // 从报价主表 QuoteId 关联的报价明细中取一行（不按销单行 PN/品牌/单价等再匹配，见 QuoteItemForPrResolver）
             QuoteItem? matchedQuoteItem = null;
             if (!string.IsNullOrWhiteSpace(soItem.QuoteId))
             {
                 var quoteItems = (await _quoteItemRepo.FindAsync(qi => qi.QuoteId == soItem.QuoteId)).ToList();
-                matchedQuoteItem =
-                    quoteItems.FirstOrDefault(qi =>
-                        qi.Mpn == soItem.PN &&
-                        qi.Brand == soItem.Brand &&
-                        qi.Currency == soItem.Currency &&
-                        Math.Abs(qi.UnitPrice - soItem.Price) < 0.000001m &&
-                        (qi.DateCode == soItem.DateCode || string.IsNullOrWhiteSpace(qi.DateCode) || string.IsNullOrWhiteSpace(soItem.DateCode))
-                    ) ?? quoteItems.FirstOrDefault();
+                matchedQuoteItem = QuoteItemForPrResolver.PickSingleLine(quoteItems);
             }
 
             var billCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.PurchaseRequisition);
@@ -140,7 +131,8 @@ namespace CRM.Core.Services
                 QuoteCost = matchedQuoteItem != null ? matchedQuoteItem.UnitPrice : 0m,
                 PN = soItem.PN,
                 Brand = soItem.Brand,
-                Remark = request.Remark
+                Remark = request.Remark,
+                CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
 
             await _prRepo.AddAsync(pr);
@@ -148,7 +140,7 @@ namespace CRM.Core.Services
             return pr;
         }
 
-        public async Task<IEnumerable<PurchaseRequisition>> AutoGenerateAsync(string sellOrderId, string purchaseUserId)
+        public async Task<IEnumerable<PurchaseRequisition>> AutoGenerateAsync(string sellOrderId, string purchaseUserId, string? actingUserId = null)
         {
             var options = (await GetSellOrderLineOptionsAsync(sellOrderId)).ToList();
             if (!options.Any()) return Enumerable.Empty<PurchaseRequisition>();
@@ -164,7 +156,7 @@ namespace CRM.Core.Services
                     Type = 0,
                     PurchaseUserId = purchaseUserId,
                     Remark = "自动生成的采购申请"
-                });
+                }, actingUserId);
                 created.Add(pr);
             }
 

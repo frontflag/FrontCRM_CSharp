@@ -10,20 +10,23 @@ namespace CRM.Core.Services
         private readonly IRepository<FinancePurchaseInvoiceItem> _itemRepo;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork? _unitOfWork;
+        private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
 
         public FinancePurchaseInvoiceService(
             IRepository<FinancePurchaseInvoice> invoiceRepo,
             IRepository<FinancePurchaseInvoiceItem> itemRepo,
             IDataPermissionService dataPermissionService,
+            IPurchaseOrderItemExtendSyncService poItemExtendSync,
             IUnitOfWork? unitOfWork = null)
         {
             _invoiceRepo = invoiceRepo;
             _itemRepo = itemRepo;
             _dataPermissionService = dataPermissionService;
+            _poItemExtendSync = poItemExtendSync;
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<FinancePurchaseInvoice> CreateAsync(CreateFinancePurchaseInvoiceRequest request)
+        public async Task<FinancePurchaseInvoice> CreateAsync(CreateFinancePurchaseInvoiceRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(request.VendorId))
                 throw new ArgumentException("供应商ID不能为空", nameof(request.VendorId));
@@ -42,7 +45,8 @@ namespace CRM.Core.Services
                 ConfirmStatus = 0,
                 RedInvoiceStatus = 0,
                 Remark = request.Remark,
-                CreateTime = DateTime.UtcNow
+                CreateTime = DateTime.UtcNow,
+                CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
             await _invoiceRepo.AddAsync(invoice);
 
@@ -68,6 +72,7 @@ namespace CRM.Core.Services
             }
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+            await _poItemExtendSync.RecalculateForFinancePurchaseInvoiceAsync(invoice.Id);
             return invoice;
         }
 
@@ -125,7 +130,7 @@ namespace CRM.Core.Services
             };
         }
 
-        public async Task<FinancePurchaseInvoice> UpdateAsync(string id, UpdateFinancePurchaseInvoiceRequest request)
+        public async Task<FinancePurchaseInvoice> UpdateAsync(string id, UpdateFinancePurchaseInvoiceRequest request, string? actingUserId = null)
         {
             var invoice = await _invoiceRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"进项发票 {id} 不存在");
@@ -135,6 +140,7 @@ namespace CRM.Core.Services
             if (request.InvoiceDate.HasValue) invoice.InvoiceDate = PostgreSqlDateTime.ToUtc(request.InvoiceDate.Value);
             if (request.Remark != null) invoice.Remark = request.Remark;
             invoice.ModifyTime = DateTime.UtcNow;
+            invoice.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
 
             await _invoiceRepo.UpdateAsync(invoice);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
@@ -145,14 +151,17 @@ namespace CRM.Core.Services
         {
             var invoice = await _invoiceRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"进项发票 {id} 不存在");
-            var items = await _itemRepo.GetAllAsync();
-            foreach (var item in items.Where(i => i.FinancePurchaseInvoiceId == id))
+            var poItemIds = await _poItemExtendSync.ResolvePurchaseOrderItemIdsForFinancePurchaseInvoiceAsync(id);
+            var items = (await _itemRepo.FindAsync(i => i.FinancePurchaseInvoiceId == id)).ToList();
+            foreach (var item in items)
                 await _itemRepo.DeleteAsync(item.Id);
             await _invoiceRepo.DeleteAsync(id);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+            foreach (var pid in poItemIds)
+                await _poItemExtendSync.RecalculateAsync(pid);
         }
 
-        public async Task ConfirmAsync(string id, DateTime confirmDate)
+        public async Task ConfirmAsync(string id, DateTime confirmDate, string? actingUserId = null)
         {
             var invoice = await _invoiceRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"进项发票 {id} 不存在");
@@ -165,11 +174,13 @@ namespace CRM.Core.Services
             invoice.ConfirmStatus = 1;
             invoice.ConfirmDate = PostgreSqlDateTime.ToUtc(confirmDate);
             invoice.ModifyTime = DateTime.UtcNow;
+            invoice.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _invoiceRepo.UpdateAsync(invoice);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+            await _poItemExtendSync.RecalculateForFinancePurchaseInvoiceAsync(id);
         }
 
-        public async Task UnconfirmAsync(string id)
+        public async Task UnconfirmAsync(string id, string? actingUserId = null)
         {
             var invoice = await _invoiceRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"进项发票 {id} 不存在");
@@ -180,11 +191,13 @@ namespace CRM.Core.Services
             invoice.ConfirmStatus = 0;
             invoice.ConfirmDate = null;
             invoice.ModifyTime = DateTime.UtcNow;
+            invoice.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _invoiceRepo.UpdateAsync(invoice);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+            await _poItemExtendSync.RecalculateForFinancePurchaseInvoiceAsync(id);
         }
 
-        public async Task RedInvoiceAsync(string id)
+        public async Task RedInvoiceAsync(string id, string? actingUserId = null)
         {
             var invoice = await _invoiceRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"进项发票 {id} 不存在");
@@ -194,8 +207,10 @@ namespace CRM.Core.Services
                 throw new InvalidOperationException("已认证的进项发票不允许直接冲红，请先执行财务冲销流程");
             invoice.RedInvoiceStatus = 1;
             invoice.ModifyTime = DateTime.UtcNow;
+            invoice.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _invoiceRepo.UpdateAsync(invoice);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+            await _poItemExtendSync.RecalculateForFinancePurchaseInvoiceAsync(id);
         }
     }
 }

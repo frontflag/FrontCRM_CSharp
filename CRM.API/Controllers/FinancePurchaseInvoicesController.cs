@@ -81,7 +81,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var invoice = await _service.CreateAsync(request);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var invoice = await _service.CreateAsync(request, userId);
                 return CreatedAtAction(nameof(GetById), new { id = invoice.Id },
                     new { success = true, data = invoice });
             }
@@ -107,7 +108,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var invoice = await _service.UpdateAsync(id, request);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var invoice = await _service.UpdateAsync(id, request, userId);
                 return Ok(new { success = true, data = invoice });
             }
             catch (KeyNotFoundException)
@@ -128,7 +130,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.ConfirmAsync(id, request.ConfirmDate);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.ConfirmAsync(id, request.ConfirmDate, userId);
                 return Ok(new { success = true, message = "发票认证成功" });
             }
             catch (KeyNotFoundException)
@@ -149,7 +152,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.UnconfirmAsync(id);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.UnconfirmAsync(id, userId);
                 return Ok(new { success = true, message = "取消认证成功" });
             }
             catch (InvalidOperationException ex)
@@ -170,7 +174,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.RedInvoiceAsync(id);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.RedInvoiceAsync(id, userId);
                 return Ok(new { success = true, message = "发票冲红成功" });
             }
             catch (KeyNotFoundException)

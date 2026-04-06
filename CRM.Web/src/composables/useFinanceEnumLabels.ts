@@ -44,6 +44,22 @@ function strFromMap(
   return fallback[n] ?? String(n)
 }
 
+function coerceInvoiceStatusKey(n: unknown): number {
+  const x = Number(n)
+  if (!Number.isFinite(x) || x === 0) return 1
+  return x
+}
+
+function coercePaymentDoneKey(n: unknown): number {
+  const x = Number(n)
+  return Number.isFinite(x) ? x : 0
+}
+
+function coercePurchaseInvoiceTypeKey(n: unknown): number {
+  const x = Number(n)
+  return Number.isFinite(x) && x > 0 ? x : 100
+}
+
 export function useFinanceEnumLabels() {
   const { t, te } = useI18n()
 
@@ -52,15 +68,18 @@ export function useFinanceEnumLabels() {
     paymentStatusTag: (n: number) => tagFromMap(n, PAYMENT_STATUS_MAP),
     receiptStatusLabel: (n: number) => labelFromMap(t, te, 'receiptStatus', n, RECEIPT_STATUS_MAP),
     receiptStatusTag: (n: number) => tagFromMap(n, RECEIPT_STATUS_MAP),
-    invoiceStatusLabel: (n: number) => labelFromMap(t, te, 'invoiceStatus', n, INVOICE_STATUS_MAP),
-    invoiceStatusTag: (n: number) => tagFromMap(n, INVOICE_STATUS_MAP),
-    paymentDoneStatusLabel: (n: number) => labelFromMap(t, te, 'paymentDoneStatus', n, PAYMENT_DONE_STATUS_MAP),
-    paymentDoneStatusTag: (n: number) => tagFromMap(n, PAYMENT_DONE_STATUS_MAP),
+    invoiceStatusLabel: (n: unknown) =>
+      labelFromMap(t, te, 'invoiceStatus', coerceInvoiceStatusKey(n), INVOICE_STATUS_MAP),
+    invoiceStatusTag: (n: unknown) => tagFromMap(coerceInvoiceStatusKey(n), INVOICE_STATUS_MAP),
+    paymentDoneStatusLabel: (n: unknown) =>
+      labelFromMap(t, te, 'paymentDoneStatus', coercePaymentDoneKey(n), PAYMENT_DONE_STATUS_MAP),
+    paymentDoneStatusTag: (n: unknown) => tagFromMap(coercePaymentDoneKey(n), PAYMENT_DONE_STATUS_MAP),
     receiveStatusLabel: (n: number) => labelFromMap(t, te, 'receiveStatus', n, RECEIVE_STATUS_MAP),
     receiveStatusTag: (n: number) => tagFromMap(n, RECEIVE_STATUS_MAP),
     paymentModeLabel: (n: number) => strFromMap(t, te, 'paymentMode', n, PAYMENT_MODE_MAP),
     invoiceTypeLabel: (n: number) => strFromMap(t, te, 'invoiceType', n, INVOICE_TYPE_MAP),
-    purchaseInvoiceTypeLabel: (n: number) => strFromMap(t, te, 'purchaseInvoiceType', n, PURCHASE_INVOICE_TYPE_MAP),
+    purchaseInvoiceTypeLabel: (n: unknown) =>
+      strFromMap(t, te, 'purchaseInvoiceType', coercePurchaseInvoiceTypeKey(n), PURCHASE_INVOICE_TYPE_MAP),
     sellInvoiceTypeLabel: (n: number) => strFromMap(t, te, 'sellInvoiceType', n, SELL_INVOICE_TYPE_MAP),
     verificationStatusLabel: (n: number) =>
       strFromMap(t, te, 'verificationStatus', n, {

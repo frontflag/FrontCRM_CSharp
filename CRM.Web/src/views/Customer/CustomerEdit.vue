@@ -7,7 +7,7 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="15 18 9 12 15 6"/>
           </svg>
-          返回
+          {{ t('customerEdit.page.back') }}
         </button>
         <div class="page-title-group">
           <div class="page-icon">
@@ -16,22 +16,22 @@
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
             </svg>
           </div>
-          <h1 class="page-title">{{ isEdit ? '编辑客户' : '新增客户' }}</h1>
+          <h1 class="page-title">{{ isEdit ? t('customerEdit.page.editTitle') : t('customerEdit.page.createTitle') }}</h1>
         </div>
       </div>
       <div class="header-right">
         <template v-if="isEdit">
-          <button class="btn-primary" @click="handleSave">保存</button>
+          <button class="btn-primary" @click="handleSave">{{ t('customerEdit.page.save') }}</button>
         </template>
         <template v-else>
-          <button class="btn-secondary" @click="saveDraftOnly">保存草稿</button>
+          <button class="btn-secondary" @click="saveDraftOnly">{{ t('customerEdit.page.saveDraft') }}</button>
           <button class="btn-warning" @click="handleConvertToFormal">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
               <polyline points="17 21 17 13 7 13 7 21"/>
               <polyline points="7 3 7 8 15 8"/>
             </svg>
-            转正式
+            {{ t('customerEdit.page.convertToFormal') }}
           </button>
         </template>
       </div>
@@ -48,88 +48,130 @@
       <div class="form-section">
         <div class="section-header">
           <div class="section-dot section-dot--cyan"></div>
-          <span class="section-title">基本信息</span>
+          <span class="section-title">{{ t('customerEdit.sections.basicInfo') }}</span>
         </div>
         <div class="section-body">
           <el-row :gutter="20">
             <el-col :span="8">
-              <el-form-item label="客户编号" prop="customerCode">
+              <el-form-item :label="t('customerEdit.fields.customerCode')" prop="customerCode">
                 <el-input
                   v-model="formData.customerCode"
-                  :placeholder="isEdit ? '' : '保存后自动生成'"
+                  :placeholder="isEdit ? '' : t('customerEdit.placeholders.customerCodeAuto')"
                   :disabled="true"
                   class="q-input"
                 />
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="客户名称" prop="customerName">
-                <el-input v-model="formData.customerName" placeholder="请输入客户名称" class="q-input" />
+              <el-form-item :label="t('customerEdit.fields.chineseName')" prop="customerName">
+                <el-input
+                  v-model="formData.customerName"
+                  :placeholder="t('customerEdit.placeholders.chineseName')"
+                  class="q-input"
+                />
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="客户简称">
-                <el-input v-model="formData.customerShortName" placeholder="请输入客户简称" class="q-input" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-row :gutter="20">
-            <el-col :span="8">
-              <el-form-item label="客户类型" prop="customerType">
-                <el-select v-model="formData.customerType" placeholder="请选择" style="width: 100%" class="q-select">
-                  <el-option label="OEM" :value="1" />
-                  <el-option label="ODM" :value="2" />
-                  <el-option label="终端用户" :value="3" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="客户等级" prop="customerLevel">
-                <el-select v-model="formData.customerLevel" placeholder="请选择" style="width: 100%" class="q-select">
-                  <el-option label="VIP" value="VIP" />
-                  <el-option label="重要" value="Important" />
-                  <el-option label="普通" value="Normal" />
-                  <el-option label="潜在客户" value="Lead" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="行业">
-                <el-select v-model="formData.industry" placeholder="请选择" style="width: 100%" class="q-select">
-                  <el-option label="制造业" value="Manufacturing" />
-                  <el-option label="贸易/零售" value="Trading" />
-                  <el-option label="科技/IT" value="Technology" />
-                  <el-option label="建筑/工程" value="Construction" />
-                  <el-option label="医疗/健康" value="Healthcare" />
-                  <el-option label="教育" value="Education" />
-                  <el-option label="金融" value="Finance" />
-                  <el-option label="其他" value="Other" />
-                </el-select>
+              <el-form-item :label="t('customerEdit.fields.englishName')">
+                <el-input
+                  v-model="formData.englishOfficialName"
+                  :placeholder="t('customerEdit.placeholders.englishName')"
+                  class="q-input"
+                />
               </el-form-item>
             </el-col>
           </el-row>
           <el-row :gutter="20">
             <el-col :span="8">
-              <el-form-item label="统一社会信用代码">
-                <el-input v-model="formData.unifiedSocialCreditCode" placeholder="请输入统一社会信用代码" class="q-input" />
+              <el-form-item :label="t('customerEdit.fields.shortName')">
+                <el-input
+                  v-model="formData.customerShortName"
+                  :placeholder="t('customerEdit.placeholders.shortName')"
+                  class="q-input"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="8">
+              <el-form-item :label="t('customerEdit.fields.customerType')" prop="customerType">
+                <el-select
+                  v-model="formData.customerType"
+                  :placeholder="t('customerEdit.placeholders.select')"
+                  style="width: 100%"
+                  class="q-select"
+                >
+                  <el-option
+                    v-for="opt in customerDict.typeSelectOptions"
+                    :key="opt.value"
+                    :label="opt.label"
+                    :value="opt.value"
+                  />
+                </el-select>
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="所属业务员">
+              <el-form-item :label="t('customerEdit.fields.customerLevel')" prop="customerLevel">
+                <el-select
+                  v-model="formData.customerLevel"
+                  :placeholder="t('customerEdit.placeholders.select')"
+                  style="width: 100%"
+                  class="q-select"
+                >
+                  <el-option
+                    v-for="opt in customerDict.levelStringOptions"
+                    :key="opt.value"
+                    :label="opt.label"
+                    :value="opt.value"
+                  />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item :label="t('customerEdit.fields.industry')">
+                <el-select
+                  v-model="formData.industry"
+                  :placeholder="t('customerEdit.placeholders.select')"
+                  style="width: 100%"
+                  class="q-select"
+                  clearable
+                >
+                  <el-option
+                    v-for="opt in customerDict.industryOptions"
+                    :key="opt.value"
+                    :label="opt.label"
+                    :value="opt.value"
+                  />
+                </el-select>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="8">
+              <el-form-item :label="t('customerEdit.fields.creditCode')">
+                <el-input
+                  v-model="formData.unifiedSocialCreditCode"
+                  :placeholder="t('customerEdit.placeholders.creditCode')"
+                  class="q-input"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item :label="t('customerEdit.fields.salesPerson')">
                 <SalesUserCascader
                   v-model="formData.salesPersonId"
-                  placeholder="请选择业务员"
+                  :placeholder="t('customerEdit.placeholders.salesPerson')"
                   class="q-select"
                   @change="onSalesPersonChange"
                 />
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="地区">
+              <el-form-item :label="t('customerEdit.fields.region')">
                 <RegionCascaderWithQuickPick
                   v-model="regionValue"
                   :options="regionOptions"
-                  placeholder="请选择地区"
+                  :placeholder="t('customerEdit.placeholders.region')"
                   cascader-class="q-cascader"
                   @change="handleRegionChange"
                 />
@@ -138,8 +180,14 @@
           </el-row>
           <el-row :gutter="20">
             <el-col :span="24">
-              <el-form-item label="备注">
-                <el-input v-model="formData.remarks" type="textarea" :rows="3" placeholder="请输入备注信息" class="q-input" />
+              <el-form-item :label="t('customerEdit.fields.remarks')">
+                <el-input
+                  v-model="formData.remarks"
+                  type="textarea"
+                  :rows="3"
+                  :placeholder="t('customerEdit.placeholders.remarks')"
+                  class="q-input"
+                />
               </el-form-item>
             </el-col>
           </el-row>
@@ -150,23 +198,28 @@
       <div class="form-section">
         <div class="section-header">
           <div class="section-dot section-dot--amber"></div>
-          <span class="section-title">财务信息</span>
+          <span class="section-title">{{ t('customerEdit.sections.financialInfo') }}</span>
         </div>
         <div class="section-body">
           <el-row :gutter="20">
             <el-col :span="8">
-              <el-form-item label="信用额度">
+              <el-form-item :label="t('customerEdit.fields.creditLimit')">
                 <el-input-number v-model="formData.creditLimit" :min="0" :precision="2" style="width: 100%" class="q-number" />
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="账期(天)">
+              <el-form-item :label="t('customerEdit.fields.paymentTerms')">
                 <el-input-number v-model="formData.paymentTerms" :min="0" :max="365" style="width: 100%" class="q-number" />
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="结算货币">
-                <el-select v-model="formData.currency" placeholder="请选择" style="width: 100%" class="q-select">
+              <el-form-item :label="t('customerEdit.fields.settlementCurrency')">
+                <el-select
+                  v-model="formData.currency"
+                  :placeholder="t('customerEdit.placeholders.select')"
+                  style="width: 100%"
+                  class="q-select"
+                >
                   <el-option
                     v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
                     :key="opt.value"
@@ -179,16 +232,36 @@
           </el-row>
           <el-row :gutter="20">
             <el-col :span="8">
-              <el-form-item label="税率(%)">
-                <el-input-number v-model="formData.taxRate" :min="0" :max="100" :precision="2" style="width: 100%" class="q-number" />
+              <el-form-item :label="t('customerEdit.fields.taxRate')">
+                <el-select
+                  v-model="formData.taxRate"
+                  :placeholder="t('customerEdit.placeholders.select')"
+                  style="width: 100%"
+                  class="q-select"
+                >
+                  <el-option
+                    v-for="opt in customerDict.taxRateOptions"
+                    :key="opt.value"
+                    :label="opt.label"
+                    :value="opt.value"
+                  />
+                </el-select>
               </el-form-item>
             </el-col>
             <el-col :span="8">
-              <el-form-item label="发票类型">
-                <el-select v-model="formData.invoiceType" placeholder="请选择" style="width: 100%" class="q-select">
-                  <el-option label="增值税专用发票" :value="1" />
-                  <el-option label="增值税普通发票" :value="2" />
-                  <el-option label="电子发票" :value="3" />
+              <el-form-item :label="t('customerEdit.fields.invoiceType')">
+                <el-select
+                  v-model="formData.invoiceType"
+                  :placeholder="t('customerEdit.placeholders.select')"
+                  style="width: 100%"
+                  class="q-select"
+                >
+                  <el-option
+                    v-for="opt in customerDict.invoiceTypeOptions"
+                    :key="opt.value"
+                    :label="opt.label"
+                    :value="opt.value"
+                  />
                 </el-select>
               </el-form-item>
             </el-col>
@@ -200,12 +273,12 @@
       <div class="form-section">
         <div class="section-header">
           <div class="section-dot section-dot--green"></div>
-          <span class="section-title">联系人信息</span>
+          <span class="section-title">{{ t('customerEdit.contacts.sectionTitle') }}</span>
           <button type="button" class="btn-add-contact" @click="addContact">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
-            添加联系人
+            {{ t('customerEdit.contacts.addContact') }}
           </button>
         </div>
         <div class="section-body">
@@ -216,7 +289,7 @@
               <line x1="23" y1="11" x2="17" y2="11"/>
               <line x1="20" y1="8" x2="20" y2="14"/>
             </svg>
-            <p>暂无联系人，点击上方按钮添加</p>
+            <p>{{ t('customerEdit.contacts.emptyHint') }}</p>
           </div>
           <div
             v-for="(contact, index) in formData.contacts"
@@ -224,69 +297,81 @@
             class="contact-item"
           >
             <div class="contact-item-header">
-              <span class="contact-index">联系人 {{ index + 1 }}</span>
+              <span class="contact-index">{{ t('customerEdit.contacts.indexLabel', { n: index + 1 }) }}</span>
               <button type="button" class="btn-remove" @click="removeContact(index)">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="3 6 5 6 21 6"/>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
                 </svg>
-                删除
+                {{ t('customerEdit.contacts.delete') }}
               </button>
             </div>
             <el-row :gutter="16">
               <el-col :span="6">
-                <el-form-item label="姓名" :prop="`contacts.${index}.contactName`" :rules="{ required: true, message: '请输入姓名', trigger: 'blur' }">
-                  <el-input v-model="contact.contactName" placeholder="姓名" class="q-input" />
+                <el-form-item
+                  :label="t('customerEdit.contacts.name')"
+                  :prop="`contacts.${index}.contactName`"
+                  :rules="{ required: true, message: t('customerEdit.contacts.nameRequired'), trigger: 'blur' }"
+                >
+                  <el-input v-model="contact.contactName" :placeholder="t('customerEdit.contacts.namePlaceholder')" class="q-input" />
                 </el-form-item>
               </el-col>
               <el-col :span="4">
-                <el-form-item label="性别">
-                  <el-select v-model="contact.gender" placeholder="性别" style="width: 100%" class="q-select">
-                    <el-option label="男" :value="0" />
-                    <el-option label="女" :value="1" />
-                    <el-option label="保密" :value="2" />
+                <el-form-item :label="t('customerEdit.contacts.gender')">
+                  <el-select v-model="contact.gender" :placeholder="t('customerEdit.contacts.genderPlaceholder')" style="width: 100%" class="q-select">
+                    <!-- 与后端一致：0=保密、1=男、2=女 -->
+                    <el-option :label="t('customerEdit.contacts.genderUndisclosed')" :value="0" />
+                    <el-option :label="t('customerEdit.contacts.genderMale')" :value="1" />
+                    <el-option :label="t('customerEdit.contacts.genderFemale')" :value="2" />
                   </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="6">
                 <el-form-item
-                  label="手机"
+                  :label="t('customerEdit.contacts.mobile')"
                   :prop="`contacts.${index}.mobilePhone`"
                   :rules="[{ validator: validateContactMobilePhone, trigger: ['blur', 'change'] }]"
                 >
-                  <el-input v-model="contact.mobilePhone" placeholder="手机" class="q-input" />
+                  <el-input v-model="contact.mobilePhone" :placeholder="t('customerEdit.contacts.mobile')" class="q-input" />
                 </el-form-item>
               </el-col>
               <el-col :span="8">
                 <el-form-item
-                  label="邮箱"
+                  :label="t('customerEdit.contacts.email')"
                   :prop="`contacts.${index}.email`"
                   :rules="[{ validator: validateContactEmail, trigger: ['blur', 'change'] }]"
                 >
-                  <el-input v-model="contact.email" placeholder="邮箱" class="q-input" />
+                  <el-input v-model="contact.email" :placeholder="t('customerEdit.contacts.emailPlaceholder')" class="q-input" />
                 </el-form-item>
               </el-col>
             </el-row>
             <el-row :gutter="16">
               <el-col :span="6">
-                <el-form-item label="部门">
-                  <el-input v-model="contact.department" placeholder="部门" class="q-input" />
+                <el-form-item :label="t('customerEdit.contacts.department')">
+                  <el-input v-model="contact.department" :placeholder="t('customerEdit.contacts.departmentPlaceholder')" class="q-input" />
                 </el-form-item>
               </el-col>
               <el-col :span="6">
-                <el-form-item label="职位">
-                  <el-input v-model="contact.position" placeholder="职位" class="q-input" />
+                <el-form-item :label="t('customerEdit.contacts.position')">
+                  <el-input v-model="contact.position" :placeholder="t('customerEdit.contacts.positionPlaceholder')" class="q-input" />
                 </el-form-item>
               </el-col>
               <el-col :span="6">
-                <el-form-item label="固话">
-                  <el-input v-model="contact.phone" placeholder="固话" class="q-input" />
+                <el-form-item :label="t('customerEdit.contacts.landline')">
+                  <el-input v-model="contact.phone" :placeholder="t('customerEdit.contacts.landlinePlaceholder')" class="q-input" />
                 </el-form-item>
               </el-col>
-              <el-col :span="6">
-                <el-form-item label=" ">
-                  <el-checkbox v-model="contact.isDefault" class="q-checkbox">设为默认联系人</el-checkbox>
-                </el-form-item>
+              <el-col :span="6" class="contact-default-col">
+                <!-- 勿包在 el-form-item 内：会与 EP Checkbox 的 label/for 机制冲突导致无法点击 -->
+                <div class="contact-default-field">
+                  <el-checkbox
+                    v-model="contact.isDefault"
+                    class="q-checkbox contact-default-cb"
+                    @change="() => enforceSingleDefaultContact(index)"
+                  >
+                    {{ t('customerEdit.contacts.setAsDefault') }}
+                  </el-checkbox>
+                </div>
               </el-col>
             </el-row>
           </div>
@@ -297,17 +382,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { ElNotification, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
 import { customerApi, customerContactApi } from '@/api/customer';
 import { draftApi } from '@/api/draft';
 import SalesUserCascader from '@/components/SalesUserCascader.vue';
 import RegionCascaderWithQuickPick from '@/components/RegionCascaderWithQuickPick.vue';
 import { regionData } from '@/data/regions';
-import type { CreateCustomerRequest } from '@/types/customer';
+import { type CreateCustomerRequest } from '@/types/customer';
+import { useCustomerDictStore } from '@/stores/customerDict';
 import { runValidatedFormSave } from '@/composables/useFormSubmit';
-import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency';
+import { SETTLEMENT_CURRENCY_OPTIONS, CurrencyCode } from '@/constants/currency';
 import { logRecentApi } from '@/api/logRecent';
 import { CUSTOMER_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/customerRecentHistory';
 import {
@@ -315,8 +402,39 @@ import {
   regionCascaderValueFromFields
 } from '@/constants/region';
 
+/** 发票类型：0 = 无需开票（el-select 不用空串，避免显示成「请选择」） */
+const INVOICE_TYPE_NONE = 0 as const;
+
 const route = useRoute();
 const router = useRouter();
+const { t, locale } = useI18n();
+const customerDict = useCustomerDictStore();
+
+function normalizeContactRow(c: any) {
+  const hasDef = c && Object.prototype.hasOwnProperty.call(c, 'isDefault');
+  const isDefault = hasDef ? !!c.isDefault : !!(c.isMain ?? false);
+  const g = c.gender != null && c.gender !== '' ? Number(c.gender) : NaN;
+  const genderUi = g === 1 || g === 2 || g === 0 ? g : 0;
+  return {
+    ...c,
+    contactName: c.contactName || c.name,
+    mobilePhone: c.mobilePhone || c.mobile,
+    position: c.position ?? c.title ?? '',
+    gender: genderUi,
+    isDefault
+  };
+}
+
+/** 保证最多一个默认联系人（在 el-checkbox 的 v-model 已更新后调用） */
+function enforceSingleDefaultContact(changedIndex: number) {
+  const row = formData.contacts[changedIndex];
+  if (!row) return;
+  if (row.isDefault) {
+    formData.contacts.forEach((c, i) => {
+      if (i !== changedIndex) c.isDefault = false;
+    });
+  }
+}
 
 const isEdit = computed(() => !!route.params.id);
 const customerId = computed(() => route.params.id as string);
@@ -324,8 +442,8 @@ const formRef = ref<FormInstance>();
 const currentDraftId = ref('');
 
 const formData = reactive<CreateCustomerRequest & { contacts: any[] }>({
-  customerCode: '', customerName: '', customerShortName: '',
-  customerType: 1, customerLevel: 'Normal', industry: '',
+  customerCode: '', customerName: '', englishOfficialName: '', customerShortName: '',
+  customerType: 2, customerLevel: 'B', industry: '',
   unifiedSocialCreditCode: '', salesPersonId: '', salesPersonName: '',
   country: '', province: '', city: '', district: '', address: '',
   creditLimit: 0, paymentTerms: 30, currency: 1, taxRate: 13,
@@ -334,14 +452,42 @@ const formData = reactive<CreateCustomerRequest & { contacts: any[] }>({
 
 const regionValue = ref<string[]>([]);
 
-const formRules: FormRules = {
-  customerName: [
-    { required: true, message: '请输入客户名称', trigger: 'blur' },
-    { min: 2, max: 100, message: '长度在 2 到 100 个字符', trigger: 'blur' }
-  ],
-  customerType: [{ required: true, message: '请选择客户类型', trigger: 'change' }],
-  customerLevel: [{ required: true, message: '请选择客户等级', trigger: 'change' }]
-};
+function normalizeInvoiceTypeModel() {
+  if (formData.invoiceType === ('' as any)) {
+    formData.invoiceType = INVOICE_TYPE_NONE;
+  }
+}
+
+/** 结算币别变更时联动税率、发票类型（非 RMB：0 + 无需开票；RMB：13 + 增值税普通发票） */
+function applyTaxInvoiceByCurrency(currency: number | undefined) {
+  const c = currency ?? CurrencyCode.RMB;
+  if (c === CurrencyCode.RMB) {
+    formData.taxRate = 13;
+    formData.invoiceType = 2;
+  } else {
+    formData.taxRate = 0;
+    formData.invoiceType = INVOICE_TYPE_NONE;
+  }
+}
+
+watch(
+  () => formData.currency,
+  (cur) => {
+    applyTaxInvoiceByCurrency(cur);
+  }
+);
+
+const formRules = computed<FormRules>(() => {
+  void locale.value;
+  return {
+    customerName: [
+      { required: true, message: t('customerEdit.validation.chineseNameRequired'), trigger: 'blur' },
+      { min: 2, max: 100, message: t('customerEdit.validation.chineseNameLength'), trigger: 'blur' }
+    ],
+    customerType: [{ required: true, message: t('customerEdit.validation.typeRequired'), trigger: 'change' }],
+    customerLevel: [{ required: true, message: t('customerEdit.validation.levelRequired'), trigger: 'change' }]
+  };
+});
 
 const mobilePhonePattern = /^1[3-9]\d{9}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -361,8 +507,8 @@ const fetchCustomerDetail = async () => {
       ...customer,
       customerName: customer.customerName || customerAny.officialName,
       customerShortName: customer.customerShortName || customerAny.nickName,
-      customerLevel: customer.customerLevel || 'Normal',
-      customerType: customer.customerType ?? 1,
+      customerLevel: customer.customerLevel || 'B',
+      customerType: customer.customerType ?? 2,
       salesPersonId: customer.salesPersonId || customerAny.salesUserId,
       unifiedSocialCreditCode: customer.unifiedSocialCreditCode || customerAny.creditCode,
       creditLimit: customer.creditLimit ?? 0,
@@ -372,9 +518,11 @@ const fetchCustomerDetail = async () => {
       invoiceType: customer.invoiceType ?? 2,
       isActive: customer.isActive ?? true,
       remarks: customer.remarks || customerAny.remark,
+      englishOfficialName: customerAny.englishOfficialName ?? '',
       contacts: customer.contacts || []
     };
     Object.assign(formData, mappedData);
+    normalizeInvoiceTypeModel();
     if (mappedData.province && mappedData.city) {
       regionValue.value = regionCascaderValueFromFields(
         mappedData.province,
@@ -383,10 +531,15 @@ const fetchCustomerDetail = async () => {
       );
     }
     if (mappedData.contacts) {
-      formData.contacts = mappedData.contacts.map((c: any) => ({
-        ...c, contactName: c.contactName || c.name, mobilePhone: c.mobilePhone || c.mobile
-      }));
+      formData.contacts = mappedData.contacts.map((c: any) => normalizeContactRow(c));
     }
+    void customerDict.hydrateCustomerEditForm({
+      customerType: formData.customerType,
+      customerLevel: formData.customerLevel,
+      industry: formData.industry,
+      taxRate: formData.taxRate,
+      invoiceType: formData.invoiceType
+    });
     logRecentApi
       .record({
         bizType: 'Customer',
@@ -397,7 +550,10 @@ const fetchCustomerDetail = async () => {
       .then(() => window.dispatchEvent(new CustomEvent(CUSTOMER_RECENT_HISTORY_CHANGED_EVENT)))
       .catch(() => {});
   } catch (error) {
-    ElNotification.error({ title: '加载失败', message: '获取客户详情失败，请刷新重试' });
+    ElNotification.error({
+      title: t('customerEdit.messages.loadFailedTitle'),
+      message: t('customerEdit.messages.loadFailedMsg')
+    });
   }
 };
 
@@ -421,10 +577,18 @@ const handleRegionChange = (value: string[]) => {
 };
 
 const addContact = () => {
-  formData.contacts.push({
-    contactName: '', gender: 0, department: '', position: '',
-    mobilePhone: '', phone: '', email: '', isDefault: formData.contacts.length === 0
-  });
+  formData.contacts.push(
+    normalizeContactRow({
+      contactName: '',
+      gender: 0,
+      department: '',
+      position: '',
+      mobilePhone: '',
+      phone: '',
+      email: '',
+      isDefault: formData.contacts.length === 0
+    })
+  );
 };
 
 const validateContactMobilePhone = (_rule: unknown, value: string, callback: (error?: Error) => void) => {
@@ -434,11 +598,11 @@ const validateContactMobilePhone = (_rule: unknown, value: string, callback: (er
     return;
   }
   if (!v) {
-    callback(new Error('请输入手机'));
+    callback(new Error(t('customerEdit.contacts.mobileRequired')));
     return;
   }
   if (!mobilePhonePattern.test(v)) {
-    callback(new Error('请输入正确的手机号码'));
+    callback(new Error(t('customerEdit.contacts.mobileInvalid')));
     return;
   }
   callback();
@@ -455,7 +619,7 @@ const validateContactEmail = (_rule: unknown, value: string, callback: (error?: 
     return;
   }
   if (!emailPattern.test(v)) {
-    callback(new Error('请输入正确的邮箱地址'));
+    callback(new Error(t('customerEdit.contacts.emailInvalid')));
     return;
   }
   callback();
@@ -463,10 +627,17 @@ const validateContactEmail = (_rule: unknown, value: string, callback: (error?: 
 
 const removeContact = async (index: number) => {
   try {
+    const name =
+      formData.contacts[index]?.contactName ||
+      t('customerEdit.contacts.indexLabel', { n: index + 1 });
     await ElMessageBox.confirm(
-      `确定要删除联系人「${formData.contacts[index]?.contactName || '联系人 ' + (index + 1)}」吗？`,
-      '确认删除',
-      { type: 'warning', confirmButtonText: '确定删除', cancelButtonText: '取消' }
+      t('customerEdit.contacts.removeContactConfirm', { name }),
+      t('customerEdit.contacts.removeContactTitle'),
+      {
+        type: 'warning',
+        confirmButtonText: t('customerEdit.contacts.removeContactButton'),
+        cancelButtonText: t('common.cancel')
+      }
     );
     formData.contacts.splice(index, 1);
   } catch {
@@ -481,8 +652,9 @@ const buildDraftPayload = () => ({
 
 const applyDraftPayload = (payload: any) => {
   Object.assign(formData, payload || {});
+  normalizeInvoiceTypeModel();
   formData.contacts = Array.isArray(payload?.contacts)
-    ? payload.contacts.map((c: any) => ({ ...c }))
+    ? payload.contacts.map((c: any) => normalizeContactRow(c))
     : [];
   if (formData.province && formData.city) {
     regionValue.value = regionCascaderValueFromFields(
@@ -491,6 +663,13 @@ const applyDraftPayload = (payload: any) => {
       formData.district
     );
   }
+  void customerDict.hydrateCustomerEditForm({
+    customerType: formData.customerType,
+    customerLevel: formData.customerLevel,
+    industry: formData.industry,
+    taxRate: formData.taxRate,
+    invoiceType: formData.invoiceType
+  });
 };
 
 const saveDraftOnly = async () => {
@@ -498,21 +677,27 @@ const saveDraftOnly = async () => {
     const draft = await draftApi.saveDraft({
       draftId: currentDraftId.value || undefined,
       entityType: 'CUSTOMER',
-      draftName: formData.customerName || formData.customerShortName || '客户草稿',
+      draftName: formData.customerName || formData.customerShortName || t('customerEdit.draftDefaultName'),
       payloadJson: JSON.stringify(buildDraftPayload()),
-      remark: isEdit.value ? `来源客户ID:${customerId.value}` : undefined
+      remark: isEdit.value ? t('customerEdit.draftRemarkFromEdit', { id: customerId.value }) : undefined
     });
     currentDraftId.value = draft.draftId;
-    ElNotification.success({ title: '保存成功', message: `草稿已保存（${draft.draftId}）` });
+    ElNotification.success({
+      title: t('customerEdit.messages.draftSavedTitle'),
+      message: t('customerEdit.messages.draftSavedMsg', { id: draft.draftId })
+    });
   } catch (err: any) {
-    ElNotification.error({ title: '保存失败', message: err?.message || '草稿保存失败' });
+    ElNotification.error({
+      title: t('customerEdit.messages.saveDraftFailedTitle'),
+      message: err?.message || t('customerEdit.messages.saveDraftFailed')
+    });
   }
 };
 
 const restoreDraftById = async (draftId: string) => {
   const draft = await draftApi.getDraftById(draftId);
   if (draft.entityType !== 'CUSTOMER') {
-    throw new Error('该草稿不是客户类型');
+    throw new Error(t('customerEdit.messages.wrongDraftType'));
   }
   applyDraftPayload(JSON.parse(draft.payloadJson || '{}'));
   currentDraftId.value = draft.draftId;
@@ -584,7 +769,8 @@ const handleSave = async () => {
         await syncContactsForCustomer(targetCustomerId);
       }
     },
-    formatSuccess: () => (editing ? '客户信息已成功更新' : '客户已成功创建'),
+    formatSuccess: () =>
+      editing ? t('customerEdit.messages.saveSuccessUpdate') : t('customerEdit.messages.saveSuccessCreate'),
     onSuccess: () => router.push({ name: 'CustomerList' }),
     errorMessage: (err: unknown) => {
       const e = err as {
@@ -595,7 +781,9 @@ const handleSave = async () => {
         e?.response?.data?.message ||
         (Array.isArray(e?.response?.data?.errors) ? e.response!.data!.errors!.join('；') : null) ||
         e?.message;
-      return serverMsg ? `保存错误：${serverMsg}` : '保存错误，请稍后重试';
+      return serverMsg
+        ? t('customerEdit.messages.saveErrorPrefix', { msg: serverMsg })
+        : t('customerEdit.messages.saveErrorGeneric');
     }
   });
 };
@@ -608,11 +796,15 @@ const handleConvertToFormal = async () => {
 
 const goBack = () => router.back();
 onMounted(() => {
+  void customerDict.ensureLoaded();
   fetchCustomerDetail();
   const draftId = route.query.draftId;
   if (!isEdit.value && typeof draftId === 'string' && draftId) {
     restoreDraftById(draftId).catch((err: any) => {
-      ElNotification.error({ title: '恢复失败', message: err?.message || '草稿恢复失败' });
+      ElNotification.error({
+        title: t('customerEdit.messages.restoreFailedTitle'),
+        message: err?.message || t('customerEdit.messages.restoreFailed')
+      });
     });
   }
 });
@@ -977,5 +1169,22 @@ onMounted(() => {
     background: $color-mint-green !important;
     border-color: $color-mint-green !important;
   }
+}
+
+.contact-default-col {
+  position: relative;
+  z-index: 2;
+}
+
+.contact-default-field {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 32px;
+  box-sizing: border-box;
+}
+
+.contact-default-cb {
+  pointer-events: auto;
 }
 </style>

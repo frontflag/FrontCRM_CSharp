@@ -18,6 +18,9 @@ export interface UploadDocumentDto {
 
 const BASE = '/api/v1/documents'
 
+/** 质检单附件，bizId 为质检单主键（QCInfo.Id） */
+export const DOCUMENT_BIZ_TYPE_QC = 'QC'
+
 export const documentApi = {
   /** 上传文档（multipart/form-data） */
   async uploadDocuments(

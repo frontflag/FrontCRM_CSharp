@@ -3,12 +3,14 @@ using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
+using Microsoft.Extensions.Logging;
 
 namespace CRM.Core.Services
 {
     public class LogisticsService : ILogisticsService
     {
         private readonly IRepository<StockInNotify> _notifyRepo;
+        private readonly IRepository<StockIn> _stockInRepo;
         private readonly IRepository<QCInfo> _qcRepo;
         private readonly IRepository<QCItem> _qcItemRepo;
         private readonly IRepository<PurchaseOrder> _poRepo;
@@ -18,9 +20,12 @@ namespace CRM.Core.Services
         private readonly IRepository<SellOrder> _sellOrderRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
+        private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
+        private readonly ILogger<LogisticsService> _logger;
 
         public LogisticsService(
             IRepository<StockInNotify> notifyRepo,
+            IRepository<StockIn> stockInRepo,
             IRepository<QCInfo> qcRepo,
             IRepository<QCItem> qcItemRepo,
             IRepository<PurchaseOrder> poRepo,
@@ -29,9 +34,12 @@ namespace CRM.Core.Services
             IRepository<SellOrderItem> sellOrderItemRepo,
             IRepository<SellOrder> sellOrderRepo,
             ISerialNumberService serialNumberService,
-            IUnitOfWork unitOfWork)
+            IPurchaseOrderItemExtendSyncService poItemExtendSync,
+            IUnitOfWork unitOfWork,
+            ILogger<LogisticsService> logger)
         {
             _notifyRepo = notifyRepo;
+            _stockInRepo = stockInRepo;
             _qcRepo = qcRepo;
             _qcItemRepo = qcItemRepo;
             _poRepo = poRepo;
@@ -40,7 +48,9 @@ namespace CRM.Core.Services
             _sellOrderItemRepo = sellOrderItemRepo;
             _sellOrderRepo = sellOrderRepo;
             _serialNumberService = serialNumberService;
+            _poItemExtendSync = poItemExtendSync;
             _unitOfWork = unitOfWork;
+            _logger = logger;
         }
 
         public async Task<IReadOnlyList<StockInNotify>> GetArrivalNoticesAsync()
@@ -99,8 +109,7 @@ namespace CRM.Core.Services
             if (po.Status < 30 || po.Status == -1 || po.Status == -2)
                 throw new InvalidOperationException("仅供应商已确认且有效的采购订单可创建到货通知");
 
-            await EnsurePurchaseOrderItemExtendAsync(poItem);
-            await RecalcPurchaseOrderItemExtendAsync(poItem.Id, poItem.Qty);
+            await _poItemExtendSync.RecalculateAsync(poItem.Id);
             await _unitOfWork.SaveChangesAsync();
 
             var ext = await _poItemExtendRepo.GetByIdAsync(poItem.Id)
@@ -138,7 +147,7 @@ namespace CRM.Core.Services
             await _notifyRepo.AddAsync(notice);
             await _unitOfWork.SaveChangesAsync();
 
-            await RecalcPurchaseOrderItemExtendAsync(poItem.Id, poItem.Qty);
+            await _poItemExtendSync.RecalculateAsync(poItem.Id);
             notice.VendorCode = po.VendorCode;
             AttachItemSnapshot(notice);
             return notice;
@@ -157,7 +166,7 @@ namespace CRM.Core.Services
                 var lines = (await _poItemRepo.FindAsync(x => x.PurchaseOrderId == po.Id)).ToList();
                 foreach (var line in lines)
                 {
-                    await RecalcPurchaseOrderItemExtendAsync(line.Id, line.Qty);
+                    await _poItemExtendSync.RecalculateAsync(line.Id);
                     var ext = await _poItemExtendRepo.GetByIdAsync(line.Id);
                     if (ext == null || ext.QtyStockInNotifyNot <= 0)
                     {
@@ -356,13 +365,14 @@ namespace CRM.Core.Services
             }).ToList();
         }
 
-        public async Task<QCInfo> CreateQcAsync(CreateQcRequest request)
+        public async Task<QCInfo> CreateQcAsync(CreateQcRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(request.StockInNotifyId))
                 throw new ArgumentException("到货通知ID不能为空", nameof(request.StockInNotifyId));
 
             var existed = (await _qcRepo.FindAsync(x => x.StockInNotifyId == request.StockInNotifyId)).FirstOrDefault();
-            if (existed != null) return existed;
+            if (existed != null)
+                return existed;
 
             var notice = await _notifyRepo.GetByIdAsync(request.StockInNotifyId) ?? throw new InvalidOperationException("到货通知不存在");
 
@@ -378,7 +388,8 @@ namespace CRM.Core.Services
                 StockInStatus = 1,
                 PassQty = passQty,
                 RejectQty = 0,
-                CreateTime = DateTime.UtcNow
+                CreateTime = DateTime.UtcNow,
+                CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
             await _qcRepo.AddAsync(qc);
 
@@ -402,7 +413,7 @@ namespace CRM.Core.Services
             return qc;
         }
 
-        public async Task<QCInfo> UpdateQcResultAsync(string id, UpdateQcResultRequest request)
+        public async Task<QCInfo> UpdateQcResultAsync(string id, UpdateQcResultRequest request, string? actingUserId = null)
         {
             var qc = await _qcRepo.GetByIdAsync(id) ?? throw new InvalidOperationException("质检单不存在");
             var items = (await _qcItemRepo.FindAsync(x => x.QcInfoId == qc.Id)).ToList();
@@ -421,6 +432,7 @@ namespace CRM.Core.Services
             // StockInStatus：入库进度（见 QCInfo 注释），与质检 Status 的 10/100 不可混用；保存质检后尚未入库
             qc.StockInStatus = request.Result == "reject" ? (short)-1 : (short)1;
             qc.ModifyTime = DateTime.UtcNow;
+            qc.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _qcRepo.UpdateAsync(qc);
 
             var ratio = arrivedTotal > 0 ? request.PassQty / arrivedTotal : 0;
@@ -443,8 +455,7 @@ namespace CRM.Core.Services
                 await _notifyRepo.UpdateAsync(notice);
 
                 if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId))
-                    await RecalcPurchaseOrderItemExtendAsync(notice.PurchaseOrderItemId,
-                        (await _poItemRepo.GetByIdAsync(notice.PurchaseOrderItemId))?.Qty ?? 0);
+                    await _poItemExtendSync.RecalculateAsync(notice.PurchaseOrderItemId);
             }
 
             await _unitOfWork.SaveChangesAsync();
@@ -452,7 +463,7 @@ namespace CRM.Core.Services
             return qc;
         }
 
-        public async Task BindQcStockInAsync(string id, string stockInId)
+        public async Task BindQcStockInAsync(string id, string stockInId, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(stockInId))
                 throw new ArgumentException("入库单ID不能为空", nameof(stockInId));
@@ -461,6 +472,7 @@ namespace CRM.Core.Services
             qc.StockInId = stockInId;
             // 仅绑定入库单；入库进度在过账完成时由 HandleStockInCompletedAsync 回写
             qc.ModifyTime = DateTime.UtcNow;
+            qc.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _qcRepo.UpdateAsync(qc);
 
             var notice = await _notifyRepo.GetByIdAsync(qc.StockInNotifyId);
@@ -471,12 +483,30 @@ namespace CRM.Core.Services
                 await _notifyRepo.UpdateAsync(notice);
             }
 
+            var stockIn = await _stockInRepo.GetByIdAsync(stockInId);
+            if (stockIn != null)
+            {
+                stockIn.SourceId = string.IsNullOrWhiteSpace(notice?.Id) ? null : notice!.Id.Trim();
+                stockIn.SourceCode = !string.IsNullOrWhiteSpace(notice?.NoticeCode)
+                    ? notice!.NoticeCode.Trim()
+                    : (string.IsNullOrWhiteSpace(qc.StockInNotifyCode) ? null : qc.StockInNotifyCode.Trim());
+                stockIn.QcId = string.IsNullOrWhiteSpace(qc.Id) ? null : qc.Id.Trim();
+                stockIn.QcCode = string.IsNullOrWhiteSpace(qc.QcCode) ? null : qc.QcCode.Trim();
+                stockIn.ModifyTime = DateTime.UtcNow;
+                await _stockInRepo.UpdateAsync(stockIn);
+            }
+
             await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task HandleStockInCompletedAsync(string stockInId, string? purchaseOrderId)
         {
             if (string.IsNullOrWhiteSpace(stockInId)) return;
+
+            _logger.LogInformation(
+                "[InboundStatus2] HandleStockInCompleted enter StockInId={StockInId} HookPurchaseOrderId={PoId}",
+                stockInId,
+                purchaseOrderId ?? "(null)");
 
             var qcs = (await _qcRepo.FindAsync(x => x.StockInId == stockInId)).ToList();
             var relatedNotices = new List<StockInNotify>();
@@ -505,15 +535,32 @@ namespace CRM.Core.Services
                 relatedNotices.Add(notice);
             }
 
-            var poIds = relatedNotices.Select(x => x.PurchaseOrderId).Where(x => !string.IsNullOrWhiteSpace(x)).ToHashSet();
-            if (!string.IsNullOrWhiteSpace(purchaseOrderId)) poIds.Add(purchaseOrderId);
+            var poIds = relatedNotices.Select(x => x.PurchaseOrderId).Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var resolvedHook = await ResolvePurchaseOrderIdForStockInCompletedAsync(purchaseOrderId);
+            if (!string.IsNullOrWhiteSpace(resolvedHook))
+                poIds.Add(resolvedHook);
+
+            _logger.LogInformation(
+                "[InboundStatus2] HandleStockInCompleted poIds={PoIds} QcCount={QcCount} NoticeCount={NoticeCount}",
+                string.Join(',', poIds),
+                qcs.Count,
+                relatedNotices.Count);
 
             foreach (var poId in poIds)
             {
                 var po = await _poRepo.GetByIdAsync(poId);
                 if (po == null) continue;
 
+                _logger.LogInformation(
+                    "[InboundStatus2] HandleStockInCompleted before PoItemRepo.FindAsync PoId={PoId}",
+                    poId);
                 var poItems = (await _poItemRepo.FindAsync(x => x.PurchaseOrderId == poId)).ToList();
+                _logger.LogInformation(
+                    "[InboundStatus2] HandleStockInCompleted after PoItemRepo.FindAsync PoId={PoId} LineCount={Count}",
+                    poId,
+                    poItems.Count);
                 var allNotifiesForPo = (await _notifyRepo.FindAsync(x => x.PurchaseOrderId == poId)).ToList();
                 var passedMap = allNotifiesForPo
                     .GroupBy(x => x.PurchaseOrderItemId)
@@ -558,7 +605,27 @@ namespace CRM.Core.Services
             }
 
             if (hasChanges)
+            {
+                _logger.LogInformation("[InboundStatus2] HandleStockInCompleted before SaveChanges (po/notice/qc updates)");
                 await _unitOfWork.SaveChangesAsync();
+                _logger.LogInformation("[InboundStatus2] HandleStockInCompleted after SaveChanges");
+            }
+
+            foreach (var poId in poIds)
+            {
+                _logger.LogInformation(
+                    "[InboundStatus2] HandleStockInCompleted extend sync before PoItemRepo.FindAsync PoId={PoId}",
+                    poId);
+                var linesToSync = (await _poItemRepo.FindAsync(x => x.PurchaseOrderId == poId)).ToList();
+                _logger.LogInformation(
+                    "[InboundStatus2] HandleStockInCompleted extend sync lines PoId={PoId} LineCount={Count}",
+                    poId,
+                    linesToSync.Count);
+                foreach (var line in linesToSync)
+                    await _poItemExtendSync.RecalculateAsync(line.Id);
+            }
+
+            _logger.LogInformation("[InboundStatus2] HandleStockInCompleted exit StockInId={StockInId}", stockInId);
         }
 
         /// <summary>
@@ -584,43 +651,25 @@ namespace CRM.Core.Services
                 await _unitOfWork.SaveChangesAsync();
         }
 
-        private async Task<PurchaseOrderItemExtend> EnsurePurchaseOrderItemExtendAsync(PurchaseOrderItem poItem)
-        {
-            var ext = await _poItemExtendRepo.GetByIdAsync(poItem.Id);
-            if (ext != null) return ext;
-
-            var lineTotal = Math.Round(poItem.Qty * poItem.Cost, 2, MidpointRounding.AwayFromZero);
-            ext = new PurchaseOrderItemExtend
-            {
-                Id = poItem.Id,
-                QtyStockInNotifyNot = poItem.Qty,
-                PurchaseInvoiceAmount = lineTotal,
-                PurchaseInvoiceToBe = lineTotal,
-                PaymentAmount = lineTotal,
-                PaymentAmountNot = lineTotal,
-                CreateTime = DateTime.UtcNow
-            };
-            await _poItemExtendRepo.AddAsync(ext);
-            await _unitOfWork.SaveChangesAsync();
-            return ext;
-        }
-
         /// <summary>
-        /// 文档：QtyStockInNotifyNot = 采购数量 - 累计实收 - 在途(Expect-Receive 未结批次之和)
+        /// 入库完成回写时，<paramref name="sourceIdOrCode"/> 可为采购订单主键、采购单号（由调用方从入库单关联的采购行解析）。
         /// </summary>
-        private async Task RecalcPurchaseOrderItemExtendAsync(string purchaseOrderItemId, decimal poLineQty)
+        private async Task<string?> ResolvePurchaseOrderIdForStockInCompletedAsync(string? sourceIdOrCode)
         {
-            var ext = await _poItemExtendRepo.GetByIdAsync(purchaseOrderItemId);
-            if (ext == null) return;
+            if (string.IsNullOrWhiteSpace(sourceIdOrCode)) return null;
+            var t = sourceIdOrCode.Trim();
 
-            var lines = (await _notifyRepo.FindAsync(x => x.PurchaseOrderItemId == purchaseOrderItemId)).ToList();
-            var sumReceive = lines.Sum(x => x.ReceiveQty);
-            var inTransit = lines.Sum(x => Math.Max(0m, x.ExpectQty - x.ReceiveQty));
-            ext.QtyReceiveTotal = sumReceive;
-            ext.QtyStockInNotifyExpectSum = lines.Sum(x => x.ExpectQty);
-            ext.QtyStockInNotifyNot = Math.Max(0m, poLineQty - sumReceive - inTransit);
-            ext.ModifyTime = DateTime.UtcNow;
-            await _poItemExtendRepo.UpdateAsync(ext);
+            var po = await _poRepo.GetByIdAsync(t);
+            if (po != null) return po.Id;
+
+            var byCode = (await _poRepo.FindAsync(p => p.PurchaseOrderCode == t)).FirstOrDefault();
+            if (byCode != null) return byCode.Id;
+
+            var qc = await _qcRepo.GetByIdAsync(t);
+            if (qc == null) return null;
+            var notice = await _notifyRepo.GetByIdAsync(qc.StockInNotifyId);
+            return string.IsNullOrWhiteSpace(notice?.PurchaseOrderId) ? null : notice!.PurchaseOrderId.Trim();
         }
+
     }
 }

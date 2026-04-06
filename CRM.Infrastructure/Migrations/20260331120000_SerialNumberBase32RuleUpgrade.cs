@@ -16,10 +16,7 @@ namespace CRM.Infrastructure.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(@"
-ALTER TABLE IF EXISTS sys_serial_number
-    ALTER COLUMN ""Prefix"" TYPE character varying(4);
-
--- 统一业务标识（主业务3位，少量辅助业务4位；全局唯一）
+-- 须先 UPDATE 再收缩 Prefix 列，否则现网已有 PAY_DEL/STOR 等 >4 字符时会 22001
 UPDATE sys_serial_number SET ""Prefix"" = 'CUS'  WHERE ""ModuleCode"" = 'Customer';
 UPDATE sys_serial_number SET ""Prefix"" = 'VEN'  WHERE ""ModuleCode"" = 'Vendor';
 UPDATE sys_serial_number SET ""Prefix"" = 'RFQ'  WHERE ""ModuleCode"" = 'RFQ';
@@ -40,6 +37,9 @@ UPDATE sys_serial_number SET ""Prefix"" = 'ARN'  WHERE ""ModuleCode"" = 'Arrival
 UPDATE sys_serial_number SET ""Prefix"" = 'QCR'  WHERE ""ModuleCode"" = 'QcRecord';
 UPDATE sys_serial_number SET ""Prefix"" = 'PMR'  WHERE ""ModuleCode"" = 'PaymentRequest';
 UPDATE sys_serial_number SET ""Prefix"" = 'FNP'  WHERE ""ModuleCode"" = 'FinancePayment';
+
+ALTER TABLE IF EXISTS sys_serial_number
+    ALTER COLUMN ""Prefix"" TYPE character varying(4);
 
 -- 新规则固定5位数值位，不再按年月重置
 UPDATE sys_serial_number SET

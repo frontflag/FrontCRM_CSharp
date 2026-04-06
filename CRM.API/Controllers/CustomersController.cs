@@ -290,7 +290,8 @@ namespace CRM.API.Controllers
             try
             {
                 // 新状态体系不再使用 0：停用回到“新建”(1)
-                await _customerService.UpdateCustomerStatusAsync(id, 1);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _customerService.UpdateCustomerStatusAsync(id, 1, auditRemark: null, actingUserId: userId);
                 return Ok(ApiResponse<object>.Ok(null, "停用客户成功"));
             }
             catch (Exception ex)
@@ -300,7 +301,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>提交审核：新建(1) -> 待审核(2)</summary>
+        /// <summary>提交审核：新建(1) 或 审核失败(-1) -> 待审核(2)</summary>
         [HttpPost("{id}/submit-audit")]
         [RequirePermission("customer.write")]
         public async Task<ActionResult<ApiResponse<object>>> SubmitAudit(string id)
@@ -311,7 +312,8 @@ namespace CRM.API.Controllers
                 if (customer == null)
                     return NotFound(ApiResponse<object>.Fail("客户不存在", 404));
                 var before = customer.Status;
-                await _customerService.UpdateCustomerStatusAsync(id, 2);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _customerService.UpdateCustomerStatusAsync(id, 2, auditRemark: null, actingUserId: userId);
                 await _approvalRecordService.RecordSubmitAsync(
                     "CUSTOMER",
                     customer.Id,
@@ -320,7 +322,7 @@ namespace CRM.API.Controllers
                     before,
                     2,
                     null,
-                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                    userId,
                     User.Identity?.Name);
                 return Ok(ApiResponse<object>.Ok(null, "提交审核成功"));
             }

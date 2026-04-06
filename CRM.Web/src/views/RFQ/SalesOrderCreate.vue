@@ -3,95 +3,88 @@
     <div class="page-header">
       <div class="header-left">
         <el-button link @click="handleBack">
-          <el-icon><ArrowLeft /></el-icon> 返回列表
+          <el-icon><ArrowLeft /></el-icon> {{ t('salesOrderCreate.backToList') }}
         </el-button>
         <el-breadcrumb separator="/">
-          <el-breadcrumb-item>订单管理</el-breadcrumb-item>
-          <el-breadcrumb-item>销售管理</el-breadcrumb-item>
-          <el-breadcrumb-item>新建销售订单</el-breadcrumb-item>
+          <el-breadcrumb-item>{{ t('salesOrderCreate.breadcrumb.orders') }}</el-breadcrumb-item>
+          <el-breadcrumb-item>{{ t('salesOrderCreate.breadcrumb.sales') }}</el-breadcrumb-item>
+          <el-breadcrumb-item>{{ t('salesOrderCreate.breadcrumb.newOrder') }}</el-breadcrumb-item>
         </el-breadcrumb>
       </div>
       <div class="header-right">
-        <el-button @click="handleBack">取消</el-button>
+        <el-button @click="handleBack">{{ t('salesOrderCreate.cancel') }}</el-button>
         <el-button type="primary" :loading="submitLoading" @click="handleSubmit">
-          <el-icon><Check /></el-icon> 保存
+          <el-icon><Check /></el-icon> {{ t('salesOrderCreate.save') }}
         </el-button>
       </div>
     </div>
 
     <el-form ref="formRef" :model="formData" :rules="formRules" label-width="108px" class="create-form">
       <el-collapse v-model="collapseActive" class="so-collapse">
-        <!-- 订单信息 -->
-        <el-collapse-item title="订单信息" name="order">
+        <el-collapse-item :title="t('salesOrderCreate.sections.order')" name="order">
           <el-row :gutter="20">
             <el-col :span="12">
-              <el-form-item label="订单号">
-                <el-input v-model="formData.sellOrderCode" disabled placeholder="系统自动生成" />
+              <el-form-item :label="t('salesOrderCreate.fields.sellOrderCode')">
+                <el-input v-model="formData.sellOrderCode" disabled :placeholder="t('salesOrderCreate.placeholders.autoCode')" />
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="订单类型" prop="type">
-                <el-select v-model="formData.type" placeholder="请选择订单类型" style="width: 100%">
-                  <el-option label="普通订单" :value="1" />
-                  <el-option label="紧急订单" :value="2" />
-                  <el-option label="样品订单" :value="3" />
+              <el-form-item :label="t('salesOrderCreate.fields.orderType')" prop="type">
+                <el-select v-model="formData.type" :placeholder="t('salesOrderCreate.placeholders.orderType')" style="width: 100%">
+                  <el-option :label="t('salesOrderCreate.orderTypes.normal')" :value="1" />
+                  <el-option :label="t('salesOrderCreate.orderTypes.urgent')" :value="2" />
+                  <el-option :label="t('salesOrderCreate.orderTypes.sample')" :value="3" />
                 </el-select>
               </el-form-item>
             </el-col>
           </el-row>
           <el-row :gutter="20">
             <el-col :span="12">
-              <el-form-item label="负责人" prop="salesUserId">
+              <el-form-item :label="t('salesOrderCreate.fields.salesUser')" prop="salesUserId">
                 <sales-user-cascader
                   v-model="formData.salesUserId"
-                  placeholder="请选择负责人"
+                  :placeholder="t('salesOrderCreate.placeholders.salesUser')"
                   clearable
                   @change="onSalesUserChange"
                 />
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="产品" prop="productKind">
-                <el-select v-model="formData.productKind" placeholder="请选择产品" style="width: 100%">
-                  <el-option label="现货" value="现货" />
-                  <el-option label="期货" value="期货" />
-                  <el-option label="排单" value="排单" />
-                  <el-option label="样品" value="样品" />
+              <el-form-item :label="t('salesOrderCreate.fields.product')" prop="productKind">
+                <el-select v-model="formData.productKind" :placeholder="t('salesOrderCreate.placeholders.product')" style="width: 100%">
+                  <el-option :label="t('salesOrderCreate.productKinds.spot')" value="现货" />
+                  <el-option :label="t('salesOrderCreate.productKinds.futures')" value="期货" />
+                  <el-option :label="t('salesOrderCreate.productKinds.backlog')" value="排单" />
+                  <el-option :label="t('salesOrderCreate.productKinds.sample')" value="样品" />
                 </el-select>
               </el-form-item>
             </el-col>
           </el-row>
           <el-row :gutter="20">
-            <el-col :span="12">
-              <el-form-item label="归属">
-                <el-input :model-value="formData.ownerEntity" disabled />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="备注">
-                <el-input v-model="formData.orderRemark" type="textarea" :rows="2" placeholder="订单备注" />
+            <el-col :span="24">
+              <el-form-item :label="t('salesOrderCreate.fields.remark')">
+                <el-input v-model="formData.orderRemark" type="textarea" :rows="2" :placeholder="t('salesOrderCreate.placeholders.orderRemark')" />
               </el-form-item>
             </el-col>
           </el-row>
         </el-collapse-item>
 
-        <!-- 客户信息 -->
-        <el-collapse-item title="客户信息" name="customer">
+        <el-collapse-item :title="t('salesOrderCreate.sections.customer')" name="customer">
           <el-row :gutter="20">
             <el-col :span="12">
-              <el-form-item label="客户" prop="customerId">
+              <el-form-item :label="t('salesOrderCreate.fields.customer')" prop="customerId">
                 <el-select
                   v-model="formData.customerId"
-                  placeholder="请输入客户名称搜索"
+                  :placeholder="t('salesOrderCreate.placeholders.searchCustomer')"
                   style="width: 100%"
                   filterable
                   :filter-method="onCustomerFilterInput"
                   :loading="customerSearchLoading"
-                  loading-text="搜索中..."
+                  :loading-text="t('salesOrderCreate.placeholders.searching')"
                   @change="onCustomerChange"
                 >
                   <template #empty>
-                    <div class="select-hint">请输入关键字搜索客户</div>
+                    <div class="select-hint">{{ t('salesOrderCreate.placeholders.customerSearchHint') }}</div>
                   </template>
                   <el-option
                     v-for="c in customerOptions"
@@ -103,10 +96,10 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="客户联系人" prop="customerContactId">
+              <el-form-item :label="t('salesOrderCreate.fields.customerContact')" prop="customerContactId">
                 <el-select
                   v-model="formData.customerContactId"
-                  placeholder="请选择联系人"
+                  :placeholder="t('salesOrderCreate.placeholders.contact')"
                   style="width: 100%"
                   filterable
                   clearable
@@ -125,15 +118,15 @@
           </el-row>
           <el-row :gutter="20">
             <el-col :span="12">
-              <el-form-item label="发票信息">
-                <el-input v-model="formData.invoiceInfo" type="textarea" :rows="2" placeholder="公司名称与税号等" />
+              <el-form-item :label="t('salesOrderCreate.fields.invoiceInfo')">
+                <el-input v-model="formData.invoiceInfo" type="textarea" :rows="2" :placeholder="t('salesOrderCreate.placeholders.invoiceInfo')" />
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="账期信息" prop="paymentTermsLabel">
+              <el-form-item :label="t('salesOrderCreate.fields.paymentTerms')" prop="paymentTermsLabel">
                 <el-select
                   v-model="formData.paymentTermsLabel"
-                  placeholder="请选择账期"
+                  :placeholder="t('salesOrderCreate.placeholders.paymentTerms')"
                   style="width: 100%"
                   filterable
                   allow-create
@@ -143,36 +136,35 @@
                   <el-option label="NET 30" value="NET 30" />
                   <el-option label="NET 45" value="NET 45" />
                   <el-option label="NET 60" value="NET 60" />
-                  <el-option label="款到发货" value="款到发货" />
-                  <el-option label="货到付款" value="货到付款" />
+                  <el-option :label="t('salesOrderCreate.paymentTermsExtra.prepayment')" value="款到发货" />
+                  <el-option :label="t('salesOrderCreate.paymentTermsExtra.cod')" value="货到付款" />
                 </el-select>
               </el-form-item>
             </el-col>
           </el-row>
           <el-row :gutter="20">
             <el-col :span="24">
-              <el-form-item label="送货地址">
-                <el-input v-model="formData.deliveryAddress" type="textarea" :rows="2" placeholder="送货地址" />
+              <el-form-item :label="t('salesOrderCreate.fields.deliveryAddress')">
+                <el-input v-model="formData.deliveryAddress" type="textarea" :rows="2" :placeholder="t('salesOrderCreate.placeholders.deliveryAddress')" />
               </el-form-item>
             </el-col>
           </el-row>
         </el-collapse-item>
 
-        <!-- 物料明细 -->
-        <el-collapse-item title="物料明细" name="items">
+        <el-collapse-item :title="t('salesOrderCreate.sections.items')" name="items">
           <div class="items-toolbar">
             <el-input
               v-model="itemFilterKeyword"
               class="item-filter"
               clearable
-              placeholder="筛选物料型号"
+              :placeholder="t('salesOrderCreate.placeholders.filterMpn')"
             />
             <el-button type="primary" size="small" @click="addItem">
-              <el-icon><Plus /></el-icon> 添加明细
+              <el-icon><Plus /></el-icon> {{ t('salesOrderCreate.itemsToolbar.addLine') }}
             </el-button>
           </div>
 
-          <div v-if="filteredItemsView.length === 0" class="items-empty">暂无明细或没有匹配的型号</div>
+          <div v-if="filteredItemsView.length === 0" class="items-empty">{{ t('salesOrderCreate.itemsEmpty') }}</div>
 
           <div
             v-for="meta in filteredItemsView"
@@ -181,71 +173,60 @@
             class="material-card"
           >
             <div class="material-card-head">
-              <span class="head-mpn">物料型号：{{ formData.items[meta.index].pn || '—' }}</span>
-              <span class="head-quote">{{ formData.items[meta.index].purchaseQuoteLabel || '采购报价：—' }}</span>
+              <span class="head-mpn">{{ t('salesOrderCreate.cardHeadMpn') }}：{{ formData.items[meta.index].pn || '—' }}</span>
+              <span class="head-quote">{{ formData.items[meta.index].purchaseQuoteLabel || t('salesOrderCreate.purchaseQuoteFallback') }}</span>
             </div>
             <div class="material-card-body">
               <el-row :gutter="16">
                 <el-col :span="8">
                   <el-form-item
-                    label="物料型号"
+                    :label="t('salesOrderCreate.fields.mpn')"
                     :prop="'items.' + meta.index + '.pn'"
                     :rules="itemRules.pn"
                     label-width="100px"
                   >
-                    <el-input v-model="formData.items[meta.index].pn" placeholder="必填" />
+                    <el-input v-model="formData.items[meta.index].pn" :placeholder="t('salesOrderCreate.placeholders.required')" />
                   </el-form-item>
                 </el-col>
                 <el-col :span="8">
-                  <el-form-item label="客户物料型号" :prop="'items.' + meta.index + '.customerMaterialModel'" label-width="112px">
-                    <el-input v-model="formData.items[meta.index].customerMaterialModel" placeholder="选填" />
+                  <el-form-item :label="t('salesOrderCreate.fields.customerMpn')" :prop="'items.' + meta.index + '.customerMaterialModel'" label-width="112px">
+                    <el-input v-model="formData.items[meta.index].customerMaterialModel" :placeholder="t('salesOrderCreate.placeholders.optional')" />
                   </el-form-item>
                 </el-col>
                 <el-col :span="8">
                   <el-form-item
-                    label="品牌"
+                    :label="t('salesOrderCreate.fields.brand')"
                     :prop="'items.' + meta.index + '.brand'"
                     :rules="itemRules.brand"
                     label-width="72px"
                   >
-                    <el-input v-model="formData.items[meta.index].brand" placeholder="必填" />
+                    <el-input v-model="formData.items[meta.index].brand" :placeholder="t('salesOrderCreate.placeholders.required')" />
                   </el-form-item>
                 </el-col>
               </el-row>
               <el-row :gutter="16">
                 <el-col :span="8">
                   <el-form-item
-                    label="客户订单号"
+                    :label="t('salesOrderCreate.fields.customerPo')"
                     :prop="'items.' + meta.index + '.customerPo'"
                     :rules="itemRules.customerPo"
                     label-width="100px"
                   >
-                    <el-input v-model="formData.items[meta.index].customerPo" placeholder="必填" />
+                    <el-input v-model="formData.items[meta.index].customerPo" :placeholder="t('salesOrderCreate.placeholders.required')" />
                   </el-form-item>
                 </el-col>
                 <el-col :span="8">
-                  <el-form-item label="销售单价" :prop="'items.' + meta.index + '.price'" label-width="100px">
-                    <div class="price-currency-row">
-                      <el-input-number
-                        v-model="formData.items[meta.index].price"
-                        :min="0"
-                        :precision="6"
-                        :controls="false"
-                        class="price-input"
-                      />
-                      <el-select v-model="formData.items[meta.index].currency" class="currency-mini">
-                        <el-option
-                          v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
-                          :key="opt.value"
-                          :label="opt.label"
-                          :value="opt.value"
-                        />
-                      </el-select>
-                    </div>
+                  <el-form-item :label="t('salesOrderCreate.fields.unitPrice')" :prop="'items.' + meta.index + '.price'" label-width="100px">
+                    <SettlementCurrencyAmountInput
+                      v-model="formData.items[meta.index].price"
+                      v-model:currency="formData.items[meta.index].currency"
+                      :min="0"
+                      :precision="6"
+                    />
                   </el-form-item>
                 </el-col>
                 <el-col :span="8">
-                  <el-form-item label="买入价" label-width="72px">
+                  <el-form-item :label="t('salesOrderCreate.fields.purchasePrice')" label-width="72px">
                     <el-input :model-value="formatUnitPriceNumber(formData.items[meta.index].purchasePriceDisplay)" disabled />
                   </el-form-item>
                 </el-col>
@@ -253,7 +234,7 @@
               <el-row :gutter="16">
                 <el-col :span="8">
                   <el-form-item
-                    label="销售数量"
+                    :label="t('salesOrderCreate.fields.qty')"
                     :prop="'items.' + meta.index + '.qty'"
                     :rules="itemRules.qty"
                     label-width="100px"
@@ -267,7 +248,7 @@
                   </el-form-item>
                 </el-col>
                 <el-col :span="8">
-                  <el-form-item label="销售总额" label-width="100px">
+                  <el-form-item :label="t('salesOrderCreate.fields.lineTotal')" label-width="100px">
                     <div class="total-inline">
                       <span>{{ formatTotalAmountNumber(lineLineTotal(meta.index)) }}</span>
                       <span class="ccy-tag">{{ currencyCode(formData.items[meta.index].currency) }}</span>
@@ -276,23 +257,23 @@
                 </el-col>
                 <el-col :span="8">
                   <el-form-item
-                    label="生产日期"
+                    :label="t('salesOrderCreate.fields.dateCode')"
                     :prop="'items.' + meta.index + '.dateCode'"
                     :rules="itemRules.dateCode"
                     label-width="100px"
                   >
-                    <el-select v-model="formData.items[meta.index].dateCode" placeholder="必选" style="width: 100%" filterable allow-create>
-                      <el-option label="2年内" value="2年内" />
-                      <el-option label="1年内" value="1年内" />
-                      <el-option label="无要求" value="无要求" />
-                    </el-select>
+                    <MaterialProductionDateSelect
+                      v-model="formData.items[meta.index].dateCode"
+                      :placeholder="t('salesOrderCreate.placeholders.dateCode')"
+                      :clearable="false"
+                    />
                   </el-form-item>
                 </el-col>
               </el-row>
               <el-row :gutter="16">
                 <el-col :span="8">
                   <el-form-item
-                    label="交期"
+                    :label="t('salesOrderCreate.fields.deliveryDate')"
                     :prop="'items.' + meta.index + '.deliveryDate'"
                     :rules="itemRules.deliveryDate"
                     label-width="100px"
@@ -300,26 +281,26 @@
                     <el-date-picker
                       v-model="formData.items[meta.index].deliveryDate"
                       type="date"
-                      placeholder="选择交期"
+                      :placeholder="t('salesOrderCreate.placeholders.pickDeliveryDate')"
                       style="width: 100%"
                       value-format="YYYY-MM-DD"
                     />
                   </el-form-item>
                 </el-col>
                 <el-col :span="16">
-                  <el-form-item label="备注" label-width="100px">
-                    <el-input v-model="formData.items[meta.index].comment" type="textarea" :rows="2" placeholder="行备注" />
+                  <el-form-item :label="t('salesOrderCreate.fields.lineRemark')" label-width="100px">
+                    <el-input v-model="formData.items[meta.index].comment" type="textarea" :rows="2" :placeholder="t('salesOrderCreate.placeholders.lineRemark')" />
                   </el-form-item>
                 </el-col>
               </el-row>
               <div class="material-card-actions">
-                <el-button link type="danger" size="small" @click="removeItem(meta.index)">删除本行</el-button>
+                <el-button link type="danger" size="small" @click="removeItem(meta.index)">{{ t('salesOrderCreate.deleteLine') }}</el-button>
               </div>
             </div>
           </div>
 
           <div class="grand-total-row">
-            <span class="gt-label">合计金额：</span>
+            <span class="gt-label">{{ t('salesOrderCreate.grandTotal') }}</span>
             <span class="gt-amount">{{ formatCurrency(calculateTotal, formData.currency) }}</span>
           </div>
         </el-collapse-item>
@@ -331,6 +312,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ArrowLeft, Check, Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { FormRules } from 'element-plus'
@@ -342,26 +324,48 @@ import type { RFQ, RFQItem } from '@/types/rfq'
 import type { Customer } from '@/types/customer'
 import { resolveCustomerIdFromQuoteDetail } from '@/utils/quoteSalesOrderPrefill'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { useAuthStore } from '@/stores/auth'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
-import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
+import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
+import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
+import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
+import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
 
 const router = useRouter()
 const route = useRoute()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
+const { ensureLoaded: ensureMaterialPdDict, defaultCode: defaultProductionDateCode, coerceProductionDateToCode: coercePd } =
+  useMaterialProductionDateDict()
 
-const DEFAULT_OWNER = '鸿泰电子'
-
-function mapQuoteCurrencyToOrderCurrency(c: number): number {
-  const m: Record<number, number> = { 0: 1, 1: 2, 2: 3, 3: 2 }
-  return m[c] ?? 1
+/**
+ * 报价明细 currency 与销售订单 settlement 使用同一套编码（与后端 QuoteItem / SellOrder 一致）：
+ * 1=RMB 2=USD 3=EUR 4=HKD 5=JPY 6=GBP。历史上错误的 0→1、2→EUR 映射已移除。
+ */
+function mapQuoteCurrencyToOrderCurrency(c: unknown): number {
+  const n = Number(c)
+  if (!Number.isFinite(n)) return 1
+  if (n >= 1 && n <= 6) return n
+  if (n === 0) return 1
+  return 1
 }
 
+/** 展示用 ISO 代码（含 HKD 等结算币种） */
 function currencyCode(c?: number) {
-  if (c === 2) return 'USD'
-  if (c === 3) return 'EUR'
-  return 'RMB'
+  const n = Number(c)
+  if (!Number.isFinite(n)) return 'RMB'
+  return CURRENCY_CODE_TO_TEXT[n] ?? 'RMB'
+}
+
+/** 从报价行取单价，保留小数（兼容 camelCase / PascalCase） */
+function quoteRowUnitPrice(row: Record<string, unknown> | undefined): number {
+  if (!row) return 0
+  const raw = row.unitPrice ?? row.UnitPrice
+  if (raw == null || raw === '') return 0
+  const n = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/,/g, ''))
+  return Number.isFinite(n) ? n : 0
 }
 
 const MANUAL_CUSTOMER_ID = '00000000-0000-0000-0000-000000000001'
@@ -418,7 +422,7 @@ function emptyLine(): OrderLineDraft {
     currency: 1,
     purchasePriceDisplay: 0,
     qty: 1,
-    dateCode: '2年内',
+    dateCode: '',
     deliveryDate: '',
     comment: '',
     purchaseQuoteLabel: ''
@@ -431,7 +435,6 @@ const formData = ref({
   salesUserId: '' as string,
   salesUserName: '' as string,
   productKind: '现货',
-  ownerEntity: DEFAULT_OWNER,
   orderRemark: '',
   customerId: '' as string,
   customerName: '' as string,
@@ -444,23 +447,23 @@ const formData = ref({
   items: [] as OrderLineDraft[]
 })
 
-const itemRules = {
-  pn: [{ required: true, message: '请输入物料型号', trigger: 'blur' }],
-  brand: [{ required: true, message: '请输入品牌', trigger: 'blur' }],
-  customerPo: [{ required: true, message: '请输入客户订单号', trigger: 'blur' }],
-  qty: [{ required: true, message: '请输入数量', trigger: 'change' }],
-  dateCode: [{ required: true, message: '请选择生产日期要求', trigger: 'change' }],
-  deliveryDate: [{ required: true, message: '请选择交期', trigger: 'change' }]
-}
+const itemRules = computed(() => ({
+  pn: [{ required: true, message: t('salesOrderCreate.validation.pn'), trigger: 'blur' }],
+  brand: [{ required: true, message: t('salesOrderCreate.validation.brand'), trigger: 'blur' }],
+  customerPo: [{ required: true, message: t('salesOrderCreate.validation.customerPo'), trigger: 'blur' }],
+  qty: [{ required: true, message: t('salesOrderCreate.validation.qty'), trigger: 'change' }],
+  dateCode: [{ required: true, message: t('salesOrderCreate.validation.dateCode'), trigger: 'change' }],
+  deliveryDate: [{ required: true, message: t('salesOrderCreate.validation.deliveryDate'), trigger: 'change' }]
+}))
 
-const formRules: FormRules = {
-  type: [{ required: true, message: '请选择订单类型', trigger: 'change' }],
-  salesUserId: [{ required: true, message: '请选择负责人', trigger: 'change' }],
-  productKind: [{ required: true, message: '请选择产品', trigger: 'change' }],
-  customerId: [{ required: true, message: '请选择客户', trigger: 'change' }],
-  customerContactId: [{ required: true, message: '请选择客户联系人', trigger: 'change' }],
-  paymentTermsLabel: [{ required: true, message: '请填写或选择账期', trigger: 'change' }]
-}
+const formRules = computed<FormRules>(() => ({
+  type: [{ required: true, message: t('salesOrderCreate.validation.type'), trigger: 'change' }],
+  salesUserId: [{ required: true, message: t('salesOrderCreate.validation.salesUserId'), trigger: 'change' }],
+  productKind: [{ required: true, message: t('salesOrderCreate.validation.productKind'), trigger: 'change' }],
+  customerId: [{ required: true, message: t('salesOrderCreate.validation.customerId'), trigger: 'change' }],
+  customerContactId: [{ required: true, message: t('salesOrderCreate.validation.customerContactId'), trigger: 'change' }],
+  paymentTermsLabel: [{ required: true, message: t('salesOrderCreate.validation.paymentTermsLabel'), trigger: 'change' }]
+}))
 
 const filteredItemsView = computed(() => {
   const kw = itemFilterKeyword.value.trim().toLowerCase()
@@ -481,7 +484,8 @@ function lineLineTotal(index: number) {
 const formatCurrency = (value: number, currency?: number) => {
   const symbol =
     currency === 2 ? '$' : currency === 3 ? '€' : currency === 4 ? 'HK$' : '¥'
-  return symbol + (value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const loc = locale.value === 'zh-CN' ? 'zh-CN' : 'en-US'
+  return symbol + (value || 0).toLocaleString(loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function onSalesUserChange(payload: { id: string; label: string }) {
@@ -504,7 +508,7 @@ async function onCustomerFilterInput(query: string) {
       })
       customerOptions.value = (res.items || []).map((c) => ({
         value: c.id,
-        label: c.customerName || (c as { officialName?: string }).officialName || '未知客户'
+        label: c.customerName || (c as { officialName?: string }).officialName || t('salesOrderCreate.unknownCustomer')
       }))
     } catch {
       customerOptions.value = []
@@ -565,6 +569,7 @@ function onContactChange(id: string) {
 const addItem = () => {
   const line = emptyLine()
   line.currency = formData.value.currency
+  line.dateCode = defaultProductionDateCode()
   formData.value.items.push(line)
 }
 
@@ -579,7 +584,7 @@ function applyRfqHeaderToForm(rfq: RFQ) {
     formData.value.customerId = rfq.customerId
     formData.value.customerName = String(rfq.customerName ?? '').trim()
     customerOptions.value = [
-      { value: rfq.customerId, label: formData.value.customerName || '客户' }
+      { value: rfq.customerId, label: formData.value.customerName || t('salesOrderCreate.customerFallback') }
     ]
     void loadCustomerDetail(rfq.customerId)
   }
@@ -591,16 +596,15 @@ function applyRfqHeaderToForm(rfq: RFQ) {
 
 function buildHeaderComment(): string {
   const lines: string[] = []
-  lines.push(`归属：${formData.value.ownerEntity}`)
-  lines.push(`产品：${formData.value.productKind}`)
+  lines.push(`${t('salesOrderCreate.comment.product')}：${formData.value.productKind}`)
   if (formData.value.customerContactName) {
-    lines.push(`客户联系人：${formData.value.customerContactName}`)
+    lines.push(`${t('salesOrderCreate.comment.contact')}：${formData.value.customerContactName}`)
   }
   if (formData.value.invoiceInfo?.trim()) {
-    lines.push(`发票信息：${formData.value.invoiceInfo.trim()}`)
+    lines.push(`${t('salesOrderCreate.comment.invoice')}：${formData.value.invoiceInfo.trim()}`)
   }
   if (formData.value.paymentTermsLabel?.trim()) {
-    lines.push(`账期：${formData.value.paymentTermsLabel.trim()}`)
+    lines.push(`${t('salesOrderCreate.comment.terms')}：${formData.value.paymentTermsLabel.trim()}`)
   }
   if (formData.value.orderRemark?.trim()) {
     lines.push('')
@@ -612,7 +616,7 @@ function buildHeaderComment(): string {
 function buildItemComment(it: OrderLineDraft): string | undefined {
   const parts: string[] = []
   if (it.customerMaterialModel?.trim()) {
-    parts.push(`客户物料型号：${it.customerMaterialModel.trim()}`)
+    parts.push(`${t('salesOrderCreate.comment.customerMpn')}：${it.customerMaterialModel.trim()}`)
   }
   if (it.comment?.trim()) {
     parts.push(it.comment.trim())
@@ -662,13 +666,15 @@ function parseQuoteIdsFromRoute(): string[] {
 
 function purchaseQuoteLabelFromRow(first: Record<string, unknown> | undefined): string {
   if (!first) return ''
-  const p = Number(first.unitPrice) || 0
-  const cur = mapQuoteCurrencyToOrderCurrency(Number(first.currency ?? 0))
+  const p = quoteRowUnitPrice(first)
+  const cur = mapQuoteCurrencyToOrderCurrency(first.currency ?? first.Currency ?? 0)
   const code = currencyCode(cur)
-  return `采购报价：${formatUnitPriceNumber(p)} ${code}`
+  return `${t('salesOrderCreate.purchaseQuotePrefix')}：${formatUnitPriceNumber(p)} ${code}`
 }
 
 onMounted(async () => {
+  await ensureMaterialPdDict()
+
   const user = authStore.user
   if (user?.id && !formData.value.salesUserId) {
     formData.value.salesUserId = user.id
@@ -689,7 +695,7 @@ onMounted(async () => {
       .filter((q): q is Record<string, unknown> => q != null)
 
     if (quotes.length !== ids.length) {
-      ElMessage.error('部分报价单不存在或无权访问')
+      ElMessage.error(t('salesOrderCreate.messages.quotePartialMissing'))
       addItem()
       return
     }
@@ -697,7 +703,7 @@ onMounted(async () => {
     const customerIds = await Promise.all(quotes.map((q) => resolveCustomerIdFromQuoteDetail(q)))
     const nonempty = customerIds.filter(Boolean)
     if (nonempty.length >= 2 && new Set(nonempty).size > 1) {
-      ElMessage.error('请选择同一家客户生成销售订单')
+      ElMessage.error(t('salesOrderCreate.messages.sameCustomerRequired'))
       addItem()
       return
     }
@@ -726,6 +732,7 @@ onMounted(async () => {
       let brand = ''
       let reqQty = 1
       let custMpn = ''
+      let reqProductionDate = ''
       if (rfqItemId) {
         try {
           const ri = await rfqApi.getRFQItemById(rfqItemId)
@@ -734,6 +741,7 @@ onMounted(async () => {
           brand = String(ri.brand ?? '')
           reqQty = Math.max(1, Number(ri.quantity) || 1)
           custMpn = String(ri.customerMaterialModel ?? '')
+          reqProductionDate = String(ri.productionDate ?? '').trim()
         } catch {
           /* 仅用报价头 */
         }
@@ -741,7 +749,7 @@ onMounted(async () => {
       const rawItems = (q.items as Record<string, unknown>[] | undefined) || []
       const headerMpn = String(q.mpn ?? '')
       const first = rawItems[0]
-      const purchase = Number(first?.unitPrice) || 0
+      const purchase = quoteRowUnitPrice(first)
       const line: OrderLineDraft = {
         quoteId: qid,
         pn: String(first?.mpn ?? pn ?? headerMpn),
@@ -750,9 +758,14 @@ onMounted(async () => {
         customerPo: '',
         qty: Math.max(1, Number(first?.quantity) || reqQty),
         price: purchase,
-        currency: first ? mapQuoteCurrencyToOrderCurrency(Number(first.currency ?? 0)) : formData.value.currency,
+        currency: first
+          ? mapQuoteCurrencyToOrderCurrency(first.currency ?? first.Currency ?? 0)
+          : formData.value.currency,
         purchasePriceDisplay: purchase,
-        dateCode: '2年内',
+        dateCode:
+          coercePd(reqProductionDate) ||
+          coercePd(String(first?.dateCode ?? first?.DateCode ?? '')) ||
+          defaultProductionDateCode(),
         deliveryDate: '',
         comment: '',
         purchaseQuoteLabel: purchaseQuoteLabelFromRow(first)
@@ -769,7 +782,7 @@ onMounted(async () => {
       addItem()
     }
   } catch {
-    ElMessage.error('加载报价失败')
+    ElMessage.error(t('salesOrderCreate.messages.loadQuotesFailed'))
     addItem()
   }
 })
@@ -777,7 +790,7 @@ onMounted(async () => {
 const handleSubmit = async () => {
   await runValidatedFormSave(formRef, {
     loading: submitLoading,
-    successMessage: '销售订单创建成功',
+    successMessage: t('salesOrderCreate.messages.createSuccess'),
     task: async () => {
       const firstLineCur = formData.value.items[0]?.currency
       const headerCurrency = firstLineCur ?? formData.value.currency
@@ -811,7 +824,7 @@ const handleSubmit = async () => {
       if (back) router.push(back)
       else router.push({ name: 'SalesOrderList' })
     },
-    errorMessage: () => '创建失败，请重试'
+    errorMessage: (e) => getApiErrorMessage(e, t('salesOrderCreate.messages.createFailed'))
   })
 }
 </script>
@@ -958,15 +971,6 @@ const handleSubmit = async () => {
 
 .material-card-body {
   padding: 12px 14px 4px;
-}
-
-.price-currency-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  .price-input { flex: 1; min-width: 0; }
-  .currency-mini { width: 88px; flex-shrink: 0; }
 }
 
 .total-inline {

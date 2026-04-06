@@ -10,11 +10,14 @@ import {
   type CustomerListFilterQuery
 } from '@/utils/customerListQuery'
 import { CUSTOMER_WORKFLOW_STATUS_OPTIONS } from '@/constants/customerWorkflowStatus'
+import { useCustomerDictStore } from '@/stores/customerDict'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const customerDict = useCustomerDictStore()
 const { t } = useI18n()
+
 const canViewCustomerInfo = authStore.hasPermission('customer.info.read')
 
 const workflowStatusOptions = CUSTOMER_WORKFLOW_STATUS_OPTIONS
@@ -92,6 +95,7 @@ function handleSearch() {
 }
 
 onMounted(async () => {
+  void customerDict.ensureLoaded()
   try {
     salesUsers.value = await authApi.getSalesUsersForSelect()
   } catch {
@@ -147,12 +151,12 @@ onMounted(async () => {
           filterable
           :teleported="false"
         >
-          <el-option :label="t('customerList.level.D')" value="D" />
-          <el-option :label="t('customerList.level.C')" value="C" />
-          <el-option :label="t('customerList.level.B')" value="B" />
-          <el-option label="BPO" value="BPO" />
-          <el-option label="VIP" value="VIP" />
-          <el-option label="VPO" value="VPO" />
+          <el-option
+            v-for="opt in customerDict.levelStringOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
         </el-select>
       </div>
 
@@ -166,11 +170,12 @@ onMounted(async () => {
           filterable
           :teleported="false"
         >
-          <el-option label="OEM" :value="1" />
-          <el-option label="ODM" :value="2" />
-          <el-option :label="t('customerList.type.endUser')" :value="3" />
-          <el-option :label="t('customerList.type.trader')" :value="5" />
-          <el-option :label="t('customerList.type.agency')" :value="6" />
+          <el-option
+            v-for="opt in customerDict.typeSelectOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
         </el-select>
       </div>
 
@@ -184,11 +189,12 @@ onMounted(async () => {
           filterable
           :teleported="false"
         >
-          <el-option :label="t('customerList.industry.Manufacturing')" value="Manufacturing" />
-          <el-option :label="t('customerList.industry.Technology')" value="Technology" />
-          <el-option :label="t('customerList.industry.Trading')" value="Trading" />
-          <el-option :label="t('customerList.industry.Construction')" value="Construction" />
-          <el-option :label="t('customerList.industry.Other')" value="Other" />
+          <el-option
+            v-for="opt in customerDict.industryOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
         </el-select>
       </div>
 

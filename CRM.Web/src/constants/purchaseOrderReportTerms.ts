@@ -1,3 +1,5 @@
+import { SETTLEMENT_RMB_VAT_RATE_DECIMAL } from './currency'
+
 /**
  * 采购订单报表「服务条款」正文（与业务模版一致，可按法务要求维护）。
  */
@@ -18,5 +20,5 @@ export const PURCHASE_ORDER_SERVICE_TERMS: string[] = [
   '货物验收：需方应在收到货物后5日内进行验收，如发现货物的品质、型号和数量等指标不符，需方应在5日内以书面形式提出，经过双方确认验收不合格的，供方可以给予需方进行退换货处理。'
 ]
 
-/** 报表用增值税率展示（明细无税率字段时用于页脚推算，与常见采购单模版一致） */
-export const PURCHASE_ORDER_REPORT_TAX_RATE = 0.13
+/** 仅人民币明细在报表中按此比例推算增值税；外币明细税率为 0（见 settlementVatRateDecimal） */
+export const PURCHASE_ORDER_REPORT_TAX_RATE = SETTLEMENT_RMB_VAT_RATE_DECIMAL

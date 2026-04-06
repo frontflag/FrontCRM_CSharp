@@ -10,6 +10,7 @@ using CRM.Core.Models.RFQ;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.System;
 using CRM.Core.Models.Vendor;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,15 +26,24 @@ namespace CRM.API.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly IStockInService _stockInService;
+        private readonly IFinanceExchangeRateService _financeExchangeRateService;
+        private readonly ISellOrderExtendLineSeqService _sellLineSeq;
+        private readonly IPurchaseOrderExtendLineSeqService _poLineSeq;
 
         public DebugController(
             ApplicationDbContext context,
             IConfiguration configuration,
-            IStockInService stockInService)
+            IStockInService stockInService,
+            IFinanceExchangeRateService financeExchangeRateService,
+            ISellOrderExtendLineSeqService sellLineSeq,
+            IPurchaseOrderExtendLineSeqService poLineSeq)
         {
             _context = context;
             _configuration = configuration;
             _stockInService = stockInService;
+            _financeExchangeRateService = financeExchangeRateService;
+            _sellLineSeq = sellLineSeq;
+            _poLineSeq = poLineSeq;
         }
 
         public class DebugItemDto
@@ -389,6 +399,7 @@ namespace CRM.API.Controllers
 
             if (targetIdx >= 2 && firstCreateIdx <= 2 && quote != null && rfqItem != null)
             {
+                var fxDto = await _financeExchangeRateService.GetCurrentAsync();
                 var soStatus = normalizedNode == "salesorder" ? request.Status : (short)20;
                 salesOrder = new SellOrder
                 {
@@ -405,22 +416,28 @@ namespace CRM.API.Controllers
                     CreateTime = now,
                     Comment = $"DEBUG链路:{chainNo}"
                 };
+                _context.SellOrders.Add(salesOrder);
+                await _context.SaveChangesAsync();
+                var soSeq = await _sellLineSeq.ReserveNextSequenceBlockAsync(salesOrder.Id, 1);
                 salesOrderItem = new SellOrderItem
                 {
                     Id = Guid.NewGuid().ToString(),
                     SellOrderId = salesOrder.Id,
+                    SellOrderItemCode = OrderLineItemCodes.Sell(salesOrder.SellOrderCode, soSeq),
                     QuoteId = quote.Id,
                     ProductId = materialId,
                     PN = rfqItem.Mpn,
                     Brand = rfqItem.Brand,
                     Qty = 10,
                     Price = 12.3456m,
+                    Currency = 1,
                     Status = 0,
                     CreateTime = now
                 };
-                _context.SellOrders.Add(salesOrder);
+                salesOrderItem.ConvertPrice = ExchangeRateToUsdConverter.UnitLocalToUsd(
+                    salesOrderItem.Price, salesOrderItem.Currency, fxDto.UsdToCny, fxDto.UsdToHkd, fxDto.UsdToEur);
                 _context.SellOrderItems.Add(salesOrderItem);
-                // 先落库销售订单链路，避免后续采购申请引用时触发 FK 顺序问题
+                // 先落库销售订单主表再写明细（外键 + 明细编号水位）
                 await _context.SaveChangesAsync();
                 createdNodes.Add($"SalesOrder:{salesOrder.SellOrderCode}");
             }
@@ -451,6 +468,7 @@ namespace CRM.API.Controllers
 
             if (targetIdx >= 4 && firstCreateIdx <= 4 && salesOrderItem != null)
             {
+                var fxPo = await _financeExchangeRateService.GetCurrentAsync();
                 po = new PurchaseOrder
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -468,10 +486,14 @@ namespace CRM.API.Controllers
                     CreateTime = now,
                     Comment = $"DEBUG链路:{chainNo}"
                 };
+                _context.PurchaseOrders.Add(po);
+                await _context.SaveChangesAsync();
+                var poSeq = await _poLineSeq.ReserveNextSequenceBlockAsync(po.Id, 1);
                 poItem = new PurchaseOrderItem
                 {
                     Id = Guid.NewGuid().ToString(),
                     PurchaseOrderId = po.Id,
+                    PurchaseOrderItemCode = OrderLineItemCodes.Purchase(po.PurchaseOrderCode, poSeq),
                     SellOrderItemId = salesOrderItem.Id,
                     VendorId = vendorId,
                     ProductId = materialId,
@@ -479,11 +501,13 @@ namespace CRM.API.Controllers
                     Brand = salesOrderItem.Brand,
                     Qty = salesOrderItem.Qty,
                     Cost = 10.1234m,
+                    Currency = 1,
                     Status = normalizedNode == "purchaseorder" ? request.Status : (short)60,
                     StockInStatus = 1,
                     CreateTime = now
                 };
-                _context.PurchaseOrders.Add(po);
+                poItem.ConvertPrice = ExchangeRateToUsdConverter.UnitLocalToUsd(
+                    poItem.Cost, poItem.Currency, fxPo.UsdToCny, fxPo.UsdToHkd, fxPo.UsdToEur);
                 _context.PurchaseOrderItems.Add(poItem);
                 await _context.SaveChangesAsync();
                 createdNodes.Add($"PurchaseOrder:{po.PurchaseOrderCode}");
@@ -554,13 +578,30 @@ namespace CRM.API.Controllers
             {
                 var desiredStockInStatus = normalizedNode == "stockin" ? request.Status : (short)2;
                 var initialStockInStatus = desiredStockInStatus == 2 ? (short)1 : desiredStockInStatus;
+                SellOrderItem? soLineForPo = null;
+                if (!string.IsNullOrWhiteSpace(poItem.SellOrderItemId))
+                    soLineForPo = await _context.SellOrderItems.FindAsync(poItem.SellOrderItemId);
                 stockIn = new StockIn
                 {
                     Id = Guid.NewGuid().ToString(),
                     StockInCode = $"STI{codeSuffix}",
                     StockInType = 1,
-                    SourceCode = po.PurchaseOrderCode.Length > 32 ? po.PurchaseOrderCode[..32] : po.PurchaseOrderCode,
-                    SourceId = po.Id,
+                    PurchaseOrderItemId = poItem.Id,
+                    PurchaseOrderItemCode = string.IsNullOrWhiteSpace(poItem.PurchaseOrderItemCode)
+                        ? null
+                        : poItem.PurchaseOrderItemCode.Trim(),
+                    SellOrderItemId = string.IsNullOrWhiteSpace(poItem.SellOrderItemId)
+                        ? null
+                        : poItem.SellOrderItemId.Trim(),
+                    SellOrderItemCode = string.IsNullOrWhiteSpace(soLineForPo?.SellOrderItemCode)
+                        ? null
+                        : soLineForPo!.SellOrderItemCode.Trim(),
+                    SourceId = notify != null ? notify.Id : null,
+                    SourceCode = notify != null && !string.IsNullOrWhiteSpace(notify.NoticeCode)
+                        ? notify.NoticeCode.Trim()
+                        : null,
+                    QcId = qc.Id,
+                    QcCode = string.IsNullOrWhiteSpace(qc.QcCode) ? null : qc.QcCode.Trim(),
                     WarehouseId = warehouseId,
                     VendorId = vendorId,
                     StockInDate = now,

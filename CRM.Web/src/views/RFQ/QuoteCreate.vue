@@ -152,7 +152,7 @@
         <el-row :gutter="12" class="quote-triple-row">
           <el-col :span="12">
             <el-form-item label="生产日期/DC" prop="productionDate">
-              <el-input v-model="formData.productionDate" placeholder="如：2年内" clearable />
+              <MaterialProductionDateSelect v-model="formData.productionDate" placeholder="请选择生产日期/DC" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -239,10 +239,11 @@
           <el-input v-model="formData.remark" type="textarea" :rows="2" placeholder="请输入备注" />
         </el-form-item>
 
-        <!-- 采购报价：数量 / 价格 / 折算价（可增删行，默认一行空白） -->
+        <!-- 采购报价：数量 / 价格 / 折算价（可增删行；折算价=人民币，按系统汇率自动算，不可手输） -->
         <div class="price-tier-panel">
           <div class="price-tier-header">
             <h4 class="price-tier-title">采购报价</h4>
+            <p class="price-tier-hint">折算价为人民币金额，根据「系统设置 → 财务参数 → 汇率」自动换算；修改单价或币别后自动更新。</p>
           </div>
           <CrmDataTable class="price-tier-table" :data="formData.quotePriceRows" size="small">
               <el-table-column label="数量" min-width="120">
@@ -255,43 +256,23 @@
                   />
                 </template>
               </el-table-column>
-              <el-table-column label="价格" min-width="140">
+              <el-table-column label="价格 / 币别" min-width="220" class-name="tier-col-price-ccy">
                 <template #default="{ $index }">
-                  <el-input-number
+                  <SettlementCurrencyAmountInput
                     v-model="formData.quotePriceRows[$index].unitPrice"
+                    v-model:currency="formData.quotePriceRows[$index].currency"
                     :min="0"
                     :precision="6"
-                    :controls="false"
-                    style="width: 100%"
-                  />
-                </template>
-              </el-table-column>
-              <el-table-column label="币别" min-width="128" class-name="tier-col-currency">
-                <template #default="{ $index }">
-                  <el-select
-                    v-model="formData.quotePriceRows[$index].currency"
-                    class="q-select tier-currency-select"
                     size="small"
-                  >
-                    <el-option
-                      v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
-                      :key="opt.value"
-                      :label="opt.label"
-                      :value="opt.value"
-                    />
-                  </el-select>
+                    class="q-select tier-price-ccy-input"
+                  />
                 </template>
               </el-table-column>
-              <el-table-column label="折算价" min-width="140">
+              <el-table-column label="折算价（¥）" min-width="168">
                 <template #default="{ $index }">
-                  <el-input-number
-                    v-model="formData.quotePriceRows[$index].convertedPrice"
-                    :min="0"
-                    :precision="6"
-                    :controls="false"
-                    placeholder="折算价"
-                    style="width: 100%"
-                  />
+                  <span class="tier-converted-display" :title="convertedPriceTitle(formData.quotePriceRows[$index].convertedPrice)">
+                    {{ formatConvertedPrice(formData.quotePriceRows[$index].convertedPrice) }}
+                  </span>
                 </template>
               </el-table-column>
               <el-table-column label="" width="108" align="center" fixed="right">
@@ -337,13 +318,18 @@ import {
   fetchLinkedRfqItemRecord
 } from '@/utils/rfqLinkedItemSummary'
 import { useAuthStore } from '@/stores/auth'
-import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
+import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
+import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
+import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
+import { financeExchangeRateApi } from '@/api/financeExchangeRate'
+import { CurrencyCode } from '@/constants/currency'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { ensureLoaded: ensureMaterialPdDict, coerceProductionDateToCode: coercePd } = useMaterialProductionDateDict()
 
 const isEditMode = computed(() => route.name === 'QuoteEdit')
 const upsertTitle = computed(() => (isEditMode.value ? '编辑报价' : '新建报价'))
@@ -392,12 +378,18 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10)
 }
 
+/** 与 RFQ 编辑页展示一致：接口失败时的默认汇率（1 USD 兑外币数量） */
+const DEFAULT_EXCHANGE_RATES = { usdToCny: 6.9228, usdToHkd: 7.8238, usdToEur: 0.8525 }
+
+const exchangeRates = ref({ ...DEFAULT_EXCHANGE_RATES })
+
 function emptyPriceRow() {
   return {
     quantity: 0,
     unitPrice: 0,
-    /** 与历史主体字段一致：0=RMB，1=USD */
-    currency: 1,
+    /** 与 SETTLEMENT_CURRENCY_OPTIONS / CurrencyCode 一致 */
+    currency: CurrencyCode.RMB,
+    /** 人民币折算价，由汇率自动计算，勿手改 */
     convertedPrice: undefined as number | undefined
   }
 }
@@ -446,6 +438,85 @@ const formData = ref({
   quotePriceRows: [emptyPriceRow()]
 })
 
+function roundMoney6(n: number): number {
+  if (!Number.isFinite(n)) return 0
+  return Math.round(n * 1e6) / 1e6
+}
+
+/**
+ * 系统汇率含义（与财务参数页一致）：1 USD 可兑 usdToCny 人民币、usdToHkd 港币、usdToEur 欧元。
+ * 将单行「单价 + 币别」折算为人民币金额（不含税）。
+ */
+function unitPriceToCny(
+  unitPrice: number,
+  currency: number,
+  rates: { usdToCny: number; usdToHkd: number; usdToEur: number }
+): number | undefined {
+  const p = Number(unitPrice)
+  if (!Number.isFinite(p) || p < 0) return undefined
+  const { usdToCny, usdToHkd, usdToEur } = rates
+  if (!usdToCny || usdToCny <= 0) return undefined
+
+  switch (currency) {
+    case CurrencyCode.RMB:
+      return roundMoney6(p)
+    case CurrencyCode.USD:
+      return roundMoney6(p * usdToCny)
+    case CurrencyCode.HKD:
+      if (!usdToHkd || usdToHkd <= 0) return undefined
+      return roundMoney6((p / usdToHkd) * usdToCny)
+    case CurrencyCode.EUR:
+      if (!usdToEur || usdToEur <= 0) return undefined
+      return roundMoney6((p / usdToEur) * usdToCny)
+    default:
+      return undefined
+  }
+}
+
+function recalcAllConvertedPrices() {
+  const rates = exchangeRates.value
+  for (const row of formData.value.quotePriceRows) {
+    const cny = unitPriceToCny(Number(row.unitPrice), Number(row.currency), rates)
+    if (row.convertedPrice !== cny) row.convertedPrice = cny
+  }
+}
+
+function formatConvertedPrice(v: number | undefined) {
+  if (v == null || Number.isNaN(Number(v))) return '—'
+  return Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 6 })
+}
+
+function convertedPriceTitle(v: number | undefined) {
+  if (v == null || Number.isNaN(Number(v))) return ''
+  return `人民币折算价：${Number(v)}（保存时提交）`
+}
+
+async function refreshExchangeRatesFromApi() {
+  try {
+    const dto = await financeExchangeRateApi.getCurrent()
+    exchangeRates.value = {
+      usdToCny: Number(dto.usdToCny) || DEFAULT_EXCHANGE_RATES.usdToCny,
+      usdToHkd: Number(dto.usdToHkd) || DEFAULT_EXCHANGE_RATES.usdToHkd,
+      usdToEur: Number(dto.usdToEur) || DEFAULT_EXCHANGE_RATES.usdToEur
+    }
+  } catch {
+    exchangeRates.value = { ...DEFAULT_EXCHANGE_RATES }
+    ElMessage.warning(
+      '加载系统汇率失败，已使用默认汇率计算折算价；请在「系统设置 → 财务参数 → 汇率」维护后刷新本页。'
+    )
+  }
+}
+
+watch(
+  () => formData.value.quotePriceRows,
+  () => {
+    recalcAllConvertedPrices()
+  },
+  { deep: true }
+)
+
+watch(exchangeRates, () => recalcAllConvertedPrices(), { deep: true })
+
 const targetPriceText = computed(() => {
   const p = formData.value.targetPrice
   if (p == null || p === ('' as any)) return '—'
@@ -460,6 +531,7 @@ function formatNumber(n: number) {
 }
 
 async function loadLinkedRfqItem() {
+  await ensureMaterialPdDict()
   const { rfqId, rfqItemId, rfqItemIds } = rfqLink.value
   const itemId = rfqItemId || (rfqItemIds.length === 1 ? rfqItemIds[0] : '')
   rfqDetailLocked.value = false
@@ -492,7 +564,9 @@ async function loadLinkedRfqItem() {
     formData.value.quantity = qty
     formData.value.targetPrice = targetPrice
     formData.value.currencyLabel = mapCurrencyLabelFromRaw(item)
-    formData.value.productionDate = String(item.productionDate ?? item.ProductionDate ?? '') || ''
+    formData.value.productionDate = coercePd(
+      String(item.productionDate ?? item.ProductionDate ?? '').trim()
+    )
     const exp = item.expiryDate ?? item.ExpiryDate
     if (exp) {
       formData.value.expiryDate = String(exp).slice(0, 10)
@@ -538,7 +612,7 @@ const formRules = {
   priceType: [{ required: true, message: '请选择价格类型', trigger: 'change' }],
   expiryDate: [{ required: true, message: '请选择失效日期', trigger: 'change' }],
   brand: [{ required: true, message: '请输入品牌', trigger: 'blur' }],
-  productionDate: [{ required: true, message: '请输入生产日期/DC', trigger: 'blur' }],
+  productionDate: [{ required: true, message: '请选择生产日期/DC', trigger: 'change' }],
   waferOrigin: [{ required: true, message: '请选择晶圆产地', trigger: 'change' }],
   packageOrigin: [{ required: true, message: '请选择封装产地', trigger: 'change' }],
   salesUserId: [{ required: true, message: '请选择业务员', trigger: 'change' }]
@@ -673,8 +747,10 @@ function applyQuoteToForm(q: Record<string, unknown>) {
     formData.value.priceType = String(first.priceType ?? first.PriceType ?? '')
     const exp = first.expiryDate ?? first.ExpiryDate
     formData.value.expiryDate = exp ? String(exp).slice(0, 10) : ''
-    formData.value.productionDate = String(
-      first.productionDate ?? first.ProductionDate ?? first.dateCode ?? first.DateCode ?? ''
+    formData.value.productionDate = coercePd(
+      String(
+        first.productionDate ?? first.ProductionDate ?? first.dateCode ?? first.DateCode ?? ''
+      ).trim()
     )
     formData.value.leadTime = String(first.leadTime ?? first.LeadTime ?? '')
     formData.value.labelType = Number(first.labelType ?? first.LabelType ?? 0)
@@ -704,6 +780,7 @@ function applyQuoteToForm(q: Record<string, unknown>) {
 }
 
 async function loadQuoteForEdit() {
+  await ensureMaterialPdDict()
   const id = route.params.id as string
   if (!id) return
   pageLoading.value = true
@@ -759,8 +836,11 @@ function removePriceRow(index: number) {
 }
 
 onMounted(async () => {
+  await refreshExchangeRatesFromApi()
+  await ensureMaterialPdDict()
   if (isEditMode.value) {
     await loadQuoteForEdit()
+    recalcAllConvertedPrices()
     return
   }
   const u = authStore.user
@@ -770,6 +850,7 @@ onMounted(async () => {
   if (u?.userName && !formData.value.salesUserName) {
     formData.value.salesUserName = u.userName
   }
+  recalcAllConvertedPrices()
 })
 
 const handleSubmit = async () => {
@@ -788,11 +869,16 @@ const handleSubmit = async () => {
     },
     task: async () => {
       const first = rows[0]
+      const ids = rfqLink.value.rfqItemIds
+      const fallbackItemId =
+        formData.value.rfqItemId ||
+        rfqLink.value.rfqItemId ||
+        (ids.length === 1 ? ids[0] : '')
       const data = {
         ...formData.value,
         quoteDate: formData.value.quoteDate || todayStr(),
         rfqId: formData.value.rfqId || rfqLink.value.rfqId,
-        rfqItemId: formData.value.rfqItemId || rfqLink.value.rfqItemId,
+        rfqItemId: fallbackItemId,
         quotePriceRows: rows.map((r) => ({ ...r })),
         quoteCurrency: first?.currency ?? 1,
         unitPrice: first?.unitPrice ?? 0,
@@ -931,6 +1017,21 @@ const handleSubmit = async () => {
     font-weight: 600;
   }
 
+  .price-tier-hint {
+    margin: 6px 0 0;
+    font-size: 12px;
+    line-height: 1.45;
+    color: rgba(200, 216, 232, 0.55);
+  }
+
+  .tier-converted-display {
+    display: inline-block;
+    width: 100%;
+    font-variant-numeric: tabular-nums;
+    color: rgba(232, 244, 255, 0.92);
+    font-size: 13px;
+  }
+
   .tier-actions {
     display: inline-flex;
     align-items: center;
@@ -939,18 +1040,12 @@ const handleSubmit = async () => {
     width: 100%;
   }
 
-  /* 币别下拉：列宽与 select 最小宽度保证 USD/RMB 不被截断 */
-  :deep(.tier-col-currency .cell) {
+  :deep(.tier-col-price-ccy .cell) {
     overflow: visible;
   }
 
-  .tier-currency-select {
+  .tier-price-ccy-input {
     width: 100%;
-    min-width: 112px;
-  }
-
-  .tier-currency-select :deep(.el-select__wrapper) {
-    min-width: 112px;
   }
 }
 

@@ -10,9 +10,9 @@ namespace CRM.Core.Interfaces
         Task UpdateArrivalNoticeStatusAsync(string id, short status);
 
         Task<IReadOnlyList<QCInfo>> GetQcsAsync(QcQueryRequest? request = null);
-        Task<QCInfo> CreateQcAsync(CreateQcRequest request);
-        Task<QCInfo> UpdateQcResultAsync(string id, UpdateQcResultRequest request);
-        Task BindQcStockInAsync(string id, string stockInId);
+        Task<QCInfo> CreateQcAsync(CreateQcRequest request, string? actingUserId = null);
+        Task<QCInfo> UpdateQcResultAsync(string id, UpdateQcResultRequest request, string? actingUserId = null);
+        Task BindQcStockInAsync(string id, string stockInId, string? actingUserId = null);
         Task HandleStockInCompletedAsync(string stockInId, string? purchaseOrderId);
     }
 

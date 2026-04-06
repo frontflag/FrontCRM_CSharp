@@ -7,13 +7,13 @@ namespace CRM.Core.Interfaces
     /// </summary>
     public interface IFinanceSellInvoiceService
     {
-        Task<FinanceSellInvoice> CreateAsync(CreateFinanceSellInvoiceRequest request);
+        Task<FinanceSellInvoice> CreateAsync(CreateFinanceSellInvoiceRequest request, string? actingUserId = null);
         Task<FinanceSellInvoice?> GetByIdAsync(string id);
         Task<IEnumerable<FinanceSellInvoice>> GetAllAsync();
-        Task<FinanceSellInvoice> UpdateAsync(string id, UpdateFinanceSellInvoiceRequest request);
+        Task<FinanceSellInvoice> UpdateAsync(string id, UpdateFinanceSellInvoiceRequest request, string? actingUserId = null);
         Task DeleteAsync(string id);
-        Task UpdateInvoiceStatusAsync(string id, short invoiceStatus);
-        Task VoidAsync(string id);
+        Task UpdateInvoiceStatusAsync(string id, short invoiceStatus, string? actingUserId = null);
+        Task VoidAsync(string id, string? actingUserId = null);
         Task<PagedResult<FinanceSellInvoice>> GetPagedAsync(FinanceSellInvoiceQueryRequest request);
     }
 

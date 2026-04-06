@@ -8,15 +8,75 @@ export enum CustomerLevel {
   VPO = 6
 }
 
-// 客户类型
+// 客户类型（与后端 customerinfo.Type 一致）
 export enum CustomerType {
   OEM = 1,
   ODM = 2,
   EndUser = 3,
   IDH = 4,
   Trader = 5,
-  Agent = 6
+  Agent = 6,
+  EMS = 7,
+  NonIndustry = 8,
+  ResearchInstitution = 9,
+  SupplyChain = 10,
+  OriginalFactory = 11
 }
+
+/** 编辑/列表/筛选共用（1–11） */
+export const CUSTOMER_TYPE_FORM_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const
+
+export const CUSTOMER_TYPE_FILTER_VALUES = CUSTOMER_TYPE_FORM_VALUES
+
+/** 列表/搜索/详情等用的 i18n 键（customerList.type.*） */
+export const CUSTOMER_TYPE_LABEL_I18N_KEY: Record<number, string> = {
+  1: 'customerList.type.oemLegacy',
+  2: 'customerList.type.odm',
+  3: 'customerList.type.terminal',
+  4: 'customerList.type.idh',
+  5: 'customerList.type.trader',
+  6: 'customerList.type.agency',
+  7: 'customerList.type.ems',
+  8: 'customerList.type.nonIndustry',
+  9: 'customerList.type.research',
+  10: 'customerList.type.supplyChain',
+  11: 'customerList.type.originalFactory'
+}
+
+export function customerTypeLabelI18nKey(type: number | undefined): string {
+  if (type == null || type === 0) return 'customerList.status.unknown'
+  return CUSTOMER_TYPE_LABEL_I18N_KEY[type] ?? 'customerList.status.unknown'
+}
+
+/** 客户行业（后端 Industry 存英文键；下拉顺序与产品一致） */
+export const CUSTOMER_INDUSTRY_VALUES = [
+  'FinanceEquipment',
+  'Telecom',
+  'RailTransit',
+  'Aerospace',
+  'CyberSecurity',
+  'Esports',
+  'PowerSupply',
+  'ElectronicComponentsTrading',
+  'ElectronicComponentsManufacturing',
+  'PowerTools',
+  'PowerElectrical',
+  'IoT',
+  'ConsumerElectronics',
+  'Robotics',
+  'SmartSecurity',
+  'SmartCity',
+  'UAV',
+  'NewEnergyVehicles',
+  'NewEnergy',
+  'IndustrialControl',
+  'MedicalEquipment',
+  'DefenseMilitary',
+  'TraditionalVehicles',
+  'Instrumentation',
+  'ArtificialIntelligence',
+  'CloudComputingIDC'
+] as const
 
 // 客户归属类型
 export enum AscriptionType {
@@ -106,6 +166,8 @@ export interface Customer {
   id: string
   customerCode: string
   customerName?: string
+  /** 公司英文全称 */
+  englishOfficialName?: string
   customerShortName?: string
   customerType?: number
   customerLevel?: string
@@ -124,7 +186,7 @@ export interface Customer {
   paymentTerms?: number
   currency?: number
   taxRate?: number
-  invoiceType?: number
+  invoiceType?: number | ''
   /** 状态：1新建 2待审核 10已审核 12待财务审核 20财务建档 -1审核失败 */
   status?: number
   /** 审核驳回原因（status=-1 时） */
@@ -203,6 +265,8 @@ export interface CustomerInfo {
 export interface CreateCustomerRequest {
   customerCode?: string
   customerName: string
+  /** 公司英文全称 */
+  englishOfficialName?: string
   customerShortName?: string
   customerType: number
   customerLevel: string
@@ -219,7 +283,8 @@ export interface CreateCustomerRequest {
   paymentTerms?: number
   currency?: number
   taxRate?: number
-  invoiceType?: number
+  /** 0=无需开票；1/2/3=专票/普票/电子；兼容历史 '' */
+  invoiceType?: number | ''
   isActive?: boolean
   remarks?: string
   // 旧版字段兼容
@@ -242,6 +307,7 @@ export interface CreateCustomerRequest {
 export interface UpdateCustomerRequest {
   id?: string
   customerName?: string
+  englishOfficialName?: string
   customerShortName?: string
   customerType?: number
   customerLevel?: string
@@ -258,7 +324,7 @@ export interface UpdateCustomerRequest {
   paymentTerms?: number
   currency?: number
   taxRate?: number
-  invoiceType?: number
+  invoiceType?: number | ''
   isActive?: boolean
   remarks?: string
   // 旧版字段兼容
@@ -407,14 +473,19 @@ export const customerLevelOptions = [
   { value: 6, label: 'VPO' }
 ]
 
-// 客户类型选项
+// 客户类型选项（展示用中文，与 mapCustomerTypeToLabel 一致）
 export const customerTypeOptions = [
   { value: 1, label: 'OEM' },
   { value: 2, label: 'ODM' },
   { value: 3, label: '终端' },
   { value: 4, label: 'IDH' },
   { value: 5, label: '贸易商' },
-  { value: 6, label: '代理商' }
+  { value: 6, label: '代理商' },
+  { value: 7, label: 'EMS' },
+  { value: 8, label: '非行业' },
+  { value: 9, label: '科研机构' },
+  { value: 10, label: '供应链' },
+  { value: 11, label: '原厂' }
 ]
 
 // 客户状态选项

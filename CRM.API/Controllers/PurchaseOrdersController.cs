@@ -1,10 +1,12 @@
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Vendor;
 using CRM.API.Authorization;
 using CRM.API.Services;
 using CRM.API.Services.Interfaces;
 using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace CRM.API.Controllers
@@ -96,12 +98,13 @@ namespace CRM.API.Controllers
                         vendor = await _entityLookup.GetVendorByIdAsync(order.VendorId, cancellationToken);
                 }
                 var companyProfile = await CompanyProfileBundleLoader.LoadAsync(_db, _logger, cancellationToken);
+                var reportItemExtends = await LoadPoItemExtendsAsync(order.Items, cancellationToken);
                 return Ok(new
                 {
                     success = true,
                     data = new
                     {
-                        order = MaskPurchaseOrder(order, summary, contact, vendor),
+                        order = MaskPurchaseOrder(order, summary, contact, vendor, reportItemExtends),
                         companyProfile
                     }
                 });
@@ -133,7 +136,8 @@ namespace CRM.API.Controllers
                     if (!string.IsNullOrWhiteSpace(order.VendorId))
                         vendor = await _entityLookup.GetVendorByIdAsync(order.VendorId, cancellationToken);
                 }
-                return Ok(new { success = true, data = MaskPurchaseOrder(order, summary, contact, vendor) });
+                var detailItemExtends = await LoadPoItemExtendsAsync(order.Items, cancellationToken);
+                return Ok(new { success = true, data = MaskPurchaseOrder(order, summary, contact, vendor, detailItemExtends) });
             }
             catch (Exception ex)
             {
@@ -229,7 +233,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var order = await _service.CreateAsync(request);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var order = await _service.CreateAsync(request, actorId);
                 return CreatedAtAction(nameof(GetById), new { id = order.Id },
                     new { success = true, data = order });
             }
@@ -254,7 +259,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var order = await _service.UpdateAsync(id, request);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var order = await _service.UpdateAsync(id, request, actorId);
                 return Ok(new { success = true, data = order });
             }
             catch (InvalidOperationException ex)
@@ -292,7 +298,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.UpdateStatusAsync(id, request.Status);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.UpdateStatusAsync(id, request.Status, actorId);
                 return Ok(new { success = true, message = "状态更新成功" });
             }
             catch (InvalidOperationException ex)
@@ -332,15 +339,43 @@ namespace CRM.API.Controllers
             return await _rbacService.GetUserPermissionSummaryAsync(userId);
         }
 
+        private async Task<IReadOnlyDictionary<string, PurchaseOrderItemExtend>?> LoadPoItemExtendsAsync(
+            ICollection<PurchaseOrderItem>? items,
+            CancellationToken cancellationToken = default)
+        {
+            if (items == null || items.Count == 0) return null;
+            var ids = items.Select(i => i.Id).ToList();
+            var rows = await _db.PurchaseOrderItemExtends.AsNoTracking()
+                .Where(e => ids.Contains(e.Id))
+                .ToListAsync(cancellationToken);
+            if (rows.Count == 0) return null;
+            return rows.ToDictionary(e => e.Id, e => e, StringComparer.OrdinalIgnoreCase);
+        }
+
         private object MaskPurchaseOrder(
             CRM.Core.Models.Purchase.PurchaseOrder order,
             UserPermissionSummaryDto? summary,
             VendorContactInfo? vendorContact = null,
-            VendorInfo? vendor = null)
+            VendorInfo? vendor = null,
+            IReadOnlyDictionary<string, PurchaseOrderItemExtend>? itemExtends = null)
         {
             var canViewVendorInfo = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("vendor.info.read") ?? false);
             var canViewPurchaseAmount = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("purchase.amount.read") ?? false);
             var canWriteFinancePayment = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("finance-payment.write") ?? false);
+
+            const short poOrderCancelled = -2;
+            const short poLineCancelled = -2;
+            var itemList = (order.Items ?? Enumerable.Empty<CRM.Core.Models.Purchase.PurchaseOrderItem>()).ToList();
+            var poOrderCanceled = order.Status == poOrderCancelled;
+            var sellLinePurchaseSum = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+            if (!poOrderCanceled && itemList.Count > 0)
+            {
+                foreach (var g in itemList.GroupBy(i => (i.SellOrderItemId ?? "").Trim(), StringComparer.OrdinalIgnoreCase))
+                {
+                    if (string.IsNullOrEmpty(g.Key)) continue;
+                    sellLinePurchaseSum[g.Key] = g.Where(x => x.Status != poLineCancelled).Sum(x => x.Qty);
+                }
+            }
 
             return new
             {
@@ -372,32 +407,54 @@ namespace CRM.API.Controllers
                 order.InnerComment,
                 order.CreateTime,
                 order.ModifyTime,
-                Items = (order.Items ?? Enumerable.Empty<CRM.Core.Models.Purchase.PurchaseOrderItem>()).Select(i => new
+                order.CreateByUserId,
+                order.ModifyByUserId,
+                Items = itemList.Select(i =>
                 {
-                    i.Id,
-                    i.PurchaseOrderId,
-                    i.SellOrderItemId,
-                    VendorId = canViewVendorInfo ? i.VendorId : null,
-                    i.ProductId,
-                    i.PN,
-                    i.Brand,
-                    i.Qty,
-                    Cost = canViewPurchaseAmount ? i.Cost : 0m,
-                    i.Currency,
-                    i.Status,
-                    i.StockInStatus,
-                    i.FinancePaymentStatus,
-                    i.StockOutStatus,
-                    i.ErrStatus,
-                    i.DeliveryDate,
-                    i.Comment,
-                    i.InnerComment,
-                    i.CreateTime,
-                    i.ModifyTime,
-                    // 业务口径：主单已确认即可申请付款；兼容历史数据中“主单已确认但明细状态未同步到30”的情况
-                    CanApplyPayment = canWriteFinancePayment
-                        && i.FinancePaymentStatus < 2
-                        && (i.Status == 30 || order.Status == 30)
+                    PurchaseOrderItemExtend? ext = null;
+                    itemExtends?.TryGetValue(i.Id, out ext);
+                    var soKey = (i.SellOrderItemId ?? "").Trim();
+                    var sellLineSum = poOrderCanceled || string.IsNullOrEmpty(soKey)
+                        ? 0m
+                        : sellLinePurchaseSum.GetValueOrDefault(soKey);
+                    return new
+                    {
+                        i.Id,
+                        i.PurchaseOrderId,
+                        i.PurchaseOrderItemCode,
+                        i.SellOrderItemId,
+                        VendorId = canViewVendorInfo ? i.VendorId : null,
+                        i.ProductId,
+                        i.PN,
+                        i.Brand,
+                        i.Qty,
+                        Cost = canViewPurchaseAmount ? i.Cost : 0m,
+                        ConvertPrice = canViewPurchaseAmount ? i.ConvertPrice : 0m,
+                        i.Currency,
+                        i.Status,
+                        i.StockInStatus,
+                        i.FinancePaymentStatus,
+                        i.StockOutStatus,
+                        i.ErrStatus,
+                        i.DeliveryDate,
+                        i.Comment,
+                        i.InnerComment,
+                        i.CreateTime,
+                        i.ModifyTime,
+                        purchaseProgressStatus = ext?.PurchaseProgressStatus ?? (short)0,
+                        stockInProgressStatus = ext?.StockInProgressStatus ?? (short)0,
+                        paymentProgressStatus = ext?.PaymentProgressStatus ?? (short)0,
+                        invoiceProgressStatus = ext?.InvoiceProgressStatus ?? (short)0,
+                        purchaseProgressQty = ext?.PurchaseProgressQty ?? 0m,
+                        sellLinePurchaseQtySum = sellLineSum,
+                        stockInProgressQty = ext?.QtyReceiveTotal ?? 0m,
+                        paymentProgressAmount = canViewPurchaseAmount ? (ext?.PaymentAmountFinish ?? 0m) : 0m,
+                        invoiceProgressAmount = canViewPurchaseAmount ? (ext?.PurchaseInvoiceDone ?? 0m) : 0m,
+                        // 业务口径：主单已确认即可申请付款；兼容历史数据中“主单已确认但明细状态未同步到30”的情况
+                        CanApplyPayment = canWriteFinancePayment
+                            && i.FinancePaymentStatus < 2
+                            && (i.Status == 30 || order.Status == 30)
+                    };
                 }).ToList()
             };
         }

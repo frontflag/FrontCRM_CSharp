@@ -1,5 +1,6 @@
 <template>
   <div class="finance-page">
+    <h1 class="finance-list-page-title">{{ t('financePaymentList.pageTitle') }}</h1>
     <!-- 统计卡片（置顶） -->
     <div class="stat-cards">
       <div class="stat-card">
@@ -85,7 +86,9 @@
       <template #col-paymentMode="{ row }">{{ paymentModeLabel(row.paymentMode) }}</template>
       <template #col-paymentDate="{ row }">{{ row.paymentDate ? formatDisplayDate(row.paymentDate) : '-' }}</template>
       <template #col-bankSlipNo="{ row }">{{ (row as any).bankSlipNo || '-' }}</template>
-      <template #col-createdAt="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
+      <template #col-createdAt="{ row }">
+        {{ paymentRowCreateTime(row) ? formatDisplayDateTime(paymentRowCreateTime(row)!) : '-' }}
+      </template>
       <template #col-createUser="{ row }">
         {{ (row as any).createUserName || (row as any).createdBy || (row as any).paymentUserName || '-' }}
       </template>
@@ -183,8 +186,13 @@
       <el-form :model="form" label-width="100px" class="crm-form">
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item :label="t('financePaymentList.formVendorId')" required>
-              <el-input v-model="form.vendorId" :placeholder="t('financePaymentList.formVendorIdPh')" />
+            <el-form-item :label="t('financePaymentList.formVendorId')" :required="!editingId">
+              <el-input
+                v-if="!editingId"
+                v-model="form.vendorId"
+                :placeholder="t('financePaymentList.formVendorIdPh')"
+              />
+              <el-input v-else :model-value="editVendorCodeDisplay" readonly />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -238,21 +246,39 @@
           </el-col>
           <el-col :span="24" v-if="editingId">
             <el-form-item :label="t('financePaymentList.formSlipAttach')">
-              <div style="display:flex;flex-direction:column;gap:8px;width:100%">
-                <input type="file" multiple @change="onSlipFilesSelected" />
-                <div v-if="uploadingSlipDocs">{{ t('financePaymentList.uploadingSlip') }}</div>
-                <div v-if="paymentDocs.length">
+              <div class="slip-attach-wrap">
+                <div class="slip-upload-row">
+                  <el-button size="small" type="primary" plain @click="triggerSlipFilePick">
+                    {{ t('financePaymentList.slipSelectFile') }}
+                  </el-button>
+                  <span v-if="uploadingSlipDocs" class="slip-upload-hint">{{ t('financePaymentList.uploadingSlip') }}</span>
+                  <span v-else-if="paymentDocs.length" class="slip-upload-hint slip-upload-hint--ok">
+                    {{ t('financePaymentList.slipHasUploadsHint') }}
+                  </span>
+                  <span v-else class="slip-upload-hint slip-upload-hint--muted">
+                    {{ t('financePaymentList.slipPickHint') }}
+                  </span>
+                  <!-- 隐藏原生 input，避免上传后清空 value 仍显示「未选择任何文件」 -->
+                  <input
+                    ref="slipFileInputRef"
+                    type="file"
+                    multiple
+                    class="slip-file-input-hidden"
+                    @change="onSlipFilesSelected"
+                  />
+                </div>
+                <div v-if="paymentDocs.length" class="slip-doc-tags">
                   <el-tag
                     v-for="doc in paymentDocs"
                     :key="doc.id"
                     size="small"
-                    style="margin-right:8px;cursor:pointer"
+                    class="slip-doc-tag"
                     @click="downloadSlipDoc(doc)"
                   >
                     {{ doc.originalFileName }}
                   </el-tag>
                 </div>
-                <div v-else style="color:var(--el-text-color-placeholder)">{{ t('financePaymentList.noSlipUploaded') }}</div>
+                <div v-else-if="!uploadingSlipDocs" class="slip-no-docs">{{ t('financePaymentList.noSlipUploaded') }}</div>
               </div>
             </el-form-item>
           </el-col>
@@ -291,6 +317,7 @@ import {
   type FinancePayment,
   type PageQuery,
 } from '@/api/finance'
+import { vendorApi } from '@/api/vendor'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -324,11 +351,19 @@ function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 
+/** 后端序列化为 createTime；旧 mock/别名可能用 createdAt；PascalCase 需经 unknown 再读 */
+function paymentRowCreateTime(row: FinancePayment): string | undefined {
+  const ext = row as unknown as Record<string, unknown>
+  const raw = row.createTime || row.createdAt || ext.CreateTime
+  const s = raw != null ? String(raw).trim() : ''
+  return s || undefined
+}
+
 const paymentTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'financePaymentCode', label: t('financePaymentList.columns.code'), prop: 'financePaymentCode', width: 160, minWidth: 160, fixed: 'left' },
   { key: 'status', label: t('financePaymentList.columns.status'), prop: 'status', width: 100, align: 'center' },
   { key: 'vendorName', label: t('financePaymentList.columns.vendor'), prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
-  { key: 'paymentAmount', label: t('financePaymentList.columns.amount'), prop: 'paymentAmount', width: 130, align: 'right' },
+  { key: 'paymentAmount', label: t('financePaymentList.columns.amount'), prop: 'paymentAmount', width: 200, minWidth: 180, align: 'right' },
   { key: 'paymentMode', label: t('financePaymentList.columns.mode'), prop: 'paymentMode', width: 110 },
   { key: 'paymentDate', label: t('financePaymentList.columns.date'), prop: 'paymentDate', width: 120 },
   { key: 'bankSlipNo', label: t('financePaymentList.columns.bankSlip'), prop: 'bankSlipNo', width: 150, showOverflowTooltip: true },
@@ -385,11 +420,11 @@ const loadData = async () => {
 
 // 演示数据
 const getMockData = (): FinancePayment[] => [
-  { id: '1', financePaymentCode: 'PAY-2026-0001', vendorId: 'v1', vendorName: '深圳华强电子有限公司', paymentAmount: 128500, paymentCurrency: 1, paymentMode: 1, paymentDate: '2026-03-15', status: 100, remark: '3月采购款', createdAt: '2026-03-10' },
-  { id: '2', financePaymentCode: 'PAY-2026-0002', vendorId: 'v2', vendorName: '上海元器件贸易公司', paymentAmount: 56800, paymentCurrency: 1, paymentMode: 1, paymentDate: undefined, status: 2, remark: '', createdAt: '2026-03-12' },
-  { id: '3', financePaymentCode: 'PAY-2026-0003', vendorId: 'v3', vendorName: 'Arrow Electronics', paymentAmount: 23400, paymentCurrency: 2, paymentMode: 1, paymentDate: undefined, status: 1, remark: '待提交', createdAt: '2026-03-14' },
-  { id: '4', financePaymentCode: 'PAY-2026-0004', vendorId: 'v4', vendorName: '广州立创电子科技', paymentAmount: 89200, paymentCurrency: 1, paymentMode: 2, paymentDate: undefined, status: 10, remark: '', createdAt: '2026-03-13' },
-  { id: '5', financePaymentCode: 'PAY-2026-0005', vendorId: 'v1', vendorName: '深圳华强电子有限公司', paymentAmount: 34600, paymentCurrency: 1, paymentMode: 3, paymentDate: undefined, status: -1, remark: '审核驳回', createdAt: '2026-03-08' },
+  { id: '1', financePaymentCode: 'PAY-2026-0001', vendorId: 'v1', vendorCode: 'DEMO01', vendorName: '深圳华强电子有限公司', paymentAmount: 128500, paymentCurrency: 1, paymentMode: 1, paymentDate: '2026-03-15', status: 100, remark: '3月采购款', createTime: '2026-03-10T08:00:00Z', createUserName: '演示用户' },
+  { id: '2', financePaymentCode: 'PAY-2026-0002', vendorId: 'v2', vendorCode: 'DEMO02', vendorName: '上海元器件贸易公司', paymentAmount: 56800, paymentCurrency: 1, paymentMode: 1, paymentDate: undefined, status: 2, remark: '', createTime: '2026-03-12T08:00:00Z', createUserName: '演示用户' },
+  { id: '3', financePaymentCode: 'PAY-2026-0003', vendorId: 'v3', vendorCode: 'DEMO03', vendorName: 'Arrow Electronics', paymentAmount: 23400, paymentCurrency: 2, paymentMode: 1, paymentDate: undefined, status: 1, remark: '待提交', createTime: '2026-03-14T08:00:00Z', createUserName: '演示用户' },
+  { id: '4', financePaymentCode: 'PAY-2026-0004', vendorId: 'v4', vendorCode: 'DEMO04', vendorName: '广州立创电子科技', paymentAmount: 89200, paymentCurrency: 1, paymentMode: 2, paymentDate: undefined, status: 10, remark: '', createTime: '2026-03-13T08:00:00Z', createUserName: '演示用户' },
+  { id: '5', financePaymentCode: 'PAY-2026-0005', vendorId: 'v1', vendorCode: 'DEMO01', vendorName: '深圳华强电子有限公司', paymentAmount: 34600, paymentCurrency: 1, paymentMode: 3, paymentDate: undefined, status: -1, remark: '审核驳回', createTime: '2026-03-08T08:00:00Z', createUserName: '演示用户' },
 ]
 
 // 弹窗
@@ -398,18 +433,40 @@ const editingId = ref<string | null>(null)
 const saving = ref(false)
 const paymentDocs = ref<UploadDocumentDto[]>([])
 const uploadingSlipDocs = ref(false)
+const slipFileInputRef = ref<HTMLInputElement | null>(null)
+
+function triggerSlipFilePick() {
+  slipFileInputRef.value?.click()
+}
 const form = reactive<Partial<FinancePayment>>({
-  vendorId: '', vendorName: '', paymentAmount: 0, paymentMode: 1, paymentCurrency: 1,
+  vendorId: '', vendorCode: '', vendorName: '', paymentAmount: 0, paymentMode: 1, paymentCurrency: 1,
   paymentDate: undefined, bankSlipNo: '', remark: '',
 })
 
-const openEdit = (row: FinancePayment) => {
+/** 编辑弹窗「供应商编号」仅展示业务编码，不展示内部 vendorId */
+const editVendorCodeDisplay = computed(() => {
+  const c = (form.vendorCode || '').trim()
+  return c || '—'
+})
+
+const openEdit = async (row: FinancePayment) => {
   editingId.value = row.id
   const amountForEdit =
     row.status === 100
       ? Number(row.paymentAmount ?? row.paymentAmountToBe ?? 0)
       : Number(row.paymentAmountToBe ?? row.paymentAmount ?? 0)
   Object.assign(form, { ...row, paymentAmount: amountForEdit })
+  const ext = row as unknown as Record<string, unknown>
+  let code = String(row.vendorCode ?? ext.VendorCode ?? '').trim()
+  if (!code && row.vendorId) {
+    try {
+      const v = await vendorApi.getVendorById(row.vendorId)
+      code = (v.code || '').trim()
+    } catch {
+      /* 列表未带编码时尽力补全 */
+    }
+  }
+  form.vendorCode = code
   dialogVisible.value = true
   loadPaymentDocs(row.id)
 }
@@ -552,5 +609,58 @@ onMounted(loadData)
 .list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
+}
+
+.slip-attach-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.slip-upload-row {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.slip-upload-hint {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.slip-upload-hint--ok {
+  color: var(--el-color-success);
+}
+
+.slip-upload-hint--muted {
+  color: var(--el-text-color-secondary);
+}
+
+.slip-file-input-hidden {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.slip-doc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.slip-doc-tag {
+  cursor: pointer;
+}
+
+.slip-no-docs {
+  font-size: 13px;
+  color: var(--el-text-color-placeholder);
 }
 </style>

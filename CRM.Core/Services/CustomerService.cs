@@ -46,7 +46,7 @@ namespace CRM.Core.Services
         /// <summary>
         /// 创建客户
         /// </summary>
-        public async Task<CustomerInfo> CreateCustomerAsync(CreateCustomerRequest request)
+        public async Task<CustomerInfo> CreateCustomerAsync(CreateCustomerRequest request, string? actingUserId = null)
         {
             try
             {
@@ -58,6 +58,9 @@ namespace CRM.Core.Services
                 Id = Guid.NewGuid().ToString(),
                 CustomerCode = request.CustomerCode.Trim(),
                 OfficialName = request.OfficialName?.Trim(),
+                EnglishOfficialName = string.IsNullOrWhiteSpace(request.EnglishOfficialName)
+                    ? null
+                    : request.EnglishOfficialName.Trim(),
                 NickName = request.NickName?.Trim(),
                 Level = request.Level,
                 Type = request.Type,
@@ -73,7 +76,8 @@ namespace CRM.Core.Services
                 City = request.City?.Trim(),
                 District = request.District?.Trim(),
                 Status = 1, // 新建
-                CreateTime = DateTime.UtcNow
+                CreateTime = DateTime.UtcNow,
+                CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
 
             await _customerRepository.AddAsync(customer);
@@ -94,7 +98,7 @@ namespace CRM.Core.Services
         }
 
         /// <inheritdoc />
-        public async Task<CustomerImportBatchResult> ImportCustomersBatchAsync(CustomerImportBatchRequest request)
+        public async Task<CustomerImportBatchResult> ImportCustomersBatchAsync(CustomerImportBatchRequest request, string? actingUserId = null)
         {
             var result = new CustomerImportBatchResult();
             if (request.Items == null || request.Items.Count == 0)
@@ -110,7 +114,7 @@ namespace CRM.Core.Services
                     if (string.IsNullOrWhiteSpace(creq.OfficialName) && string.IsNullOrWhiteSpace(creq.CustomerName))
                         throw new InvalidOperationException("客户名称不能为空");
 
-                    var customer = await CreateCustomerAsync(creq);
+                    var customer = await CreateCustomerAsync(creq, actingUserId);
                     var contacts = item.Contacts ?? new List<AddContactRequest>();
                     var anyMarkedDefault = contacts.Any(c => c != null && c.IsDefault == true);
                     var added = 0;
@@ -177,7 +181,7 @@ namespace CRM.Core.Services
             {
                 1 => target is 2,                 // 新建 -> 待审核
                 2 => target is 10 or -1,          // 待审核 -> 已审核 / 审核失败
-                -1 => target is 1,                // 审核失败 -> 回到新建（可重新提交）
+                -1 => target is 1 or 2,           // 审核失败 -> 新建 / 再次提交待审核
                 10 => target is 12 or 20,         // 已审核 -> 待财务审核 / 财务建档
                 12 => target is 20,               // 待财务审核 -> 财务建档
                 _ => false
@@ -335,7 +339,7 @@ namespace CRM.Core.Services
         /// <summary>
         /// 更新客户信息
         /// </summary>
-        public async Task<CustomerInfo> UpdateCustomerAsync(string id, UpdateCustomerRequest request)
+        public async Task<CustomerInfo> UpdateCustomerAsync(string id, UpdateCustomerRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("客户ID不能为空", nameof(id));
@@ -349,6 +353,10 @@ namespace CRM.Core.Services
                 customer.OfficialName = request.OfficialName.Trim();
             if (request.StandardOfficialName != null)
                 customer.StandardOfficialName = request.StandardOfficialName.Trim();
+            if (request.EnglishOfficialName != null)
+                customer.EnglishOfficialName = string.IsNullOrWhiteSpace(request.EnglishOfficialName)
+                    ? null
+                    : request.EnglishOfficialName.Trim();
             if (request.NickName != null)
                 customer.NickName = request.NickName.Trim();
             if (request.Level.HasValue)
@@ -379,6 +387,7 @@ namespace CRM.Core.Services
                 customer.District = request.District.Trim();
 
             customer.ModifyTime = DateTime.UtcNow;
+            customer.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
 
             await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
@@ -402,6 +411,7 @@ namespace CRM.Core.Services
             customer.DeletedAt = DateTime.UtcNow;
             customer.DeletedByUserId = operatorUserId;
             customer.ModifyTime = DateTime.UtcNow;
+            customer.ModifyByUserId = ActingUserIdNormalizer.Normalize(operatorUserId);
 
             await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
@@ -872,7 +882,7 @@ namespace CRM.Core.Services
         /// <summary>
         /// 更新客户状态
         /// </summary>
-        public async Task UpdateCustomerStatusAsync(string id, short status, string? auditRemark = null)
+        public async Task UpdateCustomerStatusAsync(string id, short status, string? auditRemark = null, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("客户ID不能为空", nameof(id));
@@ -881,6 +891,7 @@ namespace CRM.Core.Services
             if (customer == null)
                 throw new KeyNotFoundException($"找不到ID为 '{id}' 的客户");
 
+            var previousStatus = customer.Status;
             ValidateCustomerStatusTransition(customer.Status, status);
             customer.Status = status;
             if (status == -1)
@@ -894,7 +905,12 @@ namespace CRM.Core.Services
                 // 审核通过清空驳回原因
                 customer.AuditRemark = null;
             }
+            else if (status == 2 && previousStatus == -1)
+            {
+                customer.AuditRemark = null;
+            }
             customer.ModifyTime = DateTime.UtcNow;
+            customer.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
 
             await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
@@ -1046,6 +1062,7 @@ namespace CRM.Core.Services
             customer.DeletedByUserName = operatorUserName;
             customer.DeleteReason = reason;
             customer.ModifyTime = DateTime.UtcNow;
+            customer.ModifyByUserId = ActingUserIdNormalizer.Normalize(operatorUserId);
             await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
             await AddOperationLogAsync(resolvedId, "删除", $"删除客户，理由：{reason ?? "无"}", operatorUserId, operatorUserName);
@@ -1065,6 +1082,7 @@ namespace CRM.Core.Services
             customer.BlackListByUserId = operatorUserId;
             customer.BlackListByUserName = operatorUserName;
             customer.ModifyTime = DateTime.UtcNow;
+            customer.ModifyByUserId = ActingUserIdNormalizer.Normalize(operatorUserId);
             await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
             await AddOperationLogAsync(resolvedId, "加入黑名单", $"加入黑名单，理由：{reason}", operatorUserId, operatorUserName);
@@ -1087,6 +1105,7 @@ namespace CRM.Core.Services
             customer.BlackListByUserId = null;
             customer.BlackListByUserName = null;
             customer.ModifyTime = DateTime.UtcNow;
+            customer.ModifyByUserId = ActingUserIdNormalizer.Normalize(operatorUserId);
             await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
             var r = reason.Trim();
@@ -1111,8 +1130,11 @@ namespace CRM.Core.Services
 
             // 直接 UPDATE，避免 EF 变更跟踪/Update 未把 DisenableStatus 标为已修改导致未落库
             var safeId = resolvedId.Replace("'", "''");
+            var modBy = string.IsNullOrWhiteSpace(operatorUserId)
+                ? "NULL"
+                : $"'{operatorUserId!.Replace("'", "''")}'";
             var rows = await _unitOfWork.ExecuteNonQueryAsync(
-                $@"UPDATE customerinfo SET ""DisenableStatus"" = TRUE, ""ModifyTime"" = NOW() WHERE ""CustomerId"" = '{safeId}'");
+                $@"UPDATE customerinfo SET ""DisenableStatus"" = TRUE, ""ModifyTime"" = NOW(), modify_by_user_id = {modBy} WHERE ""CustomerId"" = '{safeId}'");
             if (rows == 0)
                 throw new InvalidOperationException("更新客户冻结状态失败，请稍后重试");
 
@@ -1137,8 +1159,11 @@ namespace CRM.Core.Services
                 throw new InvalidOperationException("客户未处于冻结状态，无需启用");
 
             var safeId = resolvedId.Replace("'", "''");
+            var modByU = string.IsNullOrWhiteSpace(operatorUserId)
+                ? "NULL"
+                : $"'{operatorUserId!.Replace("'", "''")}'";
             var rows = await _unitOfWork.ExecuteNonQueryAsync(
-                $@"UPDATE customerinfo SET ""DisenableStatus"" = FALSE, ""ModifyTime"" = NOW() WHERE ""CustomerId"" = '{safeId}'");
+                $@"UPDATE customerinfo SET ""DisenableStatus"" = FALSE, ""ModifyTime"" = NOW(), modify_by_user_id = {modByU} WHERE ""CustomerId"" = '{safeId}'");
             if (rows == 0)
                 throw new InvalidOperationException("更新客户启用状态失败，请稍后重试");
 
@@ -1165,6 +1190,7 @@ namespace CRM.Core.Services
             customer.DeleteReason = null;
             customer.Status = 0; // 恢复为新建状态
             customer.ModifyTime = DateTime.UtcNow;
+            customer.ModifyByUserId = ActingUserIdNormalizer.Normalize(operatorUserId);
             await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
             await AddOperationLogAsync(customer.Id, "恢复", "客户已从回收站恢复", operatorUserId, operatorUserName);

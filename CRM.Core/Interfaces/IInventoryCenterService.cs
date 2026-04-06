@@ -44,6 +44,8 @@ namespace CRM.Core.Interfaces
         public decimal AvailableQty { get; set; }
         public decimal LockedQty { get; set; }
         public decimal InventoryAmount { get; set; }
+        /// <summary>库存金额币别（与最近一次采购入库台账关联的采购单一致；缺省 1=RMB）</summary>
+        public short Currency { get; set; } = 1;
         public DateTime? LastMoveTime { get; set; }
     }
 

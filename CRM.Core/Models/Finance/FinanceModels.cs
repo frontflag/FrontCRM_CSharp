@@ -26,6 +26,10 @@ namespace CRM.Core.Models.Finance
         [StringLength(200)]
         public string? VendorName { get; set; }
 
+        /// <summary>供应商编码（展示用，来自 vendorinfo，不落库）</summary>
+        [NotMapped]
+        public string? VendorCode { get; set; }
+
         /// <summary>付款状态 1新建 2待审核 10审核通过 100付款完成 -1审核失败 -2取消</summary>
         public short Status { get; set; } = 1;
 
@@ -61,6 +65,18 @@ namespace CRM.Core.Models.Finance
         /// <summary>备注</summary>
         [StringLength(500)]
         public string? Remark { get; set; }
+
+        [StringLength(36)]
+        [Column("create_by_user_id")]
+        public string? CreateByUserId { get; set; }
+
+        [StringLength(36)]
+        [Column("modify_by_user_id")]
+        public string? ModifyByUserId { get; set; }
+
+        /// <summary>创建人显示名（列表/详情 API 填充，不落库）</summary>
+        [NotMapped]
+        public string? CreateUserName { get; set; }
 
         public virtual ICollection<FinancePaymentItem> Items { get; set; } = new List<FinancePaymentItem>();
     }
@@ -176,9 +192,25 @@ namespace CRM.Core.Models.Finance
         [StringLength(36)]
         public string? ReceiptBankId { get; set; }
 
+        /// <summary>银行水单号码</summary>
+        [StringLength(100)]
+        public string? BankSlipNo { get; set; }
+
         /// <summary>备注</summary>
         [StringLength(500)]
         public string? Remark { get; set; }
+
+        [StringLength(36)]
+        [Column("create_by_user_id")]
+        public string? CreateByUserId { get; set; }
+
+        [StringLength(36)]
+        [Column("modify_by_user_id")]
+        public string? ModifyByUserId { get; set; }
+
+        /// <summary>创建人显示名（列表/详情 API 填充，不落库）</summary>
+        [NotMapped]
+        public string? CreateUserName { get; set; }
 
         public virtual ICollection<FinanceReceiptItem> Items { get; set; } = new List<FinanceReceiptItem>();
     }
@@ -239,6 +271,10 @@ namespace CRM.Core.Models.Finance
         /// <summary>核销状态 0未核销 1部分核销 2核销完成</summary>
         public short VerificationStatus { get; set; } = 0;
 
+        /// <summary>累计已核销至销项发票的金额（支持多次核销）。</summary>
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal VerifiedAmount { get; set; }
+
         [ForeignKey("FinanceReceiptId")]
         public virtual FinanceReceipt? Receipt { get; set; }
     }
@@ -297,6 +333,14 @@ namespace CRM.Core.Models.Finance
         /// <summary>备注</summary>
         [StringLength(500)]
         public string? Remark { get; set; }
+
+        [StringLength(36)]
+        [Column("create_by_user_id")]
+        public string? CreateByUserId { get; set; }
+
+        [StringLength(36)]
+        [Column("modify_by_user_id")]
+        public string? ModifyByUserId { get; set; }
 
         public virtual ICollection<FinancePurchaseInvoiceItem> Items { get; set; } = new List<FinancePurchaseInvoiceItem>();
     }
@@ -417,6 +461,14 @@ namespace CRM.Core.Models.Finance
         /// <summary>备注</summary>
         [StringLength(500)]
         public string? Remark { get; set; }
+
+        [StringLength(36)]
+        [Column("create_by_user_id")]
+        public string? CreateByUserId { get; set; }
+
+        [StringLength(36)]
+        [Column("modify_by_user_id")]
+        public string? ModifyByUserId { get; set; }
 
         public virtual ICollection<SellInvoiceItem> Items { get; set; } = new List<SellInvoiceItem>();
     }

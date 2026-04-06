@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace CRM.Core.Models.Inventory
 {
@@ -119,6 +120,30 @@ namespace CRM.Core.Models.Inventory
         public short Status { get; set; } = 1;
 
         /// <summary>
+        /// 采购订单明细业务编号（过账入库时自 <c>stockin</c> 头冗余）
+        /// </summary>
+        [StringLength(64)]
+        public string? PurchaseOrderItemCode { get; set; }
+
+        /// <summary>
+        /// 采购订单明细主键（过账入库时自 <c>stockin</c> 头冗余）
+        /// </summary>
+        [StringLength(36)]
+        public string? PurchaseOrderItemId { get; set; }
+
+        /// <summary>
+        /// 销售订单明细业务编号（过账入库时自 <c>stockin</c> 头冗余）
+        /// </summary>
+        [StringLength(64)]
+        public string? SellOrderItemCode { get; set; }
+
+        /// <summary>
+        /// 销售订单明细主键（过账入库时自 <c>stockin</c> 头冗余）
+        /// </summary>
+        [StringLength(36)]
+        public string? SellOrderItemId { get; set; }
+
+        /// <summary>
         /// 备注
         /// </summary>
         [StringLength(500)]
@@ -152,10 +177,54 @@ namespace CRM.Core.Models.Inventory
         public short StockInType { get; set; } = 1;
 
         /// <summary>
-        /// 来源单号
+        /// 采购订单明细业务编号（与 <c>purchaseorderitem.purchase_order_item_code</c> 一致）
+        /// </summary>
+        [StringLength(64)]
+        public string? PurchaseOrderItemCode { get; set; }
+
+        /// <summary>
+        /// 采购订单明细主键
+        /// </summary>
+        [StringLength(36)]
+        public string? PurchaseOrderItemId { get; set; }
+
+        /// <summary>
+        /// 销售订单明细业务编号（与 <c>sellorderitem.sell_order_item_code</c> 一致）
+        /// </summary>
+        [StringLength(64)]
+        public string? SellOrderItemCode { get; set; }
+
+        /// <summary>
+        /// 销售订单明细主键（以销定采冗余）
+        /// </summary>
+        [StringLength(36)]
+        public string? SellOrderItemId { get; set; }
+
+        /// <summary>
+        /// 到货通知业务编码（<c>stockinnotify.NoticeCode</c>）
         /// </summary>
         [StringLength(32)]
         public string? SourceCode { get; set; }
+
+        /// <summary>
+        /// 到货通知主键（<c>stockinnotify</c> 主键）
+        /// </summary>
+        [StringLength(36)]
+        [Column("SourceId")]
+        public string? SourceId { get; set; }
+
+        /// <summary>
+        /// 质检单业务编码（<c>qcinfo.QcCode</c>）
+        /// </summary>
+        [StringLength(32)]
+        public string? QcCode { get; set; }
+
+        /// <summary>
+        /// 质检单主键（<c>qcinfo</c> 主键）
+        /// </summary>
+        [StringLength(36)]
+        [Column("QCID")]
+        public string? QcId { get; set; }
 
         /// <summary>
         /// 仓库ID
@@ -174,12 +243,6 @@ namespace CRM.Core.Models.Inventory
         /// 入库日期
         /// </summary>
         public DateTime StockInDate { get; set; } = DateTime.UtcNow;
-
-        /// <summary>
-        /// 来源单ID（例如采购订单ID）
-        /// </summary>
-        [StringLength(36)]
-        public string? SourceId { get; set; }
 
         /// <summary>
         /// 入库总数
@@ -225,6 +288,22 @@ namespace CRM.Core.Models.Inventory
         /// </summary>
         [StringLength(500)]
         public string? Remark { get; set; }
+
+        [StringLength(36)]
+        [Column("create_by_user_id")]
+        public string? CreateByUserId { get; set; }
+
+        [StringLength(36)]
+        [Column("modify_by_user_id")]
+        public string? ModifyByUserId { get; set; }
+
+        /// <summary>详情接口填充：仓库编号（非表字段）</summary>
+        [NotMapped]
+        public string? DetailWarehouseCode { get; set; }
+
+        /// <summary>详情接口填充：供应商展示名（非表字段）</summary>
+        [NotMapped]
+        public string? DetailVendorName { get; set; }
 
         // 导航属性
         public virtual ICollection<StockInItem> Items { get; set; } = new List<StockInItem>();
@@ -321,8 +400,21 @@ namespace CRM.Core.Models.Inventory
         [StringLength(500)]
         public string? Remark { get; set; }
 
+        /// <summary>详情接口填充：物料编码（非表字段）</summary>
+        [NotMapped]
+        public string? DetailMaterialCode { get; set; }
+
+        /// <summary>详情接口填充：物料名称（非表字段）</summary>
+        [NotMapped]
+        public string? DetailMaterialName { get; set; }
+
+        /// <summary>详情接口填充：单位（非表字段）</summary>
+        [NotMapped]
+        public string? DetailUnit { get; set; }
+
         // 导航属性
         [ForeignKey("StockInId")]
+        [JsonIgnore]
         public virtual StockIn? StockIn { get; set; }
     }
 
@@ -378,6 +470,12 @@ namespace CRM.Core.Models.Inventory
         public string? CustomerId { get; set; }
 
         /// <summary>
+        /// 销售订单明细主键（销售出库冗余，按行汇总出库数量）
+        /// </summary>
+        [StringLength(36)]
+        public string? SellOrderItemId { get; set; }
+
+        /// <summary>
         /// 出库日期
         /// </summary>
         public DateTime StockOutDate { get; set; } = DateTime.UtcNow;
@@ -426,6 +524,14 @@ namespace CRM.Core.Models.Inventory
         /// </summary>
         [StringLength(500)]
         public string? Remark { get; set; }
+
+        [StringLength(36)]
+        [Column("create_by_user_id")]
+        public string? CreateByUserId { get; set; }
+
+        [StringLength(36)]
+        [Column("modify_by_user_id")]
+        public string? ModifyByUserId { get; set; }
 
         // 导航属性
         public virtual ICollection<StockOutItem> Items { get; set; } = new List<StockOutItem>();

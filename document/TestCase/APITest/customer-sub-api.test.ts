@@ -201,7 +201,7 @@ describe('customerContactApi - 联系人接口', () => {
       expect(result.id).toBe('new-contact-001')
     })
 
-    it('TC-CONTACT-013: 性别枚举：0=男，1=女，2=保密，正确传递', async () => {
+    it('TC-CONTACT-013: 性别枚举：0=保密、1=男、2=女，正确传递', async () => {
       mockPost.mockResolvedValue(makeContact({ gender: 1 }))
       await customerContactApi.createContact('cust-001', { contactName: '李四', gender: 1, mobilePhone: '13900139000', isDefault: false, isDecisionMaker: false })
       expect(mockPost.mock.calls[0][1].gender).toBe(1)

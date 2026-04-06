@@ -1,5 +1,7 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
+using CRM.Core.Models.Customer;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
@@ -8,6 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Globalization;
+using Microsoft.Extensions.Logging;
 
 namespace CRM.Core.Services
 {
@@ -23,11 +26,15 @@ namespace CRM.Core.Services
         private readonly IRepository<StockInfo> _stockRepository;
         private readonly IRepository<SellOrder> _sellOrderRepository;
         private readonly IRepository<SellOrderItem> _sellOrderItemRepository;
+        private readonly IRepository<CustomerInfo> _customerRepository;
         private readonly IRepository<PurchaseOrderItem> _purchaseOrderItemRepository;
+        private readonly IRepository<PurchaseOrder> _purchaseOrderRepository;
         private readonly IRepository<User> _userRepository;
         private readonly IInventoryCenterService _inventoryCenterService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
+        private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
+        private readonly ILogger<StockOutService> _logger;
 
         public StockOutService(
             IRepository<StockOut> stockOutRepository,
@@ -37,11 +44,15 @@ namespace CRM.Core.Services
             IRepository<StockInfo> stockRepository,
             IRepository<SellOrder> sellOrderRepository,
             IRepository<SellOrderItem> sellOrderItemRepository,
+            IRepository<CustomerInfo> customerRepository,
             IRepository<PurchaseOrderItem> purchaseOrderItemRepository,
+            IRepository<PurchaseOrder> purchaseOrderRepository,
             IRepository<User> userRepository,
             IInventoryCenterService inventoryCenterService,
             ISerialNumberService serialNumberService,
-            IUnitOfWork unitOfWork)
+            ISellOrderItemExtendSyncService sellOrderItemExtendSync,
+            IUnitOfWork unitOfWork,
+            ILogger<StockOutService> logger)
         {
             _stockOutRepository = stockOutRepository;
             _stockOutItemRepository = stockOutItemRepository;
@@ -50,14 +61,18 @@ namespace CRM.Core.Services
             _stockRepository = stockRepository;
             _sellOrderRepository = sellOrderRepository;
             _sellOrderItemRepository = sellOrderItemRepository;
+            _customerRepository = customerRepository;
             _purchaseOrderItemRepository = purchaseOrderItemRepository;
+            _purchaseOrderRepository = purchaseOrderRepository;
             _userRepository = userRepository;
             _inventoryCenterService = inventoryCenterService;
             _serialNumberService = serialNumberService;
+            _sellOrderItemExtendSync = sellOrderItemExtendSync;
             _unitOfWork = unitOfWork;
+            _logger = logger;
         }
 
-        public async Task<StockOutRequest> CreateStockOutRequestAsync(CreateStockOutRequestRequest request)
+        public async Task<StockOutRequest> CreateStockOutRequestAsync(CreateStockOutRequestRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(request.SalesOrderId))
                 throw new ArgumentException("销售订单ID不能为空", nameof(request.SalesOrderId));
@@ -80,12 +95,26 @@ namespace CRM.Core.Services
             if (soItem.Status != 0)
                 throw new InvalidOperationException("该销售订单明细已取消，不能申请出库");
 
+            var lineId = request.SalesOrderItemId.Trim();
+            await EnsureSellLineMeetsStockOutPurchaseGateAsync(lineId);
+
             if (request.Quantity <= 0)
                 throw new ArgumentException("出库通知数量必须大于 0", nameof(request.Quantity));
-            if (request.Quantity > soItem.Qty)
-                throw new ArgumentException($"出库数量不能超过订单明细数量（{soItem.Qty.ToString(CultureInfo.InvariantCulture)}）", nameof(request.Quantity));
+            // 勿用 string.Equals(..., OrdinalIgnoreCase)：EF Core 无法翻译为 SQL（Npgsql）
+            var existingReqs = (await _stockOutRequestRepository.FindAsync(r => r.SalesOrderItemId == lineId))
+                .ToList();
+            var alreadyNotified = existingReqs.Where(r => r.Status != 2).Sum(r => r.Quantity);
+            var remainingByLine = soItem.Qty - alreadyNotified;
+            if (remainingByLine <= 0m)
+                throw new InvalidOperationException("该销售明细可出库通知数量已用尽，无法继续申请");
+            if (request.Quantity > remainingByLine)
+                throw new ArgumentException(
+                    $"出库通知数量不能超过剩余可申请数量（{remainingByLine.ToString(CultureInfo.InvariantCulture)}，已占用 {alreadyNotified.ToString(CultureInfo.InvariantCulture)}）",
+                    nameof(request.Quantity));
 
-            var requestCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.StockOutRequest);
+            var requestCode = string.IsNullOrWhiteSpace(request.RequestCode)
+                ? await _serialNumberService.GenerateNextAsync(ModuleCodes.StockOutRequest)
+                : request.RequestCode.Trim();
 
             var stockOutRequest = new StockOutRequest
             {
@@ -102,11 +131,99 @@ namespace CRM.Core.Services
                 Status = 0,
                 Remark = request.Remark,
                 CreateTime = DateTime.UtcNow,
+                CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
 
             await _stockOutRequestRepository.AddAsync(stockOutRequest);
-            await _unitOfWork.SaveChangesAsync();
+            var saveAfterReq = await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation(
+                "[SellLineStockOutSync] CreateStockOutRequest saved StockOutRequestId={RequestId} SellOrderItemId={SellOrderItemId} SaveChanges={Rows}",
+                stockOutRequest.Id, lineId, saveAfterReq);
+            await _sellOrderItemExtendSync.RecalculateAsync(lineId);
+            var saveAfterExtend = await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation(
+                "[SellLineStockOutSync] CreateStockOutRequest after Recalculate SellOrderItemId={SellOrderItemId} SaveChanges={Rows}",
+                lineId, saveAfterExtend);
             return stockOutRequest;
+        }
+
+        /// <inheritdoc />
+        public async Task<StockOutApplyContextDto> GetApplyContextAsync(string salesOrderId, string salesOrderItemId)
+        {
+            if (string.IsNullOrWhiteSpace(salesOrderId))
+                throw new ArgumentException("销售订单ID不能为空", nameof(salesOrderId));
+            if (string.IsNullOrWhiteSpace(salesOrderItemId))
+                throw new ArgumentException("销售订单明细不能为空", nameof(salesOrderItemId));
+
+            var so = await _sellOrderRepository.GetByIdAsync(salesOrderId.Trim());
+            if (so == null)
+                throw new InvalidOperationException("销售订单不存在");
+            if (so.Status < SellOrderMainStatus.Approved)
+                throw new InvalidOperationException("销售订单未审核，不能申请出库");
+            if (so.Status == SellOrderMainStatus.Completed)
+                throw new InvalidOperationException("销售订单已完成，不能申请出库");
+
+            var soItem = await _sellOrderItemRepository.GetByIdAsync(salesOrderItemId.Trim());
+            if (soItem == null)
+                throw new InvalidOperationException("销售订单明细不存在");
+            if (!string.Equals(soItem.SellOrderId, salesOrderId.Trim(), StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("销售订单明细不属于该订单");
+            if (soItem.Status != 0)
+                throw new InvalidOperationException("该销售订单明细已取消，不能申请出库");
+
+            var lineId = salesOrderItemId.Trim();
+            await EnsureSellLineMeetsStockOutPurchaseGateAsync(lineId);
+            var existingReqs = (await _stockOutRequestRepository.FindAsync(r => r.SalesOrderItemId == lineId))
+                .ToList();
+            var alreadyNotified = existingReqs.Where(r => r.Status != 2).Sum(r => r.Quantity);
+            var remainingNotify = soItem.Qty - alreadyNotified;
+            if (remainingNotify < 0m)
+                remainingNotify = 0m;
+
+            var stockDto = await _inventoryCenterService.GetAvailableQtyForSellOrderItemAsync(lineId);
+            var available = stockDto.AvailableQty;
+            if (available < 0m)
+                available = 0m;
+
+            var suggested = remainingNotify <= available ? remainingNotify : available;
+            if (suggested < 0m)
+                suggested = 0m;
+
+            return new StockOutApplyContextDto
+            {
+                salesOrderItemId = lineId,
+                salesOrderQty = soItem.Qty,
+                alreadyNotifiedQty = alreadyNotified,
+                remainingNotifyQty = remainingNotify,
+                availableStockQty = available,
+                suggestedMaxQty = suggested
+            };
+        }
+
+        /// <summary>
+        /// 销售明细须已有关联采购行，且每条关联采购单主表状态 ≥ 供应商确认（30）。
+        /// </summary>
+        private async Task EnsureSellLineMeetsStockOutPurchaseGateAsync(string sellOrderItemLineId)
+        {
+            var lineId = sellOrderItemLineId.Trim();
+            var min = PurchaseOrderMainStatusCodes.VendorConfirmedOrBeyond;
+            var poItems = (await _purchaseOrderItemRepository.FindAsync(i => i.SellOrderItemId == lineId))
+                .ToList();
+            if (poItems.Count == 0)
+                throw new InvalidOperationException("该销售明细尚未生成采购订单明细，不能申请出库");
+
+            var poIds = poItems
+                .Select(i => i.PurchaseOrderId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            foreach (var pid in poIds)
+            {
+                var po = await _purchaseOrderRepository.GetByIdAsync(pid);
+                if (po == null || po.Status < min)
+                    throw new InvalidOperationException("关联采购订单尚未供应商确认，不能申请出库");
+            }
         }
 
         public async Task<IEnumerable<StockOutRequestListItemDto>> GetStockOutRequestListAsync()
@@ -183,7 +300,7 @@ namespace CRM.Core.Services
         /// <summary>
         /// 执行出库（包含预占 / 拣货 / 确认三个阶段的 FIFO 逻辑）
         /// </summary>
-        public async Task<StockOut> ExecuteStockOutAsync(ExecuteStockOutRequest request)
+        public async Task<StockOut> ExecuteStockOutAsync(ExecuteStockOutRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(request.WarehouseId))
                 throw new ArgumentException("仓库ID不能为空", nameof(request.WarehouseId));
@@ -199,7 +316,7 @@ namespace CRM.Core.Services
             if (stockOutRequest.Status == 2)
                 throw new InvalidOperationException("该出库通知已取消，不能执行出库");
 
-            var pickingTasks = (await _pickingTaskRepository.GetAllAsync())
+            var pickingTasks = (await _pickingTaskRepository.GetAllAsync()).ToList()
                 .Where(x => string.Equals(x.StockOutRequestId, requestId, StringComparison.OrdinalIgnoreCase))
                 .ToList();
             if (!pickingTasks.Any())
@@ -210,12 +327,16 @@ namespace CRM.Core.Services
             var soItem = await _sellOrderItemRepository.GetByIdAsync(stockOutRequest.SalesOrderItemId.Trim());
             var productIdFromLine = string.IsNullOrWhiteSpace(soItem?.ProductId) ? null : soItem!.ProductId!.Trim();
             var sellLineId = stockOutRequest.SalesOrderItemId.Trim();
-            var linkedPoItems = (await _purchaseOrderItemRepository.GetAllAsync())
+            var linkedPoItems = (await _purchaseOrderItemRepository.GetAllAsync()).ToList()
                 .Where(p => string.Equals(p.SellOrderItemId, sellLineId, StringComparison.OrdinalIgnoreCase))
                 .ToList();
             var linkedMaterialKeys = StockMaterialMatch.LinkedPurchaseMaterialKeys(linkedPoItems);
 
             var stockOutCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.StockOut);
+
+            _logger.LogInformation(
+                "[SellLineStockOutSync] ExecuteStockOut begin StockOutRequestId={RequestId} SellOrderItemId={SellOrderItemId} WarehouseId={WarehouseId} PlannedStockOutCode={StockOutCode}",
+                requestId, sellLineId, request.WarehouseId, stockOutCode);
 
             if (request.Items == null || request.Items.Count == 0)
                 throw new ArgumentException("出库明细不能为空", nameof(request.Items));
@@ -330,6 +451,7 @@ namespace CRM.Core.Services
                 StockOutType = 1,
                 SourceCode = string.IsNullOrEmpty(requestCode) ? null : requestCode,
                 SourceId = requestId,
+                SellOrderItemId = sellLineId,
                 CustomerId = string.IsNullOrWhiteSpace(stockOutRequest.CustomerId) ? null : stockOutRequest.CustomerId.Trim(),
                 WarehouseId = request.WarehouseId,
                 StockOutDate = PostgreSqlDateTime.ToUtc(request.StockOutDate),
@@ -339,17 +461,36 @@ namespace CRM.Core.Services
                 Status = 2,
                 ConfirmedBy = request.OperatorId,
                 ConfirmedTime = DateTime.UtcNow,
-                CreateTime = DateTime.UtcNow
+                CreateTime = DateTime.UtcNow,
+                CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId ?? request.OperatorId)
             };
 
             await _stockOutRepository.AddAsync(stockOut);
-            await _unitOfWork.SaveChangesAsync();
+            var saveStockOut = await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation(
+                "[SellLineStockOutSync] ExecuteStockOut persisted header StockOutId={StockOutId} StockOutCode={StockOutCode} SellOrderItemId={SellOrderItemId} Status={Status} TotalQuantity={TotalQty} SaveChanges={Rows}",
+                stockOut.Id, stockOut.StockOutCode, stockOut.SellOrderItemId, stockOut.Status, stockOut.TotalQuantity, saveStockOut);
+
             await _inventoryCenterService.RecordStockOutAsync(stockOut.Id);
+            _logger.LogInformation("[SellLineStockOutSync] ExecuteStockOut RecordStockOutAsync done StockOutId={StockOutId}", stockOut.Id);
 
             stockOutRequest.Status = 1;
             stockOutRequest.ModifyTime = DateTime.UtcNow;
+            stockOutRequest.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId ?? request.OperatorId);
             await _stockOutRequestRepository.UpdateAsync(stockOutRequest);
-            await _unitOfWork.SaveChangesAsync();
+            var saveRequest = await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation(
+                "[SellLineStockOutSync] ExecuteStockOut request marked executed StockOutRequestId={RequestId} SaveChanges={Rows}",
+                requestId, saveRequest);
+
+            _logger.LogInformation(
+                "[SellLineStockOutSync] ExecuteStockOut calling RecalculateAsync SellOrderItemId={SellOrderItemId}",
+                sellLineId);
+            await _sellOrderItemExtendSync.RecalculateAsync(sellLineId);
+            var saveExtend = await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation(
+                "[SellLineStockOutSync] ExecuteStockOut after Recalculate SellOrderItemId={SellOrderItemId} SaveChanges={Rows}",
+                sellLineId, saveExtend);
 
             return stockOut;
         }
@@ -362,12 +503,130 @@ namespace CRM.Core.Services
             return await _stockOutRepository.GetByIdAsync(id);
         }
 
-        public async Task<IEnumerable<StockOut>> GetAllAsync()
+        public async Task<IEnumerable<StockOutListItemDto>> GetStockOutListAsync()
         {
-            return await _stockOutRepository.GetAllAsync();
+            var outs = (await _stockOutRepository.GetAllAsync()).ToList();
+            var lineIdSet = outs
+                .Select(x => x.SellOrderItemId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var itemById = (await _sellOrderItemRepository.GetAllAsync())
+                .Where(x => lineIdSet.Contains(x.Id))
+                .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var orderIdSet = itemById.Values
+                .Select(x => x.SellOrderId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var orderById = (await _sellOrderRepository.GetAllAsync())
+                .Where(x => orderIdSet.Contains(x.Id))
+                .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var custIdSet = outs
+                .Select(x => x.CustomerId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var o in orderById.Values)
+            {
+                if (!string.IsNullOrWhiteSpace(o.CustomerId))
+                    custIdSet.Add(o.CustomerId.Trim());
+            }
+
+            var customerById = (await _customerRepository.GetAllAsync())
+                .Where(c => custIdSet.Contains(c.Id))
+                .GroupBy(c => c.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var users = (await _userRepository.GetAllAsync()).ToList();
+            var userNameById = users
+                .Where(x => !string.IsNullOrWhiteSpace(x.Id))
+                .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g =>
+                    {
+                        var first = g.First();
+                        return string.IsNullOrWhiteSpace(first.RealName) ? first.UserName : first.RealName!;
+                    },
+                    StringComparer.OrdinalIgnoreCase);
+            var userNameByLogin = users
+                .Where(x => !string.IsNullOrWhiteSpace(x.UserName))
+                .GroupBy(x => x.UserName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g =>
+                    {
+                        var first = g.First();
+                        return string.IsNullOrWhiteSpace(first.RealName) ? first.UserName : first.RealName!;
+                    },
+                    StringComparer.OrdinalIgnoreCase);
+
+            return outs
+                .OrderByDescending(x => x.CreateTime)
+                .Select(x =>
+                {
+                    SellOrderItem? line = null;
+                    if (!string.IsNullOrWhiteSpace(x.SellOrderItemId))
+                        itemById.TryGetValue(x.SellOrderItemId.Trim(), out line);
+
+                    SellOrder? so = null;
+                    if (line != null && !string.IsNullOrWhiteSpace(line.SellOrderId))
+                        orderById.TryGetValue(line.SellOrderId.Trim(), out so);
+
+                    string? customerName = null;
+                    if (!string.IsNullOrWhiteSpace(x.CustomerId)
+                        && customerById.TryGetValue(x.CustomerId.Trim(), out var cust))
+                    {
+                        customerName = string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.CustomerName : cust.OfficialName;
+                    }
+                    else if (so != null)
+                    {
+                        customerName = so.CustomerName;
+                    }
+
+                    var salesUserName = so?.SalesUserName;
+                    var sellOrderItemCode = string.IsNullOrWhiteSpace(line?.SellOrderItemCode)
+                        ? null
+                        : line!.SellOrderItemCode;
+
+                    string? createUserName = null;
+                    if (!string.IsNullOrWhiteSpace(x.CreateByUserId))
+                    {
+                        if (!userNameById.TryGetValue(x.CreateByUserId, out createUserName))
+                            userNameByLogin.TryGetValue(x.CreateByUserId, out createUserName);
+                    }
+
+                    return new StockOutListItemDto
+                    {
+                        Id = x.Id,
+                        StockOutCode = x.StockOutCode,
+                        StockOutType = x.StockOutType,
+                        SourceCode = x.SourceCode,
+                        SourceId = x.SourceId,
+                        StockOutDate = x.StockOutDate,
+                        TotalQuantity = x.TotalQuantity,
+                        TotalAmount = x.TotalAmount,
+                        Status = x.Status,
+                        Remark = x.Remark,
+                        CreateTime = x.CreateTime,
+                        CreateByUserId = x.CreateByUserId,
+                        CreateUserName = createUserName,
+                        CustomerName = customerName,
+                        SalesUserName = salesUserName,
+                        SellOrderItemCode = sellOrderItemCode
+                    };
+                })
+                .ToList();
         }
 
-        public async Task UpdateStatusAsync(string id, short status)
+        public async Task UpdateStatusAsync(string id, short status, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("ID不能为空", nameof(id));
@@ -376,11 +635,94 @@ namespace CRM.Core.Services
             if (stockOut == null)
                 throw new InvalidOperationException($"出库单 {id} 不存在");
 
+            var previousStatus = stockOut.Status;
             stockOut.Status = status;
             stockOut.ModifyTime = DateTime.UtcNow;
+            stockOut.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+
+            _logger.LogInformation(
+                "[SellLineStockOutSync] UpdateStatus begin StockOutId={StockOutId} StockOutCode={StockOutCode} Type={StockOutType} PrevStatus={Prev} NewStatus={New} SellOrderItemId={SellOrderItemId} SourceId={SourceId}",
+                stockOut.Id,
+                stockOut.StockOutCode,
+                stockOut.StockOutType,
+                previousStatus,
+                status,
+                stockOut.SellOrderItemId ?? "(null)",
+                stockOut.SourceId ?? "(null)");
 
             await _stockOutRepository.UpdateAsync(stockOut);
-            await _unitOfWork.SaveChangesAsync();
+            var saveHeader = await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation(
+                "[SellLineStockOutSync] UpdateStatus header saved StockOutId={StockOutId} SaveChanges={Rows}",
+                stockOut.Id, saveHeader);
+
+            // 销售出库：进入或离开「已出库/已完成」时须刷新销售明细扩展（汇总仅含 2、4）；扩展变更需 SaveChanges 才落库（与入库链一致）
+            const short stockOutCompleted = 2;
+            const short stockOutFinished = 4;
+            const short salesStockOutType = 1;
+            static bool IsOutboundDone(short s) => s == stockOutCompleted || s == stockOutFinished;
+
+            if (stockOut.StockOutType != salesStockOutType)
+            {
+                _logger.LogInformation(
+                    "[SellLineStockOutSync] UpdateStatus skip extend chain (not sales stock-out) StockOutId={StockOutId} StockOutType={StockOutType}",
+                    stockOut.Id,
+                    stockOut.StockOutType);
+                return;
+            }
+
+            StockOutRequest? sorForLine = null;
+            if (!string.IsNullOrWhiteSpace(stockOut.SourceId))
+                sorForLine = await _stockOutRequestRepository.GetByIdAsync(stockOut.SourceId.Trim());
+
+            if (IsOutboundDone(status) && !IsOutboundDone(previousStatus))
+            {
+                if (sorForLine != null && sorForLine.Status == 0)
+                {
+                    sorForLine.Status = 1;
+                    sorForLine.ModifyTime = DateTime.UtcNow;
+                    sorForLine.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+                    await _stockOutRequestRepository.UpdateAsync(sorForLine);
+                    var saveSor = await _unitOfWork.SaveChangesAsync();
+                    _logger.LogInformation(
+                        "[SellLineStockOutSync] UpdateStatus stockoutrequest marked fulfilled StockOutRequestId={RequestId} SaveChanges={Rows}",
+                        sorForLine.Id,
+                        saveSor);
+                }
+            }
+
+            var soLineId = !string.IsNullOrWhiteSpace(stockOut.SellOrderItemId)
+                ? stockOut.SellOrderItemId.Trim()
+                : sorForLine?.SalesOrderItemId?.Trim();
+            if (string.IsNullOrWhiteSpace(soLineId))
+            {
+                _logger.LogWarning(
+                    "[SellLineStockOutSync] UpdateStatus cannot resolve SellOrderItemId (header null and no request line) StockOutId={StockOutId} SourceId={SourceId}",
+                    stockOut.Id,
+                    stockOut.SourceId ?? "(null)");
+                return;
+            }
+
+            var extendRefresh = IsOutboundDone(status) || IsOutboundDone(previousStatus);
+            if (!extendRefresh)
+            {
+                _logger.LogInformation(
+                    "[SellLineStockOutSync] UpdateStatus skip Recalculate (neither prev nor new status is outbound-done 2|4) StockOutId={StockOutId} Prev={Prev} New={New}",
+                    stockOut.Id,
+                    previousStatus,
+                    status);
+                return;
+            }
+
+            _logger.LogInformation(
+                "[SellLineStockOutSync] UpdateStatus calling RecalculateAsync SellOrderItemId={SellOrderItemId}",
+                soLineId);
+            await _sellOrderItemExtendSync.RecalculateAsync(soLineId);
+            var saveExtend = await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation(
+                "[SellLineStockOutSync] UpdateStatus after Recalculate SellOrderItemId={SellOrderItemId} SaveChanges={Rows}",
+                soLineId,
+                saveExtend);
         }
     }
 }

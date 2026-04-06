@@ -7,12 +7,12 @@ namespace CRM.Core.Interfaces
     /// </summary>
     public interface IQuoteService
     {
-        Task<Quote> CreateAsync(CreateQuoteRequest request);
+        Task<Quote> CreateAsync(CreateQuoteRequest request, string? actingUserId = null);
         Task<Quote?> GetByIdAsync(string id);
         Task<IEnumerable<Quote>> GetAllAsync();
-        Task<Quote> UpdateAsync(string id, UpdateQuoteRequest request);
+        Task<Quote> UpdateAsync(string id, UpdateQuoteRequest request, string? actingUserId = null);
         Task DeleteAsync(string id);
-        Task UpdateStatusAsync(string id, short status);
+        Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
     }
 
     /// <summary>
@@ -22,6 +22,7 @@ namespace CRM.Core.Interfaces
     {
         public string QuoteCode { get; set; } = string.Empty;
         public string? RFQId { get; set; }
+        /// <summary>需求明细行 ID；创建报价时用于绑定与回写明细状态。禁止仅用 RFQId+Mpn 在后端推断（同单可有多行相同 PN）。</summary>
         public string? RFQItemId { get; set; }
         public string? Mpn { get; set; }
         public string? CustomerId { get; set; }

@@ -72,5 +72,13 @@ namespace CRM.Core.Models.Inventory
         /// </summary>
         [StringLength(500)]
         public string? Remark { get; set; }
+
+        [StringLength(36)]
+        [Column("create_by_user_id")]
+        public string? CreateByUserId { get; set; }
+
+        [StringLength(36)]
+        [Column("modify_by_user_id")]
+        public string? ModifyByUserId { get; set; }
     }
 }

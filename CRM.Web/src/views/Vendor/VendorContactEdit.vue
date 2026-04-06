@@ -27,7 +27,6 @@
           </svg>
           {{ isEdit ? '编辑联系人' : '新增联系人' }}
         </div>
-        <div v-if="isEdit && contactId" class="form-card-subtitle">联系人 ID：{{ contactId }}</div>
       </div>
 
       <div class="form-card-body" v-loading="pageLoading">
@@ -88,7 +87,7 @@
             <el-col :span="12">
               <el-form-item label="主联系人">
                 <el-switch v-model="formData.isMain" />
-                <span class="switch-hint">{{ formData.isMain ? '设为主联系人' : '普通联系人' }}</span>
+                <span class="switch-hint">{{ formData.isMain ? '设为默认联系人' : '普通联系人' }}</span>
               </el-form-item>
             </el-col>
           </el-row>
@@ -218,10 +217,11 @@ onMounted(async () => {
     vendorName.value = vendor.officialName || vendor.nickName || vendor.code || '供应商详情';
 
     if (isEdit.value && contactId) {
-      const contacts = vendor.contacts || [];
-      const contact = contacts.find((c: any) => c.id === contactId);
+      // 与详情页联系人列表同源（避免仅嵌在 vendor 详情里的 contacts 与 /contacts 接口不一致）
+      const contacts = await vendorContactApi.getContactsByVendorId(vendorId);
+      const contact = contacts.find((c) => c.id === contactId);
       if (contact) {
-        formData.cName = contact.cName || '';
+        formData.cName = contact.cName || contact.eName || '';
         formData.title = contact.title || '';
         formData.department = contact.department || '';
         formData.mobile = contact.mobile || '';
@@ -355,8 +355,6 @@ $border: $border-card;
   font-weight: 600;
   color: rgba(0, 212, 255, 0.9);
 }
-
-.form-card-subtitle { font-size: 12px; color: $text-secondary; font-family: monospace; }
 
 .form-card-body {
   padding: 24px 28px 8px;

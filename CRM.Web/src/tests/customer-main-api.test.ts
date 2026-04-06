@@ -45,7 +45,7 @@ const makeCustomer = (overrides = {}): any => ({
   customerShortName: '测试科技',
   customerType: 1,
   customerLevel: 'VIP',
-  industry: 'Technology',
+  industry: 'Telecom',
   region: '广东省深圳市南山区',
   province: '广东省',
   city: '深圳市',
@@ -131,18 +131,18 @@ describe('searchCustomers - 分页查询客户列表', () => {
       expect(url).toContain('customerType=1')
     })
 
-    it('TC-SEARCH-004: 按客户等级筛选（VIP），URL 包含 customerLevel=VIP', async () => {
+    it('TC-SEARCH-004: 按客户等级筛选（VIP），URL 传后端 Level 数值 5', async () => {
       mockGet.mockResolvedValue({ items: [], totalCount: 0 })
       await customerApi.searchCustomers({ pageNumber: 1, pageSize: 20, customerLevel: 'VIP' })
       const url = mockGet.mock.calls[0][0] as string
-      expect(url).toContain('customerLevel=VIP')
+      expect(url).toContain('customerLevel=5')
     })
 
-    it('TC-SEARCH-005: 按行业筛选（Technology），URL 包含 industry=Technology', async () => {
+    it('TC-SEARCH-005: 按行业筛选（Telecom），URL 包含 industry=Telecom', async () => {
       mockGet.mockResolvedValue({ items: [], totalCount: 0 })
-      await customerApi.searchCustomers({ pageNumber: 1, pageSize: 20, industry: 'Technology' })
+      await customerApi.searchCustomers({ pageNumber: 1, pageSize: 20, industry: 'Telecom' })
       const url = mockGet.mock.calls[0][0] as string
-      expect(url).toContain('industry=Technology')
+      expect(url).toContain('industry=Telecom')
     })
 
     it('TC-SEARCH-006: 按状态筛选（启用），URL 包含 isActive=true', async () => {
@@ -164,15 +164,15 @@ describe('searchCustomers - 分页查询客户列表', () => {
       await customerApi.searchCustomers({
         pageNumber: 2, pageSize: 50,
         searchTerm: '测试', customerType: 2, customerLevel: 'B',
-        industry: 'Manufacturing', isActive: true,
+        industry: 'ConsumerElectronics', isActive: true,
         sortBy: 'createdAt', sortDescending: true
       })
       const url = mockGet.mock.calls[0][0] as string
       expect(url).toContain('pageNumber=2')
       expect(url).toContain('pageSize=50')
       expect(url).toContain('customerType=2')
-      expect(url).toContain('customerLevel=B')
-      expect(url).toContain('industry=Manufacturing')
+      expect(url).toContain('customerLevel=3')
+      expect(url).toContain('industry=ConsumerElectronics')
       expect(url).toContain('isActive=true')
       expect(url).toContain('sortBy=createdAt')
       expect(url).toContain('sortDescending=true')
@@ -466,24 +466,6 @@ describe('createCustomer - 新建客户', () => {
       mockPost.mockResolvedValue(makeCustomer())
       await customerApi.createCustomer({ customerName: '测试', customerType: 1, customerLevel: 'VPO' } as any)
       expect(mockPost.mock.calls[0][1].level).toBe(6)
-    })
-
-    it('TC-CREATE-020: 旧值 customerLevel="Normal" 兼容映射 → level=3', async () => {
-      mockPost.mockResolvedValue(makeCustomer())
-      await customerApi.createCustomer({ customerName: '测试', customerType: 1, customerLevel: 'Normal' } as any)
-      expect(mockPost.mock.calls[0][1].level).toBe(3)
-    })
-
-    it('TC-CREATE-021: 旧值 customerLevel="Important" 兼容映射 → level=5', async () => {
-      mockPost.mockResolvedValue(makeCustomer())
-      await customerApi.createCustomer({ customerName: '测试', customerType: 1, customerLevel: 'Important' } as any)
-      expect(mockPost.mock.calls[0][1].level).toBe(5)
-    })
-
-    it('TC-CREATE-022: 旧值 customerLevel="Lead" 兼容映射 → level=1', async () => {
-      mockPost.mockResolvedValue(makeCustomer())
-      await customerApi.createCustomer({ customerName: '测试', customerType: 1, customerLevel: 'Lead' } as any)
-      expect(mockPost.mock.calls[0][1].level).toBe(1)
     })
 
     it('TC-CREATE-023: customerLevel 未传时，默认 level=3（B级）', async () => {

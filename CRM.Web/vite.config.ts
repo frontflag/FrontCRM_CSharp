@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config'
+import { loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
@@ -10,7 +11,25 @@ const pkg = JSON.parse(
   readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf-8')
 ) as { version: string }
 
-export default defineConfig({
+const projectRoot = fileURLToPath(new URL('.', import.meta.url))
+
+/** 与 CRM.API 实际监听地址一致；https 配置见 Properties/launchSettings.json（常为 5121） */
+function resolveApiProxyTarget(mode: string): string {
+  const env = loadEnv(mode, projectRoot, '')
+  const explicit = env.VITE_API_PROXY_TARGET?.trim()
+  if (explicit) return explicit.replace(/\/$/, '')
+  const base = env.VITE_API_BASE_URL?.trim()
+  if (base) {
+    try {
+      return new URL(base).origin
+    } catch {
+      /* ignore */
+    }
+  }
+  return 'http://localhost:5000'
+}
+
+export default defineConfig(({ mode }) => ({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version)
   },
@@ -35,7 +54,7 @@ export default defineConfig({
     fs: { allow: ['..'] },
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: resolveApiProxyTarget(mode),
         changeOrigin: true
       }
     }
@@ -53,4 +72,4 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   }
-})
+}))

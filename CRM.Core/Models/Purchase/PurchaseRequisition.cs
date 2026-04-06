@@ -84,5 +84,13 @@ namespace CRM.Core.Models.Purchase
         [StringLength(500)]
         [Column("remark")]
         public string? Remark { get; set; }
+
+        [StringLength(36)]
+        [Column("create_by_user_id")]
+        public string? CreateByUserId { get; set; }
+
+        [StringLength(36)]
+        [Column("modify_by_user_id")]
+        public string? ModifyByUserId { get; set; }
     }
 }

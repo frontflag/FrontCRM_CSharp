@@ -259,11 +259,38 @@ namespace CRM.Core.Services
                 AddEdge(NodeId("ARRIVAL_NOTICE", qc.StockInNotifyId), qcNodeId);
             }
 
-            // 入库（StockIn）：SourceId 可能是 POId；SourceCode 是单号
+            // 入库（StockIn）：通过采购明细行 / 销售明细行关联到本单的采购订单
             var stockIns = await _stockInRepo.GetAllAsync();
+            var poLineById = poItems
+                .Where(x => !string.IsNullOrWhiteSpace(x.Id))
+                .ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
+            var poLineIdsForSo = new HashSet<string>(poItems.Select(x => x.Id.Trim()), StringComparer.OrdinalIgnoreCase);
+            var sellIdsForSo = new HashSet<string>(
+                soItems.Select(x => x.Id.Trim()).Where(x => !string.IsNullOrEmpty(x)),
+                StringComparer.OrdinalIgnoreCase);
+            var poCodesForSo = new HashSet<string>(
+                pos.Select(p => p.PurchaseOrderCode.Trim()).Where(x => !string.IsNullOrEmpty(x)),
+                StringComparer.OrdinalIgnoreCase);
+
             var stockInsForPo = poIds.Count == 0
                 ? new List<StockIn>()
-                : stockIns.Where(s => (!string.IsNullOrWhiteSpace(s.SourceId) && poIds.Contains(s.SourceId)) || (!string.IsNullOrWhiteSpace(s.SourceCode) && pos.Any(p => p.PurchaseOrderCode == s.SourceCode))).ToList();
+                : stockIns.Where(s =>
+                {
+                    if (!string.IsNullOrWhiteSpace(s.PurchaseOrderItemId) &&
+                        poLineIdsForSo.Contains(s.PurchaseOrderItemId.Trim()))
+                        return true;
+                    if (!string.IsNullOrWhiteSpace(s.SellOrderItemId) &&
+                        sellIdsForSo.Contains(s.SellOrderItemId.Trim()))
+                        return true;
+                    if (!string.IsNullOrWhiteSpace(s.PurchaseOrderItemCode) &&
+                        poCodesForSo.Count > 0 &&
+                        poItems.Any(pl =>
+                            !string.IsNullOrWhiteSpace(pl.PurchaseOrderItemCode) &&
+                            string.Equals(pl.PurchaseOrderItemCode.Trim(), s.PurchaseOrderItemCode!.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                            poIds.Contains(pl.PurchaseOrderId)))
+                        return true;
+                    return false;
+                }).ToList();
 
             foreach (var si in stockInsForPo)
             {
@@ -280,8 +307,30 @@ namespace CRM.Core.Services
                     Amount = si.TotalAmount
                 });
 
-                if (!string.IsNullOrWhiteSpace(si.SourceId))
-                    AddEdge(NodeId("PURCHASE_ORDER", si.SourceId), siNodeId);
+                string? edgePoId = null;
+                if (!string.IsNullOrWhiteSpace(si.PurchaseOrderItemId) &&
+                    poLineById.TryGetValue(si.PurchaseOrderItemId.Trim(), out var plEdge) &&
+                    poIds.Contains(plEdge.PurchaseOrderId))
+                    edgePoId = plEdge.PurchaseOrderId.Trim();
+                else if (!string.IsNullOrWhiteSpace(si.SellOrderItemId))
+                {
+                    var plFromSell = poItems.FirstOrDefault(p =>
+                        !string.IsNullOrWhiteSpace(p.SellOrderItemId) &&
+                        string.Equals(p.SellOrderItemId.Trim(), si.SellOrderItemId!.Trim(), StringComparison.OrdinalIgnoreCase));
+                    if (plFromSell != null && poIds.Contains(plFromSell.PurchaseOrderId))
+                        edgePoId = plFromSell.PurchaseOrderId.Trim();
+                }
+                else if (!string.IsNullOrWhiteSpace(si.PurchaseOrderItemCode))
+                {
+                    var plFromCode = poItems.FirstOrDefault(p =>
+                        !string.IsNullOrWhiteSpace(p.PurchaseOrderItemCode) &&
+                        string.Equals(p.PurchaseOrderItemCode.Trim(), si.PurchaseOrderItemCode!.Trim(), StringComparison.OrdinalIgnoreCase));
+                    if (plFromCode != null && poIds.Contains(plFromCode.PurchaseOrderId))
+                        edgePoId = plFromCode.PurchaseOrderId.Trim();
+                }
+
+                if (!string.IsNullOrWhiteSpace(edgePoId))
+                    AddEdge(NodeId("PURCHASE_ORDER", edgePoId), siNodeId);
             }
 
             // 出库通知（StockOutRequest）
@@ -416,10 +465,20 @@ namespace CRM.Core.Services
                 AddEdge(soNodeId, invNodeId);
             }
 
+            // 仅保留两端节点均已存在的边，避免入库单仅按行号命中但未能解析到本图内 PO 时出现悬空边，
+            // 进而导致 @antv/graphlib 在布局/遍历时抛出 “Node not found for id”。
+            var nodeIds = new HashSet<string>(nodes.Keys, StringComparer.Ordinal);
+            var safeEdges = edges
+                .Where(e => !string.IsNullOrWhiteSpace(e.Source)
+                    && !string.IsNullOrWhiteSpace(e.Target)
+                    && nodeIds.Contains(e.Source)
+                    && nodeIds.Contains(e.Target))
+                .ToList();
+
             return new SalesOrderJourneyResponseDto
             {
                 Nodes = nodes.Values.ToList(),
-                Edges = edges
+                Edges = safeEdges
             };
         }
     }

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
@@ -68,7 +69,10 @@ namespace CRM.API.Controllers
             {
                 if (request == null)
                     return BadRequest(ApiResponse<StockIn>.Fail("请求体不能为空", 400));
-                var entity = await _service.CreateAsync(request);
+                if (string.IsNullOrWhiteSpace(request.OperatorId))
+                    request.OperatorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var entity = await _service.CreateAsync(request, actorId);
                 return Ok(ApiResponse<StockIn>.Ok(entity, "创建入库单成功"));
             }
             catch (ArgumentException ex)
@@ -135,7 +139,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.UpdateStatusAsync(id, status);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.UpdateStatusAsync(id, status, actorId);
                 return Ok(ApiResponse<object>.Ok(null, "更新状态成功"));
             }
             catch (InvalidOperationException ex)

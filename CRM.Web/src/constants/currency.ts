@@ -56,3 +56,15 @@ export const CURRENCY_CODE_TO_TEXT: Record<number, string> = {
   [CurrencyCode.JPY]: 'JPY',
   [CurrencyCode.GBP]: 'GBP',
 };
+
+/** 人民币明细在报表/价税拆分中使用的增值税率（小数）；外币无增值税。规范见 document/PRD/规范/业务规范/销售与采购订单增值税与币别规范.md */
+export const SETTLEMENT_RMB_VAT_RATE_DECIMAL = 0.13
+
+/**
+ * 按明细结算币别返回增值税率（小数）。仅 `CurrencyCode.RMB`(1) 为 13%，其余为 0。
+ * 用于销售单明细、采购单明细及采购订单打印报表等与币别一致的价税推算。
+ */
+export function settlementVatRateDecimal(currencyCode: number | undefined | null): number {
+  const c = Number(currencyCode)
+  return c === CurrencyCode.RMB ? SETTLEMENT_RMB_VAT_RATE_DECIMAL : 0
+}

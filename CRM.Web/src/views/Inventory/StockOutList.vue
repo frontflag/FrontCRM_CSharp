@@ -42,7 +42,10 @@
       </template>
       <template #col-totalQuantity="{ row }">{{ formatNum(row.totalQuantity) }}</template>
       <template #col-createTime="{ row }">{{ formatDate((row as any).createTime || (row as any).createdAt) }}</template>
-      <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || t('quoteList.na') }}</template>
+      <template #col-createUser="{ row }">{{ row.createUserName || (row as any).createdBy || t('quoteList.na') }}</template>
+      <template #col-customerName="{ row }">{{ row.customerName || t('quoteList.na') }}</template>
+      <template #col-salesUserName="{ row }">{{ row.salesUserName || t('quoteList.na') }}</template>
+      <template #col-sellOrderItemCode="{ row }">{{ row.sellOrderItemCode || t('quoteList.na') }}</template>
       <template #col-actions-header>
         <div class="op-col-header">
           <span class="op-col-header-text">{{ t('stockOutList.columns.actions') }}</span>
@@ -125,7 +128,9 @@ const stockOutTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'stockOutCode', label: t('stockOutList.columns.stockOutCode'), prop: 'stockOutCode', width: 160, minWidth: 160, showOverflowTooltip: true },
   { key: 'status', label: t('stockOutList.columns.status'), prop: 'status', width: 110, align: 'center' },
   { key: 'sourceCode', label: t('stockOutList.columns.sourceCode'), prop: 'sourceCode', width: 160, minWidth: 160, showOverflowTooltip: true },
-  { key: 'warehouseId', label: t('stockOutList.columns.warehouseId'), prop: 'warehouseId', width: 140, showOverflowTooltip: true },
+  { key: 'customerName', label: t('stockOutList.columns.customerName'), prop: 'customerName', width: 140, minWidth: 120, showOverflowTooltip: true },
+  { key: 'salesUserName', label: t('stockOutList.columns.salesUserName'), prop: 'salesUserName', width: 110, minWidth: 100, showOverflowTooltip: true },
+  { key: 'sellOrderItemCode', label: t('stockOutList.columns.sellOrderItemCode'), prop: 'sellOrderItemCode', width: 160, minWidth: 140, showOverflowTooltip: true },
   { key: 'stockOutDate', label: t('stockOutList.columns.stockOutDate'), prop: 'stockOutDate', width: 170 },
   { key: 'totalQuantity', label: t('stockOutList.columns.totalQuantity'), prop: 'totalQuantity', width: 110, align: 'right' },
   { key: 'remark', label: t('stockOutList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },

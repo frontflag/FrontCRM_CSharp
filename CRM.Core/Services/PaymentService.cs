@@ -23,7 +23,7 @@ namespace CRM.Core.Services
             _serialNumberService = serialNumberService;
         }
 
-        public async Task<PaymentRequest> CreatePaymentRequestAsync(CreatePaymentRequest request)
+        public async Task<PaymentRequest> CreatePaymentRequestAsync(CreatePaymentRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(request.VendorId))
                 throw new ArgumentException("供应商ID不能为空", nameof(request.VendorId));
@@ -43,14 +43,15 @@ namespace CRM.Core.Services
                 PaymentMethod = request.PaymentMethod,
                 Remark = request.Remark,
                 Status = 0, // 待审批
-                CreateTime = DateTime.UtcNow
+                CreateTime = DateTime.UtcNow,
+                CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
 
             await _paymentRequestRepository.AddAsync(paymentRequest);
             return paymentRequest;
         }
 
-        public async Task<Payment> ApproveAndPayAsync(ApprovePaymentRequest request)
+        public async Task<Payment> ApproveAndPayAsync(ApprovePaymentRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(request.PaymentRequestId))
                 throw new ArgumentException("请款单ID不能为空", nameof(request.PaymentRequestId));
@@ -82,6 +83,7 @@ namespace CRM.Core.Services
             // 更新请款单状态
             paymentRequest.Status = 2; // 已付款
             paymentRequest.ModifyTime = DateTime.UtcNow;
+            paymentRequest.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId ?? request.ApproverId);
             await _paymentRequestRepository.UpdateAsync(paymentRequest);
 
             return payment;

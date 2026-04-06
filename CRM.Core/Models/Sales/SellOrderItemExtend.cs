@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Constants;
 using CRM.Core.Models;
 
 namespace CRM.Core.Models.Sales
@@ -15,6 +16,14 @@ namespace CRM.Core.Models.Sales
         [Column("SellOrderItemId")]
         public override string Id { get; set; } = Guid.NewGuid().ToString();
 
+        /// <summary>已关联采购订单的采购数量合计（所有 PO 明细行 Qty 之和）。</summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal QtyAlreadyPurchased { get; set; }
+
+        /// <summary>未采购数量（销售数量 − 已采购数量，不小于 0）。</summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal QtyNotPurchase { get; set; }
+
         /// <summary>已下达出库通知数量累计</summary>
         [Column(TypeName = "numeric(18,4)")]
         public decimal QtyStockOutNotify { get; set; }
@@ -22,6 +31,10 @@ namespace CRM.Core.Models.Sales
         /// <summary>剩余可下达出库通知数量</summary>
         [Column(TypeName = "numeric(18,4)")]
         public decimal QtyStockOutNotifyNot { get; set; }
+
+        /// <summary>已实际出库数量：已完成的销售出库单（StockOutType=销售）头表 <c>SellOrderItemId</c> 等于本行时，按单头 <c>TotalQuantity</c> 累计。</summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal QtyStockOutActual { get; set; }
 
         // --- 销项发票 ---
         [Column(TypeName = "numeric(18,2)")]
@@ -32,6 +45,21 @@ namespace CRM.Core.Models.Sales
 
         [Column(TypeName = "numeric(18,2)")]
         public decimal InvoiceAmountFinish { get; set; }
+
+        /// <summary>采购执行进度：0=待采购 1=部分采购 2=采购完成（相对销售数量）</summary>
+        public short PurchaseProgressStatus { get; set; }
+
+        /// <summary>入库进度（采购入库单头 <c>SellOrderItemId</c> 等于本行时按 <c>TotalQuantity</c> 与销售数量比）：0=待入库 1=部分入库 2=入库完成</summary>
+        public short StockInProgressStatus { get; set; }
+
+        /// <summary>出库进度：0=待出库 1=部分出库 2=出库完成</summary>
+        public short StockOutProgressStatus { get; set; }
+
+        /// <summary>收款进度：0=待收款 1=部分收款 2=收款完成</summary>
+        public short ReceiptProgressStatus { get; set; }
+
+        /// <summary>销项开票进度：0=待开票 1=部分开票 2=开票完成</summary>
+        public short InvoiceProgressStatus { get; set; }
 
         // --- 收款 ---
         [Column(TypeName = "numeric(18,2)")]
@@ -59,5 +87,82 @@ namespace CRM.Core.Models.Sales
 
         [Column(TypeName = "numeric(18,2)")]
         public decimal PurchaseInvoiceDone { get; set; }
+
+        // --- P1：报价快照与汇率快照（下单时固化）---
+        [StringLength(36)]
+        public string? QuoteItemId { get; set; }
+
+        /// <summary>报价单价（原币，来自报价明细 UnitPrice）</summary>
+        [Column(TypeName = "numeric(18,6)")]
+        public decimal QuoteCost { get; set; }
+
+        /// <summary>报价币别（与 <see cref="CurrencyCode"/> 一致）</summary>
+        public short QuoteCurrency { get; set; }
+
+        /// <summary>报价单价折合 USD（下单时汇率）</summary>
+        [Column(TypeName = "numeric(18,6)")]
+        public decimal QuoteConvertCost { get; set; }
+
+        [Column(TypeName = "numeric(18,6)")]
+        public decimal FxUsdToCnySnapshot { get; set; }
+
+        [Column(TypeName = "numeric(18,6)")]
+        public decimal FxUsdToHkdSnapshot { get; set; }
+
+        [Column(TypeName = "numeric(18,6)")]
+        public decimal FxUsdToEurSnapshot { get; set; }
+
+        /// <summary>销售单价折合 USD（下单快照）</summary>
+        [Column(TypeName = "numeric(18,6)")]
+        public decimal SellConvertUsdUnitSnapshot { get; set; }
+
+        /// <summary>销售金额 USD 快照（Qty×SellConvertUsdUnitSnapshot）</summary>
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal SellLineAmountUsdSnapshot { get; set; }
+
+        /// <summary>P1：报价利润（USD，基于下单时销售/报价折算快照）</summary>
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal QuoteProfitExpected { get; set; }
+
+        /// <summary>报价毛利率口径：销售收入USD / 报价成本USD（快照）；成本为 0 时为 0</summary>
+        [Column(TypeName = "numeric(18,6)")]
+        public decimal QuoteProfitRateExpected { get; set; }
+
+        /// <summary>按当前销售单价折算 USD 重算的报价利润（原报价成本快照不变）</summary>
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal ReQuoteProfitExpected { get; set; }
+
+        [Column(TypeName = "numeric(18,6)")]
+        public decimal ReQuoteProfitRateExpected { get; set; }
+
+        // --- P1：采购利润（USD，随 PO 汇总变化）---
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal PoCostUsdTotal { get; set; }
+
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal PurchaseProfitExpected { get; set; }
+
+        [Column(TypeName = "numeric(18,6)")]
+        public decimal PurchaseProfitRateExpected { get; set; }
+
+        // --- P2：仅统计采购明细 Status≥已确认(30) 的成本；预计销售利润 = 当前销售折 USD 总额 − 已确认采购折 USD --- 
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal PoCostUsdConfirmed { get; set; }
+
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal SalesProfitExpected { get; set; }
+
+        // --- P3：出库利润（业务 USD：均价采购折 USD vs 销售折 USD×实出数量）；财务 USD 暂与业务同口径，待绑定出库时点汇率/成本方案 ---
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal ProfitOutBizUsd { get; set; }
+
+        [Column(TypeName = "numeric(18,6)")]
+        public decimal ProfitOutRateBiz { get; set; }
+
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal ProfitOutFinUsd { get; set; }
+
+        [Column(TypeName = "numeric(18,6)")]
+        public decimal ProfitOutRateFin { get; set; }
     }
 }

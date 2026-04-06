@@ -104,24 +104,6 @@ describe('createCustomer - P1/P2/P3 修复验证', () => {
     expect(body.level).toBe(5)
   })
 
-  it('P2: customerLevel="Normal" 兼容映射为 level=3', async () => {
-    mockPost.mockResolvedValue({ id: 'new-4' })
-    await customerApi.createCustomer({
-      customerName: '普通客户', customerType: 1, customerLevel: 'Normal'
-    } as any)
-    const body = mockPost.mock.calls[0][1]
-    expect(body.level).toBe(3)
-  })
-
-  it('P2: customerLevel="Lead" 兼容映射为 level=1', async () => {
-    mockPost.mockResolvedValue({ id: 'new-5' })
-    await customerApi.createCustomer({
-      customerName: '潜在客户', customerType: 1, customerLevel: 'Lead'
-    } as any)
-    const body = mockPost.mock.calls[0][1]
-    expect(body.level).toBe(1)
-  })
-
   it('P2: customerLevel="D" 映射为 level=1', async () => {
     mockPost.mockResolvedValue({ id: 'new-6' })
     await customerApi.createCustomer({
@@ -188,15 +170,6 @@ describe('updateCustomer - P1/P2/P3 修复验证', () => {
     } as any)
     const body = mockPut.mock.calls[0][1]
     expect(body.level).toBe(4)
-  })
-
-  it('P2: customerLevel="Important" 兼容映射为 level=5', async () => {
-    mockPut.mockResolvedValue({ id: 'cust-3' })
-    await customerApi.updateCustomer('cust-3', {
-      customerName: '重要客户', customerType: 1, customerLevel: 'Important'
-    } as any)
-    const body = mockPut.mock.calls[0][1]
-    expect(body.level).toBe(5)
   })
 
   it('P3: customerType=3 (EndUser) 直接传递 type=3', async () => {

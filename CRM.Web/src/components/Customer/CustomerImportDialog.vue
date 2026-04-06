@@ -68,6 +68,7 @@ import { ref, computed, watch } from 'vue';
 import * as XLSX from 'xlsx';
 import { ElMessageBox, ElNotification } from 'element-plus';
 import { customerApi } from '@/api/customer';
+import { CUSTOMER_INDUSTRY_VALUES } from '@/types/customer';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -149,18 +150,24 @@ function parseSeq(v: string): number | null {
 
 function parseCustomerType(raw: string): number {
   const s = raw.trim();
-  if (!s) return 1;
+  if (!s) return 2;
   const n = parseInt(s, 10);
-  if (n >= 1 && n <= 6) return n;
+  if (n >= 1 && n <= 11) return n;
   const map: Record<string, number> = {
     OEM: 1,
     ODM: 2,
     终端用户: 3,
+    终端: 3,
     IDH: 4,
     贸易商: 5,
-    代理商: 6
+    代理商: 6,
+    EMS: 7,
+    非行业: 8,
+    科研机构: 9,
+    供应链: 10,
+    原厂: 11
   };
-  return map[s] ?? 1;
+  return map[s] ?? 2;
 }
 
 function parseCustomerLevel(raw: string): string {
@@ -172,8 +179,36 @@ function parseCustomerLevel(raw: string): string {
 
 function parseIndustry(raw: string): string {
   const s = raw.trim();
-  if (!s) return 'Other';
+  if (!s) return '';
+  const allowed = CUSTOMER_INDUSTRY_VALUES as readonly string[];
+  if (allowed.includes(s)) return s;
   const map: Record<string, string> = {
+    金融设备: 'FinanceEquipment',
+    通讯: 'Telecom',
+    轨道交通: 'RailTransit',
+    航空航天: 'Aerospace',
+    网络安全: 'CyberSecurity',
+    电竞: 'Esports',
+    电源: 'PowerSupply',
+    电子元器件贸易: 'ElectronicComponentsTrading',
+    电子元器件制造: 'ElectronicComponentsManufacturing',
+    电动工具: 'PowerTools',
+    电力电气: 'PowerElectrical',
+    物联网: 'IoT',
+    消费电子: 'ConsumerElectronics',
+    机器人: 'Robotics',
+    智能安防: 'SmartSecurity',
+    智慧城市: 'SmartCity',
+    无人机: 'UAV',
+    新能源汽车: 'NewEnergyVehicles',
+    新能源: 'NewEnergy',
+    工业控制: 'IndustrialControl',
+    医疗设备: 'MedicalEquipment',
+    军工: 'DefenseMilitary',
+    传统车辆: 'TraditionalVehicles',
+    仪器仪表: 'Instrumentation',
+    人工智能: 'ArtificialIntelligence',
+    '云计算IDC': 'CloudComputingIDC',
     制造业: 'Manufacturing',
     '科技/IT': 'Technology',
     '贸易/零售': 'Trading',
@@ -183,7 +218,7 @@ function parseIndustry(raw: string): string {
     金融: 'Finance',
     其他: 'Other'
   };
-  return map[s] || (['Manufacturing', 'Technology', 'Trading', 'Construction', 'Other'].includes(s) ? s : 'Other');
+  return map[s] || '';
 }
 
 function parseDefaultFlag(raw: string): boolean {
@@ -225,9 +260,9 @@ function downloadTemplate() {
       '1',
       '示例科技有限公司',
       '示例科技',
-      'OEM',
+      'ODM',
       'B',
-      '制造业',
+      '消费电子',
       '广东省',
       '深圳市',
       '可删除本行后填写真实数据',

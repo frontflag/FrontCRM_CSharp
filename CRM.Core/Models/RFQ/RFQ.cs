@@ -54,6 +54,16 @@ namespace CRM.Core.Models.RFQ
         [Column("sales_user_id")]
         public string? SalesUserId { get; set; }
 
+        /// <summary>创建人用户ID（与 JWT NameIdentifier / user.UserId 一致，GUID 字符串）</summary>
+        [StringLength(36)]
+        [Column("create_by_user_id")]
+        public string? CreateByUserId { get; set; }
+
+        /// <summary>最后修改需求时的登录用户 ID（GUID）</summary>
+        [StringLength(36)]
+        [Column("modify_by_user_id")]
+        public string? ModifyByUserId { get; set; }
+
         /// <summary>需求类型：1现货 2排单 3代理 4自营 5信息服务</summary>
         [Column("rfq_type")]
         public short RfqType { get; set; } = 1;

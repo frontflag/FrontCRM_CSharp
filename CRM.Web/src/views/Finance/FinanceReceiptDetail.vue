@@ -7,7 +7,9 @@
       </el-button>
       <el-breadcrumb separator="/">
         <el-breadcrumb-item :to="{ name: 'FinanceReceiptList' }">{{ t('financeReceiptDetail.breadcrumb') }}</el-breadcrumb-item>
-        <el-breadcrumb-item>{{ detail?.financeReceiptCode || t('financeReceiptDetail.detail') }}</el-breadcrumb-item>
+        <el-breadcrumb-item>
+          <span class="order-code">{{ detail?.financeReceiptCode || t('financeReceiptDetail.detail') }}</span>
+        </el-breadcrumb-item>
       </el-breadcrumb>
     </div>
 
@@ -40,6 +42,7 @@
           </el-descriptions-item>
           <el-descriptions-item :label="t('financeReceiptDetail.labels.mode')">{{ paymentModeLabel(detail.receiptMode) }}</el-descriptions-item>
           <el-descriptions-item :label="t('financeReceiptDetail.labels.date')">{{ detail.receiptDate ? formatDisplayDate(detail.receiptDate) : '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financeReceiptDetail.labels.bankSlip')">{{ detail.bankSlipNo || '-' }}</el-descriptions-item>
           <el-descriptions-item :label="t('financeReceiptDetail.labels.remark')" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
         </el-descriptions>
       </div>
@@ -69,6 +72,35 @@
           </el-table-column>
         </CrmDataTable>
       </div>
+
+      <!-- 银行水单附件 -->
+      <div class="tab-card">
+        <div class="card-title">
+          <span class="title-bar"></span>
+          <span>{{ t('financeReceiptDetail.bankSlip') }}</span>
+        </div>
+        <el-empty v-if="!receiptDocs.length" :description="t('financeReceiptDetail.noAttachments')" :image-size="80" />
+        <CrmDataTable v-else :data="receiptDocs" size="small">
+          <el-table-column type="index" width="50" label="#" />
+          <el-table-column prop="originalFileName" :label="t('financeReceiptDetail.labels.fileName')" min-width="260" show-overflow-tooltip />
+          <el-table-column prop="remark" :label="t('financeReceiptDetail.labels.remark')" min-width="140" show-overflow-tooltip />
+          <el-table-column prop="createTime" :label="t('financeReceiptDetail.labels.uploadTime')" width="170">
+            <template #default="{ row }">
+              {{ row.createTime ? formatDisplayDateTime(row.createTime) : '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column :label="t('financeReceiptDetail.labels.actions')" width="140" fixed="right" class-name="op-col" label-class-name="op-col">
+            <template #default="{ row }">
+              <div @click.stop @dblclick.stop>
+                <div class="action-btns">
+                  <el-button size="small" text type="primary" @click.stop="previewDoc(row)">{{ t('financeReceiptDetail.preview') }}</el-button>
+                  <el-button size="small" text type="primary" @click.stop="downloadDoc(row)">{{ t('financeReceiptDetail.download') }}</el-button>
+                </div>
+              </div>
+            </template>
+          </el-table-column>
+        </CrmDataTable>
+      </div>
     </template>
 
     <el-empty v-else :description="t('financeReceiptDetail.notFound')" />
@@ -86,7 +118,8 @@ import {
   CURRENCY_MAP,
   type FinanceReceipt,
 } from '@/api/finance'
-import { formatDisplayDate } from '@/utils/displayDateTime'
+import { documentApi, type UploadDocumentDto } from '@/api/document'
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const route = useRoute()
@@ -95,6 +128,7 @@ const { receiptStatusLabel, receiptStatusTag, paymentModeLabel, verificationStat
 
 const loading = ref(false)
 const detail = ref<FinanceReceipt | null>(null)
+const receiptDocs = ref<UploadDocumentDto[]>([])
 
 const receiptId = computed(() => route.params.id as string)
 
@@ -106,11 +140,33 @@ const fetchDetail = async () => {
   loading.value = true
   try {
     detail.value = await financeReceiptApi.getById(receiptId.value)
+    await loadReceiptDocs()
   } catch {
     detail.value = null
+    receiptDocs.value = []
   } finally {
     loading.value = false
   }
+}
+
+const loadReceiptDocs = async () => {
+  if (!receiptId.value) {
+    receiptDocs.value = []
+    return
+  }
+  try {
+    receiptDocs.value = await documentApi.getDocuments('FINANCE_RECEIPT', receiptId.value)
+  } catch {
+    receiptDocs.value = []
+  }
+}
+
+const previewDoc = (doc: UploadDocumentDto) => {
+  window.open(documentApi.getPreviewPath(doc.id), '_blank')
+}
+
+const downloadDoc = async (doc: UploadDocumentDto) => {
+  await documentApi.downloadDocument(doc.id, doc.originalFileName)
 }
 
 const formatAmount = (val: number) => {
@@ -180,12 +236,17 @@ const formatAmount = (val: number) => {
 }
 
 .order-code {
-  font-family: 'Courier New', monospace;
-  color: $text-secondary;
-  font-weight: 600;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: $text-primary;
+  font-weight: 500;
+  letter-spacing: normal;
 }
 
 .amount {
+  font-family: 'Noto Sans SC', sans-serif;
+  font-variant-numeric: tabular-nums;
   color: $cyan-primary;
   font-weight: 600;
 }

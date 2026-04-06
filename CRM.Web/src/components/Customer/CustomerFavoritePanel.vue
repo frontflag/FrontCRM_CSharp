@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { favoriteApi } from '@/api/favorite'
 import { customerApi } from '@/api/customer'
-import type { Customer } from '@/types/customer'
+import { type Customer, customerTypeLabelI18nKey } from '@/types/customer'
 import { useAuthStore } from '@/stores/auth'
 import { CUSTOMER_FAVORITES_CHANGED_EVENT } from '@/constants/customerFavorites'
 
@@ -58,8 +58,11 @@ const getLevelLabel = (level: string | undefined) =>
     '--')
 
 /** 与 CustomerList 列表「类型」列展示一致 */
-const getTypeLabel = (type: number | undefined) =>
-  ({ 1: 'OEM', 2: 'ODM', 3: t('customerList.type.endUser'), 4: 'IDH', 5: t('customerList.type.trader'), 6: t('customerList.type.agency') }[type ?? 0] || t('rfqDetail.unknown'))
+const getTypeLabel = (type: number | undefined) => {
+  const v = type ?? 0
+  if (v < 1 || v > 11) return t('rfqDetail.unknown')
+  return t(customerTypeLabelI18nKey(v))
+}
 
 async function loadFavorites() {
   loading.value = true

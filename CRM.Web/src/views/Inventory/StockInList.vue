@@ -72,7 +72,9 @@
         <span class="text-secondary">{{ formatDate(row.stockInDate) }}</span>
       </template>
       <template #col-totalQuantity="{ row }">{{ formatNum(row.totalQuantity) }}</template>
-      <template #col-totalAmount="{ row }">{{ formatMoney(row.totalAmount) }}</template>
+      <template #col-totalAmount="{ row }">
+        <span>{{ formatMoney(row.totalAmount) }}<template v-if="stockInCurrencyLabel(row)"><span class="text-secondary"> {{ stockInCurrencyLabel(row) }}</span></template></span>
+      </template>
       <template #col-createTime="{ row }">{{ formatDate((row as any).createTime || (row as any).createdAt) }}</template>
       <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || t('quoteList.na') }}</template>
       <template #col-actions-header>
@@ -147,6 +149,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { stockInApi, type StockInListItemDto } from '@/api/stockIn'
+import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { inventoryCenterApi, type WarehouseInfo } from '@/api/inventoryCenter'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -181,7 +184,7 @@ const stockInTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'salesOrderCode', label: t('stockInList.columns.salesOrderCode'), prop: 'salesOrderCode', minWidth: 170, showOverflowTooltip: true },
   { key: 'stockInDate', label: t('stockInList.columns.stockInDate'), prop: 'stockInDate', width: 160 },
   { key: 'totalQuantity', label: t('stockInList.columns.totalQuantity'), prop: 'totalQuantity', width: 110, align: 'right' },
-  { key: 'totalAmount', label: t('stockInList.columns.totalAmount'), prop: 'totalAmount', width: 110, align: 'right' },
+  { key: 'totalAmount', label: t('stockInList.columns.totalAmount'), prop: 'totalAmount', width: 130, align: 'right' },
   { key: 'remark', label: t('stockInList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
   { key: 'createTime', label: t('stockInList.columns.createTime'), width: 160 },
   { key: 'createUser', label: t('stockInList.columns.createUser'), width: 120, showOverflowTooltip: true },
@@ -238,6 +241,16 @@ const stockInMaterialBrand = (row: StockInListItemDto) => {
   const r = row as unknown as Record<string, unknown>
   const s = pickRowStr(r, 'materialBrandSummary', 'MaterialBrandSummary')
   return s || t('quoteList.na')
+}
+
+/** 列表金额后展示的 ISO 币别（RMB/USD 等）；无编码时返回空串 */
+const stockInCurrencyLabel = (row: StockInListItemDto) => {
+  const r = row as unknown as Record<string, unknown>
+  const raw = r.currencyCode ?? r.CurrencyCode
+  if (raw == null || raw === '') return ''
+  const n = Number(raw)
+  if (Number.isNaN(n)) return ''
+  return CURRENCY_CODE_TO_TEXT[n] ?? String(n)
 }
 
 const statusLabel = (s: number) => {

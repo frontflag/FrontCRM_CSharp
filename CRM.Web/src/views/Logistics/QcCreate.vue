@@ -178,13 +178,25 @@
           <span class="section-title">质检图片</span>
         </div>
         <div class="section-body">
+          <div class="qc-upload-hint-block">
+            <p v-if="!currentQcId" class="qc-upload-hint">
+              <strong>新建：</strong>当前尚无质检单号，首次点击「保存质检」会创建单据；保存前已选好的图片会随本次保存一并上传。
+            </p>
+            <p v-else class="qc-upload-hint">
+              <strong>编辑：</strong>可随时添加图片，点击「保存质检」后新选择的图片会上传并关联本单；删除已保存缩略图会同步删除服务端文档。通过「质检列表」再次进入本页可查看历史图片。
+            </p>
+          </div>
           <el-upload
             class="qc-upload"
             action="#"
             list-type="picture-card"
             :auto-upload="false"
-            :file-list="form.fileList"
+            v-model:file-list="qcFileList"
             multiple
+            accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+            :limit="24"
+            :before-remove="beforeRemoveQcImage"
+            :on-preview="onPreviewQcImage"
           >
             <el-icon><Plus /></el-icon>
           </el-upload>
@@ -195,13 +207,18 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { onMounted, onUnmounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import type { UploadFile } from 'element-plus'
 import { logisticsApi } from '@/api/logistics'
 import { authApi, type SalesUserSelectOption } from '@/api/auth'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { useRoute, useRouter } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
+import apiClient from '@/api/client'
+import { documentApi, DOCUMENT_BIZ_TYPE_QC, type UploadDocumentDto } from '@/api/document'
+
+type QcUploadFile = UploadFile & { documentId?: string }
 
 const route = useRoute()
 const router = useRouter()
@@ -210,6 +227,10 @@ const isEdit = ref(false)
 const currentQcId = ref('')
 /** 仅物流部门（及仓储等）职员，供质检人下拉 */
 const logisticsUserOptions = ref<SalesUserSelectOption[]>([])
+
+/** 质检图片（含已保存文档的预览与待上传的本地文件） */
+const qcFileList = ref<QcUploadFile[]>([])
+const qcPreviewBlobUrls: string[] = []
 
 const form = reactive<any>({
   noticeId: '',
@@ -232,7 +253,6 @@ const form = reactive<any>({
   qcResult: 'pass',
   stockInQty: 0,
   remark: '',
-  fileList: [],
   arrivedTotalQty: 0
 })
 
@@ -259,6 +279,95 @@ async function loadLogisticsUsers() {
 }
 
 /** 按采购订单主键拉取采购员（与采购单号唯一对应），名称以订单数据为准 */
+function isImageDocumentDto(d: UploadDocumentDto): boolean {
+  const t = (d.mimeType || '').toLowerCase()
+  const e = (d.fileExtension || '').toLowerCase()
+  return /^image\//.test(t) || ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(e)
+}
+
+function revokeQcPreviewUrls() {
+  qcPreviewBlobUrls.forEach((u) => URL.revokeObjectURL(u))
+  qcPreviewBlobUrls.length = 0
+}
+
+async function loadQcDocuments(qcId: string) {
+  revokeQcPreviewUrls()
+  qcFileList.value = []
+  if (!qcId) return
+  try {
+    const docs = await documentApi.getDocuments(DOCUMENT_BIZ_TYPE_QC, qcId)
+    const imageDocs = docs.filter(isImageDocumentDto)
+    const list: QcUploadFile[] = []
+    let seq = 0
+    for (const d of imageDocs) {
+      const blob = (await apiClient.get(`/api/v1/documents/${encodeURIComponent(d.id)}/preview`, {
+        responseType: 'blob',
+      })) as unknown as Blob
+      if (!(blob instanceof Blob) || blob.size === 0) continue
+      const url = URL.createObjectURL(blob)
+      qcPreviewBlobUrls.push(url)
+      seq += 1
+      list.push({
+        name: d.originalFileName || `image-${seq}`,
+        url,
+        uid: Date.now() + seq,
+        status: 'success',
+        documentId: d.id,
+      })
+    }
+    qcFileList.value = list
+  } catch {
+    qcFileList.value = []
+  }
+}
+
+async function beforeRemoveQcImage(uploadFile: UploadFile) {
+  const qf = uploadFile as QcUploadFile
+  if (qf.documentId) {
+    try {
+      await ElMessageBox.confirm(`确定删除图片「${uploadFile.name}」？`, '删除确认', {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+      })
+      await documentApi.deleteDocument(qf.documentId)
+      if (uploadFile.url?.startsWith('blob:')) {
+        URL.revokeObjectURL(uploadFile.url)
+        const i = qcPreviewBlobUrls.indexOf(uploadFile.url)
+        if (i >= 0) qcPreviewBlobUrls.splice(i, 1)
+      }
+      return true
+    } catch {
+      return false
+    }
+  }
+  if (uploadFile.url?.startsWith('blob:')) {
+    URL.revokeObjectURL(uploadFile.url)
+    const i = qcPreviewBlobUrls.indexOf(uploadFile.url)
+    if (i >= 0) qcPreviewBlobUrls.splice(i, 1)
+  }
+  return true
+}
+
+function onPreviewQcImage(uploadFile: UploadFile) {
+  const qf = uploadFile as QcUploadFile
+  if (qf.documentId) {
+    void documentApi.openPreviewInNewTab(qf.documentId)
+    return
+  }
+  if (uploadFile.url) window.open(uploadFile.url, '_blank', 'noopener,noreferrer')
+}
+
+const MAX_FILES_PER_UPLOAD = 5
+
+async function uploadPendingQcImages(qcId: string, files: File[]) {
+  if (!files.length) return
+  for (let i = 0; i < files.length; i += MAX_FILES_PER_UPLOAD) {
+    const chunk = files.slice(i, i + MAX_FILES_PER_UPLOAD)
+    await documentApi.uploadDocuments(DOCUMENT_BIZ_TYPE_QC, qcId, chunk)
+  }
+}
+
 async function applyPurchaseUserFromPurchaseOrder(purchaseOrderId: string | undefined | null) {
   const id = String(purchaseOrderId || '').trim()
   if (!id) return
@@ -328,6 +437,7 @@ const loadPageData = async () => {
       form.stockInQty = Math.round(Number(qc.passQty || 0))
       form.sampleQty = Math.round(Number(qc.passQty || 0))
     }
+    await loadQcDocuments(qcId)
     return
   }
 
@@ -351,6 +461,13 @@ const submitQc = async () => {
     const passQty = Math.round(Number(form.stockInQty || 0))
     const rejectQty = Math.max(0, Math.round(Number(form.arrivedTotalQty || 0)) - passQty)
     await logisticsApi.updateQcResult(qcId, { result: form.qcResult, passQty, rejectQty })
+    const pendingFiles: File[] = qcFileList.value
+      .filter((f) => f.raw != null)
+      .map((f) => f.raw as File)
+    if (pendingFiles.length) {
+      await uploadPendingQcImages(qcId, pendingFiles)
+    }
+    await loadQcDocuments(qcId)
     ElMessage.success(isEdit.value ? '质检已更新' : '质检已保存')
     router.push({ name: 'QcList', query: { qcId } })
   } catch (e: any) {
@@ -364,6 +481,10 @@ const goBack = () => router.back()
 
 onMounted(async () => {
   await Promise.all([loadLogisticsUsers(), loadPageData()])
+})
+
+onUnmounted(() => {
+  revokeQcPreviewUrls()
 })
 </script>
 
@@ -470,6 +591,20 @@ onMounted(async () => {
 .section-title { font-size: 14px; font-weight: 500; color: $text-primary; }
 .section-body { padding: 16px 20px; }
 .qc-upload-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: $text-secondary; }
+.qc-upload-hint-block {
+  margin-bottom: 10px;
+}
+.qc-upload-hint {
+  font-size: 12px;
+  color: $text-muted;
+  margin: 0 0 6px;
+  line-height: 1.55;
+  &:last-child { margin-bottom: 0; }
+  strong {
+    color: $text-secondary;
+    font-weight: 600;
+  }
+}
 
 .qc-form {
   :deep(.el-form-item__label) {

@@ -7,13 +7,13 @@ namespace CRM.Core.Interfaces
     /// </summary>
     public interface IFinancePaymentService
     {
-        Task<FinancePayment> CreateAsync(CreateFinancePaymentRequest request);
+        Task<FinancePayment> CreateAsync(CreateFinancePaymentRequest request, string? actingUserId = null);
         Task<FinancePayment?> GetByIdAsync(string id);
         Task<IEnumerable<FinancePayment>> GetAllAsync();
-        Task<FinancePayment> UpdateAsync(string id, UpdateFinancePaymentRequest request);
+        Task<FinancePayment> UpdateAsync(string id, UpdateFinancePaymentRequest request, string? actingUserId = null);
         Task DeleteAsync(string id);
         /// <param name="remark">审核驳回原因等补充说明（可选）</param>
-        Task UpdateStatusAsync(string id, short status, string? remark = null);
+        Task UpdateStatusAsync(string id, short status, string? remark = null, string? actingUserId = null);
         Task VerifyPaymentItemAsync(string paymentItemId, decimal amount);
         Task<PagedResult<FinancePayment>> GetPagedAsync(FinancePaymentQueryRequest request);
     }

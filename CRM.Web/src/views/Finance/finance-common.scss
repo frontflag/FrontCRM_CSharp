@@ -12,6 +12,16 @@
   min-height: 100%;
 }
 
+.finance-list-page-title {
+  margin: 0;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: $text-primary;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+}
+
 // ── 搜索栏 ──────────────────────────────────────────────────
 .search-bar {
   display: flex;
@@ -69,7 +79,8 @@
 }
 
 .stat-value {
-  font-family: 'Orbitron', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-variant-numeric: tabular-nums;
   font-size: 20px;
   font-weight: 700;
   color: $text-primary;
@@ -87,15 +98,18 @@
 
 // 列表表格：统一使用全局 .table-wrapper.crm-items-table（见 crm-unified-list.scss）
 
+// 与出库通知等统一列表正文一致（非链接高亮色）；详情页单号见 .detail-code
 .code-text {
-  font-family: 'Orbitron', monospace;
-  font-size: 12px;
-  color: #00D4FF;
-  letter-spacing: 0.02em;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: $text-primary;
+  letter-spacing: normal;
 }
 
 .amount-text {
-  font-family: 'Orbitron', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-variant-numeric: tabular-nums;
   font-size: 13px;
   color: #3DB88A;
   font-weight: 600;
@@ -216,10 +230,12 @@
 }
 
 .detail-code {
-  font-family: 'Orbitron', monospace;
-  font-size: 16px;
-  font-weight: 700;
-  color: #00D4FF;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: $text-primary;
+  letter-spacing: normal;
 }
 
 .detail-grid {

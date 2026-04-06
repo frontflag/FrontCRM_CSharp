@@ -7,8 +7,8 @@ namespace CRM.Core.Interfaces
     /// </summary>
     public interface IPaymentService
     {
-        Task<PaymentRequest> CreatePaymentRequestAsync(CreatePaymentRequest request);
-        Task<Payment> ApproveAndPayAsync(ApprovePaymentRequest request);
+        Task<PaymentRequest> CreatePaymentRequestAsync(CreatePaymentRequest request, string? actingUserId = null);
+        Task<Payment> ApproveAndPayAsync(ApprovePaymentRequest request, string? actingUserId = null);
         Task<Payment?> GetByIdAsync(string id);
         Task<IEnumerable<Payment>> GetAllAsync();
         Task UpdateStatusAsync(string id, short status);

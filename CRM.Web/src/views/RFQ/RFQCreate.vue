@@ -45,7 +45,6 @@
                 :loading="customerSearchLoading"
                 loading-text="搜索中..."
                 class="q-select"
-                @change="onCustomerChange"
               >
                 <template #empty>
                   <div class="customer-search-hint">
@@ -67,7 +66,7 @@
             <el-form-item label="客户联系人">
               <el-select
                 v-model="formData.contactId"
-                placeholder="请先选择客户"
+                :placeholder="contactSelectPlaceholder"
                 clearable
                 filterable
                 style="width: 100%"
@@ -274,28 +273,14 @@
             <el-row :gutter="16" class="item-panel-row">
               <el-col :span="6">
                 <div class="item-panel-field">
-                  <div class="item-panel-field__label">目标价</div>
-                  <div class="item-price-with-currency">
-                    <el-input-number
-                      v-model="row.targetPrice"
-                      :min="0"
-                      :precision="6"
-                      :controls="false"
-                      class="item-price-with-currency__num q-number"
-                    />
-                    <el-select
-                      v-model="row.priceCurrency"
-                      class="item-price-with-currency__ccy q-select"
-                      popper-class="rfq-item-ccy-popper"
-                    >
-                      <el-option
-                        v-for="o in SETTLEMENT_CURRENCY_OPTIONS"
-                        :key="o.value"
-                        :label="o.label"
-                        :value="o.value"
-                      />
-                    </el-select>
-                  </div>
+                  <div class="item-panel-field__label">目标价 / 币别</div>
+                  <SettlementCurrencyAmountInput
+                    v-model="row.targetPrice"
+                    v-model:currency="row.priceCurrency"
+                    :min="0"
+                    :precision="6"
+                    class="q-number rfq-target-price-ccy"
+                  />
                 </div>
               </el-col>
               <el-col :span="6">
@@ -313,7 +298,7 @@
               <el-col :span="6">
                 <div class="item-panel-field">
                   <div class="item-panel-field__label">生产日期</div>
-                  <el-input v-model="row.productionDate" placeholder="如 2年内、DC" class="q-input" />
+                  <MaterialProductionDateSelect v-model="row.productionDate" select-class="q-select" />
                 </div>
               </el-col>
               <el-col :span="6">
@@ -402,29 +387,16 @@
                 <el-input v-model="formData.items[$index].brand" placeholder="品牌" class="q-input" />
               </template>
             </el-table-column>
-            <el-table-column label="目标价" min-width="168">
+            <el-table-column label="目标价 / 币别" min-width="200" class-name="rfq-table-target-ccy-col">
               <template #default="{ $index }">
-                <div class="item-price-with-currency item-price-with-currency--table">
-                  <el-input-number
-                    v-model="formData.items[$index].targetPrice"
-                    :min="0"
-                    :precision="6"
-                    :controls="false"
-                    class="item-price-with-currency__num q-number"
-                  />
-                  <el-select
-                    v-model="formData.items[$index].priceCurrency"
-                    class="item-price-with-currency__ccy q-select"
-                    popper-class="rfq-item-ccy-popper"
-                  >
-                    <el-option
-                      v-for="o in SETTLEMENT_CURRENCY_OPTIONS"
-                      :key="o.value"
-                      :label="o.label"
-                      :value="o.value"
-                    />
-                  </el-select>
-                </div>
+                <SettlementCurrencyAmountInput
+                  v-model="formData.items[$index].targetPrice"
+                  v-model:currency="formData.items[$index].priceCurrency"
+                  :min="0"
+                  :precision="6"
+                  size="small"
+                  class="q-number"
+                />
               </template>
             </el-table-column>
             <el-table-column label="数量" width="100">
@@ -438,9 +410,9 @@
                 />
               </template>
             </el-table-column>
-            <el-table-column label="生产日期" min-width="120">
+            <el-table-column label="生产日期" min-width="140">
               <template #default="{ $index }">
-                <el-input v-model="formData.items[$index].productionDate" placeholder="如 2年内、DC" class="q-input" />
+                <MaterialProductionDateSelect v-model="formData.items[$index].productionDate" select-class="q-select" />
               </template>
             </el-table-column>
             <el-table-column label="失效日期" width="138">
@@ -520,7 +492,9 @@ import {
   QUOTE_METHOD_OPTIONS,
   ASSIGN_METHOD_OPTIONS
 } from '@/constants/rfqFormEnums'
-import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
+import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
+import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
+import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 
 const route = useRoute()
 const router = useRouter()
@@ -528,6 +502,8 @@ const formRef = ref()
 const submitLoading = ref(false)
 const pageLoading = ref(false)
 const authStore = useAuthStore()
+const { ensureLoaded: ensureMaterialPdDict, defaultCode: defaultProductionDateCode, coerceProductionDateToCode: coercePd } =
+  useMaterialProductionDateDict()
 
 /** 物料明细展示：面板（默认，每行 4 字段） / 列表（横向表格） */
 const materialItemsViewMode = ref<'panel' | 'list'>('panel')
@@ -546,8 +522,20 @@ const customerSearchLoading = ref(false)
 const customerSelectRef = ref<any>(null)
 let customerSearchTimer: ReturnType<typeof setTimeout> | null = null
 
-const contactOptions = ref<{ value: string; label: string; email?: string }[]>([])
+const contactOptions = ref<
+  { value: string; label: string; email?: string; isDefault?: boolean }[]
+>([])
 
+const contactSelectPlaceholder = computed(() =>
+  formData.value.customerId ? '请选择联系人' : '请先选择客户'
+)
+
+function contactEmailFromRaw(c: Record<string, unknown>): string {
+  const v = c.email ?? c.Email
+  return typeof v === 'string' ? v.trim() : ''
+}
+
+/** 拉取联系人；切换客户时由 watch(customerId) 触发，保证与 el-select 同步 */
 async function loadContactsForCustomer(customerId: string) {
   if (!customerId) {
     contactOptions.value = []
@@ -555,13 +543,36 @@ async function loadContactsForCustomer(customerId: string) {
   }
   try {
     const list = await customerContactApi.getContactsByCustomerId(customerId)
-    contactOptions.value = (list || []).map((c: any) => ({
-      value: c.id,
-      label: c.contactName || c.name || '联系人',
-      email: c.email || undefined
-    }))
+    const rows = Array.isArray(list) ? list : []
+    contactOptions.value = rows
+      .map((c: any) => {
+        const raw = c as Record<string, unknown>
+        const id = String(c.id ?? raw.contactId ?? '').trim()
+        if (!id) return null
+        const email = contactEmailFromRaw(raw)
+        return {
+          value: id,
+          label: String(c.contactName ?? c.name ?? '联系人'),
+          email: email || undefined,
+          isDefault: !!(c.isDefault ?? c.isMain)
+        }
+      })
+      .filter(Boolean) as { value: string; label: string; email?: string; isDefault?: boolean }[]
   } catch {
     contactOptions.value = []
+  }
+}
+
+/** 未选手动联系人时，默认选主联系人/第一条并带出邮箱 */
+function applyDefaultContactAndEmail() {
+  if (formData.value.contactId) return
+  const opts = contactOptions.value
+  if (!opts.length) return
+  const preferred = opts.find((o) => o.isDefault) || opts[0]
+  if (!preferred) return
+  formData.value.contactId = preferred.value
+  if (preferred.email) {
+    formData.value.contactEmail = preferred.email
   }
 }
 
@@ -588,7 +599,7 @@ function createEmptyRfqItem() {
     brand: '',
     quantity: 1,
     targetPrice: undefined,
-    productionDate: '',
+    productionDate: defaultProductionDateCode(),
     expiryDate: '',
     minPackageQty: undefined,
     minOrderQty: undefined,
@@ -652,7 +663,6 @@ async function applyPrefillCustomerFromQuery() {
     customerOptions.value = [{ value: id, label: name }]
     formData.value.customerId = id
     formData.value.customerName = name
-    await loadContactsForCustomer(id)
   } catch {
     ElMessage.warning('无法加载预选客户，请在「客户」中搜索选择')
   }
@@ -695,7 +705,7 @@ function mapItemsFromApi(items: any[]) {
     brand: raw.brand || '',
     quantity: raw.quantity ?? 1,
     targetPrice: raw.targetPrice,
-    productionDate: raw.productionDate || '',
+    productionDate: coercePd(raw.productionDate || ''),
     expiryDate: formatExpiryForPicker(raw.expiryDate),
     minPackageQty: raw.minPackageQty != null ? Number(raw.minPackageQty) : undefined,
     minOrderQty: raw.moq != null ? Number(raw.moq) : raw.minOrderQty != null ? Number(raw.minOrderQty) : undefined,
@@ -750,6 +760,7 @@ async function loadRfqForEdit() {
 watch(
   () => [route.name, route.params.id, route.query.customerId] as const,
   async () => {
+    await ensureMaterialPdDict()
     if (route.name === 'RFQEdit' && rfqId.value) {
       await loadRfqForEdit()
     } else if (route.name === 'RFQCreate') {
@@ -758,6 +769,28 @@ watch(
     }
   },
   { immediate: true }
+)
+
+watch(
+  () => formData.value.customerId,
+  async (id, oldId) => {
+    if (!id) {
+      contactOptions.value = []
+      formData.value.contactId = ''
+      formData.value.contactEmail = ''
+      return
+    }
+    if (oldId && oldId !== id) {
+      formData.value.contactId = ''
+      formData.value.contactEmail = ''
+    }
+    const found = customerOptions.value.find((c) => c.value === id)
+    if (found) {
+      formData.value.customerName = found.label
+    }
+    await loadContactsForCustomer(id)
+    applyDefaultContactAndEmail()
+  }
 )
 
 const formRules = {
@@ -799,19 +832,12 @@ async function onCustomerFilterInput(query: string) {
   }, 300)
 }
 
-// 客户选择后同步 customerName、联系人列表
-async function onCustomerChange(val: string) {
-  const found = customerOptions.value.find(c => c.value === val)
-  if (found) {
-    formData.value.customerName = found.label
+function onContactChange(contactId: string | null | undefined) {
+  if (!contactId) {
+    formData.value.contactEmail = ''
+    return
   }
-  formData.value.contactId = ''
-  await loadContactsForCustomer(val || '')
-}
-
-function onContactChange(contactId: string) {
-  if (!contactId) return
-  const row = contactOptions.value.find(c => c.value === contactId)
+  const row = contactOptions.value.find((c) => c.value === contactId)
   if (row?.email) {
     formData.value.contactEmail = row.email
   }
@@ -1158,56 +1184,8 @@ const handleSubmit = async () => {
   line-height: 1.3;
 }
 
-/** 目标价 + 币别合并为一格 */
-.item-price-with-currency {
-  display: flex;
-  align-items: stretch;
+.rfq-target-price-ccy {
   width: 100%;
-  min-width: 0;
-  border: 1px solid $border-panel;
-  border-radius: $border-radius-md;
-  overflow: hidden;
-  background: $layer-3;
-
-  &__num {
-    flex: 1;
-    min-width: 0;
-    :deep(.el-input__wrapper) {
-      border: none !important;
-      border-radius: 0 !important;
-      box-shadow: none !important;
-      background: transparent !important;
-    }
-    :deep(.el-input__inner) {
-      text-align: left;
-    }
-  }
-
-  &__ccy {
-    flex-shrink: 0;
-    width: 70px;
-    :deep(.el-select__wrapper) {
-      border: none !important;
-      border-radius: 0 !important;
-      border-left: 1px solid $border-panel !important;
-      box-shadow: none !important;
-      min-height: 32px;
-      background: rgba(0, 0, 0, 0.12) !important;
-    }
-    :deep(.el-select__selected-item) {
-      font-size: 12px;
-    }
-  }
-
-  &--table {
-    .item-price-with-currency__ccy {
-      width: 62px;
-      :deep(.el-select__wrapper) {
-        min-height: 30px;
-        padding: 0 6px;
-      }
-    }
-  }
 }
 
 .items-table-wrap {
@@ -1270,6 +1248,10 @@ const handleSubmit = async () => {
   :deep(.el-table__cell) {
     .el-button { white-space: nowrap !important; }
     .cell { white-space: nowrap; }
+  }
+  :deep(.rfq-table-target-ccy-col .cell) {
+    overflow: visible;
+    white-space: normal;
   }
 }
 

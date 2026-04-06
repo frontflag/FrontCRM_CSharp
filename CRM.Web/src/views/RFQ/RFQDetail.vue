@@ -299,7 +299,7 @@
                         <div class="item-panel-field">
                           <div class="item-panel-field__label">目标价</div>
                           <div class="item-panel-field__value cell-secondary">
-                            {{ row.targetPrice ? `${row.currency || 'RMB'} ${row.targetPrice}` : '—' }}
+                            {{ formatRfqItemTargetPriceDisplay(row as Record<string, unknown>) }}
                           </div>
                         </div>
                       </el-col>
@@ -312,7 +312,7 @@
                       <el-col :xs="24" :sm="12" :md="6">
                         <div class="item-panel-field">
                           <div class="item-panel-field__label">生产日期</div>
-                          <div class="item-panel-field__value cell-muted">{{ row.productionDate || '—' }}</div>
+                          <div class="item-panel-field__value cell-muted">{{ fmtProductionDate(row.productionDate) }}</div>
                         </div>
                       </el-col>
                       <el-col :xs="24" :sm="12" :md="6">
@@ -371,7 +371,7 @@
                   <template #default="{ row }"><span class="cell-primary">{{ row.brand || '—' }}</span></template>
                 </el-table-column>
                 <el-table-column label="目标价" width="110" align="right">
-                  <template #default="{ row }"><span class="cell-secondary">{{ row.targetPrice ? `${row.currency || 'RMB'} ${row.targetPrice}` : '—' }}</span></template>
+                  <template #default="{ row }"><span class="cell-secondary">{{ formatRfqItemTargetPriceDisplay(row as Record<string, unknown>) }}</span></template>
                 </el-table-column>
                 <el-table-column label="数量" width="90" align="right">
                   <template #default="{ row }"><span class="cell-secondary">{{ row.quantity }}</span></template>
@@ -380,7 +380,7 @@
                   <template #default="{ row }"><span class="cell-secondary">{{ formatAssignedPurchasers(row) }}</span></template>
                 </el-table-column>
                 <el-table-column label="生产日期" width="100">
-                  <template #default="{ row }"><span class="cell-muted">{{ row.productionDate || '—' }}</span></template>
+                  <template #default="{ row }"><span class="cell-muted">{{ fmtProductionDate(row.productionDate) }}</span></template>
                 </el-table-column>
                 <el-table-column label="失效日期" width="110">
                   <template #default="{ row }"><span class="cell-muted">{{ formatDate(row.expiryDate) }}</span></template>
@@ -525,12 +525,43 @@ import {
   formatQuoteMethodLabel as getQuoteMethodLabel,
   formatAssignMethodLabel as getAssignMethodLabel
 } from '@/constants/rfqFormEnums'
+import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
+import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const rfqId = route.params.id as string
+const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMaterialProductionDateDict()
+
+function fmtProductionDate(v: unknown) {
+  const s = String(v ?? '').trim()
+  if (!s) return '—'
+  return productionDateDisplayLabel(s, materialPdOptions.value) || '—'
+}
+
+/** 明细目标价币别：接口为 priceCurrency（1–4），勿用 currency 字符串（新建保存后详情接口不带该字段） */
+function formatRfqItemTargetCurrency(row: Record<string, unknown>): string {
+  const raw = row.priceCurrency ?? row.PriceCurrency ?? row.currency
+  const n = typeof raw === 'number' ? raw : raw != null && raw !== '' ? Number(raw) : NaN
+  if (Number.isFinite(n) && n >= 1) {
+    const label = CURRENCY_CODE_TO_TEXT[Math.round(n)]
+    if (label) return label
+  }
+  if (typeof raw === 'string') {
+    const u = raw.trim().toUpperCase()
+    if (u === 'CNY' || u === 'RMB') return 'RMB'
+    if (u === 'USD' || u === 'EUR' || u === 'HKD') return u
+  }
+  return 'RMB'
+}
+
+function formatRfqItemTargetPriceDisplay(row: Record<string, unknown>): string {
+  const tp = row.targetPrice ?? row.TargetPrice
+  if (tp == null || tp === '') return '—'
+  return `${formatRfqItemTargetCurrency(row)} ${tp}`
+}
 
 const canAssignRfqPurchaser = computed(() => canManualAssignRfqPurchaser(authStore.user))
 const rfqClosedForAssign = computed(() => {
@@ -758,7 +789,12 @@ async function handleDelete() {
   } catch { /* 取消 */ }
 }
 
-onMounted(() => { loadRFQ(); loadItems(); loadCloseRecords() })
+onMounted(() => {
+  void ensureMaterialPdDict()
+  loadRFQ()
+  loadItems()
+  loadCloseRecords()
+})
 </script>
 
 <style scoped lang="scss">

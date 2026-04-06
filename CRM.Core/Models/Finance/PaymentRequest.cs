@@ -9,6 +9,10 @@ namespace CRM.Core.Models.Finance
     [Table("paymentrequest")]
     public class PaymentRequest : BaseGuidEntity
     {
+        [StringLength(36)]
+        [Column("PaymentRequestId")]
+        public override string Id { get; set; } = Guid.NewGuid().ToString();
+
         /// <summary>
         /// 申请单号
         /// </summary>
@@ -76,5 +80,13 @@ namespace CRM.Core.Models.Finance
         /// 状态 (0:待审批 1:已审批 2:已付款 3:已拒绝)
         /// </summary>
         public short Status { get; set; } = 0;
+
+        [StringLength(36)]
+        [Column("create_by_user_id")]
+        public string? CreateByUserId { get; set; }
+
+        [StringLength(36)]
+        [Column("modify_by_user_id")]
+        public string? ModifyByUserId { get; set; }
     }
 }

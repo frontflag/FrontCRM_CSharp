@@ -5,19 +5,23 @@ namespace CRM.Core.Interfaces
     /// <summary>采购订单服务接口</summary>
     public interface IPurchaseOrderService
     {
-        Task<PurchaseOrder> CreateAsync(CreatePurchaseOrderRequest request);
+        /// <param name="actingUserId">当前登录用户 ID（写入 create_by_user_id）</param>
+        Task<PurchaseOrder> CreateAsync(CreatePurchaseOrderRequest request, string? actingUserId = null);
         Task<PurchaseOrder?> GetByIdAsync(string id);
         Task<IEnumerable<PurchaseOrder>> GetAllAsync();
-        Task<PurchaseOrder> UpdateAsync(string id, UpdatePurchaseOrderRequest request);
+        /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
+        Task<PurchaseOrder> UpdateAsync(string id, UpdatePurchaseOrderRequest request, string? actingUserId = null);
         Task DeleteAsync(string id);
-        Task UpdateStatusAsync(string id, short status);
+        /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
+        Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
         Task<PagedResult<PurchaseOrder>> GetPagedAsync(PurchaseOrderQueryRequest request);
         /// <summary>根据销售订单号获取关联的采购订单列表</summary>
         Task<IEnumerable<PurchaseOrder>> GetBySellOrderCodeAsync(string sellOrderCode);
         /// <summary>根据销售订单明细ID列表获取采购订单明细列表</summary>
         Task<IEnumerable<PurchaseOrderItem>> GetItemsBySellOrderItemIdsAsync(List<string> sellOrderItemIds);
         /// <summary>自动生成采购订单(以销定采)</summary>
-        Task<IEnumerable<PurchaseOrder>> AutoGenerateFromSellOrderAsync(string sellOrderId);
+        /// <param name="actingUserId">当前登录用户 ID（写入各新生成单的 create_by_user_id）</param>
+        Task<IEnumerable<PurchaseOrder>> AutoGenerateFromSellOrderAsync(string sellOrderId, string? actingUserId = null);
     }
 
     public class CreatePurchaseOrderRequest

@@ -7,7 +7,7 @@ using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Models.System;
 using CRM.Core.Utilities;
-
+using Microsoft.Extensions.Logging;
 
 namespace CRM.Core.Services
 {
@@ -29,6 +29,7 @@ namespace CRM.Core.Services
         private readonly IRepository<RbacUserRole> _rbacUserRoleRepo;
         private readonly IRepository<Quote> _quoteRepo;
         private readonly IRepository<User> _userRepo;
+        private readonly ILogger<RFQService> _logger;
 
         public RFQService(
             IRepository<RFQ> rfqRepo,
@@ -43,7 +44,8 @@ namespace CRM.Core.Services
             IRepository<RbacRole> rbacRoleRepo,
             IRepository<RbacUserRole> rbacUserRoleRepo,
             IRepository<Quote> quoteRepo,
-            IRepository<User> userRepo)
+            IRepository<User> userRepo,
+            ILogger<RFQService> logger)
         {
             _rfqRepo = rfqRepo;
             _itemRepo = itemRepo;
@@ -58,10 +60,11 @@ namespace CRM.Core.Services
             _rbacUserRoleRepo = rbacUserRoleRepo;
             _quoteRepo = quoteRepo;
             _userRepo = userRepo;
+            _logger = logger;
         }
 
         // ─── Create ──────────────────────────────────────────────────────────────
-        public async Task<RFQ> CreateAsync(CreateRFQRequest request)
+        public async Task<RFQ> CreateAsync(CreateRFQRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(request.CustomerId))
                 throw new ArgumentException("请选择客户");
@@ -77,6 +80,13 @@ namespace CRM.Core.Services
 
             // 自动生成需求单号 (格式: RF + 年月日 + 4位序号)
             var rfqCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.RFQ);
+
+            _logger.LogInformation(
+                "【需求-采购员轮询】开始新建需求：RfqCode={RfqCode} CustomerId={CustomerId} 明细行数={ItemCount} SalesUserId={SalesUserId}",
+                rfqCode,
+                request.CustomerId,
+                request.Items?.Count ?? 0,
+                request.SalesUserId ?? "(null)");
 
             // 每个需求取轮询队列中连续 2 名采购员，写入该需求下全部明细；游标全局 +2
             var (purchaser1, purchaser2) = await TakeNextRoundRobinPurchaserPairAsync();
@@ -102,7 +112,8 @@ namespace CRM.Core.Services
                 Remark = request.Remark,
                 Status = purchaser1 != null ? (short)1 : (short)0,
                 ItemCount = request.Items?.Count ?? 0,
-                CreateTime = DateTime.UtcNow
+                CreateTime = DateTime.UtcNow,
+                CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
 
             await _rfqRepo.AddAsync(rfq);
@@ -140,6 +151,18 @@ namespace CRM.Core.Services
             }
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "【需求-采购员轮询】新建需求已保存：RfqId={RfqId} RfqCode={RfqCode} Status={Status}(0待分配/1已分配) AssignMethod={AssignMethod} " +
+                "AssignedPurchaserUserId1={P1} AssignedPurchaserUserId2={P2} 明细行数={ItemCount}",
+                rfq.Id,
+                rfq.RfqCode,
+                rfq.Status,
+                rfq.AssignMethod,
+                purchaser1 ?? "(null)",
+                purchaser2 ?? "(null)",
+                request.Items?.Count ?? 0);
+
             return rfq;
         }
 
@@ -217,19 +240,31 @@ namespace CRM.Core.Services
                     .ToDictionary(c => c.Id, c => c.OfficialName ?? c.NickName ?? "");
             }
 
-            var listItems = items.Select(r => new RFQListItem
+            var users = (await _userService.GetAllAsync())
+                .ToDictionary(u => u.Id, u => u, StringComparer.OrdinalIgnoreCase);
+
+            var listItems = items.Select(r =>
             {
-                Id = r.Id,
-                RfqCode = r.RfqCode,
-                CustomerId = r.CustomerId,
-                CustomerName = r.CustomerId != null && customers.ContainsKey(r.CustomerId) ? customers[r.CustomerId] : null,
-                Status = r.Status,
-                RfqType = r.RfqType,
-                Industry = r.Industry,
-                Product = r.Product,
-                Importance = r.Importance,
-                ItemCount = r.ItemCount,
-                CreateTime = r.CreateTime
+                users.TryGetValue(r.SalesUserId ?? string.Empty, out var salesUser);
+                users.TryGetValue(r.CreateByUserId ?? string.Empty, out var createUser);
+                return new RFQListItem
+                {
+                    Id = r.Id,
+                    RfqCode = r.RfqCode,
+                    CustomerId = r.CustomerId,
+                    CustomerName = r.CustomerId != null && customers.ContainsKey(r.CustomerId) ? customers[r.CustomerId] : null,
+                    Status = r.Status,
+                    RfqType = r.RfqType,
+                    Industry = r.Industry,
+                    Product = r.Product,
+                    Importance = r.Importance,
+                    ItemCount = r.ItemCount,
+                    CreateTime = r.CreateTime,
+                    SalesUserId = r.SalesUserId,
+                    SalesUserName = EntityLookupService.FormatUserDisplayName(salesUser),
+                    CreateByUserId = r.CreateByUserId,
+                    CreateUserName = EntityLookupService.FormatUserDisplayName(createUser)
+                };
             }).ToList();
 
             // 数据权限过滤（在分页前）
@@ -272,6 +307,14 @@ namespace CRM.Core.Services
 
             var allItems = (await _itemRepo.GetAllAsync()).ToList();
 
+            // 存在报价头 rfq_item_id 指向该明细时，库内 status 可能未回写；列表展示与「报价条数」一致（仅按 RFQItemId，不按 RFQId+Mpn，避免同 PN 多行歧义）。
+            var allQuotes = (await _quoteRepo.GetAllAsync()).ToList();
+            var itemIdsWithQuoteHeader = new HashSet<string>(
+                allQuotes
+                    .Where(q => !string.IsNullOrWhiteSpace(q.RFQItemId))
+                    .Select(q => q.RFQItemId!.Trim()),
+                StringComparer.OrdinalIgnoreCase);
+
             var rows = new List<RFQItemListItem>();
             foreach (var item in allItems)
             {
@@ -287,9 +330,13 @@ namespace CRM.Core.Services
                     ? cn
                     : null;
 
+                var lineStatus = item.Status;
+                if (lineStatus == 0 && itemIdsWithQuoteHeader.Contains((item.Id ?? string.Empty).Trim()))
+                    lineStatus = 1;
+
                 rows.Add(new RFQItemListItem
                 {
-                    Id = item.Id,
+                    Id = item.Id ?? string.Empty,
                     RfqId = item.RfqId,
                     RfqCode = rfq.RfqCode,
                     RfqCreateTime = rfq.CreateTime,
@@ -298,7 +345,7 @@ namespace CRM.Core.Services
                     CustomerMpn = item.CustomerMpn,
                     Brand = item.Brand,
                     Quantity = item.Quantity,
-                    Status = item.Status,
+                    Status = lineStatus,
                     CustomerId = rfq.CustomerId,
                     CustomerName = customerName,
                     SalesUserId = rfq.SalesUserId,
@@ -366,9 +413,8 @@ namespace CRM.Core.Services
 
             if (request.HasQuotesOnly == true)
             {
-                var quotes = await _quoteRepo.GetAllAsync();
                 var rfqItemIdsWithQuote = new HashSet<string>(
-                    quotes
+                    allQuotes
                         .Where(q => !string.IsNullOrWhiteSpace(q.RFQItemId))
                         .Select(q => q.RFQItemId!.Trim()),
                     StringComparer.OrdinalIgnoreCase);
@@ -393,7 +439,7 @@ namespace CRM.Core.Services
         }
 
         // ─── Update ──────────────────────────────────────────────────────────────
-        public async Task<RFQ> UpdateAsync(string id, UpdateRFQRequest request)
+        public async Task<RFQ> UpdateAsync(string id, UpdateRFQRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("ID不能为空");
             var rfq = await _rfqRepo.GetByIdAsync(id);
@@ -415,6 +461,7 @@ namespace CRM.Core.Services
             if (request.Competitor != null) rfq.Competitor = request.Competitor;
             if (request.Remark != null) rfq.Remark = request.Remark;
             rfq.ModifyTime = DateTime.UtcNow;
+            rfq.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
 
             // 更新明细：删除旧的，重新插入（全单共用新一轮询的一对采购员；无明细时不消耗游标）
             if (request.Items != null)
@@ -426,7 +473,14 @@ namespace CRM.Core.Services
                 string? purchaser1 = null;
                 string? purchaser2 = null;
                 if (request.Items.Count > 0)
+                {
+                    _logger.LogInformation(
+                        "【需求-采购员轮询】更新需求并重发明细，重新取轮询对：RfqId={RfqId} RfqCode={RfqCode} 新明细行数={ItemCount}",
+                        rfq.Id,
+                        rfq.RfqCode,
+                        request.Items.Count);
                     (purchaser1, purchaser2) = await TakeNextRoundRobinPurchaserPairAsync();
+                }
 
                 for (int i = 0; i < request.Items.Count; i++)
                 {
@@ -465,6 +519,18 @@ namespace CRM.Core.Services
                 }
 
                 rfq.ItemCount = request.Items.Count;
+
+                if (request.Items.Count > 0)
+                {
+                    _logger.LogInformation(
+                        "【需求-采购员轮询】更新需求明细已写入：RfqId={RfqId} Status={Status} AssignMethod={AssignMethod} " +
+                        "AssignedPurchaserUserId1={P1} AssignedPurchaserUserId2={P2}",
+                        rfq.Id,
+                        rfq.Status,
+                        rfq.AssignMethod,
+                        purchaser1 ?? "(null)",
+                        purchaser2 ?? "(null)");
+                }
             }
 
             await _rfqRepo.UpdateAsync(rfq);
@@ -489,19 +555,20 @@ namespace CRM.Core.Services
         }
 
         // ─── Status ──────────────────────────────────────────────────────────────
-        public async Task UpdateStatusAsync(string id, short status)
+        public async Task UpdateStatusAsync(string id, short status, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("ID不能为空");
             var rfq = await _rfqRepo.GetByIdAsync(id);
             if (rfq == null) throw new InvalidOperationException($"需求 {id} 不存在");
             rfq.Status = status;
             rfq.ModifyTime = DateTime.UtcNow;
+            rfq.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _rfqRepo.UpdateAsync(rfq);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
         }
 
         /// <inheritdoc />
-        public async Task<RFQ> AssignPurchaserAsync(string rfqId, AssignPurchaserRequest request)
+        public async Task<RFQ> AssignPurchaserAsync(string rfqId, AssignPurchaserRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(rfqId)) throw new ArgumentException("ID不能为空");
             if (request == null || string.IsNullOrWhiteSpace(request.PurchaserId))
@@ -532,6 +599,7 @@ namespace CRM.Core.Services
             if (rfq.Status == 0)
                 rfq.Status = 1;
             rfq.ModifyTime = DateTime.UtcNow;
+            rfq.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _rfqRepo.UpdateAsync(rfq);
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
@@ -545,52 +613,151 @@ namespace CRM.Core.Services
         /// </summary>
         private async Task<(string? UserId1, string? UserId2)> TakeNextRoundRobinPurchaserPairAsync()
         {
+            //取采购员池
             var pool = await GetPurchaserPoolOrderedAsync();
             var n = pool.Count;
             if (n == 0)
+            {
+                _logger.LogWarning(
+                    "【需求-采购员轮询】采购员池为空，跳过分配。请检查系统参数 {ParamCode}、角色 RoleCode、rbac_user_role 与用户 IsActive。",
+                    SysParamCodes.RfqRoundRobinPurchaserRoleCodes);
                 return (null, null);
+            }
+
+            //取游标
             var cursor = await GetRoundRobinCursorAsync();
-            var a1 = pool[cursor % n];
-            var a2 = pool[(cursor + 1) % n];
-            await SaveRoundRobinCursorAsync(cursor + 2);
+            var idx1 = cursor % n;
+            var idx2 = (cursor + 1) % n;
+            var a1 = pool[idx1];
+            var a2 = pool[idx2];
+            var newCursor = cursor + 2;
+            await SaveRoundRobinCursorAsync(newCursor);
+
+            _logger.LogInformation(
+                "【需求-采购员轮询】本笔取值：池人数={PoolCount} CursorBefore={CursorBefore} 取下标[{Idx1},{Idx2}] " +
+                "UserId1={UserId1} UserId2={UserId2} CursorAfter={CursorAfter}",
+                n,
+                cursor,
+                idx1,
+                idx2,
+                a1,
+                a2,
+                newCursor);
+
             return (a1, a2);
         }
 
         private async Task<List<string>> GetPurchaserPoolOrderedAsync()
         {
+            //取可以报价角色
             var paramRows = await _sysParamRepo.FindAsync(p =>
                 p.ParamCode == SysParamCodes.RfqRoundRobinPurchaserRoleCodes && p.Status == 1);
-            var raw = paramRows.FirstOrDefault()?.ValueString?.Trim() ?? "";
+            var paramRow = paramRows.FirstOrDefault();
+            var raw = paramRow?.ValueString?.Trim() ?? "";
+
+            if (paramRow == null)
+            {
+                _logger.LogInformation(
+                    "【需求-采购员轮询】系统参数未找到或未启用(Status=1)：{ParamCode}，将使用默认角色编码列表。",
+                    SysParamCodes.RfqRoundRobinPurchaserRoleCodes);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "【需求-采购员轮询】系统参数 {ParamCode}：Status={Status} ValueString=\"{ValueString}\"",
+                    SysParamCodes.RfqRoundRobinPurchaserRoleCodes,
+                    paramRow.Status,
+                    string.IsNullOrEmpty(raw) ? "(空，将用默认角色码)" : raw);
+            }
+
             var codes = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Where(s => s.Length > 0)
                 .ToList();
             if (codes.Count == 0)
                 codes = new List<string> { "purchase_buyer", "purchaser", "purchase_staff" };
 
-            var roles = (await _rbacRoleRepo.GetAllAsync())
+            _logger.LogInformation(
+                "【需求-采购员轮询】用于匹配 rbac_role.RoleCode 的编码列表：{Codes}",
+                string.Join(", ", codes));
+
+            var allRoles = (await _rbacRoleRepo.GetAllAsync()).ToList();
+            var roles = allRoles
                 .Where(r => codes.Any(c => string.Equals(c, r.RoleCode, StringComparison.OrdinalIgnoreCase)))
                 .ToList();
             var roleIds = roles.Select(r => r.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            if (roleIds.Count == 0)
+
+            if (roles.Count == 0)
+            {
+                var sampleCodes = allRoles.Take(15).Select(r => r.RoleCode).ToList();
+                _logger.LogWarning(
+                    "【需求-采购员轮询】未匹配到任何角色。库中 rbac_role 总数={TotalRoleCount} 前若干 RoleCode 示例：{Sample}",
+                    allRoles.Count,
+                    sampleCodes.Count == 0 ? "(无角色表数据)" : string.Join(", ", sampleCodes));
                 return new List<string>();
+            }
+
+            _logger.LogInformation(
+                "【需求-采购员轮询】匹配到的角色：{RoleSummary}",
+                string.Join("; ", roles.Select(r => $"{r.RoleCode}(Id={r.Id})")));
 
             var userRoleRows = (await _rbacUserRoleRepo.GetAllAsync())
                 .Where(ur => roleIds.Contains(ur.RoleId))
                 .ToList();
             var candIds = userRoleRows.Select(ur => ur.UserId).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            return (await _userRepo.GetAllAsync())
+
+            _logger.LogInformation(
+                "【需求-采购员轮询】rbac_user_role 中关联上述角色的用户数（去重 UserId）={CandCount}",
+                candIds.Count);
+
+            var allUsers = (await _userRepo.GetAllAsync()).ToList();
+            var pool = allUsers
                 .Where(u => candIds.Contains(u.Id) && u.IsActive)
                 .OrderBy(u => u.Id, StringComparer.Ordinal)
                 .Select(u => u.Id)
                 .ToList();
+
+            var inactiveOrMissing = candIds.Count - allUsers.Count(u => candIds.Contains(u.Id) && u.IsActive);
+            if (inactiveOrMissing > 0)
+            {
+                _logger.LogInformation(
+                    "【需求-采购员轮询】候选 UserId 中因用户不存在或 IsActive=false 被过滤约 {Filtered} 个（候选 {Cand} 人，入池 {Pool} 人）。",
+                    inactiveOrMissing,
+                    candIds.Count,
+                    pool.Count);
+            }
+
+            _logger.LogInformation(
+                "【需求-采购员轮询】最终轮询池（按 User.Id 排序，共 {PoolCount} 人）：{PoolIds}",
+                pool.Count,
+                pool.Count == 0 ? "(空)" : string.Join(", ", pool));
+
+            return pool;
         }
 
+        /// <summary>
+        /// 获取采购员轮询游标
+        /// </summary>
+        /// <returns></returns>
         private async Task<int> GetRoundRobinCursorAsync()
         {
             var rows = await _sysParamRepo.FindAsync(p => p.ParamCode == SysParamCodes.RfqPurchaserRoundRobinCursor);
             var row = rows.FirstOrDefault();
-            if (row == null) return 0;
-            return int.TryParse(row.ValueString?.Trim(), out var v) && v >= 0 ? v : 0;
+            if (row == null)
+            {
+                _logger.LogInformation(
+                    "【需求-采购员轮询】游标参数不存在 {ParamCode}，按 Cursor=0 处理。",
+                    SysParamCodes.RfqPurchaserRoundRobinCursor);
+                return 0;
+            }
+
+            var v = int.TryParse(row.ValueString?.Trim(), out var parsed) && parsed >= 0 ? parsed : 0;
+            if (row.ValueString?.Trim() is { } s && !int.TryParse(s, out _))
+                _logger.LogWarning(
+                    "【需求-采购员轮询】游标参数 ValueString 非有效非负整数，已按 0 处理：{ParamCode}=\"{Raw}\"",
+                    SysParamCodes.RfqPurchaserRoundRobinCursor,
+                    s);
+
+            return v;
         }
 
         private async Task SaveRoundRobinCursorAsync(int cursor)
@@ -617,12 +784,20 @@ namespace CRM.Core.Services
                     CreateTime = DateTime.UtcNow
                 };
                 await _sysParamRepo.AddAsync(row);
+                _logger.LogInformation(
+                    "【需求-采购员轮询】已新建游标参数 {ParamCode}={Cursor}",
+                    SysParamCodes.RfqPurchaserRoundRobinCursor,
+                    cursor);
                 return;
             }
 
             row.ValueString = cursor.ToString();
             row.ModifyTime = DateTime.UtcNow;
             await _sysParamRepo.UpdateAsync(row);
+            _logger.LogInformation(
+                "【需求-采购员轮询】已更新游标参数 {ParamCode}={Cursor}",
+                SysParamCodes.RfqPurchaserRoundRobinCursor,
+                cursor);
         }
     }
 }

@@ -121,11 +121,6 @@
         <template #col-total="{ row }">
           <span class="amount">{{ formatCurrency(row.total, row.currency) }}</span>
         </template>
-        <template #col-stockStatus="{ row }">
-          <el-tag effect="dark" :type="getStockStatusType(row.stockStatus)" size="small">
-            {{ getStockStatusText(row.stockStatus) }}
-          </el-tag>
-        </template>
         <template #col-deliveryDate="{ row }">
           {{ formatDisplayDate(row.deliveryDate) }}
         </template>
@@ -306,7 +301,6 @@ const purchaseOrderTableColumns = computed((): CrmTableColumnDef[] => [
     ? [{ key: 'total', label: t('purchaseOrderList.columns.totalAmount'), prop: 'total', width: 160, align: 'right' as const }]
     : []),
   { key: 'itemRows', label: t('purchaseOrderList.columns.itemRows'), prop: 'itemRows', width: 80, align: 'center' as const },
-  { key: 'stockStatus', label: t('purchaseOrderList.columns.stockStatus'), prop: 'stockStatus', width: 160, align: 'center' as const },
   { key: 'deliveryDate', label: t('purchaseOrderList.columns.deliveryDate'), prop: 'deliveryDate', width: 160 },
   { key: 'createTime', label: t('purchaseOrderList.columns.createTime'), prop: 'createTime', width: 160 },
   { key: 'createUser', label: t('purchaseOrderList.columns.createUser'), width: 120, showOverflowTooltip: true },
@@ -399,20 +393,6 @@ const getStatusText = (status: number) => {
     100: t('purchaseOrderList.status.completed'),
     '-1': t('purchaseOrderList.status.reviewFailed'),
     '-2': t('purchaseOrderList.status.cancelled')
-  }
-  return map[status] || t('rfqDetail.unknown')
-}
-
-const getStockStatusType = (status: number) => {
-  const map: Record<number, string> = { 0: 'info', 1: 'warning', 2: 'success' }
-  return map[status] || 'info'
-}
-
-const getStockStatusText = (status: number) => {
-  const map: Record<number, string> = {
-    0: t('purchaseOrderList.stock.none'),
-    1: t('purchaseOrderList.stock.partial'),
-    2: t('purchaseOrderList.stock.all')
   }
   return map[status] || t('rfqDetail.unknown')
 }

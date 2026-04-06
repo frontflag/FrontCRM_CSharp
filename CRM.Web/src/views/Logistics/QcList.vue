@@ -145,11 +145,13 @@ import { stockInApi } from '@/api/stockIn'
 import { inventoryCenterApi } from '@/api/inventoryCenter'
 import { useRouter, useRoute } from 'vue-router'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDateTime2DigitYear } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
 const { t, locale } = useI18n()
 const loading = ref(false)
 const list = ref<QcInfoDto[]>([])
@@ -374,11 +376,13 @@ const createStockIn = async (row: QcInfoDto) => {
   loading.value = true
   try {
     const warehouseId = await resolveWarehouseId()
+    const uid = (authStore.user?.id || '').trim()
     const payload = {
       stockInCode: `SI${getYYMMDD(new Date())}${random4()}`,
       purchaseOrderId: notice.purchaseOrderId,
       vendorId: notice.vendorId,
       warehouseId,
+      ...(uid && uid !== '0' ? { operatorId: uid } : {}),
       stockInDate: new Date().toISOString(),
       totalQuantity: Number(items.reduce((s, x) => s + Number(x.quantity || 0), 0).toFixed(4)),
       remark: t('qcList.messages.remarkFromQc', { code: row.qcCode }),

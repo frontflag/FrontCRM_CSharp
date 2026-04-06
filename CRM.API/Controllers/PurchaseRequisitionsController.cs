@@ -4,6 +4,7 @@ using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.Vendor;
+using CRM.Core.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -19,6 +20,7 @@ namespace CRM.API.Controllers
         private readonly IRepository<SellOrderItem> _soItemRepo;
         private readonly IVendorService _vendorService;
         private readonly IRepository<QuoteItem> _quoteItemRepo;
+        private readonly IQuoteService _quoteService;
         private readonly ILogger<PurchaseRequisitionsController> _logger;
         private readonly IEntityLookupService _entityLookupService;
 
@@ -29,6 +31,7 @@ namespace CRM.API.Controllers
             IRepository<SellOrderItem> soItemRepo,
             IVendorService vendorService,
             IRepository<QuoteItem> quoteItemRepo,
+            IQuoteService quoteService,
             IEntityLookupService entityLookupService,
             ILogger<PurchaseRequisitionsController> logger)
         {
@@ -38,6 +41,7 @@ namespace CRM.API.Controllers
             _soItemRepo = soItemRepo;
             _vendorService = vendorService;
             _quoteItemRepo = quoteItemRepo;
+            _quoteService = quoteService;
             _logger = logger;
             _entityLookupService = entityLookupService;
         }
@@ -135,19 +139,26 @@ namespace CRM.API.Controllers
 
                 var purchaseUserName = await _entityLookupService.GetUserDisplayNameAsync(pr.PurchaseUserId);
 
-                // 优先从报价明细（QuoteItem）匹配出供应商/联系人（即使历史 PR 的 QuoteVendorId 为 null，也能回填）
+                // 报价单头表上的采购员：供「生成采购订单」等场景默认带出（与报价阶段一致，可覆盖 PR 里自动填的当前登录人）
+                Quote? headerQuote = null;
+                if (line != null && !string.IsNullOrWhiteSpace(line.QuoteId))
+                    headerQuote = await _quoteService.GetByIdAsync(line.QuoteId);
+
+                string? prefillPurchaseUserId = null;
+                string? prefillPurchaseUserName = null;
+                if (headerQuote != null && !string.IsNullOrWhiteSpace(headerQuote.PurchaseUserId))
+                {
+                    prefillPurchaseUserId = headerQuote.PurchaseUserId;
+                    prefillPurchaseUserName =
+                        await _entityLookupService.GetUserDisplayNameAsync(prefillPurchaseUserId);
+                }
+
+                // 从报价主表 QuoteId 关联的明细中取一行回填供应商/联系人（不按销单行 PN/品牌/单价等再匹配）
                 QuoteItem? matchedQuoteItem = null;
                 if (line != null && !string.IsNullOrWhiteSpace(line.QuoteId))
                 {
                     var quoteItems = (await _quoteItemRepo.FindAsync(qi => qi.QuoteId == line.QuoteId)).ToList();
-                    matchedQuoteItem =
-                        quoteItems.FirstOrDefault(qi =>
-                            qi.Mpn == line.PN &&
-                            qi.Brand == line.Brand &&
-                            qi.Currency == line.Currency &&
-                            Math.Abs(qi.UnitPrice - line.Price) < 0.000001m &&
-                            (qi.DateCode == line.DateCode || string.IsNullOrWhiteSpace(qi.DateCode) || string.IsNullOrWhiteSpace(line.DateCode))
-                        ) ?? quoteItems.FirstOrDefault();
+                    matchedQuoteItem = QuoteItemForPrResolver.PickSingleLine(quoteItems);
                 }
 
                 var vendorIdFromQuote = matchedQuoteItem?.VendorId ?? pr.QuoteVendorId;
@@ -205,6 +216,8 @@ namespace CRM.API.Controllers
                         type = pr.Type,
                         purchaseUserId = pr.PurchaseUserId,
                         purchaseUserName = purchaseUserName,
+                        prefillPurchaseUserId = prefillPurchaseUserId,
+                        prefillPurchaseUserName = prefillPurchaseUserName,
                         quoteVendorId = vendorIdFromQuote,
                         quoteCost = pr.QuoteCost != 0m ? pr.QuoteCost : (matchedQuoteItem?.UnitPrice ?? 0m),
                         intendedVendorName = intendedVendorName,

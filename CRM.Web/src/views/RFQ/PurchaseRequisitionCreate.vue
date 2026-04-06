@@ -32,26 +32,28 @@
         <el-form-item v-if="lineRows.length" label="明细行">
           <div class="table-wrap">
             <el-table :data="lineRows" border size="small" row-key="sellOrderItemId">
-              <el-table-column prop="pn" label="物料型号" min-width="130" show-overflow-tooltip>
+              <el-table-column prop="pn" :label="t('purchaseRequisitionCreate.table.pn')" min-width="130" show-overflow-tooltip>
                 <template #default="{ row }">
                   <el-link type="primary">{{ row.pn || '—' }}</el-link>
                 </template>
               </el-table-column>
-              <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip>
+              <el-table-column prop="brand" :label="t('purchaseRequisitionCreate.table.brand')" width="120" show-overflow-tooltip>
                 <template #default="{ row }">
                   <el-link type="primary">{{ row.brand || '—' }}</el-link>
                 </template>
               </el-table-column>
-              <el-table-column prop="salesOrderQty" label="销售订单数量" width="120" align="right" />
-              <el-table-column prop="remainingQty" label="剩余数量" width="100" align="right" />
-              <el-table-column label="本次申请采购数" width="160" align="center">
+              <el-table-column prop="salesOrderQty" :label="t('purchaseRequisitionCreate.table.salesOrderQty')" width="120" align="right" />
+              <el-table-column prop="purchasedQty" :label="t('purchaseRequisitionCreate.table.purchasedQty')" width="100" align="right" />
+              <el-table-column prop="openPurchaseRequisitionQty" :label="t('purchaseRequisitionCreate.table.openPrQty')" width="110" align="right" />
+              <el-table-column prop="remainingQty" :label="t('purchaseRequisitionCreate.table.remainingQty')" width="100" align="right" />
+              <el-table-column :label="t('purchaseRequisitionCreate.table.requestQty')" width="160" align="center">
                 <template #default="{ row }">
                   <el-input-number v-model="row.requestQty" :min="0" :precision="4" :max="row.remainingQty" size="small" controls-position="right" style="width: 130px" />
                 </template>
               </el-table-column>
             </el-table>
           </div>
-          <p class="hint">仅展示尚未创建采购申请的明细；可为多行填写本次申请数量后一次提交。</p>
+          <p class="hint">展示服务端计算后仍可申请的明细（订单量 − 已下采购 − 进行中申请）；可分批、多行填写后一次提交。</p>
         </el-form-item>
 
         <el-form-item label="类型">
@@ -72,6 +74,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import salesOrderApi from '@/api/salesOrder'
@@ -83,10 +86,13 @@ interface LineRow {
   pn?: string
   brand?: string
   salesOrderQty: number
+  purchasedQty: number
+  openPurchaseRequisitionQty: number
   remainingQty: number
   requestQty: number
 }
 
+const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const topFormRef = ref<FormInstance>()
@@ -139,12 +145,14 @@ async function loadSo() {
       pn: r.pn,
       brand: r.brand,
       salesOrderQty: r.salesOrderQty,
+      purchasedQty: Number(r.purchasedQty) || 0,
+      openPurchaseRequisitionQty: Number(r.openPurchaseRequisitionQty) || 0,
       remainingQty: r.remainingQty,
       requestQty: Number(r.remainingQty) || 0
     }))
     applyItemIdFilterFromRoute()
     if (!lineRows.value.length) {
-      ElMessage.info('当前订单没有可新建采购申请的明细（可能均已创建或明细已取消）')
+      ElMessage.info('当前订单没有可新建采购申请的明细（剩余可申请数量为 0）')
     }
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || e?.message || '加载失败')

@@ -24,6 +24,8 @@ export interface Vendor {
   /** 部分接口与 officialName 同义返回 name */
   name?: string
   officialName?: string
+  /** 公司英文全称 */
+  englishOfficialName?: string
   nickName?: string
   industry?: string
   /** 等级（VendorLevelCode，vendorinfo.Level） */
@@ -64,6 +66,7 @@ export interface CreateVendorRequest {
   code?: string
   name?: string
   officialName?: string
+  englishOfficialName?: string
   nickName?: string
   industry?: string
   level?: number
@@ -86,6 +89,7 @@ export interface CreateVendorRequest {
 // 更新供应商请求（与后端 UpdateVendorRequest 对应）
 export interface UpdateVendorRequest {
   name?: string
+  englishOfficialName?: string
   nickName?: string
   industry?: string
   product?: string

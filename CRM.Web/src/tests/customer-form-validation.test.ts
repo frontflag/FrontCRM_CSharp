@@ -16,16 +16,16 @@ function validateCustomerName(value: string): { valid: boolean; message?: string
   return { valid: true };
 }
 
-/** 验证客户类型（必须为 1-6 的有效枚举值） */
+/** 验证客户类型（必须为 1-11 的有效枚举值） */
 function validateCustomerType(value: number | undefined): { valid: boolean; message?: string } {
   if (value === undefined || value === null) return { valid: false, message: '请选择客户类型' };
-  if (value < 1 || value > 6) return { valid: false, message: '请选择客户类型' };
+  if (value < 1 || value > 11) return { valid: false, message: '请选择客户类型' };
   return { valid: true };
 }
 
 /** 验证客户等级（必须为有效枚举字符串） */
 function validateCustomerLevel(value: string | undefined): { valid: boolean; message?: string } {
-  const validLevels = ['D', 'C', 'B', 'BPO', 'VIP', 'VPO', 'Normal', 'Important', 'Lead'];
+  const validLevels = ['D', 'C', 'B', 'BPO', 'VIP', 'VPO'];
   if (!value || value.trim() === '') return { valid: false, message: '请选择客户等级' };
   if (!validLevels.includes(value)) return { valid: false, message: '请选择客户等级' };
   return { valid: true };
@@ -147,8 +147,16 @@ describe('CustomerEdit - 客户类型验证 (customerType)', () => {
     expect(validateCustomerType(6).valid).toBe(true);
   });
 
-  it('UT-VALIDATE-018: 7（超出枚举范围）→ 验证失败', () => {
-    const result = validateCustomerType(7);
+  it('UT-VALIDATE-017b: 7（EMS）→ 验证通过', () => {
+    expect(validateCustomerType(7).valid).toBe(true);
+  });
+
+  it('UT-VALIDATE-017c: 11（原厂）→ 验证通过', () => {
+    expect(validateCustomerType(11).valid).toBe(true);
+  });
+
+  it('UT-VALIDATE-018: 12（超出枚举范围）→ 验证失败', () => {
+    const result = validateCustomerType(12);
     expect(result.valid).toBe(false);
   });
 
@@ -192,18 +200,6 @@ describe('CustomerEdit - 客户等级验证 (customerLevel)', () => {
 
   it('UT-VALIDATE-027: "VPO" → 验证通过', () => {
     expect(validateCustomerLevel('VPO').valid).toBe(true);
-  });
-
-  it('UT-VALIDATE-028: "Normal"（旧兼容值）→ 验证通过', () => {
-    expect(validateCustomerLevel('Normal').valid).toBe(true);
-  });
-
-  it('UT-VALIDATE-029: "Important"（旧兼容值）→ 验证通过', () => {
-    expect(validateCustomerLevel('Important').valid).toBe(true);
-  });
-
-  it('UT-VALIDATE-030: "Lead"（旧兼容值）→ 验证通过', () => {
-    expect(validateCustomerLevel('Lead').valid).toBe(true);
   });
 
   it('UT-VALIDATE-031: "GOLD"（无效值）→ 验证失败', () => {

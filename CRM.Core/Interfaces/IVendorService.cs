@@ -10,12 +10,12 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 创建
         /// </summary>
-        Task<VendorInfo> CreateAsync(CreateVendorRequest request);
+        Task<VendorInfo> CreateAsync(CreateVendorRequest request, string? actingUserId = null);
 
         /// <summary>
         /// 批量导入供应商（Excel 解析后的结构化数据）
         /// </summary>
-        Task<VendorImportBatchResult> ImportVendorsBatchAsync(VendorImportBatchRequest request);
+        Task<VendorImportBatchResult> ImportVendorsBatchAsync(VendorImportBatchRequest request, string? actingUserId = null);
 
         /// <summary>
         /// 根据ID获取
@@ -35,12 +35,12 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 更新
         /// </summary>
-        Task<VendorInfo> UpdateAsync(string id, UpdateVendorRequest request);
+        Task<VendorInfo> UpdateAsync(string id, UpdateVendorRequest request, string? actingUserId = null);
 
         /// <summary>
         /// 删除
         /// </summary>
-        Task DeleteAsync(string id, string? reason = null);
+        Task DeleteAsync(string id, string? reason = null, string? actingUserId = null);
 
         /// <summary>
         /// 批量删除
@@ -50,7 +50,7 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 更新状态
         /// </summary>
-        Task UpdateStatusAsync(string id, short status, string? auditRemark = null);
+        Task UpdateStatusAsync(string id, short status, string? auditRemark = null, string? actingUserId = null);
 
         /// <summary>
         /// 搜索
@@ -135,7 +135,7 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 加入黑名单
         /// </summary>
-        Task AddToBlacklistAsync(string id, string? reason);
+        Task AddToBlacklistAsync(string id, string? reason, string? actingUserId = null);
 
         /// <summary>
         /// 移出黑名单（需原因，写入操作日志）
@@ -160,7 +160,7 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 恢复已删除供应商
         /// </summary>
-        Task RestoreAsync(string id);
+        Task RestoreAsync(string id, string? actingUserId = null);
 
         /// <summary>
         /// 获取供应商联系历史
@@ -436,6 +436,9 @@ namespace CRM.Core.Interfaces
         public string? CompanyInfo { get; set; }
         /// <summary>其他备注</summary>
         public string? Remark { get; set; }
+
+        /// <summary>公司英文全称</summary>
+        public string? EnglishOfficialName { get; set; }
     }
 
     /// <summary>
@@ -475,6 +478,9 @@ namespace CRM.Core.Interfaces
         public string? Remark { get; set; }
         /// <summary>外部编号</summary>
         public string? ExternalNumber { get; set; }
+
+        /// <summary>公司英文全称</summary>
+        public string? EnglishOfficialName { get; set; }
     }
 
     /// <summary>

@@ -41,7 +41,7 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "保存草稿失败");
-                return StatusCode(500, ApiResponse<DraftDto>.Fail($"保存草稿失败: {ex.Message}", 500));
+                return StatusCode(500, ApiResponse<DraftDto>.Fail(ex.Message, 500));
             }
         }
 
@@ -64,7 +64,7 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取草稿列表失败");
-                return StatusCode(500, ApiResponse<IReadOnlyList<DraftDto>>.Fail($"获取草稿列表失败: {ex.Message}", 500));
+                return StatusCode(500, ApiResponse<IReadOnlyList<DraftDto>>.Fail(ex.Message, 500));
             }
         }
 
@@ -82,7 +82,7 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取草稿详情失败: {DraftId}", draftId);
-                return StatusCode(500, ApiResponse<DraftDto>.Fail($"获取草稿详情失败: {ex.Message}", 500));
+                return StatusCode(500, ApiResponse<DraftDto>.Fail(ex.Message, 500));
             }
         }
 
@@ -102,7 +102,7 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "删除草稿失败: {DraftId}", draftId);
-                return StatusCode(500, ApiResponse<object>.Fail($"删除草稿失败: {ex.Message}", 500));
+                return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500));
             }
         }
 
@@ -134,7 +134,7 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "草稿转正式失败: {DraftId}", draftId);
-                return StatusCode(500, ApiResponse<DraftConvertResultDto>.Fail($"草稿转正式失败: {ex.Message}", 500));
+                return StatusCode(500, ApiResponse<DraftConvertResultDto>.Fail(ex.Message, 500));
             }
         }
     }

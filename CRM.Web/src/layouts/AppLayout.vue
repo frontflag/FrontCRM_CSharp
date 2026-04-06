@@ -711,6 +711,13 @@
           </template>
           <template #submenu>
             <router-link to="/system/company-info" class="submenu-item" active-class="active" exact>{{ t('layout.menu.companyInfo') }}</router-link>
+            <router-link to="/system/dict-items" class="submenu-item" active-class="active" exact>{{ t('layout.menu.dictItems') }}</router-link>
+            <router-link
+              to="/system/finance-params/exchange-rates"
+              class="submenu-item"
+              active-class="active"
+              exact
+            >{{ t('layout.menu.financeParams') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -972,7 +979,6 @@
         </div>
         <div class="aux-panel-body">
           <HelpManualPanel v-show="rightActiveTabId === 'r4'" class="aux-panel-tab-body" />
-          <SalesOrderJourneyPanel v-show="rightActiveTabId === 'r5'" class="aux-panel-tab-body" />
         </div>
       </aside>
     </div>
@@ -1010,7 +1016,6 @@ import SalesOrderRecentHistoryPanel from '@/components/SalesOrder/SalesOrderRece
 import PurchaseOrderFavoritePanel from '@/components/purchaseOrder/PurchaseOrderFavoritePanel.vue'
 import PurchaseOrderRecentHistoryPanel from '@/components/purchaseOrder/PurchaseOrderRecentHistoryPanel.vue'
 import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
-import SalesOrderJourneyPanel from '@/components/workspace/SalesOrderJourneyPanel.vue'
 import { Sunny, Moon } from '@element-plus/icons-vue'
 import { useUiTheme } from '@/composables/useUiTheme'
 import { setAppLocale, type AppLocale } from '@/plugins/i18n'
@@ -1306,6 +1311,8 @@ const pageTitleMap: Record<string, string> = {
   '/system/departments': 'layout.menu.departmentManagement',
   '/system/departments/create': 'layout.menu.departmentManagement',
   '/system/company-info': 'layout.menu.companyInfo',
+  '/system/dict-items': 'layout.menu.dictItems',
+  '/system/finance-params/exchange-rates': 'layout.menu.financeParams',
   '/inventory/list': 'layout.menu.inventoryManagement',
   '/inventory/stock-in': 'layout.menu.stockInManagement',
   '/inventory/stock-out': 'layout.menu.stockOutManagement',
@@ -1415,6 +1422,9 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '编辑部门': 'systemUser.edit',
   '部门详情': 'rfqItemList.actions.detail',
   '公司信息': 'layout.menu.companyInfo',
+  '数据字典': 'layout.menu.dictItems',
+  '财务参数': 'layout.menu.financeParams',
+  '汇率设置': 'financeParams.exchangeRatesNav',
   '付款管理': 'layout.menu.paymentManagement',
   '付款单详情': 'rfqItemList.actions.detail',
   '收款管理': 'layout.menu.receiptRecords',
@@ -1548,7 +1558,7 @@ watch(
     if (p.startsWith('/system/')) {
       openGroups.value.systemManagement = true
     }
-    if (p === '/system/company-info') {
+    if (p === '/system/company-info' || p === '/system/dict-items' || p.startsWith('/system/finance-params')) {
       openGroups.value.paramManagement = true
     }
   },
@@ -2613,7 +2623,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 
-/** 右侧「帮助 / 订单旅程」等多 Tab 共用的内容区，撑满高度以便 G6 布局 */
+/** 右侧扩展面板内容区：撑满高度 */
 .aux-panel-tab-body {
   flex: 1;
   min-height: 0;

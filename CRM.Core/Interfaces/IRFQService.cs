@@ -5,17 +5,21 @@ namespace CRM.Core.Interfaces
     /// <summary>需求(RFQ)服务接口</summary>
     public interface IRFQService
     {
-        Task<RFQ> CreateAsync(CreateRFQRequest request);
+        /// <param name="actingUserId">当前登录用户 ID（写入 create_by_user_id，供列表「创建人」展示）</param>
+        Task<RFQ> CreateAsync(CreateRFQRequest request, string? actingUserId = null);
         Task<RFQ?> GetByIdAsync(string id);
         Task<PagedResult<RFQListItem>> GetPagedAsync(RFQQueryRequest request);
         /// <summary>需求明细分页（联主表、客户、业务员，含数据权限）</summary>
         Task<PagedResult<RFQItemListItem>> GetPagedItemsAsync(RFQItemQueryRequest request);
-        Task<RFQ> UpdateAsync(string id, UpdateRFQRequest request);
+        /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
+        Task<RFQ> UpdateAsync(string id, UpdateRFQRequest request, string? actingUserId = null);
         Task DeleteAsync(string id);
-        Task UpdateStatusAsync(string id, short status);
+        /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
+        Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
 
         /// <summary>手动将需求下全部明细的询价采购员设为指定用户（AssignMethod=4 指定采购员）。</summary>
-        Task<RFQ> AssignPurchaserAsync(string rfqId, AssignPurchaserRequest request);
+        /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
+        Task<RFQ> AssignPurchaserAsync(string rfqId, AssignPurchaserRequest request, string? actingUserId = null);
     }
 
     /// <summary>分配采购员请求（与前端 purchaserId / remark 对齐）</summary>
@@ -108,6 +112,15 @@ namespace CRM.Core.Interfaces
         public short Importance { get; set; }
         public int ItemCount { get; set; }
         public DateTime CreateTime { get; set; }
+
+        /// <summary>业务员用户 ID</summary>
+        public string? SalesUserId { get; set; }
+        /// <summary>业务员展示名（列表组装）</summary>
+        public string? SalesUserName { get; set; }
+        /// <summary>创建人用户 ID</summary>
+        public string? CreateByUserId { get; set; }
+        /// <summary>创建人展示名（列表组装；前端亦可能读 createUserName）</summary>
+        public string? CreateUserName { get; set; }
     }
 
     /// <summary>需求明细列表查询条件（对应 GET /rfqs/items）</summary>

@@ -62,11 +62,13 @@ namespace CRM.Infrastructure.Data
         public DbSet<SellOrder> SellOrders { get; set; } = null!;
         public DbSet<SellOrderItem> SellOrderItems { get; set; } = null!;
         public DbSet<SellOrderItemExtend> SellOrderItemExtends { get; set; } = null!;
+        public DbSet<SellOrderExtend> SellOrderExtends { get; set; } = null!;
 
         // ===== 采购订单模块 =====
         public DbSet<PurchaseOrder> PurchaseOrders { get; set; } = null!;
         public DbSet<PurchaseOrderItem> PurchaseOrderItems { get; set; } = null!;
         public DbSet<PurchaseOrderItemExtend> PurchaseOrderItemExtends { get; set; } = null!;
+        public DbSet<PurchaseOrderExtend> PurchaseOrderExtends { get; set; } = null!;
 
         // ===== 采购申请模块 =====
         public DbSet<PurchaseRequisition> PurchaseRequisitions { get; set; } = null!;
@@ -80,6 +82,9 @@ namespace CRM.Infrastructure.Data
         public DbSet<FinancePurchaseInvoiceItem> FinancePurchaseInvoiceItems { get; set; } = null!;
         public DbSet<FinanceSellInvoice> FinanceSellInvoices { get; set; } = null!;
         public DbSet<SellInvoiceItem> SellInvoiceItems { get; set; } = null!;
+        public DbSet<FinanceExchangeRateSetting> FinanceExchangeRateSettings { get; set; } = null!;
+        public DbSet<FinanceExchangeRateChangeLog> FinanceExchangeRateChangeLogs { get; set; } = null!;
+        public DbSet<PaymentRequest> PaymentRequests { get; set; } = null!;
 
         // ===== 物料主数据 =====
         public DbSet<MaterialInfo> Materials { get; set; } = null!;
@@ -129,7 +134,9 @@ namespace CRM.Infrastructure.Data
         // ===== 系统参数 =====
         public DbSet<SysParamGroup> SysParamGroups { get; set; } = null!;
         public DbSet<SysParam> SysParams { get; set; } = null!;
+        public DbSet<SysDictItem> SysDictItems { get; set; } = null!;
         public DbSet<ApprovalRecord> ApprovalRecords { get; set; } = null!;
+        public DbSet<OrderJourneyLog> OrderJourneyLogs { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -215,8 +222,20 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.SellOrderId).IsRequired();
                 entity.Property(e => e.Qty).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
                 entity.Property(e => e.Price).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.ConvertPrice).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
                 entity.Property(e => e.PurchasedQty).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                // 与迁移 20260409120000 列名 sell_order_item_code 一致（避免仅 HasMaxLength 时映射回退为属性名）
+                entity.Property(e => e.SellOrderItemCode).HasColumnName("sell_order_item_code").HasMaxLength(64);
+                entity.HasIndex(e => new { e.SellOrderId, e.SellOrderItemCode }).IsUnique();
                 entity.HasIndex(e => e.SellOrderId);
+            });
+
+            modelBuilder.Entity<SellOrderExtend>(entity =>
+            {
+                entity.HasKey(e => e.SellOrderId);
+                entity.ToTable("sellorderextend");
+                entity.Property(e => e.SellOrderId).HasColumnName("SellOrderId").HasMaxLength(36);
+                entity.Property(e => e.LastItemLineSeq).HasDefaultValue(0);
             });
 
             modelBuilder.Entity<SellOrderItemExtend>(entity =>
@@ -224,8 +243,11 @@ namespace CRM.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("SellOrderItemId");
                 entity.ToTable("sellorderitemextend");
+                entity.Property(e => e.QtyAlreadyPurchased).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                entity.Property(e => e.QtyNotPurchase).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
                 entity.Property(e => e.QtyStockOutNotify).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
                 entity.Property(e => e.QtyStockOutNotifyNot).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                entity.Property(e => e.QtyStockOutActual).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
                 entity.Property(e => e.InvoiceAmount).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.InvoiceAmountNot).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.InvoiceAmountFinish).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
@@ -237,6 +259,32 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.PaymentAmountToBe).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.PurchaseInvoiceAmount).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.PurchaseInvoiceDone).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.QuoteItemId).HasMaxLength(36);
+                entity.Property(e => e.QuoteCost).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.QuoteConvertCost).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.FxUsdToCnySnapshot).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.FxUsdToHkdSnapshot).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.FxUsdToEurSnapshot).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.SellConvertUsdUnitSnapshot).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.SellLineAmountUsdSnapshot).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.QuoteProfitExpected).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.QuoteProfitRateExpected).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.ReQuoteProfitExpected).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.ReQuoteProfitRateExpected).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.PoCostUsdTotal).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.PurchaseProfitExpected).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.PurchaseProfitRateExpected).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.PoCostUsdConfirmed).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.SalesProfitExpected).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.ProfitOutBizUsd).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.ProfitOutRateBiz).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.ProfitOutFinUsd).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.ProfitOutRateFin).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.PurchaseProgressStatus).HasDefaultValue((short)0);
+                entity.Property(e => e.StockInProgressStatus).HasDefaultValue((short)0);
+                entity.Property(e => e.StockOutProgressStatus).HasDefaultValue((short)0);
+                entity.Property(e => e.ReceiptProgressStatus).HasDefaultValue((short)0);
+                entity.Property(e => e.InvoiceProgressStatus).HasDefaultValue((short)0);
             });
 
             // ===== 采购订单模块配置 =====
@@ -261,13 +309,25 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.SellOrderItemId).IsRequired();
                 entity.Property(e => e.Qty).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
                 entity.Property(e => e.Cost).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.ConvertPrice).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
                 entity.Property(e => e.Status).HasDefaultValue((short)1);
+                // 与迁移 20260409120000 列名 purchase_order_item_code 一致（否则 SQL 会引用不存在的 "PurchaseOrderItemCode"）
+                entity.Property(e => e.PurchaseOrderItemCode).HasColumnName("purchase_order_item_code").HasMaxLength(64);
+                entity.HasIndex(e => new { e.PurchaseOrderId, e.PurchaseOrderItemCode }).IsUnique();
                 entity.HasIndex(e => e.PurchaseOrderId);
                 entity.HasIndex(e => e.SellOrderItemId);
                 entity.HasOne(e => e.SellOrderItem)
                       .WithMany()
                       .HasForeignKey(e => e.SellOrderItemId)
                       .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<PurchaseOrderExtend>(entity =>
+            {
+                entity.HasKey(e => e.PurchaseOrderId);
+                entity.ToTable("purchaseorderextend");
+                entity.Property(e => e.PurchaseOrderId).HasColumnName("PurchaseOrderId").HasMaxLength(36);
+                entity.Property(e => e.LastItemLineSeq).HasDefaultValue(0);
             });
 
             modelBuilder.Entity<PurchaseOrderItemExtend>(entity =>
@@ -287,6 +347,11 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.ReceiptAmount).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.ReceiptAmountNot).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.ReceiptAmountFinish).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.PurchaseProgressStatus).HasDefaultValue((short)0);
+                entity.Property(e => e.PurchaseProgressQty).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                entity.Property(e => e.StockInProgressStatus).HasDefaultValue((short)0);
+                entity.Property(e => e.PaymentProgressStatus).HasDefaultValue((short)0);
+                entity.Property(e => e.InvoiceProgressStatus).HasDefaultValue((short)0);
             });
 
             // ===== 软删除全局过滤器 =====
@@ -532,6 +597,11 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.LocationId).HasMaxLength(36);
                 entity.Property(e => e.Unit).HasMaxLength(20);
                 entity.Property(e => e.BatchNo).HasMaxLength(50);
+                // 与 purchaseorderitem / sellorderitem 一致：snake_case（迁移 20260417100000 重建列）
+                entity.Property(e => e.PurchaseOrderItemCode).HasColumnName("purchase_order_item_code").HasMaxLength(64);
+                entity.Property(e => e.PurchaseOrderItemId).HasColumnName("purchase_order_item_id").HasMaxLength(36);
+                entity.Property(e => e.SellOrderItemCode).HasColumnName("sell_order_item_code").HasMaxLength(64);
+                entity.Property(e => e.SellOrderItemId).HasColumnName("sell_order_item_id").HasMaxLength(36);
                 entity.Property(e => e.Remark).HasMaxLength(500);
             });
 
@@ -539,7 +609,14 @@ namespace CRM.Infrastructure.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.StockInCode).IsRequired().HasMaxLength(32);
+                entity.Property(e => e.PurchaseOrderItemCode).HasColumnName("purchase_order_item_code").HasMaxLength(64);
+                entity.Property(e => e.PurchaseOrderItemId).HasColumnName("purchase_order_item_id").HasMaxLength(36);
+                entity.Property(e => e.SellOrderItemCode).HasColumnName("sell_order_item_code").HasMaxLength(64);
+                entity.Property(e => e.SellOrderItemId).HasColumnName("sell_order_item_id").HasMaxLength(36);
                 entity.Property(e => e.SourceCode).HasMaxLength(32);
+                entity.Property(e => e.SourceId).HasMaxLength(36);
+                entity.Property(e => e.QcCode).HasMaxLength(32);
+                entity.Property(e => e.QcId).HasMaxLength(36).HasColumnName("QCID");
                 entity.Property(e => e.WarehouseId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.VendorId).HasMaxLength(36);
                 entity.Property(e => e.Remark).HasMaxLength(500);
@@ -563,6 +640,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.SourceCode).HasMaxLength(32);
                 entity.Property(e => e.WarehouseId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.CustomerId).HasMaxLength(36);
+                entity.Property(e => e.SellOrderItemId).HasMaxLength(36);
                 entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.HasMany(e => e.Items).WithOne(e => e.StockOut).HasForeignKey(e => e.StockOutId).OnDelete(DeleteBehavior.Cascade);
             });
@@ -697,6 +775,11 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.QtyOut).HasColumnType("numeric(18,4)");
                 entity.Property(e => e.UnitCost).HasColumnType("numeric(18,6)");
                 entity.Property(e => e.Amount).HasColumnType("numeric(18,2)");
+                // 与 stock / purchaseorderitem 一致：snake_case（迁移 20260417100000）
+                entity.Property(e => e.PurchaseOrderItemCode).HasColumnName("purchase_order_item_code").HasMaxLength(64);
+                entity.Property(e => e.PurchaseOrderItemId).HasColumnName("purchase_order_item_id").HasMaxLength(36);
+                entity.Property(e => e.SellOrderItemCode).HasColumnName("sell_order_item_code").HasMaxLength(64);
+                entity.Property(e => e.SellOrderItemId).HasColumnName("sell_order_item_id").HasMaxLength(36);
                 entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.HasIndex(e => new { e.BizType, e.BizId, e.BizLineId }).IsUnique();
             });
@@ -853,6 +936,15 @@ namespace CRM.Infrastructure.Data
             });
 
             // ===== 财务模块配置（与历史迁移表结构一致）=====
+            modelBuilder.Entity<PaymentRequest>(entity =>
+            {
+                entity.ToTable("paymentrequest");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("PaymentRequestId").HasMaxLength(36);
+                entity.Property(e => e.RequestCode).HasMaxLength(50);
+                entity.Property(e => e.Amount).HasColumnType("numeric(18,2)");
+            });
+
             modelBuilder.Entity<FinanceReceipt>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -872,6 +964,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Id).HasColumnName("FinanceReceiptItemId");
                 entity.Property(e => e.ReceiptAmount).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.ReceiptConvertAmount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.VerifiedAmount).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.HasIndex(e => e.FinanceReceiptId);
             });
 
@@ -1040,6 +1133,52 @@ namespace CRM.Infrastructure.Data
                 entity.HasIndex(e => e.ParamCode).IsUnique();
             });
 
+            modelBuilder.Entity<SysDictItem>(entity =>
+            {
+                entity.ToTable("sys_dict_item");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("Id").HasMaxLength(36);
+                entity.Property(e => e.Category).IsRequired().HasMaxLength(64);
+                entity.Property(e => e.ItemCode).IsRequired().HasMaxLength(64);
+                entity.Property(e => e.NameZh).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.NameEn).HasMaxLength(200);
+                entity.Property(e => e.SortOrder);
+                entity.Property(e => e.IsActive).HasDefaultValue(true);
+                entity.HasIndex(e => new { e.Category, e.ItemCode }).IsUnique();
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.Ignore(e => e.ModifyTime);
+            });
+
+            modelBuilder.Entity<FinanceExchangeRateSetting>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FinanceExchangeRateSettingId").HasMaxLength(36);
+                entity.Property(e => e.UsdToCny).HasColumnType("numeric(12,4)");
+                entity.Property(e => e.UsdToHkd).HasColumnType("numeric(12,4)");
+                entity.Property(e => e.UsdToEur).HasColumnType("numeric(12,4)");
+                entity.Property(e => e.EditorUserId).HasMaxLength(36);
+                entity.Property(e => e.EditorUserName).HasMaxLength(100);
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+            });
+
+            modelBuilder.Entity<FinanceExchangeRateChangeLog>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FinanceExchangeRateChangeLogId").HasMaxLength(36);
+                entity.Property(e => e.UsdToCny).HasColumnType("numeric(12,4)");
+                entity.Property(e => e.UsdToHkd).HasColumnType("numeric(12,4)");
+                entity.Property(e => e.UsdToEur).HasColumnType("numeric(12,4)");
+                entity.Property(e => e.ChangeUserId).HasMaxLength(36);
+                entity.Property(e => e.ChangeUserName).HasMaxLength(100);
+                entity.Property(e => e.ChangeSummary).HasMaxLength(500);
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.Ignore(e => e.ModifyTime);
+                entity.HasIndex(e => e.CreateTime);
+            });
+
             modelBuilder.Entity<ApprovalRecord>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -1060,6 +1199,39 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.ApproverUserName).HasMaxLength(100);
                 entity.HasIndex(e => new { e.BizType, e.BusinessId });
                 entity.HasIndex(e => e.ActionTime);
+            });
+
+            modelBuilder.Entity<OrderJourneyLog>(entity =>
+            {
+                entity.ToTable("log_orderjourney");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("Id").HasMaxLength(36);
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.Property(e => e.EntityKind).IsRequired().HasMaxLength(32);
+                entity.Property(e => e.EntityId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.ParentEntityKind).HasMaxLength(32);
+                entity.Property(e => e.ParentEntityId).HasMaxLength(36);
+                entity.Property(e => e.DocumentCode).HasMaxLength(64);
+                entity.Property(e => e.LineHint).HasMaxLength(200);
+                entity.Property(e => e.EventCode).IsRequired().HasMaxLength(64);
+                entity.Property(e => e.EventLabel).HasMaxLength(200);
+                entity.Property(e => e.FromState).HasMaxLength(32);
+                entity.Property(e => e.ToState).HasMaxLength(32);
+                entity.Property(e => e.EventTime);
+                entity.Property(e => e.Quantity).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.Amount).HasColumnType("numeric(18,6)");
+                entity.Property(e => e.Remark).HasMaxLength(500);
+                entity.Property(e => e.RelatedEntityKind).HasMaxLength(32);
+                entity.Property(e => e.RelatedEntityId).HasMaxLength(36);
+                entity.Property(e => e.ActorKind).HasMaxLength(16);
+                entity.Property(e => e.ActorUserId).HasMaxLength(36);
+                entity.Property(e => e.ActorUserName).HasMaxLength(100);
+                entity.Property(e => e.ActorVendorId).HasMaxLength(36);
+                entity.Property(e => e.Source).HasMaxLength(64);
+                entity.HasIndex(e => new { e.EntityKind, e.EntityId, e.EventTime });
+                entity.HasIndex(e => new { e.ParentEntityKind, e.ParentEntityId, e.EventTime });
+                entity.HasIndex(e => new { e.EventCode, e.EventTime });
             });
         }
     }

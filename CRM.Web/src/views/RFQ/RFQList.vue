@@ -372,7 +372,7 @@ const handleView = (row: any) => {
 }
 
 const handleGenerateQuote = (_row: any) => {
-  ElMessage.success(t('rfqList.generateQuoteSuccess'))
+  ElMessage.info(t('rfqList.featureNotAvailable'))
 }
 
 </script>

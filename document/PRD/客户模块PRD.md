@@ -85,7 +85,7 @@ interface Customer {
 interface CustomerContactInfo {
   id: string
   contactName: string     // 姓名（必填）
-  gender: number          // 性别：0=男, 1=女, 2=保密
+  gender: number          // 性别：0=保密、1=男、2=女
   department?: string     // 部门
   position?: string       // 职位
   mobilePhone: string     // 手机（必填）

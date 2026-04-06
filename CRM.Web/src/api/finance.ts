@@ -12,6 +12,8 @@ export interface FinancePayment {
   id: string
   financePaymentCode: string
   vendorId: string
+  /** 供应商业务编码（列表/详情由后端填充，不落库） */
+  vendorCode?: string
   vendorName?: string
   salesUserId?: string
   status: number       // 1新建 2待审核 10审核通过 100付款完成 -1审核失败 -2取消
@@ -24,7 +26,12 @@ export interface FinancePayment {
   paymentMode: number  // 1:银行转账 2:现金 3:支票 4:承兑汇票
   bankSlipNo?: string
   remark?: string
+  /** 后端 BaseEntity 序列化字段（camelCase: createTime） */
+  createTime?: string
+  /** 兼容旧前端命名 */
   createdAt?: string
+  /** 列表/详情由后端按 CreateByUserId 填充 */
+  createUserName?: string
   items?: FinancePaymentItem[]
 }
 
@@ -57,8 +64,11 @@ export interface FinanceReceipt {
   receiptUserId?: string
   receiptMode: number  // 1:银行转账 2:现金 3:支票 4:承兑汇票
   receiptBankId?: string
+  bankSlipNo?: string
   remark?: string
   createdAt?: string
+  /** 列表/详情接口由后端根据 createByUserId 填充 */
+  createUserName?: string
   items?: FinanceReceiptItem[]
 }
 
@@ -109,6 +119,108 @@ export interface FinancePurchaseInvoiceItem {
   taxRate: number
   taxAmount: number
   excludTaxAmount: number
+}
+
+function pickStrFromRecord(r: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const k of keys) {
+    if (!(k in r)) continue
+    const v = r[k]
+    if (v == null) continue
+    const s = String(v).trim()
+    if (s) return s
+  }
+  return undefined
+}
+
+function pickNumFromRecord(r: Record<string, unknown>, keys: string[]): number {
+  for (const k of keys) {
+    if (!(k in r)) continue
+    const v = r[k]
+    if (v == null || v === '') continue
+    const n = typeof v === 'number' ? v : Number(v)
+    if (Number.isFinite(n)) return n
+  }
+  return 0
+}
+
+function hasDefinedProp(r: Record<string, unknown>, keys: string[]): boolean {
+  return keys.some((k) => k in r && r[k] !== undefined)
+}
+
+function toDateYmd(v: unknown): string | undefined {
+  if (v == null || v === '') return undefined
+  const s = String(v).trim()
+  if (!s) return undefined
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/)
+  return m ? m[1] : s
+}
+
+/**
+ * 将接口返回的进项发票实体（含 PascalCase、invoiceAmount、confirmStatus 等）规范为前端使用的 FinancePurchaseInvoice。
+ * 后端主表暂无付款进度、发票类型等字段时，金额按 0、状态按初始值处理。
+ */
+export function normalizeFinancePurchaseInvoice(raw: unknown): FinancePurchaseInvoice {
+  const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  const id = pickStrFromRecord(r, ['id', 'Id']) ?? ''
+  const invoiceTotal = pickNumFromRecord(r, ['invoiceTotal', 'InvoiceTotal', 'invoiceAmount', 'InvoiceAmount'])
+  const paymentDone = pickNumFromRecord(r, ['paymentDone', 'PaymentDone'])
+  let paymentToBe: number
+  if (hasDefinedProp(r, ['paymentToBe', 'PaymentToBe'])) {
+    paymentToBe = pickNumFromRecord(r, ['paymentToBe', 'PaymentToBe'])
+  } else {
+    paymentToBe = Math.max(0, invoiceTotal - paymentDone)
+  }
+
+  let invoiceStatus: number
+  if (hasDefinedProp(r, ['invoiceStatus', 'InvoiceStatus'])) {
+    invoiceStatus = pickNumFromRecord(r, ['invoiceStatus', 'InvoiceStatus'])
+    if (invoiceStatus === 0) invoiceStatus = 1
+  } else {
+    const red = pickNumFromRecord(r, ['redInvoiceStatus', 'RedInvoiceStatus'])
+    if (red === 1) invoiceStatus = -1
+    else {
+      const conf = pickNumFromRecord(r, ['confirmStatus', 'ConfirmStatus'])
+      invoiceStatus = conf === 1 ? 100 : 1
+    }
+  }
+
+  let paymentStatus = pickNumFromRecord(r, ['paymentStatus', 'PaymentStatus'])
+  if (!hasDefinedProp(r, ['paymentStatus', 'PaymentStatus'])) paymentStatus = 0
+  else if (!Number.isFinite(paymentStatus)) paymentStatus = 0
+
+  let purchaseInvoiceType = pickNumFromRecord(r, ['purchaseInvoiceType', 'PurchaseInvoiceType'])
+  if (!hasDefinedProp(r, ['purchaseInvoiceType', 'PurchaseInvoiceType'])) purchaseInvoiceType = 100
+  else if (!Number.isFinite(purchaseInvoiceType) || purchaseInvoiceType <= 0) purchaseInvoiceType = 100
+
+  const typeVal = pickNumFromRecord(r, ['type', 'Type'])
+  const currencyVal = pickNumFromRecord(r, ['currency', 'Currency'])
+
+  const code =
+    pickStrFromRecord(r, ['financePurchaseInvoiceCode', 'FinancePurchaseInvoiceCode', 'invoiceCode', 'InvoiceCode']) ||
+    id
+
+  const itemsRaw = r.items ?? r.Items
+  const items = Array.isArray(itemsRaw) ? (itemsRaw as FinancePurchaseInvoiceItem[]) : undefined
+
+  return {
+    id,
+    financePurchaseInvoiceCode: code,
+    vendorId: pickStrFromRecord(r, ['vendorId', 'VendorId']) ?? '',
+    vendorName: pickStrFromRecord(r, ['vendorName', 'VendorName']),
+    invoiceNo: pickStrFromRecord(r, ['invoiceNo', 'InvoiceNo']),
+    invoiceTotal,
+    makeInvoiceDate: toDateYmd(pickStrFromRecord(r, ['makeInvoiceDate', 'MakeInvoiceDate', 'invoiceDate', 'InvoiceDate'])),
+    paymentStatus,
+    paymentDone,
+    paymentToBe,
+    currency: currencyVal > 0 ? currencyVal : 1,
+    type: typeVal > 0 ? typeVal : 10,
+    invoiceStatus,
+    purchaseInvoiceType,
+    remark: pickStrFromRecord(r, ['remark', 'Remark']),
+    createdAt: pickStrFromRecord(r, ['createdAt', 'CreatedAt', 'createTime', 'CreateTime']),
+    items,
+  }
 }
 
 export interface FinanceSellInvoice {

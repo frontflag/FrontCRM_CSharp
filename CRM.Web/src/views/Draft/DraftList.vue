@@ -42,7 +42,7 @@
     <el-card>
       <CrmDataTable
         ref="dataTableRef"
-        column-layout-key="draft-list-main"
+        column-layout-key="draft-list-v2"
         :columns="draftTableColumns"
         :show-column-settings="false"
         :data="drafts"
@@ -52,6 +52,8 @@
         <template #col-status="{ row }">
           <el-tag effect="dark" :type="statusTagType(row.status)">{{ statusText(row.status) }}</el-tag>
         </template>
+        <template #col-chineseOfficialName="{ row }">{{ draftChineseDisplay(row as DraftDto) }}</template>
+        <template #col-englishOfficialName="{ row }">{{ draftEnglishDisplay(row as DraftDto) }}</template>
         <template #col-entityType="{ row }">{{ entityTypeText(row.entityType) }}</template>
         <template #col-createTime="{ row }">{{ formatTime(row.createTime) }}</template>
         <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
@@ -117,7 +119,59 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
+
+/** 后端历史文案带中文前缀时去掉，避免与前端 i18n 标题重复 */
+function trimStr(v: unknown): string {
+  if (v == null) return ''
+  const s = String(v).trim()
+  return s
+}
+
+function parseDraftPayload(row: DraftDto): Record<string, unknown> | null {
+  try {
+    const j = JSON.parse(row.payloadJson || '{}') as unknown
+    return j && typeof j === 'object' && !Array.isArray(j) ? (j as Record<string, unknown>) : null
+  } catch {
+    return null
+  }
+}
+
+/** 列表「中文全称」：优先表单 payload，其次草稿标题 */
+function draftChineseDisplay(row: DraftDto): string {
+  const p = parseDraftPayload(row)
+  const t = row.entityType?.toUpperCase?.() || ''
+  if (p) {
+    if (t === 'CUSTOMER') {
+      const v = trimStr(p.customerName) || trimStr(p.officialName) || trimStr(row.draftName)
+      if (v) return v
+    } else if (t === 'VENDOR') {
+      const v = trimStr(p.officialName) || trimStr(p.name) || trimStr(row.draftName)
+      if (v) return v
+    } else if (t === 'RFQ') {
+      const v = trimStr(p.product) || trimStr(p.rfqCode) || trimStr(row.draftName)
+      if (v) return v
+    }
+  }
+  return trimStr(row.draftName) || '--'
+}
+
+function draftEnglishDisplay(row: DraftDto): string {
+  const p = parseDraftPayload(row)
+  if (!p) return '--'
+  const v = trimStr(p.englishOfficialName)
+  return v || '--'
+}
+
+function stripDraftApiErrorDetail(message: string): string {
+  return (message || '')
+    .trim()
+    .replace(
+      /^(获取草稿列表失败|草稿转正式失败|删除草稿失败|保存草稿失败|获取草稿详情失败)[：:]\s*/i,
+      ''
+    )
+    .trim()
+}
 const loading = ref(false)
 const drafts = ref<DraftDto[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
@@ -133,27 +187,39 @@ function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 
-const draftTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'status', label: t('draftList.columns.status'), width: 110, align: 'center' },
-  { key: 'draftId', label: t('draftList.columns.draftId'), prop: 'draftId', minWidth: 260, showOverflowTooltip: true },
-  { key: 'draftName', label: t('draftList.columns.draftName'), prop: 'draftName', minWidth: 160, showOverflowTooltip: true },
-  { key: 'entityType', label: t('draftList.columns.entityType'), width: 120, align: 'center' },
-  { key: 'convertedEntityId', label: t('draftList.columns.convertedEntityId'), prop: 'convertedEntityId', minWidth: 220, showOverflowTooltip: true },
-  { key: 'createTime', label: t('draftList.columns.createTime'), width: 180 },
-  { key: 'createUser', label: t('draftList.columns.createUser'), width: 120, showOverflowTooltip: true },
-  {
-    key: 'actions',
-    label: t('draftList.columns.actions'),
-    width: opColWidth.value,
-    minWidth: opColMinWidth.value,
-    fixed: 'right',
-    hideable: false,
-    pinned: 'end',
-    reorderable: false,
-    className: 'op-col',
-    labelClassName: 'op-col'
-  }
-])
+const draftTableColumns = computed<CrmTableColumnDef[]>(() => {
+  void locale.value
+  return [
+    { key: 'status', label: t('draftList.columns.status'), width: 110, align: 'center' },
+    {
+      key: 'chineseOfficialName',
+      label: t('draftList.columns.chineseOfficialName'),
+      minWidth: 160,
+      showOverflowTooltip: true
+    },
+    {
+      key: 'englishOfficialName',
+      label: t('draftList.columns.englishOfficialName'),
+      minWidth: 160,
+      showOverflowTooltip: true
+    },
+    { key: 'entityType', label: t('draftList.columns.entityType'), width: 120, align: 'center' },
+    { key: 'createTime', label: t('draftList.columns.createTime'), width: 180 },
+    { key: 'createUser', label: t('draftList.columns.createUser'), width: 120, showOverflowTooltip: true },
+    {
+      key: 'actions',
+      label: t('draftList.columns.actions'),
+      width: opColWidth.value,
+      minWidth: opColMinWidth.value,
+      fixed: 'right',
+      hideable: false,
+      pinned: 'end',
+      reorderable: false,
+      className: 'op-col',
+      labelClassName: 'op-col'
+    }
+  ]
+})
 
 const filters = reactive<{
   entityType?: string
@@ -174,7 +240,10 @@ const fetchDrafts = async () => {
       keyword: filters.keyword?.trim() || undefined
     })
   } catch (err: any) {
-    ElMessage.error(err?.message || t('draftList.messages.loadFailed'))
+    const detail = stripDraftApiErrorDetail(err?.message || '')
+    ElMessage.error(
+      detail ? `${t('draftList.messages.loadFailed')}: ${detail}` : t('draftList.messages.loadFailed')
+    )
   } finally {
     loading.value = false
   }
@@ -232,7 +301,10 @@ const convertDraft = async (row: DraftDto) => {
     ElMessage.success(t('draftList.messages.convertSuccess', { id: result.entityId }))
     await fetchDrafts()
   } catch (err: any) {
-    ElMessage.error(err?.message || t('draftList.messages.convertFailed'))
+    const detail = stripDraftApiErrorDetail(err?.message || '')
+    ElMessage.error(
+      detail ? `${t('draftList.messages.convertFailed')}: ${detail}` : t('draftList.messages.convertFailed')
+    )
   }
 }
 
@@ -252,7 +324,10 @@ const deleteDraft = async (row: DraftDto) => {
     await fetchDrafts()
   } catch (err: any) {
     if (err === 'cancel' || err === 'close') return
-    ElMessage.error(err?.message || t('draftList.messages.deleteFailed'))
+    const detail = stripDraftApiErrorDetail(err?.message || '')
+    ElMessage.error(
+      detail ? `${t('draftList.messages.deleteFailed')}: ${detail}` : t('draftList.messages.deleteFailed')
+    )
   }
 }
 

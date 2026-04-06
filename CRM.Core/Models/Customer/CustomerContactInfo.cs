@@ -59,7 +59,7 @@ namespace CRM.Core.Models.Customer
         public string? EName { get; set; }
 
         /// <summary>
-        /// 性别 (1:男 2:女)
+        /// 性别：0=保密、1=男、2=女
         /// </summary>
         public short? Gender { get; set; }
 

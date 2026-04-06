@@ -131,6 +131,14 @@ namespace CRM.Core.Models.Inventory
         [NotMapped]
         public string? Brand { get; set; }
 
+        [StringLength(36)]
+        [Column("create_by_user_id")]
+        public string? CreateByUserId { get; set; }
+
+        [StringLength(36)]
+        [Column("modify_by_user_id")]
+        public string? ModifyByUserId { get; set; }
+
         public ICollection<QCItem> Items { get; set; } = new List<QCItem>();
     }
 

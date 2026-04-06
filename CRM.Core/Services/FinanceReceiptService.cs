@@ -1,4 +1,5 @@
 using CRM.Core.Interfaces;
+using CRM.Core.Models;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
@@ -12,9 +13,11 @@ namespace CRM.Core.Services
         private readonly IRepository<FinanceSellInvoice> _sellInvoiceRepo;
         private readonly IRepository<SellInvoiceItem> _sellInvoiceItemRepo;
         private readonly IRepository<SellOrder> _sellOrderRepo;
+        private readonly IRepository<User> _userRepository;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork? _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
+        private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
 
         public FinanceReceiptService(
             IRepository<FinanceReceipt> receiptRepo,
@@ -22,8 +25,10 @@ namespace CRM.Core.Services
             IRepository<FinanceSellInvoice> sellInvoiceRepo,
             IRepository<SellInvoiceItem> sellInvoiceItemRepo,
             IRepository<SellOrder> sellOrderRepo,
+            IRepository<User> userRepository,
             IDataPermissionService dataPermissionService,
             ISerialNumberService serialNumberService,
+            ISellOrderItemExtendSyncService sellOrderItemExtendSync,
             IUnitOfWork? unitOfWork = null)
         {
             _receiptRepo = receiptRepo;
@@ -31,12 +36,40 @@ namespace CRM.Core.Services
             _sellInvoiceRepo = sellInvoiceRepo;
             _sellInvoiceItemRepo = sellInvoiceItemRepo;
             _sellOrderRepo = sellOrderRepo;
+            _userRepository = userRepository;
             _dataPermissionService = dataPermissionService;
             _serialNumberService = serialNumberService;
+            _sellOrderItemExtendSync = sellOrderItemExtendSync;
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<FinanceReceipt> CreateAsync(CreateFinanceReceiptRequest request)
+        private static string FormatUserDisplayName(User u) =>
+            string.IsNullOrWhiteSpace(u.RealName) ? u.UserName : u.RealName!;
+
+        private async Task EnrichCreateUserNamesAsync(IReadOnlyList<FinanceReceipt> items)
+        {
+            if (items.Count == 0) return;
+            var ids = items
+                .Select(r => r.CreateByUserId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0) return;
+            var users = (await _userRepository.FindAsync(u => ids.Contains(u.Id))).ToList();
+            var map = users
+                .Where(u => !string.IsNullOrWhiteSpace(u.Id))
+                .GroupBy(u => u.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => FormatUserDisplayName(g.First()), StringComparer.OrdinalIgnoreCase);
+            foreach (var r in items)
+            {
+                if (string.IsNullOrWhiteSpace(r.CreateByUserId)) continue;
+                if (map.TryGetValue(r.CreateByUserId.Trim(), out var name))
+                    r.CreateUserName = name;
+            }
+        }
+
+        public async Task<FinanceReceipt> CreateAsync(CreateFinanceReceiptRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(request.CustomerId))
                 throw new ArgumentException("客户ID不能为空", nameof(request.CustomerId));
@@ -56,9 +89,11 @@ namespace CRM.Core.Services
                 ReceiptUserId = request.ReceiptUserId,
                 ReceiptMode = request.ReceiptMode,
                 ReceiptBankId = request.ReceiptBankId,
+                BankSlipNo = request.BankSlipNo,
                 Remark = request.Remark,
                 Status = 0,
-                CreateTime = DateTime.UtcNow
+                CreateTime = DateTime.UtcNow,
+                CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
             await _receiptRepo.AddAsync(receipt);
 
@@ -88,8 +123,13 @@ namespace CRM.Core.Services
             return receipt;
         }
 
-        public async Task<FinanceReceipt?> GetByIdAsync(string id) =>
-            await _receiptRepo.GetByIdAsync(id);
+        public async Task<FinanceReceipt?> GetByIdAsync(string id)
+        {
+            var r = await _receiptRepo.GetByIdAsync(id);
+            if (r == null) return null;
+            await EnrichCreateUserNamesAsync(new List<FinanceReceipt> { r });
+            return r;
+        }
 
         public async Task<IEnumerable<FinanceReceipt>> GetAllAsync() =>
             await _receiptRepo.GetAllAsync();
@@ -129,6 +169,7 @@ namespace CRM.Core.Services
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToList();
+            await EnrichCreateUserNamesAsync(items);
 
             return new PagedResult<FinanceReceipt>
             {
@@ -139,7 +180,7 @@ namespace CRM.Core.Services
             };
         }
 
-        public async Task<FinanceReceipt> UpdateAsync(string id, UpdateFinanceReceiptRequest request)
+        public async Task<FinanceReceipt> UpdateAsync(string id, UpdateFinanceReceiptRequest request, string? actingUserId = null)
         {
             var receipt = await _receiptRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"收款单 {id} 不存在");
@@ -151,8 +192,10 @@ namespace CRM.Core.Services
             if (request.ReceiptCurrency.HasValue) receipt.ReceiptCurrency = request.ReceiptCurrency.Value;
             if (request.ReceiptDate.HasValue) receipt.ReceiptDate = PostgreSqlDateTime.ToUtc(request.ReceiptDate.Value);
             if (request.ReceiptMode.HasValue) receipt.ReceiptMode = request.ReceiptMode.Value;
+            if (request.BankSlipNo != null) receipt.BankSlipNo = request.BankSlipNo;
             if (request.Remark != null) receipt.Remark = request.Remark;
             receipt.ModifyTime = DateTime.UtcNow;
+            receipt.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
 
             await _receiptRepo.UpdateAsync(receipt);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
@@ -164,13 +207,20 @@ namespace CRM.Core.Services
             var receipt = await _receiptRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"收款单 {id} 不存在");
             var items = await _itemRepo.GetAllAsync();
+            var recalcLineIds = items
+                .Where(i => i.FinanceReceiptId == id && !string.IsNullOrWhiteSpace(i.SellOrderItemId))
+                .Select(i => i.SellOrderItemId!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
             foreach (var item in items.Where(i => i.FinanceReceiptId == id))
                 await _itemRepo.DeleteAsync(item.Id);
             await _receiptRepo.DeleteAsync(id);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+            foreach (var sid in recalcLineIds)
+                await _sellOrderItemExtendSync.RecalculateAsync(sid);
         }
 
-        public async Task UpdateStatusAsync(string id, short status)
+        public async Task UpdateStatusAsync(string id, short status, string? actingUserId = null)
         {
             var receipt = await _receiptRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"收款单 {id} 不存在");
@@ -194,11 +244,12 @@ namespace CRM.Core.Services
                 receipt.ReceiptDate ??= DateTime.UtcNow;
             }
             receipt.ModifyTime = DateTime.UtcNow;
+            receipt.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _receiptRepo.UpdateAsync(receipt);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task VerifyReceiptItemAsync(string receiptItemId, string sellInvoiceId, decimal amount)
+        public async Task VerifyReceiptItemAsync(string receiptItemId, string sellInvoiceId, decimal amount, string? actingUserId = null)
         {
             var item = await _itemRepo.GetByIdAsync(receiptItemId)
                 ?? throw new InvalidOperationException($"收款明细 {receiptItemId} 不存在");
@@ -206,13 +257,17 @@ namespace CRM.Core.Services
             if (amount <= 0)
                 throw new ArgumentException("核销金额必须大于0", nameof(amount));
 
-            if (amount > item.ReceiptConvertAmount)
-                throw new InvalidOperationException($"核销金额超限：应收折算金额 {item.ReceiptConvertAmount}，本次 {amount}");
+            var remaining = item.ReceiptConvertAmount - item.VerifiedAmount;
+            if (amount > remaining)
+                throw new InvalidOperationException($"核销金额超限：剩余可核销 {remaining}，本次 {amount}");
 
-            if (amount >= item.ReceiptConvertAmount)
+            item.VerifiedAmount += amount;
+            if (item.VerifiedAmount >= item.ReceiptConvertAmount)
                 item.VerificationStatus = 2; // 核销完成
-            else
+            else if (item.VerifiedAmount > 0)
                 item.VerificationStatus = 1; // 部分核销
+            else
+                item.VerificationStatus = 0;
             item.ModifyTime = DateTime.UtcNow;
             await _itemRepo.UpdateAsync(item);
 
@@ -232,6 +287,7 @@ namespace CRM.Core.Services
                     else if (invoice.ReceiveDone > 0)
                         invoice.ReceiveStatus = 1; // 部分收款
                     invoice.ModifyTime = DateTime.UtcNow;
+                    invoice.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
                     await _sellInvoiceRepo.UpdateAsync(invoice);
 
                     // 同步销项发票明细的收款状态（当前按主单状态同步）
@@ -245,12 +301,15 @@ namespace CRM.Core.Services
                 }
             }
 
-            await SyncSellOrderReceiptStatusAsync(item);
+            await SyncSellOrderReceiptStatusAsync(item, actingUserId);
+
+            if (!string.IsNullOrWhiteSpace(item.SellOrderItemId))
+                await _sellOrderItemExtendSync.RecalculateAsync(item.SellOrderItemId.Trim());
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
         }
 
-        private async Task SyncSellOrderReceiptStatusAsync(FinanceReceiptItem receiptItem)
+        private async Task SyncSellOrderReceiptStatusAsync(FinanceReceiptItem receiptItem, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(receiptItem.SellOrderId))
                 return;
@@ -265,6 +324,7 @@ namespace CRM.Core.Services
                     ? (short)1
                     : (short)0;
             order.ModifyTime = DateTime.UtcNow;
+            order.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _sellOrderRepo.UpdateAsync(order);
         }
     }

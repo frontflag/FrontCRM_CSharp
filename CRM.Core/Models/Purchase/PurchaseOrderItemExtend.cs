@@ -1,11 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using CRM.Core.Models;
 
 namespace CRM.Core.Models.Purchase
 {
     /// <summary>
-    /// 采购明细扩展：货/票/款汇总及到货通知余量（与 purchaseorderitem 一对一，主键同明细 Id）
+    /// 采购明细扩展：与 <see cref="PurchaseOrderItem"/> 一对一（主键同明细 Id）。
+    /// 记录执行过程中的利润相关汇总（票/款）与进度：采购、入库、付款、进项开票（各维度含状态 + 数量或金额口径）。
     /// </summary>
     [Table("purchaseorderitemextend")]
     public class PurchaseOrderItemExtend : BaseGuidEntity
@@ -23,7 +23,10 @@ namespace CRM.Core.Models.Purchase
         [Column(TypeName = "numeric(18,4)")]
         public decimal QtyStockInNotifyExpectSum { get; set; }
 
-        /// <summary>累计实收数量（各批次 ReceiveQty 之和）</summary>
+        /// <summary>
+        /// 累计入库数量：所有「已入库」的采购入库单（StockInType=采购）中，头表 <c>PurchaseOrderItemId</c> 等于本行主键时，按单头 <c>TotalQuantity</c> 累计。
+        /// （与到货通知 ReceiveQty 独立，以入库单为有效入库凭证。）
+        /// </summary>
         [Column(TypeName = "numeric(18,4)")]
         public decimal QtyReceiveTotal { get; set; }
 
@@ -56,5 +59,22 @@ namespace CRM.Core.Models.Purchase
 
         [Column(TypeName = "numeric(18,2)")]
         public decimal ReceiptAmountFinish { get; set; }
+
+        /// <summary>采购执行进度：0=待采购 1=部分采购 2=采购完成（本明细状态；主单或明细取消时数量记 0、状态待采购）</summary>
+        public short PurchaseProgressStatus { get; set; }
+
+        /// <summary>本行有效采购数量：明细未取消且采购主单未取消时为行 Qty，否则 0。</summary>
+        [Column(TypeName = "numeric(18,4)")]
+        public decimal PurchaseProgressQty { get; set; }
+
+        /// <summary>入库进度：0=待入库 1=部分入库 2=入库完成（相对本行有效采购数量与 <see cref="QtyReceiveTotal"/>）</summary>
+        public short StockInProgressStatus { get; set; }
+
+        /// <summary>付款进度：0=待付款 1=部分付款 2=付款完成（已核销金额相对应付口径）</summary>
+        public short PaymentProgressStatus { get; set; }
+
+        /// <summary>进项开票进度：0=待开票 1=部分开票 2=开票完成（已开票金额相对应付票额）</summary>
+        public short InvoiceProgressStatus { get; set; }
     }
 }
+

@@ -15,6 +15,8 @@ export interface InventoryOverview {
   availableQty: number
   lockedQty: number
   inventoryAmount: number
+  /** 库存金额币别（与后端采购单 currency 编码一致：1=RMB 2=USD …） */
+  currency?: number
   lastMoveTime?: string
 }
 

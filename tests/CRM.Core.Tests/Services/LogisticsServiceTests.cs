@@ -3,6 +3,7 @@ using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Services;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace CRM.Core.Tests.Services;
@@ -13,6 +14,7 @@ public class LogisticsServiceTests
     public async Task GetQcsAsync_ModelFilter_ShouldMatchPnFromPurchaseOrderItems()
     {
         var notifyRepo = Substitute.For<IRepository<StockInNotify>>();
+        var stockInRepo = Substitute.For<IRepository<StockIn>>();
         var qcRepo = Substitute.For<IRepository<QCInfo>>();
         var qcItemRepo = Substitute.For<IRepository<QCItem>>();
         var poRepo = Substitute.For<IRepository<PurchaseOrder>>();
@@ -59,9 +61,11 @@ public class LogisticsServiceTests
         sellOrderItemRepo.GetAllAsync().Returns(Array.Empty<SellOrderItem>());
         sellOrderRepo.GetAllAsync().Returns(Array.Empty<SellOrder>());
 
+        var poExtendSync = Substitute.For<IPurchaseOrderItemExtendSyncService>();
+        var log = Substitute.For<ILogger<LogisticsService>>();
         var svc = new LogisticsService(
-            notifyRepo, qcRepo, qcItemRepo, poRepo, poItemRepo, poItemExtendRepo,
-            sellOrderItemRepo, sellOrderRepo, serial, uow);
+            notifyRepo, stockInRepo, qcRepo, qcItemRepo, poRepo, poItemRepo, poItemExtendRepo,
+            sellOrderItemRepo, sellOrderRepo, serial, poExtendSync, uow, log);
 
         var result = await svc.GetQcsAsync(new QcQueryRequest { Model = "UG-MPN-455565" });
 

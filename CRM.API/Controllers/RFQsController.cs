@@ -140,7 +140,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var rfq = await _rfqService.CreateAsync(request);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var rfq = await _rfqService.CreateAsync(request, actorId);
                 return CreatedAtAction(nameof(GetRFQ), new { id = rfq.Id },
                     ApiResponse<object>.Ok(rfq, "需求创建成功"));
             }

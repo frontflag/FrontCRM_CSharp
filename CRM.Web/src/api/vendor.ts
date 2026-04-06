@@ -17,6 +17,33 @@ function vendorsPath(id: string, suffix: string): string {
   return `/api/v1/vendors/${encodeURIComponent(id)}${suffix}`;
 }
 
+/** 列表/编辑展示名：中文名优先，兼容 API 别名 */
+export function normalizeVendorContactFromApi(raw: unknown): VendorContactInfo {
+  const r = raw as Record<string, unknown> | null;
+  if (!r || typeof r !== 'object') {
+    return { id: '', vendorId: '', isMain: false };
+  }
+  const cName = String(r.cName ?? r.contactName ?? '').trim();
+  const eName = String(r.eName ?? '').trim();
+  return {
+    id: String(r.id ?? ''),
+    vendorId: String(r.vendorId ?? ''),
+    cName: cName || undefined,
+    eName: eName || undefined,
+    title: (r.title as string) || undefined,
+    department: (r.department as string) || undefined,
+    mobile: String(r.mobile ?? '').trim() || undefined,
+    tel: (r.tel as string) || undefined,
+    email: (r.email as string) || undefined,
+    qq: r.qq as string | undefined,
+    weChat: r.weChat as string | undefined,
+    isMain: Boolean(r.isMain),
+    remark: r.remark as string | undefined,
+    createTime: r.createTime as string | undefined,
+    modifyTime: r.modifyTime as string | undefined
+  };
+}
+
 // 供应商 API
 export const vendorApi = {
   // 分页查询供应商列表
@@ -53,6 +80,7 @@ export const vendorApi = {
       code: data.code?.trim(),
       name: data.name?.trim(),
       officialName: data.officialName?.trim(),
+      englishOfficialName: data.englishOfficialName?.trim(),
       nickName: data.nickName?.trim(),
       industry: data.industry?.trim(),
       level: data.level,
@@ -101,6 +129,7 @@ export const vendorApi = {
   async updateVendor(id: string, data: UpdateVendorRequest): Promise<Vendor> {
     const payload: Record<string, unknown> = {
       name: data.name?.trim(),
+      englishOfficialName: data.englishOfficialName?.trim(),
       nickName: data.nickName?.trim(),
       industry: data.industry?.trim(),
       product: data.product?.trim(),
@@ -359,9 +388,13 @@ export const vendorBankApi = {
 export const vendorContactApi = {
   async getContactsByVendorId(vendorId: string): Promise<VendorContactInfo[]> {
     const response = await apiClient.get<any>(`/api/v1/vendors/${vendorId}/contacts`);
-    if (response && typeof response === 'object' && 'data' in response && Array.isArray(response.data))
-      return response.data as VendorContactInfo[];
-    return Array.isArray(response) ? response : [];
+    const list =
+      response && typeof response === 'object' && 'data' in response && Array.isArray(response.data)
+        ? response.data
+        : Array.isArray(response)
+          ? response
+          : [];
+    return list.map((c: unknown) => normalizeVendorContactFromApi(c));
   },
 
   async createContact(vendorId: string, data: AddVendorContactRequest): Promise<VendorContactInfo> {

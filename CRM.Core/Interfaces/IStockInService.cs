@@ -24,9 +24,13 @@ namespace CRM.Core.Interfaces
         public DateTime StockInDate { get; set; }
         public decimal TotalQuantity { get; set; }
         public decimal TotalAmount { get; set; }
+        /// <summary>币别编码（与采购订单明细 <c>currency</c> 一致）；无法从来源解析时为 null</summary>
+        public short? CurrencyCode { get; set; }
         public short Status { get; set; }
         public string? Remark { get; set; }
         public DateTime CreateTime { get; set; }
+        /// <summary>创建人展示名（由 CreatedBy 用户 Id 解析）</summary>
+        public string? CreateUserName { get; set; }
     }
 
     /// <summary>
@@ -34,12 +38,12 @@ namespace CRM.Core.Interfaces
     /// </summary>
     public interface IStockInService
     {
-        Task<StockIn> CreateAsync(CreateStockInRequest request);
+        Task<StockIn> CreateAsync(CreateStockInRequest request, string? actingUserId = null);
         Task<StockIn?> GetByIdAsync(string id);
         Task<IReadOnlyList<StockInListItemDto>> GetListAsync(StockInQueryRequest? request = null);
-        Task<StockIn> UpdateAsync(string id, UpdateStockInRequest request);
+        Task<StockIn> UpdateAsync(string id, UpdateStockInRequest request, string? actingUserId = null);
         Task DeleteAsync(string id);
-        Task UpdateStatusAsync(string id, short status);
+        Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
     }
 
     public class StockInQueryRequest
@@ -54,6 +58,10 @@ namespace CRM.Core.Interfaces
     {
         public string StockInCode { get; set; } = string.Empty;
         public string? PurchaseOrderId { get; set; }
+        /// <summary>到货通知主键；若提供则写入 SourceId/SourceCode</summary>
+        public string? StockInNotifyId { get; set; }
+        /// <summary>质检单主键；若提供则写入 QcId/QcCode，并在未提供到货通知时从质检关联通知补全 Source*</summary>
+        public string? QcId { get; set; }
         public string? VendorId { get; set; }
         public string WarehouseId { get; set; } = string.Empty;
         public string OperatorId { get; set; } = string.Empty;

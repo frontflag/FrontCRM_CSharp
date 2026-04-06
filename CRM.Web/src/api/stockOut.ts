@@ -16,13 +16,28 @@ export interface StockOutDto {
   stockOutCode: string
   stockOutType: number
   sourceCode?: string
-  warehouseId: string
+  /** 列表接口不再返回；详情等仍可能返回 */
+  warehouseId?: string
   stockOutDate: string
   totalQuantity: number
   totalAmount: number
   status: number
   remark?: string
   createTime?: string
+  createUserName?: string
+  customerName?: string
+  salesUserName?: string
+  sellOrderItemCode?: string
+}
+
+/** GET /api/v1/stock-out/request/apply-context */
+export interface StockOutApplyContextDto {
+  salesOrderItemId: string
+  salesOrderQty: number
+  alreadyNotifiedQty: number
+  remainingNotifyQty: number
+  availableStockQty: number
+  suggestedMaxQty: number
 }
 
 export interface StockOutRequestDto {
@@ -68,8 +83,14 @@ export const stockOutApi = {
     return unwrapArray<StockOutRequestDto>(res)
   },
 
+  async getApplyContext(salesOrderId: string, salesOrderItemId: string): Promise<StockOutApplyContextDto> {
+    return apiClient.get<StockOutApplyContextDto>('/api/v1/stock-out/request/apply-context', {
+      params: { salesOrderId, salesOrderItemId }
+    })
+  },
+
   async createRequest(data: {
-    requestCode: string
+    requestCode?: string
     salesOrderId: string
     salesOrderItemId: string
     materialCode: string

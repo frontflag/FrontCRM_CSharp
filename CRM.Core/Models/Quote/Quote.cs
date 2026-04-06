@@ -65,6 +65,26 @@ namespace CRM.Core.Models.Quote
         [Column("remark")]
         public string? Remark { get; set; }
 
+        /// <summary>展示用：采购员姓名（由服务层按 PurchaseUserId 填充，非表字段）</summary>
+        [NotMapped]
+        public string? PurchaseUserName { get; set; }
+
+        /// <summary>展示用：业务员姓名（由服务层按 SalesUserId 填充，非表字段）</summary>
+        [NotMapped]
+        public string? SalesUserName { get; set; }
+
+        /// <summary>展示用：关联需求主表编号（由服务层按 RFQId 查 rfq 表填充，非表字段）</summary>
+        [NotMapped]
+        public string? RfqCode { get; set; }
+
+        [StringLength(36)]
+        [Column("create_by_user_id")]
+        public string? CreateByUserId { get; set; }
+
+        [StringLength(36)]
+        [Column("modify_by_user_id")]
+        public string? ModifyByUserId { get; set; }
+
         // 导航属性
         public virtual ICollection<QuoteItem> Items { get; set; } = new List<QuoteItem>();
     }

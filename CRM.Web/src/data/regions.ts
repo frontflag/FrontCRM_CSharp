@@ -1,4 +1,4 @@
-// 全国省市区数据（三级联动）；含香港、台湾（未细分区县时省/市/区同选）
+// 全国省市区数据（三级联动）；香港按「岛/九龙/新界」+ 18 区；台湾按县市 + 区/乡镇（常用层级）
 export interface RegionNode {
   value: string
   label: string
@@ -70,8 +70,33 @@ export const regionData: RegionNode[] = [
   {
     value: '香港', label: '香港', children: [
       {
-        value: '香港', label: '香港', children: [
-          { value: '香港', label: '香港' }
+        value: '香港岛', label: '香港岛', children: [
+          { value: '中西区', label: '中西区' },
+          { value: '湾仔区', label: '湾仔区' },
+          { value: '东区', label: '东区' },
+          { value: '南区', label: '南区' }
+        ]
+      },
+      {
+        value: '九龙', label: '九龙', children: [
+          { value: '油尖旺区', label: '油尖旺区' },
+          { value: '深水埗区', label: '深水埗区' },
+          { value: '九龙城区', label: '九龙城区' },
+          { value: '黄大仙区', label: '黄大仙区' },
+          { value: '观塘区', label: '观塘区' }
+        ]
+      },
+      {
+        value: '新界', label: '新界', children: [
+          { value: '荃湾区', label: '荃湾区' },
+          { value: '屯门区', label: '屯门区' },
+          { value: '元朗区', label: '元朗区' },
+          { value: '北区', label: '北区' },
+          { value: '大埔区', label: '大埔区' },
+          { value: '沙田区', label: '沙田区' },
+          { value: '西贡区', label: '西贡区' },
+          { value: '葵青区', label: '葵青区' },
+          { value: '离岛区', label: '离岛区' }
         ]
       }
     ]
@@ -79,8 +104,459 @@ export const regionData: RegionNode[] = [
   {
     value: '台湾', label: '台湾', children: [
       {
-        value: '台湾', label: '台湾', children: [
-          { value: '台湾', label: '台湾' }
+        value: '台北市', label: '台北市', children: [
+          { value: '中正区', label: '中正区' },
+          { value: '大同区', label: '大同区' },
+          { value: '中山区', label: '中山区' },
+          { value: '松山区', label: '松山区' },
+          { value: '大安区', label: '大安区' },
+          { value: '万华区', label: '万华区' },
+          { value: '信义区', label: '信义区' },
+          { value: '士林区', label: '士林区' },
+          { value: '北投区', label: '北投区' },
+          { value: '内湖区', label: '内湖区' },
+          { value: '南港区', label: '南港区' },
+          { value: '文山区', label: '文山区' }
+        ]
+      },
+      {
+        value: '新北市', label: '新北市', children: [
+          { value: '万里区', label: '万里区' },
+          { value: '金山区', label: '金山区' },
+          { value: '板桥区', label: '板桥区' },
+          { value: '汐止区', label: '汐止区' },
+          { value: '深坑区', label: '深坑区' },
+          { value: '石碇区', label: '石碇区' },
+          { value: '瑞芳区', label: '瑞芳区' },
+          { value: '平溪区', label: '平溪区' },
+          { value: '双溪区', label: '双溪区' },
+          { value: '贡寮区', label: '贡寮区' },
+          { value: '新店区', label: '新店区' },
+          { value: '坪林区', label: '坪林区' },
+          { value: '乌来区', label: '乌来区' },
+          { value: '永和区', label: '永和区' },
+          { value: '中和区', label: '中和区' },
+          { value: '土城区', label: '土城区' },
+          { value: '三峡区', label: '三峡区' },
+          { value: '树林区', label: '树林区' },
+          { value: '莺歌区', label: '莺歌区' },
+          { value: '三重区', label: '三重区' },
+          { value: '新庄区', label: '新庄区' },
+          { value: '泰山区', label: '泰山区' },
+          { value: '林口区', label: '林口区' },
+          { value: '芦洲区', label: '芦洲区' },
+          { value: '五股区', label: '五股区' },
+          { value: '八里区', label: '八里区' },
+          { value: '淡水区', label: '淡水区' },
+          { value: '三芝区', label: '三芝区' },
+          { value: '石门区', label: '石门区' }
+        ]
+      },
+      {
+        value: '桃园市', label: '桃园市', children: [
+          { value: '桃园区', label: '桃园区' },
+          { value: '中坜区', label: '中坜区' },
+          { value: '大溪区', label: '大溪区' },
+          { value: '杨梅区', label: '杨梅区' },
+          { value: '芦竹区', label: '芦竹区' },
+          { value: '大园区', label: '大园区' },
+          { value: '龟山区', label: '龟山区' },
+          { value: '八德区', label: '八德区' },
+          { value: '龙潭区', label: '龙潭区' },
+          { value: '平镇区', label: '平镇区' },
+          { value: '新屋区', label: '新屋区' },
+          { value: '观音区', label: '观音区' },
+          { value: '复兴区', label: '复兴区' }
+        ]
+      },
+      {
+        value: '台中市', label: '台中市', children: [
+          { value: '中区', label: '中区' },
+          { value: '东区', label: '东区' },
+          { value: '南区', label: '南区' },
+          { value: '西区', label: '西区' },
+          { value: '北区', label: '北区' },
+          { value: '北屯区', label: '北屯区' },
+          { value: '西屯区', label: '西屯区' },
+          { value: '南屯区', label: '南屯区' },
+          { value: '太平区', label: '太平区' },
+          { value: '大里区', label: '大里区' },
+          { value: '雾峰区', label: '雾峰区' },
+          { value: '乌日区', label: '乌日区' },
+          { value: '丰原区', label: '丰原区' },
+          { value: '后里区', label: '后里区' },
+          { value: '石冈区', label: '石冈区' },
+          { value: '东势区', label: '东势区' },
+          { value: '和平区', label: '和平区' },
+          { value: '新社区', label: '新社区' },
+          { value: '潭子区', label: '潭子区' },
+          { value: '大雅区', label: '大雅区' },
+          { value: '神冈区', label: '神冈区' },
+          { value: '大肚区', label: '大肚区' },
+          { value: '沙鹿区', label: '沙鹿区' },
+          { value: '龙井区', label: '龙井区' },
+          { value: '梧栖区', label: '梧栖区' },
+          { value: '清水区', label: '清水区' },
+          { value: '大甲区', label: '大甲区' },
+          { value: '外埔区', label: '外埔区' },
+          { value: '大安区', label: '大安区' }
+        ]
+      },
+      {
+        value: '台南市', label: '台南市', children: [
+          { value: '中西区', label: '中西区' },
+          { value: '东区', label: '东区' },
+          { value: '南区', label: '南区' },
+          { value: '北区', label: '北区' },
+          { value: '安平区', label: '安平区' },
+          { value: '安南区', label: '安南区' },
+          { value: '永康区', label: '永康区' },
+          { value: '归仁区', label: '归仁区' },
+          { value: '新化区', label: '新化区' },
+          { value: '左镇区', label: '左镇区' },
+          { value: '玉井区', label: '玉井区' },
+          { value: '楠西区', label: '楠西区' },
+          { value: '南化区', label: '南化区' },
+          { value: '仁德区', label: '仁德区' },
+          { value: '关庙区', label: '关庙区' },
+          { value: '龙崎区', label: '龙崎区' },
+          { value: '官田区', label: '官田区' },
+          { value: '麻豆区', label: '麻豆区' },
+          { value: '佳里区', label: '佳里区' },
+          { value: '西港区', label: '西港区' },
+          { value: '七股区', label: '七股区' },
+          { value: '将军区', label: '将军区' },
+          { value: '学甲区', label: '学甲区' },
+          { value: '北门区', label: '北门区' },
+          { value: '新营区', label: '新营区' },
+          { value: '后壁区', label: '后壁区' },
+          { value: '白河区', label: '白河区' },
+          { value: '东山区', label: '东山区' },
+          { value: '六甲区', label: '六甲区' },
+          { value: '下营区', label: '下营区' },
+          { value: '柳营区', label: '柳营区' },
+          { value: '盐水区', label: '盐水区' },
+          { value: '善化区', label: '善化区' },
+          { value: '大内区', label: '大内区' },
+          { value: '山上区', label: '山上区' },
+          { value: '新市区', label: '新市区' },
+          { value: '安定区', label: '安定区' }
+        ]
+      },
+      {
+        value: '高雄市', label: '高雄市', children: [
+          { value: '新兴区', label: '新兴区' },
+          { value: '前金区', label: '前金区' },
+          { value: '苓雅区', label: '苓雅区' },
+          { value: '盐埕区', label: '盐埕区' },
+          { value: '鼓山区', label: '鼓山区' },
+          { value: '旗津区', label: '旗津区' },
+          { value: '前镇区', label: '前镇区' },
+          { value: '三民区', label: '三民区' },
+          { value: '楠梓区', label: '楠梓区' },
+          { value: '小港区', label: '小港区' },
+          { value: '左营区', label: '左营区' },
+          { value: '仁武区', label: '仁武区' },
+          { value: '大社区', label: '大社区' },
+          { value: '冈山区', label: '冈山区' },
+          { value: '路竹区', label: '路竹区' },
+          { value: '阿莲区', label: '阿莲区' },
+          { value: '田寮区', label: '田寮区' },
+          { value: '燕巢区', label: '燕巢区' },
+          { value: '桥头区', label: '桥头区' },
+          { value: '梓官区', label: '梓官区' },
+          { value: '弥陀区', label: '弥陀区' },
+          { value: '永安区', label: '永安区' },
+          { value: '湖内区', label: '湖内区' },
+          { value: '凤山区', label: '凤山区' },
+          { value: '大寮区', label: '大寮区' },
+          { value: '林园区', label: '林园区' },
+          { value: '鸟松区', label: '鸟松区' },
+          { value: '大树区', label: '大树区' },
+          { value: '旗山区', label: '旗山区' },
+          { value: '美浓区', label: '美浓区' },
+          { value: '六龟区', label: '六龟区' },
+          { value: '内门区', label: '内门区' },
+          { value: '杉林区', label: '杉林区' },
+          { value: '甲仙区', label: '甲仙区' },
+          { value: '桃源区', label: '桃源区' },
+          { value: '那玛夏区', label: '那玛夏区' },
+          { value: '茂林区', label: '茂林区' },
+          { value: '茄萣区', label: '茄萣区' }
+        ]
+      },
+      {
+        value: '基隆市', label: '基隆市', children: [
+          { value: '仁爱区', label: '仁爱区' },
+          { value: '信义区', label: '信义区' },
+          { value: '中正区', label: '中正区' },
+          { value: '中山区', label: '中山区' },
+          { value: '安乐区', label: '安乐区' },
+          { value: '暖暖区', label: '暖暖区' },
+          { value: '七堵区', label: '七堵区' }
+        ]
+      },
+      {
+        value: '新竹市', label: '新竹市', children: [
+          { value: '东区', label: '东区' },
+          { value: '北区', label: '北区' },
+          { value: '香山区', label: '香山区' }
+        ]
+      },
+      {
+        value: '嘉义市', label: '嘉义市', children: [
+          { value: '东区', label: '东区' },
+          { value: '西区', label: '西区' }
+        ]
+      },
+      {
+        value: '新竹县', label: '新竹县', children: [
+          { value: '竹北市', label: '竹北市' },
+          { value: '竹东镇', label: '竹东镇' },
+          { value: '新埔镇', label: '新埔镇' },
+          { value: '关西镇', label: '关西镇' },
+          { value: '湖口乡', label: '湖口乡' },
+          { value: '新丰乡', label: '新丰乡' },
+          { value: '芎林乡', label: '芎林乡' },
+          { value: '横山乡', label: '横山乡' },
+          { value: '北埔乡', label: '北埔乡' },
+          { value: '宝山乡', label: '宝山乡' },
+          { value: '峨眉乡', label: '峨眉乡' },
+          { value: '尖石乡', label: '尖石乡' },
+          { value: '五峰乡', label: '五峰乡' }
+        ]
+      },
+      {
+        value: '苗栗县', label: '苗栗县', children: [
+          { value: '苗栗市', label: '苗栗市' },
+          { value: '头份市', label: '头份市' },
+          { value: '竹南镇', label: '竹南镇' },
+          { value: '后龙镇', label: '后龙镇' },
+          { value: '通霄镇', label: '通霄镇' },
+          { value: '苑里镇', label: '苑里镇' },
+          { value: '卓兰镇', label: '卓兰镇' },
+          { value: '三湾乡', label: '三湾乡' },
+          { value: '南庄乡', label: '南庄乡' },
+          { value: '狮潭乡', label: '狮潭乡' },
+          { value: '造桥乡', label: '造桥乡' },
+          { value: '头屋乡', label: '头屋乡' },
+          { value: '公馆乡', label: '公馆乡' },
+          { value: '大湖乡', label: '大湖乡' },
+          { value: '泰安乡', label: '泰安乡' },
+          { value: '铜锣乡', label: '铜锣乡' },
+          { value: '三义乡', label: '三义乡' },
+          { value: '西湖乡', label: '西湖乡' },
+          { value: '东势乡', label: '东势乡' }
+        ]
+      },
+      {
+        value: '彰化县', label: '彰化县', children: [
+          { value: '彰化市', label: '彰化市' },
+          { value: '员林市', label: '员林市' },
+          { value: '和美镇', label: '和美镇' },
+          { value: '鹿港镇', label: '鹿港镇' },
+          { value: '溪湖镇', label: '溪湖镇' },
+          { value: '田中镇', label: '田中镇' },
+          { value: '北斗镇', label: '北斗镇' },
+          { value: '二林镇', label: '二林镇' },
+          { value: '线西乡', label: '线西乡' },
+          { value: '伸港乡', label: '伸港乡' },
+          { value: '福兴乡', label: '福兴乡' },
+          { value: '秀水乡', label: '秀水乡' },
+          { value: '花坛乡', label: '花坛乡' },
+          { value: '芬园乡', label: '芬园乡' },
+          { value: '大村乡', label: '大村乡' },
+          { value: '埔盐乡', label: '埔盐乡' },
+          { value: '埔心乡', label: '埔心乡' },
+          { value: '永靖乡', label: '永靖乡' },
+          { value: '社头乡', label: '社头乡' },
+          { value: '二水乡', label: '二水乡' },
+          { value: '田尾乡', label: '田尾乡' },
+          { value: '埤头乡', label: '埤头乡' },
+          { value: '芳苑乡', label: '芳苑乡' },
+          { value: '大城乡', label: '大城乡' },
+          { value: '竹塘乡', label: '竹塘乡' },
+          { value: '溪州乡', label: '溪州乡' }
+        ]
+      },
+      {
+        value: '南投县', label: '南投县', children: [
+          { value: '南投市', label: '南投市' },
+          { value: '埔里镇', label: '埔里镇' },
+          { value: '草屯镇', label: '草屯镇' },
+          { value: '竹山镇', label: '竹山镇' },
+          { value: '集集镇', label: '集集镇' },
+          { value: '名间乡', label: '名间乡' },
+          { value: '鹿谷乡', label: '鹿谷乡' },
+          { value: '中寮乡', label: '中寮乡' },
+          { value: '鱼池乡', label: '鱼池乡' },
+          { value: '国姓乡', label: '国姓乡' },
+          { value: '水里乡', label: '水里乡' },
+          { value: '信义乡', label: '信义乡' },
+          { value: '仁爱乡', label: '仁爱乡' }
+        ]
+      },
+      {
+        value: '云林县', label: '云林县', children: [
+          { value: '斗六市', label: '斗六市' },
+          { value: '斗南镇', label: '斗南镇' },
+          { value: '虎尾镇', label: '虎尾镇' },
+          { value: '西螺镇', label: '西螺镇' },
+          { value: '土库镇', label: '土库镇' },
+          { value: '北港镇', label: '北港镇' },
+          { value: '古坑乡', label: '古坑乡' },
+          { value: '大埤乡', label: '大埤乡' },
+          { value: '莿桐乡', label: '莿桐乡' },
+          { value: '林内乡', label: '林内乡' },
+          { value: '二仑乡', label: '二仑乡' },
+          { value: '仑背乡', label: '仑背乡' },
+          { value: '麦寮乡', label: '麦寮乡' },
+          { value: '东势乡', label: '东势乡' },
+          { value: '褒忠乡', label: '褒忠乡' },
+          { value: '台西乡', label: '台西乡' },
+          { value: '元长乡', label: '元长乡' },
+          { value: '四湖乡', label: '四湖乡' },
+          { value: '口湖乡', label: '口湖乡' },
+          { value: '水林乡', label: '水林乡' }
+        ]
+      },
+      {
+        value: '嘉义县', label: '嘉义县', children: [
+          { value: '太保市', label: '太保市' },
+          { value: '朴子市', label: '朴子市' },
+          { value: '布袋镇', label: '布袋镇' },
+          { value: '大林镇', label: '大林镇' },
+          { value: '民雄乡', label: '民雄乡' },
+          { value: '溪口乡', label: '溪口乡' },
+          { value: '新港乡', label: '新港乡' },
+          { value: '六脚乡', label: '六脚乡' },
+          { value: '东石乡', label: '东石乡' },
+          { value: '义竹乡', label: '义竹乡' },
+          { value: '鹿草乡', label: '鹿草乡' },
+          { value: '水上乡', label: '水上乡' },
+          { value: '中埔乡', label: '中埔乡' },
+          { value: '竹崎乡', label: '竹崎乡' },
+          { value: '梅山乡', label: '梅山乡' },
+          { value: '番路乡', label: '番路乡' },
+          { value: '大埔乡', label: '大埔乡' },
+          { value: '阿里山乡', label: '阿里山乡' }
+        ]
+      },
+      {
+        value: '屏东县', label: '屏东县', children: [
+          { value: '屏东市', label: '屏东市' },
+          { value: '潮州镇', label: '潮州镇' },
+          { value: '东港镇', label: '东港镇' },
+          { value: '恒春镇', label: '恒春镇' },
+          { value: '万丹乡', label: '万丹乡' },
+          { value: '长治乡', label: '长治乡' },
+          { value: '麟洛乡', label: '麟洛乡' },
+          { value: '九如乡', label: '九如乡' },
+          { value: '里港乡', label: '里港乡' },
+          { value: '高树乡', label: '高树乡' },
+          { value: '盐埔乡', label: '盐埔乡' },
+          { value: '内埔乡', label: '内埔乡' },
+          { value: '竹田乡', label: '竹田乡' },
+          { value: '新埤乡', label: '新埤乡' },
+          { value: '枋寮乡', label: '枋寮乡' },
+          { value: '新园乡', label: '新园乡' },
+          { value: '崁顶乡', label: '崁顶乡' },
+          { value: '林边乡', label: '林边乡' },
+          { value: '南州乡', label: '南州乡' },
+          { value: '佳冬乡', label: '佳冬乡' },
+          { value: '琉球乡', label: '琉球乡' },
+          { value: '车城乡', label: '车城乡' },
+          { value: '满州乡', label: '满州乡' },
+          { value: '枋山乡', label: '枋山乡' },
+          { value: '三地门乡', label: '三地门乡' },
+          { value: '雾台乡', label: '雾台乡' },
+          { value: '玛家乡', label: '玛家乡' },
+          { value: '泰武乡', label: '泰武乡' },
+          { value: '来义乡', label: '来义乡' },
+          { value: '春日乡', label: '春日乡' },
+          { value: '狮子乡', label: '狮子乡' },
+          { value: '牡丹乡', label: '牡丹乡' }
+        ]
+      },
+      {
+        value: '宜兰县', label: '宜兰县', children: [
+          { value: '宜兰市', label: '宜兰市' },
+          { value: '罗东镇', label: '罗东镇' },
+          { value: '苏澳镇', label: '苏澳镇' },
+          { value: '头城镇', label: '头城镇' },
+          { value: '礁溪乡', label: '礁溪乡' },
+          { value: '壮围乡', label: '壮围乡' },
+          { value: '员山乡', label: '员山乡' },
+          { value: '冬山乡', label: '冬山乡' },
+          { value: '五结乡', label: '五结乡' },
+          { value: '三星乡', label: '三星乡' },
+          { value: '大同乡', label: '大同乡' },
+          { value: '南澳乡', label: '南澳乡' }
+        ]
+      },
+      {
+        value: '花莲县', label: '花莲县', children: [
+          { value: '花莲市', label: '花莲市' },
+          { value: '凤林镇', label: '凤林镇' },
+          { value: '玉里镇', label: '玉里镇' },
+          { value: '新城乡', label: '新城乡' },
+          { value: '吉安乡', label: '吉安乡' },
+          { value: '寿丰乡', label: '寿丰乡' },
+          { value: '光复乡', label: '光复乡' },
+          { value: '丰滨乡', label: '丰滨乡' },
+          { value: '瑞穗乡', label: '瑞穗乡' },
+          { value: '富里乡', label: '富里乡' },
+          { value: '秀林乡', label: '秀林乡' },
+          { value: '万荣乡', label: '万荣乡' },
+          { value: '卓溪乡', label: '卓溪乡' }
+        ]
+      },
+      {
+        value: '台东县', label: '台东县', children: [
+          { value: '台东市', label: '台东市' },
+          { value: '成功镇', label: '成功镇' },
+          { value: '关山镇', label: '关山镇' },
+          { value: '卑南乡', label: '卑南乡' },
+          { value: '大武乡', label: '大武乡' },
+          { value: '太麻里乡', label: '太麻里乡' },
+          { value: '东河乡', label: '东河乡' },
+          { value: '长滨乡', label: '长滨乡' },
+          { value: '鹿野乡', label: '鹿野乡' },
+          { value: '池上乡', label: '池上乡' },
+          { value: '绿岛乡', label: '绿岛乡' },
+          { value: '延平乡', label: '延平乡' },
+          { value: '海端乡', label: '海端乡' },
+          { value: '达仁乡', label: '达仁乡' },
+          { value: '金峰乡', label: '金峰乡' },
+          { value: '兰屿乡', label: '兰屿乡' }
+        ]
+      },
+      {
+        value: '澎湖县', label: '澎湖县', children: [
+          { value: '马公市', label: '马公市' },
+          { value: '湖西乡', label: '湖西乡' },
+          { value: '白沙乡', label: '白沙乡' },
+          { value: '西屿乡', label: '西屿乡' },
+          { value: '望安乡', label: '望安乡' },
+          { value: '七美乡', label: '七美乡' }
+        ]
+      },
+      {
+        value: '金门县', label: '金门县', children: [
+          { value: '金城镇', label: '金城镇' },
+          { value: '金湖镇', label: '金湖镇' },
+          { value: '金沙镇', label: '金沙镇' },
+          { value: '金宁乡', label: '金宁乡' },
+          { value: '烈屿乡', label: '烈屿乡' },
+          { value: '乌坵乡', label: '乌坵乡' }
+        ]
+      },
+      {
+        value: '连江县', label: '连江县', children: [
+          { value: '南竿乡', label: '南竿乡' },
+          { value: '北竿乡', label: '北竿乡' },
+          { value: '莒光乡', label: '莒光乡' },
+          { value: '东引乡', label: '东引乡' }
         ]
       }
     ]

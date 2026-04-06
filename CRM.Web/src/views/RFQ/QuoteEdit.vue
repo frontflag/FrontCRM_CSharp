@@ -96,28 +96,16 @@
               </template>
             </el-table-column>
 
-            <el-table-column label="单价" width="110">
+            <el-table-column label="单价 / 币别" min-width="200" class-name="quote-item-price-ccy-col">
               <template #default="{ $index }">
-                <el-input-number
+                <SettlementCurrencyAmountInput
                   v-model="formData.items[$index].unitPrice"
+                  v-model:currency="formData.items[$index].currency"
                   :min="0"
                   :precision="6"
-                  :controls="false"
+                  size="small"
                   style="width: 100%"
                 />
-              </template>
-            </el-table-column>
-
-            <el-table-column label="币别" width="80">
-              <template #default="{ $index }">
-                <el-select v-model="formData.items[$index].currency" size="small" style="width: 100%">
-                  <el-option
-                    v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
-                    :key="opt.value"
-                    :label="opt.label"
-                    :value="opt.value"
-                  />
-                </el-select>
               </template>
             </el-table-column>
 
@@ -146,8 +134,8 @@ import { ArrowLeft, Check, Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { quoteApi } from '@/api/quote'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
-import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
+import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
 
 const router = useRouter()
@@ -300,6 +288,10 @@ onMounted(load)
       font-size: 14px;
       font-weight: 600;
     }
+  }
+
+  :deep(.quote-item-price-ccy-col .cell) {
+    overflow: visible;
   }
 }
 

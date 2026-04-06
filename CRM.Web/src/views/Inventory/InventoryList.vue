@@ -61,7 +61,7 @@
       <template #col-onHandQty="{ row }">{{ formatNum(row.onHandQty) }}</template>
       <template #col-availableQty="{ row }">{{ formatNum(row.availableQty) }}</template>
       <template #col-lockedQty="{ row }">{{ formatNum(row.lockedQty) }}</template>
-      <template #col-inventoryAmount="{ row }">{{ formatMoney(row.inventoryAmount) }}</template>
+      <template #col-inventoryAmount="{ row }">{{ formatInventoryAmount(row) }}</template>
       <template #col-lastMoveTime="{ row }">{{ formatTime(row.lastMoveTime) }}</template>
       <template #col-createTime="{ row }">{{ formatTime((row as any).createTime || (row as any).createdAt) }}</template>
       <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
@@ -177,6 +177,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { inventoryCenterApi, type FinanceSummary, type InventoryOverview, type WarehouseInfo } from '@/api/inventoryCenter'
+import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -275,6 +276,17 @@ const loadWarehouseForEdit = (row: WarehouseInfo) => {
 
 const formatNum = (v: number) => (v == null ? t('quoteList.na') : Number(v).toLocaleString())
 const formatMoney = (v: number) => (v == null ? t('quoteList.na') : Number(v).toFixed(2))
+
+/** 库存金额：币别代码 + 金额（币别来自最近一次采购入库关联采购单） */
+const formatInventoryAmount = (row: InventoryOverview) => {
+  const v = row.inventoryAmount
+  if (v == null) return t('quoteList.na')
+  const r = row as unknown as Record<string, unknown>
+  const codeNum = Number(r.currency ?? r.Currency ?? 1)
+  const iso = CURRENCY_CODE_TO_TEXT[Number.isFinite(codeNum) ? codeNum : 1] ?? 'RMB'
+  const amt = Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return `${iso} ${amt}`
+}
 const formatTime = (v?: string) => formatDisplayDateTime(v)
 const warehouseNameOf = (warehouseId?: string) => {
   if (!warehouseId) return t('quoteList.na')

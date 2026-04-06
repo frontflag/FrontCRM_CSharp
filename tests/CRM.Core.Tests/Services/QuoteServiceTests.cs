@@ -1,6 +1,9 @@
 using CRM.Core.Interfaces;
+using CRM.Core.Models;
 using CRM.Core.Models.Quote;
+using CRM.Core.Models.RFQ;
 using CRM.Core.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -13,18 +16,33 @@ namespace CRM.Core.Tests.Services
     {
         private readonly IRepository<Quote> _quoteRepository;
         private readonly IRepository<QuoteItem> _quoteItemRepository;
+        private readonly IRepository<RFQItem> _rfqItemRepository;
+        private readonly IRepository<RFQ> _rfqRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
+        private readonly IUserService _userService;
         private readonly QuoteService _quoteService;
 
         public QuoteServiceTests()
         {
             _quoteRepository = Substitute.For<IRepository<Quote>>();
             _quoteItemRepository = Substitute.For<IRepository<QuoteItem>>();
+            _rfqItemRepository = Substitute.For<IRepository<RFQItem>>();
+            _rfqRepository = Substitute.For<IRepository<RFQ>>();
             _unitOfWork = Substitute.For<IUnitOfWork>();
             _serialNumberService = Substitute.For<ISerialNumberService>();
+            _userService = Substitute.For<IUserService>();
+            _userService.GetAllAsync().Returns(new List<User>());
             _serialNumberService.GenerateNextAsync(ModuleCodes.Quotation).Returns("QT2603240001");
-            _quoteService = new QuoteService(_quoteRepository, _quoteItemRepository, _unitOfWork, _serialNumberService);
+            _quoteService = new QuoteService(
+                _quoteRepository,
+                _quoteItemRepository,
+                _rfqItemRepository,
+                _rfqRepository,
+                _unitOfWork,
+                _serialNumberService,
+                _userService,
+                NullLogger<QuoteService>.Instance);
         }
 
         [Fact]
@@ -71,6 +89,8 @@ namespace CRM.Core.Tests.Services
                 Status = 1
             };
             _quoteRepository.GetByIdAsync(quoteId).Returns(expectedQuote);
+            _quoteItemRepository.FindAsync(Arg.Any<System.Linq.Expressions.Expression<System.Func<QuoteItem, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<QuoteItem>>(Array.Empty<QuoteItem>()));
 
             // Act
             var result = await _quoteService.GetByIdAsync(quoteId);

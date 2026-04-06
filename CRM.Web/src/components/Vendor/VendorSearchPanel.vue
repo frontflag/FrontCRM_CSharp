@@ -9,11 +9,12 @@ import {
   parseVendorListQuery,
   type VendorListFilterQuery
 } from '@/utils/vendorListQuery'
-import { VENDOR_LEVEL_OPTIONS, VENDOR_IDENTITY_OPTIONS } from '@/constants/vendorEnums'
+import { useVendorDictStore } from '@/stores/vendorDict'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const vendorDict = useVendorDictStore()
 const { t } = useI18n()
 const canViewVendorInfo = authStore.hasPermission('vendor.info.read')
 
@@ -91,6 +92,7 @@ function handleSearch() {
 }
 
 onMounted(async () => {
+  void vendorDict.ensureLoaded()
   try {
     purchaseUsers.value = await authApi.getPurchaseUsersForSelect()
   } catch {
@@ -140,7 +142,7 @@ onMounted(async () => {
       <div class="field-col">
         <label class="field-label">{{ t('vendorList.columns.level') }}</label>
         <el-select v-model="form.level" :placeholder="t('vendorList.filters.allLevel')" clearable class="field-select" :teleported="false">
-          <el-option v-for="opt in VENDOR_LEVEL_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+          <el-option v-for="opt in vendorDict.levelSelectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
       </div>
 
@@ -148,7 +150,7 @@ onMounted(async () => {
         <label class="field-label">{{ t('vendorList.columns.identity') }}</label>
         <el-select v-model="form.credit" :placeholder="t('vendorList.filters.allIdentity')" clearable class="field-select" :teleported="false">
           <el-option
-            v-for="opt in VENDOR_IDENTITY_OPTIONS"
+            v-for="opt in vendorDict.identitySelectOptions"
             :key="opt.value"
             :label="opt.label"
             :value="opt.value"
@@ -173,16 +175,12 @@ onMounted(async () => {
       <div class="field-col">
         <label class="field-label">{{ t('vendorList.columns.industry') }}</label>
         <el-select v-model="form.industry" :placeholder="t('vendorList.filters.allIndustry')" clearable class="field-select" :teleported="false">
-          <el-option :label="t('vendorList.industry.Electronics')" value="Electronics" />
-          <el-option :label="t('vendorList.industry.Machinery')" value="Machinery" />
-          <el-option :label="t('vendorList.industry.Chemical')" value="Chemical" />
-          <el-option :label="t('vendorList.industry.Textile')" value="Textile" />
-          <el-option :label="t('vendorList.industry.Food')" value="Food" />
-          <el-option :label="t('vendorList.industry.Construction')" value="Construction" />
-          <el-option :label="t('vendorList.industry.Trading')" value="Trading" />
-          <el-option :label="t('vendorList.industry.Technology')" value="Technology" />
-          <el-option :label="t('vendorList.industry.Healthcare')" value="Healthcare" />
-          <el-option :label="t('vendorList.industry.Other')" value="Other" />
+          <el-option
+            v-for="opt in vendorDict.industryOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
         </el-select>
       </div>
 

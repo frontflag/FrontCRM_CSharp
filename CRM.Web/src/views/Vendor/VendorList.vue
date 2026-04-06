@@ -87,7 +87,7 @@
           :teleported="false"
           @change="handleSearch"
         >
-          <el-option v-for="opt in VENDOR_LEVEL_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+          <el-option v-for="opt in vendorDict.levelSelectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
         <el-select
           v-model="searchForm.credit"
@@ -97,7 +97,7 @@
           :teleported="false"
           @change="handleSearch"
         >
-          <el-option v-for="opt in VENDOR_IDENTITY_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+          <el-option v-for="opt in vendorDict.identitySelectOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
         <el-select
           v-model="searchForm.ascriptionType"
@@ -118,16 +118,12 @@
           :teleported="false"
           @change="handleSearch"
         >
-          <el-option :label="t('vendorList.industry.Electronics')" value="Electronics" />
-          <el-option :label="t('vendorList.industry.Machinery')" value="Machinery" />
-          <el-option :label="t('vendorList.industry.Chemical')" value="Chemical" />
-          <el-option :label="t('vendorList.industry.Textile')" value="Textile" />
-          <el-option :label="t('vendorList.industry.Food')" value="Food" />
-          <el-option :label="t('vendorList.industry.Construction')" value="Construction" />
-          <el-option :label="t('vendorList.industry.Trading')" value="Trading" />
-          <el-option :label="t('vendorList.industry.Technology')" value="Technology" />
-          <el-option :label="t('vendorList.industry.Healthcare')" value="Healthcare" />
-          <el-option :label="t('vendorList.industry.Other')" value="Other" />
+          <el-option
+            v-for="opt in vendorDict.industryOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
         </el-select>
         <el-select
           v-model="searchForm.purchaseUserId"
@@ -198,9 +194,9 @@
             </div>
           </div>
         </template>
-        <template #col-level="{ row }"><span class="td-muted">{{ getVendorLevelLabel(row.level) }}</span></template>
-        <template #col-credit="{ row }"><span class="td-muted td-identity">{{ getVendorIdentityLabel(row.credit) }}</span></template>
-        <template #col-industry="{ row }"><span class="td-muted">{{ row.industry || '--' }}</span></template>
+        <template #col-level="{ row }"><span class="td-muted">{{ vendorDict.levelLabel(row.level) }}</span></template>
+        <template #col-credit="{ row }"><span class="td-muted td-identity">{{ vendorDict.identityLabel(row.credit) }}</span></template>
+        <template #col-industry="{ row }"><span class="td-muted">{{ vendorDict.industryLabel(row.industry) }}</span></template>
         <template #col-contactName="{ row }"><span class="td-contact">{{ row.contacts && row.contacts.length > 0 ? (row.contacts[0].cName || row.contacts[0].eName || '--') : '--' }}</span></template>
         <template #col-phone="{ row }"><span class="td-phone">{{ row.contacts && row.contacts.length > 0 ? (row.contacts[0].mobile || row.contacts[0].tel || '--') : '--' }}</span></template>
         <template #col-officeAddress="{ row }"><span class="td-address" :title="row.officeAddress">{{ row.officeAddress || '--' }}</span></template>
@@ -220,7 +216,7 @@
               <button class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('vendorList.actions.detail') }}</button>
               <button class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('vendorList.actions.edit') }}</button>
               <button
-                v-if="row.status === 1"
+                v-if="row.status === 1 || row.status === -1"
                 class="action-btn action-btn--warning"
                 @click.stop="handleSubmitAudit(row)"
               >
@@ -235,7 +231,7 @@
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="handleView(row)">{{ t('vendorList.actions.detail') }}</el-dropdown-item>
                   <el-dropdown-item @click.stop="handleEdit(row)">{{ t('vendorList.actions.edit') }}</el-dropdown-item>
-                  <el-dropdown-item v-if="row.status === 1" @click.stop="handleSubmitAudit(row)">
+                  <el-dropdown-item v-if="row.status === 1 || row.status === -1" @click.stop="handleSubmitAudit(row)">
                     {{ t('vendorList.actions.submitAudit') }}
                   </el-dropdown-item>
                 </el-dropdown-menu>
@@ -311,11 +307,11 @@ import { authApi, type PurchaseUserSelectOption } from '@/api/auth';
 import { formatDisplayDateTime } from '@/utils/displayDateTime';
 import type { Vendor, VendorSearchRequest } from '@/types/vendor';
 import { useAuthStore } from '@/stores/auth';
+import { useVendorDictStore } from '@/stores/vendorDict';
 import PartyStatusIcons from '@/components/party/PartyStatusIcons.vue';
 import VendorImportDialog from '@/components/Vendor/VendorImportDialog.vue';
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import { parseVendorListQuery, buildVendorListQuery } from '@/utils/vendorListQuery';
-import { getVendorLevelLabel, getVendorIdentityLabel, VENDOR_LEVEL_OPTIONS, VENDOR_IDENTITY_OPTIONS } from '@/constants/vendorEnums';
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const route = useRoute();
@@ -327,6 +323,7 @@ function isPartyStatusMuted(v: Vendor) {
 }
 
 const authStore = useAuthStore();
+const vendorDict = useVendorDictStore();
 const canViewVendorInfo = authStore.hasPermission('vendor.info.read');
 const canSubmitAudit = authStore.hasPermission('vendor.write');
 const importDialogVisible = ref(false);
@@ -595,6 +592,7 @@ watch(
 );
 
 onMounted(async () => {
+  void vendorDict.ensureLoaded();
   applyVendorListQueryFromRoute();
   try {
     purchaseUsers.value = await authApi.getPurchaseUsersForSelect();

@@ -74,26 +74,28 @@
           />
         </el-select>
         <el-select v-model="searchForm.customerLevel" :placeholder="t('customerList.filters.allLevel')" clearable class="status-select" :teleported="false" @change="handleSearch">
-          <el-option label="D级" value="D" />
-          <el-option label="C级" value="C" />
-          <el-option label="B级" value="B" />
-          <el-option label="BPO" value="BPO" />
-          <el-option label="VIP" value="VIP" />
-          <el-option label="VPO" value="VPO" />
+          <el-option
+            v-for="opt in customerDict.levelStringOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
         </el-select>
         <el-select v-model="searchForm.customerType" :placeholder="t('customerList.filters.allType')" clearable class="status-select" :teleported="false" @change="handleSearch">
-          <el-option label="OEM" :value="1" />
-          <el-option label="ODM" :value="2" />
-          <el-option :label="t('customerList.type.endUser')" :value="3" />
-          <el-option :label="t('customerList.type.trader')" :value="5" />
-          <el-option :label="t('customerList.type.agency')" :value="6" />
+          <el-option
+            v-for="opt in customerDict.typeSelectOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
         </el-select>
         <el-select v-model="searchForm.industry" :placeholder="t('customerList.filters.allIndustry')" clearable class="status-select" :teleported="false" @change="handleSearch">
-          <el-option :label="t('customerList.industry.Manufacturing')" value="Manufacturing" />
-          <el-option :label="t('customerList.industry.Technology')" value="Technology" />
-          <el-option :label="t('customerList.industry.Trading')" value="Trading" />
-          <el-option :label="t('customerList.industry.Construction')" value="Construction" />
-          <el-option :label="t('customerList.industry.Other')" value="Other" />
+          <el-option
+            v-for="opt in customerDict.industryOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
         </el-select>
         <el-select
           v-model="searchForm.salesPersonId"
@@ -169,14 +171,14 @@
           </div>
         </template>
         <template #col-customerType="{ row }">
-          <span class="badge badge-type" v-if="row.customerType">{{ getTypeLabel(row.customerType) }}</span>
+          <span class="badge badge-type" v-if="row.customerType">{{ customerDict.typeLabel(row.customerType) }}</span>
         </template>
         <template #col-customerLevel="{ row }">
           <span class="badge" :class="`badge-level-${(row.customerLevel || '').toLowerCase()}`" v-if="row.customerLevel">
-            {{ getLevelLabel(row.customerLevel) }}
+            {{ customerDict.levelLabel(row.customerLevel) }}
           </span>
         </template>
-        <template #col-industry="{ row }"><span class="td-muted">{{ getIndustryLabel(row.industry || '') }}</span></template>
+        <template #col-industry="{ row }"><span class="td-muted">{{ customerDict.industryLabel(row.industry) }}</span></template>
         <template #col-contactName="{ row }">
           <span class="td-contact">{{ row.contacts && row.contacts.length > 0 ? row.contacts[0].contactName : '--' }}</span>
         </template>
@@ -202,7 +204,7 @@
               <button class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('customerList.actions.detail') }}</button>
               <button class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('customerList.actions.edit') }}</button>
               <button
-                v-if="row.status === 1"
+                v-if="row.status === 1 || row.status === -1"
                 class="action-btn action-btn--warning"
                 @click.stop="handleSubmitAudit(row)"
               >
@@ -217,7 +219,7 @@
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="handleView(row)">{{ t('customerList.actions.detail') }}</el-dropdown-item>
                   <el-dropdown-item @click.stop="handleEdit(row)">{{ t('customerList.actions.edit') }}</el-dropdown-item>
-                  <el-dropdown-item v-if="row.status === 1" @click.stop="handleSubmitAudit(row)">
+                  <el-dropdown-item v-if="row.status === 1 || row.status === -1" @click.stop="handleSubmitAudit(row)">
                     {{ t('customerList.actions.submitAudit') }}
                   </el-dropdown-item>
                 </el-dropdown-menu>
@@ -289,8 +291,9 @@ import { customerApi } from '@/api/customer';
 import { authApi } from '@/api/auth';
 import { favoriteApi } from '@/api/favorite';
 import { formatDisplayDateTime } from '@/utils/displayDateTime';
-import type { Customer, CustomerSearchRequest } from '@/types/customer';
+import { type Customer, type CustomerSearchRequest } from '@/types/customer';
 import { useAuthStore } from '@/stores/auth';
+import { useCustomerDictStore } from '@/stores/customerDict';
 import PartyStatusIcons from '@/components/party/PartyStatusIcons.vue';
 import CustomerImportDialog from '@/components/Customer/CustomerImportDialog.vue';
 import CrmDataTable from '@/components/CrmDataTable.vue'
@@ -306,6 +309,7 @@ function isPartyStatusMuted(c: Customer) {
   return !!(c.disenableStatus || c.blackList);
 }
 const authStore = useAuthStore();
+const customerDict = useCustomerDictStore();
 const canViewCustomerInfo = authStore.hasPermission('customer.info.read');
 const canSubmitAudit = authStore.hasPermission('customer.write');
 
@@ -406,7 +410,7 @@ const fetchCustomerList = async () => {
       ...item,
       customerName: item.customerName || item.officialName,
       customerShortName: item.customerShortName || item.nickName,
-      customerLevel: item.customerLevel || (item.level ? ['', 'D', 'C', 'B', 'BPO', 'VIP', 'VPO'][item.level] : 'Normal'),
+      customerLevel: item.customerLevel || (item.level ? ['', 'D', 'C', 'B', 'BPO', 'VIP', 'VPO'][item.level] : 'B'),
       customerType: item.customerType ?? item.type ?? 0,
       salesPersonName: item.salesPersonName,
       creditLimit: item.creditLimit ?? item.creditLine ?? 0,
@@ -575,18 +579,6 @@ const handleSubmitAudit = async (row: Customer) => {
 const handleSizeChange = (size: number) => { pagination.pageSize = size; fetchCustomerList(); };
 const handlePageChange = (page: number) => { pagination.pageNumber = page; fetchCustomerList(); };
 
-const getLevelLabel = (level: string) => ({
-  VIP: 'VIP', VPO: 'VPO', BPO: 'BPO',
-  B: t('customerList.level.B'), C: t('customerList.level.C'), D: t('customerList.level.D'),
-  Important: t('customerList.level.Important'), Normal: t('customerList.level.Normal'), Lead: t('customerList.level.Lead')
-}[level] || level || '--');
-const getTypeLabel = (type: number) => ({ 1: 'OEM', 2: 'ODM', 3: t('customerList.type.endUser'), 4: 'IDH', 5: t('customerList.type.trader'), 6: t('customerList.type.agency') }[type] || t('customerList.status.unknown'));
-const getIndustryLabel = (industry: string) => ({
-  Manufacturing: t('customerList.industry.Manufacturing'), Trading: t('customerList.industry.Trading'), Technology: t('customerList.industry.Technology'),
-  Construction: t('customerList.industry.Construction'), Healthcare: t('customerList.industry.Healthcare'), Education: t('customerList.industry.Education'),
-  Finance: t('customerList.industry.Finance'), Other: t('customerList.industry.Other')
-}[industry] || industry || '--');
-
 const parseDateMs = (v?: string) => {
   if (!v) return 0;
   const t = new Date(v).getTime();
@@ -610,6 +602,7 @@ watch(
 );
 
 onMounted(async () => {
+  void customerDict.ensureLoaded();
   syncSearchFromRouteQuery();
   try {
     salesUsers.value = await authApi.getSalesUsersForSelect();

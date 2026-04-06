@@ -104,6 +104,15 @@
         <template #col-rfqCode="{ row }">
           <span>{{ displayRfqCode(row) }}</span>
         </template>
+        <template #col-brand="{ row }">
+          <span>{{ displayFirstItemBrand(row) }}</span>
+        </template>
+        <template #col-lineUnitPrice="{ row }">
+          <span>{{ displayFirstItemUnitPrice(row) }}</span>
+        </template>
+        <template #col-lineQuantity="{ row }">
+          <span>{{ displayFirstItemQuantity(row) }}</span>
+        </template>
         <template #col-vendorCount="{ row }">
           {{ row.items?.length || 0 }}
         </template>
@@ -182,6 +191,7 @@ import { useI18n } from 'vue-i18n'
 import { Search, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { quoteApi } from '@/api/quote'
+import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -245,6 +255,16 @@ const quoteTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'status', label: t('quoteList.columns.status'), prop: 'status', width: 160, align: 'center' },
   { key: 'rfqCode', label: t('quoteList.columns.rfqCode'), width: 160, minWidth: 160, showOverflowTooltip: true },
   { key: 'mpn', label: t('quoteList.columns.mpn'), prop: 'mpn', minWidth: 150, showOverflowTooltip: true },
+  { key: 'brand', label: t('quoteList.columns.brand'), width: 100, minWidth: 90, showOverflowTooltip: true },
+  {
+    key: 'lineUnitPrice',
+    label: t('quoteList.columns.unitPrice'),
+    width: 130,
+    minWidth: 120,
+    align: 'right',
+    showOverflowTooltip: true
+  },
+  { key: 'lineQuantity', label: t('quoteList.columns.quantity'), width: 88, minWidth: 72, align: 'right' },
   { key: 'customerName', label: t('quoteList.columns.customer'), prop: 'customerName', minWidth: 200, showOverflowTooltip: true },
   { key: 'salesUserName', label: t('quoteList.columns.salesUser'), prop: 'salesUserName', width: 100 },
   { key: 'purchaseUserName', label: t('quoteList.columns.purchaseUser'), prop: 'purchaseUserName', width: 100 },
@@ -281,9 +301,50 @@ function displayQuoteCode(row: Record<string, unknown>) {
 
 /** 主需求单需求编号（与明细关联的 rfqId 对应主表 rfqCode；后端可直接返回 rfqCode） */
 function displayRfqCode(row: Record<string, unknown>) {
-  const v = row.rfqCode ?? row.RfqCode ?? row.rfqNumber ?? row.RfqNumber
+  const v =
+    row.rfqCode ??
+    row.RfqCode ??
+    row.RFQCode ??
+    row.rfqNumber ??
+    row.RfqNumber
   if (v != null && String(v).trim() !== '') return String(v)
   return t('quoteList.na')
+}
+
+function firstQuoteItem(row: Record<string, unknown>): Record<string, unknown> | null {
+  const items = row.items ?? row.Items
+  if (!Array.isArray(items) || items.length === 0) return null
+  return items[0] as Record<string, unknown>
+}
+
+function displayFirstItemBrand(row: Record<string, unknown>) {
+  const it = firstQuoteItem(row)
+  if (!it) return t('quoteList.na')
+  const b = it.brand ?? it.Brand
+  if (b != null && String(b).trim() !== '') return String(b)
+  return t('quoteList.na')
+}
+
+function displayFirstItemUnitPrice(row: Record<string, unknown>) {
+  const it = firstQuoteItem(row)
+  if (!it) return t('quoteList.na')
+  const p = it.unitPrice ?? it.UnitPrice
+  if (p == null || p === '') return t('quoteList.na')
+  const n = Number(p)
+  if (Number.isNaN(n)) return t('quoteList.na')
+  const ccy = Number(it.currency ?? it.Currency ?? 1)
+  const ccyLabel = CURRENCY_CODE_TO_TEXT[ccy] ?? String(ccy)
+  return `${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })} ${ccyLabel}`
+}
+
+function displayFirstItemQuantity(row: Record<string, unknown>) {
+  const it = firstQuoteItem(row)
+  if (!it) return t('quoteList.na')
+  const q = it.quantity ?? it.Quantity
+  if (q == null || q === '') return t('quoteList.na')
+  const n = Number(q)
+  if (Number.isNaN(n)) return t('quoteList.na')
+  return String(n)
 }
 
 // 状态处理
@@ -527,8 +588,9 @@ onMounted(loadData)
   flex: 0 0 26px;
 }
 
+/* 与 .crm-items-table 正文色一致，避免偏青或与链接触觉混淆 */
 .quote-code-cell {
-  color: #e8f4ff;
+  color: $text-primary !important;
 }
 
 // 列表操作列规范（收起/展开）

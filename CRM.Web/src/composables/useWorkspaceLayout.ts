@@ -49,10 +49,7 @@ export function useWorkspaceLayout() {
     { id: 'l2', labelKey: 'layout.auxTabs.favorites' },
     { id: 'l3', labelKey: 'layout.auxTabs.history' }
   ])
-  const rightTabs = ref<WorkspaceTabItem[]>([
-    { id: 'r4', labelKey: 'layout.auxTabs.help' },
-    { id: 'r5', labelKey: 'layout.auxTabs.orderJourney' }
-  ])
+  const rightTabs = ref<WorkspaceTabItem[]>([{ id: 'r4', labelKey: 'layout.auxTabs.help' }])
   const leftActiveTabId = ref('l1')
   const rightActiveTabId = ref('r4')
 
@@ -103,6 +100,16 @@ export function useWorkspaceLayout() {
     [sidebarMode, sidebarWidthPx, leftPanelWidth, rightPanelWidth, leftPanelVisible, rightPanelVisible],
     () => save(),
     { deep: true }
+  )
+
+  /** 右栏 Tab 删减后，避免仍停留在已移除的 tab（如 r5）导致内容区空白 */
+  watch(
+    () => rightTabs.value.map((t) => t.id),
+    (ids) => {
+      if (!ids.length) return
+      if (!ids.includes(rightActiveTabId.value)) rightActiveTabId.value = ids[0]!
+    },
+    { immediate: true }
   )
 
   /** 与历史模板一致：仅边条时视为 collapsed */

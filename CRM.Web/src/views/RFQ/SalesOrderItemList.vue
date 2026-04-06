@@ -60,7 +60,7 @@
     <CrmDataTable
       ref="dataTableRef"
       class="quantum-table-block el-table-host"
-      column-layout-key="sales-order-item-list-main"
+      column-layout-key="sales-order-item-list-v2"
       :columns="salesOrderItemColumns"
       :show-column-settings="false"
       :data="list"
@@ -72,11 +72,46 @@
       <template #col-orderStatus="{ row }">
         <el-tag effect="dark" :type="statusTagType(row.orderStatus)" size="small">{{ statusText(row.orderStatus) }}</el-tag>
       </template>
+      <template #col-purchaseProgressStatus="{ row }">
+        <el-tag effect="dark" :type="extendTriTagType(row.purchaseProgressStatus)" size="small">
+          {{ extendTriLabel('purchase', row.purchaseProgressStatus) }}
+        </el-tag>
+      </template>
+      <template #col-stockInProgressStatus="{ row }">
+        <el-tag effect="dark" :type="extendTriTagType(row.stockInProgressStatus)" size="small">
+          {{ extendTriLabel('stockIn', row.stockInProgressStatus) }}
+        </el-tag>
+      </template>
+      <template #col-stockOutProgressStatus="{ row }">
+        <el-tag effect="dark" :type="extendTriTagType(row.stockOutProgressStatus)" size="small">
+          {{ extendTriLabel('stockOut', row.stockOutProgressStatus) }}
+        </el-tag>
+      </template>
+      <template #col-receiptProgressStatus="{ row }">
+        <el-tag effect="dark" :type="extendTriTagType(row.receiptProgressStatus)" size="small">
+          {{ extendTriLabel('receipt', row.receiptProgressStatus) }}
+        </el-tag>
+      </template>
+      <template #col-invoiceProgressStatus="{ row }">
+        <el-tag effect="dark" :type="extendTriTagType(row.invoiceProgressStatus)" size="small">
+          {{ extendTriLabel('invoice', row.invoiceProgressStatus) }}
+        </el-tag>
+      </template>
       <template #col-orderCreateTime="{ row }">{{ formatDt(row.orderCreateTime) }}</template>
-      <template #col-price="{ row }">{{ formatCurrencyUnitPrice(row.price, row.currency) }}</template>
-      <template #col-lineTotal="{ row }">{{ formatCurrencyTotal(row.lineTotal, row.currency) }}</template>
+      <template #col-currency="{ row }">{{ settlementCurrencyLabel(row.currency) }}</template>
+      <template #col-price="{ row }">{{ formatUnitPriceNumber(row.price) }}</template>
+      <template #col-lineTotal="{ row }">{{ formatTotalAmountNumber(row.lineTotal) }}</template>
       <template #col-usdUnitPrice="{ row }">{{ row.usdUnitPrice != null ? `$${Number(row.usdUnitPrice).toFixed(6)}` : '—' }}</template>
       <template #col-usdLineTotal="{ row }">{{ row.usdLineTotal != null ? `$${Number(row.usdLineTotal).toFixed(2)}` : '—' }}</template>
+      <template #col-salesProfitExpected="{ row }">{{
+        row.salesProfitExpected != null ? `$${Number(row.salesProfitExpected).toFixed(2)}` : '—'
+      }}</template>
+      <template #col-profitOutBizUsd="{ row }">{{
+        row.profitOutBizUsd != null ? `$${Number(row.profitOutBizUsd).toFixed(2)}` : '—'
+      }}</template>
+      <template #col-profitOutRateBiz="{ row }">{{
+        row.profitOutRateBiz != null ? Number(row.profitOutRateBiz).toFixed(6) : '—'
+      }}</template>
       <template #col-createTime="{ row }">{{ formatDt(row.createTime || row.orderCreateTime) }}</template>
       <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || row.salesUserName || '—' }}</template>
       <template #col-actions-header>
@@ -102,10 +137,11 @@
               {{ t('salesOrderItemList.actions.applyPurchase') }}
             </el-button>
             <el-button
-              v-if="canWriteSo && mainAllowsOps(row)"
+              v-if="canWriteSo && mainAllowsOps(row) && stockOutApplyPurchaseGateOk(row)"
               link
               type="warning"
               size="small"
+              :disabled="applyStockOutDisabled(row)"
               @click.stop="applyStockOutOne(row)"
             >
               {{ t('salesOrderItemList.actions.applyStockOut') }}
@@ -127,8 +163,17 @@
                 <el-dropdown-item v-if="canPurchaseReq && mainAllowsOps(row)" @click.stop="applyPurchaseOne(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('salesOrderItemList.actions.applyPurchase') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="canWriteSo && mainAllowsOps(row)" @click.stop="applyStockOutOne(row)">
-                  <span class="op-more-item op-more-item--warning">{{ t('salesOrderItemList.actions.applyStockOut') }}</span>
+                <el-dropdown-item
+                  v-if="canWriteSo && mainAllowsOps(row) && stockOutApplyPurchaseGateOk(row)"
+                  :disabled="applyStockOutDisabled(row)"
+                  @click.stop="applyStockOutOne(row)"
+                >
+                  <span
+                    class="op-more-item"
+                    :class="
+                      applyStockOutDisabled(row) ? 'op-more-item--disabled' : 'op-more-item--warning'
+                    "
+                  >{{ t('salesOrderItemList.actions.applyStockOut') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -281,6 +326,18 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
+            <el-form-item :label="t('salesOrderItemList.dialog.purchasedQty')">
+              <el-input :model-value="applyFormPurchasedQtyText" disabled />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item :label="t('salesOrderItemList.dialog.openPrQty')">
+              <el-input :model-value="applyFormOpenPrQtyText" disabled />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
             <el-form-item :label="t('salesOrderItemList.dialog.availableQty')">
               <el-input :model-value="applyFormRemainingQtyText" disabled />
             </el-form-item>
@@ -346,10 +403,12 @@ import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
 import {
   translateSalesOrderStatus,
   salesOrderStatusTagType,
-  salesOrderMainAllowsPurchaseAndStockOut
+  salesOrderMainAllowsPurchaseAndStockOut,
+  salesOrderLineApplyStockOutDisabled
 } from '@/constants/salesOrderStatus'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
-import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
+import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
+import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import type { SalesOrderItemLineRow } from '@/stores/salesOrderItemListBasket'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
@@ -367,9 +426,24 @@ const canViewAmount = computed(() => authStore.hasPermission('sales.amount.read'
 const canWriteSo = computed(() => authStore.hasPermission('sales-order.write'))
 const canPurchaseReq = computed(() => authStore.hasPermission('purchase-requisition.write'))
 
+function stockOutApplyPurchaseGateOk(row: Record<string, unknown>) {
+  return row.stockOutApplyPurchaseGateOk === true
+}
+
+function applyStockOutDisabled(row: Record<string, unknown>) {
+  return salesOrderLineApplyStockOutDisabled(row)
+}
+
 function mainAllowsOps(row: SalesOrderItemLineRow) {
   const os = row['orderStatus']
   return salesOrderMainAllowsPurchaseAndStockOut(Number(os))
+}
+
+/** 结算币别编码 → ISO 文案（与 SETTLEMENT_CURRENCY_OPTIONS 一致） */
+function settlementCurrencyLabel(code: unknown): string {
+  const c = Number(code)
+  if (!Number.isFinite(c)) return '—'
+  return CURRENCY_CODE_TO_TEXT[c as keyof typeof CURRENCY_CODE_TO_TEXT] ?? '—'
 }
 
 const loading = ref(false)
@@ -394,6 +468,15 @@ const salesOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
   const cols: CrmTableColumnDef[] = [
     { key: 'selection', type: 'selection', width: 48, reserveSelection: true, fixed: 'left', hideable: false, reorderable: false },
+    {
+      key: 'sellOrderItemCode',
+      label: t('salesOrderItemList.columns.sellOrderItemCode'),
+      prop: 'sellOrderItemCode',
+      width: 180,
+      minWidth: 168,
+      fixed: 'left',
+      showOverflowTooltip: true
+    },
     {
       key: 'sellOrderCode',
       label: t('salesOrderItemList.columns.sellOrderCode'),
@@ -420,14 +503,125 @@ const salesOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
       showOverflowTooltip: true
     })
   }
+  const currencyColumn: CrmTableColumnDef = {
+    key: 'currency',
+    label: t('salesOrderItemList.columns.currency'),
+    prop: 'currency',
+    width: 72,
+    minWidth: 72,
+    align: 'center',
+    hideable: false
+  }
+
   if (canViewAmount.value) {
     cols.splice(cols.length - 2, 0,
-      { key: 'price', label: t('salesOrderItemList.columns.unitPrice'), prop: 'price', width: 160, align: 'right' },
-      { key: 'lineTotal', label: t('salesOrderItemList.columns.lineTotal'), prop: 'lineTotal', width: 160, align: 'right' },
-      { key: 'usdUnitPrice', label: t('salesOrderItemList.columns.usdUnitPrice'), width: 160, align: 'right' },
-      { key: 'usdLineTotal', label: t('salesOrderItemList.columns.usdLineTotal'), width: 160, align: 'right' }
+      currencyColumn,
+      {
+        key: 'price',
+        label: t('salesOrderItemList.columns.unitPrice'),
+        prop: 'price',
+        width: 128,
+        minWidth: 112,
+        align: 'right',
+        hideable: false
+      },
+      {
+        key: 'lineTotal',
+        label: t('salesOrderItemList.columns.lineTotal'),
+        prop: 'lineTotal',
+        width: 132,
+        minWidth: 120,
+        align: 'right',
+        hideable: false
+      },
+      {
+        key: 'usdUnitPrice',
+        label: t('salesOrderItemList.columns.usdUnitPrice'),
+        width: 132,
+        minWidth: 120,
+        align: 'right',
+        hideable: false
+      },
+      {
+        key: 'usdLineTotal',
+        label: t('salesOrderItemList.columns.usdLineTotal'),
+        width: 132,
+        minWidth: 120,
+        align: 'right',
+        hideable: false
+      },
+      {
+        key: 'salesProfitExpected',
+        label: t('salesOrderItemList.columns.salesProfitExpected'),
+        prop: 'salesProfitExpected',
+        width: 140,
+        align: 'right'
+      },
+      {
+        key: 'profitOutBizUsd',
+        label: t('salesOrderItemList.columns.profitOutBizUsd'),
+        prop: 'profitOutBizUsd',
+        width: 120,
+        align: 'right'
+      },
+      {
+        key: 'profitOutRateBiz',
+        label: t('salesOrderItemList.columns.profitOutRateBiz'),
+        prop: 'profitOutRateBiz',
+        width: 120,
+        align: 'right'
+      }
     )
+  } else {
+    cols.splice(cols.length - 2, 0, currencyColumn)
   }
+
+  // 采购/入库/出库/收款/开票进度列：放在「利润率」之后（无金额列权限时仍在「数量」后）
+  const progressFive: CrmTableColumnDef[] = [
+    {
+      key: 'purchaseProgressStatus',
+      label: t('salesOrderItemList.columns.purchaseProgressStatus'),
+      prop: 'purchaseProgressStatus',
+      width: 108,
+      align: 'center'
+    },
+    {
+      key: 'stockInProgressStatus',
+      label: t('salesOrderItemList.columns.stockInProgressStatus'),
+      prop: 'stockInProgressStatus',
+      width: 108,
+      align: 'center'
+    },
+    {
+      key: 'stockOutProgressStatus',
+      label: t('salesOrderItemList.columns.stockOutProgressStatus'),
+      prop: 'stockOutProgressStatus',
+      width: 108,
+      align: 'center'
+    },
+    {
+      key: 'receiptProgressStatus',
+      label: t('salesOrderItemList.columns.receiptProgressStatus'),
+      prop: 'receiptProgressStatus',
+      width: 108,
+      align: 'center'
+    },
+    {
+      key: 'invoiceProgressStatus',
+      label: t('salesOrderItemList.columns.invoiceProgressStatus'),
+      prop: 'invoiceProgressStatus',
+      width: 108,
+      align: 'center'
+    }
+  ]
+  const profitIdx = cols.findIndex((c) => c.key === 'profitOutRateBiz')
+  const qtyIdx = cols.findIndex((c) => c.key === 'qty')
+  if (profitIdx >= 0) {
+    cols.splice(profitIdx + 1, 0, ...progressFive)
+  } else if (qtyIdx >= 0) {
+    cols.splice(qtyIdx + 1, 0, ...progressFive)
+  }
+
   cols.push({
     key: 'actions',
     label: t('salesOrderItemList.columns.actions'),
@@ -464,6 +658,8 @@ const applyForm = reactive({
   pn: '',
   brand: '',
   salesOrderQty: 0,
+  purchasedQty: 0,
+  openPurchaseRequisitionQty: 0,
   remainingQty: 0,
   requestQty: 0,
   expectedPurchaseDate: '' as string,
@@ -481,6 +677,8 @@ const applyFormReset = () => {
   applyForm.pn = ''
   applyForm.brand = ''
   applyForm.salesOrderQty = 0
+  applyForm.purchasedQty = 0
+  applyForm.openPurchaseRequisitionQty = 0
   applyForm.remainingQty = 0
   applyForm.requestQty = 0
   applyForm.remark = ''
@@ -529,6 +727,12 @@ const submitApply = async () => {
   await loadList()
 }
 
+function normSellOrderItemId(s: unknown) {
+  return String(s ?? '')
+    .trim()
+    .toLowerCase()
+}
+
 async function applyPurchaseOne(row: any) {
   if (!mainAllowsOps(row)) {
     ElMessage.warning(t('salesOrderItemList.messages.applyPurchaseNeedAudit'))
@@ -536,28 +740,40 @@ async function applyPurchaseOne(row: any) {
   }
   applyFormReset()
   applyDialogVisible.value = true
+  applyLoading.value = true
   try {
     const sellOrderId = row.sellOrderId as string
-    const sellOrderItemId = row.sellOrderItemId as string
+    const sellOrderItemId = String(row.sellOrderItemId ?? row.id ?? row.Id ?? '').trim()
 
-    const options = await purchaseRequisitionApi.getLineOptions(sellOrderId)
-    const line = (options || []).find((x: any) => x.sellOrderItemId === sellOrderItemId)
+    const options = (await purchaseRequisitionApi.getLineOptions(sellOrderId)) || []
+    const line = options.find((x: any) => normSellOrderItemId(x.sellOrderItemId) === normSellOrderItemId(sellOrderItemId))
+    if (!line) {
+      ElMessage.warning(t('salesOrderItemList.messages.prLineNotAvailable'))
+      applyDialogVisible.value = false
+      return
+    }
 
     applyForm.sellOrderItemId = sellOrderItemId
-    applyForm.pn = line?.pn ?? row.pn ?? ''
-    applyForm.brand = line?.brand ?? row.brand ?? ''
+    applyForm.pn = line.pn ?? row.pn ?? ''
+    applyForm.brand = line.brand ?? row.brand ?? ''
     const toInt = (v: unknown) => Math.trunc(Number(v) || 0)
-    applyForm.salesOrderQty = toInt(line?.salesOrderQty ?? row.qty ?? 0)
-    applyForm.remainingQty = toInt(line?.remainingQty ?? row.qty ?? 0)
-    applyForm.requestQty = applyForm.remainingQty
+    applyForm.salesOrderQty = toInt(line.salesOrderQty ?? row.qty ?? 0)
+    applyForm.purchasedQty = toInt(line.purchasedQty ?? 0)
+    applyForm.openPurchaseRequisitionQty = toInt(line.openPurchaseRequisitionQty ?? 0)
+    applyForm.remainingQty = toInt(line.remainingQty)
+    applyForm.requestQty = Math.max(0, applyForm.remainingQty)
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || e?.message || t('salesOrderItemList.messages.loadLineFailed'))
     applyDialogVisible.value = false
+  } finally {
+    applyLoading.value = false
   }
 }
 
 // 将数字转为截图那种“输入框字符串效果”
 const applyFormSalesOrderQtyText = computed(() => String(Math.trunc(Number(applyForm.salesOrderQty ?? 0) || 0)))
+const applyFormPurchasedQtyText = computed(() => String(Math.trunc(Number(applyForm.purchasedQty ?? 0) || 0)))
+const applyFormOpenPrQtyText = computed(() => String(Math.trunc(Number(applyForm.openPurchaseRequisitionQty ?? 0) || 0)))
 const applyFormRemainingQtyText = computed(() => String(Math.trunc(Number(applyForm.remainingQty ?? 0) || 0)))
 
 function statusText(s: number) {
@@ -566,6 +782,24 @@ function statusText(s: number) {
 
 function statusTagType(s: number): '' | 'success' | 'warning' | 'info' | 'danger' {
   return salesOrderStatusTagType(s) as '' | 'success' | 'warning' | 'info' | 'danger'
+}
+
+/** 明细扩展进度 0=待 1=部分 2=完成 */
+function extendTriTagType(v?: number): '' | 'success' | 'warning' | 'info' | 'danger' {
+  const map: Record<number, '' | 'info' | 'success' | 'warning' | 'danger'> = {
+    0: 'info',
+    1: 'warning',
+    2: 'success'
+  }
+  return v !== undefined && v !== null ? (map[v] ?? 'info') : 'info'
+}
+
+function extendTriLabel(
+  kind: 'purchase' | 'stockIn' | 'stockOut' | 'receipt' | 'invoice',
+  v?: number
+): string {
+  const slot = v === 2 ? 'complete' : v === 1 ? 'partial' : 'pending'
+  return t(`salesOrderItemList.extendProgress.${kind}.${slot}`)
 }
 
 function formatDt(v: string) {
@@ -735,8 +969,16 @@ function batchApplyPurchase() {
 }
 
 function applyStockOutOne(row: any) {
+  if (applyStockOutDisabled(row)) {
+    ElMessage.warning(t('salesOrderItemList.messages.applyStockOutDisabledByProgress'))
+    return
+  }
   if (!mainAllowsOps(row)) {
     ElMessage.warning(t('salesOrderItemList.messages.applyStockOutNeedAudit'))
+    return
+  }
+  if (!stockOutApplyPurchaseGateOk(row)) {
+    ElMessage.warning(t('salesOrderItemList.messages.applyStockOutNeedPurchaseGate'))
     return
   }
   router.push({
@@ -1000,6 +1242,16 @@ onMounted(() => loadList())
 
 .op-more-item--warning {
   color: $color-amber;
+}
+
+.op-more-item--disabled {
+  color: $text-muted !important;
+}
+
+/* 展开操作列：禁用仍用 type=warning 时文字改为灰色 */
+.action-btns :deep(.el-button.is-disabled.is-link.el-button--warning) {
+  color: $text-muted !important;
+  --el-button-hover-link-text-color: #{$text-muted};
 }
 
 :deep(.el-table__body-wrapper .el-table__body tr:hover .op-more-trigger),

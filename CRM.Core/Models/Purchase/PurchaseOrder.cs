@@ -127,6 +127,16 @@ namespace CRM.Core.Models.Purchase
         [Column("inner_comment")]
         public string? InnerComment { get; set; }
 
+        /// <summary>创建订单时的登录用户 ID（<c>user</c> 表主键 GUID，与 JWT 一致）；基类 <c>CreateUserId</c>(bigint) 勿用于关联用户。</summary>
+        [StringLength(36)]
+        [Column("create_by_user_id")]
+        public string? CreateByUserId { get; set; }
+
+        /// <summary>最后修改订单时的登录用户 ID（GUID）</summary>
+        [StringLength(36)]
+        [Column("modify_by_user_id")]
+        public string? ModifyByUserId { get; set; }
+
         // 导航属性
         public virtual ICollection<PurchaseOrderItem> Items { get; set; } = new List<PurchaseOrderItem>();
     }
@@ -149,6 +159,11 @@ namespace CRM.Core.Models.Purchase
         [StringLength(36)]
         [Column("purchase_order_id")]
         public string PurchaseOrderId { get; set; } = string.Empty;
+
+        /// <summary>采购订单明细业务编号（采购单号-序号）</summary>
+        [StringLength(64)]
+        [Column("purchase_order_item_code")]
+        public string PurchaseOrderItemCode { get; set; } = string.Empty;
 
         /// <summary>销售订单明细ID(外键) — 以销定采的核心关联字段</summary>
         [Required]
@@ -185,7 +200,11 @@ namespace CRM.Core.Models.Purchase
         [Column("cost", TypeName = "numeric(18,6)")]
         public decimal Cost { get; set; } = 0.000000m;
 
-        /// <summary>币别 1=RMB 2=USD 3=EUR</summary>
+        /// <summary>单价折合美元（按财务参数中的 USD 基准汇率计算）</summary>
+        [Column("convert_price", TypeName = "numeric(18,6)")]
+        public decimal ConvertPrice { get; set; } = 0.000000m;
+
+        /// <summary>币别 1=RMB 2=USD 3=EUR 4=HKD（与 <see cref="Constants.CurrencyCode"/> 一致）</summary>
         [Column("currency")]
         public short Currency { get; set; } = 1;
 

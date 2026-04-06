@@ -107,7 +107,7 @@
         @selection-change="onSelectionChange"
       >
         <template #col-itemStatus="{ row }">
-          <el-tag size="small" effect="dark">{{ itemStatusText(row.status) }}</el-tag>
+          <el-tag size="small" effect="dark">{{ itemStatusText(effectiveItemLineStatus(row)) }}</el-tag>
         </template>
         <template #col-quoteCount="{ row }">
           <span
@@ -259,7 +259,7 @@
     <div class="supplier-quote-dock" :class="{ collapsed: !supplierPanelExpanded }">
       <div class="dock-header">
         <div class="dock-header-top">
-          <span class="dock-title">采购报价</span>
+          <span class="dock-title">{{ t('rfqItemList.dockQuotes.title') }}</span>
           <div class="dock-header-actions">
             <el-button
               class="dock-toggle"
@@ -304,14 +304,14 @@
         </div>
       </div>
       <div v-show="supplierPanelExpanded" class="dock-body">
-        <div v-if="!selectedRfqItem" class="dock-placeholder">请先点击上方需求明细行，查看对应报价</div>
+        <div v-if="!selectedRfqItem" class="dock-placeholder">{{ t('rfqItemList.dockQuotes.pickRowHint') }}</div>
         <template v-else>
           <div
             v-loading="quotesLoading"
             class="dock-table-wrap"
             :class="{ 'dock-table-wrap--quotes-empty': !quotesLoading && !quotesForItem.length }"
           >
-            <div v-if="!quotesLoading && !quotesForItem.length" class="dock-quote-empty-row">尚未报价</div>
+            <div v-if="!quotesLoading && !quotesForItem.length" class="dock-quote-empty-row">{{ t('rfqItemList.dockQuotes.empty') }}</div>
             <CrmDataTable
               v-else-if="quotesForItem.length"
               embedded
@@ -322,11 +322,42 @@
               max-height="260"
               :row-key="dockQuoteRowKey"
             >
-              <el-table-column label="报价编号" width="160" min-width="160" show-overflow-tooltip>
+              <el-table-column
+                :label="t('rfqItemList.dockQuotes.quoteCode')"
+                width="160"
+                min-width="160"
+                show-overflow-tooltip
+              >
                 <template #default="{ row }">{{ displayQuoteCode(row) }}</template>
               </el-table-column>
-              <el-table-column prop="mpn" label="物料型号" min-width="120" show-overflow-tooltip />
-              <el-table-column label="报价数量" width="100" min-width="88" align="right" class-name="dock-tier-col">
+              <el-table-column
+                prop="mpn"
+                :label="t('rfqItemList.dockQuotes.mpn')"
+                min-width="120"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                :label="t('rfqItemList.dockQuotes.brand')"
+                min-width="100"
+                width="110"
+                show-overflow-tooltip
+              >
+                <template #default="{ row }">{{ dockQuoteBrandDisplay(row as Record<string, unknown>) }}</template>
+              </el-table-column>
+              <el-table-column
+                :label="t('rfqItemList.dockQuotes.vendorName')"
+                min-width="140"
+                show-overflow-tooltip
+              >
+                <template #default="{ row }">{{ dockQuoteVendorNamesDisplay(row as Record<string, unknown>) }}</template>
+              </el-table-column>
+              <el-table-column
+                :label="t('rfqItemList.dockQuotes.quoteQty')"
+                width="100"
+                min-width="88"
+                align="right"
+                class-name="dock-tier-col"
+              >
                 <template #default="{ row }">
                   <div class="dock-quote-tiers">
                     <template v-if="dockQuoteLineItems(row as Record<string, unknown>).length">
@@ -342,7 +373,12 @@
                   </div>
                 </template>
               </el-table-column>
-              <el-table-column label="单价（阶梯）" min-width="128" align="right" class-name="dock-tier-col">
+              <el-table-column
+                :label="t('rfqItemList.dockQuotes.unitPriceTiers')"
+                min-width="128"
+                align="right"
+                class-name="dock-tier-col"
+              >
                 <template #default="{ row }">
                   <div class="dock-quote-tiers">
                     <template v-if="dockQuoteLineItems(row as Record<string, unknown>).length">
@@ -358,24 +394,30 @@
                   </div>
                 </template>
               </el-table-column>
-              <el-table-column label="状态" width="96" align="center">
+              <el-table-column :label="t('rfqItemList.dockQuotes.status')" width="96" align="center">
                 <template #default="{ row }">
                   <el-tag effect="dark" :type="quoteStatusType(row.status)" size="small">
                     {{ quoteStatusText(row.status) }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="供应商数" width="88" align="center">
-                <template #default="{ row }">{{ row.items?.length || 0 }}</template>
-              </el-table-column>
-              <el-table-column label="采购员" width="100" show-overflow-tooltip>
+              <el-table-column
+                :label="t('rfqItemList.dockQuotes.purchaser')"
+                width="100"
+                show-overflow-tooltip
+              >
                 <template #default="{ row }">{{ dockQuotePurchaseUserDisplay(row as Record<string, unknown>) }}</template>
               </el-table-column>
-              <el-table-column label="创建时间" width="160" show-overflow-tooltip resizable>
+              <el-table-column
+                :label="t('rfqItemList.dockQuotes.createTime')"
+                width="160"
+                show-overflow-tooltip
+                resizable
+              >
                 <template #default="{ row }">{{ formatDate((row as Record<string, unknown>).createTime as string | undefined) }}</template>
               </el-table-column>
               <el-table-column
-                label="操作"
+                :label="t('rfqItemList.dockQuotes.actions')"
                 :width="opDockColWidth"
                 :min-width="opDockColMinWidth"
                 align="center"
@@ -385,7 +427,7 @@
               >
                 <template #header>
                   <div class="op-col-header">
-                    <span class="op-col-header-text">操作</span>
+                    <span class="op-col-header-text">{{ t('rfqItemList.dockQuotes.actions') }}</span>
                     <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpDockCol">
                       {{ opDockColExpanded ? '>' : '<' }}
                     </button>
@@ -403,7 +445,7 @@
                         :loading="dockRowSalesOrderQuoteId === resolveQuoteRowId(row)"
                         @click.stop="handleDockRowGenerateSalesOrder(row)"
                       >
-                        生成销售订单
+                        {{ t('rfqItemList.dockQuotes.genSalesOrder') }}
                       </el-button>
                     </div>
 
@@ -414,7 +456,7 @@
                       <template #dropdown>
                         <el-dropdown-menu>
                           <el-dropdown-item @click.stop="handleDockRowGenerateSalesOrder(row)">
-                            <span class="op-more-item op-more-item--warning">生成销售订单</span>
+                            <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.dockQuotes.genSalesOrder') }}</span>
                           </el-dropdown-item>
                         </el-dropdown-menu>
                       </template>
@@ -675,7 +717,8 @@ function formatAssignedPurchasers(row: RFQItem) {
   return parts.length ? parts.join('、') : '—'
 }
 
-function itemStatusText(s?: number) {
+function itemStatusText(s?: number | string) {
+  const n = s === undefined || s === null || s === '' ? NaN : Number(s)
   const map: Record<number, string> = {
     0: t('rfqItemList.status.pending'),
     1: t('rfqItemList.status.quoted'),
@@ -683,7 +726,17 @@ function itemStatusText(s?: number) {
     3: t('rfqItemList.status.rejected'),
     4: t('rfqItemList.status.closed')
   }
-  return s !== undefined ? map[s] ?? t('quoteList.na') : t('quoteList.na')
+  return Number.isFinite(n) ? map[n] ?? t('quoteList.na') : t('quoteList.na')
+}
+
+/** 库内 status 未回写或接口未部署旧版时，与「报价条目」列一致：有条数则不应仍显示待报价 */
+function effectiveItemLineStatus(row: RFQItem): number | undefined {
+  const raw = row.status
+  const n = raw === undefined || raw === null || (raw as unknown) === '' ? NaN : Number(raw)
+  const qc = quoteRecordCountByRfqItemId.value[row.id] ?? 0
+  if (Number.isFinite(n) && n === 0 && qc > 0) return 1
+  if (Number.isFinite(n)) return n
+  return undefined
 }
 
 function quoteStatusText(status: number) {
@@ -717,6 +770,38 @@ function quoteStatusType(status: number) {
 function displayQuoteCode(row: Record<string, unknown>) {
   const v = row.quoteCode ?? row.quoteNumber ?? row.QuoteCode
   if (v != null && String(v).trim() !== '') return String(v)
+  return '—'
+}
+
+function dockQuoteItemsRaw(quoteRow: Record<string, unknown>): Record<string, unknown>[] {
+  const rawItems = (quoteRow.items ?? quoteRow.Items) as unknown[] | undefined
+  if (!rawItems?.length) return []
+  return rawItems.map((it) => it as Record<string, unknown>)
+}
+
+/** 采购报价表：品牌（多行明细去重后用顿号拼接；无则看报价头 brand） */
+function dockQuoteBrandDisplay(quoteRow: Record<string, unknown>): string {
+  const items = dockQuoteItemsRaw(quoteRow)
+  const set = new Set<string>()
+  for (const o of items) {
+    const b = o.brand ?? o.Brand
+    if (b != null && String(b).trim() !== '') set.add(String(b).trim())
+  }
+  if (set.size > 0) return [...set].join('、')
+  const hb = quoteRow.brand ?? quoteRow.Brand
+  if (hb != null && String(hb).trim() !== '') return String(hb).trim()
+  return '—'
+}
+
+/** 采购报价表：供应商名称（多供应商去重后顿号拼接） */
+function dockQuoteVendorNamesDisplay(quoteRow: Record<string, unknown>): string {
+  const items = dockQuoteItemsRaw(quoteRow)
+  const set = new Set<string>()
+  for (const o of items) {
+    const n = o.vendorName ?? o.VendorName
+    if (n != null && String(n).trim() !== '') set.add(String(n).trim())
+  }
+  if (set.size > 0) return [...set].join('、')
   return '—'
 }
 
@@ -784,13 +869,14 @@ function mapRow(row: any): RFQItem {
   }
 }
 
+/** 仅按 quote.rfqItemId 计数（与后端一致；同需求同 PN 多行不能用 rfqId+mpn 推断） */
 function aggregateQuoteCountByRfqItemId(quotes: unknown[]): Record<string, number> {
   const counts: Record<string, number> = {}
   for (const q of quotes) {
     const row = q as Record<string, unknown>
     const rid = row.rfqItemId ?? row.RfqItemId
     if (rid == null || String(rid).trim() === '') continue
-    const k = String(rid)
+    const k = String(rid).trim()
     counts[k] = (counts[k] || 0) + 1
   }
   return counts
@@ -962,13 +1048,16 @@ function dockQuoteRowKey(row: Record<string, unknown>) {
   return resolveQuoteRowId(row) ?? ''
 }
 
-/** 与报价列表「采购员」语义一致：优先采购员姓名，缺省再回退创建人 / 业务员 */
+/** 与报价列表「采购员」语义一致：优先采购员姓名（接口填充 purchaseUserName），缺省再回退创建人 / 业务员 */
 function dockQuotePurchaseUserDisplay(row: Record<string, unknown>) {
   const v =
     row.purchaseUserName ??
+    row.PurchaseUserName ??
     row.createUserName ??
+    row.CreateUserName ??
     row.createdBy ??
-    row.salesUserName
+    row.salesUserName ??
+    row.SalesUserName
   const s = v != null && v !== '' ? String(v).trim() : ''
   return s || '—'
 }

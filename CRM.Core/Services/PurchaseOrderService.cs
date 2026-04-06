@@ -1,6 +1,8 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
+using CRM.Core.Models.System;
 using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
@@ -26,6 +28,11 @@ namespace CRM.Core.Services
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork? _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
+        private readonly IFinanceExchangeRateService _financeExchangeRateService;
+        private readonly IOrderJourneyLogService _orderJourneyLog;
+        private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
+        private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
+        private readonly IPurchaseOrderExtendLineSeqService _poLineSeq;
 
         public PurchaseOrderService(
             IRepository<PurchaseOrder> poRepo,
@@ -35,6 +42,11 @@ namespace CRM.Core.Services
             IRepository<SellOrderItem> soItemRepo,
             IDataPermissionService dataPermissionService,
             ISerialNumberService serialNumberService,
+            IFinanceExchangeRateService financeExchangeRateService,
+            IOrderJourneyLogService orderJourneyLog,
+            ISellOrderItemExtendSyncService sellOrderItemExtendSync,
+            IPurchaseOrderItemExtendSyncService poItemExtendSync,
+            IPurchaseOrderExtendLineSeqService poLineSeq,
             IUnitOfWork? unitOfWork = null)
         {
             _poRepo = poRepo;
@@ -44,10 +56,18 @@ namespace CRM.Core.Services
             _soItemRepo = soItemRepo;
             _dataPermissionService = dataPermissionService;
             _serialNumberService = serialNumberService;
+            _financeExchangeRateService = financeExchangeRateService;
+            _orderJourneyLog = orderJourneyLog;
+            _sellOrderItemExtendSync = sellOrderItemExtendSync;
+            _poItemExtendSync = poItemExtendSync;
+            _poLineSeq = poLineSeq;
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<PurchaseOrder> CreateAsync(CreatePurchaseOrderRequest request)
+        private static string? NormalizeActingUserId(string? actingUserId) =>
+            string.IsNullOrWhiteSpace(actingUserId) ? null : actingUserId.Trim();
+
+        public async Task<PurchaseOrder> CreateAsync(CreatePurchaseOrderRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(request.VendorId))
                 throw new ArgumentException("供应商ID不能为空", nameof(request.VendorId));
@@ -78,16 +98,24 @@ namespace CRM.Core.Services
                 ItemRows = request.Items.Count,
                 Total = total,
                 ConvertTotal = total,
-                CreateTime = DateTime.UtcNow
+                CreateTime = DateTime.UtcNow,
+                CreateByUserId = NormalizeActingUserId(actingUserId)
             };
             await _poRepo.AddAsync(order);
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
+            var fx = await _financeExchangeRateService.GetCurrentAsync();
+            var firstSeq = await _poLineSeq.ReserveNextSequenceBlockAsync(order.Id, request.Items.Count);
+            var lineIndex = 0;
+            var createdLines = new List<PurchaseOrderItem>();
             foreach (var item in request.Items)
             {
+                var seq = firstSeq + lineIndex++;
                 var poItem = new PurchaseOrderItem
                 {
                     Id = Guid.NewGuid().ToString(),
                     PurchaseOrderId = order.Id,
+                    PurchaseOrderItemCode = OrderLineItemCodes.Purchase(order.PurchaseOrderCode, seq),
                     SellOrderItemId = item.SellOrderItemId,
                     VendorId = item.VendorId.Length > 0 ? item.VendorId : request.VendorId,
                     ProductId = item.ProductId,
@@ -103,12 +131,65 @@ namespace CRM.Core.Services
                     Status = StatusNew,
                     CreateTime = DateTime.UtcNow
                 };
+                poItem.ConvertPrice = ExchangeRateToUsdConverter.UnitLocalToUsd(
+                    poItem.Cost, poItem.Currency, fx.UsdToCny, fx.UsdToHkd, fx.UsdToEur);
                 await _poItemRepo.AddAsync(poItem);
+                createdLines.Add(poItem);
                 await AddPurchaseOrderItemExtendAsync(poItem);
             }
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            foreach (var sid in createdLines.Select(x => x.SellOrderItemId).Distinct(StringComparer.OrdinalIgnoreCase))
+                await _sellOrderItemExtendSync.RecalculateAsync(sid);
+
+            foreach (var line in createdLines)
+                await _poItemExtendSync.RecalculateAsync(line.Id);
+
+            var journeyTime = DateTime.UtcNow;
+            await _orderJourneyLog.AppendAsync(new OrderJourneyLog
+            {
+                EntityKind = OrderJourneyEntityKinds.PurchaseOrder,
+                EntityId = order.Id,
+                DocumentCode = order.PurchaseOrderCode,
+                EventCode = OrderJourneyEventCodes.PoCreated,
+                EventTime = journeyTime,
+                Amount = order.Total,
+                Currency = order.Currency,
+                ActorKind = OrderJourneyActorKinds.System,
+                Source = nameof(PurchaseOrderService)
+            });
+            foreach (var line in createdLines)
+            {
+                var lineTotal = Math.Round(line.Qty * line.Cost, 2, MidpointRounding.AwayFromZero);
+                await _orderJourneyLog.AppendAsync(new OrderJourneyLog
+                {
+                    EntityKind = OrderJourneyEntityKinds.PurchaseOrderItem,
+                    EntityId = line.Id,
+                    ParentEntityKind = OrderJourneyEntityKinds.PurchaseOrder,
+                    ParentEntityId = order.Id,
+                    DocumentCode = order.PurchaseOrderCode,
+                    LineHint = JourneyLineHint(line.PN, line.Brand),
+                    EventCode = OrderJourneyEventCodes.PoItemCreated,
+                    EventTime = journeyTime,
+                    Quantity = line.Qty,
+                    Amount = lineTotal,
+                    Currency = line.Currency,
+                    RelatedEntityKind = OrderJourneyEntityKinds.SellOrderItem,
+                    RelatedEntityId = line.SellOrderItemId,
+                    ActorKind = OrderJourneyActorKinds.System,
+                    Source = nameof(PurchaseOrderService)
+                });
+            }
+
             return order;
+        }
+
+        private static string? JourneyLineHint(string? pn, string? brand)
+        {
+            var s = $"{pn ?? ""} / {brand ?? ""}".Trim();
+            if (s == "/") return null;
+            return s.Length <= 200 ? s : s[..200];
         }
 
         private async Task AddPurchaseOrderItemExtendAsync(PurchaseOrderItem poItem)
@@ -210,7 +291,7 @@ namespace CRM.Core.Services
             return all.Where(i => sellOrderItemIds.Contains(i.SellOrderItemId));
         }
 
-        public async Task<IEnumerable<PurchaseOrder>> AutoGenerateFromSellOrderAsync(string sellOrderId)
+        public async Task<IEnumerable<PurchaseOrder>> AutoGenerateFromSellOrderAsync(string sellOrderId, string? actingUserId = null)
         {
             var so = await _soRepo.GetByIdAsync(sellOrderId)
                 ?? throw new InvalidOperationException($"销售订单 {sellOrderId} 不存在");
@@ -247,13 +328,13 @@ namespace CRM.Core.Services
                         }
                     }
                 };
-                var po = await CreateAsync(req);
+                var po = await CreateAsync(req, actingUserId);
                 result.Add(po);
             }
             return result;
         }
 
-        public async Task<PurchaseOrder> UpdateAsync(string id, UpdatePurchaseOrderRequest request)
+        public async Task<PurchaseOrder> UpdateAsync(string id, UpdatePurchaseOrderRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("ID不能为空");
             var order = await _poRepo.GetByIdAsync(id)
@@ -269,22 +350,33 @@ namespace CRM.Core.Services
             if (request.Comment != null) order.Comment = request.Comment;
             if (request.InnerComment != null) order.InnerComment = request.InnerComment;
 
+            var replacedItemCount = 0;
+            List<PurchaseOrderItem>? newLines = null;
+            var recalcSellLineIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (request.Items != null && request.Items.Count > 0)
             {
                 var existing = await _poItemRepo.GetAllAsync();
                 foreach (var d in existing.Where(i => i.PurchaseOrderId == id))
                 {
+                    if (!string.IsNullOrWhiteSpace(d.SellOrderItemId))
+                        recalcSellLineIds.Add(d.SellOrderItemId.Trim());
                     await _poItemExtendRepo.DeleteAsync(d.Id);
                     await _poItemRepo.DeleteAsync(d.Id);
                 }
 
+                var fx = await _financeExchangeRateService.GetCurrentAsync();
+                var firstSeq = await _poLineSeq.ReserveNextSequenceBlockAsync(id, request.Items.Count);
+                var lineIndex = 0;
                 decimal total = 0m;
+                newLines = new List<PurchaseOrderItem>();
                 foreach (var item in request.Items)
                 {
+                    var seq = firstSeq + lineIndex++;
                     var poItem = new PurchaseOrderItem
                     {
                         Id = Guid.NewGuid().ToString(),
                         PurchaseOrderId = id,
+                        PurchaseOrderItemCode = OrderLineItemCodes.Purchase(order.PurchaseOrderCode, seq),
                         SellOrderItemId = item.SellOrderItemId,
                         VendorId = item.VendorId.Length > 0 ? item.VendorId : order.VendorId,
                         ProductId = item.ProductId,
@@ -300,27 +392,99 @@ namespace CRM.Core.Services
                         Status = ShouldSyncOrderAndItemStatus(order.Status) ? order.Status : StatusNew,
                         CreateTime = DateTime.UtcNow
                     };
+                    poItem.ConvertPrice = ExchangeRateToUsdConverter.UnitLocalToUsd(
+                        poItem.Cost, poItem.Currency, fx.UsdToCny, fx.UsdToHkd, fx.UsdToEur);
                     await _poItemRepo.AddAsync(poItem);
+                    newLines.Add(poItem);
                     await AddPurchaseOrderItemExtendAsync(poItem);
                     total += item.Qty * item.Cost;
+                    if (!string.IsNullOrWhiteSpace(poItem.SellOrderItemId))
+                        recalcSellLineIds.Add(poItem.SellOrderItemId.Trim());
                 }
                 order.Total = total;
                 order.ConvertTotal = total;
                 order.ItemRows = request.Items.Count;
+                replacedItemCount = request.Items.Count;
             }
 
             order.ModifyTime = DateTime.UtcNow;
+            order.ModifyByUserId = NormalizeActingUserId(actingUserId);
             await _poRepo.UpdateAsync(order);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            foreach (var sid in recalcSellLineIds)
+                await _sellOrderItemExtendSync.RecalculateAsync(sid);
+
+            if (newLines != null)
+            {
+                foreach (var line in newLines)
+                    await _poItemExtendSync.RecalculateAsync(line.Id);
+            }
+
+            if (replacedItemCount > 0 && newLines != null)
+            {
+                var t = DateTime.UtcNow;
+                await _orderJourneyLog.AppendAsync(new OrderJourneyLog
+                {
+                    EntityKind = OrderJourneyEntityKinds.PurchaseOrder,
+                    EntityId = order.Id,
+                    DocumentCode = order.PurchaseOrderCode,
+                    EventCode = OrderJourneyEventCodes.PoUpdated,
+                    EventTime = t,
+                    Amount = order.Total,
+                    Currency = order.Currency,
+                    PayloadJson = $"{{\"itemRows\":{replacedItemCount}}}",
+                    ActorKind = OrderJourneyActorKinds.System,
+                    Source = nameof(PurchaseOrderService)
+                });
+                foreach (var line in newLines)
+                {
+                    var lineTotal = Math.Round(line.Qty * line.Cost, 2, MidpointRounding.AwayFromZero);
+                    await _orderJourneyLog.AppendAsync(new OrderJourneyLog
+                    {
+                        EntityKind = OrderJourneyEntityKinds.PurchaseOrderItem,
+                        EntityId = line.Id,
+                        ParentEntityKind = OrderJourneyEntityKinds.PurchaseOrder,
+                        ParentEntityId = order.Id,
+                        DocumentCode = order.PurchaseOrderCode,
+                        LineHint = JourneyLineHint(line.PN, line.Brand),
+                        EventCode = OrderJourneyEventCodes.PoItemCreated,
+                        EventTime = t,
+                        Quantity = line.Qty,
+                        Amount = lineTotal,
+                        Currency = line.Currency,
+                        RelatedEntityKind = OrderJourneyEntityKinds.SellOrderItem,
+                        RelatedEntityId = line.SellOrderItemId,
+                        ActorKind = OrderJourneyActorKinds.System,
+                        Source = nameof(PurchaseOrderService)
+                    });
+                }
+            }
+
             return order;
         }
 
         public async Task DeleteAsync(string id)
         {
             if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("ID不能为空");
-            _ = await _poRepo.GetByIdAsync(id)
+            var po = await _poRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"采购订单 {id} 不存在");
+            await _orderJourneyLog.AppendAsync(new OrderJourneyLog
+            {
+                EntityKind = OrderJourneyEntityKinds.PurchaseOrder,
+                EntityId = po.Id,
+                DocumentCode = po.PurchaseOrderCode,
+                EventCode = OrderJourneyEventCodes.PoDeleted,
+                EventTime = DateTime.UtcNow,
+                ActorKind = OrderJourneyActorKinds.System,
+                Source = nameof(PurchaseOrderService)
+            });
             var items = await _poItemRepo.GetAllAsync();
+            var recalcAfterDelete = items
+                .Where(i => i.PurchaseOrderId == id && !string.IsNullOrWhiteSpace(i.SellOrderItemId))
+                .Select(i => i.SellOrderItemId.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
             foreach (var item in items.Where(i => i.PurchaseOrderId == id))
             {
                 await _poItemExtendRepo.DeleteAsync(item.Id);
@@ -328,16 +492,20 @@ namespace CRM.Core.Services
             }
             await _poRepo.DeleteAsync(id);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+            foreach (var sid in recalcAfterDelete)
+                await _sellOrderItemExtendSync.RecalculateAsync(sid);
         }
 
-        public async Task UpdateStatusAsync(string id, short status)
+        public async Task UpdateStatusAsync(string id, short status, string? actingUserId = null)
         {
             var order = await _poRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"采购订单 {id} 不存在");
 
+            var fromStatus = order.Status;
             ValidateStatusTransition(order.Status, status);
             order.Status = status;
             order.ModifyTime = DateTime.UtcNow;
+            order.ModifyByUserId = NormalizeActingUserId(actingUserId);
             await _poRepo.UpdateAsync(order);
 
             if (ShouldSyncOrderAndItemStatus(status))
@@ -352,6 +520,35 @@ namespace CRM.Core.Services
             }
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            string? remark = null;
+            if (status == StatusConfirmed)
+                remark = "采购订单已确认";
+
+            await _orderJourneyLog.AppendAsync(new OrderJourneyLog
+            {
+                EntityKind = OrderJourneyEntityKinds.PurchaseOrder,
+                EntityId = order.Id,
+                DocumentCode = order.PurchaseOrderCode,
+                EventCode = OrderJourneyEventCodes.PoStatusChanged,
+                FromState = fromStatus.ToString(),
+                ToState = status.ToString(),
+                EventTime = DateTime.UtcNow,
+                Remark = remark,
+                ActorKind = OrderJourneyActorKinds.System,
+                Source = nameof(PurchaseOrderService)
+            });
+
+            var statusSyncItems = await _poItemRepo.FindAsync(i => i.PurchaseOrderId == id);
+            foreach (var sid in statusSyncItems
+                         .Select(i => i.SellOrderItemId)
+                         .Where(s => !string.IsNullOrWhiteSpace(s))
+                         .Select(s => s.Trim())
+                         .Distinct(StringComparer.OrdinalIgnoreCase))
+                await _sellOrderItemExtendSync.RecalculateAsync(sid);
+
+            foreach (var line in statusSyncItems)
+                await _poItemExtendSync.RecalculateAsync(line.Id);
         }
 
         private static bool ShouldSyncOrderAndItemStatus(short status)

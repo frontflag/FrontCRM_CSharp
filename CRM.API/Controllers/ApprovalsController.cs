@@ -570,7 +570,7 @@ namespace CRM.API.Controllers
                     var isReject = decision is "reject" or "deny" or "refuse";
                     if (isReject && string.IsNullOrWhiteSpace(request.Remark))
                         return BadRequest(new { success = false, message = "驳回时请填写原因", errorCode = 400 });
-                    await _vendorService.UpdateStatusAsync(v.Id, nextStatus, isReject ? request.Remark : null);
+                    await _vendorService.UpdateStatusAsync(v.Id, nextStatus, isReject ? request.Remark : null, userId);
                     await _approvalRecordService.RecordDecisionAsync(
                         cfg.BizType, v.Id, v.Code, BuildVendorSummary(v), v.Status, nextStatus, isReject ? "reject" : "approve",
                         isReject ? request.Remark : null, userId, User.Identity?.Name);
@@ -593,7 +593,8 @@ namespace CRM.API.Controllers
                     await _salesOrderService.UpdateStatusAsync(
                         o.Id,
                         (SellOrderMainStatus)nextStatus,
-                        isReject ? request.Remark : null);
+                        isReject ? request.Remark : null,
+                        userId);
                     await _approvalRecordService.RecordDecisionAsync(
                         cfg.BizType, o.Id, o.SellOrderCode, BuildSalesOrderSummary(o), (short)o.Status, nextStatus, isReject ? "reject" : "approve",
                         isReject ? request.Remark : null, userId, User.Identity?.Name);
@@ -613,7 +614,7 @@ namespace CRM.API.Controllers
                     if (isReject && string.IsNullOrWhiteSpace(request.Remark))
                         return BadRequest(new { success = false, message = "驳回时请填写原因", errorCode = 400 });
 
-                    await _purchaseOrderService.UpdateStatusAsync(o.Id, nextStatus);
+                    await _purchaseOrderService.UpdateStatusAsync(o.Id, nextStatus, userId);
                     await _approvalRecordService.RecordDecisionAsync(
                         cfg.BizType, o.Id, o.PurchaseOrderCode, BuildPurchaseOrderSummary(o), o.Status, nextStatus, isReject ? "reject" : "approve",
                         isReject ? request.Remark : null, userId, User.Identity?.Name);
@@ -633,7 +634,7 @@ namespace CRM.API.Controllers
                     if (isReject && string.IsNullOrWhiteSpace(request.Remark))
                         return BadRequest(new { success = false, message = "驳回时请填写原因", errorCode = 400 });
 
-                    await _customerService.UpdateCustomerStatusAsync(c.Id, nextStatus, isReject ? request.Remark : null);
+                    await _customerService.UpdateCustomerStatusAsync(c.Id, nextStatus, isReject ? request.Remark : null, userId);
                     await _approvalRecordService.RecordDecisionAsync(
                         cfg.BizType, c.Id, c.CustomerCode, BuildCustomerSummary(c), c.Status, nextStatus, isReject ? "reject" : "approve",
                         isReject ? request.Remark : null, userId, User.Identity?.Name);
@@ -646,10 +647,26 @@ namespace CRM.API.Controllers
                     if (!await _dataPermissionService.CanAccessFinanceReceiptAsync(userId, r))
                         return StatusCode(403, new { success = false, message = "无权限访问该收款单", errorCode = 403 });
 
-                    await _financeReceiptService.UpdateStatusAsync(r.Id, nextStatus);
+                    var fromStatus = r.Status;
+                    var isApprove = decision is "approve" or "pass";
+                    var isReject = decision is "reject" or "deny" or "refuse";
+                    if (isReject && string.IsNullOrWhiteSpace(request.Remark))
+                        return BadRequest(new { success = false, message = "驳回时请填写原因", errorCode = 400 });
+
+                    if (isApprove)
+                    {
+                        // 与 FinanceReceiptService 状态机一致：待审核(1) -> 已审核(2) -> 已收款(3)，不可 1 -> 3 一步跳过
+                        await _financeReceiptService.UpdateStatusAsync(r.Id, 2, userId);
+                        await _financeReceiptService.UpdateStatusAsync(r.Id, 3, userId);
+                    }
+                    else
+                    {
+                        await _financeReceiptService.UpdateStatusAsync(r.Id, nextStatus, userId);
+                    }
+
                     await _approvalRecordService.RecordDecisionAsync(
-                        cfg.BizType, r.Id, r.FinanceReceiptCode, BuildFinanceReceiptSummary(r), r.Status, nextStatus, decision == "approve" || decision == "pass" ? "approve" : "reject",
-                        decision is "reject" or "deny" or "refuse" ? request.Remark : null, userId, User.Identity?.Name);
+                        cfg.BizType, r.Id, r.FinanceReceiptCode, BuildFinanceReceiptSummary(r), fromStatus, nextStatus, isApprove ? "approve" : "reject",
+                        isReject ? request.Remark : null, userId, User.Identity?.Name);
                 }
                 else if (cfg.BizType.Equals("FINANCE_PAYMENT", StringComparison.OrdinalIgnoreCase))
                 {
@@ -666,7 +683,8 @@ namespace CRM.API.Controllers
                     await _financePaymentService.UpdateStatusAsync(
                         p.Id,
                         nextStatus,
-                        isReject ? request.Remark : null);
+                        isReject ? request.Remark : null,
+                        userId);
                     await _approvalRecordService.RecordDecisionAsync(
                         cfg.BizType, p.Id, p.FinancePaymentCode, BuildFinancePaymentSummary(p), p.Status, nextStatus, isReject ? "reject" : "approve",
                         isReject ? request.Remark : null, userId, User.Identity?.Name);
