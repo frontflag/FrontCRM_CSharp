@@ -51,6 +51,7 @@
         <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
       </template>
       <template #col-outQuantity="{ row }">{{ row.outQuantity }}</template>
+      <template #col-regionType="{ row }">{{ regionTypeLabel(row) }}</template>
       <template #col-requestDate="{ row }">{{ formatRequestDateTime(row.requestDate) }}</template>
       <template #col-createTime="{ row }">{{ formatRequestDateTime(row.createTime) }}</template>
       <template #col-createUser="{ row }">{{ row.createUserName || row.requestUserName || '--' }}</template>
@@ -112,6 +113,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { stockOutApi, type StockOutRequestDto } from '@/api/stockOut'
+import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { inventoryCenterApi, type PickingTask } from '@/api/inventoryCenter'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -148,6 +150,12 @@ const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => {
   { key: 'materialModel', label: t('stockOutNotifyList.columns.materialModel'), prop: 'materialModel', width: 180, showOverflowTooltip: true },
   { key: 'brand', label: t('stockOutNotifyList.columns.brand'), prop: 'brand', width: 140, showOverflowTooltip: true },
   { key: 'outQuantity', label: t('stockOutNotifyList.columns.outQuantity'), prop: 'outQuantity', width: 110, align: 'right' },
+  {
+    key: 'regionType',
+    label: t('stockOutNotifyList.columns.regionType'),
+    width: 88,
+    align: 'center'
+  },
   { key: 'requestDate', label: t('stockOutNotifyList.columns.requestDate'), prop: 'requestDate', width: 170 },
   { key: 'salesUserName', label: t('stockOutNotifyList.columns.salesUserName'), prop: 'salesUserName', width: 130, showOverflowTooltip: true },
   { key: 'customerName', label: t('stockOutNotifyList.columns.customer'), prop: 'customerName', minWidth: 180, showOverflowTooltip: true },
@@ -192,6 +200,12 @@ function workflowLabel(row: StockOutRequestDto): string {
   if (Number(row.status) === 2) return t('stockOutNotifyList.workflow.cancelled')
   if (hasPickingCompleted(row.id)) return t('stockOutNotifyList.workflow.pickedPendingOut')
   return t('stockOutNotifyList.workflow.pendingPick')
+}
+
+const regionTypeLabel = (row: StockOutRequestDto) => {
+  const r = row as unknown as Record<string, unknown>
+  const n = normalizeRegionType(r.regionType ?? r.RegionType)
+  return n === REGION_TYPE_OVERSEAS ? t('inventoryList.warehouse.regionOverseas') : t('inventoryList.warehouse.regionDomestic')
 }
 
 /** 按本地时区显示年月日 + 时分 */

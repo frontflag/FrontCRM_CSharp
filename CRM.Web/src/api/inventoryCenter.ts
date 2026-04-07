@@ -4,15 +4,17 @@ const unwrap = <T>(res: any): T => (res?.data ?? res) as T
 
 export interface InventoryOverview {
   materialId: string
-  /** 规格型号 */
+  /** 规格型号（后端优先 stock.purchase_pn，缺省再主数据/订单行） */
   materialModel?: string | null
-  /** 库存总览中与品牌同源展示（主数据名称或产品 Brand 回填） */
+  /** 品牌（后端优先 stock.purchase_brand，缺省再主数据名称/订单行 Brand） */
   materialName?: string | null
   warehouseId: string
   /** 仓库编码（接口解析；无档案时前端可回退 warehouseId，如 WH-DEFAULT） */
   warehouseCode?: string | null
   /** 库存类型 1=客单 2=备货 3=样品 */
   stockType?: number
+  /** 地域 10=境内 20=境外（stock.RegionType） */
+  regionType?: number
   onHandQty: number
   availableQty: number
   lockedQty: number
@@ -56,6 +58,8 @@ export interface WarehouseInfo {
   warehouseCode: string
   warehouseName: string
   address?: string
+  /** RegionType：10=境内 20=境外（与 @/constants/regionType 及到货通知共用） */
+  regionType?: number
   status: number
 }
 

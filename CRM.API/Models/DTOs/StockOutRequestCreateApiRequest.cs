@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using CRM.Core.Constants;
+
 namespace CRM.API.Models.DTOs
 {
     /// <summary>
@@ -18,5 +21,9 @@ namespace CRM.API.Models.DTOs
         public string? Remark { get; set; }
         /// <summary>出货方式（字典 LogisticsArrivalMethod ItemCode）</summary>
         public string? ShipmentMethod { get; set; }
+
+        /// <summary>地域类型 RegionType：10=境内 20=境外</summary>
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public short RegionType { get; set; } = RegionTypeCode.Domestic;
     }
 }

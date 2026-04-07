@@ -34,7 +34,7 @@ DELETE FROM stockinitem;
 DELETE FROM stockin;
 DELETE FROM qcitem;
 DELETE FROM qcinfo;
-DELETE FROM inventoryledger;
+DELETE FROM stockledger;
 DELETE FROM stock;
 DELETE FROM stockoutrequest;
 DELETE FROM stockinnotify;

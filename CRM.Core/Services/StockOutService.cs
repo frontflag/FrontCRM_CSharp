@@ -3,7 +3,6 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Inventory;
-using CRM.Core.Models.Material;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
@@ -30,7 +29,6 @@ namespace CRM.Core.Services
         private readonly IRepository<CustomerInfo> _customerRepository;
         private readonly IRepository<PurchaseOrderItem> _purchaseOrderItemRepository;
         private readonly IRepository<PurchaseOrder> _purchaseOrderRepository;
-        private readonly IRepository<MaterialInfo> _materialRepository;
         private readonly IRepository<User> _userRepository;
         private readonly IRepository<WarehouseInfo> _warehouseRepository;
         private readonly IInventoryCenterService _inventoryCenterService;
@@ -50,7 +48,6 @@ namespace CRM.Core.Services
             IRepository<CustomerInfo> customerRepository,
             IRepository<PurchaseOrderItem> purchaseOrderItemRepository,
             IRepository<PurchaseOrder> purchaseOrderRepository,
-            IRepository<MaterialInfo> materialRepository,
             IRepository<User> userRepository,
             IRepository<WarehouseInfo> warehouseRepository,
             IInventoryCenterService inventoryCenterService,
@@ -69,7 +66,6 @@ namespace CRM.Core.Services
             _customerRepository = customerRepository;
             _purchaseOrderItemRepository = purchaseOrderItemRepository;
             _purchaseOrderRepository = purchaseOrderRepository;
-            _materialRepository = materialRepository;
             _userRepository = userRepository;
             _warehouseRepository = warehouseRepository;
             _inventoryCenterService = inventoryCenterService;
@@ -119,6 +115,14 @@ namespace CRM.Core.Services
                     $"出库通知数量不能超过剩余可申请数量（{remainingByLine.ToString(CultureInfo.InvariantCulture)}，已占用 {alreadyNotified.ToString(CultureInfo.InvariantCulture)}）",
                     nameof(request.Quantity));
 
+            var stockDto = await _inventoryCenterService.GetAvailableQtyForSellOrderItemAsync(lineId);
+            var availableStock = stockDto.AvailableQty;
+            if (availableStock < 0m)
+                availableStock = 0m;
+            if (request.Quantity > availableStock)
+                throw new InvalidOperationException(
+                    $"在库可用数量不足（在库可用 {availableStock.ToString(CultureInfo.InvariantCulture)}，本次申请 {request.Quantity.ToString(CultureInfo.InvariantCulture)}）");
+
             var requestCode = string.IsNullOrWhiteSpace(request.RequestCode)
                 ? await _serialNumberService.GenerateNextAsync(ModuleCodes.StockOutRequest)
                 : request.RequestCode.Trim();
@@ -140,6 +144,7 @@ namespace CRM.Core.Services
                 ShipmentMethod = string.IsNullOrWhiteSpace(request.ShipmentMethod)
                     ? null
                     : request.ShipmentMethod.Trim(),
+                RegionType = RegionTypeCode.Normalize(request.RegionType),
                 CreateTime = DateTime.UtcNow,
                 CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
@@ -302,6 +307,7 @@ namespace CRM.Core.Services
                         Status = x.Status,
                         Remark = x.Remark,
                         ShipmentMethod = string.IsNullOrWhiteSpace(x.ShipmentMethod) ? null : x.ShipmentMethod.Trim(),
+                        RegionType = x.RegionType,
                         CreateTime = x.CreateTime
                     };
                 })
@@ -335,39 +341,7 @@ namespace CRM.Core.Services
             if (!pickingTasks.Any(x => x.Status == 100))
                 throw new InvalidOperationException("执行出库前请先完成拣货任务");
 
-            var soItem = await _sellOrderItemRepository.GetByIdAsync(stockOutRequest.SalesOrderItemId.Trim());
-            var productIdFromLine = string.IsNullOrWhiteSpace(soItem?.ProductId) ? null : soItem!.ProductId!.Trim();
             var sellLineId = stockOutRequest.SalesOrderItemId.Trim();
-            var linkedPoItems = (await _purchaseOrderItemRepository.GetAllAsync()).ToList()
-                .Where(p => string.Equals(p.SellOrderItemId, sellLineId, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            var linkedMaterialKeys = StockMaterialMatch.LinkedPurchaseMaterialKeys(linkedPoItems);
-
-            var poByIdForOut = (await _purchaseOrderRepository.GetAllAsync())
-                .GroupBy(x => x.Id?.Trim() ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-            var requiredStockTypes = new HashSet<short>();
-            foreach (var pil in linkedPoItems)
-            {
-                var poid = pil.PurchaseOrderId?.Trim();
-                if (string.IsNullOrEmpty(poid) || !poByIdForOut.TryGetValue(poid, out var po))
-                    continue;
-                var t = po.Type is >= 1 and <= 3 ? po.Type : (short)1;
-                requiredStockTypes.Add(t);
-            }
-
-            if (requiredStockTypes.Count == 0)
-                requiredStockTypes.Add(1);
-
-            var materialById = (await _materialRepository.GetAllAsync())
-                .GroupBy(m => m.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
-                .Where(g => g.Key.Length > 0)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-            var materialByAltKey = StockMaterialMatch.BuildMaterialCodeModelIndex(materialById.Values);
-            var poItemById = (await _purchaseOrderItemRepository.GetAllAsync())
-                .GroupBy(p => p.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
-                .Where(g => g.Key.Length > 0)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             var stockOutCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.StockOut);
 
@@ -381,21 +355,12 @@ namespace CRM.Core.Services
             var stockOutId = Guid.NewGuid().ToString();
             decimal totalQty = 0m;
             decimal totalAmount = 0m;
+            short stockOutHeaderRegionType = RegionTypeCode.Domestic;
+            var stockOutHeaderRegionCaptured = false;
 
             // 预加载所有库存，避免多次访问数据库
             var allStocks = (await _stockRepository.GetAllAsync()).ToList();
             var changedStocks = new HashSet<StockInfo>();
-
-            bool StockTypeAllowedForLine(StockInfo s)
-            {
-                if (requiredStockTypes.Contains(s.StockType))
-                    return true;
-                if (s.StockType != 2)
-                    return false;
-                var mat = StockMaterialMatch.ResolveMaterialForStockRow(s, materialById, materialByAltKey, poItemById);
-                var poi = StockMaterialMatch.ResolvePurchaseOrderLineForStock(s, poItemById);
-                return StockMaterialMatch.StockingMatchesSellOrderForPicking(s, soItem, mat, poi);
-            }
 
             foreach (var item in request.Items)
             {
@@ -407,16 +372,10 @@ namespace CRM.Core.Services
                 if (needQty <= 0)
                     continue;
 
-                // 1) 找到该物料在指定仓库下的所有可用库存（FIFO：按生产日期 / 创建时间排序）
-                // 库存 MaterialId 常与 ProductId 一致；出库明细传 PN，需与订单行 ProductId 一并匹配；备货库存(type=2)按与拣货任务相同规则放行
-                bool MaterialKeysOrStockingMatch(StockInfo s) =>
-                    StockMaterialMatch.Matches(s, materialId, productIdFromLine, linkedMaterialKeys)
-                    || StockMaterialMatch.StockingSupplementEligible(s, soItem, materialById, materialByAltKey, poItemById);
-
+                // 与拣货任务一致：出库通知销售明细 + 本仓库 + 可用量 > 0（FIFO）
                 var candidateStocks = allStocks
                     .Where(s => s.WarehouseId == request.WarehouseId
-                                && StockTypeAllowedForLine(s)
-                                && MaterialKeysOrStockingMatch(s)
+                                && string.Equals(s.SellOrderItemId?.Trim(), sellLineId, StringComparison.OrdinalIgnoreCase)
                                 && s.QtyRepertoryAvailable > 0)
                     .OrderBy(s => s.ProductionDate ?? s.CreateTime)
                     .ThenBy(s => s.CreateTime)
@@ -424,7 +383,7 @@ namespace CRM.Core.Services
 
                 if (!candidateStocks.Any())
                     throw new InvalidOperationException(
-                        $"物料 {materialId} 在仓库 {request.WarehouseId} 无可用库存（已按 PN 与订单 ProductId 尝试匹配）");
+                        $"销售明细 {sellLineId} 在仓库 {request.WarehouseId} 无可用库存（物料行「{materialId}」）");
 
                 var remaining = needQty;
 
@@ -440,6 +399,12 @@ namespace CRM.Core.Services
                     var takeQty = Math.Min(remaining, available);
                     if (takeQty <= 0)
                         continue;
+
+                    if (!stockOutHeaderRegionCaptured)
+                    {
+                        stockOutHeaderRegionType = RegionTypeCode.Normalize(stock.RegionType);
+                        stockOutHeaderRegionCaptured = true;
+                    }
 
                     // ====== 阶段一：销售预占（QtySales / QtyRepertoryAvailable） ======
                     stock.QtySales += takeQty;
@@ -502,6 +467,7 @@ namespace CRM.Core.Services
                 Id = stockOutId,
                 StockOutCode = stockOutCode,
                 StockOutType = 1,
+                RegionType = stockOutHeaderRegionType,
                 SourceCode = string.IsNullOrEmpty(requestCode) ? null : requestCode,
                 SourceId = requestId,
                 SellOrderItemId = sellLineId,

@@ -2029,6 +2029,12 @@ const enUS = {
         'Stock-out requires purchase order lines linked to this sales line, and every linked purchase order must be vendor-confirmed or beyond.',
       applyStockOutDisabledByProgress:
         'Stock-out cannot be requested when outbound is completed or procurement is still pending.',
+      applyStockOutZeroSuggested:
+        'Appliable stock-out qty is 0 (remaining notify quota or on-hand available is 0). You can still review the dialog and submit after stock is available.',
+      applyStockOutExceedsStock:
+        'Insufficient on-hand available qty: available is {available}; notify qty cannot exceed it.',
+      applyStockOutExceedsRemainingNotify:
+        'Exceeds remaining stock-out notify quota: remaining is {remaining}.',
       basketNeedRows: 'Add sales order lines to the basket first (selections can span pages).',
       batchNotImplemented: 'Batch purchase is not available as a dialog yet. Use “Request purchase” per line.',
       batchSameOrderOnly: 'Batch purchase applies to lines from one sales order only. Split your selection.',
@@ -2232,6 +2238,7 @@ const enUS = {
       expressMethod: 'Courier',
       selectPlaceholder: 'Select',
       expressNo: 'Tracking no.',
+      regionType: 'Region type',
       sectionLines: 'Arrival lines',
       seq: '#',
       factoryPn: 'Factory MPN',
@@ -2293,11 +2300,13 @@ const enUS = {
       pn: 'MPN',
       brand: 'Brand',
       expectedArrivalDate: 'Expected arrival',
+      regionType: 'Region',
       vendorName: 'Vendor',
       purchaseUserName: 'Buyer',
       expectQty: 'Notified qty',
       receiveQty: 'Received qty',
       passedQty: 'QC passed',
+      arrivalRegion: 'Arrival region',
       createTime: 'Created at',
       createUser: 'Created by',
       actions: 'Actions'
@@ -2316,6 +2325,7 @@ const enUS = {
       pn: 'Material / MPN',
       brand: 'Brand',
       expectedArrivalDate: 'Expected arrival',
+      regionType: 'Region type',
       purchaser: 'Buyer',
       noticeQty: 'Notified qty',
       receivedQty: 'Received qty',
@@ -2522,6 +2532,7 @@ const enUS = {
       allOrderTypes: 'All types',
       inventoryCode: 'Inventory code',
       allInventoryCodes: 'All warehouses',
+      allRegions: 'All regions',
       search: 'Search',
       reset: 'Reset'
     },
@@ -2541,6 +2552,7 @@ const enUS = {
       materialModel: 'Material Model',
       brand: 'Brand',
       warehouseName: 'Warehouse',
+      region: 'Region',
       stockType: 'Stock type',
       onHandQty: 'On Hand',
       availableQty: 'Available',
@@ -2562,11 +2574,15 @@ const enUS = {
       code: 'Warehouse Code',
       name: 'Warehouse Name',
       address: 'Address',
+      regionType: 'Region type',
+      regionDomestic: 'Domestic',
+      regionOverseas: 'Overseas',
       saveEdit: 'Save Changes',
       saveNew: 'Save Warehouse',
       new: 'New',
       codeShort: 'Code',
-      nameShort: 'Name'
+      nameShort: 'Name',
+      regionTypeShort: 'Region'
     },
     messages: {
       loadOverviewFailed: 'Failed to load inventory overview',
@@ -2695,6 +2711,9 @@ const enUS = {
   stockOutNotifyList: {
     title: 'Stock-Out Notices',
     count: '{count} records total',
+    applyDialog: {
+      regionType: 'Region type'
+    },
     filters: {
       workflowPlaceholder: 'Workflow',
       workflowAll: 'All',
@@ -2712,6 +2731,7 @@ const enUS = {
       materialModel: 'Material / MPN',
       brand: 'Brand',
       outQuantity: 'Qty',
+      regionType: 'Region',
       requestDate: 'Expected ship date',
       salesUserName: 'Sales rep',
       customer: 'Customer',

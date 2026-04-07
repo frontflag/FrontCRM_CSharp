@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
+using CRM.Core.Constants;
 
 namespace CRM.Core.Models.Inventory
 {
@@ -78,6 +80,11 @@ namespace CRM.Core.Models.Inventory
         /// </summary>
         [StringLength(64)]
         public string? ShipmentMethod { get; set; }
+
+        /// <summary>地域类型 RegionType：10=境内 20=境外（与仓库、到货通知共用枚举）</summary>
+        [Column("RegionType")]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public short RegionType { get; set; } = RegionTypeCode.Domestic;
 
         [StringLength(36)]
         [Column("create_by_user_id")]

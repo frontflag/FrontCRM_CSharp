@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+using CRM.Core.Constants;
 
 namespace CRM.Core.Models.Inventory
 {
@@ -61,24 +62,6 @@ namespace CRM.Core.Models.Inventory
         public DateTime? ExpiryDate { get; set; }
 
         /// <summary>
-        /// 库存数量（旧字段，等价于当前库存）
-        /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal Quantity { get; set; } = 0.0000m;
-
-        /// <summary>
-        /// 可用数量（旧字段，等价于可用库存）
-        /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal AvailableQuantity { get; set; } = 0.0000m;
-
-        /// <summary>
-        /// 锁定数量（旧字段，用于占用）
-        /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal LockedQuantity { get; set; } = 0.0000m;
-
-        /// <summary>
         /// 总入库数量（累计入库量，文档中的 Qty）
         /// </summary>
         [Column(TypeName = "numeric(18,4)")]
@@ -126,6 +109,13 @@ namespace CRM.Core.Models.Inventory
         public short StockType { get; set; } = 1;
 
         /// <summary>
+        /// 地域类型（入库过账自 <c>stockin.RegionType</c>，与到货通知/仓库枚举一致：10=境内 20=境外）
+        /// </summary>
+        [Column("RegionType")]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public short RegionType { get; set; } = RegionTypeCode.Domestic;
+
+        /// <summary>
         /// 采购订单明细业务编号（过账入库时自 <c>stockin</c> 头冗余）
         /// </summary>
         [StringLength(64)]
@@ -148,6 +138,18 @@ namespace CRM.Core.Models.Inventory
         /// </summary>
         [StringLength(36)]
         public string? SellOrderItemId { get; set; }
+
+        /// <summary>
+        /// 采购订单明细型号（入库过账时由 <c>stockinitem.MaterialId</c> 解析 <c>purchaseorderitem</c> 的 PN 冗余）
+        /// </summary>
+        [StringLength(200)]
+        public string? PurchasePn { get; set; }
+
+        /// <summary>
+        /// 采购订单明细品牌（入库过账时由 <c>stockinitem.MaterialId</c> 解析 <c>purchaseorderitem</c> 的 Brand 冗余）
+        /// </summary>
+        [StringLength(200)]
+        public string? PurchaseBrand { get; set; }
 
         /// <summary>
         /// 备注
@@ -294,6 +296,13 @@ namespace CRM.Core.Models.Inventory
         /// </summary>
         [StringLength(500)]
         public string? Remark { get; set; }
+
+        /// <summary>
+        /// 地域类型（自关联 <c>stockinnotify.RegionType</c>；无通知时默认境内）
+        /// </summary>
+        [Column("RegionType")]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public short RegionType { get; set; } = RegionTypeCode.Domestic;
 
         [StringLength(36)]
         [Column("create_by_user_id")]
@@ -502,6 +511,13 @@ namespace CRM.Core.Models.Inventory
         /// 状态 (0:草稿 1:待出库 2:已出库 3:已取消)
         /// </summary>
         public short Status { get; set; } = 0;
+
+        /// <summary>
+        /// 地域类型（执行出库时自扣减的 <c>stock.RegionType</c> 冗余；首笔实出库存行为准）
+        /// </summary>
+        [Column("RegionType")]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public short RegionType { get; set; } = RegionTypeCode.Domestic;
 
         /// <summary>
         /// 拣货人

@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Material;
@@ -34,6 +35,57 @@ namespace CRM.Core.Services
             => (ex.Message?.Contains("42P01") ?? false)
                || (ex.InnerException?.Message?.Contains("42P01") ?? false)
                || (ex.Message?.Contains("不存在", StringComparison.Ordinal) ?? false) && (ex.Message?.Contains("关系", StringComparison.Ordinal) ?? false);
+
+        /// <summary>
+        /// 按 <c>stockinitem.MaterialId</c> 视为采购明细主键，回填 <see cref="StockInfo.PurchasePn"/> / <see cref="StockInfo.PurchaseBrand"/>；
+        /// 解析不到则不改写字段（保留已有值）。
+        /// </summary>
+        private async Task ApplyPurchasePnBrandFromStockInLineAsync(StockInfo stock, StockInItem line)
+        {
+            var key = line.MaterialId?.Trim();
+            if (string.IsNullOrEmpty(key))
+                return;
+
+            var poi = await _purchaseOrderItemRepository.GetByIdAsync(key);
+            if (poi == null)
+                return;
+
+            stock.PurchasePn = string.IsNullOrWhiteSpace(poi.PN) ? null : poi.PN.Trim();
+            stock.PurchaseBrand = string.IsNullOrWhiteSpace(poi.Brand) ? null : poi.Brand.Trim();
+        }
+
+        private async Task<PurchaseOrderItem?> TryGetPoItemByStockInLineAsync(StockInItem line)
+        {
+            var key = line.MaterialId?.Trim();
+            if (string.IsNullOrEmpty(key))
+                return null;
+            return await _purchaseOrderItemRepository.GetByIdAsync(key);
+        }
+
+        /// <summary>
+        /// 库存分桶键：<c>PurchasePn</c> + <c>PurchaseBrand</c> + 仓库 + <c>StockType</c> + <c>RegionType</c> + <c>SellOrderItemId</c>
+        /// （文本字段忽略大小写，空串视为同一空键；地域按 <see cref="RegionTypeCode.Normalize"/> 比较）。
+        /// </summary>
+        private static string NormStockBucketText(string? v) =>
+            string.IsNullOrWhiteSpace(v) ? string.Empty : v.Trim();
+
+        private static bool StockMatchesInboundBucket(
+            StockInfo s,
+            string purchasePnKey,
+            string purchaseBrandKey,
+            string warehouseId,
+            short stockType,
+            short regionType,
+            string sellOrderItemKey)
+        {
+            var wh = warehouseId.Trim();
+            return s.StockType == stockType
+                   && RegionTypeCode.Normalize(s.RegionType) == RegionTypeCode.Normalize(regionType)
+                   && string.Equals(s.WarehouseId?.Trim() ?? string.Empty, wh, StringComparison.OrdinalIgnoreCase)
+                   && string.Equals(NormStockBucketText(s.PurchasePn), purchasePnKey, StringComparison.OrdinalIgnoreCase)
+                   && string.Equals(NormStockBucketText(s.PurchaseBrand), purchaseBrandKey, StringComparison.OrdinalIgnoreCase)
+                   && string.Equals(NormStockBucketText(s.SellOrderItemId), sellOrderItemKey, StringComparison.OrdinalIgnoreCase);
+        }
 
         /// <summary>按 ProductId 合并 PN/品牌；避免先写入空行导致后续采购明细无法补全。</summary>
         private static void MergeProductDisplay(
@@ -147,12 +199,15 @@ namespace CRM.Core.Services
                 if (allLedgers.Any(x => x.BizType == "STOCK_IN" && x.BizId == stockInId && x.BizLineId == line.Id))
                     continue;
 
+                var poiForBucket = await TryGetPoItemByStockInLineAsync(line);
+                var pnKey = NormStockBucketText(poiForBucket?.PN);
+                var brKey = NormStockBucketText(poiForBucket?.Brand);
+                var soKey = NormStockBucketText(stockIn.SellOrderItemId);
+                var whKey = stockIn.WarehouseId?.Trim() ?? string.Empty;
+                var regionKey = RegionTypeCode.Normalize(stockIn.RegionType);
+
                 var stock = allStocks.FirstOrDefault(s =>
-                    s.MaterialId == line.MaterialId &&
-                    s.WarehouseId == stockIn.WarehouseId &&
-                    (s.LocationId ?? string.Empty) == (line.LocationId ?? string.Empty) &&
-                    (s.BatchNo ?? string.Empty) == (line.BatchNo ?? string.Empty) &&
-                    s.StockType == inboundStockType);
+                    StockMatchesInboundBucket(s, pnKey, brKey, whKey, inboundStockType, regionKey, soKey));
 
                 var isNewStock = stock == null;
                 if (isNewStock)
@@ -167,21 +222,22 @@ namespace CRM.Core.Services
                         Unit = "PCS",
                         Status = 1,
                         StockType = inboundStockType,
-                        CreateTime = DateTime.UtcNow
+                        RegionType = RegionTypeCode.Normalize(stockIn.RegionType),
+                        CreateTime = DateTime.UtcNow,
+                        PurchasePn = string.IsNullOrWhiteSpace(poiForBucket?.PN) ? null : poiForBucket!.PN!.Trim(),
+                        PurchaseBrand = string.IsNullOrWhiteSpace(poiForBucket?.Brand) ? null : poiForBucket!.Brand!.Trim()
                     };
                     await _stockRepository.AddAsync(stock);
                     allStocks.Add(stock);
                 }
 
                 CopyStockInOrderLineHeadersToStock(stock!, stockIn);
+                await ApplyPurchasePnBrandFromStockInLineAsync(stock!, line);
 
                 var stRow = stock!;
                 stRow.Qty += line.Quantity;
                 stRow.QtyRepertory = stRow.Qty - stRow.QtyStockOut;
                 stRow.QtyRepertoryAvailable = stRow.QtyRepertory - stRow.QtyOccupy - stRow.QtySales;
-                stRow.Quantity = stRow.QtyRepertory;
-                stRow.AvailableQuantity = stRow.QtyRepertoryAvailable;
-                stRow.LockedQuantity = stRow.QtyOccupy + stRow.QtySales;
                 stRow.ModifyTime = DateTime.UtcNow;
                 // 新增实体保持 Added 状态即可，避免被 Update 覆盖为 Modified 触发 0 行更新并发异常
                 if (!isNewStock)
@@ -238,6 +294,7 @@ namespace CRM.Core.Services
             stock.SellOrderItemCode = string.IsNullOrWhiteSpace(stockIn.SellOrderItemCode)
                 ? null
                 : stockIn.SellOrderItemCode.Trim();
+            stock.RegionType = RegionTypeCode.Normalize(stockIn.RegionType);
         }
 
         /// <summary>流水行冗余采购/销售明细（与当前 <c>stock</c> 行一致）。</summary>
@@ -490,9 +547,14 @@ namespace CRM.Core.Services
                     var material = g.Key.MaterialId;
                     var warehouse = g.Key.WarehouseId;
                     var stockType = g.Key.StockType;
+                    // 列表「物料型号 / 品牌」以库存行冗余为准（入库过账写入 purchase_pn / purchase_brand）
+                    var model = g.Select(x => x.PurchasePn?.Trim()).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s));
+                    var name = g.Select(x => x.PurchaseBrand?.Trim()).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s));
                     materialById.TryGetValue(material, out var mat);
-                    var model = string.IsNullOrWhiteSpace(mat?.MaterialModel) ? null : mat!.MaterialModel!.Trim();
-                    var name = string.IsNullOrWhiteSpace(mat?.MaterialName) ? null : mat!.MaterialName!.Trim();
+                    if (string.IsNullOrWhiteSpace(model))
+                        model = string.IsNullOrWhiteSpace(mat?.MaterialModel) ? null : mat!.MaterialModel!.Trim();
+                    if (string.IsNullOrWhiteSpace(name))
+                        name = string.IsNullOrWhiteSpace(mat?.MaterialName) ? null : mat!.MaterialName!.Trim();
                     if ((model == null || name == null) && productLineByProductId.TryGetValue(material, out var pl))
                     {
                         if (model == null && !string.IsNullOrWhiteSpace(pl.Pn))
@@ -538,6 +600,8 @@ namespace CRM.Core.Services
                     if (!string.IsNullOrEmpty(whKey) && warehouseCodeById.TryGetValue(whKey, out var resolved))
                         whCode = resolved;
 
+                    var overviewRegionType = RegionTypeCode.Normalize(g.First().RegionType);
+
                     return new InventoryMaterialOverviewDto
                     {
                         MaterialId = material,
@@ -546,6 +610,7 @@ namespace CRM.Core.Services
                         WarehouseId = warehouse ?? string.Empty,
                         WarehouseCode = whCode,
                         StockType = stockType,
+                        RegionType = overviewRegionType,
                         OnHandQty = onHand,
                         AvailableQty = available,
                         LockedQty = locked,
@@ -635,31 +700,8 @@ namespace CRM.Core.Services
                 return new SellOrderLineAvailableQtyDto { AvailableQty = 0 };
 
             var id = sellOrderItemId.Trim();
-            var soItem = await _sellOrderItemRepository.GetByIdAsync(id);
-            if (soItem == null)
+            if (await _sellOrderItemRepository.GetByIdAsync(id) == null)
                 return new SellOrderLineAvailableQtyDto { AvailableQty = 0 };
-
-            var keySet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (!string.IsNullOrWhiteSpace(soItem.ProductId)) keySet.Add(soItem.ProductId.Trim());
-            if (!string.IsNullOrWhiteSpace(soItem.PN)) keySet.Add(soItem.PN.Trim());
-
-            try
-            {
-                // 必须先物化：若 GetAllAsync 实际返回 IQueryable，Where + string.Equals(..., OrdinalIgnoreCase) 无法翻译为 SQL
-                var linkedPo = (await _purchaseOrderItemRepository.GetAllAsync()).ToList()
-                    .Where(p => string.Equals(p.SellOrderItemId, id, StringComparison.OrdinalIgnoreCase));
-                foreach (var k in StockMaterialMatch.LinkedPurchaseMaterialKeys(linkedPo))
-                    keySet.Add(k);
-            }
-            catch (Exception ex) when (IsTableMissingException(ex))
-            {
-                // 无采购表明细时仅按销售行 ProductId / PN 匹配
-            }
-
-            if (keySet.Count == 0)
-                return new SellOrderLineAvailableQtyDto { AvailableQty = 0 };
-
-            var lineStockTypes = await ResolveStockTypesForSellOrderLineAsync(id);
 
             List<StockInfo> stocks;
             try
@@ -671,9 +713,16 @@ namespace CRM.Core.Services
                 return new SellOrderLineAvailableQtyDto { AvailableQty = 0 };
             }
 
-            var sum = stocks
-                .Where(s => keySet.Contains(s.MaterialId?.Trim() ?? string.Empty) && lineStockTypes.Contains(s.StockType))
-                .Sum(s => s.QtyRepertoryAvailable);
+            // 与拣货任务一致：仅统计 stock.sell_order_item_id = 本销售明细 且 可用量 > 0 的行的可用量之和（跨仓库汇总）
+            var sum = 0m;
+            foreach (var s in stocks)
+            {
+                if (s.QtyRepertoryAvailable <= 0m)
+                    continue;
+                if (!string.Equals(s.SellOrderItemId?.Trim(), id, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                sum += s.QtyRepertoryAvailable;
+            }
 
             return new SellOrderLineAvailableQtyDto { AvailableQty = sum };
         }
@@ -732,6 +781,9 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(warehouse.WarehouseName))
                 throw new ArgumentException("仓库名称不能为空");
 
+            var regionType = RegionTypeCode.Normalize(warehouse.RegionType);
+            warehouse.RegionType = regionType;
+
             WarehouseInfo? existing = null;
             if (!string.IsNullOrWhiteSpace(warehouse.Id))
                 existing = await _warehouseRepository.GetByIdAsync(warehouse.Id);
@@ -750,6 +802,7 @@ namespace CRM.Core.Services
             existing.WarehouseCode = warehouse.WarehouseCode.Trim();
             existing.WarehouseName = warehouse.WarehouseName.Trim();
             existing.Address = string.IsNullOrWhiteSpace(warehouse.Address) ? null : warehouse.Address.Trim();
+            existing.RegionType = regionType;
             existing.Status = warehouse.Status;
             existing.ModifyTime = DateTime.UtcNow;
             await _warehouseRepository.UpdateAsync(existing);
@@ -886,87 +939,44 @@ namespace CRM.Core.Services
                 throw new InvalidOperationException($"该出库通知已存在拣货任务（{codes}），请勿重复生成。");
             }
 
-            var soItem = await _sellOrderItemRepository.GetByIdAsync(sor.SalesOrderItemId.Trim());
-            var productIdFromLine = string.IsNullOrWhiteSpace(soItem?.ProductId) ? null : soItem!.ProductId!.Trim();
             var sellLineId = sor.SalesOrderItemId.Trim();
-            var linkedPoItems = (await _purchaseOrderItemRepository.GetAllAsync()).ToList()
-                .Where(p => string.Equals(p.SellOrderItemId, sellLineId, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            var linkedMaterialKeys = StockMaterialMatch.LinkedPurchaseMaterialKeys(linkedPoItems);
-
-            var poByIdForPick = (await _purchaseOrderRepository.GetAllAsync())
-                .GroupBy(x => x.Id?.Trim() ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-            var pickStockTypes = new HashSet<short>();
-            foreach (var pil in linkedPoItems)
-            {
-                var poid = pil.PurchaseOrderId?.Trim();
-                if (string.IsNullOrEmpty(poid) || !poByIdForPick.TryGetValue(poid, out var po))
-                    continue;
-                pickStockTypes.Add(NormalizeStockInventoryType(po.Type));
-            }
-
-            if (pickStockTypes.Count == 0)
-                pickStockTypes.Add(1);
 
             var taskCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.PickingTask);
 
+            var warehouseId = request.WarehouseId.Trim();
             var task = new PickingTask
             {
                 Id = Guid.NewGuid().ToString(),
                 TaskCode = taskCode,
                 StockOutRequestId = sorId,
-                WarehouseId = request.WarehouseId,
+                WarehouseId = warehouseId,
                 OperatorId = string.IsNullOrWhiteSpace(request.OperatorId) ? "SYSTEM" : request.OperatorId,
                 Status = 1,
                 CreateTime = DateTime.UtcNow
             };
             await _pickingTaskRepository.AddAsync(task);
-
-            var whStocks = (await _stockRepository.GetAllAsync())
-                .Where(x => x.WarehouseId == request.WarehouseId)
-                .ToList();
+            // 仅查本仓库且 AsNoTracking：避免全表 stock 被跟踪后在 SaveChanges 时误更新库存
+            var whStocks = (await _stockRepository.FindAsNoTrackingAsync(x => x.WarehouseId == warehouseId)).ToList();
             var remAvail = whStocks.ToDictionary(s => s.Id, s => s.QtyRepertoryAvailable);
-            var materialById = (await _materialRepository.GetAllAsync())
-                .GroupBy(m => m.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
-                .Where(g => g.Key.Length > 0)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-            var materialByAltKey = StockMaterialMatch.BuildMaterialCodeModelIndex(materialById.Values);
-            var poItemById = (await _purchaseOrderItemRepository.GetAllAsync())
-                .GroupBy(p => p.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
-                .Where(g => g.Key.Length > 0)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             static IEnumerable<StockInfo> OrderFifo(IEnumerable<StockInfo> q) =>
                 q.OrderBy(s => s.ProductionDate ?? s.CreateTime).ThenBy(s => s.CreateTime);
 
-            decimal SumAllocatableForOutbound(
-                string outboundCode,
-                IReadOnlyList<StockInfo> stocks,
-                HashSet<short> poAlignedTypes,
-                string? productId,
-                IReadOnlyCollection<string> linkedKeys,
-                SellOrderItem? sellLine,
-                IReadOnlyDictionary<string, MaterialInfo> materials,
-                IReadOnlyDictionary<string, MaterialInfo> materialAlt,
-                IReadOnlyDictionary<string, PurchaseOrderItem> poItemsById)
-            {
-                decimal sum = 0;
-                foreach (var s in stocks)
-                {
-                    if (s.QtyRepertoryAvailable <= 0m) continue;
-                    var matchesKeys = StockMaterialMatch.Matches(s, outboundCode, productId, linkedKeys);
-                    if (matchesKeys && poAlignedTypes.Contains(s.StockType))
-                    {
-                        sum += s.QtyRepertoryAvailable;
-                        continue;
-                    }
+            bool PickingStockMatchesSellLine(StockInfo s) =>
+                string.Equals(s.SellOrderItemId?.Trim() ?? string.Empty, sellLineId, StringComparison.OrdinalIgnoreCase);
 
-                    if (StockMaterialMatch.StockingSupplementEligible(s, sellLine, materials, materialAlt, poItemsById))
-                        sum += s.QtyRepertoryAvailable;
+            decimal SumRemainingForSellLine()
+            {
+                decimal t = 0m;
+                foreach (var s in whStocks)
+                {
+                    if (!PickingStockMatchesSellLine(s))
+                        continue;
+                    if (remAvail.TryGetValue(s.Id, out var r) && r > 0m)
+                        t += r;
                 }
 
-                return sum;
+                return t;
             }
 
             foreach (var item in request.Items)
@@ -974,13 +984,13 @@ namespace CRM.Core.Services
                 var need = item.Quantity;
                 if (need <= 0m) continue;
                 var outboundCode = item.MaterialId?.Trim() ?? "";
+                var poolAtLineStart = SumRemainingForSellLine();
 
-                // 来源1：与关联采购订单头类型一致的库存（FIFO）
+                // 与出库通知销售明细一致且本仓库仍有可用量的库存（FIFO）
                 foreach (var stock in OrderFifo(whStocks))
                 {
                     if (need <= 0m) break;
-                    if (!pickStockTypes.Contains(stock.StockType)) continue;
-                    if (!StockMaterialMatch.Matches(stock, outboundCode, productIdFromLine, linkedMaterialKeys)) continue;
+                    if (!PickingStockMatchesSellLine(stock)) continue;
                     if (!remAvail.TryGetValue(stock.Id, out var av) || av <= 0m) continue;
                     var qty = Math.Min(need, av);
                     if (qty <= 0m) continue;
@@ -1001,52 +1011,13 @@ namespace CRM.Core.Services
                     need -= qty;
                 }
 
-                // 来源2：备货库存，与销单行 PN/品牌一致即可（不要求 Matches：备货 MaterialId 常为未关联本单的采购明细主键）
-                foreach (var stock in OrderFifo(whStocks))
-                {
-                    if (need <= 0m) break;
-                    if (stock.StockType != 2) continue;
-                    if (!StockMaterialMatch.StockingSupplementEligible(stock, soItem, materialById, materialByAltKey, poItemById)) continue;
-                    if (!remAvail.TryGetValue(stock.Id, out var av2) || av2 <= 0m) continue;
-                    var qty2 = Math.Min(need, av2);
-                    if (qty2 <= 0m) continue;
-                    await _pickingTaskItemRepository.AddAsync(new PickingTaskItem
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        PickingTaskId = task.Id,
-                        MaterialId = stock.MaterialId?.Trim() ?? outboundCode,
-                        StockId = stock.Id,
-                        BatchNo = stock.BatchNo,
-                        LocationId = stock.LocationId,
-                        PlanQty = qty2,
-                        PickedQty = 0,
-                        IsStockingSupplement = true,
-                        CreateTime = DateTime.UtcNow
-                    });
-                    remAvail[stock.Id] = av2 - qty2;
-                    need -= qty2;
-                }
-
                 if (need > 0m)
                 {
-                    var availableTotal = SumAllocatableForOutbound(
-                        outboundCode,
-                        whStocks,
-                        pickStockTypes,
-                        productIdFromLine,
-                        linkedMaterialKeys,
-                        soItem,
-                        materialById,
-                        materialByAltKey,
-                        poItemById);
-                    var wh = await _warehouseRepository.GetByIdAsync(request.WarehouseId.Trim());
-                    var whLabel = wh != null ? $"{wh.WarehouseName}（{wh.WarehouseCode}）" : request.WarehouseId;
+                    var wh = await _warehouseRepository.GetByIdAsync(warehouseId);
+                    var whLabel = wh != null ? $"{wh.WarehouseName}（{wh.WarehouseCode}）" : warehouseId;
                     throw new InvalidOperationException(
-                        $"仓库「{whLabel}」中物料「{outboundCode}」可用库存合计 {QuantityMessageFormatting.ForUserMessage(availableTotal)}，本单需求 {QuantityMessageFormatting.ForUserMessage(item.Quantity)}，仍缺 {QuantityMessageFormatting.ForUserMessage(need)}。" +
-                        " 请入库、更换仓库或调减出库通知数量。" +
-                        (string.IsNullOrEmpty(productIdFromLine)
-                            ? "（若库存以 ProductId 入库，请为销售订单明细维护 ProductId）"
-                            : ""));
+                        $"仓库「{whLabel}」中销售明细「{sellLineId}」本行可拣数量不足（本行开始前可分配 {QuantityMessageFormatting.ForUserMessage(poolAtLineStart)}，需求 {QuantityMessageFormatting.ForUserMessage(item.Quantity)}，仍缺 {QuantityMessageFormatting.ForUserMessage(need)}；物料「{outboundCode}」）。" +
+                        " 请入库、更换仓库或调减出库通知数量。");
                 }
             }
 
@@ -1157,6 +1128,7 @@ namespace CRM.Core.Services
                             LocationId = item.LocationId,
                             Status = 1,
                             StockType = 1,
+                            RegionType = RegionTypeCode.Domestic,
                             CreateTime = DateTime.UtcNow
                         };
                         await _stockRepository.AddAsync(target);
@@ -1166,8 +1138,6 @@ namespace CRM.Core.Services
                     countTarget.Qty += diffQty;
                     countTarget.QtyRepertory += diffQty;
                     countTarget.QtyRepertoryAvailable += diffQty;
-                    countTarget.Quantity = countTarget.QtyRepertory;
-                    countTarget.AvailableQuantity = countTarget.QtyRepertoryAvailable;
                     countTarget.ModifyTime = DateTime.UtcNow;
                     if (!isNewTarget)
                     {

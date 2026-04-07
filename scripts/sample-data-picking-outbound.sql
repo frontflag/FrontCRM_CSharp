@@ -57,14 +57,13 @@ SELECT
     NULL
 WHERE NOT EXISTS (SELECT 1 FROM warehouseinfo WHERE "WarehouseCode" = 'SAMPLE01');
 
--- 可用库存：QtyRepertoryAvailable = QtyRepertory - QtyOccupy - QtySales；QtyRepertory = Qty - QtyStockOut
+-- 可用库存：QtyRepertoryAvailable = QtyRepertory - QtyOccupy - QtySales；QtyRepertory = Qty - QtyStockOut（不再写入旧镜像列）
 -- 优先挂到「编码 01」（界面 xxx（01））；否则挂到 SAMPLE01
 INSERT INTO stock (
     "StockId", "MaterialId", "WarehouseId", "LocationId", "Unit", "BatchNo",
     "ProductionDate", "ExpiryDate",
-    "Quantity", "AvailableQuantity", "LockedQuantity",
     "Qty", "QtyStockOut", "QtyOccupy", "QtySales", "QtyRepertory", "QtyRepertoryAvailable",
-    "Status", "Remark",
+    "Status", "RegionType", "Remark",
     "CreateTime", "CreateUserId", "ModifyTime", "ModifyUserId"
 )
 SELECT
@@ -79,9 +78,9 @@ SELECT
     'BATCH-SAMPLE-001',
     NULL,
     NULL,
-    100.0000, 100.0000, 0.0000,
     100.0000, 0.0000, 0.0000, 0.0000, 100.0000, 100.0000,
     1,
+    10,
     '样例库存：用于生成拣货任务（与仓库编码 01 或 SAMPLE01 对齐）',
     TIMESTAMPTZ '2026-03-27T00:00:00Z',
     NULL,
@@ -96,9 +95,8 @@ WHERE COALESCE(
 INSERT INTO stock (
     "StockId", "MaterialId", "WarehouseId", "LocationId", "Unit", "BatchNo",
     "ProductionDate", "ExpiryDate",
-    "Quantity", "AvailableQuantity", "LockedQuantity",
     "Qty", "QtyStockOut", "QtyOccupy", "QtySales", "QtyRepertory", "QtyRepertoryAvailable",
-    "Status", "Remark",
+    "Status", "RegionType", "Remark",
     "CreateTime", "CreateUserId", "ModifyTime", "ModifyUserId"
 )
 SELECT
@@ -113,9 +111,9 @@ SELECT
     'BATCH-SAMPLE-002',
     NULL,
     NULL,
-    100.0000, 100.0000, 0.0000,
     100.0000, 0.0000, 0.0000, 0.0000, 100.0000, 100.0000,
     1,
+    10,
     '样例库存 2',
     TIMESTAMPTZ '2026-03-27T00:00:00Z',
     NULL,
@@ -130,9 +128,8 @@ WHERE COALESCE(
 INSERT INTO stock (
     "StockId", "MaterialId", "WarehouseId", "LocationId", "Unit", "BatchNo",
     "ProductionDate", "ExpiryDate",
-    "Quantity", "AvailableQuantity", "LockedQuantity",
     "Qty", "QtyStockOut", "QtyOccupy", "QtySales", "QtyRepertory", "QtyRepertoryAvailable",
-    "Status", "Remark",
+    "Status", "RegionType", "Remark",
     "CreateTime", "CreateUserId", "ModifyTime", "ModifyUserId"
 )
 SELECT
@@ -147,9 +144,9 @@ SELECT
     'BATCH-SAMPLE-003',
     NULL,
     NULL,
-    100.0000, 100.0000, 0.0000,
     100.0000, 0.0000, 0.0000, 0.0000, 100.0000, 100.0000,
     1,
+    10,
     '样例库存 3',
     TIMESTAMPTZ '2026-03-27T00:00:00Z',
     NULL,
@@ -164,9 +161,8 @@ WHERE COALESCE(
 INSERT INTO stock (
     "StockId", "MaterialId", "WarehouseId", "LocationId", "Unit", "BatchNo",
     "ProductionDate", "ExpiryDate",
-    "Quantity", "AvailableQuantity", "LockedQuantity",
     "Qty", "QtyStockOut", "QtyOccupy", "QtySales", "QtyRepertory", "QtyRepertoryAvailable",
-    "Status", "Remark",
+    "Status", "RegionType", "Remark",
     "CreateTime", "CreateUserId", "ModifyTime", "ModifyUserId"
 )
 SELECT
@@ -181,9 +177,9 @@ SELECT
     'BATCH-SAMPLE-004',
     NULL,
     NULL,
-    100.0000, 100.0000, 0.0000,
     100.0000, 0.0000, 0.0000, 0.0000, 100.0000, 100.0000,
     1,
+    10,
     '样例库存 4',
     TIMESTAMPTZ '2026-03-27T00:00:00Z',
     NULL,
@@ -197,9 +193,8 @@ WHERE COALESCE(
 INSERT INTO stock (
     "StockId", "MaterialId", "WarehouseId", "LocationId", "Unit", "BatchNo",
     "ProductionDate", "ExpiryDate",
-    "Quantity", "AvailableQuantity", "LockedQuantity",
     "Qty", "QtyStockOut", "QtyOccupy", "QtySales", "QtyRepertory", "QtyRepertoryAvailable",
-    "Status", "Remark",
+    "Status", "RegionType", "Remark",
     "CreateTime", "CreateUserId", "ModifyTime", "ModifyUserId"
 )
 SELECT
@@ -214,9 +209,9 @@ SELECT
     'BATCH-SAMPLE-005',
     NULL,
     NULL,
-    100.0000, 100.0000, 0.0000,
     100.0000, 0.0000, 0.0000, 0.0000, 100.0000, 100.0000,
     1,
+    10,
     '样例库存 5',
     TIMESTAMPTZ '2026-03-27T00:00:00Z',
     NULL,

@@ -26,6 +26,8 @@ export interface StockInNotifyDto {
   status: number
   /** 预计到货日期 */
   expectedArrivalDate?: string | null
+  /** RegionType：10=境内 20=境外（与仓库档案共用） */
+  regionType?: number
   pn?: string | null
   brand?: string | null
   expectQty?: number
@@ -70,6 +72,7 @@ export const logisticsApi = {
     expectQty: number
     purchaseOrderId?: string
     expectedArrivalDate?: string | null
+    regionType?: number
   }): Promise<StockInNotifyDto> {
     return unwrap<StockInNotifyDto>(await apiClient.post('/api/v1/logistics/arrival-notices', payload))
   },

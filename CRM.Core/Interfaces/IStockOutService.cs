@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+using CRM.Core.Constants;
 using CRM.Core.Models.Inventory;
 
 namespace CRM.Core.Interfaces
@@ -40,6 +42,10 @@ namespace CRM.Core.Interfaces
         public string? Remark { get; set; }
         /// <summary>出货方式（字典 LogisticsArrivalMethod ItemCode）</summary>
         public string? ShipmentMethod { get; set; }
+
+        /// <summary>地域类型 RegionType：10=境内 20=境外（与仓库、到货通知共用）</summary>
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public short RegionType { get; set; } = RegionTypeCode.Domestic;
     }
 
     /// <summary>销售明细「申请出库」弹窗用：数量口径由服务端计算，前端仅展示。</summary>
@@ -117,6 +123,10 @@ namespace CRM.Core.Interfaces
         public string? Remark { get; set; }
         /// <summary>出货方式（字典 LogisticsArrivalMethod ItemCode）</summary>
         public string? ShipmentMethod { get; set; }
+
+        /// <summary>地域类型：10=境内 20=境外</summary>
+        public short RegionType { get; set; }
+
         public DateTime CreateTime { get; set; }
     }
 

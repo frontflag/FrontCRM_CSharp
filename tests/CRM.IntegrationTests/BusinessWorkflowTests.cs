@@ -388,11 +388,9 @@ namespace CRM.IntegrationTests
             var customerRepoForStockOut = Substitute.For<IRepository<CustomerInfo>>();
             customerRepoForStockOut.GetAllAsync().Returns(new List<CustomerInfo>());
             var warehouseRepoForStockOut = Substitute.For<IRepository<WarehouseInfo>>();
-            var materialRepoForStockOut = Substitute.For<IRepository<MaterialInfo>>();
-            materialRepoForStockOut.GetAllAsync().Returns(new List<MaterialInfo>());
             var service = new StockOutService(
                 stockOutRepo, stockOutItemRepo, stockOutRequestRepo, pickingTaskRepo, stockRepo,
-                sellOrderRepo, sellOrderItemRepo, customerRepoForStockOut, purchaseOrderItemRepo, purchaseOrderRepo, materialRepoForStockOut, userRepo,
+                sellOrderRepo, sellOrderItemRepo, customerRepoForStockOut, purchaseOrderItemRepo, purchaseOrderRepo, userRepo,
                 warehouseRepoForStockOut,
                 inventoryCenterService, serialNumberService, sellOrderItemExtendSync, unitOfWork,
                 NullLogger<StockOutService>.Instance);
@@ -500,6 +498,94 @@ namespace CRM.IntegrationTests
 
             // 验证总共创建了两个出库申请
             Assert.Equal(2, allRequests.Count);
+        }
+
+        [Fact]
+        public async Task CreateStockOutRequest_Fails_WhenQuantityExceedsAvailableStock()
+        {
+            var sellOrderItemId = Guid.NewGuid().ToString();
+            var sellOrderId = Guid.NewGuid().ToString();
+
+            var stockOutRepo = Substitute.For<IRepository<StockOut>>();
+            var stockOutItemRepo = Substitute.For<IRepository<StockOutItem>>();
+            var stockOutRequestRepo = Substitute.For<IRepository<StockOutRequest>>();
+            var pickingTaskRepo = Substitute.For<IRepository<PickingTask>>();
+            var stockRepo = Substitute.For<IRepository<StockInfo>>();
+            var sellOrderRepo = Substitute.For<IRepository<SellOrder>>();
+            var sellOrderItemRepo = Substitute.For<IRepository<SellOrderItem>>();
+            var purchaseOrderItemRepo = Substitute.For<IRepository<PurchaseOrderItem>>();
+            var purchaseOrderRepo = Substitute.For<IRepository<PurchaseOrder>>();
+            var userRepo = Substitute.For<IRepository<User>>();
+            var inventoryCenterService = Substitute.For<IInventoryCenterService>();
+            var serialNumberService = Substitute.For<ISerialNumberService>();
+            var sellOrderItemExtendSync = Substitute.For<ISellOrderItemExtendSyncService>();
+            var unitOfWork = Substitute.For<IUnitOfWork>();
+
+            var linkedPoId = Guid.NewGuid().ToString();
+            purchaseOrderItemRepo.FindAsync(Arg.Any<Expression<Func<PurchaseOrderItem, bool>>>())
+                .Returns(_ => Task.FromResult<IEnumerable<PurchaseOrderItem>>(new List<PurchaseOrderItem>
+                {
+                    new()
+                    {
+                        SellOrderItemId = sellOrderItemId,
+                        PurchaseOrderId = linkedPoId,
+                        VendorId = "VENDOR-001"
+                    }
+                }));
+            purchaseOrderRepo.GetByIdAsync(linkedPoId)
+                .Returns(new PurchaseOrder { Id = linkedPoId, Status = 30 });
+
+            var customerRepoForStockOut = Substitute.For<IRepository<CustomerInfo>>();
+            customerRepoForStockOut.GetAllAsync().Returns(new List<CustomerInfo>());
+            var warehouseRepoForStockOut = Substitute.For<IRepository<WarehouseInfo>>();
+            var service = new StockOutService(
+                stockOutRepo, stockOutItemRepo, stockOutRequestRepo, pickingTaskRepo, stockRepo,
+                sellOrderRepo, sellOrderItemRepo, customerRepoForStockOut, purchaseOrderItemRepo, purchaseOrderRepo, userRepo,
+                warehouseRepoForStockOut,
+                inventoryCenterService, serialNumberService, sellOrderItemExtendSync, unitOfWork,
+                NullLogger<StockOutService>.Instance);
+
+            var sellOrderItem = new SellOrderItem
+            {
+                Id = sellOrderItemId,
+                SellOrderId = sellOrderId,
+                PN = "TEST-PN-001",
+                Brand = "TEST-BRAND",
+                Qty = 100m,
+                Status = 0
+            };
+            var sellOrder = new SellOrder
+            {
+                Id = sellOrderId,
+                Status = SellOrderMainStatus.Approved,
+                SalesUserId = "sales-user-1"
+            };
+
+            sellOrderRepo.GetByIdAsync(sellOrderId).Returns(sellOrder);
+            sellOrderItemRepo.GetByIdAsync(sellOrderItemId).Returns(sellOrderItem);
+
+            var allRequests = new List<StockOutRequest>();
+            stockOutRequestRepo.FindAsync(Arg.Any<Expression<Func<StockOutRequest, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<StockOutRequest>>(allRequests));
+            stockOutRequestRepo.GetAllAsync().Returns(allRequests);
+
+            inventoryCenterService.GetAvailableQtyForSellOrderItemAsync(sellOrderItemId)
+                .Returns(new SellOrderLineAvailableQtyDto { AvailableQty = 5m });
+
+            var request = new CreateStockOutRequestRequest
+            {
+                SalesOrderId = sellOrderId,
+                SalesOrderItemId = sellOrderItemId,
+                Quantity = 10m,
+                CustomerId = "CUST-001",
+                RequestUserId = "user-1",
+                RequestDate = DateTime.UtcNow,
+                Remark = "应因在库不足失败"
+            };
+
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateStockOutRequestAsync(request));
+            Assert.Contains("在库可用数量不足", exception.Message);
+            Assert.Empty(allRequests);
         }
 
         [Fact]
@@ -1724,11 +1810,9 @@ namespace CRM.IntegrationTests
             var customerRepoForStockOut2 = Substitute.For<IRepository<CustomerInfo>>();
             customerRepoForStockOut2.GetAllAsync().Returns(new List<CustomerInfo>());
             var warehouseRepoForStockOut2 = Substitute.For<IRepository<WarehouseInfo>>();
-            var materialRepoForStockOut2 = Substitute.For<IRepository<MaterialInfo>>();
-            materialRepoForStockOut2.GetAllAsync().Returns(new List<MaterialInfo>());
             var stockOutService = new StockOutService(
                 stockOutRepo, stockOutItemRepo, stockOutRequestRepo, pickingTaskRepo, stockRepo,
-                _salesOrderRepository, _salesOrderItemRepository, customerRepoForStockOut2, poItemRepo, poRepo, materialRepoForStockOut2, userRepo,
+                _salesOrderRepository, _salesOrderItemRepository, customerRepoForStockOut2, poItemRepo, poRepo, userRepo,
                 warehouseRepoForStockOut2,
                 inventoryCenterServiceForStockOut, stockOutSerialNumberService, sellOrderItemExtendSyncForStockOut, stockOutUnitOfWork,
                 NullLogger<StockOutService>.Instance);

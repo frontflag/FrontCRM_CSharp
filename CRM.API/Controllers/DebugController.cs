@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using CRM.API.Models.DTOs;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Inventory;
@@ -529,6 +530,7 @@ namespace CRM.API.Controllers
                     VendorName = po.VendorName,
                     PurchaseUserName = po.PurchaseUserName,
                     Status = normalizedNode == "stockinnotify" ? request.Status : (short)30,
+                    RegionType = RegionTypeCode.Domestic,
                     Pn = poItem.PN,
                     Brand = poItem.Brand,
                     ExpectQty = expectQty,
@@ -657,6 +659,7 @@ namespace CRM.API.Controllers
                     RequestUserId = requestUserId,
                     RequestDate = now,
                     Status = normalizedNode == "stockoutrequest" ? request.Status : (short)0,
+                    RegionType = RegionTypeCode.Domestic,
                     CreateTime = now,
                     Remark = $"DEBUG链路:{chainNo}"
                 };

@@ -72,6 +72,8 @@ export interface StockOutRequestDto {
   remark?: string
   /** 出货方式（字典 LogisticsArrivalMethod ItemCode） */
   shipmentMethod?: string | null
+  /** RegionType：10=境内 20=境外（与仓库、到货通知共用） */
+  regionType?: number
   createTime?: string
 }
 
@@ -121,6 +123,7 @@ export const stockOutApi = {
     requestDate: string
     remark?: string
     shipmentMethod?: string | null
+    regionType?: number
   }): Promise<StockOutRequestDto> {
     // 去掉 Vue Proxy / 非枚举属性，保证 quantity 与网络载荷一致
     const body = JSON.parse(JSON.stringify(data)) as typeof data

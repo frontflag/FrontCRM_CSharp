@@ -2012,6 +2012,10 @@ const zhCN = {
       applyStockOutNeedPurchaseGate:
         '须已生成采购订单明细，且关联采购单均为「供应商确认」及之后状态，方可申请出库',
       applyStockOutDisabledByProgress: '出库已完成或采购状态为待采购时，不可申请出库',
+      applyStockOutZeroSuggested:
+        '当前可申请的出库数量为 0（剩余可申请或在库可用为 0）。您仍可查看明细，待有库存或释放额度后再提交。',
+      applyStockOutExceedsStock: '在库可用数量不足：在库可用为 {available}，本次数量不能大于在库可用。',
+      applyStockOutExceedsRemainingNotify: '超过剩余可申请出库通知数量：尚可申请为 {remaining}。',
       basketNeedRows: '请先在复选篮子中加入销售订单明细（可跨页勾选）',
       batchNotImplemented: '批量申请采购暂未改造成弹窗，请逐条使用「申请采购」',
       batchSameOrderOnly: '批量申请采购仅支持同一销售订单下的明细，请分次操作',
@@ -2215,6 +2219,7 @@ const zhCN = {
       expressMethod: '快递方式',
       selectPlaceholder: '请选择',
       expressNo: '快递单号',
+      regionType: '地域类型',
       sectionLines: '来货明细',
       seq: '序号',
       factoryPn: '原厂型号',
@@ -2276,11 +2281,13 @@ const zhCN = {
       pn: '型号',
       brand: '品牌',
       expectedArrivalDate: '预计到货日期',
+      regionType: '地域',
       vendorName: '供应商',
       purchaseUserName: '采购员',
       expectQty: '通知数量',
       receiveQty: '到货数量',
       passedQty: '质检通过',
+      arrivalRegion: '到货地域',
       createTime: '创建时间',
       createUser: '创建人',
       actions: '操作'
@@ -2299,6 +2306,7 @@ const zhCN = {
       pn: '物料型号',
       brand: '品牌',
       expectedArrivalDate: '预计到货日期',
+      regionType: '地域类型',
       purchaser: '采购员',
       noticeQty: '到货通知数量',
       receivedQty: '实际到货数量',
@@ -2507,6 +2515,8 @@ const zhCN = {
       /** 按仓库档案筛选总览（展示为仓库编码） */
       inventoryCode: '库存编号',
       allInventoryCodes: '全部仓库',
+      /** 物料列表等按 stock 地域筛选 */
+      allRegions: '全部地域',
       search: '搜索',
       reset: '重置'
     },
@@ -2526,6 +2536,7 @@ const zhCN = {
       materialModel: '物料型号',
       brand: '品牌',
       warehouseName: '仓库名称',
+      region: '地域',
       stockType: '库存类型',
       onHandQty: '在库数量',
       availableQty: '可用数量',
@@ -2547,11 +2558,16 @@ const zhCN = {
       code: '仓库编码',
       name: '仓库名称',
       address: '地址',
+      /** RegionType */
+      regionType: '地域类型',
+      regionDomestic: '境内',
+      regionOverseas: '境外',
       saveEdit: '保存修改',
       saveNew: '保存仓库',
       new: '新建',
       codeShort: '编码',
-      nameShort: '名称'
+      nameShort: '名称',
+      regionTypeShort: '地域'
     },
     messages: {
       loadOverviewFailed: '加载库存总览失败',
@@ -2680,6 +2696,9 @@ const zhCN = {
   stockOutNotifyList: {
     title: '出库通知',
     count: '共 {count} 条',
+    applyDialog: {
+      regionType: '地域类型'
+    },
     filters: {
       workflowPlaceholder: '流程筛选',
       workflowAll: '全部',
@@ -2697,6 +2716,7 @@ const zhCN = {
       materialModel: '物料型号',
       brand: '品牌',
       outQuantity: '出库数量',
+      regionType: '地域',
       requestDate: '预计出库日期',
       salesUserName: '业务员名称',
       customer: '客户',

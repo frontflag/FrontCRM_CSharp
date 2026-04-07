@@ -253,7 +253,7 @@ CREATE TABLE inventorycountplan (
 );
 
 
-CREATE TABLE inventoryledger (
+CREATE TABLE stockledger (
     "Id" character varying(36) NOT NULL,
     "BizType" character varying(20) NOT NULL,
     "BizId" character varying(36) NOT NULL,
@@ -271,7 +271,7 @@ CREATE TABLE inventoryledger (
     "CreateUserId" bigint,
     "ModifyTime" timestamp with time zone,
     "ModifyUserId" bigint,
-    CONSTRAINT "PK_inventoryledger" PRIMARY KEY ("Id")
+    CONSTRAINT "PK_stockledger" PRIMARY KEY ("Id")
 );
 
 
@@ -476,9 +476,6 @@ CREATE TABLE stock (
     "BatchNo" character varying(50),
     "ProductionDate" timestamp with time zone,
     "ExpiryDate" timestamp with time zone,
-    "Quantity" numeric(18,4) NOT NULL,
-    "AvailableQuantity" numeric(18,4) NOT NULL,
-    "LockedQuantity" numeric(18,4) NOT NULL,
     "Qty" numeric(18,4) NOT NULL,
     "QtyStockOut" numeric(18,4) NOT NULL,
     "QtyOccupy" numeric(18,4) NOT NULL,
@@ -486,6 +483,7 @@ CREATE TABLE stock (
     "QtyRepertory" numeric(18,4) NOT NULL,
     "QtyRepertoryAvailable" numeric(18,4) NOT NULL,
     "Status" smallint NOT NULL,
+    "RegionType" smallint NOT NULL DEFAULT 10,
     "Remark" character varying(500),
     "CreateTime" timestamp with time zone NOT NULL,
     "CreateUserId" bigint,
@@ -507,6 +505,7 @@ CREATE TABLE stockin (
     "TotalQuantity" numeric(18,4) NOT NULL,
     "TotalAmount" numeric(18,2) NOT NULL,
     "Status" smallint NOT NULL,
+    "RegionType" smallint NOT NULL DEFAULT 10,
     "InspectStatus" smallint NOT NULL,
     "CreatedBy" character varying(36),
     "ApprovedBy" character varying(36),
@@ -549,6 +548,7 @@ CREATE TABLE stockout (
     "TotalQuantity" numeric(18,4) NOT NULL,
     "TotalAmount" numeric(18,2) NOT NULL,
     "Status" smallint NOT NULL,
+    "RegionType" smallint NOT NULL DEFAULT 10,
     "PickerId" character varying(36),
     "PickedTime" timestamp with time zone,
     "ConfirmedBy" character varying(36),
@@ -1199,6 +1199,7 @@ CREATE TABLE pickingtaskitem (
     "LocationId" character varying(36),
     "PlanQty" numeric(18,4) NOT NULL,
     "PickedQty" numeric(18,4) NOT NULL,
+    "IsStockingSupplement" boolean NOT NULL DEFAULT false,
     "CreateTime" timestamp with time zone NOT NULL,
     "CreateUserId" bigint,
     "ModifyTime" timestamp with time zone,
@@ -1602,7 +1603,7 @@ CREATE INDEX "IX_inventorycountitem_PlanId" ON inventorycountitem ("PlanId");
 CREATE UNIQUE INDEX "IX_inventorycountplan_PlanMonth_WarehouseId" ON inventorycountplan ("PlanMonth", "WarehouseId");
 
 
-CREATE UNIQUE INDEX "IX_inventoryledger_BizType_BizId_BizLineId" ON inventoryledger ("BizType", "BizId", "BizLineId");
+CREATE UNIQUE INDEX "IX_stockledger_BizType_BizId_BizLineId" ON stockledger ("BizType", "BizId", "BizLineId");
 
 
 CREATE INDEX "IX_material_CategoryId" ON material ("CategoryId");
@@ -2034,4 +2035,8 @@ INSERT INTO sys_user_role ("UserRoleId", "UserId", "RoleId", "CreateTime") VALUE
 (gen_random_uuid()::text, 'u0000000-0000-4000-8000-000000060003', 'r0000000-0000-4000-8000-000000000004', TIMESTAMPTZ '2026-01-01T00:00:00Z'),
 (gen_random_uuid()::text, 'u0000000-0000-4000-8000-000000060003', 'r0000000-0000-4000-8000-000000000012', TIMESTAMPTZ '2026-01-01T00:00:00Z')
 ON CONFLICT ("UserId", "RoleId") DO NOTHING;
+
+-- pickingtaskitem：备货补充拣货（与 EF 迁移 20260421100000_AddPickingTaskItemStockingSupplement 一致；已建库可幂等补齐）
+ALTER TABLE IF EXISTS public.pickingtaskitem ADD COLUMN IF NOT EXISTS "IsStockingSupplement" boolean NOT NULL DEFAULT false;
+COMMENT ON COLUMN public.pickingtaskitem."IsStockingSupplement" IS '备货补充拣货：true=按销单行型号品牌匹配的备货库存';
 

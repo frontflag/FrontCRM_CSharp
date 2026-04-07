@@ -5,9 +5,12 @@ export interface StockInfo {
   materialId: string
   warehouseId: string
   locationId?: string
-  quantity: number
-  availableQuantity: number
-  lockedQuantity: number
+  qty: number
+  qtyStockOut: number
+  qtyOccupy: number
+  qtySales: number
+  qtyRepertory: number
+  qtyRepertoryAvailable: number
   unit?: string
   batchNo?: string
   productionDate?: string

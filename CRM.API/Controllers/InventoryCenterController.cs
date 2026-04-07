@@ -1,4 +1,5 @@
 using CRM.API.Models.DTOs;
+using CRM.API.Utilities;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using Microsoft.AspNetCore.Mvc;
@@ -146,7 +147,8 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "生成拣货任务失败");
-                return StatusCode(500, ApiResponse<PickingTask>.Fail($"生成拣货任务失败: {ex.Message}", 500));
+                var detail = ApiExceptionMessages.FormatWithDatabaseInner(ex);
+                return StatusCode(500, ApiResponse<PickingTask>.Fail($"生成拣货任务失败: {detail}", 500));
             }
         }
 

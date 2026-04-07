@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
@@ -120,6 +121,7 @@ namespace CRM.Core.Services
             var noticeCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.ArrivalNotice);
             var expectedArrival = request.ExpectedArrivalDate ?? poItem.DeliveryDate ?? po.DeliveryDate;
             var expectTotal = Math.Round(expectQty * poItem.Cost, 2, MidpointRounding.AwayFromZero);
+            var regionType = RegionTypeCode.Normalize(request.RegionType);
 
             var notice = new StockInNotify
             {
@@ -134,6 +136,7 @@ namespace CRM.Core.Services
                 PurchaseUserName = po.PurchaseUserName,
                 Status = 10,
                 ExpectedArrivalDate = PostgreSqlDateTime.ToUtc(expectedArrival),
+                RegionType = regionType,
                 Pn = poItem.PN,
                 Brand = poItem.Brand,
                 ExpectQty = expectQty,

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+using CRM.Core.Constants;
 using CRM.Core.Models.Inventory;
 
 namespace CRM.Core.Interfaces
@@ -28,6 +30,10 @@ namespace CRM.Core.Interfaces
 
         /// <summary>预计到货日期（可选，缺省用采购明细/订单交货日）</summary>
         public DateTime? ExpectedArrivalDate { get; set; }
+
+        /// <summary>地域类型 RegionType：10=境内 20=境外（与仓库档案共用）</summary>
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public short RegionType { get; set; } = RegionTypeCode.Domestic;
     }
 
     public class CreateQcRequest

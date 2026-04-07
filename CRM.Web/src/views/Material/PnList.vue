@@ -1,19 +1,24 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { inventoryCenterApi, type InventoryOverview } from '@/api/inventoryCenter'
+import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const loading = ref(false)
 const allRows = ref<InventoryOverview[]>([])
 const keywordInput = ref('')
+/** 地域筛选 10/20，与路由 query.regionType 同步 */
+const regionTypeFilter = ref<number | undefined>(undefined)
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 
 function norm(s: string) {
@@ -25,6 +30,15 @@ const keywordFromRoute = computed(() => {
   return typeof k === 'string' ? k : Array.isArray(k) ? String(k[0] ?? '') : ''
 })
 
+function parseRegionTypeQuery(v: unknown): number | undefined {
+  const s = typeof v === 'string' ? v : Array.isArray(v) ? String(v[0] ?? '') : ''
+  if (s === String(REGION_TYPE_DOMESTIC)) return REGION_TYPE_DOMESTIC
+  if (s === String(REGION_TYPE_OVERSEAS)) return REGION_TYPE_OVERSEAS
+  return undefined
+}
+
+const regionTypeFromRoute = computed(() => parseRegionTypeQuery(route.query.regionType))
+
 function rowText(r: InventoryOverview) {
   return [r.materialModel, r.materialName, r.materialId]
     .filter((x) => x != null && String(x).trim() !== '')
@@ -33,18 +47,27 @@ function rowText(r: InventoryOverview) {
 }
 
 const filteredRows = computed(() => {
+  let rows = allRows.value
   const kw = norm(keywordFromRoute.value)
-  if (!kw) return allRows.value
-  return allRows.value.filter((r) => norm(rowText(r)).includes(kw))
+  if (kw) rows = rows.filter((r) => norm(rowText(r)).includes(kw))
+  const rf = regionTypeFromRoute.value
+  if (rf !== undefined) {
+    rows = rows.filter((r) => {
+      const rec = r as unknown as Record<string, unknown>
+      return normalizeRegionType(rec.regionType ?? rec.RegionType) === rf
+    })
+  }
+  return rows
 })
 
-function syncInputFromRoute() {
+function syncFiltersFromRoute() {
   keywordInput.value = keywordFromRoute.value
+  regionTypeFilter.value = regionTypeFromRoute.value
 }
 
 watch(
-  () => route.query.keyword,
-  () => syncInputFromRoute(),
+  () => [route.query.keyword, route.query.regionType],
+  () => syncFiltersFromRoute(),
   { immediate: true }
 )
 
@@ -61,12 +84,18 @@ async function loadOverview() {
 }
 
 function handleSearch() {
-  const q = norm(keywordInput.value)
-  router.replace({ path: '/pn', query: q ? { keyword: keywordInput.value.trim() } : {} })
+  const q: Record<string, string> = {}
+  const kw = keywordInput.value.trim()
+  if (kw) q.keyword = kw
+  if (regionTypeFilter.value === REGION_TYPE_DOMESTIC || regionTypeFilter.value === REGION_TYPE_OVERSEAS) {
+    q.regionType = String(regionTypeFilter.value)
+  }
+  router.replace({ path: '/pn', query: Object.keys(q).length ? q : {} })
 }
 
 function handleReset() {
   keywordInput.value = ''
+  regionTypeFilter.value = undefined
   router.replace({ path: '/pn', query: {} })
 }
 
@@ -117,6 +146,17 @@ onMounted(() => {
             @keyup.enter="handleSearch"
           />
         </div>
+        <span class="filter-field-label">{{ t('inventoryList.columns.region') }}</span>
+        <el-select
+          v-model="regionTypeFilter"
+          class="region-select"
+          clearable
+          :placeholder="t('inventoryList.filters.allRegions')"
+          :teleported="false"
+        >
+          <el-option :label="t('inventoryList.warehouse.regionDomestic')" :value="REGION_TYPE_DOMESTIC" />
+          <el-option :label="t('inventoryList.warehouse.regionOverseas')" :value="REGION_TYPE_OVERSEAS" />
+        </el-select>
         <button class="btn-primary btn-sm" type="button" @click="handleSearch">查询</button>
         <button class="btn-ghost btn-sm" type="button" @click="handleReset">重置</button>
       </div>
@@ -238,6 +278,15 @@ onMounted(() => {
       color: $text-primary;
       font-size: 14px;
       outline: none;
+    }
+  }
+  .region-select {
+    width: 148px;
+    :deep(.el-select__wrapper) {
+      min-height: 36px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid $border-panel;
+      box-shadow: none;
     }
   }
 }

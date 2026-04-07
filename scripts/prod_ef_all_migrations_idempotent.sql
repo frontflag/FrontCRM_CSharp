@@ -1397,9 +1397,6 @@ BEGIN
         "BatchNo" character varying(50),
         "ProductionDate" timestamp with time zone,
         "ExpiryDate" timestamp with time zone,
-        "Quantity" numeric(18,4) NOT NULL,
-        "AvailableQuantity" numeric(18,4) NOT NULL,
-        "LockedQuantity" numeric(18,4) NOT NULL,
         "Qty" numeric(18,4) NOT NULL,
         "QtyStockOut" numeric(18,4) NOT NULL,
         "QtyOccupy" numeric(18,4) NOT NULL,
@@ -3741,7 +3738,7 @@ BEGIN
     );
     CREATE UNIQUE INDEX IF NOT EXISTS "IX_warehouseshelf_LocationId_ShelfCode" ON public.warehouseshelf ("LocationId", "ShelfCode");
 
-    CREATE TABLE IF NOT EXISTS public.inventoryledger (
+    CREATE TABLE IF NOT EXISTS public.stockledger (
         "Id" character varying(36) NOT NULL,
         "BizType" character varying(20) NOT NULL,
         "BizId" character varying(36) NOT NULL,
@@ -3759,9 +3756,9 @@ BEGIN
         "CreateUserId" bigint,
         "ModifyTime" timestamp with time zone,
         "ModifyUserId" bigint,
-        CONSTRAINT "PK_inventoryledger" PRIMARY KEY ("Id")
+        CONSTRAINT "PK_stockledger" PRIMARY KEY ("Id")
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS "IX_inventoryledger_BizKey" ON public.inventoryledger ("BizType", "BizId", "BizLineId");
+    CREATE UNIQUE INDEX IF NOT EXISTS "IX_stockledger_BizType_BizId_BizLineId" ON public.stockledger ("BizType", "BizId", "BizLineId");
 
     CREATE TABLE IF NOT EXISTS public.pickingtask (
         "Id" character varying(36) NOT NULL,
@@ -6655,6 +6652,16 @@ BEGIN
     IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260409120000_SellOrderPurchaseOrderExtendAndLineCodes') THEN
     INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
     VALUES ('20260409120000_SellOrderPurchaseOrderExtendAndLineCodes', '9.0.11');
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260421100000_AddPickingTaskItemStockingSupplement') THEN
+    ALTER TABLE IF EXISTS public.pickingtaskitem ADD COLUMN IF NOT EXISTS "IsStockingSupplement" boolean NOT NULL DEFAULT false;
+    COMMENT ON COLUMN public.pickingtaskitem."IsStockingSupplement" IS '备货补充拣货：true=按销单行型号品牌匹配的备货库存';
+    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+    VALUES ('20260421100000_AddPickingTaskItemStockingSupplement', '9.0.11');
     END IF;
 END $EF$;
 COMMIT;

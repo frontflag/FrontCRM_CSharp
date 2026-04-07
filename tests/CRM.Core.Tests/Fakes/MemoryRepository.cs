@@ -32,6 +32,9 @@ public sealed class MemoryRepository<T> : IRepository<T> where T : BaseEntity
             return Task.FromResult<IEnumerable<T>>(_store.Where(fn).ToList());
     }
 
+    public Task<IEnumerable<T>> FindAsNoTrackingAsync(Expression<Func<T, bool>> predicate) =>
+        FindAsync(predicate);
+
     public Task<IEnumerable<T>> FindIgnoreFiltersAsync(Expression<Func<T, bool>> predicate) =>
         FindAsync(predicate);
 

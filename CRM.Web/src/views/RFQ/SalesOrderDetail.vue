@@ -266,6 +266,7 @@
                         v-if="canWriteSo && stockOutApplyPurchaseGateOk(row)"
                         type="button"
                         class="action-btn action-btn--warning"
+                        :disabled="salesOrderLineApplyStockOutDisabled(row)"
                         @click.stop="handleOpenApplyStockOut(row)"
                       >
                         申请出库
@@ -353,6 +354,19 @@
                   :label="o.label"
                   :value="o.value"
                 />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item :label="t('stockOutNotifyList.applyDialog.regionType')">
+              <el-select
+                :model-value="normalizeRegionType(applyForm.regionType)"
+                :teleported="false"
+                style="width: 100%"
+                @update:model-value="(v: string | number) => { applyForm.regionType = normalizeRegionType(v) }"
+              >
+                <el-option :value="REGION_TYPE_DOMESTIC" :label="t('inventoryList.warehouse.regionDomestic')" />
+                <el-option :value="REGION_TYPE_OVERSEAS" :label="t('inventoryList.warehouse.regionOverseas')" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -559,6 +573,7 @@ import SalesUserCascader from '@/components/SalesUserCascader.vue'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
+import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 
 const router = useRouter()
 const route = useRoute()
@@ -742,6 +757,8 @@ const applyForm = ref({
   requestDate: null as Date | null,
   /** 数据字典 LogisticsArrivalMethod（与物流「来货方式」同源） */
   shipmentMethod: '' as string,
+  /** RegionType：10=境内 20=境外 */
+  regionType: REGION_TYPE_DOMESTIC as number,
   remark: '',
   sellOrderItemId: '',
   materialCode: '',
@@ -874,6 +891,11 @@ watch(
       const lines = order.value.items || []
       if (lines.length === 1 && !stockOutApplyPurchaseGateOk(lines[0])) {
         ElMessage.warning(t('salesOrderItemList.messages.applyStockOutNeedPurchaseGate'))
+        router.replace({ path: route.path, query: { ...route.query, applyStockOut: undefined } })
+        return
+      }
+      if (lines.length === 1 && salesOrderLineApplyStockOutDisabled(lines[0])) {
+        ElMessage.warning(t('salesOrderItemList.messages.applyStockOutDisabledByProgress'))
         router.replace({ path: route.path, query: { ...route.query, applyStockOut: undefined } })
         return
       }
@@ -1085,14 +1107,13 @@ const handleOpenApplyStockOut = async (item?: any) => {
     const ctx = await stockOutApi.getApplyContext(order.value.id, sellOrderItemId)
     const maxQ = Math.max(0, Math.trunc(Number(ctx.suggestedMaxQty) || 0))
     if (maxQ <= 0) {
-      ElMessage.warning('当前无可申请的出库数量（请核对订单行、在库可用与已占用通知）')
-      applyDialogVisible.value = false
-      return
+      ElMessage.warning(t('salesOrderItemList.messages.applyStockOutZeroSuggested'))
     }
     applyForm.value = {
       requestCode: '',
       requestDate: new Date(),
       shipmentMethod: '',
+      regionType: REGION_TYPE_DOMESTIC,
       remark: '',
       sellOrderItemId,
       materialCode: String(line.pn ?? line.PN ?? '').trim(),
@@ -1128,6 +1149,26 @@ const submitApplyStockOut = async () => {
     ElMessage.warning('出库通知数量必须大于 0')
     return
   }
+  const stockAvail = Number(applyForm.value.stockAvailableQty)
+  const stockAvailSafe = Number.isFinite(stockAvail) ? stockAvail : 0
+  if (qty > stockAvailSafe) {
+    ElMessage.warning(
+      t('salesOrderItemList.messages.applyStockOutExceedsStock', {
+        available: Math.trunc(stockAvailSafe)
+      })
+    )
+    return
+  }
+  const remNotify = Number(applyForm.value.remainingNotifyQty)
+  const remSafe = Number.isFinite(remNotify) ? remNotify : 0
+  if (qty > remSafe) {
+    ElMessage.warning(
+      t('salesOrderItemList.messages.applyStockOutExceedsRemainingNotify', {
+        remaining: Math.trunc(remSafe)
+      })
+    )
+    return
+  }
   applySubmitting.value = true
   try {
     await stockOutApi.createRequest({
@@ -1141,7 +1182,8 @@ const submitApplyStockOut = async () => {
       requestUserId: (authStore.user as any)?.id || '',
       requestDate: rd.toISOString(),
       remark: applyForm.value.remark || undefined,
-      shipmentMethod: applyForm.value.shipmentMethod?.trim() || undefined
+      shipmentMethod: applyForm.value.shipmentMethod?.trim() || undefined,
+      regionType: normalizeRegionType(applyForm.value.regionType)
     })
     applyDialogVisible.value = false
     ElMessage.success('申请出库成功')

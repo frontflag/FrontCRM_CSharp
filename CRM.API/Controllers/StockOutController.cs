@@ -120,6 +120,7 @@ namespace CRM.API.Controllers
                     RequestDate = body.RequestDate,
                     Remark = body.Remark,
                     ShipmentMethod = body.ShipmentMethod,
+                    RegionType = body.RegionType,
                 };
                 var entity = await _service.CreateStockOutRequestAsync(request);
                 return Ok(ApiResponse<StockOutRequest>.Ok(entity, "创建出库申请成功"));

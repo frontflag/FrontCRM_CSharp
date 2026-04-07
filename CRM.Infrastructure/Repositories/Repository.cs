@@ -32,6 +32,11 @@ namespace CRM.Infrastructure.Repositories
             return await _dbSet.Where(predicate).ToListAsync();
         }
 
+        public async Task<IEnumerable<T>> FindAsNoTrackingAsync(Expression<Func<T, bool>> predicate)
+        {
+            return await _dbSet.AsNoTracking().Where(predicate).ToListAsync();
+        }
+
         public async Task<IEnumerable<T>> FindIgnoreFiltersAsync(Expression<Func<T, bool>> predicate)
         {
             return await _dbSet.IgnoreQueryFilters().Where(predicate).ToListAsync();

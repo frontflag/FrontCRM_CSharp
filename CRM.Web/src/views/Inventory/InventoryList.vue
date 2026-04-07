@@ -83,7 +83,7 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="inventory-list-main-v2"
+      column-layout-key="inventory-list-main-v4"
       :columns="inventoryTableColumns"
       :show-column-settings="false"
       :data="filteredInventoryList"
@@ -93,6 +93,7 @@
       <template #col-materialModel="{ row }">{{ materialModelDisplay(row) }}</template>
       <template #col-materialBrand="{ row }">{{ materialBrandDisplay(row) }}</template>
       <template #col-warehouseName="{ row }">{{ warehouseNameOf(row.warehouseId) }}</template>
+      <template #col-region="{ row }">{{ regionLabel(row) }}</template>
       <template #col-stockType="{ row }">
         <span
           class="inv-stock-type-cell"
@@ -162,6 +163,12 @@
         <el-form-item :label="t('inventoryList.warehouse.address')">
           <el-input v-model="warehouseForm.address" />
         </el-form-item>
+        <el-form-item :label="t('inventoryList.warehouse.regionType')">
+          <el-select v-model="warehouseForm.regionType" style="width: 200px" :teleported="false">
+            <el-option :value="REGION_TYPE_DOMESTIC" :label="t('inventoryList.warehouse.regionDomestic')" />
+            <el-option :value="REGION_TYPE_OVERSEAS" :label="t('inventoryList.warehouse.regionOverseas')" />
+          </el-select>
+        </el-form-item>
         <el-form-item>
           <button class="btn-primary" type="button" @click="saveWarehouse">
             {{ warehouseForm.id ? t('inventoryList.warehouse.saveEdit') : t('inventoryList.warehouse.saveNew') }}
@@ -172,6 +179,9 @@
       <el-table :data="warehouses" class="warehouse-table">
         <el-table-column prop="warehouseCode" :label="t('inventoryList.warehouse.codeShort')" width="140" />
         <el-table-column prop="warehouseName" :label="t('inventoryList.warehouse.nameShort')" width="180" />
+        <el-table-column :label="t('inventoryList.warehouse.regionTypeShort')" width="100" align="center">
+          <template #default="{ row }">{{ warehouseRegionTypeLabel(row) }}</template>
+        </el-table-column>
         <el-table-column prop="address" :label="t('inventoryList.warehouse.address')" min-width="200" />
         <el-table-column
           :label="t('inventoryList.columns.actions')"
@@ -223,6 +233,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Box, Setting } from '@element-plus/icons-vue'
 import { inventoryCenterApi, type FinanceSummary, type InventoryOverview, type WarehouseInfo } from '@/api/inventoryCenter'
+import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
@@ -258,11 +269,12 @@ const inventoryTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'stockType', label: t('inventoryList.columns.stockType'), width: 138, showOverflowTooltip: true },
   { key: 'materialModel', label: t('inventoryList.columns.materialModel'), minWidth: 160, showOverflowTooltip: true },
   { key: 'materialBrand', label: t('inventoryList.columns.brand'), minWidth: 120, showOverflowTooltip: true },
-  { key: 'warehouseName', label: t('inventoryList.columns.warehouseName'), width: 160, showOverflowTooltip: true },
   { key: 'onHandQty', label: t('inventoryList.columns.onHandQty'), prop: 'onHandQty', width: 110, align: 'right' },
   { key: 'availableQty', label: t('inventoryList.columns.availableQty'), prop: 'availableQty', width: 110, align: 'right' },
   { key: 'lockedQty', label: t('inventoryList.columns.lockedQty'), prop: 'lockedQty', width: 110, align: 'right' },
   { key: 'inventoryAmount', label: t('inventoryList.columns.inventoryAmount'), prop: 'inventoryAmount', width: 120, align: 'right' },
+  { key: 'warehouseName', label: t('inventoryList.columns.warehouseName'), width: 160, showOverflowTooltip: true },
+  { key: 'region', label: t('inventoryList.columns.region'), width: 88, align: 'center', showOverflowTooltip: true },
   { key: 'lastMoveTime', label: t('inventoryList.columns.lastMoveTime'), prop: 'lastMoveTime', width: 170 },
   { key: 'createTime', label: t('inventoryList.columns.createTime'), width: 160 },
   { key: 'createUser', label: t('inventoryList.columns.createUser'), width: 120, showOverflowTooltip: true },
@@ -298,6 +310,7 @@ const emptyWarehouseForm = (): WarehouseInfo => ({
   warehouseCode: '',
   warehouseName: '',
   address: '',
+  regionType: REGION_TYPE_DOMESTIC,
   status: 1
 })
 
@@ -313,7 +326,14 @@ function normalizeWarehouseRow(row: WarehouseInfo): WarehouseInfo {
   const addr = String(r.address ?? r.Address ?? '')
   const st = r.status ?? r.Status
   const status = typeof st === 'number' ? st : 1
-  return { id, warehouseCode: code, warehouseName: name, address: addr, status }
+  const regionType = normalizeRegionType(r.regionType ?? r.RegionType)
+  return { id, warehouseCode: code, warehouseName: name, address: addr, regionType, status }
+}
+
+function warehouseRegionTypeLabel(row: WarehouseInfo): string {
+  const n = normalizeWarehouseRow(row).regionType
+  if (n === REGION_TYPE_OVERSEAS) return t('inventoryList.warehouse.regionOverseas')
+  return t('inventoryList.warehouse.regionDomestic')
 }
 
 const resetWarehouseForm = () => {
@@ -386,6 +406,13 @@ const formatInventoryAmount = (row: InventoryOverview) => {
   return `${iso} ${amt}`
 }
 const formatTime = (v?: string) => formatDisplayDateTime(v)
+/** 列表「地域」：stock.RegionType（接口 camelCase / PascalCase） */
+const regionLabel = (row: InventoryOverview) => {
+  const r = row as unknown as Record<string, unknown>
+  const n = normalizeRegionType(r.regionType ?? r.RegionType)
+  return n === REGION_TYPE_OVERSEAS ? t('inventoryList.warehouse.regionOverseas') : t('inventoryList.warehouse.regionDomestic')
+}
+
 const warehouseNameOf = (warehouseId?: string) => {
   if (!warehouseId) return t('quoteList.na')
   const byId = warehouses.value.find(w => normalizeWarehouseRow(w).id === warehouseId)
@@ -414,7 +441,7 @@ const materialModelDisplay = (row: InventoryOverview) => {
   return model || id || t('quoteList.na')
 }
 
-/** 品牌（接口字段为 materialName，总览中常来自主数据名称或产品品牌）；兼容 PascalCase */
+/** 品牌（接口 materialName：优先 stock 冗余 purchase_brand）；兼容 PascalCase */
 const materialBrandDisplay = (row: InventoryOverview) => {
   const r = row as unknown as Record<string, unknown>
   const name = pickRowStr(r, 'materialName', 'MaterialName').trim()
@@ -497,13 +524,22 @@ const saveWarehouse = async () => {
     const trimmedId = form.id?.trim()
     const shouldSendId =
       !!trimmedId && warehouses.value.some(w => normalizeWarehouseRow(w).id === trimmedId)
+    const rt = normalizeRegionType(form.regionType)
     const payload: WarehouseInfo = shouldSendId
-      ? { ...form, id: trimmedId }
+      ? {
+          id: trimmedId,
+          warehouseCode: form.warehouseCode.trim(),
+          warehouseName: form.warehouseName.trim(),
+          address: form.address?.trim() || undefined,
+          regionType: rt,
+          status: form.status ?? 1
+        }
       : {
-          warehouseCode: form.warehouseCode,
-          warehouseName: form.warehouseName,
-          address: form.address,
-          status: form.status
+          warehouseCode: form.warehouseCode.trim(),
+          warehouseName: form.warehouseName.trim(),
+          address: form.address?.trim() || undefined,
+          regionType: rt,
+          status: form.status ?? 1
         }
 
     await inventoryCenterApi.saveWarehouse(payload)

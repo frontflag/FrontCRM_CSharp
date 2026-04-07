@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Material;
@@ -104,12 +105,14 @@ namespace CRM.Core.Services
             }
 
             var (arrivalId, arrivalCode, qcIdForSi, qcCodeForSi) = await ResolveStockInNotifyAndQcFieldsAsync(request);
+            var regionTypeForCreate = await ResolveStockInRegionTypeForCreateAsync(request);
 
             var stockIn = new StockIn
             {
                 Id = stockInId,
                 StockInCode = stockInCode,
                 StockInType = 1, // 采购入库
+                RegionType = regionTypeForCreate,
                 PurchaseOrderItemId = string.IsNullOrWhiteSpace(primaryLine?.Id) ? null : primaryLine!.Id.Trim(),
                 PurchaseOrderItemCode = string.IsNullOrWhiteSpace(primaryLine?.PurchaseOrderItemCode)
                     ? null
@@ -602,6 +605,9 @@ namespace CRM.Core.Services
             stockIn.ModifyTime = DateTime.UtcNow;
             stockIn.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
 
+            if (status == 2)
+                await SyncStockInRegionTypeFromNotifyAsync(stockIn);
+
             await _stockInRepository.UpdateAsync(stockIn);
             await _unitOfWork.SaveChangesAsync();
 
@@ -710,6 +716,55 @@ namespace CRM.Core.Services
 
             _logger.LogInformation("[InboundStatus2] ResolveHook branch=none (no Po id resolved)");
             return null;
+        }
+
+        /// <summary>新建入库单时：<c>RegionType</c> 与关联到货通知一致。</summary>
+        private async Task<short> ResolveStockInRegionTypeForCreateAsync(CreateStockInRequest request)
+        {
+            if (!string.IsNullOrWhiteSpace(request.StockInNotifyId))
+            {
+                var n = await _stockInNotifyRepository.GetByIdAsync(request.StockInNotifyId.Trim());
+                if (n != null)
+                    return RegionTypeCode.Normalize(n.RegionType);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.QcId))
+            {
+                var qc = await _qcRepository.GetByIdAsync(request.QcId.Trim());
+                if (qc != null && !string.IsNullOrWhiteSpace(qc.StockInNotifyId))
+                {
+                    var n2 = await _stockInNotifyRepository.GetByIdAsync(qc.StockInNotifyId.Trim());
+                    if (n2 != null)
+                        return RegionTypeCode.Normalize(n2.RegionType);
+                }
+            }
+
+            return RegionTypeCode.Domestic;
+        }
+
+        /// <summary>确认入库过账前：按 <c>SourceId</c> / 质检关联通知刷新地域，与通知当前值一致。</summary>
+        private async Task SyncStockInRegionTypeFromNotifyAsync(StockIn stockIn)
+        {
+            if (!string.IsNullOrWhiteSpace(stockIn.SourceId))
+            {
+                var n = await _stockInNotifyRepository.GetByIdAsync(stockIn.SourceId.Trim());
+                if (n != null)
+                {
+                    stockIn.RegionType = RegionTypeCode.Normalize(n.RegionType);
+                    return;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(stockIn.QcId))
+            {
+                var qc = await _qcRepository.GetByIdAsync(stockIn.QcId.Trim());
+                if (qc != null && !string.IsNullOrWhiteSpace(qc.StockInNotifyId))
+                {
+                    var n2 = await _stockInNotifyRepository.GetByIdAsync(qc.StockInNotifyId.Trim());
+                    if (n2 != null)
+                        stockIn.RegionType = RegionTypeCode.Normalize(n2.RegionType);
+                }
+            }
         }
 
         private async Task<(string? sourceId, string? sourceCode, string? qcId, string? qcCode)> ResolveStockInNotifyAndQcFieldsAsync(

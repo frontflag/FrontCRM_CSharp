@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
+using CRM.Core.Constants;
 
 namespace CRM.Core.Models.Inventory
 {
@@ -19,6 +21,11 @@ namespace CRM.Core.Models.Inventory
 
         [StringLength(200)]
         public string? Address { get; set; }
+
+        /// <summary>地域类型 RegionType：10=境内 20=境外</summary>
+        [Column("RegionType")]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public short RegionType { get; set; } = RegionTypeCode.Domestic;
 
         public short Status { get; set; } = 1;
     }
@@ -83,7 +90,7 @@ namespace CRM.Core.Models.Inventory
         public short Status { get; set; } = 1;
     }
 
-    [Table("inventoryledger")]
+    [Table("stockledger")]
     public class InventoryLedger : BaseGuidEntity
     {
         [Key]

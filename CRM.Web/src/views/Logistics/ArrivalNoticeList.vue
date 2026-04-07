@@ -72,6 +72,7 @@
       <template #col-pn="{ row }">{{ displayPn(row) }}</template>
       <template #col-brand="{ row }">{{ displayBrand(row) }}</template>
       <template #col-expectedArrivalDate="{ row }">{{ formatExpected(row.expectedArrivalDate) }}</template>
+      <template #col-regionType="{ row }">{{ regionTypeLabel(row) }}</template>
       <template #col-expectQty="{ row }">{{ formatQtyCol(expectQty(row)) }}</template>
       <template #col-receiveQty="{ row }">{{ formatQtyCol(receiveQty(row)) }}</template>
       <template #col-passedQty="{ row }">{{ formatQtyCol(passedQty(row)) }}</template>
@@ -182,6 +183,9 @@
         <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.expectedArrivalDate')">
           {{ formatExpected(detailNotice.expectedArrivalDate) }}
         </el-descriptions-item>
+        <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.regionType')">
+          {{ regionTypeLabel(detailNotice) }}
+        </el-descriptions-item>
         <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.purchaser')">
           {{ detailNotice.purchaseUserName?.trim() || '—' }}
         </el-descriptions-item>
@@ -209,6 +213,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { logisticsApi, type StockInNotifyDto, type StockInNotifyItemDto } from '@/api/logistics'
+import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { useRouter } from 'vue-router'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -249,6 +254,12 @@ const arrivalNoticeColumns = computed<CrmTableColumnDef[]>(() => {
     { key: 'expectQty', label: t('arrivalNoticeList.columns.expectQty'), width: 100, align: 'right' },
     { key: 'receiveQty', label: t('arrivalNoticeList.columns.receiveQty'), width: 100, align: 'right' },
     { key: 'passedQty', label: t('arrivalNoticeList.columns.passedQty'), width: 100, align: 'right' },
+    {
+      key: 'regionType',
+      label: t('arrivalNoticeList.columns.arrivalRegion'),
+      width: 100,
+      align: 'center'
+    },
     { key: 'createTime', label: t('arrivalNoticeList.columns.createTime'), prop: 'createTime', width: 170 },
     { key: 'createUser', label: t('arrivalNoticeList.columns.createUser'), width: 120, showOverflowTooltip: true },
     {
@@ -322,6 +333,12 @@ const statusText = (s: number) => {
 const statusType = (s: number) => ({ 1: 'info', 10: 'warning', 20: 'primary', 30: 'success', 100: 'success' }[s] || 'info')
 const formatTime = (v?: string) => formatDisplayDateTime(v)
 const formatExpected = (v?: string | null) => (v ? formatDisplayDate(v) : '—')
+
+const regionTypeLabel = (row: StockInNotifyDto) => {
+  const r = row as unknown as Record<string, unknown>
+  const n = normalizeRegionType(r.regionType ?? r.RegionType)
+  return n === REGION_TYPE_OVERSEAS ? t('inventoryList.warehouse.regionOverseas') : t('inventoryList.warehouse.regionDomestic')
+}
 
 const loadData = () => {
   loading.value = true

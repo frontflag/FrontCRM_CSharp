@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Models.Inventory;
 
 namespace CRM.Core.Interfaces
@@ -33,15 +34,17 @@ namespace CRM.Core.Interfaces
     public class InventoryMaterialOverviewDto
     {
         public string MaterialId { get; set; } = string.Empty;
-        /// <summary>规格型号（来自物料主数据）</summary>
+        /// <summary>规格型号（优先 <c>stock.purchase_pn</c>，缺省再物料主数据 / 订单行 PN）</summary>
         public string? MaterialModel { get; set; }
-        /// <summary>物料名称</summary>
+        /// <summary>品牌展示（优先 <c>stock.purchase_brand</c>，缺省再物料名称 / 订单行 Brand）</summary>
         public string? MaterialName { get; set; }
         public string WarehouseId { get; set; } = string.Empty;
         /// <summary>仓库编码（由 WarehouseId 解析；无档案时前端可回退显示 WarehouseId）</summary>
         public string? WarehouseCode { get; set; }
         /// <summary>库存类型 1=客单库存 2=备货库存 3=样品库存</summary>
         public short StockType { get; set; } = 1;
+        /// <summary>地域（与 <c>stock.RegionType</c> 一致；分组内取首行，10=境内 20=境外）</summary>
+        public short RegionType { get; set; } = RegionTypeCode.Domestic;
         public decimal OnHandQty { get; set; }
         public decimal AvailableQty { get; set; }
         public decimal LockedQty { get; set; }

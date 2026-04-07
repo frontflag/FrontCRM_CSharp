@@ -422,9 +422,24 @@
               </el-col>
             </el-row>
             <el-row :gutter="12">
-              <el-col :span="8"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.address')"><el-input v-model="arrivalForm.address" /></el-form-item></el-col>
-              <el-col :span="8"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.phone')"><el-input v-model="arrivalForm.phone" /></el-form-item></el-col>
-              <el-col :span="8"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.contact')"><el-input v-model="arrivalForm.contact" /></el-form-item></el-col>
+              <el-col :span="6">
+                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.regionType')">
+                  <el-select
+                    :model-value="normalizeRegionType(arrivalForm.regionType)"
+                    :teleported="false"
+                    style="width: 100%"
+                    @update:model-value="(v: string | number) => { arrivalForm.regionType = normalizeRegionType(v) }"
+                  >
+                    <el-option :value="REGION_TYPE_DOMESTIC" :label="t('inventoryList.warehouse.regionDomestic')" />
+                    <el-option :value="REGION_TYPE_OVERSEAS" :label="t('inventoryList.warehouse.regionOverseas')" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="18"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.address')"><el-input v-model="arrivalForm.address" /></el-form-item></el-col>
+            </el-row>
+            <el-row :gutter="12">
+              <el-col :span="12"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.phone')"><el-input v-model="arrivalForm.phone" /></el-form-item></el-col>
+              <el-col :span="12"><el-form-item :label="t('purchaseOrderItemList.arrivalDialog.contact')"><el-input v-model="arrivalForm.contact" /></el-form-item></el-col>
             </el-row>
             <el-row :gutter="12">
               <el-col :span="8">
@@ -502,7 +517,7 @@
         </div>
 
         <div class="arrival-section">
-          <el-form label-width="90px">
+          <el-form label-width="90px" class="arrival-notice-form">
             <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.inspection')"><el-input v-model="arrivalForm.inspectionRequirement" /></el-form-item>
             <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.remark')"><el-input v-model="arrivalForm.remark" type="textarea" :rows="2" /></el-form-item>
           </el-form>
@@ -547,6 +562,7 @@ import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyForma
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
+import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 
 const router = useRouter()
 const route = useRoute()
@@ -707,6 +723,7 @@ const arrivalForm = reactive<any>({
   arrivalMethod: '',
   expressMethod: '',
   expressNo: '',
+  regionType: REGION_TYPE_DOMESTIC as number,
   inspectionRequirement: '',
   remark: '',
   signer: '',
@@ -931,6 +948,7 @@ async function openArrivalDialog(row: any) {
   arrivalForm.arrivalMethod = ''
   arrivalForm.expressMethod = ''
   arrivalForm.expressNo = ''
+  arrivalForm.regionType = REGION_TYPE_DOMESTIC
   arrivalForm.inspectionRequirement = ''
   arrivalForm.remark = ''
   arrivalForm.signer = ''
@@ -983,7 +1001,8 @@ async function submitArrivalNotice() {
       purchaseOrderItemId: arrivalForm.purchaseOrderItemId,
       expectQty,
       purchaseOrderId: arrivalForm.purchaseOrderId,
-      expectedArrivalDate: arrivalForm.expectedArrivalDate
+      expectedArrivalDate: arrivalForm.expectedArrivalDate,
+      regionType: normalizeRegionType(arrivalForm.regionType)
     })
     ElMessage.success(t('purchaseOrderItemList.messages.arrivalCreated'))
     arrivalDialogVisible.value = false
@@ -1352,11 +1371,26 @@ onMounted(() => {
   gap: 10px;
 }
 
-/* 表单项标题至少单行容纳 6 个汉字（如「预计到货日期」） */
+/* 到货通知：标签与输入/下拉/日期控件垂直居中对齐（与控件中线一致） */
+.arrival-form-layout :deep(.arrival-notice-form .el-form-item) {
+  align-items: center;
+}
+
 .arrival-form-layout :deep(.arrival-notice-form .el-form-item__label) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   white-space: nowrap;
   padding-right: 10px;
+  padding-top: 0;
+  padding-bottom: 0;
   line-height: 1.4;
+  height: auto !important;
+}
+
+.arrival-form-layout :deep(.arrival-notice-form .el-form-item__content) {
+  display: flex;
+  align-items: center;
 }
 .arrival-section {
   border: 1px solid $border-panel;
