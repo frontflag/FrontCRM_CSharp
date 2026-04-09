@@ -36,7 +36,9 @@ namespace CRM.API.Authorization
             }
 
             var summary = await rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.PermissionCodes.Contains(_permissionCode))
+            var ok = summary.IsSysAdmin || summary.PermissionCodes.Any(c =>
+                string.Equals(c, _permissionCode, StringComparison.OrdinalIgnoreCase));
+            if (ok)
                 return;
 
             context.Result = new ObjectResult(ApiResponse<object>.Fail($"无权限访问: {_permissionCode}", 403))

@@ -1,4 +1,4 @@
-# Deploy FrontCRM — 前端 + 后端 一并构建并上传到服务器
+﻿# Deploy FrontCRM — 前端 + 后端 一并构建并上传到服务器
 # 本文件须保存为「UTF-8 带 BOM」；否则 Windows PowerShell 5.1 会按 ANSI 误读中文与引号，出现 UnexpectedToken `}`。
 #
 # 流程：
@@ -67,7 +67,7 @@ if (-not $SkipBuild) {
     Set-Location $RepoRoot
     & $buildScript
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: build_with_temp_path.ps1 failed (exit $LASTEXITCODE)" -ForegroundColor Red
+        Write-Host ('ERROR: build_with_temp_path.ps1 failed (exit {0})' -f $LASTEXITCODE) -ForegroundColor Red
         exit $LASTEXITCODE
     }
 
@@ -101,7 +101,10 @@ if (-not (Test-Path (Join-Path $deployPackage "CRM.API/publish/CRM.API.dll"))) {
     exit 1
 }
 
-Write-Host ">>> Step 2/2: upload to ${ServerUser}@${ServerIP}:${RemoteDeployPath}/" -ForegroundColor Cyan
+# PS 5.1：双引号内勿写 ${User}@${Host}（会误解析）；与路径用冒号拼接时用 $($x):$($y)
+$SshTarget = "$ServerUser@$ServerIP"
+
+Write-Host ">>> Step 2/2: upload to $($SshTarget):$($RemoteDeployPath)/" -ForegroundColor Cyan
 Write-Host ""
 
 $packageSize = (Get-ChildItem -Path $deployPackage -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB
@@ -121,6 +124,7 @@ if (-not $sshPath) {
 }
 
 # 避免「Creating remote directory...」后长时间无输出：TCP 超时 + 禁止静默等密码（BatchMode）
+# 无密钥时 BatchMode 会失败；若未加 -AllowPasswordPrompt 却长时间卡住，多为在尝试键盘交互/GSSAPI，故 BatchMode 下限定公钥并快速失败。
 $SshOpts = @(
     "-o", "ConnectTimeout=30",
     "-o", "ServerAliveInterval=10",
@@ -129,6 +133,9 @@ $SshOpts = @(
 )
 if (-not $AllowPasswordPrompt) {
     $SshOpts += @("-o", "BatchMode=yes")
+    $SshOpts += @("-o", "NumberOfPasswordPrompts=0")
+    $SshOpts += @("-o", "PreferredAuthentications=publickey")
+    $SshOpts += @("-o", "PubkeyAuthentication=yes")
 }
 $ScpOpts = @(
     "-o", "ConnectTimeout=30",
@@ -136,6 +143,9 @@ $ScpOpts = @(
 )
 if (-not $AllowPasswordPrompt) {
     $ScpOpts += @("-o", "BatchMode=yes")
+    $ScpOpts += @("-o", "NumberOfPasswordPrompts=0")
+    $ScpOpts += @("-o", "PreferredAuthentications=publickey")
+    $ScpOpts += @("-o", "PubkeyAuthentication=yes")
 }
 
 if (-not [string]::IsNullOrWhiteSpace($SshKeyPath)) {
@@ -163,25 +173,27 @@ New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
 & robocopy $localResolved $stagingDir /E /NFL /NDL /NJH /NJS /NP /XF *.md | Out-Null
 $robocopyExitCode = $LASTEXITCODE
 if ($robocopyExitCode -gt 7) {
-    Write-Host "ERROR: failed to prepare upload files (robocopy exit $robocopyExitCode)" -ForegroundColor Red
+    Write-Host ('ERROR: failed to prepare upload files (robocopy exit {0})' -f $robocopyExitCode) -ForegroundColor Red
     Remove-Item -Path $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
     exit 1
 }
 
 $localDot = Join-Path $stagingDir "."
 
-Write-Host "Creating remote directory (SSH timeout 30s, non-interactive by default)..." -ForegroundColor Yellow
+Write-Host "Creating remote directory (SSH ConnectTimeout=30s)..." -ForegroundColor Yellow
 if (-not $AllowPasswordPrompt) {
-    Write-Host "  Tip: hangs often = password prompt hidden; use ssh-key or run with -AllowPasswordPrompt" -ForegroundColor DarkGray
+    Write-Host "  BatchMode (key-based): no SSH key for $SshTarget -> fail in ~30s." -ForegroundColor DarkGray
+    Write-Host "  For password upload: .\deploy_full_to_server.ps1 -SkipBuild -AllowPasswordPrompt" -ForegroundColor Cyan
+    Write-Host "  Or add your .pub to server ~/.ssh/authorized_keys, or use -SshKeyPath." -ForegroundColor DarkGray
 }
-& ssh @SshOpts -p $SshPort "${ServerUser}@${ServerIP}" "mkdir -p '$RemoteDeployPath'"
+& ssh @SshOpts -p $SshPort "$SshTarget" "mkdir -p '$RemoteDeployPath'"
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: ssh mkdir failed. Check: 1) network/firewall 22 2) ssh-key for ${ServerUser}@${ServerIP} 3) try -AllowPasswordPrompt for password login" -ForegroundColor Red
+    Write-Host "ERROR: ssh mkdir failed. Check: network/firewall port 22; ssh key for $SshTarget; or use -AllowPasswordPrompt for password login." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "Uploading ($DeployPackageName/* -> ${RemoteDeployPath}/)..." -ForegroundColor Yellow
-& scp @ScpOpts -r -P $SshPort "$localDot" "${ServerUser}@${ServerIP}:${RemoteDeployPath}/"
+Write-Host "Uploading $DeployPackageName/* -> $RemoteDeployPath/ ..." -ForegroundColor Yellow
+& scp @ScpOpts -r -P $SshPort "$localDot" "$($SshTarget):$($RemoteDeployPath)/"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: scp upload failed." -ForegroundColor Red
@@ -205,15 +217,16 @@ elseif ($DeploymentMode -eq "nonDocker") {
 }
 else {
     # auto: if docker compose ps succeeds, treat as docker mode
-    & ssh @SshOpts -p $SshPort "${ServerUser}@${ServerIP}" "command -v docker >/dev/null 2>&1 && docker compose ps >/dev/null 2>&1"
+    # PS 5.1：双引号内 2>&1、> 会被当成重定向，须用单引号整段 bash
+    & ssh @SshOpts -p $SshPort "$SshTarget" 'command -v docker >/dev/null 2>&1 && docker compose ps >/dev/null 2>&1'
     if ($LASTEXITCODE -eq 0) { $useDocker = $true }
 }
 
 if ($useDocker) {
     Write-Host "Docker deployment mode detected: rebuilding and starting compose." -ForegroundColor Cyan
     Write-Host ""
-    & ssh @SshOpts -p $SshPort "${ServerUser}@${ServerIP}" "cd '$RemoteDeployPath'; docker compose build --no-cache" | Out-Null
-    & ssh @SshOpts -p $SshPort "${ServerUser}@${ServerIP}" "cd '$RemoteDeployPath'; docker compose up -d" | Out-Null
+    & ssh @SshOpts -p $SshPort "$SshTarget" "cd '$RemoteDeployPath'; docker compose build --no-cache" | Out-Null
+    & ssh @SshOpts -p $SshPort "$SshTarget" "cd '$RemoteDeployPath'; docker compose up -d" | Out-Null
 }
 else {
     Write-Host "Non-Docker mode detected: applying Nginx + dotnet flow." -ForegroundColor Cyan
@@ -225,9 +238,10 @@ else {
 
     Write-Host ">>> Non-Docker: prepare directories..." -ForegroundColor Gray
     if (-not $RequestTtyForSudo) {
-        Write-Host "    Using $SudoCmd (non-interactive sudo; use -RequestTtyForSudo to type sudo password)." -ForegroundColor DarkGray
+        Write-Host ('    Using {0} (non-interactive sudo; use -RequestTtyForSudo to type sudo password).' -f $SudoCmd) -ForegroundColor DarkGray
     }
-    & ssh @SshTty @SshOpts -p $SshPort "${ServerUser}@${ServerIP}" "$SudoCmd mkdir -p $NonDockerFrontendRoot $NonDockerBackendRoot && $SudoCmd chown -R ${ServerUser}:${ServerUser} $NonDockerFrontendRoot $NonDockerBackendRoot"
+    $rPrepareDirs = $SudoCmd + ' mkdir -p ' + $NonDockerFrontendRoot + ' ' + $NonDockerBackendRoot + ' && ' + $SudoCmd + ' chown -R ' + $ServerUser + ':' + $ServerUser + ' ' + $NonDockerFrontendRoot + ' ' + $NonDockerBackendRoot
+    & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" $rPrepareDirs
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: prepare directories failed (remote sudo needs password or NOPASSWD)." -ForegroundColor Red
         Write-Host "  Fix A: on server, grant NOPASSWD for $ServerUser for deploy commands under /opt/frontcrm" -ForegroundColor Yellow
@@ -235,54 +249,59 @@ else {
         exit 1
     }
 
-    Write-Host ">>> Non-Docker: sync frontend dist ($srcFront -> $NonDockerFrontendRoot)" -ForegroundColor Gray
-    & ssh @SshTty @SshOpts -p $SshPort "${ServerUser}@${ServerIP}" "$SudoCmd rm -rf $NonDockerFrontendRoot/*; $SudoCmd cp -r $srcFront/* $NonDockerFrontendRoot/; $SudoCmd chown -R ${ServerUser}:${ServerUser} $NonDockerFrontendRoot; $SudoCmd find $NonDockerFrontendRoot -type d -exec chmod 755 {} \;; $SudoCmd find $NonDockerFrontendRoot -type f -exec chmod 644 {} \;"
+    Write-Host ('>>> Non-Docker: sync frontend dist ({0} -> {1})' -f $srcFront, $NonDockerFrontendRoot) -ForegroundColor Gray
+    $rSyncFront = $SudoCmd + ' rm -rf ' + $NonDockerFrontendRoot + '/*; ' + $SudoCmd + ' cp -r ' + $srcFront + '/* ' + $NonDockerFrontendRoot + '/; ' + $SudoCmd + ' chown -R ' + $ServerUser + ':' + $ServerUser + ' ' + $NonDockerFrontendRoot + '; ' + $SudoCmd + ' find ' + $NonDockerFrontendRoot + ' -type d -exec chmod 755 {} \;; ' + $SudoCmd + ' find ' + $NonDockerFrontendRoot + ' -type f -exec chmod 644 {} \;'
+    & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" $rSyncFront
     if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: sync frontend failed." -ForegroundColor Red; exit 1 }
 
     # 2) 覆盖后端 publish
-    Write-Host ">>> Non-Docker: sync backend publish ($srcBack -> $NonDockerBackendRoot)" -ForegroundColor Gray
-    & ssh @SshTty @SshOpts -p $SshPort "${ServerUser}@${ServerIP}" "$SudoCmd rm -rf $NonDockerBackendRoot/*; $SudoCmd cp -r $srcBack/* $NonDockerBackendRoot/; $SudoCmd chown -R ${ServerUser}:${ServerUser} $NonDockerBackendRoot; $SudoCmd find $NonDockerBackendRoot -type d -exec chmod 755 {} \;; $SudoCmd find $NonDockerBackendRoot -type f -exec chmod 644 {} \;"
+    Write-Host ('>>> Non-Docker: sync backend publish ({0} -> {1})' -f $srcBack, $NonDockerBackendRoot) -ForegroundColor Gray
+    $rSyncBack = $SudoCmd + ' rm -rf ' + $NonDockerBackendRoot + '/*; ' + $SudoCmd + ' cp -r ' + $srcBack + '/* ' + $NonDockerBackendRoot + '/; ' + $SudoCmd + ' chown -R ' + $ServerUser + ':' + $ServerUser + ' ' + $NonDockerBackendRoot + '; ' + $SudoCmd + ' find ' + $NonDockerBackendRoot + ' -type d -exec chmod 755 {} \;; ' + $SudoCmd + ' find ' + $NonDockerBackendRoot + ' -type f -exec chmod 644 {} \;'
+    & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" $rSyncBack
     if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: sync backend failed." -ForegroundColor Red; exit 1 }
 
     # 3) reload nginx（如果 nginx 存在）
     Write-Host ">>> Non-Docker: nginx reload (if nginx exists)..." -ForegroundColor Gray
-    & ssh @SshTty @SshOpts -p $SshPort "${ServerUser}@${ServerIP}" "if command -v nginx >/dev/null 2>&1; then $SudoCmd nginx -t && $SudoCmd systemctl reload nginx; fi"
+    $rNginxReload = 'if command -v nginx >/dev/null 2>&1; then ' + $SudoCmd + ' nginx -t && ' + $SudoCmd + ' systemctl reload nginx; fi'
+    & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" $rNginxReload
     if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: nginx reload / nginx -t failed." -ForegroundColor Red; exit 1 }
 
     # 4) restart api：须先释放端口；多行脚本经 PowerShell→ssh 易拆坏（remote bash: syntax error near 'fi'），改为单行
-    Write-Host ">>> Non-Docker: restart crm-api (free port $BackendPort first)..." -ForegroundColor Gray
+    Write-Host ('>>> Non-Docker: restart crm-api (free port {0} first)...' -f $BackendPort) -ForegroundColor Gray
     $nd = $NonDockerBackendRoot
     $bp = $BackendPort
     # systemd stop 后若仍有 nohup/孤儿 dotnet 占 5000，新实例会 AddressInUse 起不来；须 sudo pkill 清干净再 start
-    $restartApiOneLine = "if $SudoCmd systemctl list-unit-files 2>/dev/null | grep -qF 'crm-api.service'; then $SudoCmd systemctl daemon-reload; $SudoCmd systemctl stop crm-api 2>/dev/null || true; $SudoCmd pkill -f CRM.API.dll 2>/dev/null || true; sleep 3; $SudoCmd systemctl start crm-api; else cd $nd || exit 1; pkill -f CRM.API.dll 2>/dev/null || true; sleep 3; export ASPNETCORE_ENVIRONMENT=Production; export ASPNETCORE_URLS=http://0.0.0.0:$bp; nohup dotnet CRM.API.dll > api.log 2>&1 & sleep 2; fi"
-    & ssh @SshTty @SshOpts -p $SshPort "${ServerUser}@${ServerIP}" "$restartApiOneLine"
+    $restartApiOneLine = 'if ' + $SudoCmd + ' systemctl list-unit-files 2>/dev/null | grep -qF ''crm-api.service''; then ' + $SudoCmd + ' systemctl daemon-reload; ' + $SudoCmd + ' systemctl stop crm-api 2>/dev/null || true; ' + $SudoCmd + ' pkill -f CRM.API.dll 2>/dev/null || true; sleep 3; ' + $SudoCmd + ' systemctl start crm-api; else cd ' + $nd + ' || exit 1; pkill -f CRM.API.dll 2>/dev/null || true; sleep 3; export ASPNETCORE_ENVIRONMENT=Production; export ASPNETCORE_URLS=http://0.0.0.0:' + $bp + '; nohup dotnet CRM.API.dll > api.log 2>&1 & sleep 2; fi'
+    & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$restartApiOneLine"
     $restartExit = $LASTEXITCODE
 
     # start 后 ASP.NET 绑定端口略慢于 systemctl 返回；轮询 is-active + /api/v1/health，避免误报失败
-    Write-Host ">>> Non-Docker: wait for crm-api (health on port $BackendPort, up to ~40s)..." -ForegroundColor Gray
+    Write-Host ('>>> Non-Docker: wait for crm-api (health on port {0}, up to ~40s)...' -f $BackendPort) -ForegroundColor Gray
     $verifyTail = 'test "$ok" = 1 || exit 1'
     # 单引号段保证 $(seq 1 40) 原样交给远程 bash，避免 PowerShell 误解析 $( )
-    $verifyApiOneLine = "ok=0; for i in " + '$(seq 1 40)' + "; do if $SudoCmd systemctl list-unit-files 2>/dev/null | grep -qF 'crm-api.service'; then if $SudoCmd systemctl is-active crm-api 2>/dev/null | grep -qx active && curl -sf http://127.0.0.1:$bp/api/v1/health >/dev/null; then ok=1; break; fi; else if pgrep -f 'dotnet CRM.API.dll' >/dev/null && curl -sf http://127.0.0.1:$bp/api/v1/health >/dev/null; then ok=1; break; fi; fi; sleep 1; done; $verifyTail"
-    & ssh @SshTty @SshOpts -p $SshPort "${ServerUser}@${ServerIP}" "$verifyApiOneLine"
+    $verifyApiOneLine = 'ok=0; for i in ' + '$(seq 1 40)' + '; do if ' + $SudoCmd + ' systemctl list-unit-files 2>/dev/null | grep -qF ''crm-api.service''; then if ' + $SudoCmd + ' systemctl is-active crm-api 2>/dev/null | grep -qx active && curl -sf http://127.0.0.1:' + $bp + '/api/v1/health >/dev/null; then ok=1; break; fi; else if pgrep -f ''dotnet CRM.API.dll'' >/dev/null && curl -sf http://127.0.0.1:' + $bp + '/api/v1/health >/dev/null; then ok=1; break; fi; fi; sleep 1; done; ' + $verifyTail
+    & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$verifyApiOneLine"
     $verifyExit = $LASTEXITCODE
     if ($verifyExit -eq 0) {
-        Write-Host ">>> Non-Docker: crm-api health check passed (http://127.0.0.1:$BackendPort/api/v1/health)." -ForegroundColor Green
+        Write-Host ('>>> Non-Docker: crm-api health check passed (http://127.0.0.1:{0}/api/v1/health).' -f $BackendPort) -ForegroundColor Green
     }
 
     if ($restartExit -ne 0 -or $verifyExit -ne 0) {
-        Write-Host "ERROR: restart API failed (restart exit=$restartExit, health-wait exit=$verifyExit)." -ForegroundColor Red
-        Write-Host ">>> Remote diagnostics (run on server if empty: ssh then see DEPLOY_OPERATION_MANUAL.md §4):" -ForegroundColor Yellow
-        $diagApi = "if $SudoCmd systemctl list-unit-files 2>/dev/null | grep -qF 'crm-api.service'; then $SudoCmd systemctl status crm-api --no-pager -l 2>&1 || true; echo '--- journal (crm-api) ---'; $SudoCmd journalctl -u crm-api -n 50 --no-pager 2>&1 || true; else echo '--- no crm-api.service; nohup log ---'; tail -n 80 $nd/api.log 2>&1 || true; echo '--- listen 5000 ---'; ss -ltnp 2>/dev/null | grep -E ':5000\\b' || true; fi"
-        & ssh @SshTty @SshOpts -p $SshPort "${ServerUser}@${ServerIP}" "$diagApi"
+        Write-Host ('ERROR: restart API failed (restart exit={0}, health-wait exit={1}).' -f $restartExit, $verifyExit) -ForegroundColor Red
+        Write-Host '>>> Remote diagnostics (run on server if empty: ssh then see DEPLOY_OPERATION_MANUAL.md §4):' -ForegroundColor Yellow
+        $diagGrep5000 = [char]39 + ':5000\b' + [char]39
+        $diagApi = 'if ' + $SudoCmd + ' systemctl list-unit-files 2>/dev/null | grep -qF ''crm-api.service''; then ' + $SudoCmd + ' systemctl status crm-api --no-pager -l 2>&1 || true; echo ''--- journal (crm-api) ---''; ' + $SudoCmd + ' journalctl -u crm-api -n 50 --no-pager 2>&1 || true; else echo ''--- no crm-api.service; nohup log ---''; tail -n 80 ' + $nd + '/api.log 2>&1 || true; echo ''--- listen 5000 ---''; ss -ltnp 2>/dev/null | grep -E ' + $diagGrep5000 + ' || true; fi'
+        & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$diagApi"
         exit 1
     }
 
     Write-Host ">>> Non-Docker: crm-api status (is-active)" -ForegroundColor Gray
-    & ssh @SshTty @SshOpts -p $SshPort "${ServerUser}@${ServerIP}" "if $SudoCmd systemctl list-unit-files 2>/dev/null | grep -qF 'crm-api.service'; then $SudoCmd systemctl is-active crm-api; else pgrep -f 'dotnet CRM.API.dll' >/dev/null && echo active || echo inactive; fi"
+    $rApiIsActive = 'if ' + $SudoCmd + ' systemctl list-unit-files 2>/dev/null | grep -qF ''crm-api.service''; then ' + $SudoCmd + ' systemctl is-active crm-api; else pgrep -f ''dotnet CRM.API.dll'' >/dev/null && echo active || echo inactive; fi'
+    & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" $rApiIsActive
 }
 
 Write-Host ""
-Write-Host "Frontend: http://${ServerIP}" -ForegroundColor Gray
-Write-Host "API:      http://${ServerIP}:$BackendPort/api/v1" -ForegroundColor Gray
+Write-Host "Frontend: http://$ServerIP" -ForegroundColor Gray
+Write-Host ('API:      http://{0}:{1}/api/v1' -f $ServerIP, $BackendPort) -ForegroundColor Gray
 Write-Host ""
 Write-Host "deploy_full_to_server.ps1 done." -ForegroundColor Green

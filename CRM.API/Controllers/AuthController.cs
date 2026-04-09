@@ -5,6 +5,7 @@ using CRM.API.Services.Interfaces;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Rbac;
+using CRM.Core.Utilities;
 
 namespace CRM.API.Controllers
 {
@@ -407,15 +408,7 @@ namespace CRM.API.Controllers
                     .ToList();
                 var userDepartments = (await _userDepartmentRepo.GetAllAsync()).ToList();
 
-                bool IsPurchaseDepartment(RbacDepartment d)
-                {
-                    if (d.IdentityType is 2 or 3) return true;
-                    var name = d.DepartmentName ?? string.Empty;
-                    return name.Contains("采购", StringComparison.OrdinalIgnoreCase)
-                           || name.Contains("purchase", StringComparison.OrdinalIgnoreCase);
-                }
-
-                var purchaseDepartments = departments.Where(IsPurchaseDepartment).ToList();
+                var purchaseDepartments = departments.Where(PurchasingDepartmentRules.IsPurchaseDepartmentForRfqBuyer).ToList();
                 if (purchaseDepartments.Count == 0)
                     return Ok(ApiResponse<object>.Ok(Array.Empty<SalesUserTreeNodeDto>(), "获取采购员树成功"));
 
@@ -714,25 +707,17 @@ namespace CRM.API.Controllers
             IReadOnlyList<RbacDepartment> departments,
             IReadOnlyList<RbacUserDepartment> userDepartments)
         {
-            bool IsPurchase(RbacDepartment d)
-            {
-                if (d.IdentityType is 2 or 3) return true;
-                var n = d.DepartmentName ?? string.Empty;
-                return n.Contains("采购", StringComparison.OrdinalIgnoreCase)
-                       || n.Contains("purchase", StringComparison.OrdinalIgnoreCase);
-            }
-
             if (!string.IsNullOrWhiteSpace(summary.PrimaryDepartmentId))
             {
                 var pd = departments.FirstOrDefault(x => x.Id == summary.PrimaryDepartmentId);
-                if (pd != null && IsPurchase(pd))
+                if (pd != null && PurchasingDepartmentRules.IsPurchaseDepartmentForRfqBuyer(pd))
                     return summary.PrimaryDepartmentId;
             }
 
             foreach (var r in userDepartments.Where(x => x.UserId == userId))
             {
                 var d = departments.FirstOrDefault(x => x.Id == r.DepartmentId);
-                if (d != null && IsPurchase(d))
+                if (d != null && PurchasingDepartmentRules.IsPurchaseDepartmentForRfqBuyer(d))
                     return r.DepartmentId;
             }
 

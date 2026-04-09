@@ -8,6 +8,7 @@ using CRM.API.Services.Interfaces;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 
 namespace CRM.API.Services.Implementations
@@ -48,13 +49,13 @@ namespace CRM.API.Services.Implementations
                 }
             }
 
-            var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+            var (passwordHash, salt) = UserPasswordHasher.HashPassword(request.Password);
             var user = new User
             {
                 UserName = request.UserName,
                 Email = request.Email,
                 PasswordHash = passwordHash,
-                Salt = BCrypt.Net.BCrypt.GenerateSalt(),
+                Salt = salt,
                 PasswordPlain = request.Password, // 仅用于开发测试
                 IsActive = true
             };
@@ -81,17 +82,49 @@ namespace CRM.API.Services.Implementations
 
         public async Task<ApiResponse<AuthResponse>> LoginAsync(LoginRequest request)
         {
-            // 按账号（UserName）查询用户
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.UserName == request.UserName);
-
-            if (user == null || !user.IsActive)
+            var loginKey = (request.UserName ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(loginKey))
             {
+                _logger.LogWarning("Login rejected: empty account field");
+                return ApiResponse<AuthResponse>.Fail("请输入登录账号");
+            }
+
+            var loginKeyLower = loginKey.ToLowerInvariant();
+            // 与员工管理一致：按登录账号匹配；兼容大小写及「把邮箱填进账号框」的常见习惯
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u =>
+                    u.UserName.ToLower() == loginKeyLower
+                    || (u.Email != null && u.Email.ToLower() == loginKeyLower));
+
+            if (user == null)
+            {
+                _logger.LogWarning("Login failed: no user for loginKey={LoginKey}", loginKey);
                 return ApiResponse<AuthResponse>.Fail("账号不存在或已被禁用");
             }
 
-            if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            // 冻结时 IsActive 为 false，须先于「已禁用」判断以便返回明确提示
+            if (user.Status == UserAccountStatus.Frozen)
             {
+                _logger.LogWarning("Login failed: frozen UserId={UserId}", user.Id);
+                return ApiResponse<AuthResponse>.Fail("账号已冻结，请联系管理员在员工列表中恢复后再登录");
+            }
+
+            if (!user.IsActive)
+            {
+                _logger.LogWarning("Login failed: IsActive=false UserId={UserId}", user.Id);
+                return ApiResponse<AuthResponse>.Fail("账号不存在或已被禁用");
+            }
+
+            // 与员工列表「状态」一致：停用后不可登录（仅改 Status 时 IsActive 可能仍为 true）
+            if (user.Status != UserAccountStatus.Active)
+            {
+                _logger.LogWarning("Login failed: Status!=1 UserId={UserId} Status={Status}", user.Id, user.Status);
+                return ApiResponse<AuthResponse>.Fail("账号已停用，请联系管理员启用后再登录");
+            }
+
+            if (!UserPasswordHasher.Verify(request.Password ?? string.Empty, user.PasswordHash))
+            {
+                _logger.LogWarning("Login failed: password mismatch UserId={UserId} UserName={UserName}", user.Id, user.UserName);
                 return ApiResponse<AuthResponse>.Fail("密码错误");
             }
 
@@ -125,8 +158,12 @@ namespace CRM.API.Services.Implementations
                 return ApiResponse<AuthResponse>.Fail("不能模拟登录当前账号");
 
             var target = await _context.Users.FirstOrDefaultAsync(u => u.Id == targetUserId);
-            if (target == null || !target.IsActive || target.Status != 1)
-                return ApiResponse<AuthResponse>.Fail("目标账号不存在、已禁用或未启用");
+            if (target == null || !target.IsActive)
+                return ApiResponse<AuthResponse>.Fail("目标账号不存在或已禁用");
+            if (target.Status == UserAccountStatus.Frozen)
+                return ApiResponse<AuthResponse>.Fail("目标账号已冻结，无法模拟登录");
+            if (target.Status != UserAccountStatus.Active)
+                return ApiResponse<AuthResponse>.Fail("目标账号未启用");
 
             _logger.LogWarning(
                 "Impersonate login: actorUserId={ActorUserId} targetUserId={TargetUserId} targetUserName={TargetUserName}",

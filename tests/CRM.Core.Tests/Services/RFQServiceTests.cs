@@ -30,6 +30,8 @@ namespace CRM.Core.Tests.Services
         private readonly IRepository<SysParam> _sysParamRepo;
         private readonly IRepository<RbacRole> _rbacRoleRepo;
         private readonly IRepository<RbacUserRole> _rbacUserRoleRepo;
+        private readonly IRepository<RbacDepartment> _rbacDepartmentRepo;
+        private readonly IRepository<RbacUserDepartment> _rbacUserDepartmentRepo;
         private readonly IRepository<Quote> _quoteRepo;
         private readonly IRepository<User> _userRepo;
         private readonly RFQService _rfqService;
@@ -47,12 +49,16 @@ namespace CRM.Core.Tests.Services
             _sysParamRepo = Substitute.For<IRepository<SysParam>>();
             _rbacRoleRepo = Substitute.For<IRepository<RbacRole>>();
             _rbacUserRoleRepo = Substitute.For<IRepository<RbacUserRole>>();
+            _rbacDepartmentRepo = Substitute.For<IRepository<RbacDepartment>>();
+            _rbacUserDepartmentRepo = Substitute.For<IRepository<RbacUserDepartment>>();
             _quoteRepo = Substitute.For<IRepository<Quote>>();
             _userRepo = Substitute.For<IRepository<User>>();
             _sysParamRepo.FindAsync(Arg.Any<Expression<Func<SysParam, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<SysParam>>(Array.Empty<SysParam>()));
             _rbacRoleRepo.GetAllAsync().Returns(new List<RbacRole>());
             _rbacUserRoleRepo.GetAllAsync().Returns(new List<RbacUserRole>());
+            _rbacDepartmentRepo.GetAllAsync().Returns(new List<RbacDepartment>());
+            _rbacUserDepartmentRepo.GetAllAsync().Returns(new List<RbacUserDepartment>());
             _quoteRepo.GetAllAsync().Returns(new List<Quote>());
             _userRepo.GetAllAsync().Returns(new List<User>());
 
@@ -71,6 +77,8 @@ namespace CRM.Core.Tests.Services
                 _sysParamRepo,
                 _rbacRoleRepo,
                 _rbacUserRoleRepo,
+                _rbacDepartmentRepo,
+                _rbacUserDepartmentRepo,
                 _quoteRepo,
                 _userRepo,
                 NullLogger<RFQService>.Instance);
@@ -165,6 +173,10 @@ namespace CRM.Core.Tests.Services
                 });
             }
 
+            var rbacDeptRepo = Substitute.For<IRepository<RbacDepartment>>();
+            var rbacUserDeptRepo = Substitute.For<IRepository<RbacUserDepartment>>();
+            rbacDeptRepo.GetAllAsync().Returns(new List<RbacDepartment>());
+            rbacUserDeptRepo.GetAllAsync().Returns(new List<RbacUserDepartment>());
             var svc = new RFQService(
                 rfqRepo,
                 itemRepo,
@@ -177,6 +189,8 @@ namespace CRM.Core.Tests.Services
                 sysParamRepo,
                 roleRepo,
                 userRoleRepo,
+                rbacDeptRepo,
+                rbacUserDeptRepo,
                 Substitute.For<IRepository<Quote>>(),
                 userRepo,
                 NullLogger<RFQService>.Instance);

@@ -16,6 +16,12 @@ namespace CRM.Core.Interfaces
         /// 根据ID获取用户
         /// </summary>
         Task<User?> GetByIdAsync(string id);
+
+        /// <summary>管理端按 Id 加载（含冻结等 IsActive=false 的账号）。</summary>
+        Task<User?> GetByIdForAdminAsync(string id);
+
+        /// <summary>员工管理列表：含正常/停用/冻结，不含已软删（IsActive=false 且非冻结）。</summary>
+        Task<IEnumerable<User>> GetAllForAdminAsync();
         
         /// <summary>
         /// 根据用户名获取用户
@@ -66,6 +72,15 @@ namespace CRM.Core.Interfaces
         /// 检查用户名是否存在
         /// </summary>
         Task<bool> IsUserNameExistsAsync(string userName);
+
+        /// <summary>管理员重置密码（含已禁用账号，按 Id 查找）。</summary>
+        Task ResetPasswordAsync(string id, string newPassword);
+
+        /// <summary>冻结：不可登录、不可执行业务；列表中可恢复。</summary>
+        Task FreezeUserAsync(string id);
+
+        /// <summary>恢复冻结账号为正常。</summary>
+        Task UnfreezeUserAsync(string id);
     }
     
     /// <summary>

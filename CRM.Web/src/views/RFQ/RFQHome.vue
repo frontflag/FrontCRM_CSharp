@@ -35,7 +35,7 @@
           </div>
         </div>
         <button
-          v-if="canCreateRfq"
+          v-if="showCreateRfqButton"
           type="button"
           class="rfq-home__btn-create"
           @click="goCreateRfq"
@@ -160,6 +160,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { rfqApi } from '@/api/rfq'
 import { quoteApi } from '@/api/quote'
@@ -167,7 +168,8 @@ import { quoteApi } from '@/api/quote'
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
-const canCreateRfq = computed(() => authStore.hasPermission('rfq.write'))
+/** 与需求首页路由 rfq.read 一致；销售主部门账号在后端汇总中会合并 rfq.write */
+const showCreateRfqButton = computed(() => authStore.hasPermission('rfq.read'))
 
 const keyword = ref('')
 
@@ -235,6 +237,14 @@ function goRfqList() {
 }
 
 function goCreateRfq() {
+  if (authStore.isIdentityBlockedForPermission('rfq.write')) {
+    ElMessage.warning(t('rfqHome.createBlockedByIdentity'))
+    return
+  }
+  if (!authStore.hasPermission('rfq.write')) {
+    ElMessage.warning(t('rfqHome.createNeedRfqWrite'))
+    return
+  }
   router.push({ name: 'RFQCreate' })
 }
 

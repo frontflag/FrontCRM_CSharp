@@ -40,6 +40,8 @@ namespace CRM.IntegrationTests
         private readonly IRepository<SysParam> _sysParamRepo;
         private readonly IRepository<RbacRole> _rbacRoleRepo;
         private readonly IRepository<RbacUserRole> _rbacUserRoleRepo;
+        private readonly IRepository<RbacDepartment> _rbacDepartmentRepo;
+        private readonly IRepository<RbacUserDepartment> _rbacUserDepartmentRepo;
         private readonly IRepository<User> _userRepo;
         private readonly RFQService _rfqService;
         private readonly QuoteService _quoteService;
@@ -71,11 +73,15 @@ namespace CRM.IntegrationTests
             _sysParamRepo = Substitute.For<IRepository<SysParam>>();
             _rbacRoleRepo = Substitute.For<IRepository<RbacRole>>();
             _rbacUserRoleRepo = Substitute.For<IRepository<RbacUserRole>>();
+            _rbacDepartmentRepo = Substitute.For<IRepository<RbacDepartment>>();
+            _rbacUserDepartmentRepo = Substitute.For<IRepository<RbacUserDepartment>>();
             _userRepo = Substitute.For<IRepository<User>>();
             _sysParamRepo.FindAsync(Arg.Any<Expression<Func<SysParam, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<SysParam>>(Array.Empty<SysParam>()));
             _rbacRoleRepo.GetAllAsync().Returns(new List<RbacRole>());
             _rbacUserRoleRepo.GetAllAsync().Returns(new List<RbacUserRole>());
+            _rbacDepartmentRepo.GetAllAsync().Returns(new List<RbacDepartment>());
+            _rbacUserDepartmentRepo.GetAllAsync().Returns(new List<RbacUserDepartment>());
             _userRepo.GetAllAsync().Returns(new List<User>());
             _rfqService = new RFQService(
                 _rfqRepository,
@@ -89,6 +95,8 @@ namespace CRM.IntegrationTests
                 _sysParamRepo,
                 _rbacRoleRepo,
                 _rbacUserRoleRepo,
+                _rbacDepartmentRepo,
+                _rbacUserDepartmentRepo,
                 _quoteRepository,
                 _userRepo,
                 NullLogger<RFQService>.Instance);
@@ -1125,6 +1133,10 @@ namespace CRM.IntegrationTests
             var sysParamRepo = Substitute.For<IRepository<SysParam>>();
             var rbacRoleRepo = Substitute.For<IRepository<RbacRole>>();
             var rbacUserRoleRepo = Substitute.For<IRepository<RbacUserRole>>();
+            var rbacDepartmentRepo = Substitute.For<IRepository<RbacDepartment>>();
+            var rbacUserDepartmentRepo = Substitute.For<IRepository<RbacUserDepartment>>();
+            rbacDepartmentRepo.GetAllAsync().Returns(new List<RbacDepartment>());
+            rbacUserDepartmentRepo.GetAllAsync().Returns(new List<RbacUserDepartment>());
             var quoteRepo = Substitute.For<IRepository<Quote>>();
             var userRepo = Substitute.For<IRepository<User>>();
             var logger = Substitute.For<ILogger<RFQService>>();
@@ -1133,7 +1145,7 @@ namespace CRM.IntegrationTests
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
-                sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, quoteRepo,
+                sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, rbacDepartmentRepo, rbacUserDepartmentRepo, quoteRepo,
                 userRepo, logger);
 
             // 模拟序列号生成
@@ -1216,6 +1228,10 @@ namespace CRM.IntegrationTests
             var sysParamRepo = Substitute.For<IRepository<SysParam>>();
             var rbacRoleRepo = Substitute.For<IRepository<RbacRole>>();
             var rbacUserRoleRepo = Substitute.For<IRepository<RbacUserRole>>();
+            var rbacDepartmentRepo = Substitute.For<IRepository<RbacDepartment>>();
+            var rbacUserDepartmentRepo = Substitute.For<IRepository<RbacUserDepartment>>();
+            rbacDepartmentRepo.GetAllAsync().Returns(new List<RbacDepartment>());
+            rbacUserDepartmentRepo.GetAllAsync().Returns(new List<RbacUserDepartment>());
             var quoteRepo = Substitute.For<IRepository<Quote>>();
             var userRepo = Substitute.For<IRepository<User>>();
             var logger = Substitute.For<ILogger<RFQService>>();
@@ -1233,7 +1249,7 @@ namespace CRM.IntegrationTests
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
-                sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, quoteRepo,
+                sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, rbacDepartmentRepo, rbacUserDepartmentRepo, quoteRepo,
                 userRepo, logger);
 
             // 模拟序列号生成
@@ -1338,6 +1354,10 @@ namespace CRM.IntegrationTests
             var sysParamRepo = Substitute.For<IRepository<SysParam>>();
             var rbacRoleRepo = Substitute.For<IRepository<RbacRole>>();
             var rbacUserRoleRepo = Substitute.For<IRepository<RbacUserRole>>();
+            var rbacDepartmentRepo = Substitute.For<IRepository<RbacDepartment>>();
+            var rbacUserDepartmentRepo = Substitute.For<IRepository<RbacUserDepartment>>();
+            rbacDepartmentRepo.GetAllAsync().Returns(new List<RbacDepartment>());
+            rbacUserDepartmentRepo.GetAllAsync().Returns(new List<RbacUserDepartment>());
             var quoteRepo = Substitute.For<IRepository<Quote>>();
             var userRepo = Substitute.For<IRepository<User>>();
             var logger = Substitute.For<ILogger<RFQService>>();
@@ -1346,7 +1366,7 @@ namespace CRM.IntegrationTests
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
-                sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, quoteRepo,
+                sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, rbacDepartmentRepo, rbacUserDepartmentRepo, quoteRepo,
                 userRepo, logger);
 
             // 准备用户数据

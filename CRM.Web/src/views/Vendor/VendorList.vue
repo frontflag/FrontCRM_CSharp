@@ -157,7 +157,7 @@
     <div class="table-wrapper" v-loading="loading">
       <CrmDataTable
         ref="dataTableRef"
-        column-layout-key="vendor-list-main"
+        column-layout-key="vendor-list-main-v2"
         :columns="vendorTableColumns"
         :show-column-settings="false"
         :data="vendorList"
@@ -193,6 +193,12 @@
               <div class="cell-short" v-if="row.code">{{ row.code }}</div>
             </div>
           </div>
+        </template>
+        <template #col-chineseOfficialName="{ row }">
+          <span class="td-muted">{{ row.officialName || row.name || '--' }}</span>
+        </template>
+        <template #col-englishOfficialName="{ row }">
+          <span class="td-muted">{{ row.englishOfficialName || '--' }}</span>
         </template>
         <template #col-level="{ row }"><span class="td-muted">{{ vendorDict.levelLabel(row.level) }}</span></template>
         <template #col-credit="{ row }"><span class="td-muted td-identity">{{ vendorDict.identityLabel(row.credit) }}</span></template>
@@ -446,6 +452,8 @@ const pagination = reactive({ pageNumber: 1, pageSize: 20 });
 const vendorTableColumns = computed<CrmTableColumnDef[]>(() => {
   const cols: CrmTableColumnDef[] = [
     { key: 'code', label: t('vendorList.columns.code'), prop: 'code', width: 160, minWidth: 160, showOverflowTooltip: true },
+    { key: 'chineseOfficialName', label: t('vendorList.columns.chineseOfficialName'), minWidth: 160, showOverflowTooltip: true },
+    { key: 'englishOfficialName', label: t('vendorList.columns.englishOfficialName'), minWidth: 160, showOverflowTooltip: true },
     { key: 'status', label: t('vendorList.columns.status'), prop: 'status', width: 160, align: 'center' },
     { key: 'level', label: t('vendorList.columns.level'), prop: 'level', width: 80, align: 'center' },
     { key: 'credit', label: t('vendorList.columns.identity'), prop: 'credit', width: 100, align: 'center' },
@@ -455,8 +463,13 @@ const vendorTableColumns = computed<CrmTableColumnDef[]>(() => {
     { key: 'createUser', label: t('vendorList.columns.createUser'), width: 120, showOverflowTooltip: true }
   ]
   if (canViewVendorInfo) {
-    cols.splice(2, 0, { key: 'officialName', label: t('vendorList.columns.name'), minWidth: 200, showOverflowTooltip: true })
-    cols.splice(7, 0,
+    cols.splice(3, 0, {
+      key: 'officialName',
+      label: t('vendorList.columns.name'),
+      minWidth: 200,
+      showOverflowTooltip: true
+    })
+    cols.splice(9, 0,
       { key: 'contactName', label: t('vendorList.columns.contactName'), width: 130, showOverflowTooltip: true },
       { key: 'phone', label: t('vendorList.columns.phone'), width: 130, showOverflowTooltip: true }
     )

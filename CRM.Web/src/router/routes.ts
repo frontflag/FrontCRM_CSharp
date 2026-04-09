@@ -123,7 +123,7 @@ const routes: RouteRecordRaw[] = [
         path: 'rfqs/create',
         name: 'RFQCreate',
         component: () => import('@/views/RFQ/RFQCreate.vue'),
-        meta: { requiresAuth: true, title: '新建需求' }
+        meta: { requiresAuth: true, title: '新建需求', permission: 'rfq.write' }
       },
       {
         path: 'rfqs/:id',
@@ -135,7 +135,7 @@ const routes: RouteRecordRaw[] = [
         path: 'rfqs/:id/edit',
         name: 'RFQEdit',
         component: () => import('@/views/RFQ/RFQCreate.vue'),
-        meta: { requiresAuth: true, title: '编辑需求' }
+        meta: { requiresAuth: true, title: '编辑需求', permission: 'rfq.write' }
       },
       {
         path: 'rfqs',
@@ -278,7 +278,12 @@ const routes: RouteRecordRaw[] = [
         path: 'inventory/stock-out-notifies',
         name: 'InventoryStockOutNotifyList',
         component: () => import('@/views/RFQ/StockOutNotifyList.vue'),
-        meta: { requiresAuth: true, title: '出库通知', permission: 'sales-order.read' }
+        meta: {
+          requiresAuth: true,
+          title: '出库通知',
+          // 销售用 SO 权限；采购/履约用 PO 权限（采购主部门不再持有 sales-order.read）
+          permissions: ['sales-order.read', 'purchase-order.read']
+        }
       },
       {
         path: 'inventory/transfer',
@@ -317,62 +322,79 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/RFQ/QuoteDetail.vue'),
         meta: { requiresAuth: true, title: '报价单详情' }
       },
-      // 采购订单
+      // 采购订单 / 采购申请（meta.permission 与 RbacService 销售主部门剥离一致）
       {
         path: 'purchase-orders',
         name: 'PurchaseOrderList',
         component: () => import('@/views/RFQ/PurchaseOrderList.vue'),
-        meta: { requiresAuth: true, title: '采购订单' }
+        meta: { requiresAuth: true, title: '采购订单', permission: 'purchase-order.read' }
       },
-      // 采购申请
       {
         path: 'purchase-requisitions',
         name: 'PurchaseRequisitionList',
         component: () => import('@/views/RFQ/PurchaseRequisitionListPage.vue'),
-        meta: { requiresAuth: true, title: '采购申请' }
+        meta: {
+          requiresAuth: true,
+          title: '采购申请',
+          /** sales-order.read：主部门未标销售时 Rbac 仍可能已合并 PR，此项作路由兜底 */
+          permissions: ['purchase-requisition.read', 'purchase-order.read', 'sales-order.read']
+        }
       },
       {
         path: 'purchase-requisitions/new',
         name: 'PurchaseRequisitionCreate',
         component: () => import('@/views/RFQ/PurchaseRequisitionCreate.vue'),
-        meta: { requiresAuth: true, title: '新建采购申请' }
+        meta: {
+          requiresAuth: true,
+          title: '新建采购申请',
+          permissions: ['purchase-requisition.write', 'purchase-order.write', 'sales-order.write']
+        }
       },
       {
         path: 'purchase-requisitions/:id',
         name: 'PurchaseRequisitionDetail',
         component: () => import('@/views/RFQ/PurchaseRequisitionDetailPage.vue'),
-        meta: { requiresAuth: true, title: '采购申请详情' }
+        meta: {
+          requiresAuth: true,
+          title: '采购申请详情',
+          permissions: ['purchase-requisition.read', 'purchase-order.read', 'sales-order.read']
+        }
       },
       {
         path: 'purchase-orders/new',
         name: 'PurchaseOrderCreate',
         component: () => import('@/views/RFQ/PurchaseOrderCreate.vue'),
-        meta: { requiresAuth: true, title: '新建采购订单' }
+        meta: {
+          requiresAuth: true,
+          title: '新建采购订单',
+          /** 权限由全局守卫 purchaseOrderCreateAccess + canAccessPurchaseOrderCreatePage 判定（销售员不可进） */
+          purchaseOrderCreateAccess: true
+        }
       },
       {
         path: 'purchase-orders/:id/report',
         name: 'PurchaseOrderReport',
         component: () => import('@/views/RFQ/PurchaseOrderReportPage.vue'),
-        meta: { requiresAuth: true, title: '采购订单报表' }
+        meta: { requiresAuth: true, title: '采购订单报表', permission: 'purchase-order.read' }
       },
       {
         path: 'purchase-orders/:id/edit',
         name: 'PurchaseOrderEdit',
         component: () => import('@/views/RFQ/PurchaseOrderCreate.vue'),
-        meta: { requiresAuth: true, title: '编辑采购订单' }
+        meta: { requiresAuth: true, title: '编辑采购订单', permission: 'purchase-order.write' }
       },
       {
         path: 'purchase-orders/:id',
         name: 'PurchaseOrderDetail',
         component: () => import('@/views/RFQ/PurchaseOrderDetail.vue'),
-        meta: { requiresAuth: true, title: '采购订单详情' }
+        meta: { requiresAuth: true, title: '采购订单详情', permission: 'purchase-order.read' }
       },
-      // 销售订单
+      // 销售订单（直链防护；采购主部门无 sales-order.read）
       {
         path: 'sales-orders',
         name: 'SalesOrderList',
         component: () => import('@/views/RFQ/SalesOrderList.vue'),
-        meta: { requiresAuth: true, title: '销售订单' }
+        meta: { requiresAuth: true, title: '销售订单', permission: 'sales-order.read' }
       },
       {
         path: 'sales-order-items',
@@ -384,7 +406,11 @@ const routes: RouteRecordRaw[] = [
         path: 'stock-out-notifies',
         name: 'StockOutNotifyList',
         component: () => import('@/views/RFQ/StockOutNotifyList.vue'),
-        meta: { requiresAuth: true, title: '出库通知', permission: 'sales-order.read' }
+        meta: {
+          requiresAuth: true,
+          title: '出库通知',
+          permissions: ['sales-order.read', 'purchase-order.read']
+        }
       },
       // 采购订单明细
       {
@@ -415,13 +441,13 @@ const routes: RouteRecordRaw[] = [
         path: 'sales-orders/new',
         name: 'SalesOrderCreate',
         component: () => import('@/views/RFQ/SalesOrderCreate.vue'),
-        meta: { requiresAuth: true, title: '新建销售订单' }
+        meta: { requiresAuth: true, title: '新建销售订单', permission: 'sales-order.write' }
       },
       {
         path: 'sales-orders/:id',
         name: 'SalesOrderDetail',
         component: () => import('@/views/RFQ/SalesOrderDetail.vue'),
-        meta: { requiresAuth: true, title: '销售订单详情' }
+        meta: { requiresAuth: true, title: '销售订单详情', permission: 'sales-order.read' }
       },
       // 系统设置
       {
@@ -561,54 +587,54 @@ const routes: RouteRecordRaw[] = [
           }
         ]
       },
-      // 财务模块
+      // 财务模块（meta.permission 与 RbacService 按主部门剥离一致，防止直链 URL）
       {
         path: 'finance/payments',
         name: 'FinancePaymentList',
         component: () => import('@/views/Finance/FinancePaymentList.vue'),
-        meta: { requiresAuth: true, title: '付款管理' }
+        meta: { requiresAuth: true, title: '付款管理', permission: 'finance-payment.read' }
       },
       {
         path: 'finance/payments/:id',
         name: 'FinancePaymentDetail',
         component: () => import('@/views/Finance/FinancePaymentDetail.vue'),
-        meta: { requiresAuth: true, title: '付款单详情' }
+        meta: { requiresAuth: true, title: '付款单详情', permission: 'finance-payment.read' }
       },
       {
         path: 'finance/receipts',
         name: 'FinanceReceiptList',
         component: () => import('@/views/Finance/FinanceReceiptList.vue'),
-        meta: { requiresAuth: true, title: '收款管理' }
+        meta: { requiresAuth: true, title: '收款管理', permission: 'finance-receipt.read' }
       },
       {
         path: 'finance/receipts/:id',
         name: 'FinanceReceiptDetail',
         component: () => import('@/views/Finance/FinanceReceiptDetail.vue'),
-        meta: { requiresAuth: true, title: '收款单详情' }
+        meta: { requiresAuth: true, title: '收款单详情', permission: 'finance-receipt.read' }
       },
       {
         path: 'finance/purchase-invoices',
         name: 'FinancePurchaseInvoiceList',
         component: () => import('@/views/Finance/FinancePurchaseInvoiceList.vue'),
-        meta: { requiresAuth: true, title: '进项发票' }
+        meta: { requiresAuth: true, title: '进项发票', permission: 'finance-purchase-invoice.read' }
       },
       {
         path: 'finance/purchase-invoices/:id',
         name: 'FinancePurchaseInvoiceDetail',
         component: () => import('@/views/Finance/FinancePurchaseInvoiceDetail.vue'),
-        meta: { requiresAuth: true, title: '进项发票详情' }
+        meta: { requiresAuth: true, title: '进项发票详情', permission: 'finance-purchase-invoice.read' }
       },
       {
         path: 'finance/sell-invoices',
         name: 'FinanceSellInvoiceList',
         component: () => import('@/views/Finance/FinanceSellInvoiceList.vue'),
-        meta: { requiresAuth: true, title: '销项发票' }
+        meta: { requiresAuth: true, title: '销项发票', permission: 'finance-sell-invoice.read' }
       },
       {
         path: 'finance/sell-invoices/:id',
         name: 'FinanceSellInvoiceDetail',
         component: () => import('@/views/Finance/FinanceSellInvoiceDetail.vue'),
-        meta: { requiresAuth: true, title: '销项发票详情' }
+        meta: { requiresAuth: true, title: '销项发票详情', permission: 'finance-sell-invoice.read' }
       },
       {
         path: 'documents/demo',

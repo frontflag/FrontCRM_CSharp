@@ -126,7 +126,7 @@
                 v-model="row.requestAmount"
                 v-model:currency="paymentForm.currency"
                 :min="0"
-                :max="row.pendingRequested"
+                :max="paymentRequestAmountMax(row)"
                 :precision="2"
               />
             </template>
@@ -331,6 +331,11 @@ const paymentTotalAmount = computed(() => {
     Number(fee.rounding || 0)
   return Math.max(0, linesTotal + feeTotal)
 })
+
+function paymentRequestAmountMax(row: { pendingRequested?: number }) {
+  const p = Number(row?.pendingRequested ?? 0)
+  return p > 0 ? p : undefined
+}
 
 function buildFinancePaymentCode() {
   const d = new Date()

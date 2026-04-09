@@ -18,6 +18,7 @@ namespace CRM.Core.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IDataPermissionService _dataPermissionService;
+        private readonly IUserService _userService;
 
         public VendorService(
             IRepository<VendorInfo> repository,
@@ -27,7 +28,8 @@ namespace CRM.Core.Services
             IRepository<VendorContactHistory> historyRepository,
             IUnitOfWork unitOfWork,
             ISerialNumberService serialNumberService,
-            IDataPermissionService dataPermissionService)
+            IDataPermissionService dataPermissionService,
+            IUserService userService)
         {
             _repository = repository;
             _contactRepository = contactRepository;
@@ -37,6 +39,21 @@ namespace CRM.Core.Services
             _unitOfWork = unitOfWork;
             _serialNumberService = serialNumberService;
             _dataPermissionService = dataPermissionService;
+            _userService = userService;
+        }
+
+        /// <summary>前端未传采购员姓名时，用归属用户（RBAC Id）的姓名/账号填充展示字段。</summary>
+        private async Task TryFillPurchaserNameFromUserAsync(VendorInfo entity, string? preferredRbacUserId)
+        {
+            if (!string.IsNullOrWhiteSpace(entity.PurchaserName)) return;
+            var uid = ActingUserIdNormalizer.Normalize(preferredRbacUserId) ?? entity.PurchaseUserId;
+            if (string.IsNullOrWhiteSpace(uid)) return;
+            var u = await _userService.GetByIdAsync(uid);
+            if (u == null) return;
+            if (!string.IsNullOrWhiteSpace(u.RealName))
+                entity.PurchaserName = u.RealName.Trim();
+            else if (!string.IsNullOrWhiteSpace(u.UserName))
+                entity.PurchaserName = u.UserName.Trim();
         }
 
         private static string SqlQ(string? s) => (s ?? "").Replace("'", "''");
@@ -90,6 +107,13 @@ namespace CRM.Core.Services
                 CreateTime = DateTime.UtcNow,
                 CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
+
+            // 采购数据权限按 PurchaseUserId 过滤（PurchaseDataScope=1 仅本人）；未写入则列表不可见
+            var ownerId = ActingUserIdNormalizer.Normalize(actingUserId);
+            if (!string.IsNullOrWhiteSpace(ownerId))
+                entity.PurchaseUserId = ownerId;
+
+            await TryFillPurchaserNameFromUserAsync(entity, ownerId);
 
             await _repository.AddAsync(entity);
             await _unitOfWork.SaveChangesAsync();
@@ -386,6 +410,13 @@ namespace CRM.Core.Services
                 entity.EnglishOfficialName = string.IsNullOrWhiteSpace(request.EnglishOfficialName)
                     ? null
                     : request.EnglishOfficialName.Trim();
+
+            // 历史数据/草稿首转正式时可能未带归属采购员，补写以便数据权限可见
+            var uid = ActingUserIdNormalizer.Normalize(actingUserId);
+            if (!string.IsNullOrWhiteSpace(uid) && string.IsNullOrWhiteSpace(entity.PurchaseUserId))
+                entity.PurchaseUserId = uid;
+
+            await TryFillPurchaserNameFromUserAsync(entity, uid);
 
             entity.ModifyTime = DateTime.UtcNow;
             entity.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);

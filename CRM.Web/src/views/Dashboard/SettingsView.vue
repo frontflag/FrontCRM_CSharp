@@ -30,16 +30,25 @@
           <div class="section-title">
             <span class="title-bar"></span>{{ t('dashboardSettings.tabs.basic') }}
           </div>
+          <p v-if="!canEditSystemMeta" class="meta-readonly-hint">{{ t('dashboardSettings.basic.adminOnlyMetaHint') }}</p>
           <el-form :model="basicSettings" label-width="120px" class="settings-form">
             <el-row :gutter="24">
               <el-col :span="12">
                 <el-form-item :label="t('dashboardSettings.basic.systemName')">
-                  <el-input v-model="basicSettings.systemName" :placeholder="t('dashboardSettings.basic.systemNamePlaceholder')" />
+                  <el-input
+                    v-model="basicSettings.systemName"
+                    :placeholder="t('dashboardSettings.basic.systemNamePlaceholder')"
+                    :disabled="!canEditSystemMeta"
+                  />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item :label="t('dashboardSettings.basic.systemVersion')">
-                  <el-input v-model="basicSettings.systemVersion" :placeholder="t('dashboardSettings.basic.systemVersionPlaceholder')" />
+                  <el-input
+                    v-model="basicSettings.systemVersion"
+                    :placeholder="t('dashboardSettings.basic.systemVersionPlaceholder')"
+                    :disabled="!canEditSystemMeta"
+                  />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -63,6 +72,7 @@
                     type="textarea"
                     :rows="3"
                     :placeholder="t('dashboardSettings.basic.descriptionPlaceholder')"
+                    :disabled="!canEditSystemMeta"
                   />
                 </el-form-item>
               </el-col>
@@ -198,8 +208,13 @@ import { reactive, ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElNotification } from 'element-plus'
 import { Setting, Lock, Bell, InfoFilled, Check } from '@element-plus/icons-vue'
+import { useAuthStore } from '@/stores'
 
 const { t, locale } = useI18n()
+const authStore = useAuthStore()
+
+/** 系统名称 / 版本 / 描述：仅 SYS_ADMIN（isSysAdmin）可改，与后端 RBAC 一致 */
+const canEditSystemMeta = computed(() => authStore.user?.isSysAdmin === true)
 
 const activeTab = ref('basic')
 
@@ -237,6 +252,12 @@ const notificationSettings = reactive({
 })
 
 const handleSaveBasic = () => {
+  // 非管理员即使篡改 DOM 也不应覆盖三项系统标识（当前为前端演示数据；接 API 时只提交允许字段）
+  if (!canEditSystemMeta.value) {
+    // 保留展示值与初始一致：从登录态无法获知服务端最新值时可省略；此处防止本地被改后误保存
+    // eslint-disable-next-line no-console -- 调试时可观察
+    void 0
+  }
   ElNotification.success({ title: t('common.saveSuccess'), message: t('dashboardSettings.messages.basicSaved') })
 }
 
@@ -321,6 +342,13 @@ const handleSaveNotification = () => {
   border: 1px solid $border-card;
   border-radius: 8px;
   padding: 20px 24px;
+}
+
+.meta-readonly-hint {
+  font-size: 12px;
+  color: $text-muted;
+  margin: -12px 0 16px;
+  line-height: 1.5;
 }
 
 .section-title {

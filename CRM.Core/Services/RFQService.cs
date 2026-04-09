@@ -27,6 +27,8 @@ namespace CRM.Core.Services
         private readonly IRepository<SysParam> _sysParamRepo;
         private readonly IRepository<RbacRole> _rbacRoleRepo;
         private readonly IRepository<RbacUserRole> _rbacUserRoleRepo;
+        private readonly IRepository<RbacDepartment> _rbacDepartmentRepo;
+        private readonly IRepository<RbacUserDepartment> _rbacUserDepartmentRepo;
         private readonly IRepository<Quote> _quoteRepo;
         private readonly IRepository<User> _userRepo;
         private readonly ILogger<RFQService> _logger;
@@ -43,6 +45,8 @@ namespace CRM.Core.Services
             IRepository<SysParam> sysParamRepo,
             IRepository<RbacRole> rbacRoleRepo,
             IRepository<RbacUserRole> rbacUserRoleRepo,
+            IRepository<RbacDepartment> rbacDepartmentRepo,
+            IRepository<RbacUserDepartment> rbacUserDepartmentRepo,
             IRepository<Quote> quoteRepo,
             IRepository<User> userRepo,
             ILogger<RFQService> logger)
@@ -58,6 +62,8 @@ namespace CRM.Core.Services
             _sysParamRepo = sysParamRepo;
             _rbacRoleRepo = rbacRoleRepo;
             _rbacUserRoleRepo = rbacUserRoleRepo;
+            _rbacDepartmentRepo = rbacDepartmentRepo;
+            _rbacUserDepartmentRepo = rbacUserDepartmentRepo;
             _quoteRepo = quoteRepo;
             _userRepo = userRepo;
             _logger = logger;
@@ -710,20 +716,81 @@ namespace CRM.Core.Services
                 candIds.Count);
 
             var allUsers = (await _userRepo.GetAllAsync()).ToList();
-            var pool = allUsers
-                .Where(u => candIds.Contains(u.Id) && u.IsActive)
-                .OrderBy(u => u.Id, StringComparer.Ordinal)
-                .Select(u => u.Id)
+            var activeById = allUsers.Where(u => u.IsActive).ToDictionary(u => u.Id, StringComparer.OrdinalIgnoreCase);
+
+            var allDepts = (await _rbacDepartmentRepo.GetAllAsync()).Where(d => d.Status == 1).ToList();
+            var allUserDept = (await _rbacUserDepartmentRepo.GetAllAsync()).ToList();
+
+            var purchaseDeptIds = allDepts
+                .Where(PurchasingDepartmentRules.IsPurchaseDepartmentForRfqBuyer)
+                .Select(d => d.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var opsDeptIds = allDepts
+                .Where(PurchasingDepartmentRules.IsPurchasingOperationsDepartment)
+                .Select(d => d.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var primaryPurchaseUserIds = allUserDept
+                .Where(ud => ud.IsPrimary && purchaseDeptIds.Contains(ud.DepartmentId))
+                .Select(ud => ud.UserId)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+
+            var poolSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var pool = new List<string>();
+
+            void TryAddPool(string userId)
+            {
+                if (string.IsNullOrWhiteSpace(userId) || poolSet.Contains(userId)) return;
+                if (!activeById.TryGetValue(userId, out _)) return;
+                poolSet.Add(userId);
+                pool.Add(userId);
+            }
+
+            foreach (var uid in candIds.OrderBy(x => x, StringComparer.Ordinal))
+                TryAddPool(uid);
+
+            var fromRoleCount = pool.Count;
+            foreach (var uid in primaryPurchaseUserIds.OrderBy(x => x, StringComparer.Ordinal))
+                TryAddPool(uid);
+
+            var fromDeptOnly = pool.Count - fromRoleCount;
+            if (fromDeptOnly > 0)
+            {
+                _logger.LogInformation(
+                    "【需求-采购员轮询】除角色池外，合并主部门在采购相关部门的在职用户 {DeptOnlyCount} 人（仅绑 DEPT_EMPLOYEE 等、未绑 purchase_buyer 也会入池）。",
+                    fromDeptOnly);
+            }
 
             var inactiveOrMissing = candIds.Count - allUsers.Count(u => candIds.Contains(u.Id) && u.IsActive);
             if (inactiveOrMissing > 0)
             {
                 _logger.LogInformation(
-                    "【需求-采购员轮询】候选 UserId 中因用户不存在或 IsActive=false 被过滤约 {Filtered} 个（候选 {Cand} 人，入池 {Pool} 人）。",
+                    "【需求-采购员轮询】角色候选 UserId 中因用户不存在或 IsActive=false 被过滤约 {Filtered} 个（候选 {Cand} 人）。",
                     inactiveOrMissing,
-                    candIds.Count,
-                    pool.Count);
+                    candIds.Count);
+            }
+
+            pool.Sort(StringComparer.Ordinal);
+
+            if (opsDeptIds.Count > 0 && pool.Count > 0)
+            {
+                var before = pool.Count;
+                pool = pool
+                    .Where(uid =>
+                    {
+                        var p = allUserDept.FirstOrDefault(ud =>
+                            string.Equals(ud.UserId, uid, StringComparison.OrdinalIgnoreCase) && ud.IsPrimary);
+                        return p == null || !opsDeptIds.Contains(p.DepartmentId);
+                    })
+                    .ToList();
+                if (before != pool.Count)
+                {
+                    _logger.LogInformation(
+                        "【需求-采购员轮询】已排除主部门在采购运营部的用户 {Removed} 人（不参与询价分配）。",
+                        before - pool.Count);
+                }
             }
 
             _logger.LogInformation(

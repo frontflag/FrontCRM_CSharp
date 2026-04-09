@@ -8,7 +8,8 @@ namespace CRM.Core.Interfaces
         Task<IReadOnlyList<DraftDto>> GetDraftsAsync(long userId, GetDraftsRequest request);
         Task<DraftDto?> GetDraftByIdAsync(long userId, string draftId);
         Task DeleteDraftAsync(long userId, string draftId);
-        Task<DraftConvertResultDto> ConvertDraftAsync(long userId, string draftId);
+        /// <param name="actingRbacUserId">RBAC 用户 Guid，转正式写业务实体归属（如 vendorinfo.PurchaseUserId）</param>
+        Task<DraftConvertResultDto> ConvertDraftAsync(long userId, string draftId, string? actingRbacUserId = null);
     }
 
     public class SaveDraftRequest

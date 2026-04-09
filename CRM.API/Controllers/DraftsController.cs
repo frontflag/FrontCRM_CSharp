@@ -2,6 +2,7 @@ using CRM.API.Models.DTOs;
 using CRM.API.Authorization;
 using CRM.Core.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace CRM.API.Controllers
 {
@@ -112,7 +113,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var result = await _draftService.ConvertDraftAsync(GetCurrentUserId(), draftId);
+                var rbacUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var result = await _draftService.ConvertDraftAsync(GetCurrentUserId(), draftId, rbacUserId);
                 return Ok(ApiResponse<DraftConvertResultDto>.Ok(result, "草稿转正式成功"));
             }
             catch (ArgumentException ex)

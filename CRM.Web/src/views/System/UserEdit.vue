@@ -22,11 +22,15 @@
         <el-form-item :label="t('systemUser.colMobile')">
           <el-input v-model="formData.mobile" />
         </el-form-item>
-        <el-form-item :label="t('systemUser.colStatus')">
+        <el-form-item v-if="formData.status !== 2" :label="t('systemUser.colStatus')">
           <el-select v-model="formData.status" style="width: 160px">
             <el-option :value="1" :label="t('systemUser.statusEnabled')" />
             <el-option :value="0" :label="t('systemUser.statusDisabled')" />
           </el-select>
+        </el-form-item>
+        <el-form-item v-else :label="t('systemUser.colStatus')">
+          <el-tag type="danger" effect="dark">{{ t('systemUser.statusFrozen') }}</el-tag>
+          <div class="field-hint">{{ t('systemUser.editFrozenHint') }}</div>
         </el-form-item>
 
         <el-form-item label="部门角色">
@@ -44,6 +48,29 @@
         <el-form-item v-if="canGrantSysAdmin && sysAdminRoleId" label="系统管理员">
           <el-checkbox v-model="grantSysAdmin">授予系统管理员权限（SYS_ADMIN）</el-checkbox>
           <div class="field-hint">与部门角色可同时存在：仍须选择一种部门组织角色。仅当前登录账号为系统管理员时显示此项。</div>
+        </el-form-item>
+
+        <el-form-item label="业务扩展角色">
+          <el-select
+            v-model="selectedBusinessRoleIds"
+            multiple
+            filterable
+            collapse-tags
+            collapse-tags-tooltip
+            placeholder="可选：如采购员 purchase_buyer"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="r in businessExtensionRoleOptions"
+              :key="r.id"
+              :label="`${r.roleCode} — ${r.roleName}`"
+              :value="r.id"
+            />
+          </el-select>
+          <div class="field-hint">
+            与「部门角色」可同时存在。需求询价轮询、部分采购菜单等依赖 <code>purchase_buyer</code>；仅
+            DEPT_EMPLOYEE 不会自动包含该项，需在此勾选保存。
+          </div>
         </el-form-item>
 
         <el-form-item label="部门">
@@ -104,6 +131,18 @@ const saving = ref(false)
 /** 与后端数据权限、seed_dept_org_roles.sql 一致 */
 const ORG_ROLE_CODES = ['DEPT_DIRECTOR', 'DEPT_MANAGER', 'DEPT_EMPLOYEE'] as const
 
+/** 与 RbacController.AssignableUserRoleCodes 一致：可与部门角色并存，打开员工编辑时不得被误删 */
+const PRESERVABLE_BUSINESS_ROLE_CODES = new Set<string>([
+  'purchase_buyer',
+  'biz_all',
+  'sales_operator',
+  'purchase_operator',
+  'commerce_operator',
+  'purchase_ops_operator',
+  'logistics_operator',
+  'finance_operator'
+])
+
 const roles = ref<RbacRole[]>([])
 const departments = ref<RbacDepartment[]>([])
 /** 非部门标准角色的 roleId（如业务扩展角色），保存时原样带回，避免误删；SYS_ADMIN 改由 grantSysAdmin 控制 */
@@ -126,6 +165,26 @@ const formData = ref({
 const departmentRoles = computed(() =>
   roles.value.filter(r => ORG_ROLE_CODES.includes(r.roleCode as (typeof ORG_ROLE_CODES)[number]))
 )
+
+/** 可与部门角色并存的业务角色（与 RbacController.AssignableUserRoleCodes 一致，不含 SYS_ADMIN） */
+const businessExtensionRoleOptions = computed(() =>
+  roles.value.filter(r => PRESERVABLE_BUSINESS_ROLE_CODES.has(r.roleCode))
+)
+
+const businessAssignableRoleIdSet = computed(
+  () => new Set(businessExtensionRoleOptions.value.map(r => r.id))
+)
+
+/** 多选绑定到 preservedNonOrgRoleIds 中的业务角色段 */
+const selectedBusinessRoleIds = computed({
+  get() {
+    return preservedNonOrgRoleIds.value.filter(id => businessAssignableRoleIdSet.value.has(id))
+  },
+  set(ids: string[]) {
+    const rest = preservedNonOrgRoleIds.value.filter(id => !businessAssignableRoleIdSet.value.has(id))
+    preservedNonOrgRoleIds.value = [...rest, ...ids]
+  }
+})
 
 const sysAdminRoleId = computed(() => roles.value.find(r => r.roleCode === 'SYS_ADMIN')?.id ?? '')
 
@@ -193,15 +252,18 @@ const load = async () => {
       const unknown = preservedNonOrgRoleIds.value.filter(id => {
         const r = roles.value.find(x => x.id === id)
         if (!r) return true
-        return r.roleCode !== 'SYS_ADMIN'
+        const code = r.roleCode
+        if (code === 'SYS_ADMIN') return false
+        return !PRESERVABLE_BUSINESS_ROLE_CODES.has(code)
       })
       if (unknown.length) {
         ElMessage.warning(
-          '该用户含有非标准业务角色，保存时将被移除；请改用部门三种角色或联系管理员迁移数据。'
+          '该用户含有未识别的扩展角色，保存时将被移除；如需采购员/财务职员等权限，请使用系统定义的业务角色（如 purchase_buyer）。'
         )
         preservedNonOrgRoleIds.value = preservedNonOrgRoleIds.value.filter(id => {
           const r = roles.value.find(x => x.id === id)
-          return r?.roleCode === 'SYS_ADMIN'
+          const code = r?.roleCode
+          return code === 'SYS_ADMIN' || (code != null && PRESERVABLE_BUSINESS_ROLE_CODES.has(code))
         })
         formData.value.roleIds = [...preservedNonOrgRoleIds.value, ...allIds.filter(id => orgSet.has(id))]
       }

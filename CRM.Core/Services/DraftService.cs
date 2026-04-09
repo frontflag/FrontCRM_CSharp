@@ -106,7 +106,7 @@ namespace CRM.Core.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task<DraftConvertResultDto> ConvertDraftAsync(long userId, string draftId)
+        public async Task<DraftConvertResultDto> ConvertDraftAsync(long userId, string draftId, string? actingRbacUserId = null)
         {
             var draft = await GetOwnedDraftOrThrowAsync(userId, draftId);
             if (draft.Status != 0) throw new InvalidOperationException("仅草稿状态可以转正式");
@@ -126,7 +126,8 @@ namespace CRM.Core.Services
             else if (entityType == "VENDOR")
             {
                 entityId = (await _vendorService.CreateAsync(
-                    Deserialize<CreateVendorRequest>(draft.PayloadJson, "供应商草稿数据格式错误"))).Id;
+                    Deserialize<CreateVendorRequest>(draft.PayloadJson, "供应商草稿数据格式错误"),
+                    actingRbacUserId)).Id;
 
                 // 与客户类似：VendorService.CreateAsync 不会自动落库联系人；
                 // 因此需要从草稿 payload 中同步 contacts。

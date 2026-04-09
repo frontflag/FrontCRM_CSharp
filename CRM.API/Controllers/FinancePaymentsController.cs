@@ -6,7 +6,6 @@ using System.Security.Claims;
 
 namespace CRM.API.Controllers
 {
-    [RequirePermission("finance-payment.read")]
     [ApiController]
     [Route("api/v1/finance/payments")]
     public class FinancePaymentsController : ControllerBase
@@ -24,6 +23,7 @@ namespace CRM.API.Controllers
 
         /// <summary>获取付款单列表</summary>
         [HttpGet]
+        [RequireAnyPermission("finance-payment.read", "purchase-order.read")]
         public async Task<IActionResult> GetAll(
             [FromQuery] string? keyword,
             [FromQuery] short? status,
@@ -56,6 +56,7 @@ namespace CRM.API.Controllers
 
         /// <summary>获取单个付款单</summary>
         [HttpGet("{id}")]
+        [RequireAnyPermission("finance-payment.read", "purchase-order.read")]
         public async Task<IActionResult> GetById(string id)
         {
             try
@@ -73,9 +74,9 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>新建付款单</summary>
+        /// <summary>新建付款单（采购端可凭采购订单写权限从明细发起）</summary>
         [HttpPost]
-        [RequirePermission("finance-payment.write")]
+        [RequireAnyPermission("finance-payment.write", "purchase-order.write")]
         public async Task<IActionResult> Create([FromBody] CreateFinancePaymentRequest request)
         {
             try
@@ -128,9 +129,9 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>更新付款单状态（提交审核/审核通过/驳回/作废等）</summary>
+        /// <summary>更新付款单状态（提交审核/审核通过/驳回/作废等）；采购从明细提交草稿→待审用 Patch</summary>
         [HttpPatch("{id}/status")]
-        [RequirePermission("finance-payment.write")]
+        [RequireAnyPermission("finance-payment.write", "purchase-order.write")]
         public async Task<IActionResult> UpdateStatus(string id, [FromBody] FinancePaymentStatusRequest request)
         {
             try

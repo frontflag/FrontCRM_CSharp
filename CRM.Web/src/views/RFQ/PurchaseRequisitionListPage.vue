@@ -91,7 +91,24 @@
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
               <el-button link type="primary" @click.stop="handleView(row)">{{ t('purchaseRequisitionList.actions.view') }}</el-button>
-              <el-button link type="warning" size="small" @click.stop="handleGeneratePurchaseOrder(row)">
+              <el-tooltip
+                v-if="!canGeneratePurchaseOrder"
+                :content="t('purchaseRequisitionList.actions.generatePoDeniedTip')"
+                placement="top"
+              >
+                <span class="inline-flex">
+                  <el-button link type="warning" size="small" disabled>
+                    {{ t('purchaseRequisitionList.actions.generatePo') }}
+                  </el-button>
+                </span>
+              </el-tooltip>
+              <el-button
+                v-else
+                link
+                type="warning"
+                size="small"
+                @click.stop="handleGeneratePurchaseOrder(row)"
+              >
                 {{ t('purchaseRequisitionList.actions.generatePo') }}
               </el-button>
             </div>
@@ -105,8 +122,11 @@
                   <el-dropdown-item @click.stop="handleView(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('purchaseRequisitionList.actions.view') }}</span>
                   </el-dropdown-item>
-                  <el-dropdown-item @click.stop="handleGeneratePurchaseOrder(row)">
+                  <el-dropdown-item v-if="canGeneratePurchaseOrder" @click.stop="handleGeneratePurchaseOrder(row)">
                     <span class="op-more-item op-more-item--warning">{{ t('purchaseRequisitionList.actions.generatePo') }}</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item v-else disabled>
+                    <span class="op-more-item op-more-item--muted">{{ t('purchaseRequisitionList.actions.generatePo') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -150,12 +170,24 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Plus, Setting } from '@element-plus/icons-vue'
 import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
+import { useAuthStore } from '@/stores/auth'
+import { canGeneratePurchaseOrderFromRequisition } from '@/utils/purchaseOrderCreateGate'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const { t, locale } = useI18n()
+const authStore = useAuthStore()
+
+const canGeneratePurchaseOrder = computed(() =>
+  canGeneratePurchaseOrderFromRequisition({
+    isSysAdmin: authStore.user?.isSysAdmin,
+    identityType: authStore.user?.identityType,
+    roleCodes: authStore.user?.roleCodes,
+    hasPermission: (code) => authStore.hasPermission(code)
+  })
+)
 
 const loading = ref(false)
 const list = ref<any[]>([])
@@ -303,6 +335,9 @@ function handleView(row: any) {
 }
 
 function handleGeneratePurchaseOrder(row: any) {
+  if (!canGeneratePurchaseOrder.value) {
+    return
+  }
   router.push({ name: 'PurchaseOrderCreate', query: { requisitionId: row?.id } })
 }
 
@@ -504,6 +539,14 @@ onMounted(loadList)
 .list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
+}
+
+.inline-flex {
+  display: inline-flex;
+}
+
+.op-more-item--muted {
+  opacity: 0.45;
 }
 </style>
 

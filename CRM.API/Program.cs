@@ -28,6 +28,8 @@ try
         {
             // 支持 camelCase 属性名映射
             options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+            // 反序列化时属性名不区分大小写（避免客户端 userName / UserName 等差异导致绑定为空 → 400）
+            options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
             // 允许 null 值
             options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
             // 忽略循环引用
@@ -64,6 +66,7 @@ try
         app.UseHttpsRedirection();
 
     app.UseAuthentication();
+    app.UseMiddleware<RequireActiveUserMiddleware>();
     app.UseAuthorization();
 
     app.MapControllers();

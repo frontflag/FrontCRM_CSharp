@@ -8,6 +8,7 @@ using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Linq;
 
 namespace CRM.API.Controllers
 {
@@ -228,12 +229,25 @@ namespace CRM.API.Controllers
         }
 
         [HttpPost]
-        [RequirePermission("purchase-order.write")]
         public async Task<IActionResult> Create([FromBody] CreatePurchaseOrderRequest request)
         {
+            var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(actorId))
+                return Unauthorized(new { success = false, message = "未登录或登录态失效" });
+            var createSummary = await GetPermissionSummaryAsync(actorId);
+            if (createSummary == null || !PurchaseOrderCreateGate.CanCreate(createSummary))
+            {
+                return StatusCode(403,
+                    new
+                    {
+                        success = false,
+                        message =
+                            "无权限创建采购订单。请满足其一：purchase-order.write；或 purchase-requisition.write 且（主部门为采购/采购助理、或具备 purchase-order.read、或角色含 purchase_buyer / purchase_operator / purchase_ops_operator）。"
+                    });
+            }
+
             try
             {
-                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 _logger.LogInformation(
                     "PurchaseOrders Create 入口: Type={Type} ItemCount={ItemCount} VendorId={VendorId} PurchaseUserId={PurchaseUserId} ActorId={ActorId}",
                     request.Type, request.Items?.Count ?? 0, request.VendorId, request.PurchaseUserId ?? "(null)", actorId ?? "(null)");
@@ -365,6 +379,12 @@ namespace CRM.API.Controllers
             return rows.ToDictionary(e => e.Id, e => e, StringComparer.OrdinalIgnoreCase);
         }
 
+        private static bool SummaryHasPermission(UserPermissionSummaryDto? summary, string code)
+        {
+            if (summary?.PermissionCodes == null) return false;
+            return summary.PermissionCodes.Any(c => string.Equals(c, code, StringComparison.OrdinalIgnoreCase));
+        }
+
         private object MaskPurchaseOrder(
             CRM.Core.Models.Purchase.PurchaseOrder order,
             UserPermissionSummaryDto? summary,
@@ -372,9 +392,17 @@ namespace CRM.API.Controllers
             VendorInfo? vendor = null,
             IReadOnlyDictionary<string, PurchaseOrderItemExtend>? itemExtends = null)
         {
-            var canViewVendorInfo = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("vendor.info.read") ?? false);
+            // vendor.info.read：完整联系人/地址等；vendor.read 或采购订单权限：至少返回供应商主键与名称（申请付款依赖 VendorId）
+            var canViewVendorInfo = summary?.IsSysAdmin == true
+                || SummaryHasPermission(summary, "vendor.info.read")
+                || SummaryHasPermission(summary, "vendor.read")
+                || SummaryHasPermission(summary, "purchase-order.read")
+                || SummaryHasPermission(summary, "purchase-order.write");
             var canViewPurchaseAmount = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("purchase.amount.read") ?? false);
-            var canWriteFinancePayment = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("finance-payment.write") ?? false);
+            // 采购员常仅有 purchase-order.write；从采购明细「申请付款」需与 FinancePaymentsController Create/Patch 一致
+            var canInitiatePaymentFromPo = summary?.IsSysAdmin == true
+                || SummaryHasPermission(summary, "finance-payment.write")
+                || SummaryHasPermission(summary, "purchase-order.write");
 
             const short poOrderCancelled = -2;
             const short poLineCancelled = -2;
@@ -464,7 +492,7 @@ namespace CRM.API.Controllers
                         paymentProgressAmount = canViewPurchaseAmount ? (ext?.PaymentAmountFinish ?? 0m) : 0m,
                         invoiceProgressAmount = canViewPurchaseAmount ? (ext?.PurchaseInvoiceDone ?? 0m) : 0m,
                         // 业务口径：主单已确认即可申请付款；兼容历史数据中“主单已确认但明细状态未同步到30”的情况
-                        CanApplyPayment = canWriteFinancePayment
+                        CanApplyPayment = canInitiatePaymentFromPo
                             && i.FinancePaymentStatus < 2
                             && (i.Status == 30 || order.Status == 30)
                     };

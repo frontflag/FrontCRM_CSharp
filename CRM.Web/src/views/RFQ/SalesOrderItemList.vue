@@ -138,11 +138,11 @@
               {{ t('salesOrderItemList.actions.applyPurchase') }}
             </el-button>
             <el-button
-              v-if="canWriteSo && mainAllowsOps(row) && stockOutApplyPurchaseGateOk(row)"
+              v-if="canWriteSo && mainAllowsOps(row)"
               link
               type="warning"
               size="small"
-              :disabled="applyStockOutDisabled(row)"
+              :disabled="applyStockOutDisabled(row) || !stockOutApplyPurchaseGateOk(row)"
               @click.stop="applyStockOutOne(row)"
             >
               {{ t('salesOrderItemList.actions.applyStockOut') }}
@@ -172,14 +172,16 @@
                   >{{ t('salesOrderItemList.actions.applyPurchase') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item
-                  v-if="canWriteSo && mainAllowsOps(row) && stockOutApplyPurchaseGateOk(row)"
-                  :disabled="applyStockOutDisabled(row)"
+                  v-if="canWriteSo && mainAllowsOps(row)"
+                  :disabled="applyStockOutDisabled(row) || !stockOutApplyPurchaseGateOk(row)"
                   @click.stop="applyStockOutOne(row)"
                 >
                   <span
                     class="op-more-item"
                     :class="
-                      applyStockOutDisabled(row) ? 'op-more-item--disabled' : 'op-more-item--warning'
+                      applyStockOutDisabled(row) || !stockOutApplyPurchaseGateOk(row)
+                        ? 'op-more-item--disabled'
+                        : 'op-more-item--warning'
                     "
                   >{{ t('salesOrderItemList.actions.applyStockOut') }}</span>
                 </el-dropdown-item>
@@ -429,10 +431,17 @@ const { count: basketCount, items: basketItems } = storeToRefs(basketStore)
 const suppressBasketMerge = ref(false)
 const basketDrawerVisible = ref(false)
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
-const canViewCustomer = computed(() => authStore.hasPermission('customer.info.read'))
+const canViewCustomer = computed(
+  () => authStore.hasPermission('customer.info.read') || authStore.hasPermission('sales-order.read')
+)
 const canViewAmount = computed(() => authStore.hasPermission('sales.amount.read'))
 const canWriteSo = computed(() => authStore.hasPermission('sales-order.write'))
-const canPurchaseReq = computed(() => authStore.hasPermission('purchase-requisition.write'))
+/** 业务员可从销售明细发起采购申请，不必单独持有 purchase-requisition.write */
+const canPurchaseReq = computed(
+  () =>
+    authStore.hasPermission('purchase-requisition.write') ||
+    authStore.hasPermission('sales-order.write')
+)
 
 function stockOutApplyPurchaseGateOk(row: Record<string, unknown>) {
   return row.stockOutApplyPurchaseGateOk === true

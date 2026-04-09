@@ -1026,6 +1026,7 @@
       "System.Threading.Channels/7.0.0": {},
       "CRM.Core/1.0.0": {
         "dependencies": {
+          "BCrypt.Net-Next": "4.1.0",
           "Microsoft.Extensions.Logging.Abstractions": "10.0.0"
         },
         "runtime": {

@@ -315,7 +315,7 @@ namespace CRM.API.Controllers
 
         /// <summary>创建采购申请（单行）</summary>
         [HttpPost]
-        [RequirePermission("purchase-requisition.write")]
+        [RequireAnyPermission("purchase-requisition.write", "sales-order.write")]
         public async Task<IActionResult> Create([FromBody] CreatePurchaseRequisitionRequest request)
         {
             try

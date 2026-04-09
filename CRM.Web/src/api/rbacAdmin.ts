@@ -125,6 +125,21 @@ export const rbacAdminApi = {
     await apiClient.delete(`/api/v1/rbac/admin/users/${encodeURIComponent(userId)}`)
   },
 
+  /** 管理员重置员工登录密码 */
+  async resetUserPassword(userId: string, newPassword: string): Promise<void> {
+    await apiClient.post(`/api/v1/rbac/admin/users/${encodeURIComponent(userId)}/reset-password`, {
+      newPassword
+    })
+  },
+
+  async freezeUser(userId: string): Promise<void> {
+    await apiClient.post(`/api/v1/rbac/admin/users/${encodeURIComponent(userId)}/freeze`)
+  },
+
+  async unfreezeUser(userId: string): Promise<void> {
+    await apiClient.post(`/api/v1/rbac/admin/users/${encodeURIComponent(userId)}/unfreeze`)
+  },
+
   // roles
   async getRoles(): Promise<RbacRole[]> {
     return apiClient.get<RbacRole[]>('/api/v1/rbac/roles')

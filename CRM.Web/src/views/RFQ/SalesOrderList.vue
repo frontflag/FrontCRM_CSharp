@@ -82,7 +82,7 @@
     <el-card class="table-card">
       <CrmDataTable
         ref="listTableRef"
-        column-layout-key="sales-order-list-main"
+        column-layout-key="sales-order-list-main-v2"
         :columns="salesOrderTableColumns"
         :show-column-settings="false"
         :data="filteredList"
@@ -199,7 +199,11 @@ const loading = ref(false)
 const orderList = ref<any[]>([])
 const listTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const authStore = useAuthStore()
-const canViewCustomerInfo = computed(() => authStore.hasPermission('customer.info.read'))
+/** 订单上的客户名属销售业务上下文：业务员有 sales-order.read 即可见列与筛选，不必具备客户主数据权限 customer.info.read */
+const canViewCustomerInfo = computed(
+  () =>
+    authStore.hasPermission('customer.info.read') || authStore.hasPermission('sales-order.read')
+)
 const canViewSalesAmount = computed(() => authStore.hasPermission('sales.amount.read'))
 /** 提交审核（新建→待审核） */
 const canSubmitSalesOrderAudit = computed(() => authStore.hasPermission('sales-order.write'))
@@ -249,7 +253,7 @@ const salesOrderTableColumns = computed((): CrmTableColumnDef[] => {
   ...(canViewCustomerInfo.value
     ? [{ key: 'customerName', label: t('salesOrderList.columns.customer'), prop: 'customerName', minWidth: 200, showOverflowTooltip: true }]
     : []),
-  { key: 'salesUserName', label: t('salesOrderList.columns.salesUser'), prop: 'salesUserName', width: 100 },
+  { key: 'salesUserName', label: t('salesOrderList.columns.salesUser'), prop: 'salesUserName', width: 120, minWidth: 120, showOverflowTooltip: true },
   ...(canViewSalesAmount.value ? [{ key: 'total', label: t('salesOrderList.columns.totalAmount'), prop: 'total', width: 160, align: 'right' as const }] : []),
   { key: 'itemRows', label: t('salesOrderList.columns.itemRows'), prop: 'itemRows', width: 80, align: 'center' as const },
   { key: 'createTime', label: t('salesOrderList.columns.createTime'), prop: 'createTime', width: 160 },

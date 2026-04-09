@@ -230,7 +230,8 @@ namespace CRM.API.Controllers
             {
                 if (request == null)
                     return BadRequest(ApiResponse<VendorInfo>.Fail("请求体不能为空", 400));
-                var vendor = await _vendorService.CreateAsync(request);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var vendor = await _vendorService.CreateAsync(request, actorId);
                 return Ok(ApiResponse<VendorInfo>.Ok(vendor, "创建供应商成功"));
             }
             catch (ArgumentException ex)
@@ -254,7 +255,8 @@ namespace CRM.API.Controllers
                 if (request?.Items == null || request.Items.Count == 0)
                     return BadRequest(ApiResponse<VendorImportBatchResult>.Fail("导入数据为空", 400));
 
-                var result = await _vendorService.ImportVendorsBatchAsync(request);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var result = await _vendorService.ImportVendorsBatchAsync(request, actorId);
                 var msg = $"导入完成：成功 {result.SuccessCount} 条，失败 {result.FailCount} 条";
                 return Ok(ApiResponse<VendorImportBatchResult>.Ok(result, msg));
             }
@@ -273,7 +275,8 @@ namespace CRM.API.Controllers
             {
                 if (request == null)
                     return BadRequest(ApiResponse<VendorInfo>.Fail("请求体不能为空", 400));
-                var vendor = await _vendorService.UpdateAsync(id, request);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var vendor = await _vendorService.UpdateAsync(id, request, actorId);
                 return Ok(ApiResponse<VendorInfo>.Ok(vendor, "更新供应商成功"));
             }
             catch (KeyNotFoundException ex)

@@ -70,6 +70,104 @@ namespace CRM.Core.Services
                 }
             }
 
+            var primaryIsSales = identityType == 1;
+            var belongsToPurchaseDept = identityType is 2 or 3;
+            // 主部门未标采购(2/3)时，仍检查兼任部门：仅当主部门不是销售(1)时才认定，避免销售兼采购岗被合并 PO。
+            if (!belongsToPurchaseDept && !primaryIsSales && departmentIds.Count > 0)
+            {
+                foreach (var did in departmentIds)
+                {
+                    if (string.IsNullOrWhiteSpace(did)) continue;
+                    var d = await _departmentRepo.GetByIdAsync(did);
+                    if (d?.IdentityType is 2 or 3)
+                    {
+                        belongsToPurchaseDept = true;
+                        break;
+                    }
+                }
+            }
+
+            // 主部门 IdentityType 未维护为 2/3 时，按部门名称兜底（避免「采购部」仍为 0 时员工无 PR/PO 权限）
+            if (!belongsToPurchaseDept && !primaryIsSales && !string.IsNullOrWhiteSpace(primaryDepartmentId))
+            {
+                var pd = await _departmentRepo.GetByIdAsync(primaryDepartmentId);
+                if (pd != null)
+                {
+                    var dn = pd.DepartmentName ?? string.Empty;
+                    var looksPurchaseDept =
+                        (dn.Contains("采购部", StringComparison.Ordinal)
+                         || dn.Contains("采购中心", StringComparison.Ordinal)
+                         || string.Equals(dn.Trim(), "采购", StringComparison.Ordinal))
+                        && !dn.Contains("销售", StringComparison.Ordinal);
+                    var looksPurchaseEn =
+                        dn.Contains("Purchasing", StringComparison.OrdinalIgnoreCase)
+                        && !dn.Contains("Sales", StringComparison.OrdinalIgnoreCase);
+                    if (looksPurchaseDept || looksPurchaseEn)
+                        belongsToPurchaseDept = true;
+                }
+            }
+
+            // 隶属采购侧部门时：不授予销售订单与「销售侧财务」（与采购菜单、数据范围一致）。
+            // DEPT_EMPLOYEE 种子可能仍含 finance-receipt / sales-order，此处统一剥离。
+            if (belongsToPurchaseDept)
+            {
+                RemovePermissionCodes(permissionCodes,
+                    "sales-order.read", "sales-order.write", "sales.amount.read",
+                    "finance-receipt.read", "finance-receipt.write",
+                    "finance-sell-invoice.read", "finance-sell-invoice.write");
+            }
+
+            // 主部门为销售（1）时：不授予采购订单与采购侧财务（与采购主部门不持有销售订单对称）。
+            // 采购申请保留：销售员可提采购申请，与菜单/路由一致。
+            if (identityType == 1)
+            {
+                RemovePermissionCodes(permissionCodes,
+                    "finance-payment.read", "finance-payment.write",
+                    "finance-purchase-invoice.read", "finance-purchase-invoice.write",
+                    "purchase-order.read", "purchase-order.write",
+                    "purchase.amount.read");
+            }
+
+            // 隶属采购/采购助理部门时合并：仅 DEPT_EMPLOYEE 时种子常无 PR/PO 写权限，与员工页「可选 purchase_buyer」说明一致，
+            // 采购部员工仍应能维护采购申请、生成采购订单（与销售员仅 PR、不 PO 的剥离策略独立）。
+            if (belongsToPurchaseDept)
+            {
+                AddPermissionCodeIfMissing(permissionCodes, "vendor.read");
+                AddPermissionCodeIfMissing(permissionCodes, "vendor.write");
+                AddPermissionCodeIfMissing(permissionCodes, "purchase-requisition.read");
+                AddPermissionCodeIfMissing(permissionCodes, "purchase-requisition.write");
+                AddPermissionCodeIfMissing(permissionCodes, "purchase-order.read");
+                AddPermissionCodeIfMissing(permissionCodes, "purchase-order.write");
+                AddPermissionCodeIfMissing(permissionCodes, "purchase.amount.read");
+            }
+
+            // 主部门身份为销售（IdentityType=1）时合并客户读写：DEPT_EMPLOYEE 种子常仅有 customer.read，
+            // 无 customer.write 时「新建客户」路由与 API 会被拒绝。
+            // 同理合并销售订单读写：种子中 DEPT_EMPLOYEE 常仅有 sales-order.read，无 write 则无法进入「新建销售订单」路由与写接口。
+            // 销售员业务上需提需求：合并 rfq.read + rfq.write（与需求首页、新建需求 API 一致）。
+            if (identityType == 1)
+            {
+                AddPermissionCodeIfMissing(permissionCodes, "customer.read");
+                AddPermissionCodeIfMissing(permissionCodes, "customer.write");
+                AddPermissionCodeIfMissing(permissionCodes, "sales-order.read");
+                AddPermissionCodeIfMissing(permissionCodes, "sales-order.write");
+                AddPermissionCodeIfMissing(permissionCodes, "rfq.read");
+                AddPermissionCodeIfMissing(permissionCodes, "rfq.write");
+            }
+
+            // 非采购主部门(2/3)且具备销售订单权限时合并采购申请：主部门 IdentityType 未维护为销售(1) 的业务员仍可见菜单与接口。
+            if (identityType is not 2 and not 3)
+            {
+                var hasSalesOrder =
+                    permissionCodes.Exists(c => string.Equals(c, "sales-order.read", StringComparison.OrdinalIgnoreCase))
+                    || permissionCodes.Exists(c => string.Equals(c, "sales-order.write", StringComparison.OrdinalIgnoreCase));
+                if (hasSalesOrder)
+                {
+                    AddPermissionCodeIfMissing(permissionCodes, "purchase-requisition.read");
+                    AddPermissionCodeIfMissing(permissionCodes, "purchase-requisition.write");
+                }
+            }
+
             return new UserPermissionSummaryDto
             {
                 UserId = userId,
@@ -82,6 +180,20 @@ namespace CRM.Core.Services
                 SaleDataScope = saleScope,
                 PurchaseDataScope = purchaseScope
             };
+        }
+
+        private static void AddPermissionCodeIfMissing(List<string> codes, string code)
+        {
+            if (codes.Exists(c => string.Equals(c, code, StringComparison.OrdinalIgnoreCase))) return;
+            codes.Add(code);
+        }
+
+        private static void RemovePermissionCodes(List<string> codes, params string[] toRemove)
+        {
+            foreach (var r in toRemove)
+            {
+                codes.RemoveAll(c => string.Equals(c, r, StringComparison.OrdinalIgnoreCase));
+            }
         }
 
         public async Task<IReadOnlyList<RbacRole>> GetRolesAsync()

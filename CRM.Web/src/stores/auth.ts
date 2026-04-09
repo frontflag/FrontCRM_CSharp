@@ -162,6 +162,20 @@ export const useAuthStore = defineStore('auth', () => {
     if (permissionCode.startsWith('vendor.')) {
       return t === 1 || t === 6
     }
+    // 采购 / 采购助理主部门：销售订单 + 收款/销项发票（与 RbacService 汇总剥离一致）
+    if (permissionCode.startsWith('sales-order.') || permissionCode === 'sales.amount.read') {
+      return t === 2 || t === 3
+    }
+    if (permissionCode.startsWith('finance-receipt.') || permissionCode.startsWith('finance-sell-invoice.')) {
+      return t === 2 || t === 3
+    }
+    // 销售主部门：付款、进项发票、采购订单（采购申请除外；与 RbacService 一致）
+    if (permissionCode.startsWith('finance-payment.') || permissionCode.startsWith('finance-purchase-invoice.')) {
+      return t === 1
+    }
+    if (permissionCode.startsWith('purchase-order.') || permissionCode === 'purchase.amount.read') {
+      return t === 1
+    }
     return false
   }
 

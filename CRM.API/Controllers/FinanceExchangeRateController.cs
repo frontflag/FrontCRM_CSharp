@@ -2,6 +2,7 @@ using System.Security.Claims;
 using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CRM.API.Controllers
@@ -21,8 +22,12 @@ namespace CRM.API.Controllers
             _logger = logger;
         }
 
+        /// <summary>
+        /// 当前生效汇率（只读）。业务侧（如采购报价折算人民币）需调用；不限于 rbac.manage，
+        /// 避免已配置汇率但报价页因 403 退回默认汇率。
+        /// </summary>
         [HttpGet("current")]
-        [RequirePermission("rbac.manage")]
+        [Authorize]
         public async Task<ActionResult<ApiResponse<FinanceExchangeRateDto>>> GetCurrent(CancellationToken ct)
         {
             try

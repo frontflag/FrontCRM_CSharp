@@ -236,6 +236,7 @@ import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
 import { getApiErrorMessage } from '@/utils/apiError'
 import type { Vendor } from '@/types/vendor'
 import { useAuthStore } from '@/stores/auth'
+import { canSubmitPurchaseOrderCreate } from '@/utils/purchaseOrderCreateGate'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
@@ -280,6 +281,16 @@ const generatedFromRequisition = ref(false)
 
 /** 无采购申请链路的纯新建：允许搜索选择供应商/联系人（含备货采购?type=2） */
 const allowManualVendorPick = computed(() => !editId.value && !requisitionId.value)
+
+const canSubmitPurchaseOrder = computed(() => {
+  if (editId.value) return authStore.hasPermission('purchase-order.write')
+  return canSubmitPurchaseOrderCreate({
+    isSysAdmin: authStore.user?.isSysAdmin,
+    identityType: authStore.user?.identityType,
+    roleCodes: authStore.user?.roleCodes,
+    hasPermission: (c) => authStore.hasPermission(c)
+  })
+})
 
 const vendorOptions = ref<{ value: string; label: string }[]>([])
 const vendorSearchLoading = ref(false)
@@ -498,6 +509,14 @@ async function loadOrderForEdit(id: string) {
 }
 
 const handleSubmit = async () => {
+  if (!canSubmitPurchaseOrder.value) {
+    ElMessage.warning(
+      editId.value
+        ? '当前账号无权限保存采购订单'
+        : '当前账号无权限创建采购订单，请由采购岗位从采购申请生成或新建'
+    )
+    return
+  }
   if (allowManualVendorPick.value) {
     const ok = await validateElFormOrWarn(formRef)
     if (!ok) return

@@ -26,14 +26,23 @@ namespace CRM.API.Controllers
         private readonly IUnitOfWork _unitOfWork;
 
         /// <summary>
-        /// 员工/部门账号可分配角色（与前端「员工编辑」一致）；含 SYS_ADMIN 以便维护系统管理员账号。
+        /// 员工/部门账号可分配角色（与前端「员工编辑」一致）。
+        /// 含 SYS_ADMIN；含种子中的业务扩展角色（可与部门三角色并存，如采购员 purchase_buyer）。
         /// </summary>
         private static readonly HashSet<string> AssignableUserRoleCodes = new(StringComparer.OrdinalIgnoreCase)
         {
             "DEPT_DIRECTOR",
             "DEPT_MANAGER",
             "DEPT_EMPLOYEE",
-            "SYS_ADMIN"
+            "SYS_ADMIN",
+            "purchase_buyer",
+            "biz_all",
+            "sales_operator",
+            "purchase_operator",
+            "commerce_operator",
+            "purchase_ops_operator",
+            "logistics_operator",
+            "finance_operator"
         };
 
         public RbacController(
@@ -79,7 +88,7 @@ namespace CRM.API.Controllers
                 if (!AssignableUserRoleCodes.Contains(code))
                 {
                     return BadRequest(ApiResponse<object>.Fail(
-                        $"不允许分配的角色: {code}。请使用部门标准角色 DEPT_DIRECTOR / DEPT_MANAGER / DEPT_EMPLOYEE（系统管理员为 SYS_ADMIN）",
+                        $"不允许分配的角色: {code}。请使用部门角色 DEPT_*、系统管理员 SYS_ADMIN，或业务扩展角色（如 purchase_buyer、finance_operator 等）。",
                         400));
                 }
             }
@@ -150,9 +159,14 @@ namespace CRM.API.Controllers
             public string? PrimaryDepartmentId { get; set; }
         }
 
+        public class ResetAdminUserPasswordRequest
+        {
+            public string NewPassword { get; set; } = string.Empty;
+        }
+
         private async Task<AdminUserDto?> BuildAdminUserDtoAsync(string userId)
         {
-            var user = await _userService.GetByIdAsync(userId);
+            var user = await _userService.GetByIdForAdminAsync(userId);
             if (user == null) return null;
 
             var userRoles = (await _userRoleRepo.FindAsync(x => x.UserId == userId)).ToList();
@@ -201,7 +215,7 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var users = (await _userService.GetAllAsync()).ToList();
+                var users = (await _userService.GetAllForAdminAsync()).ToList();
                 var userIds = users.Select(u => u.Id).ToList();
 
                 if (userIds.Count == 0)
@@ -377,6 +391,92 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "更新用户失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"更新用户失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>管理员为员工重置登录密码（需 rbac.manage）。</summary>
+        [HttpPost("admin/users/{userId}/reset-password")]
+        public async Task<ActionResult<ApiResponse<object>>> ResetAdminUserPassword(string userId, [FromBody] ResetAdminUserPasswordRequest? request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(userId))
+                    return BadRequest(ApiResponse<object>.Fail("userId 不能为空", 400));
+                if (request == null || string.IsNullOrWhiteSpace(request.NewPassword))
+                    return BadRequest(ApiResponse<object>.Fail("NewPassword 不能为空", 400));
+                if (request.NewPassword.Length < 6)
+                    return BadRequest(ApiResponse<object>.Fail("新密码长度至少 6 位", 400));
+
+                await _userService.ResetPasswordAsync(userId, request.NewPassword);
+                await _unitOfWork.SaveChangesAsync();
+                return Ok(ApiResponse<object>.Ok(null, "密码已重置"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "重置用户密码失败 userId={UserId}", userId);
+                return StatusCode(500, ApiResponse<object>.Fail($"重置密码失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpPost("admin/users/{userId}/freeze")]
+        public async Task<ActionResult<ApiResponse<object>>> FreezeAdminUser(string userId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(userId))
+                    return BadRequest(ApiResponse<object>.Fail("userId 不能为空", 400));
+                var operatorUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(operatorUserId) &&
+                    string.Equals(operatorUserId.Trim(), userId.Trim(), StringComparison.OrdinalIgnoreCase))
+                    return BadRequest(ApiResponse<object>.Fail("不能冻结当前登录账号", 400));
+
+                await _userService.FreezeUserAsync(userId);
+                await _unitOfWork.SaveChangesAsync();
+                return Ok(ApiResponse<object>.Ok(null, "已冻结该员工"));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "冻结用户失败 userId={UserId}", userId);
+                return StatusCode(500, ApiResponse<object>.Fail($"冻结失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpPost("admin/users/{userId}/unfreeze")]
+        public async Task<ActionResult<ApiResponse<object>>> UnfreezeAdminUser(string userId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(userId))
+                    return BadRequest(ApiResponse<object>.Fail("userId 不能为空", 400));
+
+                await _userService.UnfreezeUserAsync(userId);
+                await _unitOfWork.SaveChangesAsync();
+                return Ok(ApiResponse<object>.Ok(null, "已恢复该员工"));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "恢复用户失败 userId={UserId}", userId);
+                return StatusCode(500, ApiResponse<object>.Fail($"恢复失败: {ex.Message}", 500));
             }
         }
 

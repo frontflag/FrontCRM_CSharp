@@ -360,7 +360,7 @@
                 v-model="row.requestAmount"
                 v-model:currency="paymentForm.currency"
                 :min="0"
-                :max="row.pendingRequested"
+                :max="paymentRequestAmountMax(row)"
                 :precision="2"
               />
             </template>
@@ -761,6 +761,12 @@ const paymentTotalAmount = computed(() => {
   return Math.max(0, linesTotal + feeTotal)
 })
 
+/** 待请款为 0 时（常见于无 purchase.amount.read 导致单价被掩码）：勿设 max=0，否则 el-input-number 会把本次请款钳成 0 */
+function paymentRequestAmountMax(row: { pendingRequested?: number }) {
+  const p = Number(row?.pendingRequested ?? 0)
+  return p > 0 ? p : undefined
+}
+
 const dateRange = ref<[string, string] | null>(null)
 const filters = reactive({
   purchaseOrderCode: '',
@@ -1124,7 +1130,13 @@ async function loadList() {
         purchaseOrderItemCode: it.purchaseOrderItemCode ?? it.PurchaseOrderItemCode ?? '',
         purchaseOrderCode: detail.purchaseOrderCode ?? o.purchaseOrderCode,
         purchaseOrderType: normalizePurchaseOrderType(detail, o),
-        vendorId: detail.vendorId ?? o.vendorId,
+        vendorId:
+          it.vendorId ??
+          it.VendorId ??
+          detail.vendorId ??
+          detail.VendorId ??
+          o.vendorId ??
+          o.VendorId,
         itemStatus: it.status,
         purchaseProgressStatus: Number(it.purchaseProgressStatus ?? 0),
         stockInProgressStatus: Number(it.stockInProgressStatus ?? 0),
@@ -1132,7 +1144,13 @@ async function loadList() {
         invoiceProgressStatus: Number(it.invoiceProgressStatus ?? 0),
         canApplyPayment: Boolean(it.canApplyPayment ?? it.CanApplyPayment ?? false),
         orderCreateTime: detail.createTime ?? o.createTime,
-        vendorName: detail.vendorName ?? o.vendorName,
+        vendorName:
+          it.vendorName ??
+          it.VendorName ??
+          detail.vendorName ??
+          detail.VendorName ??
+          o.vendorName ??
+          o.VendorName,
         purchaseUserName: detail.purchaseUserName ?? o.purchaseUserName,
         pn: it.pn,
         brand: it.brand,

@@ -32,6 +32,8 @@ public sealed class RFQModuleBusinessWorkflowTests
         public MemoryRepository<SysParam> SysParamRepo { get; } = new();
         public MemoryRepository<RbacRole> RbacRoleRepo { get; } = new();
         public MemoryRepository<RbacUserRole> RbacUserRoleRepo { get; } = new();
+        public MemoryRepository<RbacDepartment> RbacDepartmentRepo { get; } = new();
+        public MemoryRepository<RbacUserDepartment> RbacUserDepartmentRepo { get; } = new();
         public MemoryRepository<User> UserRepo { get; } = new();
         public MemoryRepository<Quote> QuoteRepo { get; } = new();
         public EntityLookupService Lookup { get; }
@@ -69,7 +71,7 @@ public sealed class RFQModuleBusinessWorkflowTests
 
             UnitOfWork = Substitute.For<IUnitOfWork>();
             Lookup = new EntityLookupService(CustomerRepo, ContactRepo, VendorRepo, VendorContactRepo, UserService);
-            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, SysParamRepo, RbacRoleRepo, RbacUserRoleRepo, QuoteRepo, UserRepo, NullLogger<RFQService>.Instance);
+            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, SysParamRepo, RbacRoleRepo, RbacUserRoleRepo, RbacDepartmentRepo, RbacUserDepartmentRepo, QuoteRepo, UserRepo, NullLogger<RFQService>.Instance);
         }
 
         private sealed class ConcurrentInt

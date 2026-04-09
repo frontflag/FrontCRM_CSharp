@@ -1852,6 +1852,18 @@ INSERT INTO sys_permission ("PermissionId", "PermissionCode", "PermissionName", 
 ('p0000000-0000-4000-8000-000000000012', 'rbac.manage', 'RBAC与员工部门管理', 'api', NULL, NULL, 1, TIMESTAMPTZ '2026-01-01T00:00:00Z')
 ON CONFLICT ("PermissionCode") DO NOTHING;
 
+-- 财务模块（与前端菜单 hasPermission、API RequirePermission、seed_initial_rbac_admin 对齐）
+INSERT INTO sys_permission ("PermissionId", "PermissionCode", "PermissionName", "PermissionType", "Resource", "Action", "Status", "CreateTime") VALUES
+('p0000000-0000-4000-8000-000000000013', 'finance-receipt.read', '收款-查看', 'api', NULL, NULL, 1, TIMESTAMPTZ '2026-01-01T00:00:00Z'),
+('p0000000-0000-4000-8000-000000000014', 'finance-receipt.write', '收款-维护', 'api', NULL, NULL, 1, TIMESTAMPTZ '2026-01-01T00:00:00Z'),
+('p0000000-0000-4000-8000-000000000015', 'finance-payment.read', '付款-查看', 'api', NULL, NULL, 1, TIMESTAMPTZ '2026-01-01T00:00:00Z'),
+('p0000000-0000-4000-8000-000000000016', 'finance-payment.write', '付款-维护', 'api', NULL, NULL, 1, TIMESTAMPTZ '2026-01-01T00:00:00Z'),
+('p0000000-0000-4000-8000-000000000017', 'finance-sell-invoice.read', '销项发票-查看', 'api', NULL, NULL, 1, TIMESTAMPTZ '2026-01-01T00:00:00Z'),
+('p0000000-0000-4000-8000-000000000018', 'finance-sell-invoice.write', '销项发票-维护', 'api', NULL, NULL, 1, TIMESTAMPTZ '2026-01-01T00:00:00Z'),
+('p0000000-0000-4000-8000-000000000019', 'finance-purchase-invoice.read', '进项发票-查看', 'api', NULL, NULL, 1, TIMESTAMPTZ '2026-01-01T00:00:00Z'),
+('p0000000-0000-4000-8000-00000000001a', 'finance-purchase-invoice.write', '进项发票-维护', 'api', NULL, NULL, 1, TIMESTAMPTZ '2026-01-01T00:00:00Z')
+ON CONFLICT ("PermissionCode") DO NOTHING;
+
 -- =============================================================================
 -- 角色
 -- =============================================================================
@@ -1881,12 +1893,14 @@ INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "
 SELECT gen_random_uuid()::text, 'r0000000-0000-4000-8000-000000000006', p."PermissionId", TIMESTAMPTZ '2026-01-01T00:00:00Z'
 FROM sys_permission p WHERE p."PermissionCode" IN (
     'customer.read','customer.write','rfq.read','rfq.write','vendor.read','vendor.write',
-    'sales-order.read','sales-order.write','purchase-order.read','purchase-order.write','draft.read')
+    'sales-order.read','sales-order.write','purchase-order.read','purchase-order.write','draft.read',
+    'finance-receipt.read','finance-receipt.write','finance-payment.read','finance-payment.write',
+    'finance-sell-invoice.read','finance-sell-invoice.write','finance-purchase-invoice.read','finance-purchase-invoice.write')
 ON CONFLICT ("RoleId", "PermissionId") DO NOTHING;
 
 INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
 SELECT gen_random_uuid()::text, 'r0000000-0000-4000-8000-000000000007', p."PermissionId", TIMESTAMPTZ '2026-01-01T00:00:00Z'
-FROM sys_permission p WHERE p."PermissionCode" IN ('customer.read','customer.write','rfq.read','sales-order.read','draft.read')
+FROM sys_permission p WHERE p."PermissionCode" IN ('customer.read','customer.write','rfq.read','rfq.write','sales-order.read','draft.read')
 ON CONFLICT ("RoleId", "PermissionId") DO NOTHING;
 
 INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
@@ -1896,7 +1910,7 @@ ON CONFLICT ("RoleId", "PermissionId") DO NOTHING;
 
 INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
 SELECT gen_random_uuid()::text, 'r0000000-0000-4000-8000-000000000005', p."PermissionId", TIMESTAMPTZ '2026-01-01T00:00:00Z'
-FROM sys_permission p WHERE p."PermissionCode" IN ('rfq.read','vendor.read','purchase-order.read')
+FROM sys_permission p WHERE p."PermissionCode" IN ('rfq.read','vendor.read','vendor.write','purchase-order.read')
 ON CONFLICT ("RoleId", "PermissionId") DO NOTHING;
 
 INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
@@ -1916,8 +1930,27 @@ ON CONFLICT ("RoleId", "PermissionId") DO NOTHING;
 
 INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
 SELECT gen_random_uuid()::text, 'r0000000-0000-4000-8000-000000000012', p."PermissionId", TIMESTAMPTZ '2026-01-01T00:00:00Z'
-FROM sys_permission p WHERE p."PermissionCode" IN ('draft.read','customer.read','vendor.read','purchase-order.read','sales-order.read')
+FROM sys_permission p WHERE p."PermissionCode" IN (
+    'draft.read','customer.read','vendor.read','purchase-order.read','sales-order.read',
+    'finance-receipt.read','finance-receipt.write','finance-payment.read','finance-payment.write',
+    'finance-sell-invoice.read','finance-sell-invoice.write','finance-purchase-invoice.read','finance-purchase-invoice.write')
 ON CONFLICT ("RoleId", "PermissionId") DO NOTHING;
+
+-- 部门总监 / 部门经理：绑定财务权限（财务部账号常用 DEPT_DIRECTOR 而非 finance_operator；按 RoleCode 解析以兼容不同 RoleId 种子）
+INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
+SELECT gen_random_uuid()::text, r."RoleId", p."PermissionId", TIMESTAMPTZ '2026-01-01T00:00:00Z'
+FROM sys_role r
+CROSS JOIN sys_permission p
+WHERE r."RoleCode" IN ('DEPT_DIRECTOR', 'DEPT_MANAGER')
+  AND p."PermissionCode" IN (
+    'finance-receipt.read','finance-receipt.write',
+    'finance-payment.read','finance-payment.write',
+    'finance-sell-invoice.read','finance-sell-invoice.write',
+    'finance-purchase-invoice.read','finance-purchase-invoice.write')
+  AND p."Status" = 1
+  AND NOT EXISTS (
+    SELECT 1 FROM sys_role_permission x
+    WHERE x."RoleId" = r."RoleId" AND x."PermissionId" = p."PermissionId");
 
 -- =============================================================================
 -- 部门（IdentityType: 1销售 2采购 4商务 3采购运营 6物流 5财务）

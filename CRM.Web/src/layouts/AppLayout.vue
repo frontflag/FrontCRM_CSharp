@@ -325,9 +325,9 @@
         <!-- 订单 -->
         <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.orders') }}</div>
 
-        <!-- 销售管理：必须具备销售订单读取权限才显示入口 -->
+        <!-- 销售管理：须销售订单权限，且主部门非采购/采购助理（与采购板块对销售部门隐藏对称） -->
         <SidebarMenuGroupFlyout
-          v-if="hasPermission('sales-order.read')"
+          v-if="(isSysAdmin || (identityType !== 2 && identityType !== 3)) && hasPermission('sales-order.read')"
           :collapsed="isCollapsed"
           :expanded="openGroups.sales"
           @toggle="toggleGroup('sales')"
@@ -358,9 +358,9 @@
           </template>
         </SidebarMenuGroupFlyout>
 
-        <!-- 采购管理：销售部门不显示 -->
+        <!-- 采购管理：销售主部门仅显示采购申请入口（有 PR 权限时）；采购订单仍依赖 purchase-order.read -->
         <SidebarMenuGroupFlyout
-          v-if="(isSysAdmin || identityType !== 1) && (hasPermission('purchase-requisition.read') || hasPermission('purchase-order.read'))"
+          v-if="showPurchaseNavGroup"
           :collapsed="isCollapsed"
           :expanded="openGroups.purchase"
           @toggle="toggleGroup('purchase')"
@@ -384,7 +384,13 @@
           </template>
           <template #submenu>
             <router-link
-              v-if="hasPermission('purchase-requisition.read')"
+              v-if="
+                hasPermission('purchase-requisition.read') ||
+                hasPermission('purchase-requisition.write') ||
+                hasPermission('purchase-order.read') ||
+                hasPermission('sales-order.read') ||
+                hasPermission('sales-order.write')
+              "
               to="/purchase-requisitions"
               class="submenu-item"
               active-class="active"
@@ -561,10 +567,10 @@
             </template>
           </SidebarMenuGroupFlyout>
 
-          <!-- 收款管理组：采购部门（identityType=2）不显示 -->
+          <!-- 收款管理组：采购 / 采购助理主部门不显示（与 RbacService 剥离收款、销项发票权限一致） -->
           <SidebarMenuGroupFlyout
             v-if="
-              (isSysAdmin || identityType !== 2) &&
+              (isSysAdmin || (identityType !== 2 && identityType !== 3)) &&
               (hasPermission('finance-receipt.read') || hasPermission('finance-sell-invoice.read'))
             "
             :collapsed="isCollapsed"
@@ -1329,6 +1335,7 @@ const pageTitleMap: Record<string, string> = {
   '/quotes/create': 'layout.menu.quoteManagement',
   '/purchase-orders': 'layout.menu.purchaseOrders',
   '/purchase-order-items': 'layout.menu.purchaseOrderItems',
+  '/purchase-requisitions': 'layout.menu.purchaseRequisitions',
   '/logistics/arrival-notices': 'layout.menu.arrivalNotices',
   '/logistics/qc': 'layout.menu.qualityCheck',
   '/sales-orders': 'layout.menu.salesOrders',
@@ -1500,6 +1507,20 @@ const showVendorMenuSection = computed(() => {
   return t !== 1 && t !== 6
 })
 
+/** 采购管理：采购员看 PR/PO；业务员有销售订单权限即显示（内仅采购申请，PO 子项仍靠 purchase-order.read） */
+const showPurchaseNavGroup = computed(() => {
+  if (isSysAdmin.value) return true
+  const pr =
+    hasPermission('purchase-requisition.read') || hasPermission('purchase-requisition.write')
+  const po = hasPermission('purchase-order.read')
+  const so =
+    hasPermission('sales-order.read') ||
+    hasPermission('sales-order.write')
+  const t = identityType.value
+  if (t === 2 || t === 3) return pr || po
+  return pr || po || so
+})
+
 // 管理员登录时默认展开所有分组（不强制主菜单宽度，以便可缩为边条/隐藏）
 watch(
   isSysAdmin,
@@ -1545,7 +1566,9 @@ watch(
     if (
       p === '/purchase-orders' ||
       p.startsWith('/purchase-orders/') ||
-      p === '/purchase-order-items'
+      p === '/purchase-order-items' ||
+      p === '/purchase-requisitions' ||
+      p.startsWith('/purchase-requisitions/')
     ) {
       openGroups.value.purchase = true
     }
