@@ -32,6 +32,7 @@ namespace CRM.Core.Services
         private readonly ISerialNumberService _serialNumberService;
         private readonly IUserService _userService;
         private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
+        private readonly ISellOrderItemPurchasedStockAvailableSyncService _purchasedStockAvailableSync;
         private readonly ILogger<StockInService> _logger;
 
         public StockInService(
@@ -51,6 +52,7 @@ namespace CRM.Core.Services
             ISerialNumberService serialNumberService,
             IUserService userService,
             ISellOrderItemExtendSyncService sellOrderItemExtendSync,
+            ISellOrderItemPurchasedStockAvailableSyncService purchasedStockAvailableSync,
             IUnitOfWork unitOfWork,
             ILogger<StockInService> logger)
         {
@@ -70,6 +72,7 @@ namespace CRM.Core.Services
             _serialNumberService = serialNumberService;
             _userService = userService;
             _sellOrderItemExtendSync = sellOrderItemExtendSync;
+            _purchasedStockAvailableSync = purchasedStockAvailableSync;
             _unitOfWork = unitOfWork;
             _logger = logger;
         }
@@ -664,6 +667,17 @@ namespace CRM.Core.Services
                 }
 
                 await TryRefreshSellOrderItemExtendAfterStockInCompletedAsync(stockIn);
+                try
+                {
+                    await _purchasedStockAvailableSync.TryRecalculateFromCompletedStockInAsync(stockIn);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "[PurchasedStockAvail] TryRecalculateFromCompletedStockIn failed StockInId={StockInId}",
+                        stockIn.Id);
+                }
+
                 await _unitOfWork.SaveChangesAsync();
 
                 _logger.LogInformation("[InboundStatus2] StockIn status→2 chain end StockInId={StockInId}", stockIn.Id);

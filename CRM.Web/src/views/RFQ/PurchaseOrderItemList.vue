@@ -917,6 +917,9 @@ function openPaymentDialog(row: any) {
   paymentForm.currency = row.currency || 1
   paymentForm.remark = ''
   paymentForm.fee = { intermediateBankFee: 0, bankCharge: 0, freight: 0, miscFee: 0, rounding: 0, intermediateBankFeePayer: '我方' }
+  const lineTotal = Math.round((Number(row.lineTotal || 0) + Number.EPSILON) * 100) / 100
+  const alreadyRequested = Math.max(0, Number(row.paymentRequestedAmount ?? 0))
+  const pendingRequested = Math.max(0, Math.round((lineTotal - alreadyRequested + Number.EPSILON) * 100) / 100)
   paymentForm.lines = [{
     purchaseOrderId: row.purchaseOrderId,
     purchaseOrderItemId: row.purchaseOrderItemId,
@@ -926,9 +929,9 @@ function openPaymentDialog(row: any) {
     qty: row.qty,
     cost: row.cost,
     currency: row.currency,
-    alreadyRequested: 0,
-    pendingRequested: Number(row.lineTotal || 0),
-    requestAmount: Number(row.lineTotal || 0),
+    alreadyRequested,
+    pendingRequested,
+    requestAmount: pendingRequested,
     remark: ''
   }]
   paymentDialogVisible.value = true
@@ -1157,6 +1160,7 @@ async function loadList() {
         qty: it.qty,
         cost: it.cost,
         lineTotal: (it.qty || 0) * (it.cost || 0),
+        paymentRequestedAmount: Number(it.paymentRequestedAmount ?? it.PaymentRequestedAmount ?? 0),
         currency: it.currency ?? detail.currency ?? o.currency,
         deliveryDate: it.deliveryDate ?? detail.deliveryDate
       }))

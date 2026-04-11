@@ -31,6 +31,7 @@ namespace CRM.Core.Services
         private readonly IRepository<RbacUserDepartment> _rbacUserDepartmentRepo;
         private readonly IRepository<Quote> _quoteRepo;
         private readonly IRepository<User> _userRepo;
+        private readonly IRbacService _rbacService;
         private readonly ILogger<RFQService> _logger;
 
         public RFQService(
@@ -49,6 +50,7 @@ namespace CRM.Core.Services
             IRepository<RbacUserDepartment> rbacUserDepartmentRepo,
             IRepository<Quote> quoteRepo,
             IRepository<User> userRepo,
+            IRbacService rbacService,
             ILogger<RFQService> logger)
         {
             _rfqRepo = rfqRepo;
@@ -66,6 +68,7 @@ namespace CRM.Core.Services
             _rbacUserDepartmentRepo = rbacUserDepartmentRepo;
             _quoteRepo = quoteRepo;
             _userRepo = userRepo;
+            _rbacService = rbacService;
             _logger = logger;
         }
 
@@ -173,7 +176,7 @@ namespace CRM.Core.Services
         }
 
         // ─── Read ────────────────────────────────────────────────────────────────
-        public async Task<RFQ?> GetByIdAsync(string id)
+        public async Task<RFQ?> GetByIdAsync(string id, string? viewerUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id)) return null;
             var rfq = await _rfqRepo.GetByIdAsync(id);
@@ -182,8 +185,11 @@ namespace CRM.Core.Services
             var items = await _itemRepo.FindAsync(i => i.RfqId == id);
             rfq.Items = items.OrderBy(i => i.LineNo).ToList();
 
+            var canViewCustomer = string.IsNullOrWhiteSpace(viewerUserId)
+                || await UserCanViewCustomerInRfqContextAsync(viewerUserId);
+
             // 详情接口补充展示字段（列表接口单独组装；实体表不存客户名/业务员名）
-            if (!string.IsNullOrWhiteSpace(rfq.CustomerId))
+            if (canViewCustomer && !string.IsNullOrWhiteSpace(rfq.CustomerId))
             {
                 var customer = await _entityLookup.GetCustomerByIdAsync(rfq.CustomerId);
                 if (customer != null)
@@ -193,7 +199,7 @@ namespace CRM.Core.Services
             if (!string.IsNullOrWhiteSpace(rfq.SalesUserId))
                 rfq.SalesUserName = await _entityLookup.GetUserDisplayNameAsync(rfq.SalesUserId);
 
-            if (!string.IsNullOrWhiteSpace(rfq.ContactId))
+            if (canViewCustomer && !string.IsNullOrWhiteSpace(rfq.ContactId))
             {
                 var contact = await _entityLookup.GetCustomerContactByIdAsync(rfq.ContactId);
                 if (contact != null)
@@ -206,11 +212,56 @@ namespace CRM.Core.Services
                 it.AssignedPurchaserName2 = await _entityLookup.GetUserDisplayNameAsync(it.AssignedPurchaserUserId2);
             }
 
+            if (!string.IsNullOrWhiteSpace(viewerUserId) && !canViewCustomer)
+                MaskRfqCustomerFieldsForViewer(rfq);
+
             return rfq;
+        }
+
+        /// <summary>具备 customer.read 或为系统管理员时，可在需求场景查看客户标识与联系人等。</summary>
+        private async Task<bool> UserCanViewCustomerInRfqContextAsync(string userId)
+        {
+            var uid = userId.Trim();
+            if (string.IsNullOrEmpty(uid)) return false;
+            var s = await _rbacService.GetUserPermissionSummaryAsync(uid);
+            if (s.IsSysAdmin) return true;
+            return s.PermissionCodes.Any(c => string.Equals(c, "customer.read", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static void MaskRfqCustomerFieldsForViewer(RFQ rfq)
+        {
+            rfq.CustomerId = null;
+            rfq.CustomerName = null;
+            rfq.ContactId = null;
+            rfq.ContactPersonName = null;
+            rfq.ContactEmail = null;
+            if (rfq.Items == null) return;
+            foreach (var it in rfq.Items)
+            {
+                it.CustomerMpn = null;
+                it.CustomerBrand = string.Empty;
+            }
+        }
+
+        private static void MaskRfqListItemCustomerFields(RFQListItem item)
+        {
+            item.CustomerId = null;
+            item.CustomerName = null;
+        }
+
+        private static void MaskRfqItemListRowCustomerFields(RFQItemListItem row)
+        {
+            row.CustomerId = null;
+            row.CustomerName = null;
+            row.CustomerMpn = null;
         }
 
         public async Task<PagedResult<RFQListItem>> GetPagedAsync(RFQQueryRequest request)
         {
+            var canViewCustomerInList = string.IsNullOrWhiteSpace(request.CurrentUserId)
+                || await UserCanViewCustomerInRfqContextAsync(request.CurrentUserId!);
+            var effectiveCustomerIdFilter = canViewCustomerInList ? request.CustomerId : null;
+
             var all = await _rfqRepo.GetAllAsync();
             var query = all.AsQueryable();
 
@@ -224,8 +275,8 @@ namespace CRM.Core.Services
             }
             if (request.Status.HasValue)
                 query = query.Where(r => r.Status == request.Status.Value);
-            if (!string.IsNullOrWhiteSpace(request.CustomerId))
-                query = query.Where(r => r.CustomerId == request.CustomerId);
+            if (!string.IsNullOrWhiteSpace(effectiveCustomerIdFilter))
+                query = query.Where(r => r.CustomerId == effectiveCustomerIdFilter);
             if (request.StartDate.HasValue)
                 query = query.Where(r => r.CreateTime >= request.StartDate.Value);
             if (request.EndDate.HasValue)
@@ -285,6 +336,12 @@ namespace CRM.Core.Services
                 .Take(request.PageSize)
                 .ToList();
 
+            if (!canViewCustomerInList)
+            {
+                foreach (var it in pagedItems)
+                    MaskRfqListItemCustomerFields(it);
+            }
+
             return new PagedResult<RFQListItem>
             {
                 Items = pagedItems,
@@ -296,6 +353,10 @@ namespace CRM.Core.Services
 
         public async Task<PagedResult<RFQItemListItem>> GetPagedItemsAsync(RFQItemQueryRequest request)
         {
+            var canViewCustomerInList = string.IsNullOrWhiteSpace(request.CurrentUserId)
+                || await UserCanViewCustomerInRfqContextAsync(request.CurrentUserId!);
+            var customerKeywordForFilter = canViewCustomerInList ? request.CustomerKeyword : null;
+
             var allRfqs = (await _rfqRepo.GetAllAsync()).ToDictionary(r => r.Id);
 
             System.Func<RFQ, RFQItem, bool>? linePredicate = null;
@@ -375,9 +436,9 @@ namespace CRM.Core.Services
                 rows = rows.Where(r => r.RfqCreateTime < endExclusive).ToList();
             }
 
-            if (!string.IsNullOrWhiteSpace(request.CustomerKeyword))
+            if (!string.IsNullOrWhiteSpace(customerKeywordForFilter))
             {
-                var kw = request.CustomerKeyword.Trim().ToLowerInvariant();
+                var kw = customerKeywordForFilter.Trim().ToLowerInvariant();
                 rows = rows.Where(r =>
                     (r.CustomerName != null && r.CustomerName.ToLowerInvariant().Contains(kw)) ||
                     (r.CustomerId != null && r.CustomerId.ToLowerInvariant().Contains(kw))).ToList();
@@ -388,7 +449,7 @@ namespace CRM.Core.Services
                 var kw = request.MaterialModel.Trim().ToLowerInvariant();
                 rows = rows.Where(r =>
                     r.Mpn.ToLowerInvariant().Contains(kw) ||
-                    (r.CustomerMpn != null && r.CustomerMpn.ToLowerInvariant().Contains(kw))).ToList();
+                    (canViewCustomerInList && r.CustomerMpn != null && r.CustomerMpn.ToLowerInvariant().Contains(kw))).ToList();
             }
 
             if (!string.IsNullOrWhiteSpace(request.SalesUserId))
@@ -434,6 +495,12 @@ namespace CRM.Core.Services
                 .Skip((request.PageIndex - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .ToList();
+
+            if (!canViewCustomerInList)
+            {
+                foreach (var r in pagedItems)
+                    MaskRfqItemListRowCustomerFields(r);
+            }
 
             return new PagedResult<RFQItemListItem>
             {

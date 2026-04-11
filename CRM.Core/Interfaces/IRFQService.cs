@@ -7,7 +7,8 @@ namespace CRM.Core.Interfaces
     {
         /// <param name="actingUserId">当前登录用户 ID（写入 create_by_user_id，供列表「创建人」展示）</param>
         Task<RFQ> CreateAsync(CreateRFQRequest request, string? actingUserId = null);
-        Task<RFQ?> GetByIdAsync(string id);
+        /// <param name="viewerUserId">当前查看者用户 ID；传入且不具备 customer.read 时，响应中脱敏客户相关字段。</param>
+        Task<RFQ?> GetByIdAsync(string id, string? viewerUserId = null);
         Task<PagedResult<RFQListItem>> GetPagedAsync(RFQQueryRequest request);
         /// <summary>需求明细分页（联主表、客户、业务员，含数据权限）</summary>
         Task<PagedResult<RFQItemListItem>> GetPagedItemsAsync(RFQItemQueryRequest request);

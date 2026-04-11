@@ -50,6 +50,12 @@ namespace CRM.Core.Models.Purchase
         [Column(TypeName = "numeric(18,2)")]
         public decimal PaymentAmountFinish { get; set; }
 
+        /// <summary>
+        /// 累计请款金额：有效付款单明细请款额 PaymentAmountToBe 之和（含待审核、未完成核销），与 PaymentAmountFinish（已核销）区分。
+        /// </summary>
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal PaymentAmountRequested { get; set; }
+
         // --- 关联销售侧收款汇总（以销定采对账用，可选维护）---
         [Column(TypeName = "numeric(18,2)")]
         public decimal ReceiptAmount { get; set; }

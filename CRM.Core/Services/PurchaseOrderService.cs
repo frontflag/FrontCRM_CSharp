@@ -163,7 +163,7 @@ namespace CRM.Core.Services
                     PurchaseOrderId = order.Id,
                     PurchaseOrderItemCode = OrderLineItemCodes.Purchase(order.PurchaseOrderCode, seq),
                     SellOrderItemId = NormalizeStoredSellOrderItemId(item.SellOrderItemId),
-                    VendorId = item.VendorId.Length > 0 ? item.VendorId : request.VendorId,
+                    VendorId = !string.IsNullOrWhiteSpace(item.VendorId) ? item.VendorId.Trim() : request.VendorId,
                     ProductId = item.ProductId,
                     PN = item.PN,
                     Brand = item.Brand,
@@ -257,6 +257,7 @@ namespace CRM.Core.Services
                 PurchaseInvoiceToBe = lineTotal,
                 PaymentAmount = lineTotal,
                 PaymentAmountNot = lineTotal,
+                PaymentAmountRequested = 0m,
                 CreateTime = DateTime.UtcNow
             });
         }
@@ -431,7 +432,7 @@ namespace CRM.Core.Services
                         PurchaseOrderId = id,
                         PurchaseOrderItemCode = OrderLineItemCodes.Purchase(order.PurchaseOrderCode, seq),
                         SellOrderItemId = NormalizeStoredSellOrderItemId(item.SellOrderItemId),
-                        VendorId = item.VendorId.Length > 0 ? item.VendorId : order.VendorId,
+                        VendorId = !string.IsNullOrWhiteSpace(item.VendorId) ? item.VendorId.Trim() : order.VendorId,
                         ProductId = item.ProductId,
                         PN = item.PN,
                         Brand = item.Brand,

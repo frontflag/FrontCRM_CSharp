@@ -67,3 +67,25 @@ export function salesOrderLineApplyStockOutDisabled(row: {
   if (po !== undefined && po !== null && Number(po) === 0) return true
   return false
 }
+
+/** 扩展表 PurchasedStock_AvailableQty：同 PN+品牌备货可用量之和 > 0 时放宽申请出库限制 */
+export function salesOrderLinePurchasedStockReliefOk(row: { purchasedStockAvailableQty?: unknown }): boolean {
+  const n = Number(row.purchasedStockAvailableQty)
+  return Number.isFinite(n) && n > 0
+}
+
+/**
+ * 申请出库按钮禁用：出库完成后一律禁用；备货可用量 > 0 时不禁用；
+ * 否则与列表原逻辑一致（待采购/出库完成进度 或 未过采购门槛）。
+ */
+export function salesOrderLineApplyStockOutButtonDisabled(row: {
+  purchaseProgressStatus?: unknown
+  stockOutProgressStatus?: unknown
+  stockOutApplyPurchaseGateOk?: unknown
+  purchasedStockAvailableQty?: unknown
+}): boolean {
+  const so = row.stockOutProgressStatus
+  if (so !== undefined && so !== null && Number(so) === 2) return true
+  if (salesOrderLinePurchasedStockReliefOk(row)) return false
+  return salesOrderLineApplyStockOutDisabled(row) || row.stockOutApplyPurchaseGateOk !== true
+}

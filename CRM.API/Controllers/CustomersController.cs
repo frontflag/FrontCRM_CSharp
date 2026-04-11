@@ -205,7 +205,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var customer = await _customerService.CreateCustomerAsync(request);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var customer = await _customerService.CreateCustomerAsync(request, userId);
                 return Ok(ApiResponse<CustomerInfo>.Ok(customer, "创建客户成功"));
             }
             catch (Exception ex)
@@ -225,7 +226,8 @@ namespace CRM.API.Controllers
                 if (request?.Items == null || request.Items.Count == 0)
                     return BadRequest(ApiResponse<CustomerImportBatchResult>.Fail("导入数据为空", 400));
 
-                var result = await _customerService.ImportCustomersBatchAsync(request);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var result = await _customerService.ImportCustomersBatchAsync(request, userId);
                 var msg = $"导入完成：成功 {result.SuccessCount} 条，失败 {result.FailCount} 条";
                 return Ok(ApiResponse<CustomerImportBatchResult>.Ok(result, msg));
             }

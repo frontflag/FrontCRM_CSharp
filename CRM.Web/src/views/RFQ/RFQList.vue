@@ -10,10 +10,10 @@
         <div class="count-badge">{{ t('rfqList.count', { count: totalCount }) }}</div>
       </div>
       <div class="header-right">
-        <el-button class="btn-ghost btn-sm" @click="importDialogVisible = true">
+        <el-button v-if="canCreateRfq" class="btn-ghost btn-sm" @click="importDialogVisible = true">
           <el-icon><Upload /></el-icon>{{ t('rfqList.importExcel') }}
         </el-button>
-        <button class="btn-success" type="button" @click="router.push({ name: 'RFQCreate' })">
+        <button v-if="canCreateRfq" class="btn-success" type="button" @click="goCreateRfq">
           <el-icon class="btn-success__icon"><Plus /></el-icon>
           {{ t('rfqList.create') }}
         </button>
@@ -117,10 +117,7 @@
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
               <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('rfqList.actions.view') }}</button>
-              <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('rfqList.actions.edit') }}</button>
-              <button type="button" class="action-btn action-btn--warning" @click.stop="handleGenerateQuote(row)">
-                {{ t('rfqList.actions.generateQuote') }}
-              </button>
+              <button v-if="canCreateRfq" type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('rfqList.actions.edit') }}</button>
             </div>
 
             <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -132,11 +129,8 @@
                   <el-dropdown-item @click.stop="handleView(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('rfqList.actions.view') }}</span>
                   </el-dropdown-item>
-                  <el-dropdown-item @click.stop="handleEdit(row)">
+                  <el-dropdown-item v-if="canCreateRfq" @click.stop="handleEdit(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('rfqList.actions.edit') }}</span>
-                  </el-dropdown-item>
-                  <el-dropdown-item @click.stop="handleGenerateQuote(row)">
-                    <span class="op-more-item op-more-item--warning">{{ t('rfqList.actions.generateQuote') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -179,6 +173,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
 import { Plus, Search, Setting, Upload } from '@element-plus/icons-vue'
 import ImportRFQDialog from './components/ImportRFQDialog.vue'
 import { ElMessage } from 'element-plus'
@@ -191,6 +186,22 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
+const authStore = useAuthStore()
+
+const canCreateRfq = computed(() => authStore.hasPermission('rfq.write'))
+const canViewCustomerInRfq = computed(() => authStore.hasPermission('customer.read'))
+
+function goCreateRfq() {
+  if (authStore.isIdentityBlockedForPermission('rfq.write')) {
+    ElMessage.warning(t('rfqHome.createBlockedByIdentity'))
+    return
+  }
+  if (!authStore.hasPermission('rfq.write')) {
+    ElMessage.warning(t('rfqHome.createNeedRfqWrite'))
+    return
+  }
+  router.push({ name: 'RFQCreate' })
+}
 
 const loading = ref(false)
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
@@ -213,8 +224,8 @@ const pageInfo = ref({
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 96
-const OP_COL_EXPANDED_WIDTH = 236
-const OP_COL_EXPANDED_MIN_WIDTH = 228
+const OP_COL_EXPANDED_WIDTH = 168
+const OP_COL_EXPANDED_MIN_WIDTH = 160
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
 function toggleOpCol() {
@@ -222,7 +233,8 @@ function toggleOpCol() {
 }
 
 /** 需求列表主表可配置列（localStorage：crm-table-columns:v1:rfq-list-main） */
-const rfqTableColumns = computed((): CrmTableColumnDef[] => [
+const rfqTableColumns = computed((): CrmTableColumnDef[] => {
+  const cols: CrmTableColumnDef[] = [
   {
     key: 'rfqCode',
     label: t('rfqList.columns.rfqCode'),
@@ -233,7 +245,11 @@ const rfqTableColumns = computed((): CrmTableColumnDef[] => [
     sortable: true
   },
   { key: 'status', label: t('rfqList.columns.status'), prop: 'status', width: 160, align: 'center' as const },
-  { key: 'customerName', label: t('rfqList.columns.customer'), prop: 'customerName', minWidth: 200, showOverflowTooltip: true },
+  ]
+  if (canViewCustomerInRfq.value) {
+    cols.push({ key: 'customerName', label: t('rfqList.columns.customer'), prop: 'customerName', minWidth: 200, showOverflowTooltip: true })
+  }
+  cols.push(
   { key: 'product', label: t('rfqList.columns.product'), prop: 'product', minWidth: 150, showOverflowTooltip: true },
   { key: 'industry', label: t('rfqList.columns.industry'), prop: 'industry', width: 100 },
   { key: 'itemCount', label: t('rfqList.columns.itemCount'), prop: 'itemCount', width: 80, align: 'center' as const },
@@ -254,7 +270,9 @@ const rfqTableColumns = computed((): CrmTableColumnDef[] => [
     className: 'op-col',
     labelClassName: 'op-col'
   }
-])
+  )
+  return cols
+})
 
 const importDialogVisible = ref(false)
 
@@ -363,16 +381,16 @@ const handleImportCreated = (_rfqId: string) => {
 
 // 编辑：与「新建需求」共用 RFQCreate 页面（路由 rfqs/:id/edit）
 const handleEdit = (row: any) => {
+  if (!authStore.hasPermission('rfq.write')) {
+    ElMessage.warning(t('rfqHome.createNeedRfqWrite'))
+    return
+  }
   router.push({ name: 'RFQEdit', params: { id: row.id } })
 }
 
 // 查看
 const handleView = (row: any) => {
   router.push({ name: 'RFQDetail', params: { id: row.id } })
-}
-
-const handleGenerateQuote = (_row: any) => {
-  ElMessage.info(t('rfqList.featureNotAvailable'))
 }
 
 </script>

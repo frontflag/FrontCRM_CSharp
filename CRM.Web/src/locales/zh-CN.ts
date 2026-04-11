@@ -210,15 +210,20 @@ const zhCN = {
   dashboard: {
     stats: {
       totalCustomers: '总客户数',
+      totalVendors: '总供应商数',
       pendingTasks: '待处理事项',
       monthlyNew: '本月新增',
-      monthlySales: '本月销售额'
+      monthlySales: '未收款销售额',
+      vendorPayableAmount: '待付采购额'
     },
     welcomeBack: '欢迎回来，{name}！',
     fallbackName: '用户',
     welcomeSub: '这是 FrontCRM 智能进销存管理系统的控制台，您可以从左侧菜单进入各功能模块。',
+    welcomeSubPurchase: '这是采购工作台，您可以从左侧菜单或下方快捷入口进入供应商与采购相关模块。',
     quickCustomerManagement: '客户管理',
     quickNewCustomer: '新增客户',
+    quickVendorManagement: '供应商管理',
+    quickNewVendor: '新建供应商',
     quickSystemSettings: '系统设置'
   },
   systemUser: {
@@ -2579,6 +2584,7 @@ const zhCN = {
       unknown: '—'
     },
     columns: {
+      stockCode: '编号',
       materialModel: '物料型号',
       brand: '品牌',
       warehouseName: '仓库名称',
@@ -2862,6 +2868,7 @@ const zhCN = {
     },
     columns: {
       bizType: '业务类型',
+      auditStatus: '审核状态',
       documentCode: '单据编号',
       counterparty: '客户/供应商',
       description: '事项描述',
@@ -2870,9 +2877,10 @@ const zhCN = {
       submitter: '提交人',
       actions: '操作'
     },
-    actions: { audit: '审核', detail: '详情' },
+    actions: { audit: '审核', detail: '详情', viewOnly: '查看' },
     dialog: {
       title: '审核窗口',
+      titleViewOnly: '审批详情（仅查看）',
       submitRemark: '提交备注',
       auditRemark: '审批意见',
       auditRemarkPlaceholder: '可填写审批意见；驳回时必填',
@@ -2883,7 +2891,8 @@ const zhCN = {
       preview: '预览',
       download: '下载',
       reject: '驳回',
-      approve: '审批通过'
+      approve: '审批通过',
+      close: '关闭'
     },
     detailLoading: '正在加载详情...',
     sectionBusiness: '业务相关信息',
@@ -3088,6 +3097,9 @@ const zhCN = {
     messages: {
       saveOk: '保存成功',
       saveOkDemo: '保存成功（演示模式）',
+      saveFailed: '保存失败',
+      operationFailed: '操作失败',
+      completeFailed: '标记付款完成失败',
       saveSlipFirst: '请先保存付款单后再上传水单附件',
       slipUploadOk: '水单附件上传成功',
       slipUploadFail: '水单附件上传失败',

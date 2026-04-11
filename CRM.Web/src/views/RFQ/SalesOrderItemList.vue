@@ -142,7 +142,7 @@
               link
               type="warning"
               size="small"
-              :disabled="applyStockOutDisabled(row) || !stockOutApplyPurchaseGateOk(row)"
+              :disabled="salesOrderLineApplyStockOutButtonDisabled(row)"
               @click.stop="applyStockOutOne(row)"
             >
               {{ t('salesOrderItemList.actions.applyStockOut') }}
@@ -173,13 +173,13 @@
                 </el-dropdown-item>
                 <el-dropdown-item
                   v-if="canWriteSo && mainAllowsOps(row)"
-                  :disabled="applyStockOutDisabled(row) || !stockOutApplyPurchaseGateOk(row)"
+                  :disabled="salesOrderLineApplyStockOutButtonDisabled(row)"
                   @click.stop="applyStockOutOne(row)"
                 >
                   <span
                     class="op-more-item"
                     :class="
-                      applyStockOutDisabled(row) || !stockOutApplyPurchaseGateOk(row)
+                      salesOrderLineApplyStockOutButtonDisabled(row)
                         ? 'op-more-item--disabled'
                         : 'op-more-item--warning'
                     "
@@ -414,7 +414,8 @@ import {
   translateSalesOrderStatus,
   salesOrderStatusTagType,
   salesOrderMainAllowsPurchaseAndStockOut,
-  salesOrderLineApplyStockOutDisabled
+  salesOrderLineApplyStockOutButtonDisabled,
+  salesOrderLinePurchasedStockReliefOk
 } from '@/constants/salesOrderStatus'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
@@ -445,10 +446,6 @@ const canPurchaseReq = computed(
 
 function stockOutApplyPurchaseGateOk(row: Record<string, unknown>) {
   return row.stockOutApplyPurchaseGateOk === true
-}
-
-function applyStockOutDisabled(row: Record<string, unknown>) {
-  return salesOrderLineApplyStockOutDisabled(row)
 }
 
 /** 剩余可采为 0 时禁用「申请采购」（与行选项 / 服务端创建校验口径一致） */
@@ -998,16 +995,16 @@ function batchApplyPurchase() {
 }
 
 function applyStockOutOne(row: any) {
-  if (applyStockOutDisabled(row)) {
-    ElMessage.warning(t('salesOrderItemList.messages.applyStockOutDisabledByProgress'))
-    return
-  }
   if (!mainAllowsOps(row)) {
     ElMessage.warning(t('salesOrderItemList.messages.applyStockOutNeedAudit'))
     return
   }
-  if (!stockOutApplyPurchaseGateOk(row)) {
+  if (!stockOutApplyPurchaseGateOk(row) && !salesOrderLinePurchasedStockReliefOk(row)) {
     ElMessage.warning(t('salesOrderItemList.messages.applyStockOutNeedPurchaseGate'))
+    return
+  }
+  if (salesOrderLineApplyStockOutDisabled(row) && !salesOrderLinePurchasedStockReliefOk(row)) {
+    ElMessage.warning(t('salesOrderItemList.messages.applyStockOutDisabledByProgress'))
     return
   }
   router.push({

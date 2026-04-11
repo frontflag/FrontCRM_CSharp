@@ -114,16 +114,6 @@
               <span class="qty-cell">{{ formatQty(row.quantity) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="批次号" width="140">
-            <template #default="{ row }">
-              <el-input v-model="row.batchNo" placeholder="批次号（可选）" />
-            </template>
-          </el-table-column>
-          <el-table-column label="库位" width="140">
-            <template #default="{ row }">
-              <el-input v-model="row.warehouseLocation" placeholder="库位编码（可选）" />
-            </template>
-          </el-table-column>
           <el-table-column label="操作" width="80" fixed="right" class-name="op-col" label-class-name="op-col">
             <template #default>
               <button type="button" class="action-btn" disabled title="明细来自出库通知，不可手工删除">删除</button>
@@ -229,8 +219,6 @@ type ExecuteItem = {
   materialCode: string
   materialName: string
   quantity: number
-  batchNo?: string
-  warehouseLocation?: string
 }
 
 type ExecuteForm = {
@@ -441,9 +429,7 @@ const loadItemsFromRequest = async () => {
       lineNo: 1,
       materialCode,
       materialName: String(r.brand ?? '').trim() || '物料',
-      quantity: qty,
-      batchNo: '',
-      warehouseLocation: ''
+      quantity: qty
     }
   ]
   await pickRecommendedWarehouse()

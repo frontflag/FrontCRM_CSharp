@@ -94,6 +94,9 @@ namespace CRM.Core.Interfaces
         /// </summary>
         public bool StockOutApplyPurchaseGateOk { get; set; }
 
+        /// <summary>扩展表：同 PN+品牌备货库存可用量之和（<c>PurchasedStock_AvailableQty</c>）。</summary>
+        public int PurchasedStockAvailableQty { get; set; }
+
         /// <summary>
         /// 剩余可采数量（订单量 − 已下采购 − 进行中采购申请）；与 <see cref="IPurchaseRequisitionService.GetSellOrderLineOptionsAsync"/> 口径一致。
         /// 列表计算失败时为 null，前端不因缺字段误禁用。

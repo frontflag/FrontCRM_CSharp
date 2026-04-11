@@ -92,6 +92,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
                 PurchaseInvoiceToBe = lineTotal,
                 PaymentAmount = lineTotal,
                 PaymentAmountNot = lineTotal,
+                PaymentAmountRequested = 0m,
                 CreateTime = DateTime.UtcNow
             };
             await _extendRepo.AddAsync(ext);
@@ -152,6 +153,9 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
             .Where(p => p.Status != FinancePaymentCancelled && p.Status != FinancePaymentAuditFailed)
             .Select(p => p.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var payRequested = payItems.Where(pi => validPaymentIds.Contains(pi.FinancePaymentId)).Sum(pi => pi.PaymentAmountToBe);
+        ext.PaymentAmountRequested = Math.Round(payRequested, 2, MidpointRounding.AwayFromZero);
+
         var payDone = payItems.Where(pi => validPaymentIds.Contains(pi.FinancePaymentId)).Sum(pi => pi.VerificationDone);
         ext.PaymentAmountFinish = Math.Round(payDone, 2, MidpointRounding.AwayFromZero);
         ext.PaymentAmountNot = Math.Max(0m, Math.Round(ext.PaymentAmount - ext.PaymentAmountFinish, 2, MidpointRounding.AwayFromZero));

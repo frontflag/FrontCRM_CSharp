@@ -63,4 +63,39 @@ WHERE r."RoleCode" IN ('DEPT_DIRECTOR', 'DEPT_MANAGER')
     SELECT 1 FROM sys_role_permission x
     WHERE x."RoleId" = r."RoleId" AND x."PermissionId" = p."PermissionId");
 
+-- 财务部仅挂 DEPT_EMPLOYEE 的账号默认只有 finance-payment.read，无法保存/付款完成（API 需 finance-payment.write）。
+-- 为其补挂 finance_operator（须存在该角色；与 seed_departments_and_demo_employees 中 RoleId 一致）。
+INSERT INTO sys_role ("RoleId", "RoleCode", "RoleName", "Description", "Status", "CreateTime") VALUES
+('r0000000-0000-4000-8000-000000000012', 'finance_operator', '财务职员权限', '财务部门员工（付款/收款维护）', 1, TIMESTAMPTZ '2026-01-01T00:00:00Z')
+ON CONFLICT ("RoleCode") DO NOTHING;
+
+INSERT INTO sys_user_role ("UserRoleId", "UserId", "RoleId", "CreateTime")
+SELECT gen_random_uuid()::text, u."UserId", rf."RoleId", NOW()
+FROM "user" u
+JOIN sys_user_department ud ON ud."UserId" = u."UserId" AND ud."IsPrimary" IS TRUE
+JOIN sys_department d ON d."DepartmentId" = ud."DepartmentId"
+CROSS JOIN sys_role rf
+WHERE rf."RoleCode" = 'finance_operator'
+  AND (
+    d."IdentityType" = 5
+    OR COALESCE(d."DepartmentName", '') LIKE '%财务%'
+    OR d."DepartmentName" ILIKE '%Finance%'
+    OR d."DepartmentName" ILIKE '%Accounting%'
+  )
+  AND EXISTS (
+    SELECT 1 FROM sys_user_role ur
+    JOIN sys_role re ON re."RoleId" = ur."RoleId"
+    WHERE ur."UserId" = u."UserId" AND re."RoleCode" = 'DEPT_EMPLOYEE'
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM sys_user_role ur2
+    JOIN sys_role r2 ON r2."RoleId" = ur2."RoleId"
+    WHERE ur2."UserId" = u."UserId" AND r2."RoleCode" = 'finance_operator'
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM sys_user_role ur3
+    JOIN sys_role r3 ON r3."RoleId" = ur3."RoleId"
+    WHERE ur3."UserId" = u."UserId" AND r3."RoleCode" IN ('DEPT_MANAGER', 'DEPT_DIRECTOR', 'SYS_ADMIN')
+  );
+
 COMMIT;

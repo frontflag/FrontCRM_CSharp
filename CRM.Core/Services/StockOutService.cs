@@ -35,6 +35,7 @@ namespace CRM.Core.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
         private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
+        private readonly ISellOrderItemPurchasedStockAvailableSyncService _purchasedStockAvailableSync;
         private readonly ILogger<StockOutService> _logger;
 
         public StockOutService(
@@ -53,6 +54,7 @@ namespace CRM.Core.Services
             IInventoryCenterService inventoryCenterService,
             ISerialNumberService serialNumberService,
             ISellOrderItemExtendSyncService sellOrderItemExtendSync,
+            ISellOrderItemPurchasedStockAvailableSyncService purchasedStockAvailableSync,
             IUnitOfWork unitOfWork,
             ILogger<StockOutService> logger)
         {
@@ -71,6 +73,7 @@ namespace CRM.Core.Services
             _inventoryCenterService = inventoryCenterService;
             _serialNumberService = serialNumberService;
             _sellOrderItemExtendSync = sellOrderItemExtendSync;
+            _purchasedStockAvailableSync = purchasedStockAvailableSync;
             _unitOfWork = unitOfWork;
             _logger = logger;
         }
@@ -509,6 +512,17 @@ namespace CRM.Core.Services
                 "[SellLineStockOutSync] ExecuteStockOut calling RecalculateAsync SellOrderItemId={SellOrderItemId}",
                 sellLineId);
             await _sellOrderItemExtendSync.RecalculateAsync(sellLineId);
+            try
+            {
+                await _purchasedStockAvailableSync.TryRecalculateFromChangedStockInfosAsync(changedStocks);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "[PurchasedStockAvail] TryRecalculateFromChangedStockInfos failed after ExecuteStockOut SellOrderItemId={SellOrderItemId}",
+                    sellLineId);
+            }
+
             var saveExtend = await _unitOfWork.SaveChangesAsync();
             _logger.LogInformation(
                 "[SellLineStockOutSync] ExecuteStockOut after Recalculate SellOrderItemId={SellOrderItemId} SaveChanges={Rows}",

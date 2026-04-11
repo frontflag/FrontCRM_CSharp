@@ -442,6 +442,7 @@ function poDetailLineToListShape(it: any) {
     qty,
     cost,
     lineTotal: qty * cost,
+    paymentRequestedAmount: Number(it.paymentRequestedAmount ?? it.PaymentRequestedAmount ?? 0),
     currency: it.currency ?? it.Currency ?? o.currency,
     deliveryDate: it.deliveryDate ?? it.DeliveryDate ?? o.deliveryDate,
     canApplyPayment: Boolean(it.canApplyPayment ?? it.CanApplyPayment)

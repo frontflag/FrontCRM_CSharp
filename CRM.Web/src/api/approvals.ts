@@ -20,6 +20,8 @@ export interface PendingApprovalItem {
   submitter?: string | null
   status: number
   createdAt: string
+  /** 后端：是否可执行通过/驳回；缺省 true 兼容旧接口 */
+  canDecide?: boolean
 }
 
 export interface PageResult<T> {

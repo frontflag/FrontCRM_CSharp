@@ -263,10 +263,10 @@
                         申请采购
                       </button>
                       <button
-                        v-if="canWriteSo && stockOutApplyPurchaseGateOk(row)"
+                        v-if="canWriteSo && (stockOutApplyPurchaseGateOk(row) || salesOrderLinePurchasedStockReliefOk(row))"
                         type="button"
                         class="action-btn action-btn--warning"
-                        :disabled="salesOrderLineApplyStockOutDisabled(row)"
+                        :disabled="salesOrderLineApplyStockOutButtonDisabled(row)"
                         @click.stop="handleOpenApplyStockOut(row)"
                       >
                         申请出库
@@ -553,6 +553,8 @@ import {
   translateSalesOrderStatus,
   salesOrderStatusTagType,
   salesOrderMainAllowsPurchaseAndStockOut,
+  salesOrderLineApplyStockOutButtonDisabled,
+  salesOrderLinePurchasedStockReliefOk,
   salesOrderLineApplyStockOutDisabled
 } from '@/constants/salesOrderStatus'
 import {
@@ -889,12 +891,20 @@ watch(
         return
       }
       const lines = order.value.items || []
-      if (lines.length === 1 && !stockOutApplyPurchaseGateOk(lines[0])) {
+      if (
+        lines.length === 1 &&
+        !stockOutApplyPurchaseGateOk(lines[0]) &&
+        !salesOrderLinePurchasedStockReliefOk(lines[0])
+      ) {
         ElMessage.warning(t('salesOrderItemList.messages.applyStockOutNeedPurchaseGate'))
         router.replace({ path: route.path, query: { ...route.query, applyStockOut: undefined } })
         return
       }
-      if (lines.length === 1 && salesOrderLineApplyStockOutDisabled(lines[0])) {
+      if (
+        lines.length === 1 &&
+        salesOrderLineApplyStockOutDisabled(lines[0]) &&
+        !salesOrderLinePurchasedStockReliefOk(lines[0])
+      ) {
         ElMessage.warning(t('salesOrderItemList.messages.applyStockOutDisabledByProgress'))
         router.replace({ path: route.path, query: { ...route.query, applyStockOut: undefined } })
         return
@@ -1087,11 +1097,11 @@ const handleOpenApplyStockOut = async (item?: any) => {
     }
     line = list[0]
   }
-  if (!stockOutApplyPurchaseGateOk(line)) {
+  if (!stockOutApplyPurchaseGateOk(line) && !salesOrderLinePurchasedStockReliefOk(line)) {
     ElMessage.warning(t('salesOrderItemList.messages.applyStockOutNeedPurchaseGate'))
     return
   }
-  if (salesOrderLineApplyStockOutDisabled(line)) {
+  if (salesOrderLineApplyStockOutDisabled(line) && !salesOrderLinePurchasedStockReliefOk(line)) {
     ElMessage.warning(t('salesOrderItemList.messages.applyStockOutDisabledByProgress'))
     return
   }

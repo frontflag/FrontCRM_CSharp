@@ -31,6 +31,11 @@ INSERT INTO sys_role ("RoleId", "RoleCode", "RoleName", "Description", "Status",
 ('21000000-0000-4000-8000-000000000002', 'DEPT_EMPLOYEE', '部门员工', '只读 + 查看敏感字段类权限', 1, NOW())
 ON CONFLICT ("RoleCode") DO NOTHING;
 
+-- 财务职员业务角色（付款/收款维护 API 需 finance-payment.write 等；与 scripts/ensure_finance_operator_menu_permissions.sql 一致）
+INSERT INTO sys_role ("RoleId", "RoleCode", "RoleName", "Description", "Status", "CreateTime") VALUES
+('r0000000-0000-4000-8000-000000000012', 'finance_operator', '财务职员权限', '财务部门员工（付款/收款维护）', 1, NOW())
+ON CONFLICT ("RoleCode") DO NOTHING;
+
 -- 经理：除 rbac.manage 外全部权限
 INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
 SELECT gen_random_uuid()::text, r."RoleId", p."PermissionId", NOW()
@@ -88,7 +93,8 @@ WHERE (u."UserName", r."RoleCode") IN (
   ('sales_mgr', 'DEPT_MANAGER'), ('sales_staff', 'DEPT_EMPLOYEE'),
   ('purchase_mgr', 'DEPT_MANAGER'), ('purchase_staff', 'DEPT_EMPLOYEE'),
   ('logistics_mgr', 'DEPT_MANAGER'), ('logistics_staff', 'DEPT_EMPLOYEE'),
-  ('finance_mgr', 'DEPT_MANAGER'), ('finance_staff', 'DEPT_EMPLOYEE')
+  ('finance_mgr', 'DEPT_MANAGER'), ('finance_staff', 'DEPT_EMPLOYEE'),
+  ('finance_staff', 'finance_operator')
 )
 AND NOT EXISTS (
   SELECT 1 FROM sys_user_role x WHERE x."UserId" = u."UserId" AND x."RoleId" = r."RoleId"

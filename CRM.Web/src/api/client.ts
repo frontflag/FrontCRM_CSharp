@@ -75,6 +75,12 @@ class ApiClient {
         if (error.response?.status === 401) {
           localStorage.removeItem('token')
           localStorage.removeItem('user')
+          localStorage.removeItem('crm_tabs')
+          localStorage.removeItem('crm_active_tab')
+          localStorage.removeItem('crm_tabs:0')
+          localStorage.removeItem('crm_active_tab:0')
+          localStorage.removeItem('crm_tabs:')
+          localStorage.removeItem('crm_active_tab:')
           window.location.href = '/login'
           return Promise.reject(error)
         }

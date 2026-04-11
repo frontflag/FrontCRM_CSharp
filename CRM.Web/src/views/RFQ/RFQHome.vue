@@ -168,8 +168,8 @@ import { quoteApi } from '@/api/quote'
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
-/** 与需求首页路由 rfq.read 一致；销售主部门账号在后端汇总中会合并 rfq.write */
-const showCreateRfqButton = computed(() => authStore.hasPermission('rfq.read'))
+/** 仅具备 rfq.write 时显示「新建需求」（采购员等仅有 rfq.read 时只浏览） */
+const showCreateRfqButton = computed(() => authStore.hasPermission('rfq.write'))
 
 const keyword = ref('')
 

@@ -18,6 +18,9 @@ namespace CRM.API.Models.DTOs
 
         public short Status { get; set; } // current status
         public DateTime CreatedAt { get; set; }
+
+        /// <summary>当前用户是否可对该条执行通过/驳回（仅有读权限、仅查看本人提交时为 false）。</summary>
+        public bool CanDecide { get; set; }
     }
 
     public class PendingApprovalsPageDto

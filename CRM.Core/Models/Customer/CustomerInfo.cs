@@ -315,9 +315,9 @@ namespace CRM.Core.Models.Customer
         public bool IsControl { get; set; } = false;
 
         /// <summary>
-        /// 统一社会信用代码
+        /// 统一社会信用代码（含带分隔符录入时可超过 18 位；与 vendorinfo.CreditCode 对齐为 50）
         /// </summary>
-        [StringLength(18)]
+        [StringLength(50)]
         public string? CreditCode { get; set; }
 
         /// <summary>

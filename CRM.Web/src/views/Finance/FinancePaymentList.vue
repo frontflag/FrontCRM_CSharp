@@ -110,11 +110,17 @@
               text
               type="warning"
               @click.stop="openEdit(row)"
-              v-if="[1,-1,10].includes(row.status)"
+              v-if="canFinancePaymentWrite && [1,-1,10].includes(row.status)"
             >
               {{ t('financePaymentList.actions.pay') }}
             </el-button>
-            <el-button size="small" text type="warning" @click.stop="submitAudit(row)" v-if="row.status === 1">
+            <el-button
+              size="small"
+              text
+              type="warning"
+              @click.stop="submitAudit(row)"
+              v-if="canFinancePaymentWrite && row.status === 1"
+            >
               {{ t('financePaymentList.actions.submitAudit') }}
             </el-button>
             <el-button
@@ -122,7 +128,7 @@
               text
               type="danger"
               @click.stop="cancelPayment(row)"
-              v-if="[1,2].includes(row.status)"
+              v-if="canFinancePaymentWrite && [1,2].includes(row.status)"
             >
               {{ t('financePaymentList.actions.cancel') }}
             </el-button>
@@ -138,15 +144,18 @@
                   <span class="op-more-item op-more-item--primary">{{ t('financePaymentList.actions.detail') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item
-                  v-if="[1,-1,10].includes(row.status)"
+                  v-if="canFinancePaymentWrite && [1,-1,10].includes(row.status)"
                   @click.stop="openEdit(row)"
                 >
                   <span class="op-more-item op-more-item--warning">{{ t('financePaymentList.actions.pay') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="row.status === 1" @click.stop="submitAudit(row)">
+                <el-dropdown-item v-if="canFinancePaymentWrite && row.status === 1" @click.stop="submitAudit(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('financePaymentList.actions.submitAudit') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="[1,2].includes(row.status)" @click.stop="cancelPayment(row)">
+                <el-dropdown-item
+                  v-if="canFinancePaymentWrite && [1,2].includes(row.status)"
+                  @click.stop="cancelPayment(row)"
+                >
                   <span class="op-more-item op-more-item--danger">{{ t('financePaymentList.actions.cancel') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -287,14 +296,16 @@
       <template #footer>
         <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
         <el-button
-          v-if="editingId && canShowFinishButton(form as any)"
+          v-if="editingId && canFinancePaymentWrite && canShowFinishButton(form as any)"
           type="success"
           @click="completePaymentInDialog"
-          :loading="saving"
+          :loading="completingPayment"
         >
           {{ t('financePaymentList.btnPaymentDone') }}
         </el-button>
-        <el-button type="primary" @click="saveForm" :loading="saving">{{ t('financePaymentList.btnSave') }}</el-button>
+        <el-button type="primary" @click="saveForm" :loading="saving" :disabled="!canFinancePaymentWrite">
+          {{ t('financePaymentList.btnSave') }}
+        </el-button>
       </template>
     </el-dialog>
 
@@ -321,9 +332,18 @@ import { vendorApi } from '@/api/vendor'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const { t } = useI18n()
+const authStore = useAuthStore()
+
+/** 付款保存/完成/提交审核等接口均需 finance-payment.write；仅 read 时列表可见但操作会 403 */
+const canFinancePaymentWrite = computed(
+  () =>
+    authStore.hasPermission('finance-payment.write') &&
+    !authStore.isIdentityBlockedForPermission('finance-payment.write')
+)
 const { paymentStatusLabel, paymentStatusTag, paymentModeLabel } = useFinanceEnumLabels()
 
 const paymentStatusSelectKeys = Object.keys(PAYMENT_STATUS_MAP).map(k => Number(k))
@@ -431,6 +451,7 @@ const getMockData = (): FinancePayment[] => [
 const dialogVisible = ref(false)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
+const completingPayment = ref(false)
 const paymentDocs = ref<UploadDocumentDto[]>([])
 const uploadingSlipDocs = ref(false)
 const slipFileInputRef = ref<HTMLInputElement | null>(null)
@@ -492,9 +513,8 @@ const saveForm = async () => {
     ElMessage.success(t('financePaymentList.messages.saveOk'))
     dialogVisible.value = false
     loadData()
-  } catch {
-    ElMessage.success(t('financePaymentList.messages.saveOkDemo'))
-    dialogVisible.value = false
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('financePaymentList.messages.saveFailed'))
   } finally {
     saving.value = false
   }
@@ -541,28 +561,47 @@ const openDetail = (row: FinancePayment) => {
 
 // 状态操作
 const submitAudit = async (row: FinancePayment) => {
-  await ElMessageBox.confirm(
-    t('financePaymentList.messages.submitAuditMsg', { code: row.financePaymentCode }),
-    t('financePaymentList.messages.submitAuditTitle'),
-    { type: 'info' }
-  )
-  await financePaymentApi.submit(row.id)
-  ElMessage.success(t('financePaymentList.messages.submitted'))
-  await loadData()
+  try {
+    await ElMessageBox.confirm(
+      t('financePaymentList.messages.submitAuditMsg', { code: row.financePaymentCode }),
+      t('financePaymentList.messages.submitAuditTitle'),
+      { type: 'info' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await financePaymentApi.submit(row.id)
+    ElMessage.success(t('financePaymentList.messages.submitted'))
+    await loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('financePaymentList.messages.operationFailed'))
+  }
 }
 
 const completePaymentInDialog = async () => {
   if (!editingId.value) return
   const code = form.financePaymentCode || editingId.value
-  await ElMessageBox.confirm(
-    t('financePaymentList.messages.completeMsg', { code: String(code) }),
-    t('financePaymentList.messages.completeTitle'),
-    { type: 'success' }
-  )
-  await financePaymentApi.complete(editingId.value)
-  ElMessage.success(t('financePaymentList.messages.completed'))
-  dialogVisible.value = false
-  await loadData()
+  try {
+    await ElMessageBox.confirm(
+      t('financePaymentList.messages.completeMsg', { code: String(code) }),
+      t('financePaymentList.messages.completeTitle'),
+      { type: 'success' }
+    )
+  } catch {
+    return
+  }
+  completingPayment.value = true
+  try {
+    await financePaymentApi.complete(editingId.value)
+    ElMessage.success(t('financePaymentList.messages.completed'))
+    dialogVisible.value = false
+    await loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('financePaymentList.messages.completeFailed'))
+  } finally {
+    completingPayment.value = false
+  }
 }
 
 const canShowFinishButton = (row: FinancePayment | Record<string, any>) => {
@@ -570,14 +609,22 @@ const canShowFinishButton = (row: FinancePayment | Record<string, any>) => {
 }
 
 const cancelPayment = async (row: FinancePayment) => {
-  await ElMessageBox.confirm(
-    t('financePaymentList.messages.cancelMsg', { code: row.financePaymentCode }),
-    t('financePaymentList.messages.cancelTitle'),
-    { type: 'warning' }
-  )
-  await financePaymentApi.cancel(row.id)
-  ElMessage.success(t('financePaymentList.messages.cancelled'))
-  await loadData()
+  try {
+    await ElMessageBox.confirm(
+      t('financePaymentList.messages.cancelMsg', { code: row.financePaymentCode }),
+      t('financePaymentList.messages.cancelTitle'),
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await financePaymentApi.cancel(row.id)
+    ElMessage.success(t('financePaymentList.messages.cancelled'))
+    await loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('financePaymentList.messages.operationFailed'))
+  }
 }
 
 const formatAmount = (v: number) => v?.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'

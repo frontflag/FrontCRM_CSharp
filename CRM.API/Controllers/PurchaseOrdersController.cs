@@ -7,6 +7,7 @@ using CRM.API.Services.Interfaces;
 using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using System.Security.Claims;
 using System.Linq;
 
@@ -271,7 +272,7 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex,
                     "创建采购订单失败: {Message}; Inner={Inner}",
                     ex.Message, ex.InnerException?.Message);
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = PersistErrorMessage(ex) });
             }
         }
 
@@ -296,7 +297,7 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "PurchaseOrders Update 失败: {Message}; Inner={Inner}", ex.Message, ex.InnerException?.Message);
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = PersistErrorMessage(ex) });
             }
         }
 
@@ -490,6 +491,7 @@ namespace CRM.API.Controllers
                         sellLinePurchaseQtySum = sellLineSum,
                         stockInProgressQty = ext?.QtyReceiveTotal ?? 0m,
                         paymentProgressAmount = canViewPurchaseAmount ? (ext?.PaymentAmountFinish ?? 0m) : 0m,
+                        paymentRequestedAmount = canViewPurchaseAmount ? (ext?.PaymentAmountRequested ?? 0m) : 0m,
                         invoiceProgressAmount = canViewPurchaseAmount ? (ext?.PurchaseInvoiceDone ?? 0m) : 0m,
                         // 业务口径：主单已确认即可申请付款；兼容历史数据中“主单已确认但明细状态未同步到30”的情况
                         CanApplyPayment = canInitiatePaymentFromPo
@@ -498,6 +500,25 @@ namespace CRM.API.Controllers
                     };
                 }).ToList()
             };
+        }
+
+        /// <summary>将 Npgsql/EF 底层原因合并进提示文案，避免界面仅显示「See the inner exception」。</summary>
+        private static string PersistErrorMessage(Exception ex)
+        {
+            for (var c = ex; c != null; c = c.InnerException!)
+            {
+                if (c is PostgresException pg)
+                    return pg.MessageText;
+            }
+
+            if (ex is DbUpdateException db)
+            {
+                var inner = db.InnerException?.Message;
+                if (!string.IsNullOrWhiteSpace(inner))
+                    return $"{db.Message.TrimEnd('.')}：{inner}";
+            }
+
+            return ex.Message;
         }
     }
 

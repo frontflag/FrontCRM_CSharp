@@ -53,6 +53,19 @@
           </el-tag>
         </template>
       </el-table-column>
+      <el-table-column :label="t('pendingApprovals.columns.auditStatus')" width="120" min-width="110" align="center">
+        <template #default="{ row }">
+          <el-tag
+            v-if="row.status != null && row.status !== ''"
+            effect="dark"
+            :type="getApprovalStatusTagType(row.status)"
+            size="small"
+          >
+            {{ statusText(Number(row.status)) }}
+          </el-tag>
+          <span v-else class="text-muted">—</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="documentCode" :label="t('pendingApprovals.columns.documentCode')" width="160" min-width="160" show-overflow-tooltip>
         <template #default="{ row }">
           <span class="code-link" @click="handleView(row)">{{ row.documentCode }}</span>
@@ -87,8 +100,17 @@
           <div @click.stop @dblclick.stop>
             <div class="action-btns">
               <template v-if="activeState === 'pending'">
-                <el-button link type="primary" size="small" @click.stop="openAuditDialog(row)">
+                <el-button
+                  v-if="rowCanDecide(row)"
+                  link
+                  type="primary"
+                  size="small"
+                  @click.stop="openAuditDialog(row)"
+                >
                   {{ t('pendingApprovals.actions.audit') }}
+                </el-button>
+                <el-button v-else link type="primary" size="small" @click.stop="openAuditDialog(row)">
+                  {{ t('pendingApprovals.actions.viewOnly') }}
                 </el-button>
               </template>
               <el-button v-else link type="primary" size="small" @click.stop="handleView(row)">{{ t('pendingApprovals.actions.detail') }}</el-button>
@@ -110,7 +132,7 @@
       />
     </div>
 
-    <el-dialog v-model="auditDialogVisible" :title="t('pendingApprovals.dialog.title')" width="980px" destroy-on-close>
+    <el-dialog v-model="auditDialogVisible" :title="auditDialogTitle" width="980px" destroy-on-close>
       <div v-if="auditRow" class="audit-dialog">
         <div class="audit-top">
           <div class="audit-top-head">
@@ -123,7 +145,7 @@
             <el-form-item :label="t('pendingApprovals.dialog.submitRemark')">
               <div class="submit-remark">{{ getSubmitRemark() }}</div>
             </el-form-item>
-            <el-form-item :label="t('pendingApprovals.dialog.auditRemark')">
+            <el-form-item v-if="!auditReadOnly" :label="t('pendingApprovals.dialog.auditRemark')">
               <el-input
                 v-model="auditRemark"
                 type="textarea"
@@ -148,10 +170,13 @@
               </div>
             </div>
           </div>
-          <div class="audit-actions">
+          <div v-if="!auditReadOnly" class="audit-actions">
             <el-button @click="auditDialogVisible = false">{{ t('common.cancel') }}</el-button>
             <el-button type="danger" :loading="actionLoading" @click="handleRejectInDialog">{{ t('pendingApprovals.dialog.reject') }}</el-button>
             <el-button type="primary" :loading="actionLoading" @click="handleApproveInDialog">{{ t('pendingApprovals.dialog.approve') }}</el-button>
+          </div>
+          <div v-else class="audit-actions">
+            <el-button type="primary" @click="auditDialogVisible = false">{{ t('pendingApprovals.dialog.close') }}</el-button>
           </div>
         </div>
 
@@ -251,7 +276,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -270,8 +295,15 @@ const { t, te } = useI18n()
 const loading = ref(false)
 const actionLoading = ref(false)
 const auditDialogVisible = ref(false)
+const auditReadOnly = ref(false)
 const auditRow = ref<PendingApprovalItem | null>(null)
 const auditRemark = ref('')
+
+const auditDialogTitle = computed(() =>
+  auditReadOnly.value ? t('pendingApprovals.dialog.titleViewOnly') : t('pendingApprovals.dialog.title')
+)
+
+const rowCanDecide = (row: PendingApprovalItem) => row.canDecide !== false
 const auditDetailLoading = ref(false)
 const auditDetailError = ref('')
 const auditDetail = ref<any>(null)
@@ -296,6 +328,14 @@ const pendingCount = ref(0)
 const approvedCount = ref(0)
 const rejectedCount = ref(0)
 
+/** 兼容后端 PascalCase；无 canDecide 时视为可审批（旧接口） */
+function normalizePendingItem(raw: PendingApprovalItem): PendingApprovalItem {
+  const legacy = raw as unknown as Record<string, unknown>
+  const canDecideRaw = raw.canDecide ?? legacy.CanDecide
+  const canDecide = typeof canDecideRaw === 'boolean' ? canDecideRaw : true
+  return { ...raw, canDecide }
+}
+
 const getBizTypeText = (type: string) => {
   const key = `pendingApprovals.bizType.${type}` as const
   return te(key) ? t(key) : type
@@ -311,6 +351,16 @@ const getBizTypeTagType = (type: string) => {
     FINANCE_PAYMENT: 'danger'
   }
   return map[type] || ''
+}
+
+/** 与 statusText 规则一致，用于列表「审核状态」标签色 */
+const getApprovalStatusTagType = (status: unknown) => {
+  const n = Number(status)
+  if (!Number.isFinite(n)) return 'info'
+  if (n === 2 || n === 1) return 'warning'
+  if (n === 10 || n === 20 || n === 3) return 'success'
+  if (n < 0 || n === 4 || n === 5) return 'danger'
+  return 'info'
 }
 
 const formatDate = (dateStr: string) => formatDisplayDateTime(dateStr)
@@ -416,7 +466,7 @@ const handleSearch = async () => {
       loadApprovalItemsCompat(),
       loadApprovalSummaryCompat()
     ])
-    approvalList.value = res.items ?? []
+    approvalList.value = (res.items ?? []).map(normalizePendingItem)
     pagination.value.total = res.total ?? 0
     // 兼容模式下，pendingCount 可用当前分页总数兜底
     const fallbackPending = activeState.value === 'pending' ? Number(pagination.value.total || 0) : 0
@@ -477,6 +527,7 @@ const handleView = (row: PendingApprovalItem) => {
 
 const openAuditDialog = (row: PendingApprovalItem) => {
   auditRow.value = row
+  auditReadOnly.value = !rowCanDecide(row)
   auditRemark.value = ''
   auditDialogVisible.value = true
   loadAuditDetail(row)
@@ -561,7 +612,7 @@ const historyActorText = (item: ApprovalHistoryItem) => {
 }
 
 const handleApproveInDialog = async () => {
-  if (!auditRow.value) return
+  if (!auditRow.value || auditReadOnly.value) return
   try {
     actionLoading.value = true
     await approvalsApi.decidePendingApproval({
@@ -582,7 +633,7 @@ const handleApproveInDialog = async () => {
 }
 
 const handleRejectInDialog = async () => {
-  if (!auditRow.value) return
+  if (!auditRow.value || auditReadOnly.value) return
   const needReason = ['SALES_ORDER', 'PURCHASE_ORDER', 'CUSTOMER', 'VENDOR', 'FINANCE_PAYMENT'].includes(
     auditRow.value.bizType
   )

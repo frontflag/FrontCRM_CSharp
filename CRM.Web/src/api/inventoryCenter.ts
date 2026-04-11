@@ -3,6 +3,10 @@ import apiClient from './client'
 const unwrap = <T>(res: any): T => (res?.data ?? res) as T
 
 export interface InventoryOverview {
+  /** stock.StockId */
+  stockId: string
+  /** 库存业务编号（历史行可能为空） */
+  stockCode?: string | null
   materialId: string
   /** 规格型号（后端优先 stock.purchase_pn，缺省再主数据/订单行） */
   materialModel?: string | null

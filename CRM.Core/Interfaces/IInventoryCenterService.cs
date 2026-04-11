@@ -33,6 +33,10 @@ namespace CRM.Core.Interfaces
 
     public class InventoryMaterialOverviewDto
     {
+        /// <summary>库存行主键（<c>stock.StockId</c>）</summary>
+        public string StockId { get; set; } = string.Empty;
+        /// <summary>库存业务编号（历史行可能为空）</summary>
+        public string? StockCode { get; set; }
         public string MaterialId { get; set; } = string.Empty;
         /// <summary>规格型号（优先 <c>stock.purchase_pn</c>，缺省再物料主数据 / 订单行 PN）</summary>
         public string? MaterialModel { get; set; }
@@ -43,7 +47,7 @@ namespace CRM.Core.Interfaces
         public string? WarehouseCode { get; set; }
         /// <summary>库存类型 1=客单库存 2=备货库存 3=样品库存</summary>
         public short StockType { get; set; } = 1;
-        /// <summary>地域（与 <c>stock.RegionType</c> 一致；分组内取首行，10=境内 20=境外）</summary>
+        /// <summary>地域（与 <c>stock.RegionType</c> 一致；10=境内 20=境外）</summary>
         public short RegionType { get; set; } = RegionTypeCode.Domestic;
         public decimal OnHandQty { get; set; }
         public decimal AvailableQty { get; set; }

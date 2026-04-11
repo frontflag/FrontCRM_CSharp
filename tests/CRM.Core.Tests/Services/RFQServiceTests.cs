@@ -34,6 +34,7 @@ namespace CRM.Core.Tests.Services
         private readonly IRepository<RbacUserDepartment> _rbacUserDepartmentRepo;
         private readonly IRepository<Quote> _quoteRepo;
         private readonly IRepository<User> _userRepo;
+        private readonly IRbacService _rbacService;
         private readonly RFQService _rfqService;
 
         public RFQServiceTests()
@@ -65,6 +66,16 @@ namespace CRM.Core.Tests.Services
             // 默认序列号生成
             _serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
 
+            _rbacService = Substitute.For<IRbacService>();
+            _rbacService.GetUserPermissionSummaryAsync(Arg.Any<string>())
+                .Returns(ci => new UserPermissionSummaryDto
+                {
+                    UserId = ci.ArgAt<string>(0),
+                    IsSysAdmin = true,
+                    RoleCodes = Array.Empty<string>(),
+                    PermissionCodes = Array.Empty<string>()
+                });
+
             _rfqService = new RFQService(
                 _rfqRepository,
                 _rfqItemRepository,
@@ -81,6 +92,7 @@ namespace CRM.Core.Tests.Services
                 _rbacUserDepartmentRepo,
                 _quoteRepo,
                 _userRepo,
+                _rbacService,
                 NullLogger<RFQService>.Instance);
         }
 
@@ -177,6 +189,15 @@ namespace CRM.Core.Tests.Services
             var rbacUserDeptRepo = Substitute.For<IRepository<RbacUserDepartment>>();
             rbacDeptRepo.GetAllAsync().Returns(new List<RbacDepartment>());
             rbacUserDeptRepo.GetAllAsync().Returns(new List<RbacUserDepartment>());
+            var rbacSvc = Substitute.For<IRbacService>();
+            rbacSvc.GetUserPermissionSummaryAsync(Arg.Any<string>())
+                .Returns(ci => new UserPermissionSummaryDto
+                {
+                    UserId = ci.ArgAt<string>(0),
+                    IsSysAdmin = true,
+                    RoleCodes = Array.Empty<string>(),
+                    PermissionCodes = Array.Empty<string>()
+                });
             var svc = new RFQService(
                 rfqRepo,
                 itemRepo,
@@ -193,6 +214,7 @@ namespace CRM.Core.Tests.Services
                 rbacUserDeptRepo,
                 Substitute.For<IRepository<Quote>>(),
                 userRepo,
+                rbacSvc,
                 NullLogger<RFQService>.Instance);
 
             var req = BuildValidCreateRequest(r =>

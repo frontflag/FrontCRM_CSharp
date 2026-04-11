@@ -128,6 +128,54 @@ namespace CRM.API.Controllers
             return summary.IsSysAdmin || summary.PermissionCodes.Contains(cfg.PermissionCode);
         }
 
+        /// <summary>各业务类型「仅查看待审批/本人提交」所需的读权限（与路由菜单一致）。</summary>
+        private static readonly Dictionary<string, string> BizTypeReadPermission = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["VENDOR"] = "vendor.read",
+            ["CUSTOMER"] = "customer.read",
+            ["SALES_ORDER"] = "sales-order.read",
+            ["PURCHASE_ORDER"] = "purchase-order.read",
+            ["FINANCE_RECEIPT"] = "finance-receipt.read",
+            ["FINANCE_PAYMENT"] = "finance-payment.read"
+        };
+
+        private static bool SummaryHasPermissionCode(CRM.Core.Interfaces.UserPermissionSummaryDto summary, string code)
+        {
+            return summary.PermissionCodes.Any(c => string.Equals(c, code, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>无审批写权限时，凭读权限可查看本人提交的记录。</summary>
+        private static bool HasSubmitterViewPermission(CRM.Core.Interfaces.UserPermissionSummaryDto summary, BizTypeConfig cfg)
+        {
+            if (summary.IsSysAdmin) return true;
+            if (!BizTypeReadPermission.TryGetValue(cfg.BizType, out var readCode)) return false;
+            return SummaryHasPermissionCode(summary, readCode);
+        }
+
+        private static bool UserIdEquals(string? a, string b)
+        {
+            if (string.IsNullOrWhiteSpace(a) || string.IsNullOrWhiteSpace(b)) return false;
+            return string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsOwnVendorSubmission(VendorInfo v, string userId) =>
+            UserIdEquals(v.PurchaseUserId, userId) || UserIdEquals(v.CreateByUserId, userId);
+
+        private static bool IsOwnCustomerSubmission(CustomerInfo c, string userId) =>
+            UserIdEquals(c.SalesUserId, userId) || UserIdEquals(c.CreateByUserId, userId);
+
+        private static bool IsOwnSalesOrderSubmission(SellOrder o, string userId) =>
+            UserIdEquals(o.SalesUserId, userId) || UserIdEquals(o.CreateByUserId, userId);
+
+        private static bool IsOwnPurchaseOrderSubmission(PurchaseOrder o, string userId) =>
+            UserIdEquals(o.PurchaseUserId, userId) || UserIdEquals(o.CreateByUserId, userId);
+
+        private static bool IsOwnFinanceReceiptSubmission(FinanceReceipt r, string userId) =>
+            UserIdEquals(r.CreateByUserId, userId) || UserIdEquals(r.SalesUserId, userId) || UserIdEquals(r.ReceiptUserId, userId);
+
+        private static bool IsOwnFinancePaymentSubmission(FinancePayment p, string userId) =>
+            UserIdEquals(p.CreateByUserId, userId) || UserIdEquals(p.PaymentUserId, userId);
+
         private string? GetCurrentUserId()
         {
             return User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -215,23 +263,49 @@ namespace CRM.API.Controllers
                     });
                     foreach (var v in pr.Items)
                     {
-                        if (isPendingState && !summary.IsSysAdmin &&
-                            string.Equals(v.PurchaseUserId, userId, StringComparison.OrdinalIgnoreCase))
+                        var canApprove = HasApprovePermission(summary, cfg);
+                        var canViewOwn = HasSubmitterViewPermission(summary, cfg);
+                        var own = IsOwnVendorSubmission(v, userId);
+                        if (!canApprove && !(canViewOwn && own))
                             continue;
-                        allItems.Add(new PendingApprovalItemDto
+
+                        if (canApprove)
                         {
-                            BizType = cfg.BizType,
-                            BizTypeName = cfg.BizTypeName,
-                            BusinessId = v.Id,
-                            DocumentCode = v.Code,
-                            Title = v.OfficialName ?? v.NickName ?? v.Code,
-                            CounterpartyName = v.OfficialName ?? v.NickName ?? v.Code,
-                            Amount = null,
-                            Currency = null,
-                            Submitter = v.PurchaseUserId ?? v.CreateUserId?.ToString(),
-                            Status = v.Status,
-                            CreatedAt = v.CreateTime
-                        });
+                            var selfPending = isPendingState && own && !summary.IsSysAdmin;
+                            allItems.Add(new PendingApprovalItemDto
+                            {
+                                BizType = cfg.BizType,
+                                BizTypeName = cfg.BizTypeName,
+                                BusinessId = v.Id,
+                                DocumentCode = v.Code,
+                                Title = v.OfficialName ?? v.NickName ?? v.Code,
+                                CounterpartyName = v.OfficialName ?? v.NickName ?? v.Code,
+                                Amount = null,
+                                Currency = null,
+                                Submitter = v.PurchaseUserId ?? v.CreateByUserId,
+                                Status = v.Status,
+                                CreatedAt = v.CreateTime,
+                                CanDecide = !selfPending
+                            });
+                        }
+                        else if (canViewOwn && own)
+                        {
+                            allItems.Add(new PendingApprovalItemDto
+                            {
+                                BizType = cfg.BizType,
+                                BizTypeName = cfg.BizTypeName,
+                                BusinessId = v.Id,
+                                DocumentCode = v.Code,
+                                Title = v.OfficialName ?? v.NickName ?? v.Code,
+                                CounterpartyName = v.OfficialName ?? v.NickName ?? v.Code,
+                                Amount = null,
+                                Currency = null,
+                                Submitter = v.PurchaseUserId ?? v.CreateByUserId,
+                                Status = v.Status,
+                                CreatedAt = v.CreateTime,
+                                CanDecide = false
+                            });
+                        }
                     }
                 }
                 else if (cfg.BizType.Equals("CUSTOMER", StringComparison.OrdinalIgnoreCase))
@@ -246,26 +320,52 @@ namespace CRM.API.Controllers
 
                     foreach (var c in pr.Items)
                     {
-                        if (isPendingState && !summary.IsSysAdmin &&
-                            string.Equals(c.SalesUserId, userId, StringComparison.OrdinalIgnoreCase))
-                            continue;
                         if (!await _dataPermissionService.CanAccessCustomerAsync(userId, c))
                             continue;
 
-                        allItems.Add(new PendingApprovalItemDto
+                        var canApprove = HasApprovePermission(summary, cfg);
+                        var canViewOwn = HasSubmitterViewPermission(summary, cfg);
+                        var own = IsOwnCustomerSubmission(c, userId);
+                        if (!canApprove && !(canViewOwn && own))
+                            continue;
+
+                        if (canApprove)
                         {
-                            BizType = cfg.BizType,
-                            BizTypeName = cfg.BizTypeName,
-                            BusinessId = c.Id,
-                            DocumentCode = c.CustomerCode,
-                            Title = c.OfficialName ?? c.NickName ?? c.CustomerCode,
-                            CounterpartyName = c.OfficialName ?? c.NickName ?? c.CustomerCode,
-                            Amount = null,
-                            Currency = null,
-                            Submitter = c.SalesUserId ?? c.CreateUserId?.ToString(),
-                            Status = c.Status,
-                            CreatedAt = c.CreateTime
-                        });
+                            var selfPending = isPendingState && own && !summary.IsSysAdmin;
+                            allItems.Add(new PendingApprovalItemDto
+                            {
+                                BizType = cfg.BizType,
+                                BizTypeName = cfg.BizTypeName,
+                                BusinessId = c.Id,
+                                DocumentCode = c.CustomerCode,
+                                Title = c.OfficialName ?? c.NickName ?? c.CustomerCode,
+                                CounterpartyName = c.OfficialName ?? c.NickName ?? c.CustomerCode,
+                                Amount = null,
+                                Currency = null,
+                                Submitter = c.SalesUserId ?? c.CreateByUserId,
+                                Status = c.Status,
+                                CreatedAt = c.CreateTime,
+                                CanDecide = !selfPending
+                            });
+                        }
+                        else if (canViewOwn && own)
+                        {
+                            allItems.Add(new PendingApprovalItemDto
+                            {
+                                BizType = cfg.BizType,
+                                BizTypeName = cfg.BizTypeName,
+                                BusinessId = c.Id,
+                                DocumentCode = c.CustomerCode,
+                                Title = c.OfficialName ?? c.NickName ?? c.CustomerCode,
+                                CounterpartyName = c.OfficialName ?? c.NickName ?? c.CustomerCode,
+                                Amount = null,
+                                Currency = null,
+                                Submitter = c.SalesUserId ?? c.CreateByUserId,
+                                Status = c.Status,
+                                CreatedAt = c.CreateTime,
+                                CanDecide = false
+                            });
+                        }
                     }
                 }
                 else if (cfg.BizType.Equals("SALES_ORDER", StringComparison.OrdinalIgnoreCase))
@@ -283,24 +383,49 @@ namespace CRM.API.Controllers
 
                     foreach (var o in pr.Items)
                     {
-                        if (isPendingState && !summary.IsSysAdmin &&
-                            string.Equals(o.SalesUserId, userId, StringComparison.OrdinalIgnoreCase))
+                        var canApprove = HasApprovePermission(summary, cfg);
+                        var canViewOwn = HasSubmitterViewPermission(summary, cfg);
+                        var own = IsOwnSalesOrderSubmission(o, userId);
+                        if (!canApprove && !(canViewOwn && own))
                             continue;
 
-                        allItems.Add(new PendingApprovalItemDto
+                        if (canApprove)
                         {
-                            BizType = cfg.BizType,
-                            BizTypeName = cfg.BizTypeName,
-                            BusinessId = o.Id,
-                            DocumentCode = o.SellOrderCode,
-                            Title = o.SellOrderCode,
-                            CounterpartyName = canViewCustomerInfo ? o.CustomerName : null,
-                            Amount = canViewSalesAmount ? o.Total : null,
-                            Currency = o.Currency,
-                            Submitter = o.SalesUserId ?? o.CreateUserId?.ToString(),
-                            Status = (short)o.Status,
-                            CreatedAt = o.CreateTime
-                        });
+                            var selfPending = isPendingState && own && !summary.IsSysAdmin;
+                            allItems.Add(new PendingApprovalItemDto
+                            {
+                                BizType = cfg.BizType,
+                                BizTypeName = cfg.BizTypeName,
+                                BusinessId = o.Id,
+                                DocumentCode = o.SellOrderCode,
+                                Title = o.SellOrderCode,
+                                CounterpartyName = canViewCustomerInfo ? o.CustomerName : null,
+                                Amount = canViewSalesAmount ? o.Total : null,
+                                Currency = o.Currency,
+                                Submitter = o.SalesUserId ?? o.CreateByUserId,
+                                Status = (short)o.Status,
+                                CreatedAt = o.CreateTime,
+                                CanDecide = !selfPending
+                            });
+                        }
+                        else if (canViewOwn && own)
+                        {
+                            allItems.Add(new PendingApprovalItemDto
+                            {
+                                BizType = cfg.BizType,
+                                BizTypeName = cfg.BizTypeName,
+                                BusinessId = o.Id,
+                                DocumentCode = o.SellOrderCode,
+                                Title = o.SellOrderCode,
+                                CounterpartyName = canViewCustomerInfo ? o.CustomerName : null,
+                                Amount = canViewSalesAmount ? o.Total : null,
+                                Currency = o.Currency,
+                                Submitter = o.SalesUserId ?? o.CreateByUserId,
+                                Status = (short)o.Status,
+                                CreatedAt = o.CreateTime,
+                                CanDecide = false
+                            });
+                        }
                     }
                 }
                 else if (cfg.BizType.Equals("PURCHASE_ORDER", StringComparison.OrdinalIgnoreCase))
@@ -318,24 +443,49 @@ namespace CRM.API.Controllers
 
                     foreach (var o in pr.Items)
                     {
-                        if (isPendingState && !summary.IsSysAdmin &&
-                            string.Equals(o.PurchaseUserId, userId, StringComparison.OrdinalIgnoreCase))
+                        var canApprove = HasApprovePermission(summary, cfg);
+                        var canViewOwn = HasSubmitterViewPermission(summary, cfg);
+                        var own = IsOwnPurchaseOrderSubmission(o, userId);
+                        if (!canApprove && !(canViewOwn && own))
                             continue;
 
-                        allItems.Add(new PendingApprovalItemDto
+                        if (canApprove)
                         {
-                            BizType = cfg.BizType,
-                            BizTypeName = cfg.BizTypeName,
-                            BusinessId = o.Id,
-                            DocumentCode = o.PurchaseOrderCode,
-                            Title = o.PurchaseOrderCode,
-                            CounterpartyName = canViewVendorInfo ? o.VendorName : null,
-                            Amount = canViewPurchaseAmount ? o.Total : null,
-                            Currency = o.Currency,
-                            Submitter = o.PurchaseUserId ?? o.CreateUserId?.ToString(),
-                            Status = o.Status,
-                            CreatedAt = o.CreateTime
-                        });
+                            var selfPending = isPendingState && own && !summary.IsSysAdmin;
+                            allItems.Add(new PendingApprovalItemDto
+                            {
+                                BizType = cfg.BizType,
+                                BizTypeName = cfg.BizTypeName,
+                                BusinessId = o.Id,
+                                DocumentCode = o.PurchaseOrderCode,
+                                Title = o.PurchaseOrderCode,
+                                CounterpartyName = canViewVendorInfo ? o.VendorName : null,
+                                Amount = canViewPurchaseAmount ? o.Total : null,
+                                Currency = o.Currency,
+                                Submitter = o.PurchaseUserId ?? o.CreateByUserId,
+                                Status = o.Status,
+                                CreatedAt = o.CreateTime,
+                                CanDecide = !selfPending
+                            });
+                        }
+                        else if (canViewOwn && own)
+                        {
+                            allItems.Add(new PendingApprovalItemDto
+                            {
+                                BizType = cfg.BizType,
+                                BizTypeName = cfg.BizTypeName,
+                                BusinessId = o.Id,
+                                DocumentCode = o.PurchaseOrderCode,
+                                Title = o.PurchaseOrderCode,
+                                CounterpartyName = canViewVendorInfo ? o.VendorName : null,
+                                Amount = canViewPurchaseAmount ? o.Total : null,
+                                Currency = o.Currency,
+                                Submitter = o.PurchaseUserId ?? o.CreateByUserId,
+                                Status = o.Status,
+                                CreatedAt = o.CreateTime,
+                                CanDecide = false
+                            });
+                        }
                     }
                 }
                 else if (cfg.BizType.Equals("FINANCE_RECEIPT", StringComparison.OrdinalIgnoreCase))
@@ -350,7 +500,14 @@ namespace CRM.API.Controllers
 
                     foreach (var r in pr.Items)
                     {
-                        allItems.Add(new PendingApprovalItemDto
+                        var canApprove = HasApprovePermission(summary, cfg);
+                        var canViewOwn = HasSubmitterViewPermission(summary, cfg);
+                        var own = IsOwnFinanceReceiptSubmission(r, userId);
+                        if (!canApprove && !(canViewOwn && own))
+                            continue;
+
+                        var selfPending = isPendingState && own && !summary.IsSysAdmin;
+                        var dto = new PendingApprovalItemDto
                         {
                             BizType = cfg.BizType,
                             BizTypeName = cfg.BizTypeName,
@@ -360,10 +517,12 @@ namespace CRM.API.Controllers
                             CounterpartyName = r.CustomerName,
                             Amount = r.ReceiptAmount,
                             Currency = r.ReceiptCurrency,
-                            Submitter = r.ReceiptUserId ?? r.SalesUserId ?? r.CreateUserId?.ToString(),
+                            Submitter = r.ReceiptUserId ?? r.SalesUserId ?? r.CreateByUserId,
                             Status = r.Status,
-                            CreatedAt = r.CreateTime
-                        });
+                            CreatedAt = r.CreateTime,
+                            CanDecide = canApprove && !selfPending
+                        };
+                        allItems.Add(dto);
                     }
                 }
                 else if (cfg.BizType.Equals("FINANCE_PAYMENT", StringComparison.OrdinalIgnoreCase))
@@ -378,8 +537,15 @@ namespace CRM.API.Controllers
 
                     foreach (var p in pr.Items)
                     {
+                        var canApprove = HasApprovePermission(summary, cfg);
+                        var canViewOwn = HasSubmitterViewPermission(summary, cfg);
+                        var own = IsOwnFinancePaymentSubmission(p, userId);
+                        if (!canApprove && !(canViewOwn && own))
+                            continue;
+
                         // 请款阶段仅有 PaymentAmountToBe；PaymentAmount 在付款完成后才与待付对齐
                         var payDisplayAmount = p.PaymentAmountToBe != 0 ? p.PaymentAmountToBe : p.PaymentAmount;
+                        var selfPayPending = isPendingState && own && !summary.IsSysAdmin;
                         allItems.Add(new PendingApprovalItemDto
                         {
                             BizType = cfg.BizType,
@@ -390,9 +556,10 @@ namespace CRM.API.Controllers
                             CounterpartyName = p.VendorName,
                             Amount = payDisplayAmount,
                             Currency = p.PaymentCurrency,
-                            Submitter = p.PaymentUserId ?? p.CreateUserId?.ToString(),
+                            Submitter = p.PaymentUserId ?? p.CreateByUserId,
                             Status = p.Status,
-                            CreatedAt = p.CreateTime
+                            CreatedAt = p.CreateTime,
+                            CanDecide = canApprove && !selfPayPending
                         });
                     }
                 }
@@ -424,7 +591,7 @@ namespace CRM.API.Controllers
                 var configs = BizTypes.Values
                     .Where(c => string.IsNullOrWhiteSpace(bizTypeFilter) ||
                                 c.BizType.Equals(bizTypeFilter, StringComparison.OrdinalIgnoreCase))
-                    .Where(c => HasApprovePermission(summary, c))
+                    .Where(c => HasApprovePermission(summary, c) || HasSubmitterViewPermission(summary, c))
                     .ToList();
 
                 var allItems = await QueryApprovalItemsByStateAsync(userId, summary, configs, state);
@@ -467,7 +634,7 @@ namespace CRM.API.Controllers
                 var configs = BizTypes.Values
                     .Where(c => string.IsNullOrWhiteSpace(bizTypeFilter) ||
                                 c.BizType.Equals(bizTypeFilter, StringComparison.OrdinalIgnoreCase))
-                    .Where(c => HasApprovePermission(summary, c))
+                    .Where(c => HasApprovePermission(summary, c) || HasSubmitterViewPermission(summary, c))
                     .ToList();
 
                 var pendingCount = (await QueryApprovalItemsByStateAsync(userId, summary, configs, "pending")).Count;

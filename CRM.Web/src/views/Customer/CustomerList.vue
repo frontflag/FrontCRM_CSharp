@@ -310,7 +310,10 @@ function isPartyStatusMuted(c: Customer) {
 }
 const authStore = useAuthStore();
 const customerDict = useCustomerDictStore();
-const canViewCustomerInfo = authStore.hasPermission('customer.info.read');
+/** 联系人、电话等敏感列；与 RBAC 节点 customer.info.read 一致 */
+const canViewCustomerInfo = authStore.hasPermission('customer.info.read')
+/** 列表页已要求 customer.read；客户名称与编号同属基础识别信息，不应依赖 info.read（生产常见仅绑 read 导致无名称列） */
+const canViewCustomerNameColumn = authStore.hasPermission('customer.read')
 const canSubmitAudit = authStore.hasPermission('customer.write');
 
 const importDialogVisible = ref(false);
@@ -361,20 +364,24 @@ const customerTableColumns = computed<CrmTableColumnDef[]>(() => {
   const cols: CrmTableColumnDef[] = [
     { key: 'customerCode', label: t('customerList.columns.customerCode'), prop: 'customerCode', width: 160, minWidth: 160, showOverflowTooltip: true },
     { key: 'status', label: t('customerList.columns.status'), prop: 'status', width: 160, align: 'center' },
+    ...(canViewCustomerNameColumn
+      ? [{ key: 'customerName', label: t('customerList.columns.customerName'), minWidth: 200, showOverflowTooltip: true } as CrmTableColumnDef]
+      : []),
     { key: 'customerType', label: t('customerList.columns.type'), width: 80, align: 'center' },
     { key: 'customerLevel', label: t('customerList.columns.level'), width: 80, align: 'center' },
     { key: 'industry', label: t('customerList.columns.industry'), width: 110, showOverflowTooltip: true },
-    { key: 'region', label: t('customerList.columns.region'), minWidth: 100, showOverflowTooltip: true },
-    { key: 'createdAt', label: t('customerList.columns.createdAt'), width: 160 },
-    { key: 'createUser', label: t('customerList.columns.createUser'), width: 120, showOverflowTooltip: true }
   ]
   if (canViewCustomerInfo) {
-    cols.splice(2, 0, { key: 'customerName', label: t('customerList.columns.customerName'), minWidth: 200, showOverflowTooltip: true })
-    cols.splice(6, 0,
+    cols.push(
       { key: 'contactName', label: t('customerList.columns.contactName'), width: 130, showOverflowTooltip: true },
       { key: 'mobilePhone', label: t('customerList.columns.mobilePhone'), width: 130, showOverflowTooltip: true }
     )
   }
+  cols.push(
+    { key: 'region', label: t('customerList.columns.region'), minWidth: 100, showOverflowTooltip: true },
+    { key: 'createdAt', label: t('customerList.columns.createdAt'), width: 160 },
+    { key: 'createUser', label: t('customerList.columns.createUser'), width: 120, showOverflowTooltip: true }
+  )
   cols.push({
     key: 'actions',
     label: t('customerList.actions.column'),

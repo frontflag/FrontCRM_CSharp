@@ -283,6 +283,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.PurchaseProgressStatus).HasDefaultValue((short)0);
                 entity.Property(e => e.StockInProgressStatus).HasDefaultValue((short)0);
                 entity.Property(e => e.StockOutProgressStatus).HasDefaultValue((short)0);
+                entity.Property(e => e.PurchasedStock_AvailableQty).HasColumnName("PurchasedStock_AvailableQty").HasDefaultValue(0);
                 entity.Property(e => e.ReceiptProgressStatus).HasDefaultValue((short)0);
                 entity.Property(e => e.InvoiceProgressStatus).HasDefaultValue((short)0);
             });
@@ -345,6 +346,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.PaymentAmount).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.PaymentAmountNot).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.PaymentAmountFinish).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.PaymentAmountRequested).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.ReceiptAmount).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.ReceiptAmountNot).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.ReceiptAmountFinish).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
@@ -375,6 +377,7 @@ namespace CRM.Infrastructure.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.CustomerCode).IsRequired().HasMaxLength(16);
+                entity.Property(e => e.CreditCode).HasMaxLength(50);
                 entity.Property(e => e.OfficialName).HasMaxLength(128);
                 entity.Property(e => e.Province).HasMaxLength(50);
                 entity.Property(e => e.City).HasMaxLength(50);
@@ -607,7 +610,12 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.PurchaseBrand).HasColumnName("purchase_brand").HasMaxLength(200);
                 entity.Property(e => e.StockType).HasColumnName("Type").HasDefaultValue((short)1);
                 entity.Property(e => e.RegionType).HasColumnName("RegionType").HasDefaultValue((short)10);
+                entity.Property(e => e.StockCode).HasColumnName("StockCode").HasMaxLength(32);
                 entity.Property(e => e.Remark).HasMaxLength(500);
+                entity.HasIndex(e => e.StockCode)
+                    .IsUnique()
+                    .HasDatabaseName("IX_stock_StockCode_unique_not_null")
+                    .HasFilter("\"StockCode\" IS NOT NULL");
             });
 
             modelBuilder.Entity<StockIn>(entity =>

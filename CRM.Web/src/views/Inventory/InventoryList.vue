@@ -83,13 +83,14 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="inventory-list-main-v4"
+      column-layout-key="inventory-list-main-v5"
       :columns="inventoryTableColumns"
       :show-column-settings="false"
       :data="filteredInventoryList"
       v-loading="loading"
       @row-dblclick="onRowDblclick"
     >
+      <template #col-stockCode="{ row }">{{ stockCodeDisplay(row) }}</template>
       <template #col-materialModel="{ row }">{{ materialModelDisplay(row) }}</template>
       <template #col-materialBrand="{ row }">{{ materialBrandDisplay(row) }}</template>
       <template #col-warehouseName="{ row }">{{ warehouseNameOf(row.warehouseId) }}</template>
@@ -266,6 +267,7 @@ function toggleOpColMain() {
 }
 
 const inventoryTableColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'stockCode', label: t('inventoryList.columns.stockCode'), width: 132, showOverflowTooltip: true },
   { key: 'stockType', label: t('inventoryList.columns.stockType'), width: 138, showOverflowTooltip: true },
   { key: 'materialModel', label: t('inventoryList.columns.materialModel'), minWidth: 160, showOverflowTooltip: true },
   { key: 'materialBrand', label: t('inventoryList.columns.brand'), minWidth: 120, showOverflowTooltip: true },
@@ -431,6 +433,12 @@ const warehouseNameOf = (warehouseId?: string) => {
 function pickRowStr(row: Record<string, unknown>, camel: string, pascal: string): string {
   const v = row[camel] ?? row[pascal]
   return typeof v === 'string' ? v : ''
+}
+
+const stockCodeDisplay = (row: InventoryOverview) => {
+  const r = row as unknown as Record<string, unknown>
+  const code = pickRowStr(r, 'stockCode', 'StockCode').trim()
+  return code || '--'
 }
 
 /** 规格型号；兼容 PascalCase；无型号时回退物料 ID */

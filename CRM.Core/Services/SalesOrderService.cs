@@ -633,6 +633,7 @@ namespace CRM.Core.Services
                         row.SalesProfitExpected = ext.SalesProfitExpected;
                         row.ProfitOutBizUsd = ext.ProfitOutBizUsd;
                         row.ProfitOutRateBiz = ext.ProfitOutRateBiz;
+                        row.PurchasedStockAvailableQty = ext.PurchasedStock_AvailableQty;
                     }
                 }
                 catch (Exception ex)

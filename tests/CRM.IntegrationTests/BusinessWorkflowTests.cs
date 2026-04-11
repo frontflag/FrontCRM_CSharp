@@ -83,6 +83,15 @@ namespace CRM.IntegrationTests
             _rbacDepartmentRepo.GetAllAsync().Returns(new List<RbacDepartment>());
             _rbacUserDepartmentRepo.GetAllAsync().Returns(new List<RbacUserDepartment>());
             _userRepo.GetAllAsync().Returns(new List<User>());
+            var rfqRbac = Substitute.For<IRbacService>();
+            rfqRbac.GetUserPermissionSummaryAsync(Arg.Any<string>())
+                .Returns(ci => new UserPermissionSummaryDto
+                {
+                    UserId = ci.ArgAt<string>(0),
+                    IsSysAdmin = true,
+                    RoleCodes = Array.Empty<string>(),
+                    PermissionCodes = Array.Empty<string>()
+                });
             _rfqService = new RFQService(
                 _rfqRepository,
                 _rfqItemRepository,
@@ -99,6 +108,7 @@ namespace CRM.IntegrationTests
                 _rbacUserDepartmentRepo,
                 _quoteRepository,
                 _userRepo,
+                rfqRbac,
                 NullLogger<RFQService>.Instance);
             _quoteService = new QuoteService(
                 _quoteRepository,
@@ -400,7 +410,8 @@ namespace CRM.IntegrationTests
                 stockOutRepo, stockOutItemRepo, stockOutRequestRepo, pickingTaskRepo, stockRepo,
                 sellOrderRepo, sellOrderItemRepo, customerRepoForStockOut, purchaseOrderItemRepo, purchaseOrderRepo, userRepo,
                 warehouseRepoForStockOut,
-                inventoryCenterService, serialNumberService, sellOrderItemExtendSync, unitOfWork,
+                inventoryCenterService, serialNumberService, sellOrderItemExtendSync,
+                Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(), unitOfWork,
                 NullLogger<StockOutService>.Instance);
 
             // 准备销售订单明细
@@ -550,7 +561,8 @@ namespace CRM.IntegrationTests
                 stockOutRepo, stockOutItemRepo, stockOutRequestRepo, pickingTaskRepo, stockRepo,
                 sellOrderRepo, sellOrderItemRepo, customerRepoForStockOut, purchaseOrderItemRepo, purchaseOrderRepo, userRepo,
                 warehouseRepoForStockOut,
-                inventoryCenterService, serialNumberService, sellOrderItemExtendSync, unitOfWork,
+                inventoryCenterService, serialNumberService, sellOrderItemExtendSync,
+                Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(), unitOfWork,
                 NullLogger<StockOutService>.Instance);
 
             var sellOrderItem = new SellOrderItem
@@ -1140,13 +1152,22 @@ namespace CRM.IntegrationTests
             var quoteRepo = Substitute.For<IRepository<Quote>>();
             var userRepo = Substitute.For<IRepository<User>>();
             var logger = Substitute.For<ILogger<RFQService>>();
+            var rbacSvc = Substitute.For<IRbacService>();
+            rbacSvc.GetUserPermissionSummaryAsync(Arg.Any<string>())
+                .Returns(ci => new UserPermissionSummaryDto
+                {
+                    UserId = ci.ArgAt<string>(0),
+                    IsSysAdmin = true,
+                    RoleCodes = Array.Empty<string>(),
+                    PermissionCodes = Array.Empty<string>()
+                });
 
             // 创建服务
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
                 sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, rbacDepartmentRepo, rbacUserDepartmentRepo, quoteRepo,
-                userRepo, logger);
+                userRepo, rbacSvc, logger);
 
             // 模拟序列号生成
             serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -1245,12 +1266,22 @@ namespace CRM.IntegrationTests
             quoteRepo.GetAllAsync().Returns(new List<Quote>());
             userRepo.GetAllAsync().Returns(new List<User>());
 
+            var rbacSvc = Substitute.For<IRbacService>();
+            rbacSvc.GetUserPermissionSummaryAsync(Arg.Any<string>())
+                .Returns(ci => new UserPermissionSummaryDto
+                {
+                    UserId = ci.ArgAt<string>(0),
+                    IsSysAdmin = true,
+                    RoleCodes = Array.Empty<string>(),
+                    PermissionCodes = Array.Empty<string>()
+                });
+
             // 创建服务
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
                 sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, rbacDepartmentRepo, rbacUserDepartmentRepo, quoteRepo,
-                userRepo, logger);
+                userRepo, rbacSvc, logger);
 
             // 模拟序列号生成
             serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -1361,13 +1392,22 @@ namespace CRM.IntegrationTests
             var quoteRepo = Substitute.For<IRepository<Quote>>();
             var userRepo = Substitute.For<IRepository<User>>();
             var logger = Substitute.For<ILogger<RFQService>>();
+            var rbacSvc = Substitute.For<IRbacService>();
+            rbacSvc.GetUserPermissionSummaryAsync(Arg.Any<string>())
+                .Returns(ci => new UserPermissionSummaryDto
+                {
+                    UserId = ci.ArgAt<string>(0),
+                    IsSysAdmin = true,
+                    RoleCodes = Array.Empty<string>(),
+                    PermissionCodes = Array.Empty<string>()
+                });
 
             // 创建服务
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
                 sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, rbacDepartmentRepo, rbacUserDepartmentRepo, quoteRepo,
-                userRepo, logger);
+                userRepo, rbacSvc, logger);
 
             // 准备用户数据
             var salesUserId = "SALES-USER-001";
@@ -1787,7 +1827,7 @@ namespace CRM.IntegrationTests
                 qcRepo, stockInNotifyRepo, vendorRepoLocal, warehouseRepoLocal, materialRepo,
                 logisticsServiceLocal, inventoryCenterServiceLocal,
                 stockInSerialNumberService, _userService,
-                stockInSellExtendSync, stockInUnitOfWork, stockInLogger);
+                stockInSellExtendSync, Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(), stockInUnitOfWork, stockInLogger);
 
             // 模拟入库单仓储
             var allStockIns = new List<StockIn>();
@@ -1834,7 +1874,8 @@ namespace CRM.IntegrationTests
                 stockOutRepo, stockOutItemRepo, stockOutRequestRepo, pickingTaskRepo, stockRepo,
                 _salesOrderRepository, _salesOrderItemRepository, customerRepoForStockOut2, poItemRepo, poRepo, userRepo,
                 warehouseRepoForStockOut2,
-                inventoryCenterServiceForStockOut, stockOutSerialNumberService, sellOrderItemExtendSyncForStockOut, stockOutUnitOfWork,
+                inventoryCenterServiceForStockOut, stockOutSerialNumberService, sellOrderItemExtendSyncForStockOut,
+                Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(), stockOutUnitOfWork,
                 NullLogger<StockOutService>.Instance);
 
             // 模拟出库申请仓储

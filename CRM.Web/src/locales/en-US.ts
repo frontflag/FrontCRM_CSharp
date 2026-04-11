@@ -210,16 +210,22 @@ const enUS = {
   dashboard: {
     stats: {
       totalCustomers: 'Total customers',
+      totalVendors: 'Total vendors',
       pendingTasks: 'Pending items',
       monthlyNew: 'New this month',
-      monthlySales: 'Sales this month'
+      monthlySales: 'Outstanding sales (orders)',
+      vendorPayableAmount: 'Payable on purchase orders'
     },
     welcomeBack: 'Welcome back, {name}!',
     fallbackName: 'User',
     welcomeSub:
       'This is the FrontCRM console for purchase, sales, and inventory. Open each module from the left menu.',
+    welcomeSubPurchase:
+      'Purchase workbench: use the menu or shortcuts below for vendors and purchasing.',
     quickCustomerManagement: 'Customer management',
     quickNewCustomer: 'New customer',
+    quickVendorManagement: 'Vendor management',
+    quickNewVendor: 'New vendor',
     quickSystemSettings: 'System settings'
   },
   systemUser: {
@@ -2598,6 +2604,7 @@ const enUS = {
       unknown: '—'
     },
     columns: {
+      stockCode: 'Stock code',
       materialModel: 'Material Model',
       brand: 'Brand',
       warehouseName: 'Warehouse',
@@ -2880,6 +2887,7 @@ const enUS = {
     },
     columns: {
       bizType: 'Type',
+      auditStatus: 'Audit status',
       documentCode: 'Document no.',
       counterparty: 'Customer / vendor',
       description: 'Description',
@@ -2888,9 +2896,10 @@ const enUS = {
       submitter: 'Submitted by',
       actions: 'Actions'
     },
-    actions: { audit: 'Review', detail: 'Details' },
+    actions: { audit: 'Review', detail: 'Details', viewOnly: 'View' },
     dialog: {
       title: 'Approval',
+      titleViewOnly: 'Approval details (read-only)',
       submitRemark: 'Submit note',
       auditRemark: 'Comment',
       auditRemarkPlaceholder: 'Optional comment; required when rejecting',
@@ -2901,7 +2910,8 @@ const enUS = {
       preview: 'Preview',
       download: 'Download',
       reject: 'Reject',
-      approve: 'Approve'
+      approve: 'Approve',
+      close: 'Close'
     },
     detailLoading: 'Loading details...',
     sectionBusiness: 'Business details',
@@ -3106,6 +3116,9 @@ const enUS = {
     messages: {
       saveOk: 'Saved',
       saveOkDemo: 'Saved (demo)',
+      saveFailed: 'Save failed',
+      operationFailed: 'Operation failed',
+      completeFailed: 'Could not mark as paid',
       saveSlipFirst: 'Save the payment first, then upload slip files',
       slipUploadOk: 'Slip uploaded',
       slipUploadFail: 'Slip upload failed',

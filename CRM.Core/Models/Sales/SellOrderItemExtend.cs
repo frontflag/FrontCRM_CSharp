@@ -55,6 +55,12 @@ namespace CRM.Core.Models.Sales
         /// <summary>出库进度：0=待出库 1=部分出库 2=出库完成</summary>
         public short StockOutProgressStatus { get; set; }
 
+        /// <summary>
+        /// 同 PN+品牌下所有备货库存（<c>stock.Type</c>=2）在库可用量 <c>QtyRepertoryAvailable</c> 之和（截断为 int；不与销售数量比较）。
+        /// </summary>
+        [Column("PurchasedStock_AvailableQty")]
+        public int PurchasedStock_AvailableQty { get; set; }
+
         /// <summary>收款进度：0=待收款 1=部分收款 2=收款完成</summary>
         public short ReceiptProgressStatus { get; set; }
 

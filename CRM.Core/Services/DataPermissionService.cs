@@ -161,7 +161,9 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<FinanceReceipt>> FilterFinanceReceiptsAsync(string userId, IEnumerable<FinanceReceipt> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0) return source.ToList();
+            // 财务部（IdentityType=5）：不按客户业务员做销售数据范围过滤，同部门财务可互相查看收款单
+            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
+                return source.ToList();
             if (summary.SaleDataScope == 4) return Array.Empty<FinanceReceipt>();
 
             var list = source.ToList();
@@ -175,7 +177,9 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<FinancePayment>> FilterFinancePaymentsAsync(string userId, IEnumerable<FinancePayment> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.PurchaseDataScope == 0) return source.ToList();
+            // 财务部：不按供应商采购员做采购数据范围过滤，同部门财务可互相查看付款单
+            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
+                return source.ToList();
             if (summary.PurchaseDataScope == 4) return Array.Empty<FinancePayment>();
 
             var list = source.ToList();
@@ -199,7 +203,8 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<FinanceSellInvoice>> FilterFinanceSellInvoicesAsync(string userId, IEnumerable<FinanceSellInvoice> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.SaleDataScope == 0) return source.ToList();
+            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
+                return source.ToList();
             if (summary.SaleDataScope == 4) return Array.Empty<FinanceSellInvoice>();
 
             var list = source.ToList();
@@ -223,7 +228,8 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<FinancePurchaseInvoice>> FilterFinancePurchaseInvoicesAsync(string userId, IEnumerable<FinancePurchaseInvoice> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.PurchaseDataScope == 0) return source.ToList();
+            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
+                return source.ToList();
             if (summary.PurchaseDataScope == 4) return Array.Empty<FinancePurchaseInvoice>();
 
             var list = source.ToList();
@@ -529,6 +535,9 @@ namespace CRM.Core.Services
             var prefix = currentDept.Path + "/";
             return targetDept.Path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
         }
+
+        /// <summary>与 <see cref="RbacDepartment.IdentityType"/> 约定一致：5=Finance（财务部）。</summary>
+        private static bool IsFinanceDepartmentIdentity(short identityType) => identityType == 5;
 
         /// <summary>
         /// 3=总监，2=经理，1=员工，0=未知

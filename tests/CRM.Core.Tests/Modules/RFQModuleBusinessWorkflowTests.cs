@@ -71,7 +71,16 @@ public sealed class RFQModuleBusinessWorkflowTests
 
             UnitOfWork = Substitute.For<IUnitOfWork>();
             Lookup = new EntityLookupService(CustomerRepo, ContactRepo, VendorRepo, VendorContactRepo, UserService);
-            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, SysParamRepo, RbacRoleRepo, RbacUserRoleRepo, RbacDepartmentRepo, RbacUserDepartmentRepo, QuoteRepo, UserRepo, NullLogger<RFQService>.Instance);
+            var rbac = Substitute.For<IRbacService>();
+            rbac.GetUserPermissionSummaryAsync(Arg.Any<string>())
+                .Returns(ci => new UserPermissionSummaryDto
+                {
+                    UserId = ci.ArgAt<string>(0),
+                    IsSysAdmin = true,
+                    RoleCodes = Array.Empty<string>(),
+                    PermissionCodes = Array.Empty<string>()
+                });
+            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, SysParamRepo, RbacRoleRepo, RbacUserRoleRepo, RbacDepartmentRepo, RbacUserDepartmentRepo, QuoteRepo, UserRepo, rbac, NullLogger<RFQService>.Instance);
         }
 
         private sealed class ConcurrentInt

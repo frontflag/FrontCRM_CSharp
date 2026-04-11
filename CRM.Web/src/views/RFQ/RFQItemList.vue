@@ -31,19 +31,21 @@
           class="filter-date-range"
           :teleported="false"
         />
-        <span class="filter-field-label">{{ t('rfqItemList.columns.customer') }}</span>
-        <div class="search-input-wrap">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            v-model="searchForm.customerKeyword"
-            class="search-input search-input--w180"
-            :placeholder="t('rfqItemList.filters.customerPlaceholder')"
-            @keyup.enter="handleSearch"
-          />
-        </div>
+        <template v-if="canViewCustomerInRfq">
+          <span class="filter-field-label">{{ t('rfqItemList.columns.customer') }}</span>
+          <div class="search-input-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              v-model="searchForm.customerKeyword"
+              class="search-input search-input--w180"
+              :placeholder="t('rfqItemList.filters.customerPlaceholder')"
+              @keyup.enter="handleSearch"
+            />
+          </div>
+        </template>
         <span class="filter-field-label">{{ t('rfqItemList.columns.materialModel') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
@@ -236,7 +238,7 @@
         <div class="crm-items-table crm-data-table">
           <el-table :data="basketItems" max-height="70vh" size="small" border stripe>
             <el-table-column prop="rfqCode" label="需求编号" min-width="140" show-overflow-tooltip />
-            <el-table-column prop="customerName" label="客户" min-width="120" show-overflow-tooltip />
+            <el-table-column v-if="canViewCustomerInRfq" prop="customerName" label="客户" min-width="120" show-overflow-tooltip />
             <el-table-column label="物料型号" min-width="130" show-overflow-tooltip>
               <template #default="{ row }">{{ row.materialModel || row.mpn || '—' }}</template>
             </el-table-column>
@@ -486,6 +488,7 @@ import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
 import type { RFQItem } from '@/types/rfq'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
+import { useAuthStore } from '@/stores/auth'
 import { useRfqItemListBasketStore } from '@/stores/rfqItemListBasket'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -494,6 +497,8 @@ import { Setting } from '@element-plus/icons-vue'
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
+const authStore = useAuthStore()
+const canViewCustomerInRfq = computed(() => authStore.hasPermission('customer.read'))
 
 /** 需求明细列表：按当前筛选与分页自动刷新间隔 */
 const RFQ_ITEM_LIST_AUTO_REFRESH_MS = 5 * 60 * 1000
@@ -525,7 +530,8 @@ function toggleOpCol() {
 }
 
 /** 主表可配置列（列设置 / 顺序 / localStorage：crm-table-columns:v1:rfq-item-list-main） */
-const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => [
+const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
+  const cols: CrmTableColumnDef[] = [
   {
     key: 'sel',
     type: 'selection',
@@ -560,14 +566,18 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => [
     align: 'center',
     resizable: true
   },
-  {
-    key: 'customerName',
-    label: t('rfqItemList.columns.customer'),
-    prop: 'customerName',
-    minWidth: 200,
-    showOverflowTooltip: true,
-    resizable: true
-  },
+  ]
+  if (canViewCustomerInRfq.value) {
+    cols.push({
+      key: 'customerName',
+      label: t('rfqItemList.columns.customer'),
+      prop: 'customerName',
+      minWidth: 200,
+      showOverflowTooltip: true,
+      resizable: true
+    })
+  }
+  cols.push(
   {
     key: 'materialModel',
     label: t('rfqItemList.columns.materialModel'),
@@ -635,7 +645,12 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => [
     labelClassName: 'op-col',
     resizable: true
   }
-])
+  )
+  if (!canViewCustomerInRfq.value) {
+    return cols.filter(c => c.key !== 'customerPart')
+  }
+  return cols
+})
 
 // 底部抽屉内子表格操作列：默认收起（Collapsed）
 const opDockColExpanded = ref(false)

@@ -116,7 +116,7 @@ namespace CRM.Core.Services
             if (entityType == "CUSTOMER")
             {
                 var createReq = Deserialize<CreateCustomerRequest>(draft.PayloadJson, "客户草稿数据格式错误");
-                var customer = await _customerService.CreateCustomerAsync(createReq);
+                var customer = await _customerService.CreateCustomerAsync(createReq, actingRbacUserId);
                 entityId = customer.Id;
 
                 // Draft payload 中可能包含 contacts，但 CreateCustomerAsync 不负责落库联系人。

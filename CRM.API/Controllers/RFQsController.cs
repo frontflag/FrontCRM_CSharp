@@ -118,10 +118,10 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var rfq = await _rfqService.GetByIdAsync(id);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var rfq = await _rfqService.GetByIdAsync(id, userId);
                 if (rfq == null)
                     return NotFound(ApiResponse<object>.Fail("需求不存在", 404));
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessRFQAsync(userId, rfq))
                     return StatusCode(403, ApiResponse<object>.Fail("无权限访问该需求", 403));
                 return Ok(ApiResponse<object>.Ok(rfq, "获取需求成功"));

@@ -67,6 +67,15 @@ namespace CRM.Core.Services
                     identityType = department.IdentityType;
                     saleScope = department.SaleDataScope;
                     purchaseScope = department.PurchaseDataScope;
+                    // IdentityType 未维护为 5 时按部门名称兜底（与 DataPermissionService 财务单据全员可见一致）
+                    if (identityType == 0)
+                    {
+                        var dn = department.DepartmentName ?? string.Empty;
+                        if (dn.Contains("财务", StringComparison.Ordinal)
+                            || dn.Contains("Finance", StringComparison.OrdinalIgnoreCase)
+                            || dn.Contains("Accounting", StringComparison.OrdinalIgnoreCase))
+                            identityType = 5;
+                    }
                 }
             }
 
@@ -153,6 +162,20 @@ namespace CRM.Core.Services
                 AddPermissionCodeIfMissing(permissionCodes, "sales-order.write");
                 AddPermissionCodeIfMissing(permissionCodes, "rfq.read");
                 AddPermissionCodeIfMissing(permissionCodes, "rfq.write");
+            }
+
+            // 主部门为财务（5，含 IdentityType=0 时按部门名称推断为财务）：DEPT_EMPLOYEE 种子常仅有 finance-*.read，
+            // 无 write 时前端会隐藏「付款」且保存/付款完成 API 403；与采购/销售主部门合并写权限策略对称。
+            if (identityType == 5)
+            {
+                AddPermissionCodeIfMissing(permissionCodes, "finance-receipt.read");
+                AddPermissionCodeIfMissing(permissionCodes, "finance-receipt.write");
+                AddPermissionCodeIfMissing(permissionCodes, "finance-payment.read");
+                AddPermissionCodeIfMissing(permissionCodes, "finance-payment.write");
+                AddPermissionCodeIfMissing(permissionCodes, "finance-sell-invoice.read");
+                AddPermissionCodeIfMissing(permissionCodes, "finance-sell-invoice.write");
+                AddPermissionCodeIfMissing(permissionCodes, "finance-purchase-invoice.read");
+                AddPermissionCodeIfMissing(permissionCodes, "finance-purchase-invoice.write");
             }
 
             // 非采购主部门(2/3)且具备销售订单权限时合并采购申请：主部门 IdentityType 未维护为销售(1) 的业务员仍可见菜单与接口。

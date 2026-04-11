@@ -120,7 +120,7 @@ public sealed class RFQsControllerTests
     public async Task GetRFQ_Returns404_WhenServiceReturnsNull()
     {
         var rfq = Substitute.For<IRFQService>();
-        rfq.GetByIdAsync("x").Returns((RFQ?)null);
+        rfq.GetByIdAsync("x", Arg.Any<string?>()).Returns((RFQ?)null);
 
         var c = CreateController(rfq, Substitute.For<IDataPermissionService>());
         var action = await c.GetRFQ("x");
@@ -133,7 +133,7 @@ public sealed class RFQsControllerTests
     {
         var rfq = Substitute.For<IRFQService>();
         var entity = new RFQ { Id = "r1", RfqCode = "RF1", CustomerId = "c1" };
-        rfq.GetByIdAsync("r1").Returns(entity);
+        rfq.GetByIdAsync("r1", Arg.Any<string?>()).Returns(entity);
 
         var data = Substitute.For<IDataPermissionService>();
         data.CanAccessRFQAsync("test-user-1", entity).Returns(false);
@@ -150,7 +150,7 @@ public sealed class RFQsControllerTests
     {
         var rfq = Substitute.For<IRFQService>();
         var entity = new RFQ { Id = "r1", RfqCode = "RF1", CustomerId = "c1" };
-        rfq.GetByIdAsync("r1").Returns(entity);
+        rfq.GetByIdAsync("r1", Arg.Any<string?>()).Returns(entity);
 
         var data = Substitute.For<IDataPermissionService>();
         data.CanAccessRFQAsync("test-user-1", entity).Returns(true);

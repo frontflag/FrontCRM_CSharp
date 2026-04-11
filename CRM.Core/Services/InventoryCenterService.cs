@@ -212,9 +212,11 @@ namespace CRM.Core.Services
                 var isNewStock = stock == null;
                 if (isNewStock)
                 {
+                    var stockCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.Stock);
                     stock = new StockInfo
                     {
                         Id = Guid.NewGuid().ToString(),
+                        StockCode = stockCode,
                         MaterialId = line.MaterialId,
                         WarehouseId = stockIn.WarehouseId,
                         LocationId = line.LocationId,
@@ -541,15 +543,13 @@ namespace CRM.Core.Services
             }
 
             return stocks
-                .GroupBy(x => new { x.MaterialId, x.WarehouseId, x.StockType })
-                .Select(g =>
+                .Select(s =>
                 {
-                    var material = g.Key.MaterialId;
-                    var warehouse = g.Key.WarehouseId;
-                    var stockType = g.Key.StockType;
-                    // 列表「物料型号 / 品牌」以库存行冗余为准（入库过账写入 purchase_pn / purchase_brand）
-                    var model = g.Select(x => x.PurchasePn?.Trim()).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s));
-                    var name = g.Select(x => x.PurchaseBrand?.Trim()).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s));
+                    var material = s.MaterialId ?? string.Empty;
+                    var warehouse = s.WarehouseId ?? string.Empty;
+                    var stockType = s.StockType;
+                    var model = string.IsNullOrWhiteSpace(s.PurchasePn) ? null : s.PurchasePn.Trim();
+                    var name = string.IsNullOrWhiteSpace(s.PurchaseBrand) ? null : s.PurchaseBrand.Trim();
                     materialById.TryGetValue(material, out var mat);
                     if (string.IsNullOrWhiteSpace(model))
                         model = string.IsNullOrWhiteSpace(mat?.MaterialModel) ? null : mat!.MaterialModel!.Trim();
@@ -570,9 +570,10 @@ namespace CRM.Core.Services
                         if (name == null && !string.IsNullOrWhiteSpace(sl.Brand))
                             name = sl.Brand.Trim();
                     }
-                    var onHand = g.Sum(x => x.QtyRepertory);
-                    var available = g.Sum(x => x.QtyRepertoryAvailable);
-                    var locked = g.Sum(x => x.QtyOccupy + x.QtySales);
+
+                    var onHand = s.QtyRepertory;
+                    var available = s.QtyRepertoryAvailable;
+                    var locked = s.QtyOccupy + s.QtySales;
                     var latestIn = ledgers
                         .Where(x => x.MaterialId == material && x.WarehouseId == warehouse && x.BizType == "STOCK_IN" && x.QtyIn > 0)
                         .OrderByDescending(x => x.CreateTime)
@@ -596,18 +597,20 @@ namespace CRM.Core.Services
                         .FirstOrDefault()?.CreateTime;
 
                     string? whCode = null;
-                    var whKey = warehouse?.Trim();
+                    var whKey = warehouse.Trim();
                     if (!string.IsNullOrEmpty(whKey) && warehouseCodeById.TryGetValue(whKey, out var resolved))
                         whCode = resolved;
 
-                    var overviewRegionType = RegionTypeCode.Normalize(g.First().RegionType);
+                    var overviewRegionType = RegionTypeCode.Normalize(s.RegionType);
 
                     return new InventoryMaterialOverviewDto
                     {
+                        StockId = s.Id ?? string.Empty,
+                        StockCode = string.IsNullOrWhiteSpace(s.StockCode) ? null : s.StockCode.Trim(),
                         MaterialId = material,
                         MaterialModel = model,
                         MaterialName = name,
-                        WarehouseId = warehouse ?? string.Empty,
+                        WarehouseId = warehouse,
                         WarehouseCode = whCode,
                         StockType = stockType,
                         RegionType = overviewRegionType,
@@ -623,6 +626,7 @@ namespace CRM.Core.Services
                 .ThenBy(x => x.WarehouseId, StringComparer.Ordinal)
                 .ThenBy(x => x.StockType)
                 .ThenBy(x => x.MaterialId, StringComparer.Ordinal)
+                .ThenBy(x => x.StockId, StringComparer.Ordinal)
                 .ToList();
         }
 
@@ -1120,9 +1124,11 @@ namespace CRM.Core.Services
                     var isNewTarget = target == null;
                     if (isNewTarget)
                     {
+                        var countStockCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.Stock);
                         target = new StockInfo
                         {
                             Id = Guid.NewGuid().ToString(),
+                            StockCode = countStockCode,
                             MaterialId = item.MaterialId,
                             WarehouseId = plan.WarehouseId,
                             LocationId = item.LocationId,

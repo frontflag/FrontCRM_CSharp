@@ -375,6 +375,9 @@ function openPayment(row: any) {
     rounding: 0,
     intermediateBankFeePayer: '我方'
   }
+  const lineTotal = Math.round((Number(row.lineTotal || 0) + Number.EPSILON) * 100) / 100
+  const alreadyRequested = Math.max(0, Number(row.paymentRequestedAmount ?? 0))
+  const pendingRequested = Math.max(0, Math.round((lineTotal - alreadyRequested + Number.EPSILON) * 100) / 100)
   paymentForm.lines = [
     {
       purchaseOrderId: row.purchaseOrderId,
@@ -385,9 +388,9 @@ function openPayment(row: any) {
       qty: row.qty,
       cost: row.cost,
       currency: row.currency,
-      alreadyRequested: 0,
-      pendingRequested: Number(row.lineTotal || 0),
-      requestAmount: Number(row.lineTotal || 0),
+      alreadyRequested,
+      pendingRequested,
+      requestAmount: pendingRequested,
       remark: ''
     }
   ]

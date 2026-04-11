@@ -43,6 +43,7 @@ namespace CRM.API.Extensions
             services.AddScoped<ISysDictItemAdminService, SysDictItemAdminService>();
             services.AddScoped<IStockOutService, StockOutService>();
             services.AddScoped<ISellOrderItemExtendSyncService, SellOrderItemExtendSyncService>();
+            services.AddScoped<ISellOrderItemPurchasedStockAvailableSyncService, SellOrderItemPurchasedStockAvailableSyncService>();
             services.AddScoped<IPurchaseOrderItemExtendSyncService, PurchaseOrderItemExtendSyncService>();
             services.AddScoped<ILogisticsService, LogisticsService>();
             services.AddScoped<IStockService, StockService>();

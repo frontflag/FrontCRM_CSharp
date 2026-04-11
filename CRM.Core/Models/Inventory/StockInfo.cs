@@ -20,6 +20,13 @@ namespace CRM.Core.Models.Inventory
         public override string Id { get; set; } = Guid.NewGuid().ToString();
 
         /// <summary>
+        /// 库存业务编号（STK + 5 位 32 进制；历史行可空，新插入必填）
+        /// </summary>
+        [StringLength(32)]
+        [Column("StockCode")]
+        public string? StockCode { get; set; }
+
+        /// <summary>
         /// 物料ID
         /// </summary>
         [Required]

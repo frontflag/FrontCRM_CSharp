@@ -53,6 +53,11 @@ namespace CRM.Core.Services
             // 始终使用流水号服务自动生成客户编号，忽略前端传入的值
             request.CustomerCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.Customer);
 
+            var normalizedActor = ActingUserIdNormalizer.Normalize(actingUserId);
+            var salesUserId = string.IsNullOrWhiteSpace(request.SalesUserId)
+                ? normalizedActor
+                : request.SalesUserId.Trim();
+
             var customer = new CustomerInfo
             {
                 Id = Guid.NewGuid().ToString(),
@@ -66,7 +71,7 @@ namespace CRM.Core.Services
                 Type = request.Type,
                 Industry = request.Industry?.Trim(),
                 Product = request.Product?.Trim(),
-                SalesUserId = request.SalesUserId,
+                SalesUserId = salesUserId,
                 Remark = request.Remark?.Trim(),
                 CreditLine = request.CreditLine,
                 Payment = request.Payment,
@@ -77,7 +82,7 @@ namespace CRM.Core.Services
                 District = request.District?.Trim(),
                 Status = 1, // 新建
                 CreateTime = DateTime.UtcNow,
-                CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
+                CreateByUserId = normalizedActor
             };
 
             await _customerRepository.AddAsync(customer);

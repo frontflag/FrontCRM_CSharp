@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi, type LoginRequest, type RegisterRequest } from '@/api'
+import { normalizeAuthUserId } from '@/utils/authUserId'
 
 interface User {
   id: string
@@ -20,11 +21,31 @@ function readUserFromStorage(): User | null {
   const raw = localStorage.getItem('user')
   if (!raw) return null
   try {
-    return JSON.parse(raw) as User
+    const parsed = JSON.parse(raw) as User
+    const tok = localStorage.getItem('token')
+    const id = normalizeAuthUserId(parsed, tok)
+    return id ? { ...parsed, id } : parsed
   } catch {
     localStorage.removeItem('user')
     return null
   }
+}
+
+function removeWorkspaceTabStorageForUser(userId: string) {
+  const id = userId.trim()
+  if (!id) return
+  localStorage.removeItem(`crm_tabs:${id}`)
+  localStorage.removeItem(`crm_active_tab:${id}`)
+}
+
+/** 历史错误 key：占位 id 或空 uid 导致全员共用 */
+function removeBrokenGlobalWorkspaceTabKeys() {
+  localStorage.removeItem('crm_tabs')
+  localStorage.removeItem('crm_active_tab')
+  localStorage.removeItem('crm_tabs:0')
+  localStorage.removeItem('crm_active_tab:0')
+  localStorage.removeItem('crm_tabs:')
+  localStorage.removeItem('crm_active_tab:')
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -38,11 +59,13 @@ export const useAuthStore = defineStore('auth', () => {
   async function applyAuthPayload(authData: any): Promise<boolean> {
     const tokenVal = authData?.token
     if (!tokenVal) return false
+    const resolvedId = normalizeAuthUserId(authData, tokenVal)
+    removeBrokenGlobalWorkspaceTabKeys()
     token.value = tokenVal
     user.value = {
       email: authData.email,
       userName: authData.userName,
-      id: authData.userId || '0',
+      id: resolvedId,
       isSysAdmin: !!authData.isSysAdmin,
       roleCodes: authData.roleCodes || [],
       permissionCodes: authData.permissionCodes || [],
@@ -116,8 +139,11 @@ export const useAuthStore = defineStore('auth', () => {
       if (userData) {
         const summary = await authApi.getPermissionSummary() as any
         const prevIsSysAdmin = user.value?.isSysAdmin === true
+        const mergedId =
+          normalizeAuthUserId(userData, token.value) || (user.value?.id ?? '').trim()
         user.value = {
           ...userData,
+          id: mergedId,
           // 避免 permission-summary 覆盖掉原本的 SYS_ADMIN 标识
           isSysAdmin: prevIsSysAdmin || !!summary?.isSysAdmin,
           roleCodes: summary?.roleCodes || [],
@@ -136,6 +162,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function logout(): void {
+    const prevId = (user.value?.id || '').trim()
+    if (prevId) removeWorkspaceTabStorageForUser(prevId)
+    removeBrokenGlobalWorkspaceTabKeys()
     token.value = null
     user.value = null
     localStorage.removeItem('token')

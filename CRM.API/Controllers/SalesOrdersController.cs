@@ -344,6 +344,7 @@ namespace CRM.API.Controllers
                 r.ReceiptProgressStatus,
                 r.InvoiceProgressStatus,
                 r.StockOutApplyPurchaseGateOk,
+                r.PurchasedStockAvailableQty,
                 r.PurchaseRemainingQty
             };
         }
@@ -449,7 +450,8 @@ namespace CRM.API.Controllers
                         stockOutApplyPurchaseGateOk = stockOutApplyPurchaseGate != null &&
                             !string.IsNullOrWhiteSpace(i.Id) &&
                             stockOutApplyPurchaseGate.TryGetValue(i.Id.Trim(), out var gateOk) &&
-                            gateOk
+                            gateOk,
+                        purchasedStockAvailableQty = ext?.PurchasedStock_AvailableQty ?? 0
                     };
                 }).ToList()
             };

@@ -1594,12 +1594,39 @@ interface TabItem {
   title: string
 }
 
-const STORAGE_KEY = 'crm_tabs'
-const ACTIVE_KEY = 'crm_active_tab'
+/** 历史全局 key（无用户维度），仅用于迁移清理，避免跨账号串标签 */
+const LEGACY_TABS_KEY = 'crm_tabs'
+const LEGACY_ACTIVE_KEY = 'crm_active_tab'
+
+function workspaceTabKeys(userId: string) {
+  const id = userId.trim()
+  return {
+    tabs: `crm_tabs:${id}`,
+    active: `crm_active_tab:${id}`
+  }
+}
+
+function purgeLegacyWorkspaceTabKeys() {
+  localStorage.removeItem(LEGACY_TABS_KEY)
+  localStorage.removeItem(LEGACY_ACTIVE_KEY)
+  // 与 auth 侧一致：占位/空 uid 会导致全员共用同一套标签
+  localStorage.removeItem('crm_tabs:0')
+  localStorage.removeItem('crm_active_tab:0')
+  localStorage.removeItem('crm_tabs:')
+  localStorage.removeItem('crm_active_tab:')
+}
+
+function currentWorkspaceUserId(): string {
+  return (authStore.user?.id || '').trim()
+}
 
 const loadTabs = (): TabItem[] => {
+  purgeLegacyWorkspaceTabKeys()
+  const uid = currentWorkspaceUserId()
+  if (!uid) return []
+  const { tabs: tk } = workspaceTabKeys(uid)
   try {
-    const saved = localStorage.getItem(STORAGE_KEY)
+    const saved = localStorage.getItem(tk)
     if (!saved) return []
     const parsed = JSON.parse(saved) as TabItem[]
     // 仅用 path 还原标题，避免 localStorage 里残留旧语言文案
@@ -1609,15 +1636,24 @@ const loadTabs = (): TabItem[] => {
   }
 }
 
+function readActiveTabFromStorage(): string {
+  const uid = currentWorkspaceUserId()
+  if (!uid) return ''
+  return localStorage.getItem(workspaceTabKeys(uid).active) || ''
+}
+
 const tabs = ref<TabItem[]>(loadTabs())
-const activeTab = ref<string>(localStorage.getItem(ACTIVE_KEY) || '')
+const activeTab = ref<string>(readActiveTabFromStorage())
 const tabBarRef = ref<HTMLElement | null>(null)
 const visibleTabCount = ref<number>(tabs.value.length)
 let tabBarResizeObserver: ResizeObserver | null = null
 
 const saveTabs = () => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tabs.value))
-  localStorage.setItem(ACTIVE_KEY, activeTab.value)
+  const uid = currentWorkspaceUserId()
+  if (!uid) return
+  const { tabs: tk, active: ak } = workspaceTabKeys(uid)
+  localStorage.setItem(tk, JSON.stringify(tabs.value))
+  localStorage.setItem(ak, activeTab.value)
 }
 
 const estimateTabWidth = (tab: TabItem) => {
@@ -1660,6 +1696,60 @@ const onOverflowTabSelect = (path: string) => {
   const hit = tabs.value.find(t => t.path === path)
   if (hit) activateTab(hit)
 }
+
+// 用户主键变化：切换账号时重置标签；首次从「无 id」变为有效 id 时绑定到正确的 per-user storage
+watch(
+  () => authStore.user?.id,
+  async (newId, oldId) => {
+    const n = (newId || '').trim()
+    const o = (oldId ?? '').trim()
+    if (!n) return
+
+    if (!o && n) {
+      purgeLegacyWorkspaceTabKeys()
+      const { tabs: tk, active: ak } = workspaceTabKeys(n)
+      let loaded = false
+      try {
+        const raw = localStorage.getItem(tk)
+        if (raw) {
+          const parsed = JSON.parse(raw) as TabItem[]
+          tabs.value = parsed.map(tab => ({ ...tab, title: resolveRouteTitle(tab.path) }))
+          activeTab.value = localStorage.getItem(ak) || ''
+          loaded = true
+        }
+      } catch {
+        /* ignore */
+      }
+      const path = route.path
+      if (loaded) {
+        if (!tabs.value.some(t => t.path === path)) {
+          tabs.value.push({ path, title: resolveRouteTitle(path) })
+        }
+        if (!activeTab.value || !tabs.value.some(t => t.path === activeTab.value)) {
+          activeTab.value = path
+        }
+      }
+      saveTabs()
+      await nextTick()
+      recalcTabOverflow()
+      return
+    }
+
+    if (o && n && o !== n) {
+      purgeLegacyWorkspaceTabKeys()
+      tabs.value = []
+      activeTab.value = ''
+      await nextTick()
+      const path = route.path
+      const title = resolveRouteTitle(path)
+      tabs.value = [{ path, title }]
+      activeTab.value = path
+      saveTabs()
+      await nextTick()
+      recalcTabOverflow()
+    }
+  }
+)
 
 // 监听路由变化，自动添加/激活标签
 watch(() => route.path, async (newPath) => {
