@@ -104,7 +104,8 @@ namespace CRM.Core.Services
             var lineId = request.SalesOrderItemId.Trim();
             await EnsureSellLineMeetsStockOutPurchaseGateAsync(lineId);
 
-            if (request.Quantity <= 0)
+            var qtyInt = InventoryQuantity.RoundFromDecimal(request.Quantity);
+            if (qtyInt <= 0)
                 throw new ArgumentException("出库通知数量必须大于 0", nameof(request.Quantity));
             // 勿用 string.Equals(..., OrdinalIgnoreCase)：EF Core 无法翻译为 SQL（Npgsql）
             var existingReqs = (await _stockOutRequestRepository.FindAsync(r => r.SalesOrderItemId == lineId))
@@ -120,11 +121,11 @@ namespace CRM.Core.Services
 
             var stockDto = await _inventoryCenterService.GetAvailableQtyForSellOrderItemAsync(lineId);
             var availableStock = stockDto.AvailableQty;
-            if (availableStock < 0m)
-                availableStock = 0m;
-            if (request.Quantity > availableStock)
+            if (availableStock < 0)
+                availableStock = 0;
+            if (qtyInt > availableStock)
                 throw new InvalidOperationException(
-                    $"在库可用数量不足（在库可用 {availableStock.ToString(CultureInfo.InvariantCulture)}，本次申请 {request.Quantity.ToString(CultureInfo.InvariantCulture)}）");
+                    $"在库可用数量不足（在库可用 {availableStock.ToString(CultureInfo.InvariantCulture)}，本次申请 {qtyInt.ToString(CultureInfo.InvariantCulture)}）");
 
             var requestCode = string.IsNullOrWhiteSpace(request.RequestCode)
                 ? await _serialNumberService.GenerateNextAsync(ModuleCodes.StockOutRequest)
@@ -138,7 +139,7 @@ namespace CRM.Core.Services
                 SalesOrderItemId = request.SalesOrderItemId.Trim(),
                 MaterialCode = string.IsNullOrWhiteSpace(request.MaterialCode) ? (soItem.PN?.Trim() ?? string.Empty) : request.MaterialCode.Trim(),
                 MaterialName = string.IsNullOrWhiteSpace(request.MaterialName) ? soItem.Brand?.Trim() : request.MaterialName.Trim(),
-                Quantity = request.Quantity,
+                Quantity = qtyInt,
                 CustomerId = request.CustomerId,
                 RequestUserId = request.RequestUserId,
                 RequestDate = PostgreSqlDateTime.ToUtc(request.RequestDate),
@@ -199,7 +200,7 @@ namespace CRM.Core.Services
                 remainingNotify = 0m;
 
             var stockDto = await _inventoryCenterService.GetAvailableQtyForSellOrderItemAsync(lineId);
-            var available = stockDto.AvailableQty;
+            var available = (decimal)stockDto.AvailableQty;
             if (available < 0m)
                 available = 0m;
 
@@ -356,7 +357,7 @@ namespace CRM.Core.Services
                 throw new ArgumentException("出库明细不能为空", nameof(request.Items));
 
             var stockOutId = Guid.NewGuid().ToString();
-            decimal totalQty = 0m;
+            var totalQty = 0;
             decimal totalAmount = 0m;
             short stockOutHeaderRegionType = RegionTypeCode.Domestic;
             var stockOutHeaderRegionCaptured = false;
@@ -371,7 +372,7 @@ namespace CRM.Core.Services
                 if (string.IsNullOrWhiteSpace(materialId))
                     throw new ArgumentException("物料编码不能为空", nameof(item.MaterialCode));
 
-                var needQty = item.Quantity;
+                var needQty = InventoryQuantity.RoundFromDecimal(item.Quantity);
                 if (needQty <= 0)
                     continue;
 

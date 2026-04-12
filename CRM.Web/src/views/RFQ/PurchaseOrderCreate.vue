@@ -129,7 +129,7 @@
           <div class="material-card-head">
             <span class="head-mpn">物料型号：{{ item.pn || '—' }}</span>
             <span class="head-quote">
-              预期采购单价：{{ formatCurrencyUnitPrice(item.cost || 0, formData.currency) }}
+              报价：{{ formatUnitPriceWithCurrencyCodeSuffix(item.cost || 0, item.quoteCurrency ?? item.currency) }}
             </span>
           </div>
           <div class="material-card-body">
@@ -158,8 +158,11 @@
                 </el-form-item>
               </el-col>
               <el-col :span="8">
-                <el-form-item label="预期采购单价">
-                  <el-input-number v-model="item.cost" :min="0" :precision="6" :controls="false" disabled style="width: 100%" />
+                <el-form-item label="报价">
+                  <el-input
+                    :model-value="formatUnitPriceWithCurrencyCodeSuffix(item.cost || 0, item.quoteCurrency ?? item.currency)"
+                    disabled
+                  />
                 </el-form-item>
               </el-col>
               <el-col :span="8">
@@ -240,7 +243,7 @@ import { canSubmitPurchaseOrderCreate } from '@/utils/purchaseOrderCreateGate'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
-import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
+import { formatCurrencyTotal, formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 
 const router = useRouter()
@@ -588,7 +591,7 @@ async function handleGeneratePurchaseOrder() {
     const pr = await purchaseRequisitionApi.getById(requisitionId.value)
     const prExt = pr as Record<string, unknown>
 
-    // 基于采购申请预填采购订单（PRD：预期采购价来自采购申请的 QuoteCost）
+    // 基于采购申请预填采购订单：采购单价默认=报价金额，币别默认=报价币别（见 API quoteCost / quoteCurrency）
     formData.value.purchaseOrderCode = genOrderCode()
     // 订单类型：与销售订单一致（客单采购/备货采购/样品采购），非 PR 的专属/公开备货类型
     const poType = Number(prExt.prefillPurchaseOrderType ?? 0)
@@ -608,7 +611,9 @@ async function handleGeneratePurchaseOrder() {
     const pickName = quoteUid ? quoteName : rfqUid ? rfqName : prName
     formData.value.purchaseUserId = pickUid || formData.value.purchaseUserId
     formData.value.purchaseUserName = pickName || formData.value.purchaseUserName
-    formData.value.currency = pr.currency ?? formData.value.currency ?? 1
+    const quoteCostNum = Number(pr.quoteCost ?? prExt.quoteCost ?? 0) || 0
+    const quoteCurNum = Number(prExt.quoteCurrency ?? pr.currency ?? formData.value.currency ?? 1) || 1
+    formData.value.currency = quoteCurNum
 
     const deliveryDateStr = pr.deliveryDate ? String(pr.deliveryDate).split('T')[0] : ''
     formData.value.deliveryDate = deliveryDateStr || (pr.expectedPurchaseTime ? String(pr.expectedPurchaseTime).split('T')[0] : '')
@@ -621,10 +626,11 @@ async function handleGeneratePurchaseOrder() {
         pn: pr.pn ?? '',
         brand: pr.brand ?? '',
         customerMaterialModel: pr.customerMaterialModel ?? '',
-        targetPrice: pr.targetPrice ?? 0,
+        targetPrice: quoteCostNum,
         qty: pr.qty ?? 1,
-        cost: pr.quoteCost ?? 0,
-        currency: pr.currency ?? formData.value.currency,
+        cost: quoteCostNum,
+        currency: quoteCurNum,
+        quoteCurrency: quoteCurNum,
         dateCode: coercePd(String(pr.dateCode ?? '').trim()),
         deliveryDate: deliveryDateStr || formData.value.deliveryDate || '',
         comment: pr.itemRemark ?? '',

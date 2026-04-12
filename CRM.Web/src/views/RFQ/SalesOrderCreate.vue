@@ -226,8 +226,13 @@
                   </el-form-item>
                 </el-col>
                 <el-col :span="8">
-                  <el-form-item :label="t('salesOrderCreate.fields.purchasePrice')" label-width="72px">
-                    <el-input :model-value="formatUnitPriceNumber(formData.items[meta.index].purchasePriceDisplay)" disabled />
+                  <el-form-item :label="t('salesOrderCreate.fields.purchasePrice')" label-width="96px">
+                    <el-input
+                      :model-value="
+                        `${formatUnitPriceNumber(formData.items[meta.index].purchasePriceDisplay)} ${currencyCode(formData.items[meta.index].currency)}`
+                      "
+                      disabled
+                    />
                   </el-form-item>
                 </el-col>
               </el-row>

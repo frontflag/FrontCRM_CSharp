@@ -447,7 +447,7 @@ namespace CRM.IntegrationTests
 
             // 模拟库存中心返回可用数量
             inventoryCenterService.GetAvailableQtyForSellOrderItemAsync(sellOrderItemId)
-                .Returns(new SellOrderLineAvailableQtyDto { AvailableQty = 100m });
+                .Returns(new SellOrderLineAvailableQtyDto { AvailableQty = 100 });
 
             // 模拟流水号
             serialNumberService.GenerateNextAsync(ModuleCodes.StockOutRequest)
@@ -468,7 +468,7 @@ namespace CRM.IntegrationTests
             var req1 = await service.CreateStockOutRequestAsync(request1);
             Assert.NotNull(req1);
             Assert.Equal("SOR20260001", req1.RequestCode);
-            Assert.Equal(30m, req1.Quantity);
+            Assert.Equal(30, req1.Quantity);
             Assert.Equal(0, req1.Status);
 
             // 验证剩余可申请数量：100 - 30 = 70
@@ -490,7 +490,7 @@ namespace CRM.IntegrationTests
             var req2 = await service.CreateStockOutRequestAsync(request2);
             Assert.NotNull(req2);
             Assert.Equal("SOR20260002", req2.RequestCode);
-            Assert.Equal(20m, req2.Quantity);
+            Assert.Equal(20, req2.Quantity);
 
             // 验证剩余可申请数量：100 - 30 - 20 = 50
             context = await service.GetApplyContextAsync(sellOrderId, sellOrderItemId);
@@ -590,7 +590,7 @@ namespace CRM.IntegrationTests
             stockOutRequestRepo.GetAllAsync().Returns(allRequests);
 
             inventoryCenterService.GetAvailableQtyForSellOrderItemAsync(sellOrderItemId)
-                .Returns(new SellOrderLineAvailableQtyDto { AvailableQty = 5m });
+                .Returns(new SellOrderLineAvailableQtyDto { AvailableQty = 5 });
 
             var request = new CreateStockOutRequestRequest
             {
@@ -784,7 +784,7 @@ namespace CRM.IntegrationTests
             var notice1 = await service.CreateArrivalNoticeAsync(request1);
             Assert.NotNull(notice1);
             Assert.Equal("AN20260001", notice1.NoticeCode);
-            Assert.Equal(30m, notice1.ExpectQty);
+            Assert.Equal(30, notice1.ExpectQty);
             Assert.Equal(10, notice1.Status); // 未到货
 
             // 模拟扩展更新后剩余数量为 70
@@ -803,7 +803,7 @@ namespace CRM.IntegrationTests
             var notice2 = await service.CreateArrivalNoticeAsync(request2);
             Assert.NotNull(notice2);
             Assert.Equal("AN20260002", notice2.NoticeCode);
-            Assert.Equal(20m, notice2.ExpectQty);
+            Assert.Equal(20, notice2.ExpectQty);
 
             // 模拟扩展更新后剩余数量为 50
             poItemExtend.QtyStockInNotifyNot = 50m;
@@ -896,7 +896,7 @@ namespace CRM.IntegrationTests
                 SellOrderItemId = sellOrderItemId,
                 Status = 2,
                 StockInType = 1,
-                TotalQuantity = 10m
+                TotalQuantity = 10
             };
 
             // 模拟出库申请（数量 20，状态部分完成）
@@ -904,7 +904,7 @@ namespace CRM.IntegrationTests
             {
                 Id = Guid.NewGuid().ToString(),
                 SalesOrderItemId = sellOrderItemId,
-                Quantity = 20m,
+                Quantity = 20,
                 Status = 1 // 部分完成
             };
 
@@ -915,7 +915,7 @@ namespace CRM.IntegrationTests
                 SourceId = stockOutRequest.Id,
                 SellOrderItemId = sellOrderItemId,
                 StockOutType = 1,
-                TotalQuantity = 5m,
+                TotalQuantity = 5,
                 Status = 2 // 已完成
             };
 
@@ -1027,8 +1027,8 @@ namespace CRM.IntegrationTests
             {
                 Id = Guid.NewGuid().ToString(),
                 PurchaseOrderItemId = purchaseOrderItemId,
-                ExpectQty = 40m,
-                ReceiveQty = 30m
+                ExpectQty = 40,
+                ReceiveQty = 30
             };
 
             // 模拟付款条目（已核销金额 2000）
@@ -1068,7 +1068,7 @@ namespace CRM.IntegrationTests
                 PurchaseOrderItemId = purchaseOrderItemId,
                 Status = 2, // 已完成
                 StockInType = 1, // 采购入库
-                TotalQuantity = 25m
+                TotalQuantity = 25
             };
 
             // 模拟入库单明细（匹配采购明细）
@@ -1076,7 +1076,7 @@ namespace CRM.IntegrationTests
             {
                 StockInId = stockIn.Id,
                 MaterialId = purchaseOrderItemId,
-                Quantity = 25m
+                Quantity = 25
             };
 
             // 设置模拟返回值
@@ -1758,7 +1758,7 @@ namespace CRM.IntegrationTests
             var notice1 = await logisticsService.CreateArrivalNoticeAsync(noticeRequest1);
             Assert.NotNull(notice1);
             Assert.Equal("AN20260001", notice1.NoticeCode);
-            Assert.Equal(10m, notice1.ExpectQty);
+            Assert.Equal(10, notice1.ExpectQty);
 
             // 第二批到货通知：采购订单项1，数量20
             var noticeRequest2 = new CreateArrivalNoticeRequest
@@ -1771,7 +1771,7 @@ namespace CRM.IntegrationTests
             var notice2 = await logisticsService.CreateArrivalNoticeAsync(noticeRequest2);
             Assert.NotNull(notice2);
             Assert.Equal("AN20260002", notice2.NoticeCode);
-            Assert.Equal(20m, notice2.ExpectQty);
+            Assert.Equal(20, notice2.ExpectQty);
 
             // 第三批到货通知：采购订单项2，数量30
             var noticeRequest3 = new CreateArrivalNoticeRequest
@@ -1784,7 +1784,7 @@ namespace CRM.IntegrationTests
             var notice3 = await logisticsService.CreateArrivalNoticeAsync(noticeRequest3);
             Assert.NotNull(notice3);
             Assert.Equal("AN20260003", notice3.NoticeCode);
-            Assert.Equal(30m, notice3.ExpectQty);
+            Assert.Equal(30, notice3.ExpectQty);
 
             // 第四批到货通知：采购订单项2，数量40
             var noticeRequest4 = new CreateArrivalNoticeRequest
@@ -1797,7 +1797,7 @@ namespace CRM.IntegrationTests
             var notice4 = await logisticsService.CreateArrivalNoticeAsync(noticeRequest4);
             Assert.NotNull(notice4);
             Assert.Equal("AN20260004", notice4.NoticeCode);
-            Assert.Equal(40m, notice4.ExpectQty);
+            Assert.Equal(40, notice4.ExpectQty);
 
             // 验证到货通知总数
             Assert.Equal(4, allNotices.Count);
@@ -1886,7 +1886,7 @@ namespace CRM.IntegrationTests
 
             // 模拟库存中心返回可用数量
             inventoryCenterServiceForStockOut.GetAvailableQtyForSellOrderItemAsync(sellOrderItemId)
-                .Returns(new SellOrderLineAvailableQtyDto { AvailableQty = 100m });
+                .Returns(new SellOrderLineAvailableQtyDto { AvailableQty = 100 });
 
             // 模拟流水号
             stockOutSerialNumberService.GenerateNextAsync(ModuleCodes.StockOutRequest).Returns("SOR20260001", "SOR20260002");
@@ -1905,7 +1905,7 @@ namespace CRM.IntegrationTests
             var sor1 = await stockOutService.CreateStockOutRequestAsync(outRequest1);
             Assert.NotNull(sor1);
             Assert.Equal("SOR20260001", sor1.RequestCode);
-            Assert.Equal(40m, sor1.Quantity);
+            Assert.Equal(40, sor1.Quantity);
 
             // 第二批出库申请：数量 60
             var outRequest2 = new CreateStockOutRequestRequest
@@ -1921,7 +1921,7 @@ namespace CRM.IntegrationTests
             var sor2 = await stockOutService.CreateStockOutRequestAsync(outRequest2);
             Assert.NotNull(sor2);
             Assert.Equal("SOR20260002", sor2.RequestCode);
-            Assert.Equal(60m, sor2.Quantity);
+            Assert.Equal(60, sor2.Quantity);
 
             // 验证出库申请总数
             Assert.Equal(2, allStockOutRequests.Count);

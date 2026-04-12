@@ -1864,6 +1864,10 @@ INSERT INTO sys_permission ("PermissionId", "PermissionCode", "PermissionName", 
 ('p0000000-0000-4000-8000-00000000001a', 'finance-purchase-invoice.write', '进项发票-维护', 'api', NULL, NULL, 1, TIMESTAMPTZ '2026-01-01T00:00:00Z')
 ON CONFLICT ("PermissionCode") DO NOTHING;
 
+INSERT INTO sys_permission ("PermissionId", "PermissionCode", "PermissionName", "PermissionType", "Resource", "Action", "Status", "CreateTime") VALUES
+('p0000000-0000-4000-8000-00000000001b', 'rfq.create', '需求创建', 'api', NULL, NULL, 1, TIMESTAMPTZ '2026-01-01T00:00:00Z')
+ON CONFLICT ("PermissionCode") DO NOTHING;
+
 -- =============================================================================
 -- 角色
 -- =============================================================================
@@ -1892,7 +1896,7 @@ ON CONFLICT ("RoleId", "PermissionId") DO NOTHING;
 INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
 SELECT gen_random_uuid()::text, 'r0000000-0000-4000-8000-000000000006', p."PermissionId", TIMESTAMPTZ '2026-01-01T00:00:00Z'
 FROM sys_permission p WHERE p."PermissionCode" IN (
-    'customer.read','customer.write','rfq.read','rfq.write','vendor.read','vendor.write',
+    'customer.read','customer.write','rfq.read','rfq.write','rfq.create','vendor.read','vendor.write',
     'sales-order.read','sales-order.write','purchase-order.read','purchase-order.write','draft.read',
     'finance-receipt.read','finance-receipt.write','finance-payment.read','finance-payment.write',
     'finance-sell-invoice.read','finance-sell-invoice.write','finance-purchase-invoice.read','finance-purchase-invoice.write')
@@ -1900,7 +1904,7 @@ ON CONFLICT ("RoleId", "PermissionId") DO NOTHING;
 
 INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
 SELECT gen_random_uuid()::text, 'r0000000-0000-4000-8000-000000000007', p."PermissionId", TIMESTAMPTZ '2026-01-01T00:00:00Z'
-FROM sys_permission p WHERE p."PermissionCode" IN ('customer.read','customer.write','rfq.read','rfq.write','sales-order.read','draft.read')
+FROM sys_permission p WHERE p."PermissionCode" IN ('customer.read','customer.write','rfq.read','rfq.write','rfq.create','sales-order.read','draft.read')
 ON CONFLICT ("RoleId", "PermissionId") DO NOTHING;
 
 INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")

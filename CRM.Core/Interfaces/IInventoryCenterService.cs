@@ -28,7 +28,7 @@ namespace CRM.Core.Interfaces
 
     public class SellOrderLineAvailableQtyDto
     {
-        public decimal AvailableQty { get; set; }
+        public int AvailableQty { get; set; }
     }
 
     public class InventoryMaterialOverviewDto
@@ -49,9 +49,9 @@ namespace CRM.Core.Interfaces
         public short StockType { get; set; } = 1;
         /// <summary>地域（与 <c>stock.RegionType</c> 一致；10=境内 20=境外）</summary>
         public short RegionType { get; set; } = RegionTypeCode.Domestic;
-        public decimal OnHandQty { get; set; }
-        public decimal AvailableQty { get; set; }
-        public decimal LockedQty { get; set; }
+        public int OnHandQty { get; set; }
+        public int AvailableQty { get; set; }
+        public int LockedQty { get; set; }
         public decimal InventoryAmount { get; set; }
         /// <summary>库存金额币别（与最近一次采购入库台账关联的采购单一致；缺省 1=RMB）</summary>
         public short Currency { get; set; } = 1;
@@ -63,7 +63,7 @@ namespace CRM.Core.Interfaces
         public DateTime? StockInTime { get; set; }
         public string? StockInCode { get; set; }
         public string? BatchNo { get; set; }
-        public decimal Quantity { get; set; }
+        public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public string? PurchaseOrderCode { get; set; }
         public string? PurchaseUserName { get; set; }
@@ -93,8 +93,8 @@ namespace CRM.Core.Interfaces
         public string? StockId { get; set; }
         /// <summary>对应库存行类型 1客单 2备货 3样品；无库存记录时可为空</summary>
         public short? StockType { get; set; }
-        public decimal PlanQty { get; set; }
-        public decimal PickedQty { get; set; }
+        public int PlanQty { get; set; }
+        public int PickedQty { get; set; }
         public bool IsStockingSupplement { get; set; }
     }
 
@@ -110,9 +110,9 @@ namespace CRM.Core.Interfaces
         public string? Remark { get; set; }
         public DateTime CreateTime { get; set; }
         /// <summary>本任务拣货明细计划数量合计</summary>
-        public decimal PlanQtyTotal { get; set; }
+        public int PlanQtyTotal { get; set; }
         /// <summary>本任务拣货明细已拣数量合计</summary>
-        public decimal PickedQtyTotal { get; set; }
+        public int PickedQtyTotal { get; set; }
         /// <summary>本任务涉及的库存类型（去重排序，1客单 2备货 3样品）</summary>
         public List<short> DistinctStockTypes { get; set; } = new();
         public List<PickingTaskLineDto> Items { get; set; } = new();
@@ -129,7 +129,7 @@ namespace CRM.Core.Interfaces
     public class GeneratePickingTaskItemRequest
     {
         public string MaterialId { get; set; } = string.Empty;
-        public decimal Quantity { get; set; }
+        public int Quantity { get; set; }
     }
 
     public class CreateCountPlanRequest
@@ -151,7 +151,7 @@ namespace CRM.Core.Interfaces
     {
         public string MaterialId { get; set; } = string.Empty;
         public string? LocationId { get; set; }
-        public decimal CountQty { get; set; }
+        public int CountQty { get; set; }
         public decimal CountAmount { get; set; }
     }
 }

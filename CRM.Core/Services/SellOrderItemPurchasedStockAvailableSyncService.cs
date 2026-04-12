@@ -176,12 +176,5 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
     private static string NormKey(string? v) =>
         string.IsNullOrWhiteSpace(v) ? string.Empty : v.Trim();
 
-    private static int ToIntNonNegative(decimal sum)
-    {
-        if (sum <= 0m)
-            return 0;
-        if (sum >= int.MaxValue)
-            return int.MaxValue;
-        return (int)Math.Truncate(sum);
-    }
+    private static int ToIntNonNegative(int sum) => sum < 0 ? 0 : sum;
 }

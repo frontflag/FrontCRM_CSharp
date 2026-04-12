@@ -680,7 +680,6 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.SalesOrderItemId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.MaterialCode).IsRequired().HasMaxLength(200);
                 entity.Property(e => e.MaterialName).HasMaxLength(200);
-                entity.Property(e => e.Quantity).HasColumnType("numeric(18,4)");
                 entity.Property(e => e.CustomerId).HasMaxLength(36);
                 entity.Property(e => e.RequestUserId).HasMaxLength(36);
                 entity.Property(e => e.Remark).HasMaxLength(500);
@@ -704,9 +703,9 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.RegionType).HasColumnName("RegionType").HasDefaultValue((short)10);
                 entity.Property(e => e.Pn).HasMaxLength(128);
                 entity.Property(e => e.Brand).HasMaxLength(64);
-                entity.Property(e => e.ExpectQty).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
-                entity.Property(e => e.ReceiveQty).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
-                entity.Property(e => e.PassedQty).HasColumnType("numeric(18,4)").HasDefaultValue(0m);
+                entity.Property(e => e.ExpectQty).HasDefaultValue(0);
+                entity.Property(e => e.ReceiveQty).HasDefaultValue(0);
+                entity.Property(e => e.PassedQty).HasDefaultValue(0);
                 entity.Property(e => e.Cost).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
                 entity.Property(e => e.ExpectTotal).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.ReceiveTotal).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
@@ -720,8 +719,6 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.StockInNotifyId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.StockInNotifyCode).IsRequired().HasMaxLength(32);
                 entity.Property(e => e.StockInId).HasMaxLength(36);
-                entity.Property(e => e.PassQty).HasColumnType("numeric(18,4)");
-                entity.Property(e => e.RejectQty).HasColumnType("numeric(18,4)");
                 entity.Property(e => e.Status).HasDefaultValue((short)10);
                 entity.Property(e => e.StockInStatus).HasDefaultValue((short)1);
                 entity.HasMany(e => e.Items)
@@ -735,9 +732,6 @@ namespace CRM.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.QcInfoId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.ArrivalStockInNotifyId).IsRequired().HasMaxLength(36);
-                entity.Property(e => e.ArrivedQty).HasColumnType("numeric(18,4)");
-                entity.Property(e => e.PassedQty).HasColumnType("numeric(18,4)");
-                entity.Property(e => e.RejectQty).HasColumnType("numeric(18,4)");
             });
 
             modelBuilder.Entity<WarehouseInfo>(entity =>
@@ -793,8 +787,6 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.WarehouseId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.LocationId).HasMaxLength(36);
                 entity.Property(e => e.BatchNo).HasMaxLength(50);
-                entity.Property(e => e.QtyIn).HasColumnType("numeric(18,4)");
-                entity.Property(e => e.QtyOut).HasColumnType("numeric(18,4)");
                 entity.Property(e => e.UnitCost).HasColumnType("numeric(18,6)");
                 entity.Property(e => e.Amount).HasColumnType("numeric(18,2)");
                 // 与 stock / purchaseorderitem 一致：snake_case（迁移 20260417100000）
@@ -833,8 +825,6 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.StockId).HasMaxLength(36);
                 entity.Property(e => e.BatchNo).HasMaxLength(50);
                 entity.Property(e => e.LocationId).HasMaxLength(36);
-                entity.Property(e => e.PlanQty).HasColumnType("numeric(18,4)");
-                entity.Property(e => e.PickedQty).HasColumnType("numeric(18,4)");
                 entity.Property(e => e.IsStockingSupplement).HasDefaultValue(false);
             });
 
@@ -861,9 +851,6 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.PlanId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.MaterialId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.LocationId).HasMaxLength(36);
-                entity.Property(e => e.BookQty).HasColumnType("numeric(18,4)");
-                entity.Property(e => e.CountQty).HasColumnType("numeric(18,4)");
-                entity.Property(e => e.DiffQty).HasColumnType("numeric(18,4)");
                 entity.Property(e => e.BookAmount).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.CountAmount).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.DiffAmount).HasColumnType("numeric(18,2)");

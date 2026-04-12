@@ -8,5 +8,8 @@ namespace CRM.Core.Utilities
         public static string ForUserMessage(decimal value) =>
             decimal.Round(value, 0, MidpointRounding.AwayFromZero)
                 .ToString("0", CultureInfo.InvariantCulture);
+
+        public static string ForUserMessage(int value) =>
+            value.ToString("0", CultureInfo.InvariantCulture);
     }
 }

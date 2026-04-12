@@ -282,6 +282,10 @@ namespace CRM.API.Controllers
                         prefillPurchaseOrderType = prefillPurchaseOrderType,
                         quoteVendorId = vendorIdFromQuote,
                         quoteCost = pr.QuoteCost != 0m ? pr.QuoteCost : (matchedQuoteItem?.UnitPrice ?? 0m),
+                        // 报价币别：优先匹配到的报价明细；否则沿用销售订单明细行币别（用于 PO 预填「报价」展示与采购单价默认币别）
+                        quoteCurrency = matchedQuoteItem != null
+                            ? matchedQuoteItem.Currency
+                            : (short)(line?.Currency ?? 1),
                         intendedVendorName = intendedVendorName,
                         intendedVendorContactId = intendedVendorContactId,
                         intendedVendorContactName = intendedVendorContactName,

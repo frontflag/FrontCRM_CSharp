@@ -102,7 +102,7 @@
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <button class="btn-success" type="button" @click="handleCreateRfq">
+        <button v-if="canCreateRfqFromCustomer" class="btn-success" type="button" @click="handleCreateRfq">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
@@ -554,6 +554,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
+import { useAuthStore } from '@/stores/auth';
 import { ElNotification, ElMessageBox } from 'element-plus';
 import {
   customerApi,
@@ -586,6 +588,9 @@ import { isDistrictPlaceholder } from '@/constants/region';
 
 const route = useRoute();
 const router = useRouter();
+const { t } = useI18n();
+const authStore = useAuthStore();
+const canCreateRfqFromCustomer = computed(() => authStore.hasPermission('rfq.create'));
 const customerDict = useCustomerDictStore();
 const customerId = route.params.id as string;
 
@@ -870,6 +875,10 @@ const handleConfirmFreezeOrUnfreeze = async () => {
 
 /** 跳转新建需求并带上当前客户，由 RFQCreate 根据 query 预填「客户」 */
 const handleCreateRfq = () => {
+  if (!authStore.hasPermission('rfq.create')) {
+    ElNotification.warning({ title: '无权限', message: t('rfqHome.createNeedRfqCreate') });
+    return;
+  }
   if (!customer.value?.id) {
     ElNotification.warning({ title: '无法创建', message: '客户信息未加载完成' });
     return;

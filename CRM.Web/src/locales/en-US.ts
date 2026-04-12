@@ -735,6 +735,8 @@ const enUS = {
     count: '{count} RFQs total',
     importExcel: 'Import from Excel',
     create: 'New RFQ',
+    editNeedRfqWrite:
+      'Your account does not have RFQ maintenance permission (rfq.write), so you cannot edit this RFQ.',
     stats: { total: 'Total RFQs', pending: 'Pending Assignment', processing: 'Quoting', quoted: 'Quoted' },
     filters: {
       search: 'Search',
@@ -886,7 +888,9 @@ const enUS = {
     goRfqList: 'Go to RFQ List',
     create: 'New RFQ',
     createNeedRfqWrite:
-      'Your account does not have RFQ maintenance permission (rfq.write). Ask an administrator to grant it, then sign in again.',
+      'Your account does not have RFQ maintenance permission (rfq.write), so you cannot edit RFQs. Ask an administrator to grant it, then sign in again.',
+    createNeedRfqCreate:
+      'Your account does not have permission to create RFQs (rfq.create). Ask an administrator to grant it, then sign in again.',
     createBlockedByIdentity: 'Your primary department identity cannot perform this action.',
     loading: 'Loading summary...',
     sections: {
@@ -1912,7 +1916,7 @@ const enUS = {
       brand: 'Brand',
       customerPo: 'Customer PO no.',
       unitPrice: 'Unit price',
-      purchasePrice: 'Purchase / quote cost',
+      purchasePrice: 'Purchase quote',
       qty: 'Quantity',
       lineTotal: 'Line total',
       dateCode: 'Date code',

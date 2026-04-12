@@ -123,7 +123,7 @@ const routes: RouteRecordRaw[] = [
         path: 'rfqs/create',
         name: 'RFQCreate',
         component: () => import('@/views/RFQ/RFQCreate.vue'),
-        meta: { requiresAuth: true, title: '新建需求', permission: 'rfq.write' }
+        meta: { requiresAuth: true, title: '新建需求', permission: 'rfq.create' }
       },
       {
         path: 'rfqs/:id',

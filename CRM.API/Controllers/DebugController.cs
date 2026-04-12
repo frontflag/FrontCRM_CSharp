@@ -516,7 +516,7 @@ namespace CRM.API.Controllers
 
             if (targetIdx >= 5 && firstCreateIdx <= 5 && po != null && poItem != null)
             {
-                var expectQty = poItem.Qty;
+                var expectQty = InventoryQuantity.RoundFromDecimal(poItem.Qty);
                 var expectTotal = Math.Round(expectQty * poItem.Cost, 2, MidpointRounding.AwayFromZero);
                 notify = new StockInNotify
                 {
@@ -578,6 +578,7 @@ namespace CRM.API.Controllers
 
             if (targetIdx >= 7 && firstCreateIdx <= 7 && po != null && poItem != null && qc != null)
             {
+                var stockInQtyInt = InventoryQuantity.RoundFromDecimal(poItem.Qty);
                 var desiredStockInStatus = normalizedNode == "stockin" ? request.Status : (short)2;
                 var initialStockInStatus = desiredStockInStatus == 2 ? (short)1 : desiredStockInStatus;
                 SellOrderItem? soLineForPo = null;
@@ -607,7 +608,7 @@ namespace CRM.API.Controllers
                     WarehouseId = warehouseId,
                     VendorId = vendorId,
                     StockInDate = now,
-                    TotalQuantity = poItem.Qty,
+                    TotalQuantity = stockInQtyInt,
                     TotalAmount = Math.Round(poItem.Qty * poItem.Cost, 2),
                     Status = initialStockInStatus,
                     InspectStatus = qc.Status == 100 ? (short)1 : (short)0,
@@ -620,9 +621,9 @@ namespace CRM.API.Controllers
                     Id = Guid.NewGuid().ToString(),
                     StockInId = stockIn.Id,
                     MaterialId = materialId,
-                    Quantity = poItem.Qty,
-                    OrderQty = poItem.Qty,
-                    QtyReceived = poItem.Qty,
+                    Quantity = stockInQtyInt,
+                    OrderQty = stockInQtyInt,
+                    QtyReceived = stockInQtyInt,
                     Price = poItem.Cost,
                     Amount = Math.Round(poItem.Qty * poItem.Cost, 2),
                     BatchNo = $"B{chainNo[^6..]}",
@@ -654,7 +655,7 @@ namespace CRM.API.Controllers
                     SalesOrderItemId = salesOrderItem.Id,
                     MaterialCode = salesOrderItem.PN ?? string.Empty,
                     MaterialName = salesOrderItem.Brand,
-                    Quantity = salesOrderItem.Qty,
+                    Quantity = InventoryQuantity.RoundFromDecimal(salesOrderItem.Qty),
                     CustomerId = customerId,
                     RequestUserId = requestUserId,
                     RequestDate = now,

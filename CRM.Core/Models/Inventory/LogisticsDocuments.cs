@@ -59,16 +59,13 @@ namespace CRM.Core.Models.Inventory
         public string? Brand { get; set; }
 
         /// <summary>本批次预期到货数量</summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal ExpectQty { get; set; }
+        public int ExpectQty { get; set; }
 
         /// <summary>本批次实收数量（入库流程回写）</summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal ReceiveQty { get; set; }
+        public int ReceiveQty { get; set; }
 
         /// <summary>本批次质检通过数量汇总</summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal PassedQty { get; set; }
+        public int PassedQty { get; set; }
 
         [Column(TypeName = "numeric(18,6)")]
         public decimal Cost { get; set; }
@@ -94,9 +91,9 @@ namespace CRM.Core.Models.Inventory
         public string PurchaseOrderItemId { get; set; } = string.Empty;
         public string? Pn { get; set; }
         public string? Brand { get; set; }
-        public decimal Qty { get; set; }
-        public decimal ArrivedQty { get; set; }
-        public decimal PassedQty { get; set; }
+        public int Qty { get; set; }
+        public int ArrivedQty { get; set; }
+        public int PassedQty { get; set; }
     }
 
     [Table("qcinfo")]
@@ -117,8 +114,8 @@ namespace CRM.Core.Models.Inventory
         /// <summary>-1拒收 1未入库 10部分入库 100全部入库</summary>
         public short StockInStatus { get; set; } = 1;
 
-        public decimal PassQty { get; set; }
-        public decimal RejectQty { get; set; }
+        public int PassQty { get; set; }
+        public int RejectQty { get; set; }
 
         [StringLength(36)]
         public string? StockInId { get; set; }
@@ -159,9 +156,9 @@ namespace CRM.Core.Models.Inventory
         [StringLength(36)]
         public string ArrivalStockInNotifyId { get; set; } = string.Empty;
 
-        public decimal ArrivedQty { get; set; }
-        public decimal PassedQty { get; set; }
-        public decimal RejectQty { get; set; }
+        public int ArrivedQty { get; set; }
+        public int PassedQty { get; set; }
+        public int RejectQty { get; set; }
 
         public QCInfo? QcInfo { get; set; }
     }

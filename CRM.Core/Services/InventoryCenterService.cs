@@ -718,10 +718,10 @@ namespace CRM.Core.Services
             }
 
             // 与拣货任务一致：仅统计 stock.sell_order_item_id = 本销售明细 且 可用量 > 0 的行的可用量之和（跨仓库汇总）
-            var sum = 0m;
+            var sum = 0;
             foreach (var s in stocks)
             {
-                if (s.QtyRepertoryAvailable <= 0m)
+                if (s.QtyRepertoryAvailable <= 0)
                     continue;
                 if (!string.Equals(s.SellOrderItemId?.Trim(), id, StringComparison.OrdinalIgnoreCase))
                     continue;
@@ -866,7 +866,8 @@ namespace CRM.Core.Services
 
             return list.Select(t =>
             {
-                decimal plan = 0, picked = 0;
+                var plan = 0;
+                var picked = 0;
                 if (sumByTask.TryGetValue(t.Id, out var s))
                 {
                     plan = s.Plan;
@@ -969,14 +970,14 @@ namespace CRM.Core.Services
             bool PickingStockMatchesSellLine(StockInfo s) =>
                 string.Equals(s.SellOrderItemId?.Trim() ?? string.Empty, sellLineId, StringComparison.OrdinalIgnoreCase);
 
-            decimal SumRemainingForSellLine()
+            int SumRemainingForSellLine()
             {
-                decimal t = 0m;
+                var t = 0;
                 foreach (var s in whStocks)
                 {
                     if (!PickingStockMatchesSellLine(s))
                         continue;
-                    if (remAvail.TryGetValue(s.Id, out var r) && r > 0m)
+                    if (remAvail.TryGetValue(s.Id, out var r) && r > 0)
                         t += r;
                 }
 
@@ -986,18 +987,18 @@ namespace CRM.Core.Services
             foreach (var item in request.Items)
             {
                 var need = item.Quantity;
-                if (need <= 0m) continue;
+                if (need <= 0) continue;
                 var outboundCode = item.MaterialId?.Trim() ?? "";
                 var poolAtLineStart = SumRemainingForSellLine();
 
                 // 与出库通知销售明细一致且本仓库仍有可用量的库存（FIFO）
                 foreach (var stock in OrderFifo(whStocks))
                 {
-                    if (need <= 0m) break;
+                    if (need <= 0) break;
                     if (!PickingStockMatchesSellLine(stock)) continue;
-                    if (!remAvail.TryGetValue(stock.Id, out var av) || av <= 0m) continue;
+                    if (!remAvail.TryGetValue(stock.Id, out var av) || av <= 0) continue;
                     var qty = Math.Min(need, av);
-                    if (qty <= 0m) continue;
+                    if (qty <= 0) continue;
                     await _pickingTaskItemRepository.AddAsync(new PickingTaskItem
                     {
                         Id = Guid.NewGuid().ToString(),

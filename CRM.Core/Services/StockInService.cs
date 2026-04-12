@@ -131,7 +131,7 @@ namespace CRM.Core.Services
                 WarehouseId = request.WarehouseId,
                 VendorId = request.VendorId,
                 StockInDate = PostgreSqlDateTime.ToUtc(request.StockInDate),
-                TotalQuantity = request.TotalQuantity,
+                TotalQuantity = InventoryQuantity.RoundFromDecimal(request.TotalQuantity),
                 Remark = request.Remark,
                 Status = 0, // 草稿
                 CreateTime = DateTime.UtcNow,
@@ -155,14 +155,17 @@ namespace CRM.Core.Services
                         && poLineById.TryGetValue(materialKey, out var poi))
                         price = poi.Cost;
 
-                    var amount = item.Quantity * price;
+                    var qtyInt = InventoryQuantity.RoundFromDecimal(item.Quantity);
+                    var amount = qtyInt * price;
                     totalAmount += amount;
                     var line = new StockInItem
                     {
                         Id = Guid.NewGuid().ToString(),
                         StockInId = stockInId,
                         MaterialId = materialKey,
-                        Quantity = item.Quantity,
+                        Quantity = qtyInt,
+                        OrderQty = qtyInt,
+                        QtyReceived = qtyInt,
                         Price = price,
                         Amount = amount,
                         BatchNo = item.BatchNo?.Trim(),

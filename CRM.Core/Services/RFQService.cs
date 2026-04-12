@@ -218,14 +218,14 @@ namespace CRM.Core.Services
             return rfq;
         }
 
-        /// <summary>具备 customer.read 或为系统管理员时，可在需求场景查看客户标识与联系人等。</summary>
+        /// <summary>具备 customer.info.read（客户敏感信息字段）或为系统管理员时，可在需求场景查看客户名/联系人等；与 PURCHASER 不授 info.read、仅 customer.read 的口径一致。</summary>
         private async Task<bool> UserCanViewCustomerInRfqContextAsync(string userId)
         {
             var uid = userId.Trim();
             if (string.IsNullOrEmpty(uid)) return false;
             var s = await _rbacService.GetUserPermissionSummaryAsync(uid);
             if (s.IsSysAdmin) return true;
-            return s.PermissionCodes.Any(c => string.Equals(c, "customer.read", StringComparison.OrdinalIgnoreCase));
+            return s.PermissionCodes.Any(c => string.Equals(c, "customer.info.read", StringComparison.OrdinalIgnoreCase));
         }
 
         private static void MaskRfqCustomerFieldsForViewer(RFQ rfq)

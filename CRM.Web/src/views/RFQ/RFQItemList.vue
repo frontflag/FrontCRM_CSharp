@@ -498,7 +498,8 @@ const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const authStore = useAuthStore()
-const canViewCustomerInRfq = computed(() => authStore.hasPermission('customer.read'))
+/** 与后端 RFQ 脱敏一致：采购等角色可有 customer.read 但不应见需求侧客户名/客户料号筛选（需 customer.info.read） */
+const canViewCustomerInRfq = computed(() => authStore.hasPermission('customer.info.read'))
 
 /** 需求明细列表：按当前筛选与分页自动刷新间隔 */
 const RFQ_ITEM_LIST_AUTO_REFRESH_MS = 5 * 60 * 1000

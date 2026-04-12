@@ -90,6 +90,35 @@ public sealed class RequirePermissionAttributeTests
         obj.StatusCode.Should().Be(403);
     }
 
+    /// <summary>采购侧常有 rfq.read+rfq.write，但新建需求 POST 仅允许 rfq.create。</summary>
+    [Fact]
+    public async Task OnAuthorization_RfqCreate_MissingCode_Sets403()
+    {
+        var rbac = Substitute.For<IRbacService>();
+        rbac.GetUserPermissionSummaryAsync("u1").Returns(new UserPermissionSummaryDto
+        {
+            UserId = "u1",
+            IsSysAdmin = false,
+            PermissionCodes = new List<string> { "rfq.read", "rfq.write" }
+        });
+
+        var services = new ServiceCollection();
+        services.AddSingleton<IRbacService>(rbac);
+        var http = new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
+        http.User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, "u1")
+        }, "Test"));
+
+        var ctx = CreateFilterContext(http);
+        var attr = new RequirePermissionAttribute("rfq.create");
+
+        await attr.OnAuthorizationAsync(ctx);
+
+        var obj = ctx.Result.Should().BeOfType<ObjectResult>().Subject;
+        obj.StatusCode.Should().Be(403);
+    }
+
     [Fact]
     public async Task OnAuthorization_SysAdmin_Allows()
     {

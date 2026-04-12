@@ -19,9 +19,13 @@ if (Test-Path $tempPath) {
 Write-Host "Creating temporary build directory: $tempPath" -ForegroundColor Yellow
 mkdir $tempPath -Force | Out-Null
 
-# Copy project to temp path（复制根目录下各子项；避免 Copy-Item . 在目标下再套一层项目文件夹导致找不到 CRM.Web）
+# Copy project to temp path（逐个子项复制，跳过 .vs：VS 会锁定 FileContentIndex/*.vsidx，整目录 Copy-Item 会失败）
 Write-Host "Copying project to temporary directory..." -ForegroundColor Yellow
-Copy-Item -Path (Join-Path (Get-Location).Path '*') -Destination $tempPath -Recurse -Force
+$root = (Get-Location).Path
+foreach ($item in Get-ChildItem -LiteralPath $root -Force) {
+    if ($item.Name -eq '.vs') { continue }
+    Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $tempPath $item.Name) -Recurse -Force
+}
 
 # Navigate to temp directory
 cd $tempPath

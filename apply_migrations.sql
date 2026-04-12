@@ -1030,6 +1030,7 @@ FROM (
       ('vendor.write', '编辑供应商'),
       ('rfq.read', '查看RFQ'),
       ('rfq.write', '编辑RFQ'),
+      ('rfq.create', '创建需求'),
       ('sales-order.read', '查看销售订单'),
       ('sales-order.write', '编辑销售订单'),
       ('purchase-order.read', '查看采购订单'),
@@ -1070,6 +1071,19 @@ INSERT INTO sys_role_permission("RolePermissionId", "RoleId", "PermissionId")
 SELECT gen_random_uuid()::text, r."RoleId", p."PermissionId"
 FROM sys_role r
 JOIN sys_permission p ON p."PermissionCode" IN ('customer.info.read', 'sales.amount.read')
+WHERE r."RoleCode" = 'SALES'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM sys_role_permission rp
+      WHERE rp."RoleId" = r."RoleId"
+        AND rp."PermissionId" = p."PermissionId"
+  );
+
+-- 给 SALES 补充「创建需求」（采购业务角色不授 rfq.create）
+INSERT INTO sys_role_permission("RolePermissionId", "RoleId", "PermissionId")
+SELECT gen_random_uuid()::text, r."RoleId", p."PermissionId"
+FROM sys_role r
+JOIN sys_permission p ON p."PermissionCode" = 'rfq.create'
 WHERE r."RoleCode" = 'SALES'
   AND NOT EXISTS (
       SELECT 1

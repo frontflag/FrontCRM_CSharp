@@ -25,13 +25,17 @@ public sealed class RFQsControllerTests
         string? userId = "test-user-1")
     {
         var rbac = Substitute.For<IRbacService>();
-        rbac.GetUserPermissionSummaryAsync(Arg.Any<string>()).Returns(new UserPermissionSummaryDto
+        if (configureRbac != null)
+            configureRbac(rbac);
+        else
         {
-            UserId = userId ?? "",
-            IsSysAdmin = true,
-            PermissionCodes = new[] { "rfq.read", "rfq.write", "rfq.delete" }
-        });
-        configureRbac?.Invoke(rbac);
+            rbac.GetUserPermissionSummaryAsync(Arg.Any<string>()).Returns(new UserPermissionSummaryDto
+            {
+                UserId = userId ?? "",
+                IsSysAdmin = true,
+                PermissionCodes = new[] { "rfq.read", "rfq.write", "rfq.create", "rfq.delete" }
+            });
+        }
 
         var services = new ServiceCollection();
         services.AddSingleton<IRbacService>(rbac);

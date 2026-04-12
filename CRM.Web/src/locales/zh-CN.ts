@@ -716,6 +716,7 @@ const zhCN = {
     count: '共 {count} 条需求',
     importExcel: '导入 Excel 创建',
     create: '新增需求',
+    editNeedRfqWrite: '当前账号无「需求维护」权限（rfq.write），无法编辑需求。',
     stats: { total: '需求总数', pending: '待分配', processing: '报价中', quoted: '已报价' },
     filters: {
       search: '搜索',
@@ -866,7 +867,9 @@ const zhCN = {
     goMaterialList: '进入物料列表',
     goRfqList: '进入需求列表',
     create: '新建需求',
-    createNeedRfqWrite: '当前账号无「需求维护」权限（rfq.write），无法新建需求。请联系管理员分配权限后重新登录。',
+    createNeedRfqWrite: '当前账号无「需求维护」权限（rfq.write），无法编辑需求。请联系管理员分配权限后重新登录。',
+    createNeedRfqCreate:
+      '当前账号无「创建需求」权限（rfq.create），无法新建需求。请联系管理员分配权限后重新登录。',
     createBlockedByIdentity: '当前主部门身份不允许执行该操作。',
     loading: '加载概要数据…',
     sections: {
@@ -1893,7 +1896,7 @@ const zhCN = {
       brand: '品牌',
       customerPo: '客户订单号',
       unitPrice: '销售单价',
-      purchasePrice: '买入价',
+      purchasePrice: '采购报价',
       qty: '销售数量',
       lineTotal: '销售总额',
       dateCode: '生产日期',

@@ -168,8 +168,8 @@ import { quoteApi } from '@/api/quote'
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
-/** 仅具备 rfq.write 时显示「新建需求」（采购员等仅有 rfq.read 时只浏览） */
-const showCreateRfqButton = computed(() => authStore.hasPermission('rfq.write'))
+/** 新建需求：需 rfq.create（采购侧可有 rfq.write 但无 create） */
+const showCreateRfqButton = computed(() => authStore.hasPermission('rfq.create'))
 
 const keyword = ref('')
 
@@ -237,12 +237,12 @@ function goRfqList() {
 }
 
 function goCreateRfq() {
-  if (authStore.isIdentityBlockedForPermission('rfq.write')) {
+  if (authStore.isIdentityBlockedForPermission('rfq.create')) {
     ElMessage.warning(t('rfqHome.createBlockedByIdentity'))
     return
   }
-  if (!authStore.hasPermission('rfq.write')) {
-    ElMessage.warning(t('rfqHome.createNeedRfqWrite'))
+  if (!authStore.hasPermission('rfq.create')) {
+    ElMessage.warning(t('rfqHome.createNeedRfqCreate'))
     return
   }
   router.push({ name: 'RFQCreate' })

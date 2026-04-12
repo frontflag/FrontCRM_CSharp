@@ -1,3 +1,5 @@
+import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
+
 /**
  * 全站金额精度：单价 6 位小数，总额/金额 2 位小数（与后端 numeric 一致）
  */
@@ -45,6 +47,16 @@ export function formatCurrencyUnitPrice(value: unknown, currency?: number): stri
     minimumFractionDigits: 2,
     maximumFractionDigits: UNIT_PRICE_DECIMALS
   })}`
+}
+
+/** 单价 + 币别字母后缀（如 `3.45 RMB`），与 `CURRENCY_CODE_TO_TEXT` 一致 */
+export function formatUnitPriceWithCurrencyCodeSuffix(value: unknown, currency?: number): string {
+  const s = formatUnitPriceNumber(value)
+  if (s === '—') return s
+  const c = Number(currency)
+  const code =
+    (Number.isFinite(c) && CURRENCY_CODE_TO_TEXT[c as keyof typeof CURRENCY_CODE_TO_TEXT]) || 'RMB'
+  return `${s} ${code}`
 }
 
 /** 总额 + 币别符号 */

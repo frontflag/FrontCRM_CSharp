@@ -139,7 +139,7 @@ namespace CRM.Core.Services
                 RegionType = regionType,
                 Pn = poItem.PN,
                 Brand = poItem.Brand,
-                ExpectQty = expectQty,
+                ExpectQty = InventoryQuantity.RoundFromDecimal(expectQty),
                 ReceiveQty = 0,
                 PassedQty = 0,
                 Cost = poItem.Cost,
@@ -423,8 +423,8 @@ namespace CRM.Core.Services
             if (!items.Any()) throw new InvalidOperationException("质检明细为空");
 
             var arrivedTotal = items.Sum(x => x.ArrivedQty);
-            qc.PassQty = request.PassQty;
-            qc.RejectQty = request.RejectQty;
+            qc.PassQty = InventoryQuantity.RoundFromDecimal(request.PassQty);
+            qc.RejectQty = InventoryQuantity.RoundFromDecimal(request.RejectQty);
             qc.Status = request.Result switch
             {
                 "pass" => 100,
@@ -438,10 +438,10 @@ namespace CRM.Core.Services
             qc.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _qcRepo.UpdateAsync(qc);
 
-            var ratio = arrivedTotal > 0 ? request.PassQty / arrivedTotal : 0;
+            var ratio = arrivedTotal > 0 ? (decimal)qc.PassQty / arrivedTotal : 0m;
             foreach (var item in items)
             {
-                item.PassedQty = decimal.Round(item.ArrivedQty * ratio, 4, MidpointRounding.AwayFromZero);
+                item.PassedQty = InventoryQuantity.RoundFromDecimal(item.ArrivedQty * ratio);
                 item.RejectQty = Math.Max(0, item.ArrivedQty - item.PassedQty);
                 item.ModifyTime = DateTime.UtcNow;
                 await _qcItemRepo.UpdateAsync(item);

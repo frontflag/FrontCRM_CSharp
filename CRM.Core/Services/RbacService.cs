@@ -118,12 +118,14 @@ namespace CRM.Core.Services
 
             // 隶属采购侧部门时：不授予销售订单与「销售侧财务」（与采购菜单、数据范围一致）。
             // DEPT_EMPLOYEE 种子可能仍含 finance-receipt / sales-order，此处统一剥离。
+            // 采购主部门（含总监/经理绑 biz_all）：不允许「新建需求」——剥离 rfq.create（保留 rfq.write 供分配等维护）。
             if (belongsToPurchaseDept)
             {
                 RemovePermissionCodes(permissionCodes,
                     "sales-order.read", "sales-order.write", "sales.amount.read",
                     "finance-receipt.read", "finance-receipt.write",
-                    "finance-sell-invoice.read", "finance-sell-invoice.write");
+                    "finance-sell-invoice.read", "finance-sell-invoice.write",
+                    "rfq.create");
             }
 
             // 主部门为销售（1）时：不授予采购订单与采购侧财务（与采购主部门不持有销售订单对称）。
@@ -139,8 +141,11 @@ namespace CRM.Core.Services
 
             // 隶属采购/采购助理部门时合并：仅 DEPT_EMPLOYEE 时种子常无 PR/PO 写权限，与员工页「可选 purchase_buyer」说明一致，
             // 采购部员工仍应能维护采购申请、生成采购订单（与销售员仅 PR、不 PO 的剥离策略独立）。
+            // 需求维护（编辑/分配）与「新建需求」拆分：此处补 rfq.read + rfq.write，不补 rfq.create（见上方采购侧剥离）。
             if (belongsToPurchaseDept)
             {
+                AddPermissionCodeIfMissing(permissionCodes, "rfq.read");
+                AddPermissionCodeIfMissing(permissionCodes, "rfq.write");
                 AddPermissionCodeIfMissing(permissionCodes, "vendor.read");
                 AddPermissionCodeIfMissing(permissionCodes, "vendor.write");
                 AddPermissionCodeIfMissing(permissionCodes, "purchase-requisition.read");
@@ -153,7 +158,7 @@ namespace CRM.Core.Services
             // 主部门身份为销售（IdentityType=1）时合并客户读写：DEPT_EMPLOYEE 种子常仅有 customer.read，
             // 无 customer.write 时「新建客户」路由与 API 会被拒绝。
             // 同理合并销售订单读写：种子中 DEPT_EMPLOYEE 常仅有 sales-order.read，无 write 则无法进入「新建销售订单」路由与写接口。
-            // 销售员业务上需提需求：合并 rfq.read + rfq.write（与需求首页、新建需求 API 一致）。
+            // 销售员业务上需提需求：合并 rfq.read + rfq.write + rfq.create（新建需求 POST 与采购侧仅 write 区分）。
             if (identityType == 1)
             {
                 AddPermissionCodeIfMissing(permissionCodes, "customer.read");
@@ -162,6 +167,7 @@ namespace CRM.Core.Services
                 AddPermissionCodeIfMissing(permissionCodes, "sales-order.write");
                 AddPermissionCodeIfMissing(permissionCodes, "rfq.read");
                 AddPermissionCodeIfMissing(permissionCodes, "rfq.write");
+                AddPermissionCodeIfMissing(permissionCodes, "rfq.create");
             }
 
             // 主部门为财务（5，含 IdentityType=0 时按部门名称推断为财务）：DEPT_EMPLOYEE 种子常仅有 finance-*.read，

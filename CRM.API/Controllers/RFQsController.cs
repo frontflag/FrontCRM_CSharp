@@ -9,7 +9,6 @@ namespace CRM.API.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
-    [RequirePermission("rfq.read")]
     public class RFQsController : ControllerBase
     {
         private readonly IRFQService _rfqService;
@@ -25,6 +24,7 @@ namespace CRM.API.Controllers
 
         // GET api/v1/rfqs?pageNumber=1&pageSize=20&keyword=&status=
         [HttpGet]
+        [RequirePermission("rfq.read")]
         public async Task<ActionResult<ApiResponse<object>>> GetRFQs(
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 20,
@@ -67,6 +67,7 @@ namespace CRM.API.Controllers
         /// <summary>需求明细分页（须放在 {id} 之前，否则 "items" 会被当成 id）</summary>
         // GET api/v1/rfqs/items?...&salesUserId=&salesUserKeyword=&purchaserUserId=
         [HttpGet("items")]
+        [RequirePermission("rfq.read")]
         public async Task<ActionResult<ApiResponse<object>>> GetRFQItems(
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 20,
@@ -114,6 +115,7 @@ namespace CRM.API.Controllers
 
         // GET api/v1/rfqs/{id}
         [HttpGet("{id}")]
+        [RequirePermission("rfq.read")]
         public async Task<ActionResult<ApiResponse<object>>> GetRFQ(string id)
         {
             try
@@ -133,9 +135,9 @@ namespace CRM.API.Controllers
             }
         }
 
-        // POST api/v1/rfqs
+        // POST api/v1/rfqs（与采购维护 rfq.write 拆分：仅销售侧/显式授权 rfq.create）
         [HttpPost]
-        [RequirePermission("rfq.write")]
+        [RequirePermission("rfq.create")]
         public async Task<ActionResult<ApiResponse<object>>> CreateRFQ([FromBody] CreateRFQRequest request)
         {
             try
@@ -214,6 +216,7 @@ namespace CRM.API.Controllers
 
         // PATCH api/v1/rfqs/{id}/status
         [HttpPatch("{id}/status")]
+        [RequirePermission("rfq.read")]
         public async Task<ActionResult<ApiResponse<object>>> UpdateStatus(string id, [FromBody] UpdateStatusRequest request)
         {
             try

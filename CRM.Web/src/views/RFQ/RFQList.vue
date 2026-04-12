@@ -10,10 +10,10 @@
         <div class="count-badge">{{ t('rfqList.count', { count: totalCount }) }}</div>
       </div>
       <div class="header-right">
-        <el-button v-if="canCreateRfq" class="btn-ghost btn-sm" @click="importDialogVisible = true">
+        <el-button v-if="canCreateNewRfq" class="btn-ghost btn-sm" @click="importDialogVisible = true">
           <el-icon><Upload /></el-icon>{{ t('rfqList.importExcel') }}
         </el-button>
-        <button v-if="canCreateRfq" class="btn-success" type="button" @click="goCreateRfq">
+        <button v-if="canCreateNewRfq" class="btn-success" type="button" @click="goCreateRfq">
           <el-icon class="btn-success__icon"><Plus /></el-icon>
           {{ t('rfqList.create') }}
         </button>
@@ -117,7 +117,7 @@
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
               <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('rfqList.actions.view') }}</button>
-              <button v-if="canCreateRfq" type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('rfqList.actions.edit') }}</button>
+              <button v-if="canEditRfq" type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('rfqList.actions.edit') }}</button>
             </div>
 
             <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -129,7 +129,7 @@
                   <el-dropdown-item @click.stop="handleView(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('rfqList.actions.view') }}</span>
                   </el-dropdown-item>
-                  <el-dropdown-item v-if="canCreateRfq" @click.stop="handleEdit(row)">
+                  <el-dropdown-item v-if="canEditRfq" @click.stop="handleEdit(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('rfqList.actions.edit') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
@@ -188,16 +188,20 @@ const route = useRoute()
 const { t } = useI18n()
 const authStore = useAuthStore()
 
-const canCreateRfq = computed(() => authStore.hasPermission('rfq.write'))
-const canViewCustomerInRfq = computed(() => authStore.hasPermission('customer.read'))
+/** 新建需求 / Excel 导入（调用创建 API） */
+const canCreateNewRfq = computed(() => authStore.hasPermission('rfq.create'))
+/** 编辑需求头表（分配等维护仍用 rfq.write） */
+const canEditRfq = computed(() => authStore.hasPermission('rfq.write'))
+/** 与后端 RFQ 脱敏一致：采购等角色可有 customer.read 但不应见需求侧客户名（需 customer.info.read） */
+const canViewCustomerInRfq = computed(() => authStore.hasPermission('customer.info.read'))
 
 function goCreateRfq() {
-  if (authStore.isIdentityBlockedForPermission('rfq.write')) {
+  if (authStore.isIdentityBlockedForPermission('rfq.create')) {
     ElMessage.warning(t('rfqHome.createBlockedByIdentity'))
     return
   }
-  if (!authStore.hasPermission('rfq.write')) {
-    ElMessage.warning(t('rfqHome.createNeedRfqWrite'))
+  if (!authStore.hasPermission('rfq.create')) {
+    ElMessage.warning(t('rfqHome.createNeedRfqCreate'))
     return
   }
   router.push({ name: 'RFQCreate' })
@@ -382,7 +386,7 @@ const handleImportCreated = (_rfqId: string) => {
 // 编辑：与「新建需求」共用 RFQCreate 页面（路由 rfqs/:id/edit）
 const handleEdit = (row: any) => {
   if (!authStore.hasPermission('rfq.write')) {
-    ElMessage.warning(t('rfqHome.createNeedRfqWrite'))
+    ElMessage.warning(t('rfqList.editNeedRfqWrite'))
     return
   }
   router.push({ name: 'RFQEdit', params: { id: row.id } })

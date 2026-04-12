@@ -58,7 +58,7 @@ WHERE r."RoleCode" = 'DEPT_EMPLOYEE'
   AND p."PermissionCode" IN (
     'customer.read', 'customer.info.read',
     'vendor.read', 'vendor.info.read',
-    'rfq.read', 'rfq.write',
+    'rfq.read',
     'sales-order.read', 'sales.amount.read',
     'purchase-order.read', 'purchase.amount.read',
     'draft.read',

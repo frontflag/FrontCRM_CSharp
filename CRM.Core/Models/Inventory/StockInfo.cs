@@ -71,38 +71,32 @@ namespace CRM.Core.Models.Inventory
         /// <summary>
         /// 总入库数量（累计入库量，文档中的 Qty）
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal Qty { get; set; } = 0.0000m;
+        public int Qty { get; set; }
 
         /// <summary>
         /// 已出库数量（文档中的 QtyStockOut）
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal QtyStockOut { get; set; } = 0.0000m;
+        public int QtyStockOut { get; set; }
 
         /// <summary>
         /// 拣货占用数量（文档中的 QtyOccupy）
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal QtyOccupy { get; set; } = 0.0000m;
+        public int QtyOccupy { get; set; }
 
         /// <summary>
         /// 销售预占数量（文档中的 QtySales）
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal QtySales { get; set; } = 0.0000m;
+        public int QtySales { get; set; }
 
         /// <summary>
         /// 当前库存数量（QtyRepertory = Qty - QtyStockOut）
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal QtyRepertory { get; set; } = 0.0000m;
+        public int QtyRepertory { get; set; }
 
         /// <summary>
         /// 可用库存数量（QtyRepertoryAvailable = QtyRepertory - QtyOccupy - QtySales）
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal QtyRepertoryAvailable { get; set; } = 0.0000m;
+        public int QtyRepertoryAvailable { get; set; }
 
         /// <summary>
         /// 状态 (1:正常 0:冻结)
@@ -262,8 +256,7 @@ namespace CRM.Core.Models.Inventory
         /// <summary>
         /// 入库总数
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal TotalQuantity { get; set; } = 0.0000m;
+        public int TotalQuantity { get; set; }
 
         /// <summary>
         /// 入库金额
@@ -362,20 +355,17 @@ namespace CRM.Core.Models.Inventory
         /// <summary>
         /// 入库数量
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal Quantity { get; set; } = 0.0000m;
+        public int Quantity { get; set; }
 
         /// <summary>
         /// 订单数量（来源订单应收数量）
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal OrderQty { get; set; } = 0.0000m;
+        public int OrderQty { get; set; }
 
         /// <summary>
         /// 累计已入库数量（多次部分入库）
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal QtyReceived { get; set; } = 0.0000m;
+        public int QtyReceived { get; set; }
 
         /// <summary>
         /// 单价
@@ -505,8 +495,7 @@ namespace CRM.Core.Models.Inventory
         /// <summary>
         /// 出库总数
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal TotalQuantity { get; set; } = 0.0000m;
+        public int TotalQuantity { get; set; }
 
         /// <summary>
         /// 出库金额
@@ -609,32 +598,27 @@ namespace CRM.Core.Models.Inventory
         /// <summary>
         /// 出库数量
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal Quantity { get; set; } = 0.0000m;
+        public int Quantity { get; set; }
 
         /// <summary>
         /// 订单应出数量
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal OrderQty { get; set; } = 0.0000m;
+        public int OrderQty { get; set; }
 
         /// <summary>
         /// 计划出库数量
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal PlanQty { get; set; } = 0.0000m;
+        public int PlanQty { get; set; }
 
         /// <summary>
         /// 拣货占用数量
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal PickQty { get; set; } = 0.0000m;
+        public int PickQty { get; set; }
 
         /// <summary>
         /// 实际出库数量
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal ActualQty { get; set; } = 0.0000m;
+        public int ActualQty { get; set; }
 
         /// <summary>
         /// 单价

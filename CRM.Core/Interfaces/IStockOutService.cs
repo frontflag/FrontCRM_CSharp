@@ -71,7 +71,7 @@ namespace CRM.Core.Interfaces
         public string? SourceCode { get; set; }
         public string? SourceId { get; set; }
         public DateTime StockOutDate { get; set; }
-        public decimal TotalQuantity { get; set; }
+        public int TotalQuantity { get; set; }
         public decimal TotalAmount { get; set; }
         public short Status { get; set; }
         public string? Remark { get; set; }
@@ -111,7 +111,7 @@ namespace CRM.Core.Interfaces
         public string? MaterialModel { get; set; }
         public string? Brand { get; set; }
         /// <summary>出库通知数量（单表 Quantity）</summary>
-        public decimal OutQuantity { get; set; }
+        public int OutQuantity { get; set; }
         public DateTime? ExpectedStockOutDate { get; set; }
         public string? SalesUserName { get; set; }
         public string CustomerId { get; set; } = string.Empty;
@@ -146,7 +146,7 @@ namespace CRM.Core.Interfaces
         public int LineNo { get; set; }
         public string MaterialCode { get; set; } = string.Empty;
         public string MaterialName { get; set; } = string.Empty;
-        public decimal Quantity { get; set; }
+        public int Quantity { get; set; }
         public string? BatchNo { get; set; }
         public string? WarehouseLocation { get; set; }
     }

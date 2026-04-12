@@ -44,8 +44,7 @@ namespace CRM.Core.Models.Inventory
         /// <summary>
         /// 出库通知数量
         /// </summary>
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal Quantity { get; set; }
+        public int Quantity { get; set; }
 
         /// <summary>
         /// 客户ID

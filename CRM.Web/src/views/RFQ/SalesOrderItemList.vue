@@ -415,6 +415,7 @@ import {
   salesOrderStatusTagType,
   salesOrderMainAllowsPurchaseAndStockOut,
   salesOrderLineApplyStockOutButtonDisabled,
+  salesOrderLineApplyStockOutDisabled,
   salesOrderLinePurchasedStockReliefOk
 } from '@/constants/salesOrderStatus'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'

@@ -119,11 +119,9 @@ namespace CRM.Core.Models.Inventory
         [StringLength(50)]
         public string? BatchNo { get; set; }
 
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal QtyIn { get; set; }
+        public int QtyIn { get; set; }
 
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal QtyOut { get; set; }
+        public int QtyOut { get; set; }
 
         [Column(TypeName = "numeric(18,6)")]
         public decimal UnitCost { get; set; }
@@ -203,11 +201,9 @@ namespace CRM.Core.Models.Inventory
         [StringLength(36)]
         public string? LocationId { get; set; }
 
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal PlanQty { get; set; }
+        public int PlanQty { get; set; }
 
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal PickedQty { get; set; }
+        public int PickedQty { get; set; }
 
         /// <summary>
         /// true：来自备货库存补充（销售关联采购类型之外的备货批次，且物料型号/品牌与销单行一致）；false：来自与出库通知销售明细关联采购单类型一致的库存。
@@ -263,14 +259,11 @@ namespace CRM.Core.Models.Inventory
         [StringLength(36)]
         public string? LocationId { get; set; }
 
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal BookQty { get; set; }
+        public int BookQty { get; set; }
 
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal CountQty { get; set; }
+        public int CountQty { get; set; }
 
-        [Column(TypeName = "numeric(18,4)")]
-        public decimal DiffQty { get; set; }
+        public int DiffQty { get; set; }
 
         [Column(TypeName = "numeric(18,2)")]
         public decimal BookAmount { get; set; }
