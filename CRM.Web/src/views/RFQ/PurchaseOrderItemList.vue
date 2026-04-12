@@ -87,6 +87,7 @@
       column-layout-key="purchase-order-item-list-main"
       :columns="purchaseOrderItemColumns"
       :show-column-settings="false"
+      :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="pagedList"
       v-loading="loading"
       row-key="purchaseOrderItemId"
@@ -207,6 +208,7 @@
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
         <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
       <el-pagination
@@ -702,6 +704,7 @@ const purchaseOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
 })
 
 const tableRef = ref<any>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const selectedRows = ref<any[]>([])
 const paymentDialogVisible = ref(false)
 const paymentSubmitting = ref(false)
@@ -1380,6 +1383,13 @@ onMounted(() => {
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

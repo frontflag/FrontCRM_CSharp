@@ -1,0 +1,34 @@
+// ============================================================
+// CrmDataTable 行密度：仅改数据格 td 的垂直内边距之和；表头 th 保持 crm-unified-list / main 原样
+// 变量见 variables.scss（$crm-list-row-density-*）
+// 裸 el-table 不加修饰 class 时不走本文件
+// ============================================================
+@use 'sass:math';
+@import './variables.scss';
+
+:root {
+  --crm-list-row-density-compact-cell-padding-y-total: #{$crm-list-row-density-compact-cell-padding-y-total};
+  --crm-list-row-density-medium-cell-padding-y-total: #{$crm-list-row-density-medium-cell-padding-y-total};
+  --crm-list-row-density-compact-cell-padding-x: #{$crm-list-row-density-compact-cell-padding-x};
+  --crm-list-row-density-medium-cell-padding-x: #{$crm-list-row-density-medium-cell-padding-x};
+}
+
+.crm-items-table.crm-items-table--density-compact {
+  .el-table__body-wrapper td.el-table__cell,
+  .el-table__fixed-body-wrapper td.el-table__cell {
+    padding-top: math.div($crm-list-row-density-compact-cell-padding-y-total, 2) !important;
+    padding-bottom: math.div($crm-list-row-density-compact-cell-padding-y-total, 2) !important;
+    padding-left: $crm-list-row-density-compact-cell-padding-x !important;
+    padding-right: $crm-list-row-density-compact-cell-padding-x !important;
+  }
+}
+
+.crm-items-table.crm-items-table--density-medium {
+  .el-table__body-wrapper td.el-table__cell,
+  .el-table__fixed-body-wrapper td.el-table__cell {
+    padding-top: math.div($crm-list-row-density-medium-cell-padding-y-total, 2) !important;
+    padding-bottom: math.div($crm-list-row-density-medium-cell-padding-y-total, 2) !important;
+    padding-left: $crm-list-row-density-medium-cell-padding-x !important;
+    padding-right: $crm-list-row-density-medium-cell-padding-x !important;
+  }
+}

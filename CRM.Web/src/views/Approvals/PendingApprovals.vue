@@ -45,7 +45,14 @@
       <button class="segment-item" :class="{ 'is-active': activeState === 'rejected' }" @click="switchState('rejected')">{{ t('pendingApprovals.segment.rejected', { count: rejectedCount }) }}</button>
     </div>
 
-    <CrmDataTable :data="approvalList" v-loading="loading" highlight-current-row @row-dblclick="handleView">
+    <CrmDataTable
+      row-density-storage-key="pending-approvals-list-main"
+      :density-toggle-anchor-el="rowDensityToggleAnchorEl"
+      :data="approvalList"
+      v-loading="loading"
+      highlight-current-row
+      @row-dblclick="handleView"
+    >
       <el-table-column :label="t('pendingApprovals.columns.bizType')" width="140" min-width="140" align="center">
         <template #default="{ row }">
           <el-tag effect="dark" :type="getBizTypeTagType(row.bizType)" size="small">
@@ -121,6 +128,9 @@
     </CrmDataTable>
 
     <div class="pagination-wrapper">
+      <div class="list-footer-left">
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
+      </div>
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.pageSize"
@@ -291,6 +301,8 @@ import { documentApi, type UploadDocumentDto } from '@/api/document'
 
 const router = useRouter()
 const { t, te } = useI18n()
+
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 const loading = ref(false)
 const actionLoading = ref(false)
@@ -804,9 +816,25 @@ onMounted(() => {
   white-space: nowrap;
 }
 
+.list-footer-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+}
+
 .pagination-wrapper {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 14px 18px;
   border-top: 1px solid rgba(255, 255, 255, 0.04);
 

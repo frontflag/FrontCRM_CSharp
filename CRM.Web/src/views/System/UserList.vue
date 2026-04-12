@@ -85,6 +85,7 @@
         column-layout-key="system-user-list-main-v2"
         :columns="userTableColumns"
         :show-column-settings="false"
+        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="displayUsers"
         row-key="id"
         :row-class-name="userRowClassName"
@@ -210,6 +211,7 @@
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
+          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
           <div class="list-footer-spacer" aria-hidden="true"></div>
         </div>
       </div>
@@ -300,6 +302,7 @@ const dataTableRef = ref<{
   openColumnSettings?: () => void
   clearSelection?: () => void
 } | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 const resetDialogVisible = ref(false)
 const usersToReset = ref<AdminUserDto[]>([])
@@ -758,6 +761,13 @@ onMounted(async () => {
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

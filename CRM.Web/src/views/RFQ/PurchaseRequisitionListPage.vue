@@ -64,6 +64,7 @@
         column-layout-key="purchase-requisition-list-main"
         :columns="purchaseReqColumns"
         :show-column-settings="false"
+        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="list"
         v-loading="loading"
         highlight-current-row
@@ -148,6 +149,7 @@
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
+          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
           <div class="list-footer-spacer" aria-hidden="true"></div>
         </div>
         <el-pagination
@@ -195,6 +197,7 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -210,23 +213,7 @@ function toggleOpCol() {
 const purchaseReqColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
   return [
-    {
-      key: 'billCode',
-      label: t('purchaseRequisitionList.columns.billCode'),
-      prop: 'billCode',
-      width: 160,
-      minWidth: 160,
-      showOverflowTooltip: true
-    },
     { key: 'status', label: t('purchaseRequisitionList.columns.status'), prop: 'status', width: 160, align: 'center' },
-    {
-      key: 'sellOrderCode',
-      label: t('purchaseRequisitionList.columns.sellOrder'),
-      prop: 'sellOrderCode',
-      width: 160,
-      minWidth: 160,
-      showOverflowTooltip: true
-    },
     { key: 'pn', label: t('purchaseRequisitionList.columns.pn'), prop: 'pn', minWidth: 140, showOverflowTooltip: true },
     { key: 'brand', label: t('purchaseRequisitionList.columns.brand'), prop: 'brand', minWidth: 120, showOverflowTooltip: true },
     { key: 'qty', label: t('purchaseRequisitionList.columns.qty'), prop: 'qty', width: 120, align: 'right' },
@@ -245,6 +232,22 @@ const purchaseReqColumns = computed<CrmTableColumnDef[]>(() => {
       showOverflowTooltip: true
     },
     { key: 'remark', label: t('purchaseRequisitionList.columns.remark'), prop: 'remark', minWidth: 180, showOverflowTooltip: true },
+    {
+      key: 'billCode',
+      label: t('purchaseRequisitionList.columns.billCode'),
+      prop: 'billCode',
+      width: 160,
+      minWidth: 160,
+      showOverflowTooltip: true
+    },
+    {
+      key: 'sellOrderCode',
+      label: t('purchaseRequisitionList.columns.sellOrder'),
+      prop: 'sellOrderCode',
+      width: 160,
+      minWidth: 160,
+      showOverflowTooltip: true
+    },
     { key: 'createTime', label: t('purchaseRequisitionList.columns.createTime'), width: 160 },
     { key: 'createUser', label: t('purchaseRequisitionList.columns.createUser'), width: 120, showOverflowTooltip: true },
     {
@@ -534,6 +537,13 @@ onMounted(loadList)
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

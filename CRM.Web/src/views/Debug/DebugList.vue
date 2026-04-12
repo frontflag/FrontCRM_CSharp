@@ -55,7 +55,7 @@ import { getDebugPage } from '@/api/debug'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 /** debug 页面展示版本号（按发布批次手动维护） */
-const FRONTEND_DEBUG_VERSION = '1.1.0411-14:00'
+const FRONTEND_DEBUG_VERSION = '1.1.0412-19:00'
 
 /** 可配置列示例（列设置 / 顺序 / localStorage 持久化） */
 const debugTableColumns: CrmTableColumnDef[] = [

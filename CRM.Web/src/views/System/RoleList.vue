@@ -12,6 +12,7 @@
         column-layout-key="system-role-list-main"
         :columns="roleTableColumns"
         :show-column-settings="false"
+        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="roles"
         @row-dblclick="onRowDblclick"
       >
@@ -66,6 +67,7 @@
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
+          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
           <div class="list-footer-spacer" aria-hidden="true"></div>
         </div>
       </div>
@@ -89,6 +91,7 @@ const { t } = useI18n()
 const loading = ref(false)
 const roles = ref<RbacRole[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const formatCreateTime = (v?: string) => formatDisplayDateTime(v)
 
 // 列表操作列：默认收起（Collapsed）
@@ -104,9 +107,9 @@ function toggleOpCol() {
 
 const roleTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'status', label: t('systemUser.colStatus'), prop: 'status', width: 90, align: 'center' },
-  { key: 'roleCode', label: t('systemRole.columns.roleCode'), prop: 'roleCode', minWidth: 160, showOverflowTooltip: true },
   { key: 'roleName', label: t('systemRole.columns.roleName'), prop: 'roleName', minWidth: 180, showOverflowTooltip: true },
   { key: 'description', label: t('systemRole.columns.description'), prop: 'description', minWidth: 240, showOverflowTooltip: true },
+  { key: 'roleCode', label: t('systemRole.columns.roleCode'), prop: 'roleCode', minWidth: 160, showOverflowTooltip: true },
   { key: 'createTime', label: t('systemUser.colCreateTime'), width: 160 },
   { key: 'createUser', label: t('systemUser.colCreateUser'), width: 120, showOverflowTooltip: true },
   {
@@ -177,6 +180,13 @@ onMounted(load)
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

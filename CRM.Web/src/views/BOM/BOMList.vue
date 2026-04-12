@@ -119,6 +119,7 @@
         column-layout-key="bom-list-main"
         :columns="bomTableColumns"
         :show-column-settings="false"
+        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         v-loading="loading"
         :data="bomList"
         row-key="id"
@@ -196,6 +197,7 @@
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
+          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
           <div class="list-footer-spacer" aria-hidden="true"></div>
         </div>
         <el-pagination
@@ -231,6 +233,7 @@ const bomList = ref<BOM[]>([])
 const selectedIds = ref<string[]>([])
 const dateRange = ref<[string, string] | null>(null)
 const dataTableRef = ref<any>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -245,12 +248,12 @@ function toggleOpCol() {
 
 const bomTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'selection', type: 'selection', width: 44, fixed: 'left', hideable: false, reorderable: false },
-  { key: 'bomCode', label: t('bomList.columns.bomCode'), width: 160, minWidth: 160 },
   { key: 'status', label: t('bomList.columns.status'), width: 90, align: 'center' },
   { key: 'customerName', label: t('bomList.columns.customer'), minWidth: 160, showOverflowTooltip: true },
   { key: 'itemCount', label: t('bomList.columns.itemCount'), width: 80, align: 'center' },
   { key: 'quotedCount', label: t('bomList.columns.quotedCount'), width: 80, align: 'center' },
   { key: 'bomType', label: t('bomList.columns.type'), width: 80, align: 'center' },
+  { key: 'bomCode', label: t('bomList.columns.bomCode'), width: 160, minWidth: 160 },
   { key: 'createdAt', label: t('bomList.columns.createdAt'), width: 150 },
   { key: 'createUser', label: t('bomList.columns.createUser'), width: 90, showOverflowTooltip: true },
   {
@@ -558,6 +561,13 @@ onMounted(loadData)
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

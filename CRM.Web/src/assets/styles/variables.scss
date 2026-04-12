@@ -47,3 +47,12 @@ $shadow-sm: var(--crm-shadow-sm);
 $shadow-md: var(--crm-shadow-md);
 $shadow-lg: var(--crm-shadow-lg);
 $shadow-glow: var(--crm-shadow-glow);
+
+// --- CrmDataTable 列表行密度（仅数据格 td 垂直内边距之和；表头不参与）---
+/// 「紧密」：padding-top + padding-bottom
+$crm-list-row-density-compact-cell-padding-y-total: 10px !default;
+/// 「适中」：padding-top + padding-bottom
+$crm-list-row-density-medium-cell-padding-y-total: 22px !default;
+/// 数据格水平 padding（单侧对称，与垂直分开可调）
+$crm-list-row-density-compact-cell-padding-x: 10px !default;
+$crm-list-row-density-medium-cell-padding-x: 14px !default;

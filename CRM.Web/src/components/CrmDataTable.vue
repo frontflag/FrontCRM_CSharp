@@ -3,6 +3,7 @@
     class="crm-data-table-root"
     :class="[
       props.embedded ? 'crm-items-table crm-data-table crm-data-table--embedded' : 'table-wrapper crm-items-table crm-data-table',
+      rowDensityClass,
       wrapperClass
     ]"
     :style="wrapperStyle"
@@ -17,6 +18,45 @@
         列设置
       </el-button>
     </div>
+    <Teleport v-if="showDensityControls && densityTeleportTarget" :to="densityTeleportTarget">
+      <div class="crm-row-density-toggle-group" role="group" aria-label="列表行高">
+        <el-tooltip content="紧密" placement="top" :hide-after="0"
+          ><el-button
+            class="list-settings-btn crm-row-density-settings-btn"
+            :class="{ 'is-row-density-muted': rowDensity !== 'compact' }"
+            link
+            type="primary"
+            aria-label="紧密"
+            :aria-pressed="rowDensity === 'compact'"
+            @click="setRowDensity('compact')"
+          >
+            <span class="crm-row-density-icon-wrap" aria-hidden="true">
+              <svg class="crm-row-density-icon" viewBox="0 0 20 20" width="18" height="18">
+                <rect x="2" y="4.5" width="16" height="1.5" rx="0.5" fill="currentColor" />
+                <rect x="2" y="9.25" width="16" height="1.5" rx="0.5" fill="currentColor" />
+                <rect x="2" y="14" width="16" height="1.5" rx="0.5" fill="currentColor" />
+              </svg>
+            </span>
+          </el-button></el-tooltip><el-tooltip content="适中" placement="top" :hide-after="0"
+          ><el-button
+            class="list-settings-btn crm-row-density-settings-btn"
+            :class="{ 'is-row-density-muted': rowDensity !== 'medium' }"
+            link
+            type="primary"
+            aria-label="适中"
+            :aria-pressed="rowDensity === 'medium'"
+            @click="setRowDensity('medium')"
+          >
+            <span class="crm-row-density-icon-wrap" aria-hidden="true">
+              <svg class="crm-row-density-icon" viewBox="0 0 20 20" width="18" height="18">
+                <rect x="2" y="7.5" width="16" height="1.5" rx="0.5" fill="currentColor" />
+                <rect x="2" y="12.5" width="16" height="1.5" rx="0.5" fill="currentColor" />
+              </svg>
+            </span>
+          </el-button></el-tooltip>
+      </div>
+    </Teleport>
+
     <el-table v-bind="tableAttrs" ref="innerTableRef" :border="props.border" style="width: 100%">
       <template v-if="configMode">
         <el-table-column
@@ -116,10 +156,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRef, useAttrs, useSlots, type StyleValue } from 'vue'
+import { computed, ref, toRef, useAttrs, useSlots, watch, type StyleValue } from 'vue'
 import { ElMessage } from 'element-plus'
 import { RefreshLeft, Setting } from '@element-plus/icons-vue'
 import { usePersistedTableColumns, type CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import {
+  readPersistedRowDensity,
+  writePersistedRowDensity,
+  type CrmTableRowDensity
+} from '@/utils/crmTableRowDensityStorage'
 
 type CheckboxValue = boolean | string | number
 
@@ -136,9 +181,48 @@ const props = withDefaults(
     columnLayoutKey?: string
     columns?: CrmTableColumnDef[]
     showColumnSettings?: boolean
+    /** 无 columnLayoutKey 时用于行高密度 localStorage 的独立键 */
+    rowDensityStorageKey?: string
+    /** 为 false 时隐藏「紧密 / 适中」切换（仍按 storageKey 应用已保存密度） */
+    showRowDensityToggle?: boolean
+    /** 页脚锚点（列设置旁），「紧密 / 适中」切换 Teleport 到此；不传则不显示切换（仍按 storageKey 应用已保存密度） */
+    densityToggleAnchorEl?: HTMLElement | null
   }>(),
-  { border: true, embedded: false, showColumnSettings: true }
+  { border: true, embedded: false, showColumnSettings: true, showRowDensityToggle: true }
 )
+
+const storageKey = computed(() =>
+  String(props.columnLayoutKey ?? props.rowDensityStorageKey ?? '')
+    .trim()
+)
+
+const rowDensity = ref<CrmTableRowDensity>('compact')
+
+watch(
+  storageKey,
+  (k) => {
+    rowDensity.value = readPersistedRowDensity(k)
+  },
+  { immediate: true }
+)
+
+function setRowDensity(d: CrmTableRowDensity) {
+  rowDensity.value = d
+  writePersistedRowDensity(storageKey.value, d)
+}
+
+const rowDensityClass = computed(() =>
+  rowDensity.value === 'compact' ? 'crm-items-table--density-compact' : 'crm-items-table--density-medium'
+)
+
+const showDensityControls = computed(
+  () =>
+    storageKey.value.length > 0 &&
+    props.showRowDensityToggle !== false &&
+    props.densityToggleAnchorEl != null
+)
+
+const densityTeleportTarget = computed(() => props.densityToggleAnchorEl ?? null)
 
 const attrs = useAttrs()
 const slots = useSlots()
@@ -150,6 +234,9 @@ const tableAttrs = computed(() => {
   delete a.columns
   delete a.columnLayoutKey
   delete a.showColumnSettings
+  delete a.rowDensityStorageKey
+  delete a.showRowDensityToggle
+  delete a.densityToggleAnchorEl
   return a
 })
 
@@ -236,7 +323,9 @@ defineExpose({
   openColumnSettings: () => {
     if (!configMode.value) return
     settingsOpen.value = true
-  }
+  },
+  rowDensity,
+  setRowDensity
 })
 </script>
 
@@ -340,5 +429,49 @@ defineExpose({
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+</style>
+
+<!-- Teleport 到表格外时 scoped 不生效；与列表页「列设置」齿轮同款 link primary + list-settings-btn -->
+<style lang="scss">
+.crm-row-density-toggle-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  vertical-align: middle;
+
+  & > .el-tooltip + .el-tooltip {
+    margin-left: 0;
+  }
+}
+
+.crm-row-density-toggle-group .list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.crm-row-density-toggle-group .list-settings-btn.crm-row-density-settings-btn {
+  padding: 4px 4px !important;
+  min-width: 0;
+}
+
+.crm-row-density-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.crm-row-density-icon {
+  display: block;
+}
+
+.crm-row-density-settings-btn.is-row-density-muted {
+  opacity: 0.42;
+}
+
+.crm-row-density-settings-btn:not(.is-row-density-muted):hover {
+  opacity: 1;
 }
 </style>

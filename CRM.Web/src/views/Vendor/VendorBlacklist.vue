@@ -34,6 +34,7 @@
         column-layout-key="vendor-blacklist-main"
         :columns="blacklistColumns"
         :show-column-settings="false"
+        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="items"
         row-key="id"
         @row-dblclick="goDetail"
@@ -69,6 +70,7 @@
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
         <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
       <el-pagination
@@ -127,6 +129,7 @@ const showRemoveDialog = ref(false);
 const pendingRemove = ref<Vendor | null>(null);
 const removeReason = ref('');
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 const blacklistColumns: CrmTableColumnDef[] = [
   { key: 'code', label: t('vendorBlacklist.columns.code'), prop: 'code', width: 180, showOverflowTooltip: true },
@@ -344,6 +347,13 @@ onMounted(fetchData);
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

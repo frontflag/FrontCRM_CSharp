@@ -27,6 +27,7 @@
         column-layout-key="packing-list-main"
         :columns="packingColumns"
         :show-column-settings="false"
+        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="list"
         row-key="id"
       >
@@ -45,6 +46,7 @@
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
+          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
           <div class="list-footer-spacer" aria-hidden="true"></div>
         </div>
       </div>
@@ -73,12 +75,13 @@ const loading = ref(false)
 const keyword = ref('')
 const list = ref<PackingRow[]>([])
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 const packingColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'packingCode', label: '装箱单号', prop: 'packingCode', width: 180, showOverflowTooltip: true },
-  { key: 'salesOrderCode', label: '销售单号', prop: 'salesOrderCode', width: 180, showOverflowTooltip: true },
   { key: 'customerName', label: '客户', prop: 'customerName', minWidth: 180, showOverflowTooltip: true },
   { key: 'status', label: '状态', prop: 'status', width: 120, align: 'center' },
+  { key: 'packingCode', label: '装箱单号', prop: 'packingCode', width: 180, showOverflowTooltip: true },
+  { key: 'salesOrderCode', label: '销售单号', prop: 'salesOrderCode', width: 180, showOverflowTooltip: true },
   { key: 'createTime', label: '创建时间', prop: 'createTime', width: 180 },
   { key: 'actions', label: '操作', width: 160, fixed: 'right', hideable: false, pinned: 'end', reorderable: false }
 ])
@@ -248,6 +251,13 @@ loadList()
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

@@ -101,6 +101,7 @@
         column-layout-key="rfq-item-list-main"
         :columns="rfqItemMainTableColumns"
         :show-column-settings="false"
+        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="tableData"
         row-key="id"
         highlight-current-row
@@ -182,6 +183,7 @@
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
+          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
 
           <div class="table-footer-spacer" aria-hidden="true"></div>
 
@@ -515,6 +517,7 @@ const totalCount = ref(0)
 
 /** CrmDataTable 暴露的 el-table 方法 */
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const suppressBasketMerge = ref(false)
 const basketDrawerVisible = ref(false)
 const dateRange = ref<[string, string] | null>(null)
@@ -548,15 +551,6 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
     width: 160,
     minWidth: 160,
     align: 'center',
-    resizable: true
-  },
-  {
-    key: 'rfqCode',
-    label: t('rfqItemList.columns.rfqCode'),
-    prop: 'rfqCode',
-    width: 160,
-    minWidth: 160,
-    showOverflowTooltip: true,
     resizable: true
   },
   {
@@ -615,6 +609,15 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
   {
     key: 'purchasers',
     label: t('rfqItemList.columns.purchaser'),
+    minWidth: 160,
+    showOverflowTooltip: true,
+    resizable: true
+  },
+  {
+    key: 'rfqCode',
+    label: t('rfqItemList.columns.rfqCode'),
+    prop: 'rfqCode',
+    width: 160,
     minWidth: 160,
     showOverflowTooltip: true,
     resizable: true
@@ -1741,6 +1744,13 @@ onUnmounted(() => {
   padding: 4px 6px !important;
   min-width: 28px;
   margin-left: 14px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .table-footer-spacer {

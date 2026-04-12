@@ -63,6 +63,7 @@
       column-layout-key="sales-order-item-list-v2"
       :columns="salesOrderItemColumns"
       :show-column-settings="false"
+      :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="list"
       v-loading="loading"
       row-key="sellOrderItemId"
@@ -205,6 +206,7 @@
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
         <div class="list-footer-spacer" aria-hidden="true"></div>
         <el-button class="basket-open-btn" link type="primary" @click="basketDrawerVisible = true">
           {{ t('salesOrderItemList.basket.open') }}<span v-if="basketCount" class="basket-count-label">（{{ basketCount }}）</span>
@@ -433,6 +435,7 @@ const { count: basketCount, items: basketItems } = storeToRefs(basketStore)
 const suppressBasketMerge = ref(false)
 const basketDrawerVisible = ref(false)
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const canViewCustomer = computed(
   () => authStore.hasPermission('customer.info.read') || authStore.hasPermission('sales-order.read')
 )
@@ -1152,6 +1155,13 @@ onMounted(() => loadList())
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

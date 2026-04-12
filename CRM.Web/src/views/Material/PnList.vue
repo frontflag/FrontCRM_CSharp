@@ -20,6 +20,7 @@ const keywordInput = ref('')
 /** 地域筛选 10/20，与路由 query.regionType 同步 */
 const regionTypeFilter = ref<number | undefined>(undefined)
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 function norm(s: string) {
   return s.trim().toLowerCase()
@@ -168,6 +169,7 @@ onMounted(() => {
         column-layout-key="pn-list-main"
         :columns="pnTableColumns"
         :show-column-settings="false"
+        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="filteredRows"
         stripe
         class="pn-table"
@@ -184,6 +186,7 @@ onMounted(() => {
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
+          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
           <div class="list-footer-spacer" aria-hidden="true"></div>
         </div>
       </div>
@@ -316,6 +319,13 @@ onMounted(() => {
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

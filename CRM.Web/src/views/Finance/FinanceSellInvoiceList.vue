@@ -66,6 +66,7 @@
       column-layout-key="finance-sell-invoice-list-main"
       :columns="sellInvoiceTableColumns"
       :show-column-settings="false"
+      :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="tableData"
       v-loading="loading"
       @row-dblclick="openDetail"
@@ -142,6 +143,7 @@
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
+          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
           <div class="list-footer-spacer" aria-hidden="true"></div>
         </div>
         <el-pagination
@@ -334,6 +336,7 @@ const total = ref(0)
 const loading = ref(false)
 const tableData = ref<FinanceSellInvoice[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -347,7 +350,6 @@ function toggleOpCol() {
 }
 
 const sellInvoiceTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'invoiceCode', label: t('financeSellInvoiceList.columns.code'), prop: 'invoiceCode', width: 160, minWidth: 160, fixed: 'left' },
   { key: 'invoiceStatus', label: t('financeSellInvoiceList.columns.invoiceStatus'), prop: 'invoiceStatus', width: 100, align: 'center' },
   { key: 'customerName', label: t('financeSellInvoiceList.columns.customer'), prop: 'customerName', minWidth: 160, showOverflowTooltip: true },
   { key: 'invoiceNo', label: t('financeSellInvoiceList.columns.invoiceNo'), prop: 'invoiceNo', width: 140, showOverflowTooltip: true },
@@ -356,6 +358,7 @@ const sellInvoiceTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'receiveStatus', label: t('financeSellInvoiceList.columns.receiveStatus'), prop: 'receiveStatus', width: 110, align: 'center' },
   { key: 'sellInvoiceType', label: t('financeSellInvoiceList.columns.invoiceType'), prop: 'sellInvoiceType', width: 140 },
   { key: 'makeInvoiceDate', label: t('financeSellInvoiceList.columns.makeDate'), prop: 'makeInvoiceDate', width: 120 },
+  { key: 'invoiceCode', label: t('financeSellInvoiceList.columns.code'), prop: 'invoiceCode', width: 160, minWidth: 160, showOverflowTooltip: true },
   { key: 'createTime', label: t('financeSellInvoiceList.columns.createdAt'), width: 120 },
   { key: 'createUser', label: t('financeSellInvoiceList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
@@ -527,6 +530,13 @@ onMounted(loadData)
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

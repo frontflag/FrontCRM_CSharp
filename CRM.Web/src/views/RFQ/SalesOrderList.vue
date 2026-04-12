@@ -85,6 +85,7 @@
         column-layout-key="sales-order-list-main-v2"
         :columns="salesOrderTableColumns"
         :show-column-settings="false"
+        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="filteredList"
         v-loading="loading"
         highlight-current-row
@@ -161,6 +162,7 @@
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
+          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
           <div class="list-footer-spacer" aria-hidden="true"></div>
         </div>
         <el-pagination
@@ -198,6 +200,7 @@ const { t, locale } = useI18n()
 const loading = ref(false)
 const orderList = ref<any[]>([])
 const listTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const authStore = useAuthStore()
 /** 订单上的客户名属销售业务上下文：业务员有 sales-order.read 即可见列与筛选，不必具备客户主数据权限 customer.info.read */
 const canViewCustomerInfo = computed(
@@ -240,6 +243,13 @@ function toggleOpCol() {
 const salesOrderTableColumns = computed((): CrmTableColumnDef[] => {
   void locale.value
   return [
+  { key: 'status', label: t('salesOrderList.columns.status'), prop: 'status', width: 160, align: 'center' as const },
+  ...(canViewCustomerInfo.value
+    ? [{ key: 'customerName', label: t('salesOrderList.columns.customer'), prop: 'customerName', minWidth: 200, showOverflowTooltip: true }]
+    : []),
+  { key: 'salesUserName', label: t('salesOrderList.columns.salesUser'), prop: 'salesUserName', width: 120, minWidth: 120, showOverflowTooltip: true },
+  ...(canViewSalesAmount.value ? [{ key: 'total', label: t('salesOrderList.columns.totalAmount'), prop: 'total', width: 160, align: 'right' as const }] : []),
+  { key: 'itemRows', label: t('salesOrderList.columns.itemRows'), prop: 'itemRows', width: 80, align: 'center' as const },
   {
     key: 'sellOrderCode',
     label: t('salesOrderList.columns.orderCode'),
@@ -249,13 +259,6 @@ const salesOrderTableColumns = computed((): CrmTableColumnDef[] => {
     showOverflowTooltip: true,
     sortable: true
   },
-  { key: 'status', label: t('salesOrderList.columns.status'), prop: 'status', width: 160, align: 'center' as const },
-  ...(canViewCustomerInfo.value
-    ? [{ key: 'customerName', label: t('salesOrderList.columns.customer'), prop: 'customerName', minWidth: 200, showOverflowTooltip: true }]
-    : []),
-  { key: 'salesUserName', label: t('salesOrderList.columns.salesUser'), prop: 'salesUserName', width: 120, minWidth: 120, showOverflowTooltip: true },
-  ...(canViewSalesAmount.value ? [{ key: 'total', label: t('salesOrderList.columns.totalAmount'), prop: 'total', width: 160, align: 'right' as const }] : []),
-  { key: 'itemRows', label: t('salesOrderList.columns.itemRows'), prop: 'itemRows', width: 80, align: 'center' as const },
   { key: 'createTime', label: t('salesOrderList.columns.createTime'), prop: 'createTime', width: 160 },
   { key: 'createUser', label: t('salesOrderList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
@@ -668,6 +671,13 @@ onMounted(loadData)
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

@@ -41,6 +41,7 @@
       column-layout-key="stock-out-notify-list-main"
       :columns="stockOutNotifyColumns"
       :show-column-settings="false"
+      :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="filteredList"
       v-loading="loading"
     >
@@ -100,6 +101,7 @@
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
         <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
     </div>
@@ -126,6 +128,7 @@ const workflowFilter = ref<string>('all')
 const list = ref<StockOutRequestDto[]>([])
 const pickingTasks = ref<PickingTask[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -143,10 +146,8 @@ function toggleOpCol() {
 const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
   return [
-  { key: 'requestCode', label: t('stockOutNotifyList.columns.requestCode'), prop: 'requestCode', width: 160, minWidth: 160 },
   { key: 'workflow', label: t('stockOutNotifyList.columns.workflow'), width: 130, align: 'center' },
   { key: 'status', label: t('stockOutNotifyList.columns.status'), prop: 'status', width: 110, align: 'center' },
-  { key: 'salesOrderCode', label: t('stockOutNotifyList.columns.salesOrderCode'), prop: 'salesOrderCode', width: 160, minWidth: 160 },
   { key: 'materialModel', label: t('stockOutNotifyList.columns.materialModel'), prop: 'materialModel', width: 180, showOverflowTooltip: true },
   { key: 'brand', label: t('stockOutNotifyList.columns.brand'), prop: 'brand', width: 140, showOverflowTooltip: true },
   { key: 'outQuantity', label: t('stockOutNotifyList.columns.outQuantity'), prop: 'outQuantity', width: 110, align: 'right' },
@@ -160,6 +161,8 @@ const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => {
   { key: 'salesUserName', label: t('stockOutNotifyList.columns.salesUserName'), prop: 'salesUserName', width: 130, showOverflowTooltip: true },
   { key: 'customerName', label: t('stockOutNotifyList.columns.customer'), prop: 'customerName', minWidth: 180, showOverflowTooltip: true },
   { key: 'remark', label: t('stockOutNotifyList.columns.remark'), prop: 'remark', minWidth: 180, showOverflowTooltip: true },
+  { key: 'requestCode', label: t('stockOutNotifyList.columns.requestCode'), prop: 'requestCode', width: 160, minWidth: 160 },
+  { key: 'salesOrderCode', label: t('stockOutNotifyList.columns.salesOrderCode'), prop: 'salesOrderCode', width: 160, minWidth: 160 },
   { key: 'createTime', label: t('stockOutNotifyList.columns.createTime'), prop: 'createTime', width: 170 },
   { key: 'createUser', label: t('stockOutNotifyList.columns.createUser'), width: 140, showOverflowTooltip: true },
   {
@@ -382,6 +385,13 @@ onMounted(fetchList)
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

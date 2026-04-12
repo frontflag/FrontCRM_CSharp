@@ -86,6 +86,7 @@
       column-layout-key="inventory-list-main-v5"
       :columns="inventoryTableColumns"
       :show-column-settings="false"
+      :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="filteredInventoryList"
       v-loading="loading"
       @row-dblclick="onRowDblclick"
@@ -149,6 +150,7 @@
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
         <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
     </div>
@@ -247,6 +249,7 @@ const list = ref<InventoryOverview[]>([])
 /** 库存类型 1/2/3，空为全部（仅前端筛选当前已加载总览） */
 const stockTypeFilter = ref<number | undefined>(undefined)
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 /** 筛选总览用的仓库主键或编码（与 stock.warehouseId 一致） */
 const warehouseFilter = ref<string | undefined>(undefined)
 const finance = ref<FinanceSummary | null>(null)
@@ -267,7 +270,6 @@ function toggleOpColMain() {
 }
 
 const inventoryTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'stockCode', label: t('inventoryList.columns.stockCode'), width: 132, showOverflowTooltip: true },
   { key: 'stockType', label: t('inventoryList.columns.stockType'), width: 138, showOverflowTooltip: true },
   { key: 'materialModel', label: t('inventoryList.columns.materialModel'), minWidth: 160, showOverflowTooltip: true },
   { key: 'materialBrand', label: t('inventoryList.columns.brand'), minWidth: 120, showOverflowTooltip: true },
@@ -278,6 +280,7 @@ const inventoryTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'warehouseName', label: t('inventoryList.columns.warehouseName'), width: 160, showOverflowTooltip: true },
   { key: 'region', label: t('inventoryList.columns.region'), width: 88, align: 'center', showOverflowTooltip: true },
   { key: 'lastMoveTime', label: t('inventoryList.columns.lastMoveTime'), prop: 'lastMoveTime', width: 170 },
+  { key: 'stockCode', label: t('inventoryList.columns.stockCode'), width: 132, showOverflowTooltip: true },
   { key: 'createTime', label: t('inventoryList.columns.createTime'), width: 160 },
   { key: 'createUser', label: t('inventoryList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
@@ -839,6 +842,13 @@ onMounted(() => fetchList())
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

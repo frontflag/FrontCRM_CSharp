@@ -31,6 +31,7 @@
       column-layout-key="stock-out-list-main"
       :columns="stockOutTableColumns"
       :show-column-settings="false"
+      :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="filteredList"
       row-key="id"
       v-loading="loading"
@@ -96,6 +97,7 @@
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
         <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
     </div>
@@ -119,6 +121,7 @@ const loading = ref(false)
 const list = ref<StockOutDto[]>([])
 const keyword = ref('')
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 96
@@ -133,17 +136,17 @@ function toggleOpCol() {
 }
 
 const stockOutTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'stockOutCode', label: t('stockOutList.columns.stockOutCode'), prop: 'stockOutCode', width: 160, minWidth: 160, showOverflowTooltip: true },
   { key: 'status', label: t('stockOutList.columns.status'), prop: 'status', width: 110, align: 'center' },
-  { key: 'sourceCode', label: t('stockOutList.columns.sourceCode'), prop: 'sourceCode', width: 160, minWidth: 160, showOverflowTooltip: true },
   { key: 'customerName', label: t('stockOutList.columns.customerName'), prop: 'customerName', width: 140, minWidth: 120, showOverflowTooltip: true },
   { key: 'salesUserName', label: t('stockOutList.columns.salesUserName'), prop: 'salesUserName', width: 110, minWidth: 100, showOverflowTooltip: true },
-  { key: 'sellOrderItemCode', label: t('stockOutList.columns.sellOrderItemCode'), prop: 'sellOrderItemCode', width: 160, minWidth: 140, showOverflowTooltip: true },
   { key: 'stockOutDate', label: t('stockOutList.columns.stockOutDate'), prop: 'stockOutDate', width: 170 },
   { key: 'shipmentMethod', label: t('stockOutList.columns.shipmentMethod'), prop: 'shipmentMethod', width: 120, minWidth: 100, showOverflowTooltip: true },
   { key: 'courierTrackingNo', label: t('stockOutList.columns.courierTrackingNo'), prop: 'courierTrackingNo', width: 140, minWidth: 120, showOverflowTooltip: true },
   { key: 'totalQuantity', label: t('stockOutList.columns.totalQuantity'), prop: 'totalQuantity', width: 110, align: 'right' },
   { key: 'remark', label: t('stockOutList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
+  { key: 'stockOutCode', label: t('stockOutList.columns.stockOutCode'), prop: 'stockOutCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+  { key: 'sourceCode', label: t('stockOutList.columns.sourceCode'), prop: 'sourceCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+  { key: 'sellOrderItemCode', label: t('stockOutList.columns.sellOrderItemCode'), prop: 'sellOrderItemCode', width: 160, minWidth: 140, showOverflowTooltip: true },
   { key: 'createTime', label: t('stockOutList.columns.createTime'), width: 170 },
   { key: 'createUser', label: t('stockOutList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
@@ -364,6 +367,13 @@ onMounted(() => {
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

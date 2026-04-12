@@ -70,6 +70,7 @@
       column-layout-key="finance-receipt-list-main"
       :columns="receiptTableColumns"
       :show-column-settings="false"
+      :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="tableData"
       v-loading="loading"
       @row-dblclick="openDetail"
@@ -153,6 +154,7 @@
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
+          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
           <div class="list-footer-spacer" aria-hidden="true"></div>
         </div>
         <el-pagination
@@ -396,6 +398,7 @@ const total = ref(0)
 const loading = ref(false)
 const tableData = ref<FinanceReceipt[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -409,7 +412,6 @@ function toggleOpCol() {
 }
 
 const receiptTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'financeReceiptCode', label: t('financeReceiptList.columns.code'), prop: 'financeReceiptCode', width: 160, minWidth: 160, fixed: 'left' },
   { key: 'status', label: t('financeReceiptList.columns.status'), prop: 'status', width: 100, align: 'center' },
   { key: 'customerName', label: t('financeReceiptList.columns.customer'), prop: 'customerName', minWidth: 160, showOverflowTooltip: true },
   { key: 'receiptAmount', label: t('financeReceiptList.columns.amount'), prop: 'receiptAmount', width: 140, align: 'right' },
@@ -417,6 +419,7 @@ const receiptTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'receiptDate', label: t('financeReceiptList.columns.date'), prop: 'receiptDate', width: 120 },
   { key: 'bankSlipNo', label: t('financeReceiptList.columns.bankSlip'), prop: 'bankSlipNo', width: 140, showOverflowTooltip: true },
   { key: 'remark', label: t('financeReceiptList.columns.remark'), prop: 'remark', minWidth: 140, showOverflowTooltip: true },
+  { key: 'financeReceiptCode', label: t('financeReceiptList.columns.code'), prop: 'financeReceiptCode', width: 160, minWidth: 160, showOverflowTooltip: true },
   { key: 'createdAt', label: t('financeReceiptList.columns.createdAt'), prop: 'createdAt', width: 120 },
   { key: 'createUser', label: t('financeReceiptList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
@@ -696,6 +699,13 @@ onMounted(loadData)
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

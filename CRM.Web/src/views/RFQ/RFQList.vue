@@ -80,6 +80,7 @@
         column-layout-key="rfq-list-main"
         :columns="rfqTableColumns"
         :show-column-settings="false"
+        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="rfqList"
         v-loading="loading"
         highlight-current-row
@@ -146,6 +147,7 @@
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
+          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
           <div class="list-footer-spacer" aria-hidden="true"></div>
         </div>
         <el-pagination
@@ -209,6 +211,7 @@ function goCreateRfq() {
 
 const loading = ref(false)
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const rfqList = ref<any[]>([])
 const stats = ref({ total: 0, pending: 0, processing: 0, quoted: 0 })
 
@@ -239,15 +242,6 @@ function toggleOpCol() {
 /** 需求列表主表可配置列（localStorage：crm-table-columns:v1:rfq-list-main） */
 const rfqTableColumns = computed((): CrmTableColumnDef[] => {
   const cols: CrmTableColumnDef[] = [
-  {
-    key: 'rfqCode',
-    label: t('rfqList.columns.rfqCode'),
-    prop: 'rfqCode',
-    width: 160,
-    minWidth: 160,
-    showOverflowTooltip: true,
-    sortable: true
-  },
   { key: 'status', label: t('rfqList.columns.status'), prop: 'status', width: 160, align: 'center' as const },
   ]
   if (canViewCustomerInRfq.value) {
@@ -260,6 +254,15 @@ const rfqTableColumns = computed((): CrmTableColumnDef[] => {
   { key: 'importance', label: t('rfqList.columns.importance'), prop: 'importance', width: 90, align: 'center' as const },
   { key: 'rfqType', label: t('rfqList.columns.type'), prop: 'rfqType', width: 90 },
   { key: 'salesUserName', label: t('rfqList.columns.salesUser'), prop: 'salesUserName', width: 100 },
+  {
+    key: 'rfqCode',
+    label: t('rfqList.columns.rfqCode'),
+    prop: 'rfqCode',
+    width: 160,
+    minWidth: 160,
+    showOverflowTooltip: true,
+    sortable: true
+  },
   { key: 'createTime', label: t('rfqList.columns.createTime'), width: 160 },
   { key: 'createUser', label: t('rfqList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
@@ -496,6 +499,13 @@ const handleView = (row: any) => {
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

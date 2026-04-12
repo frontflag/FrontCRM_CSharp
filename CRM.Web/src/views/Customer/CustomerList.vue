@@ -138,6 +138,7 @@
         :columns="customerTableColumns"
         :show-column-settings="false"
         :data="customerList"
+        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         row-key="id"
         @row-dblclick="handleView"
       >
@@ -263,6 +264,7 @@
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
         <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
       <el-pagination
@@ -318,6 +320,8 @@ const canSubmitAudit = authStore.hasPermission('customer.write');
 
 const importDialogVisible = ref(false);
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+/** 行高切换 Teleport 锚点（与列设置齿轮同排） */
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 96
 const OP_COL_EXPANDED_WIDTH = 220
@@ -362,7 +366,6 @@ const pagination = reactive({ pageNumber: 1, pageSize: 20 });
 
 const customerTableColumns = computed<CrmTableColumnDef[]>(() => {
   const cols: CrmTableColumnDef[] = [
-    { key: 'customerCode', label: t('customerList.columns.customerCode'), prop: 'customerCode', width: 160, minWidth: 160, showOverflowTooltip: true },
     { key: 'status', label: t('customerList.columns.status'), prop: 'status', width: 160, align: 'center' },
     ...(canViewCustomerNameColumn
       ? [{ key: 'customerName', label: t('customerList.columns.customerName'), minWidth: 200, showOverflowTooltip: true } as CrmTableColumnDef]
@@ -379,6 +382,7 @@ const customerTableColumns = computed<CrmTableColumnDef[]>(() => {
   }
   cols.push(
     { key: 'region', label: t('customerList.columns.region'), minWidth: 100, showOverflowTooltip: true },
+    { key: 'customerCode', label: t('customerList.columns.customerCode'), prop: 'customerCode', width: 160, minWidth: 160, showOverflowTooltip: true },
     { key: 'createdAt', label: t('customerList.columns.createdAt'), width: 160 },
     { key: 'createUser', label: t('customerList.columns.createUser'), width: 120, showOverflowTooltip: true }
   )
@@ -864,6 +868,81 @@ onMounted(async () => {
 }
 
 // ---- 表格：.table-wrapper / .data-table 全局样式见 assets/styles/crm-unified-list.scss ----
+// 数据行行高（td 垂直 padding 之和）由 CrmDataTable row-density + crm-list-table-row-density.scss 控制；此处仅保留本页单元格内容紧凑样式
+.customer-list-page .table-wrapper {
+  :deep(.el-table .cell) {
+    line-height: 1.2;
+  }
+
+  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row:hover),
+  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row.hover-row),
+  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row.current-row),
+  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row:hover),
+  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row.hover-row),
+  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row.current-row) {
+    transform: translateY(-1px);
+  }
+
+  .customer-name-cell {
+    gap: 6px;
+  }
+
+  .cell-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    font-size: 11px;
+  }
+
+  .cell-name {
+    font-size: 12px;
+  }
+
+  .cell-short {
+    font-size: 10px;
+    margin-top: 0;
+    line-height: 1.15;
+  }
+
+  .badge {
+    font-size: 10px;
+    padding: 0 5px;
+    line-height: 1.35;
+  }
+
+  .status-dot {
+    font-size: 11px;
+    padding: 1px 6px;
+    gap: 4px;
+
+    &::before {
+      width: 5px;
+      height: 5px;
+    }
+  }
+
+  .td-muted,
+  .td-contact {
+    font-size: 11px;
+  }
+
+  .td-phone {
+    font-size: 11px;
+  }
+
+  .td-code {
+    font-size: 11px;
+  }
+
+  .action-btn {
+    padding: 2px 8px;
+    font-size: 11px;
+  }
+
+  .op-col-header-text {
+    font-size: 11px;
+  }
+}
 
 .table-row {
   cursor: pointer;
@@ -933,6 +1012,30 @@ onMounted(async () => {
   font-size: 11px;
   color: $text-muted;
   margin-top: 1px;
+}
+
+// 紧密：客户「主名 + 状态图标」与「简称」同一行并排（仅本列；依赖 CrmDataTable 根类 crm-items-table--density-compact）
+.customer-list-page .table-wrapper :deep(.crm-items-table--density-compact .customer-name-cell .cell-name-group) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.customer-list-page .table-wrapper :deep(.crm-items-table--density-compact .customer-name-cell .cell-name-line) {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.customer-list-page .table-wrapper :deep(.crm-items-table--density-compact .customer-name-cell .cell-short) {
+  margin-top: 0 !important;
+  flex: 0 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .td-code {
@@ -1162,6 +1265,13 @@ onMounted(async () => {
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

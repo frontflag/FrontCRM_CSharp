@@ -86,6 +86,7 @@
         column-layout-key="quote-list-main"
         :columns="quoteTableColumns"
         :show-column-settings="false"
+        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="quoteList"
         v-loading="loading"
         row-key="id"
@@ -167,6 +168,7 @@
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
+          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
           <div class="list-footer-spacer" aria-hidden="true"></div>
         </div>
         <el-pagination
@@ -203,6 +205,7 @@ const { t } = useI18n()
 
 const loading = ref(false)
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const selectedQuotes = ref<any[]>([])
 const salesOrderPreflightLoading = ref(false)
 const quoteList = ref<any[]>([])
@@ -243,17 +246,7 @@ const quoteTableColumns = computed<CrmTableColumnDef[]>(() => [
     resizable: false,
     reserveSelection: true
   },
-  {
-    key: 'quoteCode',
-    label: t('quoteList.columns.quoteCode'),
-    prop: 'quoteCode',
-    width: 160,
-    minWidth: 160,
-    showOverflowTooltip: true,
-    sortable: true
-  },
   { key: 'status', label: t('quoteList.columns.status'), prop: 'status', width: 160, align: 'center' },
-  { key: 'rfqCode', label: t('quoteList.columns.rfqCode'), width: 160, minWidth: 160, showOverflowTooltip: true },
   { key: 'mpn', label: t('quoteList.columns.mpn'), prop: 'mpn', minWidth: 150, showOverflowTooltip: true },
   { key: 'brand', label: t('quoteList.columns.brand'), width: 100, minWidth: 90, showOverflowTooltip: true },
   {
@@ -270,6 +263,16 @@ const quoteTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'purchaseUserName', label: t('quoteList.columns.purchaseUser'), prop: 'purchaseUserName', width: 100 },
   { key: 'vendorCount', label: t('quoteList.columns.vendorCount'), width: 90, align: 'center' },
   { key: 'quoteDate', label: t('quoteList.columns.quoteDate'), prop: 'quoteDate', width: 160 },
+  {
+    key: 'quoteCode',
+    label: t('quoteList.columns.quoteCode'),
+    prop: 'quoteCode',
+    width: 160,
+    minWidth: 160,
+    showOverflowTooltip: true,
+    sortable: true
+  },
+  { key: 'rfqCode', label: t('quoteList.columns.rfqCode'), width: 160, minWidth: 160, showOverflowTooltip: true },
   { key: 'createTime', label: t('quoteList.columns.createTime'), prop: 'createTime', width: 160 },
   { key: 'createUser', label: t('quoteList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
@@ -581,6 +584,13 @@ onMounted(loadData)
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

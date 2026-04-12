@@ -45,6 +45,7 @@
         column-layout-key="draft-list-v2"
         :columns="draftTableColumns"
         :show-column-settings="false"
+        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="drafts"
         v-loading="loading"
         @row-dblclick="restoreDraft"
@@ -101,6 +102,7 @@
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
+          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
           <div class="list-footer-spacer" aria-hidden="true"></div>
         </div>
       </div>
@@ -175,6 +177,7 @@ function stripDraftApiErrorDetail(message: string): string {
 const loading = ref(false)
 const drafts = ref<DraftDto[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -431,6 +434,13 @@ onMounted(fetchDrafts)
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

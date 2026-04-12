@@ -157,6 +157,7 @@
     <div class="table-wrapper" v-loading="loading">
       <CrmDataTable
         ref="dataTableRef"
+        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         column-layout-key="vendor-list-main-v2"
         :columns="vendorTableColumns"
         :show-column-settings="false"
@@ -283,6 +284,7 @@
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
         <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
       <el-pagination
@@ -334,6 +336,7 @@ const canViewVendorInfo = authStore.hasPermission('vendor.info.read');
 const canSubmitAudit = authStore.hasPermission('vendor.write');
 const importDialogVisible = ref(false);
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 120
 const OP_COL_EXPANDED_WIDTH = 220
@@ -451,16 +454,13 @@ function onCreatedRangeChange(val: [string, string] | null | undefined) {
 const pagination = reactive({ pageNumber: 1, pageSize: 20 });
 const vendorTableColumns = computed<CrmTableColumnDef[]>(() => {
   const cols: CrmTableColumnDef[] = [
-    { key: 'code', label: t('vendorList.columns.code'), prop: 'code', width: 160, minWidth: 160, showOverflowTooltip: true },
+    { key: 'status', label: t('vendorList.columns.status'), prop: 'status', width: 160, align: 'center' },
     { key: 'chineseOfficialName', label: t('vendorList.columns.chineseOfficialName'), minWidth: 160, showOverflowTooltip: true },
     { key: 'englishOfficialName', label: t('vendorList.columns.englishOfficialName'), minWidth: 160, showOverflowTooltip: true },
-    { key: 'status', label: t('vendorList.columns.status'), prop: 'status', width: 160, align: 'center' },
     { key: 'level', label: t('vendorList.columns.level'), prop: 'level', width: 80, align: 'center' },
     { key: 'credit', label: t('vendorList.columns.identity'), prop: 'credit', width: 100, align: 'center' },
     { key: 'industry', label: t('vendorList.columns.industry'), prop: 'industry', width: 100, showOverflowTooltip: true },
-    { key: 'officeAddress', label: t('vendorList.columns.address'), prop: 'officeAddress', width: 160, showOverflowTooltip: true },
-    { key: 'createTime', label: t('vendorList.columns.createdAt'), prop: 'createTime', width: 160 },
-    { key: 'createUser', label: t('vendorList.columns.createUser'), width: 120, showOverflowTooltip: true }
+    { key: 'officeAddress', label: t('vendorList.columns.address'), prop: 'officeAddress', width: 160, showOverflowTooltip: true }
   ]
   if (canViewVendorInfo) {
     cols.splice(3, 0, {
@@ -469,11 +469,16 @@ const vendorTableColumns = computed<CrmTableColumnDef[]>(() => {
       minWidth: 200,
       showOverflowTooltip: true
     })
-    cols.splice(9, 0,
+    cols.push(
       { key: 'contactName', label: t('vendorList.columns.contactName'), width: 130, showOverflowTooltip: true },
       { key: 'phone', label: t('vendorList.columns.phone'), width: 130, showOverflowTooltip: true }
     )
   }
+  cols.push(
+    { key: 'code', label: t('vendorList.columns.code'), prop: 'code', width: 160, minWidth: 160, showOverflowTooltip: true },
+    { key: 'createTime', label: t('vendorList.columns.createdAt'), prop: 'createTime', width: 160 },
+    { key: 'createUser', label: t('vendorList.columns.createUser'), width: 120, showOverflowTooltip: true }
+  )
   cols.push({
     key: 'actions',
     label: t('vendorList.actions.column'),
@@ -970,6 +975,30 @@ onMounted(async () => {
   font-family: 'Space Mono', monospace;
 }
 
+// 紧密：供应商「主名 + 状态图标」与「编号」同一行并排（仅本列；依赖 CrmDataTable 根类 crm-items-table--density-compact）
+.vendor-list-page .table-wrapper :deep(.crm-items-table--density-compact .vendor-name-cell .cell-name-group) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.vendor-list-page .table-wrapper :deep(.crm-items-table--density-compact .vendor-name-cell .cell-name-line) {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.vendor-list-page .table-wrapper :deep(.crm-items-table--density-compact .vendor-name-cell .cell-short) {
+  margin-top: 0 !important;
+  flex: 0 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .td-code {
   font-family: 'Space Mono', monospace;
   font-size: 12px;
@@ -1165,6 +1194,13 @@ onMounted(async () => {
   display: inline-flex;
   align-items: flex-start;
   gap: 6px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-settings-btn {

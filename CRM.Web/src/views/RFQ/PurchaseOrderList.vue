@@ -118,6 +118,7 @@
         column-layout-key="purchase-order-list-main"
         :columns="purchaseOrderTableColumns"
         :show-column-settings="false"
+        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="filteredList"
         v-loading="loading"
         highlight-current-row
@@ -249,6 +250,7 @@
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
+          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
           <div class="list-footer-spacer" aria-hidden="true"></div>
         </div>
         <el-pagination
@@ -288,6 +290,7 @@ const { t } = useI18n()
 const loading = ref(false)
 const orderList = ref<any[]>([])
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const authStore = useAuthStore()
 const canViewVendorInfo = computed(() => authStore.hasPermission('vendor.info.read'))
 const canViewPurchaseAmount = computed(() => authStore.hasPermission('purchase.amount.read'))
@@ -316,15 +319,6 @@ function isPurchaseOrderStocking(row: Record<string, unknown>) {
 
 /** 采购订单列表主表可配置列（localStorage：crm-table-columns:v1:purchase-order-list-main） */
 const purchaseOrderTableColumns = computed((): CrmTableColumnDef[] => [
-  {
-    key: 'purchaseOrderCode',
-    label: t('purchaseOrderList.columns.orderCode'),
-    prop: 'purchaseOrderCode',
-    width: 160,
-    minWidth: 160,
-    showOverflowTooltip: true,
-    sortable: true
-  },
   { key: 'status', label: t('purchaseOrderList.columns.status'), prop: 'status', width: 160, align: 'center' as const },
   ...(canViewVendorInfo.value
     ? [{ key: 'vendorName', label: t('purchaseOrderList.columns.vendor'), prop: 'vendorName', minWidth: 200, showOverflowTooltip: true }]
@@ -335,6 +329,15 @@ const purchaseOrderTableColumns = computed((): CrmTableColumnDef[] => [
     : []),
   { key: 'itemRows', label: t('purchaseOrderList.columns.itemRows'), prop: 'itemRows', width: 80, align: 'center' as const },
   { key: 'deliveryDate', label: t('purchaseOrderList.columns.deliveryDate'), prop: 'deliveryDate', width: 160 },
+  {
+    key: 'purchaseOrderCode',
+    label: t('purchaseOrderList.columns.orderCode'),
+    prop: 'purchaseOrderCode',
+    width: 160,
+    minWidth: 160,
+    showOverflowTooltip: true,
+    sortable: true
+  },
   { key: 'createTime', label: t('purchaseOrderList.columns.createTime'), prop: 'createTime', width: 160 },
   { key: 'createUser', label: t('purchaseOrderList.columns.createUser'), width: 120, showOverflowTooltip: true },
   {
@@ -813,6 +816,13 @@ onMounted(loadData)
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

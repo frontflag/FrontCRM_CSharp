@@ -64,6 +64,7 @@
       column-layout-key="qc-list-main"
       :columns="qcTableColumns"
       :show-column-settings="false"
+      :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="list"
       v-loading="loading"
       @row-dblclick="goView"
@@ -129,6 +130,7 @@
             <el-icon><Setting /></el-icon>
           </el-button>
         </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
         <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
     </div>
@@ -156,6 +158,7 @@ const { t, locale } = useI18n()
 const loading = ref(false)
 const list = ref<QcInfoDto[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -171,17 +174,20 @@ function toggleOpCol() {
 const qcTableColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
   return [
-    { key: 'qcCode', label: t('qcList.columns.qcCode'), prop: 'qcCode', width: 160, minWidth: 160 },
     { key: 'status', label: t('qcList.columns.status'), prop: 'status', width: 120, align: 'center' },
+    { key: 'model', label: t('qcList.columns.model'), prop: 'model', minWidth: 160, showOverflowTooltip: true },
+    { key: 'brand', label: t('qcList.columns.brand'), prop: 'brand', minWidth: 120, showOverflowTooltip: true },
+    { key: 'vendorName', label: t('qcList.columns.vendorName'), prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
+    { key: 'passQty', label: t('qcList.columns.passQty'), prop: 'passQty', width: 110, align: 'right' },
+    { key: 'rejectQty', label: t('qcList.columns.rejectQty'), prop: 'rejectQty', width: 110, align: 'right' },
+    { key: 'stockInStatus', label: t('qcList.columns.stockInStatus'), width: 120, align: 'center' },
+    { key: 'qcCode', label: t('qcList.columns.qcCode'), prop: 'qcCode', width: 160, minWidth: 160 },
     {
       key: 'stockInNotifyCode',
       label: t('qcList.columns.stockInNotifyCode'),
       prop: 'stockInNotifyCode',
       width: 170
     },
-    { key: 'model', label: t('qcList.columns.model'), prop: 'model', minWidth: 160, showOverflowTooltip: true },
-    { key: 'brand', label: t('qcList.columns.brand'), prop: 'brand', minWidth: 120, showOverflowTooltip: true },
-    { key: 'vendorName', label: t('qcList.columns.vendorName'), prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
     {
       key: 'purchaseOrderCode',
       label: t('qcList.columns.purchaseOrderCode'),
@@ -196,9 +202,6 @@ const qcTableColumns = computed<CrmTableColumnDef[]>(() => {
       width: 170,
       showOverflowTooltip: true
     },
-    { key: 'passQty', label: t('qcList.columns.passQty'), prop: 'passQty', width: 110, align: 'right' },
-    { key: 'rejectQty', label: t('qcList.columns.rejectQty'), prop: 'rejectQty', width: 110, align: 'right' },
-    { key: 'stockInStatus', label: t('qcList.columns.stockInStatus'), width: 120, align: 'center' },
     { key: 'createTime', label: t('qcList.columns.createTime'), prop: 'createTime', width: 170 },
     { key: 'createUser', label: t('qcList.columns.createUser'), width: 120, showOverflowTooltip: true },
     {
@@ -585,6 +588,13 @@ const createStockIn = async (row: QcInfoDto) => {
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {

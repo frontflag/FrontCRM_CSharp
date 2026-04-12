@@ -12,6 +12,7 @@
         column-layout-key="system-permission-list-main"
         :columns="permissionTableColumns"
         :show-column-settings="false"
+        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="permissions"
         @row-dblclick="onRowDblclick"
       >
@@ -66,6 +67,7 @@
               <el-icon><Setting /></el-icon>
             </el-button>
           </el-tooltip>
+          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
           <div class="list-footer-spacer" aria-hidden="true"></div>
         </div>
       </div>
@@ -89,6 +91,7 @@ const { t } = useI18n()
 const loading = ref(false)
 const permissions = ref<RbacPermission[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const formatCreateTime = (v?: string) => formatDisplayDateTime(v)
 
 // 列表操作列：默认收起（Collapsed）
@@ -104,11 +107,11 @@ function toggleOpCol() {
 
 const permissionTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'status', label: t('systemUser.colStatus'), prop: 'status', width: 90, align: 'center' },
-  { key: 'permissionCode', label: t('systemPermission.columns.permissionCode'), prop: 'permissionCode', minWidth: 180, showOverflowTooltip: true },
   { key: 'permissionName', label: t('systemPermission.columns.permissionName'), prop: 'permissionName', minWidth: 200, showOverflowTooltip: true },
   { key: 'permissionType', label: t('systemPermission.columns.permissionType'), prop: 'permissionType', width: 110 },
   { key: 'resource', label: t('systemPermission.columns.resource'), prop: 'resource', minWidth: 200, showOverflowTooltip: true },
   { key: 'action', label: t('systemPermission.columns.action'), prop: 'action', minWidth: 140, showOverflowTooltip: true },
+  { key: 'permissionCode', label: t('systemPermission.columns.permissionCode'), prop: 'permissionCode', minWidth: 180, showOverflowTooltip: true },
   { key: 'createTime', label: t('systemUser.colCreateTime'), width: 160 },
   { key: 'createUser', label: t('systemUser.colCreateUser'), width: 120, showOverflowTooltip: true },
   {
@@ -179,6 +182,13 @@ onMounted(load)
 .list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
 .list-footer-spacer {
