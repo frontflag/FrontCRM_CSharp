@@ -10,6 +10,10 @@ namespace CRM.Core.Interfaces
     public interface IDataPermissionService
     {
         Task<IReadOnlyList<CustomerInfo>> FilterCustomersAsync(string userId, IEnumerable<CustomerInfo> source);
+        /// <summary>
+        /// 供应商列表数据范围：除部门采购范围「禁止」(4) 外，不按 <c>VendorInfo.PurchaseUserId</c> 过滤，
+        /// 任意用户均可看到全部供应商（报价选供应商等）；「专属供应商」排除待模型字段落地后在此实现。
+        /// </summary>
         Task<IReadOnlyList<VendorInfo>> FilterVendorsAsync(string userId, IEnumerable<VendorInfo> source);
         Task<IReadOnlyList<RFQListItem>> FilterRFQsAsync(string userId, IEnumerable<RFQListItem> source);
         Task<IReadOnlyList<SellOrder>> FilterSalesOrdersAsync(string userId, IEnumerable<SellOrder> source);

@@ -90,7 +90,7 @@ export async function fetchCompanyProfile(): Promise<CompanyProfileBundle> {
   return res as CompanyProfileBundle
 }
 
-/** 采购订单报表等只读场景（需 purchase-order.read，无需参数管理权限） */
+/** 采购/销售/供应商质保书等只读场景（需 purchase-order.read、sales-order.read 或 vendor.read 之一，无需参数管理权限） */
 export async function fetchCompanyProfileForReport(): Promise<CompanyProfileBundle> {
   const res = await apiClient.get<CompanyProfileBundle>(`${BASE}/report-bundle`)
   return res as CompanyProfileBundle

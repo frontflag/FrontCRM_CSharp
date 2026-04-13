@@ -144,6 +144,7 @@ namespace CRM.IntegrationTests
                 _financeExchangeRateService,
                 _orderJourneyLog,
                 soItemExtendSync,
+                Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(),
                 soLineSeq,
                 _unitOfWork,
                 NullLogger<SalesOrderService>.Instance);

@@ -60,16 +60,16 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<VendorInfo>> FilterVendorsAsync(string userId, IEnumerable<VendorInfo> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (summary.IsSysAdmin || summary.PurchaseDataScope == 0) return source.ToList();
-            if (summary.PurchaseDataScope == 4) return Array.Empty<VendorInfo>();
+            if (summary.PurchaseDataScope == 4)
+                return Array.Empty<VendorInfo>();
 
-            var list = source.ToList();
-            if (summary.PurchaseDataScope == 1) // self
-                return list.Where(x => x.PurchaseUserId == userId).ToList();
-
-            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.PurchaseDataScope == 3);
-            return list.Where(x => !string.IsNullOrWhiteSpace(x.PurchaseUserId) && allowUserIds.Contains(x.PurchaseUserId!)).ToList();
+            // 不按责任采购员缩小供应商可见范围：采购员（及报价等场景）均可查看/选用全部供应商。
+            // 专属供应商：后续在 VendorInfo 增加标识后，于此处排除非授权用户可见项。
+            return ApplyVendorExclusiveVisibilityFilter(source);
         }
+
+        private static List<VendorInfo> ApplyVendorExclusiveVisibilityFilter(IEnumerable<VendorInfo> source) =>
+            source.ToList();
 
         public async Task<IReadOnlyList<RFQListItem>> FilterRFQsAsync(string userId, IEnumerable<RFQListItem> source)
         {

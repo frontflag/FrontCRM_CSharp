@@ -1289,7 +1289,15 @@ const zhCN = {
       createdAt: '创建日期',
       createUser: '创建人'
     },
-    actions: { column: '操作', detail: '详情', edit: '编辑', submitAudit: '提交审核' },
+    actions: {
+      column: '操作',
+      detail: '详情',
+      edit: '编辑',
+      submitAudit: '提交审核',
+      printWarranty: '打印质保书',
+      warrantyEn: '质保书（英文）',
+      warrantyZh: '质保书（中文）'
+    },
     status: {
       draft: '草稿',
       new: '新建',
@@ -1339,6 +1347,34 @@ const zhCN = {
       success: '已提交审核',
       failed: '提交审核失败'
     }
+  },
+  vendorWarrantyReport: {
+    back: '返回',
+    sealOnReport: '报表含印章',
+    sealHint: '关闭后预览、打印、导出 PDF 均不包含电子印章图',
+    print: '打印',
+    exportPdf: '导出 PDF',
+    loadFailed: '加载失败',
+    missingId: '缺少供应商 ID',
+    badLang: '无效的语言参数',
+    pdfNoDom: '未找到报表内容，请稍后重试',
+    exportOk: '已导出 PDF',
+    exportFailed: '导出失败',
+    pageTitle: '供应商质保书',
+    titleZh: '质量保证书',
+    titleEn: 'QUALITY WARRANTY',
+    labelNoZh: '文件编号：',
+    labelNoEn: 'Ref. No.: ',
+    labelDateZh: '日期：',
+    labelDateEn: 'Date: ',
+    labelToNameZh: '致（供应商名称）：',
+    labelToNameEn: 'To (Vendor): ',
+    labelCodeZh: '供应商编号：',
+    labelCodeEn: 'Vendor Code: ',
+    labelAddrZh: '地址：',
+    labelAddrEn: 'Address: ',
+    signIssuerZh: '需方（盖章）',
+    signIssuerEn: 'Buyer (Stamp)'
   },
   vendorDetail: {
     back: '返回',
@@ -1867,12 +1903,25 @@ const zhCN = {
       unknown: '未知'
     },
     purchaseStatus: { none: '未采购', partial: '部分采购', all: '全部采购' },
-    actions: { detail: '详情', edit: '编辑', submitAudit: '提交审核' },
+    actions: { detail: '详情', edit: '编辑', submitAudit: '提交审核', printReport: '打印销售订单' },
     submit: '提交',
     loadFailed: '加载数据失败',
     submitAuditConfirm: '确定将销售订单 {code} 提交审核吗？提交后上级可在「待审批」中处理。',
     submitAuditSuccess: '已提交审核',
     submitAuditFailed: '提交失败'
+  },
+  salesOrderReport: {
+    back: '返回',
+    sealOnReport: '报表含印章',
+    sealHint: '关闭后预览、打印、导出 PDF 均不包含电子印章图',
+    print: '打印',
+    exportPdf: '导出 PDF',
+    loadFailed: '加载失败',
+    missingId: '缺少订单 ID',
+    pdfNoDom: '未找到报表内容，请稍后重试',
+    exportOk: '已导出 PDF',
+    exportFailed: '导出失败',
+    pageTitle: '销售订单报表'
   },
   salesOrderCreate: {
     backToList: '返回列表',
@@ -2719,16 +2768,93 @@ const zhCN = {
       actions: '操作'
     },
     status: { draft: '草稿', pending: '待出库', done: '已出库', cancelled: '已取消', finished: '已完成' },
-    actions: { detail: '详情', markFinished: '标记完成' },
+    actions: {
+      detail: '详情',
+      printInvoice: '打印 Invoice',
+      printPacking: '打印 Packing',
+      packingWithInspection: 'Packing-含出货检',
+      packingWithoutInspection: 'Packing-不含出货检',
+      markFinished: '标记完成'
+    },
     messages: {
       loadFailed: '加载出库单失败',
       markFinishedSuccess: '已标记为完成',
       updateStatusFailed: '更新状态失败'
     }
   },
+  stockOutInvoiceReport: {
+    back: '返回',
+    print: '打印',
+    showSeal: '报表含印章',
+    sealHint: '关闭后预览与打印均不叠加电子印章图',
+    loadFailed: '加载失败',
+    missingId: '缺少出库单 ID',
+    notFound: '出库单不存在',
+    docTitle: '商业发票',
+    docSubtitle: 'COMMERCIAL INVOICE',
+    defaultLineDesc: '出库',
+    labels: {
+      company: '公司名称',
+      address: '地址',
+      phone: '电话',
+      shipMethod: '出货方式',
+      tracking: '快递单号',
+      stockOutDate: '出库日期',
+      warehouse: '仓库',
+      source: '来源申请',
+      sellLine: '销售明细编号',
+      salesRep: '业务员',
+      remark: '备注'
+    },
+    bank: {
+      bankName: '开户行',
+      accountName: '户名',
+      accountNo: '账号',
+      bankAddress: '银行地址',
+      currency: '币种'
+    }
+  },
+  stockOutPackingReport: {
+    back: '返回',
+    print: '打印',
+    showSeal: '报表含印章',
+    sealHint: '关闭后预览与打印均不叠加电子印章图',
+    loadFailed: '加载失败',
+    missingId: '缺少出库单 ID',
+    badRoute: '无效的 Packing 类型',
+    notFound: '出库单不存在',
+    docTitle: '装箱单',
+    docSubtitle: 'PACKING LIST',
+    defaultLineDesc: '出库',
+    variantWithInspection: '含出货检验',
+    variantWithoutInspection: '不含出货检验',
+    qcInspector: '检验员：',
+    qcDate: '检验日期：',
+    qcItems: {
+      i1: '（1）是否与来货相符：PN、QTY、DC',
+      i2: '（2）包装是否符合运输条件：真空/静电袋、填充、污损、加固',
+      i3: '（3）出货标签是否与要求相符：定制、非定制、',
+      i4: '（4）随货单据是否与要求相符：品质类、箱单类、订舱类',
+      i5: '（5）出货快递单于要求是否相符：快递单本身信息是否正确、是否与货物相符'
+    },
+    labels: {
+      company: '公司名称',
+      address: '地址',
+      phone: '电话',
+      shipMethod: '出货方式',
+      tracking: '快递单号',
+      stockOutDate: '出库日期',
+      warehouse: '仓库',
+      source: '来源申请',
+      sellLine: '销售明细编号',
+      salesRep: '业务员',
+      bankHint: '默认开户行（参考）'
+    }
+  },
   stockOutDetail: {
     title: '出库单详情',
     back: '返回列表',
+    printInvoice: '打印 Invoice',
     save: '保存',
     saving: '保存中…',
     saveOk: '已保存',

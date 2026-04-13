@@ -61,8 +61,23 @@
       </template>
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
-          <div v-if="opColExpanded" class="action-btns">
+          <div v-if="opColExpanded" class="action-btns action-btns--stockout-wrap">
             <button type="button" class="action-btn" @click.stop="goDetail(row)">{{ t('stockOutList.actions.detail') }}</button>
+            <button type="button" class="action-btn" @click.stop="goInvoiceReport(row)">
+              {{ t('stockOutList.actions.printInvoice') }}
+            </button>
+            <el-dropdown trigger="click" @click.stop @command="(cmd: string) => onPackingMenuCommand(row, cmd)">
+              <button type="button" class="action-btn action-btn--dropdown">
+                {{ t('stockOutList.actions.printPacking') }}
+                <el-icon class="action-btn__caret"><ArrowDown /></el-icon>
+              </button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="with">{{ t('stockOutList.actions.packingWithInspection') }}</el-dropdown-item>
+                  <el-dropdown-item command="without">{{ t('stockOutList.actions.packingWithoutInspection') }}</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
             <button
               v-if="row.status !== 4"
               type="button"
@@ -80,6 +95,18 @@
               <el-dropdown-menu>
                 <el-dropdown-item @click.stop="goDetail(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('stockOutList.actions.detail') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item @click.stop="goInvoiceReport(row)">
+                  <span class="op-more-item">{{ t('stockOutList.actions.printInvoice') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item disabled>
+                  <span class="op-submenu-title">{{ t('stockOutList.actions.printPacking') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item divided @click.stop="goPackingReport(row, true)">
+                  <span class="op-more-item op-more-item--sub">{{ t('stockOutList.actions.packingWithInspection') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item @click.stop="goPackingReport(row, false)">
+                  <span class="op-more-item op-more-item--sub">{{ t('stockOutList.actions.packingWithoutInspection') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="row.status !== 4" @click.stop="handleMarkFinish(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('stockOutList.actions.markFinished') }}</span>
@@ -109,7 +136,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Setting } from '@element-plus/icons-vue'
+import { Setting, ArrowDown } from '@element-plus/icons-vue'
 import { stockOutApi, type StockOutDto } from '@/api/stockOut'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -125,8 +152,9 @@ const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 96
-const OP_COL_EXPANDED_WIDTH = 200
-const OP_COL_EXPANDED_MIN_WIDTH = 200
+/** 三枚操作按钮；全局 .op-col 为 overflow:hidden + nowrap，列窄时会把中间的「打印 Invoice」裁掉，故加宽并允许换行 */
+const OP_COL_EXPANDED_WIDTH = 400
+const OP_COL_EXPANDED_MIN_WIDTH = 360
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() =>
   opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH
@@ -228,6 +256,27 @@ const handleSearch = () => {
 function goDetail(row: StockOutDto) {
   if (!row?.id) return
   router.push({ name: 'StockOutDetail', params: { id: row.id } })
+}
+
+function goInvoiceReport(row: StockOutDto) {
+  if (!row?.id) return
+  router.push({ name: 'StockOutInvoiceReport', params: { id: row.id } })
+}
+
+function goPackingReport(row: StockOutDto, withInspection: boolean) {
+  if (!row?.id) return
+  router.push({
+    name: 'StockOutPackingReport',
+    params: {
+      id: row.id,
+      packingInspection: withInspection ? 'with-inspection' : 'without-inspection'
+    }
+  })
+}
+
+function onPackingMenuCommand(row: StockOutDto, cmd: string) {
+  if (cmd === 'with') goPackingReport(row, true)
+  else if (cmd === 'without') goPackingReport(row, false)
 }
 
 function onRowDblclick(row: StockOutDto) {
@@ -351,6 +400,26 @@ onMounted(() => {
   }
 }
 
+.action-btn--dropdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+
+.action-btn__caret {
+  font-size: 11px;
+  margin-left: 2px;
+}
+
+.op-submenu-title {
+  font-size: 12px;
+  color: $text-muted;
+}
+
+.op-more-item--sub {
+  padding-left: 8px;
+}
+
 .pagination-wrapper {
   margin-top: 12px;
   display: flex;
@@ -401,5 +470,23 @@ onMounted(() => {
 }
 .op-more-item--warning {
   color: $color-amber;
+}
+
+/* 出库列表操作列：避免「打印 Invoice」被 .op-col overflow:hidden 裁切 */
+.stockout-list-page :deep(.crm-data-table td.op-col .cell),
+.stockout-list-page :deep(.crm-data-table th.op-col .cell) {
+  overflow: visible;
+}
+
+.stockout-list-page :deep(.action-btns--stockout-wrap) {
+  flex-wrap: wrap;
+  white-space: normal;
+  row-gap: 4px;
+  column-gap: 6px;
+  justify-content: flex-end;
+}
+
+.stockout-list-page :deep(.action-btns--stockout-wrap .action-btn) {
+  white-space: nowrap;
 }
 </style>

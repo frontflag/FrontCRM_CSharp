@@ -2,6 +2,8 @@ using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Sales;
 using CRM.API.Authorization;
+using CRM.API.Services;
+using CRM.Infrastructure.Data;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -18,6 +20,7 @@ namespace CRM.API.Controllers
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
         private readonly IRepository<SellOrderItemExtend> _soItemExtendRepo;
+        private readonly ApplicationDbContext _db;
         private readonly ILogger<SalesOrdersController> _logger;
 
         public SalesOrdersController(
@@ -26,6 +29,7 @@ namespace CRM.API.Controllers
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
             IRepository<SellOrderItemExtend> soItemExtendRepo,
+            ApplicationDbContext db,
             ILogger<SalesOrdersController> logger)
         {
             _service = service;
@@ -33,6 +37,7 @@ namespace CRM.API.Controllers
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
             _soItemExtendRepo = soItemExtendRepo;
+            _db = db;
             _logger = logger;
         }
 
@@ -115,6 +120,60 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取销售订单明细列表失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>销售订单报表页：一次返回订单详情（与详情权限、脱敏一致）与公司参数。</summary>
+        [HttpGet("{id}/report-data")]
+        public async Task<IActionResult> GetReportData(string id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "销售订单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessSalesOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该销售订单" });
+                var summary = await GetPermissionSummaryAsync(userId);
+                IReadOnlyDictionary<string, SellOrderItemExtend>? itemExtends = null;
+                if (order.Items != null && order.Items.Count > 0)
+                {
+                    try
+                    {
+                        var ids = order.Items.Select(i => i.Id).ToList();
+                        var extRows = (await _soItemExtendRepo.FindAsync(e => ids.Contains(e.Id))).ToList();
+                        itemExtends = extRows.ToDictionary(e => e.Id, e => e, StringComparer.OrdinalIgnoreCase);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "加载销售明细扩展失败，已跳过: SellOrderId={SellOrderId}", order.Id);
+                    }
+                }
+
+                IReadOnlyDictionary<string, bool> stockOutGate =
+                    new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                if (order.Items != null && order.Items.Count > 0)
+                {
+                    stockOutGate = await _service.GetStockOutApplyPurchaseGateBySellLineIdsAsync(
+                        order.Items.Select(i => i.Id));
+                }
+
+                var companyProfile = await CompanyProfileBundleLoader.LoadAsync(_db, _logger, cancellationToken);
+                CompanyProfileBundleLoader.StripSmtpEmail(companyProfile);
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        order = MaskSalesOrder(order, summary, itemExtends, stockOutGate),
+                        companyProfile
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取销售订单报表数据失败: {Id}", id);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }

@@ -23,6 +23,7 @@ namespace CRM.Core.Tests.Services
         private readonly IFinanceExchangeRateService _financeExchangeRateService;
         private readonly IOrderJourneyLogService _orderJourneyLog;
         private readonly ISellOrderItemExtendSyncService _soItemExtendSync;
+        private readonly ISellOrderItemPurchasedStockAvailableSyncService _purchasedStockAvailableSync;
         private readonly ISellOrderExtendLineSeqService _soLineSeq;
         private readonly IUnitOfWork _unitOfWork;
         private readonly SalesOrderService _orderService;
@@ -48,6 +49,7 @@ namespace CRM.Core.Tests.Services
             _serialNumberService.GenerateNextAsync(ModuleCodes.SalesOrder).Returns("SO2603240001");
             _orderJourneyLog = Substitute.For<IOrderJourneyLogService>();
             _soItemExtendSync = Substitute.For<ISellOrderItemExtendSyncService>();
+            _purchasedStockAvailableSync = Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>();
             _soLineSeq = Substitute.For<ISellOrderExtendLineSeqService>();
             _soLineSeq.ReserveNextSequenceBlockAsync(default!, default, default).ReturnsForAnyArgs(1);
             _unitOfWork = Substitute.For<IUnitOfWork>();
@@ -65,6 +67,7 @@ namespace CRM.Core.Tests.Services
                 _financeExchangeRateService,
                 _orderJourneyLog,
                 _soItemExtendSync,
+                _purchasedStockAvailableSync,
                 _soLineSeq,
                 _unitOfWork,
                 NullLogger<SalesOrderService>.Instance);

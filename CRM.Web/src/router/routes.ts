@@ -202,6 +202,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '冻结管理', permission: 'vendor.read' }
       },
       {
+        path: 'vendors/:id/warranty/:lang',
+        name: 'VendorWarrantyReport',
+        component: () => import('@/views/Vendor/VendorWarrantyReportPage.vue'),
+        meta: { requiresAuth: true, title: '供应商质保书', permission: 'vendor.read' }
+      },
+      {
         path: 'vendors/:id',
         name: 'VendorDetail',
         component: () => import('@/views/Vendor/VendorDetail.vue'),
@@ -267,6 +273,18 @@ const routes: RouteRecordRaw[] = [
         name: 'StockOutCreate',
         component: () => import('@/views/Inventory/StockOutEdit.vue'),
         meta: { requiresAuth: true, title: '执行出库' }
+      },
+      {
+        path: 'inventory/stock-out/:id/invoice-report',
+        name: 'StockOutInvoiceReport',
+        component: () => import('@/views/Inventory/StockOutInvoiceReportPage.vue'),
+        meta: { requiresAuth: true, title: '出库 Invoice' }
+      },
+      {
+        path: 'inventory/stock-out/:id/packing-report/:packingInspection',
+        name: 'StockOutPackingReport',
+        component: () => import('@/views/Inventory/StockOutPackingReportPage.vue'),
+        meta: { requiresAuth: true, title: '出库 Packing' }
       },
       {
         path: 'inventory/stock-out/:id',
@@ -442,6 +460,12 @@ const routes: RouteRecordRaw[] = [
         name: 'SalesOrderCreate',
         component: () => import('@/views/RFQ/SalesOrderCreate.vue'),
         meta: { requiresAuth: true, title: '新建销售订单', permission: 'sales-order.write' }
+      },
+      {
+        path: 'sales-orders/:id/report',
+        name: 'SalesOrderReport',
+        component: () => import('@/views/RFQ/SalesOrderReportPage.vue'),
+        meta: { requiresAuth: true, title: '销售订单报表', permission: 'sales-order.read' }
       },
       {
         path: 'sales-orders/:id',

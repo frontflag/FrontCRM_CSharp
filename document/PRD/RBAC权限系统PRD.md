@@ -174,9 +174,11 @@
 
 **核心方法：**
 1. `FilterCustomersAsync(userId, customers)` - 过滤客户数据
-2. `FilterVendorsAsync(userId, vendors)` - 过滤供应商数据
+2. `FilterVendorsAsync(userId, vendors)` - **供应商主数据列表**：仅当部门 **`PurchaseDataScope == 4`** 时返回空；否则返回全部入参（不按 `VendorInfo.PurchaseUserId` 缩小，便于报价选商；专属供应商待模型字段）。采购订单、对供应商付款/进项仍按 `PurchaseUserId` + 采购范围，见同服务内 `FilterPurchaseOrdersAsync`、`FilterFinancePaymentsAsync` 等。
 3. `FilterSalesOrdersAsync(userId, orders)` - 过滤销售订单
 4. `FilterPurchaseOrdersAsync(userId, orders)` - 过滤采购订单
+
+**业务员—客户与采购员—供应商对照（与实现同步）**：见 `document/System/权限/数据权限-业务员客户与采购员供应商.md`。
 
 **过滤逻辑：**
 ```sql
@@ -251,8 +253,8 @@ WHERE
 **角色分配：** `DEPT_MANAGER` (经理层级)
 
 **权限效果：**
-- ✅ 可查看全部供应商数据
-- ✅ 可查看本部门所有采购订单
+- ✅ 供应商主数据列表：`PurchaseDataScope ≠ 4` 时可浏览**全部**供应商（`FilterVendorsAsync` 不按责任采购员缩小；报价等任选）
+- ✅ 可查看本部门所有采购订单（`FilterPurchaseOrdersAsync` 仍按 `PurchaseUserId` + 采购范围）
 - ✅ 可查看下属员工创建的采购申请
 - ❌ 不可查看销售相关数据
 - ❌ 不可查看财务发票（除非财务部门）

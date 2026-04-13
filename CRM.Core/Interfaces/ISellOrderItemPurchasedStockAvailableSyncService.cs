@@ -4,7 +4,7 @@ using CRM.Core.Models.Sales;
 namespace CRM.Core.Interfaces;
 
 /// <summary>
-/// 维护销售明细扩展 <see cref="SellOrderItemExtend.PurchasedStock_AvailableQty"/>：同 PN+品牌下备货库存可用量之和。
+/// 维护销售明细扩展 <see cref="SellOrderItemExtend.PurchasedStock_AvailableQty"/>：同 PN+品牌下备货库存可用量之和（入库过账、销售出库、销售明细创建/替换后触发）。
 /// </summary>
 public interface ISellOrderItemPurchasedStockAvailableSyncService
 {

@@ -123,6 +123,9 @@
             <div v-if="opColExpanded" class="action-btns">
               <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('salesOrderList.actions.detail') }}</button>
               <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('salesOrderList.actions.edit') }}</button>
+              <button type="button" class="action-btn action-btn--primary" @click.stop="handlePrintReport(row)">
+                {{ t('salesOrderList.actions.printReport') }}
+              </button>
               <button
                 v-if="row.status === 1 && canSubmitSalesOrderAudit"
                 type="button"
@@ -144,6 +147,9 @@
                   </el-dropdown-item>
                   <el-dropdown-item @click.stop="handleEdit(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('salesOrderList.actions.edit') }}</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item @click.stop="handlePrintReport(row)">
+                    <span class="op-more-item op-more-item--primary">{{ t('salesOrderList.actions.printReport') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item v-if="row.status === 1 && canSubmitSalesOrderAudit" @click.stop="submitForAudit(row)">
                     <span class="op-more-item op-more-item--warning">{{ t('salesOrderList.actions.submitAudit') }}</span>
@@ -231,8 +237,8 @@ const pageInfo = ref({
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 96
-const OP_COL_EXPANDED_WIDTH = 260
-const OP_COL_EXPANDED_MIN_WIDTH = 240
+const OP_COL_EXPANDED_WIDTH = 340
+const OP_COL_EXPANDED_MIN_WIDTH = 300
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
 function toggleOpCol() {
@@ -439,6 +445,11 @@ const handleEdit = (row: any) => {
 // 查看
 const handleView = (row: any) => {
   router.push({ name: 'SalesOrderDetail', params: { id: row.id } })
+}
+
+const handlePrintReport = (row: { id?: string }) => {
+  if (!row?.id) return
+  router.push({ name: 'SalesOrderReport', params: { id: String(row.id) } })
 }
 
 /** 新建(1) → 待审核(2) */

@@ -86,7 +86,8 @@
     overflow: visible !important;
   }
 
-  body.po-order-report-print .po-doc {
+  body.po-order-report-print .po-doc,
+  body.po-order-report-print .wty-doc {
     box-shadow: none !important;
     margin: 0 auto !important;
     width: 100% !important;

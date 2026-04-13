@@ -14,6 +14,9 @@
       </div>
       <div class="header-right">
         <button type="button" class="btn-secondary" @click="goBack">{{ t('stockOutDetail.back') }}</button>
+        <button type="button" class="btn-secondary" style="margin-left: 8px" :disabled="!detail" @click="goInvoiceReport">
+          {{ t('stockOutDetail.printInvoice') }}
+        </button>
         <button type="button" class="btn-primary" style="margin-left: 8px" :disabled="saving || !detail" @click="saveHeader">
           {{ saving ? t('stockOutDetail.saving') : t('stockOutDetail.save') }}
         </button>
@@ -213,6 +216,12 @@ async function saveHeader() {
 
 function goBack() {
   router.push({ name: 'StockOutList' })
+}
+
+function goInvoiceReport() {
+  const id = stockOutId.value
+  if (!id) return
+  router.push({ name: 'StockOutInvoiceReport', params: { id } })
 }
 
 onMounted(() => void load())

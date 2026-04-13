@@ -4,6 +4,15 @@ import { getApiErrorMessage } from '@/utils/apiError'
 
 const API_BASE_URL = ''  // 使用相对路径，走Vite代理
 
+/** 供调用方识别 HTTP 状态（如 404 时做降级）；勿依赖 message 中的英文固定串 */
+export type ApiRejectedError = Error & { httpStatus?: number }
+
+function rejectWithHttpStatus(message: string, status?: number): Promise<never> {
+  const err = new Error(message) as ApiRejectedError
+  err.httpStatus = status
+  return Promise.reject(err)
+}
+
 class ApiClient {
   private instance: AxiosInstance
 
@@ -66,7 +75,7 @@ class ApiClient {
           }
           if (fail) {
             const msg = apiResponse.message ?? apiResponse.Message ?? '请求失败'
-            return Promise.reject(new Error(msg))
+            return rejectWithHttpStatus(msg, response.status)
           }
         }
         return apiResponse
@@ -89,13 +98,14 @@ class ApiClient {
           responseData &&
           (responseData.success !== undefined || responseData.Success !== undefined)
         ) {
-          return Promise.reject(
-            new Error(responseData.message ?? responseData.Message ?? '请求失败')
+          return rejectWithHttpStatus(
+            responseData.message ?? responseData.Message ?? '请求失败',
+            error.response?.status
           )
         }
         // 400 ValidationProblemDetails 等：无 success 字段
         const msg = getApiErrorMessage(error, '请求失败')
-        return Promise.reject(new Error(msg))
+        return rejectWithHttpStatus(msg, error.response?.status)
       }
     )
   }

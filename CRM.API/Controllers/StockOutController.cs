@@ -1,8 +1,10 @@
 using System.Security.Claims;
-using Microsoft.AspNetCore.Mvc;
 using CRM.API.Models.DTOs;
+using CRM.API.Services;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
+using CRM.Infrastructure.Data;
+using Microsoft.AspNetCore.Mvc;
 
 namespace CRM.API.Controllers
 {
@@ -11,11 +13,13 @@ namespace CRM.API.Controllers
     public class StockOutController : ControllerBase
     {
         private readonly IStockOutService _service;
+        private readonly ApplicationDbContext _db;
         private readonly ILogger<StockOutController> _logger;
 
-        public StockOutController(IStockOutService service, ILogger<StockOutController> logger)
+        public StockOutController(IStockOutService service, ApplicationDbContext db, ILogger<StockOutController> logger)
         {
             _service = service;
+            _db = db;
             _logger = logger;
         }
 
@@ -31,6 +35,56 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取出库单列表失败");
                 return StatusCode(500, ApiResponse<IEnumerable<StockOutListItemDto>>.Fail($"获取出库单列表失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>出库 Invoice 报表：出库详情 + 公司参数（打印页单请求）。</summary>
+        [HttpGet("{id}/invoice-report-bundle")]
+        public async Task<ActionResult<ApiResponse<StockOutInvoiceReportBundleDto>>> GetInvoiceReportBundle(string id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var dto = await _service.GetDetailViewAsync(id);
+                if (dto == null)
+                    return NotFound(ApiResponse<StockOutInvoiceReportBundleDto>.Fail("出库单不存在", 404));
+                var companyProfile = await CompanyProfileBundleLoader.LoadAsync(_db, _logger, cancellationToken);
+                CompanyProfileBundleLoader.StripSmtpEmail(companyProfile);
+                var bundle = new StockOutInvoiceReportBundleDto { StockOut = dto, CompanyProfile = companyProfile };
+                return Ok(ApiResponse<StockOutInvoiceReportBundleDto>.Ok(bundle, "ok"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取出库 Invoice 报表数据失败");
+                return StatusCode(500, ApiResponse<StockOutInvoiceReportBundleDto>.Fail($"加载失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>出库 Packing 报表：出库详情 + 公司参数；<paramref name="withInspection"/> 区分含/不含出货检验版式。</summary>
+        [HttpGet("{id}/packing-report-bundle")]
+        public async Task<ActionResult<ApiResponse<StockOutPackingReportBundleDto>>> GetPackingReportBundle(
+            string id,
+            [FromQuery] bool withInspection = false,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var dto = await _service.GetDetailViewAsync(id);
+                if (dto == null)
+                    return NotFound(ApiResponse<StockOutPackingReportBundleDto>.Fail("出库单不存在", 404));
+                var companyProfile = await CompanyProfileBundleLoader.LoadAsync(_db, _logger, cancellationToken);
+                CompanyProfileBundleLoader.StripSmtpEmail(companyProfile);
+                var bundle = new StockOutPackingReportBundleDto
+                {
+                    StockOut = dto,
+                    CompanyProfile = companyProfile,
+                    WithShipmentInspection = withInspection
+                };
+                return Ok(ApiResponse<StockOutPackingReportBundleDto>.Ok(bundle, "ok"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取出库 Packing 报表数据失败");
+                return StatusCode(500, ApiResponse<StockOutPackingReportBundleDto>.Fail($"加载失败: {ex.Message}", 500));
             }
         }
 

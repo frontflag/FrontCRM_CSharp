@@ -26,6 +26,7 @@ namespace CRM.Core.Services
         private readonly IOrderJourneyLogService _orderJourneyLog;
         private readonly IRepository<QuoteItem> _quoteItemRepo;
         private readonly ISellOrderItemExtendSyncService _soItemExtendSync;
+        private readonly ISellOrderItemPurchasedStockAvailableSyncService _purchasedStockAvailableSync;
         private readonly ISellOrderExtendLineSeqService _soLineSeq;
         private readonly ILogger<SalesOrderService> _logger;
 
@@ -42,6 +43,7 @@ namespace CRM.Core.Services
             IFinanceExchangeRateService financeExchangeRateService,
             IOrderJourneyLogService orderJourneyLog,
             ISellOrderItemExtendSyncService soItemExtendSync,
+            ISellOrderItemPurchasedStockAvailableSyncService purchasedStockAvailableSync,
             ISellOrderExtendLineSeqService soLineSeq,
             IUnitOfWork unitOfWork,
             ILogger<SalesOrderService> logger)
@@ -58,6 +60,7 @@ namespace CRM.Core.Services
             _financeExchangeRateService = financeExchangeRateService;
             _orderJourneyLog = orderJourneyLog;
             _soItemExtendSync = soItemExtendSync;
+            _purchasedStockAvailableSync = purchasedStockAvailableSync;
             _soLineSeq = soLineSeq;
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _logger = logger;
@@ -139,6 +142,8 @@ namespace CRM.Core.Services
             foreach (var line in createdLines)
                 await _soItemExtendSync.RecalculateAsync(line.Id);
 
+            await TryRefreshPurchasedStockAvailableForSellLinesAsync(createdLines);
+
             var journeyTime = DateTime.UtcNow;
             await _orderJourneyLog.AppendAsync(new OrderJourneyLog
             {
@@ -181,6 +186,36 @@ namespace CRM.Core.Services
             var s = $"{pn ?? ""} / {brand ?? ""}".Trim();
             if (s == "/") return null;
             return s.Length <= 200 ? s : s[..200];
+        }
+
+        /// <summary>
+        /// 新建/替换销售明细后：按 PN+品牌重算备货可用量快照（先备货后建单场景）。
+        /// </summary>
+        private async Task TryRefreshPurchasedStockAvailableForSellLinesAsync(IReadOnlyList<SellOrderItem> lines)
+        {
+            var keys = new HashSet<(string Pn, string Br)>();
+            foreach (var line in lines)
+            {
+                var pn = string.IsNullOrWhiteSpace(line.PN) ? string.Empty : line.PN.Trim();
+                var br = string.IsNullOrWhiteSpace(line.Brand) ? string.Empty : line.Brand.Trim();
+                if (pn.Length == 0 || br.Length == 0)
+                    continue;
+                keys.Add((pn, br));
+            }
+
+            foreach (var (pn, br) in keys)
+            {
+                try
+                {
+                    await _purchasedStockAvailableSync.RecalculateByPurchasePnAndBrandAsync(pn, br);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "[PurchasedStockAvail] RecalculateByPurchasePnAndBrand failed after sell lines created/updated Pn={Pn} Brand={Br}",
+                        pn, br);
+                }
+            }
         }
 
         private async Task AddSellOrderItemExtendAsync(SellOrderItem soItem, FinanceExchangeRateDto fx)
@@ -383,6 +418,7 @@ namespace CRM.Core.Services
             {
                 foreach (var line in newLines)
                     await _soItemExtendSync.RecalculateAsync(line.Id);
+                await TryRefreshPurchasedStockAvailableForSellLinesAsync(newLines);
             }
 
             if (replacedItemCount > 0 && newLines != null)

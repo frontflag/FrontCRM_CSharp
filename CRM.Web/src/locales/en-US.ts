@@ -1310,7 +1310,15 @@ const enUS = {
       createdAt: 'Created At',
       createUser: 'Created By'
     },
-    actions: { column: 'Actions', detail: 'Detail', edit: 'Edit', submitAudit: 'Submit for Review' },
+    actions: {
+      column: 'Actions',
+      detail: 'Detail',
+      edit: 'Edit',
+      submitAudit: 'Submit for Review',
+      printWarranty: 'Print warranty',
+      warrantyEn: 'Warranty (English)',
+      warrantyZh: 'Warranty (Chinese)'
+    },
     status: {
       draft: 'Draft',
       new: 'New',
@@ -1359,6 +1367,34 @@ const enUS = {
       success: 'Submitted for review',
       failed: 'Submit review failed'
     }
+  },
+  vendorWarrantyReport: {
+    back: 'Back',
+    sealOnReport: 'Include seal',
+    sealHint: 'When off, preview, print, and PDF export omit the seal image',
+    print: 'Print',
+    exportPdf: 'Export PDF',
+    loadFailed: 'Load failed',
+    missingId: 'Missing vendor ID',
+    badLang: 'Invalid language parameter',
+    pdfNoDom: 'Report content not found. Please try again.',
+    exportOk: 'PDF exported',
+    exportFailed: 'Export failed',
+    pageTitle: 'Vendor quality warranty',
+    titleZh: '质量保证书',
+    titleEn: 'QUALITY WARRANTY',
+    labelNoZh: '文件编号：',
+    labelNoEn: 'Ref. No.: ',
+    labelDateZh: '日期：',
+    labelDateEn: 'Date: ',
+    labelToNameZh: '致（供应商名称）：',
+    labelToNameEn: 'To (Vendor): ',
+    labelCodeZh: '供应商编号：',
+    labelCodeEn: 'Vendor Code: ',
+    labelAddrZh: '地址：',
+    labelAddrEn: 'Address: ',
+    signIssuerZh: '需方（盖章）',
+    signIssuerEn: 'Buyer (Stamp)'
   },
   vendorDetail: {
     back: 'Back',
@@ -1887,12 +1923,25 @@ const enUS = {
       unknown: 'Unknown'
     },
     purchaseStatus: { none: 'Not Purchased', partial: 'Partially Purchased', all: 'Fully Purchased' },
-    actions: { detail: 'Detail', edit: 'Edit', submitAudit: 'Submit for Review' },
+    actions: { detail: 'Detail', edit: 'Edit', submitAudit: 'Submit for Review', printReport: 'Print sales order' },
     submit: 'Submit',
     loadFailed: 'Failed to load data',
     submitAuditConfirm: 'Submit sales order {code} for review? It will be handled in Pending Approvals.',
     submitAuditSuccess: 'Submitted for review',
     submitAuditFailed: 'Submit failed'
+  },
+  salesOrderReport: {
+    back: 'Back',
+    sealOnReport: 'Include seal',
+    sealHint: 'When off, preview, print, and PDF export omit the seal image',
+    print: 'Print',
+    exportPdf: 'Export PDF',
+    loadFailed: 'Load failed',
+    missingId: 'Missing order ID',
+    pdfNoDom: 'Report content not found. Please try again.',
+    exportOk: 'PDF exported',
+    exportFailed: 'Export failed',
+    pageTitle: 'Sales order report'
   },
   salesOrderCreate: {
     backToList: 'Back to list',
@@ -2739,16 +2788,93 @@ const enUS = {
       actions: 'Actions'
     },
     status: { draft: 'Draft', pending: 'Pending Stock-Out', done: 'Stocked Out', cancelled: 'Cancelled', finished: 'Finished' },
-    actions: { detail: 'Detail', markFinished: 'Mark Finished' },
+    actions: {
+      detail: 'Detail',
+      printInvoice: 'Print Invoice',
+      printPacking: 'Print Packing',
+      packingWithInspection: 'Packing (with OQC)',
+      packingWithoutInspection: 'Packing (no OQC)',
+      markFinished: 'Mark Finished'
+    },
     messages: {
       loadFailed: 'Failed to load stock-out list',
       markFinishedSuccess: 'Marked as finished',
       updateStatusFailed: 'Failed to update status'
     }
   },
+  stockOutInvoiceReport: {
+    back: 'Back',
+    print: 'Print',
+    showSeal: 'Include seal on report',
+    sealHint: 'When off, preview and print omit the seal image',
+    loadFailed: 'Load failed',
+    missingId: 'Missing stock-out ID',
+    notFound: 'Stock-out not found',
+    docTitle: 'Commercial Invoice',
+    docSubtitle: '',
+    defaultLineDesc: 'Stock-out',
+    labels: {
+      company: 'Company',
+      address: 'Address',
+      phone: 'Phone',
+      shipMethod: 'Shipment',
+      tracking: 'Tracking no.',
+      stockOutDate: 'Stock-out date',
+      warehouse: 'Warehouse',
+      source: 'Source request',
+      sellLine: 'Sales order line no.',
+      salesRep: 'Sales rep',
+      remark: 'Remark'
+    },
+    bank: {
+      bankName: 'Bank',
+      accountName: 'Account name',
+      accountNo: 'Account no.',
+      bankAddress: 'Bank address',
+      currency: 'Currency'
+    }
+  },
+  stockOutPackingReport: {
+    back: 'Back',
+    print: 'Print',
+    showSeal: 'Include seal on report',
+    sealHint: 'When off, preview and print omit the seal image',
+    loadFailed: 'Load failed',
+    missingId: 'Missing stock-out ID',
+    badRoute: 'Invalid packing report type',
+    notFound: 'Stock-out not found',
+    docTitle: 'Packing List',
+    docSubtitle: '',
+    defaultLineDesc: 'Stock-out',
+    variantWithInspection: 'With outbound QC',
+    variantWithoutInspection: 'Without outbound QC',
+    qcInspector: 'Inspector:',
+    qcDate: 'Inspection date:',
+    qcItems: {
+      i1: '(1) Match incoming goods: PN, QTY, DC',
+      i2: '(2) Packaging fit for transport: vacuum/ESD bag, fill, stain/damage, reinforcement',
+      i3: '(3) Shipment label vs requirements: customized / non-customized',
+      i4: '(4) Accompanying docs vs requirements: quality, packing list, booking/shipping',
+      i5: '(5) Express waybill vs requirements: correctness of waybill data, match to goods'
+    },
+    labels: {
+      company: 'Company',
+      address: 'Address',
+      phone: 'Phone',
+      shipMethod: 'Shipment',
+      tracking: 'Tracking no.',
+      stockOutDate: 'Stock-out date',
+      warehouse: 'Warehouse',
+      source: 'Source request',
+      sellLine: 'Sales order line no.',
+      salesRep: 'Sales rep',
+      bankHint: 'Default bank (reference)'
+    }
+  },
   stockOutDetail: {
     title: 'Stock-Out Detail',
     back: 'Back to list',
+    printInvoice: 'Print Invoice',
     save: 'Save',
     saving: 'Saving…',
     saveOk: 'Saved',

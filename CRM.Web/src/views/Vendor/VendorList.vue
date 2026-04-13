@@ -222,6 +222,18 @@
             <div v-if="opColExpanded" class="action-btns always-visible">
               <button class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('vendorList.actions.detail') }}</button>
               <button class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('vendorList.actions.edit') }}</button>
+              <el-dropdown trigger="click" @command="(cmd: string) => handleWarrantyCommand(row, cmd)">
+                <button type="button" class="action-btn action-btn--primary action-btn--dropdown">
+                  {{ t('vendorList.actions.printWarranty') }}
+                  <span class="action-btn__caret" aria-hidden="true">▾</span>
+                </button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="en">{{ t('vendorList.actions.warrantyEn') }}</el-dropdown-item>
+                    <el-dropdown-item command="zh">{{ t('vendorList.actions.warrantyZh') }}</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
               <button
                 v-if="row.status === 1 || row.status === -1"
                 class="action-btn action-btn--warning"
@@ -238,6 +250,15 @@
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="handleView(row)">{{ t('vendorList.actions.detail') }}</el-dropdown-item>
                   <el-dropdown-item @click.stop="handleEdit(row)">{{ t('vendorList.actions.edit') }}</el-dropdown-item>
+                  <el-dropdown-item disabled class="vendor-warranty-menu-heading">
+                    {{ t('vendorList.actions.printWarranty') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item class="vendor-warranty-submenu" @click.stop="goWarrantyReport(row, 'en')">
+                    {{ t('vendorList.actions.warrantyEn') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item class="vendor-warranty-submenu" @click.stop="goWarrantyReport(row, 'zh')">
+                    {{ t('vendorList.actions.warrantyZh') }}
+                  </el-dropdown-item>
                   <el-dropdown-item v-if="row.status === 1 || row.status === -1" @click.stop="handleSubmitAudit(row)">
                     {{ t('vendorList.actions.submitAudit') }}
                   </el-dropdown-item>
@@ -339,9 +360,9 @@ const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 120
-const OP_COL_EXPANDED_WIDTH = 220
+const OP_COL_EXPANDED_WIDTH = 320
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
-const opColMinWidth = computed(() => (opColExpanded.value ? 220 : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() => (opColExpanded.value ? 300 : OP_COL_COLLAPSED_WIDTH))
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
@@ -574,6 +595,15 @@ function onCreateDropdownCommand(cmd: string) {
 }
 const handleView = (row: Vendor) => router.push(`/vendors/${row.id}`);
 const handleEdit = (row: Vendor) => router.push(`/vendors/${row.id}/edit`);
+
+function goWarrantyReport(row: Vendor, lang: 'en' | 'zh') {
+  if (!row?.id) return;
+  router.push({ name: 'VendorWarrantyReport', params: { id: row.id, lang } });
+}
+
+function handleWarrantyCommand(row: Vendor, cmd: string) {
+  if (cmd === 'en' || cmd === 'zh') goWarrantyReport(row, cmd);
+}
 
 const handleSubmitAudit = async (row: Vendor) => {
   if (!canSubmitAudit) {
@@ -1167,6 +1197,27 @@ onMounted(async () => {
       border-color: rgba(201, 154, 69, 0.5);
     }
   }
+
+  &--dropdown {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+.action-btn__caret {
+  font-size: 9px;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.action-btns :deep(.el-dropdown) {
+  flex-shrink: 0;
+}
+
+.vendor-warranty-menu-heading {
+  font-size: 12px;
+  color: $text-muted;
 }
 
 // ---- 空状态 ----

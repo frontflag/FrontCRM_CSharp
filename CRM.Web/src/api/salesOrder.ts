@@ -1,4 +1,10 @@
-import apiClient from './client'
+import apiClient, { type ApiRejectedError } from './client'
+import { fetchCompanyProfileForReport, type CompanyProfileBundle } from './companyProfile'
+
+function httpStatusFromApiError(e: unknown): number | undefined {
+  if (typeof e !== 'object' || e === null) return undefined
+  return (e as ApiRejectedError).httpStatus
+}
 
 // 销售订单API
 export const salesOrderApi = {
@@ -25,6 +31,33 @@ export const salesOrderApi = {
   // 获取销售订单详情
   async getById(id: string) {
     return await apiClient.get(`/api/v1/sales-orders/${id}`)
+  },
+
+  /**
+   * 报表页：订单 + 公司参数。
+   * 优先单请求 report-data；若后端尚未部署该路由（404），降级为详情 + company-profile/report-bundle。
+   */
+  async getReportData(id: string) {
+    const enc = encodeURIComponent(id)
+    try {
+      return await apiClient.get(`/api/v1/sales-orders/${enc}/report-data`)
+    } catch (e: unknown) {
+      if (httpStatusFromApiError(e) !== 404) throw e
+      const order = await apiClient.get(`/api/v1/sales-orders/${enc}`)
+      let companyProfile: CompanyProfileBundle
+      try {
+        companyProfile = await fetchCompanyProfileForReport()
+      } catch {
+        companyProfile = {
+          basicInfos: [],
+          bankInfos: [],
+          warehouses: [],
+          seals: [],
+          logos: []
+        }
+      }
+      return { order, companyProfile }
+    }
   },
 
   // 根据客户获取销售订单

@@ -10,6 +10,7 @@
     <div class="import-body">
       <p class="hint">
         请先下载模板，按「供应商」「联系人」两个工作表填写。供应商与联系人通过「序号 / 供应商序号」关联。
+        「结算币别」可留空；填写时须为 RMB、USD、HKD、EUR 之一（大写）。
         正式环境请删除或覆盖模板中的示例行后再导入。
       </p>
       <div class="actions-row">
@@ -70,6 +71,7 @@ import { ElMessageBox, ElNotification } from 'element-plus';
 import { vendorApi } from '@/api/vendor';
 import { VENDOR_LEVEL_OPTIONS, VENDOR_IDENTITY_OPTIONS } from '@/constants/vendorEnums';
 import { VENDOR_INDUSTRY_FILTER_VALUES } from '@/constants/vendorIndustry';
+import { CurrencyCode } from '@/constants/currency';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -206,6 +208,23 @@ function parseMainFlag(raw: string): boolean {
   return s === '是' || s === 'y' || s === 'yes' || s === '1' || s === 'true';
 }
 
+/** 与后端 <see cref="CurrencyCode"/> 一致；空串表示不填、由系统默认 */
+function parseSettlementCurrency(raw: string): { ok: true; value?: number } | { ok: false; message: string } {
+  const s = raw.trim().toUpperCase();
+  if (!s) return { ok: true, value: undefined };
+  const map: Record<string, number> = {
+    RMB: CurrencyCode.RMB,
+    USD: CurrencyCode.USD,
+    EUR: CurrencyCode.EUR,
+    HKD: CurrencyCode.HKD
+  };
+  if (map[s] != null) return { ok: true, value: map[s] };
+  return {
+    ok: false,
+    message: `结算币别须为 RMB、USD、HKD、EUR 之一，当前为「${raw.trim() || '(空)'}」`
+  };
+}
+
 function getVendorContactName(row: Record<string, unknown>): string {
   return getCell(row, '联系人姓名', '联系人姓');
 }
@@ -220,7 +239,9 @@ function downloadTemplate() {
     '行业',
     '办公地址',
     '备注',
-    '统一社会信用代码'
+    '统一社会信用代码',
+    '结算币别',
+    '官方网址'
   ];
   const contactHeaders = [
     '供应商序号(必填)',
@@ -243,7 +264,9 @@ function downloadTemplate() {
       '半导体',
       '深圳市南山区示例路1号',
       '可删除本行后填写真实数据',
-      ''
+      '',
+      'USD',
+      'https://www.example.com'
     ]
   ]);
   const ws2 = XLSX.utils.aoa_to_sheet([
@@ -299,6 +322,8 @@ function onFileChange(ev: Event) {
           officeAddress: string;
           remark: string;
           creditCode: string;
+          tradeCurrency?: number;
+          website: string;
         }
       >();
 
@@ -320,6 +345,12 @@ function onFileChange(ev: Event) {
           errors.push(`供应商表：序号 ${seq} 重复`);
           continue;
         }
+        const curRaw = getCell(row, '结算币别', '结算货币');
+        const curParsed = parseSettlementCurrency(curRaw);
+        if (!curParsed.ok) {
+          errors.push(`供应商表第 ${i + 2} 行：${curParsed.message}`);
+          continue;
+        }
         bySeq.set(seq, {
           seq,
           name,
@@ -329,7 +360,9 @@ function onFileChange(ev: Event) {
           industry: parseVendorIndustry(getCell(row, '行业')),
           officeAddress: getCell(row, '办公地址'),
           remark: getCell(row, '备注'),
-          creditCode: getCell(row, '统一社会信用代码')
+          creditCode: getCell(row, '统一社会信用代码'),
+          tradeCurrency: curParsed.value,
+          website: getCell(row, '官方网址', '网址', '网站')
         });
       }
 
@@ -379,17 +412,20 @@ function onFileChange(ev: Event) {
 
       for (const seq of sortedSeq) {
         const v = bySeq.get(seq)!;
+        const vendorPayload: Record<string, unknown> = {
+          name: v.name,
+          nickName: v.shortName || undefined,
+          level: v.level,
+          credit: v.credit,
+          industry: v.industry,
+          officeAddress: v.officeAddress || undefined,
+          remark: v.remark || undefined,
+          creditCode: v.creditCode || undefined,
+          website: v.website || undefined
+        };
+        if (v.tradeCurrency != null) vendorPayload.tradeCurrency = v.tradeCurrency;
         items.push({
-          vendor: {
-            name: v.name,
-            nickName: v.shortName || undefined,
-            level: v.level,
-            credit: v.credit,
-            industry: v.industry,
-            officeAddress: v.officeAddress || undefined,
-            remark: v.remark || undefined,
-            creditCode: v.creditCode || undefined
-          },
+          vendor: vendorPayload,
           contacts: contactsBySeq.get(seq) || []
         });
       }

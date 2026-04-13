@@ -10,6 +10,7 @@
     <div class="import-body">
       <p class="hint">
         请先下载模板，按「客户」「联系人」两个工作表填写。客户与联系人通过「序号 / 客户序号」关联。
+        「结算币别」可留空；填写时须为 RMB、USD、HKD、EUR 之一（大小写均可）。「官方网址」将写入备注前缀（官网：…），可与原备注合并。
         正式环境请删除或覆盖模板中的示例行后再导入。
       </p>
       <div class="actions-row">
@@ -69,6 +70,7 @@ import * as XLSX from 'xlsx';
 import { ElMessageBox, ElNotification } from 'element-plus';
 import { customerApi } from '@/api/customer';
 import { industryCellToStorageLabel } from '@/utils/customerIndustryStorage';
+import { CurrencyCode } from '@/constants/currency';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -187,6 +189,23 @@ function parseDefaultFlag(raw: string): boolean {
   return s === '是' || s === 'y' || s === 'yes' || s === '1' || s === 'true';
 }
 
+/** 与后端 CurrencyCode 一致；空串表示不填，创建时默认 RMB */
+function parseSettlementCurrency(raw: string): { ok: true; value?: number } | { ok: false; message: string } {
+  const s = raw.trim().toUpperCase();
+  if (!s) return { ok: true, value: undefined };
+  const map: Record<string, number> = {
+    RMB: CurrencyCode.RMB,
+    USD: CurrencyCode.USD,
+    EUR: CurrencyCode.EUR,
+    HKD: CurrencyCode.HKD
+  };
+  if (map[s] != null) return { ok: true, value: map[s] };
+  return {
+    ok: false,
+    message: `结算币别须为 RMB、USD、HKD、EUR 之一，当前为「${raw.trim() || '(空)'}」`
+  };
+}
+
 /** Excel 列宽截断时可能只有「联系人姓」，与「联系人姓名」等价识别 */
 function getContactPersonName(row: Record<string, unknown>): string {
   return getCell(row, '联系人姓名', '联系人姓');
@@ -203,7 +222,9 @@ function downloadTemplate() {
     '省',
     '市',
     '备注',
-    '统一社会信用代码'
+    '统一社会信用代码',
+    '结算币别',
+    '官方网址'
   ];
   const contactHeaders = [
     '客户序号(必填)',
@@ -227,7 +248,9 @@ function downloadTemplate() {
       '广东省',
       '深圳市',
       '可删除本行后填写真实数据',
-      ''
+      '',
+      'RMB',
+      'https://www.example.com'
     ]
   ]);
   const ws2 = XLSX.utils.aoa_to_sheet([
@@ -283,6 +306,7 @@ function onFileChange(ev: Event) {
           city: string;
           remark: string;
           credit: string;
+          tradeCurrency?: number;
         }
       >();
 
@@ -304,8 +328,21 @@ function onFileChange(ev: Event) {
           errors.push(`客户表：序号 ${seq} 重复`);
           continue;
         }
+        const curRaw = getCell(row, '结算币别', '结算货币');
+        const curParsed = parseSettlementCurrency(curRaw);
+        if (!curParsed.ok) {
+          errors.push(`客户表第 ${i + 2} 行：${curParsed.message}`);
+          continue;
+        }
         const typeRaw = getCell(row, '客户类型');
         const levelRaw = getCell(row, '客户级别');
+        const baseRemark = getCell(row, '备注');
+        const website = getCell(row, '官方网址', '网址', '网站');
+        let remark = baseRemark;
+        if (website) {
+          const prefix = `官网：${website}`;
+          remark = baseRemark ? `${prefix}\n${baseRemark}` : prefix;
+        }
         bySeq.set(seq, {
           seq,
           name,
@@ -315,8 +352,9 @@ function onFileChange(ev: Event) {
           industry: parseIndustry(getCell(row, '行业')),
           province: getCell(row, '省'),
           city: getCell(row, '市'),
-          remark: getCell(row, '备注'),
-          credit: getCell(row, '统一社会信用代码')
+          remark,
+          credit: getCell(row, '统一社会信用代码'),
+          tradeCurrency: curParsed.value
         });
       }
 
@@ -366,18 +404,20 @@ function onFileChange(ev: Event) {
 
       for (const seq of sortedSeq) {
         const c = bySeq.get(seq)!;
+        const customerPayload: Record<string, unknown> = {
+          customerName: c.name,
+          customerShortName: c.shortName || undefined,
+          customerType: c.type,
+          customerLevel: c.level,
+          industry: c.industry,
+          province: c.province || undefined,
+          city: c.city || undefined,
+          remarks: c.remark || undefined,
+          unifiedSocialCreditCode: c.credit || undefined
+        };
+        if (c.tradeCurrency != null) customerPayload.currency = c.tradeCurrency;
         items.push({
-          customer: {
-            customerName: c.name,
-            customerShortName: c.shortName || undefined,
-            customerType: c.type,
-            customerLevel: c.level,
-            industry: c.industry,
-            province: c.province || undefined,
-            city: c.city || undefined,
-            remarks: c.remark || undefined,
-            unifiedSocialCreditCode: c.credit || undefined
-          },
+          customer: customerPayload,
           contacts: contactsBySeq.get(seq) || []
         });
       }

@@ -1108,7 +1108,8 @@ const isVendorLeftAuxRoute = computed(() => {
     n === 'VendorBlacklist' ||
     n === 'VendorFreezeManagement' ||
     n === 'VendorContactCreate' ||
-    n === 'VendorContactEdit'
+    n === 'VendorContactEdit' ||
+    n === 'VendorWarrantyReport'
   )
 })
 
@@ -1164,7 +1165,8 @@ const isSalesOrderLeftAuxRoute = computed(() => {
     n === 'SalesOrderList' ||
     n === 'SalesOrderDetail' ||
     n === 'SalesOrderCreate' ||
-    n === 'SalesOrderItemList'
+    n === 'SalesOrderItemList' ||
+    n === 'SalesOrderReport'
   )
 })
 
@@ -1200,7 +1202,13 @@ const showStockInSearchPanel = computed(
 /** 出库单列表/新建：左栏「检索」 */
 const isStockOutLeftAuxRoute = computed(() => {
   const n = route.name
-  return n === 'StockOutList' || n === 'StockOutCreate' || n === 'StockOutDetail'
+  return (
+    n === 'StockOutList' ||
+    n === 'StockOutCreate' ||
+    n === 'StockOutDetail' ||
+    n === 'StockOutInvoiceReport' ||
+    n === 'StockOutPackingReport'
+  )
 })
 
 const showStockOutSearchPanel = computed(
@@ -1400,6 +1408,8 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '采购申请详情': 'rfqItemList.actions.detail',
   '新建采购订单': 'purchaseOrderList.create',
   '采购订单报表': 'purchaseOrderList.actions.report',
+  '销售订单报表': 'salesOrderReport.pageTitle',
+  '供应商质保书': 'vendorWarrantyReport.pageTitle',
   '编辑采购订单': 'purchaseOrderList.actions.edit',
   '采购订单详情': 'layout.menu.purchaseOrderDetail',
   '销售订单': 'layout.menu.salesOrders',
@@ -1448,6 +1458,8 @@ const routeMetaTitleKeyMap: Record<string, string> = {
 const resolveRouteTitle = (path: string): string => {
   if (pageTitleMap[path]) return t(pageTitleMap[path])
   if (/^\/purchase-orders\/[^/]+\/report$/.test(path)) return t('layout.menu.purchaseOrderItems')
+  if (/^\/sales-orders\/[^/]+\/report$/.test(path)) return t('layout.menu.salesOrders')
+  if (/^\/vendors\/[^/]+\/warranty\/(en|zh)$/.test(path)) return t('layout.menu.vendors')
   if (/^\/quotes\/[^/]+\/edit$/.test(path)) return t('layout.menu.quoteManagement')
   if (path.includes('/customers/') && path.includes('/edit')) return t('layout.menu.customerManagement')
   if (path.includes('/customers/')) return t('layout.menu.customers')

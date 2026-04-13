@@ -1,4 +1,5 @@
-import apiClient from './client'
+import apiClient, { type ApiRejectedError } from './client'
+import { fetchCompanyProfileForReport, type CompanyProfileBundle } from '@/api/companyProfile'
 
 /** 兼容 axios 拦截器已解包 / 未解包、以及 data / Data */
 function unwrapArray<T>(res: unknown): T[] {
@@ -51,6 +52,69 @@ export interface StockOutApplyContextDto {
   suggestedMaxQty: number
 }
 
+/** GET /api/v1/stock-out/:id/invoice-report-bundle（打印页：出库详情 + 公司参数） */
+export interface StockOutInvoiceReportBundle {
+  stockOut: StockOutDetailDto
+  companyProfile: CompanyProfileBundle
+}
+
+/** GET /api/v1/stock-out/:id/packing-report-bundle?withInspection=… */
+export interface StockOutPackingReportBundle extends StockOutInvoiceReportBundle {
+  withShipmentInspection: boolean
+}
+
+function parseInvoiceBundlePayload(res: unknown): StockOutInvoiceReportBundle | null {
+  if (!res || typeof res !== 'object') return null
+  const o = res as Record<string, unknown>
+  const stockOut = (o.stockOut ?? o.StockOut) as StockOutDetailDto | undefined
+  const rawCp = (o.companyProfile ?? o.CompanyProfile) as Record<string, unknown> | undefined
+  if (!stockOut || !rawCp) return null
+  const companyProfile: CompanyProfileBundle = {
+    basicInfos: (rawCp.basicInfos ?? rawCp.BasicInfos ?? []) as CompanyProfileBundle['basicInfos'],
+    bankInfos: (rawCp.bankInfos ?? rawCp.BankInfos ?? []) as CompanyProfileBundle['bankInfos'],
+    logos: (rawCp.logos ?? rawCp.Logos ?? []) as NonNullable<CompanyProfileBundle['logos']>,
+    seals: (rawCp.seals ?? rawCp.Seals ?? []) as CompanyProfileBundle['seals'],
+    warehouses: (rawCp.warehouses ?? rawCp.Warehouses ?? []) as CompanyProfileBundle['warehouses']
+  }
+  return { stockOut, companyProfile }
+}
+
+function parsePackingBundlePayload(res: unknown, requestFlag: boolean): StockOutPackingReportBundle | null {
+  const base = parseInvoiceBundlePayload(res)
+  if (!base) return null
+  const o = res as Record<string, unknown>
+  const w = o.withShipmentInspection ?? o.WithShipmentInspection
+  const withShipmentInspection = typeof w === 'boolean' ? w : requestFlag
+  return { ...base, withShipmentInspection }
+}
+
+async function loadStockOutCompanyBundleFallback(id: string): Promise<StockOutInvoiceReportBundle | null> {
+  const stockOut = await getStockOutDetailInternal(id)
+  if (!stockOut) return null
+  const cp = await fetchCompanyProfileForReport()
+  return {
+    stockOut,
+    companyProfile: {
+      basicInfos: cp.basicInfos ?? [],
+      bankInfos: cp.bankInfos ?? [],
+      logos: cp.logos ?? [],
+      seals: cp.seals ?? [],
+      warehouses: cp.warehouses ?? []
+    }
+  }
+}
+
+async function getStockOutDetailInternal(id: string): Promise<StockOutDetailDto | null> {
+  const enc = encodeURIComponent(id)
+  const res = await apiClient.get<unknown>(`/api/v1/stock-out/${enc}`)
+  if (res && typeof res === 'object') {
+    const o = res as Record<string, unknown>
+    const inner = o.data ?? o.Data
+    if (inner && typeof inner === 'object') return inner as StockOutDetailDto
+  }
+  return (res as StockOutDetailDto) ?? null
+}
+
 export interface StockOutRequestDto {
   id: string
   requestCode: string
@@ -84,13 +148,41 @@ export const stockOutApi = {
   },
 
   async getById(id: string): Promise<StockOutDetailDto | null> {
-    const res = await apiClient.get<unknown>(`/api/v1/stock-out/${id}`)
-    if (res && typeof res === 'object') {
-      const o = res as Record<string, unknown>
-      const inner = o.data ?? o.Data
-      if (inner && typeof inner === 'object') return inner as StockOutDetailDto
+    return getStockOutDetailInternal(id)
+  },
+
+  /**
+   * 优先请求专用 bundle；若后端未部署该路由（404），则降级为「出库详情 + 公司报表参数」两请求拼装（需 purchase-order.read 以拉取公司 report-bundle）。
+   */
+  async getInvoiceReportBundle(id: string): Promise<StockOutInvoiceReportBundle | null> {
+    const enc = encodeURIComponent(id)
+    try {
+      const res = await apiClient.get<unknown>(`/api/v1/stock-out/${enc}/invoice-report-bundle`)
+      return parseInvoiceBundlePayload(res)
+    } catch (e: unknown) {
+      const status = typeof e === 'object' && e !== null ? (e as ApiRejectedError).httpStatus : undefined
+      if (status !== 404) throw e
+      return loadStockOutCompanyBundleFallback(id)
     }
-    return (res as StockOutDetailDto) ?? null
+  },
+
+  /**
+   * Packing 报表；withInspection=true 为「含出货检验」版式。
+   * 若专用接口 404（旧后端），降级逻辑与 Invoice 相同，并由前端固定版式标志。
+   */
+  async getPackingReportBundle(id: string, withInspection: boolean): Promise<StockOutPackingReportBundle | null> {
+    const enc = encodeURIComponent(id)
+    try {
+      const res = await apiClient.get<unknown>(`/api/v1/stock-out/${enc}/packing-report-bundle`, {
+        params: { withInspection }
+      })
+      return parsePackingBundlePayload(res, withInspection)
+    } catch (e: unknown) {
+      const status = typeof e === 'object' && e !== null ? (e as ApiRejectedError).httpStatus : undefined
+      if (status !== 404) throw e
+      const fb = await loadStockOutCompanyBundleFallback(id)
+      return fb ? { ...fb, withShipmentInspection: withInspection } : null
+    }
   },
 
   async updateHeader(
