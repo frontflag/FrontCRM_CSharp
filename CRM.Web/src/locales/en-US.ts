@@ -93,10 +93,13 @@ const enUS = {
       qualityCheck: 'QC',
       stockIn: 'Stock In',
       inventoryManagement: 'Inventory',
+      inventoryCenter: 'Inventory Center',
+      inventoryStockItems: 'Stock items',
       inventoryCheck: 'Inventory Check',
       stockOutManagement: 'Stock-out Buz',
       stockOutNotifies: 'Stock-Out Notices',
       stockOut: 'Stock Out',
+      stockOutItems: 'Stock-out lines',
       paymentManagement: 'Payment Buz',
       paymentRecords: 'Payment Records',
       purchaseInvoices: 'Purchase Invoices',
@@ -2609,6 +2612,89 @@ const enUS = {
       submitFailed: 'Failed to submit check'
     }
   },
+  inventoryStockItemList: {
+    title: 'Stock items',
+    count: '{count} records',
+    filters: {
+      outboundStatus: 'Outbound status',
+      outboundNone: 'Not shipped',
+      outboundPartial: 'Partially shipped',
+      outboundDone: 'Fully shipped',
+      stockInCode: 'Stock-in code',
+      stockInDateRange: 'Stock-in date',
+      stockInDateFrom: 'From',
+      stockInDateTo: 'To',
+      stockInDateSep: 'to',
+      purchasePn: 'Material model',
+      purchaseBrand: 'Brand',
+      customerName: 'Customer',
+      vendorName: 'Vendor',
+      search: 'Search',
+      reset: 'Reset'
+    },
+    columns: {
+      outboundStatus: 'Outbound',
+      stockInCode: 'Stock-in code',
+      stockInDate: 'Stock-in date',
+      warehouse: 'Warehouse',
+      purchasePn: 'Material model',
+      purchaseBrand: 'Brand',
+      qtyInbound: 'Inbound',
+      qtyStockOut: 'Out',
+      qtyRepertory: 'On hand',
+      customerName: 'Customer',
+      vendorName: 'Vendor',
+      salespersonName: 'Sales rep',
+      purchaserName: 'Purchaser',
+      sellOrderItemCode: 'SO line',
+      batchNo: 'Batch',
+      locationId: 'Location',
+      profitOutBizUsd: 'Inbound margin snapshot (USD)'
+    },
+    messages: {
+      loadFailed: 'Failed to load stock items',
+      missingAggregateId: 'Missing stock aggregate id'
+    }
+  },
+  inventoryStockDetail: {
+    title: 'Stock bucket detail',
+    back: 'Back',
+    refresh: 'Refresh',
+    summary: {
+      stockCode: 'Stock code',
+      materialModel: 'Material model',
+      brand: 'Brand',
+      warehouse: 'Warehouse',
+      stockId: 'Stock ID'
+    },
+    stockItemsSection: 'Stock items (StockItem)',
+    traceSection: 'Material stock-in trace',
+    noStockItems: 'No stock item rows yet (legacy data may be aggregate-only)',
+    noMaterialForTrace: 'Cannot resolve material ID for trace',
+    loadItemsFailed: 'Failed to load stock items',
+    columns: {
+      stockInCode: 'Stock-in code',
+      batchNo: 'Batch',
+      productionDate: 'Production date',
+      pn: 'P/N',
+      brand: 'Brand',
+      sellLineCode: 'SO line',
+      qtyInbound: 'Inbound',
+      qtyStockOut: 'Out',
+      qtyRepertory: 'On hand',
+      qtyAvailable: 'Available',
+      qtyOccupy: 'Locked',
+      qtySales: 'Sales',
+      purchasePrice: 'Purchase (local)',
+      purchasePriceUsd: 'Purchase (USD)',
+      salesPrice: 'Sales (local)',
+      salesPriceUsd: 'Sales (USD)',
+      vendor: 'Vendor',
+      customer: 'Customer',
+      location: 'Location',
+      createTime: 'Created'
+    }
+  },
   inventoryTrace: {
     title: 'Stock-In Trace',
     materialId: 'Material ID',
@@ -2675,6 +2761,7 @@ const enUS = {
     actions: {
       warehouseManagement: 'Warehouse Management',
       refresh: 'Refresh',
+      stockDetail: 'Stock detail',
       trace: 'Stock-In Trace',
       edit: 'Edit'
     },
@@ -2694,6 +2781,7 @@ const enUS = {
       regionTypeShort: 'Region'
     },
     messages: {
+      missingStockId: 'This row has no stockId; cannot open detail',
       loadOverviewFailed: 'Failed to load inventory overview',
       loadFinanceFailed: 'Failed to load inventory analytics',
       loadCenterFailed: 'Failed to load inventory center data',
@@ -2800,6 +2888,41 @@ const enUS = {
       loadFailed: 'Failed to load stock-out list',
       markFinishedSuccess: 'Marked as finished',
       updateStatusFailed: 'Failed to update status'
+    }
+  },
+  stockOutItemList: {
+    title: 'Stock-out lines',
+    count: '{count} records total',
+    filters: {
+      status: 'Status',
+      stockOutCode: 'Stock-out code',
+      stockOutDateRange: 'Stock-out date',
+      stockOutDateFrom: 'From',
+      stockOutDateTo: 'To',
+      stockOutDateSep: 'to',
+      customerName: 'Customer',
+      salesUserName: 'Sales rep',
+      purchasePn: 'Material model',
+      sellOrderItemCode: 'Sales order line no.',
+      search: 'Search',
+      reset: 'Reset'
+    },
+    columns: {
+      status: 'Status',
+      stockOutCode: 'Stock-out code',
+      stockOutDate: 'Stock-out date',
+      customerName: 'Customer',
+      salesUserName: 'Sales rep',
+      purchasePn: 'Material model',
+      purchaseBrand: 'Brand',
+      outQuantity: 'Qty out',
+      shipmentMethod: 'Shipment method',
+      courierTrackingNo: 'Tracking no.',
+      sellOrderItemCode: 'Sales order line no.'
+    },
+    messages: {
+      loadFailed: 'Failed to load stock-out lines',
+      missingStockOutId: 'Missing stock-out ID'
     }
   },
   stockOutInvoiceReport: {

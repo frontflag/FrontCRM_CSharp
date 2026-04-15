@@ -43,6 +43,70 @@ export interface MaterialTrace {
   locationId?: string
 }
 
+/** 单条 stock 下的 stockitem 行（与后端 InventoryStockItemRowDto 一致，JSON camelCase） */
+export interface StockItemRow {
+  stockItemId: string
+  stockInItemId: string
+  stockInId: string
+  stockInCode?: string | null
+  materialId: string
+  locationId?: string | null
+  batchNo?: string | null
+  productionDate?: string | null
+  purchasePn?: string | null
+  purchaseBrand?: string | null
+  sellOrderItemCode?: string | null
+  qtyInbound: number
+  qtyStockOut: number
+  qtyRepertory: number
+  qtyRepertoryAvailable: number
+  qtyOccupy: number
+  qtySales: number
+  purchasePrice: number
+  /** 1=RMB 2=USD … */
+  purchaseCurrency?: number
+  purchasePriceUsd?: number
+  salesPrice?: number | null
+  salesCurrency?: number | null
+  salesPriceUsd?: number | null
+  vendorName?: string | null
+  customerName?: string | null
+  createTime?: string
+}
+
+/** 全库 stockitem 列表查询（query 参数与后端 InventoryStockItemListQuery 一致） */
+export interface StockItemListQuery {
+  stockInCode?: string
+  stockInDateFrom?: string
+  stockInDateTo?: string
+  purchasePn?: string
+  purchaseBrand?: string
+  /** 1=未出库 2=部分 3=完成 */
+  outboundStatus?: number
+  customerName?: string
+  vendorName?: string
+  /** 模糊匹配冗余姓名（未传 userId 时生效） */
+  salespersonName?: string
+  purchaserName?: string
+  /** 与 stockitem.SalespersonId 精确匹配 */
+  salespersonUserId?: string
+  /** 与 stockitem.PurchaserId 精确匹配 */
+  purchaserUserId?: string
+}
+
+export interface StockItemListRow extends StockItemRow {
+  stockInDate?: string | null
+  purchaserName?: string | null
+  salespersonName?: string | null
+  stockAggregateId: string
+  warehouseId: string
+  warehouseCode?: string | null
+  /** 1=未出库 2=部分 3=完成；入库量为 0 时可能为 0 */
+  outboundStatus: number
+  /** 出库业务 USD 利润（层快照价 × 累计出库数量） */
+  profitOutBizUsd?: number
+}
+
 /** 销售订单明细维度：全仓可用库存合计（与拣货出库物料键解析一致） */
 export interface SellOrderLineAvailableQty {
   availableQty: number
@@ -121,6 +185,37 @@ export const inventoryCenterApi = {
   },
   async getMaterialTrace(materialId: string): Promise<MaterialTrace[]> {
     return unwrap<MaterialTrace[]>(await apiClient.get(`/api/v1/inventory-center/materials/${encodeURIComponent(materialId)}/traces`))
+  },
+  async getStockItemsForStock(stockId: string): Promise<StockItemRow[]> {
+    return unwrap<StockItemRow[]>(
+      await apiClient.get(`/api/v1/inventory-center/stocks/${encodeURIComponent(stockId)}/stock-items`)
+    )
+  },
+  async searchStockItems(query?: StockItemListQuery): Promise<StockItemListRow[]> {
+    const params = new URLSearchParams()
+    const q = query || {}
+    const add = (key: string, v: string | number | undefined | null) => {
+      if (v === undefined || v === null) return
+      const s = typeof v === 'string' ? v.trim() : String(v)
+      if (s === '') return
+      params.set(key, s)
+    }
+    add('stockInCode', q.stockInCode)
+    add('stockInDateFrom', q.stockInDateFrom)
+    add('stockInDateTo', q.stockInDateTo)
+    add('purchasePn', q.purchasePn)
+    add('purchaseBrand', q.purchaseBrand)
+    if (q.outboundStatus != null && q.outboundStatus >= 1 && q.outboundStatus <= 3) {
+      params.set('outboundStatus', String(q.outboundStatus))
+    }
+    add('customerName', q.customerName)
+    add('vendorName', q.vendorName)
+    add('salespersonName', q.salespersonName)
+    add('purchaserName', q.purchaserName)
+    add('salespersonUserId', q.salespersonUserId)
+    add('purchaserUserId', q.purchaserUserId)
+    const qs = params.toString()
+    return unwrap<StockItemListRow[]>(await apiClient.get(`/api/v1/inventory-center/stock-items${qs ? `?${qs}` : ''}`))
   },
   async getFinanceSummary(stagnantDays = 90): Promise<FinanceSummary> {
     return unwrap<FinanceSummary>(await apiClient.get(`/api/v1/inventory-center/finance/summary?stagnantDays=${stagnantDays}`))

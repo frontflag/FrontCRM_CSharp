@@ -477,7 +477,8 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/inventory/list" class="submenu-item" active-class="active">{{ t('layout.menu.inventoryManagement') }}</router-link>
+            <router-link to="/inventory/list" class="submenu-item" active-class="active">{{ t('layout.menu.inventoryCenter') }}</router-link>
+            <router-link to="/inventory/stock-items" class="submenu-item" active-class="active">{{ t('layout.menu.inventoryStockItems') }}</router-link>
             <router-link to="/inventory/check" class="submenu-item" active-class="active">{{ t('layout.menu.inventoryCheck') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
@@ -509,6 +510,7 @@
           <template #submenu>
             <router-link to="/inventory/stock-out-notifies" class="submenu-item" active-class="active">{{ t('layout.menu.stockOutNotifies') }}</router-link>
             <router-link to="/inventory/stock-out" class="submenu-item" active-class="active">{{ t('layout.menu.stockOut') }}</router-link>
+            <router-link to="/inventory/stock-out/items" class="submenu-item" active-class="active">{{ t('layout.menu.stockOutItems') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -1204,6 +1206,7 @@ const isStockOutLeftAuxRoute = computed(() => {
   const n = route.name
   return (
     n === 'StockOutList' ||
+    n === 'StockOutItemList' ||
     n === 'StockOutCreate' ||
     n === 'StockOutDetail' ||
     n === 'StockOutInvoiceReport' ||
@@ -1327,9 +1330,11 @@ const pageTitleMap: Record<string, string> = {
   '/system/company-info': 'layout.menu.companyInfo',
   '/system/dict-items': 'layout.menu.dictItems',
   '/system/finance-params/exchange-rates': 'layout.menu.financeParams',
-  '/inventory/list': 'layout.menu.inventoryManagement',
+  '/inventory/list': 'layout.menu.inventoryCenter',
+  '/inventory/stock-items': 'layout.menu.inventoryStockItems',
   '/inventory/stock-in': 'layout.menu.stockInManagement',
   '/inventory/stock-out': 'layout.menu.stockOutManagement',
+  '/inventory/stock-out/items': 'layout.menu.stockOutItems',
   '/inventory/stock-out-notifies': 'layout.menu.stockOutNotifies',
   '/inventory/transfer': 'layout.menu.inventoryManagement',
   '/inventory/check': 'layout.menu.inventoryCheck',
@@ -1389,11 +1394,14 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '供应商详情': 'rfqItemList.actions.detail',
   '编辑供应商': 'vendorList.actions.edit',
   '库存列表': 'inventoryList.title',
+  '库存明细': 'layout.menu.inventoryStockItems',
+  '汇总库存明细': 'inventoryStockDetail.title',
   '入库追溯': 'inventoryList.actions.trace',
   '入库单列表': 'stockInList.title',
   '新建入库单': 'common.createSuccess',
   '入库单详情': 'rfqItemList.actions.detail',
   '出库单列表': 'stockOutList.title',
+  '出库明细': 'stockOutItemList.title',
   '出库通知': 'layout.menu.stockOutNotifies',
   '执行出库': 'layout.menu.stockOut',
   '库存调拨': 'layout.menu.inventoryManagement',
@@ -1461,6 +1469,7 @@ const resolveRouteTitle = (path: string): string => {
   if (/^\/sales-orders\/[^/]+\/report$/.test(path)) return t('layout.menu.salesOrders')
   if (/^\/vendors\/[^/]+\/warranty\/(en|zh)$/.test(path)) return t('layout.menu.vendors')
   if (/^\/quotes\/[^/]+\/edit$/.test(path)) return t('layout.menu.quoteManagement')
+  if (/^\/inventory\/stocks\/[^/]+$/.test(path)) return t('inventoryStockDetail.title')
   if (path.includes('/customers/') && path.includes('/edit')) return t('layout.menu.customerManagement')
   if (path.includes('/customers/')) return t('layout.menu.customers')
   if (path.includes('/vendors/') && path.includes('/edit')) return t('layout.menu.vendorManagement')

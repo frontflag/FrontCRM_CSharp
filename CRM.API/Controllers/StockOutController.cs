@@ -38,6 +38,22 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>出库明细（stockoutitem）列表，query 与 <see cref="StockOutItemListQuery"/> 一致。</summary>
+        [HttpGet("items")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<StockOutItemListRowDto>>>> GetItems([FromQuery] StockOutItemListQuery? query)
+        {
+            try
+            {
+                var list = await _service.GetStockOutItemListAsync(query);
+                return Ok(ApiResponse<IEnumerable<StockOutItemListRowDto>>.Ok(list, "获取出库明细列表成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取出库明细列表失败");
+                return StatusCode(500, ApiResponse<IEnumerable<StockOutItemListRowDto>>.Fail($"获取出库明细列表失败: {ex.Message}", 500));
+            }
+        }
+
         /// <summary>出库 Invoice 报表：出库详情 + 公司参数（打印页单请求）。</summary>
         [HttpGet("{id}/invoice-report-bundle")]
         public async Task<ActionResult<ApiResponse<StockOutInvoiceReportBundleDto>>> GetInvoiceReportBundle(string id, CancellationToken cancellationToken)

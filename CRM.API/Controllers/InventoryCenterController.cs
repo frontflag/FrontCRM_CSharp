@@ -49,6 +49,36 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpGet("stocks/{stockId}/stock-items")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<InventoryStockItemRowDto>>>> GetStockItemsForStock(string stockId)
+        {
+            try
+            {
+                var list = await _service.GetStockItemsForAggregateAsync(stockId);
+                return Ok(ApiResponse<IEnumerable<InventoryStockItemRowDto>>.Ok(list, "获取库存明细成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取库存明细失败 StockId={StockId}", stockId);
+                return StatusCode(500, ApiResponse<IEnumerable<InventoryStockItemRowDto>>.Fail($"获取库存明细失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpGet("stock-items")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<InventoryStockItemListRowDto>>>> GetStockItemsList([FromQuery] InventoryStockItemListQuery? query)
+        {
+            try
+            {
+                var list = await _service.GetStockItemsListAsync(query);
+                return Ok(ApiResponse<IEnumerable<InventoryStockItemListRowDto>>.Ok(list, "获取库存明细列表成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取库存明细列表失败");
+                return StatusCode(500, ApiResponse<IEnumerable<InventoryStockItemListRowDto>>.Fail($"获取库存明细列表失败: {ex.Message}", 500));
+            }
+        }
+
         [HttpGet("materials/{materialId}/traces")]
         public async Task<ActionResult<ApiResponse<IEnumerable<InventoryMaterialTraceDto>>>> GetMaterialTrace(string materialId)
         {

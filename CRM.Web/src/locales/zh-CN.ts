@@ -93,10 +93,13 @@ const zhCN = {
       qualityCheck: '质检',
       stockIn: '入库',
       inventoryManagement: '库存管理',
+      inventoryCenter: '库存中心',
+      inventoryStockItems: '库存明细',
       inventoryCheck: '库存盘点',
       stockOutManagement: '出库管理',
       stockOutNotifies: '出库通知',
       stockOut: '出库',
+      stockOutItems: '出库明细',
       paymentManagement: '付款管理',
       paymentRecords: '付款记录',
       purchaseInvoices: '进项发票',
@@ -2585,6 +2588,89 @@ const zhCN = {
       submitFailed: '盘点提交失败'
     }
   },
+  inventoryStockItemList: {
+    title: '库存明细',
+    count: '共 {count} 条',
+    filters: {
+      outboundStatus: '出库状态',
+      outboundNone: '未出库',
+      stockInCode: '入库单号',
+      stockInDateRange: '入库日期',
+      stockInDateFrom: '起',
+      stockInDateTo: '止',
+      stockInDateSep: '至',
+      purchasePn: '物料型号',
+      purchaseBrand: '品牌',
+      outboundPartial: '部分出库',
+      outboundDone: '出库完成',
+      customerName: '客户',
+      vendorName: '供应商',
+      search: '查询',
+      reset: '重置'
+    },
+    columns: {
+      outboundStatus: '出库状态',
+      stockInCode: '入库单号',
+      stockInDate: '入库日期',
+      warehouse: '仓库',
+      purchasePn: '物料型号',
+      purchaseBrand: '品牌',
+      qtyInbound: '入库量',
+      qtyStockOut: '已出库',
+      qtyRepertory: '在库',
+      customerName: '客户',
+      vendorName: '供应商',
+      salespersonName: '业务员',
+      purchaserName: '采购员',
+      sellOrderItemCode: '销售行号',
+      batchNo: '批次',
+      locationId: '库位',
+      profitOutBizUsd: '入库毛利快照(USD)'
+    },
+    messages: {
+      loadFailed: '加载库存明细列表失败',
+      missingAggregateId: '缺少汇总库存 ID，无法打开分桶明细'
+    }
+  },
+  inventoryStockDetail: {
+    title: '汇总库存明细',
+    back: '返回',
+    refresh: '刷新',
+    summary: {
+      stockCode: '库存编号',
+      materialModel: '物料型号',
+      brand: '品牌',
+      warehouse: '仓库',
+      stockId: '库存ID'
+    },
+    stockItemsSection: '库存明细（StockItem）',
+    traceSection: '物料入库追溯',
+    noStockItems: '暂无库存明细记录（历史数据可能仅有汇总行）',
+    noMaterialForTrace: '无法确定物料 ID，无法加载入库追溯',
+    loadItemsFailed: '加载库存明细失败',
+    columns: {
+      stockInCode: '入库单号',
+      batchNo: '批次',
+      productionDate: '生产日期',
+      pn: '型号',
+      brand: '品牌',
+      sellLineCode: '销售行号',
+      qtyInbound: '入库量',
+      qtyStockOut: '已出库',
+      qtyRepertory: '在库',
+      qtyAvailable: '可用',
+      qtyOccupy: '占用',
+      qtySales: '销售',
+      purchasePrice: '采购单价(原币)',
+      purchasePriceUsd: '采购单价(USD)',
+      salesPrice: '销售单价(原币)',
+      salesPriceUsd: '销售单价(USD)',
+      vendor: '供应商',
+      customer: '客户',
+      location: '库位',
+      createTime: '创建时间'
+    }
+  },
   inventoryTrace: {
     title: '物料入库追溯',
     materialId: '物料ID',
@@ -2654,6 +2740,7 @@ const zhCN = {
     actions: {
       warehouseManagement: '仓库管理',
       refresh: '刷新',
+      stockDetail: '库存明细',
       trace: '入库追溯',
       edit: '编辑'
     },
@@ -2674,6 +2761,7 @@ const zhCN = {
       regionTypeShort: '地域'
     },
     messages: {
+      missingStockId: '该库存行缺少 stockId，无法打开明细',
       loadOverviewFailed: '加载库存总览失败',
       loadFinanceFailed: '加载库存分析失败',
       loadCenterFailed: '加载库存中心数据失败',
@@ -2780,6 +2868,41 @@ const zhCN = {
       loadFailed: '加载出库单失败',
       markFinishedSuccess: '已标记为完成',
       updateStatusFailed: '更新状态失败'
+    }
+  },
+  stockOutItemList: {
+    title: '出库明细',
+    count: '共 {count} 条',
+    filters: {
+      status: '状态',
+      stockOutCode: '出库单号',
+      stockOutDateRange: '出库日期',
+      stockOutDateFrom: '开始',
+      stockOutDateTo: '结束',
+      stockOutDateSep: '至',
+      customerName: '客户',
+      salesUserName: '业务员',
+      purchasePn: '物料型号',
+      sellOrderItemCode: '销售订单明细编号',
+      search: '查询',
+      reset: '重置'
+    },
+    columns: {
+      status: '状态',
+      stockOutCode: '出库单号',
+      stockOutDate: '出库日期',
+      customerName: '客户',
+      salesUserName: '业务员',
+      purchasePn: '物料型号',
+      purchaseBrand: '品牌',
+      outQuantity: '出库数量',
+      shipmentMethod: '出货方式',
+      courierTrackingNo: '快递单号',
+      sellOrderItemCode: '销售订单明细编号'
+    },
+    messages: {
+      loadFailed: '加载出库明细失败',
+      missingStockOutId: '缺少出库单 ID'
     }
   },
   stockOutInvoiceReport: {

@@ -68,6 +68,7 @@ var services = new ServiceCollection();
 services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseNpgsql(connectionString);
+    options.AddInterceptors(StockItemStockOutStatusMaterializationInterceptor.Instance);
     // 与 CRM.API AddInfrastructure 一致：快照与模型暂不完全对齐时仍可执行已提交的迁移 SQL
     options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
 });

@@ -88,6 +88,8 @@
 | `VendorId` + 供应商名称 | 可空视业务 |
 | `PurchaserId` + 采购员名称 | 若系统有采购员字段则冗余 |
 | `PurchasePrice` / `PurchaseAmount` | 可与 `stockinitem` 单价、金额一致 |
+| `PurchaseCurrency` | 采购单价币别（与 `CurrencyCode` / 采购明细 `currency` 一致） |
+| `PurchasePriceUsd` | 采购单价折合 USD（入库过账时按财务基准汇率计算，与 `ExchangeRateToUsdConverter` 一致） |
 
 ### 4.5 销售侧冗余
 
@@ -97,6 +99,8 @@
 | `SellOrderItemId` / `SellOrderItemCode` | 与分桶字段可合并设计，避免重复列时需在模型层统一 |
 | `SalespersonId` + 业务员名称 | |
 | `SalesPrice` | 若有按行销售价则快照 |
+| `SalesCurrency` | 销售单价币别（与 `sellorderitem.currency` 一致）；无销售行时为 null |
+| `SalesPriceUsd` | 销售单价折合 USD（过账时按财务基准汇率计算）；无销售行时为 null |
 
 ### 4.6 数量（整数，与当前 `StockInfo` 一致）
 

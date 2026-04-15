@@ -26,10 +26,13 @@ namespace CRM.Core.Services
         private readonly IRepository<InventoryCountItem> _countItemRepository;
         private readonly IRepository<PurchaseOrder> _purchaseOrderRepository;
         private readonly IRepository<SellOrderItem> _sellOrderItemRepository;
+        private readonly IRepository<SellOrder> _sellOrderRepository;
         private readonly IRepository<PurchaseOrderItem> _purchaseOrderItemRepository;
+        private readonly IRepository<StockItem> _stockItemRepository;
         private readonly IRepository<QCInfo> _qcRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
+        private readonly IFinanceExchangeRateService _financeExchangeRateService;
         private readonly ILogger<InventoryCenterService> _logger;
         private static bool IsTableMissingException(Exception ex)
             => (ex.Message?.Contains("42P01") ?? false)
@@ -128,9 +131,12 @@ namespace CRM.Core.Services
             IRepository<InventoryCountItem> countItemRepository,
             IRepository<PurchaseOrder> purchaseOrderRepository,
             IRepository<SellOrderItem> sellOrderItemRepository,
+            IRepository<SellOrder> sellOrderRepository,
             IRepository<PurchaseOrderItem> purchaseOrderItemRepository,
+            IRepository<StockItem> stockItemRepository,
             IRepository<QCInfo> qcRepository,
             ISerialNumberService serialNumberService,
+            IFinanceExchangeRateService financeExchangeRateService,
             IUnitOfWork unitOfWork,
             ILogger<InventoryCenterService> logger)
         {
@@ -149,9 +155,12 @@ namespace CRM.Core.Services
             _countItemRepository = countItemRepository;
             _purchaseOrderRepository = purchaseOrderRepository;
             _sellOrderItemRepository = sellOrderItemRepository;
+            _sellOrderRepository = sellOrderRepository;
             _purchaseOrderItemRepository = purchaseOrderItemRepository;
+            _stockItemRepository = stockItemRepository;
             _qcRepository = qcRepository;
             _serialNumberService = serialNumberService;
+            _financeExchangeRateService = financeExchangeRateService;
             _unitOfWork = unitOfWork;
             _logger = logger;
         }
@@ -191,12 +200,14 @@ namespace CRM.Core.Services
 
             var allStocks = (await _stockRepository.GetAllAsync()).ToList();
             var allLedgers = (await _ledgerRepository.GetAllAsync()).ToList();
+            var postedLayers = (await _stockItemRepository.FindAsync(x => x.StockInId == stockInId)).ToList();
             var changed = false;
             var inboundStockType = await ResolveStockTypeForStockInAsync(stockIn);
+            var fx = await _financeExchangeRateService.GetCurrentAsync();
 
             foreach (var line in lines)
             {
-                if (allLedgers.Any(x => x.BizType == "STOCK_IN" && x.BizId == stockInId && x.BizLineId == line.Id))
+                if (postedLayers.Any(x => x.StockInItemId == line.Id))
                     continue;
 
                 var poiForBucket = await TryGetPoItemByStockInLineAsync(line);
@@ -247,6 +258,16 @@ namespace CRM.Core.Services
                     await _stockRepository.UpdateAsync(stRow);
                 }
 
+                var layer = await CreateStockItemForInboundLineAsync(
+                    stockIn,
+                    line,
+                    stRow,
+                    poiForBucket,
+                    inboundStockType,
+                    fx);
+                await _stockItemRepository.AddAsync(layer);
+                postedLayers.Add(layer);
+
                 var ledger = new InventoryLedger
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -279,6 +300,100 @@ namespace CRM.Core.Services
             {
                 _logger.LogInformation("[InboundStatus2] PostStockIn no ledger changes StockInId={StockInId}", stockInId);
             }
+        }
+
+        private async Task<StockItem> CreateStockItemForInboundLineAsync(
+            StockIn stockIn,
+            StockInItem line,
+            StockInfo aggregateRow,
+            PurchaseOrderItem? poiForBucket,
+            short inboundStockType,
+            FinanceExchangeRateDto fx)
+        {
+            var qty = line.Quantity;
+            var purchaseCurrency = (short)CurrencyCode.RMB;
+            var poiForPurchase = poiForBucket;
+            if (poiForPurchase == null && !string.IsNullOrWhiteSpace(stockIn.PurchaseOrderItemId))
+                poiForPurchase = await _purchaseOrderItemRepository.GetByIdAsync(stockIn.PurchaseOrderItemId.Trim());
+            if (poiForPurchase != null)
+                purchaseCurrency = poiForPurchase.Currency;
+
+            var layer = new StockItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                StockInItemId = line.Id,
+                StockInId = stockIn.Id,
+                StockAggregateId = aggregateRow.Id,
+                MaterialId = line.MaterialId,
+                WarehouseId = stockIn.WarehouseId,
+                LocationId = line.LocationId,
+                BatchNo = line.BatchNo,
+                ProductionDate = line.ProductionDate,
+                ExpiryDate = line.ExpiryDate,
+                StockType = inboundStockType,
+                RegionType = RegionTypeCode.Normalize(stockIn.RegionType),
+                PurchasePn = aggregateRow.PurchasePn,
+                PurchaseBrand = aggregateRow.PurchaseBrand,
+                PurchaseOrderItemId = aggregateRow.PurchaseOrderItemId,
+                PurchaseOrderItemCode = aggregateRow.PurchaseOrderItemCode,
+                SellOrderItemId = aggregateRow.SellOrderItemId,
+                SellOrderItemCode = aggregateRow.SellOrderItemCode,
+                PurchasePrice = line.Price,
+                PurchaseCurrency = purchaseCurrency,
+                PurchasePriceUsd = ExchangeRateToUsdConverter.UnitLocalToUsd(
+                    line.Price, purchaseCurrency, fx.UsdToCny, fx.UsdToHkd, fx.UsdToEur),
+                PurchaseAmount = line.Amount,
+                QtyInbound = qty,
+                QtyStockOut = 0,
+                QtyOccupy = 0,
+                QtySales = 0,
+                QtyRepertory = qty,
+                QtyRepertoryAvailable = qty,
+                CreateTime = DateTime.UtcNow
+            };
+
+            if (!string.IsNullOrWhiteSpace(stockIn.PurchaseOrderItemId))
+            {
+                var poi = poiForBucket
+                          ?? await _purchaseOrderItemRepository.GetByIdAsync(stockIn.PurchaseOrderItemId.Trim());
+                if (poi != null && !string.IsNullOrWhiteSpace(poi.PurchaseOrderId))
+                {
+                    var po = await _purchaseOrderRepository.GetByIdAsync(poi.PurchaseOrderId.Trim());
+                    if (po != null)
+                    {
+                        layer.VendorId = string.IsNullOrWhiteSpace(po.VendorId) ? null : po.VendorId.Trim();
+                        layer.VendorName = string.IsNullOrWhiteSpace(po.VendorName) ? null : po.VendorName.Trim();
+                        layer.PurchaserId = string.IsNullOrWhiteSpace(po.PurchaseUserId) ? null : po.PurchaseUserId.Trim();
+                        layer.PurchaserName = string.IsNullOrWhiteSpace(po.PurchaseUserName) ? null : po.PurchaseUserName.Trim();
+                    }
+                }
+            }
+
+            var soLineKey = aggregateRow.SellOrderItemId?.Trim();
+            if (!string.IsNullOrEmpty(soLineKey))
+            {
+                var soItem = await _sellOrderItemRepository.GetByIdAsync(soLineKey);
+                if (soItem != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(soItem.SellOrderItemCode))
+                        layer.SellOrderItemCode = soItem.SellOrderItemCode.Trim();
+                    layer.SalesPrice = soItem.Price;
+                    layer.SalesCurrency = soItem.Currency;
+                    layer.SalesPriceUsd = ExchangeRateToUsdConverter.UnitLocalToUsd(
+                        soItem.Price, soItem.Currency, fx.UsdToCny, fx.UsdToHkd, fx.UsdToEur);
+                    var so = await _sellOrderRepository.GetByIdAsync(soItem.SellOrderId);
+                    if (so != null)
+                    {
+                        layer.CustomerId = string.IsNullOrWhiteSpace(so.CustomerId) ? null : so.CustomerId.Trim();
+                        layer.CustomerName = string.IsNullOrWhiteSpace(so.CustomerName) ? null : so.CustomerName.Trim();
+                        layer.SalespersonId = string.IsNullOrWhiteSpace(so.SalesUserId) ? null : so.SalesUserId.Trim();
+                        layer.SalespersonName = string.IsNullOrWhiteSpace(so.SalesUserName) ? null : so.SalesUserName.Trim();
+                    }
+                }
+            }
+
+            layer.SyncDenormalizedComputedFields();
+            return layer;
         }
 
         /// <summary>入库过账时把 stockin 头上的采购/销售行冗余到库存行（与头单主行一致）。</summary>
@@ -627,6 +742,249 @@ namespace CRM.Core.Services
                 .ThenBy(x => x.StockType)
                 .ThenBy(x => x.MaterialId, StringComparer.Ordinal)
                 .ThenBy(x => x.StockId, StringComparer.Ordinal)
+                .ToList();
+        }
+
+        public async Task<IEnumerable<InventoryStockItemRowDto>> GetStockItemsForAggregateAsync(string stockAggregateId)
+        {
+            if (string.IsNullOrWhiteSpace(stockAggregateId))
+                return Array.Empty<InventoryStockItemRowDto>();
+
+            var aggId = stockAggregateId.Trim();
+            List<StockItem> items;
+            try
+            {
+                items = (await _stockItemRepository.GetAllAsync())
+                    .Where(x => string.Equals(x.StockAggregateId?.Trim(), aggId, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+            catch (Exception ex) when (IsTableMissingException(ex))
+            {
+                return Array.Empty<InventoryStockItemRowDto>();
+            }
+
+            if (items.Count == 0)
+                return Array.Empty<InventoryStockItemRowDto>();
+
+            Dictionary<string, string?> stockInCodeById = new(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var sid in items.Select(x => x.StockInId).Distinct())
+                {
+                    var sin = await _stockInRepository.GetByIdAsync(sid);
+                    if (sin != null)
+                        stockInCodeById[sid] = string.IsNullOrWhiteSpace(sin.StockInCode) ? null : sin.StockInCode.Trim();
+                }
+            }
+            catch (Exception ex) when (IsTableMissingException(ex))
+            {
+            }
+
+            return items
+                .OrderBy(x => x.ProductionDate ?? x.CreateTime)
+                .ThenBy(x => x.CreateTime)
+                .ThenBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                .Select(x => new InventoryStockItemRowDto
+                {
+                    StockItemId = x.Id,
+                    StockInItemId = x.StockInItemId,
+                    StockInId = x.StockInId,
+                    StockInCode = stockInCodeById.GetValueOrDefault(x.StockInId),
+                    MaterialId = x.MaterialId,
+                    LocationId = string.IsNullOrWhiteSpace(x.LocationId) ? null : x.LocationId.Trim(),
+                    BatchNo = string.IsNullOrWhiteSpace(x.BatchNo) ? null : x.BatchNo.Trim(),
+                    ProductionDate = x.ProductionDate,
+                    PurchasePn = string.IsNullOrWhiteSpace(x.PurchasePn) ? null : x.PurchasePn.Trim(),
+                    PurchaseBrand = string.IsNullOrWhiteSpace(x.PurchaseBrand) ? null : x.PurchaseBrand.Trim(),
+                    SellOrderItemCode = string.IsNullOrWhiteSpace(x.SellOrderItemCode) ? null : x.SellOrderItemCode.Trim(),
+                    QtyInbound = x.QtyInbound,
+                    QtyStockOut = x.QtyStockOut,
+                    QtyRepertory = x.QtyRepertory,
+                    QtyRepertoryAvailable = x.QtyRepertoryAvailable,
+                    QtyOccupy = x.QtyOccupy,
+                    QtySales = x.QtySales,
+                    PurchasePrice = x.PurchasePrice,
+                    PurchaseCurrency = x.PurchaseCurrency,
+                    PurchasePriceUsd = x.PurchasePriceUsd,
+                    SalesPrice = x.SalesPrice,
+                    SalesCurrency = x.SalesCurrency,
+                    SalesPriceUsd = x.SalesPriceUsd,
+                    VendorName = string.IsNullOrWhiteSpace(x.VendorName) ? null : x.VendorName.Trim(),
+                    CustomerName = string.IsNullOrWhiteSpace(x.CustomerName) ? null : x.CustomerName.Trim(),
+                    CreateTime = x.CreateTime
+                })
+                .ToList();
+        }
+
+        private static bool TextContainsOptional(string? haystack, string? needleTrimmedOrNull)
+        {
+            if (string.IsNullOrEmpty(needleTrimmedOrNull))
+                return true;
+            if (string.IsNullOrEmpty(haystack))
+                return false;
+            return haystack.Contains(needleTrimmedOrNull, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static DateTime DateStart(DateTime d) => d.Date;
+
+        private static bool StockInDateInRange(DateTime? stockInDate, DateTime? from, DateTime? to)
+        {
+            if (!from.HasValue && !to.HasValue)
+                return true;
+            if (!stockInDate.HasValue)
+                return false;
+            var t = stockInDate.Value;
+            if (from.HasValue && t < DateStart(from.Value))
+                return false;
+            if (to.HasValue && t >= DateStart(to.Value).AddDays(1))
+                return false;
+            return true;
+        }
+
+        public async Task<IEnumerable<InventoryStockItemListRowDto>> GetStockItemsListAsync(InventoryStockItemListQuery? query)
+        {
+            query ??= new InventoryStockItemListQuery();
+            List<StockItem> items;
+            try
+            {
+                items = (await _stockItemRepository.GetAllAsync()).ToList();
+            }
+            catch (Exception ex) when (IsTableMissingException(ex))
+            {
+                return Array.Empty<InventoryStockItemListRowDto>();
+            }
+
+            if (items.Count == 0)
+                return Array.Empty<InventoryStockItemListRowDto>();
+
+            Dictionary<string, StockIn> stockInById = new(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var sin in await _stockInRepository.GetAllAsync())
+                {
+                    if (!string.IsNullOrWhiteSpace(sin.Id))
+                        stockInById[sin.Id.Trim()] = sin;
+                }
+            }
+            catch (Exception ex) when (IsTableMissingException(ex))
+            {
+            }
+
+            Dictionary<string, string?> warehouseCodeById = new(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var w in await _warehouseRepository.GetAllAsync())
+                {
+                    var wid = w.Id?.Trim();
+                    if (string.IsNullOrEmpty(wid))
+                        continue;
+                    warehouseCodeById[wid] = string.IsNullOrWhiteSpace(w.WarehouseCode) ? null : w.WarehouseCode.Trim();
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+
+            var codeNeedle = query.StockInCode?.Trim();
+            var pnNeedle = query.PurchasePn?.Trim();
+            var brandNeedle = query.PurchaseBrand?.Trim();
+            var customerNeedle = query.CustomerName?.Trim();
+            var vendorNeedle = query.VendorName?.Trim();
+            var spNeedle = query.SalespersonName?.Trim();
+            var puNeedle = query.PurchaserName?.Trim();
+            var spUserId = query.SalespersonUserId?.Trim();
+            var puUserId = query.PurchaserUserId?.Trim();
+            var outboundFilter = query.OutboundStatus;
+
+            var result = new List<InventoryStockItemListRowDto>();
+            foreach (var x in items)
+            {
+                stockInById.TryGetValue(x.StockInId?.Trim() ?? string.Empty, out var sin);
+                var stockInCode = sin == null || string.IsNullOrWhiteSpace(sin.StockInCode) ? null : sin.StockInCode.Trim();
+                var stockInDate = sin?.StockInDate;
+
+                if (!TextContainsOptional(stockInCode, codeNeedle))
+                    continue;
+                if (!StockInDateInRange(stockInDate, query.StockInDateFrom, query.StockInDateTo))
+                    continue;
+                if (!TextContainsOptional(string.IsNullOrWhiteSpace(x.PurchasePn) ? null : x.PurchasePn.Trim(), pnNeedle))
+                    continue;
+                if (!TextContainsOptional(string.IsNullOrWhiteSpace(x.PurchaseBrand) ? null : x.PurchaseBrand.Trim(), brandNeedle))
+                    continue;
+                if (!TextContainsOptional(string.IsNullOrWhiteSpace(x.CustomerName) ? null : x.CustomerName.Trim(), customerNeedle))
+                    continue;
+                if (!TextContainsOptional(string.IsNullOrWhiteSpace(x.VendorName) ? null : x.VendorName.Trim(), vendorNeedle))
+                    continue;
+                if (!string.IsNullOrEmpty(spUserId))
+                {
+                    if (!string.Equals(x.SalespersonId?.Trim(), spUserId, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                }
+                else if (!TextContainsOptional(string.IsNullOrWhiteSpace(x.SalespersonName) ? null : x.SalespersonName.Trim(), spNeedle))
+                    continue;
+
+                if (!string.IsNullOrEmpty(puUserId))
+                {
+                    if (!string.Equals(x.PurchaserId?.Trim(), puUserId, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                }
+                else if (!TextContainsOptional(string.IsNullOrWhiteSpace(x.PurchaserName) ? null : x.PurchaserName.Trim(), puNeedle))
+                    continue;
+
+                var ob = x.StockOutStatus;
+                if (outboundFilter is >= 1 and <= 3)
+                {
+                    if (ob != outboundFilter.Value)
+                        continue;
+                }
+
+                var wid = x.WarehouseId?.Trim() ?? string.Empty;
+                warehouseCodeById.TryGetValue(wid, out var whCode);
+
+                result.Add(new InventoryStockItemListRowDto
+                {
+                    StockItemId = x.Id,
+                    StockInItemId = x.StockInItemId,
+                    StockInId = x.StockInId,
+                    StockInCode = stockInCode,
+                    StockInDate = stockInDate,
+                    MaterialId = x.MaterialId,
+                    LocationId = string.IsNullOrWhiteSpace(x.LocationId) ? null : x.LocationId.Trim(),
+                    BatchNo = string.IsNullOrWhiteSpace(x.BatchNo) ? null : x.BatchNo.Trim(),
+                    ProductionDate = x.ProductionDate,
+                    PurchasePn = string.IsNullOrWhiteSpace(x.PurchasePn) ? null : x.PurchasePn.Trim(),
+                    PurchaseBrand = string.IsNullOrWhiteSpace(x.PurchaseBrand) ? null : x.PurchaseBrand.Trim(),
+                    SellOrderItemCode = string.IsNullOrWhiteSpace(x.SellOrderItemCode) ? null : x.SellOrderItemCode.Trim(),
+                    QtyInbound = x.QtyInbound,
+                    QtyStockOut = x.QtyStockOut,
+                    QtyRepertory = x.QtyRepertory,
+                    QtyRepertoryAvailable = x.QtyRepertoryAvailable,
+                    QtyOccupy = x.QtyOccupy,
+                    QtySales = x.QtySales,
+                    PurchasePrice = x.PurchasePrice,
+                    PurchaseCurrency = x.PurchaseCurrency,
+                    PurchasePriceUsd = x.PurchasePriceUsd,
+                    SalesPrice = x.SalesPrice,
+                    SalesCurrency = x.SalesCurrency,
+                    SalesPriceUsd = x.SalesPriceUsd,
+                    VendorName = string.IsNullOrWhiteSpace(x.VendorName) ? null : x.VendorName.Trim(),
+                    CustomerName = string.IsNullOrWhiteSpace(x.CustomerName) ? null : x.CustomerName.Trim(),
+                    PurchaserName = string.IsNullOrWhiteSpace(x.PurchaserName) ? null : x.PurchaserName.Trim(),
+                    SalespersonName = string.IsNullOrWhiteSpace(x.SalespersonName) ? null : x.SalespersonName.Trim(),
+                    CreateTime = x.CreateTime,
+                    StockAggregateId = x.StockAggregateId?.Trim() ?? string.Empty,
+                    WarehouseId = wid,
+                    WarehouseCode = string.IsNullOrWhiteSpace(whCode) ? null : whCode,
+                    OutboundStatus = ob,
+                    ProfitOutBizUsd = x.ProfitOutBizUsd
+                });
+            }
+
+            return result
+                .OrderByDescending(r => r.StockInDate ?? r.CreateTime)
+                .ThenBy(r => r.StockInCode, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(r => r.StockItemId, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }
 

@@ -89,7 +89,7 @@
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="filteredInventoryList"
       v-loading="loading"
-      @row-dblclick="onRowDblclick"
+      @row-click="onRowClick"
     >
       <template #col-stockCode="{ row }">{{ stockCodeDisplay(row) }}</template>
       <template #col-materialModel="{ row }">{{ materialModelDisplay(row) }}</template>
@@ -125,6 +125,9 @@
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
           <div v-if="opColMainExpanded" class="action-btns">
+            <button type="button" class="action-btn action-btn--primary" @click.stop="openStockDetail(row)">
+              {{ t('inventoryList.actions.stockDetail') }}
+            </button>
             <button type="button" class="action-btn action-btn--info" @click.stop="openTrace(row.materialId)">{{ t('inventoryList.actions.trace') }}</button>
           </div>
 
@@ -134,6 +137,9 @@
             </div>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item @click.stop="openStockDetail(row)">
+                  <span class="op-more-item op-more-item--primary">{{ t('inventoryList.actions.stockDetail') }}</span>
+                </el-dropdown-item>
                 <el-dropdown-item @click.stop="openTrace(row.materialId)">
                   <span class="op-more-item op-more-item--info">{{ t('inventoryList.actions.trace') }}</span>
                 </el-dropdown-item>
@@ -516,7 +522,27 @@ const openTrace = (materialId: string) => {
   router.push(`/inventory/traces/${encodeURIComponent(materialId)}`)
 }
 
-const onRowDblclick = (row: InventoryOverview) => openTrace(row.materialId)
+const openStockDetail = (row: InventoryOverview) => {
+  const sid = (row.stockId || '').trim()
+  if (!sid) {
+    ElMessage.warning(t('inventoryList.messages.missingStockId'))
+    return
+  }
+  router.push({
+    path: `/inventory/stocks/${encodeURIComponent(sid)}`,
+    query: {
+      materialId: row.materialId || undefined,
+      stockCode: row.stockCode || undefined,
+      materialModel: row.materialModel || undefined,
+      materialBrand: row.materialName || undefined,
+      warehouseId: row.warehouseId || undefined
+    }
+  })
+}
+
+const onRowClick = (row: InventoryOverview) => {
+  openStockDetail(row)
+}
 
 const openWarehouseDialog = async () => {
   try {

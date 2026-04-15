@@ -115,6 +115,34 @@ async function getStockOutDetailInternal(id: string): Promise<StockOutDetailDto 
   return (res as StockOutDetailDto) ?? null
 }
 
+/** GET /api/v1/stock-out/items 查询参数（与后端 StockOutItemListQuery 一致） */
+export interface StockOutItemListQuery {
+  status?: number
+  stockOutCode?: string
+  stockOutDateFrom?: string
+  stockOutDateTo?: string
+  customerName?: string
+  salesUserName?: string
+  purchasePn?: string
+  sellOrderItemCode?: string
+}
+
+export interface StockOutItemListRow {
+  stockOutItemId: string
+  stockOutId: string
+  status: number
+  stockOutCode: string
+  stockOutDate: string
+  customerName?: string | null
+  salesUserName?: string | null
+  purchasePn?: string | null
+  purchaseBrand?: string | null
+  outQuantity: number
+  shipmentMethod?: string | null
+  courierTrackingNo?: string | null
+  sellOrderItemCode?: string | null
+}
+
 export interface StockOutRequestDto {
   id: string
   requestCode: string
@@ -145,6 +173,11 @@ export const stockOutApi = {
   async getAll(): Promise<StockOutDto[]> {
     const res = await apiClient.get<unknown>('/api/v1/stock-out')
     return unwrapArray<StockOutDto>(res)
+  },
+
+  async searchItems(query?: StockOutItemListQuery): Promise<StockOutItemListRow[]> {
+    const res = await apiClient.get<unknown>('/api/v1/stock-out/items', { params: query ?? {} })
+    return unwrapArray<StockOutItemListRow>(res)
   },
 
   async getById(id: string): Promise<StockOutDetailDto | null> {

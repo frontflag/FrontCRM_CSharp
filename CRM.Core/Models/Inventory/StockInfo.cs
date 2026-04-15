@@ -456,6 +456,11 @@ namespace CRM.Core.Models.Inventory
         /// </summary>
         public short StockOutType { get; set; } = 1;
 
+        /// <summary>整型分类（数据库列 <c>Type</c>；与 <see cref="StockOutType"/> 独立，含义由业务定义）。</summary>
+        [Column("Type")]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public int Type { get; set; }
+
         /// <summary>
         /// 来源单号
         /// </summary>
@@ -595,6 +600,16 @@ namespace CRM.Core.Models.Inventory
         [StringLength(36)]
         public string MaterialId { get; set; } = string.Empty;
 
+        /// <summary>物料型号/采购 PN（冗余，与 <c>stockitem.purchase_pn</c> 一致）。</summary>
+        [StringLength(200)]
+        [Column("purchase_pn")]
+        public string? PurchasePn { get; set; }
+
+        /// <summary>品牌（冗余，与 <c>stockitem.purchase_brand</c> 一致）。</summary>
+        [StringLength(200)]
+        [Column("purchase_brand")]
+        public string? PurchaseBrand { get; set; }
+
         /// <summary>
         /// 出库数量
         /// </summary>
@@ -645,6 +660,13 @@ namespace CRM.Core.Models.Inventory
         public string? StockId { get; set; }
 
         /// <summary>
+        /// 在库明细层主键（<c>stockitem.StockItemId</c>）；拣货出库时绑定。
+        /// </summary>
+        [StringLength(36)]
+        [Column("StockItemId")]
+        public string? StockItemId { get; set; }
+
+        /// <summary>
         /// 仓库ID（冗余，方便查询）
         /// </summary>
         [StringLength(36)]
@@ -661,6 +683,9 @@ namespace CRM.Core.Models.Inventory
         /// </summary>
         [StringLength(500)]
         public string? Remark { get; set; }
+
+        /// <summary>扩展表，与明细 1:1（主键均为 <c>ItemId</c>）。</summary>
+        public virtual StockOutItemExtend? Extend { get; set; }
 
         // 导航属性
         [ForeignKey("StockOutId")]

@@ -22,6 +22,9 @@ namespace CRM.Core.Interfaces
         Task<StockOutDetailViewDto?> GetDetailViewAsync(string id);
         /// <summary>出库单列表（含客户、业务员、销售明细编号等展示字段）</summary>
         Task<IEnumerable<StockOutListItemDto>> GetStockOutListAsync();
+
+        /// <summary>出库明细（<c>stockoutitem</c>）全量列表，头表字段与 <see cref="GetStockOutListAsync"/> 展示口径一致。</summary>
+        Task<IEnumerable<StockOutItemListRowDto>> GetStockOutItemListAsync(StockOutItemListQuery? query);
         Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
         /// <summary>可改：出库日期、出货方式、快递单号</summary>
         Task UpdateHeaderAsync(string id, UpdateStockOutHeaderRequest request, string? actingUserId = null);
@@ -149,5 +152,39 @@ namespace CRM.Core.Interfaces
         public int Quantity { get; set; }
         public string? BatchNo { get; set; }
         public string? WarehouseLocation { get; set; }
+    }
+
+    /// <summary>出库明细列表查询（空则不作为条件）。</summary>
+    public class StockOutItemListQuery
+    {
+        /// <summary>出库单头状态；不传则不过滤</summary>
+        public short? Status { get; set; }
+
+        public string? StockOutCode { get; set; }
+        public DateTime? StockOutDateFrom { get; set; }
+        public DateTime? StockOutDateTo { get; set; }
+        public string? CustomerName { get; set; }
+        public string? SalesUserName { get; set; }
+        public string? PurchasePn { get; set; }
+        public string? SellOrderItemCode { get; set; }
+    }
+
+    /// <summary><c>stockoutitem</c> 行 + 头表展示字段。</summary>
+    public class StockOutItemListRowDto
+    {
+        public string StockOutItemId { get; set; } = string.Empty;
+        public string StockOutId { get; set; } = string.Empty;
+        public short Status { get; set; }
+        public string StockOutCode { get; set; } = string.Empty;
+        public DateTime StockOutDate { get; set; }
+        public string? CustomerName { get; set; }
+        public string? SalesUserName { get; set; }
+        public string? PurchasePn { get; set; }
+        public string? PurchaseBrand { get; set; }
+        /// <summary>出库数量：优先 <c>ActualQty</c>，否则 <c>Quantity</c></summary>
+        public int OutQuantity { get; set; }
+        public string? ShipmentMethod { get; set; }
+        public string? CourierTrackingNo { get; set; }
+        public string? SellOrderItemCode { get; set; }
     }
 }

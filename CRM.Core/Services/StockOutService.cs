@@ -21,9 +21,11 @@ namespace CRM.Core.Services
     {
         private readonly IRepository<StockOut> _stockOutRepository;
         private readonly IRepository<StockOutItem> _stockOutItemRepository;
+        private readonly IRepository<StockOutItemExtend> _stockOutItemExtendRepository;
         private readonly IRepository<StockOutRequest> _stockOutRequestRepository;
         private readonly IRepository<PickingTask> _pickingTaskRepository;
         private readonly IRepository<StockInfo> _stockRepository;
+        private readonly IRepository<StockItem> _stockItemRepository;
         private readonly IRepository<SellOrder> _sellOrderRepository;
         private readonly IRepository<SellOrderItem> _sellOrderItemRepository;
         private readonly IRepository<CustomerInfo> _customerRepository;
@@ -41,9 +43,11 @@ namespace CRM.Core.Services
         public StockOutService(
             IRepository<StockOut> stockOutRepository,
             IRepository<StockOutItem> stockOutItemRepository,
+            IRepository<StockOutItemExtend> stockOutItemExtendRepository,
             IRepository<StockOutRequest> stockOutRequestRepository,
             IRepository<PickingTask> pickingTaskRepository,
             IRepository<StockInfo> stockRepository,
+            IRepository<StockItem> stockItemRepository,
             IRepository<SellOrder> sellOrderRepository,
             IRepository<SellOrderItem> sellOrderItemRepository,
             IRepository<CustomerInfo> customerRepository,
@@ -60,9 +64,11 @@ namespace CRM.Core.Services
         {
             _stockOutRepository = stockOutRepository;
             _stockOutItemRepository = stockOutItemRepository;
+            _stockOutItemExtendRepository = stockOutItemExtendRepository;
             _stockOutRequestRepository = stockOutRequestRepository;
             _pickingTaskRepository = pickingTaskRepository;
             _stockRepository = stockRepository;
+            _stockItemRepository = stockItemRepository;
             _sellOrderRepository = sellOrderRepository;
             _sellOrderItemRepository = sellOrderItemRepository;
             _customerRepository = customerRepository;
@@ -321,6 +327,38 @@ namespace CRM.Core.Services
         /// <summary>
         /// 执行出库（包含预占 / 拣货 / 确认三个阶段的 FIFO 逻辑）
         /// </summary>
+        private static void ApplyOutboundTakeToStockAndOptionalLayer(
+            StockInfo stock,
+            StockItem? layer,
+            int takeQty,
+            HashSet<StockInfo> changedStocks,
+            HashSet<StockItem> changedLayers)
+        {
+            stock.QtySales += takeQty;
+            stock.QtyRepertoryAvailable -= takeQty;
+            stock.QtySales -= takeQty;
+            stock.QtyOccupy += takeQty;
+            stock.QtyStockOut += takeQty;
+            stock.QtyOccupy -= takeQty;
+            stock.QtyRepertory = stock.Qty - stock.QtyStockOut;
+            stock.QtyRepertoryAvailable = stock.QtyRepertory - stock.QtyOccupy - stock.QtySales;
+            changedStocks.Add(stock);
+
+            if (layer == null)
+                return;
+
+            layer.QtySales += takeQty;
+            layer.QtyRepertoryAvailable -= takeQty;
+            layer.QtySales -= takeQty;
+            layer.QtyOccupy += takeQty;
+            layer.QtyStockOut += takeQty;
+            layer.QtyOccupy -= takeQty;
+            layer.QtyRepertory = layer.QtyInbound - layer.QtyStockOut;
+            layer.QtyRepertoryAvailable = layer.QtyRepertory - layer.QtyOccupy - layer.QtySales;
+            changedLayers.Add(layer);
+            layer.ModifyTime = DateTime.UtcNow;
+        }
+
         public async Task<StockOut> ExecuteStockOutAsync(ExecuteStockOutRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(request.WarehouseId))
@@ -364,7 +402,10 @@ namespace CRM.Core.Services
 
             // 预加载所有库存，避免多次访问数据库
             var allStocks = (await _stockRepository.GetAllAsync()).ToList();
+            var allStockItems = (await _stockItemRepository.GetAllAsync()).ToList();
             var changedStocks = new HashSet<StockInfo>();
+            var changedLayers = new HashSet<StockItem>();
+            var stocksById = allStocks.ToDictionary(s => s.Id, s => s, StringComparer.OrdinalIgnoreCase);
 
             foreach (var item in request.Items)
             {
@@ -376,79 +417,141 @@ namespace CRM.Core.Services
                 if (needQty <= 0)
                     continue;
 
+                var wh = request.WarehouseId.Trim();
+
+                // 优先：在库明细层 FIFO（与入库行 1:1）；若无明细则回退仅汇总层（历史数据）
+                var candidateLayers = allStockItems
+                    .Where(si =>
+                        string.Equals(si.WarehouseId?.Trim(), wh, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(si.SellOrderItemId?.Trim(), sellLineId, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(si.MaterialId?.Trim(), materialId, StringComparison.OrdinalIgnoreCase)
+                        && si.QtyRepertoryAvailable > 0)
+                    .OrderBy(si => si.ProductionDate ?? si.CreateTime)
+                    .ThenBy(si => si.CreateTime)
+                    .ToList();
+
                 // 与拣货任务一致：出库通知销售明细 + 本仓库 + 可用量 > 0（FIFO）
                 var candidateStocks = allStocks
-                    .Where(s => s.WarehouseId == request.WarehouseId
+                    .Where(s => string.Equals(s.WarehouseId?.Trim(), wh, StringComparison.OrdinalIgnoreCase)
                                 && string.Equals(s.SellOrderItemId?.Trim(), sellLineId, StringComparison.OrdinalIgnoreCase)
                                 && s.QtyRepertoryAvailable > 0)
                     .OrderBy(s => s.ProductionDate ?? s.CreateTime)
                     .ThenBy(s => s.CreateTime)
                     .ToList();
 
-                if (!candidateStocks.Any())
+                if (candidateLayers.Count == 0 && !candidateStocks.Any())
                     throw new InvalidOperationException(
                         $"销售明细 {sellLineId} 在仓库 {request.WarehouseId} 无可用库存（物料行「{materialId}」）");
 
                 var remaining = needQty;
 
-                foreach (var stock in candidateStocks)
+                if (candidateLayers.Count > 0)
                 {
-                    if (remaining <= 0)
-                        break;
-
-                    var available = stock.QtyRepertoryAvailable;
-                    if (available <= 0)
-                        continue;
-
-                    var takeQty = Math.Min(remaining, available);
-                    if (takeQty <= 0)
-                        continue;
-
-                    if (!stockOutHeaderRegionCaptured)
+                    foreach (var layer in candidateLayers)
                     {
-                        stockOutHeaderRegionType = RegionTypeCode.Normalize(stock.RegionType);
-                        stockOutHeaderRegionCaptured = true;
+                        if (remaining <= 0)
+                            break;
+                        if (!stocksById.TryGetValue(layer.StockAggregateId, out var stock))
+                            throw new InvalidOperationException(
+                                $"在库明细 {layer.Id} 关联的汇总库存 {layer.StockAggregateId} 不存在，请核对数据");
+
+                        var available = layer.QtyRepertoryAvailable;
+                        if (available <= 0)
+                            continue;
+
+                        var takeQty = Math.Min(remaining, available);
+                        if (takeQty <= 0)
+                            continue;
+
+                        if (!stockOutHeaderRegionCaptured)
+                        {
+                            stockOutHeaderRegionType = RegionTypeCode.Normalize(stock.RegionType);
+                            stockOutHeaderRegionCaptured = true;
+                        }
+
+                        ApplyOutboundTakeToStockAndOptionalLayer(stock, layer, takeQty, changedStocks, changedLayers);
+
+                        var outLine = new StockOutItem
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            StockOutId = stockOutId,
+                            MaterialId = layer.MaterialId,
+                            PurchasePn = string.IsNullOrWhiteSpace(layer.PurchasePn) ? null : layer.PurchasePn.Trim(),
+                            PurchaseBrand = string.IsNullOrWhiteSpace(layer.PurchaseBrand) ? null : layer.PurchaseBrand.Trim(),
+                            Quantity = takeQty,
+                            OrderQty = needQty,
+                            PlanQty = takeQty,
+                            PickQty = takeQty,
+                            ActualQty = takeQty,
+                            Price = 0m,
+                            Amount = 0m,
+                            StockId = stock.Id,
+                            StockItemId = layer.Id,
+                            WarehouseId = stock.WarehouseId,
+                            LocationId = layer.LocationId,
+                            BatchNo = layer.BatchNo,
+                            CreateTime = DateTime.UtcNow
+                        };
+                        await _stockOutItemRepository.AddAsync(outLine);
+                        await _stockOutItemExtendRepository.AddAsync(
+                            BuildStockOutItemExtend(outLine, layer, stock, takeQty));
+
+                        totalQty += takeQty;
+                        remaining -= takeQty;
                     }
-
-                    // ====== 阶段一：销售预占（QtySales / QtyRepertoryAvailable） ======
-                    stock.QtySales += takeQty;
-                    stock.QtyRepertoryAvailable -= takeQty;
-
-                    // ====== 阶段二：拣货占用（QtyOccupy / QtySales） ======
-                    stock.QtySales -= takeQty;
-                    stock.QtyOccupy += takeQty;
-
-                    // ====== 阶段三：出库确认（Qty / QtyStockOut / QtyRepertory / QtyOccupy） ======
-                    stock.QtyStockOut += takeQty;
-                    stock.QtyOccupy -= takeQty;
-                    stock.QtyRepertory = stock.Qty - stock.QtyStockOut;
-                    stock.QtyRepertoryAvailable = stock.QtyRepertory - stock.QtyOccupy - stock.QtySales;
-
-                    changedStocks.Add(stock);
-
-                    // 生成出库明细行，记录具体来自哪条库存
-                    var line = new StockOutItem
+                }
+                else
+                {
+                    foreach (var stock in candidateStocks)
                     {
-                        Id = Guid.NewGuid().ToString(),
-                        StockOutId = stockOutId,
-                        MaterialId = stock.MaterialId,
-                        Quantity = takeQty,
-                        OrderQty = needQty,
-                        PlanQty = takeQty,
-                        PickQty = takeQty,
-                        ActualQty = takeQty,
-                        Price = 0m,
-                        Amount = 0m,
-                        StockId = stock.Id,
-                        WarehouseId = stock.WarehouseId,
-                        LocationId = stock.LocationId,
-                        BatchNo = stock.BatchNo,
-                        CreateTime = DateTime.UtcNow
-                    };
-                    await _stockOutItemRepository.AddAsync(line);
+                        if (remaining <= 0)
+                            break;
 
-                    totalQty += takeQty;
-                    remaining -= takeQty;
+                        var available = stock.QtyRepertoryAvailable;
+                        if (available <= 0)
+                            continue;
+
+                        var takeQty = Math.Min(remaining, available);
+                        if (takeQty <= 0)
+                            continue;
+
+                        if (!stockOutHeaderRegionCaptured)
+                        {
+                            stockOutHeaderRegionType = RegionTypeCode.Normalize(stock.RegionType);
+                            stockOutHeaderRegionCaptured = true;
+                        }
+
+                        ApplyOutboundTakeToStockAndOptionalLayer(stock, null, takeQty, changedStocks, changedLayers);
+
+                        var outLine = new StockOutItem
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            StockOutId = stockOutId,
+                            MaterialId = stock.MaterialId,
+                            PurchasePn = string.IsNullOrWhiteSpace(stock.PurchasePn) ? null : stock.PurchasePn.Trim(),
+                            PurchaseBrand = string.IsNullOrWhiteSpace(stock.PurchaseBrand) ? null : stock.PurchaseBrand.Trim(),
+                            Quantity = takeQty,
+                            OrderQty = needQty,
+                            PlanQty = takeQty,
+                            PickQty = takeQty,
+                            ActualQty = takeQty,
+                            Price = 0m,
+                            Amount = 0m,
+                            StockId = stock.Id,
+                            WarehouseId = stock.WarehouseId,
+                            LocationId = stock.LocationId,
+                            BatchNo = stock.BatchNo,
+                            CreateTime = DateTime.UtcNow
+                        };
+                        await _stockOutItemRepository.AddAsync(outLine);
+                        var pricingLayer = FindPricingStockItemForAggregateOut(
+                            stock, sellLineId, materialId, wh, allStockItems);
+                        await _stockOutItemExtendRepository.AddAsync(
+                            BuildStockOutItemExtend(outLine, null, stock, takeQty, pricingLayer));
+
+                        totalQty += takeQty;
+                        remaining -= takeQty;
+                    }
                 }
 
                 if (remaining > 0)
@@ -459,6 +562,11 @@ namespace CRM.Core.Services
             foreach (var stock in changedStocks)
             {
                 await _stockRepository.UpdateAsync(stock);
+            }
+
+            foreach (var layer in changedLayers)
+            {
+                await _stockItemRepository.UpdateAsync(layer);
             }
 
             // SourceCode 字段最大 32 字符，不能写入 36 位 GUID；完整出库通知 ID 放在 SourceId
@@ -763,6 +871,161 @@ namespace CRM.Core.Services
         }
 
         /// <inheritdoc />
+        public async Task<IEnumerable<StockOutItemListRowDto>> GetStockOutItemListAsync(StockOutItemListQuery? query)
+        {
+            query ??= new StockOutItemListQuery();
+            var items = (await _stockOutItemRepository.GetAllAsync()).ToList();
+            var outById = (await _stockOutRepository.GetAllAsync())
+                .ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
+
+            var lineIdSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var custIdSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var x in items)
+            {
+                if (!outById.TryGetValue(x.StockOutId?.Trim() ?? string.Empty, out var hdr))
+                    continue;
+                if (!string.IsNullOrWhiteSpace(hdr.SellOrderItemId))
+                    lineIdSet.Add(hdr.SellOrderItemId.Trim());
+                if (!string.IsNullOrWhiteSpace(hdr.CustomerId))
+                    custIdSet.Add(hdr.CustomerId.Trim());
+            }
+
+            var itemById = (await _sellOrderItemRepository.GetAllAsync())
+                .Where(x => lineIdSet.Contains(x.Id))
+                .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var orderIdSet = itemById.Values
+                .Select(x => x.SellOrderId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var orderById = (await _sellOrderRepository.GetAllAsync())
+                .Where(x => orderIdSet.Contains(x.Id))
+                .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var o in orderById.Values)
+            {
+                if (!string.IsNullOrWhiteSpace(o.CustomerId))
+                    custIdSet.Add(o.CustomerId.Trim());
+            }
+
+            var customerById = (await _customerRepository.GetAllAsync())
+                .Where(c => custIdSet.Contains(c.Id))
+                .GroupBy(c => c.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var codeNeedle = query.StockOutCode?.Trim();
+            var custNeedle = query.CustomerName?.Trim();
+            var salesNeedle = query.SalesUserName?.Trim();
+            var pnNeedle = query.PurchasePn?.Trim();
+            var soLineCodeNeedle = query.SellOrderItemCode?.Trim();
+            var statusFilter = query.Status;
+
+            var result = new List<StockOutItemListRowDto>();
+            foreach (var line in items)
+            {
+                if (!outById.TryGetValue(line.StockOutId?.Trim() ?? string.Empty, out var hdr))
+                    continue;
+
+                if (statusFilter.HasValue && hdr.Status != statusFilter.Value)
+                    continue;
+                if (!TextContainsOptional(hdr.StockOutCode, codeNeedle))
+                    continue;
+                if (!StockOutDateInRange(hdr.StockOutDate, query.StockOutDateFrom, query.StockOutDateTo))
+                    continue;
+
+                SellOrderItem? soLine = null;
+                if (!string.IsNullOrWhiteSpace(hdr.SellOrderItemId))
+                    itemById.TryGetValue(hdr.SellOrderItemId.Trim(), out soLine);
+
+                SellOrder? so = null;
+                if (soLine != null && !string.IsNullOrWhiteSpace(soLine.SellOrderId))
+                    orderById.TryGetValue(soLine.SellOrderId.Trim(), out so);
+
+                string? customerName = null;
+                if (!string.IsNullOrWhiteSpace(hdr.CustomerId)
+                    && customerById.TryGetValue(hdr.CustomerId.Trim(), out var cust))
+                {
+                    customerName = string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.CustomerName : cust.OfficialName;
+                }
+                else if (so != null)
+                    customerName = so.CustomerName;
+
+                if (!TextContainsOptional(customerName, custNeedle))
+                    continue;
+
+                var salesUserName = so?.SalesUserName;
+                if (!TextContainsOptional(salesUserName, salesNeedle))
+                    continue;
+
+                var sellOrderItemCode = string.IsNullOrWhiteSpace(soLine?.SellOrderItemCode)
+                    ? null
+                    : soLine!.SellOrderItemCode.Trim();
+                if (!TextContainsOptional(sellOrderItemCode, soLineCodeNeedle))
+                    continue;
+
+                var pn = string.IsNullOrWhiteSpace(line.PurchasePn) ? null : line.PurchasePn.Trim();
+                if (!TextContainsOptional(pn, pnNeedle))
+                    continue;
+
+                var outQty = line.ActualQty > 0 ? line.ActualQty : line.Quantity;
+
+                result.Add(new StockOutItemListRowDto
+                {
+                    StockOutItemId = line.Id,
+                    StockOutId = hdr.Id,
+                    Status = hdr.Status,
+                    StockOutCode = hdr.StockOutCode,
+                    StockOutDate = hdr.StockOutDate,
+                    CustomerName = customerName,
+                    SalesUserName = salesUserName,
+                    PurchasePn = pn,
+                    PurchaseBrand = string.IsNullOrWhiteSpace(line.PurchaseBrand) ? null : line.PurchaseBrand.Trim(),
+                    OutQuantity = outQty,
+                    ShipmentMethod = string.IsNullOrWhiteSpace(hdr.ShipmentMethod) ? null : hdr.ShipmentMethod.Trim(),
+                    CourierTrackingNo = string.IsNullOrWhiteSpace(hdr.CourierTrackingNo) ? null : hdr.CourierTrackingNo.Trim(),
+                    SellOrderItemCode = sellOrderItemCode
+                });
+            }
+
+            return result
+                .OrderByDescending(x => x.StockOutDate)
+                .ThenBy(x => x.StockOutCode, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.StockOutItemId, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private static bool TextContainsOptional(string? haystack, string? needleTrimmedOrNull)
+        {
+            if (string.IsNullOrEmpty(needleTrimmedOrNull))
+                return true;
+            if (string.IsNullOrEmpty(haystack))
+                return false;
+            return haystack.Contains(needleTrimmedOrNull, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static DateTime DateStartUtc(DateTime d)
+        {
+            var utc = d.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(d, DateTimeKind.Utc) : d.ToUniversalTime();
+            return utc.Date;
+        }
+
+        private static bool StockOutDateInRange(DateTime stockOutDate, DateTime? from, DateTime? to)
+        {
+            if (!from.HasValue && !to.HasValue)
+                return true;
+            var t = DateStartUtc(stockOutDate);
+            if (from.HasValue && t < DateStartUtc(from.Value))
+                return false;
+            if (to.HasValue && t >= DateStartUtc(to.Value).AddDays(1))
+                return false;
+            return true;
+        }
+
+        /// <inheritdoc />
         public async Task UpdateHeaderAsync(string id, UpdateStockOutHeaderRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id))
@@ -885,6 +1148,97 @@ namespace CRM.Core.Services
                 "[SellLineStockOutSync] UpdateStatus after Recalculate SellOrderItemId={SellOrderItemId} SaveChanges={Rows}",
                 soLineId,
                 saveExtend);
+        }
+
+        /// <summary>每条出库明细对应一条扩展行（主键与 <see cref="StockOutItem.Id"/> 相同）。</summary>
+        /// <param name="lineQty">本条出库数量（与明细 <c>ActualQty</c>/<c>Quantity</c> 一致，本笔为 takeQty）。</param>
+        /// <param name="aggregatePricingLayer">仅汇总层出库时：用于价快照的在库明细（采/销折 USD 与扩展行利润计算同源）。</param>
+        private static StockOutItemExtend BuildStockOutItemExtend(
+            StockOutItem outLine,
+            StockItem? layer,
+            StockInfo stock,
+            int lineQty,
+            StockItem? aggregatePricingLayer = null)
+        {
+            var ext = new StockOutItemExtend
+            {
+                Id = outLine.Id,
+                StockItemId = string.IsNullOrWhiteSpace(outLine.StockItemId) ? null : outLine.StockItemId.Trim(),
+                CreateTime = DateTime.UtcNow,
+                QtyStockOut = lineQty,
+            };
+            if (layer != null)
+            {
+                FillStockOutItemExtendPricingFromLayer(ext, layer, lineQty);
+                return ext;
+            }
+
+            ext.StockType = stock.StockType;
+            ext.SellOrderItemId = string.IsNullOrWhiteSpace(stock.SellOrderItemId) ? null : stock.SellOrderItemId.Trim();
+            ext.SellOrderItemCode = string.IsNullOrWhiteSpace(stock.SellOrderItemCode) ? null : stock.SellOrderItemCode.Trim();
+            ext.PurchaseOrderItemId = string.IsNullOrWhiteSpace(stock.PurchaseOrderItemId) ? null : stock.PurchaseOrderItemId.Trim();
+            ext.PurchaseOrderItemCode = string.IsNullOrWhiteSpace(stock.PurchaseOrderItemCode) ? null : stock.PurchaseOrderItemCode.Trim();
+            if (aggregatePricingLayer != null)
+                FillStockOutItemExtendPricingFromLayer(ext, aggregatePricingLayer, lineQty);
+            else
+            {
+                ext.PurchasePrice = 0m;
+                ext.PurchaseCurrency = (short)CurrencyCode.RMB;
+                ext.PurchasePriceUsd = 0m;
+                ext.SalesPrice = null;
+                ext.SalesCurrency = null;
+                ext.SalesPriceUsd = null;
+                ext.ProfitOutBizUsd = 0m;
+            }
+
+            return ext;
+        }
+
+        /// <summary>
+        /// 扩展行利润与 <see cref="StockItem.ComputeProfitOutBizUsd"/> 公式一致（数量用本条出库量；<see cref="StockItem.ProfitOutBizUsd"/> 为入库 × <c>QtyInbound</c> 快照），
+        /// 数量参数为<strong>本条出库明细的出库数量</strong> <paramref name="lineQty"/>（非层上累计 <c>QtyStockOut</c>）。
+        /// </summary>
+        private static void FillStockOutItemExtendPricingFromLayer(StockOutItemExtend ext, StockItem layer, int lineQty)
+        {
+            ext.StockType = layer.StockType;
+            ext.SellOrderItemId = string.IsNullOrWhiteSpace(layer.SellOrderItemId) ? null : layer.SellOrderItemId.Trim();
+            ext.SellOrderItemCode = string.IsNullOrWhiteSpace(layer.SellOrderItemCode) ? null : layer.SellOrderItemCode.Trim();
+            ext.PurchaseOrderItemId = string.IsNullOrWhiteSpace(layer.PurchaseOrderItemId) ? null : layer.PurchaseOrderItemId.Trim();
+            ext.PurchaseOrderItemCode = string.IsNullOrWhiteSpace(layer.PurchaseOrderItemCode) ? null : layer.PurchaseOrderItemCode.Trim();
+            ext.PurchasePrice = layer.PurchasePrice;
+            ext.PurchaseCurrency = layer.PurchaseCurrency;
+            ext.PurchasePriceUsd = layer.PurchasePriceUsd;
+            ext.SalesPrice = layer.SalesPrice;
+            ext.SalesCurrency = layer.SalesCurrency;
+            ext.SalesPriceUsd = layer.SalesPriceUsd;
+            ext.ProfitOutBizUsd = StockItem.ComputeProfitOutBizUsd(
+                layer.SellOrderItemId,
+                layer.SalesPriceUsd,
+                layer.PurchasePriceUsd,
+                lineQty);
+        }
+
+        /// <summary>汇总层出库无拣货 <c>stockitem</c> 时，找同桶、同销售行、同物料的一条在库明细用于价快照（FIFO 序第一条）。</summary>
+        private static StockItem? FindPricingStockItemForAggregateOut(
+            StockInfo aggregate,
+            string sellOrderItemId,
+            string materialId,
+            string warehouseId,
+            List<StockItem> allStockItems)
+        {
+            var aggId = aggregate.Id.Trim();
+            var line = sellOrderItemId.Trim();
+            var mat = materialId.Trim();
+            var wh = warehouseId.Trim();
+            return allStockItems
+                .Where(si =>
+                    string.Equals(si.StockAggregateId?.Trim(), aggId, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(si.WarehouseId?.Trim(), wh, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(si.SellOrderItemId?.Trim(), line, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(si.MaterialId?.Trim(), mat, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(si => si.ProductionDate ?? si.CreateTime)
+                .ThenBy(si => si.CreateTime)
+                .FirstOrDefault();
         }
     }
 }

@@ -12,6 +12,11 @@ namespace CRM.Core.Interfaces
         /// <summary>按销售明细解析物料键（含关联采购行），汇总全仓库可用库存；用于出库申请展示。</summary>
         Task<SellOrderLineAvailableQtyDto> GetAvailableQtyForSellOrderItemAsync(string sellOrderItemId);
         Task<IEnumerable<InventoryMaterialTraceDto>> GetMaterialTraceAsync(string materialId);
+        /// <summary>某条汇总库存（<c>stock.StockId</c>）下的全部在库明细 <c>stockitem</c>。</summary>
+        Task<IEnumerable<InventoryStockItemRowDto>> GetStockItemsForAggregateAsync(string stockAggregateId);
+
+        /// <summary>全库 <c>stockitem</c> 列表，支持入库单、日期、型号、品牌、出库状态及采销人员等筛选。</summary>
+        Task<IEnumerable<InventoryStockItemListRowDto>> GetStockItemsListAsync(InventoryStockItemListQuery? query);
         Task<InventoryFinanceSummaryDto> GetFinanceSummaryAsync(int stagnantDays = 90);
 
         Task<IEnumerable<WarehouseInfo>> GetWarehousesAsync();
@@ -56,6 +61,77 @@ namespace CRM.Core.Interfaces
         /// <summary>库存金额币别（与最近一次采购入库台账关联的采购单一致；缺省 1=RMB）</summary>
         public short Currency { get; set; } = 1;
         public DateTime? LastMoveTime { get; set; }
+    }
+
+    /// <summary>库存汇总行下钻：单条 <c>stockitem</c> 展示行。</summary>
+    public class InventoryStockItemRowDto
+    {
+        public string StockItemId { get; set; } = string.Empty;
+        public string StockInItemId { get; set; } = string.Empty;
+        public string StockInId { get; set; } = string.Empty;
+        public string? StockInCode { get; set; }
+        public string MaterialId { get; set; } = string.Empty;
+        public string? LocationId { get; set; }
+        public string? BatchNo { get; set; }
+        public DateTime? ProductionDate { get; set; }
+        public string? PurchasePn { get; set; }
+        public string? PurchaseBrand { get; set; }
+        public string? SellOrderItemCode { get; set; }
+        public int QtyInbound { get; set; }
+        public int QtyStockOut { get; set; }
+        public int QtyRepertory { get; set; }
+        public int QtyRepertoryAvailable { get; set; }
+        public int QtyOccupy { get; set; }
+        public int QtySales { get; set; }
+        public decimal PurchasePrice { get; set; }
+        /// <summary>采购单价币别（<see cref="CRM.Core.Constants.CurrencyCode"/>）</summary>
+        public short PurchaseCurrency { get; set; }
+        /// <summary>采购单价折合 USD</summary>
+        public decimal PurchasePriceUsd { get; set; }
+        public decimal? SalesPrice { get; set; }
+        /// <summary>销售单价币别；无销售行时为 null</summary>
+        public short? SalesCurrency { get; set; }
+        /// <summary>销售单价折合 USD；无销售行时为 null</summary>
+        public decimal? SalesPriceUsd { get; set; }
+        public string? VendorName { get; set; }
+        public string? CustomerName { get; set; }
+        public DateTime CreateTime { get; set; }
+    }
+
+    /// <summary>全库库存明细列表行（在 <see cref="InventoryStockItemRowDto"/> 基础上扩展展示/筛选字段）。</summary>
+    public class InventoryStockItemListRowDto : InventoryStockItemRowDto
+    {
+        public DateTime? StockInDate { get; set; }
+        public string? PurchaserName { get; set; }
+        public string? SalespersonName { get; set; }
+        public string StockAggregateId { get; set; } = string.Empty;
+        public string WarehouseId { get; set; } = string.Empty;
+        public string? WarehouseCode { get; set; }
+        /// <summary>出库状态：1=未出库 2=部分出库 3=出库完成（仅 <c>QtyInbound&gt;0</c> 时有意义；否则为 0）</summary>
+        public short OutboundStatus { get; set; }
+
+        /// <summary>入库 USD 价差快照（<c>SalesPriceUsd</c>、<c>PurchasePriceUsd</c> × <c>QtyInbound</c>）；出库利润见 <c>stockoutitemextend</c>。</summary>
+        public decimal ProfitOutBizUsd { get; set; }
+    }
+
+    /// <summary>全库库存明细查询条件（字段为空则不作为筛选）。</summary>
+    public class InventoryStockItemListQuery
+    {
+        public string? StockInCode { get; set; }
+        public DateTime? StockInDateFrom { get; set; }
+        public DateTime? StockInDateTo { get; set; }
+        public string? PurchasePn { get; set; }
+        public string? PurchaseBrand { get; set; }
+        /// <summary>0 或不传=全部；1=未出库；2=部分出库；3=出库完成</summary>
+        public short? OutboundStatus { get; set; }
+        public string? CustomerName { get; set; }
+        public string? VendorName { get; set; }
+        public string? SalespersonName { get; set; }
+        public string? PurchaserName { get; set; }
+        /// <summary>业务员用户主键（与 <c>stockitem</c> 冗余 <c>SalespersonId</c> 一致）；优先于 <see cref="SalespersonName"/> 模糊匹配。</summary>
+        public string? SalespersonUserId { get; set; }
+        /// <summary>采购员用户主键（与 <c>stockitem</c> 冗余 <c>PurchaserId</c> 一致）；优先于 <see cref="PurchaserName"/> 模糊匹配。</summary>
+        public string? PurchaserUserId { get; set; }
     }
 
     public class InventoryMaterialTraceDto

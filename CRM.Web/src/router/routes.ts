@@ -239,6 +239,18 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '库存列表' }
       },
       {
+        path: 'inventory/stock-items',
+        name: 'InventoryStockItemList',
+        component: () => import('@/views/Inventory/InventoryStockItemList.vue'),
+        meta: { requiresAuth: true, title: '库存明细' }
+      },
+      {
+        path: 'inventory/stocks/:stockId',
+        name: 'InventoryStockDetail',
+        component: () => import('@/views/Inventory/InventoryStockDetailPage.vue'),
+        meta: { requiresAuth: true, title: '汇总库存明细' }
+      },
+      {
         path: 'inventory/traces/:materialId',
         name: 'InventoryTrace',
         component: () => import('@/views/Inventory/InventoryTracePage.vue'),
@@ -267,6 +279,12 @@ const routes: RouteRecordRaw[] = [
         name: 'StockOutList',
         component: () => import('@/views/Inventory/StockOutList.vue'),
         meta: { requiresAuth: true, title: '出库单列表' }
+      },
+      {
+        path: 'inventory/stock-out/items',
+        name: 'StockOutItemList',
+        component: () => import('@/views/Inventory/StockOutItemList.vue'),
+        meta: { requiresAuth: true, title: '出库明细' }
       },
       {
         path: 'inventory/stock-out/create',

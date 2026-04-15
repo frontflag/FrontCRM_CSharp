@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Models;
 using CRM.Core.Models.Auth;
 using CRM.Core.Models.Component;
@@ -96,6 +97,8 @@ namespace CRM.Infrastructure.Data
         public DbSet<StockInItem> StockInItems { get; set; } = null!;
         public DbSet<StockOut> StockOuts { get; set; } = null!;
         public DbSet<StockOutItem> StockOutItems { get; set; } = null!;
+        public DbSet<StockOutItemExtend> StockOutItemExtends { get; set; } = null!;
+        public DbSet<StockItem> StockItems { get; set; } = null!;
         public DbSet<StockOutRequest> StockOutRequests { get; set; } = null!;
         public DbSet<StockInNotify> StockInNotifies { get; set; } = null!;
         public DbSet<QCInfo> QCInfos { get; set; } = null!;
@@ -659,6 +662,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.ShipmentMethod).HasMaxLength(64);
                 entity.Property(e => e.CourierTrackingNo).HasMaxLength(128);
                 entity.Property(e => e.RegionType).HasColumnName("RegionType").HasDefaultValue((short)10);
+                entity.Property(e => e.Type).HasColumnName("Type").HasDefaultValue(0);
                 entity.HasMany(e => e.Items).WithOne(e => e.StockOut).HasForeignKey(e => e.StockOutId).OnDelete(DeleteBehavior.Cascade);
             });
 
@@ -667,9 +671,74 @@ namespace CRM.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.StockOutId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.MaterialId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.PurchasePn).HasColumnName("purchase_pn").HasMaxLength(200);
+                entity.Property(e => e.PurchaseBrand).HasColumnName("purchase_brand").HasMaxLength(200);
                 entity.Property(e => e.LocationId).HasMaxLength(36);
                 entity.Property(e => e.BatchNo).HasMaxLength(50);
                 entity.Property(e => e.Remark).HasMaxLength(500);
+                entity.Property(e => e.StockItemId).HasMaxLength(36);
+            });
+
+            modelBuilder.Entity<StockOutItemExtend>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("StockOutItemId");
+                entity.ToTable("stockoutitemextend");
+                entity.Property(e => e.StockItemId).HasMaxLength(36);
+                entity.Property(e => e.StockType).HasColumnName("Type").HasDefaultValue((short)1);
+                entity.Property(e => e.SellOrderItemId).HasColumnName("sell_order_item_id").HasMaxLength(36);
+                entity.Property(e => e.SellOrderItemCode).HasColumnName("sell_order_item_code").HasMaxLength(64);
+                entity.Property(e => e.PurchaseOrderItemId).HasColumnName("purchase_order_item_id").HasMaxLength(36);
+                entity.Property(e => e.PurchaseOrderItemCode).HasColumnName("purchase_order_item_code").HasMaxLength(64);
+                entity.Property(e => e.QtyStockOut).HasDefaultValue(0);
+                entity.Property(e => e.PurchasePrice).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.PurchaseCurrency).HasDefaultValue((short)CurrencyCode.RMB);
+                entity.Property(e => e.PurchasePriceUsd).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.SalesPrice).HasColumnType("numeric(18,6)");
+                entity.Property(e => e.SalesPriceUsd).HasColumnType("numeric(18,6)");
+                entity.Property(e => e.ProfitOutBizUsd).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.HasOne(e => e.StockOutItem)
+                    .WithOne(s => s.Extend)
+                    .HasForeignKey<StockOutItemExtend>(e => e.Id)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<StockItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("stockitem");
+                // stockitem 表无 BaseEntity 的 long CreateUserId/ModifyUserId 列（与 approval_record 等一致）
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.Property(e => e.Id).HasColumnName("StockItemId").HasMaxLength(36);
+                entity.Property(e => e.StockInItemId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.StockInId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.StockAggregateId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.MaterialId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.WarehouseId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.LocationId).HasMaxLength(36);
+                entity.Property(e => e.BatchNo).HasMaxLength(50);
+                entity.Property(e => e.PurchasePn).HasColumnName("purchase_pn").HasMaxLength(200);
+                entity.Property(e => e.PurchaseBrand).HasColumnName("purchase_brand").HasMaxLength(200);
+                entity.Property(e => e.SellOrderItemId).HasColumnName("sell_order_item_id").HasMaxLength(36);
+                entity.Property(e => e.SellOrderItemCode).HasColumnName("sell_order_item_code").HasMaxLength(64);
+                entity.Property(e => e.PurchaseOrderItemId).HasColumnName("purchase_order_item_id").HasMaxLength(36);
+                entity.Property(e => e.PurchaseOrderItemCode).HasColumnName("purchase_order_item_code").HasMaxLength(64);
+                entity.Property(e => e.VendorId).HasMaxLength(36);
+                entity.Property(e => e.VendorName).HasMaxLength(200);
+                entity.Property(e => e.PurchaserId).HasMaxLength(36);
+                entity.Property(e => e.PurchaserName).HasMaxLength(100);
+                entity.Property(e => e.CustomerId).HasMaxLength(36);
+                entity.Property(e => e.CustomerName).HasMaxLength(200);
+                entity.Property(e => e.SalespersonId).HasMaxLength(36);
+                entity.Property(e => e.SalespersonName).HasMaxLength(100);
+                entity.Property(e => e.StockType).HasColumnName("Type").HasDefaultValue((short)1);
+                entity.Property(e => e.RegionType).HasColumnName("RegionType").HasDefaultValue((short)10);
+                entity.HasIndex(e => e.StockInItemId).IsUnique().HasDatabaseName("IX_stockitem_StockInItemId");
+                entity.HasIndex(e => e.StockAggregateId).HasDatabaseName("IX_stockitem_StockAggregateId");
+                entity.Property(e => e.StockOutStatus).HasDefaultValue((short)0);
+                // ProfitOutBizUsd：入库价差 USD × QtyInbound 快照；按行出库利润在 stockoutitemextend.ProfitOutBizUsd
+                entity.Property(e => e.ProfitOutBizUsd).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
             });
 
             modelBuilder.Entity<StockOutRequest>(entity =>
