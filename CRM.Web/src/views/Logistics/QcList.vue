@@ -3,7 +3,7 @@
     <div class="page-header">
       <h2>{{ t('qcList.title') }}</h2>
       <div class="ops">
-        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="loadData">{{ t('qcList.refresh') }}</button>
+        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="refreshQcList">{{ t('qcList.refresh') }}</button>
       </div>
     </div>
 
@@ -65,7 +65,7 @@
       :columns="qcTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-      :data="list"
+      :data="pagedList"
       v-loading="loading"
       @row-dblclick="goView"
     >
@@ -133,6 +133,15 @@
         <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
         <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
+      <el-pagination
+        class="list-main-pagination"
+        v-model:current-page="listPage"
+        v-model:page-size="listPageSize"
+        :total="listTotal"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="listPage = 1"
+      />
     </div>
   </div>
 </template>
@@ -142,7 +151,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
-import { logisticsApi, type QcInfoDto } from '@/api/logistics'
+import { logisticsApi, type QcInfoDto, type StockInNotifyDto } from '@/api/logistics'
 import { stockInApi } from '@/api/stockIn'
 import { inventoryCenterApi } from '@/api/inventoryCenter'
 import { useRouter, useRoute } from 'vue-router'
@@ -157,6 +166,17 @@ const authStore = useAuthStore()
 const { t, locale } = useI18n()
 const loading = ref(false)
 const list = ref<QcInfoDto[]>([])
+const listPage = ref(1)
+const listPageSize = ref(20)
+const listTotal = computed(() => list.value.length)
+const pagedList = computed(() => {
+  const start = (listPage.value - 1) * listPageSize.value
+  return list.value.slice(start, start + listPageSize.value)
+})
+watch(listTotal, () => {
+  const maxP = Math.max(1, Math.ceil(listTotal.value / listPageSize.value) || 1)
+  if (listPage.value > maxP) listPage.value = maxP
+})
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
@@ -233,6 +253,29 @@ const getYYMMDD = (d: Date) => {
 }
 const random4 = () => String(Math.floor(Math.random() * 10000)).padStart(4, '0')
 
+/** 日历日转 UTC 正午，减少仅日期字符串在展示时被时区偏移一天 */
+const isoDateAtUtcNoon = (yMd: string) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(yMd.trim())
+  if (!m) return ''
+  return `${m[1]}-${m[2]}-${m[3]}T12:00:00.000Z`
+}
+
+const resolveStockInDateIso = (row: QcInfoDto, notice: StockInNotifyDto | undefined) => {
+  const plan = (row.stockInPlanDate || '').trim()
+  if (plan) {
+    const day = plan.includes('T') ? plan.slice(0, 10) : plan.slice(0, 10)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(day)) return isoDateAtUtcNoon(day)
+    const d = new Date(plan)
+    if (!Number.isNaN(d.getTime())) return d.toISOString()
+  }
+  const exp = (notice?.expectedArrivalDate || '').trim()
+  if (exp) {
+    const day = exp.includes('T') ? exp.slice(0, 10) : exp.slice(0, 10)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(day)) return isoDateAtUtcNoon(day)
+  }
+  return new Date().toISOString()
+}
+
 const qcText = (s: number) => {
   const keyMap: Record<number, 'failed' | 'partial' | 'passed'> = {
     [-1]: 'failed',
@@ -274,17 +317,31 @@ function syncFiltersFromRoute() {
   filters.value.salesOrderCode = typeof q.salesOrderCode === 'string' ? q.salesOrderCode : ''
 }
 
-const loadData = () => {
+function applyQcList(resetPage: boolean) {
+  if (resetPage) listPage.value = 1
   loading.value = true
-  logisticsApi.getQcs({
-    model: filters.value.model || undefined,
-    vendorName: filters.value.vendorName || undefined,
-    purchaseOrderCode: filters.value.purchaseOrderCode || undefined,
-    salesOrderCode: filters.value.salesOrderCode || undefined,
-  })
-    .then(res => { list.value = (res || []).sort((a, b) => (a.createTime < b.createTime ? 1 : -1)) })
-    .finally(() => { loading.value = false })
+  logisticsApi
+    .getQcs({
+      model: filters.value.model || undefined,
+      vendorName: filters.value.vendorName || undefined,
+      purchaseOrderCode: filters.value.purchaseOrderCode || undefined,
+      salesOrderCode: filters.value.salesOrderCode || undefined
+    })
+    .then(res => {
+      list.value = (res || []).sort((a, b) => (a.createTime < b.createTime ? 1 : -1))
+    })
+    .catch((e: unknown) => {
+      console.error(e)
+      list.value = []
+      ElMessage.error(getApiErrorMessage(e, t('qcList.messages.loadFailed')))
+    })
+    .finally(() => {
+      loading.value = false
+    })
 }
+
+const loadData = () => applyQcList(true)
+const refreshQcList = () => applyQcList(false)
 
 watch(
   () => [route.name, route.query] as const,
@@ -383,10 +440,12 @@ const createStockIn = async (row: QcInfoDto) => {
     const payload = {
       stockInCode: `SI${getYYMMDD(new Date())}${random4()}`,
       purchaseOrderId: notice.purchaseOrderId,
+      stockInNotifyId: row.stockInNotifyId,
+      qcId: row.id,
       vendorId: notice.vendorId,
       warehouseId,
       ...(uid && uid !== '0' ? { operatorId: uid } : {}),
-      stockInDate: new Date().toISOString(),
+      stockInDate: resolveStockInDateIso(row, notice),
       totalQuantity: Number(items.reduce((s, x) => s + Number(x.quantity || 0), 0).toFixed(4)),
       remark: t('qcList.messages.remarkFromQc', { code: row.qcCode }),
       items
@@ -396,10 +455,11 @@ const createStockIn = async (row: QcInfoDto) => {
     if (!stockInId) {
       throw new Error(t('qcList.messages.createStockInFailedNoId'))
     }
+    // 须先绑定质检单再完成入库：HandleStockInCompletedAsync 依赖 qc.StockInId 命中行以回写 StockInStatus / 到货通知
+    await logisticsApi.bindQcStockIn(row.id, stockInId)
     // 质检生成的入库单默认直接完成入库，触发库存中心过账
     await stockInApi.updateStatus(stockInId, 2)
-    await logisticsApi.bindQcStockIn(row.id, stockInId)
-    loadData()
+    applyQcList(false)
     ElMessage.success(t('qcList.messages.successPosted'))
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, t('qcList.messages.stockInErrorFallback')))
@@ -577,6 +637,12 @@ const createStockIn = async (row: QcInfoDto) => {
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.list-main-pagination {
+  margin-left: auto;
 }
 
 .list-footer-left {

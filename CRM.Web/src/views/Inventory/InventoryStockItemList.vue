@@ -12,16 +12,18 @@
           </div>
           <h1 class="page-title">{{ t('inventoryStockItemList.title') }}</h1>
         </div>
-        <div class="count-badge">{{ t('inventoryStockItemList.count', { count: list.length }) }}</div>
+        <div class="count-badge">{{ t('inventoryStockItemList.count', { count: listTotal }) }}</div>
       </div>
     </div>
 
     <div class="search-bar">
-      <div class="search-left search-left--wrap">
+      <div class="search-left">
+        <span class="list-title">{{ t('inventoryStockItemList.filters.title') }}</span>
+        <span class="filter-field-label">{{ t('inventoryStockItemList.filters.outboundStatus') }}</span>
         <el-select
           v-model="filters.outboundStatus"
           clearable
-          :placeholder="t('inventoryStockItemList.filters.outboundStatus')"
+          :placeholder="t('inventoryStockItemList.filters.outboundStatusAll')"
           class="filter-select"
           :teleported="false"
         >
@@ -109,53 +111,133 @@
       </div>
     </div>
 
-    <CrmDataTable :data="list" v-loading="loading" @row-dblclick="onRowDblclick">
-      <el-table-column :label="t('inventoryStockItemList.columns.outboundStatus')" width="110" align="center">
-        <template #default="{ row }">{{ outboundLabel(row.outboundStatus) }}</template>
-      </el-table-column>
-      <el-table-column prop="stockInCode" :label="t('inventoryStockItemList.columns.stockInCode')" width="150" show-overflow-tooltip />
-      <el-table-column :label="t('inventoryStockItemList.columns.stockInDate')" width="118">
-        <template #default="{ row }">{{ formatDateOnly(row.stockInDate) }}</template>
-      </el-table-column>
-      <el-table-column :label="t('inventoryStockItemList.columns.warehouse')" min-width="120" show-overflow-tooltip>
-        <template #default="{ row }">{{ warehouseCell(row) }}</template>
-      </el-table-column>
-      <el-table-column prop="purchasePn" :label="t('inventoryStockItemList.columns.purchasePn')" min-width="130" show-overflow-tooltip />
-      <el-table-column prop="purchaseBrand" :label="t('inventoryStockItemList.columns.purchaseBrand')" min-width="100" show-overflow-tooltip />
-      <el-table-column prop="qtyInbound" :label="t('inventoryStockItemList.columns.qtyInbound')" width="88" align="right" />
-      <el-table-column prop="qtyStockOut" :label="t('inventoryStockItemList.columns.qtyStockOut')" width="88" align="right" />
-      <el-table-column prop="qtyRepertory" :label="t('inventoryStockItemList.columns.qtyRepertory')" width="88" align="right" />
-      <el-table-column prop="customerName" :label="t('inventoryStockItemList.columns.customerName')" min-width="120" show-overflow-tooltip />
-      <el-table-column prop="vendorName" :label="t('inventoryStockItemList.columns.vendorName')" min-width="120" show-overflow-tooltip />
-      <el-table-column prop="salespersonName" :label="t('inventoryStockItemList.columns.salespersonName')" width="100" show-overflow-tooltip />
-      <el-table-column prop="purchaserName" :label="t('inventoryStockItemList.columns.purchaserName')" width="100" show-overflow-tooltip />
-      <el-table-column prop="sellOrderItemCode" :label="t('inventoryStockItemList.columns.sellOrderItemCode')" width="120" show-overflow-tooltip />
-      <el-table-column prop="batchNo" :label="t('inventoryStockItemList.columns.batchNo')" width="100" show-overflow-tooltip />
-      <el-table-column prop="locationId" :label="t('inventoryStockItemList.columns.locationId')" min-width="100" show-overflow-tooltip />
-      <el-table-column :label="t('inventoryStockItemList.columns.profitOutBizUsd')" width="120" align="right">
-        <template #default="{ row }">{{
-          row.profitOutBizUsd != null ? `$${Number(row.profitOutBizUsd).toFixed(2)}` : '—'
-        }}</template>
-      </el-table-column>
+    <CrmDataTable
+      ref="dataTableRef"
+      class="inventory-stock-item-list-crm-table"
+      column-layout-key="inventory-stock-item-list-main"
+      :columns="stockItemTableColumns"
+      :show-column-settings="false"
+      :density-toggle-anchor-el="rowDensityToggleAnchorEl"
+      :data="pagedList"
+      v-loading="loading"
+      @row-dblclick="onRowDblclick"
+    >
+      <template #col-outboundStatus="{ row }">{{ outboundLabel(row.outboundStatus) }}</template>
+      <template #col-stockInDate="{ row }">
+        <template v-for="p in [formatDisplayDateTime2DigitYearParts(row.stockInDate)]" :key="'sid-' + row.stockItemId">
+          <span v-if="!p" class="inv-list-dash">—</span>
+          <span v-else-if="isTimeMidnightOnly(p.time)" class="crm-quote-create-time">
+            <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+          </span>
+          <span v-else class="crm-quote-create-time">
+            <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+            <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+          </span>
+        </template>
+      </template>
+      <template #col-warehouse="{ row }">{{ warehouseCell(row) }}</template>
+      <template #col-qtyInbound="{ row }">
+        <span class="inv-list-qty">{{ formatQtyCell(row.qtyInbound) }}</span>
+      </template>
+      <template #col-qtyStockOut="{ row }">
+        <span class="inv-list-qty">{{ formatQtyCell(row.qtyStockOut) }}</span>
+      </template>
+      <template #col-qtyRepertory="{ row }">
+        <span class="inv-list-qty">{{ formatQtyCell(row.qtyRepertory) }}</span>
+      </template>
+      <template #col-profitOutBizUsd="{ row }">
+        <template v-if="row.profitOutBizUsd == null">
+          <span class="inv-list-dash">—</span>
+        </template>
+        <div v-else class="inv-list-amount-cell dock-tier-price-line">
+          <template v-for="amt in [splitUsdMoneyParts(Number(row.profitOutBizUsd))]" :key="'p-' + row.stockItemId">
+            <span class="inv-list-amt">
+              <span class="inv-list-amt-int">{{ amt.intPart }}</span><span class="inv-list-amt-frac">{{ amt.fracPart }}</span>
+            </span>
+          </template>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+        </div>
+      </template>
     </CrmDataTable>
+    <div class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+          <el-button
+            class="list-settings-btn"
+            link
+            type="primary"
+            :aria-label="t('systemUser.colSetting')"
+            @click="dataTableRef?.openColumnSettings?.()"
+          >
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
+        <div class="list-footer-spacer" aria-hidden="true"></div>
+      </div>
+      <el-pagination
+        class="list-main-pagination"
+        v-model:current-page="listPage"
+        v-model:page-size="listPageSize"
+        :total="listTotal"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="listPage = 1"
+      />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import CrmDataTable from '@/components/CrmDataTable.vue'
+import { Setting } from '@element-plus/icons-vue'
 import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
 import { inventoryCenterApi, type StockItemListQuery, type StockItemListRow } from '@/api/inventoryCenter'
 import { getApiErrorMessage } from '@/utils/apiError'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const { t } = useI18n()
+const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
+const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const loading = ref(false)
 const list = ref<StockItemListRow[]>([])
+const listPage = ref(1)
+const listPageSize = ref(20)
+const listTotal = computed(() => list.value.length)
+const pagedList = computed(() => {
+  const start = (listPage.value - 1) * listPageSize.value
+  return list.value.slice(start, start + listPageSize.value)
+})
+watch(listTotal, () => {
+  const maxP = Math.max(1, Math.ceil(listTotal.value / listPageSize.value) || 1)
+  if (listPage.value > maxP) listPage.value = maxP
+})
+
+const stockItemTableColumns = computed<CrmTableColumnDef[]>(() => [
+  { key: 'outboundStatus', label: t('inventoryStockItemList.columns.outboundStatus'), width: 110, align: 'center' },
+  { key: 'stockInCode', label: t('inventoryStockItemList.columns.stockInCode'), prop: 'stockInCode', width: 150, showOverflowTooltip: true },
+  { key: 'stockInDate', label: t('inventoryStockItemList.columns.stockInDate'), prop: 'stockInDate', width: 118 },
+  { key: 'warehouse', label: t('inventoryStockItemList.columns.warehouse'), minWidth: 120, showOverflowTooltip: true },
+  { key: 'purchasePn', label: t('inventoryStockItemList.columns.purchasePn'), prop: 'purchasePn', minWidth: 130, showOverflowTooltip: true },
+  { key: 'purchaseBrand', label: t('inventoryStockItemList.columns.purchaseBrand'), prop: 'purchaseBrand', minWidth: 100, showOverflowTooltip: true },
+  { key: 'qtyInbound', label: t('inventoryStockItemList.columns.qtyInbound'), prop: 'qtyInbound', width: 88, align: 'right' },
+  { key: 'qtyStockOut', label: t('inventoryStockItemList.columns.qtyStockOut'), prop: 'qtyStockOut', width: 88, align: 'right' },
+  { key: 'qtyRepertory', label: t('inventoryStockItemList.columns.qtyRepertory'), prop: 'qtyRepertory', width: 88, align: 'right' },
+  { key: 'customerName', label: t('inventoryStockItemList.columns.customerName'), prop: 'customerName', minWidth: 120, showOverflowTooltip: true },
+  { key: 'vendorName', label: t('inventoryStockItemList.columns.vendorName'), prop: 'vendorName', minWidth: 120, showOverflowTooltip: true },
+  { key: 'salespersonName', label: t('inventoryStockItemList.columns.salespersonName'), prop: 'salespersonName', width: 100, showOverflowTooltip: true },
+  { key: 'purchaserName', label: t('inventoryStockItemList.columns.purchaserName'), prop: 'purchaserName', width: 100, showOverflowTooltip: true },
+  { key: 'sellOrderItemCode', label: t('inventoryStockItemList.columns.sellOrderItemCode'), prop: 'sellOrderItemCode', width: 120, showOverflowTooltip: true },
+  { key: 'batchNo', label: t('inventoryStockItemList.columns.batchNo'), prop: 'batchNo', width: 100, showOverflowTooltip: true },
+  { key: 'locationId', label: t('inventoryStockItemList.columns.locationId'), prop: 'locationId', minWidth: 100, showOverflowTooltip: true },
+  { key: 'profitOutBizUsd', label: t('inventoryStockItemList.columns.profitOutBizUsd'), prop: 'profitOutBizUsd', width: 148, align: 'right' }
+])
 const dateFrom = ref<string | null>(null)
 const dateTo = ref<string | null>(null)
 const salesUsers = ref<SalesUserSelectOption[]>([])
@@ -197,7 +279,8 @@ function buildQuery(): StockItemListQuery {
   }
 }
 
-const fetchList = async () => {
+async function runStockItemFetch(resetPage: boolean) {
+  if (resetPage) listPage.value = 1
   loading.value = true
   try {
     list.value = await inventoryCenterApi.searchStockItems(buildQuery())
@@ -209,6 +292,8 @@ const fetchList = async () => {
     loading.value = false
   }
 }
+
+const fetchList = () => void runStockItemFetch(true)
 
 const resetFilters = () => {
   filters.stockInCode = ''
@@ -224,9 +309,33 @@ const resetFilters = () => {
   void fetchList()
 }
 
-const formatDateOnly = (v?: string | null) => {
-  if (!v) return t('quoteList.na')
-  return formatDisplayDateTime(v).split(/\s+/)[0] || t('quoteList.na')
+/** 仅日期（无时区时刻）时入库日常为 00:00，不重复展示时分 */
+function isTimeMidnightOnly(time: string) {
+  const t0 = (time || '').trim()
+  return t0 === '00:00' || t0.startsWith('00:00:')
+}
+
+/** 数量列：与《业务列表规范》§3.2 一致 */
+const formatQtyCell = (v: unknown) => {
+  if (v == null || v === '') return '—'
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  return n.toLocaleString('zh-CN')
+}
+
+const splitUsdMoneyParts = (n: number): { intPart: string; fracPart: string } => {
+  const parts = new Intl.NumberFormat('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).formatToParts(n)
+  let intPart = ''
+  let fracPart = ''
+  for (const p of parts) {
+    if (p.type === 'integer' || p.type === 'group') intPart += p.value
+    else if (p.type === 'decimal' || p.type === 'fraction') fracPart += p.value
+  }
+  if (!fracPart) fracPart = '.00'
+  return { intPart, fracPart }
 }
 
 const outboundLabel = (s: number) => {
@@ -240,7 +349,7 @@ const warehouseCell = (row: StockItemListRow) => {
   const code = row.warehouseCode?.trim()
   const id = row.warehouseId?.trim()
   if (code && id) return `${code} · ${id}`
-  return code || id || t('quoteList.na')
+  return code || id || '—'
 }
 
 const onRowDblclick = (row: StockItemListRow) => {
@@ -318,14 +427,68 @@ onMounted(async () => {
 }
 
 .search-bar {
-  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
 .search-left {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+}
+
+.list-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $text-primary;
+  white-space: nowrap;
+}
+
+.filter-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
+  white-space: nowrap;
+}
+
+.inv-list-qty {
+  font-weight: 700;
+  color: #27292c;
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-theme='dark'] .inv-list-qty {
+  color: $text-primary;
+}
+
+.inv-list-dash {
+  color: $text-muted;
+}
+
+.inv-list-amount-cell {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  width: 100%;
+  font-size: 12px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.inv-list-amt-int,
+.inv-list-amt-frac {
+  font-weight: 700;
+  color: #27292c;
+}
+
+html[data-theme='dark'] .inv-list-amt-int,
+html[data-theme='dark'] .inv-list-amt-frac {
+  color: $text-primary;
 }
 
 .search-input--filter {
@@ -412,5 +575,41 @@ onMounted(async () => {
   background: transparent;
   border-color: $border-panel;
   color: $text-secondary;
+}
+
+.pagination-wrapper {
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.list-main-pagination {
+  margin-left: auto;
+}
+
+.list-footer-left {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
+.list-footer-density-anchor {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+}
+
+.list-footer-spacer {
+  width: 26px;
+  flex: 0 0 26px;
 }
 </style>

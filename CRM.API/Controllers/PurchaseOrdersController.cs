@@ -386,6 +386,22 @@ namespace CRM.API.Controllers
             return summary.PermissionCodes.Any(c => string.Equals(c, code, StringComparison.OrdinalIgnoreCase));
         }
 
+        /// <summary>
+        /// 主单 <see cref="PurchaseOrder.Currency"/> 与明细 <see cref="PurchaseOrderItem.Currency"/> 不一致时，
+        /// 对外展示的总金额币别应与明细一致（未取消明细仅一种币别时采用该币别；无明细或多币别仍用主单）。
+        /// </summary>
+        private static short ResolvePurchaseOrderHeaderCurrency(
+            CRM.Core.Models.Purchase.PurchaseOrder order,
+            List<CRM.Core.Models.Purchase.PurchaseOrderItem> itemList,
+            short lineCancelledStatus)
+        {
+            var active = itemList.Where(i => i.Status != lineCancelledStatus).ToList();
+            if (active.Count == 0) return order.Currency;
+            var distinct = active.Select(i => i.Currency).Distinct().ToList();
+            if (distinct.Count == 1) return distinct[0];
+            return order.Currency;
+        }
+
         private object MaskPurchaseOrder(
             CRM.Core.Models.Purchase.PurchaseOrder order,
             UserPermissionSummaryDto? summary,
@@ -408,6 +424,7 @@ namespace CRM.API.Controllers
             const short poOrderCancelled = -2;
             const short poLineCancelled = -2;
             var itemList = (order.Items ?? Enumerable.Empty<CRM.Core.Models.Purchase.PurchaseOrderItem>()).ToList();
+            var displayCurrency = ResolvePurchaseOrderHeaderCurrency(order, itemList, poLineCancelled);
             var poOrderCanceled = order.Status == poOrderCancelled;
             var sellLinePurchaseSum = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
             if (!poOrderCanceled && itemList.Count > 0)
@@ -435,7 +452,7 @@ namespace CRM.API.Controllers
                 order.PurchaseUserName,
                 order.Status,
                 order.Type,
-                order.Currency,
+                Currency = displayCurrency,
                 Total = canViewPurchaseAmount ? order.Total : 0m,
                 ConvertTotal = canViewPurchaseAmount ? order.ConvertTotal : 0m,
                 order.ItemRows,

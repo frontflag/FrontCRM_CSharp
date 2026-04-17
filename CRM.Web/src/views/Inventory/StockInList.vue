@@ -56,7 +56,7 @@
       :columns="stockInTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-      :data="filteredList"
+      :data="pagedFilteredList"
       v-loading="loading"
       @row-dblclick="handleView"
     >
@@ -132,6 +132,15 @@
         <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
         <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
+      <el-pagination
+        class="list-main-pagination"
+        v-model:current-page="listPage"
+        v-model:page-size="listPageSize"
+        :total="filteredListTotal"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="listPage = 1"
+      />
     </div>
 
     <el-dialog v-model="remarkDialogVisible" :title="t('stockInList.actions.editRemark')" width="420px">
@@ -161,6 +170,8 @@ const route = useRoute()
 const { t } = useI18n()
 const loading = ref(false)
 const list = ref<StockInListItemDto[]>([])
+const listPage = ref(1)
+const listPageSize = ref(20)
 const warehouses = ref<WarehouseInfo[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
@@ -188,6 +199,7 @@ const stockInTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'remark', label: t('stockInList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
   { key: 'stockInCode', label: t('stockInList.columns.stockInCode'), prop: 'stockInCode', width: 160, minWidth: 160, showOverflowTooltip: true },
   { key: 'sourceDisplayNo', label: t('stockInList.columns.sourceCode'), prop: 'sourceDisplayNo', width: 160, showOverflowTooltip: true },
+  { key: 'purchaseOrderCode', label: t('stockInList.columns.purchaseOrderCode'), prop: 'purchaseOrderCode', minWidth: 160, showOverflowTooltip: true },
   { key: 'salesOrderCode', label: t('stockInList.columns.salesOrderCode'), prop: 'salesOrderCode', minWidth: 170, showOverflowTooltip: true },
   { key: 'createTime', label: t('stockInList.columns.createTime'), width: 160 },
   { key: 'createUser', label: t('stockInList.columns.createUser'), width: 120, showOverflowTooltip: true },
@@ -275,7 +287,8 @@ function syncFiltersFromRoute() {
   filters.salesOrderCode = typeof q.salesOrderCode === 'string' ? q.salesOrderCode : ''
 }
 
-const fetchList = async () => {
+const fetchList = async (resetPage = true) => {
+  if (resetPage) listPage.value = 1
   loading.value = true
   try {
     if (!warehouses.value.length) {
@@ -303,7 +316,7 @@ watch(
   () => [route.name, route.query] as const,
   () => {
     syncFiltersFromRoute()
-    if (route.name === 'StockInList') fetchList()
+    if (route.name === 'StockInList') void fetchList(true)
   },
   { deep: true, immediate: true }
 )
@@ -347,6 +360,18 @@ const filteredList = computed(() => {
   })
 })
 
+const filteredListTotal = computed(() => filteredList.value.length)
+const pagedFilteredList = computed(() => {
+  const rows = filteredList.value
+  const start = (listPage.value - 1) * listPageSize.value
+  return rows.slice(start, start + listPageSize.value)
+})
+
+watch(filteredListTotal, () => {
+  const maxP = Math.max(1, Math.ceil(filteredListTotal.value / listPageSize.value) || 1)
+  if (listPage.value > maxP) listPage.value = maxP
+})
+
 const resetFilters = () => {
   filters.model = ''
   filters.vendorName = ''
@@ -371,7 +396,7 @@ const submitRemark = async () => {
     await stockInApi.update(remarkForm.id, { remark: remarkForm.remark })
     ElMessage.success(t('stockInList.messages.remarkUpdated'))
     remarkDialogVisible.value = false
-    fetchList()
+    void fetchList(false)
   } catch (e) {
     console.error(e)
     ElMessage.error(t('stockInList.messages.remarkUpdateFailed'))
@@ -382,7 +407,7 @@ const handleFinish = async (row: StockInListItemDto) => {
   try {
     await stockInApi.updateStatus(row.id, 2)
     ElMessage.success(t('stockInList.messages.markDoneSuccess'))
-    fetchList()
+    void fetchList(false)
   } catch (e) {
     console.error(e)
     ElMessage.error(t('stockInList.messages.updateStatusFailed'))
@@ -579,6 +604,12 @@ const handleFinish = async (row: StockInListItemDto) => {
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.list-main-pagination {
+  margin-left: auto;
 }
 
 .list-footer-left {

@@ -54,6 +54,12 @@ namespace CRM.Core.Interfaces
         public const string QcRecord = "QcRecord";           // 质检 QC
         public const string PaymentRequest = "PaymentRequest"; // 请款 PAYR
         public const string FinancePayment = "FinancePayment"; // 财务付款 PAY
+        /// <summary>移库单 STF（报关迁库等）。</summary>
+        public const string StockTransfer = "StockTransfer";
+        /// <summary>报关单 CDS。</summary>
+        public const string CustomsDeclaration = "CustomsDeclaration";
+        /// <summary>报关公司 CBR。</summary>
+        public const string CustomsBroker = "CustomsBroker";
         // 以上前缀 + 5 位 32 进制数值位，由 SerialNumberService 拼接
     }
 }

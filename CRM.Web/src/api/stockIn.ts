@@ -85,6 +85,8 @@ export interface StockInListItemDto {
   warehouseId: string
   vendorId?: string
   vendorName?: string
+  /** 采购订单号（列表接口由采购头解析） */
+  purchaseOrderCode?: string | null
   salesOrderCode?: string
   /** 列表汇总：物料型号（多行逗号分隔） */
   materialModelSummary?: string | null
@@ -110,9 +112,9 @@ export const stockInApi = {
     salesOrderCode?: string
   }): Promise<StockInListItemDto[]> {
     const res = await apiClient.get<any>('/api/v1/stock-in', { params })
-    if (res && typeof res === 'object' && 'data' in res && Array.isArray(res.data))
-      return res.data as StockInListItemDto[]
-    return Array.isArray(res) ? res : []
+    // 与 inventoryCenter 等一致：兼容拦截器已解包为数组，或仍带一层 data
+    const payload = res?.data ?? res
+    return Array.isArray(payload) ? (payload as StockInListItemDto[]) : []
   },
 
   async getById(id: string): Promise<StockInDto | null> {

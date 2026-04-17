@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using CRM.Core.Constants;
 using CRM.Core.Models.Inventory;
 
@@ -23,8 +24,21 @@ namespace CRM.Core.Interfaces
         Task<WarehouseInfo> SaveWarehouseAsync(WarehouseInfo warehouse);
 
         Task<IEnumerable<PickingTaskSummaryDto>> GetPickingTasksAsync(short? status = null);
+        /// <summary>仅创建拣货任务壳；明细由 <see cref="SavePickingTaskItemsAsync"/> 写入。</summary>
         Task<PickingTask> GeneratePickingTaskAsync(GeneratePickingTaskRequest request);
         Task CompletePickingTaskAsync(string taskId);
+
+        /// <summary>待拣货候选 <c>stockitem</c>（客单绑定 + 备货 PN/品牌匹配），FIFO 仅排序。</summary>
+        Task<IReadOnlyList<PickingStockItemCandidateDto>> GetPickingCandidateStockItemsAsync(string stockOutRequestId, string warehouseId);
+
+        /// <summary>未完成拣货前保存/覆盖拣货明细；数量之和须等于出库通知数量。</summary>
+        Task SavePickingTaskItemsAsync(string pickingTaskId, IReadOnlyList<SavePickingTaskItemLineRequest> lines);
+
+        /// <summary>拣货单列表行（出库通知 + 销售订单 + 仓库等展示字段）。</summary>
+        Task<IReadOnlyList<PickingTaskListItemDto>> GetPickingTaskListRowsAsync();
+
+        /// <summary>拣货单详情（列表头字段 + 明细行）。</summary>
+        Task<PickingTaskDetailViewDto?> GetPickingTaskDetailForUiAsync(string pickingTaskId);
 
         Task<IEnumerable<InventoryCountPlan>> GetCountPlansAsync();
         Task<InventoryCountPlan> CreateMonthlyCountPlanAsync(CreateCountPlanRequest request);
@@ -167,6 +181,8 @@ namespace CRM.Core.Interfaces
         public string Id { get; set; } = string.Empty;
         public string MaterialId { get; set; } = string.Empty;
         public string? StockId { get; set; }
+        /// <summary>在库明细 <c>stockitem</c> 主键（新流程）。</summary>
+        public string? StockItemId { get; set; }
         /// <summary>对应库存行类型 1客单 2备货 3样品；无库存记录时可为空</summary>
         public short? StockType { get; set; }
         public int PlanQty { get; set; }
@@ -194,11 +210,42 @@ namespace CRM.Core.Interfaces
         public List<PickingTaskLineDto> Items { get; set; } = new();
     }
 
+    /// <summary>拣货单列表（主从拣货任务 + 出库通知/订单展示列）。</summary>
+    public class PickingTaskListItemDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public short Status { get; set; }
+        public string WarehouseId { get; set; } = string.Empty;
+        /// <summary>仓库名称（编码）展示</summary>
+        public string? WarehouseDisplay { get; set; }
+        public string? MaterialModel { get; set; }
+        public string? Brand { get; set; }
+        public string? CustomerName { get; set; }
+        public string? SalesUserName { get; set; }
+        /// <summary>拣货计划数量合计</summary>
+        public int PlanQtyTotal { get; set; }
+        public int LineCount { get; set; }
+        public string? StockOutRequestCode { get; set; }
+        public string TaskCode { get; set; } = string.Empty;
+        public DateTime CreateTime { get; set; }
+        /// <summary>生成拣货任务时的操作人（OperatorId 解析）</summary>
+        public string? CreateUserDisplay { get; set; }
+    }
+
+    /// <summary>拣货单详情（含明细行）。</summary>
+    public class PickingTaskDetailViewDto : PickingTaskListItemDto
+    {
+        public string? Remark { get; set; }
+        public List<short> DistinctStockTypes { get; set; } = new();
+        public List<PickingTaskLineDto> Items { get; set; } = new();
+    }
+
     public class GeneratePickingTaskRequest
     {
         public string StockOutRequestId { get; set; } = string.Empty;
         public string WarehouseId { get; set; } = string.Empty;
         public string OperatorId { get; set; } = string.Empty;
+        /// <summary>已废弃自动拆行；可传空列表，明细仅由 <see cref="IInventoryCenterService.SavePickingTaskItemsAsync"/> 维护。</summary>
         public List<GeneratePickingTaskItemRequest> Items { get; set; } = new();
     }
 
@@ -206,6 +253,33 @@ namespace CRM.Core.Interfaces
     {
         public string MaterialId { get; set; } = string.Empty;
         public int Quantity { get; set; }
+    }
+
+    /// <summary>拣货候选在库明细行（FIFO 排序用字段由服务端填充）。</summary>
+    public class PickingStockItemCandidateDto
+    {
+        public string StockItemId { get; set; } = string.Empty;
+        public string StockAggregateId { get; set; } = string.Empty;
+        public string MaterialId { get; set; } = string.Empty;
+        public int AvailableQty { get; set; }
+        public short StockType { get; set; }
+        public string? PurchasePn { get; set; }
+        public string? PurchaseBrand { get; set; }
+        public string? LocationId { get; set; }
+        public string? BatchNo { get; set; }
+        public string WarehouseId { get; set; } = string.Empty;
+        public DateTime? ProductionDate { get; set; }
+        public DateTime CreateTime { get; set; }
+        /// <summary>true 表示备货池命中（非本销售行强绑定的备货桶）。</summary>
+        public bool IsStockingCandidate { get; set; }
+    }
+
+    public class SavePickingTaskItemLineRequest
+    {
+        public string StockItemId { get; set; } = string.Empty;
+        /// <summary>汇总桶 <c>stock.Id</c>，须与 <c>stockitem.StockAggregateId</c> 一致。</summary>
+        public string StockId { get; set; } = string.Empty;
+        public int Qty { get; set; }
     }
 
     public class CreateCountPlanRequest

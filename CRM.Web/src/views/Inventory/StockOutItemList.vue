@@ -89,7 +89,7 @@
       </div>
     </div>
 
-    <CrmDataTable :data="list" v-loading="loading" row-key="stockOutItemId" @row-dblclick="onRowDblclick">
+    <CrmDataTable :data="pagedList" v-loading="loading" row-key="stockOutItemId" @row-dblclick="onRowDblclick">
       <el-table-column :label="t('stockOutItemList.columns.status')" width="100" align="center">
         <template #default="{ row }">
           <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
@@ -122,11 +122,22 @@
         <template #default="{ row }">{{ row.sellOrderItemCode || t('quoteList.na') }}</template>
       </el-table-column>
     </CrmDataTable>
+    <div class="pagination-wrapper">
+      <el-pagination
+        class="list-main-pagination"
+        v-model:current-page="listPage"
+        v-model:page-size="listPageSize"
+        :total="listTotal"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="listPage = 1"
+      />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -139,6 +150,17 @@ const router = useRouter()
 const { t } = useI18n()
 const loading = ref(false)
 const list = ref<StockOutItemListRow[]>([])
+const listPage = ref(1)
+const listPageSize = ref(20)
+const listTotal = computed(() => list.value.length)
+const pagedList = computed(() => {
+  const start = (listPage.value - 1) * listPageSize.value
+  return list.value.slice(start, start + listPageSize.value)
+})
+watch(listTotal, () => {
+  const maxP = Math.max(1, Math.ceil(listTotal.value / listPageSize.value) || 1)
+  if (listPage.value > maxP) listPage.value = maxP
+})
 const dateFrom = ref<string | null>(null)
 const dateTo = ref<string | null>(null)
 
@@ -164,7 +186,8 @@ function buildQuery(): StockOutItemListQuery {
   }
 }
 
-const fetchList = async () => {
+async function runStockOutItemFetch(resetPage: boolean) {
+  if (resetPage) listPage.value = 1
   loading.value = true
   try {
     list.value = await stockOutApi.searchItems(buildQuery())
@@ -176,6 +199,8 @@ const fetchList = async () => {
     loading.value = false
   }
 }
+
+const fetchList = () => void runStockOutItemFetch(true)
 
 const resetFilters = () => {
   filters.status = undefined
@@ -368,5 +393,16 @@ onMounted(() => {
   border: 1px solid $border-panel;
   background: transparent;
   color: $text-secondary;
+}
+
+.pagination-wrapper {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.list-main-pagination {
+  margin-left: auto;
 }
 </style>

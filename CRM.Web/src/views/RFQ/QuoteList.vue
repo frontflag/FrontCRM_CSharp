@@ -121,7 +121,13 @@
           {{ formatDisplayDate(row.quoteDate) }}
         </template>
         <template #col-createTime="{ row }">
-          {{ formatDisplayDateTime(row.createTime) }}
+          <template v-for="p in [formatDisplayDateTime2DigitYearParts(row.createTime)]" :key="`ct-${row.id}`">
+            <span v-if="p" class="crm-quote-create-time">
+              <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+              <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+            </span>
+            <span v-else>—</span>
+          </template>
         </template>
         <template #col-createUser="{ row }">
           {{ row.createUserName || row.createdBy || row.salesUserName || row.purchaseUserName || '—' }}
@@ -135,28 +141,27 @@
           </div>
         </template>
         <template #col-actions="{ row }">
-          <div @click.stop @dblclick.stop>
-            <div v-if="opColExpanded" class="action-btns">
+          <div v-if="opColExpanded" @click.stop @dblclick.stop>
+            <div class="action-btns">
               <el-button link type="primary" @click.stop="handleEdit(row)">{{ t('quoteList.actions.edit') }}</el-button>
               <el-button link type="danger" @click.stop="handleDelete(row)">{{ t('quoteList.actions.delete') }}</el-button>
             </div>
-
-            <el-dropdown v-else trigger="click" placement="bottom-end">
-              <div class="op-more-dropdown-trigger">
-                <button type="button" class="op-more-trigger">...</button>
-              </div>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click.stop="handleEdit(row)">
-                    <span class="op-more-item op-more-item--primary">{{ t('quoteList.actions.edit') }}</span>
-                  </el-dropdown-item>
-                  <el-dropdown-item @click.stop="handleDelete(row)">
-                    <span class="op-more-item op-more-item--danger">{{ t('quoteList.actions.delete') }}</span>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
           </div>
+          <el-dropdown v-else trigger="click" placement="bottom-end">
+            <div class="op-more-dropdown-trigger" @click.stop @dblclick.stop>
+              <button type="button" class="op-more-trigger">...</button>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click.stop="handleEdit(row)">
+                  <span class="op-more-item op-more-item--primary">{{ t('quoteList.actions.edit') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item @click.stop="handleDelete(row)">
+                  <span class="op-more-item op-more-item--danger">{{ t('quoteList.actions.delete') }}</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </template>
       </CrmDataTable>
 
@@ -195,7 +200,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { quoteApi } from '@/api/quote'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
-import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 

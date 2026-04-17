@@ -40,9 +40,11 @@
       </div>
     </div>
 
-    <!-- 搜索栏：与客户列表 search-bar / search-left / status-select 一致 -->
+    <!-- 搜索栏：与《业务列表规范》及 StockInList / CustomerList 一致 -->
     <div class="search-bar">
       <div class="search-left">
+        <span class="list-title">{{ t('inventoryList.filters.title') }}</span>
+        <span class="filter-field-label">{{ t('inventoryList.filters.stockType') }}</span>
         <el-select
           v-model="stockTypeFilter"
           :placeholder="t('inventoryList.filters.allOrderTypes')"
@@ -56,6 +58,7 @@
           <el-option :label="t('inventoryList.stockTypes.stocking')" :value="2" />
           <el-option :label="t('inventoryList.stockTypes.sample')" :value="3" />
         </el-select>
+        <span class="filter-field-label">{{ t('inventoryList.filters.warehouse') }}</span>
         <el-select
           v-model="warehouseFilter"
           :placeholder="t('inventoryList.filters.allInventoryCodes')"
@@ -83,11 +86,12 @@
 
     <CrmDataTable
       ref="dataTableRef"
+      class="inventory-list-crm-table"
       column-layout-key="inventory-list-main-v5"
       :columns="inventoryTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-      :data="filteredInventoryList"
+      :data="pagedInventoryList"
       v-loading="loading"
       @row-click="onRowClick"
     >
@@ -107,13 +111,48 @@
           </el-icon>
         </span>
       </template>
-      <template #col-onHandQty="{ row }">{{ formatNum(row.onHandQty) }}</template>
-      <template #col-availableQty="{ row }">{{ formatNum(row.availableQty) }}</template>
-      <template #col-lockedQty="{ row }">{{ formatNum(row.lockedQty) }}</template>
-      <template #col-inventoryAmount="{ row }">{{ formatInventoryAmount(row) }}</template>
-      <template #col-lastMoveTime="{ row }">{{ formatTime(row.lastMoveTime) }}</template>
-      <template #col-createTime="{ row }">{{ formatTime((row as any).createTime || (row as any).createdAt) }}</template>
-      <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '--' }}</template>
+      <template #col-onHandQty="{ row }">
+        <span class="inv-list-qty">{{ formatQtyCell(row.onHandQty) }}</span>
+      </template>
+      <template #col-availableQty="{ row }">
+        <span class="inv-list-qty">{{ formatQtyCell(row.availableQty) }}</span>
+      </template>
+      <template #col-lockedQty="{ row }">
+        <span class="inv-list-qty">{{ formatQtyCell(row.lockedQty) }}</span>
+      </template>
+      <template #col-inventoryAmount="{ row }">
+        <template v-if="!inventoryAmountHasValue(row.inventoryAmount)">
+          <span class="inv-list-dash">—</span>
+        </template>
+        <div v-else class="inv-list-amount-cell dock-tier-price-line">
+          <template v-for="amt in [splitInventoryMoneyParts(Number(row.inventoryAmount))]" :key="'amt-' + row.stockId">
+            <span class="inv-list-amt">
+              <span class="inv-list-amt-int">{{ amt.intPart }}</span><span class="inv-list-amt-frac">{{ amt.fracPart }}</span>
+            </span>
+          </template>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span :class="['dock-tier-ccy', inventoryCurrencyClass(row)]">{{ inventoryCurrencyIso(row) }}</span>
+        </div>
+      </template>
+      <template #col-lastMoveTime="{ row }">
+        <template v-for="p in [formatDisplayDateTime2DigitYearParts(row.lastMoveTime)]" :key="'lm-' + row.stockId">
+          <span v-if="p" class="crm-quote-create-time">
+            <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+            <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+          </span>
+          <span v-else class="inv-list-dash">—</span>
+        </template>
+      </template>
+      <template #col-createTime="{ row }">
+        <template v-for="p in [formatDisplayDateTime2DigitYearParts((row as any).createTime || (row as any).createdAt)]" :key="'ct-' + row.stockId">
+          <span v-if="p" class="crm-quote-create-time">
+            <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+            <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+          </span>
+          <span v-else class="inv-list-dash">—</span>
+        </template>
+      </template>
+      <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '—' }}</template>
       <template #col-actions-header>
         <div class="op-col-header">
           <span class="op-col-header-text">{{ t('inventoryList.columns.actions') }}</span>
@@ -159,6 +198,15 @@
         <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
         <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
+      <el-pagination
+        class="list-main-pagination"
+        v-model:current-page="listPage"
+        v-model:page-size="listPageSize"
+        :total="filteredInventoryTotal"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="listPage = 1"
+      />
     </div>
 
     <el-dialog v-model="warehouseVisible" :title="t('inventoryList.warehouse.title')" width="720px">
@@ -236,7 +284,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -245,13 +293,15 @@ import { inventoryCenterApi, type FinanceSummary, type InventoryOverview, type W
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { getApiErrorMessage } from '@/utils/apiError'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
 const { t } = useI18n()
 const loading = ref(false)
 const list = ref<InventoryOverview[]>([])
+const listPage = ref(1)
+const listPageSize = ref(20)
 /** 库存类型 1/2/3，空为全部（仅前端筛选当前已加载总览） */
 const stockTypeFilter = ref<number | undefined>(undefined)
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
@@ -397,26 +447,80 @@ const filteredInventoryList = computed(() => {
   return rows.filter(r => rowStockTypeNum(r) === ft)
 })
 
+const filteredInventoryTotal = computed(() => filteredInventoryList.value.length)
+const pagedInventoryList = computed(() => {
+  const rows = filteredInventoryList.value
+  const start = (listPage.value - 1) * listPageSize.value
+  return rows.slice(start, start + listPageSize.value)
+})
+
+watch(filteredInventoryTotal, () => {
+  const maxP = Math.max(1, Math.ceil(filteredInventoryTotal.value / listPageSize.value) || 1)
+  if (listPage.value > maxP) listPage.value = maxP
+})
+
+watch(stockTypeFilter, () => {
+  listPage.value = 1
+})
+
 function resetInventorySearch() {
   stockTypeFilter.value = undefined
   warehouseFilter.value = undefined
   void fetchList()
 }
 
-const formatNum = (v: number) => (v == null ? t('quoteList.na') : Number(v).toLocaleString())
-const formatMoney = (v: number) => (v == null ? t('quoteList.na') : Number(v).toFixed(2))
+const formatMoney = (v: number) => (v == null ? '—' : Number(v).toFixed(2))
 
-/** 库存金额：币别代码 + 金额（币别来自最近一次采购入库关联采购单） */
-const formatInventoryAmount = (row: InventoryOverview) => {
-  const v = row.inventoryAmount
-  if (v == null) return t('quoteList.na')
+/** 数量列：与《业务列表规范》§3.2 一致（千分位、tabular） */
+const formatQtyCell = (v: unknown) => {
+  if (v == null || v === '') return '—'
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  return n.toLocaleString('zh-CN')
+}
+
+const inventoryAmountHasValue = (v: unknown) => {
+  if (v == null || v === '') return false
+  const n = Number(v)
+  return Number.isFinite(n)
+}
+
+/** 列表金额拆段（formatToParts），与 RFQ 采购报价阶梯一致 */
+const splitInventoryMoneyParts = (n: number): { intPart: string; fracPart: string } => {
+  const parts = new Intl.NumberFormat('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).formatToParts(n)
+  let intPart = ''
+  let fracPart = ''
+  for (const p of parts) {
+    if (p.type === 'integer' || p.type === 'group') intPart += p.value
+    else if (p.type === 'decimal' || p.type === 'fraction') fracPart += p.value
+  }
+  if (!fracPart) {
+    const fallback = n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    return { intPart: fallback, fracPart: '' }
+  }
+  return { intPart, fracPart }
+}
+
+/** 币别枚举 → 三位字母（与采购明细 currency 一致） */
+const inventoryCurrencyIso = (row: InventoryOverview) => {
   const r = row as unknown as Record<string, unknown>
   const codeNum = Number(r.currency ?? r.Currency ?? 1)
-  const iso = CURRENCY_CODE_TO_TEXT[Number.isFinite(codeNum) ? codeNum : 1] ?? 'RMB'
-  const amt = Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return `${iso} ${amt}`
+  return CURRENCY_CODE_TO_TEXT[Number.isFinite(codeNum) ? codeNum : 1] ?? 'RMB'
 }
-const formatTime = (v?: string) => formatDisplayDateTime(v)
+
+/** 币别色 class（与 crm-quote-tier-dock.scss 一致） */
+const inventoryCurrencyClass = (row: InventoryOverview) => {
+  const r = row as unknown as Record<string, unknown>
+  const n = Number(r.currency ?? r.Currency ?? 1)
+  if (n === 2) return 'dock-tier-ccy--usd'
+  if (n === 3) return 'dock-tier-ccy--eur'
+  if (n === 4) return 'dock-tier-ccy--hkd'
+  if (n === 1 || !Number.isFinite(n) || n === 0) return 'dock-tier-ccy--rmb'
+  return 'dock-tier-ccy--purple'
+}
 /** 列表「地域」：stock.RegionType（接口 camelCase / PascalCase） */
 const regionLabel = (row: InventoryOverview) => {
   const r = row as unknown as Record<string, unknown>
@@ -425,7 +529,7 @@ const regionLabel = (row: InventoryOverview) => {
 }
 
 const warehouseNameOf = (warehouseId?: string) => {
-  if (!warehouseId) return t('quoteList.na')
+  if (!warehouseId) return '—'
   const byId = warehouses.value.find(w => normalizeWarehouseRow(w).id === warehouseId)
   if (byId) {
     const n = normalizeWarehouseRow(byId)
@@ -447,7 +551,7 @@ function pickRowStr(row: Record<string, unknown>, camel: string, pascal: string)
 const stockCodeDisplay = (row: InventoryOverview) => {
   const r = row as unknown as Record<string, unknown>
   const code = pickRowStr(r, 'stockCode', 'StockCode').trim()
-  return code || '--'
+  return code || '—'
 }
 
 /** 规格型号；兼容 PascalCase；无型号时回退物料 ID */
@@ -455,14 +559,14 @@ const materialModelDisplay = (row: InventoryOverview) => {
   const r = row as unknown as Record<string, unknown>
   const model = pickRowStr(r, 'materialModel', 'MaterialModel').trim()
   const id = pickRowStr(r, 'materialId', 'MaterialId').trim()
-  return model || id || t('quoteList.na')
+  return model || id || '—'
 }
 
 /** 品牌（接口 materialName：优先 stock 冗余 purchase_brand）；兼容 PascalCase */
 const materialBrandDisplay = (row: InventoryOverview) => {
   const r = row as unknown as Record<string, unknown>
   const name = pickRowStr(r, 'materialName', 'MaterialName').trim()
-  return name || t('quoteList.na')
+  return name || '—'
 }
 
 /** 最后移动时间降序；无时间排后 */
@@ -483,7 +587,8 @@ const sortByLastMoveDesc = (rows: InventoryOverview[]) =>
     )
   })
 
-const fetchList = async () => {
+async function runInventoryFetch(resetPage: boolean) {
+  if (resetPage) listPage.value = 1
   loading.value = true
   try {
     const [overviewRes, summaryRes, warehouseRes] = await Promise.allSettled([
@@ -517,6 +622,8 @@ const fetchList = async () => {
     loading.value = false
   }
 }
+
+const fetchList = () => void runInventoryFetch(true)
 
 const openTrace = (materialId: string) => {
   router.push(`/inventory/traces/${encodeURIComponent(materialId)}`)
@@ -589,7 +696,7 @@ const saveWarehouse = async () => {
   }
 }
 
-onMounted(() => fetchList())
+onMounted(() => void fetchList())
 </script>
 
 <style scoped lang="scss">
@@ -628,6 +735,65 @@ onMounted(() => fetchList())
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.list-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $text-primary;
+  white-space: nowrap;
+}
+
+.filter-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
+  white-space: nowrap;
+}
+
+/** 《业务列表规范》§3.2：数量字重与字色 */
+.inv-list-qty {
+  font-weight: 700;
+  color: #27292c;
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-theme='dark'] .inv-list-qty {
+  color: $text-primary;
+}
+
+.inv-list-dash {
+  color: $text-muted;
+}
+
+/** §3.1：金额拆段 + 币别（dock-tier-ccy* 为全局样式） */
+.inv-list-amount-cell {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  width: 100%;
+  font-size: 12px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.inv-list-amt-int,
+.inv-list-amt-frac {
+  font-weight: 700;
+  color: #27292c;
+}
+
+html[data-theme='dark'] .inv-list-amt-int,
+html[data-theme='dark'] .inv-list-amt-frac {
+  color: $text-primary;
+}
+
+/** §2.5：紧密下列内库存类型单行 */
+:deep(.crm-items-table--density-compact) .inv-stock-type-cell {
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .status-select {
@@ -857,6 +1023,12 @@ onMounted(() => fetchList())
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.list-main-pagination {
+  margin-left: auto;
 }
 
 .list-footer-left {

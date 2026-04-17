@@ -15,6 +15,9 @@ namespace CRM.Core.Interfaces
         public string WarehouseId { get; set; } = string.Empty;
         public string? VendorId { get; set; }
         public string? VendorName { get; set; }
+        /// <summary>采购订单号（由头表采购明细关联的采购单）</summary>
+        public string? PurchaseOrderCode { get; set; }
+
         /// <summary>销售订单号（由采购订单明细关联推导，可能多单逗号拼接）</summary>
         public string? SalesOrderCode { get; set; }
         /// <summary>明细汇总：物料型号（多行去重后逗号分隔）</summary>

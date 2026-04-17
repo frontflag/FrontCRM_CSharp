@@ -136,11 +136,37 @@ export interface PickingTaskLine {
   id: string
   materialId: string
   stockId?: string | null
+  /** 在库明细 stockitem.Id（新流程） */
+  stockItemId?: string | null
   /** 1=客单 2=备货 3=样品 */
   stockType?: number | null
   planQty: number
   pickedQty: number
   isStockingSupplement?: boolean
+}
+
+/** 拣货候选在库明细（服务端 FIFO 排序） */
+export interface PickingStockItemCandidate {
+  stockItemId: string
+  stockAggregateId: string
+  materialId: string
+  availableQty: number
+  stockType: number
+  purchasePn?: string | null
+  purchaseBrand?: string | null
+  locationId?: string | null
+  batchNo?: string | null
+  warehouseId: string
+  productionDate?: string | null
+  createTime?: string
+  /** 备货池命中（非本销售行强绑定） */
+  isStockingCandidate?: boolean
+}
+
+export interface SavePickingTaskItemLine {
+  stockItemId: string
+  stockId: string
+  qty: number
 }
 
 export interface PickingTask {
@@ -159,6 +185,30 @@ export interface PickingTask {
   /** 本任务涉及的库存类型（去重） */
   distinctStockTypes?: number[]
   /** 拣货明细（含备货补充标记） */
+  items?: PickingTaskLine[]
+}
+
+/** 拣货单列表行（与后端 PickingTaskListItemDto 一致，JSON camelCase） */
+export interface PickingTaskListRow {
+  id: string
+  status: number
+  warehouseId: string
+  warehouseDisplay?: string | null
+  materialModel?: string | null
+  brand?: string | null
+  customerName?: string | null
+  salesUserName?: string | null
+  planQtyTotal: number
+  lineCount: number
+  stockOutRequestCode?: string | null
+  taskCode: string
+  createTime?: string
+  createUserDisplay?: string | null
+}
+
+export interface PickingTaskDetailView extends PickingTaskListRow {
+  remark?: string | null
+  distinctStockTypes?: number[]
   items?: PickingTaskLine[]
 }
 
@@ -230,13 +280,35 @@ export const inventoryCenterApi = {
     const suffix = status == null ? '' : `?status=${status}`
     return unwrap<PickingTask[]>(await apiClient.get(`/api/v1/inventory-center/picking-tasks${suffix}`))
   },
+  async getPickingListRows(): Promise<PickingTaskListRow[]> {
+    return unwrap<PickingTaskListRow[]>(await apiClient.get('/api/v1/inventory-center/picking-list'))
+  },
+  async getPickingListDetail(id: string): Promise<PickingTaskDetailView> {
+    return unwrap<PickingTaskDetailView>(
+      await apiClient.get(`/api/v1/inventory-center/picking-list/${encodeURIComponent(id)}`)
+    )
+  },
   async generatePickingTask(payload: {
     stockOutRequestId: string
     warehouseId: string
     operatorId?: string
-    items: { materialId: string; quantity: number }[]
+    /** 可传空数组；拣货行由 savePickingTaskItems 维护 */
+    items?: { materialId: string; quantity: number }[]
   }): Promise<PickingTask> {
-    return unwrap<PickingTask>(await apiClient.post('/api/v1/inventory-center/picking-tasks/generate', payload))
+    const body = { ...payload, items: payload.items ?? [] }
+    return unwrap<PickingTask>(await apiClient.post('/api/v1/inventory-center/picking-tasks/generate', body))
+  },
+  async getPickingCandidates(stockOutRequestId: string, warehouseId: string): Promise<PickingStockItemCandidate[]> {
+    const qs = new URLSearchParams({
+      stockOutRequestId: stockOutRequestId.trim(),
+      warehouseId: warehouseId.trim()
+    })
+    return unwrap<PickingStockItemCandidate[]>(
+      await apiClient.get(`/api/v1/inventory-center/picking-candidates?${qs.toString()}`)
+    )
+  },
+  async savePickingTaskItems(taskId: string, lines: SavePickingTaskItemLine[]): Promise<void> {
+    await apiClient.post(`/api/v1/inventory-center/picking-tasks/${encodeURIComponent(taskId)}/items`, lines)
   },
   async completePickingTask(taskId: string): Promise<void> {
     await apiClient.post(`/api/v1/inventory-center/picking-tasks/${encodeURIComponent(taskId)}/complete`, {})

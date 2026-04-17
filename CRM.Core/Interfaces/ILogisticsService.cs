@@ -47,6 +47,14 @@ namespace CRM.Core.Interfaces
         public string Result { get; set; } = "pass";
         public decimal PassQty { get; set; }
         public decimal RejectQty { get; set; }
+
+        /// <summary>
+        /// 为 <c>true</c> 时同步写入 <see cref="StockInPlanDate"/>（含置空）。不传或为 <c>false</c> 则不修改原值（兼容旧客户端）。
+        /// </summary>
+        public bool? HasStockInPlanDate { get; set; }
+
+        /// <summary>计划入库日期（UTC 或可解析为 UTC 的 ISO 8601）。</summary>
+        public DateTime? StockInPlanDate { get; set; }
     }
 
     public class QcQueryRequest

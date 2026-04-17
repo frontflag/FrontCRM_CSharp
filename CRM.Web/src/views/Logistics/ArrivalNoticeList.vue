@@ -3,7 +3,7 @@
     <div class="page-header">
       <h2>{{ t('arrivalNoticeList.title') }}</h2>
       <div class="ops">
-        <el-button @click="loadData">{{ t('arrivalNoticeList.refresh') }}</el-button>
+        <el-button @click="refreshArrivalList">{{ t('arrivalNoticeList.refresh') }}</el-button>
       </div>
     </div>
 
@@ -64,7 +64,7 @@
       :columns="arrivalNoticeColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-      :data="list"
+      :data="pagedList"
       v-loading="loading"
     >
       <template #col-status="{ row }">
@@ -148,6 +148,15 @@
         <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
         <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
+      <el-pagination
+        class="list-main-pagination"
+        v-model:current-page="listPage"
+        v-model:page-size="listPageSize"
+        :total="listTotal"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="listPage = 1"
+      />
     </div>
 
     <el-dialog
@@ -210,7 +219,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
@@ -224,6 +233,17 @@ const router = useRouter()
 const { t, locale } = useI18n()
 const loading = ref(false)
 const list = ref<StockInNotifyDto[]>([])
+const listPage = ref(1)
+const listPageSize = ref(20)
+const listTotal = computed(() => list.value.length)
+const pagedList = computed(() => {
+  const start = (listPage.value - 1) * listPageSize.value
+  return list.value.slice(start, start + listPageSize.value)
+})
+watch(listTotal, () => {
+  const maxP = Math.max(1, Math.ceil(listTotal.value / listPageSize.value) || 1)
+  if (listPage.value > maxP) listPage.value = maxP
+})
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
@@ -343,7 +363,8 @@ const regionTypeLabel = (row: StockInNotifyDto) => {
   return n === REGION_TYPE_OVERSEAS ? t('inventoryList.warehouse.regionOverseas') : t('inventoryList.warehouse.regionDomestic')
 }
 
-const loadData = () => {
+function applyArrivalList(resetPage: boolean) {
+  if (resetPage) listPage.value = 1
   loading.value = true
   logisticsApi.getArrivalNotices({
     status: filters.value.status,
@@ -354,18 +375,21 @@ const loadData = () => {
     .finally(() => { loading.value = false })
 }
 
+const loadData = () => applyArrivalList(true)
+const refreshArrivalList = () => applyArrivalList(false)
+
 const resetFilters = () => {
   filters.value = {
     status: undefined,
     purchaseOrderCode: '',
     expectedArrivalDate: ''
   }
-  loadData()
+  applyArrivalList(true)
 }
 
 const markArrived = async (row: StockInNotifyDto) => {
   await logisticsApi.updateArrivalStatus(row.id, 20)
-  loadData()
+  applyArrivalList(false)
   ElMessage.success(t('arrivalNoticeList.messages.arrivedSuccess'))
 }
 
@@ -576,6 +600,12 @@ loadData()
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.list-main-pagination {
+  margin-left: auto;
 }
 
 .list-footer-left {

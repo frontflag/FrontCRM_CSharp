@@ -21,7 +21,7 @@
           @keyup.enter="handleSearch"
         />
         <button type="button" class="btn-secondary" @click="handleSearch">{{ t('stockOutList.filters.search') }}</button>
-        <button type="button" class="btn-secondary" @click="fetchList">{{ t('stockOutList.filters.refresh') }}</button>
+        <button type="button" class="btn-secondary" @click="refreshStockOutList">{{ t('stockOutList.filters.refresh') }}</button>
       </div>
     </div>
 
@@ -32,7 +32,7 @@
       :columns="stockOutTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-      :data="filteredList"
+      :data="pagedFilteredList"
       row-key="id"
       v-loading="loading"
       @row-dblclick="onRowDblclick"
@@ -127,6 +127,15 @@
         <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
         <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
+      <el-pagination
+        class="list-main-pagination"
+        v-model:current-page="listPage"
+        v-model:page-size="listPageSize"
+        :total="filteredListTotal"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="listPage = 1"
+      />
     </div>
   </div>
 </template>
@@ -146,6 +155,8 @@ const router = useRouter()
 const { t } = useI18n()
 const loading = ref(false)
 const list = ref<StockOutDto[]>([])
+const listPage = ref(1)
+const listPageSize = ref(20)
 const keyword = ref('')
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
@@ -203,6 +214,10 @@ watch(
   { deep: true, immediate: true }
 )
 
+watch(keyword, () => {
+  listPage.value = 1
+})
+
 const formatNum = (v: number) => (v == null ? t('quoteList.na') : Number(v).toLocaleString())
 const formatDate = (v?: string) => formatDisplayDateTime(v)
 
@@ -236,7 +251,20 @@ const filteredList = computed(() => {
   )
 })
 
-const fetchList = async () => {
+const filteredListTotal = computed(() => filteredList.value.length)
+const pagedFilteredList = computed(() => {
+  const rows = filteredList.value
+  const start = (listPage.value - 1) * listPageSize.value
+  return rows.slice(start, start + listPageSize.value)
+})
+
+watch(filteredListTotal, () => {
+  const maxP = Math.max(1, Math.ceil(filteredListTotal.value / listPageSize.value) || 1)
+  if (listPage.value > maxP) listPage.value = maxP
+})
+
+async function runStockOutListFetch(resetPage: boolean) {
+  if (resetPage) listPage.value = 1
   loading.value = true
   try {
     list.value = await stockOutApi.getAll()
@@ -247,6 +275,9 @@ const fetchList = async () => {
     loading.value = false
   }
 }
+
+const fetchList = () => void runStockOutListFetch(true)
+const refreshStockOutList = () => void runStockOutListFetch(false)
 
 const handleSearch = () => {
   const k = keyword.value.trim()
@@ -287,7 +318,7 @@ const handleMarkFinish = async (row: StockOutDto) => {
   try {
     await stockOutApi.updateStatus(row.id, 4)
     ElMessage.success(t('stockOutList.messages.markFinishedSuccess'))
-    await fetchList()
+    await runStockOutListFetch(false)
   } catch (e) {
     console.error(e)
     ElMessage.error(t('stockOutList.messages.updateStatusFailed'))
@@ -425,6 +456,12 @@ onMounted(() => {
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.list-main-pagination {
+  margin-left: auto;
 }
 
 .list-footer-left {

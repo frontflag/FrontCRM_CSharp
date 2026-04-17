@@ -480,6 +480,7 @@
             <router-link to="/inventory/list" class="submenu-item" active-class="active">{{ t('layout.menu.inventoryCenter') }}</router-link>
             <router-link to="/inventory/stock-items" class="submenu-item" active-class="active">{{ t('layout.menu.inventoryStockItems') }}</router-link>
             <router-link to="/inventory/check" class="submenu-item" active-class="active">{{ t('layout.menu.inventoryCheck') }}</router-link>
+            <router-link to="/inventory/stock-transfers" class="submenu-item" active-class="active">{{ t('layout.menu.stockTransfers') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -509,8 +510,38 @@
           </template>
           <template #submenu>
             <router-link to="/inventory/stock-out-notifies" class="submenu-item" active-class="active">{{ t('layout.menu.stockOutNotifies') }}</router-link>
+            <router-link to="/inventory/picking-list" class="submenu-item" active-class="active">{{ t('layout.menu.pickingSlip') }}</router-link>
             <router-link to="/inventory/stock-out" class="submenu-item" active-class="active">{{ t('layout.menu.stockOut') }}</router-link>
             <router-link to="/inventory/stock-out/items" class="submenu-item" active-class="active">{{ t('layout.menu.stockOutItems') }}</router-link>
+          </template>
+        </SidebarMenuGroupFlyout>
+
+        <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.customs') }}</div>
+        <SidebarMenuGroupFlyout
+          :collapsed="isCollapsed"
+          :expanded="openGroups.customs"
+          @toggle="toggleGroup('customs')"
+        >
+          <template #icon>
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="4" y="3" width="16" height="18" rx="2" />
+                <path d="M8 8h8M8 12h8M8 16h5" />
+              </svg>
+            </span>
+          </template>
+          <template #label>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.customsGroup') }}</span>
+          </template>
+          <template #chevron>
+            <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.customs }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </template>
+          <template #submenu>
+            <router-link to="/customs/brokers" class="submenu-item" active-class="active">{{ t('layout.menu.customsBrokers') }}</router-link>
+            <router-link to="/customs/declarations" class="submenu-item" active-class="active">{{ t('layout.menu.customsDeclarations') }}</router-link>
+            <router-link to="/customs/declaration-items" class="submenu-item" active-class="active">{{ t('layout.menu.customsDeclarationItems') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -1252,6 +1283,7 @@ const openGroups = ref({
   sales: false,
   inventory: false,
   stockInManagement: false,
+  customs: false,
   stockOutManagement: false,
   customers: false,
   vendors: false,
@@ -1271,6 +1303,7 @@ const expandAllGroups = () => {
     sales: true,
     inventory: true,
     stockInManagement: true,
+    customs: true,
     stockOutManagement: true,
     customers: true,
     vendors: true,
@@ -1287,7 +1320,7 @@ const expandAllGroups = () => {
 const toggleCollapse = () => {
   cycleSidebarMode()
   if (sidebarMode.value === 'narrow') {
-    openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, financePayments: false, financeReceipts: false, systemManagement: false, paramManagement: false }
+    openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, customs: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, financePayments: false, financeReceipts: false, systemManagement: false, paramManagement: false }
   } else if (sidebarMode.value === 'full' && isSysAdmin.value) {
     expandAllGroups()
   }
@@ -1336,6 +1369,11 @@ const pageTitleMap: Record<string, string> = {
   '/inventory/stock-out': 'layout.menu.stockOutManagement',
   '/inventory/stock-out/items': 'layout.menu.stockOutItems',
   '/inventory/stock-out-notifies': 'layout.menu.stockOutNotifies',
+  '/inventory/picking-list': 'layout.menu.pickingSlip',
+  '/customs/brokers': 'customsPages.brokers.title',
+  '/customs/declarations': 'customsPages.declarations.title',
+  '/customs/declaration-items': 'customsPages.items.title',
+  '/inventory/stock-transfers': 'customsPages.transfers.title',
   '/inventory/transfer': 'layout.menu.inventoryManagement',
   '/inventory/check': 'layout.menu.inventoryCheck',
   '/reports': 'layout.menu.reportAnalytics',
@@ -1403,6 +1441,8 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '出库单列表': 'stockOutList.title',
   '出库明细': 'stockOutItemList.title',
   '出库通知': 'layout.menu.stockOutNotifies',
+  '拣货单': 'layout.menu.pickingSlip',
+  '拣货单详情': 'pickingSlip.detailTitle',
   '执行出库': 'layout.menu.stockOut',
   '库存调拨': 'layout.menu.inventoryManagement',
   '库存盘点': 'layout.menu.inventoryCheck',
@@ -1423,6 +1463,10 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '销售订单': 'layout.menu.salesOrders',
   '销售订单明细': 'layout.menu.salesOrderItems',
   '采购订单明细': 'layout.menu.purchaseOrderItems',
+  '报关公司': 'customsPages.brokers.title',
+  '报关单': 'customsPages.declarations.title',
+  '报关明细': 'customsPages.items.title',
+  '移库': 'customsPages.transfers.title',
   '到货通知': 'layout.menu.arrivalNotices',
   '质检': 'layout.menu.qualityCheck',
   '新建质检': 'common.createSuccess',
@@ -1470,6 +1514,7 @@ const resolveRouteTitle = (path: string): string => {
   if (/^\/vendors\/[^/]+\/warranty\/(en|zh)$/.test(path)) return t('layout.menu.vendors')
   if (/^\/quotes\/[^/]+\/edit$/.test(path)) return t('layout.menu.quoteManagement')
   if (/^\/inventory\/stocks\/[^/]+$/.test(path)) return t('inventoryStockDetail.title')
+  if (/^\/inventory\/picking-list\/.+$/.test(path)) return t('pickingSlip.detailTitle')
   if (path.includes('/customers/') && path.includes('/edit')) return t('layout.menu.customerManagement')
   if (path.includes('/customers/')) return t('layout.menu.customers')
   if (path.includes('/vendors/') && path.includes('/edit')) return t('layout.menu.vendorManagement')
@@ -1596,7 +1641,19 @@ watch(
     if (p.startsWith('/logistics/') || p === '/inventory/stock-in' || p.startsWith('/inventory/stock-in/')) {
       openGroups.value.stockInManagement = true
     }
-    if (p === '/inventory/stock-out' || p.startsWith('/inventory/stock-out/') || p === '/inventory/stock-out-notifies') {
+    if (p.startsWith('/customs/')) {
+      openGroups.value.customs = true
+    }
+    if (p.startsWith('/inventory/stock-transfers')) {
+      openGroups.value.inventory = true
+    }
+    if (
+      p === '/inventory/stock-out' ||
+      p.startsWith('/inventory/stock-out/') ||
+      p === '/inventory/stock-out-notifies' ||
+      p === '/inventory/picking-list' ||
+      p.startsWith('/inventory/picking-list/')
+    ) {
       openGroups.value.stockOutManagement = true
     }
     if (p.startsWith('/system/')) {

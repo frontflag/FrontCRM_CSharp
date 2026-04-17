@@ -45,9 +45,10 @@
       </template>
       <ol class="flow-steps">
         <li :class="{ 'flow-step--done': hasItemsAndWarehouse }">确认仓库与出库明细（可点「从出库通知刷新明细」）</li>
-        <li :class="{ 'flow-step--done': pickingTasks.length > 0 }">生成拣货任务</li>
-        <li :class="{ 'flow-step--done': pickingCompleted }">在下方拣货任务中点击「完成拣货」</li>
-        <li :class="{ 'flow-step--done': requestAlreadyShipped }">执行出库（扣减库存并关闭出库通知）</li>
+        <li :class="{ 'flow-step--done': pickingTasks.length > 0 }">生成拣货任务（仅建任务壳）</li>
+        <li :class="{ 'flow-step--done': pickingLinesSaved }">加载候选并保存拣货明细（按 stockitem），再点「完成拣货」</li>
+        <li :class="{ 'flow-step--done': pickingCompleted }">拣货任务状态为已完成</li>
+        <li :class="{ 'flow-step--done': requestAlreadyShipped }">执行出库（按拣货明细扣减并关闭出库通知）</li>
       </ol>
       <p v-if="requestAlreadyShipped" class="flow-done-msg">该出库通知已执行出库，请返回列表查看。</p>
       <p v-else-if="!pickingCompleted && pickingTasks.length > 0" class="flow-warn-msg">请先完成拣货任务，再执行出库。</p>
@@ -131,7 +132,7 @@
     <div class="form-card" v-if="form.stockOutRequestId">
       <h3 class="section-title">拣货任务</h3>
       <p class="picking-hint">
-        每个出库通知仅允许生成<strong>一个</strong>拣货任务。分配顺序：优先「与关联采购单类型一致」的库存（FIFO），不足时再用「备货库存」中型号/品牌与销售明细一致的批次（展开任务行可见，备货行高亮并带图标）。若关联类型库存已<strong>完全满足</strong>出库数量，则不会生成备货拣货行。计划量由明细汇总，应与出库数量一致；点击「完成拣货」后已拣量与计划一致。
+        每个出库通知仅允许生成<strong>一个</strong>未取消的拣货任务。候选在库明细 = 与本销售行绑定的 stockitem + 符合规则的备货（型号/品牌匹配）；FIFO 仅用于排序与「自动分配」顺序。请在下方「拣货明细」卡片中加载候选、分配数量并保存后，再点「完成拣货」。执行出库时仅按已保存的拣货行扣减。
       </p>
       <p v-if="!pickingTasks.length" class="picking-empty">暂无拣货任务，请先确认明细与仓库后点击「生成拣货任务」。</p>
       <el-table v-else :data="pickingTasks" row-key="id" class="picking-task-table">
@@ -146,6 +147,11 @@
                 class="picking-lines-table"
                 :row-class-name="pickingLineRowClassName"
               >
+                <el-table-column label="在库明细" min-width="120" show-overflow-tooltip>
+                  <template #default="{ row: line }">
+                    <span :title="pickingLineStockItemId(line)">{{ shortId(pickingLineStockItemId(line)) }}</span>
+                  </template>
+                </el-table-column>
                 <el-table-column :label="t('inventoryList.columns.stockType')" width="108" align="center" show-overflow-tooltip>
                   <template #default="{ row: line }">{{ pickingLineStockTypeLabel(line) }}</template>
                 </el-table-column>
@@ -200,6 +206,79 @@
         </el-table-column>
       </el-table>
     </div>
+
+    <div v-if="form.stockOutRequestId && pendingPickingTask" class="form-card">
+      <h3 class="section-title">拣货明细（按在库 stockitem）</h3>
+      <p class="picking-hint">
+        任务号：<strong>{{ pendingPickingTask.taskCode }}</strong>。合计须等于出库通知数量（{{ notifyTargetQty }}）。保存后方可「完成拣货」。
+      </p>
+      <div class="picking-draft-toolbar">
+        <button type="button" class="btn-secondary btn-sm" :disabled="loadingCandidates" @click="loadPickingCandidates">
+          {{ loadingCandidates ? '加载中…' : '加载拣货候选' }}
+        </button>
+        <button
+          type="button"
+          class="btn-secondary btn-sm"
+          style="margin-left: 8px"
+          :disabled="!pickingCandidates.length"
+          @click="applyFifoToPickDraft"
+        >
+          按 FIFO 自动分配
+        </button>
+        <button
+          type="button"
+          class="btn-primary btn-sm"
+          style="margin-left: 8px"
+          :disabled="savingPicking || !pendingPickingTask"
+          @click="savePickingDraft"
+        >
+          {{ savingPicking ? '保存中…' : '保存拣货明细' }}
+        </button>
+        <span class="picking-draft-sum">已分配：<strong>{{ allocatedPickTotal }}</strong> / 目标：<strong>{{ notifyTargetQty }}</strong></span>
+      </div>
+      <el-table v-if="pickingCandidates.length" :data="pickingCandidates" class="quantum-table picking-candidates-table" max-height="380">
+        <el-table-column label="在库明细" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span :title="row.stockItemId">{{ shortId(row.stockItemId) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="materialId" label="物料" min-width="120" show-overflow-tooltip />
+        <el-table-column label="型号" min-width="100" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.purchasePn || '—' }}</template>
+        </el-table-column>
+        <el-table-column label="品牌" min-width="88" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.purchaseBrand || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="t('inventoryList.columns.stockType')" width="100" align="center">
+          <template #default="{ row }">{{ inventoryStockTypeLabel(row.stockType) }}</template>
+        </el-table-column>
+        <el-table-column label="来源" width="100" align="center">
+          <template #default="{ row }">
+            <span v-if="row.isStockingCandidate" class="picking-source-stocking">备货</span>
+            <span v-else class="picking-source-normal">客单</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="可用" width="80" align="right">
+          <template #default="{ row }">{{ formatQty(row.availableQty) }}</template>
+        </el-table-column>
+        <el-table-column label="本次拣货" width="130" align="center">
+          <template #default="{ row }">
+            <el-input-number
+              :model-value="pickQty(row)"
+              :min="0"
+              :max="row.availableQty"
+              :step="1"
+              :precision="0"
+              size="small"
+              controls-position="right"
+              style="width: 110px"
+              @update:model-value="(v: number | undefined | null) => setPickQty(row, v)"
+            />
+          </template>
+        </el-table-column>
+      </el-table>
+      <p v-else class="picking-empty subtle">请点击「加载拣货候选」获取本仓库可拣在库明细。</p>
+    </div>
   </div>
 </template>
 
@@ -210,7 +289,13 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Box } from '@element-plus/icons-vue'
 import { stockOutApi, type StockOutRequestDto } from '@/api/stockOut'
-import { inventoryCenterApi, type PickingTask, type PickingTaskLine, type WarehouseInfo } from '@/api/inventoryCenter'
+import {
+  inventoryCenterApi,
+  type PickingStockItemCandidate,
+  type PickingTask,
+  type PickingTaskLine,
+  type WarehouseInfo
+} from '@/api/inventoryCenter'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
@@ -238,6 +323,10 @@ const submitting = ref(false)
 const pickingTasks = ref<PickingTask[]>([])
 const warehouses = ref<WarehouseInfo[]>([])
 const currentRequest = ref<StockOutRequestDto | null>(null)
+const pickingCandidates = ref<PickingStockItemCandidate[]>([])
+const pickDraft = reactive<Record<string, number>>({})
+const loadingCandidates = ref(false)
+const savingPicking = ref(false)
 const getYYMMDD = (d: Date) => {
   const yy = String(d.getFullYear()).slice(-2)
   const mm = String(d.getMonth() + 1).padStart(2, '0')
@@ -344,6 +433,40 @@ const formatTaskTime = (v?: string) => {
 
 const requestAlreadyShipped = computed(() => Number(currentRequest.value?.status) === 1)
 
+const notifyTargetQty = computed(() => {
+  const r = currentRequest.value as unknown as Record<string, unknown> | null
+  const q = r?.outQuantity ?? r?.OutQuantity
+  if (typeof q === 'number' && Number.isFinite(q) && q > 0) return Math.round(q)
+  return Math.round(totalQuantity.value)
+})
+
+const pendingPickingTask = computed(() => {
+  const rid = form.stockOutRequestId?.trim()
+  if (!rid) return null
+  return (
+    pickingTasks.value.find(
+      (t) =>
+        (t.stockOutRequestId === rid || (t as unknown as Record<string, string>).StockOutRequestId === rid) &&
+        t.status !== 100 &&
+        t.status !== -1
+    ) ?? null
+  )
+})
+
+const allocatedPickTotal = computed(() =>
+  pickingCandidates.value.reduce((s, c) => s + (pickDraft[c.stockItemId] ?? 0), 0)
+)
+
+const pickingLinesSaved = computed(() => {
+  const rid = form.stockOutRequestId?.trim()
+  if (!rid) return false
+  return pickingTasks.value.some((t) => {
+    if (t.stockOutRequestId !== rid && (t as unknown as Record<string, string>).StockOutRequestId !== rid) return false
+    const n = pickingQty(t, 'plan')
+    return n != null && n > 0
+  })
+})
+
 const pickingCompleted = computed(() => pickingTasks.value.some((t) => t.status === 100))
 
 /** 是否存在未取消的拣货任务（与后端「禁止重复生成」一致） */
@@ -374,9 +497,36 @@ const canExecuteStockOut = computed(
 
 const executeOutHint = computed(() => {
   if (requestAlreadyShipped.value) return '该出库通知已出库'
-  if (!pickingCompleted.value) return '请先完成拣货任务后再执行出库'
-  return '将按 FIFO 扣减库存并标记出库通知为已出库'
+  if (!pickingCompleted.value) return '请先保存拣货明细并完成拣货任务后再执行出库'
+  return '将按已保存的拣货明细扣减在库并标记出库通知为已出库'
 })
+
+function shortId(id?: string | null) {
+  const s = (id || '').trim()
+  if (!s) return '—'
+  return s.length <= 12 ? s : `${s.slice(0, 6)}…${s.slice(-4)}`
+}
+
+function pickingLineStockItemId(line: PickingTaskLine) {
+  const x = line as unknown as Record<string, unknown>
+  return String(line.stockItemId ?? x.StockItemId ?? '').trim()
+}
+
+function pickQty(c: PickingStockItemCandidate) {
+  return pickDraft[c.stockItemId] ?? 0
+}
+
+function setPickQty(c: PickingStockItemCandidate, v: number | undefined | null) {
+  const k = c.stockItemId
+  const raw = typeof v === 'number' && Number.isFinite(v) ? Math.floor(v) : 0
+  const n = Math.max(0, Math.min(raw, Math.max(0, Math.floor(Number(c.availableQty)))))
+  if (n <= 0) delete pickDraft[k]
+  else pickDraft[k] = n
+}
+
+function clearPickDraft() {
+  for (const k of Object.keys(pickDraft)) delete pickDraft[k]
+}
 
 const loadWarehouses = async () => {
   try {
@@ -463,6 +613,66 @@ const loadPickingTasks = async () => {
   }
 }
 
+const loadPickingCandidates = async () => {
+  if (!form.stockOutRequestId?.trim() || !form.warehouseId?.trim()) {
+    ElMessage.warning('请先选择出库通知与仓库')
+    return
+  }
+  loadingCandidates.value = true
+  try {
+    const list = await inventoryCenterApi.getPickingCandidates(form.stockOutRequestId.trim(), form.warehouseId.trim())
+    pickingCandidates.value = list || []
+    clearPickDraft()
+  } catch (e) {
+    console.error(e)
+    pickingCandidates.value = []
+    ElMessage.error(getApiErrorMessage(e, '加载拣货候选失败'))
+  } finally {
+    loadingCandidates.value = false
+  }
+}
+
+const applyFifoToPickDraft = () => {
+  clearPickDraft()
+  const target = notifyTargetQty.value
+  let rem = target
+  for (const c of pickingCandidates.value) {
+    if (rem <= 0) break
+    const avail = Math.max(0, Math.floor(Number(c.availableQty)))
+    const take = Math.min(rem, avail)
+    if (take > 0) {
+      pickDraft[c.stockItemId] = take
+      rem -= take
+    }
+  }
+  if (rem > 0) ElMessage.warning(`候选可用量不足，尚有 ${rem} 未分配，请补库存或手工调整`)
+  else ElMessage.success('已按 FIFO 顺序填满（请核对后保存拣货明细）')
+}
+
+const savePickingDraft = async () => {
+  const task = pendingPickingTask.value
+  if (!task?.id) return
+  const lines = pickingCandidates.value
+    .map((c) => ({ stockItemId: c.stockItemId, stockId: c.stockAggregateId, qty: pickQty(c) }))
+    .filter((l) => l.qty > 0)
+  const sum = lines.reduce((a, l) => a + l.qty, 0)
+  if (sum !== notifyTargetQty.value) {
+    ElMessage.error(`拣货数量合计须等于出库通知数量（${notifyTargetQty.value}），当前为 ${sum}`)
+    return
+  }
+  savingPicking.value = true
+  try {
+    await inventoryCenterApi.savePickingTaskItems(task.id, lines)
+    ElMessage.success('拣货明细已保存')
+    await loadPickingTasks()
+  } catch (e) {
+    console.error(e)
+    ElMessage.error(getApiErrorMessage(e, '保存拣货明细失败'))
+  } finally {
+    savingPicking.value = false
+  }
+}
+
 const handleGeneratePicking = async () => {
   if (requestAlreadyShipped.value) {
     ElMessage.warning('该出库通知已执行出库，无法再次生成拣货任务')
@@ -489,10 +699,11 @@ const handleGeneratePicking = async () => {
       stockOutRequestId: form.stockOutRequestId,
       warehouseId: form.warehouseId,
       operatorId: form.operatorId,
-      items: form.items.map(x => ({ materialId: x.materialCode, quantity: x.quantity }))
+      items: []
     })
     ElMessage.success('拣货任务已生成')
     await loadPickingTasks()
+    await loadPickingCandidates()
   } catch (e) {
     console.error(e)
     ElMessage.error(getApiErrorMessage(e, '生成拣货任务失败'))
@@ -565,6 +776,9 @@ const init = async () => {
   }
   await loadItemsFromRequest()
   await loadPickingTasks()
+  if (pendingPickingTask.value && form.warehouseId?.trim()) {
+    await loadPickingCandidates()
+  }
 }
 
 init()
@@ -803,6 +1017,25 @@ init()
 .btn-picking:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+.picking-draft-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.picking-draft-sum {
+  margin-left: auto;
+  font-size: 13px;
+  color: rgba(200, 216, 232, 0.88);
+}
+.picking-candidates-table {
+  margin-top: 4px;
+}
+.picking-empty.subtle {
+  font-size: 12px;
+  opacity: 0.92;
 }
 </style>
 

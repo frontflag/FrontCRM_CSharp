@@ -147,6 +147,36 @@ namespace CRM.Core.Models.Inventory
 
         [StringLength(500)]
         public string? Remark { get; set; }
+
+        /// <summary>移库：源仓（与 <c>STOCK_TRANS</c> 合并流水配合）。</summary>
+        [StringLength(36)]
+        [Column("from_warehouse_id")]
+        public string? FromWarehouseId { get; set; }
+
+        /// <summary>移库：目标仓。</summary>
+        [StringLength(36)]
+        [Column("to_warehouse_id")]
+        public string? ToWarehouseId { get; set; }
+
+        [StringLength(36)]
+        [Column("create_by_user_id")]
+        public string? CreateByUserId { get; set; }
+
+        [StringLength(36)]
+        [Column("customs_declaration_id")]
+        public string? CustomsDeclarationId { get; set; }
+
+        [StringLength(36)]
+        [Column("stock_transfer_id")]
+        public string? StockTransferId { get; set; }
+
+        [StringLength(36)]
+        [Column("source_stock_item_id")]
+        public string? SourceStockItemId { get; set; }
+
+        [StringLength(36)]
+        [Column("target_stock_item_id")]
+        public string? TargetStockItemId { get; set; }
     }
 
     [Table("pickingtask")]
@@ -194,6 +224,11 @@ namespace CRM.Core.Models.Inventory
 
         [StringLength(36)]
         public string? StockId { get; set; }
+
+        /// <summary>在库明细 <c>stockitem.StockItemId</c>；新流程拣货必填。</summary>
+        [StringLength(36)]
+        [Column("stock_item_id")]
+        public string? StockItemId { get; set; }
 
         [StringLength(50)]
         public string? BatchNo { get; set; }

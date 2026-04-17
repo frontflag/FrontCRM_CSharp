@@ -143,6 +143,44 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>拣货单列表（出库通知 + 仓库 + 订单展示列）。</summary>
+        [HttpGet("picking-list")]
+        public async Task<ActionResult<ApiResponse<IReadOnlyList<PickingTaskListItemDto>>>> GetPickingTaskList()
+        {
+            try
+            {
+                var list = await _service.GetPickingTaskListRowsAsync();
+                return Ok(ApiResponse<IReadOnlyList<PickingTaskListItemDto>>.Ok(list, "获取拣货单列表成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取拣货单列表失败");
+                return StatusCode(500, ApiResponse<IReadOnlyList<PickingTaskListItemDto>>.Fail($"获取拣货单列表失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>拣货单详情（头信息 + 明细行）。</summary>
+        [HttpGet("picking-list/{id}")]
+        public async Task<ActionResult<ApiResponse<PickingTaskDetailViewDto>>> GetPickingTaskListDetail(string id)
+        {
+            try
+            {
+                var dto = await _service.GetPickingTaskDetailForUiAsync(id);
+                if (dto == null)
+                    return NotFound(ApiResponse<PickingTaskDetailViewDto>.Fail("拣货单不存在", 404));
+                return Ok(ApiResponse<PickingTaskDetailViewDto>.Ok(dto, "获取拣货单详情成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<PickingTaskDetailViewDto>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取拣货单详情失败 Id={Id}", id);
+                return StatusCode(500, ApiResponse<PickingTaskDetailViewDto>.Fail($"获取拣货单详情失败: {ex.Message}", 500));
+            }
+        }
+
         [HttpGet("picking-tasks")]
         public async Task<ActionResult<ApiResponse<IEnumerable<PickingTaskSummaryDto>>>> GetPickingTasks([FromQuery] short? status = null)
         {
@@ -198,6 +236,66 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "完成拣货任务失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"完成拣货任务失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>出库拣货：可拣 <c>stockitem</c> 候选列表（FIFO 仅排序）。</summary>
+        [HttpGet("picking-candidates")]
+        public async Task<ActionResult<ApiResponse<IReadOnlyList<PickingStockItemCandidateDto>>>> GetPickingCandidates(
+            [FromQuery] string stockOutRequestId,
+            [FromQuery] string warehouseId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(stockOutRequestId))
+                    return BadRequest(ApiResponse<IReadOnlyList<PickingStockItemCandidateDto>>.Fail("stockOutRequestId 不能为空", 400));
+                if (string.IsNullOrWhiteSpace(warehouseId))
+                    return BadRequest(ApiResponse<IReadOnlyList<PickingStockItemCandidateDto>>.Fail("warehouseId 不能为空", 400));
+
+                var list = await _service.GetPickingCandidateStockItemsAsync(stockOutRequestId.Trim(), warehouseId.Trim());
+                return Ok(ApiResponse<IReadOnlyList<PickingStockItemCandidateDto>>.Ok(list, "获取拣货候选成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<IReadOnlyList<PickingStockItemCandidateDto>>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<IReadOnlyList<PickingStockItemCandidateDto>>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取拣货候选失败");
+                return StatusCode(500, ApiResponse<IReadOnlyList<PickingStockItemCandidateDto>>.Fail($"获取拣货候选失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>保存/覆盖拣货任务明细（须与出库通知数量一致）。</summary>
+        [HttpPost("picking-tasks/{taskId}/items")]
+        public async Task<ActionResult<ApiResponse<object>>> SavePickingTaskItems(
+            string taskId,
+            [FromBody] IReadOnlyList<SavePickingTaskItemLineRequest>? lines)
+        {
+            try
+            {
+                if (lines == null || lines.Count == 0)
+                    return BadRequest(ApiResponse<object>.Fail("拣货明细不能为空", 400));
+
+                await _service.SavePickingTaskItemsAsync(taskId.Trim(), lines);
+                return Ok(ApiResponse<object>.Ok(null, "拣货明细已保存"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "保存拣货明细失败 TaskId={TaskId}", taskId);
+                return StatusCode(500, ApiResponse<object>.Fail($"保存拣货明细失败: {ex.Message}", 500));
             }
         }
 

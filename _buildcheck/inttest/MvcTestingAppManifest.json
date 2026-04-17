@@ -1,0 +1,6 @@
+{
+  "CRM.API, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "D:\\MyProject\\FrontCRM_CSharp\\CRM.API",
+  "CRM.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "D:\\MyProject\\FrontCRM_CSharp\\CRM.Core",
+  "CRM.Infrastructure, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "D:\\MyProject\\FrontCRM_CSharp\\CRM.Infrastructure",
+  "CRM.TestCommon, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "D:\\MyProject\\FrontCRM_CSharp\\tests\\CRM.TestCommon"
+}

@@ -275,6 +275,30 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '入库单详情' }
       },
       {
+        path: 'customs/brokers',
+        name: 'CustomsBrokerList',
+        component: () => import('@/views/Customs/CustomsBrokerList.vue'),
+        meta: { requiresAuth: true, title: '报关公司' }
+      },
+      {
+        path: 'customs/declarations',
+        name: 'CustomsDeclarationList',
+        component: () => import('@/views/Customs/CustomsDeclarationList.vue'),
+        meta: { requiresAuth: true, title: '报关单' }
+      },
+      {
+        path: 'customs/declaration-items',
+        name: 'CustomsDeclarationItemList',
+        component: () => import('@/views/Customs/CustomsDeclarationItemList.vue'),
+        meta: { requiresAuth: true, title: '报关明细' }
+      },
+      {
+        path: 'inventory/stock-transfers',
+        name: 'StockTransferList',
+        component: () => import('@/views/Customs/StockTransferList.vue'),
+        meta: { requiresAuth: true, title: '移库' }
+      },
+      {
         path: 'inventory/stock-out',
         name: 'StockOutList',
         component: () => import('@/views/Inventory/StockOutList.vue'),
@@ -318,6 +342,26 @@ const routes: RouteRecordRaw[] = [
           requiresAuth: true,
           title: '出库通知',
           // 销售用 SO 权限；采购/履约用 PO 权限（采购主部门不再持有 sales-order.read）
+          permissions: ['sales-order.read', 'purchase-order.read']
+        }
+      },
+      {
+        path: 'inventory/picking-list',
+        name: 'PickingSlipList',
+        component: () => import('@/views/Inventory/PickingSlipList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '拣货单',
+          permissions: ['sales-order.read', 'purchase-order.read']
+        }
+      },
+      {
+        path: 'inventory/picking-list/:id',
+        name: 'PickingSlipDetail',
+        component: () => import('@/views/Inventory/PickingSlipDetail.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '拣货单详情',
           permissions: ['sales-order.read', 'purchase-order.read']
         }
       },

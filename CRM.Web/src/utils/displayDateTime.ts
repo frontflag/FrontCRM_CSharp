@@ -46,24 +46,37 @@ export function formatDisplayDateTime(input: Date | string | undefined | null): 
   return `${ymd} ${hm}`.trim()
 }
 
-/** 按配置时区显示：YY-MM-DD HH:mm（年份 2 位，24 小时制） */
-export function formatDisplayDateTime2DigitYear(input: Date | string | undefined | null): string {
-  const d = toDate(input)
-  if (!d) return '--'
-  const tz = getDisplayTimeZoneId()
+function formatYmdHm2DigitYearInZone(d: Date, timeZone: string): { date: string; time: string } {
   const ymd = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: tz,
+    timeZone,
     year: '2-digit',
     month: '2-digit',
     day: '2-digit'
   }).format(d)
   const hm = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: tz,
+    timeZone,
     hour: '2-digit',
     minute: '2-digit',
     hour12: false
   }).format(d)
-  return `${ymd} ${hm}`.trim()
+  return { date: ymd, time: hm.trim() }
+}
+
+/** 按配置时区：YY-MM-DD 与 HH:mm 拆分（用于报价列表创建时间「时分」单独着色） */
+export function formatDisplayDateTime2DigitYearParts(
+  input: Date | string | undefined | null
+): { date: string; time: string } | null {
+  const d = toDate(input)
+  if (!d) return null
+  return formatYmdHm2DigitYearInZone(d, getDisplayTimeZoneId())
+}
+
+/** 按配置时区显示：YY-MM-DD HH:mm（年份 2 位，24 小时制） */
+export function formatDisplayDateTime2DigitYear(input: Date | string | undefined | null): string {
+  const d = toDate(input)
+  if (!d) return '--'
+  const { date, time } = formatYmdHm2DigitYearInZone(d, getDisplayTimeZoneId())
+  return `${date} ${time}`.trim()
 }
 
 /** 按配置时区显示：YYYY-MM-DD */

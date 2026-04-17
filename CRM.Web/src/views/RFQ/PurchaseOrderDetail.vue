@@ -1003,14 +1003,20 @@ const handleEdit = () => {
 }
 
 .items-table {
-  // 无外边框，行间细线分隔，对标客户管理列表风格
+  // 与全站 .crm-items-table、销售订单详情一致：勿写死浅色字，浅色主题下行字会发虚难辨
   --el-table-border-color: transparent;
-  --el-table-header-bg-color: rgba(0, 212, 255, 0.04);
-  --el-table-row-hover-bg-color: rgba(0, 212, 255, 0.04);
+  --el-table-header-bg-color: var(--crm-table-header-bg);
+  --el-table-row-hover-bg-color: var(--crm-table-row-hover);
   --el-table-bg-color: transparent;
   --el-table-tr-bg-color: transparent;
+  --el-table-text-color: #{$text-primary};
+  --el-table-header-text-color: #{$text-muted};
   --el-table-fixed-box-shadow: none;
   background: transparent !important;
+  :deep(.el-table) {
+    --el-table-text-color: #{$text-primary};
+    color: $text-primary;
+  }
   :deep(.el-table__inner-wrapper) {
     background: transparent;
     &::before { display: none !important; }
@@ -1019,26 +1025,33 @@ const handleEdit = () => {
   :deep(.el-table__border-left-patch) { display: none !important; }
   :deep(.el-table__header-wrapper) {
     th.el-table__cell {
-      background: rgba(0, 212, 255, 0.04) !important;
-      border-bottom: 1px solid rgba(0, 212, 255, 0.1) !important;
+      background: var(--crm-table-header-bg) !important;
+      border-bottom: 1px solid var(--crm-table-header-line) !important;
       border-right: none !important;
-      color: rgba(200, 216, 232, 0.55);
+      color: $text-muted !important;
       font-size: 12px;
       font-weight: 500;
       letter-spacing: 0.3px;
     }
-  }
-  :deep(.el-table__row) {
-    background: transparent !important;
-    td.el-table__cell {
-      background: transparent !important;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
-      border-right: none !important;
-      color: rgba(224, 244, 255, 0.85);
-      font-size: 13px;
+    th.el-table__cell .cell {
+      color: inherit !important;
     }
-    &:last-child td.el-table__cell { border-bottom: none !important; }
-    &:hover td.el-table__cell { background: rgba(0, 212, 255, 0.04) !important; }
+  }
+  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row td.el-table__cell),
+  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row td.el-table__cell) {
+    background: transparent !important;
+    border-bottom: 1px solid var(--crm-table-header-line);
+    border-right: none !important;
+    color: $text-primary !important;
+    font-size: 13px;
+  }
+  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row:last-child td.el-table__cell),
+  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row:last-child td.el-table__cell) {
+    border-bottom: none !important;
+  }
+  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row td.el-table__cell .cell),
+  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row td.el-table__cell .cell) {
+    color: $text-primary !important;
   }
   :deep(.el-table__cell) {
     .el-button { white-space: nowrap !important; }
@@ -1053,7 +1066,7 @@ const handleEdit = () => {
   .po-item-progress-sub {
     margin-top: 2px;
     font-size: 11px;
-    color: rgba(160, 190, 210, 0.78);
+    color: $text-muted;
     line-height: 1.25;
     white-space: normal;
   }

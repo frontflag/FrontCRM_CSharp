@@ -120,6 +120,9 @@ namespace CRM.Core.Models.Inventory
         [StringLength(36)]
         public string? StockInId { get; set; }
 
+        /// <summary>质检填写的计划入库日；从质检列表生成入库单时作为 <see cref="StockIn.StockInDate"/> 来源。</summary>
+        public DateTime? StockInPlanDate { get; set; }
+
         [NotMapped]
         public string? VendorName { get; set; }
 

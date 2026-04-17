@@ -130,7 +130,16 @@
           {{ formatAssignedPurchasers(row) }}
         </template>
         <template #col-createTime="{ row }">
-          {{ formatDate(row.createTime || row.rfqCreateTime) }}
+          <template
+            v-for="p in [formatDisplayDateTime2DigitYearParts(row.createTime || row.rfqCreateTime)]"
+            :key="`ct-main-${row.id}`"
+          >
+            <span v-if="p" class="crm-quote-create-time">
+              <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+              <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+            </span>
+            <span v-else>—</span>
+          </template>
         </template>
         <template #col-createUser="{ row }">
           {{ row.createUserName || row.createdBy || row.salesUserName || '—' }}
@@ -144,37 +153,36 @@
           </div>
         </template>
         <template #col-actions="{ row }">
-          <div @click.stop @dblclick.stop>
-            <div v-if="opColExpanded" class="action-btns">
+          <div v-if="opColExpanded" @click.stop @dblclick.stop>
+            <div class="action-btns">
               <button type="button" class="action-btn action-btn--primary" @click.stop="goDetail(row)">{{ t('rfqItemList.actions.detail') }}</button>
               <button type="button" class="action-btn action-btn--warning" @click.stop="goQuote(row)">{{ t('rfqItemList.actions.quote') }}</button>
             </div>
-
-            <el-dropdown v-else trigger="click" placement="bottom-end">
-              <div class="op-more-dropdown-trigger">
-                <button type="button" class="op-more-trigger">...</button>
-              </div>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click.stop="goDetail(row)">
-                    <span class="op-more-item op-more-item--primary">{{ t('rfqItemList.actions.detail') }}</span>
-                  </el-dropdown-item>
-                  <el-dropdown-item @click.stop="goQuote(row)">
-                    <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.actions.quote') }}</span>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
           </div>
+          <el-dropdown v-else trigger="click" placement="bottom-end">
+            <div class="op-more-dropdown-trigger" @click.stop @dblclick.stop>
+              <button type="button" class="op-more-trigger">...</button>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click.stop="goDetail(row)">
+                  <span class="op-more-item op-more-item--primary">{{ t('rfqItemList.actions.detail') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item @click.stop="goQuote(row)">
+                  <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.actions.quote') }}</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </template>
       </CrmDataTable>
       </div>
 
-      <div class="table-footer-bar">
-        <div class="table-footer-left">
+      <div class="pagination-wrapper">
+        <div class="list-footer-left">
           <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
             <el-button
-              class="table-settings-btn"
+              class="list-settings-btn"
               link
               type="primary"
               :aria-label="t('systemUser.colSetting')"
@@ -185,7 +193,7 @@
           </el-tooltip>
           <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
 
-          <div class="table-footer-spacer" aria-hidden="true"></div>
+          <div class="list-footer-spacer" aria-hidden="true"></div>
 
           <div class="basket-footer-left">
             <el-button class="basket-open-btn" link type="primary" @click="basketDrawerVisible = true">
@@ -263,7 +271,36 @@
     <div class="supplier-quote-dock" :class="{ collapsed: !supplierPanelExpanded }">
       <div class="dock-header">
         <div class="dock-header-top">
-          <span class="dock-title">{{ t('rfqItemList.dockQuotes.title') }}</span>
+          <div class="dock-header-main">
+            <span class="dock-title">{{ t('rfqItemList.dockQuotes.title') }}</span>
+            <!-- 与新建报价页提示栏同一套字段与拉数逻辑；与标题同一行 -->
+            <div
+              v-show="supplierPanelExpanded && selectedRfqItem"
+              v-loading="dockSummaryLoading"
+              class="dock-link-alert-wrap dock-link-alert-wrap--inline"
+            >
+              <div v-if="dockLinkAlert" class="dock-link-alert-title-row">
+                <span class="la-block-rfq">
+                  <span class="la-muted">报价需求</span><span class="la-pre">{{ linkAlertGap2 }}</span
+                  ><span class="la-strong la-rfq-val">{{ dockLinkAlert.linkAlertRfqDisplay }}</span>
+                </span>
+                <span class="la-pre">{{ linkAlertSep8Ideo }}</span>
+                <span class="la-block-detail">
+                  <span class="la-muted">物料号</span><span class="la-pre">{{ linkAlertGap2 }}</span
+                  ><span class="la-value-green">{{ dockLinkAlert.mpn || '—' }}</span
+                  ><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">品牌</span
+                  ><span class="la-pre">{{ linkAlertGap2 }}</span
+                  ><span class="la-value-green">{{ dockLinkAlert.brand || '—' }}</span
+                  ><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">数量</span
+                  ><span class="la-pre">{{ linkAlertGap2 }}</span
+                  ><span class="la-value-green">{{ dockLinkAlert.quantityDisplay }}</span
+                  ><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">目标价</span
+                  ><span class="la-pre">{{ linkAlertGap2 }}</span
+                  ><span class="la-value-green">{{ dockLinkAlert.targetPriceText }}</span>
+                </span>
+              </div>
+            </div>
+          </div>
           <div class="dock-header-actions">
             <el-button
               class="dock-toggle"
@@ -277,33 +314,6 @@
                 <ArrowDown v-else />
               </el-icon>
             </el-button>
-          </div>
-        </div>
-        <!-- 与新建报价页提示栏同一套字段与拉数逻辑 -->
-        <div
-          v-show="supplierPanelExpanded && selectedRfqItem"
-          v-loading="dockSummaryLoading"
-          class="dock-link-alert-wrap"
-        >
-          <div v-if="dockLinkAlert" class="dock-link-alert-title-row">
-            <span class="la-block-rfq">
-              <span class="la-muted">报价需求</span><span class="la-pre">{{ linkAlertGap2 }}</span
-              ><span class="la-strong la-rfq-val">{{ dockLinkAlert.linkAlertRfqDisplay }}</span>
-            </span>
-            <span class="la-pre">{{ linkAlertSep8Ideo }}</span>
-            <span class="la-block-detail">
-              <span class="la-muted">物料号</span><span class="la-pre">{{ linkAlertGap2 }}</span
-              ><span class="la-value-green">{{ dockLinkAlert.mpn || '—' }}</span
-              ><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">品牌</span
-              ><span class="la-pre">{{ linkAlertGap2 }}</span
-              ><span class="la-value-green">{{ dockLinkAlert.brand || '—' }}</span
-              ><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">数量</span
-              ><span class="la-pre">{{ linkAlertGap2 }}</span
-              ><span class="la-value-green">{{ dockLinkAlert.quantityDisplay }}</span
-              ><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">目标价</span
-              ><span class="la-pre">{{ linkAlertGap2 }}</span
-              ><span class="la-value-green">{{ dockLinkAlert.targetPriceText }}</span>
-            </span>
           </div>
         </div>
       </div>
@@ -389,9 +399,23 @@
                       <div
                         v-for="(it, idx) in dockQuoteLineItems(row as Record<string, unknown>)"
                         :key="idx"
-                        class="dock-quote-tier-line"
+                        class="dock-quote-tier-line dock-tier-price-line"
                       >
-                        {{ formatDockTierUnitPrice(it.unitPrice, it.currency) }}
+                        <template v-if="!dockTierUnitPriceHasValue(it.unitPrice)">
+                          —
+                        </template>
+                        <template v-else>
+                          <template v-for="amt in [splitDockTierAmountParts(it.unitPrice)]" :key="idx + '-amt'">
+                            <span class="dock-tier-amt">
+                              <span class="dock-tier-amt-int">{{ amt.intPart }}</span
+                              ><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+                            </span>
+                          </template>
+                          <span class="dock-tier-ccy-gap">&nbsp;</span>
+                          <span :class="['dock-tier-ccy', dockTierCurrencyCodeClass(it.currency)]">{{
+                            dockTierCurrencyCode(it.currency)
+                          }}</span>
+                        </template>
                       </div>
                     </template>
                     <span v-else class="dock-tier-empty">—</span>
@@ -418,7 +442,18 @@
                 show-overflow-tooltip
                 resizable
               >
-                <template #default="{ row }">{{ formatDate((row as Record<string, unknown>).createTime as string | undefined) }}</template>
+                <template #default="{ row }">
+                  <template
+                    v-for="p in [formatDisplayDateTime2DigitYearParts((row as Record<string, unknown>).createTime as string)]"
+                    :key="String(dockQuoteRowKey(row)) + '-ct'"
+                  >
+                    <span v-if="p" class="crm-quote-create-time">
+                      <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+                      <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+                    </span>
+                    <span v-else>—</span>
+                  </template>
+                </template>
               </el-table-column>
               <el-table-column
                 :label="t('rfqItemList.dockQuotes.actions')"
@@ -439,8 +474,8 @@
                 </template>
 
                 <template #default="{ row }">
-                  <div @click.stop @dblclick.stop>
-                    <div v-if="opDockColExpanded" class="action-btns">
+                  <div v-if="opDockColExpanded" @click.stop @dblclick.stop>
+                    <div class="action-btns">
                       <el-button
                         class="action-btn action-btn--warning"
                         link
@@ -452,20 +487,19 @@
                         {{ t('rfqItemList.dockQuotes.genSalesOrder') }}
                       </el-button>
                     </div>
-
-                    <el-dropdown v-else trigger="click" placement="bottom-end">
-                      <div class="op-more-dropdown-trigger">
-                        <button type="button" class="op-more-trigger">...</button>
-                      </div>
-                      <template #dropdown>
-                        <el-dropdown-menu>
-                          <el-dropdown-item @click.stop="handleDockRowGenerateSalesOrder(row)">
-                            <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.dockQuotes.genSalesOrder') }}</span>
-                          </el-dropdown-item>
-                        </el-dropdown-menu>
-                      </template>
-                    </el-dropdown>
                   </div>
+                  <el-dropdown v-else trigger="click" placement="bottom-end">
+                    <div class="op-more-dropdown-trigger" @click.stop @dblclick.stop>
+                      <button type="button" class="op-more-trigger">...</button>
+                    </div>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item @click.stop="handleDockRowGenerateSalesOrder(row)">
+                          <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.dockQuotes.genSalesOrder') }}</span>
+                        </el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
                 </template>
               </el-table-column>
             </CrmDataTable>
@@ -488,7 +522,7 @@ import { quoteApi } from '@/api/quote'
 import { buildLinkAlertFieldsFromItem, fetchLinkedRfqItemRecord } from '@/utils/rfqLinkedItemSummary'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
 import type { RFQItem } from '@/types/rfq'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
 import { useRfqItemListBasketStore } from '@/stores/rfqItemListBasket'
@@ -722,12 +756,6 @@ const linkAlertGap2 = '  '
 const linkAlertSep8Ideo = '\u3000'.repeat(8)
 const linkAlertSep4Ideo = '\u3000'.repeat(4)
 
-function formatDate(val?: string) {
-  if (!val) return '—'
-  const s = formatDisplayDateTime(val)
-  return s === '--' ? '—' : s
-}
-
 /** 轮询分配的两名询价采购员展示 */
 function formatAssignedPurchasers(row: RFQItem) {
   const n1 = row.assignedPurchaserName1?.trim()
@@ -860,23 +888,51 @@ function formatDockTierQuantity(q: number) {
   return q.toLocaleString('zh-CN', { maximumFractionDigits: 4 })
 }
 
-function dockTierCurrencySymbol(currency?: number) {
+/** 与报价阶梯币别枚举一致：1=RMB，2=USD，3=EUR，4=HKD，5=JPY，6=GBP */
+function dockTierCurrencyCode(currency?: number): string {
   const n = Number(currency)
-  if (n === 2) return '$'
-  if (n === 3) return '€'
-  if (n === 4) return 'HK$'
-  if (n === 5) return 'JP¥'
-  if (n === 6) return '£'
-  return '¥'
+  if (n === 2) return 'USD'
+  if (n === 3) return 'EUR'
+  if (n === 4) return 'HKD'
+  if (n === 5) return 'JPY'
+  if (n === 6) return 'GBP'
+  return 'RMB'
 }
 
-function formatDockTierUnitPrice(unitPrice: number, currency?: number) {
-  if (!Number.isFinite(unitPrice) || unitPrice === 0) return '—'
-  const sym = dockTierCurrencySymbol(currency)
-  return (
-    sym +
-    unitPrice.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 6 })
-  )
+function dockTierCurrencyCodeClass(currency?: number): string {
+  const n = Number(currency)
+  if (n === 1 || !Number.isFinite(n) || n === 0) return 'dock-tier-ccy--rmb'
+  if (n === 2) return 'dock-tier-ccy--usd'
+  if (n === 3) return 'dock-tier-ccy--eur'
+  if (n === 4) return 'dock-tier-ccy--hkd'
+  return 'dock-tier-ccy--purple'
+}
+
+function dockTierUnitPriceHasValue(unitPrice: number): boolean {
+  return Number.isFinite(unitPrice) && unitPrice !== 0
+}
+
+function formatDockTierAmountNum(unitPrice: number): string {
+  if (!dockTierUnitPriceHasValue(unitPrice)) return '—'
+  return unitPrice.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 6 })
+}
+
+/** 与 `formatDockTierAmountNum` 同规则；用 `formatToParts` 避免环境小数点字符非 `.` 时拆分失败 */
+function splitDockTierAmountParts(unitPrice: number): { intPart: string; fracPart: string } {
+  if (!dockTierUnitPriceHasValue(unitPrice)) return { intPart: '—', fracPart: '' }
+  const n = Number(unitPrice)
+  const parts = new Intl.NumberFormat('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6
+  }).formatToParts(n)
+  let intPart = ''
+  let fracPart = ''
+  for (const p of parts) {
+    if (p.type === 'integer' || p.type === 'group') intPart += p.value
+    else if (p.type === 'decimal' || p.type === 'fraction') fracPart += p.value
+  }
+  if (!fracPart) return { intPart: intPart || formatDockTierAmountNum(n), fracPart: '' }
+  return { intPart, fracPart }
 }
 
 function mapRow(row: any): RFQItem {
@@ -1266,18 +1322,31 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
+  min-height: 32px;
+}
+
+.dock-header-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .dock-header-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .dock-title {
   font-size: 15px;
   font-weight: 600;
   color: $text-primary;
+  flex-shrink: 0;
+  line-height: 1.4;
 }
 
 .dock-toggle {
@@ -1289,15 +1358,28 @@ onUnmounted(() => {
   min-height: 28px;
 }
 
+.dock-link-alert-wrap--inline {
+  margin-top: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: center;
+}
+
 .dock-link-alert-title-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: baseline;
   gap: 0;
   line-height: 1.55;
   font-size: 14px;
   font-weight: 400;
   color: $text-primary;
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-width: 0;
+  scrollbar-width: thin;
 }
 
 .dock-link-alert-title-row .la-pre {
@@ -1324,7 +1406,7 @@ onUnmounted(() => {
   border-bottom: none;
 }
 
-.supplier-quote-dock.collapsed .dock-link-alert-wrap {
+.supplier-quote-dock.collapsed .dock-link-alert-wrap--inline {
   display: none;
 }
 
@@ -1348,65 +1430,7 @@ onUnmounted(() => {
   min-height: 0;
 }
 
-/** 采购报价无数据：仅一行文案，高度与 small 表格行一致 */
-.dock-quote-empty-row {
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 40px;
-  padding: 0 12px;
-  font-size: 12px;
-  line-height: 1;
-  color: $text-muted;
-  border: 1px solid $border-panel;
-  border-radius: 4px;
-  background: $layer-3;
-}
-
-.dock-quote-table {
-  width: 100%;
-  --el-table-header-bg-color: var(--crm-table-header-bg);
-  --el-table-tr-bg-color: transparent;
-  --el-table-border-color: var(--crm-table-border-accent);
-  :deep(.el-table__inner-wrapper::before) {
-    display: none;
-  }
-  :deep(.el-table__body-wrapper) {
-    background: transparent;
-  }
-  :deep(th.el-table__cell) {
-    color: $text-secondary;
-  }
-  :deep(td.el-table__cell) {
-    color: $text-primary;
-  }
-
-  :deep(.dock-tier-col .cell) {
-    padding-top: 6px;
-    padding-bottom: 6px;
-  }
-}
-
-.dock-quote-tiers {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-end;
-  text-align: right;
-}
-
-.dock-quote-tier-line {
-  font-size: 12px;
-  line-height: 1.4;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.dock-tier-empty {
-  color: $text-placeholder;
-  font-size: 12px;
-}
+/* 采购报价阶梯表（数量 / 金额 / 币别）样式见 assets/styles/crm-quote-tier-dock.scss */
 
 .page-header {
   flex-shrink: 0;
@@ -1721,7 +1745,8 @@ onUnmounted(() => {
 
 // 主列表操作列 op-col：main.scss 全局；按钮：crm-unified-list.scss
 
-.table-footer-bar {
+/* 底栏：与《业务列表规范》及 CustomerList 一致（列设置齿轮 → 行高密度锚点 → Spacer → 复选篮子） */
+.pagination-wrapper {
   flex-shrink: 0;
   margin-top: 6px;
   padding-top: 0;
@@ -1732,7 +1757,7 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 
-.table-footer-left {
+.list-footer-left {
   display: inline-flex;
   align-items: flex-start;
   gap: 6px;
@@ -1740,10 +1765,9 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-.table-settings-btn {
+.list-settings-btn {
   padding: 4px 6px !important;
   min-width: 28px;
-  margin-left: 14px;
 }
 
 .list-footer-density-anchor {
@@ -1753,7 +1777,7 @@ onUnmounted(() => {
   min-height: 0;
 }
 
-.table-footer-spacer {
+.list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
 }
@@ -1778,7 +1802,7 @@ onUnmounted(() => {
   font-weight: 500;
 }
 
-.table-footer-bar .quantum-pagination {
+.pagination-wrapper .quantum-pagination {
   margin-left: auto;
   align-self: flex-start;
 }

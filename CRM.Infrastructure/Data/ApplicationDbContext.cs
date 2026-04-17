@@ -17,6 +17,7 @@ using CRM.Core.Models.Sales;
 using CRM.Core.Models.System;
 using CRM.Core.Models.Tag;
 using CRM.Core.Models.Vendor;
+using CRM.Core.Models.Customs;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Infrastructure.Data
@@ -100,6 +101,11 @@ namespace CRM.Infrastructure.Data
         public DbSet<StockOutItemExtend> StockOutItemExtends { get; set; } = null!;
         public DbSet<StockItem> StockItems { get; set; } = null!;
         public DbSet<StockOutRequest> StockOutRequests { get; set; } = null!;
+        public DbSet<CustomsBroker> CustomsBrokers { get; set; } = null!;
+        public DbSet<CustomsDeclaration> CustomsDeclarations { get; set; } = null!;
+        public DbSet<CustomsDeclarationItem> CustomsDeclarationItems { get; set; } = null!;
+        public DbSet<StockTransfer> StockTransfers { get; set; } = null!;
+        public DbSet<StockTransferItem> StockTransferItems { get; set; } = null!;
         public DbSet<StockInNotify> StockInNotifies { get; set; } = null!;
         public DbSet<QCInfo> QCInfos { get; set; } = null!;
         public DbSet<QCItem> QCItems { get; set; } = null!;
@@ -658,6 +664,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.WarehouseId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.CustomerId).HasMaxLength(36);
                 entity.Property(e => e.SellOrderItemId).HasMaxLength(36);
+                entity.Property(e => e.PickingTaskId).HasColumnName("picking_task_id").HasMaxLength(36);
                 entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.Property(e => e.ShipmentMethod).HasMaxLength(64);
                 entity.Property(e => e.CourierTrackingNo).HasMaxLength(128);
@@ -677,6 +684,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.BatchNo).HasMaxLength(50);
                 entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.Property(e => e.StockItemId).HasMaxLength(36);
+                entity.Property(e => e.PickingTaskItemId).HasColumnName("picking_task_item_id").HasMaxLength(36);
             });
 
             modelBuilder.Entity<StockOutItemExtend>(entity =>
@@ -788,6 +796,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.StockInNotifyId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.StockInNotifyCode).IsRequired().HasMaxLength(32);
                 entity.Property(e => e.StockInId).HasMaxLength(36);
+                // 与迁移 20260623100000 一致：库内为带引号的 "StockInPlanDate"，避免 Npgsql 生成未加引号列名导致 42703
+                entity.Property(e => e.StockInPlanDate).HasColumnName("StockInPlanDate");
                 entity.Property(e => e.Status).HasDefaultValue((short)10);
                 entity.Property(e => e.StockInStatus).HasDefaultValue((short)1);
                 entity.HasMany(e => e.Items)
@@ -864,9 +874,108 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.SellOrderItemCode).HasColumnName("sell_order_item_code").HasMaxLength(64);
                 entity.Property(e => e.SellOrderItemId).HasColumnName("sell_order_item_id").HasMaxLength(36);
                 entity.Property(e => e.Remark).HasMaxLength(500);
+                entity.Property(e => e.FromWarehouseId).HasColumnName("from_warehouse_id").HasMaxLength(36);
+                entity.Property(e => e.ToWarehouseId).HasColumnName("to_warehouse_id").HasMaxLength(36);
+                entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.CustomsDeclarationId).HasColumnName("customs_declaration_id").HasMaxLength(36);
+                entity.Property(e => e.StockTransferId).HasColumnName("stock_transfer_id").HasMaxLength(36);
+                entity.Property(e => e.SourceStockItemId).HasColumnName("source_stock_item_id").HasMaxLength(36);
+                entity.Property(e => e.TargetStockItemId).HasColumnName("target_stock_item_id").HasMaxLength(36);
                 entity.HasIndex(e => new { e.BizType, e.BizId, e.BizLineId })
                     .IsUnique()
                     .HasDatabaseName("IX_stockledger_BizType_BizId_BizLineId");
+            });
+
+            modelBuilder.Entity<CustomsBroker>(entity =>
+            {
+                entity.ToTable("customs_broker");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("Id");
+                entity.Property(e => e.BrokerCode).IsRequired().HasMaxLength(32);
+                entity.HasIndex(e => e.BrokerCode).IsUnique();
+                entity.Property(e => e.Cname).HasColumnName("cname").IsRequired().HasMaxLength(200);
+                entity.Property(e => e.Ename).HasColumnName("ename").HasMaxLength(200);
+                entity.Property(e => e.RegionType).HasColumnName("Type");
+                entity.Property(e => e.Remark).HasMaxLength(500);
+                entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+                entity.Property(e => e.DeletedByUserId).HasColumnName("deleted_by_user_id").HasMaxLength(36);
+                entity.HasQueryFilter(e => !e.IsDeleted);
+                entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.ModifyByUserId).HasColumnName("modify_by_user_id").HasMaxLength(36);
+            });
+
+            modelBuilder.Entity<CustomsDeclaration>(entity =>
+            {
+                entity.ToTable("customs_declaration");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("CustomsDeclarationId");
+                entity.Property(e => e.DeclarationCode).IsRequired().HasMaxLength(32);
+                entity.HasIndex(e => e.DeclarationCode).IsUnique();
+                entity.Property(e => e.StockOutRequestId).IsRequired().HasMaxLength(36);
+                entity.HasIndex(e => e.StockOutRequestId).IsUnique();
+                entity.Property(e => e.CustomsBrokerId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.ExchangeRate).HasColumnType("numeric(18,6)");
+                entity.Property(e => e.TotalTaxAmount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.Remark).HasMaxLength(500);
+                entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.ModifyByUserId).HasColumnName("modify_by_user_id").HasMaxLength(36);
+                entity.HasMany(e => e.Items)
+                    .WithOne(i => i.Declaration!)
+                    .HasForeignKey(i => i.DeclarationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CustomsDeclarationItem>(entity =>
+            {
+                entity.ToTable("customs_declaration_item");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("CustomsDeclarationItemId");
+                entity.Property(e => e.PurchasePn).HasColumnName("purchase_pn").HasMaxLength(200);
+                entity.Property(e => e.PurchaseBrand).HasColumnName("purchase_brand").HasMaxLength(200);
+                entity.Property(e => e.CustomerId).HasColumnName("customer_id").HasMaxLength(36);
+                entity.Property(e => e.SalesUserId).HasColumnName("sales_user_id").HasMaxLength(36);
+                entity.Property(e => e.SellOrderItemCode).HasColumnName("sell_order_item_code").HasMaxLength(64);
+                entity.Property(e => e.SellOrderItemId).HasColumnName("sell_order_item_id").HasMaxLength(36);
+                entity.Property(e => e.HsCode).HasMaxLength(32);
+                entity.Property(e => e.DeclareUnitPrice).HasColumnType("numeric(18,6)");
+                entity.Property(e => e.DutyAmount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.VatAmount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.CustomsPaymentGoods).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.CustomsAgencyFee).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.OtherFee).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.InspectionFee).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.TotalValueTax).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.TaxIncludedUnitPrice).HasColumnType("numeric(18,6)");
+            });
+
+            modelBuilder.Entity<StockTransfer>(entity =>
+            {
+                entity.ToTable("stocktransfer");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("StockTransferId");
+                entity.Property(e => e.TransferCode).IsRequired().HasMaxLength(32);
+                entity.HasIndex(e => e.TransferCode).IsUnique();
+                entity.Property(e => e.BizScene).IsRequired().HasMaxLength(32);
+                entity.Property(e => e.CustomsDeclarationId).IsRequired().HasMaxLength(36);
+                entity.HasIndex(e => e.CustomsDeclarationId).IsUnique();
+                entity.Property(e => e.ConfirmedByUserId).HasMaxLength(36);
+                entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.ModifyByUserId).HasColumnName("modify_by_user_id").HasMaxLength(36);
+                entity.HasOne(e => e.Declaration)
+                    .WithOne(d => d.StockTransfer)
+                    .HasForeignKey<StockTransfer>(e => e.CustomsDeclarationId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(e => e.Items)
+                    .WithOne(i => i.StockTransfer!)
+                    .HasForeignKey(i => i.StockTransferId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<StockTransferItem>(entity =>
+            {
+                entity.ToTable("stocktransferitem");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("StockTransferItemId");
             });
 
             modelBuilder.Entity<PickingTask>(entity =>
@@ -892,6 +1001,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.PickingTaskId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.MaterialId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.StockId).HasMaxLength(36);
+                entity.Property(e => e.StockItemId).HasColumnName("stock_item_id").HasMaxLength(36);
                 entity.Property(e => e.BatchNo).HasMaxLength(50);
                 entity.Property(e => e.LocationId).HasMaxLength(36);
                 entity.Property(e => e.IsStockingSupplement).HasDefaultValue(false);

@@ -65,6 +65,7 @@
             <el-col :span="6"><el-form-item label="送货方式"><el-input v-model="form.deliveryMethod" class="q-input" /></el-form-item></el-col>
             <el-col :span="6"><el-form-item label="快递方式"><el-input v-model="form.expressMethod" class="q-input" /></el-form-item></el-col>
             <el-col :span="6"><el-form-item label="到货日期"><el-date-picker v-model="form.arrivalDate" type="date" value-format="YYYY-MM-DD" style="width:100%" class="q-date" /></el-form-item></el-col>
+            <el-col :span="6"><el-form-item label="入库日期"><el-date-picker v-model="form.stockInPlanDate" type="date" value-format="YYYY-MM-DD" placeholder="生成入库单用" style="width:100%" class="q-date" /></el-form-item></el-col>
           </el-row>
           </el-form>
         </div>
@@ -246,6 +247,8 @@ const form = reactive<any>({
   expressMethod: '',
   expressNo: '',
   arrivalDate: '',
+  /** 与后端 qcinfo.StockInPlanDate 对应；默认来自到货通知预计到货日 */
+  stockInPlanDate: '',
   sampleQty: 0,
   sampleDate: '',
   qcUserId: '',
@@ -409,6 +412,8 @@ const fillNotice = async (noticeId: string) => {
   form.stockInQty = arrivedTotalQty
   form.sampleQty = arrivedTotalQty
   form.arrivedTotalQty = arrivedTotalQty
+  const exp = (row.expectedArrivalDate || '').trim()
+  form.stockInPlanDate = exp.length >= 10 ? exp.slice(0, 10) : ''
 }
 
 const loadPageData = async () => {
@@ -436,6 +441,8 @@ const loadPageData = async () => {
       form.qcResult = qc.status === -1 ? 'reject' : qc.status === 10 ? 'partial' : 'pass'
       form.stockInQty = Math.round(Number(qc.passQty || 0))
       form.sampleQty = Math.round(Number(qc.passQty || 0))
+      const savedPlan = (qc.stockInPlanDate || '').trim()
+      if (savedPlan.length >= 10) form.stockInPlanDate = savedPlan.slice(0, 10)
     }
     await loadQcDocuments(qcId)
     return
@@ -460,7 +467,14 @@ const submitQc = async () => {
     }
     const passQty = Math.round(Number(form.stockInQty || 0))
     const rejectQty = Math.max(0, Math.round(Number(form.arrivedTotalQty || 0)) - passQty)
-    await logisticsApi.updateQcResult(qcId, { result: form.qcResult, passQty, rejectQty })
+    const plan = (form.stockInPlanDate || '').trim()
+    await logisticsApi.updateQcResult(qcId, {
+      result: form.qcResult,
+      passQty,
+      rejectQty,
+      hasStockInPlanDate: true,
+      stockInPlanDate: plan ? `${plan}T12:00:00.000Z` : null,
+    })
     const pendingFiles: File[] = qcFileList.value
       .filter((f) => f.raw != null)
       .map((f) => f.raw as File)

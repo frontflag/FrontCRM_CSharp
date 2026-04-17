@@ -189,7 +189,7 @@ namespace CRM.Core.Services
 
             await HydrateQuoteRfqCodeAsync(quotes);
             await HydrateQuoteUserDisplayAsync(quotes);
-            return quotes;
+            return quotes.OrderByDescending(q => q.CreateTime).ToList();
         }
 
         public async Task<Quote> UpdateAsync(string id, UpdateQuoteRequest request, string? actingUserId = null)

@@ -105,6 +105,8 @@ namespace CRM.Core.Services
 
             var total = request.Items.Sum(item => item.Qty * item.Cost);
             var headerType = ResolvePurchaseOrderHeaderType(request.Type, request.Items);
+            var distinctLineCurrencies = request.Items.Select(i => i.Currency).Distinct().ToList();
+            var headerCurrency = distinctLineCurrencies.Count == 1 ? distinctLineCurrencies[0] : request.Currency;
 
             _logger.LogInformation(
                 "PO CreateAsync 开始: RequestType={RequestType} HeaderType={HeaderType} ItemCount={ItemCount} VendorId={VendorId} PurchaseUserId={PurchaseUserId} ActingUserId={ActingUserId} GeneratedCode={Code}",
@@ -131,7 +133,7 @@ namespace CRM.Core.Services
                 PurchaseUserId = request.PurchaseUserId,
                 PurchaseUserName = request.PurchaseUserName,
                 Type = headerType,
-                Currency = request.Currency,
+                Currency = headerCurrency,
                 DeliveryDate = PostgreSqlDateTime.ToUtc(request.DeliveryDate),
                 DeliveryAddress = request.DeliveryAddress,
                 Comment = request.Comment,
@@ -455,6 +457,9 @@ namespace CRM.Core.Services
                     if (!string.IsNullOrWhiteSpace(poItem.SellOrderItemId))
                         recalcSellLineIds.Add(poItem.SellOrderItemId.Trim());
                 }
+                var distinctNewLineCurrencies = newLines.Select(l => l.Currency).Distinct().ToList();
+                if (distinctNewLineCurrencies.Count == 1)
+                    order.Currency = distinctNewLineCurrencies[0];
                 order.Total = total;
                 order.ConvertTotal = total;
                 order.ItemRows = request.Items.Count;

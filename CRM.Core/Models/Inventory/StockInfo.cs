@@ -568,6 +568,11 @@ namespace CRM.Core.Models.Inventory
         [Column("modify_by_user_id")]
         public string? ModifyByUserId { get; set; }
 
+        /// <summary>执行出库时关联的拣货任务 <c>pickingtask.Id</c>。</summary>
+        [StringLength(36)]
+        [Column("picking_task_id")]
+        public string? PickingTaskId { get; set; }
+
         // 导航属性
         public virtual ICollection<StockOutItem> Items { get; set; } = new List<StockOutItem>();
     }
@@ -665,6 +670,11 @@ namespace CRM.Core.Models.Inventory
         [StringLength(36)]
         [Column("StockItemId")]
         public string? StockItemId { get; set; }
+
+        /// <summary>来源拣货明细 <c>pickingtaskitem.Id</c>（新流程执行出库写入）。</summary>
+        [StringLength(36)]
+        [Column("picking_task_item_id")]
+        public string? PickingTaskItemId { get; set; }
 
         /// <summary>
         /// 仓库ID（冗余，方便查询）

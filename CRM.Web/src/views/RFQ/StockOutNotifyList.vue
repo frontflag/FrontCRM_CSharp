@@ -32,7 +32,7 @@
           style="width: 280px"
           @keyup.enter="fetchList"
         />
-        <button class="btn-secondary" @click="fetchList">{{ t('stockOutNotifyList.filters.refresh') }}</button>
+        <button class="btn-secondary" @click="refreshNotifyList">{{ t('stockOutNotifyList.filters.refresh') }}</button>
       </div>
     </div>
 
@@ -42,7 +42,7 @@
       :columns="stockOutNotifyColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-      :data="filteredList"
+      :data="pagedFilteredList"
       v-loading="loading"
     >
       <template #col-workflow="{ row }">
@@ -104,12 +104,21 @@
         <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
         <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
+      <el-pagination
+        class="list-main-pagination"
+        v-model:current-page="listPage"
+        v-model:page-size="listPageSize"
+        :total="filteredListTotal"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="listPage = 1"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -126,6 +135,8 @@ const loading = ref(false)
 const keyword = ref('')
 const workflowFilter = ref<string>('all')
 const list = ref<StockOutRequestDto[]>([])
+const listPage = ref(1)
+const listPageSize = ref(20)
 const pickingTasks = ref<PickingTask[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
@@ -239,7 +250,24 @@ const filteredList = computed(() => {
   )
 })
 
-const fetchList = async () => {
+const filteredListTotal = computed(() => filteredList.value.length)
+const pagedFilteredList = computed(() => {
+  const rows = filteredList.value
+  const start = (listPage.value - 1) * listPageSize.value
+  return rows.slice(start, start + listPageSize.value)
+})
+
+watch(filteredListTotal, () => {
+  const maxP = Math.max(1, Math.ceil(filteredListTotal.value / listPageSize.value) || 1)
+  if (listPage.value > maxP) listPage.value = maxP
+})
+
+watch(workflowFilter, () => {
+  listPage.value = 1
+})
+
+async function runNotifyFetch(resetPage: boolean) {
+  if (resetPage) listPage.value = 1
   loading.value = true
   try {
     const [requests, tasks] = await Promise.all([
@@ -255,6 +283,9 @@ const fetchList = async () => {
     loading.value = false
   }
 }
+
+const fetchList = () => void runNotifyFetch(true)
+const refreshNotifyList = () => void runNotifyFetch(false)
 
 const goExecute = (row: StockOutRequestDto) => {
   router.push({ path: '/inventory/stock-out/create', query: { requestId: row.id } })
@@ -374,6 +405,12 @@ onMounted(fetchList)
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.list-main-pagination {
+  margin-left: auto;
 }
 
 .list-footer-left {

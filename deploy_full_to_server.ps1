@@ -1,4 +1,4 @@
-﻿# Deploy FrontCRM — 前端 + 后端 一并构建并上传到服务器
+# Deploy FrontCRM — 前端 + 后端 一并构建并上传到服务器
 # 本文件须保存为「UTF-8 带 BOM」；否则 Windows PowerShell 5.1 会按 ANSI 误读中文与引号，出现 UnexpectedToken `}`。
 #
 # 流程：
@@ -14,6 +14,7 @@
 #   .\deploy_full_to_server.ps1 -AllowPasswordPrompt   # 使用密码登录（否则会 BatchMode，卡住/失败）
 #   .\deploy_full_to_server.ps1 -RequestTtyForSudo    # 非 Docker 部署时远程 sudo 要手输密码（分配伪终端，勿与静默管道一起用）
 #   .\deploy_full_to_server.ps1 -SshKeyPath "$env:USERPROFILE\.ssh\id_ed25519"
+#   .\deploy_full_to_server.ps1 -ApiHealthWaitSeconds 120   # 非 Docker：systemctl start 后等健康检查的最长秒数（默认 90）
 
 param(
     [switch]$SkipBuild,
@@ -32,6 +33,8 @@ param(
     [string]$NonDockerFrontendRoot = "/opt/frontcrm/frontend",
     [string]$NonDockerBackendRoot = "/opt/frontcrm/backend",
     [int]$BackendPort = 5000,
+    # 冷启动 + 连库 + Kestrel 绑定略慢于 systemctl start 返回；原先 40s 且强依赖 is-active=active 易误报失败
+    [int]$ApiHealthWaitSeconds = 90,
     # Optional: ssh/scp -i (PowerShell 5.1: save this script as UTF-8 with BOM if you use non-ASCII in messages)
     [string]$SshKeyPath = ""
 )
@@ -271,15 +274,15 @@ else {
     $nd = $NonDockerBackendRoot
     $bp = $BackendPort
     # systemd stop 后若仍有 nohup/孤儿 dotnet 占 5000，新实例会 AddressInUse 起不来；须 sudo pkill 清干净再 start
-    $restartApiOneLine = 'if ' + $SudoCmd + ' systemctl list-unit-files 2>/dev/null | grep -qF ''crm-api.service''; then ' + $SudoCmd + ' systemctl daemon-reload; ' + $SudoCmd + ' systemctl stop crm-api 2>/dev/null || true; ' + $SudoCmd + ' pkill -f CRM.API.dll 2>/dev/null || true; sleep 3; ' + $SudoCmd + ' systemctl start crm-api; else cd ' + $nd + ' || exit 1; pkill -f CRM.API.dll 2>/dev/null || true; sleep 3; export ASPNETCORE_ENVIRONMENT=Production; export ASPNETCORE_URLS=http://0.0.0.0:' + $bp + '; nohup dotnet CRM.API.dll > api.log 2>&1 & sleep 2; fi'
+    $restartApiOneLine = 'if ' + $SudoCmd + ' systemctl list-unit-files 2>/dev/null | grep -qF ''crm-api.service''; then ' + $SudoCmd + ' systemctl daemon-reload; ' + $SudoCmd + ' systemctl stop crm-api 2>/dev/null || true; ' + $SudoCmd + ' pkill -f CRM.API.dll 2>/dev/null || true; sleep 3; ' + $SudoCmd + ' systemctl start crm-api || exit 1; sleep 2; else cd ' + $nd + ' || exit 1; pkill -f CRM.API.dll 2>/dev/null || true; sleep 3; export ASPNETCORE_ENVIRONMENT=Production; export ASPNETCORE_URLS=http://0.0.0.0:' + $bp + '; nohup dotnet CRM.API.dll > api.log 2>&1 & sleep 2; fi'
     & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$restartApiOneLine"
     $restartExit = $LASTEXITCODE
 
-    # start 后 ASP.NET 绑定端口略慢于 systemctl 返回；轮询 is-active + /api/v1/health，避免误报失败
-    Write-Host ('>>> Non-Docker: wait for crm-api (health on port {0}, up to ~40s)...' -f $BackendPort) -ForegroundColor Gray
+    # start 后 Kestrel 就绪晚于 systemctl；仅以 curl /api/v1/health 为准（避免 is-active=activating 时永远失败）
+    Write-Host ('>>> Non-Docker: wait for crm-api (GET /api/v1/health on port {0}, up to ~{1}s)...' -f $BackendPort, $ApiHealthWaitSeconds) -ForegroundColor Gray
     $verifyTail = 'test "$ok" = 1 || exit 1'
-    # 单引号段保证 $(seq 1 40) 原样交给远程 bash，避免 PowerShell 误解析 $( )
-    $verifyApiOneLine = 'ok=0; for i in ' + '$(seq 1 40)' + '; do if ' + $SudoCmd + ' systemctl list-unit-files 2>/dev/null | grep -qF ''crm-api.service''; then if ' + $SudoCmd + ' systemctl is-active crm-api 2>/dev/null | grep -qx active && curl -sf http://127.0.0.1:' + $bp + '/api/v1/health >/dev/null; then ok=1; break; fi; else if pgrep -f ''dotnet CRM.API.dll'' >/dev/null && curl -sf http://127.0.0.1:' + $bp + '/api/v1/health >/dev/null; then ok=1; break; fi; fi; sleep 1; done; ' + $verifyTail
+    $seqMax = [string]$ApiHealthWaitSeconds
+    $verifyApiOneLine = 'ok=0; sleep 2; for i in $(seq 1 ' + $seqMax + '); do if curl -sf http://127.0.0.1:' + $bp + '/api/v1/health >/dev/null 2>&1; then ok=1; break; fi; sleep 1; done; ' + $verifyTail
     & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$verifyApiOneLine"
     $verifyExit = $LASTEXITCODE
     if ($verifyExit -eq 0) {

@@ -53,6 +53,8 @@ export interface QcInfoDto {
   passQty: number
   rejectQty: number
   stockInId?: string
+  /** 质检保存的计划入库日（ISO）；生成入库单时优先使用 */
+  stockInPlanDate?: string | null
   createTime: string
   modifyTime?: string
 }
@@ -85,12 +87,24 @@ export const logisticsApi = {
     purchaseOrderCode?: string
     salesOrderCode?: string
   }): Promise<QcInfoDto[]> {
-    return unwrap<QcInfoDto[]>(await apiClient.get('/api/v1/logistics/qcs', { params }))
+    const res = await apiClient.get<any>('/api/v1/logistics/qcs', { params })
+    const payload = res?.data ?? res
+    return Array.isArray(payload) ? (payload as QcInfoDto[]) : []
   },
   async createQc(stockInNotifyId: string): Promise<QcInfoDto> {
     return unwrap<QcInfoDto>(await apiClient.post('/api/v1/logistics/qcs', { stockInNotifyId }))
   },
-  async updateQcResult(id: string, payload: { result: 'pass' | 'partial' | 'reject'; passQty: number; rejectQty: number }): Promise<QcInfoDto> {
+  async updateQcResult(
+    id: string,
+    payload: {
+      result: 'pass' | 'partial' | 'reject'
+      passQty: number
+      rejectQty: number
+      /** 为 true 时写入 stockInPlanDate（含 null 清空）；旧客户端不传则不修改 */
+      hasStockInPlanDate?: boolean
+      stockInPlanDate?: string | null
+    }
+  ): Promise<QcInfoDto> {
     return unwrap<QcInfoDto>(await apiClient.patch(`/api/v1/logistics/qcs/${id}/result`, payload))
   },
   async bindQcStockIn(id: string, stockInId: string): Promise<void> {

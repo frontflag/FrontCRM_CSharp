@@ -309,8 +309,9 @@ namespace CRM.Core.Services
             }
 
             var poIdsForDisplay = poLineEntityById.Values
-                .Select(v => v.PurchaseOrderId.Trim())
-                .Where(x => !string.IsNullOrEmpty(x))
+                .Select(v => v.PurchaseOrderId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
             var poDict = poIdsForDisplay.Count == 0
@@ -324,9 +325,20 @@ namespace CRM.Core.Services
                     .GroupBy(x => x.PurchaseOrderId, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
 
-            var qcByStockInId = (await _qcRepository.FindAsync(q => q.StockInId != null && stockInIds.Contains(q.StockInId!)))
-                .GroupBy(q => q.StockInId!, StringComparer.Ordinal)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+            Dictionary<string, QCInfo> qcByStockInId;
+            try
+            {
+                qcByStockInId = (await _qcRepository.FindAsync(q => q.StockInId != null && stockInIds.Contains(q.StockInId!)))
+                    .GroupBy(q => q.StockInId!, StringComparer.Ordinal)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+            }
+            catch (Exception ex) when (PostgreSqlExceptionHelper.IsUndefinedObject(ex))
+            {
+                _logger.LogWarning(
+                    ex,
+                    "质检主表批量查询失败（多为 qcinfo 缺少 StockInPlanDate 列，请执行迁移 20260623100000_QcInfoStockInPlanDate 或 scripts/add_qc_stock_in_plan_date_postgresql.sql）；入库单列表将不展示关联质检信息。");
+                qcByStockInId = new Dictionary<string, QCInfo>(StringComparer.Ordinal);
+            }
 
             var venDict = vendorIds.Count == 0
                 ? new Dictionary<string, VendorInfo>()
@@ -385,11 +397,15 @@ namespace CRM.Core.Services
                         string.Equals(v.SellOrderItemId.Trim(), s.SellOrderItemId!.Trim(), StringComparison.OrdinalIgnoreCase));
                 }
 
+                var headerPoId = headerPoLine != null && !string.IsNullOrWhiteSpace(headerPoLine.PurchaseOrderId)
+                    ? headerPoLine.PurchaseOrderId.Trim()
+                    : (string?)null;
+
                 string? sourceDisplay = null;
                 if (!string.IsNullOrWhiteSpace(s.SourceCode))
                     sourceDisplay = s.SourceCode.Trim();
-                if (string.IsNullOrWhiteSpace(sourceDisplay) && headerPoLine != null &&
-                    poDict.TryGetValue(headerPoLine.PurchaseOrderId.Trim(), out var poForDisp) &&
+                if (string.IsNullOrWhiteSpace(sourceDisplay) && headerPoId != null &&
+                    poDict.TryGetValue(headerPoId, out var poForDisp) &&
                     !string.IsNullOrWhiteSpace(poForDisp.PurchaseOrderCode))
                     sourceDisplay = poForDisp.PurchaseOrderCode.Trim();
                 if (string.IsNullOrWhiteSpace(sourceDisplay) && qcByStockInId.TryGetValue(s.Id, out var qcLinked))
@@ -418,8 +434,8 @@ namespace CRM.Core.Services
                     soDict.TryGetValue(soId1, out var so1) && !string.IsNullOrWhiteSpace(so1.SellOrderCode))
                     salesOrderCodes.Add(so1.SellOrderCode!);
 
-                if (headerPoLine != null &&
-                    poItemsMap.TryGetValue(headerPoLine.PurchaseOrderId.Trim(), out var thisPoItems))
+                if (headerPoId != null &&
+                    poItemsMap.TryGetValue(headerPoId, out var thisPoItems))
                 {
                     foreach (var poi in thisPoItems)
                     {
@@ -433,13 +449,19 @@ namespace CRM.Core.Services
 
                 var salesOrderCode = string.Join(", ", salesOrderCodes.Distinct(StringComparer.OrdinalIgnoreCase));
 
+                string? purchaseOrderCode = null;
+                if (headerPoId != null &&
+                    poDict.TryGetValue(headerPoId, out var poForPoCode) &&
+                    !string.IsNullOrWhiteSpace(poForPoCode.PurchaseOrderCode))
+                    purchaseOrderCode = poForPoCode.PurchaseOrderCode.Trim();
+
                 string? modelSummary = null;
                 string? brandSummary = null;
                 if (stockInItemsMap.TryGetValue(s.Id, out var silForDisplay) && silForDisplay.Count > 0)
                 {
                     IReadOnlyList<PurchaseOrderItem>? poLinesForS = null;
-                    if (headerPoLine != null &&
-                        poItemsMap.TryGetValue(headerPoLine.PurchaseOrderId.Trim(), out var pl0))
+                    if (headerPoId != null &&
+                        poItemsMap.TryGetValue(headerPoId, out var pl0))
                         poLinesForS = pl0;
 
                     var models = new List<string>();
@@ -465,8 +487,8 @@ namespace CRM.Core.Services
                     displayTotalAmount = silAmt.Sum(line =>
                         line.Amount != 0m ? line.Amount : line.Quantity * line.Price);
                     // 历史数据：明细单价为 0 但 MaterialId 为采购行 Id 时，用采购单价回算展示金额
-                    if (displayTotalAmount == 0m && headerPoLine != null &&
-                        poItemsMap.TryGetValue(headerPoLine.PurchaseOrderId.Trim(), out var poLinesForAmt) &&
+                    if (displayTotalAmount == 0m && headerPoId != null &&
+                        poItemsMap.TryGetValue(headerPoId, out var poLinesForAmt) &&
                         poLinesForAmt.Count > 0)
                     {
                         var poById = poLinesForAmt
@@ -512,6 +534,7 @@ namespace CRM.Core.Services
                     WarehouseId = s.WarehouseId,
                     VendorId = s.VendorId,
                     VendorName = vendorName,
+                    PurchaseOrderCode = purchaseOrderCode,
                     SalesOrderCode = string.IsNullOrWhiteSpace(salesOrderCode) ? null : salesOrderCode,
                     MaterialModelSummary = modelSummary,
                     MaterialBrandSummary = brandSummary,
@@ -547,7 +570,8 @@ namespace CRM.Core.Services
                     && !(x.VendorName?.Contains(vendorKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
                     return false;
                 if (!string.IsNullOrWhiteSpace(poCodeKeyword)
-                    && !(x.SourceDisplayNo?.Contains(poCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+                    && !((x.PurchaseOrderCode?.Contains(poCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false)
+                         || (x.SourceDisplayNo?.Contains(poCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false)))
                     return false;
                 if (!string.IsNullOrWhiteSpace(soCodeKeyword)
                     && !(x.SalesOrderCode?.Contains(soCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
