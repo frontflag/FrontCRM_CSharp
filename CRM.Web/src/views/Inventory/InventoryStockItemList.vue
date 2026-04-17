@@ -346,10 +346,12 @@ const outboundLabel = (s: number) => {
 }
 
 const warehouseCell = (row: StockItemListRow) => {
+  const name = row.warehouseName?.trim()
   const code = row.warehouseCode?.trim()
-  const id = row.warehouseId?.trim()
-  if (code && id) return `${code} · ${id}`
-  return code || id || '—'
+  if (name && code) return `${name}（${code}）`
+  if (name) return name
+  if (code) return code
+  return t('quoteList.na')
 }
 
 const onRowDblclick = (row: StockItemListRow) => {

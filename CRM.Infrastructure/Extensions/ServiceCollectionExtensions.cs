@@ -30,6 +30,7 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<ISerialNumberService, SerialNumberService>();
             services.AddScoped<ISellOrderExtendLineSeqService, SellOrderExtendLineSeqService>();
             services.AddScoped<IPurchaseOrderExtendLineSeqService, PurchaseOrderExtendLineSeqService>();
+            services.AddScoped<IStockInExtendLineSeqService, StockInExtendLineSeqService>();
             services.AddScoped<IErrorLogService, ErrorLogService>();
 
             // 注册物料数据服务（当前使用 Mock 实现，待 Nexar API 就绪后替换为 NexarComponentDataService）

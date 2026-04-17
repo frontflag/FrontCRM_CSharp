@@ -101,6 +101,8 @@ export interface StockItemListRow extends StockItemRow {
   stockAggregateId: string
   warehouseId: string
   warehouseCode?: string | null
+  /** 由后端按 WarehouseId 解析；列表展示勿回退为 warehouseId（避免 Guid） */
+  warehouseName?: string | null
   /** 1=未出库 2=部分 3=完成；入库量为 0 时可能为 0 */
   outboundStatus: number
   /** 出库业务 USD 利润（层快照价 × 累计出库数量） */

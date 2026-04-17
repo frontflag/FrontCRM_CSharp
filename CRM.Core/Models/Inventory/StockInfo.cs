@@ -162,7 +162,7 @@ namespace CRM.Core.Models.Inventory
     /// <summary>
     /// 入库单主表
     /// </summary>
-    [Table("stockin")]
+    [Table("stock_in")]
     public class StockIn : BaseGuidEntity
     {
         /// <summary>
@@ -184,30 +184,6 @@ namespace CRM.Core.Models.Inventory
         /// 入库类型 (1:采购入库 2:退货入库 3:调拨入库 4:其他入库)
         /// </summary>
         public short StockInType { get; set; } = 1;
-
-        /// <summary>
-        /// 采购订单明细业务编号（与 <c>purchaseorderitem.purchase_order_item_code</c> 一致）
-        /// </summary>
-        [StringLength(64)]
-        public string? PurchaseOrderItemCode { get; set; }
-
-        /// <summary>
-        /// 采购订单明细主键
-        /// </summary>
-        [StringLength(36)]
-        public string? PurchaseOrderItemId { get; set; }
-
-        /// <summary>
-        /// 销售订单明细业务编号（与 <c>sellorderitem.sell_order_item_code</c> 一致）
-        /// </summary>
-        [StringLength(64)]
-        public string? SellOrderItemCode { get; set; }
-
-        /// <summary>
-        /// 销售订单明细主键（以销定采冗余）
-        /// </summary>
-        [StringLength(36)]
-        public string? SellOrderItemId { get; set; }
 
         /// <summary>
         /// 到货通知业务编码（<c>stockinnotify.NoticeCode</c>）
@@ -327,7 +303,7 @@ namespace CRM.Core.Models.Inventory
     /// <summary>
     /// 入库单明细表
     /// </summary>
-    [Table("stockinitem")]
+    [Table("stock_in_item")]
     public class StockInItem : BaseGuidEntity
     {
         /// <summary>
@@ -351,6 +327,26 @@ namespace CRM.Core.Models.Inventory
         [Required]
         [StringLength(36)]
         public string MaterialId { get; set; } = string.Empty;
+
+        /// <summary>采购明细型号 PN（冗余快照）</summary>
+        [StringLength(200)]
+        [Column("purchase_pn")]
+        public string? PurchasePn { get; set; }
+
+        /// <summary>采购明细品牌（冗余快照）</summary>
+        [StringLength(200)]
+        [Column("purchase_brand")]
+        public string? PurchaseBrand { get; set; }
+
+        /// <summary>入库明细业务编号（与头表 <c>StockInCode</c> 一致：<c>{StockInCode}-{行序号}</c>）。</summary>
+        /// <remarks>历史库可能暂为 NULL，读库时须可空；新写入由服务层保证赋值。</remarks>
+        [StringLength(64)]
+        [Column("stock_in_item_code")]
+        public string? StockInItemCode { get; set; }
+
+        /// <summary>采购币别（与 <see cref="PurchaseOrderItem.Currency"/> 一致；表列 <c>currency</c>）。</summary>
+        [Column("currency")]
+        public short? Currency { get; set; }
 
         /// <summary>
         /// 入库数量
@@ -420,9 +416,20 @@ namespace CRM.Core.Models.Inventory
         [NotMapped]
         public string? DetailMaterialName { get; set; }
 
+        /// <summary>详情接口填充：物料型号（与列表汇总逻辑一致；非表字段）</summary>
+        [NotMapped]
+        public string? DetailMaterialModel { get; set; }
+
+        /// <summary>详情接口填充：品牌（与列表汇总逻辑一致；非表字段）</summary>
+        [NotMapped]
+        public string? DetailMaterialBrand { get; set; }
+
         /// <summary>详情接口填充：单位（非表字段）</summary>
         [NotMapped]
         public string? DetailUnit { get; set; }
+
+        /// <summary>扩展表 <c>stockinitemextend</c>：与本条明细一对一（<c>StockInItemId</c> = <c>ItemId</c>）；可无扩展行。</summary>
+        public virtual StockInItemExtend? Extend { get; set; }
 
         // 导航属性
         [ForeignKey("StockInId")]
@@ -433,7 +440,7 @@ namespace CRM.Core.Models.Inventory
     /// <summary>
     /// 出库单主表
     /// </summary>
-    [Table("stockout")]
+    [Table("stock_out")]
     public class StockOut : BaseGuidEntity
     {
         /// <summary>
@@ -580,7 +587,7 @@ namespace CRM.Core.Models.Inventory
     /// <summary>
     /// 出库单明细表
     /// </summary>
-    [Table("stockoutitem")]
+    [Table("stock_out_item")]
     public class StockOutItem : BaseGuidEntity
     {
         /// <summary>

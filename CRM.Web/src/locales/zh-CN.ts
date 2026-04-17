@@ -1998,6 +1998,7 @@ const zhCN = {
   },
   salesOrderList: {
     title: '销售订单',
+    count: '当前列表 {count} 单',
     stats: { total: '订单总数', pending: '待处理', approvedPlus: '审核通过及以上', totalAmount: '总金额' },
     filters: {
       orderCode: '订单号',
@@ -2006,7 +2007,8 @@ const zhCN = {
       customerPlaceholder: '客户名称',
       allStatus: '全部状态',
       search: '搜索',
-      reset: '重置'
+      reset: '重置',
+      refresh: '刷新'
     },
     searchPanel: {
       title: '销售订单检索',
@@ -2151,6 +2153,7 @@ const zhCN = {
     count: '共 {count} 条',
     filters: {
       title: '筛选',
+      dateRangeLabel: '订单生成',
       dateStart: '订单生成起',
       dateEnd: '订单生成止',
       rangeTo: '至',
@@ -2159,7 +2162,8 @@ const zhCN = {
       salesUserName: '业务员名称',
       pn: '物料型号',
       query: '查询',
-      reset: '重置'
+      reset: '重置',
+      refresh: '刷新'
     },
     columns: {
       sellOrderItemCode: '销售明细编号',
@@ -2264,6 +2268,7 @@ const zhCN = {
   purchaseOrderList: {
     title: '采购订单',
     create: '新建采购订单',
+    count: '当前列表 {count} 单',
     stats: { total: '订单总数', pendingConfirm: '待确认', inProgress: '进行中', totalAmount: '采购总额' },
     filters: {
       orderCode: '订单号',
@@ -2279,7 +2284,8 @@ const zhCN = {
       orderTypeSample: '样品采购',
       stockingTag: '备货',
       search: '搜索',
-      reset: '重置'
+      reset: '重置',
+      refresh: '刷新'
     },
     columns: {
       orderCode: '订单号',
@@ -2323,6 +2329,7 @@ const zhCN = {
     totalCount: '共 {total} 条',
     filters: {
       label: '筛选',
+      dateRangeLabel: '订单生成',
       orderCreatedFrom: '订单生成起',
       orderCreatedTo: '订单生成止',
       rangeSeparator: '至',
@@ -2337,7 +2344,8 @@ const zhCN = {
       orderTypeSample: '样品采购',
       stockingTag: '备货',
       search: '查询',
-      reset: '重置'
+      reset: '重置',
+      refresh: '刷新'
     },
     columns: {
       purchaseOrderItemCode: '采购明细编号',
@@ -2934,7 +2942,7 @@ const zhCN = {
     columns: {
       stockInCode: '入库单号',
       status: '状态',
-      sourceCode: '来源单号',
+      sourceCode: '到货通知号',
       purchaseOrderCode: '采购单号',
       materialModel: '物料型号',
       brand: '品牌',

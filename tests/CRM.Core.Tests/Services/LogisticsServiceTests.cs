@@ -1,3 +1,5 @@
+using System.Linq;
+using System.Linq.Expressions;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
@@ -63,8 +65,11 @@ public class LogisticsServiceTests
 
         var poExtendSync = Substitute.For<IPurchaseOrderItemExtendSyncService>();
         var log = Substitute.For<ILogger<LogisticsService>>();
+        var stockInItemExtendRepo = Substitute.For<IRepository<StockInItemExtend>>();
+        stockInItemExtendRepo.FindAsync(Arg.Any<Expression<Func<StockInItemExtend, bool>>>())
+            .Returns(Task.FromResult(Enumerable.Empty<StockInItemExtend>()));
         var svc = new LogisticsService(
-            notifyRepo, stockInRepo, qcRepo, qcItemRepo, poRepo, poItemRepo, poItemExtendRepo,
+            notifyRepo, stockInRepo, stockInItemExtendRepo, qcRepo, qcItemRepo, poRepo, poItemRepo, poItemExtendRepo,
             sellOrderItemRepo, sellOrderRepo, serial, poExtendSync, uow, log);
 
         var result = await svc.GetQcsAsync(new QcQueryRequest { Model = "UG-MPN-455565" });

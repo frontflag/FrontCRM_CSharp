@@ -1,13 +1,13 @@
--- 单价字段扩展为 numeric(18,6)（与迁移 20260401140000_UnitPriceNumeric18Scale6 一致）
+﻿-- 单价字段扩展为 numeric(18,6)（与迁移 20260401140000_UnitPriceNumeric18Scale6 一致）
 -- 在 PostgreSQL 上执行；总额类字段保持 numeric(18,2) 不变。
 
 DO $BODY$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'stockinitem') THEN
-    ALTER TABLE public.stockinitem ALTER COLUMN "Price" TYPE numeric(18,6);
+    ALTER TABLE public.stock_in_item ALTER COLUMN "Price" TYPE numeric(18,6);
   END IF;
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'stockoutitem') THEN
-    ALTER TABLE public.stockoutitem ALTER COLUMN "Price" TYPE numeric(18,6);
+    ALTER TABLE public.stock_out_item ALTER COLUMN "Price" TYPE numeric(18,6);
   END IF;
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'rfqitem') THEN
     ALTER TABLE public.rfqitem ALTER COLUMN target_price TYPE numeric(18,6);
@@ -21,3 +21,4 @@ BEGIN
   END IF;
 END
 $BODY$;
+

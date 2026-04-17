@@ -1,4 +1,4 @@
--- =============================================================================
+﻿-- =============================================================================
 -- PostgreSQL：拣货 / 出库关联列补全（与 EF 迁移一致）
 -- =============================================================================
 -- 对应迁移：CRM.Infrastructure/Migrations/20260622120000_PickingStockItemAndStockOutLinkage.cs
@@ -15,14 +15,14 @@
 -- 若已手工执行本脚本补列，请再执行文末「补写 __EFMigrationsHistory」段，避免后续 ef 重复跑迁移体。
 -- =============================================================================
 
-ALTER TABLE IF EXISTS public.stockout ADD COLUMN IF NOT EXISTS "picking_task_id" character varying(36) NULL;
-COMMENT ON COLUMN public.stockout."picking_task_id" IS '完成拣货后执行出库时关联的 pickingtask.Id';
+ALTER TABLE IF EXISTS public.stock_out ADD COLUMN IF NOT EXISTS "picking_task_id" character varying(36) NULL;
+COMMENT ON COLUMN public.stock_out."picking_task_id" IS '完成拣货后执行出库时关联的 pickingtask.Id';
 
 ALTER TABLE IF EXISTS public.pickingtaskitem ADD COLUMN IF NOT EXISTS "stock_item_id" character varying(36) NULL;
 COMMENT ON COLUMN public.pickingtaskitem."stock_item_id" IS '在库明细 stockitem.StockItemId；新流程拣货必填';
 
-ALTER TABLE IF EXISTS public.stockoutitem ADD COLUMN IF NOT EXISTS "picking_task_item_id" character varying(36) NULL;
-COMMENT ON COLUMN public.stockoutitem."picking_task_item_id" IS '来源拣货明细 pickingtaskitem.Id';
+ALTER TABLE IF EXISTS public.stock_out_item ADD COLUMN IF NOT EXISTS "picking_task_item_id" character varying(36) NULL;
+COMMENT ON COLUMN public.stock_out_item."picking_task_item_id" IS '来源拣货明细 pickingtaskitem.Id';
 
 -- -----------------------------------------------------------------------------
 -- 可选：仅当「已手工执行上述 ALTER、且未通过 dotnet ef 应用该迁移」时执行，
@@ -35,3 +35,4 @@ WHERE NOT EXISTS (
     SELECT 1 FROM public."__EFMigrationsHistory" h
     WHERE h."MigrationId" = '20260622120000_PickingStockItemAndStockOutLinkage'
 );
+

@@ -93,6 +93,28 @@ html[data-theme='dark'] .dock-quote-table {
   align-items: baseline;
   justify-content: flex-end;
   flex-wrap: nowrap;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 12px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* CrmDataTable / 库存等业务列表：金额行不限定在 .dock-quote-table 内 */
+.dock-tier-price-line .dock-tier-amt {
+  font-variant-numeric: tabular-nums;
+}
+
+.dock-tier-price-line .dock-tier-amt-int,
+.dock-tier-price-line .dock-tier-amt-frac {
+  font-weight: 700;
+  color: #27292c;
+}
+
+html[data-theme='dark'] .dock-tier-price-line .dock-tier-amt-int,
+html[data-theme='dark'] .dock-tier-price-line .dock-tier-amt-frac {
+  color: $text-primary;
 }
 
 .dock-tier-ccy {

@@ -12,6 +12,7 @@ namespace CRM.Core.Services
     {
         private readonly IRepository<StockInNotify> _notifyRepo;
         private readonly IRepository<StockIn> _stockInRepo;
+        private readonly IRepository<StockInItemExtend> _stockInItemExtendRepo;
         private readonly IRepository<QCInfo> _qcRepo;
         private readonly IRepository<QCItem> _qcItemRepo;
         private readonly IRepository<PurchaseOrder> _poRepo;
@@ -27,6 +28,7 @@ namespace CRM.Core.Services
         public LogisticsService(
             IRepository<StockInNotify> notifyRepo,
             IRepository<StockIn> stockInRepo,
+            IRepository<StockInItemExtend> stockInItemExtendRepo,
             IRepository<QCInfo> qcRepo,
             IRepository<QCItem> qcItemRepo,
             IRepository<PurchaseOrder> poRepo,
@@ -41,6 +43,7 @@ namespace CRM.Core.Services
         {
             _notifyRepo = notifyRepo;
             _stockInRepo = stockInRepo;
+            _stockInItemExtendRepo = stockInItemExtendRepo;
             _qcRepo = qcRepo;
             _qcItemRepo = qcItemRepo;
             _poRepo = poRepo;
@@ -697,12 +700,22 @@ namespace CRM.Core.Services
                 {
                     noticeMap.TryGetValue(qc.StockInNotifyId, out var notice);
                     var poiId = notice?.PurchaseOrderItemId?.Trim();
+                    HashSet<string>? stockInIdsForPoi = null;
+                    if (!string.IsNullOrWhiteSpace(poiId))
+                    {
+                        var exts = (await _stockInItemExtendRepo.FindAsync(e => e.PurchaseOrderItemId == poiId)).ToList();
+                        stockInIdsForPoi = exts
+                            .Select(e => e.StockInId?.Trim() ?? string.Empty)
+                            .Where(s => s.Length > 0)
+                            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    }
+
                     hit = stockIns
                         .Where(si =>
                             string.Equals(si.SourceId?.Trim(), qc.StockInNotifyId.Trim(), StringComparison.OrdinalIgnoreCase))
                         .Where(si =>
                             string.IsNullOrWhiteSpace(poiId)
-                            || string.Equals(si.PurchaseOrderItemId?.Trim(), poiId, StringComparison.OrdinalIgnoreCase))
+                            || (stockInIdsForPoi != null && stockInIdsForPoi.Contains(si.Id.Trim())))
                         .OrderByDescending(si => si.StockInDate)
                         .FirstOrDefault();
                 }

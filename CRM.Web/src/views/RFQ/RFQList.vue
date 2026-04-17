@@ -180,6 +180,7 @@ import { Plus, Search, Setting, Upload } from '@element-plus/icons-vue'
 import ImportRFQDialog from './components/ImportRFQDialog.vue'
 import { ElMessage } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatRfqTypeLabel } from '@/constants/rfqFormEnums'
 import CrmDataTable from '@/components/CrmDataTable.vue'
@@ -328,7 +329,7 @@ const loadData = async () => {
       quoted: rfqList.value.filter((r: any) => r.status >= 3).length
     }
   } catch (error) {
-    ElMessage.error(t('rfqList.loadFailed'))
+    ElMessage.error(getApiErrorMessage(error, t('rfqList.loadFailed')))
   } finally {
     loading.value = false
   }

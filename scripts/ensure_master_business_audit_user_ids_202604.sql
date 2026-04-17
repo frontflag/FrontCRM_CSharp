@@ -1,4 +1,4 @@
--- =============================================================================
+﻿-- =============================================================================
 -- 16 张主业务表：create_by_user_id / modify_by_user_id（varchar(36)，可空）
 -- 对应迁移：
 --   20260410120000_AddRfqCreateByUserId（仅 rfq.create_by_user_id）
@@ -52,11 +52,11 @@ ALTER TABLE IF EXISTS public.qcinfo
   ADD COLUMN IF NOT EXISTS modify_by_user_id character varying(36) NULL;
 
 -- stockin / stockout
-ALTER TABLE IF EXISTS public.stockin
+ALTER TABLE IF EXISTS public.stock_in
   ADD COLUMN IF NOT EXISTS create_by_user_id character varying(36) NULL,
   ADD COLUMN IF NOT EXISTS modify_by_user_id character varying(36) NULL;
 
-ALTER TABLE IF EXISTS public.stockout
+ALTER TABLE IF EXISTS public.stock_out
   ADD COLUMN IF NOT EXISTS create_by_user_id character varying(36) NULL,
   ADD COLUMN IF NOT EXISTS modify_by_user_id character varying(36) NULL;
 
@@ -95,3 +95,4 @@ BEGIN
     END IF;
   END IF;
 END $$;
+

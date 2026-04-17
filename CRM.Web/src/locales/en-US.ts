@@ -2018,6 +2018,7 @@ const enUS = {
   },
   salesOrderList: {
     title: 'Sales Orders',
+    count: '{count} orders in list',
     stats: { total: 'Total Orders', pending: 'Pending', approvedPlus: 'Approved and Above', totalAmount: 'Total Amount' },
     filters: {
       orderCode: 'Order Code',
@@ -2026,7 +2027,8 @@ const enUS = {
       customerPlaceholder: 'Customer name',
       allStatus: 'All statuses',
       search: 'Search',
-      reset: 'Reset'
+      reset: 'Reset',
+      refresh: 'Refresh'
     },
     searchPanel: {
       title: 'Sales order search',
@@ -2171,6 +2173,7 @@ const enUS = {
     count: '{count} records total',
     filters: {
       title: 'Filter',
+      dateRangeLabel: 'Order created',
       dateStart: 'Order created from',
       dateEnd: 'Order created to',
       rangeTo: 'to',
@@ -2179,7 +2182,8 @@ const enUS = {
       salesUserName: 'Sales rep',
       pn: 'Material / MPN',
       query: 'Search',
-      reset: 'Reset'
+      reset: 'Reset',
+      refresh: 'Refresh'
     },
     columns: {
       sellOrderItemCode: 'Sales line code',
@@ -2288,6 +2292,7 @@ const enUS = {
   purchaseOrderList: {
     title: 'Purchase Orders',
     create: 'New Purchase Order',
+    count: '{count} orders in list',
     stats: { total: 'Total Orders', pendingConfirm: 'Pending Confirmation', inProgress: 'In Progress', totalAmount: 'Total Purchase Amount' },
     filters: {
       orderCode: 'Order Code',
@@ -2303,7 +2308,8 @@ const enUS = {
       orderTypeSample: 'Sample PO',
       stockingTag: 'Stocking',
       search: 'Search',
-      reset: 'Reset'
+      reset: 'Reset',
+      refresh: 'Refresh'
     },
     columns: {
       orderCode: 'Order Code',
@@ -2347,6 +2353,7 @@ const enUS = {
     totalCount: 'Total {total} items',
     filters: {
       label: 'Filter',
+      dateRangeLabel: 'Order created',
       orderCreatedFrom: 'Order created from',
       orderCreatedTo: 'Order created to',
       rangeSeparator: 'to',
@@ -2361,7 +2368,8 @@ const enUS = {
       orderTypeSample: 'Sample PO',
       stockingTag: 'Stocking',
       search: 'Search',
-      reset: 'Reset'
+      reset: 'Reset',
+      refresh: 'Refresh'
     },
     columns: {
       purchaseOrderItemCode: 'PO line code',
@@ -2954,7 +2962,7 @@ const enUS = {
     columns: {
       stockInCode: 'Stock-In Code',
       status: 'Status',
-      sourceCode: 'Source Code',
+      sourceCode: 'Arrival Notice No.',
       purchaseOrderCode: 'Purchase Order No.',
       materialModel: 'Material Model',
       brand: 'Brand',

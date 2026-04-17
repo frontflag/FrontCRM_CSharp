@@ -1,7 +1,23 @@
 <template>
-  <div class="sales-order-list-page customer-list-theme">
+  <div class="sales-order-list-page">
     <div class="page-header">
-      <h2>{{ t('salesOrderList.title') }}</h2>
+      <div class="header-left">
+        <div class="page-title-group">
+          <div class="page-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+          </div>
+          <h1 class="page-title">{{ t('salesOrderList.title') }}</h1>
+        </div>
+        <div class="count-badge">{{ t('salesOrderList.count', { count: pageInfo.total }) }}</div>
+      </div>
+      <div class="header-right">
+        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="loadData">{{ t('salesOrderList.filters.refresh') }}</button>
+      </div>
     </div>
 
     <!-- 统计卡片 -->
@@ -78,8 +94,7 @@
       </div>
     </div>
 
-    <!-- 数据表格 -->
-    <el-card class="table-card">
+    <div class="table-wrapper" v-loading="loading">
       <CrmDataTable
         ref="listTableRef"
         column-layout-key="sales-order-list-main-v2"
@@ -87,7 +102,7 @@
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="filteredList"
-        v-loading="loading"
+        row-key="id"
         highlight-current-row
         @row-dblclick="handleView"
         @current-change="onTableCurrentRowChange"
@@ -101,7 +116,18 @@
           </el-tag>
         </template>
         <template #col-total="{ row }">
-          <span class="amount">{{ formatCurrency(row.total, row.currency) }}</span>
+          <template v-if="!listTotalAmountHasValue(row.total)">
+            <span class="dock-tier-empty">—</span>
+          </template>
+          <div v-else class="dock-tier-price-line">
+            <template v-for="amt in [splitListMoneyParts(Number(row.total))]" :key="'so-total-' + row.id">
+              <span class="dock-tier-amt">
+                <span class="dock-tier-amt-int">{{ amt.intPart }}</span><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+              </span>
+            </template>
+            <span class="dock-tier-ccy-gap">&nbsp;</span>
+            <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{ listAmountCurrencyIso(row.currency) }}</span>
+          </div>
         </template>
         <template #col-createTime="{ row }">
           {{ formatDisplayDateTime(row.createTime) }}
@@ -181,7 +207,7 @@
           @current-change="handlePageChange"
         />
       </div>
-    </el-card>
+    </div>
 
   </div>
 </template>
@@ -196,6 +222,12 @@ import { salesOrderApi } from '@/api/salesOrder'
 import { translateSalesOrderStatus, salesOrderStatusTagType } from '@/constants/salesOrderStatus'
 import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import {
+  listAmountCurrencyDockClass,
+  listAmountCurrencyIso,
+  listTotalAmountHasValue,
+  splitListMoneyParts
+} from '@/utils/moneyFormat'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
@@ -325,12 +357,6 @@ const statAmount = computed(() =>
     return sum + (Number.isFinite(n) ? n : 0)
   }, 0)
 )
-
-// 格式化货币
-const formatCurrency = (value: number, currency?: number) => {
-  const symbol = currency === 2 ? '$' : currency === 3 ? '€' : '¥'
-  return symbol + (value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
 
 // 状态处理
 const getStatusType = (status: number) => salesOrderStatusTagType(status)
@@ -484,13 +510,60 @@ onMounted(loadData)
 }
 
 .page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 20px;
-  h2 {
-    margin: 0;
-    color: $text-primary;
+  gap: 12px;
+  flex-wrap: wrap;
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+}
+
+.page-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  .page-icon {
+    width: 36px;
+    height: 36px;
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid rgba(0, 212, 255, 0.25);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $cyan-primary;
+  }
+  .page-title {
     font-size: 20px;
     font-weight: 600;
+    color: $text-primary;
+    margin: 0;
   }
+}
+
+.count-badge {
+  font-size: 12px;
+  color: $text-muted;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid $border-panel;
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+
+.table-wrapper {
+  min-height: 120px;
 }
 
 .stat-row {
@@ -640,27 +713,6 @@ onMounted(loadData)
     border-color: rgba(0, 212, 255, 0.3);
     color: $text-secondary;
   }
-}
-
-.table-card {
-  background: #0A1628;
-  border: 1px solid rgba(0, 212, 255, 0.1);
-  :deep(.el-table) {
-    background: transparent;
-    --el-table-header-bg-color: rgba(0, 212, 255, 0.1);
-    --el-table-tr-bg-color: transparent;
-    --el-table-border-color: rgba(0, 212, 255, 0.1);
-    color: #E8F4FF;
-
-    .el-table__cell .cell {
-      white-space: nowrap;
-    }
-  }
-}
-
-.amount {
-  color: #00D4FF;
-  font-weight: 500;
 }
 
 .pagination-wrapper {

@@ -1,4 +1,4 @@
--- 与 Migration 20260405120000_SellOrderItemExtendProgressP0 等价，但修正了列名：
+﻿-- 与 Migration 20260405120000_SellOrderItemExtendProgressP0 等价，但修正了列名：
 --   purchaseorderitem 使用 sell_order_item_id、qty（不是 "SellOrderItemId"、"Qty"）
 --   sellorderitem 使用 purchased_qty、qty（不是 "PurchasedQty"、"Qty"）
 -- 在 DbMigrator 仍失败时可手工执行；若此前迁移已部分执行，本脚本多为幂等（ADD COLUMN IF NOT EXISTS）。
@@ -58,7 +58,7 @@ FROM public.sellorderitem i
 LEFT JOIN (
     SELECT r."SalesOrderItemId" AS sid, SUM(so."TotalQuantity")::numeric AS sum_out
     FROM public.stockoutrequest r
-    INNER JOIN public.stockout so
+    INNER JOIN public.stock_out so
         ON so."SourceId" = r."UserId" AND so."Status" = 2
     WHERE r."Status" = 1
     GROUP BY r."SalesOrderItemId"
@@ -77,3 +77,4 @@ LEFT JOIN (
     GROUP BY "SellOrderItemId"
 ) rv ON rv.sid = i."SellOrderItemId"
 WHERE e."SellOrderItemId" = i."SellOrderItemId";
+

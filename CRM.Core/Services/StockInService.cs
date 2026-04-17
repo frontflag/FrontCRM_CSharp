@@ -17,6 +17,7 @@ namespace CRM.Core.Services
     {
         private readonly IRepository<StockIn> _stockInRepository;
         private readonly IRepository<StockInItem> _stockInItemRepository;
+        private readonly IRepository<StockInItemExtend> _stockInItemExtendRepository;
         private readonly IRepository<PurchaseOrder> _purchaseOrderRepository;
         private readonly IRepository<PurchaseOrderItem> _purchaseOrderItemRepository;
         private readonly IRepository<SellOrderItem> _sellOrderItemRepository;
@@ -33,11 +34,13 @@ namespace CRM.Core.Services
         private readonly IUserService _userService;
         private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
         private readonly ISellOrderItemPurchasedStockAvailableSyncService _purchasedStockAvailableSync;
+        private readonly IStockInExtendLineSeqService _stockInLineSeq;
         private readonly ILogger<StockInService> _logger;
 
         public StockInService(
             IRepository<StockIn> stockInRepository,
             IRepository<StockInItem> stockInItemRepository,
+            IRepository<StockInItemExtend> stockInItemExtendRepository,
             IRepository<PurchaseOrder> purchaseOrderRepository,
             IRepository<PurchaseOrderItem> purchaseOrderItemRepository,
             IRepository<SellOrderItem> sellOrderItemRepository,
@@ -53,11 +56,13 @@ namespace CRM.Core.Services
             IUserService userService,
             ISellOrderItemExtendSyncService sellOrderItemExtendSync,
             ISellOrderItemPurchasedStockAvailableSyncService purchasedStockAvailableSync,
+            IStockInExtendLineSeqService stockInLineSeq,
             IUnitOfWork unitOfWork,
             ILogger<StockInService> logger)
         {
             _stockInRepository = stockInRepository;
             _stockInItemRepository = stockInItemRepository;
+            _stockInItemExtendRepository = stockInItemExtendRepository;
             _purchaseOrderRepository = purchaseOrderRepository;
             _purchaseOrderItemRepository = purchaseOrderItemRepository;
             _sellOrderItemRepository = sellOrderItemRepository;
@@ -73,6 +78,7 @@ namespace CRM.Core.Services
             _userService = userService;
             _sellOrderItemExtendSync = sellOrderItemExtendSync;
             _purchasedStockAvailableSync = purchasedStockAvailableSync;
+            _stockInLineSeq = stockInLineSeq;
             _unitOfWork = unitOfWork;
             _logger = logger;
         }
@@ -98,15 +104,6 @@ namespace CRM.Core.Services
                     .ToDictionary(x => x.Id!.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
             }
 
-            var primaryLine = ResolvePrimaryPurchaseOrderLineForStockInHeader(request.Items, poLineById, poLinesForHeader);
-            string? sellLineCode = null;
-            if (primaryLine != null && !string.IsNullOrWhiteSpace(primaryLine.SellOrderItemId))
-            {
-                var soLine = await _sellOrderItemRepository.GetByIdAsync(primaryLine.SellOrderItemId.Trim());
-                if (!string.IsNullOrWhiteSpace(soLine?.SellOrderItemCode))
-                    sellLineCode = soLine!.SellOrderItemCode.Trim();
-            }
-
             var (arrivalId, arrivalCode, qcIdForSi, qcCodeForSi) = await ResolveStockInNotifyAndQcFieldsAsync(request);
             var regionTypeForCreate = await ResolveStockInRegionTypeForCreateAsync(request);
 
@@ -116,14 +113,6 @@ namespace CRM.Core.Services
                 StockInCode = stockInCode,
                 StockInType = 1, // 采购入库
                 RegionType = regionTypeForCreate,
-                PurchaseOrderItemId = string.IsNullOrWhiteSpace(primaryLine?.Id) ? null : primaryLine!.Id.Trim(),
-                PurchaseOrderItemCode = string.IsNullOrWhiteSpace(primaryLine?.PurchaseOrderItemCode)
-                    ? null
-                    : primaryLine!.PurchaseOrderItemCode.Trim(),
-                SellOrderItemId = string.IsNullOrWhiteSpace(primaryLine?.SellOrderItemId)
-                    ? null
-                    : primaryLine!.SellOrderItemId.Trim(),
-                SellOrderItemCode = sellLineCode,
                 SourceId = arrivalId,
                 SourceCode = arrivalCode,
                 QcId = qcIdForSi,
@@ -145,23 +134,31 @@ namespace CRM.Core.Services
 
             if (request.Items != null && request.Items.Count > 0)
             {
+                var firstLineSeq = await _stockInLineSeq.ReserveNextSequenceBlockAsync(stockInId, request.Items.Count);
                 decimal totalAmount = 0;
+                var lineIndex = 0;
                 foreach (var item in request.Items)
                 {
                     var materialKey = item.MaterialCode?.Trim() ?? string.Empty;
+                    PurchaseOrderItem? poiForLine = null;
+                    if (poLineById != null && !string.IsNullOrWhiteSpace(materialKey) &&
+                        poLineById.TryGetValue(materialKey, out var poiHit))
+                        poiForLine = poiHit;
+
                     var price = item.UnitPrice ?? 0m;
                     // 质检生成入库等场景前端可能传 0 价：按采购明细 Id（与 MaterialId 一致）回填采购单价
-                    if (price == 0m && poLineById != null && !string.IsNullOrWhiteSpace(materialKey)
-                        && poLineById.TryGetValue(materialKey, out var poi))
-                        price = poi.Cost;
+                    if (price == 0m && poiForLine != null)
+                        price = poiForLine.Cost;
 
                     var qtyInt = InventoryQuantity.RoundFromDecimal(item.Quantity);
                     var amount = qtyInt * price;
                     totalAmount += amount;
+
                     var line = new StockInItem
                     {
                         Id = Guid.NewGuid().ToString(),
                         StockInId = stockInId,
+                        StockInItemCode = OrderLineItemCodes.StockIn(stockInCode, firstLineSeq + lineIndex),
                         MaterialId = materialKey,
                         Quantity = qtyInt,
                         OrderQty = qtyInt,
@@ -172,7 +169,32 @@ namespace CRM.Core.Services
                         LocationId = !string.IsNullOrWhiteSpace(item.WarehouseLocation) ? item.WarehouseLocation.Trim() : null,
                         CreateTime = DateTime.UtcNow
                     };
+                    lineIndex++;
+                    ApplyPurchaseSnapshotToStockInItem(line, poiForLine);
                     await _stockInItemRepository.AddAsync(line);
+
+                    string? sellCodeForExt = null;
+                    if (poiForLine != null && !string.IsNullOrWhiteSpace(poiForLine.SellOrderItemId))
+                    {
+                        var soLine = await _sellOrderItemRepository.GetByIdAsync(poiForLine.SellOrderItemId.Trim());
+                        if (!string.IsNullOrWhiteSpace(soLine?.SellOrderItemCode))
+                            sellCodeForExt = soLine!.SellOrderItemCode.Trim();
+                    }
+
+                    await _stockInItemExtendRepository.AddAsync(new StockInItemExtend
+                    {
+                        Id = line.Id,
+                        StockInId = stockInId,
+                        PurchaseOrderItemId = string.IsNullOrWhiteSpace(poiForLine?.Id) ? null : poiForLine!.Id.Trim(),
+                        PurchaseOrderItemCode = string.IsNullOrWhiteSpace(poiForLine?.PurchaseOrderItemCode)
+                            ? null
+                            : poiForLine!.PurchaseOrderItemCode.Trim(),
+                        SellOrderItemId = string.IsNullOrWhiteSpace(poiForLine?.SellOrderItemId)
+                            ? null
+                            : poiForLine!.SellOrderItemId.Trim(),
+                        SellOrderItemCode = sellCodeForExt,
+                        CreateTime = line.CreateTime
+                    });
                 }
                 stockIn.TotalAmount = totalAmount;
                 await _stockInRepository.UpdateAsync(stockIn);
@@ -195,6 +217,15 @@ namespace CRM.Core.Services
                 .OrderBy(x => x.CreateTime)
                 .ThenBy(x => x.Id)
                 .ToList();
+            var extendRows = (await _stockInItemExtendRepository.FindAsync(x => x.StockInId == stockIn.Id)).ToList();
+            var primaryExt = StockInItemExtendPrimaryPicker.PickPrimary(extendRows);
+            var extByLine = extendRows.ToDictionary(e => e.Id, e => e, StringComparer.OrdinalIgnoreCase);
+            foreach (var line in lines)
+            {
+                if (extByLine.TryGetValue(line.Id, out var er))
+                    line.Extend = er;
+            }
+
             stockIn.Items = lines;
 
             if (!string.IsNullOrWhiteSpace(stockIn.WarehouseId))
@@ -215,6 +246,36 @@ namespace CRM.Core.Services
                         : !string.IsNullOrWhiteSpace(v.NickName)
                             ? v.NickName.Trim()
                             : v.Code?.Trim();
+                }
+            }
+
+            IReadOnlyList<PurchaseOrderItem>? poLinesForDetail = null;
+            if (primaryExt != null && !string.IsNullOrWhiteSpace(primaryExt.PurchaseOrderItemId))
+            {
+                var pl0 = await _purchaseOrderItemRepository.GetByIdAsync(primaryExt.PurchaseOrderItemId.Trim());
+                if (pl0 != null && !string.IsNullOrWhiteSpace(pl0.PurchaseOrderId))
+                {
+                    var poId = pl0.PurchaseOrderId.Trim();
+                    poLinesForDetail = (await _purchaseOrderItemRepository.FindAsync(x => x.PurchaseOrderId == poId))
+                        .ToList();
+                }
+            }
+
+            // 头表未带来采购行时：明细 MaterialId 常为「采购明细行 Id」，据此反查整单采购行供型号/品牌解析
+            if (poLinesForDetail == null && lines.Count > 0)
+            {
+                foreach (var line in lines)
+                {
+                    var lid = line.MaterialId?.Trim();
+                    if (string.IsNullOrEmpty(lid)) continue;
+                    var plTry = await _purchaseOrderItemRepository.GetByIdAsync(lid);
+                    if (plTry != null && !string.IsNullOrWhiteSpace(plTry.PurchaseOrderId))
+                    {
+                        var poId = plTry.PurchaseOrderId.Trim();
+                        poLinesForDetail = (await _purchaseOrderItemRepository.FindAsync(x => x.PurchaseOrderId == poId))
+                            .ToList();
+                        break;
+                    }
                 }
             }
 
@@ -240,15 +301,30 @@ namespace CRM.Core.Services
                     foreach (var line in lines)
                     {
                         var mid = line.MaterialId?.Trim();
-                        if (string.IsNullOrEmpty(mid) || !matById.TryGetValue(mid, out var mat))
+                        if (string.IsNullOrEmpty(mid))
                             continue;
-                        line.DetailMaterialCode = string.IsNullOrWhiteSpace(mat.MaterialCode)
-                            ? null
-                            : mat.MaterialCode.Trim();
-                        line.DetailMaterialName = string.IsNullOrWhiteSpace(mat.MaterialName)
-                            ? null
-                            : mat.MaterialName.Trim();
-                        line.DetailUnit = string.IsNullOrWhiteSpace(mat.Unit) ? null : mat.Unit.Trim();
+
+                        // 仅当 MaterialId 实为物料主键时能命中；否则仍可由下方 Resolve + 采购行补全型号/品牌
+                        if (matById.TryGetValue(mid, out var mat))
+                        {
+                            line.DetailMaterialCode = string.IsNullOrWhiteSpace(mat.MaterialCode)
+                                ? null
+                                : mat.MaterialCode.Trim();
+                            line.DetailMaterialName = string.IsNullOrWhiteSpace(mat.MaterialName)
+                                ? null
+                                : mat.MaterialName.Trim();
+                            line.DetailUnit = string.IsNullOrWhiteSpace(mat.Unit) ? null : mat.Unit.Trim();
+                        }
+
+                        ResolveStockInLineModelBrand(mid, matById, poLinesForDetail, out var modelDisp, out var brandDisp);
+                        line.DetailMaterialModel = modelDisp;
+                        line.DetailMaterialBrand = brandDisp;
+                        if (string.IsNullOrWhiteSpace(line.DetailMaterialModel) &&
+                            !string.IsNullOrWhiteSpace(line.PurchasePn))
+                            line.DetailMaterialModel = line.PurchasePn.Trim();
+                        if (string.IsNullOrWhiteSpace(line.DetailMaterialBrand) &&
+                            !string.IsNullOrWhiteSpace(line.PurchaseBrand))
+                            line.DetailMaterialBrand = line.PurchaseBrand.Trim();
                     }
                 }
                 catch
@@ -277,7 +353,10 @@ namespace CRM.Core.Services
                 .GroupBy(x => x.StockInId)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
-            var poLineIds = raw
+            var allExtends = (await _stockInItemExtendRepository.FindAsync(e => stockInIds.Contains(e.StockInId))).ToList();
+            var primaryByStockIn = StockInItemExtendPrimaryPicker.PrimaryByStockInId(allExtends);
+
+            var poLineIds = allExtends
                 .Select(x => x.PurchaseOrderItemId)
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .Select(s => s!.Trim())
@@ -290,9 +369,9 @@ namespace CRM.Core.Services
                 .Where(x => !string.IsNullOrWhiteSpace(x.Id))
                 .ToDictionary(x => x.Id!.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
 
-            var sellOnlyIds = raw
-                .Where(s => string.IsNullOrWhiteSpace(s.PurchaseOrderItemId) && !string.IsNullOrWhiteSpace(s.SellOrderItemId))
-                .Select(s => s.SellOrderItemId!.Trim())
+            var sellOnlyIds = allExtends
+                .Where(e => string.IsNullOrWhiteSpace(e.PurchaseOrderItemId) && !string.IsNullOrWhiteSpace(e.SellOrderItemId))
+                .Select(e => e.SellOrderItemId!.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
             if (sellOnlyIds.Count > 0)
@@ -362,7 +441,7 @@ namespace CRM.Core.Services
             var sellOrderItemIds = poItemsMap.Values
                 .SelectMany(x => x)
                 .Select(x => x.SellOrderItemId)
-                .Concat(raw.Select(r => r.SellOrderItemId))
+                .Concat(allExtends.Select(e => e.SellOrderItemId))
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Select(x => x!.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -386,15 +465,16 @@ namespace CRM.Core.Services
             var result = new List<StockInListItemDto>(raw.Count);
             foreach (var s in raw)
             {
+                var prim = primaryByStockIn.TryGetValue(s.Id, out var pe) ? pe : null;
                 PurchaseOrderItem? headerPoLine = null;
-                if (!string.IsNullOrWhiteSpace(s.PurchaseOrderItemId) &&
-                    poLineEntityById.TryGetValue(s.PurchaseOrderItemId.Trim(), out var plHeader))
+                if (!string.IsNullOrWhiteSpace(prim?.PurchaseOrderItemId) &&
+                    poLineEntityById.TryGetValue(prim.PurchaseOrderItemId.Trim(), out var plHeader))
                     headerPoLine = plHeader;
-                else if (!string.IsNullOrWhiteSpace(s.SellOrderItemId))
+                else if (!string.IsNullOrWhiteSpace(prim?.SellOrderItemId))
                 {
                     headerPoLine = poLineEntityById.Values.FirstOrDefault(v =>
                         !string.IsNullOrWhiteSpace(v.SellOrderItemId) &&
-                        string.Equals(v.SellOrderItemId.Trim(), s.SellOrderItemId!.Trim(), StringComparison.OrdinalIgnoreCase));
+                        string.Equals(v.SellOrderItemId.Trim(), prim.SellOrderItemId!.Trim(), StringComparison.OrdinalIgnoreCase));
                 }
 
                 var headerPoId = headerPoLine != null && !string.IsNullOrWhiteSpace(headerPoLine.PurchaseOrderId)
@@ -412,8 +492,8 @@ namespace CRM.Core.Services
                     sourceDisplay = qcLinked.QcCode;
                 if (string.IsNullOrWhiteSpace(sourceDisplay) && !string.IsNullOrWhiteSpace(s.QcCode))
                     sourceDisplay = s.QcCode.Trim();
-                if (string.IsNullOrWhiteSpace(sourceDisplay) && !string.IsNullOrWhiteSpace(s.PurchaseOrderItemCode))
-                    sourceDisplay = s.PurchaseOrderItemCode.Trim();
+                if (string.IsNullOrWhiteSpace(sourceDisplay) && !string.IsNullOrWhiteSpace(prim?.PurchaseOrderItemCode))
+                    sourceDisplay = prim.PurchaseOrderItemCode.Trim();
 
                 string? vendorName = null;
                 if (!string.IsNullOrWhiteSpace(s.VendorId) && venDict.TryGetValue(s.VendorId!, out var v))
@@ -428,9 +508,9 @@ namespace CRM.Core.Services
                     soIdByItemId.TryGetValue(headerPoLine.SellOrderItemId.Trim(), out var soId0) &&
                     soDict.TryGetValue(soId0, out var so0) && !string.IsNullOrWhiteSpace(so0.SellOrderCode))
                     salesOrderCodes.Add(so0.SellOrderCode!);
-                if (!string.IsNullOrWhiteSpace(s.SellOrderItemId) &&
-                    (!headerPoLine?.SellOrderItemId?.Trim().Equals(s.SellOrderItemId.Trim(), StringComparison.OrdinalIgnoreCase) ?? true) &&
-                    soIdByItemId.TryGetValue(s.SellOrderItemId.Trim(), out var soId1) &&
+                if (!string.IsNullOrWhiteSpace(prim?.SellOrderItemId) &&
+                    (!headerPoLine?.SellOrderItemId?.Trim().Equals(prim.SellOrderItemId.Trim(), StringComparison.OrdinalIgnoreCase) ?? true) &&
+                    soIdByItemId.TryGetValue(prim.SellOrderItemId.Trim(), out var soId1) &&
                     soDict.TryGetValue(soId1, out var so1) && !string.IsNullOrWhiteSpace(so1.SellOrderCode))
                     salesOrderCodes.Add(so1.SellOrderCode!);
 
@@ -643,12 +723,14 @@ namespace CRM.Core.Services
 
             if (status == 2)
             {
+                var logExt = StockInItemExtendPrimaryPicker.PickPrimary(
+                    (await _stockInItemExtendRepository.FindAsync(e => e.StockInId == stockIn.Id)).ToList());
                 _logger.LogInformation(
                     "[InboundStatus2] StockIn status→2 chain start StockInId={StockInId} StockInCode={Code} PoItemId={PoItemId} PoItemCode={PoItemCode}",
                     stockIn.Id,
                     stockIn.StockInCode ?? "",
-                    stockIn.PurchaseOrderItemId ?? "",
-                    stockIn.PurchaseOrderItemCode ?? "");
+                    logExt?.PurchaseOrderItemId ?? "",
+                    logExt?.PurchaseOrderItemCode ?? "");
 
                 try
                 {
@@ -716,41 +798,45 @@ namespace CRM.Core.Services
         /// </summary>
         private async Task TryRefreshSellOrderItemExtendAfterStockInCompletedAsync(StockIn stockIn)
         {
-            string? sellLineId = null;
-            if (!string.IsNullOrWhiteSpace(stockIn.SellOrderItemId))
-                sellLineId = stockIn.SellOrderItemId.Trim();
-            else if (!string.IsNullOrWhiteSpace(stockIn.PurchaseOrderItemId))
+            var extRows = (await _stockInItemExtendRepository.FindAsync(e => e.StockInId == stockIn.Id)).ToList();
+            var sellLineIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var e in extRows)
             {
-                var pl = await _purchaseOrderItemRepository.GetByIdAsync(stockIn.PurchaseOrderItemId.Trim());
-                if (!string.IsNullOrWhiteSpace(pl?.SellOrderItemId))
-                    sellLineId = pl.SellOrderItemId.Trim();
+                if (!string.IsNullOrWhiteSpace(e.SellOrderItemId))
+                    sellLineIds.Add(e.SellOrderItemId.Trim());
+                else if (!string.IsNullOrWhiteSpace(e.PurchaseOrderItemId))
+                {
+                    var pl = await _purchaseOrderItemRepository.GetByIdAsync(e.PurchaseOrderItemId.Trim());
+                    if (!string.IsNullOrWhiteSpace(pl?.SellOrderItemId))
+                        sellLineIds.Add(pl.SellOrderItemId.Trim());
+                }
             }
 
-            if (string.IsNullOrWhiteSpace(sellLineId)) return;
-
-            await _sellOrderItemExtendSync.RecalculateAsync(sellLineId);
+            foreach (var sid in sellLineIds)
+                await _sellOrderItemExtendSync.RecalculateAsync(sid);
         }
 
         private async Task<string?> ResolvePurchaseOrderIdForStockInCompletedHookAsync(StockIn stockIn)
         {
-            if (!string.IsNullOrWhiteSpace(stockIn.PurchaseOrderItemId))
+            var pick = StockInItemExtendPrimaryPicker.PickPrimary(
+                (await _stockInItemExtendRepository.FindAsync(e => e.StockInId == stockIn.Id)).ToList());
+            if (!string.IsNullOrWhiteSpace(pick?.PurchaseOrderItemId))
             {
                 _logger.LogInformation(
                     "[InboundStatus2] ResolveHook branch=PoItemId PoItemId={PoItemId}",
-                    stockIn.PurchaseOrderItemId.Trim());
-                var pl = await _purchaseOrderItemRepository.GetByIdAsync(stockIn.PurchaseOrderItemId.Trim());
+                    pick.PurchaseOrderItemId.Trim());
+                var pl = await _purchaseOrderItemRepository.GetByIdAsync(pick.PurchaseOrderItemId.Trim());
                 if (!string.IsNullOrWhiteSpace(pl?.PurchaseOrderId))
                     return pl!.PurchaseOrderId.Trim();
             }
 
-            if (!string.IsNullOrWhiteSpace(stockIn.PurchaseOrderItemCode))
+            if (!string.IsNullOrWhiteSpace(pick?.PurchaseOrderItemCode))
             {
                 _logger.LogInformation(
                     "[InboundStatus2] ResolveHook branch=PoItemCode PoItemCode={PoItemCode}",
-                    stockIn.PurchaseOrderItemCode.Trim());
-                // 库列名为 purchase_order_item_code；用 LINQ 会生成 i."PurchaseOrderItemCode" 导致 42703
+                    pick.PurchaseOrderItemCode.Trim());
                 var poId = await _unitOfWork.GetPurchaseOrderIdByPurchaseOrderItemLineCodeAsync(
-                    stockIn.PurchaseOrderItemCode.Trim());
+                    pick.PurchaseOrderItemCode.Trim());
                 if (!string.IsNullOrWhiteSpace(poId))
                     return poId.Trim();
             }
@@ -848,26 +934,13 @@ namespace CRM.Core.Services
             return (sourceId, sourceCode, qcId, qcCode);
         }
 
-        private static PurchaseOrderItem? ResolvePrimaryPurchaseOrderLineForStockInHeader(
-            List<CreateStockInItemRequest>? items,
-            IReadOnlyDictionary<string, PurchaseOrderItem>? poLineById,
-            List<PurchaseOrderItem>? poLines)
+        /// <summary>将采购明细 PN/品牌/币别快照写入入库明细行（采销行主键与业务编号见 <c>stockinitemextend</c>）。</summary>
+        private static void ApplyPurchaseSnapshotToStockInItem(StockInItem line, PurchaseOrderItem? poi)
         {
-            if (items is { Count: > 0 } && poLineById != null)
-            {
-                foreach (var item in items)
-                {
-                    var key = item.MaterialCode?.Trim();
-                    if (string.IsNullOrEmpty(key)) continue;
-                    if (poLineById.TryGetValue(key, out var pl))
-                        return pl;
-                }
-            }
-
-            if (poLines is { Count: 1 })
-                return poLines[0];
-
-            return null;
+            if (poi == null) return;
+            line.PurchasePn = string.IsNullOrWhiteSpace(poi.PN) ? null : poi.PN.Trim();
+            line.PurchaseBrand = string.IsNullOrWhiteSpace(poi.Brand) ? null : poi.Brand.Trim();
+            line.Currency = poi.Currency;
         }
 
         /// <summary>

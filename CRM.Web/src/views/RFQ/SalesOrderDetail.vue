@@ -159,7 +159,7 @@
           <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'documents' }" @click="activeTab = 'documents'">文档</button>
         </div>
         <div class="tabs-body">
-          <div v-show="activeTab === 'items'">
+          <div v-show="activeTab === 'items'" class="detail-items-table-wrap">
             <CrmDataTable :data="order.items" size="small" v-if="order.items?.length" class="items-table">
               <el-table-column type="index" width="50" label="#" />
               <el-table-column
@@ -1570,6 +1570,10 @@ const submitApplyStockOut = async () => {
 
 .tabs-body {
   padding: 20px;
+}
+
+.detail-items-table-wrap {
+  margin-top: 4px;
 }
 
 .items-table {

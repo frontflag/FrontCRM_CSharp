@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Linq.Expressions;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
@@ -712,6 +713,9 @@ namespace CRM.IntegrationTests
             // 模拟依赖
             var notifyRepo = Substitute.For<IRepository<StockInNotify>>();
             var stockInRepoForLogistics = Substitute.For<IRepository<StockIn>>();
+            var stockInItemExtendRepoForLogistics = Substitute.For<IRepository<StockInItemExtend>>();
+            stockInItemExtendRepoForLogistics.FindAsync(Arg.Any<Expression<Func<StockInItemExtend, bool>>>())
+                .Returns(Task.FromResult(Enumerable.Empty<StockInItemExtend>()));
             var qcRepo = Substitute.For<IRepository<QCInfo>>();
             var qcItemRepo = Substitute.For<IRepository<QCItem>>();
             var poRepo = Substitute.For<IRepository<PurchaseOrder>>();
@@ -726,7 +730,7 @@ namespace CRM.IntegrationTests
             // 创建物流服务
             var logisticsLogger = Substitute.For<Microsoft.Extensions.Logging.ILogger<LogisticsService>>();
             var service = new LogisticsService(
-                notifyRepo, stockInRepoForLogistics, qcRepo, qcItemRepo, poRepo, poItemRepo, poItemExtendRepo,
+                notifyRepo, stockInRepoForLogistics, stockInItemExtendRepoForLogistics, qcRepo, qcItemRepo, poRepo, poItemRepo, poItemExtendRepo,
                 sellOrderItemRepo, sellOrderRepo, serialNumberService, poItemExtendSync, unitOfWork,
                 logisticsLogger);
 
@@ -846,13 +850,16 @@ namespace CRM.IntegrationTests
             var extendRepo = Substitute.For<IRepository<SellOrderItemExtend>>();
             var poItemRepo = Substitute.For<IRepository<PurchaseOrderItem>>();
             var stockInRepo = Substitute.For<IRepository<StockIn>>();
+            var stockInItemExtendRepo = Substitute.For<IRepository<StockInItemExtend>>();
+            var stockInItemRepo = Substitute.For<IRepository<StockInItem>>();
             var stockOutRequestRepo = Substitute.For<IRepository<StockOutRequest>>();
             var stockOutRepo = Substitute.For<IRepository<StockOut>>();
             var receiptItemRepo = Substitute.For<IRepository<FinanceReceiptItem>>();
 
             // 创建同步服务
             var service = new SellOrderItemExtendSyncService(
-                soItemRepo, extendRepo, poItemRepo, stockInRepo, stockOutRequestRepo,
+                soItemRepo, extendRepo, poItemRepo, stockInRepo, stockInItemExtendRepo, stockInItemRepo,
+                stockOutRequestRepo,
                 stockOutRepo, receiptItemRepo,
                 NullLogger<SellOrderItemExtendSyncService>.Instance);
 
@@ -902,14 +909,29 @@ namespace CRM.IntegrationTests
                 Status = 30 // 已确认
             };
 
-            // 模拟采购入库单头（销售明细维度已入库 10）
+            // 模拟采购入库单 + 明细扩展（销售明细维度已入库 10）
+            var stockInLineId = Guid.NewGuid().ToString();
             var stockInForSo = new StockIn
             {
                 Id = Guid.NewGuid().ToString(),
-                SellOrderItemId = sellOrderItemId,
                 Status = 2,
                 StockInType = 1,
                 TotalQuantity = 10
+            };
+            var stockInItemRow = new StockInItem
+            {
+                Id = stockInLineId,
+                StockInId = stockInForSo.Id,
+                MaterialId = Guid.NewGuid().ToString(),
+                StockInItemCode = "STI-TEST-1",
+                Quantity = 10
+            };
+            var stockInItemExtRow = new StockInItemExtend
+            {
+                Id = stockInLineId,
+                StockInId = stockInForSo.Id,
+                SellOrderItemId = sellOrderItemId,
+                CreateTime = DateTime.UtcNow
             };
 
             // 模拟出库申请（数量 20，状态部分完成）
@@ -945,7 +967,23 @@ namespace CRM.IntegrationTests
             poItemRepo.FindAsync(Arg.Any<Expression<Func<PurchaseOrderItem, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<PurchaseOrderItem>>(new List<PurchaseOrderItem> { poItem }));
             stockInRepo.FindAsync(Arg.Any<Expression<Func<StockIn, bool>>>())
-                .Returns(Task.FromResult<IEnumerable<StockIn>>(new List<StockIn> { stockInForSo }));
+                .Returns(call =>
+                {
+                    var pred = call.Arg<Expression<Func<StockIn, bool>>>().Compile();
+                    return Task.FromResult<IEnumerable<StockIn>>(new List<StockIn> { stockInForSo }.Where(pred));
+                });
+            stockInItemExtendRepo.FindAsync(Arg.Any<Expression<Func<StockInItemExtend, bool>>>())
+                .Returns(call =>
+                {
+                    var pred = call.Arg<Expression<Func<StockInItemExtend, bool>>>().Compile();
+                    return Task.FromResult<IEnumerable<StockInItemExtend>>(new List<StockInItemExtend> { stockInItemExtRow }.Where(pred));
+                });
+            stockInItemRepo.FindAsync(Arg.Any<Expression<Func<StockInItem, bool>>>())
+                .Returns(call =>
+                {
+                    var pred = call.Arg<Expression<Func<StockInItem, bool>>>().Compile();
+                    return Task.FromResult<IEnumerable<StockInItem>>(new List<StockInItem> { stockInItemRow }.Where(pred));
+                });
             stockOutRequestRepo.FindAsync(Arg.Any<Expression<Func<StockOutRequest, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<StockOutRequest>>(new List<StockOutRequest> { stockOutRequest }));
             stockOutRepo.FindAsync(Arg.Any<Expression<Func<StockOut, bool>>>())
@@ -993,13 +1031,14 @@ namespace CRM.IntegrationTests
             var purInvRepo = Substitute.For<IRepository<FinancePurchaseInvoice>>();
             var stockInRepo = Substitute.For<IRepository<StockIn>>();
             var stockInItemRepo = Substitute.For<IRepository<StockInItem>>();
+            var stockInItemExtendRepo = Substitute.For<IRepository<StockInItemExtend>>();
             var qcRepo = Substitute.For<IRepository<QCInfo>>();
             var sellSoItemExtendSync = Substitute.For<ISellOrderItemExtendSyncService>();
 
             // 创建同步服务
             var service = new PurchaseOrderItemExtendSyncService(
                 poItemRepo, poRepo, extendRepo, notifyRepo, payItemRepo, paymentRepo,
-                purInvItemRepo, purInvRepo, stockInRepo, stockInItemRepo, qcRepo,
+                purInvItemRepo, purInvRepo, stockInRepo, stockInItemRepo, stockInItemExtendRepo, qcRepo,
                 sellSoItemExtendSync);
 
             // 准备采购订单明细
@@ -1078,18 +1117,28 @@ namespace CRM.IntegrationTests
             var stockIn = new StockIn
             {
                 Id = invItem.StockInId,
-                PurchaseOrderItemId = purchaseOrderItemId,
+                StockInCode = "SI-TEST-INV",
                 Status = 2, // 已完成
                 StockInType = 1, // 采购入库
                 TotalQuantity = 25
             };
 
             // 模拟入库单明细（匹配采购明细）
+            var stockInLineId = Guid.NewGuid().ToString();
             var stockInItem = new StockInItem
             {
+                Id = stockInLineId,
                 StockInId = stockIn.Id,
+                StockInItemCode = "SI-TEST-INV-1",
                 MaterialId = purchaseOrderItemId,
                 Quantity = 25
+            };
+            var stockInItemExt = new StockInItemExtend
+            {
+                Id = stockInLineId,
+                StockInId = stockIn.Id,
+                PurchaseOrderItemId = purchaseOrderItemId,
+                CreateTime = DateTime.UtcNow
             };
 
             // 设置模拟返回值
@@ -1110,6 +1159,13 @@ namespace CRM.IntegrationTests
             stockInItemRepo.FindAsync(Arg.Any<Expression<Func<StockInItem, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<StockInItem>>(new List<StockInItem> { stockInItem }));
             stockInItemRepo.GetAllAsync().Returns(new List<StockInItem> { stockInItem });
+            stockInItemExtendRepo.FindAsync(Arg.Any<Expression<Func<StockInItemExtend, bool>>>())
+                .Returns(call =>
+                {
+                    var pred = call.Arg<Expression<Func<StockInItemExtend, bool>>>().Compile();
+                    return Task.FromResult<IEnumerable<StockInItemExtend>>(new List<StockInItemExtend> { stockInItemExt }.Where(pred));
+                });
+            stockInItemExtendRepo.GetAllAsync().Returns(new List<StockInItemExtend> { stockInItemExt });
             qcRepo.FindAsync(Arg.Any<Expression<Func<QCInfo, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<QCInfo>>(new List<QCInfo>()));
             qcRepo.GetAllAsync().Returns(new List<QCInfo>());
@@ -1732,6 +1788,9 @@ namespace CRM.IntegrationTests
             // 模拟物流服务（LogisticsService）
             var notifyRepo = Substitute.For<IRepository<StockInNotify>>();
             var stockInRepoForLogistics2 = Substitute.For<IRepository<StockIn>>();
+            var stockInItemExtendRepoForLogistics2 = Substitute.For<IRepository<StockInItemExtend>>();
+            stockInItemExtendRepoForLogistics2.FindAsync(Arg.Any<Expression<Func<StockInItemExtend, bool>>>())
+                .Returns(Task.FromResult(Enumerable.Empty<StockInItemExtend>()));
             var qcRepo = Substitute.For<IRepository<QCInfo>>();
             var qcItemRepo = Substitute.For<IRepository<QCItem>>();
             var sellOrderItemRepo = Substitute.For<IRepository<SellOrderItem>>();
@@ -1741,7 +1800,7 @@ namespace CRM.IntegrationTests
             var logisticsUnitOfWork = Substitute.For<IUnitOfWork>();
             var logisticsLogger2 = Substitute.For<Microsoft.Extensions.Logging.ILogger<LogisticsService>>();
             var logisticsService = new LogisticsService(
-                notifyRepo, stockInRepoForLogistics2, qcRepo, qcItemRepo, poRepo, poItemRepo, poItemExtendRepo,
+                notifyRepo, stockInRepoForLogistics2, stockInItemExtendRepoForLogistics2, qcRepo, qcItemRepo, poRepo, poItemRepo, poItemExtendRepo,
                 sellOrderItemRepo, sellOrderRepo, logisticsSerialNumberService, poItemExtendSyncForLogistics,
                 logisticsUnitOfWork, logisticsLogger2);
 
@@ -1819,6 +1878,8 @@ namespace CRM.IntegrationTests
             // 模拟入库服务（StockInService）
             var stockInRepo = Substitute.For<IRepository<StockIn>>();
             var stockInItemRepo = Substitute.For<IRepository<StockInItem>>();
+            var stockInItemExtendRepoWf = Substitute.For<IRepository<StockInItemExtend>>();
+            stockInItemExtendRepoWf.AddAsync(Arg.Any<StockInItemExtend>()).Returns(Task.CompletedTask);
             var stockRepo = Substitute.For<IRepository<StockInfo>>();
             var stockInSerialNumberService = Substitute.For<ISerialNumberService>();
             var stockInUnitOfWork = Substitute.For<IUnitOfWork>();
@@ -1833,14 +1894,16 @@ namespace CRM.IntegrationTests
             var stockInNotifyRepo = Substitute.For<IRepository<StockInNotify>>();
             var stockInLogger = Substitute.For<Microsoft.Extensions.Logging.ILogger<StockInService>>();
             var stockInSellExtendSync = Substitute.For<ISellOrderItemExtendSyncService>();
+            var stockInLineSeq = Substitute.For<IStockInExtendLineSeqService>();
             var stockInService = new StockInService(
-                stockInRepo, stockInItemRepo,
+                stockInRepo, stockInItemRepo, stockInItemExtendRepoWf,
                 purchaseOrderRepo, poItemRepo,
                 _salesOrderItemRepository, _salesOrderRepository,
                 qcRepo, stockInNotifyRepo, vendorRepoLocal, warehouseRepoLocal, materialRepo,
                 logisticsServiceLocal, inventoryCenterServiceLocal,
                 stockInSerialNumberService, _userService,
-                stockInSellExtendSync, Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(), stockInUnitOfWork, stockInLogger);
+                stockInSellExtendSync, Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(),
+                stockInLineSeq, stockInUnitOfWork, stockInLogger);
 
             // 模拟入库单仓储
             var allStockIns = new List<StockIn>();

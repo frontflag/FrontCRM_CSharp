@@ -29,6 +29,8 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
     private readonly IRepository<SellOrderItemExtend> _extendRepo;
     private readonly IRepository<PurchaseOrderItem> _poItemRepo;
     private readonly IRepository<StockIn> _stockInRepo;
+    private readonly IRepository<StockInItemExtend> _stockInItemExtendRepo;
+    private readonly IRepository<StockInItem> _stockInItemRepo;
     private readonly IRepository<StockOutRequest> _stockOutRequestRepo;
     private readonly IRepository<StockOut> _stockOutRepo;
     private readonly IRepository<FinanceReceiptItem> _receiptItemRepo;
@@ -39,6 +41,8 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         IRepository<SellOrderItemExtend> extendRepo,
         IRepository<PurchaseOrderItem> poItemRepo,
         IRepository<StockIn> stockInRepo,
+        IRepository<StockInItemExtend> stockInItemExtendRepo,
+        IRepository<StockInItem> stockInItemRepo,
         IRepository<StockOutRequest> stockOutRequestRepo,
         IRepository<StockOut> stockOutRepo,
         IRepository<FinanceReceiptItem> receiptItemRepo,
@@ -48,6 +52,8 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         _extendRepo = extendRepo;
         _poItemRepo = poItemRepo;
         _stockInRepo = stockInRepo;
+        _stockInItemExtendRepo = stockInItemExtendRepo;
+        _stockInItemRepo = stockInItemRepo;
         _stockOutRequestRepo = stockOutRequestRepo;
         _stockOutRepo = stockOutRepo;
         _receiptItemRepo = receiptItemRepo;
@@ -137,14 +143,23 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         else
             ext.PurchaseProgressStatus = ProgressPartial;
 
-        // 入库进度：stockin 头表 sell_order_item_id = 本销售明细、已入库、采购入库，累计 TotalQuantity 与销售明细数量比
-        var completedStockIns = (await _stockInRepo.FindAsync(s =>
-                s.Status == StockInCompleted
-                && s.StockInType == StockInTypePurchase
-                && s.SellOrderItemId != null
-                && s.SellOrderItemId == id))
+        // 入库进度：stockinitemextend.sell_order_item_id = 本销售明细，父单已入库采购入库时累计对应明细行数量
+        var extMatches = (await _stockInItemExtendRepo.FindAsync(x => x.SellOrderItemId != null && x.SellOrderItemId == id))
             .ToList();
-        var sumReceive = completedStockIns.Sum(s => s.TotalQuantity);
+        decimal sumReceive = 0m;
+        if (extMatches.Count > 0)
+        {
+            var itemIds = extMatches.Select(x => x.Id).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var siItems = (await _stockInItemRepo.FindAsync(x => itemIds.Contains(x.Id))).ToList();
+            var siIds = siItems.Select(x => x.StockInId).Distinct().ToList();
+            var completedSiIds = (await _stockInRepo.FindAsync(s =>
+                    siIds.Contains(s.Id)
+                    && s.Status == StockInCompleted
+                    && s.StockInType == StockInTypePurchase))
+                .Select(s => s.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            sumReceive = siItems.Where(i => completedSiIds.Contains(i.StockInId)).Sum(i => (decimal)i.Quantity);
+        }
 
         if (sumReceive <= 0m)
             ext.StockInProgressStatus = ProgressPending;

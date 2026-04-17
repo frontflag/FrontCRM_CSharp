@@ -10,16 +10,16 @@
           </div>
           <h1 class="page-title">{{ t('purchaseOrderItemList.title') }}</h1>
         </div>
-        <div class="list-count-badge">{{ t('purchaseOrderItemList.totalCount', { total }) }}</div>
+        <div class="count-badge">{{ t('purchaseOrderItemList.totalCount', { total }) }}</div>
       </div>
       <div class="header-right">
-        <!-- 采购订单明细目前仅展示；如后续需要批量操作，可在此扩展 -->
+        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="loadList">{{ t('purchaseOrderItemList.filters.refresh') }}</button>
       </div>
     </div>
 
     <div class="search-bar">
       <div class="search-left">
-        <span class="list-title">{{ t('purchaseOrderItemList.filters.label') }}</span>
+        <span class="filter-field-label">{{ t('purchaseOrderItemList.filters.dateRangeLabel') }}</span>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
@@ -27,36 +27,67 @@
           :start-placeholder="t('purchaseOrderItemList.filters.orderCreatedFrom')"
           :end-placeholder="t('purchaseOrderItemList.filters.orderCreatedTo')"
           value-format="YYYY-MM-DD"
-          class="po-date-range"
+          class="filter-date-range po-date-range"
           clearable
+          :teleported="false"
         />
 
-        <input
-          v-model="filters.purchaseOrderCode"
-          class="search-input po-filter-input"
-          :placeholder="t('purchaseOrderItemList.filters.poCodePlaceholder')"
-          @keyup.enter="loadList"
-        />
-        <input
-          v-if="canViewVendor"
-          v-model="filters.vendorName"
-          class="search-input po-filter-input"
-          :placeholder="t('purchaseOrderItemList.filters.vendorPlaceholder')"
-          @keyup.enter="loadList"
-        />
-        <input
-          v-if="canViewPurchaseUser"
-          v-model="filters.purchaseUserName"
-          class="search-input po-filter-input"
-          :placeholder="t('purchaseOrderItemList.filters.purchaserPlaceholder')"
-          @keyup.enter="loadList"
-        />
-        <input
-          v-model="filters.pn"
-          class="search-input po-filter-input"
-          :placeholder="t('purchaseOrderItemList.filters.pnPlaceholder')"
-          @keyup.enter="loadList"
-        />
+        <span class="filter-field-label">{{ t('purchaseOrderList.filters.orderCode') }}</span>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filters.purchaseOrderCode"
+            class="search-input"
+            :placeholder="t('purchaseOrderItemList.filters.poCodePlaceholder')"
+            @keyup.enter="loadList"
+          />
+        </div>
+        <template v-if="canViewVendor">
+          <span class="filter-field-label">{{ t('purchaseOrderList.filters.vendor') }}</span>
+          <div class="search-input-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              v-model="filters.vendorName"
+              class="search-input"
+              :placeholder="t('purchaseOrderItemList.filters.vendorPlaceholder')"
+              @keyup.enter="loadList"
+            />
+          </div>
+        </template>
+        <template v-if="canViewPurchaseUser">
+          <span class="filter-field-label">{{ t('purchaseOrderList.columns.purchaser') }}</span>
+          <div class="search-input-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              v-model="filters.purchaseUserName"
+              class="search-input"
+              :placeholder="t('purchaseOrderItemList.filters.purchaserPlaceholder')"
+              @keyup.enter="loadList"
+            />
+          </div>
+        </template>
+        <span class="filter-field-label">{{ t('purchaseOrderItemList.columns.pn') }}</span>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filters.pn"
+            class="search-input"
+            :placeholder="t('purchaseOrderItemList.filters.pnPlaceholder')"
+            @keyup.enter="loadList"
+          />
+        </div>
 
         <span class="filter-field-label">{{ t('purchaseOrderItemList.filters.orderType') }}</span>
         <el-select
@@ -72,10 +103,10 @@
           <el-option :label="t('purchaseOrderItemList.filters.orderTypeSample')" :value="3" />
         </el-select>
 
-        <button type="button" class="btn-primary btn-sm" @click="loadList">
+        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="loadList">
           {{ t('purchaseOrderItemList.filters.search') }}
         </button>
-        <button type="button" class="btn-ghost btn-sm" @click="resetFilters">
+        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="resetFilters">
           {{ t('purchaseOrderItemList.filters.reset') }}
         </button>
       </div>
@@ -1229,6 +1260,7 @@ onMounted(() => {
   padding: 24px;
   min-height: 100%;
   background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
 .page-header {
@@ -1236,12 +1268,15 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 20px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 .header-left,
 .header-right {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 .page-title-group {
   display: flex;
@@ -1265,7 +1300,7 @@ onMounted(() => {
   color: $text-primary;
   margin: 0;
 }
-.list-count-badge {
+.count-badge {
   font-size: 12px;
   color: $text-muted;
   background: rgba(255, 255, 255, 0.05);
@@ -1294,6 +1329,9 @@ onMounted(() => {
   }
 }
 .btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 12px;
   background: transparent;
   border: 1px solid $border-panel;
@@ -1301,8 +1339,21 @@ onMounted(() => {
   color: $text-muted;
   font-size: 12px;
   cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+  transition: border-color 0.2s, color 0.2s;
+  &:hover:not(:disabled) {
+    border-color: rgba(0, 212, 255, 0.3);
+    color: $text-secondary;
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 }
 .search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 12px;
 }
 .search-left {
@@ -1311,32 +1362,53 @@ onMounted(() => {
   gap: 10px;
   flex-wrap: wrap;
 }
-.list-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: $text-primary;
+.filter-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
+  white-space: nowrap;
+}
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: $text-muted;
+  pointer-events: none;
 }
 .search-input {
-  padding: 7px 12px;
+  width: 200px;
+  padding: 7px 12px 7px 32px;
+  box-sizing: border-box;
   background: $layer-2;
   border: 1px solid $border-panel;
   border-radius: $border-radius-md;
   color: $text-primary;
   font-size: 13px;
   outline: none;
+  transition: border-color 0.2s;
+  font-family: 'Noto Sans SC', sans-serif;
+  &::placeholder {
+    color: $text-muted;
+  }
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+}
+.filter-date-range.po-date-range {
+  width: 260px;
+  :deep(.el-range-editor.el-input__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
 }
 .po-date-range {
   width: 260px;
-}
-.po-filter-input {
-  width: 160px;
-}
-
-.filter-field-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: $text-muted;
-  white-space: nowrap;
 }
 
 .po-order-type-select {

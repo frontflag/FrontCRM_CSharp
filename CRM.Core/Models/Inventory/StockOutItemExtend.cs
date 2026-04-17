@@ -9,7 +9,7 @@ namespace CRM.Core.Models.Inventory
     /// 出库明细扩展：与 <see cref="StockOutItem"/> 一对一（主键同明细 <c>ItemId</c>）。
     /// 记录拣货层（<c>StockItemId</c>、<c>Type</c>）及过账时采销价、币别、折合 USD 与业务利润快照。
     /// </summary>
-    [Table("stockoutitemextend")]
+    [Table("stock_out_item_extend")]
     public class StockOutItemExtend : BaseGuidEntity
     {
         [Key]

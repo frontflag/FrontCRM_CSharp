@@ -2,8 +2,14 @@ import apiClient from './client'
 
 export interface StockInItemDto {
   lineNo: number
+  /** 详情页：入库明细业务编号（服务端生成） */
+  stockInItemCode?: string
+  /** 创建时作为 MaterialId 提交；详情页仅保留数据不展示列 */
   materialCode: string
+  /** 展示用：物料型号（与入库列表「物料型号」一致） */
   materialName: string
+  /** 展示用：品牌（详情由接口填充；创建可填但不提交后端） */
+  materialBrand?: string
   specification?: string
   quantity: number
   unit: string
@@ -32,6 +38,8 @@ export interface CreateStockInRequest {
 export interface StockInDetailItemDto {
   id: string
   stockInId: string
+  /** 入库明细业务编号（{stockInCode}-{行序号}） */
+  stockInItemCode?: string
   materialId: string
   quantity: number
   price: number
@@ -43,8 +51,17 @@ export interface StockInDetailItemDto {
   detailMaterialCode?: string | null
   /** 后端填充：物料名称 */
   detailMaterialName?: string | null
+  /** 后端填充：物料型号 */
+  detailMaterialModel?: string | null
+  /** 后端填充：品牌 */
+  detailMaterialBrand?: string | null
   /** 后端填充：单位 */
   detailUnit?: string | null
+  /** 表字段快照：采购 PN */
+  purchasePn?: string | null
+  /** 表字段快照：采购品牌 */
+  purchaseBrand?: string | null
+  currency?: number | null
 }
 
 export interface StockInDto {
@@ -76,7 +93,7 @@ export interface StockInDto {
   detailVendorName?: string | null
 }
 
-/** 列表接口返回：含来源单号、供应商名称等展示字段 */
+/** 列表接口返回：含到货通知号、供应商名称等展示字段 */
 export interface StockInListItemDto {
   id: string
   stockInCode: string

@@ -1,4 +1,4 @@
--- =============================================================================
+﻿-- =============================================================================
 -- 清空业务数据（PostgreSQL）
 --
 -- 保留（不执行任何 DELETE/TRUNCATE）：
@@ -43,10 +43,10 @@ TRUNCATE TABLE
   public.inventorycountitem,
   public.inventorycountplan,
   public.stockledger,
-  public.stockoutitem,
-  public.stockout,
-  public.stockinitem,
-  public.stockin,
+  public.stock_out_item,
+  public.stock_out,
+  public.stock_in_item,
+  public.stock_in,
   public.stock,
   public.qcitem,
   public.qcinfo,
@@ -99,3 +99,4 @@ COMMIT;
 --   TRUNCATE public.warehouseshelf, public.warehouselocation, public.warehousezone,
 --            public.warehouseinfo RESTART IDENTITY CASCADE;
 -- =============================================================================
+

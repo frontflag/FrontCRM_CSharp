@@ -19,6 +19,7 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
     private readonly IRepository<PurchaseOrderItem> _poItemRepo;
     private readonly IRepository<PurchaseOrder> _poRepo;
     private readonly IRepository<StockInItem> _stockInItemRepo;
+    private readonly IRepository<StockInItemExtend> _stockInItemExtendRepo;
     private readonly ILogger<SellOrderItemPurchasedStockAvailableSyncService> _logger;
 
     public SellOrderItemPurchasedStockAvailableSyncService(
@@ -28,6 +29,7 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
         IRepository<PurchaseOrderItem> poItemRepo,
         IRepository<PurchaseOrder> poRepo,
         IRepository<StockInItem> stockInItemRepo,
+        IRepository<StockInItemExtend> stockInItemExtendRepo,
         ILogger<SellOrderItemPurchasedStockAvailableSyncService> logger)
     {
         _stockRepo = stockRepo;
@@ -36,6 +38,7 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
         _poItemRepo = poItemRepo;
         _poRepo = poRepo;
         _stockInItemRepo = stockInItemRepo;
+        _stockInItemExtendRepo = stockInItemExtendRepo;
         _logger = logger;
     }
 
@@ -106,7 +109,7 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
 
         foreach (var line in lines)
         {
-            var poi = await ResolvePoItemForStockInLineAsync(line, stockIn);
+            var poi = await ResolvePoItemForStockInLineAsync(line);
             if (poi == null)
                 continue;
             var po = await ResolvePoHeaderAsync(poi);
@@ -148,7 +151,7 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
             await RecalculateByPurchasePnAndBrandAsync(pn, br, cancellationToken);
     }
 
-    private async Task<PurchaseOrderItem?> ResolvePoItemForStockInLineAsync(StockInItem line, StockIn stockIn)
+    private async Task<PurchaseOrderItem?> ResolvePoItemForStockInLineAsync(StockInItem line)
     {
         var mid = line.MaterialId?.Trim();
         if (!string.IsNullOrEmpty(mid))
@@ -158,9 +161,10 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
                 return byId;
         }
 
-        var headerPoLine = stockIn.PurchaseOrderItemId?.Trim();
-        if (!string.IsNullOrEmpty(headerPoLine))
-            return await _poItemRepo.GetByIdAsync(headerPoLine);
+        var ext = await _stockInItemExtendRepo.GetByIdAsync(line.Id);
+        var fromExt = ext?.PurchaseOrderItemId?.Trim();
+        if (!string.IsNullOrEmpty(fromExt))
+            return await _poItemRepo.GetByIdAsync(fromExt);
 
         return null;
     }

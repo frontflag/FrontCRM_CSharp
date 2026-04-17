@@ -8,7 +8,7 @@ namespace CRM.Core.Models.Inventory
     /// <summary>
     /// 在库明细层：与 <see cref="StockInItem"/> 1:1，数量与采销冗余的事实来源；汇总至 <see cref="StockInfo"/>（<c>StockAggregateId</c>）。
     /// </summary>
-    [Table("stockitem")]
+    [Table("stock_item")]
     public class StockItem : BaseGuidEntity
     {
         [Key]

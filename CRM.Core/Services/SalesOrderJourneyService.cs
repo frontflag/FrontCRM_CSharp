@@ -21,6 +21,7 @@ namespace CRM.Core.Services
         private readonly IRepository<StockInNotify> _arrivalRepo;
         private readonly IRepository<QCInfo> _qcRepo;
         private readonly IRepository<StockIn> _stockInRepo;
+        private readonly IRepository<StockInItemExtend> _stockInItemExtendRepo;
         private readonly IRepository<StockOut> _stockOutRepo;
         private readonly IRepository<FinancePayment> _payRepo;
         private readonly IRepository<FinancePaymentItem> _payItemRepo;
@@ -45,6 +46,7 @@ namespace CRM.Core.Services
             IRepository<StockInNotify> arrivalRepo,
             IRepository<QCInfo> qcRepo,
             IRepository<StockIn> stockInRepo,
+            IRepository<StockInItemExtend> stockInItemExtendRepo,
             IRepository<StockOut> stockOutRepo,
             IRepository<FinancePayment> payRepo,
             IRepository<FinancePaymentItem> payItemRepo,
@@ -68,6 +70,7 @@ namespace CRM.Core.Services
             _arrivalRepo = arrivalRepo;
             _qcRepo = qcRepo;
             _stockInRepo = stockInRepo;
+            _stockInItemExtendRepo = stockInItemExtendRepo;
             _stockOutRepo = stockOutRepo;
             _payRepo = payRepo;
             _payItemRepo = payItemRepo;
@@ -259,8 +262,11 @@ namespace CRM.Core.Services
                 AddEdge(NodeId("ARRIVAL_NOTICE", qc.StockInNotifyId), qcNodeId);
             }
 
-            // 入库（StockIn）：通过采购明细行 / 销售明细行关联到本单的采购订单
-            var stockIns = await _stockInRepo.GetAllAsync();
+            // 入库（StockIn）：通过 stockinitemextend 上的采购/销售明细行关联到本单的采购订单
+            var stockIns = (await _stockInRepo.GetAllAsync()).ToList();
+            var allSiExt = (await _stockInItemExtendRepo.GetAllAsync()).ToList();
+            var extByStockIn = allSiExt.GroupBy(e => e.StockInId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
             var poLineById = poItems
                 .Where(x => !string.IsNullOrWhiteSpace(x.Id))
                 .ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
@@ -272,25 +278,33 @@ namespace CRM.Core.Services
                 pos.Select(p => p.PurchaseOrderCode.Trim()).Where(x => !string.IsNullOrEmpty(x)),
                 StringComparer.OrdinalIgnoreCase);
 
-            var stockInsForPo = poIds.Count == 0
-                ? new List<StockIn>()
-                : stockIns.Where(s =>
+            bool StockInExtMatchesSo(StockIn s)
+            {
+                if (!extByStockIn.TryGetValue(s.Id, out var rows) || rows.Count == 0)
+                    return false;
+                foreach (var e in rows)
                 {
-                    if (!string.IsNullOrWhiteSpace(s.PurchaseOrderItemId) &&
-                        poLineIdsForSo.Contains(s.PurchaseOrderItemId.Trim()))
+                    if (!string.IsNullOrWhiteSpace(e.PurchaseOrderItemId) &&
+                        poLineIdsForSo.Contains(e.PurchaseOrderItemId.Trim()))
                         return true;
-                    if (!string.IsNullOrWhiteSpace(s.SellOrderItemId) &&
-                        sellIdsForSo.Contains(s.SellOrderItemId.Trim()))
+                    if (!string.IsNullOrWhiteSpace(e.SellOrderItemId) &&
+                        sellIdsForSo.Contains(e.SellOrderItemId.Trim()))
                         return true;
-                    if (!string.IsNullOrWhiteSpace(s.PurchaseOrderItemCode) &&
+                    if (!string.IsNullOrWhiteSpace(e.PurchaseOrderItemCode) &&
                         poCodesForSo.Count > 0 &&
                         poItems.Any(pl =>
                             !string.IsNullOrWhiteSpace(pl.PurchaseOrderItemCode) &&
-                            string.Equals(pl.PurchaseOrderItemCode.Trim(), s.PurchaseOrderItemCode!.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(pl.PurchaseOrderItemCode.Trim(), e.PurchaseOrderItemCode!.Trim(), StringComparison.OrdinalIgnoreCase) &&
                             poIds.Contains(pl.PurchaseOrderId)))
                         return true;
-                    return false;
-                }).ToList();
+                }
+
+                return false;
+            }
+
+            var stockInsForPo = poIds.Count == 0
+                ? new List<StockIn>()
+                : stockIns.Where(StockInExtMatchesSo).ToList();
 
             foreach (var si in stockInsForPo)
             {
@@ -308,25 +322,42 @@ namespace CRM.Core.Services
                 });
 
                 string? edgePoId = null;
-                if (!string.IsNullOrWhiteSpace(si.PurchaseOrderItemId) &&
-                    poLineById.TryGetValue(si.PurchaseOrderItemId.Trim(), out var plEdge) &&
-                    poIds.Contains(plEdge.PurchaseOrderId))
-                    edgePoId = plEdge.PurchaseOrderId.Trim();
-                else if (!string.IsNullOrWhiteSpace(si.SellOrderItemId))
+                if (extByStockIn.TryGetValue(si.Id, out var siExtRows))
                 {
-                    var plFromSell = poItems.FirstOrDefault(p =>
-                        !string.IsNullOrWhiteSpace(p.SellOrderItemId) &&
-                        string.Equals(p.SellOrderItemId.Trim(), si.SellOrderItemId!.Trim(), StringComparison.OrdinalIgnoreCase));
-                    if (plFromSell != null && poIds.Contains(plFromSell.PurchaseOrderId))
-                        edgePoId = plFromSell.PurchaseOrderId.Trim();
-                }
-                else if (!string.IsNullOrWhiteSpace(si.PurchaseOrderItemCode))
-                {
-                    var plFromCode = poItems.FirstOrDefault(p =>
-                        !string.IsNullOrWhiteSpace(p.PurchaseOrderItemCode) &&
-                        string.Equals(p.PurchaseOrderItemCode.Trim(), si.PurchaseOrderItemCode!.Trim(), StringComparison.OrdinalIgnoreCase));
-                    if (plFromCode != null && poIds.Contains(plFromCode.PurchaseOrderId))
-                        edgePoId = plFromCode.PurchaseOrderId.Trim();
+                    foreach (var e in siExtRows)
+                    {
+                        if (!string.IsNullOrWhiteSpace(e.PurchaseOrderItemId) &&
+                            poLineById.TryGetValue(e.PurchaseOrderItemId.Trim(), out var plEdge) &&
+                            poIds.Contains(plEdge.PurchaseOrderId))
+                        {
+                            edgePoId = plEdge.PurchaseOrderId.Trim();
+                            break;
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(e.SellOrderItemId))
+                        {
+                            var plFromSell = poItems.FirstOrDefault(p =>
+                                !string.IsNullOrWhiteSpace(p.SellOrderItemId) &&
+                                string.Equals(p.SellOrderItemId.Trim(), e.SellOrderItemId!.Trim(), StringComparison.OrdinalIgnoreCase));
+                            if (plFromSell != null && poIds.Contains(plFromSell.PurchaseOrderId))
+                            {
+                                edgePoId = plFromSell.PurchaseOrderId.Trim();
+                                break;
+                            }
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(e.PurchaseOrderItemCode))
+                        {
+                            var plFromCode = poItems.FirstOrDefault(p =>
+                                !string.IsNullOrWhiteSpace(p.PurchaseOrderItemCode) &&
+                                string.Equals(p.PurchaseOrderItemCode.Trim(), e.PurchaseOrderItemCode!.Trim(), StringComparison.OrdinalIgnoreCase));
+                            if (plFromCode != null && poIds.Contains(plFromCode.PurchaseOrderId))
+                            {
+                                edgePoId = plFromCode.PurchaseOrderId.Trim();
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 if (!string.IsNullOrWhiteSpace(edgePoId))

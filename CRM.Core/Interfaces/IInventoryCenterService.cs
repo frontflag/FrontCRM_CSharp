@@ -121,6 +121,8 @@ namespace CRM.Core.Interfaces
         public string StockAggregateId { get; set; } = string.Empty;
         public string WarehouseId { get; set; } = string.Empty;
         public string? WarehouseCode { get; set; }
+        /// <summary>仓库名称（由 <see cref="WarehouseId"/> 解析；列表展示用，避免把 Guid 暴露给用户）</summary>
+        public string? WarehouseName { get; set; }
         /// <summary>出库状态：1=未出库 2=部分出库 3=出库完成（仅 <c>QtyInbound&gt;0</c> 时有意义；否则为 0）</summary>
         public short OutboundStatus { get; set; }
 

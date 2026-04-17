@@ -10,13 +10,16 @@
           </div>
           <h1 class="page-title">{{ t('salesOrderItemList.title') }}</h1>
         </div>
-        <div class="list-count-badge">{{ t('salesOrderItemList.count', { count: total }) }}</div>
+        <div class="count-badge">{{ t('salesOrderItemList.count', { count: total }) }}</div>
+      </div>
+      <div class="header-right">
+        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="loadList">{{ t('salesOrderItemList.filters.refresh') }}</button>
       </div>
     </div>
 
     <div class="search-bar">
       <div class="search-left">
-        <span class="list-title">{{ t('salesOrderItemList.filters.title') }}</span>
+        <span class="filter-field-label">{{ t('salesOrderItemList.filters.dateRangeLabel') }}</span>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
@@ -24,35 +27,65 @@
           :start-placeholder="t('salesOrderItemList.filters.dateStart')"
           :end-placeholder="t('salesOrderItemList.filters.dateEnd')"
           value-format="YYYY-MM-DD"
-          class="so-date-range"
+          class="filter-date-range so-date-range"
           clearable
+          :teleported="false"
         />
-        <input
-          v-model="filters.sellOrderCode"
-          class="search-input so-filter-input"
-          :placeholder="t('salesOrderItemList.filters.sellOrderCode')"
-          @keyup.enter="loadList"
-        />
-        <input
-          v-if="canViewCustomer"
-          v-model="filters.customerName"
-          class="search-input so-filter-input"
-          :placeholder="t('salesOrderItemList.filters.customerName')"
-          @keyup.enter="loadList"
-        />
-        <input
-          v-model="filters.salesUserName"
-          class="search-input so-filter-input"
-          :placeholder="t('salesOrderItemList.filters.salesUserName')"
-          @keyup.enter="loadList"
-        />
-        <input
-          v-model="filters.pn"
-          class="search-input so-filter-input"
-          :placeholder="t('salesOrderItemList.filters.pn')"
-          @keyup.enter="loadList"
-        />
-        <button type="button" class="btn-primary btn-sm" @click="loadList">{{ t('salesOrderItemList.filters.query') }}</button>
+        <span class="filter-field-label">{{ t('salesOrderItemList.filters.sellOrderCode') }}</span>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filters.sellOrderCode"
+            class="search-input"
+            :placeholder="t('salesOrderItemList.filters.sellOrderCode')"
+            @keyup.enter="loadList"
+          />
+        </div>
+        <template v-if="canViewCustomer">
+          <span class="filter-field-label">{{ t('salesOrderItemList.filters.customerName') }}</span>
+          <div class="search-input-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              v-model="filters.customerName"
+              class="search-input"
+              :placeholder="t('salesOrderItemList.filters.customerName')"
+              @keyup.enter="loadList"
+            />
+          </div>
+        </template>
+        <span class="filter-field-label">{{ t('salesOrderItemList.filters.salesUserName') }}</span>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filters.salesUserName"
+            class="search-input"
+            :placeholder="t('salesOrderItemList.filters.salesUserName')"
+            @keyup.enter="loadList"
+          />
+        </div>
+        <span class="filter-field-label">{{ t('salesOrderItemList.filters.pn') }}</span>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filters.pn"
+            class="search-input"
+            :placeholder="t('salesOrderItemList.filters.pn')"
+            @keyup.enter="loadList"
+          />
+        </div>
+        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="loadList">{{ t('salesOrderItemList.filters.query') }}</button>
         <button type="button" class="btn-ghost btn-sm" @click="resetFilters">{{ t('salesOrderItemList.filters.reset') }}</button>
       </div>
     </div>
@@ -1027,17 +1060,28 @@ onMounted(() => loadList())
   padding: 24px;
   min-height: 100%;
   background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
 .page-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 20px;
-}
-.header-left {
-  display: flex;
-  align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
 }
 .page-title-group {
   display: flex;
@@ -1061,7 +1105,7 @@ onMounted(() => loadList())
   color: $text-primary;
   margin: 0;
 }
-.list-count-badge {
+.count-badge {
   font-size: 12px;
   color: $text-muted;
   background: rgba(255, 255, 255, 0.05);
@@ -1090,6 +1134,9 @@ onMounted(() => loadList())
   }
 }
 .btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 12px;
   background: transparent;
   border: 1px solid $border-panel;
@@ -1097,8 +1144,21 @@ onMounted(() => loadList())
   color: $text-muted;
   font-size: 12px;
   cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+  transition: border-color 0.2s, color 0.2s;
+  &:hover:not(:disabled) {
+    border-color: rgba(0, 212, 255, 0.3);
+    color: $text-secondary;
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 }
 .search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 12px;
 }
 .search-left {
@@ -1107,25 +1167,53 @@ onMounted(() => loadList())
   gap: 10px;
   flex-wrap: wrap;
 }
-.list-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: $text-primary;
+.filter-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
+  white-space: nowrap;
+}
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: $text-muted;
+  pointer-events: none;
 }
 .search-input {
-  padding: 7px 12px;
+  width: 200px;
+  padding: 7px 12px 7px 32px;
+  box-sizing: border-box;
   background: $layer-2;
   border: 1px solid $border-panel;
   border-radius: $border-radius-md;
   color: $text-primary;
   font-size: 13px;
   outline: none;
+  transition: border-color 0.2s;
+  font-family: 'Noto Sans SC', sans-serif;
+  &::placeholder {
+    color: $text-muted;
+  }
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+}
+.filter-date-range.so-date-range {
+  width: 260px;
+  :deep(.el-range-editor.el-input__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
 }
 .so-date-range {
   width: 260px;
-}
-.so-filter-input {
-  width: 160px;
 }
 .table-wrapper {
   background: $layer-2;

@@ -34,6 +34,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
     private readonly IRepository<FinancePurchaseInvoice> _purInvRepo;
     private readonly IRepository<StockIn> _stockInRepo;
     private readonly IRepository<StockInItem> _stockInItemRepo;
+    private readonly IRepository<StockInItemExtend> _stockInItemExtendRepo;
     private readonly IRepository<QCInfo> _qcRepo;
     private readonly IUnitOfWork? _unitOfWork;
     private readonly ISellOrderItemExtendSyncService _sellSoItemExtendSync;
@@ -49,6 +50,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         IRepository<FinancePurchaseInvoice> purInvRepo,
         IRepository<StockIn> stockInRepo,
         IRepository<StockInItem> stockInItemRepo,
+        IRepository<StockInItemExtend> stockInItemExtendRepo,
         IRepository<QCInfo> qcRepo,
         ISellOrderItemExtendSyncService sellSoItemExtendSync,
         IUnitOfWork? unitOfWork = null)
@@ -63,6 +65,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         _purInvRepo = purInvRepo;
         _stockInRepo = stockInRepo;
         _stockInItemRepo = stockInItemRepo;
+        _stockInItemExtendRepo = stockInItemExtendRepo;
         _qcRepo = qcRepo;
         _sellSoItemExtendSync = sellSoItemExtendSync;
         _unitOfWork = unitOfWork;
@@ -108,7 +111,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         ext.QtyStockInNotifyExpectSum = lines.Sum(x => x.ExpectQty);
         ext.QtyStockInNotifyNot = Math.Max(0m, poItem.Qty - sumReceiveNotify - inTransit);
 
-        // --- 入库数量：已入库的采购入库单头表 PurchaseOrderItemId 与本行一致，按单头 TotalQuantity 累计 ---
+        // --- 入库数量：已入库采购入库单下，stockinitemextend.purchase_order_item_id 与本行一致的明细数量累计 ---
         var stockInCompletedQty = await SumCompletedPurchaseStockInQtyForPoLineAsync(poItem.Id, cancellationToken);
         ext.QtyReceiveTotal = stockInCompletedQty;
 
@@ -222,7 +225,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
     }
 
     /// <summary>
-    /// 有效入库数量：状态为已入库的采购入库单头 <see cref="StockIn.PurchaseOrderItemId"/> 等于本采购明细主键时，累计单头 <see cref="StockIn.TotalQuantity"/>。
+    /// 有效入库数量：<c>stockinitemextend.purchase_order_item_id</c> 等于本采购明细主键、且父入库单为已入库采购入库时，累计对应明细行 <see cref="StockInItem.Quantity"/>。
     /// </summary>
     private async Task<decimal> SumCompletedPurchaseStockInQtyForPoLineAsync(
         string purchaseOrderItemId,
@@ -231,13 +234,21 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(purchaseOrderItemId)) return 0m;
         var poItemId = purchaseOrderItemId.Trim();
-        var list = (await _stockInRepo.FindAsync(s =>
-                s.Status == StockInCompleted
-                && s.StockInType == StockInTypePurchase
-                && s.PurchaseOrderItemId != null
-                && s.PurchaseOrderItemId == poItemId))
+        var extMatches = (await _stockInItemExtendRepo.FindAsync(e =>
+                e.PurchaseOrderItemId != null && e.PurchaseOrderItemId == poItemId))
             .ToList();
-        return list.Sum(s => s.TotalQuantity);
+        if (extMatches.Count == 0) return 0m;
+        var itemIds = extMatches.Select(e => e.Id).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var items = (await _stockInItemRepo.FindAsync(x => itemIds.Contains(x.Id))).ToList();
+        if (items.Count == 0) return 0m;
+        var siIds = items.Select(x => x.StockInId).Distinct().ToList();
+        var completedIds = (await _stockInRepo.FindAsync(s =>
+                siIds.Contains(s.Id)
+                && s.Status == StockInCompleted
+                && s.StockInType == StockInTypePurchase))
+            .Select(s => s.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return items.Where(i => completedIds.Contains(i.StockInId)).Sum(i => (decimal)i.Quantity);
     }
 
     private async Task<decimal> SumPurchaseInvoiceBillAmountForPoLineAsync(PurchaseOrderItem poItem)
@@ -258,6 +269,9 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         var allSiItems = (await _stockInItemRepo.GetAllAsync()).ToList();
         var siItemsByStockIn = allSiItems.GroupBy(x => x.StockInId, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+        var allExtends = (await _stockInItemExtendRepo.GetAllAsync()).ToList();
+        var extendByStockIn = allExtends.GroupBy(x => x.StockInId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
 
         decimal sum = 0m;
         foreach (var ii in invItems)
@@ -266,7 +280,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
                 continue;
             if (!stockIns.TryGetValue(ii.StockInId!.Trim(), out var si) || si.Status == StockInCancelled)
                 continue;
-            if (!InvoiceItemTouchesPoLine(si, poItem, qcs, notifies, siItemsByStockIn))
+            if (!InvoiceItemTouchesPoLine(si, poItem, qcs, notifies, siItemsByStockIn, extendByStockIn))
                 continue;
             sum += ii.BillAmount;
         }
@@ -300,15 +314,22 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         PurchaseOrderItem poItem,
         IReadOnlyDictionary<string, QCInfo> qcsById,
         IReadOnlyDictionary<string, StockInNotify> notifyById,
-        IReadOnlyDictionary<string, List<StockInItem>> siItemsByStockIn)
+        IReadOnlyDictionary<string, List<StockInItem>> siItemsByStockIn,
+        IReadOnlyDictionary<string, List<StockInItemExtend>> extendByStockIn)
     {
-        if (!string.IsNullOrWhiteSpace(si.PurchaseOrderItemId) &&
-            string.Equals(si.PurchaseOrderItemId.Trim(), poItem.Id.Trim(), StringComparison.OrdinalIgnoreCase))
-            return StockInItemsMatchPoLine(si, poItem, siItemsByStockIn);
+        if (extendByStockIn.TryGetValue(si.Id.Trim(), out var extList))
+        {
+            foreach (var e in extList)
+            {
+                if (!string.IsNullOrWhiteSpace(e.PurchaseOrderItemId) &&
+                    string.Equals(e.PurchaseOrderItemId.Trim(), poItem.Id.Trim(), StringComparison.OrdinalIgnoreCase))
+                    return StockInItemsMatchPoLine(si, poItem, siItemsByStockIn);
 
-        if (!string.IsNullOrWhiteSpace(si.SellOrderItemId) && !string.IsNullOrWhiteSpace(poItem.SellOrderItemId) &&
-            string.Equals(si.SellOrderItemId.Trim(), poItem.SellOrderItemId.Trim(), StringComparison.OrdinalIgnoreCase))
-            return StockInItemsMatchPoLine(si, poItem, siItemsByStockIn);
+                if (!string.IsNullOrWhiteSpace(e.SellOrderItemId) && !string.IsNullOrWhiteSpace(poItem.SellOrderItemId) &&
+                    string.Equals(e.SellOrderItemId.Trim(), poItem.SellOrderItemId.Trim(), StringComparison.OrdinalIgnoreCase))
+                    return StockInItemsMatchPoLine(si, poItem, siItemsByStockIn);
+            }
+        }
 
         foreach (var qc in qcsById.Values)
         {
@@ -333,11 +354,15 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         var si = await _stockInRepo.GetByIdAsync(item.StockInId.Trim());
         if (si == null) return result.ToList();
 
-        if (!string.IsNullOrWhiteSpace(si.PurchaseOrderItemId))
+        var extends = (await _stockInItemExtendRepo.FindAsync(x => x.StockInId == si.Id)).ToList();
+        foreach (var e in extends)
         {
-            result.Add(si.PurchaseOrderItemId.Trim());
-            return result.ToList();
+            if (!string.IsNullOrWhiteSpace(e.PurchaseOrderItemId))
+                result.Add(e.PurchaseOrderItemId.Trim());
         }
+
+        if (result.Count > 0)
+            return result.ToList();
 
         var qcLinked = (await _qcRepo.FindAsync(q => q.StockInId == si.Id)).FirstOrDefault();
         if (qcLinked != null)
@@ -350,9 +375,15 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(si.SellOrderItemId))
+        var sellIds = extends
+            .Select(e => e.SellOrderItemId)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        foreach (var sellId in sellIds)
         {
-            var lines = (await _poItemRepo.FindAsync(x => x.SellOrderItemId == si.SellOrderItemId.Trim())).ToList();
+            var lines = (await _poItemRepo.FindAsync(x => x.SellOrderItemId == sellId)).ToList();
             var sil = (await _stockInItemRepo.FindAsync(x => x.StockInId == si.Id)).ToList();
             foreach (var poLine in lines)
             {

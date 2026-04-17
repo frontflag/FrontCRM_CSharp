@@ -1,14 +1,30 @@
 <template>
   <div class="purchase-order-list-page">
     <div class="page-header">
-      <h2>{{ t('purchaseOrderList.title') }}</h2>
-      <button type="button" class="btn-success" @click="handleCreate">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        {{ t('purchaseOrderList.create') }}
-      </button>
+      <div class="header-left">
+        <div class="page-title-group">
+          <div class="page-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+          </div>
+          <h1 class="page-title">{{ t('purchaseOrderList.title') }}</h1>
+        </div>
+        <div class="count-badge">{{ t('purchaseOrderList.count', { count: pageInfo.total }) }}</div>
+      </div>
+      <div class="header-right">
+        <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="loadData">{{ t('purchaseOrderList.filters.refresh') }}</button>
+        <button type="button" class="btn-success" @click="handleCreate">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          {{ t('purchaseOrderList.create') }}
+        </button>
+      </div>
     </div>
 
     <!-- 统计卡片 -->
@@ -79,12 +95,27 @@
         </div>
         <template v-if="canViewVendorInfo">
           <span class="filter-field-label">{{ t('purchaseOrderList.filters.vendor') }}</span>
-          <input
-            v-model="filterForm.vendor"
-            class="search-input search-input--plain"
-            :placeholder="t('purchaseOrderList.filters.vendorPlaceholder')"
-            @keyup.enter="handleSearch"
-          />
+          <div class="search-input-wrap">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              class="search-icon"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              v-model="filterForm.vendor"
+              class="search-input"
+              :placeholder="t('purchaseOrderList.filters.vendorPlaceholder')"
+              @keyup.enter="handleSearch"
+            />
+          </div>
         </template>
         <span class="filter-field-label">{{ t('purchaseOrderList.filters.status') }}</span>
         <el-select
@@ -111,8 +142,7 @@
       </div>
     </div>
 
-    <!-- 数据表格 -->
-    <el-card class="table-card">
+    <div class="table-wrapper" v-loading="loading">
       <CrmDataTable
         ref="dataTableRef"
         column-layout-key="purchase-order-list-main"
@@ -120,7 +150,7 @@
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="filteredList"
-        v-loading="loading"
+        row-key="id"
         highlight-current-row
         @row-dblclick="handleView"
       >
@@ -144,7 +174,18 @@
           </el-tag>
         </template>
         <template #col-total="{ row }">
-          <span class="amount">{{ formatCurrency(row.total, row.currency) }}</span>
+          <template v-if="!listTotalAmountHasValue(row.total)">
+            <span class="dock-tier-empty">—</span>
+          </template>
+          <div v-else class="dock-tier-price-line">
+            <template v-for="amt in [splitListMoneyParts(Number(row.total))]" :key="'po-total-' + row.id">
+              <span class="dock-tier-amt">
+                <span class="dock-tier-amt-int">{{ amt.intPart }}</span><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+              </span>
+            </template>
+            <span class="dock-tier-ccy-gap">&nbsp;</span>
+            <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{ listAmountCurrencyIso(row.currency) }}</span>
+          </div>
         </template>
         <template #col-deliveryDate="{ row }">
           {{ formatDisplayDate(row.deliveryDate) }}
@@ -263,7 +304,7 @@
           @current-change="handlePageChange"
         />
       </div>
-    </el-card>
+    </div>
 
   </div>
 </template>
@@ -277,6 +318,12 @@ import { Setting } from '@element-plus/icons-vue'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import {
+  listAmountCurrencyDockClass,
+  listAmountCurrencyIso,
+  listTotalAmountHasValue,
+  splitListMoneyParts
+} from '@/utils/moneyFormat'
 import {
   purchaseOrderReportAllowed,
   normalizePurchaseOrderMainStatus
@@ -396,12 +443,6 @@ const statTotal = computed(() => orderList.value.length)
 const statPending = computed(() => orderList.value.filter(o => poListMainStatus(o) === 20).length)
 const statInProgress = computed(() => orderList.value.filter(o => poListMainStatus(o) === 50).length)
 const statAmount = computed(() => orderList.value.reduce((sum, o) => sum + (o.total || 0), 0))
-
-// 格式化货币
-const formatCurrency = (value: number, currency?: number) => {
-  const symbol = currency === 2 ? '$' : currency === 3 ? '€' : '¥'
-  return symbol + (value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
 
 // 状态处理
 const getStatusType = (status: number) => {
@@ -557,7 +598,10 @@ onMounted(loadData)
 @import '@/assets/styles/variables.scss';
 
 .purchase-order-list-page {
-  padding: 20px;
+  padding: 24px;
+  min-height: 100%;
+  background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
 .page-header {
@@ -565,11 +609,57 @@ onMounted(loadData)
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  h2 {
+  gap: 12px;
+  flex-wrap: wrap;
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+}
+
+.page-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  .page-icon {
+    width: 36px;
+    height: 36px;
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid rgba(0, 212, 255, 0.25);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $cyan-primary;
+  }
+  .page-title {
     margin: 0;
     color: $text-primary;
     font-size: 20px;
+    font-weight: 600;
   }
+}
+
+.count-badge {
+  font-size: 12px;
+  color: $text-muted;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid $border-panel;
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+
+.table-wrapper {
+  min-height: 120px;
 }
 
 .stat-row {
@@ -770,31 +860,15 @@ onMounted(loadData)
   }
 }
 
-.table-card {
-  background: #0A1628;
-  border: 1px solid rgba(0, 212, 255, 0.1);
-  :deep(.el-table) {
-    background: transparent;
-    --el-table-header-bg-color: rgba(0, 212, 255, 0.1);
-    --el-table-tr-bg-color: transparent;
-    --el-table-border-color: rgba(0, 212, 255, 0.1);
-    color: #E8F4FF;
-
-    // 操作列：列宽随内容收缩（.action-btns / .action-btn 视觉见 crm-unified-list.scss）
-    .el-table__cell.op-col .cell {
-      display: inline-block;
-      width: max-content;
-      max-width: 100%;
-    }
-    .el-table__cell .cell {
-      white-space: nowrap;
-    }
+.table-wrapper :deep(.el-table) {
+  .el-table__cell.op-col .cell {
+    display: inline-block;
+    width: max-content;
+    max-width: 100%;
   }
-}
-
-.amount {
-  color: #00D4FF;
-  font-weight: 500;
+  .el-table__cell .cell {
+    white-space: nowrap;
+  }
 }
 
 .pagination-wrapper {

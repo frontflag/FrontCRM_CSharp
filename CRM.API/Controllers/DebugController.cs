@@ -30,6 +30,7 @@ namespace CRM.API.Controllers
         private readonly IFinanceExchangeRateService _financeExchangeRateService;
         private readonly ISellOrderExtendLineSeqService _sellLineSeq;
         private readonly IPurchaseOrderExtendLineSeqService _poLineSeq;
+        private readonly IStockInExtendLineSeqService _stockInLineSeq;
 
         public DebugController(
             ApplicationDbContext context,
@@ -37,7 +38,8 @@ namespace CRM.API.Controllers
             IStockInService stockInService,
             IFinanceExchangeRateService financeExchangeRateService,
             ISellOrderExtendLineSeqService sellLineSeq,
-            IPurchaseOrderExtendLineSeqService poLineSeq)
+            IPurchaseOrderExtendLineSeqService poLineSeq,
+            IStockInExtendLineSeqService stockInLineSeq)
         {
             _context = context;
             _configuration = configuration;
@@ -45,6 +47,7 @@ namespace CRM.API.Controllers
             _financeExchangeRateService = financeExchangeRateService;
             _sellLineSeq = sellLineSeq;
             _poLineSeq = poLineSeq;
+            _stockInLineSeq = stockInLineSeq;
         }
 
         public class DebugItemDto
@@ -589,16 +592,6 @@ namespace CRM.API.Controllers
                     Id = Guid.NewGuid().ToString(),
                     StockInCode = $"STI{codeSuffix}",
                     StockInType = 1,
-                    PurchaseOrderItemId = poItem.Id,
-                    PurchaseOrderItemCode = string.IsNullOrWhiteSpace(poItem.PurchaseOrderItemCode)
-                        ? null
-                        : poItem.PurchaseOrderItemCode.Trim(),
-                    SellOrderItemId = string.IsNullOrWhiteSpace(poItem.SellOrderItemId)
-                        ? null
-                        : poItem.SellOrderItemId.Trim(),
-                    SellOrderItemCode = string.IsNullOrWhiteSpace(soLineForPo?.SellOrderItemCode)
-                        ? null
-                        : soLineForPo!.SellOrderItemCode.Trim(),
                     SourceId = notify != null ? notify.Id : null,
                     SourceCode = notify != null && !string.IsNullOrWhiteSpace(notify.NoticeCode)
                         ? notify.NoticeCode.Trim()
@@ -616,11 +609,21 @@ namespace CRM.API.Controllers
                     CreateTime = now,
                     Remark = $"DEBUG链路:{chainNo}"
                 };
+                qc.StockInId = stockIn.Id;
+                qc.StockInStatus = initialStockInStatus == 2 ? (short)100 : qc.StockInStatus;
+                _context.StockIns.Add(stockIn);
+                await _context.SaveChangesAsync();
+
+                var stockInLineSeq = await _stockInLineSeq.ReserveNextSequenceBlockAsync(stockIn.Id, 1);
                 stockInItem = new StockInItem
                 {
                     Id = Guid.NewGuid().ToString(),
                     StockInId = stockIn.Id,
+                    StockInItemCode = OrderLineItemCodes.StockIn(stockIn.StockInCode, stockInLineSeq),
                     MaterialId = materialId,
+                    PurchasePn = string.IsNullOrWhiteSpace(poItem.PN) ? null : poItem.PN.Trim(),
+                    PurchaseBrand = string.IsNullOrWhiteSpace(poItem.Brand) ? null : poItem.Brand.Trim(),
+                    Currency = poItem.Currency,
                     Quantity = stockInQtyInt,
                     OrderQty = stockInQtyInt,
                     QtyReceived = stockInQtyInt,
@@ -630,10 +633,25 @@ namespace CRM.API.Controllers
                     CreateTime = now,
                     Remark = "DEBUG自动生成"
                 };
-                qc.StockInId = stockIn.Id;
-                qc.StockInStatus = initialStockInStatus == 2 ? (short)100 : qc.StockInStatus;
-                _context.StockIns.Add(stockIn);
                 _context.StockInItems.Add(stockInItem);
+                await _context.SaveChangesAsync();
+
+                _context.StockInItemExtends.Add(new StockInItemExtend
+                {
+                    Id = stockInItem.Id,
+                    StockInId = stockIn.Id,
+                    PurchaseOrderItemId = poItem.Id,
+                    PurchaseOrderItemCode = string.IsNullOrWhiteSpace(poItem.PurchaseOrderItemCode)
+                        ? null
+                        : poItem.PurchaseOrderItemCode.Trim(),
+                    SellOrderItemId = string.IsNullOrWhiteSpace(poItem.SellOrderItemId)
+                        ? null
+                        : poItem.SellOrderItemId.Trim(),
+                    SellOrderItemCode = string.IsNullOrWhiteSpace(soLineForPo?.SellOrderItemCode)
+                        ? null
+                        : soLineForPo!.SellOrderItemCode.Trim(),
+                    CreateTime = now
+                });
                 await _context.SaveChangesAsync();
 
                 // Debug 造数必须走真实“待入库 -> 已入库”业务动作，确保库存汇总与流水一致写入。
