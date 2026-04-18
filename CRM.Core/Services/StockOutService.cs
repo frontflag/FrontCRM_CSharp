@@ -29,6 +29,7 @@ namespace CRM.Core.Services
         private readonly IRepository<StockItem> _stockItemRepository;
         private readonly IRepository<SellOrder> _sellOrderRepository;
         private readonly IRepository<SellOrderItem> _sellOrderItemRepository;
+        private readonly IRepository<SellOrderItemExtend> _sellOrderItemExtendRepository;
         private readonly IRepository<CustomerInfo> _customerRepository;
         private readonly IRepository<PurchaseOrderItem> _purchaseOrderItemRepository;
         private readonly IRepository<PurchaseOrder> _purchaseOrderRepository;
@@ -52,6 +53,7 @@ namespace CRM.Core.Services
             IRepository<StockItem> stockItemRepository,
             IRepository<SellOrder> sellOrderRepository,
             IRepository<SellOrderItem> sellOrderItemRepository,
+            IRepository<SellOrderItemExtend> sellOrderItemExtendRepository,
             IRepository<CustomerInfo> customerRepository,
             IRepository<PurchaseOrderItem> purchaseOrderItemRepository,
             IRepository<PurchaseOrder> purchaseOrderRepository,
@@ -74,6 +76,7 @@ namespace CRM.Core.Services
             _stockItemRepository = stockItemRepository;
             _sellOrderRepository = sellOrderRepository;
             _sellOrderItemRepository = sellOrderItemRepository;
+            _sellOrderItemExtendRepository = sellOrderItemExtendRepository;
             _customerRepository = customerRepository;
             _purchaseOrderItemRepository = purchaseOrderItemRepository;
             _purchaseOrderRepository = purchaseOrderRepository;
@@ -129,12 +132,15 @@ namespace CRM.Core.Services
                     nameof(request.Quantity));
 
             var stockDto = await _inventoryCenterService.GetAvailableQtyForSellOrderItemAsync(lineId);
-            var availableStock = stockDto.AvailableQty;
-            if (availableStock < 0)
-                availableStock = 0;
-            if (qtyInt > availableStock)
+            var lineAvail = stockDto.AvailableQty;
+            if (lineAvail < 0)
+                lineAvail = 0;
+            var extForCap = await _sellOrderItemExtendRepository.GetByIdAsync(lineId);
+            var stockingAvail = extForCap?.PurchasedStock_AvailableQty ?? 0;
+            var maxShippable = lineAvail + stockingAvail;
+            if (qtyInt > maxShippable)
                 throw new InvalidOperationException(
-                    $"在库可用数量不足（在库可用 {availableStock.ToString(CultureInfo.InvariantCulture)}，本次申请 {qtyInt.ToString(CultureInfo.InvariantCulture)}）");
+                    $"在库可用数量不足（客单在库 {lineAvail.ToString(CultureInfo.InvariantCulture)} + 备货在库 {stockingAvail.ToString(CultureInfo.InvariantCulture)} = {maxShippable.ToString(CultureInfo.InvariantCulture)}，本次申请 {qtyInt.ToString(CultureInfo.InvariantCulture)}）");
 
             var requestCode = string.IsNullOrWhiteSpace(request.RequestCode)
                 ? await _serialNumberService.GenerateNextAsync(ModuleCodes.StockOutRequest)
@@ -209,11 +215,13 @@ namespace CRM.Core.Services
                 remainingNotify = 0m;
 
             var stockDto = await _inventoryCenterService.GetAvailableQtyForSellOrderItemAsync(lineId);
-            var available = (decimal)stockDto.AvailableQty;
-            if (available < 0m)
-                available = 0m;
-
-            var suggested = remainingNotify <= available ? remainingNotify : available;
+            var lineAvail = stockDto.AvailableQty;
+            if (lineAvail < 0)
+                lineAvail = 0;
+            var ext = await _sellOrderItemExtendRepository.GetByIdAsync(lineId);
+            var purchasedStock = ext?.PurchasedStock_AvailableQty ?? 0;
+            var combined = (decimal)lineAvail + purchasedStock;
+            var suggested = remainingNotify <= combined ? remainingNotify : combined;
             if (suggested < 0m)
                 suggested = 0m;
 
@@ -223,17 +231,24 @@ namespace CRM.Core.Services
                 salesOrderQty = soItem.Qty,
                 alreadyNotifiedQty = alreadyNotified,
                 remainingNotifyQty = remainingNotify,
-                availableStockQty = available,
+                availableStockQty = lineAvail,
+                purchasedStockAvailableQty = purchasedStock,
                 suggestedMaxQty = suggested
             };
         }
 
         /// <summary>
-        /// 销售明细须已有关联采购行，且每条关联采购单主表状态 ≥ 供应商确认（30）。
+        /// 销售明细须已有关联采购行，且每条关联采购单主表状态 ≥ 供应商确认（30）；
+        /// 与列表「申请出库」可点逻辑一致：<see cref="SellOrderItemExtend.PurchasedStock_AvailableQty"/> &gt; 0 时跳过本门槛（备货可用放宽）。
         /// </summary>
         private async Task EnsureSellLineMeetsStockOutPurchaseGateAsync(string sellOrderItemLineId)
         {
             var lineId = sellOrderItemLineId.Trim();
+
+            var ext = await _sellOrderItemExtendRepository.GetByIdAsync(lineId);
+            if (ext != null && ext.PurchasedStock_AvailableQty > 0)
+                return;
+
             var min = PurchaseOrderMainStatusCodes.VendorConfirmedOrBeyond;
             var poItems = (await _purchaseOrderItemRepository.FindAsync(i => i.SellOrderItemId == lineId))
                 .ToList();

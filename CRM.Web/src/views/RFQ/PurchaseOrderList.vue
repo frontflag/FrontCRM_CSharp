@@ -339,7 +339,14 @@ const orderList = ref<any[]>([])
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const authStore = useAuthStore()
-const canViewVendorInfo = computed(() => authStore.hasPermission('vendor.info.read'))
+/** 与后端 PurchaseOrdersController.MaskPurchaseOrder 中 canViewVendorInfo 一致（非仅 vendor.info.read） */
+const canViewVendorInfo = computed(
+  () =>
+    authStore.hasPermission('vendor.info.read') ||
+    authStore.hasPermission('vendor.read') ||
+    authStore.hasPermission('purchase-order.read') ||
+    authStore.hasPermission('purchase-order.write')
+)
 const canViewPurchaseAmount = computed(() => authStore.hasPermission('purchase.amount.read'))
 
 // 列表操作列：默认收起（Collapsed）

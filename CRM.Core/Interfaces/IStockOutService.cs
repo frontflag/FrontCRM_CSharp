@@ -60,9 +60,11 @@ namespace CRM.Core.Interfaces
         public decimal alreadyNotifiedQty { get; set; }
         /// <summary>按销售行尚可申请的通知数量上限</summary>
         public decimal remainingNotifyQty { get; set; }
-        /// <summary>当前可用库存（与库存中心口径一致）</summary>
+        /// <summary>客单绑定在库可用（仅 stock.SellOrderItemId=本销售行，与库存中心一致）。</summary>
         public decimal availableStockQty { get; set; }
-        /// <summary>建议本次填写上限 = min(remainingNotifyQty, availableStockQty)</summary>
+        /// <summary>同 PN+品牌备货在库可用合计（与销售明细扩展 <c>PurchasedStock_AvailableQty</c> 一致）。</summary>
+        public int purchasedStockAvailableQty { get; set; }
+        /// <summary>建议本次填写上限 = min(remainingNotifyQty, availableStockQty + purchasedStockAvailableQty)</summary>
         public decimal suggestedMaxQty { get; set; }
     }
 

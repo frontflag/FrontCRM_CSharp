@@ -450,6 +450,9 @@
               active-class="active"
             >{{ t('layout.menu.qualityCheck') }}</router-link>
             <router-link to="/inventory/stock-in" class="submenu-item" active-class="active">{{ t('layout.menu.stockIn') }}</router-link>
+            <router-link to="/inventory/stock-in/batch-records" class="submenu-item" active-class="active">{{
+              t('layout.menu.stockInBatchRecords')
+            }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -1099,6 +1102,15 @@ const {
   toggleCenterFullscreen
 } = useWorkspaceLayout()
 
+/** 中间/左/右任一侧工作区全屏时，Teleport 到 body 的 Element Plus 浮层需高于全屏层（9997–9998），否则操作列「...」等下拉无法点击 */
+const WORKSPACE_ANY_FULLSCREEN_BODY_CLASS = 'crm-workspace-any-fullscreen'
+function syncWorkspaceFullscreenBodyClass() {
+  if (typeof document === 'undefined') return
+  const on = leftFullscreen.value || centerFullscreen.value || rightFullscreen.value
+  document.body.classList.toggle(WORKSPACE_ANY_FULLSCREEN_BODY_CLASS, on)
+}
+watch([leftFullscreen, centerFullscreen, rightFullscreen], syncWorkspaceFullscreenBodyClass, { immediate: true })
+
 /** 客户首页 / 列表 / 详情 / 新建编辑：左栏「检索 / 收藏 / 历史」 */
 const isCustomerLeftAuxRoute = computed(() => {
   const n = route.name
@@ -1366,6 +1378,7 @@ const pageTitleMap: Record<string, string> = {
   '/inventory/list': 'layout.menu.inventoryCenter',
   '/inventory/stock-items': 'layout.menu.inventoryStockItems',
   '/inventory/stock-in': 'layout.menu.stockInManagement',
+  '/inventory/stock-in/batch-records': 'stockInBatchList.title',
   '/inventory/stock-out': 'layout.menu.stockOutManagement',
   '/inventory/stock-out/items': 'layout.menu.stockOutItems',
   '/inventory/stock-out-notifies': 'layout.menu.stockOutNotifies',
@@ -1436,6 +1449,7 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '汇总库存明细': 'inventoryStockDetail.title',
   '入库追溯': 'inventoryList.actions.trace',
   '入库单列表': 'stockInList.title',
+  '入库批次记录': 'stockInBatchList.title',
   '新建入库单': 'common.createSuccess',
   '入库单详情': 'rfqItemList.actions.detail',
   '出库单列表': 'stockOutList.title',
@@ -1984,6 +1998,9 @@ onMounted(() => {
 onBeforeUnmount(() => {
   tabBarResizeObserver?.disconnect()
   tabBarResizeObserver = null
+  if (typeof document !== 'undefined') {
+    document.body.classList.remove(WORKSPACE_ANY_FULLSCREEN_BODY_CLASS)
+  }
 })
 </script>
 
@@ -3290,6 +3307,11 @@ onBeforeUnmount(() => {
 
 <!-- 边条模式子菜单浮层 Teleport 到 body，需非 scoped -->
 <style lang="scss">
+/** 与 .main-content.is-fullscreen / .aux-panel.is-fullscreen（z-index 9997–9998）配合 */
+body.crm-workspace-any-fullscreen .el-popper {
+  z-index: 10060 !important;
+}
+
 .sidebar-menu-flyout-popper.el-popover,
 .sidebar-menu-flyout-popper.el-popper {
   padding: 6px 0 !important;

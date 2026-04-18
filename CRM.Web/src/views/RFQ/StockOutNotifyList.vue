@@ -12,27 +12,40 @@
         </div>
         <div class="count-badge">{{ t('stockOutNotifyList.count', { count: filteredList.length }) }}</div>
       </div>
-      <div class="header-right">
+    </div>
+
+    <!-- 搜索栏：与客户列表 CustomerList 同一套结构与样式 -->
+    <div class="search-bar">
+      <div class="search-left">
+        <span class="filter-field-label">{{ t('stockOutNotifyList.columns.workflow') }}</span>
         <el-select
           v-model="workflowFilter"
           :placeholder="t('stockOutNotifyList.filters.workflowPlaceholder')"
           clearable
-          style="width: 168px"
-          class="filter-select"
+          class="status-select status-select--workflow"
+          :teleported="false"
         >
           <el-option :label="t('stockOutNotifyList.filters.workflowAll')" value="all" />
           <el-option :label="t('stockOutNotifyList.filters.workflowPendingPick')" value="pending_pick" />
           <el-option :label="t('stockOutNotifyList.filters.workflowPickedPendingOut')" value="picked_pending_out" />
           <el-option :label="t('stockOutNotifyList.filters.workflowDone')" value="done" />
         </el-select>
-        <el-input
-          v-model="keyword"
-          :placeholder="t('stockOutNotifyList.filters.keywordPlaceholder')"
-          clearable
-          style="width: 280px"
-          @keyup.enter="fetchList"
-        />
-        <button class="btn-secondary" @click="refreshNotifyList">{{ t('stockOutNotifyList.filters.refresh') }}</button>
+        <span class="filter-field-label">{{ t('stockOutNotifyList.filters.keyword') }}</span>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="keyword"
+            class="search-input search-input--wide"
+            type="search"
+            :placeholder="t('stockOutNotifyList.filters.keywordPlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <button type="button" class="btn-primary btn-sm" @click="handleSearch">{{ t('stockOutNotifyList.filters.search') }}</button>
+        <button type="button" class="btn-ghost btn-sm" @click="handleReset">{{ t('stockOutNotifyList.filters.reset') }}</button>
       </div>
     </div>
 
@@ -230,8 +243,8 @@ const formatRequestDateTime = (v?: string | null) => {
 
 const filteredList = computed(() => {
   let rows = list.value
-  const wf = workflowFilter.value
-  if (wf && wf !== 'all') {
+  const wf = workflowFilter.value || 'all'
+  if (wf !== 'all') {
     rows = rows.filter((x) => {
       const st = Number(x.status)
       if (wf === 'done') return st === 1
@@ -284,14 +297,23 @@ async function runNotifyFetch(resetPage: boolean) {
   }
 }
 
-const fetchList = () => void runNotifyFetch(true)
-const refreshNotifyList = () => void runNotifyFetch(false)
+function handleSearch() {
+  void runNotifyFetch(true)
+}
+
+function handleReset() {
+  workflowFilter.value = 'all'
+  keyword.value = ''
+  void runNotifyFetch(true)
+}
 
 const goExecute = (row: StockOutRequestDto) => {
   router.push({ path: '/inventory/stock-out/create', query: { requestId: row.id } })
 }
 
-onMounted(fetchList)
+onMounted(() => {
+  void runNotifyFetch(true)
+})
 </script>
 
 <style scoped lang="scss">
@@ -308,8 +330,7 @@ onMounted(fetchList)
   justify-content: space-between;
   margin-bottom: 20px;
 }
-.header-left,
-.header-right {
+.header-left {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -344,14 +365,130 @@ onMounted(fetchList)
   border-radius: 20px;
   padding: 3px 10px;
 }
-.btn-secondary {
-  padding: 8px 14px;
-  border-radius: $border-radius-md;
+
+// ---- 搜索栏（与 CustomerList.vue 一致）----
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.search-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
+  white-space: nowrap;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: $text-muted;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 220px;
+  padding: 7px 12px 7px 32px;
+  background: $layer-2;
   border: 1px solid $border-panel;
-  color: $text-secondary;
+  border-radius: $border-radius-md;
+  color: $text-primary;
   font-size: 13px;
-  background: rgba(255, 255, 255, 0.05);
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: $text-muted;
+  }
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+
+  &--wide {
+    width: 280px;
+  }
+}
+
+.status-select {
+  width: 120px;
+  :deep(.el-select__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+  :deep(.el-select__placeholder) {
+    color: $text-muted !important;
+  }
+  :deep(.el-select__selected-item) {
+    color: $text-primary !important;
+  }
+}
+
+.status-select--workflow {
+  width: 168px;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
   cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: rgba(0, 212, 255, 0.3);
+    color: $text-secondary;
+  }
 }
 .status-badge {
   display: inline-block;
@@ -370,12 +507,6 @@ onMounted(fetchList)
   font-size: 12px;
   padding: 2px 6px;
   &:hover { text-decoration: underline; }
-}
-.filter-select {
-  :deep(.el-input__wrapper) {
-    background: rgba(255, 255, 255, 0.05);
-    box-shadow: 0 0 0 1px $border-panel inset;
-  }
 }
 .flow-tag {
   display: inline-block;

@@ -38,6 +38,8 @@ namespace CRM.API.Extensions
             services.AddScoped<IRepository<CRM.Core.Models.Quote.QuoteItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Quote.QuoteItem>>();
             services.AddScoped<IVendorService, VendorService>();
             services.AddScoped<IStockInService, StockInService>();
+            services.AddScoped<IStockInBatchService, StockInBatchService>();
+            services.AddScoped<IRepository<CRM.Core.Models.Inventory.StockInBatch>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Inventory.StockInBatch>>();
             services.AddScoped<IDisplayTimeZoneService, DisplayTimeZoneService>();
             services.AddScoped<IDictionaryService, DictionaryService>();
             services.AddScoped<ISysDictItemAdminService, SysDictItemAdminService>();

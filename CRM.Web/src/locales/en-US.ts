@@ -221,6 +221,7 @@ const enUS = {
       arrivalNotices: 'Arrival Notices',
       qualityCheck: 'QC',
       stockIn: 'Stock In',
+      stockInBatchRecords: 'Batch records',
       inventoryManagement: 'Inventory',
       inventoryCenter: 'Inventory Center',
       inventoryStockItems: 'Stock items',
@@ -2253,6 +2254,13 @@ const enUS = {
       cancel: 'Cancel',
       confirm: 'OK'
     },
+    applyStockOutDialog: {
+      stockingOnHand: 'Stocking on-hand',
+      stockingPurchasingSummary: 'Purchasing stocking quantity for the same material model and brand: {qty}',
+      stockingPurchasingNone: 'There is currently no purchasing stocking for the same material model and brand.',
+      zeroApplyBanner:
+        'Appliable stock-out quantity is 0 after combining remaining notify quota, customer-bound on-hand, and stocking on-hand. You can still review; submit when stock or quota is available.'
+    },
     validation: {
       requestQtyRequired: 'Enter quantity for this request',
       expectedDateRequired: 'Select expected purchase date',
@@ -2279,6 +2287,8 @@ const enUS = {
         'Insufficient on-hand available qty: available is {available}; notify qty cannot exceed it.',
       applyStockOutExceedsRemainingNotify:
         'Exceeds remaining stock-out notify quota: remaining is {remaining}.',
+      applyStockOutExceedsSuggestedMax:
+        'Notify quantity cannot exceed the allowed maximum ({max}), computed from remaining notify, customer-bound on-hand, and stocking on-hand.',
       basketNeedRows: 'Add sales order lines to the basket first (selections can span pages).',
       batchNotImplemented: 'Batch purchase is not available as a dialog yet. Use “Request purchase” per line.',
       batchSameOrderOnly: 'Batch purchase applies to lines from one sales order only. Split your selection.',
@@ -2486,7 +2496,7 @@ const enUS = {
       expressMethod: 'Courier',
       selectPlaceholder: 'Select',
       expressNo: 'Tracking no.',
-      regionType: 'Region type',
+      regionType: 'Arrival region',
       sectionLines: 'Arrival lines',
       seq: '#',
       factoryPn: 'Factory MPN',
@@ -2933,6 +2943,85 @@ const enUS = {
       saveWarehouseFailed: 'Failed to save warehouse'
     }
   },
+  stockInBatchList: {
+    title: 'Stock-In Batch Records',
+    count: '{count} records total',
+    filters: {
+      title: 'Search',
+      stockInItemCode: 'Stock-in line code',
+      stockInItemCodePlaceholder: 'Stock-in line code',
+      lot: 'LOT',
+      lotPlaceholder: 'LOT',
+      serialNumber: 'Serial number',
+      serialNumberPlaceholder: 'Serial number',
+      search: 'Search',
+      reset: 'Reset'
+    },
+    columns: {
+      stockInItemCode: 'Stock-in line code',
+      materialModel: 'Model',
+      dc: 'DC',
+      packageOrigin: 'Package origin',
+      waferOrigin: 'Wafer origin',
+      lot: 'LOT',
+      lotQtyIn: 'LOT inbound qty',
+      lotQtyOut: 'LOT outbound qty',
+      origin: 'Origin',
+      serialNumber: 'Serial number',
+      snQtyIn: 'SN inbound qty',
+      snQtyOut: 'SN outbound qty',
+      firmwareVersion: 'Firmware version',
+      remark: 'Remark'
+    },
+    edit: {
+      title: 'Edit batch record',
+      readOnly: 'Read only',
+      panel1: 'Model / DC',
+      panel2: 'LOT & origins',
+      panel3: 'SN & firmware',
+      panel4: 'Remark',
+      save: 'Save',
+      cancel: 'Cancel',
+      stockInItemCode: 'Stock-in line code'
+    },
+    messages: { loadFailed: 'Failed to load', saveSuccess: 'Saved', saveFailed: 'Save failed' },
+    writeOff: {
+      button: 'Write-off',
+      dialogTitle: 'Stock-in batch write-off',
+      hint: 'Download the template first. Row 1 is the header; data starts at row 2. LOT/SN write-off quantities are added to the matching batch row’s out quantities. Remove the sample row in production before importing.',
+      downloadTemplate: 'Download Excel template',
+      selectFile: 'Choose Excel file',
+      selectedFile: 'Selected: {name}',
+      parseErrorsTitle: 'Parse issues',
+      previewRows: 'Rows to submit',
+      previewRowsUnit: 'rows',
+      noSheet: 'No worksheet found in the workbook',
+      emptySheet: 'The sheet has no rows',
+      noDataRows: 'No valid data rows: check headers match the template and at least one row has LOT/SN or quantities.',
+      parseFailed: 'Failed to parse Excel',
+      parseIntError: 'Row {row}: "{col}" must be a non-negative integer; current value is "{val}"',
+      confirmBoxTitle: 'Confirm write-off',
+      confirmBoxMessage: 'Submit {count} row(s) for server validation and update. Continue?',
+      confirmUpload: 'Submit',
+      cancel: 'Cancel',
+      confirm: 'Confirm write-off',
+      invalidTitle: 'Validation failed',
+      invalidHint: 'These LOTs or serial numbers are missing in the system, or match more than one row. Fix the Excel file and try again.',
+      invalidLotsLabel: 'Invalid LOTs (one per line)',
+      invalidSnsLabel: 'Invalid serial numbers (one per line)',
+      copyAll: 'Copy all errors',
+      ok: 'OK',
+      successTitle: 'Write-off completed',
+      successNotify: 'Updated successfully; {n} record(s) updated.',
+      successNoRowsUpdated: 'Validation passed, but no batch rows were updated. Check that rows are not empty and quantities are greater than zero.',
+      failedTitle: 'Write-off failed',
+      requestFailed: 'Request failed',
+      copiedTitle: 'Copied',
+      copiedMessage: 'Error list copied to clipboard',
+      copyFailedTitle: 'Copy failed',
+      copyFailedMessage: 'Select the text and copy manually'
+    }
+  },
   stockInList: {
     title: 'Stock-In List',
     count: '{count} records total',
@@ -3165,7 +3254,7 @@ const enUS = {
     title: 'Stock-Out Notices',
     count: '{count} records total',
     applyDialog: {
-      regionType: 'Region type'
+      regionType: 'Delivery region'
     },
     filters: {
       workflowPlaceholder: 'Workflow',
@@ -3173,7 +3262,10 @@ const enUS = {
       workflowPendingPick: 'Pending pick',
       workflowPickedPendingOut: 'Picked — pending ship',
       workflowDone: 'Shipped',
+      keyword: 'Keyword',
       keywordPlaceholder: 'Notice no. / sales order / customer',
+      search: 'Search',
+      reset: 'Reset',
       refresh: 'Refresh'
     },
     columns: {

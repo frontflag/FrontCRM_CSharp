@@ -2,6 +2,8 @@ import apiClient from './client'
 
 export interface StockInItemDto {
   lineNo: number
+  /** 详情页：入库明细主键（ItemId），用于批次录入等 */
+  itemId?: string
   /** 详情页：入库明细业务编号（服务端生成） */
   stockInItemCode?: string
   /** 创建时作为 MaterialId 提交；详情页仅保留数据不展示列 */

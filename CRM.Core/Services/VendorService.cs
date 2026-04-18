@@ -222,7 +222,8 @@ namespace CRM.Core.Services
                 query = query.Where(e =>
                     (e.Code != null && e.Code.ToLower().Contains(keyword)) ||
                     (e.OfficialName != null && e.OfficialName.ToLower().Contains(keyword)) ||
-                    (e.NickName != null && e.NickName.ToLower().Contains(keyword)));
+                    (e.NickName != null && e.NickName.ToLower().Contains(keyword)) ||
+                    (e.EnglishOfficialName != null && e.EnglishOfficialName.ToLower().Contains(keyword)));
             }
 
             if (request.Status.HasValue)
@@ -311,7 +312,8 @@ namespace CRM.Core.Services
                 query = query.Where(e =>
                     (e.Code != null && e.Code.ToLower().Contains(keyword)) ||
                     (e.OfficialName != null && e.OfficialName.ToLower().Contains(keyword)) ||
-                    (e.NickName != null && e.NickName.ToLower().Contains(keyword)));
+                    (e.NickName != null && e.NickName.ToLower().Contains(keyword)) ||
+                    (e.EnglishOfficialName != null && e.EnglishOfficialName.ToLower().Contains(keyword)));
             }
 
             var totalCount = query.Count();
@@ -340,7 +342,8 @@ namespace CRM.Core.Services
                 query = query.Where(e =>
                     (e.Code != null && e.Code.ToLower().Contains(keyword)) ||
                     (e.OfficialName != null && e.OfficialName.ToLower().Contains(keyword)) ||
-                    (e.NickName != null && e.NickName.ToLower().Contains(keyword)));
+                    (e.NickName != null && e.NickName.ToLower().Contains(keyword)) ||
+                    (e.EnglishOfficialName != null && e.EnglishOfficialName.ToLower().Contains(keyword)));
             }
 
             var totalCount = query.Count();
@@ -473,7 +476,8 @@ namespace CRM.Core.Services
                 query = query.Where(e =>
                     (e.Code != null && e.Code.ToLower().Contains(k)) ||
                     (e.OfficialName != null && e.OfficialName.ToLower().Contains(k)) ||
-                    (e.NickName != null && e.NickName.ToLower().Contains(k)));
+                    (e.NickName != null && e.NickName.ToLower().Contains(k)) ||
+                    (e.EnglishOfficialName != null && e.EnglishOfficialName.ToLower().Contains(k)));
             }
 
             var totalCount = query.Count();
@@ -612,7 +616,8 @@ namespace CRM.Core.Services
             return allEntities.Where(e =>
                 (e.Code != null && e.Code.ToLower().Contains(searchTerm)) ||
                 (e.OfficialName != null && e.OfficialName.ToLower().Contains(searchTerm)) ||
-                (e.NickName != null && e.NickName.ToLower().Contains(searchTerm)));
+                (e.NickName != null && e.NickName.ToLower().Contains(searchTerm)) ||
+                (e.EnglishOfficialName != null && e.EnglishOfficialName.ToLower().Contains(searchTerm)));
         }
 
         /// <summary>

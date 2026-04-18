@@ -169,9 +169,24 @@
               <el-col :span="8"><el-form-item label="公司名称"><el-input v-model="arrivalForm.companyName" /></el-form-item></el-col>
             </el-row>
             <el-row :gutter="12">
-              <el-col :span="8"><el-form-item label="地址"><el-input v-model="arrivalForm.address" /></el-form-item></el-col>
-              <el-col :span="8"><el-form-item label="电话"><el-input v-model="arrivalForm.phone" /></el-form-item></el-col>
-              <el-col :span="8"><el-form-item label="联系人"><el-input v-model="arrivalForm.contact" /></el-form-item></el-col>
+              <el-col :span="6">
+                <el-form-item label="到货地域">
+                  <el-select
+                    :model-value="normalizeRegionType(arrivalForm.regionType)"
+                    :teleported="false"
+                    style="width: 100%"
+                    @update:model-value="(v: string | number) => { arrivalForm.regionType = normalizeRegionType(v) }"
+                  >
+                    <el-option :value="REGION_TYPE_DOMESTIC" label="境内" />
+                    <el-option :value="REGION_TYPE_OVERSEAS" label="境外" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="18"><el-form-item label="地址"><el-input v-model="arrivalForm.address" /></el-form-item></el-col>
+            </el-row>
+            <el-row :gutter="12">
+              <el-col :span="12"><el-form-item label="电话"><el-input v-model="arrivalForm.phone" /></el-form-item></el-col>
+              <el-col :span="12"><el-form-item label="联系人"><el-input v-model="arrivalForm.contact" /></el-form-item></el-col>
             </el-row>
             <el-row :gutter="12">
               <el-col :span="8">
@@ -271,6 +286,7 @@ import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyForma
 import { financePaymentApi } from '@/api/finance'
 import { logisticsApi } from '@/api/logistics'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
+import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 
 const emit = defineEmits<{ success: [] }>()
 
@@ -315,6 +331,8 @@ const arrivalForm = reactive<any>({
   arrivalMethod: '',
   expressMethod: '',
   expressNo: '',
+  /** 与 stockinnotify.RegionType 一致：10=境内 20=境外 */
+  regionType: REGION_TYPE_DOMESTIC as number,
   inspectionRequirement: '',
   remark: '',
   lines: [] as any[]
@@ -416,6 +434,7 @@ async function openArrival(row: any) {
   arrivalForm.arrivalMethod = ''
   arrivalForm.expressMethod = ''
   arrivalForm.expressNo = ''
+  arrivalForm.regionType = REGION_TYPE_DOMESTIC
   arrivalForm.inspectionRequirement = ''
   arrivalForm.remark = ''
   arrivalForm.lines = [
@@ -455,7 +474,8 @@ async function submitArrivalNotice() {
       purchaseOrderItemId: arrivalForm.purchaseOrderItemId,
       expectQty,
       purchaseOrderId: arrivalForm.purchaseOrderId,
-      expectedArrivalDate: arrivalForm.expectedArrivalDate
+      expectedArrivalDate: arrivalForm.expectedArrivalDate,
+      regionType: normalizeRegionType(arrivalForm.regionType)
     })
     ElMessage.success('到货通知已创建')
     arrivalDialogVisible.value = false

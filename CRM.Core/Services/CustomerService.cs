@@ -268,6 +268,7 @@ namespace CRM.Core.Services
                     (c.CustomerCode != null && c.CustomerCode.ToLower().Contains(keyword)) ||
                     (c.OfficialName != null && c.OfficialName.ToLower().Contains(keyword)) ||
                     (c.NickName != null && c.NickName.ToLower().Contains(keyword)) ||
+                    (c.EnglishOfficialName != null && c.EnglishOfficialName.ToLower().Contains(keyword)) ||
                     (c.Industry != null && c.Industry.ToLower().Contains(keyword)));
             }
 
@@ -880,6 +881,7 @@ namespace CRM.Core.Services
                 (c.CustomerCode != null && c.CustomerCode.ToLower().Contains(searchTerm)) ||
                 (c.OfficialName != null && c.OfficialName.ToLower().Contains(searchTerm)) ||
                 (c.NickName != null && c.NickName.ToLower().Contains(searchTerm)) ||
+                (c.EnglishOfficialName != null && c.EnglishOfficialName.ToLower().Contains(searchTerm)) ||
                 (c.Industry != null && c.Industry.ToLower().Contains(searchTerm)) ||
                 (c.Product != null && c.Product.ToLower().Contains(searchTerm)));
         }
@@ -1206,7 +1208,14 @@ namespace CRM.Core.Services
         {
             var all = await _customerRepository.FindIgnoreFiltersAsync(c => c.IsDeleted);
             if (!string.IsNullOrWhiteSpace(keyword))
-                all = all.Where(c => (c.OfficialName != null && c.OfficialName.Contains(keyword)) || (c.CustomerCode != null && c.CustomerCode.Contains(keyword)));
+            {
+                var kw = keyword.Trim().ToLower();
+                all = all.Where(c =>
+                    (c.CustomerCode != null && c.CustomerCode.ToLower().Contains(kw)) ||
+                    (c.OfficialName != null && c.OfficialName.ToLower().Contains(kw)) ||
+                    (c.NickName != null && c.NickName.ToLower().Contains(kw)) ||
+                    (c.EnglishOfficialName != null && c.EnglishOfficialName.ToLower().Contains(kw)));
+            }
             var sorted = all.OrderByDescending(c => c.DeletedAt).ToList();
             var total = sorted.Count;
             var items = sorted.Skip((pageIndex - 1) * pageSize).Take(pageSize);
@@ -1218,7 +1227,14 @@ namespace CRM.Core.Services
         {
             var all = await _customerRepository.FindAsync(c => c.BlackList && !c.IsDeleted);
             if (!string.IsNullOrWhiteSpace(keyword))
-                all = all.Where(c => (c.OfficialName != null && c.OfficialName.Contains(keyword)) || (c.CustomerCode != null && c.CustomerCode.Contains(keyword)));
+            {
+                var kw = keyword.Trim().ToLower();
+                all = all.Where(c =>
+                    (c.CustomerCode != null && c.CustomerCode.ToLower().Contains(kw)) ||
+                    (c.OfficialName != null && c.OfficialName.ToLower().Contains(kw)) ||
+                    (c.NickName != null && c.NickName.ToLower().Contains(kw)) ||
+                    (c.EnglishOfficialName != null && c.EnglishOfficialName.ToLower().Contains(kw)));
+            }
             var sorted = all.OrderByDescending(c => c.BlackListAt).ToList();
             var total = sorted.Count;
             var items = sorted.Skip((pageIndex - 1) * pageSize).Take(pageSize);
@@ -1230,9 +1246,14 @@ namespace CRM.Core.Services
         {
             var all = await _customerRepository.FindAsync(c => c.DisenableStatus && !c.IsDeleted);
             if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                var kw = keyword.Trim().ToLower();
                 all = all.Where(c =>
-                    (c.OfficialName != null && c.OfficialName.Contains(keyword)) ||
-                    (c.CustomerCode != null && c.CustomerCode.Contains(keyword)));
+                    (c.CustomerCode != null && c.CustomerCode.ToLower().Contains(kw)) ||
+                    (c.OfficialName != null && c.OfficialName.ToLower().Contains(kw)) ||
+                    (c.NickName != null && c.NickName.ToLower().Contains(kw)) ||
+                    (c.EnglishOfficialName != null && c.EnglishOfficialName.ToLower().Contains(kw)));
+            }
             var sorted = all.OrderByDescending(c => c.ModifyTime ?? c.CreateTime).ToList();
             var total = sorted.Count;
             var items = sorted.Skip((pageIndex - 1) * pageSize).Take(pageSize);

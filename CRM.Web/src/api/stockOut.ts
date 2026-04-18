@@ -48,7 +48,10 @@ export interface StockOutApplyContextDto {
   salesOrderQty: number
   alreadyNotifiedQty: number
   remainingNotifyQty: number
+  /** 客单绑定在库可用（本销售行） */
   availableStockQty: number
+  /** 同 PN+品牌备货在库可用 */
+  purchasedStockAvailableQty?: number
   suggestedMaxQty: number
 }
 

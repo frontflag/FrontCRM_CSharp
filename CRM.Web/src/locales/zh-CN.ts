@@ -221,6 +221,7 @@ const zhCN = {
       arrivalNotices: '到货通知',
       qualityCheck: '质检',
       stockIn: '入库',
+      stockInBatchRecords: '批次记录',
       inventoryManagement: '库存管理',
       inventoryCenter: '库存中心',
       inventoryStockItems: '库存明细',
@@ -2232,6 +2233,13 @@ const zhCN = {
       cancel: '取消',
       confirm: '确认'
     },
+    applyStockOutDialog: {
+      stockingOnHand: '备货在库',
+      stockingPurchasingSummary: '相同物料品牌的采购备货数量：{qty}',
+      stockingPurchasingNone: '目前没有相同物料品牌的采购备货',
+      zeroApplyBanner:
+        '当前可申请的出库数量为 0（尚可申请与客单在库、备货在库综合后仍为 0）。您仍可查看明细，待有库存或释放额度后再提交。'
+    },
     validation: {
       requestQtyRequired: '请输入本次申请数量',
       expectedDateRequired: '请选择预计采购日期',
@@ -2255,6 +2263,7 @@ const zhCN = {
         '当前可申请的出库数量为 0（剩余可申请或在库可用为 0）。您仍可查看明细，待有库存或释放额度后再提交。',
       applyStockOutExceedsStock: '在库可用数量不足：在库可用为 {available}，本次数量不能大于在库可用。',
       applyStockOutExceedsRemainingNotify: '超过剩余可申请出库通知数量：尚可申请为 {remaining}。',
+      applyStockOutExceedsSuggestedMax: '本次数量不能超过可申请上限（上限为 {max}，由尚可申请与客单在库、备货在库综合计算）。',
       basketNeedRows: '请先在复选篮子中加入销售订单明细（可跨页勾选）',
       batchNotImplemented: '批量申请采购暂未改造成弹窗，请逐条使用「申请采购」',
       batchSameOrderOnly: '批量申请采购仅支持同一销售订单下的明细，请分次操作',
@@ -2462,7 +2471,7 @@ const zhCN = {
       expressMethod: '快递方式',
       selectPlaceholder: '请选择',
       expressNo: '快递单号',
-      regionType: '地域类型',
+      regionType: '到货地域',
       sectionLines: '来货明细',
       seq: '序号',
       factoryPn: '原厂型号',
@@ -2913,6 +2922,85 @@ const zhCN = {
       saveWarehouseFailed: '仓库保存失败'
     }
   },
+  stockInBatchList: {
+    title: '入库批次记录',
+    count: '共 {count} 条',
+    filters: {
+      title: '查询',
+      stockInItemCode: '入库明细单号',
+      stockInItemCodePlaceholder: '入库明细单号',
+      lot: 'LOT',
+      lotPlaceholder: 'LOT',
+      serialNumber: 'SN号',
+      serialNumberPlaceholder: 'SN号',
+      search: '搜索',
+      reset: '重置'
+    },
+    columns: {
+      stockInItemCode: '入库明细单号',
+      materialModel: '型号',
+      dc: 'DC',
+      packageOrigin: '封装产地',
+      waferOrigin: '晶圆产地',
+      lot: 'LOT',
+      lotQtyIn: 'LOT入库数量',
+      lotQtyOut: 'LOT出库数量',
+      origin: '产地',
+      serialNumber: 'SN号',
+      snQtyIn: 'SN号入库数量',
+      snQtyOut: 'SN号出库数量',
+      firmwareVersion: '固件版本号',
+      remark: '备注'
+    },
+    edit: {
+      title: '编辑批次记录',
+      readOnly: '只读',
+      panel1: '型号 / DC',
+      panel2: 'LOT 与产地',
+      panel3: 'SN 与固件',
+      panel4: '备注',
+      save: '保存',
+      cancel: '取消',
+      stockInItemCode: '入库明细单号'
+    },
+    messages: { loadFailed: '加载失败', saveSuccess: '已保存', saveFailed: '保存失败' },
+    writeOff: {
+      button: '核销',
+      dialogTitle: '入库批次核销',
+      hint: '请先下载模板填写。第 1 行为表头，从第 2 行起为数据；填写 LOT_核销数量 或 SN号_核销数量 后系统将累加到对应批次行的出库数量。正式环境请删除模板中的示例行后再导入。',
+      downloadTemplate: '下载 Excel 模板',
+      selectFile: '选择 Excel 文件',
+      selectedFile: '已选：{name}',
+      parseErrorsTitle: '解析问题',
+      previewRows: '本次将提交',
+      previewRowsUnit: '行',
+      noSheet: '工作簿中未找到工作表',
+      emptySheet: '表中没有数据行',
+      noDataRows: '未解析到有效数据行：请确认表头与模板一致，且至少有一行含 LOT/SN 或核销数量。',
+      parseFailed: '解析 Excel 失败',
+      parseIntError: '第 {row} 行：「{col}」须为非负整数，当前为「{val}」',
+      confirmBoxTitle: '确认核销',
+      confirmBoxMessage: '本次将提交 {count} 行核销数据到服务器校验并更新。是否继续？',
+      confirmUpload: '确认提交',
+      cancel: '取消',
+      confirm: '确认核销',
+      invalidTitle: '校验未通过',
+      invalidHint: '以下 LOT 或 SN 在系统中不存在，或存在多条记录无法唯一核销。请修正 Excel 后重新导入。',
+      invalidLotsLabel: '无法核销的 LOT（每行一条）',
+      invalidSnsLabel: '无法核销的 SN号（每行一条）',
+      copyAll: '复制全部错误',
+      ok: '确定',
+      successTitle: '核销完成',
+      successNotify: '更新成功，共更新 {n} 条记录',
+      successNoRowsUpdated: '校验通过，但没有可更新的批次记录（请检查 Excel 是否均为空行或数量均为 0）。',
+      failedTitle: '核销失败',
+      requestFailed: '请求失败',
+      copiedTitle: '已复制',
+      copiedMessage: '错误列表已复制到剪贴板',
+      copyFailedTitle: '复制失败',
+      copyFailedMessage: '请手动选中文本复制'
+    }
+  },
   stockInList: {
     title: '入库单列表',
     count: '共 {count} 条',
@@ -3145,7 +3233,7 @@ const zhCN = {
     title: '出库通知',
     count: '共 {count} 条',
     applyDialog: {
-      regionType: '地域类型'
+      regionType: '送达地域'
     },
     filters: {
       workflowPlaceholder: '流程筛选',
@@ -3153,7 +3241,10 @@ const zhCN = {
       workflowPendingPick: '待拣货',
       workflowPickedPendingOut: '已拣货待出库',
       workflowDone: '已出库',
+      keyword: '关键词',
       keywordPlaceholder: '通知单号/销售单号/客户',
+      search: '搜索',
+      reset: '重置',
       refresh: '刷新'
     },
     columns: {

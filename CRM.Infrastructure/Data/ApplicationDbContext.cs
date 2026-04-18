@@ -98,6 +98,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<StockInExtend> StockInExtends { get; set; } = null!;
         public DbSet<StockInItem> StockInItems { get; set; } = null!;
         public DbSet<StockInItemExtend> StockInItemExtends { get; set; } = null!;
+        public DbSet<StockInBatch> StockInBatches { get; set; } = null!;
         public DbSet<StockOut> StockOuts { get; set; } = null!;
         public DbSet<StockOutItem> StockOutItems { get; set; } = null!;
         public DbSet<StockOutItemExtend> StockOutItemExtends { get; set; } = null!;
@@ -689,6 +690,33 @@ namespace CRM.Infrastructure.Data
                 entity.HasOne(e => e.StockInItem)
                     .WithOne(s => s.Extend)
                     .HasForeignKey<StockInItemExtend>(e => e.Id)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<StockInBatch>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("stock_in_batch");
+                entity.Property(e => e.Id).HasMaxLength(36);
+                entity.Property(e => e.StockInId).IsRequired().HasMaxLength(36).HasColumnName("stock_in_id");
+                entity.Property(e => e.StockInItemId).IsRequired().HasMaxLength(36).HasColumnName("stock_in_item_id");
+                entity.Property(e => e.StockInItemCode).HasColumnName("stock_in_item_code").HasMaxLength(64);
+                entity.Property(e => e.MaterialModel).HasColumnName("material_model").HasMaxLength(200);
+                entity.Property(e => e.Dc).HasColumnName("dc").HasMaxLength(64);
+                entity.Property(e => e.PackageOrigin).HasColumnName("package_origin").HasMaxLength(200);
+                entity.Property(e => e.WaferOrigin).HasColumnName("wafer_origin").HasMaxLength(200);
+                entity.Property(e => e.Lot).HasColumnName("lot").HasMaxLength(128);
+                entity.Property(e => e.LotQtyIn).HasColumnName("lot_qty_in");
+                entity.Property(e => e.LotQtyOut).HasColumnName("lot_qty_out");
+                entity.Property(e => e.Origin).HasColumnName("origin").HasMaxLength(200);
+                entity.Property(e => e.SerialNumber).HasColumnName("serial_number").HasMaxLength(200);
+                entity.Property(e => e.SnQtyIn).HasColumnName("sn_qty_in");
+                entity.Property(e => e.SnQtyOut).HasColumnName("sn_qty_out");
+                entity.Property(e => e.FirmwareVersion).HasColumnName("firmware_version").HasMaxLength(128);
+                entity.Property(e => e.Remark).HasColumnName("remark").HasMaxLength(1000);
+                entity.HasOne<StockInItem>()
+                    .WithMany()
+                    .HasForeignKey(e => e.StockInItemId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
 

@@ -311,6 +311,23 @@
 
     <el-dialog v-model="applyDialogVisible" title="新建出货通知" width="960px" destroy-on-close>
       <div v-loading="applyStockOutLoading">
+        <el-alert
+          v-if="applyForm.sellOrderItemId && applyStockOutZeroQtyBannerVisible"
+          type="warning"
+          :closable="false"
+          show-icon
+          class="apply-so-stock-alert"
+          :title="t('salesOrderItemList.applyStockOutDialog.zeroApplyBanner')"
+        />
+        <el-alert
+          v-if="applyForm.sellOrderItemId && !applyStockOutLoading"
+          type="info"
+          :closable="false"
+          show-icon
+          class="apply-so-stock-purchasing-info"
+          :class="{ 'apply-so-stock-purchasing-info--has-stock': applyPurchasedStockingPurchasingHasQty }"
+          :title="applyPurchasedStockingPurchasingBarTitle"
+        />
       <el-form :model="applyForm" label-width="140px">
         <el-row :gutter="16">
           <el-col :span="12">
@@ -387,6 +404,7 @@
           <span class="cell cell--num">已占用通知</span>
           <span class="cell cell--num">尚可申请</span>
           <span class="cell cell--num">在库可用</span>
+          <span class="cell cell--num">{{ t('salesOrderItemList.applyStockOutDialog.stockingOnHand') }}</span>
           <span class="cell cell--qty">本次数量</span>
         </div>
         <div class="apply-stock-lines__row">
@@ -397,6 +415,7 @@
           <span class="cell cell--num">{{ applyFormAlreadyNotifiedText }}</span>
           <span class="cell cell--num">{{ applyFormRemainingNotifyText }}</span>
           <span class="cell cell--num">{{ applyStockQtyText }}</span>
+          <span class="cell cell--num">{{ applyPurchasedStockQtyText }}</span>
           <span class="cell cell--qty">
             <el-input-number
               v-model="applyForm.notifyQty"
@@ -769,9 +788,11 @@ const applyForm = ref({
   salesOrderQty: 0,
   alreadyNotifiedQty: 0,
   remainingNotifyQty: 0,
-  /** 本次输入上限 = min(尚可申请, 在库可用)，由服务端计算 */
+  /** 本次输入上限 = min(尚可申请, 客单在库+备货在库)，由服务端计算 */
   maxQty: 0,
   stockAvailableQty: 0,
+  /** 同 PN+品牌备货在库可用（服务端 apply-context） */
+  purchasedStockAvailableQty: 0,
   notifyQty: 0
 })
 
@@ -782,6 +803,25 @@ const intQtyText = (v: unknown) => {
 
 /** 在库可用：来自出库申请上下文接口 */
 const applyStockQtyText = computed(() => intQtyText(applyForm.value.stockAvailableQty ?? 0))
+/** 备货在库：与销售扩展 PurchasedStock_AvailableQty 一致 */
+const applyPurchasedStockQtyText = computed(() => intQtyText(applyForm.value.purchasedStockAvailableQty ?? 0))
+/** 无可申请数量且备货也为 0 时在弹窗内展示横幅（不再使用页面级 Message 重复提示） */
+const applyStockOutZeroQtyBannerVisible = computed(() => {
+  const maxQ = Math.max(0, Math.trunc(Number(applyForm.value.maxQty) || 0))
+  const stocking = Math.max(0, Math.trunc(Number(applyForm.value.purchasedStockAvailableQty) || 0))
+  return maxQ <= 0 && stocking <= 0
+})
+/** 表单上方：同物料型号的采购备货在库数量说明 */
+const applyPurchasedStockingPurchasingBarTitle = computed(() => {
+  const qty = Math.max(0, Math.trunc(Number(applyForm.value.purchasedStockAvailableQty) || 0))
+  if (qty > 0)
+    return t('salesOrderItemList.applyStockOutDialog.stockingPurchasingSummary', { qty })
+  return t('salesOrderItemList.applyStockOutDialog.stockingPurchasingNone')
+})
+/** 有备货在库数量时，备货说明栏标题用成功色 */
+const applyPurchasedStockingPurchasingHasQty = computed(
+  () => Math.max(0, Math.trunc(Number(applyForm.value.purchasedStockAvailableQty) || 0)) > 0
+)
 const applyFormSalesOrderQtyText = computed(() => intQtyText(applyForm.value.salesOrderQty))
 const applyFormAlreadyNotifiedText = computed(() => intQtyText(applyForm.value.alreadyNotifiedQty))
 const applyFormRemainingNotifyText = computed(() => intQtyText(applyForm.value.remainingNotifyQty))
@@ -1116,9 +1156,7 @@ const handleOpenApplyStockOut = async (item?: any) => {
     await ensureLogisticsDict()
     const ctx = await stockOutApi.getApplyContext(order.value.id, sellOrderItemId)
     const maxQ = Math.max(0, Math.trunc(Number(ctx.suggestedMaxQty) || 0))
-    if (maxQ <= 0) {
-      ElMessage.warning(t('salesOrderItemList.messages.applyStockOutZeroSuggested'))
-    }
+    const stocking = Math.max(0, Math.trunc(Number(ctx.purchasedStockAvailableQty ?? 0) || 0))
     applyForm.value = {
       requestCode: '',
       requestDate: new Date(),
@@ -1133,6 +1171,7 @@ const handleOpenApplyStockOut = async (item?: any) => {
       remainingNotifyQty: Number(ctx.remainingNotifyQty ?? 0),
       maxQty: maxQ,
       stockAvailableQty: Number(ctx.availableStockQty ?? 0),
+      purchasedStockAvailableQty: stocking,
       notifyQty: maxQ
     }
   } catch (e: any) {
@@ -1628,6 +1667,23 @@ const submitApplyStockOut = async () => {
   }
 }
 
+.apply-so-stock-purchasing-info {
+  margin-bottom: 10px;
+}
+
+.apply-so-stock-purchasing-info--has-stock {
+  /* 覆盖 el-alert--info 默认色（含 Teleport 出 scoped 根节点时） */
+  :deep(.el-alert__content),
+  :deep(.el-alert__title),
+  :deep(.el-alert__icon) {
+    color: $success-color !important;
+  }
+}
+
+.apply-so-stock-alert {
+  margin-bottom: 12px;
+}
+
 .apply-stock-lines {
   margin-top: 8px;
   border: 1px solid $border-panel;
@@ -1638,7 +1694,7 @@ const submitApplyStockOut = async () => {
 .apply-stock-lines__head,
 .apply-stock-lines__row {
   display: grid;
-  grid-template-columns: 44px minmax(100px, 1fr) 88px 72px 72px 72px 72px 148px;
+  grid-template-columns: 44px minmax(96px, 1fr) 84px 66px 66px 66px 66px 66px 132px;
   gap: 8px;
   align-items: center;
   padding: 10px 12px;
@@ -1710,5 +1766,12 @@ const submitApplyStockOut = async () => {
     background: rgba(245, 108, 108, 0.12) !important;
     color: #ff9a9a !important;
   }
+}
+
+/* 申请出库弹窗 Teleport 到 body 时，scoped 可能无法作用到 el-alert 内层，此处用全局唯一类兜底 */
+.apply-so-stock-purchasing-info--has-stock.el-alert .el-alert__content,
+.apply-so-stock-purchasing-info--has-stock.el-alert .el-alert__title,
+.apply-so-stock-purchasing-info--has-stock.el-alert .el-alert__icon {
+  color: $success-color !important;
 }
 </style>

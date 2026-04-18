@@ -151,6 +151,23 @@
                 <span v-else class="stockin-report-cell">{{ reportCellText(row.warehouseLocation) }}</span>
               </template>
             </el-table-column>
+            <el-table-column
+              v-if="!isCreateMode"
+              label="操作"
+              width="100"
+              fixed="right"
+              align="center"
+              header-align="center"
+            >
+              <template #default="{ row }">
+                <el-dropdown trigger="click">
+                  <button type="button" class="action-btn">操作</button>
+                  <template #dropdown>
+                    <el-dropdown-item @click="openBatchImport(row)">录入批次</el-dropdown-item>
+                  </template>
+                </el-dropdown>
+              </template>
+            </el-table-column>
             <el-table-column v-if="isCreateMode" label="操作" width="80" fixed="right" class-name="op-col" label-class-name="op-col">
               <template #default="{ $index }">
                 <button type="button" class="action-btn action-btn--danger" @click.stop="removeRow($index)">删除</button>
@@ -165,6 +182,13 @@
         </div>
       </div>
     </div>
+
+    <StockInBatchImportDialog
+      v-model="batchImportVisible"
+      :stock-in-id="stockInHeaderId"
+      :stock-in-item-id="batchImportItemId"
+      :stock-in-item-code="batchImportItemCode"
+    />
   </div>
 </template>
 
@@ -173,6 +197,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { stockInApi, type CreateStockInRequest, type StockInDto, type StockInItemDto } from '@/api/stockIn'
+import StockInBatchImportDialog from '@/components/Inventory/StockInBatchImportDialog.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -184,7 +209,15 @@ const displayWarehouseCode = ref('')
 /** 详情页展示：供应商名称 */
 const displayVendorName = ref('')
 
+const batchImportVisible = ref(false)
+const batchImportItemId = ref('')
+const batchImportItemCode = ref('')
+
 const isCreateMode = computed(() => route.name === 'StockInCreate')
+
+const stockInHeaderId = computed(() =>
+  route.name === 'StockInDetail' && typeof route.params.id === 'string' ? route.params.id : ''
+)
 
 const form = reactive<CreateStockInRequest>({
   stockInCode: '',
@@ -267,6 +300,7 @@ function applyDetailToForm(d: StockInDto) {
     const price = Number(it.price ?? it.Price) || 0
     return {
       lineNo: i + 1,
+      itemId: pickStr(it, 'id', 'Id', 'itemId', 'ItemId'),
       stockInItemCode: pickStr(it, 'stockInItemCode', 'StockInItemCode'),
       materialCode: code,
       materialName: model,
@@ -413,6 +447,18 @@ const handleSubmit = async () => {
 const goBack = () => {
   router.push('/inventory/stock-in')
 }
+
+function openBatchImport(row: StockInItemDto) {
+  const id = (row.itemId ?? '').trim()
+  if (!id) {
+    ElMessage.error('该明细缺少主键，无法录入批次')
+    return
+  }
+  batchImportItemId.value = id
+  batchImportItemCode.value = (row.stockInItemCode ?? '').trim()
+  batchImportVisible.value = true
+}
+
 </script>
 
 <style scoped lang="scss">

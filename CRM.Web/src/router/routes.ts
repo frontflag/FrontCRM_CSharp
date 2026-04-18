@@ -263,6 +263,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '入库单列表' }
       },
       {
+        path: 'inventory/stock-in/batch-records',
+        name: 'StockInBatchRecords',
+        component: () => import('@/views/Inventory/StockInBatchList.vue'),
+        meta: { requiresAuth: true, title: '入库批次记录' }
+      },
+      {
         path: 'inventory/stock-in/create',
         name: 'StockInCreate',
         component: () => import('@/views/Inventory/StockInEdit.vue'),
