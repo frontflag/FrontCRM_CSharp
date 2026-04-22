@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using CRM.API.Models.DTOs;
+using CRM.API.Services;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
@@ -697,6 +698,71 @@ namespace CRM.API.Controllers
             };
 
             return Ok(ApiResponse<SimulateBusinessChainResponse>.Ok(response, "模拟数据生成成功"));
+        }
+
+        public class RfqChainNodeApiDto
+        {
+            public string Node { get; set; } = string.Empty;
+            public string Code { get; set; } = string.Empty;
+            public string Id { get; set; } = string.Empty;
+        }
+
+        public class RfqChainPreviewDto
+        {
+            public string? RfqCode { get; set; }
+            public List<RfqChainNodeApiDto> Nodes { get; set; } = new();
+        }
+
+        /// <summary>
+        /// Debug：按需求单号（RFQ.RfqCode）列出从该需求产生的下游业务节点与数据主键/业务编号。
+        /// </summary>
+        [Authorize]
+        [HttpGet("rfq-chain")]
+        public async Task<ActionResult<ApiResponse<RfqChainPreviewDto>>> GetRfqChain([FromQuery] string rfqCode)
+        {
+            var code = (rfqCode ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(code))
+                return BadRequest(ApiResponse<RfqChainPreviewDto>.Fail("rfqCode 不能为空", 400));
+
+            var snap = await RfqDebugChainHelper.LoadChainAsync(_context, code);
+            if (snap == null)
+                return NotFound(ApiResponse<RfqChainPreviewDto>.Fail($"未找到需求单号: {code}", 404));
+
+            var nodes = snap.ToDisplayNodes()
+                .Select(n => new RfqChainNodeApiDto { Node = n.Node, Code = n.Code, Id = n.Id })
+                .ToList();
+            var dto = new RfqChainPreviewDto { RfqCode = snap.Rfq.RfqCode, Nodes = nodes };
+            return Ok(ApiResponse<RfqChainPreviewDto>.Ok(dto, "ok"));
+        }
+
+        /// <summary>
+        /// Debug：删除指定需求单号关联的下游数据（与造数链路一致）。危险操作，仅登录用户可用。
+        /// </summary>
+        [Authorize]
+        [HttpDelete("rfq-chain")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteRfqChain([FromQuery] string rfqCode)
+        {
+            var code = (rfqCode ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(code))
+                return BadRequest(ApiResponse<object>.Fail("rfqCode 不能为空", 400));
+
+            var snap = await RfqDebugChainHelper.LoadChainAsync(_context, code);
+            if (snap == null)
+                return NotFound(ApiResponse<object>.Fail($"未找到需求单号: {code}", 404));
+
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                await RfqDebugChainHelper.DeleteChainAsync(_context, snap);
+                await tx.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
+                return StatusCode(500, ApiResponse<object>.Fail($"删除失败: {ex.Message}", 500));
+            }
+
+            return Ok(ApiResponse<object>.Ok(null, "已删除该需求单及其下游数据"));
         }
 
         /// <summary>

@@ -213,9 +213,10 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="重要程度" class="importance-inline-item">
+              <!-- 重要程度仅 1–3 星（与列表、存盘一致）；勿改大 max，否则与后端 short 语义不一致 -->
               <el-rate
                 v-model="formData.importance"
-                :max="3"
+                :max="RFQ_IMPORTANCE_RATE_MAX"
                 :colors="['#C99A45', '#C99A45', '#C99A45']"
                 void-color="rgba(200,216,232,0.2)"
                 class="q-rate"
@@ -711,6 +712,9 @@ async function applyPrefillCustomerFromQuery() {
   }
 }
 
+/** 新建/编辑页「重要程度」星级上限（Element Plus el-rate 的 max） */
+const RFQ_IMPORTANCE_RATE_MAX = 3
+
 /** 重要程度：界面为 1–3 星；兼容历史 1–5 星或约 1–10 的存盘值 */
 function normalizeImportance(v: unknown): number {
   const n = Number(v)
@@ -954,7 +958,7 @@ const handleSubmit = async () => {
           targetType: formData.value.targetType,
           quoteMethod: formData.value.quoteMethod,
           assignMethod: formData.value.assignMethod,
-          importance: formData.value.importance,
+          importance: normalizeImportance(formData.value.importance),
           projectBackground: formData.value.projectBackground,
           competitor: formData.value.competitor,
           remark: formData.value.remark,
@@ -974,7 +978,7 @@ const handleSubmit = async () => {
         industry: formData.value.industry,
         product: formData.value.product,
         targetType: formData.value.targetType,
-        importance: formData.value.importance,
+        importance: normalizeImportance(formData.value.importance),
         projectBackground: formData.value.projectBackground,
         competitor: formData.value.competitor,
         remark: formData.value.remark,

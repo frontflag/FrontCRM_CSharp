@@ -38,19 +38,44 @@
         <div class="form-grid">
           <div class="form-item">
             <label class="form-label">{{ t('profilePage.basic.userName') }}</label>
-            <input v-model="form.userName" class="form-input" :placeholder="t('profilePage.basic.phUserName')" />
+            <input
+              v-model="form.userName"
+              class="form-input form-input--readonly"
+              readonly
+              tabindex="-1"
+              :title="t('profilePage.basic.readonlyHint')"
+            />
           </div>
           <div class="form-item">
             <label class="form-label">{{ t('profilePage.basic.email') }}</label>
-            <input v-model="form.email" class="form-input" :placeholder="t('profilePage.basic.phEmail')" type="email" />
+            <input
+              v-model="form.email"
+              class="form-input form-input--readonly"
+              type="email"
+              readonly
+              tabindex="-1"
+              :title="t('profilePage.basic.readonlyHint')"
+            />
           </div>
           <div class="form-item">
             <label class="form-label">{{ t('profilePage.basic.phone') }}</label>
-            <input v-model="form.phone" class="form-input" :placeholder="t('profilePage.basic.phPhone')" />
+            <input
+              v-model="form.phone"
+              class="form-input form-input--readonly"
+              readonly
+              tabindex="-1"
+              :title="t('profilePage.basic.readonlyHint')"
+            />
           </div>
           <div class="form-item">
             <label class="form-label">{{ t('profilePage.basic.department') }}</label>
-            <input v-model="form.department" class="form-input" :placeholder="t('profilePage.basic.phDepartment')" />
+            <input
+              v-model="form.department"
+              class="form-input form-input--readonly"
+              readonly
+              tabindex="-1"
+              :title="t('profilePage.basic.readonlyHint')"
+            />
           </div>
           <div class="form-item full-width">
             <label class="form-label">{{ t('profilePage.basic.bio') }}</label>
@@ -236,7 +261,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores'
@@ -288,14 +313,23 @@ const tabList = computed(() => {
   ]
 })
 
-// 基本信息表单
+// 基本信息表单（账号/邮箱/手机/部门由服务端同步，只读；简介可编辑）
 const form = ref({
   userName: authStore.user?.userName || '',
   email: authStore.user?.email || '',
-  phone: '',
-  department: '',
+  phone: authStore.user?.mobile || '',
+  department: authStore.user?.department || '',
   bio: ''
 })
+
+function syncBasicFormFromAuthUser() {
+  const u = authStore.user
+  if (!u) return
+  form.value.userName = u.userName || ''
+  form.value.email = u.email || ''
+  form.value.phone = (u.mobile || '').trim()
+  form.value.department = (u.department || '').trim()
+}
 
 const saveBasicInfo = () => {
   ElMessage.success(t('profilePage.messages.basicSaved'))
@@ -423,8 +457,20 @@ const unbindWechatHandler = async () => {
   }
 }
 
-onMounted(() => {
-  fetchWechatBindInfo()
+watch(
+  () => authStore.user,
+  () => syncBasicFormFromAuthUser(),
+  { deep: true }
+)
+
+onMounted(async () => {
+  try {
+    await authStore.fetchCurrentUser()
+  } catch {
+    /* fetchCurrentUser 失败会登出；此处忽略 */
+  }
+  syncBasicFormFromAuthUser()
+  await fetchWechatBindInfo()
 })
 </script>
 
@@ -444,7 +490,7 @@ onMounted(() => {
   gap: 24px;
   padding: 24px;
   background: vars.$layer-2;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  border: 1px solid vars.$border-card;
   border-radius: 12px;
   margin-bottom: 20px;
 }
@@ -498,13 +544,13 @@ onMounted(() => {
   font-family: 'Noto Sans SC', sans-serif;
   font-size: 20px;
   font-weight: 700;
-  color: #E8F4FF;
+  color: vars.$text-primary;
   margin: 0 0 4px;
 }
 
 .profile-email {
   font-size: 13px;
-  color: rgba(80, 187, 227, 0.6);
+  color: vars.$text-muted;
   margin: 0 0 8px;
 }
 
@@ -512,10 +558,10 @@ onMounted(() => {
   display: inline-block;
   padding: 2px 10px;
   border-radius: 20px;
-  background: rgba(0, 212, 255, 0.1);
-  border: 1px solid rgba(0, 212, 255, 0.25);
+  background: var(--crm-accent-008);
+  border: 1px solid var(--crm-accent-018);
   font-size: 11px;
-  color: #00D4FF;
+  color: vars.$cyan-primary;
   font-family: 'Noto Sans SC', sans-serif;
 }
 
@@ -525,7 +571,7 @@ onMounted(() => {
   gap: 4px;
   margin-bottom: 16px;
   background: vars.$layer-2;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  border: 1px solid vars.$border-card;
   border-radius: 10px;
   padding: 6px;
 }
@@ -539,35 +585,37 @@ onMounted(() => {
   border-radius: 7px;
   border: none;
   background: transparent;
-  color: rgba(180, 210, 230, 0.6);
+  color: vars.$text-secondary;
   font-family: 'Noto Sans SC', sans-serif;
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
   justify-content: center;
 
   .tab-icon {
     display: flex;
     align-items: center;
+    color: inherit;
   }
 
   &:hover {
-    background: rgba(0, 212, 255, 0.06);
-    color: rgba(180, 210, 230, 0.9);
+    background: var(--crm-accent-006);
+    color: vars.$text-primary;
   }
 
   &.active {
-    background: rgba(0, 212, 255, 0.12);
-    color: #00D4FF;
+    background: var(--crm-accent-012);
+    color: vars.$cyan-primary;
     font-weight: 600;
-    box-shadow: 0 0 10px rgba(0, 212, 255, 0.1);
+    box-shadow: inset 0 0 0 1px var(--crm-accent-022);
   }
 }
 
 // 内容卡片
 .section-card {
   background: vars.$layer-2;
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  border: 1px solid vars.$border-card;
   border-radius: 12px;
   padding: 24px;
 
@@ -580,10 +628,10 @@ onMounted(() => {
   font-family: 'Noto Sans SC', sans-serif;
   font-size: 15px;
   font-weight: 600;
-  color: #E8F4FF;
+  color: vars.$text-primary;
   margin: 0 0 20px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+  border-bottom: 1px solid vars.$border-panel;
 }
 
 // 表单
@@ -611,54 +659,67 @@ onMounted(() => {
 .form-label {
   font-family: 'Noto Sans SC', sans-serif;
   font-size: 12.5px;
-  color: rgba(80, 187, 227, 0.7);
+  color: vars.$text-muted;
   font-weight: 500;
 }
 
 .form-input {
   height: 38px;
   padding: 0 12px;
-  background: rgba(0, 212, 255, 0.04);
-  border: 1px solid rgba(0, 212, 255, 0.15);
+  background: vars.$layer-3;
+  border: 1px solid vars.$border-card;
   border-radius: 7px;
-  color: #E8F4FF;
+  color: vars.$text-primary;
   font-family: 'Noto Sans SC', sans-serif;
   font-size: 13px;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, background 0.2s;
 
   &::placeholder {
-    color: rgba(80, 187, 227, 0.3);
+    color: vars.$text-placeholder;
   }
 
   &:focus {
-    border-color: rgba(0, 212, 255, 0.4);
-    background: rgba(0, 212, 255, 0.06);
+    border-color: var(--crm-accent-045);
+    background: vars.$layer-2;
   }
 
   &.input-error {
     border-color: rgba(201, 87, 69, 0.5);
   }
+
+  &.form-input--readonly {
+    cursor: default;
+    color: vars.$text-secondary;
+    background: vars.$layer-1;
+    border-color: vars.$border-panel;
+    box-shadow: none;
+
+    &:focus {
+      border-color: vars.$border-panel;
+      background: vars.$layer-1;
+    }
+  }
 }
 
 .form-textarea {
   padding: 10px 12px;
-  background: rgba(0, 212, 255, 0.04);
-  border: 1px solid rgba(0, 212, 255, 0.15);
+  background: vars.$layer-3;
+  border: 1px solid vars.$border-card;
   border-radius: 7px;
-  color: #E8F4FF;
+  color: vars.$text-primary;
   font-family: 'Noto Sans SC', sans-serif;
   font-size: 13px;
   outline: none;
   resize: vertical;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, background 0.2s;
 
   &::placeholder {
-    color: rgba(80, 187, 227, 0.3);
+    color: vars.$text-placeholder;
   }
 
   &:focus {
-    border-color: rgba(0, 212, 255, 0.4);
+    border-color: var(--crm-accent-045);
   }
 }
 
@@ -680,7 +741,7 @@ onMounted(() => {
   background: transparent;
   border: none;
   cursor: pointer;
-  color: rgba(80, 187, 227, 0.4);
+  color: vars.$text-muted;
   display: flex;
   align-items: center;
   padding: 0;
@@ -691,7 +752,7 @@ onMounted(() => {
   }
 
   &:hover {
-    color: rgba(80, 187, 227, 0.8);
+    color: vars.$text-secondary;
   }
 }
 
@@ -742,7 +803,7 @@ onMounted(() => {
 .form-actions {
   margin-top: 20px;
   padding-top: 16px;
-  border-top: 1px solid rgba(0, 212, 255, 0.06);
+  border-top: 1px solid vars.$border-panel;
 }
 
 .btn-primary {
@@ -783,7 +844,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 14px 0;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.06);
+  border-bottom: 1px solid vars.$border-panel;
 
   &:last-child {
     border-bottom: none;
@@ -799,13 +860,14 @@ onMounted(() => {
 .notify-name {
   font-family: 'Noto Sans SC', sans-serif;
   font-size: 13.5px;
-  color: #E8F4FF;
+  color: vars.$text-primary;
   font-weight: 500;
 }
 
 .notify-desc {
   font-size: 12px;
-  color: rgba(80, 187, 227, 0.5);
+  color: vars.$text-muted;
+  line-height: 1.45;
 }
 
 // 开关
@@ -860,13 +922,14 @@ onMounted(() => {
 .security-name {
   font-family: 'Noto Sans SC', sans-serif;
   font-size: 14px;
-  color: #E8F4FF;
-  font-weight: 500;
+  color: vars.$text-primary;
+  font-weight: 600;
 }
 
 .security-desc {
   font-size: 12px;
-  color: rgba(80, 187, 227, 0.5);
+  color: vars.$text-secondary;
+  line-height: 1.45;
 }
 
 // 设备列表
@@ -881,7 +944,7 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   padding: 14px 0;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.06);
+  border-bottom: 1px solid vars.$border-panel;
 
   &:last-child {
     border-bottom: none;
@@ -892,12 +955,12 @@ onMounted(() => {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: rgba(0, 212, 255, 0.08);
-  border: 1px solid rgba(0, 212, 255, 0.12);
+  background: var(--crm-accent-008);
+  border: 1px solid vars.$border-card;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(0, 212, 255, 0.7);
+  color: vars.$cyan-primary;
   flex-shrink: 0;
 
   svg {
@@ -916,39 +979,43 @@ onMounted(() => {
 .device-name {
   font-family: 'Noto Sans SC', sans-serif;
   font-size: 13.5px;
-  color: #E8F4FF;
+  color: vars.$text-primary;
+  font-weight: 500;
 }
 
 .device-meta {
   font-size: 12px;
-  color: rgba(80, 187, 227, 0.5);
+  color: vars.$text-muted;
 }
 
 .device-current {
   font-size: 11.5px;
-  color: #00D4FF;
-  background: rgba(0, 212, 255, 0.1);
-  border: 1px solid rgba(0, 212, 255, 0.2);
+  color: vars.$cyan-primary;
+  background: var(--crm-accent-008);
+  border: 1px solid var(--crm-accent-022);
   border-radius: 20px;
   padding: 2px 10px;
   font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 500;
 }
 
 .btn-ghost-danger {
   padding: 5px 12px;
   background: transparent;
-  border: 1px solid rgba(201, 87, 69, 0.3);
+  border: 1px solid var(--crm-danger-color);
   border-radius: 6px;
-  color: rgba(201, 87, 69, 0.7);
+  color: vars.$danger-color;
   font-family: 'Noto Sans SC', sans-serif;
   font-size: 12.5px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s, border-color 0.2s, opacity 0.2s;
+  opacity: 0.92;
 
   &:hover {
-    background: rgba(201, 87, 69, 0.1);
-    border-color: rgba(201, 87, 69, 0.5);
-    color: #C95745;
+    background: var(--crm-white-06);
+    border-color: vars.$danger-color;
+    opacity: 1;
   }
 }
 
@@ -971,8 +1038,8 @@ onMounted(() => {
     align-items: center;
     gap: 16px;
     padding: 20px 30px;
-    background: rgba(0, 212, 255, 0.05);
-    border: 1px solid rgba(0, 212, 255, 0.15);
+    background: var(--crm-accent-005);
+    border: 1px solid vars.$border-card;
     border-radius: 12px;
 
     .wechat-detail {
@@ -981,13 +1048,13 @@ onMounted(() => {
       .nickname {
         font-size: 16px;
         font-weight: 600;
-        color: #E8F4FF;
+        color: vars.$text-primary;
         margin: 0 0 4px;
       }
 
       .bind-time {
         font-size: 12px;
-        color: rgba(80, 187, 227, 0.6);
+        color: vars.$text-muted;
         margin: 0;
       }
     }
@@ -1006,7 +1073,8 @@ onMounted(() => {
     .bind-text {
       margin-top: 12px;
       font-size: 14px;
-      color: rgba(80, 187, 227, 0.7);
+      color: vars.$text-secondary;
+      line-height: 1.5;
     }
   }
 }

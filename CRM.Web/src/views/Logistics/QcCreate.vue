@@ -371,6 +371,14 @@ async function uploadPendingQcImages(qcId: string, files: File[]) {
   }
 }
 
+/** 解析质检计划入库日（兼容 camelCase / PascalCase、ISO 带时区） */
+function qcStockInPlanDateToYmd(v: unknown): string {
+  if (v == null || v === '') return ''
+  const s = String(v).trim()
+  if (s.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10)
+  return ''
+}
+
 async function applyPurchaseUserFromPurchaseOrder(purchaseOrderId: string | undefined | null) {
   const id = String(purchaseOrderId || '').trim()
   if (!id) return
@@ -387,12 +395,16 @@ async function applyPurchaseUserFromPurchaseOrder(purchaseOrderId: string | unde
   }
 }
 
-const fillNotice = async (noticeId: string) => {
+/**
+ * 根据到货通知补齐表单；返回预计到货日 YYYY-MM-DD（无则空串）。
+ * 编辑质检时勿用预计到货日覆盖已保存的「入库日期」，传 skipDefaultStockInPlanDate: true。
+ */
+const fillNotice = async (noticeId: string, opts?: { skipDefaultStockInPlanDate?: boolean }): Promise<string> => {
   form.noticeId = noticeId
-  if (!noticeId) return
+  if (!noticeId) return Promise.resolve('')
   const notices = await logisticsApi.getArrivalNotices()
   const row = notices.find(x => x.id === noticeId)
-  if (!row) return
+  if (!row) return ''
   const firstItem = row.items?.[0]
   const sumItemArrived = Number((row.items || []).reduce((s, x) => s + Number(x.arrivedQty || 0), 0))
   const rq = Number(row.receiveQty ?? 0)
@@ -413,7 +425,11 @@ const fillNotice = async (noticeId: string) => {
   form.sampleQty = arrivedTotalQty
   form.arrivedTotalQty = arrivedTotalQty
   const exp = (row.expectedArrivalDate || '').trim()
-  form.stockInPlanDate = exp.length >= 10 ? exp.slice(0, 10) : ''
+  const expectedYmd = exp.length >= 10 ? exp.slice(0, 10) : ''
+  if (!opts?.skipDefaultStockInPlanDate) {
+    form.stockInPlanDate = expectedYmd
+  }
+  return expectedYmd
 }
 
 const loadPageData = async () => {
@@ -436,13 +452,14 @@ const loadPageData = async () => {
       form.sampleQty = passR
       form.arrivedTotalQty = passR + rejectR
 
-      // 再补齐到货通知维度的数据（供应商/物料等）
-      await fillNotice(qc.stockInNotifyId)
+      // 再补齐到货通知维度的数据（供应商/物料等）；勿用预计到货日覆盖 qcinfo 已保存的入库计划日
+      const expectedYmd = await fillNotice(qc.stockInNotifyId, { skipDefaultStockInPlanDate: true })
       form.qcResult = qc.status === -1 ? 'reject' : qc.status === 10 ? 'partial' : 'pass'
       form.stockInQty = Math.round(Number(qc.passQty || 0))
       form.sampleQty = Math.round(Number(qc.passQty || 0))
-      const savedPlan = (qc.stockInPlanDate || '').trim()
-      if (savedPlan.length >= 10) form.stockInPlanDate = savedPlan.slice(0, 10)
+      const savedYmd =
+        qcStockInPlanDateToYmd(qc.stockInPlanDate) || qcStockInPlanDateToYmd(qc.StockInPlanDate)
+      form.stockInPlanDate = savedYmd || expectedYmd
     }
     await loadQcDocuments(qcId)
     return

@@ -1,5 +1,6 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
@@ -23,6 +24,7 @@ namespace CRM.Core.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
+        private readonly IUserService _userService;
         private readonly ILogger<LogisticsService> _logger;
 
         public LogisticsService(
@@ -39,6 +41,7 @@ namespace CRM.Core.Services
             ISerialNumberService serialNumberService,
             IPurchaseOrderItemExtendSyncService poItemExtendSync,
             IUnitOfWork unitOfWork,
+            IUserService userService,
             ILogger<LogisticsService> logger)
         {
             _notifyRepo = notifyRepo;
@@ -54,6 +57,7 @@ namespace CRM.Core.Services
             _serialNumberService = serialNumberService;
             _poItemExtendSync = poItemExtendSync;
             _unitOfWork = unitOfWork;
+            _userService = userService;
             _logger = logger;
         }
 
@@ -293,7 +297,10 @@ namespace CRM.Core.Services
                     qc.SalesOrderCode = so;
             }
 
+            await AttachQcCreateUserDisplayNamesAsync(list);
+
             await ReconcileQcMissingStockInBindingAsync(list, noticeMap);
+            await ReconcileQcBoundStockInStatusForPostedAsync(list);
             await NormalizeUnboundQcStockInDisplayStatusAsync(list);
 
             var modelKeyword = request?.Model?.Trim();
@@ -309,35 +316,46 @@ namespace CRM.Core.Services
                 return list;
             }
 
+            // 仅按「单条到货通知」匹配型号关键字（勿在 qc.Items 循环内再调 MatchModel，否则会无限递归导致栈溢出→502）
+            bool NoticeMatchesModelKeyword(StockInNotify? notice, string keyword)
+            {
+                if (notice == null)
+                    return false;
+
+                if (!string.IsNullOrWhiteSpace(notice.Pn) && notice.Pn.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
+                    && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var poi)
+                    && !string.IsNullOrWhiteSpace(poi.PN)
+                    && poi.PN.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderId)
+                    && poItemsByPurchaseOrderId.TryGetValue(notice.PurchaseOrderId.Trim(), out var polines))
+                {
+                    if (polines.Any(p => !string.IsNullOrWhiteSpace(p.PN) && p.PN.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+                        return true;
+                }
+
+                return false;
+            }
+
             bool MatchModel(QCInfo qc, StockInNotify? notice, string keyword)
             {
                 if (!string.IsNullOrWhiteSpace(qc.Model) && qc.Model.Contains(keyword, StringComparison.OrdinalIgnoreCase))
                     return true;
 
-                if (notice != null && !string.IsNullOrWhiteSpace(notice.Pn) && notice.Pn.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-                    return true;
-
-                if (notice != null && !string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
-                    && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var poi)
-                    && !string.IsNullOrWhiteSpace(poi.PN)
-                    && poi.PN.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                if (NoticeMatchesModelKeyword(notice, keyword))
                     return true;
 
                 if (qc.Items is { Count: > 0 })
                 {
                     foreach (var qci in qc.Items)
                     {
-                        if (noticeMap.TryGetValue(qci.ArrivalStockInNotifyId, out var n) && MatchModel(qc, n, keyword))
+                        if (noticeMap.TryGetValue(qci.ArrivalStockInNotifyId, out var n) && NoticeMatchesModelKeyword(n, keyword))
                             return true;
                     }
-                }
-
-                if (notice != null
-                    && !string.IsNullOrWhiteSpace(notice.PurchaseOrderId)
-                    && poItemsByPurchaseOrderId.TryGetValue(notice.PurchaseOrderId.Trim(), out var polines))
-                {
-                    if (polines.Any(p => !string.IsNullOrWhiteSpace(p.PN) && p.PN.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
-                        return true;
                 }
 
                 return false;
@@ -736,6 +754,47 @@ namespace CRM.Core.Services
         }
 
         /// <summary>
+        /// 已写入 <see cref="QCInfo.StockInId"/> 但 <see cref="QCInfo.StockInStatus"/> 仍为未入库(1) 的历史数据（例如绑定或回填了入库单主键，
+        /// 但过账时未走到 <see cref="HandleStockInCompletedAsync"/> 或未匹配到该 QC）：若对应入库单已过账(2)，则按质检结论回写入库进度，与过账钩子一致。
+        /// </summary>
+        private async Task ReconcileQcBoundStockInStatusForPostedAsync(List<QCInfo> list)
+        {
+            const short posted = 2;
+            var candidates = list
+                .Where(q => !string.IsNullOrWhiteSpace(q.StockInId) && q.Status != -1 && q.StockInStatus == 1)
+                .ToList();
+            if (candidates.Count == 0)
+                return;
+
+            var stockInIds = candidates
+                .Select(q => q.StockInId!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var stockIns = (await _stockInRepo.FindAsync(si => stockInIds.Contains(si.Id))).ToList();
+            var siById = stockIns.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
+
+            var utc = DateTime.UtcNow;
+            var dirty = false;
+            foreach (var qc in candidates)
+            {
+                if (!siById.TryGetValue(qc.StockInId!.Trim(), out var si) || si.Status != posted)
+                    continue;
+
+                var target = qc.Status == 100 ? (short)100 : qc.Status == 10 ? (short)10 : (short)100;
+                if (qc.StockInStatus == target)
+                    continue;
+
+                qc.StockInStatus = target;
+                qc.ModifyTime = utc;
+                await _qcRepo.UpdateAsync(qc);
+                dirty = true;
+            }
+
+            if (dirty)
+                await _unitOfWork.SaveChangesAsync();
+        }
+
+        /// <summary>
         /// 未绑定入库单时 StockInStatus 只应为「未入库」(1)；历史上曾误将质检结论 10/100 写入该字段，此处加载列表时自愈并落库。
         /// </summary>
         private async Task NormalizeUnboundQcStockInDisplayStatusAsync(List<QCInfo> list)
@@ -778,5 +837,35 @@ namespace CRM.Core.Services
             return string.IsNullOrWhiteSpace(notice?.PurchaseOrderId) ? null : notice!.PurchaseOrderId.Trim();
         }
 
+        /// <summary>质检列表：根据 <see cref="QCInfo.CreateByUserId"/> 填充 <see cref="QCInfo.CreateUserName"/>（兼容历史把登录名写入该列）。</summary>
+        private async Task AttachQcCreateUserDisplayNamesAsync(List<QCInfo> list)
+        {
+            if (list.Count == 0) return;
+
+            var users = (await _userService.GetAllAsync()).ToList();
+            var userById = users
+                .Where(x => !string.IsNullOrWhiteSpace(x.Id))
+                .ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
+            var displayNameByLogin = users
+                .Where(x => !string.IsNullOrWhiteSpace(x.UserName))
+                .GroupBy(x => x.UserName.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => EntityLookupService.FormatUserDisplayName(g.First()),
+                    StringComparer.OrdinalIgnoreCase);
+
+            foreach (var qc in list)
+            {
+                if (string.IsNullOrWhiteSpace(qc.CreateByUserId)) continue;
+                var key = qc.CreateByUserId.Trim();
+                if (userById.TryGetValue(key, out var u))
+                {
+                    qc.CreateUserName = EntityLookupService.FormatUserDisplayName(u);
+                    continue;
+                }
+                if (displayNameByLogin.TryGetValue(key, out var name))
+                    qc.CreateUserName = name;
+            }
+        }
     }
 }

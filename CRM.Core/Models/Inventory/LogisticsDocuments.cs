@@ -142,6 +142,10 @@ namespace CRM.Core.Models.Inventory
         [Column("create_by_user_id")]
         public string? CreateByUserId { get; set; }
 
+        /// <summary>列表/详情展示用，由服务层根据 <see cref="CreateByUserId"/> 解析。</summary>
+        [NotMapped]
+        public string? CreateUserName { get; set; }
+
         [StringLength(36)]
         [Column("modify_by_user_id")]
         public string? ModifyByUserId { get; set; }

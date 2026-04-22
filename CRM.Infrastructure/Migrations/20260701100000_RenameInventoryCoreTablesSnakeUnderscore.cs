@@ -18,6 +18,7 @@ namespace CRM.Infrastructure.Migrations
             migrationBuilder.Sql(@"
 ALTER TABLE IF EXISTS public.stockinitemextend RENAME TO stock_in_item_extend;
 ALTER TABLE IF EXISTS public.stockinitem RENAME TO stock_in_item;
+ALTER TABLE IF EXISTS public.stockinextend RENAME TO stock_in_extend;
 ALTER TABLE IF EXISTS public.stockin RENAME TO stock_in;
 ALTER TABLE IF EXISTS public.stockitem RENAME TO stock_item;
 ALTER TABLE IF EXISTS public.stockoutitemextend RENAME TO stock_out_item_extend;
@@ -34,6 +35,7 @@ ALTER TABLE IF EXISTS public.stock_out_item RENAME TO stockoutitem;
 ALTER TABLE IF EXISTS public.stock_out_item_extend RENAME TO stockoutitemextend;
 ALTER TABLE IF EXISTS public.stock_item RENAME TO stockitem;
 ALTER TABLE IF EXISTS public.stock_in RENAME TO stockin;
+ALTER TABLE IF EXISTS public.stock_in_extend RENAME TO stockinextend;
 ALTER TABLE IF EXISTS public.stock_in_item RENAME TO stockinitem;
 ALTER TABLE IF EXISTS public.stock_in_item_extend RENAME TO stockinitemextend;
 ");

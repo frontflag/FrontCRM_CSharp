@@ -1,0 +1,18 @@
+---
+description: 修改 CRM.Web 前端后必须跑 TypeScript 检查（vue-tsc）
+globs:
+  - CRM.Web/**/*.vue
+  - CRM.Web/**/*.ts
+  - CRM.Web/**/*.tsx
+---
+
+# 前端改动后的类型检查
+
+在**编辑、新增或删除**上述 glob 匹配范围内的文件后，在本对话内**必须**执行一次类型检查，确认前端可编译：
+
+- 在目录 `CRM.Web` 下运行：`npm run typecheck`（等同于 `npx vue-tsc --noEmit`）。
+- 若从仓库根目录执行：`npm run typecheck --prefix CRM.Web`。
+
+若检查失败，须修复报错后再结束本次前端相关任务；不得仅假设能通过。
+
+仓库根目录已配置 **Husky**：`git commit` 时若暂存区包含 `CRM.Web/` 下文件，会自动执行 `npm run web:typecheck`；未通过则提交被拒绝。首次克隆后请在仓库根目录执行一次 `npm install` 以安装 husky 并注册钩子。

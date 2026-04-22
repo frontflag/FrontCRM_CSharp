@@ -22,6 +22,16 @@ namespace CRM.Core.Models.Inventory
         [Column("StockItemId")]
         public string? StockItemId { get; set; }
 
+        /// <summary>对应入库明细主键（冗余自 <see cref="StockInItem.Id"/> / <c>stock_in_item.ItemId</c>，经在库层 <see cref="StockItem.StockInItemId"/>）。</summary>
+        [StringLength(36)]
+        [Column("StockInItemId")]
+        public string? StockInItemId { get; set; }
+
+        /// <summary>入库明细业务编号（冗余自 <c>stock_in_item.stock_in_item_code</c>，可与 <see cref="StockItem.StockInItemCode"/> 对齐）。</summary>
+        [StringLength(64)]
+        [Column("stock_in_item_code")]
+        public string? StockInItemCode { get; set; }
+
         /// <summary>库存层类型（与 <see cref="StockItem.StockType"/> / <c>stockitem.Type</c> 一致）。</summary>
         [Column("Type")]
         [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]

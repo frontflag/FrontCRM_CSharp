@@ -244,6 +244,8 @@ const zhCN = {
       roleManagement: '角色管理',
       permissionManagement: '权限管理',
       paramManagement: '参数管理',
+      systemLogs: '系统日志',
+      operationLog: '操作日志',
       companyInfo: '公司信息',
       dictItems: '数据字典',
       financeParams: '财务参数',
@@ -314,9 +316,19 @@ const zhCN = {
   },
   login: {
     version: '版本号：{version}',
+    welcomeTitle: '欢迎回来',
+    welcomeSub: '请登录您的账户以继续使用',
+    sloganLine1: '智能驱动',
+    sloganLine2: '决策未来',
+    brandLogoAlt: '公司 Logo',
+    featureSync: '实时数据同步',
+    featureTrack: '全链路追踪',
+    featureReport: '智能报表分析',
+    rememberMe: '记住我',
+    forgotPassword: '忘记密码?',
     accountLogin: '账号登录',
     wechatLogin: '微信扫码',
-    accountLabel: '登录账号',
+    accountLabel: '账号',
     accountPlaceholder: '请输入员工账号（或邮箱）',
     passwordLabel: '登录密码',
     passwordPlaceholder: '请输入登录密码',
@@ -467,6 +479,32 @@ const zhCN = {
     fillCode: '请填写权限编码',
     fillName: '请填写权限名称',
     typePlaceholder: 'api / menu / button'
+  },
+  operationLog: {
+    title: '操作日志',
+    count: '共 {count} 条',
+    empty: '暂无操作日志',
+    bizType: '业务类型',
+    actionType: '操作类型',
+    recordCode: '业务编号',
+    operatorUserName: '操作人',
+    operationTime: '操作时间',
+    reason: '原因',
+    query: '查询',
+    reset: '重置',
+    any: '全部',
+    contains: '包含',
+    timeFrom: '开始',
+    timeTo: '结束',
+    loadFailed: '加载操作日志失败',
+    colOperationTime: '操作时间',
+    colBizType: '业务类型',
+    colActionType: '操作类型',
+    colRecordCode: '业务编号',
+    colRecordId: '记录ID',
+    colOperator: '操作人',
+    colReason: '原因',
+    colOperationDesc: '操作说明'
   },
   dashboardSettings: {
     title: '系统设置',
@@ -765,6 +803,7 @@ const zhCN = {
       phPhone: '请输入手机号',
       department: '部门',
       phDepartment: '请输入部门',
+      readonlyHint: '由系统管理员维护，个人不可修改',
       bio: '个人简介',
       phBio: '请输入个人简介',
       saveChanges: '保存更改'
@@ -866,9 +905,11 @@ const zhCN = {
       customer: '客户',
       product: '产品',
       industry: '行业',
-      itemCount: '明细数',
-      importance: '重要度',
-      type: '类型',
+      itemCount: '明细条目',
+      targetType: '目标类型',
+      rfqType: '需求类型',
+      importance: '重要程度',
+      remark: '备注',
       salesUser: '业务员',
       createTime: '创建时间',
       createUser: '创建人'
@@ -956,8 +997,10 @@ const zhCN = {
       rfqCode: '需求编号',
       quoteCount: '报价条目',
       customer: '客户',
-      materialModel: '物料型号',
       customerPart: '客户料号',
+      customerBrand: '客户品牌',
+      materialModel: '物料型号',
+      brand: '品牌',
       quantity: '数量',
       salesUser: '业务员',
       purchaser: '采购员',
@@ -2642,7 +2685,12 @@ const zhCN = {
       successPosted: '已生成并过账入库单',
       defaultMaterialName: '物料',
       remarkFromQc: '由质检单 {code} 生成',
-      stockInErrorFallback: '生成入库失败'
+      stockInErrorFallback: '生成入库失败',
+      noWarehouseForRegion:
+        '未找到地域类型为「{region}」的启用仓库，无法生成入库。请先在库存中心维护与到货通知地域一致的仓库档案。',
+      pickWarehouseTitle: '选择入库仓库',
+      pickWarehouseHint: '到货通知地域类型为「{region}」，以下启用仓库与之相同，请选择本次入库的目标仓库：',
+      pickWarehouseRequired: '请选择一个仓库'
     }
   },
   purchaseRequisitionList: {
@@ -2760,6 +2808,7 @@ const zhCN = {
     },
     columns: {
       outboundStatus: '出库状态',
+      stockItemCode: '在库明细编号',
       stockInCode: '入库单号',
       stockInDate: '入库日期',
       warehouse: '仓库',
@@ -2790,8 +2839,7 @@ const zhCN = {
       stockCode: '库存编号',
       materialModel: '物料型号',
       brand: '品牌',
-      warehouse: '仓库',
-      stockId: '库存ID'
+      warehouse: '仓库'
     },
     stockItemsSection: '库存明细（StockItem）',
     traceSection: '物料入库追溯',
@@ -2799,6 +2847,7 @@ const zhCN = {
     noMaterialForTrace: '无法确定物料 ID，无法加载入库追溯',
     loadItemsFailed: '加载库存明细失败',
     columns: {
+      stockItemCode: '在库明细编号',
       stockInCode: '入库单号',
       batchNo: '批次',
       productionDate: '生产日期',
@@ -3108,6 +3157,7 @@ const zhCN = {
     filters: {
       status: '状态',
       stockOutCode: '出库单号',
+      stockInCode: '入库单号',
       stockOutDateRange: '出库日期',
       stockOutDateFrom: '开始',
       stockOutDateTo: '结束',
@@ -3122,6 +3172,7 @@ const zhCN = {
     columns: {
       status: '状态',
       stockOutCode: '出库单号',
+      stockInCode: '入库单号',
       stockOutDate: '出库日期',
       customerName: '客户',
       salesUserName: '业务员',
@@ -3290,8 +3341,10 @@ const zhCN = {
     detailTitle: '拣货单详情',
     count: '共 {count} 条',
     filters: {
+      keyword: '关键词',
       keywordPlaceholder: '拣货单号 / 出库通知编号 / 客户',
-      refresh: '刷新'
+      search: '搜索',
+      reset: '重置'
     },
     columns: {
       status: '状态',

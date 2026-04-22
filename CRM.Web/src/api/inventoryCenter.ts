@@ -46,7 +46,11 @@ export interface MaterialTrace {
 /** 单条 stock 下的 stockitem 行（与后端 InventoryStockItemRowDto 一致，JSON camelCase） */
 export interface StockItemRow {
   stockItemId: string
+  /** 在库明细业务编号 stock_item.stock_item_code */
+  stockItemCode?: string | null
   stockInItemId: string
+  /** 入库明细业务编号（冗余 stock_item.stock_in_item_code，与 stock_in_item 一致） */
+  stockInItemCode?: string | null
   stockInId: string
   stockInCode?: string | null
   materialId: string
@@ -138,6 +142,10 @@ export interface PickingTaskLine {
   id: string
   materialId: string
   stockId?: string | null
+  /** 在库明细业务编号 stock_item.stock_item_code */
+  stockItemCode?: string | null
+  /** 入库明细业务编号 stock_item.stock_in_item_code */
+  stockInItemCode?: string | null
   /** 在库明细 stockitem.Id（新流程） */
   stockItemId?: string | null
   /** 1=客单 2=备货 3=样品 */
@@ -150,6 +158,12 @@ export interface PickingTaskLine {
 /** 拣货候选在库明细（服务端 FIFO 排序） */
 export interface PickingStockItemCandidate {
   stockItemId: string
+  /** 入库日期（stock_in.StockInDate） */
+  stockInDate?: string | null
+  /** 在库明细业务编号 stock_item.stock_item_code */
+  stockItemCode?: string | null
+  /** 入库明细业务编号 stock_item.stock_in_item_code */
+  stockInItemCode?: string | null
   stockAggregateId: string
   materialId: string
   availableQty: number

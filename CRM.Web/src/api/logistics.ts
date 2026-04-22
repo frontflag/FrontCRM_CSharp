@@ -55,8 +55,15 @@ export interface QcInfoDto {
   stockInId?: string
   /** 质检保存的计划入库日（ISO）；生成入库单时优先使用 */
   stockInPlanDate?: string | null
+  /** 部分接口仍返回 PascalCase */
+  StockInPlanDate?: string | null
   createTime: string
   modifyTime?: string
+  createByUserId?: string | null
+  /** 列表由后端根据 createByUserId 解析 */
+  createUserName?: string | null
+  /** 个别序列化配置可能保留 PascalCase */
+  CreateUserName?: string | null
 }
 
 const unwrap = <T>(res: any): T => (res?.data ?? res) as T

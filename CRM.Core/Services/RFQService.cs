@@ -254,6 +254,7 @@ namespace CRM.Core.Services
             row.CustomerId = null;
             row.CustomerName = null;
             row.CustomerMpn = null;
+            row.CustomerBrand = null;
         }
 
         public async Task<PagedResult<RFQListItem>> GetPagedAsync(RFQQueryRequest request)
@@ -271,7 +272,8 @@ namespace CRM.Core.Services
                 query = query.Where(r =>
                     r.RfqCode.ToLower().Contains(kw) ||
                     (r.Industry != null && r.Industry.ToLower().Contains(kw)) ||
-                    (r.Product != null && r.Product.ToLower().Contains(kw)));
+                    (r.Product != null && r.Product.ToLower().Contains(kw)) ||
+                    (r.Remark != null && r.Remark.ToLower().Contains(kw)));
             }
             if (request.Status.HasValue)
                 query = query.Where(r => r.Status == request.Status.Value);
@@ -312,10 +314,12 @@ namespace CRM.Core.Services
                     CustomerName = r.CustomerId != null && customers.ContainsKey(r.CustomerId) ? customers[r.CustomerId] : null,
                     Status = r.Status,
                     RfqType = r.RfqType,
+                    TargetType = r.TargetType,
                     Industry = r.Industry,
                     Product = r.Product,
                     Importance = r.Importance,
                     ItemCount = r.ItemCount,
+                    Remark = r.Remark,
                     CreateTime = r.CreateTime,
                     SalesUserId = r.SalesUserId,
                     SalesUserName = EntityLookupService.FormatUserDisplayName(salesUser),
@@ -410,6 +414,7 @@ namespace CRM.Core.Services
                     LineNo = item.LineNo,
                     Mpn = item.Mpn,
                     CustomerMpn = item.CustomerMpn,
+                    CustomerBrand = string.IsNullOrWhiteSpace(item.CustomerBrand) ? null : item.CustomerBrand.Trim(),
                     Brand = item.Brand,
                     Quantity = item.Quantity,
                     Status = lineStatus,

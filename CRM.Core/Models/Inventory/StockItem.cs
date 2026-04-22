@@ -30,6 +30,16 @@ namespace CRM.Core.Models.Inventory
         [StringLength(36)]
         public string StockAggregateId { get; set; } = string.Empty;
 
+        /// <summary>在库明细业务编号（与分桶 <c>StockCode</c> 一致：<c>{StockCode}-{行序号}</c>，生成规则同 <see cref="StockInItem.StockInItemCode"/>）。</summary>
+        [StringLength(64)]
+        [Column("stock_item_code")]
+        public string? StockItemCode { get; set; }
+
+        /// <summary>对应入库明细业务编号（冗余自 <see cref="StockInItem.StockInItemCode"/>，便于列表/拣货少一次关联）。</summary>
+        [StringLength(64)]
+        [Column("stock_in_item_code")]
+        public string? StockInItemCode { get; set; }
+
         [Required]
         [StringLength(36)]
         public string MaterialId { get; set; } = string.Empty;

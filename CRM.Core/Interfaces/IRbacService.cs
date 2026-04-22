@@ -26,5 +26,8 @@ namespace CRM.Core.Interfaces
         public short IdentityType { get; set; } = 0;
         public short SaleDataScope { get; set; } = 1;
         public short PurchaseDataScope { get; set; } = 1;
+
+        /// <summary>是否隶属采购侧部门（主部门 IdentityType 2/3、兼任采购部门、或主部门名称含采购等兜底），与权限汇总逻辑一致。</summary>
+        public bool BelongsToPurchaseDept { get; set; }
     }
 }

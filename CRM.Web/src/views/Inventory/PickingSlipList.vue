@@ -10,17 +10,27 @@
           </div>
           <h1 class="page-title">{{ t('pickingSlip.title') }}</h1>
         </div>
-        <div class="count-badge">{{ t('pickingSlip.count', { count: filteredList.length }) }}</div>
+        <div class="picking-count-badge">{{ t('pickingSlip.count', { count: filteredList.length }) }}</div>
       </div>
-      <div class="header-right">
-        <el-input
-          v-model="keyword"
-          :placeholder="t('pickingSlip.filters.keywordPlaceholder')"
-          clearable
-          style="width: 280px"
-          @keyup.enter="fetchList"
-        />
-        <button class="btn-secondary" type="button" @click="refreshPickingList">{{ t('pickingSlip.filters.refresh') }}</button>
+    </div>
+
+    <div class="search-bar">
+      <div class="search-left">
+        <span class="filter-field-label">{{ t('pickingSlip.filters.keyword') }}</span>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="keyword"
+            class="search-input search-input--picking"
+            :placeholder="t('pickingSlip.filters.keywordPlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <button type="button" class="btn-primary btn-sm" @click="handleSearch">{{ t('pickingSlip.filters.search') }}</button>
+        <button type="button" class="btn-ghost btn-sm" @click="handleReset">{{ t('pickingSlip.filters.reset') }}</button>
       </div>
     </div>
 
@@ -39,7 +49,7 @@
         <span class="status-badge">{{ statusLabel(row) }}</span>
       </template>
       <template #col-warehouseDisplay="{ row }">
-        <span class="text-secondary">{{ displayCell(row, 'warehouseDisplay') }}</span>
+        <span>{{ displayCell(row, 'warehouseDisplay') }}</span>
       </template>
       <template #col-materialModel="{ row }">
         <span>{{ displayCell(row, 'materialModel') }}</span>
@@ -66,7 +76,7 @@
         <span class="mono-cell">{{ displayCell(row, 'taskCode') }}</span>
       </template>
       <template #col-createTime="{ row }">
-        <span class="text-secondary">{{ formatCellTime(row) }}</span>
+        <span>{{ formatCellTime(row) }}</span>
       </template>
       <template #col-createUserDisplay="{ row }">
         <span>{{ displayCell(row, 'createUserDisplay') }}</span>
@@ -224,7 +234,17 @@ async function runPickingFetch(resetPage: boolean) {
 }
 
 const fetchList = () => void runPickingFetch(true)
-const refreshPickingList = () => void runPickingFetch(false)
+
+const handleSearch = () => {
+  listPage.value = 1
+  void runPickingFetch(false)
+}
+
+const handleReset = () => {
+  keyword.value = ''
+  listPage.value = 1
+  void runPickingFetch(false)
+}
 
 onMounted(() => void fetchList())
 </script>
@@ -236,24 +256,28 @@ onMounted(() => void fetchList())
   padding: 24px;
   min-height: 100%;
   background: $layer-1;
+  font-family: 'Noto Sans SC', sans-serif;
 }
+
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 20px;
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
 }
-.header-left,
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+
 .page-title-group {
   display: flex;
   align-items: center;
   gap: 10px;
 }
+
 .page-icon {
   width: 36px;
   height: 36px;
@@ -265,28 +289,128 @@ onMounted(() => void fetchList())
   justify-content: center;
   color: $cyan-primary;
 }
+
 .page-title {
   font-size: 20px;
   font-weight: 600;
   color: $text-primary;
   margin: 0;
+  letter-spacing: 0.5px;
 }
-.count-badge {
-  font-size: 13px;
+
+.picking-count-badge {
+  font-size: 12px;
   color: $text-muted;
-  margin-left: 8px;
-}
-.btn-secondary {
-  padding: 8px 14px;
-  border-radius: $border-radius-md;
-  font-size: 13px;
-  cursor: pointer;
-  border: 1px solid $border-panel;
   background: rgba(255, 255, 255, 0.05);
-  color: $text-secondary;
+  border: 1px solid $border-panel;
+  border-radius: 20px;
+  padding: 3px 10px;
 }
-.text-secondary {
-  color: rgba(200, 216, 232, 0.78);
+
+// ---- 搜索栏（与客户列表 search-bar 一致）----
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.search-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
+  white-space: nowrap;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: $text-muted;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 220px;
+  padding: 7px 12px 7px 32px;
+  background: $layer-2;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-primary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: $text-muted;
+  }
+
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+
+  &.search-input--picking {
+    width: 280px;
+  }
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: rgba(0, 212, 255, 0.3);
+    color: $text-secondary;
+  }
 }
 .qty-cell {
   font-variant-numeric: tabular-nums;
@@ -324,6 +448,6 @@ onMounted(() => void fetchList())
   padding: 2px 8px;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.06);
-  color: rgba(220, 232, 246, 0.92);
+  color: $text-primary;
 }
 </style>

@@ -85,6 +85,9 @@ export interface CompanyProfileBundle {
 
 const BASE = '/api/v1/company-profile'
 
+/** 登录页左侧品牌图（匿名 GET，与「公司信息」公司 Logo 默认/首条有文件记录同源） */
+export const COMPANY_LOGIN_LOGO_URL = `${BASE}/login-logo`
+
 export async function fetchCompanyProfile(): Promise<CompanyProfileBundle> {
   const res = await apiClient.get<CompanyProfileBundle>(BASE)
   return res as CompanyProfileBundle

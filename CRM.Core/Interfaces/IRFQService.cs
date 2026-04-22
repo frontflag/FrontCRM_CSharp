@@ -108,10 +108,13 @@ namespace CRM.Core.Interfaces
         public string? CustomerName { get; set; }
         public short Status { get; set; }
         public short RfqType { get; set; }
+        /// <summary>目标类型：1比价 2独家 3紧急 4常规</summary>
+        public short TargetType { get; set; }
         public string? Industry { get; set; }
         public string? Product { get; set; }
         public short Importance { get; set; }
         public int ItemCount { get; set; }
+        public string? Remark { get; set; }
         public DateTime CreateTime { get; set; }
 
         /// <summary>业务员用户 ID</summary>
@@ -155,6 +158,8 @@ namespace CRM.Core.Interfaces
         public int LineNo { get; set; }
         public string Mpn { get; set; } = string.Empty;
         public string? CustomerMpn { get; set; }
+        /// <summary>客户指定品牌（脱敏时清空）</summary>
+        public string? CustomerBrand { get; set; }
         public string Brand { get; set; } = string.Empty;
         public decimal Quantity { get; set; }
         public short Status { get; set; }

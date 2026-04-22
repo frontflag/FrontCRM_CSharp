@@ -55,6 +55,38 @@ export interface StockOutApplyContextDto {
   suggestedMaxQty: number
 }
 
+/** 解包 GET apply-context：兼容 PascalCase、双重 data 包层，避免备货字段解析为 0 */
+function normalizeApplyContextPayload(res: unknown): StockOutApplyContextDto {
+  let o: Record<string, unknown> | null = null
+  if (res && typeof res === 'object') {
+    o = res as Record<string, unknown>
+    const inner = o.data ?? o.Data
+    if (inner && typeof inner === 'object') o = inner as Record<string, unknown>
+  }
+  if (!o) {
+    return {
+      salesOrderItemId: '',
+      salesOrderQty: 0,
+      alreadyNotifiedQty: 0,
+      remainingNotifyQty: 0,
+      availableStockQty: 0,
+      purchasedStockAvailableQty: 0,
+      suggestedMaxQty: 0
+    }
+  }
+  const num = (v: unknown) => Number(v ?? 0)
+  const truncInt = (v: unknown) => Math.trunc(num(v))
+  return {
+    salesOrderItemId: String(o.salesOrderItemId ?? o.SalesOrderItemId ?? ''),
+    salesOrderQty: num(o.salesOrderQty ?? o.SalesOrderQty),
+    alreadyNotifiedQty: num(o.alreadyNotifiedQty ?? o.AlreadyNotifiedQty),
+    remainingNotifyQty: num(o.remainingNotifyQty ?? o.RemainingNotifyQty),
+    availableStockQty: num(o.availableStockQty ?? o.AvailableStockQty),
+    purchasedStockAvailableQty: truncInt(o.purchasedStockAvailableQty ?? o.PurchasedStockAvailableQty),
+    suggestedMaxQty: num(o.suggestedMaxQty ?? o.SuggestedMaxQty)
+  }
+}
+
 /** GET /api/v1/stock-out/:id/invoice-report-bundle（打印页：出库详情 + 公司参数） */
 export interface StockOutInvoiceReportBundle {
   stockOut: StockOutDetailDto
@@ -128,6 +160,8 @@ export interface StockOutItemListQuery {
   salesUserName?: string
   purchasePn?: string
   sellOrderItemCode?: string
+  /** 入库单号（子串匹配） */
+  stockInCode?: string
 }
 
 export interface StockOutItemListRow {
@@ -144,6 +178,8 @@ export interface StockOutItemListRow {
   shipmentMethod?: string | null
   courierTrackingNo?: string | null
   sellOrderItemCode?: string | null
+  /** 来源入库单号 */
+  stockInCode?: string | null
 }
 
 export interface StockOutRequestDto {
@@ -234,9 +270,10 @@ export const stockOutApi = {
   },
 
   async getApplyContext(salesOrderId: string, salesOrderItemId: string): Promise<StockOutApplyContextDto> {
-    return apiClient.get<StockOutApplyContextDto>('/api/v1/stock-out/request/apply-context', {
+    const res = await apiClient.get<unknown>('/api/v1/stock-out/request/apply-context', {
       params: { salesOrderId, salesOrderItemId }
     })
+    return normalizeApplyContextPayload(res)
   },
 
   async createRequest(data: {

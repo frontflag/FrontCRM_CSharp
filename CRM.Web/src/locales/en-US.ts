@@ -244,6 +244,8 @@ const enUS = {
       roleManagement: 'Role',
       permissionManagement: 'Permission',
       paramManagement: 'Parameter',
+      systemLogs: 'System logs',
+      operationLog: 'Operation log',
       companyInfo: 'Company Info',
       dictItems: 'Dictionary Items',
       financeParams: 'Finance parameters',
@@ -314,6 +316,16 @@ const enUS = {
   },
   login: {
     version: 'Version: {version}',
+    welcomeTitle: 'Welcome back',
+    welcomeSub: 'Sign in to continue',
+    sloganLine1: 'Intelligence drives',
+    sloganLine2: 'the future of decisions',
+    brandLogoAlt: 'Company logo',
+    featureSync: 'Real-time sync',
+    featureTrack: 'Full-chain traceability',
+    featureReport: 'Smart analytics',
+    rememberMe: 'Remember me',
+    forgotPassword: 'Forgot password?',
     accountLogin: 'Account Login',
     wechatLogin: 'WeChat QR',
     accountLabel: 'Account',
@@ -471,6 +483,32 @@ const enUS = {
     fillCode: 'Please enter permission code',
     fillName: 'Please enter permission name',
     typePlaceholder: 'api / menu / button'
+  },
+  operationLog: {
+    title: 'Operation log',
+    count: 'Total {count}',
+    empty: 'No operation logs',
+    bizType: 'Biz type',
+    actionType: 'Action type',
+    recordCode: 'Record code',
+    operatorUserName: 'Operator',
+    operationTime: 'Operation time',
+    reason: 'Reason',
+    query: 'Search',
+    reset: 'Reset',
+    any: 'All',
+    contains: 'Contains',
+    timeFrom: 'From',
+    timeTo: 'To',
+    loadFailed: 'Failed to load operation logs',
+    colOperationTime: 'Time',
+    colBizType: 'Biz type',
+    colActionType: 'Action',
+    colRecordCode: 'Code',
+    colRecordId: 'Record ID',
+    colOperator: 'Operator',
+    colReason: 'Reason',
+    colOperationDesc: 'Description'
   },
   dashboardSettings: {
     title: 'System Settings',
@@ -784,6 +822,7 @@ const enUS = {
       phPhone: 'Enter mobile number',
       department: 'Department',
       phDepartment: 'Enter department',
+      readonlyHint: 'Maintained by an administrator; not editable here',
       bio: 'Bio',
       phBio: 'Tell us about yourself',
       saveChanges: 'Save changes'
@@ -886,9 +925,11 @@ const enUS = {
       customer: 'Customer',
       product: 'Product',
       industry: 'Industry',
-      itemCount: 'Item Count',
-      importance: 'Priority',
-      type: 'Type',
+      itemCount: 'Line Items',
+      targetType: 'Target Type',
+      rfqType: 'RFQ Type',
+      importance: 'Importance',
+      remark: 'Remark',
       salesUser: 'Sales Rep',
       createTime: 'Created At',
       createUser: 'Created By'
@@ -976,8 +1017,10 @@ const enUS = {
       rfqCode: 'RFQ Code',
       quoteCount: 'Quote Items',
       customer: 'Customer',
-      materialModel: 'Material Model',
       customerPart: 'Customer Part',
+      customerBrand: 'Customer Brand',
+      materialModel: 'Material Model',
+      brand: 'Brand',
       quantity: 'Quantity',
       salesUser: 'Sales Rep',
       purchaser: 'Purchaser',
@@ -2667,7 +2710,13 @@ const enUS = {
       successPosted: 'Stock-in created and posted.',
       defaultMaterialName: 'Material',
       remarkFromQc: 'Generated from QC {code}',
-      stockInErrorFallback: 'Failed to create stock-in'
+      stockInErrorFallback: 'Failed to create stock-in',
+      noWarehouseForRegion:
+        'No enabled warehouse matches region type "{region}". Add or enable a warehouse with the same region as the arrival notice before creating stock-in.',
+      pickWarehouseTitle: 'Select warehouse for stock-in',
+      pickWarehouseHint:
+        'The arrival notice region type is "{region}". Multiple enabled warehouses match. Choose where to receive this stock-in:',
+      pickWarehouseRequired: 'Please select a warehouse'
     }
   },
   purchaseRequisitionList: {
@@ -2785,6 +2834,7 @@ const enUS = {
     },
     columns: {
       outboundStatus: 'Outbound',
+      stockItemCode: 'Stock item code',
       stockInCode: 'Stock-in code',
       stockInDate: 'Stock-in date',
       warehouse: 'Warehouse',
@@ -2815,8 +2865,7 @@ const enUS = {
       stockCode: 'Stock code',
       materialModel: 'Material model',
       brand: 'Brand',
-      warehouse: 'Warehouse',
-      stockId: 'Stock ID'
+      warehouse: 'Warehouse'
     },
     stockItemsSection: 'Stock items (StockItem)',
     traceSection: 'Material stock-in trace',
@@ -2824,6 +2873,7 @@ const enUS = {
     noMaterialForTrace: 'Cannot resolve material ID for trace',
     loadItemsFailed: 'Failed to load stock items',
     columns: {
+      stockItemCode: 'Stock item code',
       stockInCode: 'Stock-in code',
       batchNo: 'Batch',
       productionDate: 'Production date',
@@ -3129,6 +3179,7 @@ const enUS = {
     filters: {
       status: 'Status',
       stockOutCode: 'Stock-out code',
+      stockInCode: 'Inbound doc no.',
       stockOutDateRange: 'Stock-out date',
       stockOutDateFrom: 'From',
       stockOutDateTo: 'To',
@@ -3143,6 +3194,7 @@ const enUS = {
     columns: {
       status: 'Status',
       stockOutCode: 'Stock-out code',
+      stockInCode: 'Inbound doc no.',
       stockOutDate: 'Stock-out date',
       customerName: 'Customer',
       salesUserName: 'Sales rep',
@@ -3311,8 +3363,10 @@ const enUS = {
     detailTitle: 'Picking slip detail',
     count: '{count} records total',
     filters: {
+      keyword: 'Keyword',
       keywordPlaceholder: 'Picking slip no. / notice no. / customer',
-      refresh: 'Refresh'
+      search: 'Search',
+      reset: 'Reset'
     },
     columns: {
       status: 'Status',

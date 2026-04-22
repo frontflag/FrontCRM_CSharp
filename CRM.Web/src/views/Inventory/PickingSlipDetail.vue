@@ -48,8 +48,11 @@
         <h3 class="section-title">{{ t('pickingSlip.detail.sectionLines') }}</h3>
         <el-table :data="lines" border class="lines-table" size="small" empty-text="—">
           <el-table-column label="物料" min-width="120" prop="materialId" show-overflow-tooltip />
-          <el-table-column label="在库明细" min-width="120" show-overflow-tooltip>
-            <template #default="{ row }">{{ shortStockItem(row) }}</template>
+          <el-table-column label="在库明细编号" min-width="140" show-overflow-tooltip>
+            <template #default="{ row }">{{ lineStockItemCode(row) }}</template>
+          </el-table-column>
+          <el-table-column label="入库明细编号" min-width="140" show-overflow-tooltip>
+            <template #default="{ row }">{{ lineStockInItemCode(row) }}</template>
           </el-table-column>
           <el-table-column :label="t('inventoryList.columns.stockType')" width="100" align="center">
             <template #default="{ row }">{{ stockTypeLabel(row) }}</template>
@@ -161,11 +164,19 @@ function lineIsStocking(line: PickingTaskLine) {
   return Boolean(x.isStockingSupplement ?? x.IsStockingSupplement)
 }
 
-function shortStockItem(line: PickingTaskLine) {
+function lineStockItemCode(line: PickingTaskLine) {
   const x = lineRecord(line)
+  const code = String(x.stockItemCode ?? x.StockItemCode ?? '').trim()
+  if (code) return code
   const id = String(x.stockItemId ?? x.StockItemId ?? '').trim()
   if (!id) return '—'
   return id.length <= 12 ? id : `${id.slice(0, 6)}…${id.slice(-4)}`
+}
+
+function lineStockInItemCode(line: PickingTaskLine) {
+  const x = lineRecord(line)
+  const v = String(x.stockInItemCode ?? x.StockInItemCode ?? '').trim()
+  return v || '—'
 }
 
 const goBack = () => {

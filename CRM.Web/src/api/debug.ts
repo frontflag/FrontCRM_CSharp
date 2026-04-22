@@ -70,3 +70,45 @@ export async function simulateBusinessChain(payload: SimulateBusinessChainReques
       : []
   }
 }
+
+export type RfqChainNode = {
+  node: string
+  code: string
+  id: string
+}
+
+export type RfqChainPreview = {
+  rfqCode: string | null
+  nodes: RfqChainNode[]
+}
+
+function normalizeRfqChainPreview(raw: unknown): RfqChainPreview {
+  const r = raw as Record<string, unknown> | null | undefined
+  const inner = (r?.data ?? r?.Data ?? r) as Record<string, unknown> | null | undefined
+  if (!inner || typeof inner !== 'object') {
+    return { rfqCode: null, nodes: [] }
+  }
+  const nodesRaw = inner.nodes ?? inner.Nodes
+  const nodes: RfqChainNode[] = Array.isArray(nodesRaw)
+    ? nodesRaw.map((row: Record<string, unknown>) => ({
+        node: String(row.node ?? row.Node ?? ''),
+        code: String(row.code ?? row.Code ?? ''),
+        id: String(row.id ?? row.Id ?? '')
+      }))
+    : []
+  const rfqCode = inner.rfqCode ?? inner.RfqCode
+  return { rfqCode: rfqCode != null ? String(rfqCode) : null, nodes }
+}
+
+/** GET /api/v1/debug/rfq-chain?rfqCode= */
+export async function getRfqChainPreview(rfqCode: string): Promise<RfqChainPreview> {
+  const enc = encodeURIComponent(rfqCode.trim())
+  const raw = await apiClient.get<unknown>(`/api/v1/debug/rfq-chain?rfqCode=${enc}`)
+  return normalizeRfqChainPreview(raw)
+}
+
+/** DELETE /api/v1/debug/rfq-chain?rfqCode= */
+export async function deleteRfqChain(rfqCode: string): Promise<void> {
+  const enc = encodeURIComponent(rfqCode.trim())
+  await apiClient.delete(`/api/v1/debug/rfq-chain?rfqCode=${enc}`)
+}

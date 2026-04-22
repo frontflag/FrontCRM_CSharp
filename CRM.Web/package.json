@@ -6,6 +6,7 @@
     "predev": "node ../scripts/sync-help.mjs",
     "prebuild": "node ../scripts/sync-help.mjs",
     "dev": "vite",
+    "typecheck": "vue-tsc --noEmit",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",

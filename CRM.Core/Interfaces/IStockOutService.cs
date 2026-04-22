@@ -169,6 +169,9 @@ namespace CRM.Core.Interfaces
         public string? SalesUserName { get; set; }
         public string? PurchasePn { get; set; }
         public string? SellOrderItemCode { get; set; }
+
+        /// <summary>入库单号（<c>stock_in.StockInCode</c>），子串匹配</summary>
+        public string? StockInCode { get; set; }
     }
 
     /// <summary><c>stockoutitem</c> 行 + 头表展示字段。</summary>
@@ -188,5 +191,8 @@ namespace CRM.Core.Interfaces
         public string? ShipmentMethod { get; set; }
         public string? CourierTrackingNo { get; set; }
         public string? SellOrderItemCode { get; set; }
+
+        /// <summary>来源入库单号（拣货扩展 <c>StockInItemId</c> → 入库头 <c>StockInCode</c>）</summary>
+        public string? StockInCode { get; set; }
     }
 }

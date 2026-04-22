@@ -1,201 +1,191 @@
 <template>
   <div class="login-view">
-    <!-- 版本号 -->
-    <div class="version-tag">{{ t('login.version', { version: '03160634' }) }}</div>
-
-    <!-- 背景动态粒子网格 -->
-    <div class="bg-grid"></div>
-    <div class="bg-glow bg-glow--left"></div>
-    <div class="bg-glow bg-glow--right"></div>
-
-    <div class="login-container">
-      <!-- Logo 区域 -->
-      <div class="brand">
-        <div class="brand-icon">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <polygon points="16,2 30,10 30,22 16,30 2,22 2,10" fill="none" stroke="#00D4FF" stroke-width="1.5"/>
-            <polygon points="16,8 24,13 24,19 16,24 8,19 8,13" fill="rgba(0,212,255,0.15)" stroke="#00D4FF" stroke-width="1"/>
-            <circle cx="16" cy="16" r="3" fill="#00D4FF"/>
-          </svg>
+    <div class="login-split">
+      <!-- 左侧：品牌与 Slogan -->
+      <aside class="login-slogan" aria-label="brand">
+        <div class="slogan-bg" aria-hidden="true">
+          <div class="slogan-orbit slogan-orbit--1" />
+          <div class="slogan-orbit slogan-orbit--2" />
+          <div class="slogan-orbit slogan-orbit--3" />
+          <div class="slogan-beam" />
         </div>
-        <div class="brand-text">
-          <span class="brand-name">FrontCRM</span>
-          <span class="brand-sub">AI智销系统</span>
+        <div class="slogan-inner">
+          <header class="slogan-brand">
+            <div class="slogan-brand-mark">
+              <img
+                class="slogan-brand-img"
+                :src="loginBrandLogoSrc"
+                :alt="t('login.brandLogoAlt')"
+                @error="onLoginBrandLogoError"
+              />
+            </div>
+          </header>
+
+          <h1 class="slogan-headline">
+            <span class="slogan-line slogan-line--white">{{ t('login.sloganLine1') }}</span>
+            <span class="slogan-line slogan-line--accent">{{ t('login.sloganLine2') }}</span>
+          </h1>
+
+          <ul class="slogan-tags" aria-label="features">
+            <li><span class="slogan-dot" />{{ t('login.featureSync') }}</li>
+            <li><span class="slogan-dot" />{{ t('login.featureTrack') }}</li>
+            <li><span class="slogan-dot" />{{ t('login.featureReport') }}</li>
+          </ul>
         </div>
-      </div>
+      </aside>
 
-      <!-- 登录卡片 -->
-      <div class="login-card">
-        <!-- 卡片顶部装饰线 -->
-        <div class="card-top-line"></div>
-
-        <!-- 登录方式 Tab -->
-        <div class="login-tabs">
-          <button
-            :class="['tab-btn', { active: loginType === 'password' }]"
-            @click="loginType = 'password'; isWechatLogin = false; stopPolling()"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
+      <!-- 右侧：登录 -->
+      <main class="login-panel">
+        <div class="login-panel__toolbar">
+          <span class="version-tag">{{ t('login.version', { version: '03160634' }) }}</span>
+          <button type="button" class="theme-moon" title="Theme" aria-label="Theme">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
-            {{ t('login.accountLogin') }}
-          </button>
-          <button
-            :class="['tab-btn', { active: loginType === 'wechat' }]"
-            @click="switchToWechatLogin"
-          >
-            <el-icon style="font-size:14px"><ChatDotRound /></el-icon>
-            {{ t('login.wechatLogin') }}
           </button>
         </div>
 
-        <!-- 账号密码登录区域 -->
-        <div v-show="loginType === 'password'">
-          <el-form
-            ref="formRef"
-            :model="form"
-            :rules="rules"
-            @submit.prevent="handleLogin"
-            class="login-form"
-          >
-            <!-- 账号 -->
-            <div class="form-field">
-              <label class="field-label">{{ t('login.accountLabel') }}</label>
-              <el-form-item prop="userName">
-                <div class="input-wrapper">
-                  <span class="input-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                      <circle cx="12" cy="7" r="4"/>
-                    </svg>
-                  </span>
-                  <el-input
-                    v-model="form.userName"
-                    :placeholder="t('login.accountPlaceholder')"
-                    class="custom-input"
-                  />
-                </div>
-              </el-form-item>
-            </div>
+        <div class="login-panel__middle">
+        <div class="login-card">
+          <h2 class="panel-welcome">{{ t('login.welcomeTitle') }}</h2>
+          <p class="panel-welcome-sub">{{ t('login.welcomeSub') }}</p>
 
-            <!-- 密码 -->
-            <div class="form-field">
-              <label class="field-label">{{ t('login.passwordLabel') }}</label>
-              <el-form-item prop="password">
-                <div class="input-wrapper">
-                  <span class="input-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                    </svg>
-                  </span>
-                  <el-input
-                    v-model="form.password"
-                    type="password"
-                    :placeholder="t('login.passwordPlaceholder')"
-                    show-password
-                    class="custom-input"
-                  />
-                </div>
-              </el-form-item>
-            </div>
-
-            <!-- 错误提示 -->
-            <div v-if="errorMsg" class="error-alert">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-              {{ errorMsg }}
-            </div>
-
-            <!-- 登录按鈕 -->
+          <div class="login-tabs">
             <button
-              type="submit"
-              class="login-btn"
-              :class="{ 'loading': loading }"
-              :disabled="loading"
+              type="button"
+              :class="['tab-btn', { active: loginType === 'password' }]"
+              @click="switchToPasswordLogin"
             >
-              <span v-if="!loading" class="btn-content">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-                  <polyline points="10 17 15 12 10 7"/>
-                  <line x1="15" y1="12" x2="3" y2="12"/>
-                </svg>
-                {{ t('login.loginButton') }}
-              </span>
-              <span v-else class="btn-loading">
-                <span class="spinner"></span>
-                {{ t('login.validating') }}
-              </span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              {{ t('login.accountLogin') }}
             </button>
-          </el-form>
+            <button type="button" :class="['tab-btn', { active: loginType === 'wechat' }]" @click="switchToWechatLogin">
+              <el-icon style="font-size: 14px"><ChatDotRound /></el-icon>
+              {{ t('login.wechatLogin') }}
+            </button>
+          </div>
+
+          <div v-show="loginType === 'password'">
+            <el-form ref="formRef" :model="form" :rules="rules" class="login-form" @submit.prevent="handleLogin">
+              <div class="form-field">
+                <label class="field-label">{{ t('login.accountLabel') }}</label>
+                <el-form-item prop="userName">
+                  <div class="input-wrap input-wrap--light">
+                    <span class="input-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </span>
+                    <el-input v-model="form.userName" :placeholder="t('login.accountPlaceholder')" class="input-el" />
+                  </div>
+                </el-form-item>
+              </div>
+
+              <div class="form-field">
+                <label class="field-label">{{ t('login.passwordLabel') }}</label>
+                <el-form-item prop="password">
+                  <div class="input-wrap input-wrap--light">
+                    <span class="input-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    </span>
+                    <el-input
+                      v-model="form.password"
+                      type="password"
+                      :placeholder="t('login.passwordPlaceholder')"
+                      show-password
+                      class="input-el"
+                    />
+                  </div>
+                </el-form-item>
+              </div>
+
+              <div class="form-row-meta">
+                <el-checkbox v-model="rememberMe">{{ t('login.rememberMe') }}</el-checkbox>
+                <a href="#" class="forgot-link" @click.prevent>{{ t('login.forgotPassword') }}</a>
+              </div>
+
+              <div v-if="errorMsg" class="error-alert">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                {{ errorMsg }}
+              </div>
+
+              <button type="submit" class="login-btn login-btn--primary" :class="{ loading }" :disabled="loading">
+                <span v-if="!loading" class="btn-content">{{ t('login.loginButton') }}</span>
+                <span v-else class="btn-loading">
+                  <span class="spinner" />
+                  {{ t('login.validating') }}
+                </span>
+              </button>
+            </el-form>
+          </div>
+
+          <div v-show="loginType === 'wechat'" class="wechat-login-area">
+            <div v-if="qrStatus === 0" class="qr-waiting">
+              <div v-if="!qrCodeUrl" class="qr-loading">
+                <el-icon class="loading-icon"><Loading /></el-icon>
+                <p>{{ t('login.generateQr') }}</p>
+              </div>
+              <div v-else>
+                <img :src="qrCodeUrl" class="qr-code" alt="微信扫码登录" />
+                <p class="qr-tip">{{ t('login.scanTip') }}</p>
+              </div>
+            </div>
+            <div v-else-if="qrStatus === 1" class="qr-scanned">
+              <el-icon :size="48" color="#67C23A"><CircleCheck /></el-icon>
+              <p>{{ t('login.scannedTip') }}</p>
+            </div>
+            <div v-else-if="qrStatus === 5" class="qr-unbound">
+              <el-icon :size="48" color="#E6A23C"><Warning /></el-icon>
+              <h3>{{ t('login.unboundTitle') }}</h3>
+              <p>{{ t('login.unboundDesc') }}</p>
+              <div class="actions">
+                <el-button type="primary" @click="switchToPasswordLogin">{{ t('login.usePasswordFirst') }}</el-button>
+              </div>
+              <p class="tip">{{ t('login.bindTip') }}</p>
+            </div>
+            <div v-else-if="qrStatus === 3" class="qr-expired">
+              <el-icon :size="48" color="#909399"><Timer /></el-icon>
+              <p>{{ t('login.expiredTip') }}</p>
+              <el-button @click="refreshQrCode">{{ t('login.refreshQr') }}</el-button>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <span class="footer-text">{{ t('login.noAccount') }}</span>
+            <router-link to="/register" class="footer-link">{{ t('login.registerNow') }}</router-link>
+          </div>
+        </div>
         </div>
 
-        <!-- 微信扫码登录区域 -->
-        <div v-show="loginType === 'wechat'" class="wechat-login-area">
-          <!-- 等待扫码 -->
-          <div v-if="qrStatus === 0" class="qr-waiting">
-            <div v-if="!qrCodeUrl" class="qr-loading">
-              <el-icon class="loading-icon"><Loading /></el-icon>
-              <p>{{ t('login.generateQr') }}</p>
-            </div>
-            <div v-else>
-              <img :src="qrCodeUrl" class="qr-code" alt="微信扫码登录" />
-              <p class="qr-tip">{{ t('login.scanTip') }}</p>
-            </div>
-          </div>
-
-          <!-- 已扫码 -->
-          <div v-else-if="qrStatus === 1" class="qr-scanned">
-            <el-icon :size="48" color="#67C23A"><CircleCheck /></el-icon>
-            <p>{{ t('login.scannedTip') }}</p>
-          </div>
-
-          <!-- 未绑定提示 -->
-          <div v-else-if="qrStatus === 5" class="qr-unbound">
-            <el-icon :size="48" color="#E6A23C"><Warning /></el-icon>
-            <h3>{{ t('login.unboundTitle') }}</h3>
-            <p>{{ t('login.unboundDesc') }}</p>
-            <div class="actions">
-              <el-button type="primary" @click="switchToPasswordLogin">{{ t('login.usePasswordFirst') }}</el-button>
-            </div>
-            <p class="tip">{{ t('login.bindTip') }}</p>
-          </div>
-
-          <!-- 已过期 -->
-          <div v-else-if="qrStatus === 3" class="qr-expired">
-            <el-icon :size="48" color="#909399"><Timer /></el-icon>
-            <p>{{ t('login.expiredTip') }}</p>
-            <el-button @click="refreshQrCode">{{ t('login.refreshQr') }}</el-button>
-          </div>
-        </div>
-
-        <!-- 底部链接 -->
-        <div class="card-footer">
-          <span class="footer-text">{{ t('login.noAccount') }}</span>
-          <router-link to="/register" class="footer-link">{{ t('login.registerNow') }}</router-link>
-        </div>
-      </div>
-
-      <!-- 版权信息 -->
-      <div class="copyright">
-        {{ t('login.copyright') }}
-      </div>
+        <p class="copyright">{{ t('login.copyright') }}</p>
+      </main>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onUnmounted } from 'vue'
+import { reactive, ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { type FormInstance, type FormRules } from 'element-plus'
 import { ChatDotRound, Loading, CircleCheck, Warning, Timer } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores'
 import { getWechatQrCode, checkWechatLoginStatus } from '@/api/wechatAuth'
+import { COMPANY_LOGIN_LOGO_URL } from '@/api/companyProfile'
+import fallbackLoginLogoUrl from '@/assets/brand/semicore-login-logo.png'
+
+const REMEMBER_USER_KEY = 'frontcrm_login_remember_user'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -204,15 +194,24 @@ const { t } = useI18n()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 const errorMsg = ref('')
+const rememberMe = ref(false)
 
-// 登录方式
 const loginType = ref<'password' | 'wechat'>('password')
 const isWechatLogin = ref(false)
 
-// 微信扫码相关
+/** 公司信息未配置 Logo 或接口 404 时回退到内置图 */
+const loginLogoUseFallback = ref(false)
+const loginBrandLogoSrc = computed(() =>
+  loginLogoUseFallback.value ? fallbackLoginLogoUrl : COMPANY_LOGIN_LOGO_URL
+)
+
+function onLoginBrandLogoError() {
+  if (!loginLogoUseFallback.value) loginLogoUseFallback.value = true
+}
+
 const qrCodeUrl = ref('')
 const qrTicket = ref('')
-const qrStatus = ref(0) // 0=待扫码, 1=已扫码, 2=成功, 3=过期, 5=未绑定
+const qrStatus = ref(0)
 let pollingTimer: number | null = null
 
 const form = reactive({
@@ -231,27 +230,35 @@ const rules: FormRules = {
   ]
 }
 
-// 切换到微信登录
+onMounted(() => {
+  try {
+    const saved = localStorage.getItem(REMEMBER_USER_KEY)
+    if (saved) {
+      form.userName = saved
+      rememberMe.value = true
+    }
+  } catch {
+    /* ignore */
+  }
+})
+
 async function switchToWechatLogin() {
   loginType.value = 'wechat'
   isWechatLogin.value = true
   await generateQrCode()
 }
 
-// 切换到密码登录
 function switchToPasswordLogin() {
   loginType.value = 'password'
   isWechatLogin.value = false
   stopPolling()
 }
 
-// 生成二维码
 async function generateQrCode() {
   try {
     qrStatus.value = 0
     qrCodeUrl.value = ''
-    // apiClient 拦截器已解包，res 直接是业务数据
-    const res = await getWechatQrCode({ deviceType: 'web' }) as any
+    const res = (await getWechatQrCode({ deviceType: 'web' })) as any
     if (res?.qrCodeUrl) {
       qrCodeUrl.value = res.qrCodeUrl
       qrTicket.value = res.ticket
@@ -262,24 +269,21 @@ async function generateQrCode() {
   }
 }
 
-// 刷新二维码
 function refreshQrCode() {
   stopPolling()
-  generateQrCode()
+  void generateQrCode()
 }
 
-// 开始轮询
 function startPolling() {
   pollingTimer = window.setInterval(async () => {
     try {
-      // apiClient 拦截器已解包，res 直接是业务数据
-      const res = await checkWechatLoginStatus(qrTicket.value) as any
+      const res = (await checkWechatLoginStatus(qrTicket.value)) as any
       if (res?.status == null) return
 
       qrStatus.value = res.status
 
       switch (res.status) {
-        case 2: // 登录成功
+        case 2:
           stopPolling()
           if (res.authData) {
             const authData = res.authData
@@ -298,10 +302,10 @@ function startPolling() {
             router.push('/dashboard')
           }
           break
-        case 5: // 未绑定
+        case 5:
           stopPolling()
           break
-        case 3: // 过期
+        case 3:
           stopPolling()
           break
       }
@@ -311,7 +315,6 @@ function startPolling() {
   }, 2000)
 }
 
-// 停止轮询
 function stopPolling() {
   if (pollingTimer) {
     clearInterval(pollingTimer)
@@ -319,7 +322,6 @@ function stopPolling() {
   }
 }
 
-// 页面卸载时清理
 onUnmounted(() => {
   stopPolling()
 })
@@ -335,12 +337,20 @@ const handleLogin = async () => {
     try {
       const success = await authStore.login(form)
       if (success) {
+        try {
+          if (rememberMe.value && form.userName.trim()) {
+            localStorage.setItem(REMEMBER_USER_KEY, form.userName.trim())
+          } else {
+            localStorage.removeItem(REMEMBER_USER_KEY)
+          }
+        } catch {
+          /* ignore */
+        }
         router.push('/dashboard')
       } else {
         errorMsg.value = t('login.loginFailedDefault')
       }
     } catch (error: any) {
-      // 拦截器会抛出带 message 的错误对象
       errorMsg.value = error.message || error.response?.data?.message || t('login.loginFailedRetry')
     } finally {
       loading.value = false
@@ -350,305 +360,427 @@ const handleLogin = async () => {
 </script>
 
 <style scoped lang="scss">
-@import '@/assets/styles/variables.scss';
-
-// 字体引入（通过 index.html 或此处 @import）
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700&family=Noto+Sans+SC:wght@300;400;500&family=Space+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
 
 .login-view {
-  width: 100%;
+  /* 主内容区垂直跨度：介于上下留白（示意黄线）之间，随视口增高 */
+  --login-band-min-h: clamp(520px, min(74vh, calc(100vh - 10.5rem)), 840px);
   min-height: 100vh;
-  background-color: $layer-1;
+  width: 100%;
+  font-family: 'Noto Sans SC', system-ui, sans-serif;
+}
+
+.login-split {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* ========== 左侧 Slogan ========== */
+.login-slogan {
+  flex: 1;
+  min-width: 0;
+  min-height: 100vh;
+  box-sizing: border-box;
   position: relative;
+  background: linear-gradient(160deg, #0b1426 0%, #0f1f3a 45%, #0c1730 100%);
+  color: #e8eef8;
   overflow: hidden;
-  font-family: 'Noto Sans SC', sans-serif;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: clamp(56px, 10vh, 120px) clamp(40px, 4vw, 56px);
 }
 
-// 版本号标签
-.version-tag {
-  position: fixed;
-  top: 12px;
-  left: 14px;
-  font-family: 'Space Mono', monospace;
-  font-size: 11px;
-  color: rgba(0, 212, 255, 0.5);
-  letter-spacing: 1px;
-  z-index: 100;
-  pointer-events: none;
-  user-select: none;
-}
-
-// 背景网格
-.bg-grid {
+.slogan-bg {
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(0, 212, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 212, 255, 0.04) 1px, transparent 1px);
-  background-size: 40px 40px;
   pointer-events: none;
 }
 
-// 背景光晕
-.bg-glow {
+.slogan-orbit {
   position: absolute;
-  width: 500px;
-  height: 500px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 50%;
-  pointer-events: none;
-  filter: blur(100px);
-
-  &--left {
-    left: -200px;
-    top: -100px;
-    background: radial-gradient(circle, rgba(0, 102, 255, 0.12) 0%, transparent 70%);
-  }
-
-  &--right {
-    right: -200px;
-    bottom: -100px;
-    background: radial-gradient(circle, rgba(0, 212, 255, 0.10) 0%, transparent 70%);
-  }
+  opacity: 0.85;
 }
 
-// 主容器
-.login-container {
+.slogan-orbit--1 {
+  width: 120%;
+  height: 140%;
+  left: -35%;
+  top: -30%;
+}
+
+.slogan-orbit--2 {
+  width: 95%;
+  height: 110%;
+  right: -40%;
+  bottom: -35%;
+}
+
+.slogan-orbit--3 {
+  width: 70%;
+  height: 70%;
+  left: 8%;
+  bottom: -18%;
+  opacity: 0.5;
+}
+
+.slogan-beam {
+  position: absolute;
+  top: -20%;
+  right: -5%;
+  width: 55%;
+  height: 70%;
+  background: radial-gradient(ellipse at 70% 20%, rgba(56, 189, 248, 0.22) 0%, transparent 55%);
+  filter: blur(2px);
+}
+
+.slogan-inner {
   position: relative;
   z-index: 1;
+  max-width: 440px;
   width: 100%;
-  max-width: 420px;
-  padding: 0 20px;
+  min-height: var(--login-band-min-h);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  align-items: stretch;
+  box-sizing: border-box;
+}
+
+.slogan-brand {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+.slogan-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.35);
+}
+
+.slogan-brand-img {
+  display: block;
+  height: clamp(26px, 3.6vh, 36px);
+  width: auto;
+  max-width: min(220px, 72vw);
+  object-fit: contain;
+}
+
+.slogan-headline {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+
+.slogan-line {
+  display: block;
+}
+
+.slogan-line--white {
+  color: #f8fafc;
+}
+
+.slogan-line--accent {
+  color: #38bdf8;
+  margin-top: clamp(10px, 1.4vh, 18px);
+}
+
+.slogan-tags {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(12px, 1.6vh, 18px) clamp(12px, 1.8vw, 16px);
+}
+
+.slogan-tags li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: clamp(10px, 1.2vh, 14px) clamp(14px, 2vw, 18px);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  font-size: 0.8125rem;
+  color: rgba(241, 245, 249, 0.92);
+}
+
+.slogan-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.55);
+}
+
+/* ========== 右侧登录 ========== */
+.login-panel {
+  flex: 1;
+  min-width: 0;
+  min-height: 100vh;
+  box-sizing: border-box;
+  background: #fff;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
+  padding: 24px;
+  position: relative;
 }
 
-// 品牌区域
-.brand {
+.login-panel__toolbar {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  right: 24px;
+  max-width: 400px;
+  margin: 0 auto;
+  width: calc(100% - 48px);
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  z-index: 1;
+}
 
-  .brand-icon {
-    width: 48px;
-    height: 48px;
-    background: rgba(0, 212, 255, 0.08);
-    border: 1px solid rgba(0, 212, 255, 0.25);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 0 16px rgba(0, 212, 255, 0.1);
-  }
+.login-panel__middle {
+  flex: 1;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  align-self: center;
+  min-height: 0;
+  padding-top: clamp(48px, 9vh, 100px);
+  padding-bottom: clamp(32px, 5vh, 64px);
+  box-sizing: border-box;
+}
 
-  .brand-text {
-    display: flex;
-    flex-direction: column;
-  }
+.version-tag {
+  font-size: 11px;
+  color: #94a3b8;
+  letter-spacing: 0.04em;
+}
 
-  .brand-name {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 20px;
-    font-weight: 700;
-    color: $text-primary;
-    letter-spacing: 1px;
-    line-height: 1.2;
-  }
+.theme-moon {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  padding: 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
 
-  .brand-sub {
-    font-size: 11px;
-    color: rgba(0, 212, 255, 0.6);
-    letter-spacing: 2px;
-    margin-top: 2px;
+  &:hover {
+    background: #f1f5f9;
+    color: #334155;
   }
 }
 
-// 登录卡片
 .login-card {
   width: 100%;
-  background: $layer-2;
-  border: 1px solid $border-card;
-  border-radius: $border-radius-xl;
-  padding: 32px;
-  position: relative;
-  box-shadow: $shadow-md, $shadow-glow;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 2.2vh, 28px);
+  box-sizing: border-box;
+  /* 登录整块（红框区域）相对原垂直位置整体下移 70px（原 100px 再上移 30px），左侧与顶栏不动 */
+  transform: translateY(70px);
+}
 
-  // 顶部青色装饰线
-  .card-top-line {
-    position: absolute;
-    top: 0;
-    left: 32px;
-    right: 32px;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, $cyan-primary, transparent);
-    border-radius: 0 0 2px 2px;
-    opacity: 0.6;
+.panel-welcome {
+  margin: 0;
+  font-size: 1.625rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.panel-welcome-sub {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.55;
+}
+
+.login-tabs {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  margin: clamp(4px, 0.6vh, 10px) 0 0;
+  gap: 0;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: clamp(12px, 1.6vh, 16px) 0 clamp(14px, 1.8vh, 18px);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: #64748b;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  &:hover {
+    color: #2563eb;
+  }
+
+  &.active {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
   }
 }
 
-// 卡片标题
-.card-header {
-  margin-bottom: 28px;
-
-  .card-title {
-    font-size: 22px;
-    font-weight: 600;
-    color: $text-primary;
-    margin-bottom: 6px;
-    letter-spacing: 0.5px;
-  }
-
-  .card-subtitle {
-    font-size: 13px;
-    color: $text-muted;
-  }
-}
-
-// 表单
 .login-form {
   :deep(.el-form-item) {
     margin-bottom: 0;
   }
 
   :deep(.el-form-item__error) {
-    color: $color-red-brown;
-    font-size: 11px;
+    color: #dc2626;
+    font-size: 12px;
     padding-top: 4px;
   }
 }
 
-// 表单字段
 .form-field {
-  margin-bottom: 18px;
-
-  .field-label {
-    display: block;
-    font-size: 12px;
-    font-weight: 500;
-    color: $text-muted;
-    margin-bottom: 8px;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-  }
+  margin-bottom: clamp(20px, 2.6vh, 32px);
 }
 
-// 输入框包装
-.input-wrapper {
+.field-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #475569;
+  margin-bottom: clamp(8px, 1vh, 12px);
+}
+
+.input-wrap {
   position: relative;
   display: flex;
   align-items: center;
+}
 
-  .input-icon {
-    position: absolute;
-    left: 12px;
-    z-index: 2;
-    color: rgba(0, 212, 255, 0.45);
-    display: flex;
-    align-items: center;
-    pointer-events: none;
-    transition: color 0.2s;
+.input-wrap--light .input-icon {
+  position: absolute;
+  left: 14px;
+  z-index: 2;
+  color: #94a3b8;
+  display: flex;
+  pointer-events: none;
+}
+
+.input-wrap--light:focus-within .input-icon {
+  color: #2563eb;
+}
+
+.input-wrap--light :deep(.el-input__wrapper) {
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #fff !important;
+  padding-left: 44px !important;
+  min-height: 46px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    border-color: #cbd5e1 !important;
   }
 
-  &:focus-within .input-icon {
-    color: rgba(0, 212, 255, 0.8);
-  }
-
-  :deep(.el-input) {
-    width: 100%;
-  }
-
-  :deep(.el-input__wrapper) {
-    background-color: $layer-3 !important;
-    border: 1px solid $border-panel !important;
-    border-radius: $border-radius-md !important;
-    box-shadow: none !important;
-    padding-left: 38px !important;
-    height: 44px;
-    transition: border-color 0.2s, box-shadow 0.2s;
-
-    &:hover {
-      border-color: rgba(0, 212, 255, 0.3) !important;
-    }
-
-    &.is-focus {
-      border-color: rgba(0, 212, 255, 0.6) !important;
-      box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.08) !important;
-    }
-  }
-
-  :deep(.el-input__inner) {
-    color: $text-primary !important;
-    background: transparent !important;
-    font-size: 14px;
-    font-family: 'Noto Sans SC', sans-serif;
-
-    &::placeholder {
-      color: $text-placeholder !important;
-    }
-  }
-
-  :deep(.el-input__password) {
-    color: rgba(0, 212, 255, 0.5) !important;
-
-    &:hover {
-      color: $cyan-primary !important;
-    }
+  &.is-focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
   }
 }
 
-// 错误提示
+.input-wrap--light :deep(.el-input__inner) {
+  color: #0f172a !important;
+  font-size: 0.9375rem;
+
+  &::placeholder {
+    color: #94a3b8 !important;
+  }
+}
+
+.input-wrap--light :deep(.el-input__password) {
+  color: #94a3b8 !important;
+
+  &:hover {
+    color: #2563eb !important;
+  }
+}
+
+.form-row-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: clamp(20px, 2.5vh, 32px);
+  margin-top: clamp(2px, 0.4vh, 8px);
+  font-size: 0.8125rem;
+
+  :deep(.el-checkbox__label) {
+    color: #475569;
+  }
+}
+
+.forgot-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .error-alert {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  background: rgba(201, 87, 69, 0.10);
-  border: 1px solid rgba(201, 87, 69, 0.25);
-  border-radius: $border-radius-md;
-  color: $color-red-brown;
-  font-size: 13px;
-  margin-bottom: 18px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #b91c1c;
+  font-size: 0.8125rem;
+  margin-bottom: clamp(14px, 1.8vh, 22px);
 }
 
-// 登录按钮
-.login-btn {
+.login-btn--primary {
   width: 100%;
-  height: 46px;
-  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
-  border: 1px solid rgba(0, 212, 255, 0.4);
-  border-radius: $border-radius-md;
+  height: 48px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   color: #fff;
-  font-size: 15px;
-  font-weight: 500;
-  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.25s ease;
-  margin-top: 8px;
-  letter-spacing: 1px;
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,0.08), transparent);
-    opacity: 0;
-    transition: opacity 0.25s;
-  }
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.28);
+  transition: transform 0.15s, box-shadow 0.2s;
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 6px 24px rgba(0, 212, 255, 0.25);
-    border-color: rgba(0, 212, 255, 0.7);
-
-    &::before {
-      opacity: 1;
-    }
+    box-shadow: 0 12px 28px rgba(37, 99, 235, 0.35);
   }
 
   &:active:not(:disabled) {
@@ -656,17 +788,11 @@ const handleLogin = async () => {
   }
 
   &:disabled {
-    opacity: 0.7;
+    opacity: 0.75;
     cursor: not-allowed;
   }
 
-  .btn-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-  }
-
+  .btn-content,
   .btn-loading {
     display: flex;
     align-items: center;
@@ -677,7 +803,7 @@ const handleLogin = async () => {
   .spinner {
     width: 16px;
     height: 16px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.35);
     border-top-color: #fff;
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
@@ -685,161 +811,146 @@ const handleLogin = async () => {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-// 卡片底部
 .card-footer {
   text-align: center;
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid $border-panel;
+  margin-top: clamp(20px, 2.8vh, 36px);
+  padding-top: clamp(20px, 2.5vh, 32px);
+  padding-bottom: clamp(8px, 1vh, 14px);
+  border-top: 1px solid #f1f5f9;
+}
 
-  .footer-text {
-    font-size: 13px;
-    color: $text-muted;
-  }
+.footer-text {
+  font-size: 0.8125rem;
+  color: #64748b;
+}
 
-  .footer-link {
-    font-size: 13px;
-    color: $color-ice-blue;
-    text-decoration: none;
-    margin-left: 6px;
-    font-weight: 500;
-    transition: color 0.2s;
+.footer-link {
+  font-size: 0.8125rem;
+  color: #2563eb;
+  font-weight: 500;
+  text-decoration: none;
+  margin-left: 4px;
 
-    &:hover {
-      color: $cyan-primary;
-      text-decoration: underline;
-    }
+  &:hover {
+    text-decoration: underline;
   }
 }
 
-// 版权
 .copyright {
+  flex-shrink: 0;
+  margin-top: auto;
+  padding-top: 16px;
+  padding-bottom: 8px;
   font-size: 11px;
-  color: rgba(200, 216, 232, 0.25);
-  letter-spacing: 0.5px;
+  color: #cbd5e1;
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
 }
 
-// ========== 微信登录相关样式 ==========
-
-// 登录方式 Tab
-.login-tabs {
-  display: flex;
-  border-bottom: 1px solid $border-panel;
-  margin-bottom: 28px;
-  gap: 0;
-
-  .tab-btn {
-    flex: 1;
-    padding: 10px 0 12px;
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    color: $text-muted;
-    font-size: 13px;
-    font-weight: 500;
-    font-family: 'Noto Sans SC', sans-serif;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    letter-spacing: 0.5px;
-
-    &:hover {
-      color: rgba(0, 212, 255, 0.75);
-    }
-
-    &.active {
-      color: $cyan-primary;
-      border-bottom-color: $cyan-primary;
-    }
-  }
-}
-
-// 微信扫码登录区域
+/* 微信扫码 */
 .wechat-login-area {
   text-align: center;
-  padding: 20px 0;
+  padding: clamp(12px, 2vh, 24px) 0 clamp(8px, 1vh, 16px);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
 
-  .qr-waiting {
-    .qr-loading {
-      padding: 40px;
+  .qr-waiting .qr-loading {
+    padding: 32px;
 
-      .loading-icon {
-        font-size: 32px;
-        animation: spin 1s linear infinite;
-        color: $cyan-primary;
-      }
-
-      p {
-        margin-top: 16px;
-        color: $text-muted;
-      }
+    .loading-icon {
+      font-size: 32px;
+      color: #2563eb;
+      animation: spin 1s linear infinite;
     }
 
-    .qr-code {
-      width: 200px;
-      height: 200px;
-      border-radius: 8px;
-      background: white;
-      padding: 10px;
+    p {
+      margin-top: 12px;
+      color: #64748b;
     }
+  }
 
-    .qr-tip {
-      margin-top: 16px;
-      color: $text-muted;
-      font-size: 14px;
-    }
+  .qr-code {
+    width: 200px;
+    height: 200px;
+    border-radius: 8px;
+    background: #fff;
+    padding: 10px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .qr-tip {
+    margin-top: 12px;
+    color: #64748b;
+    font-size: 14px;
   }
 
   .qr-scanned,
   .qr-unbound,
   .qr-expired {
-    padding: 40px 20px;
+    padding: 32px 16px;
 
     p {
-      margin-top: 16px;
-      color: $text-primary;
+      margin-top: 12px;
+      color: #334155;
     }
   }
 
-  .qr-unbound {
-    h3 {
-      margin: 16px 0 8px;
-      color: #E6A23C;
-      font-size: 18px;
-    }
-
-    .actions {
-      margin: 24px 0;
-    }
-
-    .tip {
-      color: $text-muted;
-      font-size: 13px;
-      line-height: 1.8;
-    }
+  .qr-unbound h3 {
+    margin: 12px 0 8px;
+    color: #d97706;
+    font-size: 1.125rem;
   }
 
-  .back-link {
-    margin-top: 24px;
+  .qr-unbound .actions {
+    margin: 20px 0;
+  }
 
-    a {
-      color: $color-ice-blue;
-      font-size: 13px;
-      cursor: pointer;
-      transition: color 0.2s;
+  .qr-unbound .tip {
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+}
 
-      &:hover {
-        color: $cyan-primary;
-        text-decoration: underline;
-      }
-    }
+@media (max-width: 900px) {
+  .login-view {
+    --login-band-min-h: min(440px, calc(100dvh - 15rem));
+  }
+
+  .login-split {
+    flex-direction: column;
+  }
+
+  .login-slogan {
+    min-height: auto;
+    padding: 32px 24px 40px;
+  }
+
+  .slogan-inner {
+    max-width: 100%;
+    justify-content: center;
+    gap: clamp(16px, 2.2vh, 24px);
+    min-height: min(380px, calc(100dvh - 17rem));
+  }
+
+  .login-panel {
+    min-height: auto;
+    padding-top: 56px;
+  }
+
+  .login-panel__middle {
+    justify-content: flex-start;
+    padding-top: 12px;
+    padding-bottom: 20px;
   }
 }
 </style>

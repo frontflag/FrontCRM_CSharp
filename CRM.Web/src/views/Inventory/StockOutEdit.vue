@@ -100,14 +100,14 @@
         </div>
         <el-table :data="form.items" class="quantum-table">
           <el-table-column type="index" width="50" />
-          <el-table-column label="物料编码" min-width="140">
+          <el-table-column label="物料型号" min-width="140" show-overflow-tooltip>
             <template #default="{ row }">
-              <el-input v-model="row.materialCode" placeholder="物料编码" readonly />
+              <span class="stock-out-line-material">{{ (row.materialCode || '').trim() || '—' }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="物料名称" min-width="160">
+          <el-table-column label="品牌" min-width="160" show-overflow-tooltip>
             <template #default="{ row }">
-              <el-input v-model="row.materialName" placeholder="物料名称" readonly />
+              <span class="stock-out-line-material">{{ (row.materialName || '').trim() || '—' }}</span>
             </template>
           </el-table-column>
           <el-table-column label="出库数量" width="110" align="right">
@@ -129,7 +129,7 @@
       </div>
     </div>
 
-    <div class="form-card" v-if="form.stockOutRequestId">
+    <div class="form-card form-card--after-outbound" v-if="form.stockOutRequestId">
       <h3 class="section-title">拣货任务</h3>
       <p class="picking-hint">
         每个出库通知仅允许生成<strong>一个</strong>未取消的拣货任务。候选在库明细 = 与本销售行绑定的 stockitem + 符合规则的备货（型号/品牌匹配）；FIFO 仅用于排序与「自动分配」顺序。请在下方「拣货明细」卡片中加载候选、分配数量并保存后，再点「完成拣货」。执行出库时仅按已保存的拣货行扣减。
@@ -147,15 +147,15 @@
                 class="picking-lines-table"
                 :row-class-name="pickingLineRowClassName"
               >
-                <el-table-column label="在库明细" min-width="120" show-overflow-tooltip>
-                  <template #default="{ row: line }">
-                    <span :title="pickingLineStockItemId(line)">{{ shortId(pickingLineStockItemId(line)) }}</span>
-                  </template>
+                <el-table-column label="库存明细编号" min-width="140" show-overflow-tooltip>
+                  <template #default="{ row: line }">{{ pickingLineStockItemCode(line) }}</template>
+                </el-table-column>
+                <el-table-column label="入库明细编号" min-width="140" show-overflow-tooltip>
+                  <template #default="{ row: line }">{{ pickingLineStockInItemCode(line) }}</template>
                 </el-table-column>
                 <el-table-column :label="t('inventoryList.columns.stockType')" width="108" align="center" show-overflow-tooltip>
                   <template #default="{ row: line }">{{ pickingLineStockTypeLabel(line) }}</template>
                 </el-table-column>
-                <el-table-column prop="materialId" label="物料ID" min-width="140" show-overflow-tooltip />
                 <el-table-column label="计划数量" width="110" align="right">
                   <template #default="{ row: line }">{{ formatQty(Number(line.planQty)) }}</template>
                 </el-table-column>
@@ -213,52 +213,78 @@
         任务号：<strong>{{ pendingPickingTask.taskCode }}</strong>。合计须等于出库通知数量（{{ notifyTargetQty }}）。保存后方可「完成拣货」。
       </p>
       <div class="picking-draft-toolbar">
-        <button type="button" class="btn-secondary btn-sm" :disabled="loadingCandidates" @click="loadPickingCandidates">
-          {{ loadingCandidates ? '加载中…' : '加载拣货候选' }}
-        </button>
-        <button
-          type="button"
-          class="btn-secondary btn-sm"
-          style="margin-left: 8px"
-          :disabled="!pickingCandidates.length"
-          @click="applyFifoToPickDraft"
+        <div class="picking-draft-toolbar__left">
+          <button type="button" class="btn-secondary btn-sm" :disabled="loadingCandidates" @click="loadPickingCandidates">
+            {{ loadingCandidates ? '加载中…' : '加载拣货候选' }}
+          </button>
+          <button
+            type="button"
+            class="btn-secondary btn-sm"
+            :disabled="!pickingCandidates.length"
+            @click="applyFifoToPickDraft"
+          >
+            按 FIFO 自动分配
+          </button>
+        </div>
+        <el-radio-group
+          v-model="pickingSourceFilter"
+          class="picking-source-filter"
+          size="small"
+          aria-label="按来源筛选拣货明细"
         >
-          按 FIFO 自动分配
-        </button>
-        <button
-          type="button"
-          class="btn-primary btn-sm"
-          style="margin-left: 8px"
-          :disabled="savingPicking || !pendingPickingTask"
-          @click="savePickingDraft"
-        >
-          {{ savingPicking ? '保存中…' : '保存拣货明细' }}
-        </button>
-        <span class="picking-draft-sum">已分配：<strong>{{ allocatedPickTotal }}</strong> / 目标：<strong>{{ notifyTargetQty }}</strong></span>
+          <el-radio-button label="all">全部库存</el-radio-button>
+          <el-radio-button label="stocking">备货库存</el-radio-button>
+          <el-radio-button label="customer">客单库存</el-radio-button>
+        </el-radio-group>
+        <div class="picking-draft-toolbar__right">
+          <span class="picking-draft-sum">已分配：<strong>{{ allocatedPickTotal }}</strong> / 目标：<strong>{{ notifyTargetQty }}</strong></span>
+          <button
+            type="button"
+            class="btn-primary btn-sm picking-draft-save-btn"
+            :disabled="savingPicking || !pendingPickingTask"
+            @click="savePickingDraft"
+          >
+            {{ savingPicking ? '保存中…' : '保存拣货明细' }}
+          </button>
+        </div>
       </div>
-      <el-table v-if="pickingCandidates.length" :data="pickingCandidates" class="quantum-table picking-candidates-table" max-height="380">
-        <el-table-column label="在库明细" min-width="120" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span :title="row.stockItemId">{{ shortId(row.stockItemId) }}</span>
-          </template>
+      <el-table
+        v-if="pickingCandidates.length"
+        :data="filteredPickingCandidates"
+        class="quantum-table picking-candidates-table"
+        max-height="380"
+        empty-text="当前筛选下无在库明细，请切换筛选项或选「全部库存」"
+      >
+        <el-table-column label="入库日期" width="110" align="center" show-overflow-tooltip>
+          <template #default="{ row }">{{ pickingCandidateStockInDate(row) }}</template>
         </el-table-column>
-        <el-table-column prop="materialId" label="物料" min-width="120" show-overflow-tooltip />
+        <el-table-column label="入库明细编号" min-width="140" show-overflow-tooltip>
+          <template #default="{ row }">{{ pickingCandidateStockInItemCode(row) }}</template>
+        </el-table-column>
+        <el-table-column label="库存明细编号" min-width="140" show-overflow-tooltip>
+          <template #default="{ row }">{{ pickingCandidateStockItemCode(row) }}</template>
+        </el-table-column>
         <el-table-column label="型号" min-width="100" show-overflow-tooltip>
           <template #default="{ row }">{{ row.purchasePn || '—' }}</template>
         </el-table-column>
         <el-table-column label="品牌" min-width="88" show-overflow-tooltip>
           <template #default="{ row }">{{ row.purchaseBrand || '—' }}</template>
         </el-table-column>
-        <el-table-column :label="t('inventoryList.columns.stockType')" width="100" align="center">
+        <el-table-column
+          :label="t('inventoryList.columns.stockType')"
+          min-width="132"
+          align="center"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">{{ inventoryStockTypeLabel(row.stockType) }}</template>
         </el-table-column>
-        <el-table-column label="来源" width="100" align="center">
+        <el-table-column label="来源" min-width="108" align="center" show-overflow-tooltip>
           <template #default="{ row }">
             <span v-if="row.isStockingCandidate" class="picking-source-stocking">备货</span>
             <span v-else class="picking-source-normal">客单</span>
           </template>
         </el-table-column>
-        <el-table-column label="可用" width="80" align="right">
+        <el-table-column label="可用" min-width="120" align="right" show-overflow-tooltip>
           <template #default="{ row }">{{ formatQty(row.availableQty) }}</template>
         </el-table-column>
         <el-table-column label="本次拣货" width="130" align="center">
@@ -297,7 +323,7 @@ import {
   type WarehouseInfo
 } from '@/api/inventoryCenter'
 import { getApiErrorMessage } from '@/utils/apiError'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDateTime, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 
 type ExecuteItem = {
   lineNo: number
@@ -324,6 +350,9 @@ const pickingTasks = ref<PickingTask[]>([])
 const warehouses = ref<WarehouseInfo[]>([])
 const currentRequest = ref<StockOutRequestDto | null>(null)
 const pickingCandidates = ref<PickingStockItemCandidate[]>([])
+/** 拣货明细按「来源」筛选：与表格「备货 / 客单」列一致（isStockingCandidate） */
+type PickingSourceFilterKey = 'all' | 'stocking' | 'customer'
+const pickingSourceFilter = ref<PickingSourceFilterKey>('all')
 const pickDraft = reactive<Record<string, number>>({})
 const loadingCandidates = ref(false)
 const savingPicking = ref(false)
@@ -457,6 +486,15 @@ const allocatedPickTotal = computed(() =>
   pickingCandidates.value.reduce((s, c) => s + (pickDraft[c.stockItemId] ?? 0), 0)
 )
 
+const filteredPickingCandidates = computed((): PickingStockItemCandidate[] => {
+  const list = pickingCandidates.value
+  if (pickingSourceFilter.value === 'stocking')
+    return list.filter((c) => Boolean(c.isStockingCandidate))
+  if (pickingSourceFilter.value === 'customer')
+    return list.filter((c) => !c.isStockingCandidate)
+  return list
+})
+
 const pickingLinesSaved = computed(() => {
   const rid = form.stockOutRequestId?.trim()
   if (!rid) return false
@@ -501,15 +539,39 @@ const executeOutHint = computed(() => {
   return '将按已保存的拣货明细扣减在库并标记出库通知为已出库'
 })
 
-function shortId(id?: string | null) {
-  const s = (id || '').trim()
-  if (!s) return '—'
-  return s.length <= 12 ? s : `${s.slice(0, 6)}…${s.slice(-4)}`
+function pickingLineStockItemCode(line: PickingTaskLine) {
+  const x = line as unknown as Record<string, unknown>
+  const v = line.stockItemCode ?? x.StockItemCode
+  const s = String(v ?? '').trim()
+  return s || '—'
 }
 
-function pickingLineStockItemId(line: PickingTaskLine) {
+function pickingLineStockInItemCode(line: PickingTaskLine) {
   const x = line as unknown as Record<string, unknown>
-  return String(line.stockItemId ?? x.StockItemId ?? '').trim()
+  const v = line.stockInItemCode ?? x.StockInItemCode
+  const s = String(v ?? '').trim()
+  return s || '—'
+}
+
+function pickingCandidateStockItemCode(row: PickingStockItemCandidate) {
+  const r = row as unknown as Record<string, unknown>
+  const v = row.stockItemCode ?? r.StockItemCode
+  const s = String(v ?? '').trim()
+  return s || '—'
+}
+
+function pickingCandidateStockInDate(row: PickingStockItemCandidate) {
+  const r = row as unknown as Record<string, unknown>
+  const v = (row.stockInDate ?? r.StockInDate) as string | undefined | null
+  const parts = formatDisplayDateTime2DigitYearParts(v)
+  return parts?.date ?? '—'
+}
+
+function pickingCandidateStockInItemCode(row: PickingStockItemCandidate) {
+  const r = row as unknown as Record<string, unknown>
+  const v = row.stockInItemCode ?? r.StockInItemCode
+  const s = String(v ?? '').trim()
+  return s || '—'
 }
 
 function pickQty(c: PickingStockItemCandidate) {
@@ -622,6 +684,7 @@ const loadPickingCandidates = async () => {
   try {
     const list = await inventoryCenterApi.getPickingCandidates(form.stockOutRequestId.trim(), form.warehouseId.trim())
     pickingCandidates.value = list || []
+    pickingSourceFilter.value = 'all'
     clearPickDraft()
   } catch (e) {
     console.error(e)
@@ -857,6 +920,10 @@ init()
   flex-direction: column;
   gap: 16px;
 }
+/** 与 .form-layout 内相邻 form-card 的 gap（16px）一致：分隔「出库明细」与「拣货任务」 */
+.form-card--after-outbound {
+  margin-top: 16px;
+}
 .form-card {
   background: $layer-2;
   border-radius: 8px;
@@ -926,6 +993,17 @@ init()
   font-size: 13px;
 }
 
+/** 出库明细：物料来自通知单，仅展示不可编辑、不抢焦点（避免误认为可点选弹窗） */
+.stock-out-line-material {
+  display: inline-block;
+  max-width: 100%;
+  font-size: 13px;
+  color: $text-primary;
+  line-height: 1.5;
+  cursor: default;
+  user-select: text;
+}
+
 .flow-alert {
   margin-bottom: 16px;
   background: rgba(0, 212, 255, 0.06) !important;
@@ -969,7 +1047,8 @@ init()
 .picking-hint {
   margin: 0 0 12px;
   font-size: 12px;
-  color: rgba(200, 216, 232, 0.75);
+  /* 与顶部流程区 .flow-warn-msg（请先完成拣货任务…）同色 */
+  color: #ffc107;
   line-height: 1.55;
 }
 .picking-empty {
@@ -1022,13 +1101,47 @@ init()
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   margin-bottom: 12px;
 }
-.picking-draft-sum {
+.picking-draft-toolbar__left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.picking-source-filter {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+}
+.picking-draft-toolbar__right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
   margin-left: auto;
+}
+.picking-draft-sum {
   font-size: 13px;
-  color: rgba(200, 216, 232, 0.88);
+  font-weight: 600;
+  color: $text-primary;
+  letter-spacing: 0.01em;
+  strong {
+    font-weight: 700;
+    color: $text-primary;
+    font-variant-numeric: tabular-nums;
+  }
+}
+.picking-draft-save-btn {
+  flex-shrink: 0;
+}
+:deep(.picking-source-filter .el-radio-button__inner) {
+  padding: 6px 12px;
+  font-size: 12px;
 }
 .picking-candidates-table {
   margin-top: 4px;

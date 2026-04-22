@@ -37,7 +37,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "IX_stockinitem_stockin_linecode"
 
 COMMENT ON COLUMN public.stock_in_item.stock_in_item_code IS '入库明细业务编号：{StockInCode}-{行序号}';
 
--- 若使用入库扩展表序号（stockinextend），可与迁移一致同步水位（可选）
--- UPDATE public.stockinextend e
+-- 若使用入库扩展表序号（stock_in_extend），可与迁移一致同步水位（可选）
+-- UPDATE public.stock_in_extend e
 -- SET last_item_line_seq = COALESCE((
 --   SELECT COUNT(*)::integer FROM public.stock_in_item si WHERE si."StockInId" = e."StockInId"), 0);

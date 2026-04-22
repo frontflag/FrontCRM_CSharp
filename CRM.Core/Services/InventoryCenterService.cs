@@ -37,6 +37,7 @@ namespace CRM.Core.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IFinanceExchangeRateService _financeExchangeRateService;
+        private readonly IStockExtendLineSeqService _stockExtendLineSeq;
         private readonly ILogger<InventoryCenterService> _logger;
         private static bool IsTableMissingException(Exception ex)
             => (ex.Message?.Contains("42P01") ?? false)
@@ -143,6 +144,7 @@ namespace CRM.Core.Services
             IRepository<User> userRepository,
             ISerialNumberService serialNumberService,
             IFinanceExchangeRateService financeExchangeRateService,
+            IStockExtendLineSeqService stockExtendLineSeq,
             IUnitOfWork unitOfWork,
             ILogger<InventoryCenterService> logger)
         {
@@ -169,6 +171,7 @@ namespace CRM.Core.Services
             _userRepository = userRepository;
             _serialNumberService = serialNumberService;
             _financeExchangeRateService = financeExchangeRateService;
+            _stockExtendLineSeq = stockExtendLineSeq;
             _unitOfWork = unitOfWork;
             _logger = logger;
         }
@@ -254,6 +257,9 @@ namespace CRM.Core.Services
                     };
                     await _stockRepository.AddAsync(stock);
                     allStocks.Add(stock);
+                    // StockExtendLineSeqService 使用裸 SQL 写 stock_extend，外键引用 public.stock；
+                    // 新分桶必须先 SaveChanges，否则 INSERT stock_extend 报 FK_stock_extend_stock（质检「完成入库」等场景）。
+                    await _unitOfWork.SaveChangesAsync();
                 }
 
                 CopyStockInOrderLineHeadersToStock(stock!, stockIn, lineExt);
@@ -332,9 +338,18 @@ namespace CRM.Core.Services
             if (poiForPurchase != null)
                 purchaseCurrency = poiForPurchase.Currency;
 
+            var itemId = Guid.NewGuid().ToString();
+            var lineSeq = await _stockExtendLineSeq.ReserveNextSequenceBlockAsync(aggregateRow.Id, 1);
+            var stockCode = aggregateRow.StockCode?.Trim();
+            var stockItemBizCode = !string.IsNullOrEmpty(stockCode)
+                ? OrderLineItemCodes.StockItemLine(stockCode, lineSeq)
+                : $"SKI-LEGACY-{itemId.Replace("-", "", StringComparison.Ordinal)}";
+
             var layer = new StockItem
             {
-                Id = Guid.NewGuid().ToString(),
+                Id = itemId,
+                StockItemCode = stockItemBizCode,
+                StockInItemCode = string.IsNullOrWhiteSpace(line.StockInItemCode) ? null : line.StockInItemCode.Trim(),
                 StockInItemId = line.Id,
                 StockInId = stockIn.Id,
                 StockAggregateId = aggregateRow.Id,
@@ -831,7 +846,9 @@ namespace CRM.Core.Services
                 .Select(x => new InventoryStockItemRowDto
                 {
                     StockItemId = x.Id,
+                    StockItemCode = string.IsNullOrWhiteSpace(x.StockItemCode) ? null : x.StockItemCode.Trim(),
                     StockInItemId = x.StockInItemId,
+                    StockInItemCode = string.IsNullOrWhiteSpace(x.StockInItemCode) ? null : x.StockInItemCode.Trim(),
                     StockInId = x.StockInId,
                     StockInCode = stockInCodeById.GetValueOrDefault(x.StockInId),
                     MaterialId = x.MaterialId,
@@ -992,7 +1009,9 @@ namespace CRM.Core.Services
                 result.Add(new InventoryStockItemListRowDto
                 {
                     StockItemId = x.Id,
+                    StockItemCode = string.IsNullOrWhiteSpace(x.StockItemCode) ? null : x.StockItemCode.Trim(),
                     StockInItemId = x.StockInItemId,
+                    StockInItemCode = string.IsNullOrWhiteSpace(x.StockInItemCode) ? null : x.StockInItemCode.Trim(),
                     StockInId = x.StockInId,
                     StockInCode = stockInCode,
                     StockInDate = stockInDate,
@@ -1263,9 +1282,11 @@ namespace CRM.Core.Services
             return existing;
         }
 
-        private static List<PickingTaskLineDto> MapPickingTaskItemsToLineDtos(
+        private List<PickingTaskLineDto> MapPickingTaskItemsToLineDtos(
             IEnumerable<PickingTaskItem> orderedLines,
-            Dictionary<string, StockInfo> stockById)
+            Dictionary<string, StockInfo> stockById,
+            IReadOnlyDictionary<string, string?> stockInItemCodeByStockItemId,
+            IReadOnlyDictionary<string, string?> stockItemCodeByStockItemId)
         {
             var lineDtos = new List<PickingTaskLineDto>();
             foreach (var i in orderedLines)
@@ -1277,12 +1298,23 @@ namespace CRM.Core.Services
                 else if (i.IsStockingSupplement)
                     lineStockType = 2;
 
+                var stkItemKey = i.StockItemId?.Trim() ?? "";
+                string? sinCode = null;
+                string? stockItemBizCode = null;
+                if (stkItemKey.Length > 0)
+                {
+                    stockInItemCodeByStockItemId.TryGetValue(stkItemKey, out sinCode);
+                    stockItemCodeByStockItemId.TryGetValue(stkItemKey, out stockItemBizCode);
+                }
+
                 lineDtos.Add(new PickingTaskLineDto
                 {
                     Id = i.Id,
                     MaterialId = i.MaterialId,
                     StockId = i.StockId,
                     StockItemId = i.StockItemId,
+                    StockItemCode = stockItemBizCode,
+                    StockInItemCode = sinCode,
                     StockType = lineStockType,
                     PlanQty = i.PlanQty,
                     PickedQty = i.PickedQty,
@@ -1291,6 +1323,84 @@ namespace CRM.Core.Services
             }
 
             return lineDtos;
+        }
+
+        private sealed record StockItemCodeLookups(
+            Dictionary<string, string?> StockInItemCodeByStockItemId,
+            Dictionary<string, string?> StockItemCodeByStockItemId);
+
+        /// <summary>按在库明细主键解析 <c>stock_item_code</c> 与入库明细业务编号（拣货列表/候选展示）。</summary>
+        private async Task<StockItemCodeLookups> ResolveStockItemCodeLookupsByStockItemIdsAsync(
+            IReadOnlyCollection<string> stockItemIds)
+        {
+            var keys = stockItemIds
+                .Select(id => id?.Trim() ?? "")
+                .Where(id => id.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var stockInItemCodeBy = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+            var stockItemCodeBy = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+            if (keys.Count == 0)
+                return new StockItemCodeLookups(stockInItemCodeBy, stockItemCodeBy);
+
+            List<StockItem> layers;
+            try
+            {
+                layers = (await _stockItemRepository.FindAsync(x => keys.Contains(x.Id))).ToList();
+            }
+            catch
+            {
+                return new StockItemCodeLookups(stockInItemCodeBy, stockItemCodeBy);
+            }
+
+            foreach (var si in layers)
+            {
+                var sid = si.Id?.Trim() ?? "";
+                if (sid.Length == 0)
+                    continue;
+                stockItemCodeBy[sid] = string.IsNullOrWhiteSpace(si.StockItemCode) ? null : si.StockItemCode.Trim();
+            }
+
+            var sinKeys = layers
+                .Where(si => string.IsNullOrWhiteSpace(si.StockInItemCode))
+                .Select(si => si.StockInItemId?.Trim() ?? "")
+                .Where(id => id.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            Dictionary<string, string?> codeBySinId = new(StringComparer.OrdinalIgnoreCase);
+            if (sinKeys.Count > 0)
+            {
+                try
+                {
+                    var sinLines = (await _stockInItemRepository.FindAsync(x => sinKeys.Contains(x.Id))).ToList();
+                    codeBySinId = sinLines.ToDictionary(
+                        x => x.Id.Trim(),
+                        x => string.IsNullOrWhiteSpace(x.StockInItemCode) ? null : x.StockInItemCode.Trim(),
+                        StringComparer.OrdinalIgnoreCase);
+                }
+                catch
+                {
+                    // 仍返回已解析的 stock_item_code
+                }
+            }
+
+            foreach (var si in layers)
+            {
+                var sid = si.Id?.Trim() ?? "";
+                if (sid.Length == 0)
+                    continue;
+                if (!string.IsNullOrWhiteSpace(si.StockInItemCode))
+                {
+                    stockInItemCodeBy[sid] = si.StockInItemCode.Trim();
+                    continue;
+                }
+
+                var sinId = si.StockInItemId?.Trim() ?? "";
+                codeBySinId.TryGetValue(sinId, out var code);
+                stockInItemCodeBy[sid] = code;
+            }
+
+            return new StockItemCodeLookups(stockInItemCodeBy, stockItemCodeBy);
         }
 
         private static (Dictionary<string, string> ById, Dictionary<string, string> ByLogin) BuildUserDisplayLookups(
@@ -1376,6 +1486,14 @@ namespace CRM.Core.Services
                 // 忽略，StockType 留空
             }
 
+            var allLineStockItemIds = taskItems
+                .Select(i => i.StockItemId?.Trim())
+                .Where(s => !string.IsNullOrEmpty(s))
+                .Select(s => s!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var codeLookups = await ResolveStockItemCodeLookupsByStockItemIdsAsync(allLineStockItemIds);
+
             return list.Select(t =>
             {
                 var plan = 0;
@@ -1387,7 +1505,11 @@ namespace CRM.Core.Services
                 }
 
                 var lineDtos = linesByTask.TryGetValue(t.Id, out var lines)
-                    ? MapPickingTaskItemsToLineDtos(lines.OrderBy(x => x.CreateTime), stockById)
+                    ? MapPickingTaskItemsToLineDtos(
+                        lines.OrderBy(x => x.CreateTime),
+                        stockById,
+                        codeLookups.StockInItemCodeByStockItemId,
+                        codeLookups.StockItemCodeByStockItemId)
                     : new List<PickingTaskLineDto>();
 
                 var distinctTypes = lineDtos
@@ -1564,7 +1686,19 @@ namespace CRM.Core.Services
                 // 忽略
             }
 
-            var lineDtos = MapPickingTaskItemsToLineDtos(items, stockById);
+            var detailLineStockItemIds = items
+                .Select(i => i.StockItemId?.Trim())
+                .Where(s => !string.IsNullOrEmpty(s))
+                .Select(s => s!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var codeLookups = await ResolveStockItemCodeLookupsByStockItemIdsAsync(detailLineStockItemIds);
+
+            var lineDtos = MapPickingTaskItemsToLineDtos(
+                items,
+                stockById,
+                codeLookups.StockInItemCodeByStockItemId,
+                codeLookups.StockItemCodeByStockItemId);
             var distinctTypes = lineDtos
                 .Where(x => x.StockType.HasValue)
                 .Select(x => x.StockType!.Value)
@@ -1715,15 +1849,45 @@ namespace CRM.Core.Services
                 .ThenBy(si => si.CreateTime)
                 .ToList();
 
+            var stockItemKeys = distinct.Select(si => si.Id?.Trim() ?? "").Where(x => x.Length > 0).ToList();
+            var codeLookups = await ResolveStockItemCodeLookupsByStockItemIdsAsync(stockItemKeys);
+
+            var stockInIds = distinct
+                .Select(x => x.StockInId?.Trim() ?? "")
+                .Where(x => x.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var stockInDateById = new Dictionary<string, DateTime?>(StringComparer.OrdinalIgnoreCase);
+            if (stockInIds.Count > 0)
+            {
+                try
+                {
+                    var sins = (await _stockInRepository.FindAsync(x => stockInIds.Contains(x.Id))).ToList();
+                    foreach (var s in sins)
+                        stockInDateById[s.Id.Trim()] = s.StockInDate;
+                }
+                catch
+                {
+                    // ignore: date stays null
+                }
+            }
+
             var list = new List<PickingStockItemCandidateDto>();
             foreach (var si in distinct)
             {
                 var aggId = si.StockAggregateId?.Trim() ?? "";
                 stocksById.TryGetValue(aggId, out var st);
                 var bindSell = string.Equals(si.SellOrderItemId?.Trim(), sellLineId, StringComparison.OrdinalIgnoreCase);
+                var stkId = si.Id.Trim();
+                codeLookups.StockInItemCodeByStockItemId.TryGetValue(stkId, out var sinCode);
+                codeLookups.StockItemCodeByStockItemId.TryGetValue(stkId, out var stockItemBizCode);
+                stockInDateById.TryGetValue(si.StockInId?.Trim() ?? "", out var sinDate);
                 list.Add(new PickingStockItemCandidateDto
                 {
-                    StockItemId = si.Id.Trim(),
+                    StockItemId = stkId,
+                    StockItemCode = stockItemBizCode,
+                    StockInItemCode = sinCode,
+                    StockInDate = sinDate,
                     StockAggregateId = aggId,
                     MaterialId = si.MaterialId?.Trim() ?? string.Empty,
                     AvailableQty = si.QtyRepertoryAvailable,

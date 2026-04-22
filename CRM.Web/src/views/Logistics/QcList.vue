@@ -76,7 +76,9 @@
         <el-tag effect="dark" :type="stockInType(displayStockInStatus(row))">{{ stockInText(displayStockInStatus(row)) }}</el-tag>
       </template>
       <template #col-createTime="{ row }">{{ formatTime(row.createTime) }}</template>
-      <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || '--' }}</template>
+      <template #col-createUser="{ row }">{{
+        row.createUserName || row.CreateUserName || row.createdBy || '--'
+      }}</template>
       <template #col-actions-header>
         <div class="op-col-header">
             <span class="op-col-header-text">{{ t('qcList.columns.actions') }}</span>
@@ -143,6 +145,27 @@
         @size-change="listPage = 1"
       />
     </div>
+
+    <el-dialog
+      v-model="warehouseSelectVisible"
+      :title="t('qcList.messages.pickWarehouseTitle')"
+      width="480px"
+      append-to-body
+      destroy-on-close
+      class="qc-warehouse-pick-dialog"
+      @closed="onWarehousePickDialogClosed"
+    >
+      <p class="qc-warehouse-pick-hint">{{ warehouseSelectHint }}</p>
+      <el-radio-group v-model="warehouseSelectId" class="qc-warehouse-pick-group">
+        <el-radio v-for="w in warehouseSelectOptions" :key="w.id" :label="w.id" class="qc-warehouse-pick-radio">
+          {{ formatWarehousePickLabel(w) }}
+        </el-radio>
+      </el-radio-group>
+      <template #footer>
+        <el-button @click="cancelWarehousePick">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="confirmWarehousePick">{{ t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -153,7 +176,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { logisticsApi, type QcInfoDto, type StockInNotifyDto } from '@/api/logistics'
 import { stockInApi } from '@/api/stockIn'
-import { inventoryCenterApi } from '@/api/inventoryCenter'
+import { inventoryCenterApi, type WarehouseInfo } from '@/api/inventoryCenter'
+import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { useRouter, useRoute } from 'vue-router'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { useAuthStore } from '@/stores/auth'
@@ -382,11 +406,84 @@ const goView = (row: QcInfoDto) => {
 
 const canCreateStockIn = (row: QcInfoDto) => row.status !== -1 && !row.stockInId
 
-const resolveWarehouseId = async () => {
-  const warehouses = await inventoryCenterApi.getWarehouses()
-  if (!warehouses.length) return 'WH-DEFAULT'
-  const preferred = warehouses.find(w => (w.warehouseCode || '').trim().toUpperCase() === 'WH-DEFAULT')
-  return preferred?.id || warehouses[0].id || 'WH-DEFAULT'
+type WarehouseRow = WarehouseInfo & { id: string }
+
+const warehouseSelectVisible = ref(false)
+const warehouseSelectId = ref('')
+const warehouseSelectOptions = ref<WarehouseRow[]>([])
+const warehouseSelectHint = ref('')
+let warehousePickResolver: ((id: string | null) => void) | null = null
+
+const regionLabel = (normRt: number) =>
+  normRt === REGION_TYPE_OVERSEAS
+    ? t('inventoryList.warehouse.regionOverseas')
+    : t('inventoryList.warehouse.regionDomestic')
+
+const formatWarehousePickLabel = (w: WarehouseRow) => {
+  const code = (w.warehouseCode || '').trim()
+  const name = (w.warehouseName || '').trim()
+  if (name && code) return `${name}（${code}）`
+  return name || code || w.id
+}
+
+function cancelWarehousePick() {
+  warehouseSelectVisible.value = false
+  const r = warehousePickResolver
+  warehousePickResolver = null
+  r?.(null)
+}
+
+function confirmWarehousePick() {
+  const id = warehouseSelectId.value.trim()
+  if (!id) {
+    ElMessage.warning(t('qcList.messages.pickWarehouseRequired'))
+    return
+  }
+  warehouseSelectVisible.value = false
+  const r = warehousePickResolver
+  warehousePickResolver = null
+  r?.(id)
+}
+
+function onWarehousePickDialogClosed() {
+  if (!warehousePickResolver) return
+  const r = warehousePickResolver
+  warehousePickResolver = null
+  r(null)
+}
+
+/** 按到货通知地域类型匹配启用仓库（地域相同）；多个时弹窗选择。 */
+async function pickWarehouseForNotice(notice: StockInNotifyDto): Promise<string | null> {
+  const noticeRt = normalizeRegionType(notice.regionType)
+  const regionText = regionLabel(noticeRt)
+  let warehouses: WarehouseInfo[]
+  try {
+    warehouses = await inventoryCenterApi.getWarehouses()
+  } catch {
+    ElMessage.error(t('inventoryList.messages.loadWarehouseFailed'))
+    return null
+  }
+  const enabled = warehouses.filter(w => w.status === 1)
+  const matched = enabled
+    .map(w => ({ ...w, id: (w.id || '').trim() }))
+    .filter((w): w is WarehouseRow => !!w.id && normalizeRegionType(w.regionType) === noticeRt)
+    .sort((a, b) =>
+      (a.warehouseCode || '').localeCompare(b.warehouseCode || '', undefined, { sensitivity: 'base' })
+    )
+
+  if (matched.length === 0) {
+    ElMessage.error(t('qcList.messages.noWarehouseForRegion', { region: regionText }))
+    return null
+  }
+  if (matched.length === 1) return matched[0].id
+
+  warehouseSelectOptions.value = matched
+  warehouseSelectHint.value = t('qcList.messages.pickWarehouseHint', { region: regionText })
+  warehouseSelectId.value = matched[0].id
+  return await new Promise<string | null>(resolve => {
+    warehousePickResolver = resolve
+    warehouseSelectVisible.value = true
+  })
 }
 
 const createStockIn = async (row: QcInfoDto) => {
@@ -433,9 +530,11 @@ const createStockIn = async (row: QcInfoDto) => {
     return
   }
 
+  const warehouseId = await pickWarehouseForNotice(notice)
+  if (!warehouseId) return
+
   loading.value = true
   try {
-    const warehouseId = await resolveWarehouseId()
     const uid = (authStore.user?.id || '').trim()
     const payload = {
       stockInCode: `SI${getYYMMDD(new Date())}${random4()}`,
@@ -666,5 +765,27 @@ const createStockIn = async (row: QcInfoDto) => {
 .list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
+}
+
+.qc-warehouse-pick-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: $text-muted;
+}
+
+.qc-warehouse-pick-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+}
+
+.qc-warehouse-pick-radio {
+  margin-right: 0;
+  align-self: stretch;
+  height: auto;
+  white-space: normal;
 }
 </style>

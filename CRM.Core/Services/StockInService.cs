@@ -338,9 +338,10 @@ namespace CRM.Core.Services
 
         public async Task<IReadOnlyList<StockInListItemDto>> GetListAsync(StockInQueryRequest? request = null)
         {
+            // 列表按创建时间降序（与业务列表「创建日期」口径一致）
             var raw = (await _stockInRepository.GetAllAsync())
-                .OrderByDescending(x => x.StockInDate)
-                .ThenByDescending(x => x.CreateTime)
+                .OrderByDescending(x => x.CreateTime)
+                .ThenByDescending(x => x.Id)
                 .ToList();
 
             if (raw.Count == 0)

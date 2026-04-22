@@ -1,0 +1,12 @@
+{
+  "name": "frontcrm-csharp",
+  "private": true,
+  "description": "Root tooling (Git hooks); frontend app lives in CRM.Web",
+  "scripts": {
+    "prepare": "husky",
+    "web:typecheck": "npm run typecheck --prefix CRM.Web"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}

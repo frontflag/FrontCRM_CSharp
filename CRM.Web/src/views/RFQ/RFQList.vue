@@ -1,5 +1,5 @@
 <template>
-  <div class="rfq-list-page customer-list-theme">
+  <div class="rfq-list-page">
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
@@ -40,41 +40,48 @@
       </div>
     </div>
 
-    <!-- 搜索面板 -->
-    <el-card class="filter-card search-bar">
-      <el-form :inline="true" :model="searchForm">
-        <el-form-item :label="t('rfqList.filters.search')">
-          <el-input 
-            v-model="searchForm.keyword" 
+    <!-- 筛选栏：与《业务列表规范》及 CustomerList / RFQItemList 一致（非 el-card） -->
+    <div class="search-bar">
+      <div class="search-left">
+        <span class="filter-field-label">{{ t('rfqList.filters.search') }}</span>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="searchForm.keyword"
+            type="search"
+            class="search-input search-input--w280"
             :placeholder="t('rfqList.filters.searchPlaceholder')"
-            clearable
             @keyup.enter="handleSearch"
-            style="width: 280px"
           />
-        </el-form-item>
-        <el-form-item :label="t('rfqList.filters.status')">
-          <el-select v-model="searchForm.status" :placeholder="t('rfqList.filters.allStatus')" clearable style="width: 140px">
-            <el-option :label="t('rfqList.status.pending')" :value="0" />
-            <el-option :label="t('rfqList.status.assigned')" :value="1" />
-            <el-option :label="t('rfqList.status.processing')" :value="2" />
-            <el-option :label="t('rfqList.status.quoted')" :value="3" />
-            <el-option :label="t('rfqList.status.selected')" :value="4" />
-            <el-option :label="t('rfqList.status.converted')" :value="5" />
-            <el-option :label="t('rfqList.status.closed')" :value="6" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button class="btn-primary btn-sm" type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>{{ t('rfqList.filters.query') }}
-          </el-button>
-          <el-button class="btn-ghost btn-sm" @click="handleReset">{{ t('rfqList.filters.reset') }}</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+        </div>
+        <span class="filter-field-label">{{ t('rfqList.filters.status') }}</span>
+        <el-select
+          v-model="searchForm.status"
+          :placeholder="t('rfqList.filters.allStatus')"
+          clearable
+          class="status-select status-select--rfq-status"
+          :teleported="false"
+        >
+          <el-option :label="t('rfqList.status.pending')" :value="0" />
+          <el-option :label="t('rfqList.status.assigned')" :value="1" />
+          <el-option :label="t('rfqList.status.processing')" :value="2" />
+          <el-option :label="t('rfqList.status.quoted')" :value="3" />
+          <el-option :label="t('rfqList.status.selected')" :value="4" />
+          <el-option :label="t('rfqList.status.converted')" :value="5" />
+          <el-option :label="t('rfqList.status.closed')" :value="6" />
+        </el-select>
+        <button type="button" class="btn-primary btn-sm" @click="handleSearch">
+          <el-icon><Search /></el-icon>{{ t('rfqList.filters.query') }}
+        </button>
+        <button type="button" class="btn-ghost btn-sm" @click="handleReset">{{ t('rfqList.filters.reset') }}</button>
+      </div>
+    </div>
 
-    <!-- 数据表格 -->
-    <!-- 勿在 el-card 上再加 table-wrapper：会与 CrmDataTable 内层 .table-wrapper 叠套，overflow 影响固定列叠层 -->
-    <el-card class="table-card rfq-list-table-card">
+    <!-- 主表：.table-wrapper + CrmDataTable（全局 crm-unified-list / 行高密度） -->
+    <div class="table-wrapper" v-loading="loading">
       <CrmDataTable
         ref="dataTableRef"
         column-layout-key="rfq-list-main"
@@ -82,7 +89,6 @@
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         :data="rfqList"
-        v-loading="loading"
         highlight-current-row
         @row-dblclick="handleView"
       >
@@ -95,13 +101,40 @@
           </el-tag>
         </template>
         <template #col-importance="{ row }">
-          <el-rate v-model="row.importance" disabled :max="10" />
+          <el-rate
+            :model-value="importanceDisplayStars(row.importance)"
+            disabled
+            :max="3"
+            :colors="['#C99A45', '#C99A45', '#C99A45']"
+            void-color="rgba(200,216,232,0.2)"
+          />
         </template>
         <template #col-rfqType="{ row }">
           {{ getTypeText(row.rfqType) }}
         </template>
+        <template #col-targetType="{ row }">
+          {{ getTargetTypeLabel(row.targetType ?? row.TargetType) }}
+        </template>
+        <template #col-product="{ row }">
+          {{ row.product || '—' }}
+        </template>
+        <template #col-remark="{ row }">
+          {{ row.remark || '—' }}
+        </template>
+        <template #col-itemCount="{ row }">
+          <span class="rfq-list-qty">{{ formatItemCountCell(row.itemCount) }}</span>
+        </template>
         <template #col-createTime="{ row }">
-          {{ row.createTime ? formatDisplayDateTime(row.createTime) : '--' }}
+          <template
+            v-for="p in [formatDisplayDateTime2DigitYearParts(row.createTime)]"
+            :key="`ct-rfq-${row.id}`"
+          >
+            <span v-if="p" class="crm-quote-create-time">
+              <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+              <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+            </span>
+            <span v-else>—</span>
+          </template>
         </template>
         <template #col-createUser="{ row }">
           {{ row.createUserName || row.createdBy || row.salesUserName || '—' }}
@@ -139,29 +172,29 @@
           </div>
         </template>
       </CrmDataTable>
+    </div>
 
-      <div class="pagination-wrapper">
-        <div class="list-footer-left">
-          <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
-              <el-icon><Setting /></el-icon>
-            </el-button>
-          </el-tooltip>
-          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
-          <div class="list-footer-spacer" aria-hidden="true"></div>
-        </div>
-        <el-pagination
-          class="quantum-pagination"
-          v-model:current-page="pageInfo.page"
-          v-model:page-size="pageInfo.pageSize"
-          :total="pageInfo.total"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handlePageChange"
-        />
+    <div v-if="pageInfo.total > 0" class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip :content="t('systemUser.colSetting')" placement="top" :hide-after="0">
+          <el-button class="list-settings-btn" link type="primary" :aria-label="t('systemUser.colSetting')" @click="dataTableRef?.openColumnSettings?.()">
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
+        <div class="list-footer-spacer" aria-hidden="true"></div>
       </div>
-    </el-card>
+      <el-pagination
+        class="quantum-pagination"
+        v-model:current-page="pageInfo.page"
+        v-model:page-size="pageInfo.pageSize"
+        :total="pageInfo.total"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="handleSizeChange"
+        @current-change="handlePageChange"
+      />
+    </div>
 
     <!-- 导入 Excel 创建 RFQ 对话框 -->
     <ImportRFQDialog
@@ -181,7 +214,7 @@ import ImportRFQDialog from './components/ImportRFQDialog.vue'
 import { ElMessage } from 'element-plus'
 import { rfqApi } from '@/api/rfq'
 import { getApiErrorMessage } from '@/utils/apiError'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import { formatRfqTypeLabel } from '@/constants/rfqFormEnums'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -249,12 +282,15 @@ const rfqTableColumns = computed((): CrmTableColumnDef[] => {
     cols.push({ key: 'customerName', label: t('rfqList.columns.customer'), prop: 'customerName', minWidth: 200, showOverflowTooltip: true })
   }
   cols.push(
-  { key: 'product', label: t('rfqList.columns.product'), prop: 'product', minWidth: 150, showOverflowTooltip: true },
-  { key: 'industry', label: t('rfqList.columns.industry'), prop: 'industry', width: 100 },
-  { key: 'itemCount', label: t('rfqList.columns.itemCount'), prop: 'itemCount', width: 80, align: 'center' as const },
-  { key: 'importance', label: t('rfqList.columns.importance'), prop: 'importance', width: 90, align: 'center' as const },
-  { key: 'rfqType', label: t('rfqList.columns.type'), prop: 'rfqType', width: 90 },
-  { key: 'salesUserName', label: t('rfqList.columns.salesUser'), prop: 'salesUserName', width: 100 },
+  { key: 'salesUserName', label: t('rfqList.columns.salesUser'), prop: 'salesUserName', minWidth: 100, width: 108, showOverflowTooltip: true },
+  { key: 'itemCount', label: t('rfqList.columns.itemCount'), prop: 'itemCount', minWidth: 112, width: 112, align: 'center' as const },
+  { key: 'targetType', label: t('rfqList.columns.targetType'), minWidth: 112, width: 112, align: 'center' as const },
+  { key: 'rfqType', label: t('rfqList.columns.rfqType'), prop: 'rfqType', minWidth: 112, width: 112 },
+  { key: 'industry', label: t('rfqList.columns.industry'), prop: 'industry', minWidth: 100, width: 104, showOverflowTooltip: true },
+  { key: 'product', label: t('rfqList.columns.product'), prop: 'product', minWidth: 140, showOverflowTooltip: true },
+  /** 重要程度：列表为三星，与 RFQCreate 一致；存盘值可能为 1–10，按同构规则映射到 1–3 星展示 */
+  { key: 'importance', label: t('rfqList.columns.importance'), prop: 'importance', minWidth: 120, width: 120, align: 'center' as const },
+  { key: 'remark', label: t('rfqList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
   {
     key: 'rfqCode',
     label: t('rfqList.columns.rfqCode'),
@@ -284,7 +320,15 @@ const rfqTableColumns = computed((): CrmTableColumnDef[] => {
 
 const importDialogVisible = ref(false)
 
-const totalCount = computed(() => rfqList.value.length)
+const totalCount = computed(() => pageInfo.value.total)
+
+/** 明细条目（数量）列：与《业务列表规范》§3.2 一致（千分位、tabular） */
+const formatItemCountCell = (v: unknown) => {
+  if (v == null || v === '') return '—'
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  return n.toLocaleString('zh-CN')
+}
 
 // 状态处理
 const getStatusType = (status: number) => {
@@ -306,6 +350,27 @@ const getStatusText = (status: number) => {
 const getTypeText = (type: number) => {
   const s = formatRfqTypeLabel(type)
   return s === '—' ? t('rfqList.status.unknown') : s
+}
+
+const getTargetTypeLabel = (type: unknown) => {
+  const n = type == null || type === '' ? NaN : Number(type)
+  if (!Number.isFinite(n)) return '—'
+  const map: Record<number, string> = {
+    1: t('rfqDetail.targetType.priceCompare'),
+    2: t('rfqDetail.targetType.exclusive'),
+    3: t('rfqDetail.targetType.urgent'),
+    4: t('rfqDetail.targetType.normal')
+  }
+  return map[n] ?? t('rfqList.status.unknown')
+}
+
+/** 与 RFQCreate.vue `normalizeImportance` 一致：界面三星，兼容历史 1–10 存盘 */
+function importanceDisplayStars(v: unknown): number {
+  const n = Number(v)
+  if (!Number.isFinite(n) || n < 1) return 1
+  if (n <= 3) return Math.round(n)
+  if (n <= 5) return Math.min(3, Math.max(1, Math.round(n)))
+  return Math.max(1, Math.min(3, Math.round((n * 3) / 10)))
 }
 
 // 加载数据
@@ -457,28 +522,110 @@ const handleView = (row: any) => {
   .stat-label { font-size: 12px; color: $text-muted; }
 }
 
-.filter-card {
-  margin-bottom: 20px;
-  background: $layer-2;
-  border: 1px solid $border-panel;
+// ---- 搜索栏（业务列表规范，与 CustomerList 对齐）----
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
-.table-card {
+.search-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-muted;
+  white-space: nowrap;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: $text-muted;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 220px;
+  padding: 7px 12px 7px 32px;
   background: $layer-2;
   border: 1px solid $border-panel;
-  // 避免卡片 body 形成裁剪/叠层，导致固定操作列无法盖住横向滚动区
-  &.rfq-list-table-card :deep(.el-card__body) {
-    overflow: visible;
-  }
-  :deep(.el-table) {
-    background: transparent;
-    --el-table-header-bg-color: rgba(255, 255, 255, 0.03);
-    --el-table-tr-bg-color: transparent;
-    --el-table-border-color: $border-panel;
-    color: $text-primary;
+  border-radius: $border-radius-md;
+  color: $text-primary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
 
-    .el-table__cell .cell { white-space: nowrap; }
+  &::placeholder {
+    color: $text-muted;
   }
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+}
+
+.search-input--w280 {
+  width: 280px;
+}
+
+.status-select {
+  width: 120px;
+  :deep(.el-select__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+  :deep(.el-select__placeholder) {
+    color: $text-muted !important;
+  }
+  :deep(.el-select__selected-item) {
+    color: $text-primary !important;
+  }
+}
+
+.status-select--rfq-status {
+  width: 140px;
+}
+
+// ---- 表格：.table-wrapper / CrmDataTable 全局样式见 crm-unified-list.scss ----
+.rfq-list-page .table-wrapper {
+  :deep(.el-table .cell) {
+    line-height: 1.2;
+  }
+
+  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row:hover),
+  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row.hover-row),
+  :deep(.el-table__body-wrapper .el-table__body tr.el-table__row.current-row),
+  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row:hover),
+  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row.hover-row),
+  :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row.current-row) {
+    transform: translateY(-1px);
+  }
+}
+
+/** 《业务列表规范》§3.2：数量字重与字色 */
+.rfq-list-qty {
+  font-weight: 700;
+  color: #27292c;
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-theme='dark'] .rfq-list-qty {
+  color: $text-primary;
 }
 
 .pagination-wrapper {
@@ -515,7 +662,54 @@ const handleView = (row: any) => {
 }
 
 .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.8), rgba(0, 212, 255, 0.7));
+  border: 1px solid rgba(0, 212, 255, 0.4);
   border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
+  color: $text-muted;
+  font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: rgba(0, 212, 255, 0.3);
+    color: $text-secondary;
+  }
+
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
 }
 
 // 新建/新增/创建（列表操作按钮颜色规范 PRD：success 绿）

@@ -55,7 +55,7 @@ import { getDebugPage } from '@/api/debug'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 /** debug 页面展示版本号（按发布批次手动维护） */
-const FRONTEND_DEBUG_VERSION = '1.1.0418-1015'
+const FRONTEND_DEBUG_VERSION = '1.1.0422-0900'
 
 /** 可配置列示例（列设置 / 顺序 / localStorage 持久化） */
 const debugTableColumns: CrmTableColumnDef[] = [
@@ -89,62 +89,65 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
+/* 本页在 AppLayout 浅色主内容区内渲染，使用深色文字与 Element 变量以保证对比度 */
 .debug-page {
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  color: #303133;
 }
 
 .debug-header h1 {
   margin: 0;
   font-size: 20px;
   font-weight: 700;
-  color: #e8f4ff;
+  color: #303133;
 }
 
 .debug-sub {
   margin-top: 6px;
-  font-size: 12px;
-  color: rgba(200, 220, 240, 0.7);
-  line-height: 1.5;
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.6;
 
   &.muted {
     margin-top: 4px;
-    opacity: 0.85;
+    color: #909399;
   }
 
   code {
     font-size: 11px;
     padding: 0 4px;
     border-radius: 4px;
-    background: rgba(0, 0, 0, 0.25);
+    background: var(--el-fill-color);
+    color: #606266;
+    border: 1px solid var(--el-border-color-lighter);
   }
 }
 
 .debug-panel {
   padding: 16px 18px;
   border-radius: 10px;
-  border: 1px solid rgba(0, 212, 255, 0.2);
-  background: rgba(0, 212, 255, 0.06);
+  border: 1px solid var(--el-border-color-lighter);
+  background: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow-light);
 }
 
-/* 记录面板在空数据时提升底色和边界对比 */
 .panel-records {
-  border-color: rgba(0, 212, 255, 0.2);
-  background: rgba(0, 212, 255, 0.06);
-  box-shadow: none;
+  border-color: var(--el-border-color-lighter);
+  background: var(--el-bg-color);
 }
 
 .panel-records .panel-title {
-  color: #e8f4ff;
+  color: #303133;
 }
 
 .panel-title {
   margin: 0 0 12px;
   font-size: 15px;
   font-weight: 600;
-  color: #e8f4ff;
+  color: #303133;
 }
 
 .panel-body {
@@ -161,18 +164,18 @@ onMounted(async () => {
 .meta-label {
   font-size: 13px;
   font-weight: 600;
-  color: rgba(200, 216, 232, 0.85);
+  color: #606266;
 }
 
 .meta-value {
   font-size: 13px;
-  color: #e8f4ff;
+  color: #303133;
 }
 
 .version-strong {
   font-size: 18px;
   font-weight: 700;
-  color: #00d4ff;
+  color: var(--el-color-primary);
 }
 
 .mono {
@@ -184,13 +187,13 @@ onMounted(async () => {
 }
 
 .debug-loading {
-  color: rgba(200, 220, 240, 0.8);
+  color: #909399;
 }
 
 .debug-error {
-  color: #ff6b6b;
-  background: rgba(255, 107, 107, 0.08);
-  border: 1px solid rgba(255, 107, 107, 0.25);
+  color: var(--el-color-danger);
+  background: var(--el-color-danger-light-9);
+  border: 1px solid var(--el-color-danger-light-5);
   padding: 12px 14px;
   border-radius: 10px;
 }
@@ -199,39 +202,39 @@ onMounted(async () => {
   margin-top: 10px;
   padding: 12px 14px;
   border-radius: 8px;
-  border: 1px solid rgba(0, 212, 255, 0.55);
-  background: rgba(0, 212, 255, 0.14);
-  color: rgba(242, 250, 255, 0.98);
+  border: 1px solid var(--el-border-color-lighter);
+  background: var(--el-fill-color-light);
+  color: #606266;
   font-size: 13px;
   font-weight: 500;
 }
 
 .debug-table {
   :deep(.crm-data-table-root) {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color-lighter);
     border-radius: 10px;
     padding: 6px 8px;
   }
   :deep(.el-table__inner-wrapper::before) {
-    background-color: rgba(255, 255, 255, 0.16);
+    background-color: var(--el-border-color-lighter);
   }
   :deep(.el-table__header-wrapper th) {
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(225, 238, 250, 0.95);
+    background: var(--el-fill-color-light);
+    color: #606266;
   }
   :deep(.el-table__body-wrapper td) {
-    color: #e8f4ff;
+    color: #303133;
   }
   :deep(.el-table__empty-block) {
     min-height: 116px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: var(--el-fill-color-blank);
+    border: 1px solid var(--el-border-color-lighter);
     border-radius: 8px;
     margin: 8px 0;
   }
   :deep(.el-table__empty-text) {
-    color: rgba(220, 235, 250, 0.92);
+    color: #909399;
     font-weight: 500;
   }
 }

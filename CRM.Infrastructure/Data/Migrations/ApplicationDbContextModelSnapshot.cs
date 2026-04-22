@@ -3140,6 +3140,11 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)");
 
+                    b.Property<string>("StockInItemCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("stock_in_item_code");
+
                     b.Property<short>("StockOutStatus")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
@@ -3468,6 +3473,16 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)")
                         .HasColumnName("StockItemId");
+
+                    b.Property<string>("StockInItemId")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)")
+                        .HasColumnName("StockInItemId");
+
+                    b.Property<string>("StockInItemCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("stock_in_item_code");
 
                     b.Property<short>("StockType")
                         .ValueGeneratedOnAdd()

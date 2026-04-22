@@ -27,6 +27,8 @@ namespace CRM.Core.Services
         private readonly IRepository<PickingTaskItem> _pickingTaskItemRepository;
         private readonly IRepository<StockInfo> _stockRepository;
         private readonly IRepository<StockItem> _stockItemRepository;
+        private readonly IRepository<StockInItem> _stockInItemRepository;
+        private readonly IRepository<StockIn> _stockInRepository;
         private readonly IRepository<SellOrder> _sellOrderRepository;
         private readonly IRepository<SellOrderItem> _sellOrderItemRepository;
         private readonly IRepository<SellOrderItemExtend> _sellOrderItemExtendRepository;
@@ -51,6 +53,8 @@ namespace CRM.Core.Services
             IRepository<PickingTaskItem> pickingTaskItemRepository,
             IRepository<StockInfo> stockRepository,
             IRepository<StockItem> stockItemRepository,
+            IRepository<StockInItem> stockInItemRepository,
+            IRepository<StockIn> stockInRepository,
             IRepository<SellOrder> sellOrderRepository,
             IRepository<SellOrderItem> sellOrderItemRepository,
             IRepository<SellOrderItemExtend> sellOrderItemExtendRepository,
@@ -74,6 +78,8 @@ namespace CRM.Core.Services
             _pickingTaskItemRepository = pickingTaskItemRepository;
             _stockRepository = stockRepository;
             _stockItemRepository = stockItemRepository;
+            _stockInItemRepository = stockInItemRepository;
+            _stockInRepository = stockInRepository;
             _sellOrderRepository = sellOrderRepository;
             _sellOrderItemRepository = sellOrderItemRepository;
             _sellOrderItemExtendRepository = sellOrderItemExtendRepository;
@@ -299,8 +305,9 @@ namespace CRM.Core.Services
                     StringComparer.OrdinalIgnoreCase);
 
             return reqs
-                .OrderByDescending(x => x.RequestDate)
-                .ThenByDescending(x => x.CreateTime)
+                .OrderByDescending(x => x.CreateTime)
+                .ThenByDescending(x => x.RequestDate)
+                .ThenBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
                 .Select(x =>
                 {
                     soMap.TryGetValue(x.SalesOrderId, out var so);
@@ -779,6 +786,7 @@ namespace CRM.Core.Services
 
             return outs
                 .OrderByDescending(x => x.CreateTime)
+                .ThenByDescending(x => x.Id)
                 .Select(x =>
                 {
                     SellOrderItem? line = null;
@@ -884,11 +892,41 @@ namespace CRM.Core.Services
                 .GroupBy(c => c.Id, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
+            var extendByOutItemId = (await _stockOutItemExtendRepository.GetAllAsync())
+                .GroupBy(e => e.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var stockInItemIdSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var line in items)
+            {
+                if (!extendByOutItemId.TryGetValue(line.Id.Trim(), out var ext))
+                    continue;
+                if (!string.IsNullOrWhiteSpace(ext.StockInItemId))
+                    stockInItemIdSet.Add(ext.StockInItemId.Trim());
+            }
+
+            var stockInItemById = (await _stockInItemRepository.GetAllAsync())
+                .Where(x => stockInItemIdSet.Contains(x.Id.Trim()))
+                .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var stockInIdSet = stockInItemById.Values
+                .Select(x => x.StockInId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var stockInById = (await _stockInRepository.GetAllAsync())
+                .Where(x => stockInIdSet.Contains(x.Id.Trim()))
+                .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
             var codeNeedle = query.StockOutCode?.Trim();
             var custNeedle = query.CustomerName?.Trim();
             var salesNeedle = query.SalesUserName?.Trim();
             var pnNeedle = query.PurchasePn?.Trim();
             var soLineCodeNeedle = query.SellOrderItemCode?.Trim();
+            var stockInCodeNeedle = query.StockInCode?.Trim();
             var statusFilter = query.Status;
 
             var result = new List<StockOutItemListRowDto>();
@@ -938,6 +976,19 @@ namespace CRM.Core.Services
                 if (!TextContainsOptional(pn, pnNeedle))
                     continue;
 
+                string? headerStockInCode = null;
+                if (extendByOutItemId.TryGetValue(line.Id.Trim(), out var extRow)
+                    && !string.IsNullOrWhiteSpace(extRow.StockInItemId)
+                    && stockInItemById.TryGetValue(extRow.StockInItemId.Trim(), out var sinIt)
+                    && !string.IsNullOrWhiteSpace(sinIt.StockInId)
+                    && stockInById.TryGetValue(sinIt.StockInId.Trim(), out var sinHdr))
+                {
+                    headerStockInCode = string.IsNullOrWhiteSpace(sinHdr.StockInCode) ? null : sinHdr.StockInCode.Trim();
+                }
+
+                if (!TextContainsOptional(headerStockInCode, stockInCodeNeedle))
+                    continue;
+
                 var outQty = line.ActualQty > 0 ? line.ActualQty : line.Quantity;
 
                 result.Add(new StockOutItemListRowDto
@@ -954,7 +1005,8 @@ namespace CRM.Core.Services
                     OutQuantity = outQty,
                     ShipmentMethod = string.IsNullOrWhiteSpace(hdr.ShipmentMethod) ? null : hdr.ShipmentMethod.Trim(),
                     CourierTrackingNo = string.IsNullOrWhiteSpace(hdr.CourierTrackingNo) ? null : hdr.CourierTrackingNo.Trim(),
-                    SellOrderItemCode = sellOrderItemCode
+                    SellOrderItemCode = sellOrderItemCode,
+                    StockInCode = headerStockInCode
                 });
             }
 
@@ -1168,6 +1220,8 @@ namespace CRM.Core.Services
         private static void FillStockOutItemExtendPricingFromLayer(StockOutItemExtend ext, StockItem layer, int lineQty)
         {
             ext.StockType = layer.StockType;
+            ext.StockInItemId = string.IsNullOrWhiteSpace(layer.StockInItemId) ? null : layer.StockInItemId.Trim();
+            ext.StockInItemCode = string.IsNullOrWhiteSpace(layer.StockInItemCode) ? null : layer.StockInItemCode.Trim();
             ext.SellOrderItemId = string.IsNullOrWhiteSpace(layer.SellOrderItemId) ? null : layer.SellOrderItemId.Trim();
             ext.SellOrderItemCode = string.IsNullOrWhiteSpace(layer.SellOrderItemCode) ? null : layer.SellOrderItemCode.Trim();
             ext.PurchaseOrderItemId = string.IsNullOrWhiteSpace(layer.PurchaseOrderItemId) ? null : layer.PurchaseOrderItemId.Trim();

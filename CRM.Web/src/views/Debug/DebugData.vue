@@ -49,16 +49,63 @@
         <div>创建结果：{{ simulateResult.createdNodes.join(' -> ') }}</div>
       </div>
     </section>
+
+    <section class="debug-panel panel-chain">
+      <h2 class="panel-title">删除数据链（按需求单号）</h2>
+      <p class="chain-tip">
+        输入 <strong>RFQ 需求单号</strong>（<span class="mono">rfq.rfq_code</span>），查询从该需求产生的下游业务节点与编号；删除将移除这些关联数据（含库存/出库/拣货等与造数链路一致的表）。操作不可恢复，仅限调试环境使用。
+      </p>
+      <div class="panel-body chain-toolbar">
+        <span class="simulate-form__inline-label">需求单号：</span>
+        <el-input
+          v-model="rfqChainCode"
+          clearable
+          placeholder="例如 RFQ2504180001"
+          style="width: 280px"
+          @keyup.enter="onPreviewRfqChain"
+        />
+        <el-button type="primary" plain :loading="chainLoading" @click="onPreviewRfqChain">查询下游链</el-button>
+        <el-button type="danger" :loading="chainDeleting" :disabled="!chainPreview?.nodes?.length" @click="onDeleteRfqChain">
+          删除下游数据
+        </el-button>
+      </div>
+      <div v-if="chainError" class="chain-error">{{ chainError }}</div>
+      <el-table
+        v-if="chainPreview && chainPreview.nodes.length"
+        :data="chainPreview.nodes"
+        border
+        stripe
+        size="small"
+        class="chain-table"
+        max-height="420"
+      >
+        <el-table-column prop="node" label="业务节点" width="180" />
+        <el-table-column prop="code" label="数据编号（业务号）" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span class="mono">{{ row.code }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="id" label="主键 Id" min-width="280" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span class="mono">{{ row.id }}</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div v-else-if="chainSearched && !chainLoading && !chainError" class="chain-empty">未查询到数据或无下游记录</div>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   simulateBusinessChain,
+  getRfqChainPreview,
+  deleteRfqChain,
   type SimulateBusinessChainResponse,
-  type SimulateDataOrigin
+  type SimulateDataOrigin,
+  type RfqChainPreview
 } from '@/api/debug'
 import { getApiErrorMessage } from '@/utils/apiError'
 
@@ -201,6 +248,71 @@ watch(
   { immediate: true }
 )
 
+const rfqChainCode = ref('')
+const chainLoading = ref(false)
+const chainDeleting = ref(false)
+const chainPreview = ref<RfqChainPreview | null>(null)
+const chainError = ref<string | null>(null)
+const chainSearched = ref(false)
+
+const onPreviewRfqChain = async () => {
+  const code = rfqChainCode.value.trim()
+  if (!code) {
+    ElMessage.warning('请输入需求单号')
+    return
+  }
+  chainLoading.value = true
+  chainError.value = null
+  chainSearched.value = true
+  try {
+    chainPreview.value = await getRfqChainPreview(code)
+    if (!chainPreview.value.nodes.length) {
+      ElMessage.info('未找到下游数据（需求可能不存在或无关联单据）')
+    }
+  } catch (e) {
+    chainPreview.value = null
+    chainError.value = getApiErrorMessage(e, '查询失败')
+    ElMessage.error(chainError.value)
+  } finally {
+    chainLoading.value = false
+  }
+}
+
+const onDeleteRfqChain = async () => {
+  const code = rfqChainCode.value.trim()
+  if (!code) {
+    ElMessage.warning('请输入需求单号')
+    return
+  }
+  if (!chainPreview.value?.nodes?.length) {
+    ElMessage.warning('请先查询下游链')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `将永久删除需求「${code}」及其下游全部关联数据（见上表），不可恢复。是否继续？`,
+      '确认删除',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  chainDeleting.value = true
+  chainError.value = null
+  try {
+    await deleteRfqChain(code)
+    ElMessage.success('已删除')
+    chainPreview.value = null
+    chainSearched.value = false
+    rfqChainCode.value = ''
+  } catch (e) {
+    chainError.value = getApiErrorMessage(e, '删除失败')
+    ElMessage.error(chainError.value)
+  } finally {
+    chainDeleting.value = false
+  }
+}
+
 const onSimulate = async () => {
   const origin = simulateForm.value.dataOrigin
   if (origin !== 'ignore') {
@@ -231,56 +343,59 @@ const onSimulate = async () => {
 </script>
 
 <style lang="scss" scoped>
+/* 本页在 AppLayout 浅色主内容区内渲染，使用深色文字与 Element 变量以保证对比度 */
 .debug-page {
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  color: #303133;
 }
 
 .debug-header h1 {
   margin: 0;
   font-size: 20px;
   font-weight: 700;
-  color: #e8f4ff;
+  color: #303133;
 }
 
 .debug-sub {
   margin-top: 6px;
-  font-size: 12px;
-  color: rgba(200, 220, 240, 0.7);
-  line-height: 1.5;
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.6;
 
   &.muted {
     margin-top: 4px;
-    opacity: 0.85;
   }
 }
 
 .debug-link {
   margin-left: 10px;
-  color: #00d4ff;
+  color: var(--el-color-primary);
   text-decoration: none;
   font-weight: 600;
   white-space: nowrap;
 
   &:hover {
     text-decoration: underline;
+    color: var(--el-color-primary-light-3);
   }
 }
 
 .debug-panel {
   padding: 16px 18px;
   border-radius: 10px;
-  border: 1px solid rgba(0, 212, 255, 0.2);
-  background: rgba(0, 212, 255, 0.06);
+  border: 1px solid var(--el-border-color-lighter);
+  background: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .panel-title {
   margin: 0 0 12px;
   font-size: 15px;
   font-weight: 600;
-  color: #e8f4ff;
+  color: #303133;
 }
 
 .panel-body {
@@ -311,31 +426,69 @@ const onSimulate = async () => {
 .simulate-form__group--generate {
   margin-left: 8px;
   padding-left: 16px;
-  border-left: 1px solid rgba(0, 212, 255, 0.2);
+  border-left: 1px solid var(--el-border-color-lighter);
 }
 
 .simulate-form__inline-label {
   font-size: 13px;
   font-weight: 600;
-  color: rgba(200, 216, 232, 0.85);
+  color: #606266;
   white-space: nowrap;
 }
 
 .simulate-tip {
   margin-top: 8px;
-  color: rgba(200, 220, 240, 0.7);
+  color: #909399;
   font-size: 12px;
+  line-height: 1.55;
 }
 
 .simulate-result {
   margin-top: 10px;
-  border: 1px solid rgba(0, 212, 255, 0.2);
-  background: rgba(0, 212, 255, 0.05);
+  border: 1px solid var(--el-border-color-lighter);
+  background: var(--el-fill-color-light);
   border-radius: 8px;
-  padding: 10px;
-  color: #e8f4ff;
+  padding: 10px 12px;
+  color: #303133;
   font-size: 13px;
   display: grid;
   gap: 4px;
+}
+
+.panel-chain .chain-tip {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.55;
+}
+
+.chain-toolbar {
+  flex-wrap: wrap;
+  gap: 10px 12px;
+}
+
+.chain-error {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--el-color-danger-light-5);
+  background: var(--el-color-danger-light-9);
+  color: var(--el-color-danger);
+  font-size: 13px;
+}
+
+.chain-empty {
+  margin-top: 12px;
+  padding: 12px;
+  font-size: 13px;
+  color: #909399;
+  border: 1px dashed var(--el-border-color);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.chain-table {
+  margin-top: 12px;
+  width: 100%;
 }
 </style>

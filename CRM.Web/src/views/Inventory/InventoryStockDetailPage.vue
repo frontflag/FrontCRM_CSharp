@@ -16,9 +16,6 @@
           <span class="summary-item"
             >{{ t('inventoryStockDetail.summary.warehouse') }}: {{ summaryWarehouse }}</span
           >
-          <span class="summary-item muted"
-            >{{ t('inventoryStockDetail.summary.stockId') }}: {{ stockId || t('quoteList.na') }}</span
-          >
         </div>
       </div>
       <div class="header-right">
@@ -29,7 +26,8 @@
 
     <section class="section">
       <h2 class="section-title">{{ t('inventoryStockDetail.stockItemsSection') }}</h2>
-      <CrmDataTable :data="stockItems" v-loading="loadingItems">
+      <CrmDataTable :data="pagedStockItems" v-loading="loadingItems">
+        <el-table-column prop="stockItemCode" :label="t('inventoryStockDetail.columns.stockItemCode')" width="168" show-overflow-tooltip />
         <el-table-column prop="stockInCode" :label="t('inventoryStockDetail.columns.stockInCode')" width="150" />
         <el-table-column prop="batchNo" :label="t('inventoryStockDetail.columns.batchNo')" width="120" />
         <el-table-column :label="t('inventoryStockDetail.columns.productionDate')" width="120">
@@ -71,6 +69,16 @@
           <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
         </el-table-column>
       </CrmDataTable>
+      <div v-if="!loadingItems && stockItems.length > 0" class="stock-items-pagination">
+        <el-pagination
+          v-model:current-page="stockItemsPage"
+          v-model:page-size="stockItemsPageSize"
+          :total="stockItems.length"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="stockItemsPage = 1"
+        />
+      </div>
       <p v-if="!loadingItems && stockItems.length === 0" class="empty-hint">{{ t('inventoryStockDetail.noStockItems') }}</p>
     </section>
 
@@ -124,9 +132,19 @@ const qMaterialId = computed(() => String(route.query.materialId || '').trim())
 
 const warehouses = ref<WarehouseInfo[]>([])
 const stockItems = ref<StockItemRow[]>([])
+const stockItemsPage = ref(1)
+const stockItemsPageSize = ref(10)
 const traceList = ref<MaterialTrace[]>([])
 const loadingItems = ref(false)
 const loadingTrace = ref(false)
+
+const pagedStockItems = computed(() => {
+  const all = stockItems.value
+  const size = Math.max(1, stockItemsPageSize.value)
+  const page = Math.max(1, stockItemsPage.value)
+  const start = (page - 1) * size
+  return all.slice(start, start + size)
+})
 
 const summaryStockCode = computed(() => qStockCode.value || t('quoteList.na'))
 const summaryMaterialModel = computed(() => qMaterialModel.value || t('quoteList.na'))
@@ -187,16 +205,19 @@ const loadTrace = async () => {
 const loadStockItems = async () => {
   if (!stockId.value) {
     stockItems.value = []
+    stockItemsPage.value = 1
     await loadTrace()
     return
   }
   loadingItems.value = true
   try {
     stockItems.value = await inventoryCenterApi.getStockItemsForStock(stockId.value)
+    stockItemsPage.value = 1
   } catch (e) {
     console.error(e)
     ElMessage.error(getApiErrorMessage(e, t('inventoryStockDetail.loadItemsFailed')))
     stockItems.value = []
+    stockItemsPage.value = 1
   } finally {
     loadingItems.value = false
   }
@@ -217,6 +238,14 @@ watch(
   async () => {
     await loadWarehouses()
     await loadStockItems()
+  }
+)
+
+watch(
+  () => stockItems.value.length,
+  () => {
+    const maxPage = Math.max(1, Math.ceil(stockItems.value.length / Math.max(1, stockItemsPageSize.value)) || 1)
+    if (stockItemsPage.value > maxPage) stockItemsPage.value = maxPage
   }
 )
 
@@ -300,5 +329,12 @@ onMounted(async () => {
   background: $layer-2;
   color: $text-primary;
   border-color: $border-panel;
+}
+
+.stock-items-pagination {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 </style>

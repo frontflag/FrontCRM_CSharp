@@ -416,8 +416,13 @@ namespace CRM.IntegrationTests
             stockOutItemExtendRepo.AddAsync(Arg.Any<StockOutItemExtend>()).Returns(Task.CompletedTask);
             var sellOrderItemLineExtendRepo = Substitute.For<IRepository<SellOrderItemExtend>>();
             sellOrderItemLineExtendRepo.GetByIdAsync(Arg.Any<string>()).Returns((SellOrderItemExtend?)null);
+            var stockInItemRepoForStockOut = Substitute.For<IRepository<StockInItem>>();
+            stockInItemRepoForStockOut.GetAllAsync().Returns(new List<StockInItem>());
+            var stockInRepoForStockOut = Substitute.For<IRepository<StockIn>>();
+            stockInRepoForStockOut.GetAllAsync().Returns(new List<StockIn>());
             var service = new StockOutService(
                 stockOutRepo, stockOutItemRepo, stockOutItemExtendRepo, stockOutRequestRepo, pickingTaskRepo, pickingTaskItemRepo, stockRepo, stockItemRepo,
+                stockInItemRepoForStockOut, stockInRepoForStockOut,
                 sellOrderRepo, sellOrderItemRepo, sellOrderItemLineExtendRepo, customerRepoForStockOut, purchaseOrderItemRepo, purchaseOrderRepo, userRepo,
                 warehouseRepoForStockOut,
                 inventoryCenterService, serialNumberService, sellOrderItemExtendSync,
@@ -575,8 +580,13 @@ namespace CRM.IntegrationTests
             stockOutItemExtendRepo2.AddAsync(Arg.Any<StockOutItemExtend>()).Returns(Task.CompletedTask);
             var sellOrderItemLineExtendRepo2 = Substitute.For<IRepository<SellOrderItemExtend>>();
             sellOrderItemLineExtendRepo2.GetByIdAsync(Arg.Any<string>()).Returns((SellOrderItemExtend?)null);
+            var stockInItemRepoForStockOut2 = Substitute.For<IRepository<StockInItem>>();
+            stockInItemRepoForStockOut2.GetAllAsync().Returns(new List<StockInItem>());
+            var stockInRepoForStockOut2 = Substitute.For<IRepository<StockIn>>();
+            stockInRepoForStockOut2.GetAllAsync().Returns(new List<StockIn>());
             var service = new StockOutService(
                 stockOutRepo, stockOutItemRepo, stockOutItemExtendRepo2, stockOutRequestRepo, pickingTaskRepo, pickingTaskItemRepo, stockRepo, stockItemRepo2,
+                stockInItemRepoForStockOut2, stockInRepoForStockOut2,
                 sellOrderRepo, sellOrderItemRepo, sellOrderItemLineExtendRepo2, customerRepoForStockOut, purchaseOrderItemRepo, purchaseOrderRepo, userRepo,
                 warehouseRepoForStockOut,
                 inventoryCenterService, serialNumberService, sellOrderItemExtendSync,
@@ -736,6 +746,7 @@ namespace CRM.IntegrationTests
             var service = new LogisticsService(
                 notifyRepo, stockInRepoForLogistics, stockInItemExtendRepoForLogistics, qcRepo, qcItemRepo, poRepo, poItemRepo, poItemExtendRepo,
                 sellOrderItemRepo, sellOrderRepo, serialNumberService, poItemExtendSync, unitOfWork,
+                _userService,
                 logisticsLogger);
 
             // 准备采购订单明细
@@ -1806,7 +1817,7 @@ namespace CRM.IntegrationTests
             var logisticsService = new LogisticsService(
                 notifyRepo, stockInRepoForLogistics2, stockInItemExtendRepoForLogistics2, qcRepo, qcItemRepo, poRepo, poItemRepo, poItemExtendRepo,
                 sellOrderItemRepo, sellOrderRepo, logisticsSerialNumberService, poItemExtendSyncForLogistics,
-                logisticsUnitOfWork, logisticsLogger2);
+                logisticsUnitOfWork, _userService, logisticsLogger2);
 
             // 模拟到货通知仓储
             var allNotices = new List<StockInNotify>();
@@ -1958,8 +1969,13 @@ namespace CRM.IntegrationTests
             stockOutItemExtendRepoWf.AddAsync(Arg.Any<StockOutItemExtend>()).Returns(Task.CompletedTask);
             var sellOrderItemLineExtendRepoWf = Substitute.For<IRepository<SellOrderItemExtend>>();
             sellOrderItemLineExtendRepoWf.GetByIdAsync(Arg.Any<string>()).Returns((SellOrderItemExtend?)null);
+            var stockInItemRepoWf = Substitute.For<IRepository<StockInItem>>();
+            stockInItemRepoWf.GetAllAsync().Returns(new List<StockInItem>());
+            var stockInRepoWf = Substitute.For<IRepository<StockIn>>();
+            stockInRepoWf.GetAllAsync().Returns(new List<StockIn>());
             var stockOutService = new StockOutService(
                 stockOutRepo, stockOutItemRepo, stockOutItemExtendRepoWf, stockOutRequestRepo, pickingTaskRepo, pickingTaskItemRepoWf, stockRepo, stockItemRepoForWorkflow,
+                stockInItemRepoWf, stockInRepoWf,
                 _salesOrderRepository, _salesOrderItemRepository, sellOrderItemLineExtendRepoWf, customerRepoForStockOut2, poItemRepo, poRepo, userRepo,
                 warehouseRepoForStockOut2,
                 inventoryCenterServiceForStockOut, stockOutSerialNumberService, sellOrderItemExtendSyncForStockOut,

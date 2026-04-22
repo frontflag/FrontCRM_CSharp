@@ -94,6 +94,7 @@ namespace CRM.Infrastructure.Data
 
         // ===== 库存/入库/出库 =====
         public DbSet<StockInfo> Stocks { get; set; } = null!;
+        public DbSet<StockExtend> StockExtends { get; set; } = null!;
         public DbSet<StockIn> StockIns { get; set; } = null!;
         public DbSet<StockInExtend> StockInExtends { get; set; } = null!;
         public DbSet<StockInItem> StockInItems { get; set; } = null!;
@@ -630,6 +631,20 @@ namespace CRM.Infrastructure.Data
                     .HasFilter("\"StockCode\" IS NOT NULL");
             });
 
+            modelBuilder.Entity<StockExtend>(entity =>
+            {
+                entity.HasKey(e => e.StockId);
+                entity.ToTable("stock_extend");
+                entity.Property(e => e.StockId).HasMaxLength(36);
+                entity.Property(e => e.LastItemLineSeq).HasColumnName("last_item_line_seq");
+                entity.Property(e => e.CreateTime).HasColumnName("CreateTime");
+                entity.Property(e => e.ModifyTime).HasColumnName("ModifyTime");
+                entity.HasOne<StockInfo>()
+                    .WithOne()
+                    .HasForeignKey<StockExtend>(e => e.StockId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
             modelBuilder.Entity<StockIn>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -648,7 +663,7 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<StockInExtend>(entity =>
             {
                 entity.HasKey(e => e.StockInId);
-                entity.ToTable("stockinextend");
+                entity.ToTable("stock_in_extend");
                 entity.Property(e => e.StockInId).HasMaxLength(36);
                 entity.Property(e => e.LastItemLineSeq).HasColumnName("last_item_line_seq");
                 entity.Property(e => e.CreateTime).HasColumnName("CreateTime");
@@ -755,8 +770,10 @@ namespace CRM.Infrastructure.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("StockOutItemId");
-                entity.ToTable("stockoutitemextend");
+                entity.ToTable("stock_out_item_extend");
                 entity.Property(e => e.StockItemId).HasMaxLength(36);
+                entity.Property(e => e.StockInItemId).HasColumnName("StockInItemId").HasMaxLength(36);
+                entity.Property(e => e.StockInItemCode).HasColumnName("stock_in_item_code").HasMaxLength(64);
                 entity.Property(e => e.StockType).HasColumnName("Type").HasDefaultValue((short)1);
                 entity.Property(e => e.SellOrderItemId).HasColumnName("sell_order_item_id").HasMaxLength(36);
                 entity.Property(e => e.SellOrderItemCode).HasColumnName("sell_order_item_code").HasMaxLength(64);
@@ -786,6 +803,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.StockInItemId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.StockInId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.StockAggregateId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.StockItemCode).HasColumnName("stock_item_code").IsRequired(false).HasMaxLength(64);
+                entity.Property(e => e.StockInItemCode).HasColumnName("stock_in_item_code").IsRequired(false).HasMaxLength(64);
                 entity.Property(e => e.MaterialId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.WarehouseId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.LocationId).HasMaxLength(36);
@@ -808,6 +827,9 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.RegionType).HasColumnName("RegionType").HasDefaultValue((short)10);
                 entity.HasIndex(e => e.StockInItemId).IsUnique().HasDatabaseName("IX_stockitem_StockInItemId");
                 entity.HasIndex(e => e.StockAggregateId).HasDatabaseName("IX_stockitem_StockAggregateId");
+                entity.HasIndex(e => new { e.StockAggregateId, e.StockItemCode })
+                    .IsUnique()
+                    .HasDatabaseName("IX_stock_item_agg_linecode");
                 entity.Property(e => e.StockOutStatus).HasDefaultValue((short)0);
                 // ProfitOutBizUsd：入库价差 USD × QtyInbound 快照；按行出库利润在 stock_out_item_extend.ProfitOutBizUsd
                 entity.Property(e => e.ProfitOutBizUsd).HasColumnType("numeric(18,2)").HasDefaultValue(0m);

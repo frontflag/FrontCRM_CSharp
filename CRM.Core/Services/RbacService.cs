@@ -207,7 +207,8 @@ namespace CRM.Core.Services
                 PrimaryDepartmentId = primaryDepartmentId,
                 IdentityType = identityType,
                 SaleDataScope = saleScope,
-                PurchaseDataScope = purchaseScope
+                PurchaseDataScope = purchaseScope,
+                BelongsToPurchaseDept = belongsToPurchaseDept
             };
         }
 

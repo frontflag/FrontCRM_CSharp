@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+# 若有 CRM.Web 下文件被暂存，则必须通过 Vue/TS 类型检查后才允许提交
+cd "$(dirname "$0")/.." || exit 1
+if git diff --cached --name-only --diff-filter=ACM | grep -qE '^CRM\.Web/'; then
+  echo "husky pre-commit: CRM.Web 有变更，运行 vue-tsc..."
+  npm run web:typecheck || exit 1
+fi

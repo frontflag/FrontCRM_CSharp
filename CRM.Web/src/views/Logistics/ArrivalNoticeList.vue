@@ -74,10 +74,24 @@
       <template #col-brand="{ row }">{{ displayBrand(row) }}</template>
       <template #col-expectedArrivalDate="{ row }">{{ formatExpected(row.expectedArrivalDate) }}</template>
       <template #col-regionType="{ row }">{{ regionTypeLabel(row) }}</template>
-      <template #col-expectQty="{ row }">{{ formatQtyCol(expectQty(row)) }}</template>
-      <template #col-receiveQty="{ row }">{{ formatQtyCol(receiveQty(row)) }}</template>
-      <template #col-passedQty="{ row }">{{ formatQtyCol(passedQty(row)) }}</template>
-      <template #col-createTime="{ row }">{{ formatTime(row.createTime) }}</template>
+      <template #col-expectQty="{ row }">
+        <span class="inv-list-qty">{{ formatQtyCell(expectQty(row)) }}</span>
+      </template>
+      <template #col-receiveQty="{ row }">
+        <span class="inv-list-qty">{{ formatQtyCell(receiveQty(row)) }}</span>
+      </template>
+      <template #col-passedQty="{ row }">
+        <span class="inv-list-qty">{{ formatQtyCell(passedQty(row)) }}</span>
+      </template>
+      <template #col-createTime="{ row }">
+        <template v-for="p in [formatDisplayDateTime2DigitYearParts(row.createTime)]" :key="'ct-' + row.id">
+          <span v-if="p" class="crm-quote-create-time">
+            <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+            <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+          </span>
+          <span v-else class="inv-list-dash">—</span>
+        </template>
+      </template>
       <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || '--' }}</template>
       <template #col-actions-header>
         <div class="op-col-header">
@@ -201,13 +215,13 @@
           {{ detailNotice.purchaseUserName?.trim() || '—' }}
         </el-descriptions-item>
         <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.noticeQty')">
-          {{ formatQtyCol(expectQty(detailNotice)) }}
+          {{ formatQtyCell(expectQty(detailNotice)) }}
         </el-descriptions-item>
         <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.receivedQty')">
-          {{ formatQtyCol(receiveQty(detailNotice)) }}
+          {{ formatQtyCell(receiveQty(detailNotice)) }}
         </el-descriptions-item>
         <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.passedQty')">
-          {{ formatQtyCol(passedQty(detailNotice)) }}
+          {{ formatQtyCell(passedQty(detailNotice)) }}
         </el-descriptions-item>
         <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.stockInQty')">
           {{ stockInQtyText(detailNotice) }}
@@ -226,7 +240,7 @@ import { Setting } from '@element-plus/icons-vue'
 import { logisticsApi, type StockInNotifyDto, type StockInNotifyItemDto } from '@/api/logistics'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { useRouter } from 'vue-router'
-import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const router = useRouter()
@@ -336,11 +350,17 @@ const rawBrand = (row: StockInNotifyDto) => (row.brand != null && row.brand !== 
 const displayPn = (row: StockInNotifyDto) => rawPn(row) || '—'
 const displayBrand = (row: StockInNotifyDto) => rawBrand(row) || '—'
 
-const formatQtyCol = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(4).replace(/\.?0+$/, '') || '0')
+/** 《业务列表规范》§3.2：数量千分位、tabular-nums（与 InventoryList 一致） */
+const formatQtyCell = (v: unknown) => {
+  if (v == null || v === '') return '—'
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  return n.toLocaleString('zh-CN')
+}
 
 /** 已入库(100)后展示实收入库数量；此前尚无独立「入库数」字段时显示 — */
 const stockInQtyText = (row: StockInNotifyDto) =>
-  row.status === 100 ? formatQtyCol(receiveQty(row)) : '—'
+  row.status === 100 ? formatQtyCell(receiveQty(row)) : '—'
 
 const statusText = (s: number) => {
   const keyMap: Record<number, 'new' | 'notArrived' | 'pendingQc' | 'qcDone' | 'stocked'> = {
@@ -354,7 +374,6 @@ const statusText = (s: number) => {
   return k ? t(`arrivalNoticeList.status.${k}`) : t('arrivalNoticeList.statusUnknown')
 }
 const statusType = (s: number) => ({ 1: 'info', 10: 'warning', 20: 'primary', 30: 'success', 100: 'success' }[s] || 'info')
-const formatTime = (v?: string) => formatDisplayDateTime(v)
 const formatExpected = (v?: string | null) => (v ? formatDisplayDate(v) : '—')
 
 const regionTypeLabel = (row: StockInNotifyDto) => {
@@ -417,6 +436,21 @@ loadData()
   min-height: 100%;
   background: $layer-1;
   font-family: 'Noto Sans SC', sans-serif;
+}
+
+/** 《业务列表规范》§3.2：数量字重与字色（与 InventoryList 一致） */
+.inv-list-qty {
+  font-weight: 700;
+  color: #27292c;
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-theme='dark'] .inv-list-qty {
+  color: $text-primary;
+}
+
+.inv-list-dash {
+  color: $text-muted;
 }
 
 .page-header {

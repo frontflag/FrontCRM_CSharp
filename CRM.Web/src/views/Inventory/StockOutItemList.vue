@@ -35,6 +35,12 @@
           :placeholder="t('stockOutItemList.filters.stockOutCode')"
           @keyup.enter="fetchList"
         />
+        <input
+          v-model="filters.stockInCode"
+          class="search-input search-input--filter search-input--wide"
+          :placeholder="t('stockOutItemList.filters.stockInCode')"
+          @keyup.enter="fetchList"
+        />
         <div
           class="filter-date-range"
           role="group"
@@ -96,6 +102,9 @@
         </template>
       </el-table-column>
       <el-table-column prop="stockOutCode" :label="t('stockOutItemList.columns.stockOutCode')" width="150" show-overflow-tooltip />
+      <el-table-column prop="stockInCode" :label="t('stockOutItemList.columns.stockInCode')" width="140" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.stockInCode || t('quoteList.na') }}</template>
+      </el-table-column>
       <el-table-column :label="t('stockOutItemList.columns.stockOutDate')" width="118">
         <template #default="{ row }">{{ formatDateOnly(row.stockOutDate) }}</template>
       </el-table-column>
@@ -111,9 +120,15 @@
       <el-table-column prop="purchaseBrand" :label="t('stockOutItemList.columns.purchaseBrand')" min-width="100" show-overflow-tooltip>
         <template #default="{ row }">{{ row.purchaseBrand || t('quoteList.na') }}</template>
       </el-table-column>
-      <el-table-column prop="outQuantity" :label="t('stockOutItemList.columns.outQuantity')" width="96" align="right" />
+      <el-table-column
+        prop="outQuantity"
+        :label="t('stockOutItemList.columns.outQuantity')"
+        min-width="120"
+        align="right"
+        show-overflow-tooltip
+      />
       <el-table-column prop="shipmentMethod" :label="t('stockOutItemList.columns.shipmentMethod')" width="110" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.shipmentMethod || t('quoteList.na') }}</template>
+        <template #default="{ row }">{{ shipmentMethodDisplay(row.shipmentMethod) }}</template>
       </el-table-column>
       <el-table-column prop="courierTrackingNo" :label="t('stockOutItemList.columns.courierTrackingNo')" width="130" show-overflow-tooltip>
         <template #default="{ row }">{{ row.courierTrackingNo || t('quoteList.na') }}</template>
@@ -138,6 +153,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -148,6 +164,26 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const router = useRouter()
 const { t } = useI18n()
+const { ensureLoaded: ensureLogisticsDict, arrivalOptions } = useLogisticsFormDict()
+
+/** LogisticsArrivalMethod ItemCode → 字典显示名（与出库单头、出库详情一致） */
+const arrivalLabelByCode = computed(() => {
+  const m = new Map<string, string>()
+  for (const o of arrivalOptions.value) {
+    const k = String(o.value ?? '').trim()
+    if (k) m.set(k.toLowerCase(), o.label)
+  }
+  return m
+})
+
+function shipmentMethodDisplay(code?: string | number | null): string {
+  if (code === null || code === undefined || code === '') return t('quoteList.na')
+  const c = String(code).trim()
+  if (!c) return t('quoteList.na')
+  const label = arrivalLabelByCode.value.get(c.toLowerCase())
+  return label ?? c
+}
+
 const loading = ref(false)
 const list = ref<StockOutItemListRow[]>([])
 const listPage = ref(1)
@@ -167,6 +203,7 @@ const dateTo = ref<string | null>(null)
 const filters = reactive({
   status: undefined as number | undefined,
   stockOutCode: '',
+  stockInCode: '',
   customerName: '',
   salesUserName: '',
   purchasePn: '',
@@ -177,6 +214,7 @@ function buildQuery(): StockOutItemListQuery {
   return {
     status: filters.status,
     stockOutCode: filters.stockOutCode.trim() || undefined,
+    stockInCode: filters.stockInCode.trim() || undefined,
     stockOutDateFrom: dateFrom.value?.trim() || undefined,
     stockOutDateTo: dateTo.value?.trim() || undefined,
     customerName: filters.customerName.trim() || undefined,
@@ -205,6 +243,7 @@ const fetchList = () => void runStockOutItemFetch(true)
 const resetFilters = () => {
   filters.status = undefined
   filters.stockOutCode = ''
+  filters.stockInCode = ''
   filters.customerName = ''
   filters.salesUserName = ''
   filters.purchasePn = ''
@@ -245,7 +284,12 @@ const onRowDblclick = (row: StockOutItemListRow) => {
   void router.push(`/inventory/stock-out/${encodeURIComponent(id)}`)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    await ensureLogisticsDict()
+  } catch {
+    /* 字典失败时 shipmentMethodDisplay 仍回退为原始码 */
+  }
   void fetchList()
 })
 </script>

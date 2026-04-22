@@ -290,6 +290,30 @@ WHERE
 - ✅ 可查看系统所有数据
 - ✅ 可管理所有用户、角色、权限
 
+### 5.5 主菜单（侧栏）：采购侧员工不展示「出库管理」「报关」
+
+**业务目的：** 采购部门员工以采购、入库、库存内勤为主，**不提供**侧栏进入「出库管理」「报关」板块的入口，与职责划分一致。
+
+**判定条件（与 `RbacService` 采购侧部门一致）：**
+
+- 权限摘要 `UserPermissionSummaryDto.BelongsToPurchaseDept == true`（主部门 `IdentityType` 为采购/采购助理 **2 / 3**；或用户兼任部门中存在采购侧部门；或主部门 `IdentityType` 未维护时按部门名称兜底识别「采购部」等）。
+- **系统管理员**（`IsSysAdmin`）**不受**本条限制，侧栏始终展示全部菜单项。
+
+**表现：**
+
+| 菜单板块 | 采购侧员工（`BelongsToPurchaseDept` 且非管理员） | 其他部门用户 |
+|----------|--------------------------------------------------|----------------|
+| 出库管理（出库通知、拣货单、出库、出库明细） | **不展示** | 展示（与既有路由/权限一致） |
+| 报关（报关公司、报关单、报关明细） | **不展示** | 展示 |
+
+**实现说明：**
+
+- 属**前端侧栏裁剪**（`CRM.Web/src/layouts/AppLayout.vue` 中 `showStockOutAndCustomsMenus`），**不是**在 `RbacService` 内通过删除权限码实现；即使角色种子中将来挂了更细的资源权限，采购侧仍可在产品层保持「无入口」。
+- 摘要字段：`GET /api/v1/auth/permission-summary` 返回 `belongsToPurchaseDept`（JSON camelCase）；前端会话合并后用于菜单判断。
+- 后端赋值：`CRM.Core/Services/RbacService.cs`；DTO：`CRM.Core/Interfaces/IRbacService.cs` 中 `UserPermissionSummaryDto`。
+
+**文档对照：** 详见 `document/实现方案/RBAC权限节点清单.md` 第四节「4.1 主菜单（侧栏）…」。
+
 ---
 
 ## 六、API接口规范
@@ -588,6 +612,7 @@ WHERE r.role_code = 'SYS_ADMIN';
 | 版本 | 日期 | 作者 | 变更说明 |
 |------|------|------|----------|
 | v1.0 | 2026-04-08 | AI助手 | 初始版本，基于代码梳理的完整RBAC权限系统PRD |
+| v1.1 | 2026-04-18 | AI助手 | 增补 5.5：采购侧员工侧栏隐藏「出库管理」「报关」及 `belongsToPurchaseDept` 摘要字段说明 |
 
 ---
 

@@ -107,17 +107,51 @@ namespace CRM.API.Controllers
 
         [Authorize]
         [HttpGet("me")]
-        public ActionResult<ApiResponse<object>> GetCurrentUser()
+        public async Task<ActionResult<ApiResponse<object>>> GetCurrentUser(CancellationToken cancellationToken)
         {
-            var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-            var userName = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value?.Trim();
+            if (string.IsNullOrWhiteSpace(userId))
+                return Unauthorized(ApiResponse<object>.Fail("未获取到用户信息", 401));
+
+            var user = await _userService.GetByIdAsync(userId);
+            if (user == null)
+                return NotFound(ApiResponse<object>.Fail("用户不存在", 404));
+
+            var rels = (await _userDepartmentRepo.FindAsync(x => x.UserId == userId)).ToList();
+            var deptIdOrder = rels
+                .OrderByDescending(x => x.IsPrimary)
+                .Select(x => x.DepartmentId?.Trim() ?? string.Empty)
+                .Where(x => x.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            string? department = null;
+            if (deptIdOrder.Count > 0)
+            {
+                var deptRows = (await _departmentRepo.FindAsync(d => deptIdOrder.Contains(d.Id))).ToList();
+                var map = deptRows.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
+                var names = new List<string>();
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var did in deptIdOrder)
+                {
+                    if (!map.TryGetValue(did, out var dep)) continue;
+                    var n = (dep.DepartmentName ?? string.Empty).Trim();
+                    if (n.Length == 0 || seen.Contains(n)) continue;
+                    seen.Add(n);
+                    names.Add(n);
+                }
+
+                department = names.Count == 0 ? null : string.Join("、", names);
+            }
 
             return Ok(ApiResponse<object>.Ok(new
             {
-                Email = userEmail,
-                UserName = userName,
-                Id = userId
+                id = user.Id,
+                userName = user.UserName,
+                email = user.Email ?? string.Empty,
+                realName = user.RealName,
+                mobile = user.Mobile ?? string.Empty,
+                department
             }, "获取用户信息成功"));
         }
 

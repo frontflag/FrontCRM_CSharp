@@ -487,66 +487,68 @@
           </template>
         </SidebarMenuGroupFlyout>
 
-        <!-- 出库管理 -->
-        <SidebarMenuGroupFlyout
-          :collapsed="isCollapsed"
-          :expanded="openGroups.stockOutManagement"
-          @toggle="toggleGroup('stockOutManagement')"
-        >
-          <template #icon>
-            <span class="menu-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <path d="M7 7h10v10H7z"/>
-                <path d="M3 12h8"/>
-                <path d="M13 12h8"/>
-                <path d="M17 8l4 4-4 4"/>
+        <!-- 出库管理、报关：采购侧部门员工不显示（与 RBAC belongsToPurchaseDept 一致） -->
+        <template v-if="showStockOutAndCustomsMenus">
+          <SidebarMenuGroupFlyout
+            :collapsed="isCollapsed"
+            :expanded="openGroups.stockOutManagement"
+            @toggle="toggleGroup('stockOutManagement')"
+          >
+            <template #icon>
+              <span class="menu-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M7 7h10v10H7z"/>
+                  <path d="M3 12h8"/>
+                  <path d="M13 12h8"/>
+                  <path d="M17 8l4 4-4 4"/>
+                </svg>
+              </span>
+            </template>
+            <template #label>
+              <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.stockOutManagement') }}</span>
+            </template>
+            <template #chevron>
+              <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.stockOutManagement }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9l6 6 6-6"/>
               </svg>
-            </span>
-          </template>
-          <template #label>
-            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.stockOutManagement') }}</span>
-          </template>
-          <template #chevron>
-            <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.stockOutManagement }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M6 9l6 6 6-6"/>
-            </svg>
-          </template>
-          <template #submenu>
-            <router-link to="/inventory/stock-out-notifies" class="submenu-item" active-class="active">{{ t('layout.menu.stockOutNotifies') }}</router-link>
-            <router-link to="/inventory/picking-list" class="submenu-item" active-class="active">{{ t('layout.menu.pickingSlip') }}</router-link>
-            <router-link to="/inventory/stock-out" class="submenu-item" active-class="active">{{ t('layout.menu.stockOut') }}</router-link>
-            <router-link to="/inventory/stock-out/items" class="submenu-item" active-class="active">{{ t('layout.menu.stockOutItems') }}</router-link>
-          </template>
-        </SidebarMenuGroupFlyout>
+            </template>
+            <template #submenu>
+              <router-link to="/inventory/stock-out-notifies" class="submenu-item" active-class="active">{{ t('layout.menu.stockOutNotifies') }}</router-link>
+              <router-link to="/inventory/picking-list" class="submenu-item" active-class="active">{{ t('layout.menu.pickingSlip') }}</router-link>
+              <router-link to="/inventory/stock-out" class="submenu-item" active-class="active">{{ t('layout.menu.stockOut') }}</router-link>
+              <router-link to="/inventory/stock-out/items" class="submenu-item" active-class="active">{{ t('layout.menu.stockOutItems') }}</router-link>
+            </template>
+          </SidebarMenuGroupFlyout>
 
-        <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.customs') }}</div>
-        <SidebarMenuGroupFlyout
-          :collapsed="isCollapsed"
-          :expanded="openGroups.customs"
-          @toggle="toggleGroup('customs')"
-        >
-          <template #icon>
-            <span class="menu-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <rect x="4" y="3" width="16" height="18" rx="2" />
-                <path d="M8 8h8M8 12h8M8 16h5" />
+          <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.customs') }}</div>
+          <SidebarMenuGroupFlyout
+            :collapsed="isCollapsed"
+            :expanded="openGroups.customs"
+            @toggle="toggleGroup('customs')"
+          >
+            <template #icon>
+              <span class="menu-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="4" y="3" width="16" height="18" rx="2" />
+                  <path d="M8 8h8M8 12h8M8 16h5" />
+                </svg>
+              </span>
+            </template>
+            <template #label>
+              <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.customsGroup') }}</span>
+            </template>
+            <template #chevron>
+              <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.customs }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9l6 6 6-6"/>
               </svg>
-            </span>
-          </template>
-          <template #label>
-            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.customsGroup') }}</span>
-          </template>
-          <template #chevron>
-            <svg v-if="!isCollapsed" class="chevron" :class="{ rotated: openGroups.customs }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M6 9l6 6 6-6"/>
-            </svg>
-          </template>
-          <template #submenu>
-            <router-link to="/customs/brokers" class="submenu-item" active-class="active">{{ t('layout.menu.customsBrokers') }}</router-link>
-            <router-link to="/customs/declarations" class="submenu-item" active-class="active">{{ t('layout.menu.customsDeclarations') }}</router-link>
-            <router-link to="/customs/declaration-items" class="submenu-item" active-class="active">{{ t('layout.menu.customsDeclarationItems') }}</router-link>
-          </template>
-        </SidebarMenuGroupFlyout>
+            </template>
+            <template #submenu>
+              <router-link to="/customs/brokers" class="submenu-item" active-class="active">{{ t('layout.menu.customsBrokers') }}</router-link>
+              <router-link to="/customs/declarations" class="submenu-item" active-class="active">{{ t('layout.menu.customsDeclarations') }}</router-link>
+              <router-link to="/customs/declaration-items" class="submenu-item" active-class="active">{{ t('layout.menu.customsDeclarationItems') }}</router-link>
+            </template>
+          </SidebarMenuGroupFlyout>
+        </template>
 
         <!-- 财务：按部门隔离维度拆分“付款管理/收款管理”
              红框（财务管理折叠按钮）已移除；这里以“付款管理/收款管理”作为二级菜单组（带图标与收起展开）。 -->
@@ -760,6 +762,44 @@
               active-class="active"
               exact
             >{{ t('layout.menu.financeParams') }}</router-link>
+          </template>
+        </SidebarMenuGroupFlyout>
+
+        <SidebarMenuGroupFlyout
+          v-if="hasPermission('rbac.manage')"
+          :collapsed="isCollapsed"
+          :expanded="openGroups.systemLogs"
+          @toggle="toggleGroup('systemLogs')"
+        >
+          <template #icon>
+            <span class="menu-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+            </span>
+          </template>
+          <template #label>
+            <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.systemLogs') }}</span>
+          </template>
+          <template #chevron>
+            <svg
+              v-if="!isCollapsed"
+              class="chevron"
+              :class="{ rotated: openGroups.systemLogs }"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </template>
+          <template #submenu>
+            <router-link to="/system/operation-logs" class="submenu-item" active-class="active" exact>{{ t('layout.menu.operationLog') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -1305,7 +1345,8 @@ const openGroups = ref({
   financePayments: false,
   financeReceipts: false,
   systemManagement: false,
-  paramManagement: false
+  paramManagement: false,
+  systemLogs: false
 })
 
 const expandAllGroups = () => {
@@ -1325,14 +1366,15 @@ const expandAllGroups = () => {
     financePayments: true,
     financeReceipts: true,
     systemManagement: true,
-    paramManagement: true
+    paramManagement: true,
+    systemLogs: true
   }
 }
 
 const toggleCollapse = () => {
   cycleSidebarMode()
   if (sidebarMode.value === 'narrow') {
-    openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, customs: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, financePayments: false, financeReceipts: false, systemManagement: false, paramManagement: false }
+    openGroups.value = { purchase: false, sales: false, inventory: false, stockInManagement: false, customs: false, stockOutManagement: false, customers: false, vendors: false, rfqs: false, quotes: false, finance: false, financePayments: false, financeReceipts: false, systemManagement: false, paramManagement: false, systemLogs: false }
   } else if (sidebarMode.value === 'full' && isSysAdmin.value) {
     expandAllGroups()
   }
@@ -1375,6 +1417,7 @@ const pageTitleMap: Record<string, string> = {
   '/system/company-info': 'layout.menu.companyInfo',
   '/system/dict-items': 'layout.menu.dictItems',
   '/system/finance-params/exchange-rates': 'layout.menu.financeParams',
+  '/system/operation-logs': 'layout.menu.operationLog',
   '/inventory/list': 'layout.menu.inventoryCenter',
   '/inventory/stock-items': 'layout.menu.inventoryStockItems',
   '/inventory/stock-in': 'layout.menu.stockInManagement',
@@ -1507,6 +1550,7 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '公司信息': 'layout.menu.companyInfo',
   '数据字典': 'layout.menu.dictItems',
   '财务参数': 'layout.menu.financeParams',
+  '操作日志': 'layout.menu.operationLog',
   '汇率设置': 'financeParams.exchangeRatesNav',
   '付款管理': 'layout.menu.paymentManagement',
   '付款单详情': 'rfqItemList.actions.detail',
@@ -1601,6 +1645,12 @@ const showPurchaseNavGroup = computed(() => {
   return pr || po || so
 })
 
+/** 出库管理 + 报关板块：采购侧部门（belongsToPurchaseDept）隐藏；未带新字段的旧会话仍显示 */
+const showStockOutAndCustomsMenus = computed(() => {
+  if (isSysAdmin.value) return true
+  return authStore.user?.belongsToPurchaseDept !== true
+})
+
 // 管理员登录时默认展开所有分组（不强制主菜单宽度，以便可缩为边条/隐藏）
 watch(
   isSysAdmin,
@@ -1675,6 +1725,9 @@ watch(
     }
     if (p === '/system/company-info' || p === '/system/dict-items' || p.startsWith('/system/finance-params')) {
       openGroups.value.paramManagement = true
+    }
+    if (p === '/system/operation-logs') {
+      openGroups.value.systemLogs = true
     }
   },
   { immediate: true }

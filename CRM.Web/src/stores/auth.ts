@@ -7,6 +7,11 @@ interface User {
   id: string
   email: string
   userName: string
+  /** 来自 GET /auth/me */
+  realName?: string
+  mobile?: string
+  /** 主部门优先，多部门顿号分隔 */
+  department?: string
   isSysAdmin?: boolean
   roleCodes?: string[]
   permissionCodes?: string[]
@@ -15,6 +20,8 @@ interface User {
   identityType?: number
   saleDataScope?: number
   purchaseDataScope?: number
+  /** 与后端 RBAC 一致：采购侧部门员工（含名称兜底） */
+  belongsToPurchaseDept?: boolean
 }
 
 function readUserFromStorage(): User | null {
@@ -83,7 +90,8 @@ export const useAuthStore = defineStore('auth', () => {
         departmentIds: summary?.departmentIds || [],
         identityType: Number(summary?.identityType ?? 0),
         saleDataScope: Number(summary?.saleDataScope ?? 1),
-        purchaseDataScope: Number(summary?.purchaseDataScope ?? 1)
+        purchaseDataScope: Number(summary?.purchaseDataScope ?? 1),
+        belongsToPurchaseDept: !!summary?.belongsToPurchaseDept
       }
     } else {
       user.value.identityType = user.value.identityType ?? 0
@@ -151,7 +159,8 @@ export const useAuthStore = defineStore('auth', () => {
           departmentIds: summary?.departmentIds || [],
           identityType: Number(summary?.identityType ?? 0),
           saleDataScope: Number(summary?.saleDataScope ?? 1),
-          purchaseDataScope: Number(summary?.purchaseDataScope ?? 1)
+          purchaseDataScope: Number(summary?.purchaseDataScope ?? 1),
+          belongsToPurchaseDept: !!summary?.belongsToPurchaseDept
         }
         localStorage.setItem('user', JSON.stringify(user.value))
       }

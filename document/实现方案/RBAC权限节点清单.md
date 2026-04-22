@@ -68,6 +68,17 @@
 
 实现位置：`CRM.Core/Services/RbacService.cs`。
 
+### 4.1 主菜单（侧栏）：采购侧员工不展示「出库管理」「报关」
+
+| 项 | 说明 |
+|----|------|
+| **判定** | 与上表「采购侧部门」一致：`UserPermissionSummaryDto.BelongsToPurchaseDept`（由 `RbacService.GetUserPermissionSummaryAsync` 赋值；主部门 `IdentityType` 为 2/3、兼任采购相关部门、或主部门名称命中「采购部 / 采购中心 / Purchasing」等兜底时均为 `true`）。 |
+| **效果** | 当前用户 `belongsToPurchaseDept === true` 且**非**系统管理员时，全站侧栏**不渲染**「**出库管理**」分组（出库通知、拣货单、出库、出库明细）与「**报关**」分组（报关公司、报关单、报关明细）。 |
+| **与权限码关系** | **不依赖**从 JWT 中删除 `stock-out` / `customs` 等资源权限码（当前多数库存/报关接口仍为 `[Authorize]` 级）；属于**前端菜单裁剪**，避免采购日常入口误入出库与报关业务。 |
+| **例外** | `SYS_ADMIN`（`isSysAdmin`）**始终**展示上述菜单。 |
+| **前端** | `CRM.Web/src/layouts/AppLayout.vue`：`showStockOutAndCustomsMenus`（`authStore.user.belongsToPurchaseDept !== true` 或管理员）。 |
+| **摘要接口** | `GET /api/v1/auth/permission-summary` 返回体含 `belongsToPurchaseDept`（camelCase）。登录后需拉取摘要或重新登录后 `localStorage` 中 `user` 才带该字段。 |
+
 ---
 
 ## 五、未单独挂资源权限码的模块
@@ -83,6 +94,8 @@
 | 权限种子 | `seed_initial_rbac_admin.sql` |
 | 运行时合并/剥离 | `CRM.Core/Services/RbacService.cs` |
 | 审批业务权限 | `CRM.API/Controllers/ApprovalsController.cs` |
+| 权限摘要（含 `belongsToPurchaseDept`） | `CRM.API/Controllers/AuthController.cs` → `GetPermissionSummary` |
+| 主菜单采购侧隐藏 | `CRM.Web/src/layouts/AppLayout.vue` |
 
 ---
 

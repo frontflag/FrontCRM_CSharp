@@ -679,6 +679,12 @@ const routes: RouteRecordRaw[] = [
           }
         ]
       },
+      {
+        path: 'system/operation-logs',
+        name: 'OperationLogList',
+        component: () => import('@/views/System/OperationLogList.vue'),
+        meta: { requiresAuth: true, title: '操作日志', permission: 'rbac.manage' }
+      },
       // 财务模块（meta.permission 与 RbacService 按主部门剥离一致，防止直链 URL）
       {
         path: 'finance/payments',

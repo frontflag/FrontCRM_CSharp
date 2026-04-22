@@ -139,16 +139,13 @@ namespace CRM.API.Controllers
                 IReadOnlyDictionary<string, SellOrderItemExtend>? itemExtends = null;
                 if (order.Items != null && order.Items.Count > 0)
                 {
-                    try
-                    {
-                        var ids = order.Items.Select(i => i.Id).ToList();
-                        var extRows = (await _soItemExtendRepo.FindAsync(e => ids.Contains(e.Id))).ToList();
-                        itemExtends = extRows.ToDictionary(e => e.Id, e => e, StringComparer.OrdinalIgnoreCase);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "加载销售明细扩展失败，已跳过: SellOrderId={SellOrderId}", order.Id);
-                    }
+                    var ids = order.Items
+                        .Select(i => i.Id)
+                        .Where(id => !string.IsNullOrWhiteSpace(id))
+                        .Select(id => id.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    itemExtends = await LoadSellOrderItemExtendsByItemIdsAsync(ids, order.Id);
                 }
 
                 IReadOnlyDictionary<string, bool> stockOutGate =
@@ -192,17 +189,13 @@ namespace CRM.API.Controllers
                 IReadOnlyDictionary<string, SellOrderItemExtend>? itemExtends = null;
                 if (order.Items != null && order.Items.Count > 0)
                 {
-                    try
-                    {
-                        var ids = order.Items.Select(i => i.Id).ToList();
-                        var extRows = (await _soItemExtendRepo.FindAsync(e => ids.Contains(e.Id))).ToList();
-                        itemExtends = extRows.ToDictionary(e => e.Id, e => e, StringComparer.OrdinalIgnoreCase);
-                    }
-                    catch (Exception ex)
-                    {
-                        // 扩展表未迁移或与模型不一致时不阻断主单详情（进度列按 0 展示）
-                        _logger.LogWarning(ex, "加载销售明细扩展失败，已跳过: SellOrderId={SellOrderId}", order.Id);
-                    }
+                    var ids = order.Items
+                        .Select(i => i.Id)
+                        .Where(id => !string.IsNullOrWhiteSpace(id))
+                        .Select(id => id.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    itemExtends = await LoadSellOrderItemExtendsByItemIdsAsync(ids, order.Id);
                 }
 
                 IReadOnlyDictionary<string, bool> stockOutGate =
@@ -370,6 +363,47 @@ namespace CRM.API.Controllers
         {
             if (string.IsNullOrWhiteSpace(userId)) return null;
             return await _rbacService.GetUserPermissionSummaryAsync(userId);
+        }
+
+        /// <summary>
+        /// 加载销售明细扩展（含备货在库可用量）。批量查询失败时逐条回退，避免前端「申请出库」门槛与弹窗数量全为 0。
+        /// </summary>
+        private async Task<IReadOnlyDictionary<string, SellOrderItemExtend>?> LoadSellOrderItemExtendsByItemIdsAsync(
+            IReadOnlyList<string> sellOrderItemIds,
+            string sellOrderIdForLog)
+        {
+            if (sellOrderItemIds.Count == 0)
+                return null;
+
+            try
+            {
+                var extRows = (await _soItemExtendRepo.FindAsync(e => sellOrderItemIds.Contains(e.Id))).ToList();
+                return extRows.ToDictionary(e => e.Id, e => e, StringComparer.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "批量加载销售明细扩展失败，改为逐条加载: SellOrderId={SellOrderId}", sellOrderIdForLog);
+                try
+                {
+                    var map = new Dictionary<string, SellOrderItemExtend>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var rawId in sellOrderItemIds)
+                    {
+                        if (string.IsNullOrWhiteSpace(rawId))
+                            continue;
+                        var id = rawId.Trim();
+                        var ext = await _soItemExtendRepo.GetByIdAsync(id);
+                        if (ext != null)
+                            map[id] = ext;
+                    }
+
+                    return map.Count > 0 ? map : null;
+                }
+                catch (Exception ex2)
+                {
+                    _logger.LogWarning(ex2, "逐条加载销售明细扩展仍失败，已跳过: SellOrderId={SellOrderId}", sellOrderIdForLog);
+                    return null;
+                }
+            }
         }
 
         private static object MaskSellOrderLine(SellOrderItemLineDto r, bool canViewCustomer, bool canViewAmount)

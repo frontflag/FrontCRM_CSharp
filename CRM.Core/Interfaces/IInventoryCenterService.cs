@@ -81,7 +81,11 @@ namespace CRM.Core.Interfaces
     public class InventoryStockItemRowDto
     {
         public string StockItemId { get; set; } = string.Empty;
+        /// <summary>在库明细业务编号（<c>stock_item.stock_item_code</c>）。</summary>
+        public string? StockItemCode { get; set; }
         public string StockInItemId { get; set; } = string.Empty;
+        /// <summary>入库明细业务编号（冗余 <c>stock_item.stock_in_item_code</c>，与 <c>stock_in_item.stock_in_item_code</c> 一致）。</summary>
+        public string? StockInItemCode { get; set; }
         public string StockInId { get; set; } = string.Empty;
         public string? StockInCode { get; set; }
         public string MaterialId { get; set; } = string.Empty;
@@ -183,6 +187,10 @@ namespace CRM.Core.Interfaces
         public string Id { get; set; } = string.Empty;
         public string MaterialId { get; set; } = string.Empty;
         public string? StockId { get; set; }
+        /// <summary>在库明细业务编号（<c>stock_item.stock_item_code</c>）。</summary>
+        public string? StockItemCode { get; set; }
+        /// <summary>入库明细业务编号（冗余 <c>stock_item.stock_in_item_code</c>，与 <c>stock_in_item.stock_in_item_code</c> 一致）。</summary>
+        public string? StockInItemCode { get; set; }
         /// <summary>在库明细 <c>stockitem</c> 主键（新流程）。</summary>
         public string? StockItemId { get; set; }
         /// <summary>对应库存行类型 1客单 2备货 3样品；无库存记录时可为空</summary>
@@ -261,6 +269,12 @@ namespace CRM.Core.Interfaces
     public class PickingStockItemCandidateDto
     {
         public string StockItemId { get; set; } = string.Empty;
+        /// <summary>在库明细业务编号（<c>stock_item.stock_item_code</c>）。</summary>
+        public string? StockItemCode { get; set; }
+        /// <summary>入库明细业务编号（<c>stock_item.stock_in_item_code</c>，缺省再解析 <c>stock_in_item</c>）。</summary>
+        public string? StockInItemCode { get; set; }
+        /// <summary>入库日期（来源 <c>stock_in.StockInDate</c>；显示用，可空）。</summary>
+        public DateTime? StockInDate { get; set; }
         public string StockAggregateId { get; set; } = string.Empty;
         public string MaterialId { get; set; } = string.Empty;
         public int AvailableQty { get; set; }

@@ -123,8 +123,14 @@
         <template #col-materialModel="{ row }">
           {{ row.materialModel || row.mpn || '—' }}
         </template>
+        <template #col-brand="{ row }">
+          {{ row.brand || '—' }}
+        </template>
         <template #col-customerPart="{ row }">
           {{ row.customerMaterialModel || row.customerMpn || '—' }}
+        </template>
+        <template #col-customerBrand="{ row }">
+          {{ row.customerBrand || '—' }}
         </template>
         <template #col-purchasers="{ row }">
           {{ formatAssignedPurchasers(row) }}
@@ -608,6 +614,21 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
   }
   cols.push(
   {
+    key: 'customerPart',
+    label: t('rfqItemList.columns.customerPart'),
+    width: 120,
+    minWidth: 88,
+    showOverflowTooltip: true,
+    resizable: true
+  },
+  {
+    key: 'customerBrand',
+    label: t('rfqItemList.columns.customerBrand'),
+    minWidth: 100,
+    showOverflowTooltip: true,
+    resizable: true
+  },
+  {
     key: 'materialModel',
     label: t('rfqItemList.columns.materialModel'),
     minWidth: 120,
@@ -615,10 +636,9 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
     resizable: true
   },
   {
-    key: 'customerPart',
-    label: t('rfqItemList.columns.customerPart'),
-    width: 120,
-    minWidth: 88,
+    key: 'brand',
+    label: t('rfqItemList.columns.brand'),
+    minWidth: 100,
     showOverflowTooltip: true,
     resizable: true
   },
@@ -940,7 +960,8 @@ function mapRow(row: any): RFQItem {
     ...row,
     rfqCreateTime: row.rfqCreateTime,
     materialModel: row.mpn ?? row.materialModel,
-    customerMaterialModel: row.customerMpn ?? row.customerMaterialModel
+    customerMaterialModel: row.customerMpn ?? row.customerMaterialModel,
+    customerBrand: row.customerBrand ?? row.CustomerBrand
   }
 }
 

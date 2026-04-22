@@ -2,8 +2,10 @@ using CRM.API.Authorization;
 using CRM.API.Constants;
 using CRM.API.Models.DTOs;
 using CRM.API.Services;
+using CRM.Core.Document;
 using CRM.Core.Models.System;
 using CRM.Infrastructure.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -15,6 +17,8 @@ namespace CRM.API.Controllers
     public class CompanyProfileController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
+        private readonly IDocumentService _documentService;
+        private readonly IFileStorageService _fileStorage;
         private readonly ILogger<CompanyProfileController> _logger;
 
         private static readonly JsonSerializerOptions JsonOpts = new()
@@ -23,9 +27,15 @@ namespace CRM.API.Controllers
             PropertyNameCaseInsensitive = true
         };
 
-        public CompanyProfileController(ApplicationDbContext db, ILogger<CompanyProfileController> logger)
+        public CompanyProfileController(
+            ApplicationDbContext db,
+            IDocumentService documentService,
+            IFileStorageService fileStorage,
+            ILogger<CompanyProfileController> logger)
         {
             _db = db;
+            _documentService = documentService;
+            _fileStorage = fileStorage;
             _logger = logger;
         }
 
@@ -62,6 +72,56 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex, "读取公司信息（报表）失败");
                 return StatusCode(500, ApiResponse<CompanyProfileBundleDto>.Fail("读取失败", 500));
             }
+        }
+
+        /// <summary>登录页品牌图：与「公司信息」中公司 Logo 的选取规则一致（默认且已上传；否则任一有文件），无需登录。</summary>
+        [HttpGet("login-logo")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetLoginLogo(CancellationToken ct)
+        {
+            try
+            {
+                var bundle = await LoadBundleAsync(ct);
+                var docId = PickLoginLogoDocumentId(bundle.Logos);
+                if (string.IsNullOrWhiteSpace(docId))
+                    return NotFound();
+
+                var doc = await _documentService.GetByIdAsync(docId.Trim());
+                if (doc == null || doc.IsDeleted)
+                    return NotFound();
+
+                try
+                {
+                    var stream = await _fileStorage.OpenReadAsync(doc.RelativePath);
+                    Response.Headers.CacheControl = "public, max-age=600";
+                    return File(stream, doc.MimeType ?? "application/octet-stream");
+                }
+                catch (FileNotFoundException ex)
+                {
+                    _logger.LogWarning(ex, "登录页公司 Logo：物理文件缺失 DocumentId={DocumentId}", docId);
+                    return NotFound();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "读取登录页公司 Logo 失败");
+                return StatusCode(500);
+            }
+        }
+
+        private static string? PickLoginLogoDocumentId(IReadOnlyList<CompanyLogoRowDto>? logos)
+        {
+            if (logos == null || logos.Count == 0)
+                return null;
+
+            static bool HasDoc(CompanyLogoRowDto r) => !string.IsNullOrWhiteSpace(r.DocumentId);
+
+            var defWithDoc = logos.FirstOrDefault(r => r.IsDefault && HasDoc(r));
+            if (defWithDoc != null)
+                return defWithDoc.DocumentId!.Trim();
+
+            var anyWithDoc = logos.FirstOrDefault(r => HasDoc(r));
+            return string.IsNullOrWhiteSpace(anyWithDoc?.DocumentId) ? null : anyWithDoc.DocumentId.Trim();
         }
 
         [HttpPut]

@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace CRM.Core.Models.Inventory;
 
 /// <summary>入库单主单级扩展（1:1 stockin），维护明细行序号水位。</summary>
-[Table("stockinextend")]
+[Table("stock_in_extend")]
 public class StockInExtend
 {
     [Key]

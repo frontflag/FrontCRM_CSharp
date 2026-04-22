@@ -128,8 +128,8 @@ const isEdit = !!userId
 const loading = ref(false)
 const saving = ref(false)
 
-/** 与后端数据权限、seed_dept_org_roles.sql 一致 */
-const ORG_ROLE_CODES = ['DEPT_DIRECTOR', 'DEPT_MANAGER', 'DEPT_EMPLOYEE'] as const
+/** 与后端数据权限、seed_dept_org_roles.sql 一致；下拉里展示顺序：员工 → 经理 → 总监 */
+const ORG_ROLE_CODES = ['DEPT_EMPLOYEE', 'DEPT_MANAGER', 'DEPT_DIRECTOR'] as const
 
 /** 与 RbacController.AssignableUserRoleCodes 一致：可与部门角色并存，打开员工编辑时不得被误删 */
 const PRESERVABLE_BUSINESS_ROLE_CODES = new Set<string>([
@@ -162,9 +162,11 @@ const formData = ref({
   primaryDepartmentId: '' as string
 })
 
-const departmentRoles = computed(() =>
-  roles.value.filter(r => ORG_ROLE_CODES.includes(r.roleCode as (typeof ORG_ROLE_CODES)[number]))
-)
+const departmentRoles = computed(() => {
+  const list = roles.value.filter(r => ORG_ROLE_CODES.includes(r.roleCode as (typeof ORG_ROLE_CODES)[number]))
+  const rank = (code: string) => ORG_ROLE_CODES.indexOf(code as (typeof ORG_ROLE_CODES)[number])
+  return [...list].sort((a, b) => rank(a.roleCode) - rank(b.roleCode))
+})
 
 /** 可与部门角色并存的业务角色（与 RbacController.AssignableUserRoleCodes 一致，不含 SYS_ADMIN） */
 const businessExtensionRoleOptions = computed(() =>

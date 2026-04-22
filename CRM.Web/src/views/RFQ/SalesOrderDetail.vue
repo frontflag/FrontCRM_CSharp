@@ -432,7 +432,14 @@
       </div>
       <template #footer>
         <el-button @click="applyDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="applySubmitting" @click="submitApplyStockOut">确定</el-button>
+        <el-button
+          type="primary"
+          :loading="applySubmitting"
+          :disabled="applyStockOutConfirmDisabled"
+          @click="submitApplyStockOut"
+        >
+          确定
+        </el-button>
       </template>
     </el-dialog>
 
@@ -811,6 +818,13 @@ const applyStockOutZeroQtyBannerVisible = computed(() => {
   const stocking = Math.max(0, Math.trunc(Number(applyForm.value.purchasedStockAvailableQty) || 0))
   return maxQ <= 0 && stocking <= 0
 })
+/** 与零可申请横幅一致：该提示出现时不可提交（加载中亦禁用，避免初始 maxQty=0 误判） */
+const applyStockOutConfirmDisabled = computed(
+  () =>
+    applySubmitting.value ||
+    applyStockOutLoading.value ||
+    (!!applyForm.value.sellOrderItemId && applyStockOutZeroQtyBannerVisible.value)
+)
 /** 表单上方：同物料型号的采购备货在库数量说明 */
 const applyPurchasedStockingPurchasingBarTitle = computed(() => {
   const qty = Math.max(0, Math.trunc(Number(applyForm.value.purchasedStockAvailableQty) || 0))
@@ -1198,24 +1212,10 @@ const submitApplyStockOut = async () => {
     ElMessage.warning('出库通知数量必须大于 0')
     return
   }
-  const stockAvail = Number(applyForm.value.stockAvailableQty)
-  const stockAvailSafe = Number.isFinite(stockAvail) ? stockAvail : 0
-  if (qty > stockAvailSafe) {
-    ElMessage.warning(
-      t('salesOrderItemList.messages.applyStockOutExceedsStock', {
-        available: Math.trunc(stockAvailSafe)
-      })
-    )
-    return
-  }
-  const remNotify = Number(applyForm.value.remainingNotifyQty)
-  const remSafe = Number.isFinite(remNotify) ? remNotify : 0
-  if (qty > remSafe) {
-    ElMessage.warning(
-      t('salesOrderItemList.messages.applyStockOutExceedsRemainingNotify', {
-        remaining: Math.trunc(remSafe)
-      })
-    )
+  /** 与后端 GetApplyContext：suggestedMaxQty = min(尚可申请, 客单在库+备货在库) 及 el-input-number :max 一致 */
+  const maxAllowed = Math.max(0, Math.trunc(Number(applyForm.value.maxQty) || 0))
+  if (qty > maxAllowed) {
+    ElMessage.warning(t('salesOrderItemList.messages.applyStockOutExceedsSuggestedMax', { max: maxAllowed }))
     return
   }
   applySubmitting.value = true
@@ -1688,7 +1688,9 @@ const submitApplyStockOut = async () => {
   margin-top: 8px;
   border: 1px solid $border-panel;
   border-radius: $border-radius-md;
-  overflow: hidden;
+  /* 窄屏时横向滚动，避免「备货在库」等列被 overflow:hidden 裁掉 */
+  overflow-x: auto;
+  overflow-y: visible;
   background: $layer-2;
 }
 .apply-stock-lines__head,
@@ -1698,6 +1700,7 @@ const submitApplyStockOut = async () => {
   gap: 8px;
   align-items: center;
   padding: 10px 12px;
+  min-width: 760px;
 }
 .apply-stock-lines__head {
   background: var(--crm-table-header-bg);
