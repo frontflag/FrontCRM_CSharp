@@ -91,7 +91,14 @@
       </div>
 
       <!-- 银行水单附件 -->
-      <div class="tab-card">
+      <div v-if="maskPurchaseSensitiveFields" class="tab-card">
+        <div class="card-title">
+          <span class="title-bar"></span>
+          <span>{{ t('financePaymentDetail.bankSlip') }}</span>
+        </div>
+        <el-alert type="info" :closable="false" show-icon :title="t('common.crossSideAttachmentsRestricted')" />
+      </div>
+      <div v-else class="tab-card">
         <div class="card-title">
           <span class="title-bar"></span>
           <span>{{ t('financePaymentDetail.bankSlip') }}</span>
@@ -139,11 +146,13 @@ import { documentApi, type UploadDocumentDto } from '@/api/document'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { vendorApi } from '@/api/vendor'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const { paymentStatusLabel, paymentStatusTag, paymentModeLabel, verificationStatusLabel } = useFinanceEnumLabels()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
 const loading = ref(false)
 const detail = ref<FinancePayment | null>(null)
@@ -177,6 +186,10 @@ const fetchDetail = async () => {
 
 const loadPaymentDocs = async () => {
   if (!paymentId.value) {
+    paymentDocs.value = []
+    return
+  }
+  if (maskPurchaseSensitiveFields.value) {
     paymentDocs.value = []
     return
   }
@@ -226,6 +239,10 @@ const resolveVendorDisplayName = async () => {
   const current = detail.value
   if (!current) {
     vendorDisplayName.value = '-'
+    return
+  }
+  if (maskPurchaseSensitiveFields.value) {
+    vendorDisplayName.value = '—'
     return
   }
 

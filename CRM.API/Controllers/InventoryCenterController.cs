@@ -2,6 +2,7 @@ using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Utilities;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CRM.API.Controllers
@@ -11,11 +12,16 @@ namespace CRM.API.Controllers
     public class InventoryCenterController : ControllerBase
     {
         private readonly IInventoryCenterService _service;
+        private readonly IRbacService _rbacService;
         private readonly ILogger<InventoryCenterController> _logger;
 
-        public InventoryCenterController(IInventoryCenterService service, ILogger<InventoryCenterController> logger)
+        public InventoryCenterController(
+            IInventoryCenterService service,
+            IRbacService rbacService,
+            ILogger<InventoryCenterController> logger)
         {
             _service = service;
+            _rbacService = rbacService;
             _logger = logger;
         }
 
@@ -25,6 +31,13 @@ namespace CRM.API.Controllers
             try
             {
                 var list = await _service.GetMaterialOverviewAsync(warehouseId);
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                {
+                    var masked = list.ToList();
+                    SaleSensitiveFieldMask521.ApplyInventoryMaterialOverviews(masked, true);
+                    list = masked;
+                }
+
                 return Ok(ApiResponse<IEnumerable<InventoryMaterialOverviewDto>>.Ok(list, "获取库存总览成功"));
             }
             catch (Exception ex)
@@ -55,6 +68,20 @@ namespace CRM.API.Controllers
             try
             {
                 var list = await _service.GetStockItemsForAggregateAsync(stockId);
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                {
+                    var masked = list.ToList();
+                    PurchaseSensitiveFieldMask511.ApplyInventoryStockItemRows(masked, true);
+                    list = masked;
+                }
+
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                {
+                    var masked2 = list.ToList();
+                    SaleSensitiveFieldMask521.ApplyInventoryStockItemRows(masked2, true);
+                    list = masked2;
+                }
+
                 return Ok(ApiResponse<IEnumerable<InventoryStockItemRowDto>>.Ok(list, "获取库存明细成功"));
             }
             catch (Exception ex)
@@ -70,6 +97,20 @@ namespace CRM.API.Controllers
             try
             {
                 var list = await _service.GetStockItemsListAsync(query);
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                {
+                    var masked = list.ToList();
+                    PurchaseSensitiveFieldMask511.ApplyInventoryStockItemListRows(masked, true);
+                    list = masked;
+                }
+
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                {
+                    var masked2 = list.ToList();
+                    SaleSensitiveFieldMask521.ApplyInventoryStockItemListRows(masked2, true);
+                    list = masked2;
+                }
+
                 return Ok(ApiResponse<IEnumerable<InventoryStockItemListRowDto>>.Ok(list, "获取库存明细列表成功"));
             }
             catch (Exception ex)
@@ -85,6 +126,13 @@ namespace CRM.API.Controllers
             try
             {
                 var list = await _service.GetMaterialTraceAsync(materialId);
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                {
+                    var masked = list.ToList();
+                    PurchaseSensitiveFieldMask511.ApplyInventoryMaterialTraces(masked, true);
+                    list = masked;
+                }
+
                 return Ok(ApiResponse<IEnumerable<InventoryMaterialTraceDto>>.Ok(list, "获取物料入库追溯成功"));
             }
             catch (Exception ex)
@@ -100,6 +148,8 @@ namespace CRM.API.Controllers
             try
             {
                 var dto = await _service.GetFinanceSummaryAsync(stagnantDays);
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                    PurchaseSensitiveFieldMask511.ApplyInventoryFinanceSummary(dto, true);
                 return Ok(ApiResponse<InventoryFinanceSummaryDto>.Ok(dto, "获取库存财务分析成功"));
             }
             catch (Exception ex)
@@ -150,6 +200,13 @@ namespace CRM.API.Controllers
             try
             {
                 var list = await _service.GetPickingTaskListRowsAsync();
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                {
+                    var masked = list.ToList();
+                    SaleSensitiveFieldMask521.ApplyPickingTaskListItems(masked, true);
+                    list = masked;
+                }
+
                 return Ok(ApiResponse<IReadOnlyList<PickingTaskListItemDto>>.Ok(list, "获取拣货单列表成功"));
             }
             catch (Exception ex)
@@ -168,6 +225,8 @@ namespace CRM.API.Controllers
                 var dto = await _service.GetPickingTaskDetailForUiAsync(id);
                 if (dto == null)
                     return NotFound(ApiResponse<PickingTaskDetailViewDto>.Fail("拣货单不存在", 404));
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                    SaleSensitiveFieldMask521.ApplyPickingTaskDetailView(dto, true);
                 return Ok(ApiResponse<PickingTaskDetailViewDto>.Ok(dto, "获取拣货单详情成功"));
             }
             catch (ArgumentException ex)

@@ -6,6 +6,7 @@ using CRM.Core.Models.Sales;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Vendor;
 using CRM.Core.Models.Purchase;
+using CRM.Core.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -247,6 +248,8 @@ namespace CRM.API.Controllers
             string state)
         {
             var allItems = new List<PendingApprovalItemDto>();
+            var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
+            var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
 
             foreach (var cfg in configs)
             {
@@ -277,9 +280,9 @@ namespace CRM.API.Controllers
                                 BizType = cfg.BizType,
                                 BizTypeName = cfg.BizTypeName,
                                 BusinessId = v.Id,
-                                DocumentCode = v.Code,
-                                Title = v.OfficialName ?? v.NickName ?? v.Code,
-                                CounterpartyName = v.OfficialName ?? v.NickName ?? v.Code,
+                                DocumentCode = mask511 ? "—" : v.Code,
+                                Title = mask511 ? "—" : (v.OfficialName ?? v.NickName ?? v.Code),
+                                CounterpartyName = mask511 ? null : (v.OfficialName ?? v.NickName ?? v.Code),
                                 Amount = null,
                                 Currency = null,
                                 Submitter = v.PurchaseUserId ?? v.CreateByUserId,
@@ -295,9 +298,9 @@ namespace CRM.API.Controllers
                                 BizType = cfg.BizType,
                                 BizTypeName = cfg.BizTypeName,
                                 BusinessId = v.Id,
-                                DocumentCode = v.Code,
-                                Title = v.OfficialName ?? v.NickName ?? v.Code,
-                                CounterpartyName = v.OfficialName ?? v.NickName ?? v.Code,
+                                DocumentCode = mask511 ? "—" : v.Code,
+                                Title = mask511 ? "—" : (v.OfficialName ?? v.NickName ?? v.Code),
+                                CounterpartyName = mask511 ? null : (v.OfficialName ?? v.NickName ?? v.Code),
                                 Amount = null,
                                 Currency = null,
                                 Submitter = v.PurchaseUserId ?? v.CreateByUserId,
@@ -337,9 +340,9 @@ namespace CRM.API.Controllers
                                 BizType = cfg.BizType,
                                 BizTypeName = cfg.BizTypeName,
                                 BusinessId = c.Id,
-                                DocumentCode = c.CustomerCode,
-                                Title = c.OfficialName ?? c.NickName ?? c.CustomerCode,
-                                CounterpartyName = c.OfficialName ?? c.NickName ?? c.CustomerCode,
+                                DocumentCode = mask521 ? "—" : c.CustomerCode,
+                                Title = mask521 ? "—" : (c.OfficialName ?? c.NickName ?? c.CustomerCode),
+                                CounterpartyName = mask521 ? null : (c.OfficialName ?? c.NickName ?? c.CustomerCode),
                                 Amount = null,
                                 Currency = null,
                                 Submitter = c.SalesUserId ?? c.CreateByUserId,
@@ -355,9 +358,9 @@ namespace CRM.API.Controllers
                                 BizType = cfg.BizType,
                                 BizTypeName = cfg.BizTypeName,
                                 BusinessId = c.Id,
-                                DocumentCode = c.CustomerCode,
-                                Title = c.OfficialName ?? c.NickName ?? c.CustomerCode,
-                                CounterpartyName = c.OfficialName ?? c.NickName ?? c.CustomerCode,
+                                DocumentCode = mask521 ? "—" : c.CustomerCode,
+                                Title = mask521 ? "—" : (c.OfficialName ?? c.NickName ?? c.CustomerCode),
+                                CounterpartyName = mask521 ? null : (c.OfficialName ?? c.NickName ?? c.CustomerCode),
                                 Amount = null,
                                 Currency = null,
                                 Submitter = c.SalesUserId ?? c.CreateByUserId,
@@ -370,8 +373,8 @@ namespace CRM.API.Controllers
                 }
                 else if (cfg.BizType.Equals("SALES_ORDER", StringComparison.OrdinalIgnoreCase))
                 {
-                    var canViewCustomerInfo = summary.IsSysAdmin || summary.PermissionCodes.Contains("customer.info.read");
-                    var canViewSalesAmount = summary.IsSysAdmin || summary.PermissionCodes.Contains("sales.amount.read");
+                    var canViewCustomerInfo = !mask521 && (summary.IsSysAdmin || summary.PermissionCodes.Contains("customer.info.read"));
+                    var canViewSalesAmount = !mask521 && (summary.IsSysAdmin || summary.PermissionCodes.Contains("sales.amount.read"));
 
                     var pr = await _salesOrderService.GetPagedAsync(new CRM.Core.Interfaces.SalesOrderQueryRequest
                     {
@@ -430,8 +433,8 @@ namespace CRM.API.Controllers
                 }
                 else if (cfg.BizType.Equals("PURCHASE_ORDER", StringComparison.OrdinalIgnoreCase))
                 {
-                    var canViewVendorInfo = summary.IsSysAdmin || summary.PermissionCodes.Contains("vendor.info.read");
-                    var canViewPurchaseAmount = summary.IsSysAdmin || summary.PermissionCodes.Contains("purchase.amount.read");
+                    var canViewVendorInfo = !mask511 && (summary.IsSysAdmin || summary.PermissionCodes.Contains("vendor.info.read"));
+                    var canViewPurchaseAmount = !mask511 && (summary.IsSysAdmin || summary.PermissionCodes.Contains("purchase.amount.read"));
 
                     var pr = await _purchaseOrderService.GetPagedAsync(new CRM.Core.Interfaces.PurchaseOrderQueryRequest
                     {
@@ -514,9 +517,9 @@ namespace CRM.API.Controllers
                             BusinessId = r.Id,
                             DocumentCode = r.FinanceReceiptCode,
                             Title = r.FinanceReceiptCode,
-                            CounterpartyName = r.CustomerName,
-                            Amount = r.ReceiptAmount,
-                            Currency = r.ReceiptCurrency,
+                            CounterpartyName = mask521 ? null : r.CustomerName,
+                            Amount = mask521 ? null : r.ReceiptAmount,
+                            Currency = mask521 ? null : r.ReceiptCurrency,
                             Submitter = r.ReceiptUserId ?? r.SalesUserId ?? r.CreateByUserId,
                             Status = r.Status,
                             CreatedAt = r.CreateTime,
@@ -553,8 +556,8 @@ namespace CRM.API.Controllers
                             BusinessId = p.Id,
                             DocumentCode = p.FinancePaymentCode,
                             Title = p.FinancePaymentCode,
-                            CounterpartyName = p.VendorName,
-                            Amount = payDisplayAmount,
+                            CounterpartyName = mask511 ? null : p.VendorName,
+                            Amount = mask511 ? null : payDisplayAmount,
                             Currency = p.PaymentCurrency,
                             Submitter = p.PaymentUserId ?? p.CreateByUserId,
                             Status = p.Status,

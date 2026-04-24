@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using CRM.API.Models.DTOs;
+using CRM.API.Utilities;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Utilities;
 
 namespace CRM.API.Controllers
 {
@@ -11,11 +13,13 @@ namespace CRM.API.Controllers
     public class StockInController : ControllerBase
     {
         private readonly IStockInService _service;
+        private readonly IRbacService _rbacService;
         private readonly ILogger<StockInController> _logger;
 
-        public StockInController(IStockInService service, ILogger<StockInController> logger)
+        public StockInController(IStockInService service, IRbacService rbacService, ILogger<StockInController> logger)
         {
             _service = service;
+            _rbacService = rbacService;
             _logger = logger;
         }
 
@@ -53,6 +57,8 @@ namespace CRM.API.Controllers
                 var entity = await _service.GetByIdAsync(id);
                 if (entity == null)
                     return NotFound(ApiResponse<StockIn>.Fail("入库单不存在", 404));
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                    PurchaseSensitiveFieldMask511.ApplyStockIn(entity, true);
                 return Ok(ApiResponse<StockIn>.Ok(entity, "获取入库单成功"));
             }
             catch (Exception ex)

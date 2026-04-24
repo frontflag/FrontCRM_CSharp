@@ -75,18 +75,21 @@
           @keyup.enter="fetchList"
         />
         <input
+          v-if="!maskSaleSensitiveFields"
           v-model="filters.customerName"
           class="search-input search-input--filter"
           :placeholder="t('inventoryStockItemList.filters.customerName')"
           @keyup.enter="fetchList"
         />
         <input
+          v-if="!maskPurchaseSensitiveFields"
           v-model="filters.vendorName"
           class="search-input search-input--filter"
           :placeholder="t('inventoryStockItemList.filters.vendorName')"
           @keyup.enter="fetchList"
         />
         <el-select
+          v-if="!maskSaleSensitiveFields"
           v-model="filters.salespersonUserId"
           clearable
           filterable
@@ -145,8 +148,18 @@
       <template #col-qtyRepertory="{ row }">
         <span class="inv-list-qty">{{ formatQtyCell(row.qtyRepertory) }}</span>
       </template>
+      <template #col-customerName="{ row }">
+        <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName?.trim() ? row.customerName : '—') }}</span>
+      </template>
+      <template #col-salespersonName="{ row }">
+        <span>{{ maskSaleSensitiveFields ? '—' : (row.salespersonName?.trim() ? row.salespersonName : '—') }}</span>
+      </template>
+      <template #col-vendorName="{ row }">
+        <span>{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName?.trim() ? row.vendorName : '—') }}</span>
+      </template>
       <template #col-profitOutBizUsd="{ row }">
-        <template v-if="row.profitOutBizUsd == null">
+        <span v-if="maskPurchaseSensitiveFields || maskSaleSensitiveFields" class="inv-list-dash">—</span>
+        <template v-else-if="row.profitOutBizUsd == null">
           <span class="inv-list-dash">—</span>
         </template>
         <div v-else class="inv-list-amount-cell dock-tier-price-line">
@@ -200,7 +213,11 @@ import { inventoryCenterApi, type StockItemListQuery, type StockItemListRow } fr
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const router = useRouter()
 const { t } = useI18n()
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
@@ -266,18 +283,21 @@ function purchaseUserLabel(u: PurchaseUserSelectOption) {
 }
 
 function buildQuery(): StockItemListQuery {
-  return {
+  const q: StockItemListQuery = {
     stockInCode: filters.stockInCode.trim() || undefined,
     stockInDateFrom: dateFrom.value?.trim() || undefined,
     stockInDateTo: dateTo.value?.trim() || undefined,
     purchasePn: filters.purchasePn.trim() || undefined,
     purchaseBrand: filters.purchaseBrand.trim() || undefined,
     outboundStatus: filters.outboundStatus,
-    customerName: filters.customerName.trim() || undefined,
     vendorName: filters.vendorName.trim() || undefined,
-    salespersonUserId: filters.salespersonUserId?.trim() || undefined,
     purchaserUserId: filters.purchaserUserId?.trim() || undefined
   }
+  if (!maskSaleSensitiveFields.value) {
+    q.customerName = filters.customerName.trim() || undefined
+    q.salespersonUserId = filters.salespersonUserId?.trim() || undefined
+  }
+  return q
 }
 
 async function runStockItemFetch(resetPage: boolean) {

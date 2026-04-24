@@ -4,15 +4,15 @@
     <div class="stat-cards">
       <div class="stat-card">
         <div class="stat-label">{{ t('financePurchaseInvoiceList.stats.totalAmount') }}</div>
-        <div class="stat-value">¥ {{ formatAmount(stats.totalAmount) }}</div>
+        <div class="stat-value">{{ maskPurchaseSensitiveFields ? '—' : ('¥ ' + formatAmount(stats.totalAmount)) }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">{{ t('financePurchaseInvoiceList.stats.paidAmount') }}</div>
-        <div class="stat-value success">¥ {{ formatAmount(stats.paidAmount) }}</div>
+        <div class="stat-value success">{{ maskPurchaseSensitiveFields ? '—' : ('¥ ' + formatAmount(stats.paidAmount)) }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">{{ t('financePurchaseInvoiceList.stats.toPayAmount') }}</div>
-        <div class="stat-value warning">¥ {{ formatAmount(stats.toPayAmount) }}</div>
+        <div class="stat-value warning">{{ maskPurchaseSensitiveFields ? '—' : ('¥ ' + formatAmount(stats.toPayAmount)) }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">{{ t('financePurchaseInvoiceList.stats.invoicedCount') }}</div>
@@ -81,11 +81,16 @@
         </el-tag>
       </template>
       <template #col-invoiceNo="{ row }">{{ row.invoiceNo || '-' }}</template>
+      <template #col-vendorName="{ row }">
+        <span>{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName?.trim() || '—') }}</span>
+      </template>
       <template #col-invoiceTotal="{ row }">
-        <span class="amount-text">¥ {{ formatAmount(row.invoiceTotal) }}</span>
+        <span v-if="maskPurchaseSensitiveFields">—</span>
+        <span v-else class="amount-text">¥ {{ formatAmount(row.invoiceTotal) }}</span>
       </template>
       <template #col-paymentDone="{ row }">
-        <span class="amount-text">¥ {{ formatAmount(row.paymentDone) }}</span>
+        <span v-if="maskPurchaseSensitiveFields">—</span>
+        <span v-else class="amount-text">¥ {{ formatAmount(row.paymentDone) }}</span>
       </template>
       <template #col-paymentStatus="{ row }">
         <el-tag effect="dark" :type="paymentDoneStatusTag(row.paymentStatus) as any" size="small">
@@ -282,7 +287,9 @@ import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTim
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { vendorApi } from '@/api/vendor'
 import type { Vendor } from '@/types/vendor'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const router = useRouter()
 const { t } = useI18n()
 const {

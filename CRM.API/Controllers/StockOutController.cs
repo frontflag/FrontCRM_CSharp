@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using CRM.API.Models.DTOs;
 using CRM.API.Services;
+using CRM.API.Utilities;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,12 +16,18 @@ namespace CRM.API.Controllers
     {
         private readonly IStockOutService _service;
         private readonly ApplicationDbContext _db;
+        private readonly IRbacService _rbacService;
         private readonly ILogger<StockOutController> _logger;
 
-        public StockOutController(IStockOutService service, ApplicationDbContext db, ILogger<StockOutController> logger)
+        public StockOutController(
+            IStockOutService service,
+            ApplicationDbContext db,
+            IRbacService rbacService,
+            ILogger<StockOutController> logger)
         {
             _service = service;
             _db = db;
+            _rbacService = rbacService;
             _logger = logger;
         }
 
@@ -29,6 +37,13 @@ namespace CRM.API.Controllers
             try
             {
                 var list = await _service.GetStockOutListAsync();
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                {
+                    var masked = list.ToList();
+                    SaleSensitiveFieldMask521.ApplyStockOutListItems(masked, true);
+                    list = masked;
+                }
+
                 return Ok(ApiResponse<IEnumerable<StockOutListItemDto>>.Ok(list, "获取出库单列表成功"));
             }
             catch (Exception ex)
@@ -45,6 +60,13 @@ namespace CRM.API.Controllers
             try
             {
                 var list = await _service.GetStockOutItemListAsync(query);
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                {
+                    var masked = list.ToList();
+                    SaleSensitiveFieldMask521.ApplyStockOutItemListRows(masked, true);
+                    list = masked;
+                }
+
                 return Ok(ApiResponse<IEnumerable<StockOutItemListRowDto>>.Ok(list, "获取出库明细列表成功"));
             }
             catch (Exception ex)
@@ -63,6 +85,8 @@ namespace CRM.API.Controllers
                 var dto = await _service.GetDetailViewAsync(id);
                 if (dto == null)
                     return NotFound(ApiResponse<StockOutInvoiceReportBundleDto>.Fail("出库单不存在", 404));
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                    SaleSensitiveFieldMask521.ApplyStockOutDetailView(dto, true);
                 var companyProfile = await CompanyProfileBundleLoader.LoadAsync(_db, _logger, cancellationToken);
                 CompanyProfileBundleLoader.StripSmtpEmail(companyProfile);
                 var bundle = new StockOutInvoiceReportBundleDto { StockOut = dto, CompanyProfile = companyProfile };
@@ -87,6 +111,8 @@ namespace CRM.API.Controllers
                 var dto = await _service.GetDetailViewAsync(id);
                 if (dto == null)
                     return NotFound(ApiResponse<StockOutPackingReportBundleDto>.Fail("出库单不存在", 404));
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                    SaleSensitiveFieldMask521.ApplyStockOutDetailView(dto, true);
                 var companyProfile = await CompanyProfileBundleLoader.LoadAsync(_db, _logger, cancellationToken);
                 CompanyProfileBundleLoader.StripSmtpEmail(companyProfile);
                 var bundle = new StockOutPackingReportBundleDto
@@ -112,6 +138,8 @@ namespace CRM.API.Controllers
                 var dto = await _service.GetDetailViewAsync(id);
                 if (dto == null)
                     return NotFound(ApiResponse<StockOutDetailViewDto>.Fail("出库单不存在", 404));
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                    SaleSensitiveFieldMask521.ApplyStockOutDetailView(dto, true);
                 return Ok(ApiResponse<StockOutDetailViewDto>.Ok(dto, "获取出库单成功"));
             }
             catch (Exception ex)
@@ -216,6 +244,13 @@ namespace CRM.API.Controllers
             try
             {
                 var list = await _service.GetStockOutRequestListAsync();
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                {
+                    var masked = list.ToList();
+                    SaleSensitiveFieldMask521.ApplyStockOutRequestListItems(masked, true);
+                    list = masked;
+                }
+
                 return Ok(ApiResponse<IEnumerable<StockOutRequestListItemDto>>.Ok(list, "获取出库通知列表成功"));
             }
             catch (Exception ex)

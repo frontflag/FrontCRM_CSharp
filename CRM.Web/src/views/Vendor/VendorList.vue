@@ -183,7 +183,7 @@
                 <span
                   class="cell-name"
                   :class="{ 'party-entity-name--muted': isPartyStatusMuted(row) }"
-                >{{ row.officialName || row.code }}</span>
+                >{{ maskPurchaseSensitiveFields ? '—' : (row.officialName || row.code) }}</span>
                 <PartyStatusIcons
                   :entity-id="row.id"
                   :frozen="!!row.isDisenable"
@@ -191,24 +191,27 @@
                   size="sm"
                 />
               </div>
-              <div class="cell-short" v-if="row.code">{{ row.code }}</div>
+              <div class="cell-short" v-if="!maskPurchaseSensitiveFields && row.code">{{ row.code }}</div>
             </div>
           </div>
         </template>
         <template #col-chineseOfficialName="{ row }">
-          <span class="td-muted">{{ row.officialName || row.name || '--' }}</span>
+          <span class="td-muted">{{ maskPurchaseSensitiveFields ? '—' : (row.officialName || row.name || '--') }}</span>
         </template>
         <template #col-englishOfficialName="{ row }">
-          <span class="td-muted">{{ row.englishOfficialName || '--' }}</span>
+          <span class="td-muted">{{ maskPurchaseSensitiveFields ? '—' : (row.englishOfficialName || '--') }}</span>
         </template>
         <template #col-level="{ row }"><span class="td-muted">{{ vendorDict.levelLabel(row.level) }}</span></template>
         <template #col-credit="{ row }"><span class="td-muted td-identity">{{ vendorDict.identityLabel(row.credit) }}</span></template>
         <template #col-industry="{ row }"><span class="td-muted">{{ vendorDict.industryLabel(row.industry) }}</span></template>
-        <template #col-contactName="{ row }"><span class="td-contact">{{ row.contacts && row.contacts.length > 0 ? (row.contacts[0].cName || row.contacts[0].eName || '--') : '--' }}</span></template>
-        <template #col-phone="{ row }"><span class="td-phone">{{ row.contacts && row.contacts.length > 0 ? (row.contacts[0].mobile || row.contacts[0].tel || '--') : '--' }}</span></template>
-        <template #col-officeAddress="{ row }"><span class="td-address" :title="row.officeAddress">{{ row.officeAddress || '--' }}</span></template>
+        <template #col-contactName="{ row }"><span class="td-contact">{{ maskPurchaseSensitiveFields ? '—' : (row.contacts && row.contacts.length > 0 ? (row.contacts[0].cName || row.contacts[0].eName || '--') : '--') }}</span></template>
+        <template #col-phone="{ row }"><span class="td-phone">{{ maskPurchaseSensitiveFields ? '—' : (row.contacts && row.contacts.length > 0 ? (row.contacts[0].mobile || row.contacts[0].tel || '--') : '--') }}</span></template>
+        <template #col-officeAddress="{ row }"><span class="td-address" :title="maskPurchaseSensitiveFields ? '' : (row.officeAddress || '')">{{ maskPurchaseSensitiveFields ? '—' : (row.officeAddress || '--') }}</span></template>
         <template #col-createTime="{ row }"><span class="td-muted">{{ formatDate(row.createTime) }}</span></template>
         <template #col-createUser="{ row }"><span class="td-muted">{{ (row as any).createUserName || (row as any).createdBy || (row as any).purchaseUserName || '--' }}</span></template>
+        <template #col-code="{ row }">
+          <span class="td-muted">{{ maskPurchaseSensitiveFields ? '—' : (row.code || '—') }}</span>
+        </template>
         <template #col-actions-header>
           <div class="op-col-header">
             <span class="op-col-header-text">{{ t('vendorList.actions.column') }}</span>
@@ -336,6 +339,7 @@ import { authApi, type PurchaseUserSelectOption } from '@/api/auth';
 import { formatDisplayDateTime } from '@/utils/displayDateTime';
 import type { Vendor, VendorSearchRequest } from '@/types/vendor';
 import { useAuthStore } from '@/stores/auth';
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask';
 import { useVendorDictStore } from '@/stores/vendorDict';
 import PartyStatusIcons from '@/components/party/PartyStatusIcons.vue';
 import VendorImportDialog from '@/components/Vendor/VendorImportDialog.vue';
@@ -352,6 +356,7 @@ function isPartyStatusMuted(v: Vendor) {
 }
 
 const authStore = useAuthStore();
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask();
 const vendorDict = useVendorDictStore();
 const canViewVendorInfo = authStore.hasPermission('vendor.info.read');
 const canSubmitAudit = authStore.hasPermission('vendor.write');

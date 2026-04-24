@@ -171,7 +171,14 @@
       <div class="tabs-section">
         <div class="tabs-nav">
           <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'items' }" @click="activeTab = 'items'">订单明细</button>
-          <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'documents' }" @click="activeTab = 'documents'">文档</button>
+          <button
+            v-if="!maskPurchaseSensitiveFields"
+            class="tab-btn"
+            :class="{ 'tab-btn--active': activeTab === 'documents' }"
+            @click="activeTab = 'documents'"
+          >
+            文档
+          </button>
         </div>
         <div class="tabs-body">
           <div v-show="activeTab === 'items'" class="detail-items-table-wrap">
@@ -281,7 +288,7 @@
             </CrmDataTable>
             <el-empty v-else description="暂无明细" :image-size="80" />
           </div>
-          <div v-show="activeTab === 'documents'" class="doc-tab-content">
+          <div v-show="activeTab === 'documents' && !maskPurchaseSensitiveFields" class="doc-tab-content">
             <DocumentUploadPanel
               biz-type="PURCHASE_ORDER"
               :biz-id="String(order.id)"
@@ -333,6 +340,7 @@ import {
 } from '@/constants/purchaseOrderStatus'
 import { tagApi, type TagDefinitionDto } from '@/api/tag'
 import { useAuthStore } from '@/stores/auth'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
@@ -345,9 +353,14 @@ import PurchaseOrderItemLineDialogs from '@/components/purchaseOrder/PurchaseOrd
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
-const canViewVendorInfo = computed(() => authStore.hasPermission('vendor.info.read'))
-const canViewPurchaseAmount = computed(() => authStore.hasPermission('purchase.amount.read'))
+const canViewVendorInfo = computed(
+  () => !maskPurchaseSensitiveFields.value && authStore.hasPermission('vendor.info.read')
+)
+const canViewPurchaseAmount = computed(
+  () => !maskPurchaseSensitiveFields.value && authStore.hasPermission('purchase.amount.read')
+)
 /** 与采购订单明细列表「通知到货」一致 */
 const canCreateArrivalNotice = computed(() => authStore.hasPermission('purchase-order.read'))
 
@@ -367,6 +380,10 @@ const poFavorited = ref(false)
 const favoriteLoading = ref(false)
 const activeTab = ref('items')
 const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
+
+watch(maskPurchaseSensitiveFields, (m) => {
+  if (m && activeTab.value === 'documents') activeTab.value = 'items'
+})
 
 // 标签
 const currentTags = ref<TagDefinitionDto[]>([])

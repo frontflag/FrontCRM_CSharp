@@ -38,7 +38,10 @@
           <el-form-item label="仓库ID" required>
             <el-input v-model="form.warehouseId" placeholder="目标仓库ID" />
           </el-form-item>
-          <el-form-item label="供应商ID">
+          <el-form-item v-if="maskPurchaseSensitiveFields" label="供应商">
+            <span class="stockin-report-cell">—</span>
+          </el-form-item>
+          <el-form-item v-else label="供应商ID">
             <el-input v-model="form.vendorId" placeholder="供应商ID（可选）" />
           </el-form-item>
           <el-form-item label="到货通知号">
@@ -68,7 +71,7 @@
           </div>
           <div class="stockin-report-row">
             <dt>供应商名称</dt>
-            <dd>{{ reportCellText(displayVendorName) }}</dd>
+            <dd>{{ reportCellText(maskPurchaseSensitiveFields ? '—' : displayVendorName) }}</dd>
           </div>
           <div class="stockin-report-row">
             <dt>到货通知号</dt>
@@ -130,13 +133,14 @@
             <el-table-column label="单价" width="120" align="right" header-align="right">
               <template #default="{ row }">
                 <el-input-number
-                  v-if="isCreateMode"
+                  v-if="isCreateMode && !maskPurchaseSensitiveFields"
                   v-model="row.unitPrice"
                   :min="0"
                   :precision="6"
                   :controls="false"
                 />
-                <span v-else class="stockin-report-cell stockin-report-cell--num">{{ reportUnitPriceText(row.unitPrice) }}</span>
+                <span v-else-if="isCreateMode && maskPurchaseSensitiveFields" class="stockin-report-cell stockin-report-cell--num">—</span>
+                <span v-else class="stockin-report-cell stockin-report-cell--num">{{ maskPurchaseSensitiveFields ? '—' : reportUnitPriceText(row.unitPrice) }}</span>
               </template>
             </el-table-column>
             <el-table-column label="批次号" width="140" show-overflow-tooltip>
@@ -198,6 +202,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { stockInApi, type CreateStockInRequest, type StockInDto, type StockInItemDto } from '@/api/stockIn'
 import StockInBatchImportDialog from '@/components/Inventory/StockInBatchImportDialog.vue'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
 const router = useRouter()
 const route = useRoute()

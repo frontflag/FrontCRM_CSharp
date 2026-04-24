@@ -2,6 +2,9 @@
 import { reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
 const { t } = useI18n()
 
@@ -39,7 +42,7 @@ function handleSearch() {
   const m = form.model.trim()
   if (m) query.model = m
   const v = form.vendorName.trim()
-  if (v) query.vendorName = v
+  if (v && !maskPurchaseSensitiveFields.value) query.vendorName = v
   const p = form.purchaseOrderCode.trim()
   if (p) query.purchaseOrderCode = p
   const s = form.salesOrderCode.trim()
@@ -66,7 +69,7 @@ function handleSearch() {
         </div>
       </div>
 
-      <div class="field-col">
+      <div v-if="!maskPurchaseSensitiveFields" class="field-col">
         <label class="field-label">{{ t('stockInList.leftPanel.vendorName') }}</label>
         <div class="field-control">
           <input

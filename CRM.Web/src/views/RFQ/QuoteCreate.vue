@@ -55,46 +55,60 @@
         </el-row>
 
         <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="供应商" prop="vendorId">
-              <el-select
-                v-model="formData.vendorId"
-                class="q-select"
-                placeholder="请选择供应商"
-                style="width: 100%"
-                filterable
-                clearable
-                :filter-method="onVendorFilterInput"
-                :loading="vendorSearchLoading"
-                loading-text="搜索中..."
-                @change="onVendorChange"
-              >
-                <template #empty>
-                  <div class="vendor-search-hint">
-                    <span>请输入内容之后选择</span>
-                  </div>
-                </template>
-                <el-option v-for="v in vendorOptions" :key="v.value" :label="v.label" :value="v.value" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="联系人" prop="vendorContactId">
-              <el-select
-                v-model="formData.vendorContactId"
-                class="q-select"
-                placeholder="请先选择供应商"
-                style="width: 100%"
-                filterable
-                clearable
-                :disabled="!formData.vendorId"
-                :loading="contactLoading"
-                @change="onContactChange"
-              >
-                <el-option v-for="c in contactOptions" :key="c.value" :label="c.label" :value="c.value" />
-              </el-select>
-            </el-form-item>
-          </el-col>
+          <template v-if="!maskPurchaseSensitiveFields">
+            <el-col :span="12">
+              <el-form-item label="供应商" prop="vendorId">
+                <el-select
+                  v-model="formData.vendorId"
+                  class="q-select"
+                  placeholder="请选择供应商"
+                  style="width: 100%"
+                  filterable
+                  clearable
+                  :filter-method="onVendorFilterInput"
+                  :loading="vendorSearchLoading"
+                  loading-text="搜索中..."
+                  @change="onVendorChange"
+                >
+                  <template #empty>
+                    <div class="vendor-search-hint">
+                      <span>请输入内容之后选择</span>
+                    </div>
+                  </template>
+                  <el-option v-for="v in vendorOptions" :key="v.value" :label="v.label" :value="v.value" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="联系人" prop="vendorContactId">
+                <el-select
+                  v-model="formData.vendorContactId"
+                  class="q-select"
+                  placeholder="请先选择供应商"
+                  style="width: 100%"
+                  filterable
+                  clearable
+                  :disabled="!formData.vendorId"
+                  :loading="contactLoading"
+                  @change="onContactChange"
+                >
+                  <el-option v-for="c in contactOptions" :key="c.value" :label="c.label" :value="c.value" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+          </template>
+          <template v-else>
+            <el-col :span="12">
+              <el-form-item label="供应商">
+                <el-input model-value="—" disabled placeholder="—" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="联系人">
+                <el-input model-value="—" disabled placeholder="—" />
+              </el-form-item>
+            </el-col>
+          </template>
         </el-row>
 
         <el-row :gutter="20">
@@ -217,7 +231,11 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="业务员" prop="salesUserId">
+              <template v-if="maskSaleSensitiveFields">
+                <el-input model-value="—" disabled />
+              </template>
               <SalesUserCascader
+                v-else
                 v-model="formData.salesUserId"
                 placeholder="请选择业务员"
                 @change="onSalesUserChange"
@@ -325,10 +343,14 @@ import MaterialProductionDateSelect from '@/components/MaterialProductionDateSel
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { financeExchangeRateApi } from '@/api/financeExchangeRate'
 import { CurrencyCode } from '@/constants/currency'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { ensureLoaded: ensureMaterialPdDict, coerceProductionDateToCode: coercePd } = useMaterialProductionDateDict()
 
 const isEditMode = computed(() => route.name === 'QuoteEdit')
@@ -605,18 +627,25 @@ watch(
   { immediate: true }
 )
 
-const formRules = {
-  mpn: [{ required: true, message: '请输入物料型号', trigger: 'blur' }],
-  vendorId: [{ required: true, message: '请选择供应商', trigger: 'change' }],
-  vendorContactId: [{ required: true, message: '请选择联系人', trigger: 'change' }],
-  priceType: [{ required: true, message: '请选择价格类型', trigger: 'change' }],
-  expiryDate: [{ required: true, message: '请选择失效日期', trigger: 'change' }],
-  brand: [{ required: true, message: '请输入品牌', trigger: 'blur' }],
-  productionDate: [{ required: true, message: '请选择生产日期/DC', trigger: 'change' }],
-  waferOrigin: [{ required: true, message: '请选择晶圆产地', trigger: 'change' }],
-  packageOrigin: [{ required: true, message: '请选择封装产地', trigger: 'change' }],
-  salesUserId: [{ required: true, message: '请选择业务员', trigger: 'change' }]
-}
+const formRules = computed(() => {
+  const base: Record<string, unknown[]> = {
+    mpn: [{ required: true, message: '请输入物料型号', trigger: 'blur' }],
+    priceType: [{ required: true, message: '请选择价格类型', trigger: 'change' }],
+    expiryDate: [{ required: true, message: '请选择失效日期', trigger: 'change' }],
+    brand: [{ required: true, message: '请输入品牌', trigger: 'blur' }],
+    productionDate: [{ required: true, message: '请选择生产日期/DC', trigger: 'change' }],
+    waferOrigin: [{ required: true, message: '请选择晶圆产地', trigger: 'change' }],
+    packageOrigin: [{ required: true, message: '请选择封装产地', trigger: 'change' }],
+    ...(maskSaleSensitiveFields.value
+      ? {}
+      : { salesUserId: [{ required: true, message: '请选择业务员', trigger: 'change' }] })
+  }
+  if (!maskPurchaseSensitiveFields.value) {
+    base.vendorId = [{ required: true, message: '请选择供应商', trigger: 'change' }]
+    base.vendorContactId = [{ required: true, message: '请选择联系人', trigger: 'change' }]
+  }
+  return base
+})
 
 function onSalesUserChange(p: { id: string; label: string }) {
   formData.value.salesUserName = p.label || ''

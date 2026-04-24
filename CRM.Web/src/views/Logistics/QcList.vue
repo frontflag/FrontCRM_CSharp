@@ -23,15 +23,17 @@
             @keyup.enter="handleSearch"
           />
         </div>
-        <span class="filter-field-label">{{ t('qcList.filters.vendor') }}</span>
-        <div class="search-input-wrap">
-          <input
-            v-model="filters.vendorName"
-            class="search-input--plain"
-            :placeholder="t('qcList.filters.vendorPlaceholder')"
-            @keyup.enter="handleSearch"
-          />
-        </div>
+        <template v-if="!maskPurchaseSensitiveFields">
+          <span class="filter-field-label">{{ t('qcList.filters.vendor') }}</span>
+          <div class="search-input-wrap">
+            <input
+              v-model="filters.vendorName"
+              class="search-input--plain"
+              :placeholder="t('qcList.filters.vendorPlaceholder')"
+              @keyup.enter="handleSearch"
+            />
+          </div>
+        </template>
         <span class="filter-field-label">{{ t('qcList.filters.purchaseOrderCode') }}</span>
         <div class="search-input-wrap">
           <input
@@ -74,6 +76,9 @@
       </template>
       <template #col-stockInStatus="{ row }">
         <el-tag effect="dark" :type="stockInType(displayStockInStatus(row))">{{ stockInText(displayStockInStatus(row)) }}</el-tag>
+      </template>
+      <template #col-vendorName="{ row }">
+        <span>{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName?.trim() ? row.vendorName : '—') }}</span>
       </template>
       <template #col-createTime="{ row }">{{ formatTime(row.createTime) }}</template>
       <template #col-createUser="{ row }">{{
@@ -183,7 +188,9 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDateTime2DigitYear } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()

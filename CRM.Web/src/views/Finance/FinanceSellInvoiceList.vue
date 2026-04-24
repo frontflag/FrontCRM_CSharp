@@ -44,15 +44,15 @@
     <div class="stat-cards">
       <div class="stat-card">
         <div class="stat-label">{{ t('financeSellInvoiceList.stats.totalAmount') }}</div>
-        <div class="stat-value">¥ {{ formatAmount(stats.totalAmount) }}</div>
+        <div class="stat-value">{{ maskSaleSensitiveFields ? '—' : `¥ ${formatAmount(stats.totalAmount)}` }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">{{ t('financeSellInvoiceList.stats.receivedAmount') }}</div>
-        <div class="stat-value success">¥ {{ formatAmount(stats.receivedAmount) }}</div>
+        <div class="stat-value success">{{ maskSaleSensitiveFields ? '—' : `¥ ${formatAmount(stats.receivedAmount)}` }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">{{ t('financeSellInvoiceList.stats.toReceiveAmount') }}</div>
-        <div class="stat-value warning">¥ {{ formatAmount(stats.toReceiveAmount) }}</div>
+        <div class="stat-value warning">{{ maskSaleSensitiveFields ? '—' : `¥ ${formatAmount(stats.toReceiveAmount)}` }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">{{ t('financeSellInvoiceList.stats.invoicedCount') }}</div>
@@ -79,11 +79,18 @@
         </el-tag>
       </template>
       <template #col-invoiceNo="{ row }">{{ row.invoiceNo || '-' }}</template>
+      <template #col-customerName="{ row }">
+        <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName || '—') }}</span>
+      </template>
       <template #col-invoiceTotal="{ row }">
-        <span class="amount-text">{{ CURRENCY_MAP[row.currency] }} {{ formatAmount(row.invoiceTotal) }}</span>
+        <span class="amount-text">{{
+          maskSaleSensitiveFields ? '—' : `${CURRENCY_MAP[row.currency]} ${formatAmount(row.invoiceTotal)}`
+        }}</span>
       </template>
       <template #col-receiveDone="{ row }">
-        <span class="amount-text">{{ CURRENCY_MAP[row.currency] }} {{ formatAmount(row.receiveDone) }}</span>
+        <span class="amount-text">{{
+          maskSaleSensitiveFields ? '—' : `${CURRENCY_MAP[row.currency]} ${formatAmount(row.receiveDone)}`
+        }}</span>
       </template>
       <template #col-receiveStatus="{ row }">
         <el-tag effect="dark" :type="receiveStatusTag(row.receiveStatus) as any" size="small">
@@ -169,7 +176,11 @@
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item :label="t('financeSellInvoiceList.formCustomer')" required>
+              <template v-if="maskSaleSensitiveFields">
+                <el-input model-value="—" disabled style="width: 100%" />
+              </template>
               <el-select
+                v-else
                 v-model="form.customerId"
                 :placeholder="t('financeSellInvoiceList.customerPh')"
                 style="width: 100%"
@@ -199,7 +210,8 @@
           </el-col>
           <el-col :span="12">
             <el-form-item :label="t('financeSellInvoiceList.formAmount')" required>
-              <el-input-number v-model="form.invoiceTotal" :precision="2" :min="0" style="width:100%" />
+              <el-input v-if="maskSaleSensitiveFields" model-value="—" disabled style="width: 100%" />
+              <el-input-number v-else v-model="form.invoiceTotal" :precision="2" :min="0" style="width:100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -270,8 +282,10 @@ import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { customerApi } from '@/api/customer'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const router = useRouter()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { t } = useI18n()
 const {
   invoiceStatusLabel,

@@ -8,7 +8,8 @@ const enUS = {
     save: 'Save',
     saveSuccess: 'Saved successfully',
     saveFailed: 'Save failed',
-    createSuccess: 'Created successfully'
+    createSuccess: 'Created successfully',
+    crossSideAttachmentsRestricted: 'Under your role policy, attachments for this business type are not available.'
   },
   customsPages: {
     brokers: {
@@ -3493,6 +3494,7 @@ const enUS = {
       noAttachments: 'No attachments',
       preview: 'Preview',
       download: 'Download',
+      attachmentsRestrictedByRbac: 'Attachments for this approval type are not available under your role policy.',
       reject: 'Reject',
       approve: 'Approve',
       close: 'Close'

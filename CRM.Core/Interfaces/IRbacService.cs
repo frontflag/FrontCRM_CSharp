@@ -10,6 +10,23 @@ namespace CRM.Core.Interfaces
         Task<IReadOnlyList<RbacPermission>> GetPermissionsAsync();
         Task<IReadOnlyList<RbacDepartment>> GetDepartmentsAsync();
 
+        Task<RbacDepartment> CreateDepartmentAsync(
+            string departmentName,
+            string? parentId,
+            short saleDataScope,
+            short purchaseDataScope,
+            short identityType,
+            short status);
+
+        Task<RbacDepartment?> UpdateDepartmentAsync(
+            string departmentId,
+            string departmentName,
+            string? parentId,
+            short saleDataScope,
+            short purchaseDataScope,
+            short identityType,
+            short status);
+
         Task AssignUserRolesAsync(string userId, IReadOnlyList<string> roleIds);
         Task AssignUserDepartmentsAsync(string userId, IReadOnlyList<string> departmentIds, string? primaryDepartmentId);
         Task AssignRolePermissionsAsync(string roleId, IReadOnlyList<string> permissionIds);

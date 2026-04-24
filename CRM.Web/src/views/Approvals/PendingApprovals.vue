@@ -78,7 +78,11 @@
           <span class="code-link" @click="handleView(row)">{{ row.documentCode }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="counterpartyName" :label="t('pendingApprovals.columns.counterparty')" width="200" min-width="200" show-overflow-tooltip />
+      <el-table-column prop="counterpartyName" :label="t('pendingApprovals.columns.counterparty')" width="200" min-width="200" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span>{{ displayCounterpartyName(row) }}</span>
+        </template>
+      </el-table-column>
       <el-table-column :label="t('pendingApprovals.columns.description')" show-overflow-tooltip>
         <template #default="{ row }">
           <span>{{ buildItemDescription(row) }}</span>
@@ -168,17 +172,22 @@
             <div class="attach-header">
               <span>{{ t('pendingApprovals.dialog.attachmentPreview') }}</span>
             </div>
-            <div v-if="auditDocsLoading" class="detail-loading">{{ t('pendingApprovals.dialog.docsLoading') }}</div>
-            <div v-else-if="auditDocs.length === 0" class="detail-loading">{{ t('pendingApprovals.dialog.noAttachments') }}</div>
-            <div v-else class="attach-list">
-              <div class="attach-item" v-for="doc in auditDocs" :key="doc.id">
-                <span class="name" :title="doc.originalFileName">{{ doc.originalFileName }}</span>
-                <span class="ops">
-                  <el-button link type="primary" size="small" @click="previewDoc(doc)">{{ t('pendingApprovals.dialog.preview') }}</el-button>
-                  <el-button link type="primary" size="small" @click="downloadDoc(doc)">{{ t('pendingApprovals.dialog.download') }}</el-button>
-                </span>
-              </div>
+            <div v-if="auditRow && isAuditAttachmentsRestricted(auditRow)" class="detail-loading">
+              {{ t('pendingApprovals.dialog.attachmentsRestrictedByRbac') }}
             </div>
+            <template v-else>
+              <div v-if="auditDocsLoading" class="detail-loading">{{ t('pendingApprovals.dialog.docsLoading') }}</div>
+              <div v-else-if="auditDocs.length === 0" class="detail-loading">{{ t('pendingApprovals.dialog.noAttachments') }}</div>
+              <div v-else class="attach-list">
+                <div class="attach-item" v-for="doc in auditDocs" :key="doc.id">
+                  <span class="name" :title="doc.originalFileName">{{ doc.originalFileName }}</span>
+                  <span class="ops">
+                    <el-button link type="primary" size="small" @click="previewDoc(doc)">{{ t('pendingApprovals.dialog.preview') }}</el-button>
+                    <el-button link type="primary" size="small" @click="downloadDoc(doc)">{{ t('pendingApprovals.dialog.download') }}</el-button>
+                  </span>
+                </div>
+              </div>
+            </template>
           </div>
           <div v-if="!auditReadOnly" class="audit-actions">
             <el-button @click="auditDialogVisible = false">{{ t('common.cancel') }}</el-button>
@@ -199,39 +208,39 @@
             <div class="info-item"><span class="k">{{ t('pendingApprovals.infoLabels.documentCode') }}</span><span class="v">{{ auditRow.documentCode }}</span></div>
             <div class="info-item"><span class="k">{{ t('pendingApprovals.infoLabels.submittedAt') }}</span><span class="v">{{ formatDate(auditRow.createdAt) }}</span></div>
             <div class="info-item"><span class="k">{{ t('pendingApprovals.infoLabels.status') }}</span><span class="v">{{ statusText(auditRow.status) }}</span></div>
-            <div class="info-item"><span class="k">{{ t('pendingApprovals.infoLabels.counterparty') }}</span><span class="v">{{ auditRow.counterpartyName || '—' }}</span></div>
+            <div class="info-item"><span class="k">{{ t('pendingApprovals.infoLabels.counterparty') }}</span><span class="v">{{ auditRow ? displayCounterpartyName(auditRow) : '—' }}</span></div>
             <div class="info-item"><span class="k">{{ t('pendingApprovals.infoLabels.amount') }}</span><span class="v">{{ formatAuditAmount(auditRow, auditDetail) }}</span></div>
           </div>
 
           <div class="biz-extra">
             <template v-if="auditRow.bizType === 'VENDOR'">
               <div class="extra-title">{{ t('pendingApprovals.vendorSection') }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.nameLabel') }}</span>{{ auditDetail?.officialName || auditRow.counterpartyName || '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.nameLabel') }}</span>{{ maskPurchaseSensitiveFields ? '—' : (auditDetail?.officialName || auditRow.counterpartyName || '—') }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.vendor.codeLabel') }}</span>{{ auditRow.documentCode }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.paymentMethod') }}</span>{{ auditDetail?.paymentMethod || '—' }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.paymentTerm') }}</span>{{ auditDetail?.payment ?? '—' }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.blacklist') }}</span>{{ auditDetail?.blackList ? t('pendingApprovals.vendor.yes') : t('pendingApprovals.vendor.no') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.paymentMethod') }}</span>{{ maskPurchaseSensitiveFields ? '—' : (auditDetail?.paymentMethod || '—') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.paymentTerm') }}</span>{{ maskPurchaseSensitiveFields ? '—' : (auditDetail?.payment ?? '—') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.vendor.blacklist') }}</span>{{ maskPurchaseSensitiveFields ? '—' : (auditDetail?.blackList ? t('pendingApprovals.vendor.yes') : t('pendingApprovals.vendor.no')) }}</div>
             </template>
             <template v-else-if="auditRow.bizType === 'CUSTOMER'">
               <div class="extra-title">{{ t('pendingApprovals.customerSection') }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.customer.nameLabel') }}</span>{{ auditDetail?.customerName || auditDetail?.officialName || auditRow.counterpartyName || '—' }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.customer.codeLabel') }}</span>{{ auditRow.documentCode }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.customer.region') }}</span>{{ [auditDetail?.province, auditDetail?.city, auditDetail?.district].filter(Boolean).join(' / ') || '—' }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.customer.creditLimit') }}</span>{{ auditDetail?.creditLimit ?? auditDetail?.creditLine ?? '—' }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.customer.salesPerson') }}</span>{{ auditDetail?.salesPersonName || auditDetail?.salesUserId || '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.customer.nameLabel') }}</span>{{ maskSaleSensitiveFields ? '—' : (auditDetail?.customerName || auditDetail?.officialName || auditRow.counterpartyName || '—') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.customer.codeLabel') }}</span>{{ maskSaleSensitiveFields ? '—' : auditRow.documentCode }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.customer.region') }}</span>{{ maskSaleSensitiveFields ? '—' : ([auditDetail?.province, auditDetail?.city, auditDetail?.district].filter(Boolean).join(' / ') || '—') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.customer.creditLimit') }}</span>{{ maskSaleSensitiveFields ? '—' : (auditDetail?.creditLimit ?? auditDetail?.creditLine ?? '—') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.customer.salesPerson') }}</span>{{ maskSaleSensitiveFields ? '—' : (auditDetail?.salesPersonName || auditDetail?.salesUserId || '—') }}</div>
             </template>
             <template v-else-if="auditRow.bizType === 'SALES_ORDER'">
               <div class="extra-title">{{ t('pendingApprovals.salesOrderSection') }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.salesOrder.orderNo') }}</span>{{ auditRow.documentCode }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.salesOrder.customer') }}</span>{{ auditDetail?.customerName || auditRow.counterpartyName || '—' }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.salesOrder.orderAmount') }}</span>{{ auditDetail?.total != null ? formatAmount(auditDetail.total, auditDetail.currency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.salesOrder.customer') }}</span>{{ maskSaleSensitiveFields ? '—' : (auditDetail?.customerName || auditRow.counterpartyName || '—') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.salesOrder.orderAmount') }}</span>{{ maskSaleSensitiveFields ? '—' : (auditDetail?.total != null ? formatAmount(auditDetail.total, auditDetail.currency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—')) }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.salesOrder.deliveryDate') }}</span>{{ auditDetail?.deliveryDate ? formatDate(auditDetail.deliveryDate) : '—' }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.salesOrder.salesUser') }}</span>{{ auditDetail?.salesUserName || auditDetail?.salesUserId || '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.salesOrder.salesUser') }}</span>{{ maskSaleSensitiveFields ? '—' : (auditDetail?.salesUserName || auditDetail?.salesUserId || '—') }}</div>
             </template>
             <template v-else-if="auditRow.bizType === 'PURCHASE_ORDER'">
               <div class="extra-title">{{ t('pendingApprovals.purchaseOrderSection') }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.poNo') }}</span>{{ auditRow.documentCode }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.vendor') }}</span>{{ auditDetail?.vendorName || auditRow.counterpartyName || '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.vendor') }}</span>{{ maskPurchaseSensitiveFields ? '—' : (auditDetail?.vendorName || auditRow.counterpartyName || '—') }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.orderAmount') }}</span>{{ auditDetail?.total != null ? formatAmount(auditDetail.total, auditDetail.currency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—') }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.deliveryDate') }}</span>{{ auditDetail?.deliveryDate ? formatDate(auditDetail.deliveryDate) : '—' }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.purchaseOrder.buyer') }}</span>{{ auditDetail?.purchaseUserName || auditDetail?.purchaseUserId || '—' }}</div>
@@ -239,14 +248,14 @@
             <template v-else-if="auditRow.bizType === 'FINANCE_RECEIPT'">
               <div class="extra-title">{{ t('pendingApprovals.receiptSection') }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.receipt.code') }}</span>{{ auditRow.documentCode }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.receipt.customer') }}</span>{{ auditDetail?.customerName || auditRow.counterpartyName || '—' }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.receipt.amount') }}</span>{{ auditDetail?.receiptAmount != null ? formatAmount(auditDetail.receiptAmount, auditDetail.receiptCurrency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.receipt.customer') }}</span>{{ maskSaleSensitiveFields ? '—' : (auditDetail?.customerName || auditRow.counterpartyName || '—') }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.receipt.amount') }}</span>{{ maskSaleSensitiveFields ? '—' : (auditDetail?.receiptAmount != null ? formatAmount(auditDetail.receiptAmount, auditDetail.receiptCurrency) : (auditRow.amount != null ? formatAmount(auditRow.amount, auditRow.currency) : '—')) }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.receipt.mode') }}</span>{{ auditDetail?.receiveMode || '—' }}</div>
             </template>
             <template v-else-if="auditRow.bizType === 'FINANCE_PAYMENT'">
               <div class="extra-title">{{ t('pendingApprovals.paymentSection') }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.payment.code') }}</span>{{ auditRow.documentCode }}</div>
-              <div class="extra-line"><span>{{ t('pendingApprovals.payment.vendor') }}</span>{{ auditDetail?.vendorName || auditRow.counterpartyName || '—' }}</div>
+              <div class="extra-line"><span>{{ t('pendingApprovals.payment.vendor') }}</span>{{ maskPurchaseSensitiveFields ? '—' : (auditDetail?.vendorName || auditRow.counterpartyName || '—') }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.payment.amount') }}</span>{{ formatFinancePaymentAuditAmount(auditRow, auditDetail) }}</div>
               <div class="extra-line"><span>{{ t('pendingApprovals.payment.mode') }}</span>{{ auditDetail?.paymentMode || '—' }}</div>
             </template>
@@ -298,7 +307,18 @@ import salesOrderApi from '@/api/salesOrder'
 import { financePaymentApi, financeReceiptApi } from '@/api/finance'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+
+function isAuditAttachmentsRestricted(row: PendingApprovalItem) {
+  const bt = row.bizType
+  if (maskSaleSensitiveFields.value && (bt === 'SALES_ORDER' || bt === 'FINANCE_RECEIPT')) return true
+  if (maskPurchaseSensitiveFields.value && (bt === 'PURCHASE_ORDER' || bt === 'FINANCE_PAYMENT')) return true
+  return false
+}
 const router = useRouter()
 const { t, te } = useI18n()
 
@@ -346,6 +366,14 @@ function normalizePendingItem(raw: PendingApprovalItem): PendingApprovalItem {
   const canDecideRaw = raw.canDecide ?? legacy.CanDecide
   const canDecide = typeof canDecideRaw === 'boolean' ? canDecideRaw : true
   return { ...raw, canDecide }
+}
+
+function displayCounterpartyName(row: PendingApprovalItem): string {
+  const bt = String(row.bizType || '')
+  if (maskPurchaseSensitiveFields.value && (bt === 'VENDOR' || bt === 'PURCHASE_ORDER' || bt === 'FINANCE_PAYMENT'))
+    return '—'
+  if (maskSaleSensitiveFields.value && (bt === 'CUSTOMER' || bt === 'SALES_ORDER' || bt === 'FINANCE_RECEIPT')) return '—'
+  return row.counterpartyName || '—'
 }
 
 const getBizTypeText = (type: string) => {
@@ -410,12 +438,23 @@ const formatFinancePaymentAuditAmount = (row: PendingApprovalItem, detail: any) 
 
 const formatAuditAmount = (row: PendingApprovalItem, detail: any) => {
   if (row.bizType === 'FINANCE_PAYMENT') return formatFinancePaymentAuditAmount(row, detail)
+  if (
+    maskSaleSensitiveFields.value &&
+    (row.bizType === 'SALES_ORDER' || row.bizType === 'FINANCE_RECEIPT')
+  )
+    return '—'
   return row.amount != null ? formatAmount(row.amount, row.currency) : '—'
 }
 
 const buildItemDescription = (row: PendingApprovalItem) => {
   const titlePart = (row.title || '').trim()
-  const cp = (row.counterpartyName || '').trim()
+  const bt = String(row.bizType || '')
+  const cpRaw = (row.counterpartyName || '').trim()
+  const cpRedactedPurchase =
+    maskPurchaseSensitiveFields.value && (bt === 'VENDOR' || bt === 'PURCHASE_ORDER' || bt === 'FINANCE_PAYMENT')
+  const cpRedactedSale =
+    maskSaleSensitiveFields.value && (bt === 'CUSTOMER' || bt === 'SALES_ORDER' || bt === 'FINANCE_RECEIPT')
+  const cp = cpRedactedPurchase || cpRedactedSale ? '' : cpRaw
   const join = t('pendingApprovals.descJoin')
   if (titlePart && cp && titlePart !== cp) return `${titlePart}${join}${cp}`
   if (titlePart) return titlePart
@@ -577,6 +616,10 @@ const loadAuditDetail = async (row: PendingApprovalItem) => {
 const loadAuditDocs = async (row: PendingApprovalItem) => {
   auditDocsLoading.value = true
   try {
+    if (isAuditAttachmentsRestricted(row)) {
+      auditDocs.value = []
+      return
+    }
     auditDocs.value = await documentApi.getDocuments(row.bizType, row.businessId)
   } catch {
     auditDocs.value = []

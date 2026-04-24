@@ -115,7 +115,7 @@
           <span>{{ displayFirstItemQuantity(row) }}</span>
         </template>
         <template #col-vendorCount="{ row }">
-          {{ row.items?.length || 0 }}
+          {{ maskPurchaseSensitiveFields ? '—' : (row.items?.length || 0) }}
         </template>
         <template #col-quoteDate="{ row }">
           {{ formatDisplayDate(row.quoteDate) }}
@@ -130,7 +130,13 @@
           </template>
         </template>
         <template #col-createUser="{ row }">
-          {{ row.createUserName || row.createdBy || row.salesUserName || row.purchaseUserName || '—' }}
+          {{
+            row.createUserName ||
+              row.createdBy ||
+              (!maskSaleSensitiveFields ? row.salesUserName : '') ||
+              row.purchaseUserName ||
+              '—'
+          }}
         </template>
         <template #col-actions-header>
           <div class="op-col-header">
@@ -203,7 +209,11 @@ import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
 import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
@@ -241,58 +251,67 @@ function toggleOpCol() {
 }
 
 /** 报价列表主表可配置列（localStorage：crm-table-columns:v1:quote-list-main） */
-const quoteTableColumns = computed<CrmTableColumnDef[]>(() => [
-  {
-    key: 'sel',
-    type: 'selection',
-    width: 48,
-    hideable: false,
-    pinned: 'start',
-    resizable: false,
-    reserveSelection: true
-  },
-  { key: 'status', label: t('quoteList.columns.status'), prop: 'status', width: 160, align: 'center' },
-  { key: 'mpn', label: t('quoteList.columns.mpn'), prop: 'mpn', minWidth: 150, showOverflowTooltip: true },
-  { key: 'brand', label: t('quoteList.columns.brand'), width: 100, minWidth: 90, showOverflowTooltip: true },
-  {
-    key: 'lineUnitPrice',
-    label: t('quoteList.columns.unitPrice'),
-    width: 130,
-    minWidth: 120,
-    align: 'right',
-    showOverflowTooltip: true
-  },
-  { key: 'lineQuantity', label: t('quoteList.columns.quantity'), width: 88, minWidth: 72, align: 'right' },
-  { key: 'customerName', label: t('quoteList.columns.customer'), prop: 'customerName', minWidth: 200, showOverflowTooltip: true },
-  { key: 'salesUserName', label: t('quoteList.columns.salesUser'), prop: 'salesUserName', width: 100 },
-  { key: 'purchaseUserName', label: t('quoteList.columns.purchaseUser'), prop: 'purchaseUserName', width: 100 },
-  { key: 'vendorCount', label: t('quoteList.columns.vendorCount'), width: 90, align: 'center' },
-  { key: 'quoteDate', label: t('quoteList.columns.quoteDate'), prop: 'quoteDate', width: 160 },
-  {
-    key: 'quoteCode',
-    label: t('quoteList.columns.quoteCode'),
-    prop: 'quoteCode',
-    width: 160,
-    minWidth: 160,
-    showOverflowTooltip: true,
-    sortable: true
-  },
-  { key: 'rfqCode', label: t('quoteList.columns.rfqCode'), width: 160, minWidth: 160, showOverflowTooltip: true },
-  { key: 'createTime', label: t('quoteList.columns.createTime'), prop: 'createTime', width: 160 },
-  { key: 'createUser', label: t('quoteList.columns.createUser'), width: 120, showOverflowTooltip: true },
-  {
-    key: 'actions',
-    label: t('quoteList.actions.column'),
-    width: opColWidth.value,
-    minWidth: opColMinWidth.value,
-    fixed: 'right',
-    hideable: false,
-    pinned: 'end',
-    reorderable: false,
-    className: 'op-col',
-    labelClassName: 'op-col'
+const quoteTableColumns = computed<CrmTableColumnDef[]>(() => {
+  const cols: CrmTableColumnDef[] = [
+    {
+      key: 'sel',
+      type: 'selection',
+      width: 48,
+      hideable: false,
+      pinned: 'start',
+      resizable: false,
+      reserveSelection: true
+    },
+    { key: 'status', label: t('quoteList.columns.status'), prop: 'status', width: 160, align: 'center' },
+    { key: 'mpn', label: t('quoteList.columns.mpn'), prop: 'mpn', minWidth: 150, showOverflowTooltip: true },
+    { key: 'brand', label: t('quoteList.columns.brand'), width: 100, minWidth: 90, showOverflowTooltip: true },
+    {
+      key: 'lineUnitPrice',
+      label: t('quoteList.columns.unitPrice'),
+      width: 130,
+      minWidth: 120,
+      align: 'right',
+      showOverflowTooltip: true
+    },
+    { key: 'lineQuantity', label: t('quoteList.columns.quantity'), width: 88, minWidth: 72, align: 'right' }
+  ]
+  if (!maskSaleSensitiveFields.value) {
+    cols.push(
+      { key: 'customerName', label: t('quoteList.columns.customer'), prop: 'customerName', minWidth: 200, showOverflowTooltip: true },
+      { key: 'salesUserName', label: t('quoteList.columns.salesUser'), prop: 'salesUserName', width: 100 }
+    )
   }
-])
+  cols.push(
+    { key: 'purchaseUserName', label: t('quoteList.columns.purchaseUser'), prop: 'purchaseUserName', width: 100 },
+    { key: 'vendorCount', label: t('quoteList.columns.vendorCount'), width: 90, align: 'center' },
+    { key: 'quoteDate', label: t('quoteList.columns.quoteDate'), prop: 'quoteDate', width: 160 },
+    {
+      key: 'quoteCode',
+      label: t('quoteList.columns.quoteCode'),
+      prop: 'quoteCode',
+      width: 160,
+      minWidth: 160,
+      showOverflowTooltip: true,
+      sortable: true
+    },
+    { key: 'rfqCode', label: t('quoteList.columns.rfqCode'), width: 160, minWidth: 160, showOverflowTooltip: true },
+    { key: 'createTime', label: t('quoteList.columns.createTime'), prop: 'createTime', width: 160 },
+    { key: 'createUser', label: t('quoteList.columns.createUser'), width: 120, showOverflowTooltip: true },
+    {
+      key: 'actions',
+      label: t('quoteList.actions.column'),
+      width: opColWidth.value,
+      minWidth: opColMinWidth.value,
+      fixed: 'right',
+      hideable: false,
+      pinned: 'end',
+      reorderable: false,
+      className: 'op-col',
+      labelClassName: 'op-col'
+    }
+  )
+  return cols
+})
 
 const totalCount = computed(() => quoteList.value.length)
 

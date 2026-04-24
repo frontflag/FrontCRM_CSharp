@@ -10,7 +10,7 @@
           {{ t('vendorDetail.back') }}
         </button>
         <div class="customer-title-group">
-          <div class="customer-avatar-lg">{{ (vendor?.officialName || '?')[0] }}</div>
+          <div class="customer-avatar-lg">{{ vendorAvatarChar }}</div>
           <div>
             <div class="page-title-row">
               <div class="page-title-with-icons">
@@ -18,7 +18,7 @@
                   class="page-title"
                   :class="{ 'page-title--muted': vendorPartyMuted }"
                 >
-                  {{ vendor?.officialName || t('vendorDetail.titleFallback') }}
+                  {{ vendorHeaderTitle }}
                 </h1>
                 <PartyStatusIcons
                   v-if="vendor"
@@ -57,7 +57,7 @@
               </button>
             </div>
             <div class="title-meta">
-              <span class="customer-code">{{ vendor?.code }}</span>
+              <span class="customer-code">{{ maskPurchaseSensitiveFields ? '—' : vendor?.code }}</span>
               <span class="status-badge" :class="vendorStatusClass">{{ vendorStatusText }}</span>
               <span v-if="vendor?.isDisenable" class="status-badge status--frozen">{{ t('vendorDetail.frozen') }}</span>
               <span v-if="vendorLevelDisplay !== '--'" class="level-badge">{{ vendorLevelDisplay }}</span>
@@ -116,7 +116,7 @@
         <div class="info-grid">
           <div class="info-item">
             <span class="info-label">{{ t('vendorDetail.fields.vendorCode') }}</span>
-            <span class="info-value info-value--code">{{ vendor.code }}</span>
+            <span class="info-value info-value--code">{{ maskPurchaseSensitiveFields ? '—' : vendor.code }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">{{ t('vendorDetail.fields.vendorName') }}</span>
@@ -125,11 +125,11 @@
               :class="{
                 'info-value--party-muted': vendor.isDisenable || vendor.blackList
               }"
-            >{{ vendor.officialName }}</span>
+            >{{ maskPurchaseSensitiveFields ? '—' : (vendor.officialName || '--') }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">{{ t('vendorDetail.fields.shortName') }}</span>
-            <span class="info-value">{{ vendor.nickName || '--' }}</span>
+            <span class="info-value">{{ maskPurchaseSensitiveFields ? '—' : (vendor.nickName || '--') }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">{{ t('vendorDetail.fields.industry') }}</span>
@@ -137,7 +137,7 @@
           </div>
           <div class="info-item">
             <span class="info-label">{{ t('vendorDetail.fields.regionAddress') }}</span>
-            <span class="info-value">{{ vendor.officeAddress || '--' }}</span>
+            <span class="info-value">{{ maskPurchaseSensitiveFields ? '—' : (vendor.officeAddress || '--') }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">{{ t('vendorDetail.fields.level') }}</span>
@@ -194,20 +194,20 @@
             >
               <el-table-column prop="cName" :label="t('vendorDetail.contacts.name')" min-width="140" show-overflow-tooltip>
                 <template #default="{ row }">
-                  <span class="cell-primary">{{ row.cName || row.eName || '--' }}</span>
+                  <span class="cell-primary">{{ maskPurchaseSensitiveFields ? '—' : (row.cName || row.eName || '--') }}</span>
                 </template>
               </el-table-column>
               <el-table-column prop="title" :label="t('vendorDetail.contacts.title')" min-width="120">
-                <template #default="{ row }"><span class="cell-secondary">{{ row.title || '--' }}</span></template>
+                <template #default="{ row }"><span class="cell-secondary">{{ maskPurchaseSensitiveFields ? '—' : (row.title || '--') }}</span></template>
               </el-table-column>
               <el-table-column prop="department" :label="t('vendorDetail.contacts.department')" min-width="120">
-                <template #default="{ row }"><span class="cell-secondary">{{ row.department || '--' }}</span></template>
+                <template #default="{ row }"><span class="cell-secondary">{{ maskPurchaseSensitiveFields ? '—' : (row.department || '--') }}</span></template>
               </el-table-column>
               <el-table-column prop="mobile" :label="t('vendorDetail.contacts.mobile')" min-width="130">
-                <template #default="{ row }"><span class="cell-code">{{ row.mobile || '--' }}</span></template>
+                <template #default="{ row }"><span class="cell-code">{{ maskPurchaseSensitiveFields ? '—' : (row.mobile || '--') }}</span></template>
               </el-table-column>
               <el-table-column prop="email" :label="t('vendorDetail.contacts.email')" min-width="180" show-overflow-tooltip>
-                <template #default="{ row }"><span class="cell-secondary">{{ row.email || '--' }}</span></template>
+                <template #default="{ row }"><span class="cell-secondary">{{ maskPurchaseSensitiveFields ? '—' : (row.email || '--') }}</span></template>
               </el-table-column>
               <el-table-column :label="t('vendorDetail.contacts.mainContact')" width="90" align="center">
                 <template #default="{ row }">
@@ -258,14 +258,14 @@
                 </template>
               </el-table-column>
               <el-table-column prop="contactName" :label="t('vendorDetail.addresses.contactName')" width="120">
-                <template #default="{ row }"><span class="cell-primary">{{ row.contactName || '--' }}</span></template>
+                <template #default="{ row }"><span class="cell-primary">{{ maskPurchaseSensitiveFields ? '—' : (row.contactName || '--') }}</span></template>
               </el-table-column>
               <el-table-column prop="contactPhone" :label="t('vendorDetail.addresses.phone')" width="140">
-                <template #default="{ row }"><span class="cell-code">{{ row.contactPhone || '--' }}</span></template>
+                <template #default="{ row }"><span class="cell-code">{{ maskPurchaseSensitiveFields ? '—' : (row.contactPhone || '--') }}</span></template>
               </el-table-column>
               <el-table-column :label="t('vendorDetail.addresses.fullAddress')" min-width="260" show-overflow-tooltip>
                 <template #default="{ row }">
-                  <span class="cell-secondary">{{ formatFullAddress(row) }}</span>
+                  <span class="cell-secondary">{{ maskPurchaseSensitiveFields ? '—' : formatFullAddress(row) }}</span>
                 </template>
               </el-table-column>
               <el-table-column :label="t('vendorDetail.addresses.defaultCol')" width="80" align="center">
@@ -312,16 +312,16 @@
               :row-style="tableRowStyle"
             >
               <el-table-column prop="accountName" :label="t('vendorDetail.banks.accountName')" min-width="160" show-overflow-tooltip>
-                <template #default="{ row }"><span class="cell-primary">{{ row.accountName || '--' }}</span></template>
+                <template #default="{ row }"><span class="cell-primary">{{ maskPurchaseSensitiveFields ? '—' : (row.accountName || '--') }}</span></template>
               </el-table-column>
               <el-table-column prop="bankName" :label="t('vendorDetail.banks.bankName')" min-width="160" show-overflow-tooltip>
-                <template #default="{ row }"><span class="cell-secondary">{{ row.bankName || '--' }}</span></template>
+                <template #default="{ row }"><span class="cell-secondary">{{ maskPurchaseSensitiveFields ? '—' : (row.bankName || '--') }}</span></template>
               </el-table-column>
               <el-table-column prop="bankBranch" :label="t('vendorDetail.banks.branch')" min-width="160" show-overflow-tooltip>
-                <template #default="{ row }"><span class="cell-secondary">{{ row.bankBranch || '--' }}</span></template>
+                <template #default="{ row }"><span class="cell-secondary">{{ maskPurchaseSensitiveFields ? '—' : (row.bankBranch || '--') }}</span></template>
               </el-table-column>
               <el-table-column prop="bankAccount" :label="t('vendorDetail.banks.accountNo')" min-width="180" show-overflow-tooltip>
-                <template #default="{ row }"><span class="cell-code">{{ row.bankAccount || '--' }}</span></template>
+                <template #default="{ row }"><span class="cell-code">{{ maskPurchaseSensitiveFields ? '—' : (row.bankAccount || '--') }}</span></template>
               </el-table-column>
               <el-table-column :label="t('vendorDetail.banks.defaultCol')" width="80" align="center">
                 <template #default="{ row }">
@@ -602,10 +602,12 @@ import { logRecentApi } from '@/api/logRecent';
 import { VENDOR_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/vendorRecentHistory';
 import { favoriteApi } from '@/api/favorite';
 import { VENDOR_FAVORITES_CHANGED_EVENT } from '@/constants/vendorFavorites';
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask';
 
 const route = useRoute();
 const router = useRouter();
 const { t, locale } = useI18n();
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask();
 const vendorDict = useVendorDictStore();
 
 const vendorId = route.params.id as string;
@@ -613,6 +615,18 @@ const vendorId = route.params.id as string;
 const canonicalVendorId = computed(() => vendor.value?.id ?? (route.params.id as string));
 const loading = ref(false);
 const vendor = ref<Vendor | null>(null);
+
+const vendorHeaderTitle = computed(() => {
+  if (!vendor.value) return t('vendorDetail.titleFallback');
+  if (maskPurchaseSensitiveFields.value) return '—';
+  return vendor.value.officialName || t('vendorDetail.titleFallback');
+});
+const vendorAvatarChar = computed(() => {
+  if (maskPurchaseSensitiveFields.value) return '?';
+  const s = (vendor.value?.officialName || '?').trim();
+  return s ? s[0]! : '?';
+});
+
 const vendorTags = ref<TagDefinitionDto[]>([]);
 const contacts = ref<VendorContactInfo[]>([]);
 const addresses = ref<VendorAddress[]>([]);
@@ -730,11 +744,17 @@ const toggleFavorite = async () => {
     if (isFavorite.value) {
       await favoriteApi.removeFavorite('VENDOR', id);
       isFavorite.value = false;
-      ElNotification.success({ title: t('vendorDetail.notify.unfavorited'), message: vendor.value?.officialName || vendor.value?.code || '' });
+      ElNotification.success({
+        title: t('vendorDetail.notify.unfavorited'),
+        message: maskPurchaseSensitiveFields.value ? '—' : vendor.value?.officialName || vendor.value?.code || ''
+      });
     } else {
       await favoriteApi.addFavorite({ entityType: 'VENDOR', entityId: id });
       isFavorite.value = true;
-      ElNotification.success({ title: t('vendorDetail.notify.favorited'), message: vendor.value?.officialName || vendor.value?.code || '' });
+      ElNotification.success({
+        title: t('vendorDetail.notify.favorited'),
+        message: maskPurchaseSensitiveFields.value ? '—' : vendor.value?.officialName || vendor.value?.code || ''
+      });
     }
     window.dispatchEvent(new CustomEvent(VENDOR_FAVORITES_CHANGED_EVENT));
   } catch (error: any) {

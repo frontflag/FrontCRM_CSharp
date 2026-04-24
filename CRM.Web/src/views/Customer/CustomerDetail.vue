@@ -10,7 +10,7 @@
           返回
         </button>
         <div class="customer-title-group">
-          <div class="customer-avatar-lg">{{ (customer?.customerName || '?')[0] }}</div>
+          <div class="customer-avatar-lg">{{ detailAvatarChar }}</div>
           <div>
             <div class="page-title-row">
               <div class="page-title-with-icons">
@@ -21,7 +21,7 @@
                       customer && (customer.disenableStatus || customer.blackList)
                   }"
                 >
-                  {{ customer?.customerName || '客户详情' }}
+                  {{ detailCustomerTitle }}
                 </h1>
                 <PartyStatusIcons
                   v-if="customer"
@@ -62,7 +62,7 @@
               </button>
             </div>
             <div class="title-meta">
-              <span class="customer-code">{{ customer?.customerCode }}</span>
+              <span class="customer-code">{{ detailCustomerCodeDisplay }}</span>
               <span v-if="customer?.customerLevel" class="level-badge" :class="`level-${customer.customerLevel?.toLowerCase()}`">
                 {{ customerDict.levelLabel(customer.customerLevel) }}
               </span>
@@ -135,7 +135,7 @@
                   'info-value--party-muted':
                     customer.disenableStatus || customer.blackList
                 }"
-              >{{ customer.customerName }}</span>
+              >{{ detailCustomerNameDisplay }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">客户类型</span>
@@ -155,11 +155,11 @@
             </div>
             <div class="info-item">
               <span class="info-label">所属业务员</span>
-              <span class="info-value">{{ customer.salesPersonName || '--' }}</span>
+              <span class="info-value">{{ maskSaleSensitiveFields ? '—' : customer.salesPersonName || '--' }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">信用额度</span>
-              <span class="info-value info-value--amount">{{ formatCurrency(customer.creditLimit) }}</span>
+              <span class="info-value info-value--amount">{{ maskSaleSensitiveFields ? '—' : formatCurrency(customer.creditLimit) }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">账期(天)</span>
@@ -167,8 +167,11 @@
             </div>
             <div class="info-item">
               <span class="info-label">账户余额</span>
-              <span class="info-value info-value--amount" :class="{ 'amount-negative': customer.balance && customer.balance < 0 }">
-                {{ formatCurrency(customer.balance) }}
+              <span
+                class="info-value info-value--amount"
+                :class="{ 'amount-negative': !maskSaleSensitiveFields && customer.balance && customer.balance < 0 }"
+              >
+                {{ maskSaleSensitiveFields ? '—' : formatCurrency(customer.balance) }}
               </span>
             </div>
             <div class="info-item">
@@ -210,7 +213,7 @@
               <CrmDataTable :data="customer.contacts" class="quantum-table"
                 :header-cell-style="tableHeaderStyle" :cell-style="tableCellStyle" :row-style="tableRowStyle">
                 <el-table-column prop="contactName" label="姓名" min-width="140" show-overflow-tooltip>
-                  <template #default="{ row }"><span class="cell-primary">{{ row.contactName || '--' }}</span></template>
+                  <template #default="{ row }"><span class="cell-primary">{{ maskSaleSensitiveFields ? '—' : row.contactName || '--' }}</span></template>
                 </el-table-column>
                 <el-table-column prop="gender" label="性别" width="72">
                   <template #default="{ row }">
@@ -224,10 +227,10 @@
                   <template #default="{ row }"><span class="cell-secondary">{{ row.position || row.title || '--' }}</span></template>
                 </el-table-column>
                 <el-table-column prop="mobilePhone" label="手机" min-width="130">
-                  <template #default="{ row }"><span class="cell-code">{{ row.mobilePhone || '--' }}</span></template>
+                  <template #default="{ row }"><span class="cell-code">{{ maskSaleSensitiveFields ? '—' : row.mobilePhone || '--' }}</span></template>
                 </el-table-column>
                 <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip>
-                  <template #default="{ row }"><span class="cell-secondary">{{ row.email || '--' }}</span></template>
+                  <template #default="{ row }"><span class="cell-secondary">{{ maskSaleSensitiveFields ? '—' : row.email || '--' }}</span></template>
                 </el-table-column>
                 <el-table-column label="默认" width="80" align="center">
                   <template #default="{ row }">
@@ -265,10 +268,10 @@
                   </template>
                 </el-table-column>
                 <el-table-column prop="contactPerson" label="联系人" width="100">
-                  <template #default="{ row }"><span class="cell-primary">{{ row.contactPerson || '--' }}</span></template>
+                  <template #default="{ row }"><span class="cell-primary">{{ maskSaleSensitiveFields ? '—' : row.contactPerson || '--' }}</span></template>
                 </el-table-column>
                 <el-table-column prop="contactPhone" label="联系电话" width="140">
-                  <template #default="{ row }"><span class="cell-code">{{ row.contactPhone || '--' }}</span></template>
+                  <template #default="{ row }"><span class="cell-code">{{ maskSaleSensitiveFields ? '—' : row.contactPhone || '--' }}</span></template>
                 </el-table-column>
                 <el-table-column label="详细地址" min-width="250" show-overflow-tooltip>
                   <template #default="{ row }"><span class="cell-secondary">{{ formatFullAddress(row) }}</span></template>
@@ -585,11 +588,13 @@ import { logRecentApi } from '@/api/logRecent';
 import { CUSTOMER_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/customerRecentHistory';
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency';
 import { isDistrictPlaceholder } from '@/constants/region';
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask';
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const authStore = useAuthStore();
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask();
 const canCreateRfqFromCustomer = computed(() => authStore.hasPermission('rfq.create'));
 const customerDict = useCustomerDictStore();
 const customerId = route.params.id as string;
@@ -607,6 +612,21 @@ function formatCustomerContactGenderLabel(v: unknown): string {
 const canonicalCustomerId = computed(() => customer.value?.id ?? (route.params.id as string));
 const loading = ref(false);
 const customer = ref<Customer | null>(null);
+
+const detailCustomerTitle = computed(() =>
+  maskSaleSensitiveFields.value ? '客户详情' : customer.value?.customerName?.trim() || '客户详情'
+);
+const detailCustomerNameDisplay = computed(() =>
+  maskSaleSensitiveFields.value ? '—' : customer.value?.customerName?.trim() || '—'
+);
+const detailCustomerCodeDisplay = computed(() =>
+  maskSaleSensitiveFields.value ? '—' : customer.value?.customerCode?.trim() || '—'
+);
+const detailAvatarChar = computed(() => {
+  if (maskSaleSensitiveFields.value) return '?';
+  const n = customer.value?.customerName?.trim();
+  return (n && n[0]) || '?';
+});
 
 const customerTags = ref<TagDefinitionDto[]>([]);
 const activeTab = ref('contacts');

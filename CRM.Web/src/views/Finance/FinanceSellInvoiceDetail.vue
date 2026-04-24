@@ -33,15 +33,21 @@
             <span class="order-code">{{ detail.invoiceCode || t('financeSellInvoiceDetail.codeNotGenerated') }}</span>
           </el-descriptions-item>
           <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.invoiceNo')">{{ detail.invoiceNo || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.customer')">{{ detail.customerName }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.customer')">{{ maskSaleSensitiveFields ? '—' : (detail.customerName || '—') }}</el-descriptions-item>
           <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.amount')">
-            <span class="amount">{{ CURRENCY_MAP[detail.currency] }} {{ formatAmount(detail.invoiceTotal) }}</span>
+            <span class="amount">{{
+              maskSaleSensitiveFields ? '—' : `${CURRENCY_MAP[detail.currency]} ${formatAmount(detail.invoiceTotal)}`
+            }}</span>
           </el-descriptions-item>
           <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.received')">
-            <span class="amount">{{ CURRENCY_MAP[detail.currency] }} {{ formatAmount(detail.receiveDone) }}</span>
+            <span class="amount">{{
+              maskSaleSensitiveFields ? '—' : `${CURRENCY_MAP[detail.currency]} ${formatAmount(detail.receiveDone)}`
+            }}</span>
           </el-descriptions-item>
           <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.toReceive')">
-            <span style="color:#E8A838; font-weight: 600;">{{ CURRENCY_MAP[detail.currency] }} {{ formatAmount(detail.receiveToBe) }}</span>
+            <span style="color:#E8A838; font-weight: 600;">{{
+              maskSaleSensitiveFields ? '—' : `${CURRENCY_MAP[detail.currency]} ${formatAmount(detail.receiveToBe)}`
+            }}</span>
           </el-descriptions-item>
           <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.makeDate')">{{ detail.makeInvoiceDate ? formatDisplayDate(detail.makeInvoiceDate) : '-' }}</el-descriptions-item>
           <el-descriptions-item :label="t('financeSellInvoiceDetail.labels.invoiceType')">{{ sellInvoiceTypeLabel(detail.sellInvoiceType) }}</el-descriptions-item>
@@ -61,17 +67,17 @@
           <el-table-column prop="qty" :label="t('financeSellInvoiceDetail.labels.qty')" width="80" align="right" />
           <el-table-column prop="price" :label="t('financeSellInvoiceDetail.labels.unitPrice')" width="120" align="right">
             <template #default="{ row }">
-              ¥ {{ formatAmount(row.price) }}
+              {{ maskSaleSensitiveFields ? '—' : `¥ ${formatAmount(row.price)}` }}
             </template>
           </el-table-column>
           <el-table-column prop="invoiceTotal" :label="t('financeSellInvoiceDetail.labels.lineTotal')" width="130" align="right">
             <template #default="{ row }">
-              ¥ {{ formatAmount(row.invoiceTotal) }}
+              {{ maskSaleSensitiveFields ? '—' : `¥ ${formatAmount(row.invoiceTotal)}` }}
             </template>
           </el-table-column>
           <el-table-column prop="valueAddedTax" :label="t('financeSellInvoiceDetail.labels.vat')" width="130" align="right">
             <template #default="{ row }">
-              ¥ {{ formatAmount(row.valueAddedTax) }}
+              {{ maskSaleSensitiveFields ? '—' : `¥ ${formatAmount(row.valueAddedTax)}` }}
             </template>
           </el-table-column>
           <el-table-column prop="taxRate" :label="t('financeSellInvoiceDetail.labels.taxRate')" width="80" align="center">
@@ -99,8 +105,10 @@ import {
   type FinanceSellInvoice,
 } from '@/api/finance'
 import { formatDisplayDate } from '@/utils/displayDateTime'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const router = useRouter()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const route = useRoute()
 const { t } = useI18n()
 const {

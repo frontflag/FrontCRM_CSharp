@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using CRM.API.Models.DTOs;
 using CRM.Core.Document;
 using CRM.Core.Models.Document;
+using CRM.Core.Interfaces;
+using CRM.Core.Utilities;
+using System.Security.Claims;
 
 namespace CRM.API.Controllers
 {
@@ -11,13 +14,26 @@ namespace CRM.API.Controllers
     {
         private readonly IDocumentService _documentService;
         private readonly IFileStorageService _fileStorage;
+        private readonly IRbacService _rbacService;
         private readonly ILogger<DocumentsController> _logger;
 
-        public DocumentsController(IDocumentService documentService, IFileStorageService fileStorage, ILogger<DocumentsController> logger)
+        public DocumentsController(
+            IDocumentService documentService,
+            IFileStorageService fileStorage,
+            IRbacService rbacService,
+            ILogger<DocumentsController> logger)
         {
             _documentService = documentService;
             _fileStorage = fileStorage;
+            _rbacService = rbacService;
             _logger = logger;
+        }
+
+        private async Task<UserPermissionSummaryDto?> TryGetPermissionSummaryAsync()
+        {
+            var id = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(id)) return null;
+            return await _rbacService.GetUserPermissionSummaryAsync(id.Trim());
         }
 
         /// <summary>上传文档（multipart/form-data: bizType, bizId, remark?, uploadUserId?, files）</summary>
@@ -35,6 +51,10 @@ namespace CRM.API.Controllers
             {
                 if (string.IsNullOrWhiteSpace(bizType) || string.IsNullOrWhiteSpace(bizId))
                     return BadRequest(ApiResponse<object>.Fail("bizType 与 bizId 不能为空", 400));
+
+                var summary = await TryGetPermissionSummaryAsync();
+                if (CrossSideDocumentAttachmentPolicy.ShouldDeny(summary, bizType))
+                    return StatusCode(403, ApiResponse<object>.Fail("当前角色无权上传该业务类型的附件", 403));
 
                 var list = new List<DocumentUploadFile>();
                 if (files != null)
@@ -86,6 +106,10 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var summary = await TryGetPermissionSummaryAsync();
+                if (CrossSideDocumentAttachmentPolicy.ShouldDeny(summary, bizType))
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<object>(), "获取成功"));
+
                 var list = await _documentService.GetByBizAsync(bizType, bizId);
                 return Ok(ApiResponse<object>.Ok(list.Select(ToDto).ToList(), "获取成功"));
             }
@@ -110,6 +134,22 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var summary = await TryGetPermissionSummaryAsync();
+                var exclude = new List<string>();
+                if (summary != null)
+                {
+                    if (CrossSideDocumentAttachmentPolicy.ShouldDenyPurchaseSideDocuments(summary))
+                    {
+                        exclude.Add(CrossSideDocumentAttachmentPolicy.BizPurchaseOrder);
+                        exclude.Add(CrossSideDocumentAttachmentPolicy.BizFinancePayment);
+                    }
+                    if (CrossSideDocumentAttachmentPolicy.ShouldDenySalesSideDocuments(summary))
+                    {
+                        exclude.Add(CrossSideDocumentAttachmentPolicy.BizSalesOrder);
+                        exclude.Add(CrossSideDocumentAttachmentPolicy.BizFinanceReceipt);
+                    }
+                }
+
                 var request = new DocumentSearchRequest
                 {
                     BizType = bizType,
@@ -119,7 +159,8 @@ namespace CRM.API.Controllers
                     StartDate = startDate,
                     EndDate = endDate,
                     PageNumber = pageNumber,
-                    PageSize = pageSize
+                    PageSize = pageSize,
+                    ExcludeBizTypes = exclude.Count > 0 ? exclude : null
                 };
                 var result = await _documentService.SearchAsync(request);
                 return Ok(ApiResponse<object>.Ok(new
@@ -147,6 +188,10 @@ namespace CRM.API.Controllers
                     _logger.LogWarning("文档下载：记录不存在或已删除。DocumentId={DocumentId}", id);
                     return NotFound();
                 }
+
+                var summary = await TryGetPermissionSummaryAsync();
+                if (CrossSideDocumentAttachmentPolicy.ShouldDeny(summary, doc.BizType))
+                    return Forbid();
 
                 try
                 {
@@ -181,6 +226,10 @@ namespace CRM.API.Controllers
                     return NotFound();
                 }
 
+                var summary = await TryGetPermissionSummaryAsync();
+                if (CrossSideDocumentAttachmentPolicy.ShouldDeny(summary, doc.BizType))
+                    return Forbid();
+
                 try
                 {
                     var stream = await _fileStorage.OpenReadAsync(doc.RelativePath);
@@ -208,6 +257,14 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var doc = await _documentService.GetByIdAsync(id);
+                if (doc == null || doc.IsDeleted)
+                    return NotFound(ApiResponse<object>.Fail("文档不存在", 404));
+
+                var summary = await TryGetPermissionSummaryAsync();
+                if (CrossSideDocumentAttachmentPolicy.ShouldDeny(summary, doc.BizType))
+                    return StatusCode(403, ApiResponse<object>.Fail("当前角色无权删除该业务类型的附件", 403));
+
                 await _documentService.SoftDeleteAsync(id, userId ?? "");
                 return Ok(ApiResponse<object>.Ok(null, "删除成功"));
             }

@@ -141,9 +141,11 @@ import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
 import { vendorApi, vendorContactApi } from '@/api/vendor';
 import type { AddVendorContactRequest, UpdateVendorContactRequest } from '@/types/vendor';
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask';
 
 const route = useRoute();
 const router = useRouter();
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask();
 
 const vendorId = route.params.id as string;
 const contactId = route.params.contactId as string | undefined;
@@ -214,7 +216,9 @@ onMounted(async () => {
   pageLoading.value = true;
   try {
     const vendor = await vendorApi.getVendorById(vendorId);
-    vendorName.value = vendor.officialName || vendor.nickName || vendor.code || '供应商详情';
+    vendorName.value = maskPurchaseSensitiveFields.value
+      ? '—'
+      : vendor.officialName || vendor.nickName || vendor.code || '供应商详情';
 
     if (isEdit.value && contactId) {
       // 与详情页联系人列表同源（避免仅嵌在 vendor 详情里的 contacts 与 /contacts 接口不一致）

@@ -84,6 +84,9 @@ import { ElMessage } from 'element-plus'
 import { inventoryCenterApi, type PickingTaskDetailView, type PickingTaskLine } from '@/api/inventoryCenter'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const route = useRoute()
 const router = useRouter()
@@ -95,6 +98,7 @@ const loadError = ref('')
 const raw = computed(() => detail.value as unknown as Record<string, unknown> | null)
 
 function d(key: string) {
+  if (maskSaleSensitiveFields.value && (key === 'customerName' || key === 'salesUserName')) return '—'
   const r = raw.value
   if (!r) return '—'
   const pascal = key.charAt(0).toUpperCase() + key.slice(1)

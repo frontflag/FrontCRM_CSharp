@@ -59,17 +59,19 @@
             @keyup.enter="handleSearch"
           />
         </div>
-        <span class="filter-field-label">{{ t('rfqItemList.columns.salesUser') }}</span>
-        <el-select
-          v-model="searchForm.salesUserId"
-          :placeholder="t('rfqItemList.filters.allSalesUsers')"
-          clearable
-          filterable
-          class="status-select status-select--sales"
-          :teleported="false"
-        >
-          <el-option v-for="u in salesUsers" :key="u.id" :label="salesUserLabel(u)" :value="u.id" />
-        </el-select>
+        <template v-if="showRfqSalesUserColumn">
+          <span class="filter-field-label">{{ t('rfqItemList.columns.salesUser') }}</span>
+          <el-select
+            v-model="searchForm.salesUserId"
+            :placeholder="t('rfqItemList.filters.allSalesUsers')"
+            clearable
+            filterable
+            class="status-select status-select--sales"
+            :teleported="false"
+          >
+            <el-option v-for="u in salesUsers" :key="u.id" :label="salesUserLabel(u)" :value="u.id" />
+          </el-select>
+        </template>
         <span class="filter-field-label">{{ t('rfqItemList.columns.purchaser') }}</span>
         <el-select
           v-model="searchForm.purchaserUserId"
@@ -148,7 +150,12 @@
           </template>
         </template>
         <template #col-createUser="{ row }">
-          {{ row.createUserName || row.createdBy || row.salesUserName || '—' }}
+          {{
+            row.createUserName ||
+              row.createdBy ||
+              (!maskSaleSensitiveFields ? row.salesUserName : '') ||
+              '—'
+          }}
         </template>
         <template #col-actions-header>
           <div class="op-col-header">
@@ -531,6 +538,8 @@ import type { RFQItem } from '@/types/rfq'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useRfqItemListBasketStore } from '@/stores/rfqItemListBasket'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -540,8 +549,13 @@ const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const authStore = useAuthStore()
-/** 与后端 RFQ 脱敏一致：采购等角色可有 customer.read 但不应见需求侧客户名/客户料号筛选（需 customer.info.read） */
-const canViewCustomerInRfq = computed(() => authStore.hasPermission('customer.info.read'))
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+/** 与后端 RFQ 脱敏一致：采购等角色可有 customer.read 但不应见需求侧客户名/客户料号筛选（需 customer.info.read）；§5.2.1 时强制不可见 */
+const canViewCustomerInRfq = computed(
+  () => authStore.hasPermission('customer.info.read') && !maskSaleSensitiveFields.value
+)
+const showRfqSalesUserColumn = computed(() => !maskSaleSensitiveFields.value)
 
 /** 需求明细列表：按当前筛选与分页自动刷新间隔 */
 const RFQ_ITEM_LIST_AUTO_REFRESH_MS = 5 * 60 * 1000
@@ -650,16 +664,20 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
     minWidth: 72,
     align: 'right',
     resizable: true
-  },
-  {
-    key: 'salesUserName',
-    label: t('rfqItemList.columns.salesUser'),
-    prop: 'salesUserName',
-    width: 100,
-    minWidth: 80,
-    showOverflowTooltip: true,
-    resizable: true
-  },
+  }
+  )
+  if (showRfqSalesUserColumn.value) {
+    cols.push({
+      key: 'salesUserName',
+      label: t('rfqItemList.columns.salesUser'),
+      prop: 'salesUserName',
+      width: 100,
+      minWidth: 80,
+      showOverflowTooltip: true,
+      resizable: true
+    })
+  }
+  cols.push(
   {
     key: 'purchasers',
     label: t('rfqItemList.columns.purchaser'),
@@ -705,7 +723,7 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
   }
   )
   if (!canViewCustomerInRfq.value) {
-    return cols.filter(c => c.key !== 'customerPart')
+    return cols.filter(c => c.key !== 'customerPart' && c.key !== 'customerBrand')
   }
   return cols
 })
@@ -862,6 +880,7 @@ function dockQuoteBrandDisplay(quoteRow: Record<string, unknown>): string {
 
 /** 采购报价表：供应商名称（多供应商去重后顿号拼接） */
 function dockQuoteVendorNamesDisplay(quoteRow: Record<string, unknown>): string {
+  if (maskPurchaseSensitiveFields.value) return '—'
   const items = dockQuoteItemsRaw(quoteRow)
   const set = new Set<string>()
   for (const o of items) {

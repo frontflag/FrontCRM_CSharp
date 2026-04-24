@@ -43,11 +43,13 @@ import SalesOrderReportDocument from '@/components/SalesOrder/SalesOrderReportDo
 import { renderElementToPdfBlob } from '@/utils/poReportPdf'
 import { renderPdfBlobFirstPageToPngDataUrl } from '@/utils/pdfSealToPng'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const PO_REPORT_PRINT_BODY_CLASS = 'po-order-report-print'
 
@@ -66,6 +68,7 @@ const exporting = ref(false)
 const showSealOnReport = ref(true)
 
 const canViewAmount = computed(() => authStore.hasPermission('sales.amount.read'))
+const showReportAmounts = computed(() => canViewAmount.value && !maskSaleSensitiveFields.value)
 
 const soId = computed(() => String(route.params.id || ''))
 
@@ -158,7 +161,7 @@ const docBind = computed(() => {
       terms: SALES_ORDER_SERVICE_TERMS,
       sealUrl: null as string | null,
       logoUrl: companyLogoObjectUrl.value ?? DEFAULT_SO_REPORT_LOGO,
-      showAmounts: canViewAmount.value,
+      showAmounts: showReportAmounts.value,
       showSeal: showSealOnReport.value,
       sellerSignDate: ''
     }
@@ -207,9 +210,9 @@ const docBind = computed(() => {
 
   const shipTo = [o.deliveryAddress, wh?.warehouseName, wh?.address].filter((x) => x && String(x).trim()).join('；') || '—'
 
-  const salesLine = o.salesUserName ? String(o.salesUserName) : '—'
+  const salesLine = maskSaleSensitiveFields.value ? '—' : o.salesUserName ? String(o.salesUserName) : '—'
 
-  const custName = o.customerName ? String(o.customerName) : '—'
+  const custName = maskSaleSensitiveFields.value ? '—' : o.customerName ? String(o.customerName) : '—'
   const buyerAddr = (o.deliveryAddress && String(o.deliveryAddress).trim()) || '—'
 
   const sellerPhone = [seller?.phone, seller?.fax].filter(Boolean).join(' / ') || '—'
@@ -245,7 +248,7 @@ const docBind = computed(() => {
     terms: SALES_ORDER_SERVICE_TERMS,
     sealUrl: sealUrl.value,
     logoUrl: companyLogoObjectUrl.value ?? DEFAULT_SO_REPORT_LOGO,
-    showAmounts: canViewAmount.value,
+    showAmounts: showReportAmounts.value,
     showSeal: showSealOnReport.value,
     sellerSignDate: formatChineseDate(o.createTime)
   }

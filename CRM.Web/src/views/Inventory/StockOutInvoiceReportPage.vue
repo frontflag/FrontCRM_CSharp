@@ -38,6 +38,9 @@ import StockOutInvoiceReportDocument from '@/components/stockOut/StockOutInvoice
 import { renderPdfBlobFirstPageToPngDataUrl } from '@/utils/pdfSealToPng'
 import { getApiErrorMessage } from '@/utils/apiError'
 import type { StockOutDetailDto } from '@/api/stockOut'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const PO_REPORT_PRINT_BODY_CLASS = 'po-order-report-print'
 const DEFAULT_REPORT_LOGO = '/purchase-order-template/logo.svg'
@@ -67,6 +70,7 @@ const canViewAmount = computed(
     authStore.hasPermission('sales.amount.read') ||
     authStore.hasPermission('purchase.amount.read')
 )
+const showInvoiceAmounts = computed(() => canViewAmount.value && !maskSaleSensitiveFields.value)
 
 const stockOutId = computed(() => String(route.params.id || ''))
 const ready = computed(() => !!stockOut.value && !errorMsg.value && !loading.value)
@@ -178,7 +182,7 @@ const docBind = computed(() => {
       terms: invoiceTerms.value,
       sealUrl: null as string | null,
       logoUrl: companyLogoObjectUrl.value ?? DEFAULT_REPORT_LOGO,
-      showAmounts: canViewAmount.value,
+      showAmounts: showInvoiceAmounts.value,
       showSeal: showSealOnReport.value,
       signDate: ''
     }
@@ -192,7 +196,7 @@ const docBind = computed(() => {
   const exporterPhone = (wh?.contactPhone || basic?.phone || '').trim() || '—'
   const exporterName = (basic?.companyName || '').trim() || '—'
 
-  const consigneeName = (so.customerName || '').trim() || '—'
+  const consigneeName = maskSaleSensitiveFields.value ? '—' : (so.customerName || '').trim() || '—'
 
   const shipmentLines = [
     `${t('stockOutInvoiceReport.labels.shipMethod')}：${(so.shipmentMethod || '').trim() || '—'}`,
@@ -240,13 +244,13 @@ const docBind = computed(() => {
     bankLines: formatBankLines(bankDefault.value),
     remarkLines: [
       `${t('stockOutInvoiceReport.labels.sellLine')}：${(so.sellOrderItemCode || '').trim() || '—'}`,
-      `${t('stockOutInvoiceReport.labels.salesRep')}：${(so.salesUserName || '').trim() || '—'}`,
+      `${t('stockOutInvoiceReport.labels.salesRep')}：${maskSaleSensitiveFields.value ? '—' : (so.salesUserName || '').trim() || '—'}`,
       `${t('stockOutInvoiceReport.labels.remark')}：${(so.remark || '').trim() || '—'}`
     ],
     terms: invoiceTerms.value,
     sealUrl: sealUrl.value,
     logoUrl: companyLogoObjectUrl.value ?? DEFAULT_REPORT_LOGO,
-    showAmounts: canViewAmount.value,
+    showAmounts: showInvoiceAmounts.value,
     showSeal: showSealOnReport.value,
     signDate: formatChineseDate(so.stockOutDate)
   }

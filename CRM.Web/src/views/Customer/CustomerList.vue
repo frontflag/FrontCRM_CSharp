@@ -148,7 +148,8 @@
           </span>
         </template>
         <template #col-customerName="{ row }">
-          <div class="customer-name-cell">
+          <div v-if="maskSaleSensitiveFields" class="customer-name-cell"><span class="td-muted">—</span></div>
+          <div v-else class="customer-name-cell">
             <div class="cell-avatar">
               <span>{{ (row.customerName || row.customerShortName || '?')[0] }}</span>
             </div>
@@ -181,10 +182,10 @@
         </template>
         <template #col-industry="{ row }"><span class="td-muted">{{ customerDict.industryLabel(row.industry) }}</span></template>
         <template #col-contactName="{ row }">
-          <span class="td-contact">{{ row.contacts && row.contacts.length > 0 ? row.contacts[0].contactName : '--' }}</span>
+          <span class="td-contact">{{ maskSaleSensitiveFields ? '—' : (row.contacts && row.contacts.length > 0 ? row.contacts[0].contactName : '--') }}</span>
         </template>
         <template #col-mobilePhone="{ row }">
-          <span class="td-phone">{{ row.contacts && row.contacts.length > 0 ? row.contacts[0].mobilePhone : '--' }}</span>
+          <span class="td-phone">{{ maskSaleSensitiveFields ? '—' : (row.contacts && row.contacts.length > 0 ? row.contacts[0].mobilePhone : '--') }}</span>
         </template>
         <template #col-region="{ row }"><span class="td-muted">{{ row.city || row.region || '--' }}</span></template>
         <template #col-createdAt="{ row }"><span class="td-muted">{{ formatDate(row.createdAt ?? (row as any).createTime) }}</span></template>
@@ -302,6 +303,7 @@ import CrmDataTable from '@/components/CrmDataTable.vue'
 import { buildCustomerListQuery, parseCustomerListQuery } from '@/utils/customerListQuery';
 import { CUSTOMER_WORKFLOW_STATUS_OPTIONS } from '@/constants/customerWorkflowStatus';
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const router = useRouter();
 const route = useRoute();
@@ -311,6 +313,7 @@ function isPartyStatusMuted(c: Customer) {
   return !!(c.disenableStatus || c.blackList);
 }
 const authStore = useAuthStore();
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask();
 const customerDict = useCustomerDictStore();
 /** 联系人、电话等敏感列；与 RBAC 节点 customer.info.read 一致 */
 const canViewCustomerInfo = authStore.hasPermission('customer.info.read')

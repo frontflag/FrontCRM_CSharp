@@ -121,6 +121,9 @@ import { inventoryCenterApi, type PickingTaskListRow } from '@/api/inventoryCent
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import { getApiErrorMessage } from '@/utils/apiError'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -142,6 +145,7 @@ function rowRecord(row: PickingTaskListRow) {
 }
 
 function displayCell(row: PickingTaskListRow, camel: string) {
+  if (maskSaleSensitiveFields.value && (camel === 'customerName' || camel === 'salesUserName')) return '—'
   const r = rowRecord(row)
   const pascal = camel.charAt(0).toUpperCase() + camel.slice(1)
   const v = r[camel] ?? r[pascal]

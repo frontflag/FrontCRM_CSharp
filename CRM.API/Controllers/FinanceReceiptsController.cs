@@ -1,6 +1,9 @@
 using CRM.Core.Interfaces;
+using CRM.Core.Utilities;
 using CRM.API.Authorization;
+using CRM.API.Utilities;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 using System.Security.Claims;
 
 namespace CRM.API.Controllers
@@ -12,12 +15,18 @@ namespace CRM.API.Controllers
     {
         private readonly IFinanceReceiptService _service;
         private readonly IDataPermissionService _dataPermissionService;
+        private readonly IRbacService _rbacService;
         private readonly ILogger<FinanceReceiptsController> _logger;
 
-        public FinanceReceiptsController(IFinanceReceiptService service, IDataPermissionService dataPermissionService, ILogger<FinanceReceiptsController> logger)
+        public FinanceReceiptsController(
+            IFinanceReceiptService service,
+            IDataPermissionService dataPermissionService,
+            IRbacService rbacService,
+            ILogger<FinanceReceiptsController> logger)
         {
             _service = service;
             _dataPermissionService = dataPermissionService;
+            _rbacService = rbacService;
             _logger = logger;
         }
 
@@ -44,7 +53,10 @@ namespace CRM.API.Controllers
                     CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 };
                 var result = await _service.GetPagedAsync(request);
-                return Ok(new { success = true, data = new { items = result.Items, total = result.TotalCount, page = result.PageIndex, pageSize = result.PageSize } });
+                var items = result.Items.ToList();
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                    SaleSensitiveFieldMask521.ApplyFinanceReceipts(items, true);
+                return Ok(new { success = true, data = new { items, total = result.TotalCount, page = result.PageIndex, pageSize = result.PageSize } });
             }
             catch (Exception ex)
             {
@@ -64,6 +76,8 @@ namespace CRM.API.Controllers
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessFinanceReceiptAsync(userId, receipt))
                     return StatusCode(403, new { success = false, message = "无权限访问该收款单" });
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                    SaleSensitiveFieldMask521.ApplyFinanceReceipt(receipt, true);
                 return Ok(new { success = true, data = receipt });
             }
             catch (Exception ex)
@@ -81,6 +95,8 @@ namespace CRM.API.Controllers
             {
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var receipt = await _service.CreateAsync(request, userId);
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                    SaleSensitiveFieldMask521.ApplyFinanceReceipt(receipt, true);
                 return CreatedAtAction(nameof(GetById), new { id = receipt.Id },
                     new { success = true, data = receipt });
             }
@@ -108,6 +124,8 @@ namespace CRM.API.Controllers
             {
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var receipt = await _service.UpdateAsync(id, request, userId);
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                    SaleSensitiveFieldMask521.ApplyFinanceReceipt(receipt, true);
                 return Ok(new { success = true, data = receipt });
             }
             catch (KeyNotFoundException)

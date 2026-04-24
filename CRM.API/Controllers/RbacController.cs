@@ -117,6 +117,94 @@ namespace CRM.API.Controllers
             return Ok(ApiResponse<object>.Ok(departments, "获取部门列表成功"));
         }
 
+        public class UpsertDepartmentRequest
+        {
+            public string DepartmentName { get; set; } = string.Empty;
+            public string? ParentId { get; set; }
+            public short SaleDataScope { get; set; }
+            public short PurchaseDataScope { get; set; }
+            public short IdentityType { get; set; }
+            public short Status { get; set; } = 1;
+        }
+
+        [HttpPost("admin/departments")]
+        public async Task<ActionResult<ApiResponse<object>>> CreateAdminDepartment([FromBody] UpsertDepartmentRequest request)
+        {
+            try
+            {
+                if (request == null)
+                    return BadRequest(ApiResponse<object>.Fail("请求体不能为空", 400));
+                if (string.IsNullOrWhiteSpace(request.DepartmentName))
+                    return BadRequest(ApiResponse<object>.Fail("部门名称不能为空", 400));
+
+                var created = await _rbacService.CreateDepartmentAsync(
+                    request.DepartmentName.Trim(),
+                    request.ParentId,
+                    request.SaleDataScope,
+                    request.PurchaseDataScope,
+                    request.IdentityType,
+                    request.Status);
+
+                return Ok(ApiResponse<object>.Ok(created, "创建部门成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "创建部门失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"创建部门失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpPut("admin/departments/{departmentId}")]
+        public async Task<ActionResult<ApiResponse<object>>> UpdateAdminDepartment(
+            string departmentId,
+            [FromBody] UpsertDepartmentRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(departmentId))
+                    return BadRequest(ApiResponse<object>.Fail("departmentId 不能为空", 400));
+                if (request == null)
+                    return BadRequest(ApiResponse<object>.Fail("请求体不能为空", 400));
+                if (string.IsNullOrWhiteSpace(request.DepartmentName))
+                    return BadRequest(ApiResponse<object>.Fail("部门名称不能为空", 400));
+
+                var updated = await _rbacService.UpdateDepartmentAsync(
+                    departmentId.Trim(),
+                    request.DepartmentName.Trim(),
+                    request.ParentId,
+                    request.SaleDataScope,
+                    request.PurchaseDataScope,
+                    request.IdentityType,
+                    request.Status);
+
+                if (updated == null)
+                    return NotFound(ApiResponse<object>.Fail("部门不存在", 404));
+
+                return Ok(ApiResponse<object>.Ok(updated, "更新部门成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "更新部门失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"更新部门失败: {ex.Message}", 500));
+            }
+        }
+
         // ======== 用户管理（列表/新建/编辑/删除）========
 
         public class AdminUserDto

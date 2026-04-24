@@ -6,6 +6,7 @@ import { vendorApi } from '@/api/vendor'
 import type { Vendor } from '@/types/vendor'
 import type { LogRecentItem } from '@/api/logRecent'
 import { useAuthStore } from '@/stores/auth'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useRecentHistoryList } from '@/composables/useRecentHistoryList'
 import { VENDOR_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/vendorRecentHistory'
 
@@ -22,6 +23,7 @@ const props = withDefaults(
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const canViewVendorInfo = authStore.hasPermission('vendor.info.read')
 
 const { loading, items, reload } = useRecentHistoryList(() => BIZ_VENDOR, () => props.take)
@@ -30,8 +32,13 @@ const rowLoading = ref(false)
 const rows = ref<Vendor[]>([])
 
 function displayName(row: Vendor) {
-  if (!canViewVendorInfo) return '—'
+  if (maskPurchaseSensitiveFields.value || !canViewVendorInfo) return '—'
   return row.officialName || row.name || row.nickName || '—'
+}
+
+function displayCode(row: Vendor) {
+  if (maskPurchaseSensitiveFields.value) return '—'
+  return row.code || '—'
 }
 
 async function resolveVendorsFromLog(logItems: LogRecentItem[]) {
@@ -97,7 +104,7 @@ onBeforeUnmount(() => {
           @click="goDetail(row)"
         >
           <td class="vendor-recent-panel__name">{{ displayName(row) }}</td>
-          <td class="vendor-recent-panel__code">{{ row.code || '—' }}</td>
+          <td class="vendor-recent-panel__code">{{ displayCode(row) }}</td>
           <td>{{ row.industry || '—' }}</td>
           <td>{{ row.credit ?? '—' }}</td>
         </tr>

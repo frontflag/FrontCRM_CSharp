@@ -97,6 +97,16 @@ namespace CRM.Infrastructure.Document
                 q = q.Where(d => d.CreateTime < end);
             }
 
+            if (request.ExcludeBizTypes is { Count: > 0 })
+            {
+                var excluded = request.ExcludeBizTypes
+                    .Select(x => (x ?? string.Empty).Trim())
+                    .Where(x => x.Length > 0)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                if (excluded.Count > 0)
+                    q = q.Where(d => d.BizType == null || !excluded.Contains(d.BizType));
+            }
+
             var total = await q.CountAsync();
             var items = await q
                 .OrderByDescending(d => d.CreateTime)

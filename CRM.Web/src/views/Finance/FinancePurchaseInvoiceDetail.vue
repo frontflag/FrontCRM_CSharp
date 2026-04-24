@@ -33,15 +33,20 @@
             <span class="order-code">{{ detail.financePurchaseInvoiceCode }}</span>
           </el-descriptions-item>
           <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.invoiceNo')">{{ detail.invoiceNo || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.vendor')">{{ detail.vendorName }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.vendor')">{{
+            maskPurchaseSensitiveFields ? '—' : detail.vendorName
+          }}</el-descriptions-item>
           <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.amount')">
-            <span class="amount">¥ {{ formatAmount(detail.invoiceTotal) }}</span>
+            <span v-if="maskPurchaseSensitiveFields">—</span>
+            <span v-else class="amount">¥ {{ formatAmount(detail.invoiceTotal) }}</span>
           </el-descriptions-item>
           <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.paid')">
-            <span class="amount">¥ {{ formatAmount(detail.paymentDone) }}</span>
+            <span v-if="maskPurchaseSensitiveFields">—</span>
+            <span v-else class="amount">¥ {{ formatAmount(detail.paymentDone) }}</span>
           </el-descriptions-item>
           <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.toPay')">
-            <span style="color:#E8A838; font-weight: 600;">¥ {{ formatAmount(detail.paymentToBe) }}</span>
+            <span v-if="maskPurchaseSensitiveFields">—</span>
+            <span v-else style="color:#E8A838; font-weight: 600;">¥ {{ formatAmount(detail.paymentToBe) }}</span>
           </el-descriptions-item>
           <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.makeDate')">{{ detail.makeInvoiceDate ? formatDisplayDate(detail.makeInvoiceDate) : '-' }}</el-descriptions-item>
           <el-descriptions-item :label="t('financePurchaseInvoiceDetail.labels.invoiceType')">{{ purchaseInvoiceTypeLabel(detail.purchaseInvoiceType) }}</el-descriptions-item>
@@ -63,7 +68,8 @@
           <el-table-column prop="billQty" :label="t('financePurchaseInvoiceDetail.labels.qty')" width="80" align="right" />
           <el-table-column prop="billAmount" :label="t('financePurchaseInvoiceDetail.labels.taxIncl')" width="130" align="right">
             <template #default="{ row }">
-              ¥ {{ formatAmount(row.billAmount) }}
+              <span v-if="maskPurchaseSensitiveFields">—</span>
+              <span v-else>¥ {{ formatAmount(row.billAmount) }}</span>
             </template>
           </el-table-column>
           <el-table-column prop="taxRate" :label="t('financePurchaseInvoiceDetail.labels.taxRate')" width="80" align="center">
@@ -91,7 +97,9 @@ import {
   type FinancePurchaseInvoice,
 } from '@/api/finance'
 import { formatDisplayDate } from '@/utils/displayDateTime'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()

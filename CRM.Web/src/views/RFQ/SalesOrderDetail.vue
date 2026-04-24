@@ -106,15 +106,15 @@
             <span class="info-label">状态</span>
             <span class="info-value">{{ getStatusText(order.status) }}</span>
           </div>
-          <div class="info-item" v-if="canViewCustomerInfo">
+          <div class="info-item" v-if="showCustomerIdentityFields">
             <span class="info-label">客户</span>
             <span class="info-value">{{ order.customerName || '--' }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">业务员</span>
-            <span class="info-value">{{ order.salesUserName || '--' }}</span>
+            <span class="info-value">{{ maskSaleSensitiveFields ? '—' : order.salesUserName || '--' }}</span>
           </div>
-          <div class="info-item" v-if="canViewSalesAmount">
+          <div class="info-item" v-if="showSalesMoneyFields">
             <span class="info-label">总金额</span>
             <span class="info-value info-value--amount">{{ formatCurrencyTotal(order.total, order.currency) }}</span>
           </div>
@@ -156,7 +156,14 @@
       <div class="tabs-section">
         <div class="tabs-nav">
           <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'items' }" @click="activeTab = 'items'">订单明细</button>
-          <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'documents' }" @click="activeTab = 'documents'">文档</button>
+          <button
+            v-if="!maskSaleSensitiveFields"
+            class="tab-btn"
+            :class="{ 'tab-btn--active': activeTab === 'documents' }"
+            @click="activeTab = 'documents'"
+          >
+            文档
+          </button>
         </div>
         <div class="tabs-body">
           <div v-show="activeTab === 'items'" class="detail-items-table-wrap">
@@ -176,37 +183,37 @@
                 </template>
               </el-table-column>
               <el-table-column prop="qty" label="数量" align="right" width="100" />
-              <el-table-column v-if="canViewSalesAmount" prop="price" label="单价" align="right" width="120">
+              <el-table-column v-if="showSalesMoneyFields" prop="price" label="单价" align="right" width="120">
                 <template #default="{ row }">
                   {{ formatCurrencyUnitPrice(row.price, row.currency) }}
                 </template>
               </el-table-column>
-              <el-table-column v-if="canViewSalesAmount" label="金额" align="right" width="130">
+              <el-table-column v-if="showSalesMoneyFields" label="金额" align="right" width="130">
                 <template #default="{ row }">
                   {{ formatCurrencyTotal(row.qty * row.price, row.currency) }}
                 </template>
               </el-table-column>
-              <el-table-column v-if="canViewSalesAmount" label="折算美金单价" align="right" width="140">
+              <el-table-column v-if="showSalesMoneyFields" label="折算美金单价" align="right" width="140">
                 <template #default="{ row }">
                   {{ row.usdUnitPrice != null ? `$${Number(row.usdUnitPrice).toFixed(6)}` : '—' }}
                 </template>
               </el-table-column>
-              <el-table-column v-if="canViewSalesAmount" label="折算美金总额" align="right" width="140">
+              <el-table-column v-if="showSalesMoneyFields" label="折算美金总额" align="right" width="140">
                 <template #default="{ row }">
                   {{ row.usdLineTotal != null ? `$${Number(row.usdLineTotal).toFixed(2)}` : '—' }}
                 </template>
               </el-table-column>
-              <el-table-column v-if="canViewSalesAmount" :label="t('salesOrderItemList.columns.salesProfitExpected')" align="right" width="140">
+              <el-table-column v-if="showSalesMoneyFields" :label="t('salesOrderItemList.columns.salesProfitExpected')" align="right" width="140">
                 <template #default="{ row }">
                   {{ row.salesProfitExpected != null ? `$${Number(row.salesProfitExpected).toFixed(2)}` : '—' }}
                 </template>
               </el-table-column>
-              <el-table-column v-if="canViewSalesAmount" :label="t('salesOrderItemList.columns.profitOutBizUsd')" align="right" width="120">
+              <el-table-column v-if="showSalesMoneyFields" :label="t('salesOrderItemList.columns.profitOutBizUsd')" align="right" width="120">
                 <template #default="{ row }">
                   {{ row.profitOutBizUsd != null ? `$${Number(row.profitOutBizUsd).toFixed(2)}` : '—' }}
                 </template>
               </el-table-column>
-              <el-table-column v-if="canViewSalesAmount" :label="t('salesOrderItemList.columns.profitOutRateBiz')" align="right" width="120">
+              <el-table-column v-if="showSalesMoneyFields" :label="t('salesOrderItemList.columns.profitOutRateBiz')" align="right" width="120">
                 <template #default="{ row }">
                   {{ row.profitOutRateBiz != null ? Number(row.profitOutRateBiz).toFixed(6) : '—' }}
                 </template>
@@ -278,7 +285,7 @@
             </CrmDataTable>
             <el-empty v-else description="暂无明细" :image-size="80" />
           </div>
-          <div v-show="activeTab === 'documents'" class="doc-tab-content">
+          <div v-show="activeTab === 'documents' && !maskSaleSensitiveFields" class="doc-tab-content">
             <DocumentUploadPanel
               biz-type="SALES_ORDER"
               :biz-id="String(order.id)"
@@ -348,7 +355,7 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="客户">
-              <el-input :model-value="order?.customerName || '--'" disabled />
+              <el-input :model-value="maskSaleSensitiveFields ? '—' : order?.customerName || '--'" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -520,11 +527,13 @@
 
     <el-dialog v-model="editDialogVisible" title="编辑销售订单" width="560px" destroy-on-close @closed="onEditDialogClosed">
       <el-form v-if="order" label-width="100px">
-        <el-form-item v-if="canViewCustomerInfo" label="客户名称">
+        <el-form-item v-if="showCustomerIdentityFields" label="客户名称">
           <el-input v-model="editForm.customerName" />
         </el-form-item>
         <el-form-item label="业务员">
+          <el-input v-if="maskSaleSensitiveFields" model-value="—" disabled />
           <SalesUserCascader
+            v-else
             v-model="editForm.salesUserId"
             placeholder="请选择业务员"
             @change="onEditSalesUserChange"
@@ -602,6 +611,7 @@ import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const router = useRouter()
 const route = useRoute()
@@ -619,6 +629,9 @@ function fmtSoItemDateCode(row: { dateCode?: string; DateCode?: string } | null 
 
 const canViewCustomerInfo = computed(() => authStore.hasPermission('customer.info.read'))
 const canViewSalesAmount = computed(() => authStore.hasPermission('sales.amount.read'))
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const showCustomerIdentityFields = computed(() => canViewCustomerInfo.value && !maskSaleSensitiveFields.value)
+const showSalesMoneyFields = computed(() => canViewSalesAmount.value && !maskSaleSensitiveFields.value)
 const canWriteSo = computed(() => authStore.hasPermission('sales-order.write'))
 
 /** 与采购订单列表原「取消订单」一致：审核通过(10)前可取消主单为 -2；已取消不可再取消 */
@@ -771,6 +784,10 @@ const favoriteLoading = ref(false)
 const activeTab = ref('items')
 const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
 
+watch(maskSaleSensitiveFields, (m) => {
+  if (m && activeTab.value === 'documents') activeTab.value = 'items'
+})
+
 // 标签
 const currentTags = ref<TagDefinitionDto[]>([])
 const tagDialogVisible = ref(false)
@@ -864,14 +881,14 @@ const orderId = computed(() => {
 const captionTitle = computed(() => {
   const o = order.value
   if (!o) return '销售订单'
-  if (canViewCustomerInfo.value && o.customerName?.trim()) return String(o.customerName).trim()
+  if (showCustomerIdentityFields.value && o.customerName?.trim()) return String(o.customerName).trim()
   return o.sellOrderCode || '销售订单'
 })
 
 const captionMetaVisible = computed(() => {
   const o = order.value
   if (!o?.sellOrderCode) return false
-  if (canViewCustomerInfo.value && o.customerName?.trim()) return true
+  if (showCustomerIdentityFields.value && o.customerName?.trim()) return true
   return false
 })
 

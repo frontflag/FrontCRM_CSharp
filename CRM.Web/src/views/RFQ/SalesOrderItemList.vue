@@ -44,7 +44,7 @@
             @keyup.enter="loadList"
           />
         </div>
-        <template v-if="canViewCustomer">
+        <template v-if="listCustomerColumnOk">
           <span class="filter-field-label">{{ t('salesOrderItemList.filters.customerName') }}</span>
           <div class="search-input-wrap">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
@@ -59,19 +59,21 @@
             />
           </div>
         </template>
-        <span class="filter-field-label">{{ t('salesOrderItemList.filters.salesUserName') }}</span>
-        <div class="search-input-wrap">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            v-model="filters.salesUserName"
-            class="search-input"
-            :placeholder="t('salesOrderItemList.filters.salesUserName')"
-            @keyup.enter="loadList"
-          />
-        </div>
+        <template v-if="listSalesUserFilterOk">
+          <span class="filter-field-label">{{ t('salesOrderItemList.filters.salesUserName') }}</span>
+          <div class="search-input-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              v-model="filters.salesUserName"
+              class="search-input"
+              :placeholder="t('salesOrderItemList.filters.salesUserName')"
+              @keyup.enter="loadList"
+            />
+          </div>
+        </template>
         <span class="filter-field-label">{{ t('salesOrderItemList.filters.pn') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
@@ -103,6 +105,12 @@
       @selection-change="onSelectionChange"
       @row-dblclick="goDetail"
     >
+      <template #col-customerName="{ row }">
+        <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName || '—') }}</span>
+      </template>
+      <template #col-salesUserName="{ row }">
+        <span>{{ maskSaleSensitiveFields ? '—' : (row.salesUserName || '—') }}</span>
+      </template>
       <template #col-orderStatus="{ row }">
         <el-tag effect="dark" :type="statusTagType(row.orderStatus)" size="small">{{ statusText(row.orderStatus) }}</el-tag>
       </template>
@@ -147,7 +155,9 @@
         row.profitOutRateBiz != null ? Number(row.profitOutRateBiz).toFixed(6) : '—'
       }}</template>
       <template #col-createTime="{ row }">{{ formatDt(row.createTime || row.orderCreateTime) }}</template>
-      <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || row.salesUserName || '—' }}</template>
+      <template #col-createUser="{ row }">{{
+        row.createUserName || row.createdBy || (!maskSaleSensitiveFields ? row.salesUserName : '') || '—'
+      }}</template>
       <template #col-actions-header>
         <div class="op-col-header">
           <span class="op-col-header-text">{{ t('salesOrderItemList.columns.actions') }}</span>
@@ -312,7 +322,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              v-if="canViewCustomer"
+              v-if="listCustomerColumnOk"
               prop="customerName"
               :label="t('salesOrderItemList.columns.customerName')"
               min-width="120"
@@ -458,6 +468,7 @@ import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFor
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import type { SalesOrderItemLineRow } from '@/stores/salesOrderItemListBasket'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -473,6 +484,10 @@ const canViewCustomer = computed(
   () => authStore.hasPermission('customer.info.read') || authStore.hasPermission('sales-order.read')
 )
 const canViewAmount = computed(() => authStore.hasPermission('sales.amount.read'))
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const listCustomerColumnOk = computed(() => canViewCustomer.value && !maskSaleSensitiveFields.value)
+const listSalesUserFilterOk = computed(() => !maskSaleSensitiveFields.value)
+const listShowAmountColumns = computed(() => canViewAmount.value && !maskSaleSensitiveFields.value)
 const canWriteSo = computed(() => authStore.hasPermission('sales-order.write'))
 /** 业务员可从销售明细发起采购申请，不必单独持有 purchase-requisition.write */
 const canPurchaseReq = computed(
@@ -553,7 +568,7 @@ const salesOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
     { key: 'createTime', label: t('salesOrderItemList.columns.createTime'), width: 160 },
     { key: 'createUser', label: t('salesOrderItemList.columns.createUser'), width: 120, showOverflowTooltip: true }
   ]
-  if (canViewCustomer.value) {
+  if (listCustomerColumnOk.value) {
     cols.splice(4, 0, {
       key: 'customerName',
       label: t('salesOrderItemList.columns.customerName'),
@@ -572,7 +587,7 @@ const salesOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
     hideable: false
   }
 
-  if (canViewAmount.value) {
+  if (listShowAmountColumns.value) {
     cols.splice(cols.length - 2, 0,
       currencyColumn,
       {
@@ -940,10 +955,12 @@ async function loadList() {
     if (dateRange.value?.[1]) params.orderCreateEnd = dateRange.value[1]
     const soc = String(filters.sellOrderCode ?? '').trim()
     if (soc) params.sellOrderCode = soc
-    const cn = String(filters.customerName ?? '').trim()
-    if (cn) params.customerName = cn
-    const sun = String(filters.salesUserName ?? '').trim()
-    if (sun) params.salesUserName = sun
+    if (!maskSaleSensitiveFields.value) {
+      const cn = String(filters.customerName ?? '').trim()
+      if (cn) params.customerName = cn
+      const sun = String(filters.salesUserName ?? '').trim()
+      if (sun) params.salesUserName = sun
+    }
     const pnk = String(filters.pn ?? '').trim()
     if (pnk) params.pn = pnk
 

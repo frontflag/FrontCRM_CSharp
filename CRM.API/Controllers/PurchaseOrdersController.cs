@@ -1,6 +1,7 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Vendor;
+using CRM.Core.Utilities;
 using CRM.API.Authorization;
 using CRM.API.Services;
 using CRM.API.Services.Interfaces;
@@ -409,17 +410,19 @@ namespace CRM.API.Controllers
             VendorInfo? vendor = null,
             IReadOnlyDictionary<string, PurchaseOrderItemExtend>? itemExtends = null)
         {
+            var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
             // vendor.info.read：完整联系人/地址等；vendor.read 或采购订单权限：至少返回供应商主键与名称（申请付款依赖 VendorId）
-            var canViewVendorInfo = summary?.IsSysAdmin == true
+            // PRD §5.1.1：销售方向 + PurchaseDataScope==4 等条件下强制脱敏，不因 vendor.read / purchase-order.read 等放宽。
+            var canViewVendorInfo = !mask511 && (summary?.IsSysAdmin == true
                 || SummaryHasPermission(summary, "vendor.info.read")
                 || SummaryHasPermission(summary, "vendor.read")
                 || SummaryHasPermission(summary, "purchase-order.read")
-                || SummaryHasPermission(summary, "purchase-order.write");
-            var canViewPurchaseAmount = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("purchase.amount.read") ?? false);
+                || SummaryHasPermission(summary, "purchase-order.write"));
+            var canViewPurchaseAmount = !mask511 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("purchase.amount.read") ?? false));
             // 采购员常仅有 purchase-order.write；从采购明细「申请付款」需与 FinancePaymentsController Create/Patch 一致
-            var canInitiatePaymentFromPo = summary?.IsSysAdmin == true
+            var canInitiatePaymentFromPo = !mask511 && (summary?.IsSysAdmin == true
                 || SummaryHasPermission(summary, "finance-payment.write")
-                || SummaryHasPermission(summary, "purchase-order.write");
+                || SummaryHasPermission(summary, "purchase-order.write"));
 
             const short poOrderCancelled = -2;
             const short poLineCancelled = -2;

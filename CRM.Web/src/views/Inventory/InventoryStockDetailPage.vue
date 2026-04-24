@@ -43,27 +43,45 @@
         <el-table-column prop="qtyOccupy" :label="t('inventoryStockDetail.columns.qtyOccupy')" width="90" align="right" />
         <el-table-column prop="qtySales" :label="t('inventoryStockDetail.columns.qtySales')" width="90" align="right" />
         <el-table-column :label="t('inventoryStockDetail.columns.purchasePrice')" width="128" align="right">
-          <template #default="{ row }">{{ formatCurrencyUnitPrice(row.purchasePrice, row.purchaseCurrency) }}</template>
+          <template #default="{ row }">
+            <span v-if="maskPurchaseSensitiveFields">—</span>
+            <span v-else>{{ formatCurrencyUnitPrice(row.purchasePrice, row.purchaseCurrency) }}</span>
+          </template>
         </el-table-column>
         <el-table-column :label="t('inventoryStockDetail.columns.purchasePriceUsd')" width="118" align="right">
-          <template #default="{ row }">{{ formatCurrencyUnitPrice(row.purchasePriceUsd, 2) }}</template>
+          <template #default="{ row }">
+            <span v-if="maskPurchaseSensitiveFields">—</span>
+            <span v-else>{{ formatCurrencyUnitPrice(row.purchasePriceUsd, 2) }}</span>
+          </template>
         </el-table-column>
         <el-table-column :label="t('inventoryStockDetail.columns.salesPrice')" width="128" align="right">
-          <template #default="{ row }">{{
-            row.salesPrice != null && row.salesPrice !== undefined
-              ? formatCurrencyUnitPrice(row.salesPrice, row.salesCurrency ?? undefined)
-              : t('quoteList.na')
-          }}</template>
+          <template #default="{ row }">
+            <span v-if="maskSaleSensitiveFields">—</span>
+            <template v-else-if="row.salesPrice != null && row.salesPrice !== undefined">{{
+              formatCurrencyUnitPrice(row.salesPrice, row.salesCurrency ?? undefined)
+            }}</template>
+            <span v-else>{{ t('quoteList.na') }}</span>
+          </template>
         </el-table-column>
         <el-table-column :label="t('inventoryStockDetail.columns.salesPriceUsd')" width="118" align="right">
-          <template #default="{ row }">{{
-            row.salesPriceUsd != null && row.salesPriceUsd !== undefined
-              ? formatCurrencyUnitPrice(row.salesPriceUsd, 2)
-              : t('quoteList.na')
-          }}</template>
+          <template #default="{ row }">
+            <span v-if="maskSaleSensitiveFields">—</span>
+            <template v-else-if="row.salesPriceUsd != null && row.salesPriceUsd !== undefined">{{
+              formatCurrencyUnitPrice(row.salesPriceUsd, 2)
+            }}</template>
+            <span v-else>{{ t('quoteList.na') }}</span>
+          </template>
         </el-table-column>
-        <el-table-column prop="vendorName" :label="t('inventoryStockDetail.columns.vendor')" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="customerName" :label="t('inventoryStockDetail.columns.customer')" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="vendorName" :label="t('inventoryStockDetail.columns.vendor')" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ maskPurchaseSensitiveFields ? '—' : (row.vendorName?.trim() || t('quoteList.na')) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="customerName" :label="t('inventoryStockDetail.columns.customer')" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ maskSaleSensitiveFields ? '—' : (row.customerName?.trim() || t('quoteList.na')) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="locationId" :label="t('inventoryStockDetail.columns.location')" min-width="100" show-overflow-tooltip />
         <el-table-column :label="t('inventoryStockDetail.columns.createTime')" width="170">
           <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
@@ -92,7 +110,10 @@
         <el-table-column prop="stockInCode" :label="t('inventoryTrace.columns.stockInCode')" width="160" />
         <el-table-column prop="quantity" :label="t('inventoryTrace.columns.quantity')" width="100" align="right" />
         <el-table-column prop="unitPrice" :label="t('inventoryTrace.columns.unitPrice')" width="110" align="right">
-          <template #default="{ row }">{{ formatUnitPriceNumber(row.unitPrice) }}</template>
+          <template #default="{ row }">
+            <span v-if="maskPurchaseSensitiveFields">—</span>
+            <span v-else>{{ formatUnitPriceNumber(row.unitPrice) }}</span>
+          </template>
         </el-table-column>
         <el-table-column prop="purchaseOrderCode" :label="t('inventoryTrace.columns.purchaseOrderCode')" width="150" />
         <el-table-column prop="purchaseUserName" :label="t('inventoryTrace.columns.purchaser')" width="130" />
@@ -118,6 +139,11 @@ import { inventoryCenterApi, type MaterialTrace, type StockItemRow, type Warehou
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatCurrencyUnitPrice, formatUnitPriceNumber } from '@/utils/moneyFormat'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const route = useRoute()
 const router = useRouter()

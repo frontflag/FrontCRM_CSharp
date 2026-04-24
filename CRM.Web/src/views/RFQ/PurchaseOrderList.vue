@@ -330,9 +330,11 @@ import {
 } from '@/constants/purchaseOrderStatus'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
 const router = useRouter()
 const { t } = useI18n()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
 const loading = ref(false)
 const orderList = ref<any[]>([])
@@ -342,12 +344,15 @@ const authStore = useAuthStore()
 /** 与后端 PurchaseOrdersController.MaskPurchaseOrder 中 canViewVendorInfo 一致（非仅 vendor.info.read） */
 const canViewVendorInfo = computed(
   () =>
-    authStore.hasPermission('vendor.info.read') ||
-    authStore.hasPermission('vendor.read') ||
-    authStore.hasPermission('purchase-order.read') ||
-    authStore.hasPermission('purchase-order.write')
+    !maskPurchaseSensitiveFields.value &&
+    (authStore.hasPermission('vendor.info.read') ||
+      authStore.hasPermission('vendor.read') ||
+      authStore.hasPermission('purchase-order.read') ||
+      authStore.hasPermission('purchase-order.write'))
 )
-const canViewPurchaseAmount = computed(() => authStore.hasPermission('purchase.amount.read'))
+const canViewPurchaseAmount = computed(
+  () => !maskPurchaseSensitiveFields.value && authStore.hasPermission('purchase.amount.read')
+)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)

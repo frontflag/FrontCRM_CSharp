@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
+using CRM.API.Utilities;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Sales;
+using CRM.Core.Utilities;
 using System.Security.Claims;
 
 namespace CRM.API.Controllers
@@ -18,6 +20,7 @@ namespace CRM.API.Controllers
         private readonly IApprovalRecordService _approvalRecordService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRepository<SellOrder> _sellOrderRepository;
+        private readonly IRbacService _rbacService;
         private readonly ILogger<CustomersController> _logger;
 
         public CustomersController(
@@ -25,12 +28,14 @@ namespace CRM.API.Controllers
             IApprovalRecordService approvalRecordService,
             IDataPermissionService dataPermissionService,
             IRepository<SellOrder> sellOrderRepository,
+            IRbacService rbacService,
             ILogger<CustomersController> logger)
         {
             _customerService = customerService;
             _approvalRecordService = approvalRecordService;
             _dataPermissionService = dataPermissionService;
             _sellOrderRepository = sellOrderRepository;
+            _rbacService = rbacService;
             _logger = logger;
         }
 
@@ -84,10 +89,13 @@ namespace CRM.API.Controllers
                 };
 
                 var result = await _customerService.GetCustomersPagedAsync(request);
+                var items = result.Items.ToList();
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                    SaleSensitiveFieldMask521.ApplyCustomerInfos(items, true);
 
                 return Ok(ApiResponse<object>.Ok(new
                 {
-                    items = result.Items,
+                    items,
                     totalCount = result.TotalCount,
                     pageNumber = result.PageIndex,
                     pageSize = result.PageSize,
@@ -145,6 +153,14 @@ namespace CRM.API.Controllers
                     .Distinct()
                     .Count();
 
+                var mask521 = await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User);
+                if (mask521)
+                {
+                    totalBalance = 0m;
+                    receivableGoodsAmount = 0m;
+                    pendingOutboundAmount = 0m;
+                }
+
                 var byLevel = customers
                     .GroupBy(c => c.Level)
                     .ToDictionary(g => g.Key switch { 1 => "D", 2 => "C", 3 => "B", 4 => "BPO", 5 => "VIP", 6 => "VPO", _ => "Other" }, g => g.Count());
@@ -190,6 +206,8 @@ namespace CRM.API.Controllers
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessCustomerAsync(userId, customer))
                     return StatusCode(403, ApiResponse<CustomerInfo>.Fail("无权限访问该客户", 403));
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                    SaleSensitiveFieldMask521.ApplyCustomerInfo(customer, true);
                 return Ok(ApiResponse<CustomerInfo>.Ok(customer, "获取客户详情成功"));
             }
             catch (Exception ex)

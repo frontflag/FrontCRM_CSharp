@@ -215,6 +215,16 @@ namespace CRM.Core.Services
             if (!string.IsNullOrWhiteSpace(viewerUserId) && !canViewCustomer)
                 MaskRfqCustomerFieldsForViewer(rfq);
 
+            if (!string.IsNullOrWhiteSpace(viewerUserId))
+            {
+                var s = await _rbacService.GetUserPermissionSummaryAsync(viewerUserId.Trim());
+                if (SaleSensitiveFieldMask521.ShouldMask(s))
+                {
+                    rfq.SalesUserId = null;
+                    rfq.SalesUserName = null;
+                }
+            }
+
             return rfq;
         }
 
@@ -224,6 +234,7 @@ namespace CRM.Core.Services
             var uid = userId.Trim();
             if (string.IsNullOrEmpty(uid)) return false;
             var s = await _rbacService.GetUserPermissionSummaryAsync(uid);
+            if (SaleSensitiveFieldMask521.ShouldMask(s)) return false;
             if (s.IsSysAdmin) return true;
             return s.PermissionCodes.Any(c => string.Equals(c, "customer.info.read", StringComparison.OrdinalIgnoreCase));
         }
@@ -344,6 +355,19 @@ namespace CRM.Core.Services
             {
                 foreach (var it in pagedItems)
                     MaskRfqListItemCustomerFields(it);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
+            {
+                var s = await _rbacService.GetUserPermissionSummaryAsync(request.CurrentUserId.Trim());
+                if (SaleSensitiveFieldMask521.ShouldMask(s))
+                {
+                    foreach (var it in pagedItems)
+                    {
+                        it.SalesUserId = null;
+                        it.SalesUserName = null;
+                    }
+                }
             }
 
             return new PagedResult<RFQListItem>
@@ -505,6 +529,19 @@ namespace CRM.Core.Services
             {
                 foreach (var r in pagedItems)
                     MaskRfqItemListRowCustomerFields(r);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
+            {
+                var s = await _rbacService.GetUserPermissionSummaryAsync(request.CurrentUserId.Trim());
+                if (SaleSensitiveFieldMask521.ShouldMask(s))
+                {
+                    foreach (var r in pagedItems)
+                    {
+                        r.SalesUserId = null;
+                        r.SalesUserName = null;
+                    }
+                }
             }
 
             return new PagedResult<RFQItemListItem>

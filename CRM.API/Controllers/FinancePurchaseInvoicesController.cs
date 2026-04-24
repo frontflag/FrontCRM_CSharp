@@ -1,6 +1,9 @@
-using CRM.Core.Interfaces;
 using CRM.API.Authorization;
+using CRM.API.Utilities;
+using CRM.Core.Interfaces;
+using CRM.Core.Utilities;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 using System.Security.Claims;
 
 namespace CRM.API.Controllers
@@ -12,12 +15,18 @@ namespace CRM.API.Controllers
     {
         private readonly IFinancePurchaseInvoiceService _service;
         private readonly IDataPermissionService _dataPermissionService;
+        private readonly IRbacService _rbacService;
         private readonly ILogger<FinancePurchaseInvoicesController> _logger;
 
-        public FinancePurchaseInvoicesController(IFinancePurchaseInvoiceService service, IDataPermissionService dataPermissionService, ILogger<FinancePurchaseInvoicesController> logger)
+        public FinancePurchaseInvoicesController(
+            IFinancePurchaseInvoiceService service,
+            IDataPermissionService dataPermissionService,
+            IRbacService rbacService,
+            ILogger<FinancePurchaseInvoicesController> logger)
         {
             _service = service;
             _dataPermissionService = dataPermissionService;
+            _rbacService = rbacService;
             _logger = logger;
         }
 
@@ -46,7 +55,10 @@ namespace CRM.API.Controllers
                     CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 };
                 var result = await _service.GetPagedAsync(request);
-                return Ok(new { success = true, data = new { items = result.Items, total = result.TotalCount, page = result.PageIndex, pageSize = result.PageSize } });
+                var items = result.Items.ToList();
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                    PurchaseSensitiveFieldMask511.ApplyFinancePurchaseInvoices(items, true);
+                return Ok(new { success = true, data = new { items, total = result.TotalCount, page = result.PageIndex, pageSize = result.PageSize } });
             }
             catch (Exception ex)
             {
@@ -66,6 +78,8 @@ namespace CRM.API.Controllers
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessFinancePurchaseInvoiceAsync(userId, invoice))
                     return StatusCode(403, new { success = false, message = "无权限访问该进项发票" });
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                    PurchaseSensitiveFieldMask511.ApplyFinancePurchaseInvoice(invoice, true);
                 return Ok(new { success = true, data = invoice });
             }
             catch (Exception ex)

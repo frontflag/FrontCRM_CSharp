@@ -49,6 +49,9 @@ namespace CRM.Core.Document
         public DateTime? EndDate { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 20;
+
+        /// <summary>分页查询时排除的 BizType（跨侧附件策略等）。</summary>
+        public IReadOnlyList<string>? ExcludeBizTypes { get; set; }
     }
 
     public class PagedResult<T>

@@ -34,7 +34,11 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="业务员" prop="salesUserId">
+              <template v-if="maskSaleSensitiveFields">
+                <el-input model-value="—" disabled />
+              </template>
               <SalesUserCascader
+                v-else
                 v-model="formData.salesUserId"
                 placeholder="请选择业务员"
                 @change="onQuoteEditSalesUserChange"
@@ -60,7 +64,7 @@
         <div class="items-section">
           <div class="items-header">
             <h4>供应商报价明细</h4>
-            <el-button type="primary" size="small" @click="addItem">
+            <el-button v-if="!maskPurchaseSensitiveFields" type="primary" size="small" @click="addItem">
               <el-icon><Plus /></el-icon>添加供应商报价
             </el-button>
           </div>
@@ -69,13 +73,15 @@
 
             <el-table-column label="供应商" min-width="140">
               <template #default="{ $index }">
-                <el-input v-model="formData.items[$index].vendorName" placeholder="供应商名称" />
+                <span v-if="maskPurchaseSensitiveFields" class="td-muted">—</span>
+                <el-input v-else v-model="formData.items[$index].vendorName" placeholder="供应商名称" />
               </template>
             </el-table-column>
 
             <el-table-column label="联系人" width="120">
               <template #default="{ $index }">
-                <el-input v-model="formData.items[$index].contactName" placeholder="联系人" />
+                <span v-if="maskPurchaseSensitiveFields" class="td-muted">—</span>
+                <el-input v-else v-model="formData.items[$index].contactName" placeholder="联系人" />
               </template>
             </el-table-column>
 
@@ -137,8 +143,12 @@ import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const router = useRouter()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const route = useRoute()
 
 const quoteId = computed(() => route.params.id as string)
@@ -166,10 +176,12 @@ const formData = ref({
   items: [] as any[]
 })
 
-const formRules = {
+const formRules = computed(() => ({
   mpn: [{ required: true, message: '请输入物料型号', trigger: 'blur' }],
-  salesUserId: [{ required: true, message: '请选择业务员', trigger: 'change' }]
-}
+  ...(maskSaleSensitiveFields.value
+    ? {}
+    : { salesUserId: [{ required: true, message: '请选择业务员', trigger: 'change' }] })
+}))
 
 const handleBack = () => {
   if (!quoteId.value) router.push({ name: 'QuoteList' })
@@ -292,6 +304,10 @@ onMounted(load)
 
   :deep(.quote-item-price-ccy-col .cell) {
     overflow: visible;
+  }
+
+  .td-muted {
+    color: rgba(200, 216, 232, 0.45);
   }
 }
 

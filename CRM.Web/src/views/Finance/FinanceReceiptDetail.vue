@@ -36,9 +36,11 @@
               {{ receiptStatusLabel(detail.status) }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item :label="t('financeReceiptDetail.labels.customer')">{{ detail.customerName }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financeReceiptDetail.labels.customer')">{{ maskSaleSensitiveFields ? '—' : (detail.customerName || '—') }}</el-descriptions-item>
           <el-descriptions-item :label="t('financeReceiptDetail.labels.amount')">
-            <span class="amount">{{ CURRENCY_MAP[detail.receiptCurrency] }} {{ formatAmount(detail.receiptAmount) }}</span>
+            <span class="amount">{{
+              maskSaleSensitiveFields ? '—' : `${CURRENCY_MAP[detail.receiptCurrency]} ${formatAmount(detail.receiptAmount)}`
+            }}</span>
           </el-descriptions-item>
           <el-descriptions-item :label="t('financeReceiptDetail.labels.mode')">{{ paymentModeLabel(detail.receiptMode) }}</el-descriptions-item>
           <el-descriptions-item :label="t('financeReceiptDetail.labels.date')">{{ detail.receiptDate ? formatDisplayDate(detail.receiptDate) : '-' }}</el-descriptions-item>
@@ -60,7 +62,7 @@
           <el-table-column prop="brand" :label="t('financeReceiptDetail.labels.brand')" width="120" />
           <el-table-column prop="receiptAmount" :label="t('financeReceiptDetail.labels.receivedAmount')" width="130" align="right">
             <template #default="{ row }">
-              {{ formatAmount(row.receiptAmount) }}
+              {{ maskSaleSensitiveFields ? '—' : formatAmount(row.receiptAmount) }}
             </template>
           </el-table-column>
           <el-table-column :label="t('financeReceiptDetail.labels.verifyStatus')" width="120" align="center">
@@ -74,7 +76,14 @@
       </div>
 
       <!-- 银行水单附件 -->
-      <div class="tab-card">
+      <div v-if="maskSaleSensitiveFields" class="tab-card">
+        <div class="card-title">
+          <span class="title-bar"></span>
+          <span>{{ t('financeReceiptDetail.bankSlip') }}</span>
+        </div>
+        <el-alert type="info" :closable="false" show-icon :title="t('common.crossSideAttachmentsRestricted')" />
+      </div>
+      <div v-else class="tab-card">
         <div class="card-title">
           <span class="title-bar"></span>
           <span>{{ t('financeReceiptDetail.bankSlip') }}</span>
@@ -120,8 +129,10 @@ import {
 } from '@/api/finance'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const router = useRouter()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const route = useRoute()
 const { t } = useI18n()
 const { receiptStatusLabel, receiptStatusTag, paymentModeLabel, verificationStatusLabel } = useFinanceEnumLabels()
@@ -151,6 +162,10 @@ const fetchDetail = async () => {
 
 const loadReceiptDocs = async () => {
   if (!receiptId.value) {
+    receiptDocs.value = []
+    return
+  }
+  if (maskSaleSensitiveFields.value) {
     receiptDocs.value = []
     return
   }

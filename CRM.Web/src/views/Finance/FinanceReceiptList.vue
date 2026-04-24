@@ -5,7 +5,7 @@
     <div class="stat-cards">
       <div class="stat-card">
         <div class="stat-label">{{ t('financeReceiptList.stats.monthTotal') }}</div>
-        <div class="stat-value success">¥ {{ formatAmount(stats.monthTotal) }}</div>
+        <div class="stat-value success">{{ maskSaleSensitiveFields ? '—' : `¥ ${formatAmount(stats.monthTotal)}` }}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">{{ t('financeReceiptList.stats.pending') }}</div>
@@ -84,8 +84,13 @@
           {{ receiptStatusLabel(row.status) }}
         </el-tag>
       </template>
+      <template #col-customerName="{ row }">
+        <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName || '—') }}</span>
+      </template>
       <template #col-receiptAmount="{ row }">
-        <span class="amount-text">{{ CURRENCY_MAP[row.receiptCurrency] }} {{ formatAmount(row.receiptAmount) }}</span>
+        <span class="amount-text">{{
+          maskSaleSensitiveFields ? '—' : `${CURRENCY_MAP[row.receiptCurrency]} ${formatAmount(row.receiptAmount)}`
+        }}</span>
       </template>
       <template #col-receiptMode="{ row }">{{ paymentModeLabel(row.receiptMode) }}</template>
       <template #col-receiptDate="{ row }">{{ row.receiptDate ? formatDisplayDate(row.receiptDate) : '-' }}</template>
@@ -180,7 +185,11 @@
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item :label="t('financeReceiptList.formCustomer')" required>
+              <template v-if="maskSaleSensitiveFields">
+                <el-input model-value="—" disabled style="width: 100%" />
+              </template>
               <el-select
+                v-else
                 v-model="form.customerId"
                 :placeholder="t('financeReceiptList.customerPh')"
                 style="width: 100%"
@@ -205,7 +214,8 @@
           </el-col>
           <el-col :span="12">
             <el-form-item :label="t('financeReceiptList.formAmount')" required>
-              <el-input-number v-model="form.receiptAmount" :precision="2" :min="0" style="width:100%" />
+              <el-input v-if="maskSaleSensitiveFields" model-value="—" disabled style="width: 100%" />
+              <el-input-number v-else v-model="form.receiptAmount" :precision="2" :min="0" style="width:100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -247,7 +257,12 @@
               <el-input v-model="form.remark" type="textarea" :rows="2" :placeholder="t('financeReceiptList.formRemarkPh')" />
             </el-form-item>
           </el-col>
-          <el-col :span="24">
+          <el-col v-if="maskSaleSensitiveFields" :span="24">
+            <el-form-item :label="t('financeReceiptList.formSlipAttach')">
+              <el-alert type="info" :closable="false" show-icon :title="t('common.crossSideAttachmentsRestricted')" />
+            </el-form-item>
+          </el-col>
+          <el-col v-else :span="24">
             <el-form-item :label="t('financeReceiptList.formSlipAttach')">
               <div class="slip-attach-wrap">
                 <div class="slip-upload-row">
@@ -335,8 +350,10 @@ import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { customerApi } from '@/api/customer'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const router = useRouter()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { t } = useI18n()
 const { receiptStatusLabel, receiptStatusTag, paymentModeLabel } = useFinanceEnumLabels()
 
@@ -530,6 +547,10 @@ const openEdit = (row: FinanceReceipt) => {
 }
 
 const loadReceiptDocs = async (receiptId: string) => {
+  if (maskSaleSensitiveFields.value) {
+    receiptDocs.value = []
+    return
+  }
   try {
     receiptDocs.value = await documentApi.getDocuments(RECEIPT_DOC_BIZ, receiptId)
   } catch {
@@ -546,6 +567,7 @@ const onSlipFilesSelected = async (e: Event) => {
   const files = Array.from(input.files || [])
   input.value = ''
   if (!files.length) return
+  if (maskSaleSensitiveFields.value) return
 
   const receiptId = editingId.value
   if (receiptId) {

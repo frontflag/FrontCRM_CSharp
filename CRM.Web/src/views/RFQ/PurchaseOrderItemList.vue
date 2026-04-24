@@ -265,7 +265,7 @@
         <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item :label="t('purchaseOrderItemList.paymentDialog.vendorInfo')">
-              <el-input :model-value="paymentForm.vendorName || '--'" disabled />
+              <el-input :model-value="maskPurchaseSensitiveFields ? '—' : (paymentForm.vendorName || '--')" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -451,7 +451,10 @@
                 </el-form-item>
               </el-col>
               <el-col :span="8">
-                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.companyName')"><el-input v-model="arrivalForm.companyName" /></el-form-item>
+                <el-form-item :label="t('purchaseOrderItemList.arrivalDialog.companyName')">
+                  <el-input v-if="!maskPurchaseSensitiveFields" v-model="arrivalForm.companyName" />
+                  <el-input v-else model-value="—" disabled />
+                </el-form-item>
               </el-col>
             </el-row>
             <el-row :gutter="12">
@@ -596,18 +599,30 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
 const { ensureLoaded: ensureLogisticsDict, arrivalOptions: arrivalMethodDictOptions, expressOptions: expressMethodDictOptions } =
   useLogisticsFormDict()
 
-const canViewVendor = computed(() => authStore.hasPermission('vendor.info.read'))
+/** 与采购订单列表/详情一致：脱敏时不得展示供应商检索与列 */
+const canViewVendor = computed(
+  () =>
+    !maskPurchaseSensitiveFields.value &&
+    (authStore.hasPermission('vendor.info.read') ||
+      authStore.hasPermission('vendor.read') ||
+      authStore.hasPermission('purchase-order.read') ||
+      authStore.hasPermission('purchase-order.write'))
+)
 const canViewPurchaseUser = computed(() => authStore.hasPermission('purchase.user.read') || authStore.hasPermission('purchase-order.read'))
-const canViewAmount = computed(() => authStore.hasPermission('purchase.amount.read'))
+const canViewAmount = computed(
+  () => !maskPurchaseSensitiveFields.value && authStore.hasPermission('purchase.amount.read')
+)
 const canCreateArrivalNotice = computed(() => authStore.hasPermission('purchase-order.read'))
 
 const loading = ref(false)

@@ -235,6 +235,159 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<RbacDepartment>> GetDepartmentsAsync()
             => (await _departmentRepo.GetAllAsync()).OrderBy(x => x.Path).ThenBy(x => x.DepartmentName).ToList();
 
+        private static string? NormalizeParentId(string? parentId) =>
+            string.IsNullOrWhiteSpace(parentId) ? null : parentId.Trim();
+
+        private static bool IsInSubtree(IReadOnlyList<RbacDepartment> all, string rootId, string? candidateId)
+        {
+            if (string.IsNullOrWhiteSpace(candidateId)) return false;
+            if (string.Equals(rootId, candidateId, StringComparison.OrdinalIgnoreCase)) return true;
+            foreach (var child in all.Where(d =>
+                         d.ParentId != null &&
+                         string.Equals(d.ParentId, rootId, StringComparison.OrdinalIgnoreCase)))
+            {
+                if (IsInSubtree(all, child.Id, candidateId)) return true;
+            }
+
+            return false;
+        }
+
+        private static string PathSegmentFromDepartmentName(string departmentName)
+        {
+            var t = (departmentName ?? string.Empty).Trim();
+            if (t.Length == 0) return "DEPT";
+            var invalid = System.IO.Path.GetInvalidFileNameChars();
+            var chars = t.Select(c =>
+                invalid.Contains(c) || c == '/' || c == '\\' ? '_' : c).ToArray();
+            var s = new string(chars).Trim('_');
+            if (string.IsNullOrEmpty(s)) return "DEPT";
+            return s.Length > 80 ? s[..80] : s;
+        }
+
+        private static void ApplyPathAndLevel(RbacDepartment dept, RbacDepartment? parent)
+        {
+            if (parent == null)
+            {
+                dept.Level = 1;
+                var seg = PathSegmentFromDepartmentName(dept.DepartmentName);
+                dept.Path = "/" + seg;
+            }
+            else
+            {
+                dept.Level = parent.Level + 1;
+                var basePath = (parent.Path ?? string.Empty).TrimEnd('/');
+                var seg = PathSegmentFromDepartmentName(dept.DepartmentName);
+                dept.Path = string.IsNullOrEmpty(basePath) ? "/" + seg : basePath + "/" + seg;
+            }
+
+            if (dept.Path != null && dept.Path.Length > 500)
+                dept.Path = dept.Path[..500];
+        }
+
+        public async Task<RbacDepartment> CreateDepartmentAsync(
+            string departmentName,
+            string? parentId,
+            short saleDataScope,
+            short purchaseDataScope,
+            short identityType,
+            short status)
+        {
+            var name = (departmentName ?? string.Empty).Trim();
+            if (name.Length == 0)
+                throw new ArgumentException("部门名称不能为空", nameof(departmentName));
+
+            if (saleDataScope is < 0 or > 4 || purchaseDataScope is < 0 or > 4)
+                throw new ArgumentOutOfRangeException(nameof(saleDataScope), "数据范围仅支持 0–4");
+            if (identityType is < 0 or > 6)
+                throw new ArgumentOutOfRangeException(nameof(identityType), "业务身份仅支持 0–6");
+
+            var pid = NormalizeParentId(parentId);
+            var all = (await _departmentRepo.GetAllAsync()).ToList();
+            RbacDepartment? parent = null;
+            if (pid != null)
+            {
+                parent = all.FirstOrDefault(d => string.Equals(d.Id, pid, StringComparison.OrdinalIgnoreCase));
+                if (parent == null)
+                    throw new InvalidOperationException("上级部门不存在");
+            }
+
+            var dept = new RbacDepartment
+            {
+                Id = Guid.NewGuid().ToString(),
+                DepartmentName = name,
+                ParentId = pid,
+                SaleDataScope = saleDataScope,
+                PurchaseDataScope = purchaseDataScope,
+                IdentityType = identityType,
+                Status = status
+            };
+            ApplyPathAndLevel(dept, parent);
+            await _departmentRepo.AddAsync(dept);
+            await _unitOfWork.SaveChangesAsync();
+            return dept;
+        }
+
+        public async Task<RbacDepartment?> UpdateDepartmentAsync(
+            string departmentId,
+            string departmentName,
+            string? parentId,
+            short saleDataScope,
+            short purchaseDataScope,
+            short identityType,
+            short status)
+        {
+            if (string.IsNullOrWhiteSpace(departmentId))
+                throw new ArgumentException("部门 Id 不能为空", nameof(departmentId));
+
+            var name = (departmentName ?? string.Empty).Trim();
+            if (name.Length == 0)
+                throw new ArgumentException("部门名称不能为空", nameof(departmentName));
+
+            if (saleDataScope is < 0 or > 4 || purchaseDataScope is < 0 or > 4)
+                throw new ArgumentOutOfRangeException(nameof(saleDataScope), "数据范围仅支持 0–4");
+            if (identityType is < 0 or > 6)
+                throw new ArgumentOutOfRangeException(nameof(identityType), "业务身份仅支持 0–6");
+
+            var dept = await _departmentRepo.GetByIdAsync(departmentId);
+            if (dept == null) return null;
+
+            var newPid = NormalizeParentId(parentId);
+            if (newPid != null && string.Equals(newPid, departmentId, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("上级部门不能为自身");
+
+            var all = (await _departmentRepo.GetAllAsync()).ToList();
+            if (newPid != null && IsInSubtree(all, departmentId, newPid))
+                throw new InvalidOperationException("上级部门不能为当前部门的下级（避免循环）");
+
+            var oldPid = NormalizeParentId(dept.ParentId);
+            var parentChanged = !string.Equals(oldPid ?? string.Empty, newPid ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+
+            dept.DepartmentName = name;
+            dept.ParentId = newPid;
+            dept.SaleDataScope = saleDataScope;
+            dept.PurchaseDataScope = purchaseDataScope;
+            dept.IdentityType = identityType;
+            dept.Status = status;
+            dept.ModifyTime = DateTime.UtcNow;
+
+            if (parentChanged)
+            {
+                RbacDepartment? parent = null;
+                if (newPid != null)
+                {
+                    parent = all.FirstOrDefault(d => string.Equals(d.Id, newPid, StringComparison.OrdinalIgnoreCase));
+                    if (parent == null)
+                        throw new InvalidOperationException("上级部门不存在");
+                }
+
+                ApplyPathAndLevel(dept, parent);
+            }
+
+            await _departmentRepo.UpdateAsync(dept);
+            await _unitOfWork.SaveChangesAsync();
+            return dept;
+        }
+
         public async Task AssignUserRolesAsync(string userId, IReadOnlyList<string> roleIds)
         {
             var current = (await _userRoleRepo.FindAsync(x => x.UserId == userId)).ToList();

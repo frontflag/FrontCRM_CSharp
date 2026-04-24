@@ -31,6 +31,9 @@
         :data="list"
         row-key="id"
       >
+        <template #col-customerName="{ row }">
+          <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName?.trim() || '—') }}</span>
+        </template>
         <template #col-createTime="{ row }">{{ formatTime(row.createTime) }}</template>
         <template #col-actions>
           <div class="action-btns">
@@ -61,6 +64,9 @@ import { Setting } from '@element-plus/icons-vue'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 type PackingRow = {
   id: string

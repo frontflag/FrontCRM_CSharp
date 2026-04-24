@@ -8,7 +8,8 @@ const zhCN = {
     save: '保存修改',
     saveSuccess: '保存成功',
     saveFailed: '保存失败',
-    createSuccess: '创建成功'
+    createSuccess: '创建成功',
+    crossSideAttachmentsRestricted: '按权限策略，当前角色不可查看或上传此类业务附件。'
   },
   customsPages: {
     brokers: {
@@ -3471,6 +3472,7 @@ const zhCN = {
       noAttachments: '暂无附件',
       preview: '预览',
       download: '下载',
+      attachmentsRestrictedByRbac: '按权限策略，当前角色不可查看或下载此类审批附件。',
       reject: '驳回',
       approve: '审批通过',
       close: '关闭'

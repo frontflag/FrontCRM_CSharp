@@ -46,8 +46,8 @@
       <template #col-totalQuantity="{ row }">{{ formatNum(row.totalQuantity) }}</template>
       <template #col-createTime="{ row }">{{ formatDate((row as any).createTime || (row as any).createdAt) }}</template>
       <template #col-createUser="{ row }">{{ row.createUserName || (row as any).createdBy || t('quoteList.na') }}</template>
-      <template #col-customerName="{ row }">{{ row.customerName || t('quoteList.na') }}</template>
-      <template #col-salesUserName="{ row }">{{ row.salesUserName || t('quoteList.na') }}</template>
+      <template #col-customerName="{ row }">{{ maskSaleSensitiveFields ? '—' : (row.customerName || t('quoteList.na')) }}</template>
+      <template #col-salesUserName="{ row }">{{ maskSaleSensitiveFields ? '—' : (row.salesUserName || t('quoteList.na')) }}</template>
       <template #col-sellOrderItemCode="{ row }">{{ row.sellOrderItemCode || t('quoteList.na') }}</template>
       <template #col-shipmentMethod="{ row }">{{ row.shipmentMethod || t('quoteList.na') }}</template>
       <template #col-courierTrackingNo="{ row }">{{ row.courierTrackingNo || t('quoteList.na') }}</template>
@@ -149,6 +149,9 @@ import { Setting, ArrowDown } from '@element-plus/icons-vue'
 import { stockOutApi, type StockOutDto } from '@/api/stockOut'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const route = useRoute()
 const router = useRouter()

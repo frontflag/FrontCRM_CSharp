@@ -67,12 +67,14 @@
           />
         </div>
         <input
+          v-if="!maskSaleSensitiveFields"
           v-model="filters.customerName"
           class="search-input search-input--filter"
           :placeholder="t('stockOutItemList.filters.customerName')"
           @keyup.enter="fetchList"
         />
         <input
+          v-if="!maskSaleSensitiveFields"
           v-model="filters.salesUserName"
           class="search-input search-input--filter"
           :placeholder="t('stockOutItemList.filters.salesUserName')"
@@ -109,10 +111,10 @@
         <template #default="{ row }">{{ formatDateOnly(row.stockOutDate) }}</template>
       </el-table-column>
       <el-table-column prop="customerName" :label="t('stockOutItemList.columns.customerName')" min-width="120" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.customerName || t('quoteList.na') }}</template>
+        <template #default="{ row }">{{ maskSaleSensitiveFields ? '—' : row.customerName || t('quoteList.na') }}</template>
       </el-table-column>
       <el-table-column prop="salesUserName" :label="t('stockOutItemList.columns.salesUserName')" width="100" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.salesUserName || t('quoteList.na') }}</template>
+        <template #default="{ row }">{{ maskSaleSensitiveFields ? '—' : row.salesUserName || t('quoteList.na') }}</template>
       </el-table-column>
       <el-table-column prop="purchasePn" :label="t('stockOutItemList.columns.purchasePn')" min-width="130" show-overflow-tooltip>
         <template #default="{ row }">{{ row.purchasePn || t('quoteList.na') }}</template>
@@ -161,6 +163,9 @@ import CrmDataTable from '@/components/CrmDataTable.vue'
 import { stockOutApi, type StockOutItemListQuery, type StockOutItemListRow } from '@/api/stockOut'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const router = useRouter()
 const { t } = useI18n()
@@ -211,17 +216,20 @@ const filters = reactive({
 })
 
 function buildQuery(): StockOutItemListQuery {
-  return {
+  const q: StockOutItemListQuery = {
     status: filters.status,
     stockOutCode: filters.stockOutCode.trim() || undefined,
     stockInCode: filters.stockInCode.trim() || undefined,
     stockOutDateFrom: dateFrom.value?.trim() || undefined,
     stockOutDateTo: dateTo.value?.trim() || undefined,
-    customerName: filters.customerName.trim() || undefined,
-    salesUserName: filters.salesUserName.trim() || undefined,
     purchasePn: filters.purchasePn.trim() || undefined,
     sellOrderItemCode: filters.sellOrderItemCode.trim() || undefined
   }
+  if (!maskSaleSensitiveFields.value) {
+    q.customerName = filters.customerName.trim() || undefined
+    q.salesUserName = filters.salesUserName.trim() || undefined
+  }
+  return q
 }
 
 async function runStockOutItemFetch(resetPage: boolean) {

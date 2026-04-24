@@ -9,6 +9,7 @@ import {
   PURCHASE_ORDER_RECENT_HISTORY_CHANGED_EVENT,
   type PurchaseOrderRecentEntry
 } from '@/utils/purchaseOrderRecentHistory'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
 const props = withDefaults(
   defineProps<{
@@ -20,6 +21,7 @@ const props = withDefaults(
 
 const router = useRouter()
 const { t } = useI18n()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const rows = ref<PurchaseOrderRecentEntry[]>([])
 
 function reload() {
@@ -86,7 +88,7 @@ onBeforeUnmount(() => {
           @click="goDetail(row)"
         >
           <td class="po-recent-panel__code">{{ row.purchaseOrderCode || '—' }}</td>
-          <td class="po-recent-panel__name">{{ row.vendorName || '—' }}</td>
+          <td class="po-recent-panel__name">{{ maskPurchaseSensitiveFields ? '—' : row.vendorName || '—' }}</td>
           <td class="po-recent-panel__time">{{ formatAt(row.at) }}</td>
         </tr>
       </tbody>

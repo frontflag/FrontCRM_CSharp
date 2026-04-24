@@ -39,6 +39,7 @@ import VendorWarrantyReportDocument from '@/components/Vendor/VendorWarrantyRepo
 import { renderElementToPdfBlob } from '@/utils/poReportPdf'
 import { renderPdfBlobFirstPageToPngDataUrl } from '@/utils/pdfSealToPng'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
 const PO_REPORT_PRINT_BODY_CLASS = 'po-order-report-print'
 const DEFAULT_LOGO = '/purchase-order-template/logo.svg'
@@ -46,6 +47,7 @@ const DEFAULT_LOGO = '/purchase-order-template/logo.svg'
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
 const loading = ref(true)
 const errorMsg = ref('')
@@ -94,13 +96,14 @@ const docBind = computed(() => {
   const v = vendor.value
   const isEn = lang.value === 'en'
   const issuer = basicDefault.value?.companyName || '—'
-  const zhName = (v?.officialName || v?.name || '').trim() || '—'
-  const enName = (v?.englishOfficialName || v?.officialName || v?.name || '').trim() || '—'
+  const redact = maskPurchaseSensitiveFields.value
+  const zhName = redact ? '—' : (v?.officialName || v?.name || '').trim() || '—'
+  const enName = redact ? '—' : (v?.englishOfficialName || v?.officialName || v?.name || '').trim() || '—'
   const vendorName = isEn ? enName : zhName
-  const addr = (v?.officeAddress && String(v.officeAddress).trim()) || '—'
-  const code = (v?.code && String(v.code).trim()) || ''
+  const addr = redact ? '—' : (v?.officeAddress && String(v.officeAddress).trim()) || '—'
+  const code = redact ? '' : (v?.code && String(v.code).trim()) || ''
   const today = formatDisplayDate(new Date()) || '—'
-  const docNo = v?.code ? `QW-${v.code}` : `QW-${vendorId.value.slice(0, 8)}`
+  const docNo = redact ? '—' : v?.code ? `QW-${v.code}` : `QW-${vendorId.value.slice(0, 8)}`
 
   return {
     issuerName: issuer,
@@ -225,7 +228,7 @@ async function doExportPdf() {
     const blob = await renderElementToPdfBlob(el)
     const v = vendor.value
     const suffix = lang.value === 'en' ? 'EN' : 'ZH'
-    const name = (v?.code || 'vendor') + `-warranty-${suffix}`
+    const name = (maskPurchaseSensitiveFields.value ? 'vendor' : v?.code || 'vendor') + `-warranty-${suffix}`
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

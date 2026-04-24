@@ -74,6 +74,9 @@
       <template #col-brand="{ row }">{{ displayBrand(row) }}</template>
       <template #col-expectedArrivalDate="{ row }">{{ formatExpected(row.expectedArrivalDate) }}</template>
       <template #col-regionType="{ row }">{{ regionTypeLabel(row) }}</template>
+      <template #col-vendorName="{ row }">
+        <span>{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName?.trim() ? row.vendorName : '—') }}</span>
+      </template>
       <template #col-expectQty="{ row }">
         <span class="inv-list-qty">{{ formatQtyCell(expectQty(row)) }}</span>
       </template>
@@ -191,10 +194,10 @@
         :label-style="arrivalDetailLabelStyle"
       >
         <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.vendorName')">
-          {{ detailNotice.vendorName?.trim() || '—' }}
+          {{ maskPurchaseSensitiveFields ? '—' : (detailNotice.vendorName?.trim() || '—') }}
         </el-descriptions-item>
         <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.vendorCode')">
-          {{ detailNotice.vendorCode?.trim() || '—' }}
+          {{ maskPurchaseSensitiveFields ? '—' : (detailNotice.vendorCode?.trim() || '—') }}
         </el-descriptions-item>
         <el-descriptions-item :label="t('arrivalNoticeList.detailDialog.purchaseOrderCode')">
           {{ detailNotice.purchaseOrderCode?.trim() || '—' }}
@@ -242,7 +245,9 @@ import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionTyp
 import { useRouter } from 'vue-router'
 import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const router = useRouter()
 const { t, locale } = useI18n()
 const loading = ref(false)

@@ -29,8 +29,12 @@
         <el-descriptions :column="2" border size="small" class="desc-block">
           <el-descriptions-item :label="t('stockOutList.columns.stockOutCode')">{{ detail.stockOutCode }}</el-descriptions-item>
           <el-descriptions-item :label="t('stockOutDetail.sourceCode')">{{ detail.sourceCode || '—' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('stockOutList.columns.customerName')">{{ detail.customerName || '—' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('stockOutList.columns.salesUserName')">{{ detail.salesUserName || '—' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutList.columns.customerName')">{{
+            maskSaleSensitiveFields ? '—' : detail.customerName || '—'
+          }}</el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutList.columns.salesUserName')">{{
+            maskSaleSensitiveFields ? '—' : detail.salesUserName || '—'
+          }}</el-descriptions-item>
           <el-descriptions-item :label="t('stockOutList.columns.sellOrderItemCode')">{{ detail.sellOrderItemCode || '—' }}</el-descriptions-item>
           <el-descriptions-item :label="t('stockOutList.columns.totalQuantity')">{{ formatNum(detail.totalQuantity) }}</el-descriptions-item>
           <el-descriptions-item :label="t('stockOutDetail.warehouseCode')">{{ detail.warehouseCode || '—' }}</el-descriptions-item>
@@ -100,6 +104,9 @@ import { stockOutApi, type StockOutDetailDto } from '@/api/stockOut'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const DOC_BIZ = 'STOCK_OUT'
 

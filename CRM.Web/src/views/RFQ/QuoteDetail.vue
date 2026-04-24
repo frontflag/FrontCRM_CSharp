@@ -37,7 +37,7 @@
           </el-descriptions-item>
           <el-descriptions-item label="物料型号">{{ quote.mpn }}</el-descriptions-item>
           <el-descriptions-item label="报价日期">{{ quote.quoteDate }}</el-descriptions-item>
-          <el-descriptions-item label="业务员">{{ quote.salesUserName }}</el-descriptions-item>
+          <el-descriptions-item label="业务员">{{ maskSaleSensitiveFields ? '—' : quote.salesUserName }}</el-descriptions-item>
           <el-descriptions-item label="采购员">{{ quote.purchaseUserName }}</el-descriptions-item>
           <el-descriptions-item label="备注" :span="2">{{ quote.remark || '-' }}</el-descriptions-item>
         </el-descriptions>
@@ -50,8 +50,12 @@
           <el-tab-pane label="供应商报价明细" name="items">
             <CrmDataTable :data="quote.items" size="small" v-if="quote.items?.length" class="items-table">
               <el-table-column type="index" width="50" label="#" />
-              <el-table-column prop="vendorName" label="供应商" min-width="140" />
-              <el-table-column prop="contactName" label="联系人" width="100" />
+              <el-table-column prop="vendorName" label="供应商" min-width="140">
+                <template #default="{ row }">{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName || '—') }}</template>
+              </el-table-column>
+              <el-table-column prop="contactName" label="联系人" width="100">
+                <template #default="{ row }">{{ maskPurchaseSensitiveFields ? '—' : (row.contactName || '—') }}</template>
+              </el-table-column>
               <el-table-column prop="brand" label="品牌" width="100" />
               <el-table-column prop="quantity" label="数量" width="80" align="right" />
               <el-table-column prop="unitPrice" label="单价" width="110" align="right">
@@ -127,7 +131,11 @@ import { ElMessage } from 'element-plus'
 import { quoteApi } from '@/api/quote'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const router = useRouter()
 const route = useRoute()
 

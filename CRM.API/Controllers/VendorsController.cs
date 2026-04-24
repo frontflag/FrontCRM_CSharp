@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
+using CRM.API.Utilities;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Vendor;
+using CRM.Core.Utilities;
 using System.Security.Claims;
 
 namespace CRM.API.Controllers
@@ -17,6 +19,7 @@ namespace CRM.API.Controllers
         private readonly IApprovalRecordService _approvalRecordService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRepository<PurchaseOrder> _purchaseOrderRepository;
+        private readonly IRbacService _rbacService;
         private readonly ILogger<VendorsController> _logger;
 
         public VendorsController(
@@ -24,12 +27,14 @@ namespace CRM.API.Controllers
             IApprovalRecordService approvalRecordService,
             IDataPermissionService dataPermissionService,
             IRepository<PurchaseOrder> purchaseOrderRepository,
+            IRbacService rbacService,
             ILogger<VendorsController> logger)
         {
             _vendorService = vendorService;
             _approvalRecordService = approvalRecordService;
             _dataPermissionService = dataPermissionService;
             _purchaseOrderRepository = purchaseOrderRepository;
+            _rbacService = rbacService;
             _logger = logger;
         }
 
@@ -109,9 +114,12 @@ namespace CRM.API.Controllers
                     CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 };
                 var result = await _vendorService.GetPagedAsync(request);
+                var items = result.Items.ToList();
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                    PurchaseSensitiveFieldMask511.ApplyVendorInfos(items, true);
                 return Ok(ApiResponse<object>.Ok(new
                 {
-                    items = result.Items,
+                    items,
                     totalCount = result.TotalCount,
                     pageNumber = result.PageIndex,
                     pageSize = result.PageSize,
@@ -153,7 +161,8 @@ namespace CRM.API.Controllers
                     .Count();
 
                 var payableOrders = commercialPo.Where(o => o.FinanceStatus < 2).ToList();
-                var payableAmount = payableOrders.Sum(o => o.ConvertTotal);
+                var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
+                var payableAmount = mask511 ? 0m : payableOrders.Sum(o => o.ConvertTotal);
                 var payableVendorCount = payableOrders
                     .Select(o => o.VendorId)
                     .Where(id => !string.IsNullOrWhiteSpace(id))
@@ -161,7 +170,7 @@ namespace CRM.API.Controllers
                     .Count();
 
                 var pendingInboundOrders = commercialPo.Where(o => o.StockStatus < 2).ToList();
-                var pendingInboundAmount = pendingInboundOrders.Sum(o => o.ConvertTotal);
+                var pendingInboundAmount = mask511 ? 0m : pendingInboundOrders.Sum(o => o.ConvertTotal);
                 var pendingInboundVendorCount = pendingInboundOrders
                     .Select(o => o.VendorId)
                     .Where(id => !string.IsNullOrWhiteSpace(id))
@@ -213,6 +222,8 @@ namespace CRM.API.Controllers
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessVendorAsync(userId, vendor))
                     return StatusCode(403, ApiResponse<VendorInfo>.Fail("无权限访问该供应商", 403));
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                    PurchaseSensitiveFieldMask511.ApplyVendorInfo(vendor, true);
                 return Ok(ApiResponse<VendorInfo>.Ok(vendor, "获取供应商详情成功"));
             }
             catch (Exception ex)

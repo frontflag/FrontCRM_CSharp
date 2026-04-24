@@ -107,6 +107,15 @@ export interface UpdateAdminPermissionRequest {
   status?: number
 }
 
+export interface UpsertDepartmentRequest {
+  departmentName: string
+  parentId?: string | null
+  saleDataScope: number
+  purchaseDataScope: number
+  identityType: number
+  status: number
+}
+
 export const rbacAdminApi = {
   // users
   async getUsers(): Promise<AdminUserDto[]> {
@@ -196,12 +205,15 @@ export const rbacAdminApi = {
     return []
   },
 
-  async createDepartment(_payload: any): Promise<RbacDepartment> {
-    throw new Error('createDepartment 尚未实现后端接口')
+  async createDepartment(payload: UpsertDepartmentRequest): Promise<RbacDepartment> {
+    return apiClient.post<RbacDepartment>('/api/v1/rbac/admin/departments', payload)
   },
 
-  async updateDepartment(_departmentId: string, _payload: any): Promise<RbacDepartment> {
-    throw new Error('updateDepartment 尚未实现后端接口')
+  async updateDepartment(departmentId: string, payload: UpsertDepartmentRequest): Promise<RbacDepartment> {
+    return apiClient.put<RbacDepartment>(
+      `/api/v1/rbac/admin/departments/${encodeURIComponent(departmentId)}`,
+      payload
+    )
   },
 
   async deleteDepartment(_departmentId: string): Promise<void> {

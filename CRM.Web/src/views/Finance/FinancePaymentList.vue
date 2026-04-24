@@ -81,6 +81,9 @@
           {{ paymentStatusLabel(row.status) }}
         </el-tag>
       </template>
+      <template #col-vendorName="{ row }">
+        <span>{{ maskPurchaseSensitiveFields ? '—' : ((row as any).vendorName?.trim() || '—') }}</span>
+      </template>
       <template #col-paymentAmount="{ row }">
         <span class="amount-text">{{ CURRENCY_MAP[row.paymentCurrency] }} {{ formatAmount(row.paymentAmount) }}</span>
       </template>
@@ -197,9 +200,14 @@
       <el-form :model="form" label-width="100px" class="crm-form">
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item :label="t('financePaymentList.formVendorId')" :required="!editingId">
+            <el-form-item :label="t('financePaymentList.formVendorId')" :required="!editingId && !maskPurchaseSensitiveFields">
               <el-input
-                v-if="!editingId"
+                v-if="maskPurchaseSensitiveFields"
+                model-value="—"
+                disabled
+              />
+              <el-input
+                v-else-if="!editingId"
                 v-model="form.vendorId"
                 :placeholder="t('financePaymentList.formVendorIdPh')"
               />
@@ -207,8 +215,13 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item :label="t('financePaymentList.formVendorName')" required>
-              <el-input v-model="form.vendorName" :placeholder="t('financePaymentList.formVendorNamePh')" />
+            <el-form-item :label="t('financePaymentList.formVendorName')" :required="!maskPurchaseSensitiveFields">
+              <el-input
+                v-if="maskPurchaseSensitiveFields"
+                model-value="—"
+                disabled
+              />
+              <el-input v-else v-model="form.vendorName" :placeholder="t('financePaymentList.formVendorNamePh')" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -255,7 +268,12 @@
               <el-input v-model="form.remark" type="textarea" :rows="2" :placeholder="t('financePaymentList.formRemarkPh')" />
             </el-form-item>
           </el-col>
-          <el-col :span="24" v-if="editingId">
+          <el-col :span="24" v-if="editingId && maskPurchaseSensitiveFields">
+            <el-form-item :label="t('financePaymentList.formSlipAttach')">
+              <el-alert type="info" :closable="false" show-icon :title="t('common.crossSideAttachmentsRestricted')" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24" v-if="editingId && !maskPurchaseSensitiveFields">
             <el-form-item :label="t('financePaymentList.formSlipAttach')">
               <div class="slip-attach-wrap">
                 <div class="slip-upload-row">
@@ -335,10 +353,12 @@ import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useAuthStore } from '@/stores/auth'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
 /** 付款保存/完成/提交审核等接口均需 finance-payment.write；仅 read 时列表可见但操作会 403 */
 const canFinancePaymentWrite = computed(
@@ -524,6 +544,10 @@ const saveForm = async () => {
 }
 
 const loadPaymentDocs = async (paymentId: string) => {
+  if (maskPurchaseSensitiveFields.value) {
+    paymentDocs.value = []
+    return
+  }
   try {
     paymentDocs.value = await documentApi.getDocuments('FINANCE_PAYMENT', paymentId)
   } catch {
@@ -532,6 +556,10 @@ const loadPaymentDocs = async (paymentId: string) => {
 }
 
 const onSlipFilesSelected = async (e: Event) => {
+  if (maskPurchaseSensitiveFields.value) {
+    ;(e.target as HTMLInputElement).value = ''
+    return
+  }
   const paymentId = editingId.value
   if (!paymentId) {
     ElMessage.warning(t('financePaymentList.messages.saveSlipFirst'))

@@ -38,6 +38,9 @@ import StockOutPackingReportDocument from '@/components/stockOut/StockOutPacking
 import { renderPdfBlobFirstPageToPngDataUrl } from '@/utils/pdfSealToPng'
 import { getApiErrorMessage } from '@/utils/apiError'
 import type { StockOutDetailDto } from '@/api/stockOut'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const PO_REPORT_PRINT_BODY_CLASS = 'po-order-report-print'
 const DEFAULT_REPORT_LOGO = '/purchase-order-template/logo.svg'
@@ -190,7 +193,7 @@ const docBind = computed(() => {
   const shipperAddr = (wh?.address || basic?.address || '').trim() || '—'
   const shipperPhone = (wh?.contactPhone || basic?.phone || '').trim() || '—'
   const shipperName = (basic?.companyName || '').trim() || '—'
-  const consigneeName = (so.customerName || '').trim() || '—'
+  const consigneeName = maskSaleSensitiveFields.value ? '—' : (so.customerName || '').trim() || '—'
 
   const shipmentLines = [
     `${t('stockOutPackingReport.labels.shipMethod')}：${(so.shipmentMethod || '').trim() || '—'}`,
@@ -233,7 +236,7 @@ const docBind = computed(() => {
     totalQty: formatReportQty(qty),
     remarkLines: [
       `${t('stockOutPackingReport.labels.sellLine')}：${(so.sellOrderItemCode || '').trim() || '—'}`,
-      `${t('stockOutPackingReport.labels.salesRep')}：${(so.salesUserName || '').trim() || '—'}`,
+      `${t('stockOutPackingReport.labels.salesRep')}：${maskSaleSensitiveFields.value ? '—' : (so.salesUserName || '').trim() || '—'}`,
       `${t('stockOutPackingReport.labels.bankHint')}：${(bankDefault.value?.bankName || '').trim() || '—'}`
     ],
     notes: packingNotes.value,

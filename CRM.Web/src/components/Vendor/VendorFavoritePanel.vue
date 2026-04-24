@@ -6,6 +6,7 @@ import { favoriteApi } from '@/api/favorite'
 import { vendorApi } from '@/api/vendor'
 import type { Vendor } from '@/types/vendor'
 import { useAuthStore } from '@/stores/auth'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { VENDOR_FAVORITES_CHANGED_EVENT } from '@/constants/vendorFavorites'
 
 withDefaults(
@@ -18,14 +19,20 @@ withDefaults(
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const canViewVendorInfo = authStore.hasPermission('vendor.info.read')
 
 const loading = ref(false)
 const items = ref<Vendor[]>([])
 
 function displayName(row: Vendor) {
-  if (!canViewVendorInfo) return '—'
+  if (maskPurchaseSensitiveFields.value || !canViewVendorInfo) return '—'
   return row.officialName || row.name || row.nickName || '—'
+}
+
+function displayCode(row: Vendor) {
+  if (maskPurchaseSensitiveFields.value) return '—'
+  return row.code || '—'
 }
 
 async function loadFavorites() {
@@ -91,7 +98,7 @@ onBeforeUnmount(() => {
           @click="goDetail(row)"
         >
           <td class="vendor-favorite-panel__name">{{ displayName(row) }}</td>
-          <td class="vendor-favorite-panel__code">{{ row.code || '—' }}</td>
+          <td class="vendor-favorite-panel__code">{{ displayCode(row) }}</td>
           <td>{{ row.industry || '—' }}</td>
           <td>{{ row.credit ?? '—' }}</td>
         </tr>

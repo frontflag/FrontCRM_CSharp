@@ -11,7 +11,7 @@
         <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item label="供应商信息">
-              <el-input :model-value="paymentForm.vendorName || '--'" disabled />
+              <el-input :model-value="maskPurchaseSensitiveFields ? '—' : (paymentForm.vendorName || '--')" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -166,7 +166,12 @@
                   />
                 </el-form-item>
               </el-col>
-              <el-col :span="8"><el-form-item label="公司名称"><el-input v-model="arrivalForm.companyName" /></el-form-item></el-col>
+              <el-col :span="8">
+                <el-form-item label="公司名称">
+                  <el-input v-if="!maskPurchaseSensitiveFields" v-model="arrivalForm.companyName" />
+                  <el-input v-else :model-value="'—'" disabled />
+                </el-form-item>
+              </el-col>
             </el-row>
             <el-row :gutter="12">
               <el-col :span="6">
@@ -287,6 +292,9 @@ import { financePaymentApi } from '@/api/finance'
 import { logisticsApi } from '@/api/logistics'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
 const emit = defineEmits<{ success: [] }>()
 

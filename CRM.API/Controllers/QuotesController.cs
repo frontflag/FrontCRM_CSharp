@@ -1,6 +1,9 @@
+using CRM.API.Utilities;
 using CRM.Core.Interfaces;
-using CRM.Core.Models.Quote;
+using CRM.Core.Utilities;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
+using System.Security.Claims;
 
 namespace CRM.API.Controllers
 {
@@ -10,10 +13,12 @@ namespace CRM.API.Controllers
     public class QuotesController : ControllerBase
     {
         private readonly IQuoteService _quoteService;
+        private readonly IRbacService _rbacService;
 
-        public QuotesController(IQuoteService quoteService)
+        public QuotesController(IQuoteService quoteService, IRbacService rbacService)
         {
             _quoteService = quoteService;
+            _rbacService = rbacService;
         }
 
         // GET /api/v1/quotes
@@ -22,7 +27,17 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var quotes = await _quoteService.GetAllAsync();
+                var quotes = (await _quoteService.GetAllAsync()).ToList();
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                    PurchaseSensitiveFieldMask511.ApplyQuotesVendorIdentityOnly(quotes, true);
+                var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(uid))
+                {
+                    var s = await _rbacService.GetUserPermissionSummaryAsync(uid);
+                    if (SaleSensitiveFieldMask521.ShouldMask(s))
+                        SaleSensitiveFieldMask521.ApplyQuotes(quotes, true);
+                }
+
                 return Ok(new { success = true, data = quotes, errorCode = 0 });
             }
             catch (Exception ex)
@@ -40,6 +55,16 @@ namespace CRM.API.Controllers
                 var quote = await _quoteService.GetByIdAsync(id);
                 if (quote == null)
                     return NotFound(new { success = false, message = $"报价单 {id} 不存在", errorCode = 404 });
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                    PurchaseSensitiveFieldMask511.ApplyQuoteVendorIdentityOnly(quote, true);
+                var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(uid))
+                {
+                    var s = await _rbacService.GetUserPermissionSummaryAsync(uid);
+                    if (SaleSensitiveFieldMask521.ShouldMask(s))
+                        SaleSensitiveFieldMask521.ApplyQuote(quote, true);
+                }
+
                 return Ok(new { success = true, data = quote, errorCode = 0 });
             }
             catch (Exception ex)

@@ -32,7 +32,7 @@
             </el-col>
             <el-col :span="6">
               <el-form-item label="供应商">
-                <el-input v-model="form.vendorName" disabled class="q-input q-input--readonly" />
+                <el-input :model-value="maskPurchaseSensitiveFields ? '—' : form.vendorName" disabled class="q-input q-input--readonly" />
               </el-form-item>
             </el-col>
             <el-col :span="6">
@@ -218,9 +218,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
 import apiClient from '@/api/client'
 import { documentApi, DOCUMENT_BIZ_TYPE_QC, type UploadDocumentDto } from '@/api/document'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
 type QcUploadFile = UploadFile & { documentId?: string }
 
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const route = useRoute()
 const router = useRouter()
 const submitting = ref(false)

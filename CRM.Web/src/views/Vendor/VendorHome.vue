@@ -116,7 +116,7 @@
                 </svg>
               </div>
               <div class="vendor-home__card-main">
-                <div class="vendor-home__value">{{ formatMoney(stats.payableAmount) }}</div>
+                <div class="vendor-home__value">{{ maskPurchaseSensitiveFields ? '—' : formatMoney(stats.payableAmount) }}</div>
                 <div class="vendor-home__label">{{ t('vendorHome.cards.payableAmount') }}</div>
               </div>
             </div>
@@ -148,7 +148,7 @@
                 </svg>
               </div>
               <div class="vendor-home__card-main">
-                <div class="vendor-home__value">{{ formatMoney(stats.pendingInboundAmount) }}</div>
+                <div class="vendor-home__value">{{ maskPurchaseSensitiveFields ? '—' : formatMoney(stats.pendingInboundAmount) }}</div>
                 <div class="vendor-home__label">{{ t('vendorHome.cards.pendingInboundAmount') }}</div>
               </div>
             </div>
@@ -178,6 +178,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { vendorApi } from '@/api/vendor'
 import { buildVendorListQuery } from '@/utils/vendorListQuery'
 import type { VendorStatistics } from '@/types/vendor'
@@ -185,6 +186,7 @@ import type { VendorStatistics } from '@/types/vendor'
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const canViewVendorInfo = authStore.hasPermission('vendor.info.read')
 const canCreateVendor = computed(() => authStore.hasPermission('vendor.write'))
 

@@ -1,6 +1,7 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Sales;
+using CRM.Core.Utilities;
 using CRM.API.Authorization;
 using CRM.API.Services;
 using CRM.Infrastructure.Data;
@@ -102,9 +103,10 @@ namespace CRM.API.Controllers
                 };
                 var result = await _service.GetSellOrderItemLinesPagedAsync(request);
                 var summary = await GetPermissionSummaryAsync(request.CurrentUserId);
-                var canViewCustomer = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("customer.info.read") ?? false);
-                var canViewAmount = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("sales.amount.read") ?? false);
-                var items = result.Items.Select(r => MaskSellOrderLine(r, canViewCustomer, canViewAmount)).ToList();
+                var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
+                var canViewCustomer = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("customer.info.read") ?? false));
+                var canViewAmount = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("sales.amount.read") ?? false));
+                var items = result.Items.Select(r => MaskSellOrderLine(r, canViewCustomer, canViewAmount, mask521)).ToList();
                 return Ok(new
                 {
                     success = true,
@@ -251,6 +253,9 @@ namespace CRM.API.Controllers
             {
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var dto = await _journeyService.GetJourneyAsync(id, userId);
+                var summary = await GetPermissionSummaryAsync(userId);
+                if (SaleSensitiveFieldMask521.ShouldMask(summary))
+                    SaleSensitiveFieldMask521.ApplySalesOrderJourney(dto, true);
                 return Ok(new { success = true, data = dto });
             }
             catch (UnauthorizedAccessException)
@@ -406,7 +411,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        private static object MaskSellOrderLine(SellOrderItemLineDto r, bool canViewCustomer, bool canViewAmount)
+        private static object MaskSellOrderLine(SellOrderItemLineDto r, bool canViewCustomer, bool canViewAmount, bool mask521)
         {
             return new
             {
@@ -418,7 +423,7 @@ namespace CRM.API.Controllers
                 r.OrderCreateTime,
                 CustomerId = canViewCustomer ? r.CustomerId : null,
                 CustomerName = canViewCustomer ? r.CustomerName : null,
-                r.SalesUserName,
+                SalesUserName = mask521 ? null : r.SalesUserName,
                 r.PN,
                 r.Brand,
                 r.Qty,
@@ -467,8 +472,9 @@ namespace CRM.API.Controllers
             IReadOnlyDictionary<string, SellOrderItemExtend>? itemExtends = null,
             IReadOnlyDictionary<string, bool>? stockOutApplyPurchaseGate = null)
         {
-            var canViewCustomerInfo = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("customer.info.read") ?? false);
-            var canViewSalesAmount = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("sales.amount.read") ?? false);
+            var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
+            var canViewCustomerInfo = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("customer.info.read") ?? false));
+            var canViewSalesAmount = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("sales.amount.read") ?? false));
 
             return new
             {
@@ -476,8 +482,8 @@ namespace CRM.API.Controllers
                 order.SellOrderCode,
                 CustomerId = canViewCustomerInfo ? order.CustomerId : null,
                 CustomerName = canViewCustomerInfo ? order.CustomerName : null,
-                order.SalesUserId,
-                order.SalesUserName,
+                SalesUserId = mask521 ? null : order.SalesUserId,
+                SalesUserName = mask521 ? null : order.SalesUserName,
                 order.Status,
                 order.Type,
                 order.Currency,

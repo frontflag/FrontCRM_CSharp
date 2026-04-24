@@ -42,7 +42,7 @@
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card stat-info">
-          <div class="stat-value">{{ canViewSalesAmount ? `¥${statAmount.toLocaleString()}` : '--' }}</div>
+          <div class="stat-value">{{ maskSaleSensitiveFields ? '—' : canViewSalesAmount ? `¥${statAmount.toLocaleString()}` : '--' }}</div>
           <div class="stat-label">{{ t('salesOrderList.stats.totalAmount') }}</div>
         </el-card>
       </el-col>
@@ -64,7 +64,7 @@
             @keyup.enter="handleSearch"
           />
         </div>
-        <template v-if="canViewCustomerInfo">
+        <template v-if="canViewCustomerInfo && !maskSaleSensitiveFields">
           <span class="filter-field-label">{{ t('salesOrderList.filters.customer') }}</span>
           <div class="search-input-wrap">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
@@ -115,8 +115,14 @@
             {{ getStatusText(row.status) }}
           </el-tag>
         </template>
+        <template #col-customerName="{ row }">
+          <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName || '—') }}</span>
+        </template>
         <template #col-total="{ row }">
-          <template v-if="!listTotalAmountHasValue(row.total)">
+          <template v-if="maskSaleSensitiveFields">
+            <span class="dock-tier-empty">—</span>
+          </template>
+          <template v-else-if="!listTotalAmountHasValue(row.total)">
             <span class="dock-tier-empty">—</span>
           </template>
           <div v-else class="dock-tier-price-line">
@@ -230,6 +236,7 @@ import {
 } from '@/utils/moneyFormat'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const router = useRouter()
 const route = useRoute()
@@ -240,6 +247,7 @@ const orderList = ref<any[]>([])
 const listTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const authStore = useAuthStore()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 /** 订单上的客户名属销售业务上下文：业务员有 sales-order.read 即可见列与筛选，不必具备客户主数据权限 customer.info.read */
 const canViewCustomerInfo = computed(
   () =>

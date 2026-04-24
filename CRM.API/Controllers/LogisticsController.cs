@@ -1,7 +1,9 @@
 using System.Security.Claims;
 using CRM.API.Models.DTOs;
+using CRM.API.Utilities;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,11 +14,13 @@ namespace CRM.API.Controllers
     public class LogisticsController : ControllerBase
     {
         private readonly ILogisticsService _service;
+        private readonly IRbacService _rbacService;
         private readonly ILogger<LogisticsController> _logger;
 
-        public LogisticsController(ILogisticsService service, ILogger<LogisticsController> logger)
+        public LogisticsController(ILogisticsService service, IRbacService rbacService, ILogger<LogisticsController> logger)
         {
             _service = service;
+            _rbacService = rbacService;
             _logger = logger;
         }
 
@@ -49,6 +53,13 @@ namespace CRM.API.Controllers
                     list = list.Where(x =>
                         x.ExpectedArrivalDate.HasValue &&
                         x.ExpectedArrivalDate.Value.Date == targetDate).ToList();
+                }
+
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                {
+                    var masked = list.ToList();
+                    PurchaseSensitiveFieldMask511.ApplyStockInNotifies(masked, true);
+                    list = masked;
                 }
 
                 return Ok(ApiResponse<IReadOnlyList<StockInNotify>>.Ok(list, "获取到货通知成功"));
@@ -108,7 +119,15 @@ namespace CRM.API.Controllers
         {
             try
             {
-                return Ok(ApiResponse<IReadOnlyList<QCInfo>>.Ok(await _service.GetQcsAsync(request), "获取质检单成功"));
+                var list = await _service.GetQcsAsync(request);
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                {
+                    var masked = list.ToList();
+                    PurchaseSensitiveFieldMask511.ApplyQcInfos(masked, true);
+                    list = masked;
+                }
+
+                return Ok(ApiResponse<IReadOnlyList<QCInfo>>.Ok(list, "获取质检单成功"));
             }
             catch (Exception ex)
             {

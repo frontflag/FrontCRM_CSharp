@@ -35,7 +35,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item v-if="allowManualVendorPick" label="供应商" prop="vendorId">
+            <el-form-item v-if="showVendorPicker" label="供应商" prop="vendorId">
               <el-select
                 v-model="formData.vendorId"
                 class="po-vendor-select"
@@ -54,13 +54,17 @@
               </el-select>
             </el-form-item>
             <el-form-item v-else label="供应商">
-              <el-input v-model="formData.vendorName" disabled placeholder="系统自动带出供应商" />
+              <el-input
+                :model-value="maskPurchaseSensitiveFields ? '—' : formData.vendorName"
+                disabled
+                placeholder="系统自动带出供应商"
+              />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="24">
           <el-col :span="12">
-            <el-form-item v-if="allowManualVendorPick" label="供应商联系人">
+            <el-form-item v-if="showVendorPicker" label="供应商联系人">
               <el-select
                 v-model="formData.vendorContactId"
                 class="po-vendor-select"
@@ -75,7 +79,11 @@
               </el-select>
             </el-form-item>
             <el-form-item v-else label="供应商联系人">
-              <el-input v-model="formData.vendorContactName" disabled placeholder="系统自动带出联系人" />
+              <el-input
+                :model-value="maskPurchaseSensitiveFields ? '—' : formData.vendorContactName"
+                disabled
+                placeholder="系统自动带出联系人"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -245,11 +253,13 @@ import MaterialProductionDateSelect from '@/components/MaterialProductionDateSel
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import { formatCurrencyTotal, formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { ensureLoaded: ensureMaterialPdDict, coerceProductionDateToCode: coercePd } = useMaterialProductionDateDict()
 
 const editId = computed(() => (route.name === 'PurchaseOrderEdit' ? String(route.params.id || '').trim() : ''))
@@ -284,6 +294,10 @@ const generatedFromRequisition = ref(false)
 
 /** 无采购申请链路的纯新建：允许搜索选择供应商/联系人（含备货采购?type=2） */
 const allowManualVendorPick = computed(() => !editId.value && !requisitionId.value)
+/** 销售等需脱敏身份时禁止供应商搜索，避免下拉暴露名称 */
+const showVendorPicker = computed(
+  () => allowManualVendorPick.value && !maskPurchaseSensitiveFields.value
+)
 
 const canSubmitPurchaseOrder = computed(() => {
   if (editId.value) return authStore.hasPermission('purchase-order.write')
@@ -332,7 +346,7 @@ const formData = ref({
 })
 
 const formRules = computed(() => {
-  if (!allowManualVendorPick.value) return {}
+  if (!showVendorPicker.value) return {}
   return {
     vendorId: [{ required: true, message: '请选择供应商', trigger: 'change' }]
   }
@@ -520,7 +534,7 @@ const handleSubmit = async () => {
     )
     return
   }
-  if (allowManualVendorPick.value) {
+  if (showVendorPicker.value) {
     const ok = await validateElFormOrWarn(formRef)
     if (!ok) return
   }

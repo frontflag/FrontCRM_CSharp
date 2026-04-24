@@ -28,6 +28,7 @@
           @keyup.enter="handleSearch"
         />
         <input
+          v-if="!maskPurchaseSensitiveFields"
           v-model="filters.vendorName"
           class="search-input search-input--filter"
           :placeholder="t('stockInList.filters.vendorName')"
@@ -73,8 +74,12 @@
         <span class="text-secondary">{{ formatDate(row.stockInDate) }}</span>
       </template>
       <template #col-totalQuantity="{ row }">{{ formatNum(row.totalQuantity) }}</template>
+      <template #col-vendorName="{ row }">
+        <span>{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName?.trim() ? row.vendorName : '—') }}</span>
+      </template>
       <template #col-totalAmount="{ row }">
-        <span>{{ formatMoney(row.totalAmount) }}<template v-if="stockInCurrencyLabel(row)"><span class="text-secondary"> {{ stockInCurrencyLabel(row) }}</span></template></span>
+        <span v-if="maskPurchaseSensitiveFields">—</span>
+        <span v-else>{{ formatMoney(row.totalAmount) }}<template v-if="stockInCurrencyLabel(row)"><span class="text-secondary"> {{ stockInCurrencyLabel(row) }}</span></template></span>
       </template>
       <template #col-createTime="{ row }">{{ formatDate((row as any).createTime || (row as any).createdAt) }}</template>
       <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || t('quoteList.na') }}</template>
@@ -164,6 +169,9 @@ import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { inventoryCenterApi, type WarehouseInfo } from '@/api/inventoryCenter'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
 const router = useRouter()
 const route = useRoute()
@@ -300,7 +308,7 @@ const fetchList = async (resetPage = true) => {
     }
     list.value = await stockInApi.getAll({
       model: filters.model || undefined,
-      vendorName: filters.vendorName || undefined,
+      vendorName: maskPurchaseSensitiveFields.value ? undefined : filters.vendorName || undefined,
       purchaseOrderCode: filters.purchaseOrderCode || undefined,
       salesOrderCode: filters.salesOrderCode || undefined
     })
@@ -327,7 +335,7 @@ const handleSearch = () => {
   const m = filters.model.trim()
   if (m) query.model = m
   const v = filters.vendorName.trim()
-  if (v) query.vendorName = v
+  if (v && !maskPurchaseSensitiveFields.value) query.vendorName = v
   const p = filters.purchaseOrderCode.trim()
   if (p) query.purchaseOrderCode = p
   const s = filters.salesOrderCode.trim()
@@ -353,7 +361,7 @@ const filteredList = computed(() => {
     const poText = `${row.sourceDisplayNo ?? ''} ${row.stockInCode ?? ''}`
     return (
       keywordHit(modelText, model) &&
-      keywordHit(row.vendorName, vendorName) &&
+      (maskPurchaseSensitiveFields.value ? true : keywordHit(row.vendorName, vendorName)) &&
       keywordHit(poText, purchaseOrderCode) &&
       keywordHit(row.salesOrderCode, salesOrderCode)
     )

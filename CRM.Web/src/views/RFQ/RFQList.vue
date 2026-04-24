@@ -137,7 +137,12 @@
           </template>
         </template>
         <template #col-createUser="{ row }">
-          {{ row.createUserName || row.createdBy || row.salesUserName || '—' }}
+          {{
+            row.createUserName ||
+              row.createdBy ||
+              (!maskSaleSensitiveFields ? row.salesUserName : '') ||
+              '—'
+          }}
         </template>
         <template #col-actions-header>
           <div class="op-col-header">
@@ -209,6 +214,7 @@ import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { Plus, Search, Setting, Upload } from '@element-plus/icons-vue'
 import ImportRFQDialog from './components/ImportRFQDialog.vue'
 import { ElMessage } from 'element-plus'
@@ -229,7 +235,11 @@ const canCreateNewRfq = computed(() => authStore.hasPermission('rfq.create'))
 /** 编辑需求头表（分配等维护仍用 rfq.write） */
 const canEditRfq = computed(() => authStore.hasPermission('rfq.write'))
 /** 与后端 RFQ 脱敏一致：采购等角色可有 customer.read 但不应见需求侧客户名（需 customer.info.read） */
-const canViewCustomerInRfq = computed(() => authStore.hasPermission('customer.info.read'))
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const canViewCustomerInRfq = computed(
+  () => authStore.hasPermission('customer.info.read') && !maskSaleSensitiveFields.value
+)
+const showRfqSalesUserColumn = computed(() => !maskSaleSensitiveFields.value)
 
 function goCreateRfq() {
   if (authStore.isIdentityBlockedForPermission('rfq.create')) {
@@ -281,8 +291,17 @@ const rfqTableColumns = computed((): CrmTableColumnDef[] => {
   if (canViewCustomerInRfq.value) {
     cols.push({ key: 'customerName', label: t('rfqList.columns.customer'), prop: 'customerName', minWidth: 200, showOverflowTooltip: true })
   }
+  if (showRfqSalesUserColumn.value) {
+    cols.push({
+      key: 'salesUserName',
+      label: t('rfqList.columns.salesUser'),
+      prop: 'salesUserName',
+      minWidth: 100,
+      width: 108,
+      showOverflowTooltip: true
+    })
+  }
   cols.push(
-  { key: 'salesUserName', label: t('rfqList.columns.salesUser'), prop: 'salesUserName', minWidth: 100, width: 108, showOverflowTooltip: true },
   { key: 'itemCount', label: t('rfqList.columns.itemCount'), prop: 'itemCount', minWidth: 112, width: 112, align: 'center' as const },
   { key: 'targetType', label: t('rfqList.columns.targetType'), minWidth: 112, width: 112, align: 'center' as const },
   { key: 'rfqType', label: t('rfqList.columns.rfqType'), prop: 'rfqType', minWidth: 112, width: 112 },
@@ -301,19 +320,19 @@ const rfqTableColumns = computed((): CrmTableColumnDef[] => {
     sortable: true
   },
   { key: 'createTime', label: t('rfqList.columns.createTime'), width: 160 },
-  { key: 'createUser', label: t('rfqList.columns.createUser'), width: 120, showOverflowTooltip: true },
-  {
-    key: 'actions',
-    label: t('rfqList.actions.column'),
-    width: opColWidth.value,
-    minWidth: opColMinWidth.value,
-    fixed: 'right',
-    hideable: false,
-    pinned: 'end',
-    reorderable: false,
-    className: 'op-col',
-    labelClassName: 'op-col'
-  }
+    { key: 'createUser', label: t('rfqList.columns.createUser'), width: 120, showOverflowTooltip: true },
+    {
+      key: 'actions',
+      label: t('rfqList.actions.column'),
+      width: opColWidth.value,
+      minWidth: opColMinWidth.value,
+      fixed: 'right',
+      hideable: false,
+      pinned: 'end',
+      reorderable: false,
+      className: 'op-col',
+      labelClassName: 'op-col'
+    }
   )
   return cols
 })
