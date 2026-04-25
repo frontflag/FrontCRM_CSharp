@@ -45,6 +45,8 @@ router.beforeEach((to, _from, next) => {
     next()
   } else if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
+  } else if (to.meta.requiresAuth && to.meta.sysAdminOnly === true && authStore.user?.isSysAdmin !== true) {
+    next('/dashboard')
   } else if (to.meta.requiresAuth && to.meta.purchaseOrderCreateAccess === true) {
     const ok = canAccessPurchaseOrderCreatePage({
       isSysAdmin: authStore.user?.isSysAdmin,

@@ -110,6 +110,8 @@ namespace CRM.Infrastructure.Data
         public DbSet<CustomsDeclarationItem> CustomsDeclarationItems { get; set; } = null!;
         public DbSet<StockTransfer> StockTransfers { get; set; } = null!;
         public DbSet<StockTransferItem> StockTransferItems { get; set; } = null!;
+        public DbSet<StockTransferManual> StockTransferManuals { get; set; } = null!;
+        public DbSet<StockTransferItemManual> StockTransferItemManuals { get; set; } = null!;
         public DbSet<StockInNotify> StockInNotifies { get; set; } = null!;
         public DbSet<QCInfo> QCInfos { get; set; } = null!;
         public DbSet<QCItem> QCItems { get; set; } = null!;
@@ -150,6 +152,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<SysDictItem> SysDictItems { get; set; } = null!;
         public DbSet<ApprovalRecord> ApprovalRecords { get; set; } = null!;
         public DbSet<OrderJourneyLog> OrderJourneyLogs { get; set; } = null!;
+        public DbSet<LoginLog> LoginLogs { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -1036,7 +1039,7 @@ namespace CRM.Infrastructure.Data
 
             modelBuilder.Entity<StockTransfer>(entity =>
             {
-                entity.ToTable("stocktransfer");
+                entity.ToTable("stocktransfer_customers");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("StockTransferId");
                 entity.Property(e => e.TransferCode).IsRequired().HasMaxLength(32);
@@ -1059,9 +1062,38 @@ namespace CRM.Infrastructure.Data
 
             modelBuilder.Entity<StockTransferItem>(entity =>
             {
-                entity.ToTable("stocktransferitem");
+                entity.ToTable("stocktransfer_item_customers");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("StockTransferItemId");
+            });
+
+            modelBuilder.Entity<StockTransferManual>(entity =>
+            {
+                entity.ToTable("stocktransfer_manual");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("StockTransferManualId").HasMaxLength(36);
+                entity.Property(e => e.TransferCode).IsRequired().HasMaxLength(32);
+                entity.HasIndex(e => e.TransferCode).IsUnique();
+                entity.Property(e => e.FromWarehouseId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.ToWarehouseId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.Remark).HasMaxLength(500);
+                entity.Property(e => e.ConfirmedByUserId).HasMaxLength(36);
+                entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.ModifyByUserId).HasColumnName("modify_by_user_id").HasMaxLength(36);
+                entity.HasMany(e => e.Items)
+                    .WithOne(i => i.StockTransferManual)
+                    .HasForeignKey(i => i.StockTransferManualId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<StockTransferItemManual>(entity =>
+            {
+                entity.ToTable("stocktransfer_item_manual");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("StockTransferItemManualId").HasMaxLength(36);
+                entity.Property(e => e.StockTransferManualId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.SourceStockItemId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.TargetStockItemId).HasMaxLength(36);
             });
 
             modelBuilder.Entity<PickingTask>(entity =>
@@ -1509,6 +1541,29 @@ namespace CRM.Infrastructure.Data
                 entity.HasIndex(e => new { e.EntityKind, e.EntityId, e.EventTime });
                 entity.HasIndex(e => new { e.ParentEntityKind, e.ParentEntityId, e.EventTime });
                 entity.HasIndex(e => new { e.EventCode, e.EventTime });
+            });
+
+            modelBuilder.Entity<LoginLog>(entity =>
+            {
+                entity.ToTable("log_login");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasMaxLength(36);
+                entity.Property(e => e.UserId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.UserName).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.LoginAt);
+                entity.Property(e => e.ClientIp).IsRequired().HasMaxLength(45);
+                entity.Property(e => e.Country).HasMaxLength(100);
+                entity.Property(e => e.Province).HasMaxLength(100);
+                entity.Property(e => e.City).HasMaxLength(100);
+                entity.Property(e => e.District).HasMaxLength(100);
+                entity.Property(e => e.Street).HasMaxLength(200);
+                entity.Property(e => e.AddressLine).HasMaxLength(500);
+                entity.Property(e => e.RegionRaw).HasMaxLength(500);
+                entity.Property(e => e.LoginMethod);
+                entity.Property(e => e.ActorUserId).HasMaxLength(36);
+                entity.Property(e => e.GeoSource).IsRequired().HasMaxLength(32);
+                entity.HasIndex(e => e.LoginAt);
+                entity.HasIndex(e => e.UserId);
             });
         }
     }

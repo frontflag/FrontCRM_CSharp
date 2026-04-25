@@ -299,10 +299,10 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '报关明细' }
       },
       {
-        path: 'inventory/stock-transfers',
+        path: 'inventory/transfers-customers',
         name: 'StockTransferList',
         component: () => import('@/views/Customs/StockTransferList.vue'),
-        meta: { requiresAuth: true, title: '移库' }
+        meta: { requiresAuth: true, title: '报关移库' }
       },
       {
         path: 'inventory/stock-out',
@@ -372,10 +372,10 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
-        path: 'inventory/transfer',
-        name: 'InventoryTransfer',
+        path: 'inventory/transfers-manual',
+        name: 'InventoryTransfersManual',
         component: () => import('@/views/Inventory/InventoryTransfer.vue'),
-        meta: { requiresAuth: true, title: '库存调拨' }
+        meta: { requiresAuth: true, title: '手工移库' }
       },
       {
         path: 'inventory/check',
@@ -680,6 +680,12 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'system/login-logs',
+        name: 'LoginLogList',
+        component: () => import('@/views/System/LoginLogList.vue'),
+        meta: { requiresAuth: true, title: '登录日志', permission: 'rbac.manage' }
+      },
+      {
         path: 'system/operation-logs',
         name: 'OperationLogList',
         component: () => import('@/views/System/OperationLogList.vue'),
@@ -744,7 +750,7 @@ const routes: RouteRecordRaw[] = [
         path: 'debug/data',
         name: 'DebugData',
         component: () => import('@/views/Debug/DebugData.vue'),
-        meta: { requiresAuth: true, title: 'Debug 模拟数据' }
+        meta: { requiresAuth: true, title: 'Debug 模拟数据', sysAdminOnly: true }
       },
       // 兼容历史访问链接：/debugdata -> /debug/data
       {

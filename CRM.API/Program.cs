@@ -3,6 +3,7 @@ using System.Reflection;
 using CRM.API.Extensions;
 using CRM.API.Middlewares;
 using CRM.Core.Document;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using CRM.Infrastructure.Data;
@@ -23,6 +24,13 @@ try
 
     builder.Host.UseSerilog();
 
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+
     builder.Services.AddControllers()
         .AddJsonOptions(options =>
         {
@@ -35,7 +43,7 @@ try
             // 忽略循环引用
             options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
         });
-    builder.Services.AddApiServices(builder.Configuration);
+    builder.Services.AddApiServices(builder.Configuration, builder.Environment);
 
     // 将相对路径 DocumentModule:RootPath 固定到程序内容根目录，避免生产环境工作目录变化导致“上传成功但读文件 404”；多实例需共享同一绝对路径（NAS/云盘等）。
     builder.Services.PostConfigure<DocumentModuleOptions>(opts =>
@@ -47,6 +55,8 @@ try
     });
 
     var app = builder.Build();
+
+    app.UseForwardedHeaders();
 
     app.UseMiddleware<ErrorHandlingMiddleware>();
 

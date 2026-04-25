@@ -129,6 +129,12 @@ export const stockInApi = {
     vendorName?: string
     purchaseOrderCode?: string
     salesOrderCode?: string
+    stockInCode?: string
+    sourceDisplayNo?: string
+    warehouseId?: string
+    stockInDateStart?: string
+    stockInDateEnd?: string
+    remark?: string
   }): Promise<StockInListItemDto[]> {
     const res = await apiClient.get<any>('/api/v1/stock-in', { params })
     // 与 inventoryCenter 等一致：兼容拦截器已解包为数组，或仍带一层 data

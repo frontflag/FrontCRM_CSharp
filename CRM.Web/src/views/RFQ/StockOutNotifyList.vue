@@ -17,7 +17,6 @@
     <!-- 搜索栏：与客户列表 CustomerList 同一套结构与样式 -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">{{ t('stockOutNotifyList.columns.workflow') }}</span>
         <el-select
           v-model="workflowFilter"
           :placeholder="t('stockOutNotifyList.filters.workflowPlaceholder')"
@@ -30,7 +29,6 @@
           <el-option :label="t('stockOutNotifyList.filters.workflowPickedPendingOut')" value="picked_pending_out" />
           <el-option :label="t('stockOutNotifyList.filters.workflowDone')" value="done" />
         </el-select>
-        <span class="filter-field-label">{{ t('stockOutNotifyList.filters.keyword') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
             <circle cx="11" cy="11" r="8" />

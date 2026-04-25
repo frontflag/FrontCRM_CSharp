@@ -154,9 +154,9 @@ export async function fetchCustomsDeclarationItems(
 }
 
 export async function fetchStockTransfers(params: Record<string, unknown>): Promise<StockTransferListItemDto[]> {
-  return apiClient.get<StockTransferListItemDto[]>('/api/v1/stock-transfers', { params })
+  return apiClient.get<StockTransferListItemDto[]>('/api/v1/inventory/transfers-customers', { params })
 }
 
 export async function confirmStockTransfer(id: string): Promise<void> {
-  await apiClient.patch(`/api/v1/stock-transfers/${encodeURIComponent(id)}/confirm`, {})
+  await apiClient.patch(`/api/v1/inventory/transfers-customers/${encodeURIComponent(id)}/confirm`, {})
 }

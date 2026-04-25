@@ -634,6 +634,12 @@ namespace CRM.Core.Services
             var vendorKeyword = request?.VendorName?.Trim();
             var poCodeKeyword = request?.PurchaseOrderCode?.Trim();
             var soCodeKeyword = request?.SalesOrderCode?.Trim();
+            var stockInCodeKeyword = request?.StockInCode?.Trim();
+            var sourceDisplayKeyword = request?.SourceDisplayNo?.Trim();
+            var warehouseId = request?.WarehouseId?.Trim();
+            var stockInDateStart = request?.StockInDateStart?.Date;
+            var stockInDateEnd = request?.StockInDateEnd?.Date;
+            var remarkKeyword = request?.Remark?.Trim();
 
             return result.Where(x =>
             {
@@ -656,6 +662,23 @@ namespace CRM.Core.Services
                     return false;
                 if (!string.IsNullOrWhiteSpace(soCodeKeyword)
                     && !(x.SalesOrderCode?.Contains(soCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+                    return false;
+                if (!string.IsNullOrWhiteSpace(stockInCodeKeyword)
+                    && !(x.StockInCode?.Contains(stockInCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+                    return false;
+                if (!string.IsNullOrWhiteSpace(sourceDisplayKeyword)
+                    && !(x.SourceDisplayNo?.Contains(sourceDisplayKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+                    return false;
+                if (!string.IsNullOrWhiteSpace(warehouseId)
+                    && !string.Equals(x.WarehouseId?.Trim(), warehouseId, StringComparison.OrdinalIgnoreCase))
+                    return false;
+                var stockInDate = x.StockInDate.Date;
+                if (stockInDateStart.HasValue && stockInDate < stockInDateStart.Value)
+                    return false;
+                if (stockInDateEnd.HasValue && stockInDate > stockInDateEnd.Value)
+                    return false;
+                if (!string.IsNullOrWhiteSpace(remarkKeyword)
+                    && !(x.Remark?.Contains(remarkKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
                     return false;
                 return true;
             }).ToList();

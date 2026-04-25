@@ -109,7 +109,7 @@ const zhCN = {
       detailTitle: '报关明细详情'
     },
     transfers: {
-      title: '移库',
+      title: '报关移库',
       filterStatus: '移库单状态',
       filterPending: '仅未确认',
       pendingOnly: '仅显示待确认移仓',
@@ -218,7 +218,8 @@ const zhCN = {
       customsBrokers: '报关公司',
       customsDeclarations: '报关单',
       customsDeclarationItems: '报关明细',
-      stockTransfers: '移库',
+      stockTransfers: '报关移库',
+      manualStockTransfer: '手工移库',
       arrivalNotices: '到货通知',
       qualityCheck: '质检',
       stockIn: '入库',
@@ -246,6 +247,7 @@ const zhCN = {
       permissionManagement: '权限管理',
       paramManagement: '参数管理',
       systemLogs: '系统日志',
+      loginLog: '登录日志',
       operationLog: '操作日志',
       companyInfo: '公司信息',
       dictItems: '数据字典',
@@ -480,6 +482,27 @@ const zhCN = {
     fillCode: '请填写权限编码',
     fillName: '请填写权限名称',
     typePlaceholder: 'api / menu / button'
+  },
+  loginLog: {
+    title: '登录日志',
+    count: '共 {count} 条',
+    empty: '暂无登录日志',
+    employee: '员工',
+    anyEmployee: '全部员工',
+    loginTime: '登录时间',
+    query: '查询',
+    reset: '重置',
+    timeFrom: '开始',
+    timeTo: '结束',
+    loadFailed: '加载登录日志失败',
+    colLoginAt: '登录时间',
+    colUserName: '登录人',
+    colClientIp: '登录 IP',
+    colAddress: '登录地址',
+    colLoginMethod: '登录方式',
+    methodPassword: '账号密码登录',
+    methodImpersonate: '模拟登录',
+    methodWechat: '微信登录'
   },
   operationLog: {
     title: '操作日志',
@@ -2233,6 +2256,7 @@ const zhCN = {
       purchaseProgressStatus: '采购状态',
       stockInProgressStatus: '入库状态',
       stockOutProgressStatus: '出库状态',
+      stockOutNotifyProgressStatus: '出库通知状态',
       receiptProgressStatus: '收款状态',
       invoiceProgressStatus: '开票状态',
       actions: '操作'
@@ -2241,6 +2265,7 @@ const zhCN = {
       purchase: { pending: '待采购', partial: '部分采购', complete: '采购完成' },
       stockIn: { pending: '待入库', partial: '部分入库', complete: '入库完成' },
       stockOut: { pending: '待出库', partial: '部分出库', complete: '出库完成' },
+      stockOutNotify: { pending: '未通知', partial: '部分通知', complete: '通知完成' },
       receipt: { pending: '待收款', partial: '部分收款', complete: '收款完成' },
       invoice: { pending: '待开票', partial: '部分开票', complete: '开票完成' }
     },
@@ -2750,8 +2775,41 @@ const zhCN = {
     }
   },
   inventoryTransfer: {
-    title: '库存调拨',
-    comingSoon: '功能开发中，敬请期待。'
+    title: '手工移库',
+    comingSoon: '功能开发中，敬请期待。',
+    prefilledSource: '已从库存明细带入在库行 ID：{id}',
+    sourceLine: '源在库行：{id}',
+    noSourceHint: '请从「汇总库存明细」在库表格中的「手工移库」进入，或在地址栏带上 ?sourceStockItemId=。',
+    backToSummary: '返回汇总明细',
+    readonlySection: '源行与将迁数量',
+    targetSection: '目标',
+    fields: {
+      stockItemCode: '在库明细编号',
+      materialModel: '物料型号',
+      materialBrand: '品牌',
+      regionType: '地域',
+      fromWarehouse: '源仓库',
+      location: '源库位',
+      qtyRepertory: '在库数量',
+      qtyAvailable: '可用数量',
+      plannedMoveQty: '本次将迁数量',
+      toWarehouse: '目标仓库',
+      toLocation: '目标库位',
+      remark: '备注'
+    },
+    placeholders: {
+      toWarehouse: '请选择目标仓库',
+      toLocation: '可选；留空则沿用源库位',
+      remark: '可选'
+    },
+    selectWarehouse: '请选择目标仓库',
+    submit: '确认移库',
+    confirmTitle: '确认手工移库',
+    confirmBody: '将把 {qty} 件从「{from}」迁至「{to}」，是否继续？',
+    confirmOk: '确认执行',
+    previewFailed: '加载预览失败',
+    executeFailed: '移库失败',
+    success: '移库成功，单号 {code}，数量 {qty}'
   },
   inventoryCheck: {
     title: '库存盘点',
@@ -2798,18 +2856,21 @@ const zhCN = {
       stockInDateFrom: '起',
       stockInDateTo: '止',
       stockInDateSep: '至',
+      warehouse: '仓库',
       purchasePn: '物料型号',
       purchaseBrand: '品牌',
       outboundPartial: '部分出库',
       outboundDone: '出库完成',
       customerName: '客户',
       vendorName: '供应商',
+      salespersonUser: '业务员',
+      purchaserUser: '采购员',
       search: '查询',
       reset: '重置'
     },
     columns: {
       outboundStatus: '出库状态',
-      stockItemCode: '在库明细编号',
+      stockItemCode: '库存明细编号',
       stockInCode: '入库单号',
       stockInDate: '入库日期',
       warehouse: '仓库',
@@ -2822,9 +2883,11 @@ const zhCN = {
       vendorName: '供应商',
       salespersonName: '业务员',
       purchaserName: '采购员',
-      sellOrderItemCode: '销售行号',
+      purchaseOrderItemCode: '采购明细编号',
+      sellOrderItemCode: '销售明细编号',
       batchNo: '批次',
       locationId: '库位',
+      regionType: '地域',
       profitOutBizUsd: '入库毛利快照(USD)'
     },
     messages: {
@@ -2854,6 +2917,7 @@ const zhCN = {
       productionDate: '生产日期',
       pn: '型号',
       brand: '品牌',
+      regionType: '地域',
       sellLineCode: '销售行号',
       qtyInbound: '入库量',
       qtyStockOut: '已出库',
@@ -2868,7 +2932,11 @@ const zhCN = {
       vendor: '供应商',
       customer: '客户',
       location: '库位',
-      createTime: '创建时间'
+      createTime: '创建时间',
+      actions: '操作'
+    },
+    actions: {
+      manualTransfer: '手工移库'
     }
   },
   inventoryTrace: {
@@ -2953,8 +3021,8 @@ const zhCN = {
       address: '地址',
       /** RegionType */
       regionType: '地域类型',
-      regionDomestic: '境内',
-      regionOverseas: '境外',
+      regionDomestic: '大陆',
+      regionOverseas: '海外',
       saveEdit: '保存修改',
       saveNew: '保存仓库',
       new: '新建',
@@ -3056,6 +3124,14 @@ const zhCN = {
     count: '共 {count} 条',
     filters: {
       title: '入库单查询',
+      stockInCode: '入库单号',
+      sourceDisplayNo: '到货通知号',
+      warehouse: '仓库',
+      stockInDateRange: '入库日期区间',
+      stockInDateFrom: '开始日期',
+      stockInDateTo: '结束日期',
+      stockInDateSep: '至',
+      remark: '备注',
       materialModel: '物料型号',
       materialModelPlaceholder: '物料型号 / 物料ID',
       vendorName: '供应商名称',

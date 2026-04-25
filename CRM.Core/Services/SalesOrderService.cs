@@ -664,6 +664,13 @@ namespace CRM.Core.Services
                         row.PurchaseProgressStatus = ext.PurchaseProgressStatus;
                         row.StockInProgressStatus = ext.StockInProgressStatus;
                         row.StockOutProgressStatus = ext.StockOutProgressStatus;
+                        var notifyQty = ext.QtyStockOutNotify;
+                        if (notifyQty <= 0m)
+                            row.StockOutNotifyProgressStatus = 0;
+                        else if (notifyQty + 1e-9m >= row.Qty)
+                            row.StockOutNotifyProgressStatus = 2;
+                        else
+                            row.StockOutNotifyProgressStatus = 1;
                         row.ReceiptProgressStatus = ext.ReceiptProgressStatus;
                         row.InvoiceProgressStatus = ext.InvoiceProgressStatus;
                         row.SalesProfitExpected = ext.SalesProfitExpected;
@@ -750,6 +757,51 @@ namespace CRM.Core.Services
             };
         }
 
+        public async Task<SalesOrderItemExtendRefreshResult> RefreshItemExtendsAsync(string salesOrderId, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(salesOrderId))
+                throw new ArgumentException("销售订单ID不能为空", nameof(salesOrderId));
+
+            var orderId = salesOrderId.Trim();
+            var order = await _soRepo.GetByIdAsync(orderId)
+                ?? throw new InvalidOperationException($"销售订单 {orderId} 不存在");
+
+            var items = (await _soItemRepo.FindAsync(x => x.SellOrderId == orderId)).ToList();
+            var result = new SalesOrderItemExtendRefreshResult
+            {
+                SalesOrderId = orderId,
+                TotalItems = items.Count,
+                RefreshedAt = DateTime.UtcNow
+            };
+
+            foreach (var item in items)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var before = await BuildRefreshSnapshotAsync(item.Id);
+                await _soItemExtendSync.RecalculateAsync(item.Id, cancellationToken);
+                await _purchasedStockAvailableSync.RecalculateByPurchasePnAndBrandAsync(item.PN, item.Brand, cancellationToken);
+                var after = await BuildRefreshSnapshotAsync(item.Id);
+                var fields = BuildFieldChanges(before, after);
+                if (fields.Count == 0) continue;
+
+                result.Changes.Add(new SalesOrderItemExtendChangeDto
+                {
+                    SellOrderItemId = item.Id,
+                    SellOrderItemCode = item.SellOrderItemCode,
+                    Fields = fields
+                });
+                result.ChangedFieldsCount += fields.Count;
+            }
+
+            result.ChangedItems = result.Changes.Count;
+            await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "SO明细扩展刷新完成: SalesOrderId={SalesOrderId} Code={Code} TotalItems={TotalItems} ChangedItems={ChangedItems} ChangedFields={ChangedFields}",
+                orderId, order.SellOrderCode, result.TotalItems, result.ChangedItems, result.ChangedFieldsCount);
+            return result;
+        }
+
         /// <inheritdoc />
         public async Task<IReadOnlyDictionary<string, bool>> GetStockOutApplyPurchaseGateBySellLineIdsAsync(
             IEnumerable<string> sellOrderItemIds)
@@ -815,6 +867,162 @@ namespace CRM.Core.Services
             }
 
             return result;
+        }
+
+        private async Task<SoItemRefreshSnapshot?> BuildRefreshSnapshotAsync(string sellOrderItemId)
+        {
+            var item = await _soItemRepo.GetByIdAsync(sellOrderItemId);
+            if (item == null) return null;
+            var ext = await _soItemExtendRepo.GetByIdAsync(sellOrderItemId);
+
+            var usdUnit = item.ConvertPrice;
+            var usdLine = Math.Round(item.Qty * usdUnit, 2, MidpointRounding.AwayFromZero);
+
+            return new SoItemRefreshSnapshot
+            {
+                PurchaseProgressStatus = ext?.PurchaseProgressStatus ?? 0,
+                StockInProgressStatus = ext?.StockInProgressStatus ?? 0,
+                StockOutProgressStatus = ext?.StockOutProgressStatus ?? 0,
+                ReceiptProgressStatus = ext?.ReceiptProgressStatus ?? 0,
+                InvoiceProgressStatus = ext?.InvoiceProgressStatus ?? 0,
+                UsdUnitPrice = usdUnit,
+                UsdLineTotal = usdLine,
+                SalesProfitExpected = ext?.SalesProfitExpected ?? 0m,
+                ProfitOutBizUsd = ext?.ProfitOutBizUsd ?? 0m,
+                ProfitOutRateBiz = ext?.ProfitOutRateBiz ?? 0m,
+                QtyAlreadyPurchased = ext?.QtyAlreadyPurchased ?? 0m,
+                QtyNotPurchase = ext?.QtyNotPurchase ?? 0m,
+                QtyStockOutNotify = ext?.QtyStockOutNotify ?? 0m,
+                QtyStockOutNotifyNot = ext?.QtyStockOutNotifyNot ?? 0m,
+                QtyStockOutActual = ext?.QtyStockOutActual ?? 0m,
+                InvoiceAmount = ext?.InvoiceAmount ?? 0m,
+                InvoiceAmountNot = ext?.InvoiceAmountNot ?? 0m,
+                InvoiceAmountFinish = ext?.InvoiceAmountFinish ?? 0m,
+                PurchasedStockAvailableQty = ext?.PurchasedStock_AvailableQty ?? 0,
+                ReceiptAmount = ext?.ReceiptAmount ?? 0m,
+                ReceiptAmountNot = ext?.ReceiptAmountNot ?? 0m,
+                ReceiptAmountFinish = ext?.ReceiptAmountFinish ?? 0m,
+                PaymentAmount = ext?.PaymentAmount ?? 0m,
+                PaymentAmountDone = ext?.PaymentAmountDone ?? 0m,
+                PaymentAmountToBe = ext?.PaymentAmountToBe ?? 0m,
+                PurchaseInvoiceAmount = ext?.PurchaseInvoiceAmount ?? 0m,
+                PurchaseInvoiceDone = ext?.PurchaseInvoiceDone ?? 0m,
+                PoCostUsdConfirmed = ext?.PoCostUsdConfirmed ?? 0m,
+                ProfitOutFinUsd = ext?.ProfitOutFinUsd ?? 0m,
+                ProfitOutRateFin = ext?.ProfitOutRateFin ?? 0m
+            };
+        }
+
+        private static List<SalesOrderItemExtendFieldChangeDto> BuildFieldChanges(SoItemRefreshSnapshot? before, SoItemRefreshSnapshot? after)
+        {
+            before ??= new SoItemRefreshSnapshot();
+            after ??= new SoItemRefreshSnapshot();
+            var changes = new List<SalesOrderItemExtendFieldChangeDto>();
+            AddShortField(changes, "purchaseProgressStatus", "采购状态", before.PurchaseProgressStatus, after.PurchaseProgressStatus);
+            AddShortField(changes, "stockInProgressStatus", "入库状态", before.StockInProgressStatus, after.StockInProgressStatus);
+            AddShortField(changes, "stockOutProgressStatus", "出库状态", before.StockOutProgressStatus, after.StockOutProgressStatus);
+            AddShortField(changes, "receiptProgressStatus", "收款状态", before.ReceiptProgressStatus, after.ReceiptProgressStatus);
+            AddShortField(changes, "invoiceProgressStatus", "开票状态", before.InvoiceProgressStatus, after.InvoiceProgressStatus);
+
+            AddDecimalField(changes, "usdUnitPrice", "折算美金单价", before.UsdUnitPrice, after.UsdUnitPrice, 6);
+            AddDecimalField(changes, "usdLineTotal", "折算美金总额", before.UsdLineTotal, after.UsdLineTotal, 2);
+            AddDecimalField(changes, "salesProfitExpected", "预计销售利润", before.SalesProfitExpected, after.SalesProfitExpected, 2);
+            AddDecimalField(changes, "profitOutBizUsd", "出库利润", before.ProfitOutBizUsd, after.ProfitOutBizUsd, 2);
+            AddDecimalField(changes, "profitOutRateBiz", "利润率", before.ProfitOutRateBiz, after.ProfitOutRateBiz, 6);
+
+            AddDecimalField(changes, "qtyAlreadyPurchased", "已采购数量", before.QtyAlreadyPurchased, after.QtyAlreadyPurchased, 4);
+            AddDecimalField(changes, "qtyNotPurchase", "未采购数量", before.QtyNotPurchase, after.QtyNotPurchase, 4);
+            AddDecimalField(changes, "qtyStockOutNotify", "已通知出库数量", before.QtyStockOutNotify, after.QtyStockOutNotify, 4);
+            AddDecimalField(changes, "qtyStockOutNotifyNot", "待通知出库数量", before.QtyStockOutNotifyNot, after.QtyStockOutNotifyNot, 4);
+            AddDecimalField(changes, "qtyStockOutActual", "已实际出库数量", before.QtyStockOutActual, after.QtyStockOutActual, 4);
+            AddDecimalField(changes, "invoiceAmount", "销项开票总额", before.InvoiceAmount, after.InvoiceAmount, 2);
+            AddDecimalField(changes, "invoiceAmountNot", "待开票金额", before.InvoiceAmountNot, after.InvoiceAmountNot, 2);
+            AddDecimalField(changes, "invoiceAmountFinish", "已开票金额", before.InvoiceAmountFinish, after.InvoiceAmountFinish, 2);
+            AddIntField(changes, "purchasedStockAvailableQty", "采购备货可用量", before.PurchasedStockAvailableQty, after.PurchasedStockAvailableQty);
+            AddDecimalField(changes, "receiptAmount", "应收金额", before.ReceiptAmount, after.ReceiptAmount, 2);
+            AddDecimalField(changes, "receiptAmountNot", "待收金额", before.ReceiptAmountNot, after.ReceiptAmountNot, 2);
+            AddDecimalField(changes, "receiptAmountFinish", "已收金额", before.ReceiptAmountFinish, after.ReceiptAmountFinish, 2);
+            AddDecimalField(changes, "paymentAmount", "应付金额", before.PaymentAmount, after.PaymentAmount, 2);
+            AddDecimalField(changes, "paymentAmountDone", "已付金额", before.PaymentAmountDone, after.PaymentAmountDone, 2);
+            AddDecimalField(changes, "paymentAmountToBe", "待付金额", before.PaymentAmountToBe, after.PaymentAmountToBe, 2);
+            AddDecimalField(changes, "purchaseInvoiceAmount", "进项发票总额", before.PurchaseInvoiceAmount, after.PurchaseInvoiceAmount, 2);
+            AddDecimalField(changes, "purchaseInvoiceDone", "已开进项金额", before.PurchaseInvoiceDone, after.PurchaseInvoiceDone, 2);
+            AddDecimalField(changes, "poCostUsdConfirmed", "已确认采购成本USD", before.PoCostUsdConfirmed, after.PoCostUsdConfirmed, 2);
+            AddDecimalField(changes, "profitOutFinUsd", "出库利润(财务USD)", before.ProfitOutFinUsd, after.ProfitOutFinUsd, 2);
+            AddDecimalField(changes, "profitOutRateFin", "出库利润率(财务)", before.ProfitOutRateFin, after.ProfitOutRateFin, 6);
+            return changes;
+        }
+
+        private static void AddShortField(List<SalesOrderItemExtendFieldChangeDto> changes, string field, string label, short before, short after)
+        {
+            if (before == after) return;
+            changes.Add(new SalesOrderItemExtendFieldChangeDto
+            {
+                Field = field,
+                Label = label,
+                Before = before.ToString(),
+                After = after.ToString()
+            });
+        }
+
+        private static void AddIntField(List<SalesOrderItemExtendFieldChangeDto> changes, string field, string label, int before, int after)
+        {
+            if (before == after) return;
+            changes.Add(new SalesOrderItemExtendFieldChangeDto
+            {
+                Field = field,
+                Label = label,
+                Before = before.ToString(),
+                After = after.ToString()
+            });
+        }
+
+        private static void AddDecimalField(List<SalesOrderItemExtendFieldChangeDto> changes, string field, string label, decimal before, decimal after, int digits)
+        {
+            var b = decimal.Round(before, digits, MidpointRounding.AwayFromZero);
+            var a = decimal.Round(after, digits, MidpointRounding.AwayFromZero);
+            if (b == a) return;
+            changes.Add(new SalesOrderItemExtendFieldChangeDto
+            {
+                Field = field,
+                Label = label,
+                Before = b.ToString($"F{digits}"),
+                After = a.ToString($"F{digits}")
+            });
+        }
+
+        private sealed class SoItemRefreshSnapshot
+        {
+            public short PurchaseProgressStatus { get; set; }
+            public short StockInProgressStatus { get; set; }
+            public short StockOutProgressStatus { get; set; }
+            public short ReceiptProgressStatus { get; set; }
+            public short InvoiceProgressStatus { get; set; }
+            public decimal UsdUnitPrice { get; set; }
+            public decimal UsdLineTotal { get; set; }
+            public decimal SalesProfitExpected { get; set; }
+            public decimal ProfitOutBizUsd { get; set; }
+            public decimal ProfitOutRateBiz { get; set; }
+            public decimal QtyAlreadyPurchased { get; set; }
+            public decimal QtyNotPurchase { get; set; }
+            public decimal QtyStockOutNotify { get; set; }
+            public decimal QtyStockOutNotifyNot { get; set; }
+            public decimal QtyStockOutActual { get; set; }
+            public decimal InvoiceAmount { get; set; }
+            public decimal InvoiceAmountNot { get; set; }
+            public decimal InvoiceAmountFinish { get; set; }
+            public int PurchasedStockAvailableQty { get; set; }
+            public decimal ReceiptAmount { get; set; }
+            public decimal ReceiptAmountNot { get; set; }
+            public decimal ReceiptAmountFinish { get; set; }
+            public decimal PaymentAmount { get; set; }
+            public decimal PaymentAmountDone { get; set; }
+            public decimal PaymentAmountToBe { get; set; }
+            public decimal PurchaseInvoiceAmount { get; set; }
+            public decimal PurchaseInvoiceDone { get; set; }
+            public decimal PoCostUsdConfirmed { get; set; }
+            public decimal ProfitOutFinUsd { get; set; }
+            public decimal ProfitOutRateFin { get; set; }
         }
     }
 }

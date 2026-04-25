@@ -102,12 +102,13 @@ namespace CRM.API.Controllers
                 }
                 var companyProfile = await CompanyProfileBundleLoader.LoadAsync(_db, _logger, cancellationToken);
                 var reportItemExtends = await LoadPoItemExtendsAsync(order.Items, cancellationToken);
+                var sellOrderItemCodes = await LoadSellOrderItemCodesAsync(order.Items, cancellationToken);
                 return Ok(new
                 {
                     success = true,
                     data = new
                     {
-                        order = MaskPurchaseOrder(order, summary, contact, vendor, reportItemExtends),
+                        order = MaskPurchaseOrder(order, summary, contact, vendor, reportItemExtends, sellOrderItemCodes),
                         companyProfile
                     }
                 });
@@ -140,7 +141,8 @@ namespace CRM.API.Controllers
                         vendor = await _entityLookup.GetVendorByIdAsync(order.VendorId, cancellationToken);
                 }
                 var detailItemExtends = await LoadPoItemExtendsAsync(order.Items, cancellationToken);
-                return Ok(new { success = true, data = MaskPurchaseOrder(order, summary, contact, vendor, detailItemExtends) });
+                var sellOrderItemCodes = await LoadSellOrderItemCodesAsync(order.Items, cancellationToken);
+                return Ok(new { success = true, data = MaskPurchaseOrder(order, summary, contact, vendor, detailItemExtends, sellOrderItemCodes) });
             }
             catch (Exception ex)
             {
@@ -341,6 +343,29 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpPost("{id}/refresh-item-extends")]
+        [RequirePermission("purchase-order.write")]
+        public async Task<IActionResult> RefreshItemExtends(string id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+
+                var result = await _service.RefreshItemExtendsAsync(id, cancellationToken);
+                return Ok(new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "刷新采购订单明细扩展失败: {Id}", id);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         /// <summary>以销定采：根据销售订单自动生成采购订单</summary>
         [HttpPost("auto-generate/{sellOrderId}")]
         [RequirePermission("purchase-order.write")]
@@ -381,6 +406,32 @@ namespace CRM.API.Controllers
             return rows.ToDictionary(e => e.Id, e => e, StringComparer.OrdinalIgnoreCase);
         }
 
+        private async Task<IReadOnlyDictionary<string, string>> LoadSellOrderItemCodesAsync(
+            ICollection<PurchaseOrderItem>? items,
+            CancellationToken cancellationToken = default)
+        {
+            if (items == null || items.Count == 0)
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            var ids = items
+                .Select(i => i.SellOrderItemId?.Trim())
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0)
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            var rows = await _db.SellOrderItems.AsNoTracking()
+                .Where(x => ids.Contains(x.Id))
+                .Select(x => new { x.Id, x.SellOrderItemCode })
+                .ToListAsync(cancellationToken);
+
+            return rows.ToDictionary(
+                x => x.Id,
+                x => x.SellOrderItemCode ?? string.Empty,
+                StringComparer.OrdinalIgnoreCase);
+        }
+
         private static bool SummaryHasPermission(UserPermissionSummaryDto? summary, string code)
         {
             if (summary?.PermissionCodes == null) return false;
@@ -408,7 +459,8 @@ namespace CRM.API.Controllers
             UserPermissionSummaryDto? summary,
             VendorContactInfo? vendorContact = null,
             VendorInfo? vendor = null,
-            IReadOnlyDictionary<string, PurchaseOrderItemExtend>? itemExtends = null)
+            IReadOnlyDictionary<string, PurchaseOrderItemExtend>? itemExtends = null,
+            IReadOnlyDictionary<string, string>? sellOrderItemCodes = null)
         {
             var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
             // vendor.info.read：完整联系人/地址等；vendor.read 或采购订单权限：至少返回供应商主键与名称（申请付款依赖 VendorId）
@@ -485,6 +537,11 @@ namespace CRM.API.Controllers
                         i.PurchaseOrderId,
                         i.PurchaseOrderItemCode,
                         i.SellOrderItemId,
+                        SellOrderItemCode = !string.IsNullOrWhiteSpace(i.SellOrderItemId)
+                            && sellOrderItemCodes != null
+                            && sellOrderItemCodes.TryGetValue(i.SellOrderItemId.Trim(), out var soCode)
+                            ? soCode
+                            : null,
                         VendorId = canViewVendorInfo ? i.VendorId : null,
                         i.ProductId,
                         i.PN,

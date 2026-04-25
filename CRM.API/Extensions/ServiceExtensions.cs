@@ -10,12 +10,15 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 using CRM.Infrastructure.Extensions;
 using CRM.Infrastructure.Document;
+using IP2Region.Net.Abstractions;
+using IP2Region.Net.XDB;
+using Microsoft.Extensions.Hosting;
 
 namespace CRM.API.Extensions
 {
     public static class ServiceExtensions
     {
-        public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
+        public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration, IHostEnvironment hostEnvironment)
         {
             var connectionString = configuration.GetConnectionString("DefaultConnection");
             
@@ -25,6 +28,8 @@ namespace CRM.API.Extensions
             }
 
             services.AddInfrastructure(connectionString);
+
+            services.AddHttpContextAccessor();
 
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IUserService, UserService>();
@@ -52,6 +57,7 @@ namespace CRM.API.Extensions
             services.AddScoped<ILogisticsService, LogisticsService>();
             services.AddScoped<IStockService, StockService>();
             services.AddScoped<IInventoryCenterService, InventoryCenterService>();
+            services.AddScoped<IManualStockTransferService, ManualStockTransferService>();
 
             // 标签系统
             services.AddScoped<ITagService, TagService>();
@@ -60,6 +66,17 @@ namespace CRM.API.Extensions
             services.AddScoped<IFavoriteService, FavoriteService>();
             services.AddScoped<ILogRecentService, LogRecentService>();
             services.AddScoped<IOperationLogQueryService, OperationLogQueryService>();
+            services.AddScoped<ILoginLogQueryService, LoginLogQueryService>();
+            services.AddScoped<ILoginLogService, LoginLogService>();
+
+            var xdbRel = configuration["Ip2Region:Ipv4XdbPath"] ?? "../data/ip2region/ip2region_v4.xdb";
+            var xdbFull = Path.IsPathRooted(xdbRel)
+                ? xdbRel
+                : Path.GetFullPath(Path.Combine(hostEnvironment.ContentRootPath, xdbRel));
+            if (File.Exists(xdbFull))
+                services.AddIP2RegionService(xdbFull, CachePolicy.VectorIndex);
+            else
+                services.AddSingleton<ISearcher, NullIpSearcher>();
             services.AddScoped<IDraftService, DraftService>();
             services.AddScoped<IRbacService, RbacService>();
             services.AddScoped<IDataPermissionService, DataPermissionService>();

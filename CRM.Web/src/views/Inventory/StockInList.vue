@@ -19,8 +19,49 @@
     <!-- 查询栏（与客户列表一致的结构与样式） -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="list-title">{{ t('stockInList.filters.title') }}</span>
-        <span class="filter-field-label">{{ t('stockInList.filters.materialModel') }}</span>
+        <input
+          v-model="filters.stockInCode"
+          class="search-input search-input--filter"
+          :placeholder="t('stockInList.filters.stockInCode')"
+          @keyup.enter="handleSearch"
+        />
+        <input
+          v-model="filters.sourceDisplayNo"
+          class="search-input search-input--filter"
+          :placeholder="t('stockInList.filters.sourceDisplayNo')"
+          @keyup.enter="handleSearch"
+        />
+        <el-select
+          v-model="filters.warehouseId"
+          class="search-select search-select--filter"
+          clearable
+          :placeholder="t('stockInList.filters.warehouse')"
+          :teleported="false"
+        >
+          <el-option
+            v-for="w in warehouses"
+            :key="w.id"
+            :label="w.warehouseName || w.warehouseCode || w.id"
+            :value="w.id"
+          />
+        </el-select>
+        <el-date-picker
+          v-model="filters.stockInDateRange"
+          type="daterange"
+          value-format="YYYY-MM-DD"
+          class="search-date-range search-date-range--filter"
+          :start-placeholder="t('stockInList.filters.stockInDateFrom')"
+          :end-placeholder="t('stockInList.filters.stockInDateTo')"
+          :range-separator="t('stockInList.filters.stockInDateSep')"
+          clearable
+          :teleported="false"
+        />
+        <input
+          v-model="filters.remark"
+          class="search-input search-input--filter"
+          :placeholder="t('stockInList.filters.remark')"
+          @keyup.enter="handleSearch"
+        />
         <input
           v-model="filters.model"
           class="search-input search-input--filter"
@@ -233,6 +274,11 @@ const warehouseNameOf = (warehouseId?: string) => {
   return byCode?.warehouseName || warehouseId
 }
 const filters = reactive({
+  stockInCode: '',
+  sourceDisplayNo: '',
+  warehouseId: '',
+  stockInDateRange: [] as string[],
+  remark: '',
   model: '',
   vendorName: '',
   purchaseOrderCode: '',
@@ -290,6 +336,13 @@ function syncFiltersFromRoute() {
   if (route.name !== 'StockInList') return
   const q = route.query
   filters.model = typeof q.model === 'string' ? q.model : ''
+  filters.stockInCode = typeof q.stockInCode === 'string' ? q.stockInCode : ''
+  filters.sourceDisplayNo = typeof q.sourceDisplayNo === 'string' ? q.sourceDisplayNo : ''
+  filters.warehouseId = typeof q.warehouseId === 'string' ? q.warehouseId : ''
+  filters.remark = typeof q.remark === 'string' ? q.remark : ''
+  const dateStart = typeof q.stockInDateStart === 'string' ? q.stockInDateStart : ''
+  const dateEnd = typeof q.stockInDateEnd === 'string' ? q.stockInDateEnd : ''
+  filters.stockInDateRange = dateStart && dateEnd ? [dateStart, dateEnd] : []
   filters.vendorName = typeof q.vendorName === 'string' ? q.vendorName : ''
   filters.purchaseOrderCode = typeof q.purchaseOrderCode === 'string' ? q.purchaseOrderCode : ''
   filters.salesOrderCode = typeof q.salesOrderCode === 'string' ? q.salesOrderCode : ''
@@ -307,6 +360,12 @@ const fetchList = async (resetPage = true) => {
       }
     }
     list.value = await stockInApi.getAll({
+      stockInCode: filters.stockInCode || undefined,
+      sourceDisplayNo: filters.sourceDisplayNo || undefined,
+      warehouseId: filters.warehouseId || undefined,
+      stockInDateStart: filters.stockInDateRange[0] || undefined,
+      stockInDateEnd: filters.stockInDateRange[1] || undefined,
+      remark: filters.remark || undefined,
       model: filters.model || undefined,
       vendorName: maskPurchaseSensitiveFields.value ? undefined : filters.vendorName || undefined,
       purchaseOrderCode: filters.purchaseOrderCode || undefined,
@@ -334,6 +393,17 @@ const handleSearch = () => {
   const query: Record<string, string> = {}
   const m = filters.model.trim()
   if (m) query.model = m
+  const sic = filters.stockInCode.trim()
+  if (sic) query.stockInCode = sic
+  const src = filters.sourceDisplayNo.trim()
+  if (src) query.sourceDisplayNo = src
+  if (filters.warehouseId) query.warehouseId = filters.warehouseId
+  if (filters.stockInDateRange.length === 2 && filters.stockInDateRange[0] && filters.stockInDateRange[1]) {
+    query.stockInDateStart = filters.stockInDateRange[0]
+    query.stockInDateEnd = filters.stockInDateRange[1]
+  }
+  const rk = filters.remark.trim()
+  if (rk) query.remark = rk
   const v = filters.vendorName.trim()
   if (v && !maskPurchaseSensitiveFields.value) query.vendorName = v
   const p = filters.purchaseOrderCode.trim()
@@ -351,6 +421,12 @@ const keywordHit = (text: string | undefined, keyword: string): boolean => {
 // 前端兜底过滤：避免后端筛选偶发不生效时页面无响应
 const filteredList = computed(() => {
   const model = filters.model.trim()
+  const stockInCode = filters.stockInCode.trim()
+  const sourceDisplayNo = filters.sourceDisplayNo.trim()
+  const warehouseId = filters.warehouseId.trim()
+  const remark = filters.remark.trim()
+  const stockInDateStart = filters.stockInDateRange[0] ? new Date(`${filters.stockInDateRange[0]}T00:00:00`) : null
+  const stockInDateEnd = filters.stockInDateRange[1] ? new Date(`${filters.stockInDateRange[1]}T23:59:59`) : null
   const vendorName = filters.vendorName.trim()
   const purchaseOrderCode = filters.purchaseOrderCode.trim()
   const salesOrderCode = filters.salesOrderCode.trim()
@@ -359,7 +435,14 @@ const filteredList = computed(() => {
     const rowAny = row as any
     const modelText = `${rowAny.materialModelSummary ?? rowAny.MaterialModelSummary ?? ''} ${rowAny.materialBrandSummary ?? rowAny.MaterialBrandSummary ?? ''} ${rowAny.model ?? ''} ${rowAny.materialCode ?? ''} ${rowAny.remark ?? ''}`
     const poText = `${row.sourceDisplayNo ?? ''} ${row.stockInCode ?? ''}`
+    const stockInDate = row.stockInDate ? new Date(row.stockInDate) : null
     return (
+      keywordHit(row.stockInCode, stockInCode) &&
+      keywordHit(row.sourceDisplayNo, sourceDisplayNo) &&
+      (warehouseId ? String(row.warehouseId || '').trim() === warehouseId : true) &&
+      (stockInDateStart ? !!stockInDate && stockInDate >= stockInDateStart : true) &&
+      (stockInDateEnd ? !!stockInDate && stockInDate <= stockInDateEnd : true) &&
+      keywordHit(row.remark, remark) &&
       keywordHit(modelText, model) &&
       (maskPurchaseSensitiveFields.value ? true : keywordHit(row.vendorName, vendorName)) &&
       keywordHit(poText, purchaseOrderCode) &&
@@ -382,6 +465,11 @@ watch(filteredListTotal, () => {
 
 const resetFilters = () => {
   filters.model = ''
+  filters.stockInCode = ''
+  filters.sourceDisplayNo = ''
+  filters.warehouseId = ''
+  filters.stockInDateRange = []
+  filters.remark = ''
   filters.vendorName = ''
   filters.purchaseOrderCode = ''
   filters.salesOrderCode = ''
@@ -517,6 +605,20 @@ const handleFinish = async (row: StockInListItemDto) => {
 
   &--filter {
     width: 160px;
+  }
+}
+
+.search-select {
+  width: 180px;
+  &--filter {
+    width: 180px;
+  }
+}
+
+.search-date-range {
+  width: 280px;
+  &--filter {
+    width: 280px;
   }
 }
 

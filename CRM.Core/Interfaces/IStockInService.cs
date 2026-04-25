@@ -55,6 +55,12 @@ namespace CRM.Core.Interfaces
         public string? VendorName { get; set; }
         public string? PurchaseOrderCode { get; set; }
         public string? SalesOrderCode { get; set; }
+        public string? StockInCode { get; set; }
+        public string? SourceDisplayNo { get; set; }
+        public string? WarehouseId { get; set; }
+        public DateTime? StockInDateStart { get; set; }
+        public DateTime? StockInDateEnd { get; set; }
+        public string? Remark { get; set; }
     }
 
     public class CreateStockInRequest

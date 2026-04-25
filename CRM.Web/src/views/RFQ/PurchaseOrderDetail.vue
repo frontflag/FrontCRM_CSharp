@@ -52,7 +52,8 @@
               </button>
             </div>
             <div v-if="captionMetaVisible" class="title-meta">
-              <span class="caption-code">{{ order.purchaseOrderCode }}</span>
+              <span class="caption-code">采购订单：{{ order.purchaseOrderCode }}</span>
+              <span v-if="isStockingPurchaseOrder" class="order-type-badge order-type-badge--stocking">备货</span>
             </div>
             <div class="title-tags-row">
               <TagListDisplay :tags="currentTags" />
@@ -62,6 +63,14 @@
         </div>
       </div>
       <div v-if="order" class="header-right">
+        <button class="btn-primary" type="button" :disabled="refreshingExtends" @click="handleRefreshItemExtends">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+          {{ refreshingExtends ? '刷新中...' : '刷新' }}
+        </button>
         <button class="btn-primary" type="button" @click="handleEdit">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -121,8 +130,11 @@
         </div>
         <div class="info-grid">
           <div class="info-item">
-            <span class="info-label">订单号</span>
-            <span class="info-value info-value--code">{{ order.purchaseOrderCode }}</span>
+            <span class="info-label">采购订单号</span>
+            <span class="info-value info-value--code">
+              {{ order.purchaseOrderCode }}
+              <span v-if="isStockingPurchaseOrder" class="order-type-badge order-type-badge--stocking">备货</span>
+            </span>
           </div>
           <div class="info-item">
             <span class="info-label">状态</span>
@@ -138,7 +150,12 @@
           </div>
           <div class="info-item" v-if="canViewPurchaseAmount">
             <span class="info-label">总金额</span>
-            <span class="info-value info-value--amount">{{ formatCurrencyTotal(order.total, order.currency) }}</span>
+            <span class="info-value info-value--amount amount-with-code">
+              <span>{{ formatTotalAmountNumber(order.total) }}</span>
+              <span v-if="formatTotalAmountNumber(order.total) !== '—'" class="amount-ccy" :class="currencyCodeClass(order.currency)">
+                {{ currencyCodeText(order.currency) }}
+              </span>
+            </span>
           </div>
           <div class="info-item">
             <span class="info-label">行项目数</span>
@@ -196,12 +213,26 @@
               <el-table-column prop="qty" label="数量" align="right" width="100" />
               <el-table-column v-if="canViewPurchaseAmount" prop="cost" label="单价" align="right" width="120">
                 <template #default="{ row }">
-                  {{ formatCurrencyUnitPrice(row.cost, row.currency) }}
+                  <span class="amount-with-code">
+                    <span>{{ formatUnitPriceNumber(row.cost) }}</span>
+                    <span v-if="formatUnitPriceNumber(row.cost) !== '—'" class="amount-ccy" :class="currencyCodeClass(row.currency)">
+                      {{ currencyCodeText(row.currency) }}
+                    </span>
+                  </span>
                 </template>
               </el-table-column>
               <el-table-column v-if="canViewPurchaseAmount" label="金额" align="right" width="130">
                 <template #default="{ row }">
-                  {{ formatCurrencyTotal(row.qty * row.cost, row.currency) }}
+                  <span class="amount-with-code">
+                    <span>{{ formatTotalAmountNumber(row.qty * row.cost) }}</span>
+                    <span
+                      v-if="formatTotalAmountNumber(row.qty * row.cost) !== '—'"
+                      class="amount-ccy"
+                      :class="currencyCodeClass(row.currency)"
+                    >
+                      {{ currencyCodeText(row.currency) }}
+                    </span>
+                  </span>
                 </template>
               </el-table-column>
               <el-table-column label="采购状态" width="100" align="center">
@@ -248,16 +279,35 @@
               </el-table-column>
               <el-table-column v-if="canViewPurchaseAmount" label="已付款" width="100" align="right">
                 <template #default="{ row }">
-                  {{ formatCurrencyTotal(row.paymentProgressAmount, row.currency) }}
+                  <span class="amount-with-code">
+                    <span>{{ formatTotalAmountNumber(row.paymentProgressAmount) }}</span>
+                    <span
+                      v-if="formatTotalAmountNumber(row.paymentProgressAmount) !== '—'"
+                      class="amount-ccy"
+                      :class="currencyCodeClass(row.currency)"
+                    >
+                      {{ currencyCodeText(row.currency) }}
+                    </span>
+                  </span>
                 </template>
               </el-table-column>
               <el-table-column v-if="canViewPurchaseAmount" label="已开票额" width="100" align="right">
                 <template #default="{ row }">
-                  {{ formatCurrencyTotal(row.invoiceProgressAmount, row.currency) }}
+                  <span class="amount-with-code">
+                    <span>{{ formatTotalAmountNumber(row.invoiceProgressAmount) }}</span>
+                    <span
+                      v-if="formatTotalAmountNumber(row.invoiceProgressAmount) !== '—'"
+                      class="amount-ccy"
+                      :class="currencyCodeClass(row.currency)"
+                    >
+                      {{ currencyCodeText(row.currency) }}
+                    </span>
+                  </span>
                 </template>
               </el-table-column>
               <el-table-column prop="comment" label="备注" min-width="120" />
               <el-table-column prop="innerComment" label="内部备注" min-width="160" />
+              <el-table-column prop="sellOrderItemCode" label="销售订单明细编号" min-width="168" show-overflow-tooltip />
               <el-table-column label="操作" width="240" fixed="right" align="center" class-name="op-col" label-class-name="op-col">
                 <template #default="{ row }">
                   <div @click.stop @dblclick.stop>
@@ -288,8 +338,16 @@
             </CrmDataTable>
             <el-empty v-else description="暂无明细" :image-size="80" />
           </div>
-          <div v-show="activeTab === 'documents' && !maskPurchaseSensitiveFields" class="doc-tab-content">
+          <div
+            v-show="activeTab === 'documents' && !maskPurchaseSensitiveFields"
+            class="doc-tab-content"
+            :class="{ 'doc-tab-content--dragging': docTabDragging }"
+            @drop.prevent="onDocTabDrop"
+            @dragover.prevent="onDocTabDragOver"
+            @dragleave="onDocTabDragLeave"
+          >
             <DocumentUploadPanel
+              ref="docUploadRef"
               biz-type="PURCHASE_ORDER"
               :biz-id="String(order.id)"
               :max-files="20"
@@ -328,7 +386,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { purchaseOrderApi } from '@/api/purchaseOrder'
+import { purchaseOrderApi, type PurchaseOrderItemExtendRefreshResult } from '@/api/purchaseOrder'
 import { favoriteApi } from '@/api/favorite'
 import {
   PURCHASE_ORDER_FAVORITE_ENTITY_TYPE,
@@ -346,7 +404,8 @@ import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
-import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
+import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
+import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { recordPurchaseOrderRecentView } from '@/utils/purchaseOrderRecentHistory'
 import PurchaseOrderItemLineDialogs from '@/components/purchaseOrder/PurchaseOrderItemLineDialogs.vue'
 
@@ -365,6 +424,7 @@ const canViewPurchaseAmount = computed(
 const canCreateArrivalNotice = computed(() => authStore.hasPermission('purchase-order.read'))
 
 const loading = ref(false)
+const refreshingExtends = ref(false)
 const order = ref<any>(null)
 
 /** 与原列表「取消订单」一致：审核通过(10)前可标记取消(-2)；已为取消不可再点 */
@@ -380,10 +440,31 @@ const poFavorited = ref(false)
 const favoriteLoading = ref(false)
 const activeTab = ref('items')
 const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
+const docUploadRef = ref<{ addDroppedFiles: (files: File[]) => void } | null>(null)
+const docTabDragging = ref(false)
+const docTabDragDepth = ref(0)
 
 watch(maskPurchaseSensitiveFields, (m) => {
   if (m && activeTab.value === 'documents') activeTab.value = 'items'
 })
+
+function onDocTabDragOver() {
+  docTabDragDepth.value = Math.max(1, docTabDragDepth.value)
+  docTabDragging.value = true
+}
+
+function onDocTabDragLeave() {
+  docTabDragDepth.value = Math.max(0, docTabDragDepth.value - 1)
+  if (docTabDragDepth.value === 0) docTabDragging.value = false
+}
+
+function onDocTabDrop(e: DragEvent) {
+  docTabDragDepth.value = 0
+  docTabDragging.value = false
+  const files = e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : []
+  if (!files.length) return
+  docUploadRef.value?.addDroppedFiles(files)
+}
 
 // 标签
 const currentTags = ref<TagDefinitionDto[]>([])
@@ -511,6 +592,8 @@ const captionMetaVisible = computed(() => {
   return false
 })
 
+const isStockingPurchaseOrder = computed(() => Number(order.value?.type) === 2)
+
 const captionAvatarChar = computed(() => {
   const t = captionTitle.value
   return (t && t[0]) || '采'
@@ -560,6 +643,79 @@ function handleGoReport() {
     return
   }
   router.push({ name: 'PurchaseOrderReport', params: { id: String(order.value.id) } })
+}
+
+function poRefreshStatusText(v: string) {
+  const n = Number(v)
+  const map: Record<number, string> = { 0: '待', 1: '部分', 2: '完成' }
+  return Number.isFinite(n) ? (map[n] ?? v) : v
+}
+
+function poRefreshFieldValueText(field: string, value: string) {
+  if (
+    field === 'purchaseProgressStatus' ||
+    field === 'stockInProgressStatus' ||
+    field === 'paymentProgressStatus' ||
+    field === 'invoiceProgressStatus'
+  ) {
+    return poRefreshStatusText(value)
+  }
+  return value
+}
+
+function buildRefreshResultHtml(result: PurchaseOrderItemExtendRefreshResult) {
+  const lines: string[] = [
+    `共 ${result.changedItems} 条明细发生更新，${result.changedFieldsCount} 个字段已变更。`,
+    ''
+  ]
+  for (const change of result.changes) {
+    const lineCode = change.purchaseOrderItemCode || change.purchaseOrderItemId
+    lines.push(`【${lineCode}】`)
+    for (const field of change.fields) {
+      const beforeText = poRefreshFieldValueText(field.field, field.before)
+      const afterText = poRefreshFieldValueText(field.field, field.after)
+      lines.push(`- ${field.label}: ${beforeText} -> ${afterText}`)
+    }
+    lines.push('')
+  }
+  const escaped = lines
+    .join('\n')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br/>')
+  return `<div style="max-height:420px;overflow:auto;line-height:1.7;">${escaped}</div>`
+}
+
+async function handleRefreshItemExtends() {
+  if (!order.value?.id || refreshingExtends.value) return
+  try {
+    await ElMessageBox.confirm(
+      `确认刷新采购订单 ${order.value.purchaseOrderCode} 的明细执行状态与扩展字段吗？`,
+      '刷新确认',
+      { type: 'warning', confirmButtonText: '刷新', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+
+  refreshingExtends.value = true
+  try {
+    const result = await purchaseOrderApi.refreshItemExtends(order.value.id)
+    await fetchOrder()
+    if (!result || result.changedItems <= 0) {
+      await ElMessageBox.alert('无更新数据', '刷新结果', { confirmButtonText: '知道了' })
+      return
+    }
+    await ElMessageBox.alert(buildRefreshResultHtml(result), '刷新结果', {
+      dangerouslyUseHTMLString: true,
+      confirmButtonText: '知道了'
+    })
+  } catch {
+    // 全局拦截器统一提示
+  } finally {
+    refreshingExtends.value = false
+  }
 }
 
 onMounted(() => {
@@ -643,6 +799,15 @@ const getStatusType = (status: number) => {
 const getStatusText = (status: number) => {
   const map: Record<number, string> = { 1: '新建', 2: '待审核', 10: '审核通过', 20: '待确认', 30: '已确认', 50: '进行中', 100: '采购完成', [-1]: '审核失败', [-2]: '取消' }
   return map[status] ?? '未知'
+}
+const currencyCodeText = (currency?: number) => {
+  const c = Number(currency)
+  return CURRENCY_CODE_TO_TEXT[c as keyof typeof CURRENCY_CODE_TO_TEXT] ?? 'RMB'
+}
+const currencyCodeClass = (currency?: number) => {
+  const c = Number(currency)
+  if (c === 1 || !Number.isFinite(c)) return 'amount-ccy--rmb'
+  return 'amount-ccy--fx'
 }
 const formatDateTime = (v?: string) => (v ? formatDisplayDateTime(v) : '--')
 
@@ -760,6 +925,26 @@ const handleEdit = () => {
   font-family: 'Space Mono', monospace;
   font-size: 11px;
   color: $text-muted;
+}
+
+.order-type-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 10px;
+  height: 22px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 500;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.order-type-badge--stocking {
+  color: #d48316;
+  border: 1px solid rgba(212, 131, 22, 0.55);
+  background: rgba(255, 191, 105, 0.14);
 }
 
 .title-tags-row {
@@ -980,6 +1165,25 @@ const handleEdit = () => {
   font-weight: 500;
 }
 
+.amount-with-code {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.amount-ccy {
+  font-size: 0.92em;
+  font-weight: 500;
+}
+
+.amount-ccy--rmb {
+  color: #ff4f96;
+}
+
+.amount-ccy--fx {
+  color: #19c37d;
+}
+
 .info-value--time {
   font-size: 12px;
   color: $text-muted;
@@ -1098,6 +1302,12 @@ const handleEdit = () => {
 
 .doc-tab-content {
   padding-top: 4px;
+
+  &.doc-tab-content--dragging {
+    border: 1px dashed rgba(0, 212, 255, 0.5);
+    border-radius: 8px;
+    background: rgba(0, 212, 255, 0.03);
+  }
 }
 </style>
 

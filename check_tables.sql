@@ -18,7 +18,8 @@ SELECT
         WHEN table_name IN ('material', 'materialcategory', 'materialbom', 
                            'materialprice', 'materialinventory', 'materialbarcode')
         THEN '物料模块'
-        WHEN table_name IN ('stock', 'stockin', 'stockout', 'stocktransfer', 
+        WHEN table_name IN ('stock', 'stockin', 'stockout', 'stocktransfer_customers', 'stocktransfer_item_customers',
+                           'stocktransfer_manual', 'stocktransfer_item_manual', 'stocktransfer', 'stocktransferitem',
                            'stockcheck', 'warehouse', 'warehousearea', 'warehouselocation')
         THEN '库存模块'
         WHEN table_name IN ('financeaccount', 'financevoucher', 'financereceipt', 

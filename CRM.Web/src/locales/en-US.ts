@@ -109,7 +109,7 @@ const enUS = {
       detailTitle: 'Line detail'
     },
     transfers: {
-      title: 'Stock transfers',
+      title: 'Customs stock transfers',
       filterStatus: 'Status',
       filterPending: 'Pending only',
       pendingOnly: 'Show only pending confirmation',
@@ -218,7 +218,8 @@ const enUS = {
       customsBrokers: 'Brokers',
       customsDeclarations: 'Declarations',
       customsDeclarationItems: 'Declaration lines',
-      stockTransfers: 'Transfers',
+      stockTransfers: 'Customs transfers',
+      manualStockTransfer: 'Manual transfer',
       arrivalNotices: 'Arrival Notices',
       qualityCheck: 'QC',
       stockIn: 'Stock In',
@@ -246,6 +247,7 @@ const enUS = {
       permissionManagement: 'Permission',
       paramManagement: 'Parameter',
       systemLogs: 'System logs',
+      loginLog: 'Login log',
       operationLog: 'Operation log',
       companyInfo: 'Company Info',
       dictItems: 'Dictionary Items',
@@ -484,6 +486,27 @@ const enUS = {
     fillCode: 'Please enter permission code',
     fillName: 'Please enter permission name',
     typePlaceholder: 'api / menu / button'
+  },
+  loginLog: {
+    title: 'Login log',
+    count: 'Total {count}',
+    empty: 'No login logs',
+    employee: 'Employee',
+    anyEmployee: 'All employees',
+    loginTime: 'Login time',
+    query: 'Search',
+    reset: 'Reset',
+    timeFrom: 'From',
+    timeTo: 'To',
+    loadFailed: 'Failed to load login logs',
+    colLoginAt: 'Time',
+    colUserName: 'User',
+    colClientIp: 'IP',
+    colAddress: 'Location',
+    colLoginMethod: 'Method',
+    methodPassword: 'Password',
+    methodImpersonate: 'Impersonation',
+    methodWechat: 'WeChat'
   },
   operationLog: {
     title: 'Operation log',
@@ -2253,6 +2276,7 @@ const enUS = {
       purchaseProgressStatus: 'Purchase',
       stockInProgressStatus: 'Stock-in',
       stockOutProgressStatus: 'Stock-out',
+      stockOutNotifyProgressStatus: 'Stock-out notify',
       receiptProgressStatus: 'Receipt',
       invoiceProgressStatus: 'Invoice',
       actions: 'Actions'
@@ -2261,6 +2285,7 @@ const enUS = {
       purchase: { pending: 'To purchase', partial: 'Partial PO', complete: 'Purchased' },
       stockIn: { pending: 'To receive', partial: 'Partial receipt', complete: 'Received' },
       stockOut: { pending: 'To ship', partial: 'Partial ship', complete: 'Shipped' },
+      stockOutNotify: { pending: 'Not notified', partial: 'Partially notified', complete: 'Notify completed' },
       receipt: { pending: 'To collect', partial: 'Partial paid', complete: 'Collected' },
       invoice: { pending: 'To invoice', partial: 'Partially invoiced', complete: 'Fully invoiced' }
     },
@@ -2776,8 +2801,41 @@ const enUS = {
     }
   },
   inventoryTransfer: {
-    title: 'Inventory Transfer',
-    comingSoon: 'This feature is under development.'
+    title: 'Manual stock transfer',
+    comingSoon: 'This feature is under development.',
+    prefilledSource: 'Stock item id from inventory detail: {id}',
+    sourceLine: 'Source stock item: {id}',
+    noSourceHint: 'Open this page from aggregate stock detail (Manual transfer action) or add ?sourceStockItemId= to the URL.',
+    backToSummary: 'Back to aggregate detail',
+    readonlySection: 'Source & quantity to move',
+    targetSection: 'Destination',
+    fields: {
+      stockItemCode: 'Stock item code',
+      materialModel: 'Material model',
+      materialBrand: 'Brand',
+      regionType: 'Region',
+      fromWarehouse: 'Source warehouse',
+      location: 'Source location',
+      qtyRepertory: 'On-hand qty',
+      qtyAvailable: 'Available qty',
+      plannedMoveQty: 'Quantity to move',
+      toWarehouse: 'Target warehouse',
+      toLocation: 'Target location',
+      remark: 'Remark'
+    },
+    placeholders: {
+      toWarehouse: 'Select target warehouse',
+      toLocation: 'Optional; leave blank to keep source location id',
+      remark: 'Optional'
+    },
+    selectWarehouse: 'Please select a target warehouse',
+    submit: 'Execute transfer',
+    confirmTitle: 'Confirm manual transfer',
+    confirmBody: 'Move {qty} pcs from "{from}" to "{to}". Continue?',
+    confirmOk: 'Confirm',
+    previewFailed: 'Failed to load preview',
+    executeFailed: 'Transfer failed',
+    success: 'Transfer done. No. {code}, qty {qty}'
   },
   inventoryCheck: {
     title: 'Inventory Check',
@@ -2826,19 +2884,23 @@ const enUS = {
       stockInDateFrom: 'From',
       stockInDateTo: 'To',
       stockInDateSep: 'to',
+      warehouse: 'Warehouse',
       purchasePn: 'Material model',
       purchaseBrand: 'Brand',
       customerName: 'Customer',
       vendorName: 'Vendor',
+      salespersonUser: 'Sales rep',
+      purchaserUser: 'Purchaser',
       search: 'Search',
       reset: 'Reset'
     },
     columns: {
       outboundStatus: 'Outbound',
-      stockItemCode: 'Stock item code',
+      stockItemCode: 'Inventory item code',
       stockInCode: 'Stock-in code',
       stockInDate: 'Stock-in date',
       warehouse: 'Warehouse',
+      regionType: 'Region',
       purchasePn: 'Material model',
       purchaseBrand: 'Brand',
       qtyInbound: 'Inbound',
@@ -2848,7 +2910,8 @@ const enUS = {
       vendorName: 'Vendor',
       salespersonName: 'Sales rep',
       purchaserName: 'Purchaser',
-      sellOrderItemCode: 'SO line',
+      purchaseOrderItemCode: 'PO line code',
+      sellOrderItemCode: 'Sales line code',
       batchNo: 'Batch',
       locationId: 'Location',
       profitOutBizUsd: 'Inbound margin snapshot (USD)'
@@ -2880,6 +2943,7 @@ const enUS = {
       productionDate: 'Production date',
       pn: 'P/N',
       brand: 'Brand',
+      regionType: 'Region',
       sellLineCode: 'SO line',
       qtyInbound: 'Inbound',
       qtyStockOut: 'Out',
@@ -2894,7 +2958,11 @@ const enUS = {
       vendor: 'Vendor',
       customer: 'Customer',
       location: 'Location',
-      createTime: 'Created'
+      createTime: 'Created',
+      actions: 'Actions'
+    },
+    actions: {
+      manualTransfer: 'Manual transfer'
     }
   },
   inventoryTrace: {
@@ -3078,6 +3146,14 @@ const enUS = {
     count: '{count} records total',
     filters: {
       title: 'Stock-In Search',
+      stockInCode: 'Stock-In Code',
+      sourceDisplayNo: 'Arrival Notice No.',
+      warehouse: 'Warehouse',
+      stockInDateRange: 'Stock-In Date Range',
+      stockInDateFrom: 'Start Date',
+      stockInDateTo: 'End Date',
+      stockInDateSep: 'to',
+      remark: 'Remark',
       materialModel: 'Material Model',
       materialModelPlaceholder: 'Material model / material ID',
       vendorName: 'Vendor Name',

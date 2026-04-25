@@ -56,6 +56,9 @@ namespace CRM.Core.Interfaces
         public const string FinancePayment = "FinancePayment"; // 财务付款 PAY
         /// <summary>移库单 STF（报关迁库等）。</summary>
         public const string StockTransfer = "StockTransfer";
+
+        /// <summary>手工移库单 STM。</summary>
+        public const string StockTransferManual = "StockTransferManual";
         /// <summary>报关单 CDS。</summary>
         public const string CustomsDeclaration = "CustomsDeclaration";
         /// <summary>报关公司 CBR。</summary>

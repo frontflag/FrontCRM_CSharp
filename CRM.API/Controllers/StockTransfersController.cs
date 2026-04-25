@@ -10,7 +10,7 @@ namespace CRM.API.Controllers;
 
 /// <summary>移库单列表（报关迁库等），供物流专页查询。</summary>
 [ApiController]
-[Route("api/v1/stock-transfers")]
+[Route("api/v1/inventory/transfers-customers")]
 public class StockTransfersController : ControllerBase
 {
     private readonly ApplicationDbContext _db;

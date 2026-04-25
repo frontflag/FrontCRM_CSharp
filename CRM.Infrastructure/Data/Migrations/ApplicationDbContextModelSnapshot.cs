@@ -1046,7 +1046,7 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.HasIndex("TransferCode")
                         .IsUnique();
 
-                    b.ToTable("stocktransfer", (string)null);
+                    b.ToTable("stocktransfer_customers", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Customs.StockTransferItem", b =>
@@ -1099,7 +1099,7 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.HasIndex("StockTransferId");
 
-                    b.ToTable("stocktransferitem", (string)null);
+                    b.ToTable("stocktransfer_item_customers", (string)null);
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Document.DocumentDailySequence", b =>

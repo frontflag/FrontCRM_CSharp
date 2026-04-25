@@ -7,7 +7,6 @@
 
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">关键词</span>
         <div class="search-input-wrap">
           <input
             v-model="keyword"

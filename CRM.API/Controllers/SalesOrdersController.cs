@@ -269,6 +269,29 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpPost("{id}/refresh-item-extends")]
+        [RequirePermission("sales-order.write")]
+        public async Task<IActionResult> RefreshItemExtends(string id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "销售订单不存在" });
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessSalesOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该销售订单" });
+
+                var result = await _service.RefreshItemExtendsAsync(id, cancellationToken);
+                return Ok(new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "刷新销售订单明细扩展失败: {Id}", id);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         [HttpPost]
         [RequirePermission("sales-order.write")]
         public async Task<IActionResult> Create([FromBody] CreateSalesOrderRequest request)
@@ -439,6 +462,7 @@ namespace CRM.API.Controllers
                 r.PurchaseProgressStatus,
                 r.StockInProgressStatus,
                 r.StockOutProgressStatus,
+                r.StockOutNotifyProgressStatus,
                 r.ReceiptProgressStatus,
                 r.InvoiceProgressStatus,
                 r.StockOutApplyPurchaseGateOk,
@@ -543,6 +567,13 @@ namespace CRM.API.Controllers
                         i.ModifyTime,
                         purchaseProgressStatus = ext?.PurchaseProgressStatus ?? (short)0,
                         stockInProgressStatus = ext?.StockInProgressStatus ?? (short)0,
+                        stockOutNotifyProgressStatus = ext == null
+                            ? (short)0
+                            : ext.QtyStockOutNotify <= 0m
+                                ? (short)0
+                                : ext.QtyStockOutNotify + 1e-9m >= i.Qty
+                                    ? (short)2
+                                    : (short)1,
                         stockOutProgressStatus = ext?.StockOutProgressStatus ?? (short)0,
                         receiptProgressStatus = ext?.ReceiptProgressStatus ?? (short)0,
                         invoiceProgressStatus = ext?.InvoiceProgressStatus ?? (short)0,

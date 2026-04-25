@@ -30,6 +30,9 @@ namespace CRM.Core.Interfaces
         /// Key 为销售明细 Id（大小写不敏感字典）。
         /// </summary>
         Task<IReadOnlyDictionary<string, bool>> GetStockOutApplyPurchaseGateBySellLineIdsAsync(IEnumerable<string> sellOrderItemIds);
+
+        /// <summary>按销售订单批量重算明细扩展并返回变更结果。</summary>
+        Task<SalesOrderItemExtendRefreshResult> RefreshItemExtendsAsync(string salesOrderId, CancellationToken cancellationToken = default);
     }
 
     /// <summary>销售订单明细列表查询</summary>
@@ -82,6 +85,9 @@ namespace CRM.Core.Interfaces
 
         /// <summary>扩展表：出库进度 0/1/2</summary>
         public short StockOutProgressStatus { get; set; }
+
+        /// <summary>扩展表：出库通知进度 0=未通知 1=部分通知 2=通知完成</summary>
+        public short StockOutNotifyProgressStatus { get; set; }
 
         /// <summary>扩展表：收款进度 0/1/2</summary>
         public short ReceiptProgressStatus { get; set; }

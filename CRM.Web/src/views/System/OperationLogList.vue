@@ -20,7 +20,6 @@
     <!-- 筛选：与业务列表 CustomerList / StockOutNotifyList 同一套 search-bar 结构 -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">{{ t('operationLog.bizType') }}</span>
         <el-select
           v-model="filters.bizType"
           clearable
@@ -32,16 +31,12 @@
           <el-option v-for="b in bizTypeOptions" :key="b" :label="operationBizTypeLabel(b)" :value="b" />
         </el-select>
 
-        <span class="filter-field-label">{{ t('operationLog.actionType') }}</span>
         <el-input v-model="filters.actionType" clearable class="filter-el-input filter-el-input--sm" :placeholder="t('operationLog.contains')" @keyup.enter="onQuery" />
 
-        <span class="filter-field-label">{{ t('operationLog.recordCode') }}</span>
         <el-input v-model="filters.recordCode" clearable class="filter-el-input filter-el-input--sm" :placeholder="t('operationLog.contains')" @keyup.enter="onQuery" />
 
-        <span class="filter-field-label">{{ t('operationLog.operatorUserName') }}</span>
         <el-input v-model="filters.operatorUserName" clearable class="filter-el-input filter-el-input--sm" :placeholder="t('operationLog.contains')" @keyup.enter="onQuery" />
 
-        <span class="filter-field-label">{{ t('operationLog.operationTime') }}</span>
         <el-date-picker
           v-model="timeRange"
           type="datetimerange"
@@ -54,7 +49,6 @@
           :teleported="false"
         />
 
-        <span class="filter-field-label">{{ t('operationLog.reason') }}</span>
         <el-input v-model="filters.reason" clearable class="filter-el-input" :placeholder="t('operationLog.contains')" @keyup.enter="onQuery" />
 
         <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="onQuery">{{ t('operationLog.query') }}</button>

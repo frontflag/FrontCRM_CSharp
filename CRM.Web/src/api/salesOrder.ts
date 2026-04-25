@@ -6,6 +6,28 @@ function httpStatusFromApiError(e: unknown): number | undefined {
   return (e as ApiRejectedError).httpStatus
 }
 
+export interface SalesOrderItemExtendFieldChangeDto {
+  field: string
+  label: string
+  before: string
+  after: string
+}
+
+export interface SalesOrderItemExtendChangeDto {
+  sellOrderItemId: string
+  sellOrderItemCode?: string
+  fields: SalesOrderItemExtendFieldChangeDto[]
+}
+
+export interface SalesOrderItemExtendRefreshResult {
+  salesOrderId: string
+  totalItems: number
+  changedItems: number
+  changedFieldsCount: number
+  refreshedAt: string
+  changes: SalesOrderItemExtendChangeDto[]
+}
+
 // 销售订单API
 export const salesOrderApi = {
   // 获取销售订单列表
@@ -88,6 +110,11 @@ export const salesOrderApi = {
   // 获取关联采购订单
   async getRelatedPurchaseOrders(id: string) {
     return await apiClient.get(`/api/v1/sales-orders/${id}/purchase-orders`)
+  },
+
+  // 刷新销售订单明细扩展字段（读取下游数据重算）
+  async refreshItemExtends(id: string) {
+    return await apiClient.post<SalesOrderItemExtendRefreshResult>(`/api/v1/sales-orders/${id}/refresh-item-extends`, {})
   }
 }
 

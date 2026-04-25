@@ -19,7 +19,6 @@
     <!-- 搜索栏：与客户列表 CustomerList 同款布局与控件皮肤 -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">{{ t('rfqItemList.filters.createDate') }}</span>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
@@ -32,7 +31,6 @@
           :teleported="false"
         />
         <template v-if="canViewCustomerInRfq">
-          <span class="filter-field-label">{{ t('rfqItemList.columns.customer') }}</span>
           <div class="search-input-wrap">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
               <circle cx="11" cy="11" r="8" />
@@ -46,7 +44,6 @@
             />
           </div>
         </template>
-        <span class="filter-field-label">{{ t('rfqItemList.columns.materialModel') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -60,7 +57,6 @@
           />
         </div>
         <template v-if="showRfqSalesUserColumn">
-          <span class="filter-field-label">{{ t('rfqItemList.columns.salesUser') }}</span>
           <el-select
             v-model="searchForm.salesUserId"
             :placeholder="t('rfqItemList.filters.allSalesUsers')"
@@ -72,7 +68,6 @@
             <el-option v-for="u in salesUsers" :key="u.id" :label="salesUserLabel(u)" :value="u.id" />
           </el-select>
         </template>
-        <span class="filter-field-label">{{ t('rfqItemList.columns.purchaser') }}</span>
         <el-select
           v-model="searchForm.purchaserUserId"
           :placeholder="t('rfqItemList.filters.allPurchasers')"

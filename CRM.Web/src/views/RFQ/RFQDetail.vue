@@ -298,8 +298,14 @@
                       <el-col :xs="24" :sm="12" :md="6">
                         <div class="item-panel-field">
                           <div class="item-panel-field__label">目标价</div>
-                          <div class="item-panel-field__value cell-secondary">
-                            {{ formatRfqItemTargetPriceDisplay(row as Record<string, unknown>) }}
+                          <div class="item-panel-field__value cell-secondary amount-with-code">
+                            <span>{{ formatRfqItemTargetPriceNumber(row as Record<string, unknown>) }}</span>
+                            <span
+                              v-if="formatRfqItemTargetPriceNumber(row as Record<string, unknown>) !== '—'"
+                              :class="['dock-tier-ccy', formatRfqItemTargetCurrencyClass(row as Record<string, unknown>)]"
+                            >
+                              {{ formatRfqItemTargetCurrency(row as Record<string, unknown>) }}
+                            </span>
                           </div>
                         </div>
                       </el-col>
@@ -371,7 +377,17 @@
                   <template #default="{ row }"><span class="cell-primary">{{ row.brand || '—' }}</span></template>
                 </el-table-column>
                 <el-table-column label="目标价" width="110" align="right">
-                  <template #default="{ row }"><span class="cell-secondary">{{ formatRfqItemTargetPriceDisplay(row as Record<string, unknown>) }}</span></template>
+                  <template #default="{ row }">
+                    <span class="cell-secondary amount-with-code">
+                      <span>{{ formatRfqItemTargetPriceNumber(row as Record<string, unknown>) }}</span>
+                      <span
+                        v-if="formatRfqItemTargetPriceNumber(row as Record<string, unknown>) !== '—'"
+                        :class="['dock-tier-ccy', formatRfqItemTargetCurrencyClass(row as Record<string, unknown>)]"
+                      >
+                        {{ formatRfqItemTargetCurrency(row as Record<string, unknown>) }}
+                      </span>
+                    </span>
+                  </template>
                 </el-table-column>
                 <el-table-column label="数量" width="90" align="right">
                   <template #default="{ row }"><span class="cell-secondary">{{ row.quantity }}</span></template>
@@ -557,10 +573,19 @@ function formatRfqItemTargetCurrency(row: Record<string, unknown>): string {
   return 'RMB'
 }
 
-function formatRfqItemTargetPriceDisplay(row: Record<string, unknown>): string {
+function formatRfqItemTargetPriceNumber(row: Record<string, unknown>): string {
   const tp = row.targetPrice ?? row.TargetPrice
   if (tp == null || tp === '') return '—'
-  return `${formatRfqItemTargetCurrency(row)} ${tp}`
+  const n = Number(tp)
+  if (Number.isNaN(n)) return String(tp)
+  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })
+}
+
+function formatRfqItemTargetCurrencyClass(row: Record<string, unknown>): string {
+  const ccy = formatRfqItemTargetCurrency(row)
+  if (ccy === 'RMB') return 'dock-tier-ccy--rmb'
+  if (ccy === 'USD') return 'dock-tier-ccy--usd'
+  return 'dock-tier-ccy--fx'
 }
 
 const canAssignRfqPurchaser = computed(() => canManualAssignRfqPurchaser(authStore.user))
@@ -1237,6 +1262,12 @@ onMounted(() => {
 .cell-secondary { color: $text-secondary; font-size: 13px; }
 .cell-muted     { color: $text-muted; font-size: 12px; }
 .cell-code      { font-family: 'Space Mono', monospace; font-size: 12px; color: $color-ice-blue; }
+
+.amount-with-code {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
 
 .empty-state {
   display: flex;

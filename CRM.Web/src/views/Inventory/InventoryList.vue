@@ -43,8 +43,6 @@
     <!-- 搜索栏：与《业务列表规范》及 StockInList / CustomerList 一致 -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="list-title">{{ t('inventoryList.filters.title') }}</span>
-        <span class="filter-field-label">{{ t('inventoryList.filters.stockType') }}</span>
         <el-select
           v-model="stockTypeFilter"
           :placeholder="t('inventoryList.filters.allOrderTypes')"
@@ -58,7 +56,6 @@
           <el-option :label="t('inventoryList.stockTypes.stocking')" :value="2" />
           <el-option :label="t('inventoryList.stockTypes.sample')" :value="3" />
         </el-select>
-        <span class="filter-field-label">{{ t('inventoryList.filters.warehouse') }}</span>
         <el-select
           v-model="warehouseFilter"
           :placeholder="t('inventoryList.filters.allInventoryCodes')"

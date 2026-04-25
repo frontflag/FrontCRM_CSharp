@@ -109,7 +109,15 @@
           <span>{{ displayFirstItemBrand(row) }}</span>
         </template>
         <template #col-lineUnitPrice="{ row }">
-          <span>{{ displayFirstItemUnitPrice(row) }}</span>
+          <span class="amount-with-code">
+            <span>{{ displayFirstItemUnitPriceValue(row) }}</span>
+            <span
+              v-if="displayFirstItemUnitPriceValue(row) !== t('quoteList.na')"
+              :class="['dock-tier-ccy', displayFirstItemUnitPriceCurrencyClass(row)]"
+            >
+              {{ displayFirstItemUnitPriceCurrency(row) }}
+            </span>
+          </span>
         </template>
         <template #col-lineQuantity="{ row }">
           <span>{{ displayFirstItemQuantity(row) }}</span>
@@ -204,7 +212,7 @@ import { useI18n } from 'vue-i18n'
 import { Search, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { quoteApi } from '@/api/quote'
-import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
+import { listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
 import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -352,16 +360,27 @@ function displayFirstItemBrand(row: Record<string, unknown>) {
   return t('quoteList.na')
 }
 
-function displayFirstItemUnitPrice(row: Record<string, unknown>) {
+function displayFirstItemUnitPriceValue(row: Record<string, unknown>) {
   const it = firstQuoteItem(row)
   if (!it) return t('quoteList.na')
   const p = it.unitPrice ?? it.UnitPrice
   if (p == null || p === '') return t('quoteList.na')
   const n = Number(p)
   if (Number.isNaN(n)) return t('quoteList.na')
+  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })
+}
+
+function displayFirstItemUnitPriceCurrency(row: Record<string, unknown>) {
+  const it = firstQuoteItem(row)
+  if (!it) return 'RMB'
   const ccy = Number(it.currency ?? it.Currency ?? 1)
-  const ccyLabel = CURRENCY_CODE_TO_TEXT[ccy] ?? String(ccy)
-  return `${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })} ${ccyLabel}`
+  return listAmountCurrencyIso(ccy)
+}
+
+function displayFirstItemUnitPriceCurrencyClass(row: Record<string, unknown>) {
+  const it = firstQuoteItem(row)
+  const ccy = Number(it?.currency ?? it?.Currency ?? 1)
+  return listAmountCurrencyDockClass(ccy)
 }
 
 function displayFirstItemQuantity(row: Record<string, unknown>) {
@@ -625,6 +644,12 @@ onMounted(loadData)
 /* 与 .crm-items-table 正文色一致，避免偏青或与链接触觉混淆 */
 .quote-code-cell {
   color: $text-primary !important;
+}
+
+.amount-with-code {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
 }
 
 // 列表操作列规范（收起/展开）

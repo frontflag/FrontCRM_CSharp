@@ -159,7 +159,18 @@
             </div>
             <div class="info-item">
               <span class="info-label">信用额度</span>
-              <span class="info-value info-value--amount">{{ maskSaleSensitiveFields ? '—' : formatCurrency(customer.creditLimit) }}</span>
+              <span class="info-value">
+                <template v-if="maskSaleSensitiveFields">—</template>
+                <template v-else-if="customerDisplayCreditLimit !== null">
+                  <span class="amount-with-code">
+                    <span>{{ formatTotalAmountNumber(customerDisplayCreditLimit) }}</span>
+                    <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(customerDisplayCurrency)]">
+                      {{ listAmountCurrencyIso(customerDisplayCurrency) }}
+                    </span>
+                  </span>
+                </template>
+                <template v-else>—</template>
+              </span>
             </div>
             <div class="info-item">
               <span class="info-label">账期(天)</span>
@@ -168,10 +179,22 @@
             <div class="info-item">
               <span class="info-label">账户余额</span>
               <span
-                class="info-value info-value--amount"
-                :class="{ 'amount-negative': !maskSaleSensitiveFields && customer.balance && customer.balance < 0 }"
+                class="info-value"
+                :class="{
+                  'amount-negative':
+                    !maskSaleSensitiveFields && customerDisplayBalance !== null && customerDisplayBalance < 0
+                }"
               >
-                {{ maskSaleSensitiveFields ? '—' : formatCurrency(customer.balance) }}
+                <template v-if="maskSaleSensitiveFields">—</template>
+                <template v-else-if="customerDisplayBalance !== null">
+                  <span class="amount-with-code">
+                    <span>{{ formatTotalAmountNumber(customerDisplayBalance) }}</span>
+                    <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(customerDisplayCurrency)]">
+                      {{ listAmountCurrencyIso(customerDisplayCurrency) }}
+                    </span>
+                  </span>
+                </template>
+                <template v-else>—</template>
               </span>
             </div>
             <div class="info-item">
@@ -589,6 +612,7 @@ import { CUSTOMER_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/customerRecen
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency';
 import { isDistrictPlaceholder } from '@/constants/region';
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask';
+import { formatTotalAmountNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat';
 
 const route = useRoute();
 const router = useRouter();
@@ -937,10 +961,47 @@ const deleteBank = async (bank: CustomerBankInfo) => {
 };
 const handleBankSuccess = () => { editingBank.value = undefined; fetchCustomerDetail(); };
 
-const formatCurrency = (value: number | undefined) => {
-  if (value === undefined || value === null) return '¥0.00';
-  return `¥${value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-};
+/** 详情接口字段与列表归一化一致：可能为 creditLine / creditLineRemain / tradeCurrency */
+type CustomerMoneyApi = Customer & {
+  creditLine?: unknown
+  CreditLine?: unknown
+  creditLineRemain?: unknown
+  CreditLineRemain?: unknown
+  tradeCurrency?: unknown
+  TradeCurrency?: unknown
+}
+
+function resolveCustomerCreditLimit(c: Customer | null | undefined): number | null {
+  if (!c) return null
+  const r = c as CustomerMoneyApi
+  const v = c.creditLimit ?? r.creditLine ?? r.CreditLine
+  if (v === undefined || v === null || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+function resolveCustomerBalance(c: Customer | null | undefined): number | null {
+  if (!c) return null
+  const r = c as CustomerMoneyApi
+  const v = c.balance ?? r.creditLineRemain ?? r.CreditLineRemain
+  if (v === undefined || v === null || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+function resolveCustomerSettlementCurrency(c: Customer | null | undefined): number {
+  if (!c) return 1
+  const r = c as CustomerMoneyApi
+  const v = c.currency ?? r.tradeCurrency ?? r.TradeCurrency
+  if (v === undefined || v === null || v === '') return 1
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 1
+}
+
+const customerDisplayCreditLimit = computed(() => resolveCustomerCreditLimit(customer.value))
+const customerDisplayBalance = computed(() => resolveCustomerBalance(customer.value))
+const customerDisplayCurrency = computed(() => resolveCustomerSettlementCurrency(customer.value))
+
 const formatDateTime = (date: string | undefined) => (date ? formatDisplayDateTime(date) : '--');
 const formatFullAddress = (address: CustomerAddress) =>
   [
@@ -1286,6 +1347,12 @@ onMounted(() => {
   overflow: hidden;
 }
 
+.amount-with-code {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
 .section-header {
   display: flex;
   align-items: center;
@@ -1338,7 +1405,6 @@ onMounted(() => {
     color: $text-secondary;
 
     &--code   { font-family: 'Space Mono', monospace; font-size: 12px; color: $color-ice-blue; }
-    &--amount { font-family: 'Space Mono', monospace; font-size: 13px; color: $text-primary; font-weight: 500; }
     &--time   { font-size: 12px; color: $text-muted; }
   }
 }

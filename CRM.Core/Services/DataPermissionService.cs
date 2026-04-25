@@ -60,6 +60,8 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<VendorInfo>> FilterVendorsAsync(string userId, IEnumerable<VendorInfo> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || summary.PurchaseDataScope == 0)
+                return source.ToList();
             if (summary.PurchaseDataScope == 4)
                 return Array.Empty<VendorInfo>();
 

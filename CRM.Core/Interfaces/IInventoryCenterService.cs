@@ -94,6 +94,8 @@ namespace CRM.Core.Interfaces
         public DateTime? ProductionDate { get; set; }
         public string? PurchasePn { get; set; }
         public string? PurchaseBrand { get; set; }
+        /// <summary>采购明细编号（<c>stock_item.purchase_order_item_code</c>）。</summary>
+        public string? PurchaseOrderItemCode { get; set; }
         public string? SellOrderItemCode { get; set; }
         public int QtyInbound { get; set; }
         public int QtyStockOut { get; set; }
@@ -113,6 +115,10 @@ namespace CRM.Core.Interfaces
         public decimal? SalesPriceUsd { get; set; }
         public string? VendorName { get; set; }
         public string? CustomerName { get; set; }
+
+        /// <summary>地域类型（<c>stock_item.RegionType</c>）：10=境内 20=境外（与仓库、到货通知枚举一致）。</summary>
+        public short RegionType { get; set; } = RegionTypeCode.Domestic;
+
         public DateTime CreateTime { get; set; }
     }
 
@@ -140,6 +146,7 @@ namespace CRM.Core.Interfaces
         public string? StockInCode { get; set; }
         public DateTime? StockInDateFrom { get; set; }
         public DateTime? StockInDateTo { get; set; }
+        public string? WarehouseId { get; set; }
         public string? PurchasePn { get; set; }
         public string? PurchaseBrand { get; set; }
         /// <summary>0 或不传=全部；1=未出库；2=部分出库；3=出库完成</summary>

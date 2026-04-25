@@ -50,7 +50,6 @@
     <!-- 搜索栏：关键词 → 状态 → 等级 → 身份 → 类型 → 行业 → 采购员 → 创建日期区间 -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">{{ t('vendorList.filters.keyword') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -579,8 +578,9 @@ const fetchVendorList = async () => {
     vendorList.value = mapped;
     totalCount.value = favoriteOnly.value ? mapped.length : (response.totalCount ?? 0);
   } catch (error: any) {
-    // 仅在非空结果（真实网络/服务器错误）时提示，空数据不报错
-    const isEmptyResult = !error?.response || error?.response?.status === 404;
+    // 仅在 404 时按“空结果”兜底；其余错误（如 401/403/500）应明确提示
+    const httpStatus = error?.httpStatus ?? error?.response?.status;
+    const isEmptyResult = httpStatus === 404;
     if (!isEmptyResult) {
       console.error(t('vendorList.errors.fetchFailed'), error);
       ElMessage.error(t('vendorList.errors.fetchFailed'));
@@ -1277,3 +1277,5 @@ onMounted(async () => {
   :deep(.btn-prev), :deep(.btn-next) { background: $layer-2 !important; border: 1px solid $border-panel !important; color: $text-secondary !important; border-radius: 6px !important; }
 }
 </style>
+
+

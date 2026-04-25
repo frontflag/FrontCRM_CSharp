@@ -483,7 +483,8 @@
             <router-link to="/inventory/list" class="submenu-item" active-class="active">{{ t('layout.menu.inventoryCenter') }}</router-link>
             <router-link to="/inventory/stock-items" class="submenu-item" active-class="active">{{ t('layout.menu.inventoryStockItems') }}</router-link>
             <router-link to="/inventory/check" class="submenu-item" active-class="active">{{ t('layout.menu.inventoryCheck') }}</router-link>
-            <router-link to="/inventory/stock-transfers" class="submenu-item" active-class="active">{{ t('layout.menu.stockTransfers') }}</router-link>
+            <router-link to="/inventory/transfers-customers" class="submenu-item" active-class="active">{{ t('layout.menu.stockTransfers') }}</router-link>
+            <router-link to="/inventory/transfers-manual" class="submenu-item" active-class="active">{{ t('layout.menu.manualStockTransfer') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -799,6 +800,7 @@
             </svg>
           </template>
           <template #submenu>
+            <router-link to="/system/login-logs" class="submenu-item" active-class="active" exact>{{ t('layout.menu.loginLog') }}</router-link>
             <router-link to="/system/operation-logs" class="submenu-item" active-class="active" exact>{{ t('layout.menu.operationLog') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
@@ -1417,6 +1419,7 @@ const pageTitleMap: Record<string, string> = {
   '/system/company-info': 'layout.menu.companyInfo',
   '/system/dict-items': 'layout.menu.dictItems',
   '/system/finance-params/exchange-rates': 'layout.menu.financeParams',
+  '/system/login-logs': 'layout.menu.loginLog',
   '/system/operation-logs': 'layout.menu.operationLog',
   '/inventory/list': 'layout.menu.inventoryCenter',
   '/inventory/stock-items': 'layout.menu.inventoryStockItems',
@@ -1429,8 +1432,8 @@ const pageTitleMap: Record<string, string> = {
   '/customs/brokers': 'customsPages.brokers.title',
   '/customs/declarations': 'customsPages.declarations.title',
   '/customs/declaration-items': 'customsPages.items.title',
-  '/inventory/stock-transfers': 'customsPages.transfers.title',
-  '/inventory/transfer': 'layout.menu.inventoryManagement',
+  '/inventory/transfers-customers': 'customsPages.transfers.title',
+  '/inventory/transfers-manual': 'inventoryTransfer.title',
   '/inventory/check': 'layout.menu.inventoryCheck',
   '/reports': 'layout.menu.reportAnalytics',
   '/dashboard/settings': 'layout.menu.systemSettings',
@@ -1524,6 +1527,8 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '报关单': 'customsPages.declarations.title',
   '报关明细': 'customsPages.items.title',
   '移库': 'customsPages.transfers.title',
+  '报关移库': 'customsPages.transfers.title',
+  '手工移库': 'inventoryTransfer.title',
   '到货通知': 'layout.menu.arrivalNotices',
   '质检': 'layout.menu.qualityCheck',
   '新建质检': 'common.createSuccess',
@@ -1550,6 +1555,7 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '公司信息': 'layout.menu.companyInfo',
   '数据字典': 'layout.menu.dictItems',
   '财务参数': 'layout.menu.financeParams',
+  '登录日志': 'layout.menu.loginLog',
   '操作日志': 'layout.menu.operationLog',
   '汇率设置': 'financeParams.exchangeRatesNav',
   '付款管理': 'layout.menu.paymentManagement',
@@ -1708,7 +1714,7 @@ watch(
     if (p.startsWith('/customs/')) {
       openGroups.value.customs = true
     }
-    if (p.startsWith('/inventory/stock-transfers')) {
+    if (p.startsWith('/inventory/transfers-customers') || p.startsWith('/inventory/transfers-manual')) {
       openGroups.value.inventory = true
     }
     if (
@@ -1726,7 +1732,7 @@ watch(
     if (p === '/system/company-info' || p === '/system/dict-items' || p.startsWith('/system/finance-params')) {
       openGroups.value.paramManagement = true
     }
-    if (p === '/system/operation-logs') {
+    if (p === '/system/login-logs' || p === '/system/operation-logs') {
       openGroups.value.systemLogs = true
     }
   },

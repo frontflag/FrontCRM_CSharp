@@ -857,6 +857,7 @@ namespace CRM.Core.Services
                     ProductionDate = x.ProductionDate,
                     PurchasePn = string.IsNullOrWhiteSpace(x.PurchasePn) ? null : x.PurchasePn.Trim(),
                     PurchaseBrand = string.IsNullOrWhiteSpace(x.PurchaseBrand) ? null : x.PurchaseBrand.Trim(),
+                    PurchaseOrderItemCode = string.IsNullOrWhiteSpace(x.PurchaseOrderItemCode) ? null : x.PurchaseOrderItemCode.Trim(),
                     SellOrderItemCode = string.IsNullOrWhiteSpace(x.SellOrderItemCode) ? null : x.SellOrderItemCode.Trim(),
                     QtyInbound = x.QtyInbound,
                     QtyStockOut = x.QtyStockOut,
@@ -872,6 +873,7 @@ namespace CRM.Core.Services
                     SalesPriceUsd = x.SalesPriceUsd,
                     VendorName = string.IsNullOrWhiteSpace(x.VendorName) ? null : x.VendorName.Trim(),
                     CustomerName = string.IsNullOrWhiteSpace(x.CustomerName) ? null : x.CustomerName.Trim(),
+                    RegionType = RegionTypeCode.Normalize(x.RegionType),
                     CreateTime = x.CreateTime
                 })
                 .ToList();
@@ -950,6 +952,7 @@ namespace CRM.Core.Services
             }
 
             var codeNeedle = query.StockInCode?.Trim();
+            var warehouseIdNeedle = query.WarehouseId?.Trim();
             var pnNeedle = query.PurchasePn?.Trim();
             var brandNeedle = query.PurchaseBrand?.Trim();
             var customerNeedle = query.CustomerName?.Trim();
@@ -1003,6 +1006,9 @@ namespace CRM.Core.Services
                 }
 
                 var wid = x.WarehouseId?.Trim() ?? string.Empty;
+                if (!string.IsNullOrEmpty(warehouseIdNeedle)
+                    && !string.Equals(wid, warehouseIdNeedle, StringComparison.OrdinalIgnoreCase))
+                    continue;
                 warehouseCodeById.TryGetValue(wid, out var whCode);
                 warehouseNameById.TryGetValue(wid, out var whName);
 
@@ -1021,6 +1027,7 @@ namespace CRM.Core.Services
                     ProductionDate = x.ProductionDate,
                     PurchasePn = string.IsNullOrWhiteSpace(x.PurchasePn) ? null : x.PurchasePn.Trim(),
                     PurchaseBrand = string.IsNullOrWhiteSpace(x.PurchaseBrand) ? null : x.PurchaseBrand.Trim(),
+                    PurchaseOrderItemCode = string.IsNullOrWhiteSpace(x.PurchaseOrderItemCode) ? null : x.PurchaseOrderItemCode.Trim(),
                     SellOrderItemCode = string.IsNullOrWhiteSpace(x.SellOrderItemCode) ? null : x.SellOrderItemCode.Trim(),
                     QtyInbound = x.QtyInbound,
                     QtyStockOut = x.QtyStockOut,
@@ -1036,6 +1043,7 @@ namespace CRM.Core.Services
                     SalesPriceUsd = x.SalesPriceUsd,
                     VendorName = string.IsNullOrWhiteSpace(x.VendorName) ? null : x.VendorName.Trim(),
                     CustomerName = string.IsNullOrWhiteSpace(x.CustomerName) ? null : x.CustomerName.Trim(),
+                    RegionType = RegionTypeCode.Normalize(x.RegionType),
                     PurchaserName = string.IsNullOrWhiteSpace(x.PurchaserName) ? null : x.PurchaserName.Trim(),
                     SalespersonName = string.IsNullOrWhiteSpace(x.SalespersonName) ? null : x.SalespersonName.Trim(),
                     CreateTime = x.CreateTime,

@@ -1,4 +1,4 @@
-# Deploy FrontCRM — 前端 + 后端 一并构建并上传到服务器
+﻿# Deploy FrontCRM — 前端 + 后端 一并构建并上传到服务器
 # 本文件须保存为「UTF-8 带 BOM」；否则 Windows PowerShell 5.1 会按 ANSI 误读中文与引号，出现 UnexpectedToken `}`。
 #
 # 流程：
@@ -40,6 +40,23 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# Guard: this script must be saved as UTF-8 with BOM for Windows PowerShell 5.1.
+try {
+    $selfPath = $MyInvocation.MyCommand.Path
+    if (-not [string]::IsNullOrWhiteSpace($selfPath) -and (Test-Path -LiteralPath $selfPath)) {
+        $bytes = [System.IO.File]::ReadAllBytes($selfPath)
+        $hasUtf8Bom = ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
+        if (-not $hasUtf8Bom) {
+            Write-Host "ERROR: deploy_full_to_server.ps1 must be UTF-8 with BOM." -ForegroundColor Red
+            Write-Host "Fix: re-save this file as UTF-8 with BOM, then re-run." -ForegroundColor Yellow
+            exit 1
+        }
+    }
+}
+catch {
+    Write-Host ("WARN: encoding self-check skipped: {0}" -f $_.Exception.Message) -ForegroundColor DarkYellow
+}
 
 $RepoRoot = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
@@ -196,6 +213,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Uploading $DeployPackageName/* -> $RemoteDeployPath/ ..." -ForegroundColor Yellow
+Write-Host "NOTE: 仓库 data/ 不在部署包内；scp 不会删除远程仅有、本地没有的目录。生产 data/ip2region 请在服务器单独维护。" -ForegroundColor DarkGray
 & scp @ScpOpts -r -P $SshPort "$localDot" "$($SshTarget):$($RemoteDeployPath)/"
 
 if ($LASTEXITCODE -ne 0) {
@@ -269,16 +287,16 @@ else {
     & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" $rNginxReload
     if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: nginx reload / nginx -t failed." -ForegroundColor Red; exit 1 }
 
-    # 4) restart api：须先释放端口；多行脚本经 PowerShell→ssh 易拆坏（remote bash: syntax error near 'fi'），改为单行
+    # 4) restart api: free port first; keep remote bash in one line
     Write-Host ('>>> Non-Docker: restart crm-api (free port {0} first)...' -f $BackendPort) -ForegroundColor Gray
     $nd = $NonDockerBackendRoot
     $bp = $BackendPort
-    # systemd stop 后若仍有 nohup/孤儿 dotnet 占 5000，新实例会 AddressInUse 起不来；须 sudo pkill 清干净再 start
+    # Stop service and kill orphan dotnet process to avoid AddressInUse on 5000.
     $restartApiOneLine = 'if ' + $SudoCmd + ' systemctl list-unit-files 2>/dev/null | grep -qF ''crm-api.service''; then ' + $SudoCmd + ' systemctl daemon-reload; ' + $SudoCmd + ' systemctl stop crm-api 2>/dev/null || true; ' + $SudoCmd + ' pkill -f CRM.API.dll 2>/dev/null || true; sleep 3; ' + $SudoCmd + ' systemctl start crm-api || exit 1; sleep 2; else cd ' + $nd + ' || exit 1; pkill -f CRM.API.dll 2>/dev/null || true; sleep 3; export ASPNETCORE_ENVIRONMENT=Production; export ASPNETCORE_URLS=http://0.0.0.0:' + $bp + '; nohup dotnet CRM.API.dll > api.log 2>&1 & sleep 2; fi'
     & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$restartApiOneLine"
     $restartExit = $LASTEXITCODE
 
-    # start 后 Kestrel 就绪晚于 systemctl；仅以 curl /api/v1/health 为准（避免 is-active=activating 时永远失败）
+    # Kestrel may be ready after systemctl returns; verify by health endpoint.
     Write-Host ('>>> Non-Docker: wait for crm-api (GET /api/v1/health on port {0}, up to ~{1}s)...' -f $BackendPort, $ApiHealthWaitSeconds) -ForegroundColor Gray
     $verifyTail = 'test "$ok" = 1 || exit 1'
     $seqMax = [string]$ApiHealthWaitSeconds
@@ -291,7 +309,7 @@ else {
 
     if ($restartExit -ne 0 -or $verifyExit -ne 0) {
         Write-Host ('ERROR: restart API failed (restart exit={0}, health-wait exit={1}).' -f $restartExit, $verifyExit) -ForegroundColor Red
-        Write-Host '>>> Remote diagnostics (run on server if empty: ssh then see DEPLOY_OPERATION_MANUAL.md §4):' -ForegroundColor Yellow
+        Write-Host '>>> Remote diagnostics (run on server if empty: ssh then see DEPLOY_OPERATION_MANUAL.md section 4):' -ForegroundColor Yellow
         $diagGrep5000 = [char]39 + ':5000\b' + [char]39
         $diagApi = 'if ' + $SudoCmd + ' systemctl list-unit-files 2>/dev/null | grep -qF ''crm-api.service''; then ' + $SudoCmd + ' systemctl status crm-api --no-pager -l 2>&1 || true; echo ''--- journal (crm-api) ---''; ' + $SudoCmd + ' journalctl -u crm-api -n 50 --no-pager 2>&1 || true; else echo ''--- no crm-api.service; nohup log ---''; tail -n 80 ' + $nd + '/api.log 2>&1 || true; echo ''--- listen 5000 ---''; ss -ltnp 2>/dev/null | grep -E ' + $diagGrep5000 + ' || true; fi'
         & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$diagApi"

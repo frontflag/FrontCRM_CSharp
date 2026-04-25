@@ -10,7 +10,6 @@
     <!-- 搜索栏：对齐客户列表 CustomerList -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">{{ t('purchaseRequisitionList.filters.billCode') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -23,7 +22,6 @@
             @keyup.enter="handleSearch"
           />
         </div>
-        <span class="filter-field-label">{{ t('purchaseRequisitionList.filters.sellOrder') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />

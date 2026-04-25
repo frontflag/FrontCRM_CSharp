@@ -206,7 +206,7 @@ public class CustomsDeclarationItem : BaseGuidEntity
     public virtual CustomsDeclaration? Declaration { get; set; }
 }
 
-[Table("stocktransfer")]
+[Table("stocktransfer_customers")]
 public class StockTransfer : BaseGuidEntity
 {
     [Key]
@@ -254,7 +254,7 @@ public class StockTransfer : BaseGuidEntity
     public virtual ICollection<StockTransferItem> Items { get; set; } = new List<StockTransferItem>();
 }
 
-[Table("stocktransferitem")]
+[Table("stocktransfer_item_customers")]
 public class StockTransferItem : BaseGuidEntity
 {
     [Key]

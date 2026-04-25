@@ -59,6 +59,7 @@ export interface StockItemRow {
   productionDate?: string | null
   purchasePn?: string | null
   purchaseBrand?: string | null
+  purchaseOrderItemCode?: string | null
   sellOrderItemCode?: string | null
   qtyInbound: number
   qtyStockOut: number
@@ -75,6 +76,8 @@ export interface StockItemRow {
   salesPriceUsd?: number | null
   vendorName?: string | null
   customerName?: string | null
+  /** 地域 10=境内 20=境外（stock_item.RegionType） */
+  regionType?: number
   createTime?: string
 }
 
@@ -83,6 +86,7 @@ export interface StockItemListQuery {
   stockInCode?: string
   stockInDateFrom?: string
   stockInDateTo?: string
+  warehouseId?: string
   purchasePn?: string
   purchaseBrand?: string
   /** 1=未出库 2=部分 3=完成 */
@@ -269,6 +273,7 @@ export const inventoryCenterApi = {
     add('stockInCode', q.stockInCode)
     add('stockInDateFrom', q.stockInDateFrom)
     add('stockInDateTo', q.stockInDateTo)
+    add('warehouseId', q.warehouseId)
     add('purchasePn', q.purchasePn)
     add('purchaseBrand', q.purchaseBrand)
     if (q.outboundStatus != null && q.outboundStatus >= 1 && q.outboundStatus <= 3) {

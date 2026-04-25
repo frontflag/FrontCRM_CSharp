@@ -72,6 +72,9 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "Uploading (recursive: local $deployPackage/* -> ${remoteDeployPath}/)..." -ForegroundColor Yellow
 Write-Host ""
+Write-Host "NOTE: 仓库根目录 data/ 不在 frontcrm_deploy 中；scp 不会删除远程已有而本地不存在的目录。" -ForegroundColor DarkGray
+Write-Host "      生产服务器请在 ${remoteDeployPath}/../data 或镜像约定路径单独维护 ip2region xdb，勿依赖本上传覆盖。" -ForegroundColor DarkGray
+Write-Host ""
 
 # Copy contents of frontcrm_deploy into /home/ubuntu/frontcrm/ (not a nested frontcrm_deploy folder)
 scp -r -P 22 "$localDot" "${serverUser}@${serverIP}:${remoteDeployPath}/"

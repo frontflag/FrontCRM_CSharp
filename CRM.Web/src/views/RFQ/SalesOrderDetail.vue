@@ -48,12 +48,20 @@
               </div>
             </div>
             <div v-if="captionMetaVisible" class="title-meta title-meta--caption">
-              <span class="caption-code">{{ order.sellOrderCode }}</span>
+              <span class="caption-code">销售订单：{{ order.sellOrderCode }}</span>
             </div>
           </div>
         </div>
       </div>
       <div v-if="order" class="header-right">
+        <button class="btn-primary" type="button" :disabled="refreshingExtends" @click="handleRefreshItemExtends">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+          {{ refreshingExtends ? '刷新中...' : '刷新' }}
+        </button>
         <button v-if="canWriteSo" class="btn-primary" type="button" @click="handleEdit">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -99,8 +107,8 @@
         </div>
         <div class="info-grid">
           <div class="info-item">
-            <span class="info-label">订单号</span>
-            <span class="info-value info-value--code">{{ order.sellOrderCode }}</span>
+            <span class="info-label">销售订单号</span>
+            <span class="info-value">{{ order.sellOrderCode }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">状态</span>
@@ -116,7 +124,12 @@
           </div>
           <div class="info-item" v-if="showSalesMoneyFields">
             <span class="info-label">总金额</span>
-            <span class="info-value info-value--amount">{{ formatCurrencyTotal(order.total, order.currency) }}</span>
+            <span class="info-value info-value--amount amount-with-code">
+              <span>{{ formatTotalAmountNumber(order.total) }}</span>
+              <span v-if="formatTotalAmountNumber(order.total) !== '—'" :class="['dock-tier-ccy', listAmountCurrencyDockClass(order.currency)]">
+                {{ listAmountCurrencyIso(order.currency) }}
+              </span>
+            </span>
           </div>
           <div class="info-item">
             <span class="info-label">行项目数</span>
@@ -185,32 +198,58 @@
               <el-table-column prop="qty" label="数量" align="right" width="100" />
               <el-table-column v-if="showSalesMoneyFields" prop="price" label="单价" align="right" width="120">
                 <template #default="{ row }">
-                  {{ formatCurrencyUnitPrice(row.price, row.currency) }}
+                  <span class="amount-with-code">
+                    <span>{{ formatUnitPriceNumber(row.price) }}</span>
+                    <span v-if="formatUnitPriceNumber(row.price) !== '—'" :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">
+                      {{ listAmountCurrencyIso(row.currency) }}
+                    </span>
+                  </span>
                 </template>
               </el-table-column>
               <el-table-column v-if="showSalesMoneyFields" label="金额" align="right" width="130">
                 <template #default="{ row }">
-                  {{ formatCurrencyTotal(row.qty * row.price, row.currency) }}
+                  <span class="amount-with-code">
+                    <span>{{ formatTotalAmountNumber(row.qty * row.price) }}</span>
+                    <span v-if="formatTotalAmountNumber(row.qty * row.price) !== '—'" :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">
+                      {{ listAmountCurrencyIso(row.currency) }}
+                    </span>
+                  </span>
                 </template>
               </el-table-column>
               <el-table-column v-if="showSalesMoneyFields" label="折算美金单价" align="right" width="140">
                 <template #default="{ row }">
-                  {{ row.usdUnitPrice != null ? `$${Number(row.usdUnitPrice).toFixed(6)}` : '—' }}
+                  <span v-if="row.usdUnitPrice != null" class="amount-with-code">
+                    <span>{{ Number(row.usdUnitPrice).toFixed(6) }}</span>
+                    <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+                  </span>
+                  <span v-else>—</span>
                 </template>
               </el-table-column>
               <el-table-column v-if="showSalesMoneyFields" label="折算美金总额" align="right" width="140">
                 <template #default="{ row }">
-                  {{ row.usdLineTotal != null ? `$${Number(row.usdLineTotal).toFixed(2)}` : '—' }}
+                  <span v-if="row.usdLineTotal != null" class="amount-with-code">
+                    <span>{{ Number(row.usdLineTotal).toFixed(2) }}</span>
+                    <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+                  </span>
+                  <span v-else>—</span>
                 </template>
               </el-table-column>
               <el-table-column v-if="showSalesMoneyFields" :label="t('salesOrderItemList.columns.salesProfitExpected')" align="right" width="140">
                 <template #default="{ row }">
-                  {{ row.salesProfitExpected != null ? `$${Number(row.salesProfitExpected).toFixed(2)}` : '—' }}
+                  <span v-if="row.salesProfitExpected != null" class="amount-with-code">
+                    <span>{{ Number(row.salesProfitExpected).toFixed(2) }}</span>
+                    <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+                  </span>
+                  <span v-else>—</span>
                 </template>
               </el-table-column>
               <el-table-column v-if="showSalesMoneyFields" :label="t('salesOrderItemList.columns.profitOutBizUsd')" align="right" width="120">
                 <template #default="{ row }">
-                  {{ row.profitOutBizUsd != null ? `$${Number(row.profitOutBizUsd).toFixed(2)}` : '—' }}
+                  <span v-if="row.profitOutBizUsd != null" class="amount-with-code">
+                    <span>{{ Number(row.profitOutBizUsd).toFixed(2) }}</span>
+                    <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+                  </span>
+                  <span v-else>—</span>
                 </template>
               </el-table-column>
               <el-table-column v-if="showSalesMoneyFields" :label="t('salesOrderItemList.columns.profitOutRateBiz')" align="right" width="120">
@@ -229,6 +268,13 @@
                 <template #default="{ row }">
                   <el-tag :type="getExtendTriStatusTagType(row.stockInProgressStatus)" size="small" effect="dark">
                     {{ getStockInProgressText(row.stockInProgressStatus) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="出库通知状态" width="120" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="getExtendTriStatusTagType(row.stockOutNotifyProgressStatus)" size="small" effect="dark">
+                    {{ getStockOutNotifyProgressText(row.stockOutNotifyProgressStatus) }}
                   </el-tag>
                 </template>
               </el-table-column>
@@ -579,7 +625,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import salesOrderApi from '@/api/salesOrder'
+import salesOrderApi, { type SalesOrderItemExtendRefreshResult } from '@/api/salesOrder'
 import { getApiErrorMessage } from '@/utils/apiError'
 import purchaseRequisitionApi from '@/api/purchaseRequisition'
 import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
@@ -605,7 +651,7 @@ import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
-import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
+import { formatTotalAmountNumber, formatUnitPriceNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
@@ -776,6 +822,7 @@ async function handleOpenApplyPurchase(row: any) {
 }
 
 const loading = ref(false)
+const refreshingExtends = ref(false)
 const order = ref<any>(null)
 /** 加载失败时展示具体原因（权限/网络/库表等），避免一律显示「订单不存在」 */
 const loadError = ref('')
@@ -1132,6 +1179,10 @@ const getStockOutProgressText = (v?: number) => {
   const map: Record<number, string> = { 0: '待出库', 1: '部分出库', 2: '出库完成' }
   return v !== undefined && v !== null ? (map[v] ?? '--') : '--'
 }
+const getStockOutNotifyProgressText = (v?: number) => {
+  const map: Record<number, string> = { 0: '未通知', 1: '部分通知', 2: '通知完成' }
+  return v !== undefined && v !== null ? (map[v] ?? '--') : '--'
+}
 const getReceiptProgressText = (v?: number) => {
   const map: Record<number, string> = { 0: '待收款', 1: '部分收款', 2: '收款完成' }
   return v !== undefined && v !== null ? (map[v] ?? '--') : '--'
@@ -1139,6 +1190,91 @@ const getReceiptProgressText = (v?: number) => {
 const getSellInvoiceProgressText = (v?: number) => {
   const map: Record<number, string> = { 0: '待开票', 1: '部分开票', 2: '开票完成' }
   return v !== undefined && v !== null ? (map[v] ?? '--') : '--'
+}
+
+function salesRefreshStatusText(field: string, value: string) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return value
+  if (field === 'purchaseProgressStatus') {
+    const map: Record<number, string> = { 0: '待采购', 1: '部分采购', 2: '采购完成' }
+    return map[n] ?? value
+  }
+  if (field === 'stockInProgressStatus') {
+    const map: Record<number, string> = { 0: '待入库', 1: '部分入库', 2: '入库完成' }
+    return map[n] ?? value
+  }
+  if (field === 'stockOutProgressStatus') {
+    const map: Record<number, string> = { 0: '待出库', 1: '部分出库', 2: '出库完成' }
+    return map[n] ?? value
+  }
+  if (field === 'receiptProgressStatus') {
+    const map: Record<number, string> = { 0: '待收款', 1: '部分收款', 2: '收款完成' }
+    return map[n] ?? value
+  }
+  if (field === 'invoiceProgressStatus') {
+    const map: Record<number, string> = { 0: '待开票', 1: '部分开票', 2: '开票完成' }
+    return map[n] ?? value
+  }
+  return value
+}
+
+function buildSalesRefreshResultHtml(result: SalesOrderItemExtendRefreshResult) {
+  const lines: string[] = [
+    `共 ${result.changedItems} 条明细发生更新，${result.changedFieldsCount} 个字段已变更。`,
+    ''
+  ]
+  for (const change of result.changes) {
+    const lineCode = change.sellOrderItemCode || change.sellOrderItemId
+    lines.push(`【${lineCode}】`)
+    for (const field of change.fields) {
+      const beforeText = salesRefreshStatusText(field.field, field.before)
+      const afterText = salesRefreshStatusText(field.field, field.after)
+      lines.push(`- ${field.label}: ${beforeText} -> ${afterText}`)
+    }
+    lines.push('')
+  }
+  const escaped = lines
+    .join('\n')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br/>')
+  return `<div style="max-height:420px;overflow:auto;line-height:1.7;">${escaped}</div>`
+}
+
+async function handleRefreshItemExtends() {
+  if (!order.value?.id || refreshingExtends.value) return
+  try {
+    await ElMessageBox.confirm(
+      `确认刷新销售订单 ${order.value.sellOrderCode} 的明细执行状态与扩展字段吗？`,
+      '刷新确认',
+      { type: 'warning', confirmButtonText: '刷新', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+
+  refreshingExtends.value = true
+  try {
+    const result = await salesOrderApi.refreshItemExtends(order.value.id)
+    await fetchOrder()
+    if (!result || result.changedItems <= 0) {
+      await ElMessageBox.alert('无更新数据', '刷新结果', { confirmButtonText: '知道了' })
+      return
+    }
+    await ElMessageBox.alert(buildSalesRefreshResultHtml(result), '刷新结果', {
+      dangerouslyUseHTMLString: true,
+      confirmButtonText: '知道了'
+    })
+  } catch (e) {
+    await ElMessageBox.alert(
+      getApiErrorMessage(e, '刷新失败，请稍后重试'),
+      '刷新失败',
+      { confirmButtonText: '知道了' }
+    )
+  } finally {
+    refreshingExtends.value = false
+  }
 }
 
 const formatDateTime = (v?: string) => (v ? formatDisplayDateTime(v) : '--')
@@ -1562,9 +1698,14 @@ const submitApplyStockOut = async () => {
 }
 
 .info-value--amount {
-  font-family: 'Space Mono', monospace;
   color: $text-primary;
-  font-weight: 500;
+  font-weight: 400;
+}
+
+.amount-with-code {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
 }
 
 .info-value--time {

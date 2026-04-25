@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.API.Services.Interfaces;
+using CRM.API.Utilities;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Rbac;
+using CRM.Core.Models.System;
 using CRM.Core.Utilities;
 
 namespace CRM.API.Controllers
@@ -21,6 +23,8 @@ namespace CRM.API.Controllers
         private readonly IRepository<RbacUserDepartment> _userDepartmentRepo;
         private readonly IRepository<RbacUserRole> _userRoleRepo;
         private readonly IRepository<RbacRole> _roleRepo;
+        private readonly ILoginLogService _loginLogService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public AuthController(
             IAuthService authService,
@@ -30,7 +34,9 @@ namespace CRM.API.Controllers
             IRepository<RbacDepartment> departmentRepo,
             IRepository<RbacUserDepartment> userDepartmentRepo,
             IRepository<RbacUserRole> userRoleRepo,
-            IRepository<RbacRole> roleRepo)
+            IRepository<RbacRole> roleRepo,
+            ILoginLogService loginLogService,
+            IHttpContextAccessor httpContextAccessor)
         {
             _authService = authService;
             _rbacService = rbacService;
@@ -40,6 +46,8 @@ namespace CRM.API.Controllers
             _userDepartmentRepo = userDepartmentRepo;
             _userRoleRepo = userRoleRepo;
             _roleRepo = roleRepo;
+            _loginLogService = loginLogService;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         [HttpPost("register")]
@@ -71,6 +79,17 @@ namespace CRM.API.Controllers
                 {
                     return BadRequest(result);
                 }
+
+                if (result.Data != null)
+                {
+                    var http = _httpContextAccessor.HttpContext;
+                    if (http != null)
+                    {
+                        var ip = ClientIpResolver.Resolve(http);
+                        await _loginLogService.RecordAsync(result.Data.UserId, result.Data.UserName, LoginMethod.Password, null, ip);
+                    }
+                }
+
                 return Ok(result);
             }
             catch (Exception ex)
@@ -96,6 +115,17 @@ namespace CRM.API.Controllers
                         return StatusCode(result.ErrorCode, result);
                     return BadRequest(result);
                 }
+
+                if (result.Data != null)
+                {
+                    var http = _httpContextAccessor.HttpContext;
+                    if (http != null)
+                    {
+                        var ip = ClientIpResolver.Resolve(http);
+                        await _loginLogService.RecordAsync(result.Data.UserId, result.Data.UserName, LoginMethod.Impersonate, actorId, ip);
+                    }
+                }
+
                 return Ok(result);
             }
             catch (Exception ex)

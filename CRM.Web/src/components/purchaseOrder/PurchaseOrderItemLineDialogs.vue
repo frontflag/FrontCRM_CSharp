@@ -182,8 +182,8 @@
                     style="width: 100%"
                     @update:model-value="(v: string | number) => { arrivalForm.regionType = normalizeRegionType(v) }"
                   >
-                    <el-option :value="REGION_TYPE_DOMESTIC" label="境内" />
-                    <el-option :value="REGION_TYPE_OVERSEAS" label="境外" />
+                    <el-option :value="REGION_TYPE_DOMESTIC" label="大陆" />
+                    <el-option :value="REGION_TYPE_OVERSEAS" label="海外" />
                   </el-select>
                 </el-form-item>
               </el-col>

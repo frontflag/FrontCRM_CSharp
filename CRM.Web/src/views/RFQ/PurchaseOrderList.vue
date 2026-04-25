@@ -58,7 +58,6 @@
     <!-- 搜索栏（与客户列表页 search-bar 一致） -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">{{ t('purchaseOrderList.filters.orderType') }}</span>
         <el-select
           v-model="filterForm.orderType"
           :placeholder="t('purchaseOrderList.filters.allOrderTypes')"
@@ -71,7 +70,6 @@
           <el-option :label="t('purchaseOrderList.filters.orderTypeStocking')" :value="2" />
           <el-option :label="t('purchaseOrderList.filters.orderTypeSample')" :value="3" />
         </el-select>
-        <span class="filter-field-label">{{ t('purchaseOrderList.filters.orderCode') }}</span>
         <div class="search-input-wrap">
           <svg
             width="14"
@@ -94,7 +92,6 @@
           />
         </div>
         <template v-if="canViewVendorInfo">
-          <span class="filter-field-label">{{ t('purchaseOrderList.filters.vendor') }}</span>
           <div class="search-input-wrap">
             <svg
               width="14"
@@ -117,7 +114,6 @@
             />
           </div>
         </template>
-        <span class="filter-field-label">{{ t('purchaseOrderList.filters.status') }}</span>
         <el-select
           v-model="filterForm.status"
           :placeholder="t('purchaseOrderList.filters.allStatus')"

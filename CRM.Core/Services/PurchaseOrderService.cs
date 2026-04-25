@@ -564,6 +564,51 @@ namespace CRM.Core.Services
                 await _sellOrderItemExtendSync.RecalculateAsync(sid);
         }
 
+        public async Task<PurchaseOrderItemExtendRefreshResult> RefreshItemExtendsAsync(string purchaseOrderId, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(purchaseOrderId))
+                throw new ArgumentException("采购订单ID不能为空", nameof(purchaseOrderId));
+
+            var orderId = purchaseOrderId.Trim();
+            var order = await _poRepo.GetByIdAsync(orderId)
+                ?? throw new InvalidOperationException($"采购订单 {orderId} 不存在");
+
+            var items = (await _poItemRepo.FindAsync(x => x.PurchaseOrderId == orderId)).ToList();
+            var result = new PurchaseOrderItemExtendRefreshResult
+            {
+                PurchaseOrderId = orderId,
+                TotalItems = items.Count,
+                RefreshedAt = DateTime.UtcNow
+            };
+
+            foreach (var item in items)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var before = await BuildRefreshSnapshotAsync(item.Id);
+                await _poItemExtendSync.RecalculateAsync(item.Id, cancellationToken);
+                var after = await BuildRefreshSnapshotAsync(item.Id);
+                var fields = BuildFieldChanges(before, after);
+                if (fields.Count == 0) continue;
+
+                result.Changes.Add(new PurchaseOrderItemExtendChangeDto
+                {
+                    PurchaseOrderItemId = item.Id,
+                    PurchaseOrderItemCode = item.PurchaseOrderItemCode,
+                    Fields = fields
+                });
+                result.ChangedFieldsCount += fields.Count;
+            }
+
+            result.ChangedItems = result.Changes.Count;
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "PO明细扩展刷新完成: PurchaseOrderId={PurchaseOrderId} Code={Code} TotalItems={TotalItems} ChangedItems={ChangedItems} ChangedFields={ChangedFields}",
+                orderId, order.PurchaseOrderCode, result.TotalItems, result.ChangedItems, result.ChangedFieldsCount);
+
+            return result;
+        }
+
         public async Task UpdateStatusAsync(string id, short status, string? actingUserId = null)
         {
             var order = await _poRepo.GetByIdAsync(id)
@@ -622,6 +667,93 @@ namespace CRM.Core.Services
         private static bool ShouldSyncOrderAndItemStatus(short status)
         {
             return status is StatusNew or StatusPendingAudit or StatusApproved or StatusPendingConfirm or StatusConfirmed;
+        }
+
+        private async Task<PoItemExtendRefreshSnapshot?> BuildRefreshSnapshotAsync(string purchaseOrderItemId)
+        {
+            var ext = await _poItemExtendRepo.GetByIdAsync(purchaseOrderItemId);
+            if (ext == null) return null;
+            return new PoItemExtendRefreshSnapshot
+            {
+                PurchaseProgressStatus = ext.PurchaseProgressStatus,
+                StockInProgressStatus = ext.StockInProgressStatus,
+                PaymentProgressStatus = ext.PaymentProgressStatus,
+                InvoiceProgressStatus = ext.InvoiceProgressStatus,
+                PurchaseProgressQty = ext.PurchaseProgressQty,
+                QtyReceiveTotal = ext.QtyReceiveTotal,
+                PaymentAmountRequested = ext.PaymentAmountRequested,
+                PaymentAmountFinish = ext.PaymentAmountFinish,
+                PaymentAmountNot = ext.PaymentAmountNot,
+                PurchaseInvoiceDone = ext.PurchaseInvoiceDone,
+                PurchaseInvoiceToBe = ext.PurchaseInvoiceToBe,
+                QtyStockInNotifyNot = ext.QtyStockInNotifyNot,
+                QtyStockInNotifyExpectSum = ext.QtyStockInNotifyExpectSum
+            };
+        }
+
+        private static List<PurchaseOrderItemExtendFieldChangeDto> BuildFieldChanges(PoItemExtendRefreshSnapshot? before, PoItemExtendRefreshSnapshot? after)
+        {
+            var changes = new List<PurchaseOrderItemExtendFieldChangeDto>();
+            AddShortField(changes, "purchaseProgressStatus", "采购状态", before?.PurchaseProgressStatus, after?.PurchaseProgressStatus);
+            AddShortField(changes, "stockInProgressStatus", "入库状态", before?.StockInProgressStatus, after?.StockInProgressStatus);
+            AddShortField(changes, "paymentProgressStatus", "付款状态", before?.PaymentProgressStatus, after?.PaymentProgressStatus);
+            AddShortField(changes, "invoiceProgressStatus", "开票状态", before?.InvoiceProgressStatus, after?.InvoiceProgressStatus);
+
+            AddDecimalField(changes, "purchaseProgressQty", "采购数量", before?.PurchaseProgressQty, after?.PurchaseProgressQty, 4);
+            AddDecimalField(changes, "qtyReceiveTotal", "入库数量", before?.QtyReceiveTotal, after?.QtyReceiveTotal, 4);
+            AddDecimalField(changes, "paymentAmountRequested", "请款金额", before?.PaymentAmountRequested, after?.PaymentAmountRequested, 2);
+            AddDecimalField(changes, "paymentAmountFinish", "已付款金额", before?.PaymentAmountFinish, after?.PaymentAmountFinish, 2);
+            AddDecimalField(changes, "paymentAmountNot", "待付款金额", before?.PaymentAmountNot, after?.PaymentAmountNot, 2);
+            AddDecimalField(changes, "purchaseInvoiceDone", "已开票金额", before?.PurchaseInvoiceDone, after?.PurchaseInvoiceDone, 2);
+            AddDecimalField(changes, "purchaseInvoiceToBe", "待开票金额", before?.PurchaseInvoiceToBe, after?.PurchaseInvoiceToBe, 2);
+            AddDecimalField(changes, "qtyStockInNotifyNot", "待通知到货数量", before?.QtyStockInNotifyNot, after?.QtyStockInNotifyNot, 4);
+            AddDecimalField(changes, "qtyStockInNotifyExpectSum", "通知到货累计预期数量", before?.QtyStockInNotifyExpectSum, after?.QtyStockInNotifyExpectSum, 4);
+            return changes;
+        }
+
+        private static void AddShortField(List<PurchaseOrderItemExtendFieldChangeDto> changes, string field, string label, short? before, short? after)
+        {
+            var b = before ?? 0;
+            var a = after ?? 0;
+            if (b == a) return;
+            changes.Add(new PurchaseOrderItemExtendFieldChangeDto
+            {
+                Field = field,
+                Label = label,
+                Before = b.ToString(),
+                After = a.ToString()
+            });
+        }
+
+        private static void AddDecimalField(List<PurchaseOrderItemExtendFieldChangeDto> changes, string field, string label, decimal? before, decimal? after, int digits)
+        {
+            var b = decimal.Round(before ?? 0m, digits, MidpointRounding.AwayFromZero);
+            var a = decimal.Round(after ?? 0m, digits, MidpointRounding.AwayFromZero);
+            if (b == a) return;
+            changes.Add(new PurchaseOrderItemExtendFieldChangeDto
+            {
+                Field = field,
+                Label = label,
+                Before = b.ToString($"F{digits}"),
+                After = a.ToString($"F{digits}")
+            });
+        }
+
+        private sealed class PoItemExtendRefreshSnapshot
+        {
+            public short PurchaseProgressStatus { get; set; }
+            public short StockInProgressStatus { get; set; }
+            public short PaymentProgressStatus { get; set; }
+            public short InvoiceProgressStatus { get; set; }
+            public decimal PurchaseProgressQty { get; set; }
+            public decimal QtyReceiveTotal { get; set; }
+            public decimal PaymentAmountRequested { get; set; }
+            public decimal PaymentAmountFinish { get; set; }
+            public decimal PaymentAmountNot { get; set; }
+            public decimal PurchaseInvoiceDone { get; set; }
+            public decimal PurchaseInvoiceToBe { get; set; }
+            public decimal QtyStockInNotifyNot { get; set; }
+            public decimal QtyStockInNotifyExpectSum { get; set; }
         }
 
         private static void ValidateStatusTransition(short current, short target)

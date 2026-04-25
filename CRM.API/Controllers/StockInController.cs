@@ -28,7 +28,13 @@ namespace CRM.API.Controllers
             [FromQuery] string? model,
             [FromQuery] string? vendorName,
             [FromQuery] string? purchaseOrderCode,
-            [FromQuery] string? salesOrderCode)
+            [FromQuery] string? salesOrderCode,
+            [FromQuery] string? stockInCode,
+            [FromQuery] string? sourceDisplayNo,
+            [FromQuery] string? warehouseId,
+            [FromQuery] DateTime? stockInDateStart,
+            [FromQuery] DateTime? stockInDateEnd,
+            [FromQuery] string? remark)
         {
             try
             {
@@ -37,7 +43,13 @@ namespace CRM.API.Controllers
                     Model = model,
                     VendorName = vendorName,
                     PurchaseOrderCode = purchaseOrderCode,
-                    SalesOrderCode = salesOrderCode
+                    SalesOrderCode = salesOrderCode,
+                    StockInCode = stockInCode,
+                    SourceDisplayNo = sourceDisplayNo,
+                    WarehouseId = warehouseId,
+                    StockInDateStart = stockInDateStart,
+                    StockInDateEnd = stockInDateEnd,
+                    Remark = remark
                 };
                 var list = await _service.GetListAsync(query);
                 return Ok(ApiResponse<IReadOnlyList<StockInListItemDto>>.Ok(list, "获取入库单列表成功"));

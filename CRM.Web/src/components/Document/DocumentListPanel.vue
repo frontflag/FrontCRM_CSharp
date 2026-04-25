@@ -7,21 +7,36 @@
     <div v-if="loading" class="loading">加载中...</div>
     <div v-else-if="!list.length" class="empty">暂无文档</div>
     <div v-else class="list" :class="viewMode">
-      <div v-for="doc in list" :key="doc.id" class="doc-card">
-        <div class="thumb" @click="preview(doc)">
-          <img v-if="isImage(doc)" :src="thumbSrc(doc)" alt="" @error="onThumbError" />
-          <span v-else class="file-icon">{{ fileIcon(doc) }}</span>
-        </div>
-        <div class="info">
-          <div class="name" :title="doc.originalFileName">{{ doc.originalFileName }}</div>
-          <div class="meta">{{ formatDate(doc.createTime) }} · {{ formatSize(doc.fileSize) }}</div>
-          <div v-if="doc.remark" class="remark">{{ doc.remark }}</div>
-        </div>
-        <div class="actions">
-          <button type="button" class="link" @click="preview(doc)">预览</button>
-          <button type="button" class="link" @click="download(doc)">下载</button>
-          <button type="button" class="link danger" @click="remove(doc)">删除</button>
-        </div>
+      <div v-for="doc in list" :key="doc.id" class="doc-card" :class="{ 'doc-card--list': isListView }">
+        <template v-if="isListView">
+          <div class="doc-main-row">
+            <div class="doc-name" :title="doc.originalFileName">{{ doc.originalFileName }}</div>
+            <div class="doc-date">{{ formatDate(doc.createTime) }}</div>
+            <div class="doc-bytes">{{ formatFileBytes(doc.fileSize) }}</div>
+            <div class="actions">
+              <button type="button" class="link" @click="preview(doc)">预览</button>
+              <button type="button" class="link" @click="download(doc)">下载</button>
+              <button type="button" class="link danger" @click="remove(doc)">删除</button>
+            </div>
+          </div>
+          <div v-if="doc.remark" class="doc-remark-line">{{ doc.remark }}</div>
+        </template>
+        <template v-else>
+          <div class="thumb" @click="preview(doc)">
+            <img v-if="isImage(doc)" :src="thumbSrc(doc)" alt="" @error="onThumbError" />
+            <span v-else class="file-icon">{{ fileIcon(doc) }}</span>
+          </div>
+          <div class="info">
+            <div class="name" :title="doc.originalFileName">{{ doc.originalFileName }}</div>
+            <div class="meta">{{ formatDate(doc.createTime) }} · {{ formatSize(doc.fileSize) }}</div>
+            <div v-if="doc.remark" class="remark">{{ doc.remark }}</div>
+          </div>
+          <div class="actions">
+            <button type="button" class="link" @click="preview(doc)">预览</button>
+            <button type="button" class="link" @click="download(doc)">下载</button>
+            <button type="button" class="link danger" @click="remove(doc)">删除</button>
+          </div>
+        </template>
       </div>
     </div>
     <DocumentPreviewDialog v-model="previewVisible" :document-id="previewId" :mime-type="previewMime" />
@@ -29,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
 import DocumentPreviewDialog from './DocumentPreviewDialog.vue'
@@ -40,6 +55,9 @@ const props = defineProps<{
   bizId: string
   viewMode?: 'grid' | 'list'
 }>()
+
+/** 非 grid 时按列表行展示（横向：文件名、日期、字节、操作） */
+const isListView = computed(() => props.viewMode !== 'grid')
 
 const loading = ref(false)
 const list = ref<UploadDocumentDto[]>([])
@@ -96,6 +114,12 @@ function formatSize(n?: number) {
   return (n / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
+/** 列表行「字节」列：原始字节数（千分位） */
+function formatFileBytes(n?: number) {
+  if (n == null || !Number.isFinite(n)) return '--'
+  return `${Math.round(n).toLocaleString()} 字节`
+}
+
 function preview(doc: UploadDocumentDto) {
   previewId.value = doc.id
   previewMime.value = doc.mimeType || ''
@@ -127,10 +151,34 @@ defineExpose({ refresh: fetchList })
 @import '@/assets/styles/variables.scss';
 
 .document-list-panel {
-  .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; .title { font-size: 14px; font-weight: 500; } }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+
+    .title {
+      font-size: 14px;
+      font-weight: 500;
+    }
+  }
   .btn-ghost { padding: 4px 10px; font-size: 12px; background: transparent; border: 1px solid $border-panel; border-radius: 6px; color: $text-muted; cursor: pointer; &:disabled { opacity: 0.5; } }
   .loading, .empty { padding: 24px; text-align: center; color: $text-muted; font-size: 13px; }
-  .list { display: flex; flex-wrap: wrap; gap: 12px; }
+  .list {
+    display: flex;
+    gap: 12px;
+  }
+  .list.grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .list.list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px 12px;
+  }
   .list.grid .doc-card { width: calc(25% - 10px); min-width: 140px; }
   .doc-card {
     background: $layer-2;
@@ -146,7 +194,56 @@ defineExpose({ refresh: fetchList })
       .file-icon { font-size: 32px; }
     }
     .info { .name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .meta { font-size: 11px; color: $text-muted; } .remark { font-size: 11px; color: $text-secondary; margin-top: 2px; } }
-    .actions { display: flex; gap: 8px; .link { background: none; border: none; padding: 0; font-size: 12px; color: $cyan-primary; cursor: pointer; text-decoration: none; &.danger { color: #C95745; } } }
+    .actions { display: flex; gap: 8px; flex-shrink: 0; .link { background: none; border: none; padding: 0; font-size: 12px; color: $cyan-primary; cursor: pointer; text-decoration: none; &.danger { color: #C95745; } } }
+  }
+
+  .doc-card--list {
+    display: inline-flex;
+    flex-direction: column;
+    flex: 0 1 auto;
+    width: max-content;
+    max-width: 100%;
+    gap: 8px;
+    padding: 8px 12px;
+    box-sizing: border-box;
+  }
+
+  .doc-main-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 10px 14px;
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .doc-name {
+    flex: 0 1 auto;
+    max-width: 200px;
+    min-width: 0;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .doc-date,
+  .doc-bytes {
+    flex: 0 0 auto;
+    font-size: 12px;
+    color: $text-muted;
+    white-space: nowrap;
+  }
+
+  .doc-remark-line {
+    font-size: 11px;
+    color: $text-secondary;
+    padding-left: 2px;
+    max-width: 360px;
+    line-height: 1.35;
+    word-break: break-word;
   }
 }
 </style>

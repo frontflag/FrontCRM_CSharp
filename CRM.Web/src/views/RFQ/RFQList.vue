@@ -43,7 +43,6 @@
     <!-- 筛选栏：与《业务列表规范》及 CustomerList / RFQItemList 一致（非 el-card） -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">{{ t('rfqList.filters.search') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
             <circle cx="11" cy="11" r="8" />
@@ -57,7 +56,6 @@
             @keyup.enter="handleSearch"
           />
         </div>
-        <span class="filter-field-label">{{ t('rfqList.filters.status') }}</span>
         <el-select
           v-model="searchForm.status"
           :placeholder="t('rfqList.filters.allStatus')"

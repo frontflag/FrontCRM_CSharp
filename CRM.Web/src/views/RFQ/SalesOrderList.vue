@@ -51,7 +51,6 @@
     <!-- 搜索栏：对齐客户列表 CustomerList search-bar -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">{{ t('salesOrderList.filters.orderCode') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -65,7 +64,6 @@
           />
         </div>
         <template v-if="canViewCustomerInfo && !maskSaleSensitiveFields">
-          <span class="filter-field-label">{{ t('salesOrderList.filters.customer') }}</span>
           <div class="search-input-wrap">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
               <circle cx="11" cy="11" r="8" />

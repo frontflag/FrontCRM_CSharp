@@ -19,7 +19,6 @@
 
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">{{ t('salesOrderItemList.filters.dateRangeLabel') }}</span>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
@@ -31,7 +30,6 @@
           clearable
           :teleported="false"
         />
-        <span class="filter-field-label">{{ t('salesOrderItemList.filters.sellOrderCode') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
             <circle cx="11" cy="11" r="8" />
@@ -45,7 +43,6 @@
           />
         </div>
         <template v-if="listCustomerColumnOk">
-          <span class="filter-field-label">{{ t('salesOrderItemList.filters.customerName') }}</span>
           <div class="search-input-wrap">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
               <circle cx="11" cy="11" r="8" />
@@ -60,7 +57,6 @@
           </div>
         </template>
         <template v-if="listSalesUserFilterOk">
-          <span class="filter-field-label">{{ t('salesOrderItemList.filters.salesUserName') }}</span>
           <div class="search-input-wrap">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
               <circle cx="11" cy="11" r="8" />
@@ -74,7 +70,6 @@
             />
           </div>
         </template>
-        <span class="filter-field-label">{{ t('salesOrderItemList.filters.pn') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
             <circle cx="11" cy="11" r="8" />
@@ -129,6 +124,11 @@
           {{ extendTriLabel('stockOut', row.stockOutProgressStatus) }}
         </el-tag>
       </template>
+      <template #col-stockOutNotifyProgressStatus="{ row }">
+        <el-tag effect="dark" :type="extendTriTagType(row.stockOutNotifyProgressStatus)" size="small">
+          {{ extendTriLabel('stockOutNotify', row.stockOutNotifyProgressStatus) }}
+        </el-tag>
+      </template>
       <template #col-receiptProgressStatus="{ row }">
         <el-tag effect="dark" :type="extendTriTagType(row.receiptProgressStatus)" size="small">
           {{ extendTriLabel('receipt', row.receiptProgressStatus) }}
@@ -141,16 +141,50 @@
       </template>
       <template #col-orderCreateTime="{ row }">{{ formatDt(row.orderCreateTime) }}</template>
       <template #col-currency="{ row }">{{ settlementCurrencyLabel(row.currency) }}</template>
-      <template #col-price="{ row }">{{ formatUnitPriceNumber(row.price) }}</template>
-      <template #col-lineTotal="{ row }">{{ formatTotalAmountNumber(row.lineTotal) }}</template>
-      <template #col-usdUnitPrice="{ row }">{{ row.usdUnitPrice != null ? `$${Number(row.usdUnitPrice).toFixed(6)}` : '—' }}</template>
-      <template #col-usdLineTotal="{ row }">{{ row.usdLineTotal != null ? `$${Number(row.usdLineTotal).toFixed(2)}` : '—' }}</template>
-      <template #col-salesProfitExpected="{ row }">{{
-        row.salesProfitExpected != null ? `$${Number(row.salesProfitExpected).toFixed(2)}` : '—'
-      }}</template>
-      <template #col-profitOutBizUsd="{ row }">{{
-        row.profitOutBizUsd != null ? `$${Number(row.profitOutBizUsd).toFixed(2)}` : '—'
-      }}</template>
+      <template #col-price="{ row }">
+        <span class="amount-with-code">
+          <span>{{ formatUnitPriceNumber(row.price) }}</span>
+          <span v-if="formatUnitPriceNumber(row.price) !== '—'" :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">
+            {{ listAmountCurrencyIso(row.currency) }}
+          </span>
+        </span>
+      </template>
+      <template #col-lineTotal="{ row }">
+        <span class="amount-with-code">
+          <span>{{ formatTotalAmountNumber(row.lineTotal) }}</span>
+          <span v-if="formatTotalAmountNumber(row.lineTotal) !== '—'" :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">
+            {{ listAmountCurrencyIso(row.currency) }}
+          </span>
+        </span>
+      </template>
+      <template #col-usdUnitPrice="{ row }">
+        <span v-if="row.usdUnitPrice != null" class="amount-with-code">
+          <span>{{ Number(row.usdUnitPrice).toFixed(6) }}</span>
+          <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+        </span>
+        <span v-else>—</span>
+      </template>
+      <template #col-usdLineTotal="{ row }">
+        <span v-if="row.usdLineTotal != null" class="amount-with-code">
+          <span>{{ Number(row.usdLineTotal).toFixed(2) }}</span>
+          <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+        </span>
+        <span v-else>—</span>
+      </template>
+      <template #col-salesProfitExpected="{ row }">
+        <span v-if="row.salesProfitExpected != null" class="amount-with-code">
+          <span>{{ Number(row.salesProfitExpected).toFixed(2) }}</span>
+          <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+        </span>
+        <span v-else>—</span>
+      </template>
+      <template #col-profitOutBizUsd="{ row }">
+        <span v-if="row.profitOutBizUsd != null" class="amount-with-code">
+          <span>{{ Number(row.profitOutBizUsd).toFixed(2) }}</span>
+          <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+        </span>
+        <span v-else>—</span>
+      </template>
       <template #col-profitOutRateBiz="{ row }">{{
         row.profitOutRateBiz != null ? Number(row.profitOutRateBiz).toFixed(6) : '—'
       }}</template>
@@ -464,7 +498,7 @@ import {
   salesOrderLinePurchasedStockReliefOk
 } from '@/constants/salesOrderStatus'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
-import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
+import { formatTotalAmountNumber, formatUnitPriceNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import type { SalesOrderItemLineRow } from '@/stores/salesOrderItemListBasket'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -651,7 +685,7 @@ const salesOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
   }
 
   // 采购/入库/出库/收款/开票进度列：放在「利润率」之后（无金额列权限时仍在「数量」后）
-  const progressFive: CrmTableColumnDef[] = [
+  const progressSix: CrmTableColumnDef[] = [
     {
       key: 'purchaseProgressStatus',
       label: t('salesOrderItemList.columns.purchaseProgressStatus'),
@@ -663,6 +697,13 @@ const salesOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
       key: 'stockInProgressStatus',
       label: t('salesOrderItemList.columns.stockInProgressStatus'),
       prop: 'stockInProgressStatus',
+      width: 108,
+      align: 'center'
+    },
+    {
+      key: 'stockOutNotifyProgressStatus',
+      label: t('salesOrderItemList.columns.stockOutNotifyProgressStatus'),
+      prop: 'stockOutNotifyProgressStatus',
       width: 108,
       align: 'center'
     },
@@ -691,9 +732,9 @@ const salesOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
   const profitIdx = cols.findIndex((c) => c.key === 'profitOutRateBiz')
   const qtyIdx = cols.findIndex((c) => c.key === 'qty')
   if (profitIdx >= 0) {
-    cols.splice(profitIdx + 1, 0, ...progressFive)
+    cols.splice(profitIdx + 1, 0, ...progressSix)
   } else if (qtyIdx >= 0) {
-    cols.splice(qtyIdx + 1, 0, ...progressFive)
+    cols.splice(qtyIdx + 1, 0, ...progressSix)
   }
 
   cols.push({
@@ -873,7 +914,7 @@ function extendTriTagType(v?: number): '' | 'success' | 'warning' | 'info' | 'da
 }
 
 function extendTriLabel(
-  kind: 'purchase' | 'stockIn' | 'stockOut' | 'receipt' | 'invoice',
+  kind: 'purchase' | 'stockIn' | 'stockOut' | 'stockOutNotify' | 'receipt' | 'invoice',
   v?: number
 ): string {
   const slot = v === 2 ? 'complete' : v === 1 ? 'partial' : 'pending'
@@ -1129,6 +1170,12 @@ onMounted(() => loadList())
   border: 1px solid $border-panel;
   border-radius: 20px;
   padding: 3px 10px;
+}
+
+.amount-with-code {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
 }
 .btn-primary {
   display: inline-flex;

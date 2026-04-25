@@ -185,6 +185,58 @@
           </div>
         </div>
       </div>
+
+      <div v-if="!isCreateMode" class="form-card">
+        <div class="section-header">
+          <h3 class="section-title">库存明细</h3>
+        </div>
+        <div class="detail-items-table-wrap">
+          <el-table :data="stockItemRows" class="items-table quantum-table" style="width: 100%">
+            <el-table-column type="index" width="50" align="center" />
+            <el-table-column label="库存明细编号" min-width="150" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportCellText(row.stockItemCode) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="入库明细编号" min-width="150" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportCellText(row.stockInItemCode) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="批次号" width="140" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportCellText(row.batchNo) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="库位" width="140" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportCellText(row.locationId) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="入库数量" width="110" align="right" header-align="right">
+              <template #default="{ row }">
+                <span class="stockin-report-cell stockin-report-cell--num">{{ reportQtyText(row.qtyInbound) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="已出库数量" width="110" align="right" header-align="right">
+              <template #default="{ row }">
+                <span class="stockin-report-cell stockin-report-cell--num">{{ reportQtyText(row.qtyStockOut) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="在库数量" width="110" align="right" header-align="right">
+              <template #default="{ row }">
+                <span class="stockin-report-cell stockin-report-cell--num">{{ reportQtyText(row.qtyRepertory) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="可用数量" width="110" align="right" header-align="right">
+              <template #default="{ row }">
+                <span class="stockin-report-cell stockin-report-cell--num">{{ reportQtyText(row.qtyRepertoryAvailable) }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div v-if="!stockItemRows.length" class="stockin-report-empty">暂无对应库存明细</div>
+        </div>
+      </div>
     </div>
 
     <StockInBatchImportDialog
@@ -201,6 +253,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { stockInApi, type CreateStockInRequest, type StockInDto, type StockInItemDto } from '@/api/stockIn'
+import { inventoryCenterApi, type StockItemListRow } from '@/api/inventoryCenter'
 import StockInBatchImportDialog from '@/components/Inventory/StockInBatchImportDialog.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
@@ -215,6 +268,7 @@ const detailStatus = ref<number | null>(null)
 const displayWarehouseCode = ref('')
 /** 详情页展示：供应商名称 */
 const displayVendorName = ref('')
+const stockItemRows = ref<StockItemListRow[]>([])
 
 const batchImportVisible = ref(false)
 const batchImportItemId = ref('')
@@ -251,6 +305,7 @@ function resetCreateForm() {
   form.totalQuantity = 0
   form.remark = ''
   form.items = []
+  stockItemRows.value = []
 }
 
 function normalizeDateForPicker(iso: string | undefined | null): string {
@@ -332,6 +387,13 @@ async function loadStockInDetail(id: string) {
       return
     }
     applyDetailToForm(data)
+    const stockInCode = (data.stockInCode ?? '').trim()
+    if (stockInCode) {
+      const rows = await inventoryCenterApi.searchStockItems({ stockInCode })
+      stockItemRows.value = rows.filter((r) => String(r.stockInId || '').trim() === id)
+    } else {
+      stockItemRows.value = []
+    }
   } catch (e) {
     console.error(e)
     ElMessage.error('加载入库单失败')
@@ -611,6 +673,12 @@ function openBatchImport(row: StockInItemDto) {
   &--num {
     font-variant-numeric: tabular-nums;
   }
+}
+
+.stockin-report-empty {
+  margin-top: 10px;
+  font-size: 12px;
+  color: $text-muted;
 }
 
 .table-footer {

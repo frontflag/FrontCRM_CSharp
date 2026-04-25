@@ -35,6 +35,9 @@
         </el-table-column>
         <el-table-column prop="purchasePn" :label="t('inventoryStockDetail.columns.pn')" min-width="120" show-overflow-tooltip />
         <el-table-column prop="purchaseBrand" :label="t('inventoryStockDetail.columns.brand')" min-width="100" show-overflow-tooltip />
+        <el-table-column :label="t('inventoryStockDetail.columns.regionType')" width="88" align="center">
+          <template #default="{ row }">{{ stockItemRegionLabel(row) }}</template>
+        </el-table-column>
         <el-table-column prop="sellOrderItemCode" :label="t('inventoryStockDetail.columns.sellLineCode')" width="140" show-overflow-tooltip />
         <el-table-column prop="qtyInbound" :label="t('inventoryStockDetail.columns.qtyInbound')" width="100" align="right" />
         <el-table-column prop="qtyStockOut" :label="t('inventoryStockDetail.columns.qtyStockOut')" width="100" align="right" />
@@ -86,6 +89,13 @@
         <el-table-column :label="t('inventoryStockDetail.columns.createTime')" width="170">
           <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
         </el-table-column>
+        <el-table-column fixed="right" :label="t('inventoryStockDetail.columns.actions')" width="108" align="center">
+          <template #default="{ row }">
+            <el-button type="primary" link @click="goManualTransfer(row.stockItemId)">
+              {{ t('inventoryStockDetail.actions.manualTransfer') }}
+            </el-button>
+          </template>
+        </el-table-column>
       </CrmDataTable>
       <div v-if="!loadingItems && stockItems.length > 0" class="stock-items-pagination">
         <el-pagination
@@ -131,7 +141,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onActivated, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -141,6 +151,7 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatCurrencyUnitPrice, formatUnitPriceNumber } from '@/utils/moneyFormat'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
@@ -189,6 +200,11 @@ const materialIdForTrace = computed(() => {
   const first = stockItems.value[0]
   return first?.materialId?.trim() || ''
 })
+
+const stockItemRegionLabel = (row: StockItemRow) => {
+  const n = normalizeRegionType(row.regionType)
+  return n === REGION_TYPE_OVERSEAS ? t('inventoryList.warehouse.regionOverseas') : t('inventoryList.warehouse.regionDomestic')
+}
 
 const formatTime = (v?: string) => formatDisplayDateTime(v)
 const formatDateOnly = (v?: string) => {
@@ -259,6 +275,21 @@ const goBack = () => {
   router.push('/inventory/list')
 }
 
+const goManualTransfer = (stockItemId: string) => {
+  const id = (stockItemId || '').trim()
+  if (!id) return
+  const q: Record<string, string> = {
+    sourceStockItemId: id,
+    returnStockId: stockId.value
+  }
+  if (qStockCode.value) q.stockCode = qStockCode.value
+  if (qMaterialModel.value) q.materialModel = qMaterialModel.value
+  if (qMaterialBrand.value) q.materialBrand = qMaterialBrand.value
+  if (qWarehouseId.value) q.warehouseId = qWarehouseId.value
+  if (qMaterialId.value) q.materialId = qMaterialId.value
+  router.push({ name: 'InventoryTransfersManual', query: q })
+}
+
 watch(
   () => stockId.value,
   async () => {
@@ -277,6 +308,11 @@ watch(
 
 onMounted(async () => {
   await loadWarehouses()
+  await loadStockItems()
+})
+
+onActivated(async () => {
+  if (!stockId.value) return
   await loadStockItems()
 })
 </script>

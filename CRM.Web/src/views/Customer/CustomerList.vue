@@ -53,7 +53,6 @@
     <!-- 搜索栏：关键词 → 状态 → 级别 → 类型 → 行业 → 业务员 → 创建日期区间 -->
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">{{ t('customerList.filters.keyword') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -1104,45 +1103,33 @@ onMounted(async () => {
 .status-dot {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 0;
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 10px;
-
-  &::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
 
   &.status-active {
     color: #46BF91;
     background: rgba(70,191,145,0.1);
     border: 1px solid rgba(70,191,145,0.25);
-    &::before { background: #46BF91; box-shadow: 0 0 4px #46BF91; }
   }
 
   &.status-warning {
     color: $color-amber;
     background: rgba(201,154,69,0.10);
     border: 1px solid rgba(201,154,69,0.25);
-    &::before { background: $color-amber; box-shadow: 0 0 4px rgba(201,154,69,0.8); }
   }
 
   &.status-danger {
     color: #C95745;
     background: rgba(201, 87, 69, 0.08);
     border: 1px solid rgba(201, 87, 69, 0.20);
-    &::before { background: #C95745; box-shadow: 0 0 4px rgba(201, 87, 69, 0.8); }
   }
 
   &.status-inactive {
     color: $text-muted;
     background: rgba(107,122,141,0.1);
     border: 1px solid rgba(107,122,141,0.2);
-    &::before { background: #8A9BB0; }
   }
 }
 

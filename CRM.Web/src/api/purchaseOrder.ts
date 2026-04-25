@@ -1,5 +1,27 @@
 import apiClient from './client'
 
+export interface PurchaseOrderItemExtendFieldChangeDto {
+  field: string
+  label: string
+  before: string
+  after: string
+}
+
+export interface PurchaseOrderItemExtendChangeDto {
+  purchaseOrderItemId: string
+  purchaseOrderItemCode?: string
+  fields: PurchaseOrderItemExtendFieldChangeDto[]
+}
+
+export interface PurchaseOrderItemExtendRefreshResult {
+  purchaseOrderId: string
+  totalItems: number
+  changedItems: number
+  changedFieldsCount: number
+  refreshedAt: string
+  changes: PurchaseOrderItemExtendChangeDto[]
+}
+
 // 采购订单API
 export const purchaseOrderApi = {
   // 获取采购订单列表（分页，与后端 PurchaseOrdersController 一致）
@@ -53,6 +75,11 @@ export const purchaseOrderApi = {
   // 自动生成采购订单(以销定采)
   async autoGenerate(sellOrderId: string) {
     return await apiClient.post(`/api/v1/purchase-orders/auto-generate/${sellOrderId}`, {})
+  },
+
+  // 刷新采购明细扩展字段（读取下游数据重算）
+  async refreshItemExtends(id: string) {
+    return await apiClient.post<PurchaseOrderItemExtendRefreshResult>(`/api/v1/purchase-orders/${id}/refresh-item-extends`, {})
   }
 }
 

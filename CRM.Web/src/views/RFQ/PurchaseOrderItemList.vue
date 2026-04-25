@@ -19,7 +19,6 @@
 
     <div class="search-bar">
       <div class="search-left">
-        <span class="filter-field-label">{{ t('purchaseOrderItemList.filters.dateRangeLabel') }}</span>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
@@ -32,7 +31,6 @@
           :teleported="false"
         />
 
-        <span class="filter-field-label">{{ t('purchaseOrderList.filters.orderCode') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
             <circle cx="11" cy="11" r="8" />
@@ -46,7 +44,6 @@
           />
         </div>
         <template v-if="canViewVendor">
-          <span class="filter-field-label">{{ t('purchaseOrderList.filters.vendor') }}</span>
           <div class="search-input-wrap">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
               <circle cx="11" cy="11" r="8" />
@@ -61,7 +58,6 @@
           </div>
         </template>
         <template v-if="canViewPurchaseUser">
-          <span class="filter-field-label">{{ t('purchaseOrderList.columns.purchaser') }}</span>
           <div class="search-input-wrap">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
               <circle cx="11" cy="11" r="8" />
@@ -75,7 +71,6 @@
             />
           </div>
         </template>
-        <span class="filter-field-label">{{ t('purchaseOrderItemList.columns.pn') }}</span>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
             <circle cx="11" cy="11" r="8" />
@@ -89,7 +84,6 @@
           />
         </div>
 
-        <span class="filter-field-label">{{ t('purchaseOrderItemList.filters.orderType') }}</span>
         <el-select
           v-model="filters.orderType"
           :placeholder="t('purchaseOrderItemList.filters.allOrderTypes')"
@@ -163,8 +157,22 @@
           {{ poInvoiceProgressText(Number(row.invoiceProgressStatus ?? 0)) }}
         </el-tag>
       </template>
-      <template #col-cost="{ row }">{{ formatCurrencyUnitPrice(row.cost, row.currency) }}</template>
-      <template #col-lineTotal="{ row }">{{ formatCurrencyTotal(row.lineTotal, row.currency) }}</template>
+      <template #col-cost="{ row }">
+        <span class="amount-with-code">
+          <span>{{ formatUnitPriceNumber(row.cost) }}</span>
+          <span v-if="formatUnitPriceNumber(row.cost) !== '—'" :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">
+            {{ listAmountCurrencyIso(row.currency) }}
+          </span>
+        </span>
+      </template>
+      <template #col-lineTotal="{ row }">
+        <span class="amount-with-code">
+          <span>{{ formatTotalAmountNumber(row.lineTotal) }}</span>
+          <span v-if="formatTotalAmountNumber(row.lineTotal) !== '—'" :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">
+            {{ listAmountCurrencyIso(row.currency) }}
+          </span>
+        </span>
+      </template>
       <template #col-createTime="{ row }">{{ formatDt(row.createTime || row.orderCreateTime) }}</template>
       <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || row.purchaseUserName || '—' }}</template>
       <template #col-actions-header>
@@ -594,7 +602,14 @@ import { financePaymentApi } from '@/api/finance'
 import { logisticsApi } from '@/api/logistics'
 import { ElMessage } from 'element-plus'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
-import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
+import {
+  formatCurrencyTotal,
+  formatCurrencyUnitPrice,
+  formatTotalAmountNumber,
+  formatUnitPriceNumber,
+  listAmountCurrencyDockClass,
+  listAmountCurrencyIso
+} from '@/utils/moneyFormat'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
@@ -1322,6 +1337,12 @@ onMounted(() => {
   border: 1px solid $border-panel;
   border-radius: 20px;
   padding: 3px 10px;
+}
+
+.amount-with-code {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
 }
 .btn-primary {
   display: inline-flex;

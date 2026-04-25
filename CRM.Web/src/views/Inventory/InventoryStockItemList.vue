@@ -1,4 +1,5 @@
 <template>
+  <!-- 业务列表页：结构对齐《业务页面规范》索引的《业务列表规范》《列表搜索栏规范》；表格皮肤见全局 crm-unified-list.scss -->
   <div class="inventory-stock-item-list-page">
     <div class="page-header">
       <div class="header-left">
@@ -14,29 +15,35 @@
         </div>
         <div class="count-badge">{{ t('inventoryStockItemList.count', { count: listTotal }) }}</div>
       </div>
+      <div class="header-right" aria-hidden="true" />
     </div>
 
     <div class="search-bar">
       <div class="search-left">
-        <span class="list-title">{{ t('inventoryStockItemList.filters.title') }}</span>
-        <span class="filter-field-label">{{ t('inventoryStockItemList.filters.outboundStatus') }}</span>
         <el-select
           v-model="filters.outboundStatus"
           clearable
           :placeholder="t('inventoryStockItemList.filters.outboundStatusAll')"
-          class="filter-select"
+          class="status-select"
           :teleported="false"
+          @change="fetchList"
         >
           <el-option :label="t('inventoryStockItemList.filters.outboundNone')" :value="1" />
           <el-option :label="t('inventoryStockItemList.filters.outboundPartial')" :value="2" />
           <el-option :label="t('inventoryStockItemList.filters.outboundDone')" :value="3" />
         </el-select>
-        <input
-          v-model="filters.stockInCode"
-          class="search-input search-input--filter"
-          :placeholder="t('inventoryStockItemList.filters.stockInCode')"
-          @keyup.enter="fetchList"
-        />
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filters.stockInCode"
+            class="search-input search-input--keyword"
+            :placeholder="t('inventoryStockItemList.filters.stockInCode')"
+            @keyup.enter="fetchList"
+          />
+        </div>
         <div
           class="filter-date-range"
           role="group"
@@ -50,6 +57,7 @@
             :placeholder="t('inventoryStockItemList.filters.stockInDateFrom')"
             class="filter-date-range__picker filter-date-range__picker--start"
             :teleported="false"
+            @change="fetchList"
           />
           <span class="filter-date-range__sep">{{ t('inventoryStockItemList.filters.stockInDateSep') }}</span>
           <el-date-picker
@@ -60,8 +68,24 @@
             :placeholder="t('inventoryStockItemList.filters.stockInDateTo')"
             class="filter-date-range__picker filter-date-range__picker--end"
             :teleported="false"
+            @change="fetchList"
           />
         </div>
+        <el-select
+          v-model="filters.warehouseId"
+          clearable
+          :placeholder="t('inventoryStockItemList.filters.warehouse')"
+          class="status-select status-select--warehouse"
+          :teleported="false"
+          @change="fetchList"
+        >
+          <el-option
+            v-for="w in warehouseOptions"
+            :key="w.id"
+            :label="warehouseOptionLabel(w)"
+            :value="w.id"
+          />
+        </el-select>
         <input
           v-model="filters.purchasePn"
           class="search-input search-input--filter"
@@ -74,38 +98,43 @@
           :placeholder="t('inventoryStockItemList.filters.purchaseBrand')"
           @keyup.enter="fetchList"
         />
-        <input
-          v-if="!maskSaleSensitiveFields"
-          v-model="filters.customerName"
-          class="search-input search-input--filter"
-          :placeholder="t('inventoryStockItemList.filters.customerName')"
-          @keyup.enter="fetchList"
-        />
-        <input
-          v-if="!maskPurchaseSensitiveFields"
-          v-model="filters.vendorName"
-          class="search-input search-input--filter"
-          :placeholder="t('inventoryStockItemList.filters.vendorName')"
-          @keyup.enter="fetchList"
-        />
-        <el-select
-          v-if="!maskSaleSensitiveFields"
-          v-model="filters.salespersonUserId"
-          clearable
-          filterable
-          :placeholder="t('rfqItemList.filters.allSalesUsers')"
-          class="filter-select filter-select--user"
-          :teleported="false"
-        >
-          <el-option v-for="u in salesUsers" :key="u.id" :label="salesUserLabel(u)" :value="u.id" />
-        </el-select>
+        <template v-if="!maskSaleSensitiveFields">
+          <input
+            v-model="filters.customerName"
+            class="search-input search-input--filter"
+            :placeholder="t('inventoryStockItemList.filters.customerName')"
+            @keyup.enter="fetchList"
+          />
+        </template>
+        <template v-if="!maskPurchaseSensitiveFields">
+          <input
+            v-model="filters.vendorName"
+            class="search-input search-input--filter"
+            :placeholder="t('inventoryStockItemList.filters.vendorName')"
+            @keyup.enter="fetchList"
+          />
+        </template>
+        <template v-if="!maskSaleSensitiveFields">
+          <el-select
+            v-model="filters.salespersonUserId"
+            clearable
+            filterable
+            :placeholder="t('rfqItemList.filters.allSalesUsers')"
+            class="status-select status-select--sales"
+            :teleported="false"
+            @change="fetchList"
+          >
+            <el-option v-for="u in salesUsers" :key="u.id" :label="salesUserLabel(u)" :value="u.id" />
+          </el-select>
+        </template>
         <el-select
           v-model="filters.purchaserUserId"
           clearable
           filterable
           :placeholder="t('rfqItemList.filters.allPurchasers')"
-          class="filter-select filter-select--user"
+          class="status-select status-select--purchaser"
           :teleported="false"
+          @change="fetchList"
         >
           <el-option v-for="u in purchaseUsers" :key="u.id" :label="purchaseUserLabel(u)" :value="u.id" />
         </el-select>
@@ -114,6 +143,7 @@
       </div>
     </div>
 
+    <!-- 主表：列设置齿轮 + 行高密度锚点见《业务列表规范》§1.2、§2.3；双击行见《列表双击进入详情规范》 -->
     <CrmDataTable
       ref="dataTableRef"
       class="inventory-stock-item-list-crm-table"
@@ -125,7 +155,17 @@
       v-loading="loading"
       @row-dblclick="onRowDblclick"
     >
-      <template #col-outboundStatus="{ row }">{{ outboundLabel(row.outboundStatus) }}</template>
+      <template #col-outboundStatus="{ row }">
+        <span class="outbound-status-chip" :class="`outbound-status-chip--${outboundStatusKind(row.outboundStatus)}`">
+          <span>{{ outboundLabel(row.outboundStatus) }}</span>
+        </span>
+      </template>
+      <template #col-stockItemCode="{ row }">
+        <span class="stock-item-code-with-badge">
+          <span>{{ row.stockItemCode || '—' }}</span>
+          <el-tag v-if="Number(row.stockType ?? 0) === 2" type="warning" effect="plain" size="small" round>备货</el-tag>
+        </span>
+      </template>
       <template #col-stockInDate="{ row }">
         <template v-for="p in [formatDisplayDateTime2DigitYearParts(row.stockInDate)]" :key="'sid-' + row.stockItemId">
           <span v-if="!p" class="inv-list-dash">—</span>
@@ -139,6 +179,11 @@
         </template>
       </template>
       <template #col-warehouse="{ row }">{{ warehouseCell(row) }}</template>
+      <template #col-regionType="{ row }">
+        <span class="region-type-chip" :class="`region-type-chip--${regionTypeKind(row)}`">
+          <span>{{ stockItemRegionLabel(row) }}</span>
+        </span>
+      </template>
       <template #col-qtyInbound="{ row }">
         <span class="inv-list-qty">{{ formatQtyCell(row.qtyInbound) }}</span>
       </template>
@@ -209,7 +254,8 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
-import { inventoryCenterApi, type StockItemListQuery, type StockItemListRow } from '@/api/inventoryCenter'
+import { inventoryCenterApi, type StockItemListQuery, type StockItemListRow, type WarehouseInfo } from '@/api/inventoryCenter'
+import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -242,15 +288,17 @@ const stockItemTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'stockInCode', label: t('inventoryStockItemList.columns.stockInCode'), prop: 'stockInCode', width: 150, showOverflowTooltip: true },
   { key: 'stockInDate', label: t('inventoryStockItemList.columns.stockInDate'), prop: 'stockInDate', width: 118 },
   { key: 'warehouse', label: t('inventoryStockItemList.columns.warehouse'), minWidth: 120, showOverflowTooltip: true },
+  { key: 'regionType', label: t('inventoryStockItemList.columns.regionType'), width: 88, align: 'center', showOverflowTooltip: true },
   { key: 'purchasePn', label: t('inventoryStockItemList.columns.purchasePn'), prop: 'purchasePn', minWidth: 130, showOverflowTooltip: true },
   { key: 'purchaseBrand', label: t('inventoryStockItemList.columns.purchaseBrand'), prop: 'purchaseBrand', minWidth: 100, showOverflowTooltip: true },
   { key: 'qtyInbound', label: t('inventoryStockItemList.columns.qtyInbound'), prop: 'qtyInbound', width: 88, align: 'right' },
   { key: 'qtyStockOut', label: t('inventoryStockItemList.columns.qtyStockOut'), prop: 'qtyStockOut', width: 88, align: 'right' },
   { key: 'qtyRepertory', label: t('inventoryStockItemList.columns.qtyRepertory'), prop: 'qtyRepertory', width: 88, align: 'right' },
-  { key: 'customerName', label: t('inventoryStockItemList.columns.customerName'), prop: 'customerName', minWidth: 120, showOverflowTooltip: true },
   { key: 'vendorName', label: t('inventoryStockItemList.columns.vendorName'), prop: 'vendorName', minWidth: 120, showOverflowTooltip: true },
-  { key: 'salespersonName', label: t('inventoryStockItemList.columns.salespersonName'), prop: 'salespersonName', width: 100, showOverflowTooltip: true },
   { key: 'purchaserName', label: t('inventoryStockItemList.columns.purchaserName'), prop: 'purchaserName', width: 100, showOverflowTooltip: true },
+  { key: 'purchaseOrderItemCode', label: t('inventoryStockItemList.columns.purchaseOrderItemCode'), prop: 'purchaseOrderItemCode', width: 136, showOverflowTooltip: true },
+  { key: 'customerName', label: t('inventoryStockItemList.columns.customerName'), prop: 'customerName', minWidth: 120, showOverflowTooltip: true },
+  { key: 'salespersonName', label: t('inventoryStockItemList.columns.salespersonName'), prop: 'salespersonName', width: 100, showOverflowTooltip: true },
   { key: 'sellOrderItemCode', label: t('inventoryStockItemList.columns.sellOrderItemCode'), prop: 'sellOrderItemCode', width: 120, showOverflowTooltip: true },
   { key: 'batchNo', label: t('inventoryStockItemList.columns.batchNo'), prop: 'batchNo', width: 100, showOverflowTooltip: true },
   { key: 'locationId', label: t('inventoryStockItemList.columns.locationId'), prop: 'locationId', minWidth: 100, showOverflowTooltip: true },
@@ -260,11 +308,14 @@ const dateFrom = ref<string | null>(null)
 const dateTo = ref<string | null>(null)
 const salesUsers = ref<SalesUserSelectOption[]>([])
 const purchaseUsers = ref<PurchaseUserSelectOption[]>([])
+const warehouses = ref<WarehouseInfo[]>([])
+const warehouseOptions = computed(() => warehouses.value.filter((w) => !!(w.id && String(w.id).trim())))
 
 const filters = reactive({
   stockInCode: '',
   purchasePn: '',
   purchaseBrand: '',
+  warehouseId: '',
   outboundStatus: undefined as number | undefined,
   customerName: '',
   vendorName: '',
@@ -287,6 +338,7 @@ function buildQuery(): StockItemListQuery {
     stockInCode: filters.stockInCode.trim() || undefined,
     stockInDateFrom: dateFrom.value?.trim() || undefined,
     stockInDateTo: dateTo.value?.trim() || undefined,
+    warehouseId: filters.warehouseId.trim() || undefined,
     purchasePn: filters.purchasePn.trim() || undefined,
     purchaseBrand: filters.purchaseBrand.trim() || undefined,
     outboundStatus: filters.outboundStatus,
@@ -320,6 +372,7 @@ const resetFilters = () => {
   filters.stockInCode = ''
   filters.purchasePn = ''
   filters.purchaseBrand = ''
+  filters.warehouseId = ''
   filters.outboundStatus = undefined
   filters.customerName = ''
   filters.vendorName = ''
@@ -337,6 +390,16 @@ function isTimeMidnightOnly(time: string) {
 }
 
 /** 数量列：与《业务列表规范》§3.2 一致 */
+const stockItemRegionLabel = (row: StockItemListRow) => {
+  const n = normalizeRegionType(row.regionType)
+  return n === REGION_TYPE_OVERSEAS ? t('inventoryList.warehouse.regionOverseas') : t('inventoryList.warehouse.regionDomestic')
+}
+
+const regionTypeKind = (row: StockItemListRow): 'domestic' | 'overseas' => {
+  const n = normalizeRegionType(row.regionType)
+  return n === REGION_TYPE_OVERSEAS ? 'overseas' : 'domestic'
+}
+
 const formatQtyCell = (v: unknown) => {
   if (v == null || v === '') return '—'
   const n = Number(v)
@@ -366,11 +429,22 @@ const outboundLabel = (s: number) => {
   return '—'
 }
 
-const warehouseCell = (row: StockItemListRow) => {
-  const name = row.warehouseName?.trim()
-  const code = row.warehouseCode?.trim()
+const outboundStatusKind = (s: number): 'none' | 'partial' | 'done' | 'unknown' => {
+  if (s === 1) return 'none'
+  if (s === 2) return 'partial'
+  if (s === 3) return 'done'
+  return 'unknown'
+}
+
+const warehouseOptionLabel = (w: WarehouseInfo) => {
+  const name = (w.warehouseName || '').trim()
+  const code = (w.warehouseCode || '').trim()
   if (name && code) return `${name}（${code}）`
-  if (name) return name
+  return name || code || '—'
+}
+
+const warehouseCell = (row: StockItemListRow) => {
+  const code = row.warehouseCode?.trim()
   if (code) return code
   return t('quoteList.na')
 }
@@ -394,6 +468,11 @@ const onRowDblclick = (row: StockItemListRow) => {
 }
 
 onMounted(async () => {
+  try {
+    warehouses.value = await inventoryCenterApi.getWarehouses()
+  } catch {
+    warehouses.value = []
+  }
   try {
     salesUsers.value = await authApi.getSalesUsersForSelect()
   } catch {
@@ -423,6 +502,11 @@ onMounted(async () => {
   align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 16px;
+}
+
+.header-right {
+  flex-shrink: 0;
+  min-height: 1px;
 }
 
 .page-title-group {
@@ -463,18 +547,128 @@ onMounted(async () => {
   gap: 10px;
 }
 
-.list-title {
-  font-size: 14px;
-  font-weight: 600;
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: $text-muted;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 220px;
+  padding: 7px 12px 7px 32px;
+  background: $layer-2;
+  border: 1px solid $border-panel;
+  border-radius: $border-radius-md;
   color: $text-primary;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: $text-muted;
+  }
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+}
+
+.search-input--keyword {
+  width: 200px;
+}
+
+.status-select {
+  width: 120px;
+  :deep(.el-select__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+  :deep(.el-select__placeholder) {
+    color: $text-muted !important;
+  }
+  :deep(.el-select__selected-item) {
+    color: $text-primary !important;
+  }
+}
+
+.status-select--sales {
+  width: 150px;
+}
+
+.status-select--purchaser {
+  width: 168px;
+  min-width: 140px;
+}
+
+.status-select--warehouse {
+  width: 190px;
+}
+
+.stock-item-code-with-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.outbound-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  justify-content: center;
+  min-width: 56px;
+  padding: 3px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 1.1;
+  font-weight: 400;
+  color: #fff;
+  border: none;
   white-space: nowrap;
 }
 
-.filter-field-label {
+.outbound-status-chip--none {
+  background: #9ca3af;
+}
+
+.outbound-status-chip--partial {
+  background: #e6a23c;
+}
+
+.outbound-status-chip--done {
+  background: #67c23a;
+}
+
+.outbound-status-chip--unknown {
+  background: #9ca3af;
+}
+
+.region-type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
   font-size: 12px;
-  font-weight: 500;
-  color: $text-muted;
-  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.region-type-chip--domestic {
+  color: #e6a23c;
+  background: rgba(230, 162, 60, 0.14);
+}
+
+.region-type-chip--overseas {
+  color: #409eff;
+  background: rgba(64, 158, 255, 0.14);
 }
 
 .inv-list-qty {
@@ -571,15 +765,6 @@ html[data-theme='dark'] .inv-list-amt-frac {
   font-variant-numeric: tabular-nums;
 }
 
-.filter-select {
-  width: 150px;
-}
-
-.filter-select--user {
-  width: 168px;
-  min-width: 140px;
-}
-
 .btn-primary,
 .btn-ghost {
   padding: 6px 14px;
@@ -634,5 +819,12 @@ html[data-theme='dark'] .inv-list-amt-frac {
 .list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
+}
+
+// ---- 表格：.table-wrapper / CrmDataTable 全局样式见 assets/styles/crm-unified-list.scss ----
+.inventory-stock-item-list-crm-table.table-wrapper {
+  :deep(.el-table .cell) {
+    line-height: 1.2;
+  }
 }
 </style>

@@ -24,6 +24,9 @@ Write-Host "Copying project to temporary directory..." -ForegroundColor Yellow
 $root = (Get-Location).Path
 foreach ($item in Get-ChildItem -LiteralPath $root -Force) {
     if ($item.Name -eq '.vs') { continue }
+    # 本地/生产运行时数据（ip2region 等）：不复制进临时构建目录，也不进入 frontcrm_deploy，避免误打包与覆盖生产 data
+    if ($item.Name -eq 'data') { continue }
+    if ($item.Name -eq 'frontcrm_deploy') { continue }
     Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $tempPath $item.Name) -Recurse -Force
 }
 

@@ -37,3 +37,5 @@ dist-ssr/
 ## 由 scripts/sync-help.mjs 从仓库根目录 help/ 生成，勿提交
 CRM.Web/public/help/
 CRM.API/publish*/
+## 运行时数据（如 data/ip2region/*.xdb）：不提交 Git；由 build 脚本排除，不进入 frontcrm_deploy；生产环境在服务器上单独维护，勿用「整目录覆盖删除」类工具对准该路径
+/data/

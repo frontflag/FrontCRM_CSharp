@@ -40,6 +40,9 @@ public static class StockTransferStatus
 public static class StockLedgerBizType
 {
     public const string StockTransfer = "STOCK_TRANS";
+
+    /// <summary>手工移库流水。</summary>
+    public const string ManualTransfer = "MANUAL_TRANS";
 }
 
 /// <summary>审批/日志用业务类型：出库通知需报关。</summary>
