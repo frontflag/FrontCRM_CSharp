@@ -165,7 +165,7 @@
         </div>
       </div>
 
-      <!-- TabBar：订单明细 | 文档 -->
+      <!-- TabBar：订单明细 | 文档 | 下游关联列表 -->
       <div class="tabs-section">
         <div class="tabs-nav">
           <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'items' }" @click="activeTab = 'items'">订单明细</button>
@@ -177,6 +177,29 @@
           >
             文档
           </button>
+          <template v-if="!maskSaleSensitiveFields">
+            <button type="button" class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'pr' }" @click="activeTab = 'pr'">
+              {{ t('salesOrderDetailView.tabs.pr') }}
+            </button>
+            <button type="button" class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'stockIn' }" @click="activeTab = 'stockIn'">
+              {{ t('salesOrderDetailView.tabs.stockIn') }}
+            </button>
+            <button type="button" class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'stock' }" @click="activeTab = 'stock'">
+              {{ t('salesOrderDetailView.tabs.stock') }}
+            </button>
+            <button type="button" class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'outNotify' }" @click="activeTab = 'outNotify'">
+              {{ t('salesOrderDetailView.tabs.outNotify') }}
+            </button>
+            <button type="button" class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'stockOut' }" @click="activeTab = 'stockOut'">
+              {{ t('salesOrderDetailView.tabs.stockOut') }}
+            </button>
+            <button type="button" class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'receipt' }" @click="activeTab = 'receipt'">
+              {{ t('salesOrderDetailView.tabs.receipt') }}
+            </button>
+            <button type="button" class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'sellInvoice' }" @click="activeTab = 'sellInvoice'">
+              {{ t('salesOrderDetailView.tabs.sellInvoice') }}
+            </button>
+          </template>
         </div>
         <div class="tabs-body">
           <div v-show="activeTab === 'items'" class="detail-items-table-wrap">
@@ -346,6 +369,211 @@
               view-mode="list"
               style="margin-top: 16px;"
             />
+          </div>
+          <div
+            v-show="!maskSaleSensitiveFields && isSoDetailAggregateTab(activeTab)"
+            v-loading="tabAggregatesLoading"
+            class="so-aggregate-tabs"
+          >
+            <el-alert
+              v-if="tabAggregatesError"
+              :title="tabAggregatesError"
+              type="error"
+              :closable="false"
+              show-icon
+              class="so-aggregate-error"
+            />
+            <div v-show="activeTab === 'pr'" class="so-aggregate-table-wrap">
+              <el-table v-if="(tabAggregates?.purchaseRequisitions?.length ?? 0) > 0" :data="tabAggregates?.purchaseRequisitions ?? []" size="small" stripe>
+                <el-table-column type="index" width="50" label="#" />
+                <el-table-column min-width="200" label="申请单号">
+                  <template #default="{ row }">
+                    <router-link class="so-tab-link" :to="`/purchase-requisitions/${row.id}`">{{ row.billCode }}</router-link>
+                  </template>
+                </el-table-column>
+                <el-table-column label="状态" width="100" prop="status">
+                  <template #default="{ row }">{{ prStatusLabel(row?.status) }}</template>
+                </el-table-column>
+                <el-table-column prop="pn" label="PN" min-width="140" show-overflow-tooltip />
+                <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip />
+                <el-table-column label="数量" width="100" align="right" prop="qty" />
+                <el-table-column label="预计采购" width="160" prop="expectedPurchaseTime">
+                  <template #default="{ row }">{{ formatDateTime(row?.expectedPurchaseTime) }}</template>
+                </el-table-column>
+                <el-table-column label="创建时间" width="160" prop="createTime">
+                  <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
+                </el-table-column>
+              </el-table>
+              <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+            </div>
+            <div v-show="activeTab === 'stockIn'" class="so-aggregate-table-wrap">
+              <el-table v-if="(tabAggregates?.stockIns?.length ?? 0) > 0" :data="tabAggregates?.stockIns ?? []" size="small" stripe>
+                <el-table-column type="index" width="50" label="#" />
+                <el-table-column min-width="180" label="入库单号">
+                  <template #default="{ row }">
+                    <router-link class="so-tab-link" :to="`/inventory/stock-in/${row.id}`">{{ row.stockInCode }}</router-link>
+                  </template>
+                </el-table-column>
+                <el-table-column label="类型" width="100" prop="stockInType">
+                  <template #default="{ row }">{{ stockInTypeLabel(row?.stockInType) }}</template>
+                </el-table-column>
+                <el-table-column label="状态" width="100" prop="status">
+                  <template #default="{ row }">{{ stockInStatusLabel(row?.status) }}</template>
+                </el-table-column>
+                <el-table-column label="入库日期" width="160" prop="stockInDate">
+                  <template #default="{ row }">{{ formatDateTime(row?.stockInDate) }}</template>
+                </el-table-column>
+                <el-table-column label="创建时间" width="160" prop="createTime">
+                  <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
+                </el-table-column>
+              </el-table>
+              <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+            </div>
+            <div v-show="activeTab === 'stock'" class="so-aggregate-table-wrap">
+              <el-table v-if="(tabAggregates?.stockItems?.length ?? 0) > 0" :data="tabAggregates?.stockItems ?? []" size="small" stripe>
+                <el-table-column type="index" width="50" label="#" />
+                <el-table-column min-width="200" label="在库明细">
+                  <template #default="{ row }">
+                    <router-link class="so-tab-link" :to="`/inventory/stocks/${row.stockAggregateId}`">{{
+                      row.stockItemCode || row.id
+                    }}</router-link>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="purchasePn" label="PN" min-width="140" show-overflow-tooltip />
+                <el-table-column prop="purchaseBrand" label="品牌" width="120" show-overflow-tooltip />
+                <el-table-column prop="sellOrderItemCode" label="销售明细号" min-width="140" show-overflow-tooltip />
+                <el-table-column label="现存量" width="100" align="right" prop="qtyRepertory" />
+                <el-table-column label="可用" width="100" align="right" prop="qtyRepertoryAvailable" />
+              </el-table>
+              <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+            </div>
+            <div v-show="activeTab === 'outNotify'" class="so-aggregate-table-wrap">
+              <el-table v-if="(tabAggregates?.stockOutRequests?.length ?? 0) > 0" :data="tabAggregates?.stockOutRequests ?? []" size="small" stripe>
+                <el-table-column type="index" width="50" label="#" />
+                <el-table-column prop="requestCode" label="通知单号" min-width="160" show-overflow-tooltip />
+                <el-table-column prop="materialCode" label="型号" min-width="140" show-overflow-tooltip />
+                <el-table-column label="数量" width="100" align="right" prop="quantity" />
+                <el-table-column label="状态" width="100" prop="status">
+                  <template #default="{ row }">{{ outReqStatusLabel(row?.status) }}</template>
+                </el-table-column>
+                <el-table-column label="申请日期" width="160" prop="requestDate">
+                  <template #default="{ row }">{{ formatDateTime(row?.requestDate) }}</template>
+                </el-table-column>
+                <el-table-column label="操作" width="120" fixed="right">
+                  <template #default="{ row }">
+                    <router-link
+                      v-if="Number(row.status) !== 1"
+                      class="so-tab-link so-tab-link--sm"
+                      :to="`/inventory/stock-out/create?requestId=${encodeURIComponent(row.id)}`"
+                    >
+                      {{ t('salesOrderDetailView.goExecute') }}
+                    </router-link>
+                    <span v-else>—</span>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+            </div>
+            <div v-show="activeTab === 'stockOut'" class="so-aggregate-table-wrap">
+              <el-table v-if="(tabAggregates?.stockOuts?.length ?? 0) > 0" :data="tabAggregates?.stockOuts ?? []" size="small" stripe>
+                <el-table-column type="index" width="50" label="#" />
+                <el-table-column min-width="180" label="出库单号">
+                  <template #default="{ row }">
+                    <router-link class="so-tab-link" :to="`/inventory/stock-out/${row.id}`">{{ row.stockOutCode }}</router-link>
+                  </template>
+                </el-table-column>
+                <el-table-column label="状态" width="100" prop="status">
+                  <template #default="{ row }">{{ stockOutStatusLabel(row?.status) }}</template>
+                </el-table-column>
+                <el-table-column label="总数量" width="100" align="right" prop="totalQuantity" />
+                <el-table-column label="出库日期" width="160" prop="stockOutDate">
+                  <template #default="{ row }">{{ formatDateTime(row?.stockOutDate) }}</template>
+                </el-table-column>
+                <el-table-column label="创建时间" width="160" prop="createTime">
+                  <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
+                </el-table-column>
+              </el-table>
+              <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+            </div>
+            <div v-show="activeTab === 'receipt'" class="so-aggregate-table-wrap">
+              <el-table v-if="(tabAggregates?.receipts?.length ?? 0) > 0" :data="tabAggregates?.receipts ?? []" size="small" stripe>
+                <el-table-column type="index" width="50" label="#" />
+                <el-table-column min-width="200" label="收款单号">
+                  <template #default="{ row }">
+                    <router-link class="so-tab-link" :to="`/finance/receipts/${row.id}`">{{ row.financeReceiptCode }}</router-link>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="customerName" label="客户" min-width="160" show-overflow-tooltip />
+                <el-table-column label="状态" width="100" prop="status">
+                  <template #default="{ row }">{{ receiptStatusLabel(row?.status) }}</template>
+                </el-table-column>
+                <el-table-column v-if="showSalesMoneyFields" label="金额" width="120" align="right">
+                  <template #default="{ row }">
+                    <span v-if="row.receiptAmount != null" class="amount-with-code">
+                      <span>{{ formatTotalAmountNumber(row.receiptAmount) }}</span>
+                      <span
+                        v-if="formatTotalAmountNumber(row.receiptAmount) !== '—'"
+                        :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.receiptCurrency)]"
+                        >{{ listAmountCurrencyIso(row.receiptCurrency) }}</span
+                      >
+                    </span>
+                    <span v-else>—</span>
+                  </template>
+                </el-table-column>
+                <el-table-column v-else label="金额" width="100" align="right">
+                  <template #default>—</template>
+                </el-table-column>
+                <el-table-column label="收款日期" width="120" prop="receiptDate">
+                  <template #default="{ row }">{{
+                    row?.receiptDate ? formatDateTime(row.receiptDate) : '—'
+                  }}</template>
+                </el-table-column>
+                <el-table-column label="创建时间" width="160" prop="createTime">
+                  <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
+                </el-table-column>
+              </el-table>
+              <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+            </div>
+            <div v-show="activeTab === 'sellInvoice'" class="so-aggregate-table-wrap">
+              <el-table v-if="(tabAggregates?.sellInvoices?.length ?? 0) > 0" :data="tabAggregates?.sellInvoices ?? []" size="small" stripe>
+                <el-table-column type="index" width="50" label="#" />
+                <el-table-column min-width="200" label="发票单号">
+                  <template #default="{ row }">
+                    <router-link class="so-tab-link" :to="`/finance/sell-invoices/${row.id}`">{{ row.invoiceCode || row.id }}</router-link>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="invoiceNo" label="纸票号码" min-width="120" show-overflow-tooltip />
+                <el-table-column prop="customerName" label="客户" min-width="160" show-overflow-tooltip />
+                <el-table-column label="状态" width="120" prop="invoiceStatus">
+                  <template #default="{ row }">{{ sellInvoiceStatusLabel(row?.invoiceStatus) }}</template>
+                </el-table-column>
+                <el-table-column v-if="showSalesMoneyFields" label="发票总额" width="120" align="right">
+                  <template #default="{ row }">
+                    <span v-if="row.invoiceTotal != null" class="amount-with-code">
+                      <span>{{ formatTotalAmountNumber(row.invoiceTotal) }}</span>
+                      <span
+                        v-if="formatTotalAmountNumber(row.invoiceTotal) !== '—'"
+                        :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]"
+                        >{{ listAmountCurrencyIso(row.currency) }}</span
+                      >
+                    </span>
+                    <span v-else>—</span>
+                  </template>
+                </el-table-column>
+                <el-table-column v-else label="发票总额" width="100" align="right">
+                  <template #default>—</template>
+                </el-table-column>
+                <el-table-column label="开票日期" width="120" prop="makeInvoiceDate">
+                  <template #default="{ row }">{{
+                    row?.makeInvoiceDate ? formatDateTime(row.makeInvoiceDate) : '—'
+                  }}</template>
+                </el-table-column>
+                <el-table-column label="创建时间" width="160" prop="createTime">
+                  <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
+                </el-table-column>
+              </el-table>
+              <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+            </div>
           </div>
         </div>
       </div>
@@ -621,11 +849,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import salesOrderApi, { type SalesOrderItemExtendRefreshResult } from '@/api/salesOrder'
+import salesOrderApi, { type SalesOrderItemExtendRefreshResult, type SalesOrderDetailTabAggregates } from '@/api/salesOrder'
 import { getApiErrorMessage } from '@/utils/apiError'
 import purchaseRequisitionApi from '@/api/purchaseRequisition'
 import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
@@ -831,8 +1059,44 @@ const favoriteLoading = ref(false)
 const activeTab = ref('items')
 const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
 
+const SO_DETAIL_AGG_TABS = ['pr', 'stockIn', 'stock', 'outNotify', 'stockOut', 'receipt', 'sellInvoice'] as const
+function isSoDetailAggregateTab(s: string) {
+  return (SO_DETAIL_AGG_TABS as readonly string[]).includes(s)
+}
+
+const tabAggregates = ref<SalesOrderDetailTabAggregates | null>(null)
+const tabAggregatesLoading = ref(false)
+const tabAggregatesLoaded = ref(false)
+const tabAggregatesError = ref('')
+
+async function loadSoDetailTabAggregates() {
+  const id = String(route.params.id ?? '').trim()
+  if (!id || tabAggregatesLoading.value) return
+  if (maskSaleSensitiveFields.value) return
+  tabAggregatesLoading.value = true
+  tabAggregatesError.value = ''
+  try {
+    tabAggregates.value = await salesOrderApi.getDetailTabAggregates(id)
+    tabAggregatesLoaded.value = true
+  } catch (e) {
+    tabAggregatesError.value = getApiErrorMessage(e, '加载关联数据失败')
+  } finally {
+    tabAggregatesLoading.value = false
+  }
+}
+
+watch(
+  [activeTab, () => String(route.params.id ?? ''), maskSaleSensitiveFields],
+  () => {
+    const id = String(route.params.id ?? '').trim()
+    if (!id || maskSaleSensitiveFields.value) return
+    if (isSoDetailAggregateTab(activeTab.value) && !tabAggregatesLoaded.value) void loadSoDetailTabAggregates()
+  },
+  { immediate: true }
+)
+
 watch(maskSaleSensitiveFields, (m) => {
-  if (m && activeTab.value === 'documents') activeTab.value = 'items'
+  if (m && (activeTab.value === 'documents' || isSoDetailAggregateTab(activeTab.value))) activeTab.value = 'items'
 })
 
 // 标签
@@ -1080,6 +1344,9 @@ const fetchOrder = async () => {
     order.value = await salesOrderApi.getById(id)
     if (order.value) {
       loadError.value = ''
+      tabAggregates.value = null
+      tabAggregatesLoaded.value = false
+      tabAggregatesError.value = ''
       refreshTags()
       recordSalesOrderRecentView({
         id: String(order.value.id),
@@ -1087,6 +1354,8 @@ const fetchOrder = async () => {
         customerName: order.value.customerName
       })
       await loadFavoriteState()
+      await nextTick()
+      if (!maskSaleSensitiveFields.value && isSoDetailAggregateTab(activeTab.value)) void loadSoDetailTabAggregates()
     } else {
       soFavorited.value = false
       loadError.value = '未找到该销售订单'
@@ -1207,6 +1476,10 @@ function salesRefreshStatusText(field: string, value: string) {
     const map: Record<number, string> = { 0: '待出库', 1: '部分出库', 2: '出库完成' }
     return map[n] ?? value
   }
+  if (field === 'stockOutNotifyProgressStatus') {
+    const map: Record<number, string> = { 0: '待通知', 1: '部分通知', 2: '通知完成' }
+    return map[n] ?? value
+  }
   if (field === 'receiptProgressStatus') {
     const map: Record<number, string> = { 0: '待收款', 1: '部分收款', 2: '收款完成' }
     return map[n] ?? value
@@ -1219,8 +1492,10 @@ function salesRefreshStatusText(field: string, value: string) {
 }
 
 function buildSalesRefreshResultHtml(result: SalesOrderItemExtendRefreshResult) {
+  const syncedNotifyCount = Number(result.syncedStockOutNotifyStatusCount ?? 0)
   const lines: string[] = [
     `共 ${result.changedItems} 条明细发生更新，${result.changedFieldsCount} 个字段已变更。`,
+    `已同步回写 ${syncedNotifyCount} 条出库通知状态。`,
     ''
   ]
   for (const change of result.changes) {
@@ -1277,7 +1552,66 @@ async function handleRefreshItemExtends() {
   }
 }
 
-const formatDateTime = (v?: string) => (v ? formatDisplayDateTime(v) : '--')
+const formatDateTime = (v?: string | null | number) =>
+  v != null && String(v).length > 0 ? formatDisplayDateTime(String(v)) : '--'
+
+function prStatusLabel(v: unknown) {
+  const s = Number(v)
+  if (s === 0) return t('salesOrderDetailView.prStatus0')
+  if (s === 1) return t('salesOrderDetailView.prStatus1')
+  if (s === 2) return t('salesOrderDetailView.prStatus2')
+  if (s === 3) return t('salesOrderDetailView.prStatus3')
+  return `(${String(v)})`
+}
+function stockInTypeLabel(v: unknown) {
+  const n = Number(v)
+  if (n === 1) return t('salesOrderDetailView.stockInType1')
+  if (n === 2) return t('salesOrderDetailView.stockInType2')
+  if (n === 3) return t('salesOrderDetailView.stockInType3')
+  if (n === 4) return t('salesOrderDetailView.stockInType4')
+  return `(${String(v)})`
+}
+function stockInStatusLabel(v: unknown) {
+  const s = Number(v)
+  if (s === 0) return t('salesOrderDetailView.stockInSt0')
+  if (s === 1) return t('salesOrderDetailView.stockInSt1')
+  if (s === 2) return t('salesOrderDetailView.stockInSt2')
+  if (s === 3) return t('salesOrderDetailView.stockInSt3')
+  return `(${String(v)})`
+}
+function outReqStatusLabel(v: unknown) {
+  const s = Number(v)
+  if (s === 0) return t('salesOrderDetailView.outReqSt0')
+  if (s === 1) return t('salesOrderDetailView.outReqSt1')
+  if (s === 2) return t('salesOrderDetailView.outReqSt2')
+  return `(${String(v)})`
+}
+function stockOutStatusLabel(v: unknown) {
+  const s = Number(v)
+  if (s === 0) return t('salesOrderDetailView.soSt0')
+  if (s === 1) return t('salesOrderDetailView.soSt1')
+  if (s === 2) return t('salesOrderDetailView.soSt2')
+  if (s === 3) return t('salesOrderDetailView.soSt3')
+  return `(${String(v)})`
+}
+function receiptStatusLabel(v: unknown) {
+  const s = Number(v)
+  if (s === 0) return t('salesOrderDetailView.recSt0')
+  if (s === 1) return t('salesOrderDetailView.recSt1')
+  if (s === 2) return t('salesOrderDetailView.recSt2')
+  if (s === 3) return t('salesOrderDetailView.recSt3')
+  if (s === 4) return t('salesOrderDetailView.recSt4')
+  return `(${String(v)})`
+}
+function sellInvoiceStatusLabel(v: unknown) {
+  const s = Number(v)
+  if (s === 1) return t('salesOrderDetailView.invSt1')
+  if (s === 2) return t('salesOrderDetailView.invSt2')
+  if (s === 100) return t('salesOrderDetailView.invSt100')
+  if (s === 101) return t('salesOrderDetailView.invSt101')
+  if (s === -1) return t('salesOrderDetailView.invStNeg1')
+  return `(${String(v)})`
+}
 
 const handleEdit = () => {
   if (!canWriteSo.value) {
@@ -1767,6 +2101,28 @@ const submitApplyStockOut = async () => {
 
 .tabs-body {
   padding: 20px;
+}
+
+.so-aggregate-tabs {
+  min-height: 120px;
+}
+.so-aggregate-error {
+  margin-bottom: 12px;
+}
+.so-aggregate-table-wrap {
+  margin-top: 4px;
+}
+.so-tab-link {
+  color: $cyan-primary;
+  text-decoration: none;
+  font-weight: 500;
+  &:hover {
+    text-decoration: underline;
+  }
+}
+.so-tab-link--sm {
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .detail-items-table-wrap {

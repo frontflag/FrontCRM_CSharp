@@ -1,4 +1,5 @@
 using CRM.API.Authorization;
+using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Purchase;
@@ -27,6 +28,9 @@ namespace CRM.API.Controllers
         private readonly ILogger<PurchaseRequisitionsController> _logger;
         private readonly IEntityLookupService _entityLookupService;
         private readonly IRepository<User> _userRepo;
+        private readonly IRbacService _rbacService;
+        private readonly IRepository<PurchaseOrder> _poRepo;
+        private readonly IRepository<PurchaseOrderItem> _poItemRepo;
 
         public PurchaseRequisitionsController(
             IPurchaseRequisitionService service,
@@ -39,6 +43,9 @@ namespace CRM.API.Controllers
             IQuoteService quoteService,
             IEntityLookupService entityLookupService,
             IRepository<User> userRepo,
+            IRepository<PurchaseOrder> poRepo,
+            IRepository<PurchaseOrderItem> poItemRepo,
+            IRbacService rbacService,
             ILogger<PurchaseRequisitionsController> logger)
         {
             _service = service;
@@ -52,6 +59,16 @@ namespace CRM.API.Controllers
             _logger = logger;
             _entityLookupService = entityLookupService;
             _userRepo = userRepo;
+            _poRepo = poRepo;
+            _poItemRepo = poItemRepo;
+            _rbacService = rbacService;
+        }
+
+        private async Task<UserPermissionSummaryDto?> TryGetPermissionSummaryAsync()
+        {
+            var id = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(id)) return null;
+            return await _rbacService.GetUserPermissionSummaryAsync(id.Trim());
         }
 
         /// <summary>采购申请列表</summary>
@@ -301,6 +318,80 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>
+        /// 与当前采购申请同一销售订单明细（SellOrderItemId）的采购订单明细行（以销定采链路上的下游行）。
+        /// </summary>
+        [HttpGet("{id}/purchase-order-items")]
+        public async Task<IActionResult> GetPurchaseOrderItemsForRequisition(string id)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                    return BadRequest(new { success = false, message = "id 不能为空" });
+
+                var pr = await _prRepo.GetByIdAsync(id.Trim());
+                if (pr == null)
+                    return NotFound(new { success = false, message = "采购申请不存在" });
+
+                var soItemKey = (pr.SellOrderItemId ?? "").Trim();
+                if (soItemKey.Length == 0)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        data = Array.Empty<object>()
+                    });
+                }
+
+                // 以销定采：采购订单明细与销售明细行一一对应（SellOrderItemId 与申请一致即视为同链路段）
+                var lineRows = (await _poItemRepo.FindAsync(i => i.SellOrderItemId == soItemKey)).ToList();
+                var lines = lineRows
+                    .OrderBy(i => i.PurchaseOrderItemCode, StringComparer.Ordinal)
+                    .ToList();
+
+                if (lines.Count == 0)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        data = Array.Empty<object>()
+                    });
+                }
+
+                var poIds = lines.Select(l => l.PurchaseOrderId).Distinct().ToList();
+                var idSet = poIds.ToHashSet(StringComparer.Ordinal);
+                var orders = (await _poRepo.FindAsync(p => idSet.Contains(p.Id))).ToDictionary(p => p.Id, p => p);
+
+                var list = new List<object>(lines.Count);
+                foreach (var it in lines)
+                {
+                    orders.TryGetValue(it.PurchaseOrderId, out var po);
+                    list.Add(new
+                    {
+                        id = it.Id,
+                        purchaseOrderId = it.PurchaseOrderId,
+                        purchaseOrderCode = po?.PurchaseOrderCode,
+                        purchaseOrderItemCode = it.PurchaseOrderItemCode,
+                        sellOrderItemId = it.SellOrderItemId,
+                        vendorId = it.VendorId,
+                        poStatus = po?.Status,
+                        pn = it.PN,
+                        brand = it.Brand,
+                        qty = it.Qty,
+                        cost = it.Cost,
+                        currency = it.Currency
+                    });
+                }
+
+                return Ok(new { success = true, data = list });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "按采购申请查询采购订单明细失败 RequisitionId={Id}", id);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         /// <summary>获取“可申请采购”的销售订单明细行（用于弹窗预填）</summary>
         [HttpGet("sell-order/{sellOrderId}/line-options")]
         public async Task<IActionResult> GetSellOrderLineOptions(string sellOrderId)
@@ -383,6 +474,67 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "重算失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>普通删除（软删）</summary>
+        [HttpPost("{id}/soft-delete")]
+        [RequireAnyPermission("purchase-requisition.write", "sales-order.write")]
+        public async Task<IActionResult> SoftDelete(string id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                await _service.SoftDeleteAsync(id, userId, userName, cancellationToken);
+                return Ok(new { success = true, message = "已删除" });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "采购申请普通删除失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>强制删除（软删，SYS_ADMIN；须提交与单号完全一致的确认单号）</summary>
+        [HttpPost("{id}/force-delete")]
+        [RequirePermission("purchase-requisition.write")]
+        public async Task<IActionResult> ForceDelete(string id, [FromBody] ForceDeletePurchaseRequisitionRequest? body, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var summary = await TryGetPermissionSummaryAsync();
+                if (summary?.IsSysAdmin != true)
+                    return StatusCode(403, new { success = false, message = "仅系统管理员可执行强制删除。" });
+
+                if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
+                    return BadRequest(new { success = false, message = "请在请求体中提供 confirmBillCode，且与采购申请单号完全一致。" });
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                await _service.ForceDeleteAsync(id, body.ConfirmBillCode, userId, userName, cancellationToken);
+                return Ok(new { success = true, message = "已强制删除" });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "采购申请强制删除失败");
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }

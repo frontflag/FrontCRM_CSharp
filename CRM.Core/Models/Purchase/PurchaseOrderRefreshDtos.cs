@@ -9,6 +9,8 @@ public class PurchaseOrderItemExtendRefreshResult
     public int TotalItems { get; set; }
     public int ChangedItems { get; set; }
     public int ChangedFieldsCount { get; set; }
+    public int SyncedPurchaseRequisitionStatusCount { get; set; }
+    public int SyncedArrivalNoticeStatusCount { get; set; }
     public DateTime RefreshedAt { get; set; } = DateTime.UtcNow;
     public List<PurchaseOrderItemExtendChangeDto> Changes { get; set; } = new();
 }

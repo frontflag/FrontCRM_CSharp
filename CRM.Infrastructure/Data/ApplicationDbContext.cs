@@ -376,6 +376,7 @@ namespace CRM.Infrastructure.Data
             // ===== 软删除全局过滤器 =====
             // 所有查询自动过滤已删除的客户
             modelBuilder.Entity<CustomerInfo>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<PurchaseRequisition>().HasQueryFilter(e => !e.IsDeleted);
 
             // User configuration
             modelBuilder.Entity<User>(entity =>

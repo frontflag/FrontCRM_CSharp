@@ -675,6 +675,9 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("ID不能为空");
             var rfq = await _rfqRepo.GetByIdAsync(id);
             if (rfq == null) throw new InvalidOperationException($"需求 {id} 不存在");
+            // 历史 6（旧「已关闭」）已废弃，统一为 7（与迁移脚本及前端筛选一致）
+            if (status == (short)RfqMainStatus.LegacyObsoleteClosed)
+                status = (short)RfqMainStatus.Closed;
             rfq.Status = status;
             rfq.ModifyTime = DateTime.UtcNow;
             rfq.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);

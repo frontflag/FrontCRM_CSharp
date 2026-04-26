@@ -110,6 +110,37 @@
               >
                 {{ t('purchaseRequisitionList.actions.generatePo') }}
               </el-button>
+              <template v-if="canPrSoftDelete">
+                <el-tooltip
+                  v-if="row.status !== 0"
+                  :content="t('purchaseRequisitionList.actions.deleteDeniedStatus')"
+                  placement="top"
+                >
+                  <span class="inline-flex">
+                    <el-button link type="danger" size="small" disabled>
+                      {{ t('purchaseRequisitionList.actions.delete') }}
+                    </el-button>
+                  </span>
+                </el-tooltip>
+                <el-button
+                  v-else
+                  link
+                  type="danger"
+                  size="small"
+                  @click.stop="handleSoftDelete(row)"
+                >
+                  {{ t('purchaseRequisitionList.actions.delete') }}
+                </el-button>
+              </template>
+              <el-button
+                v-if="canPrForceDelete"
+                link
+                type="danger"
+                size="small"
+                @click.stop="handleForceDelete(row)"
+              >
+                {{ t('purchaseRequisitionList.actions.forceDelete') }}
+              </el-button>
             </div>
 
             <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -126,6 +157,17 @@
                   </el-dropdown-item>
                   <el-dropdown-item v-else disabled>
                     <span class="op-more-item op-more-item--muted">{{ t('purchaseRequisitionList.actions.generatePo') }}</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="canPrSoftDelete"
+                    divided
+                    :disabled="row.status !== 0"
+                    @click.stop="handleSoftDelete(row)"
+                  >
+                    <span class="op-more-item op-more-item--danger">{{ t('purchaseRequisitionList.actions.delete') }}</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item v-if="canPrForceDelete" @click.stop="handleForceDelete(row)">
+                    <span class="op-more-item op-more-item--danger">{{ t('purchaseRequisitionList.actions.forceDelete') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -169,6 +211,7 @@ import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Plus, Setting } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
 import { useAuthStore } from '@/stores/auth'
 import { canGeneratePurchaseOrderFromRequisition } from '@/utils/purchaseOrderCreateGate'
@@ -189,6 +232,14 @@ const canGeneratePurchaseOrder = computed(() =>
   })
 )
 
+/** 与后端 RequireAnyPermission：purchase-requisition.write / sales-order.write 一致 */
+const canPrSoftDelete = computed(
+  () =>
+    authStore.hasPermission('purchase-requisition.write') || authStore.hasPermission('sales-order.write')
+)
+
+const canPrForceDelete = computed(() => authStore.user?.isSysAdmin === true)
+
 const loading = ref(false)
 const list = ref<any[]>([])
 const total = ref(0)
@@ -200,8 +251,8 @@ const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 96
-const OP_COL_EXPANDED_WIDTH = 200
-const OP_COL_EXPANDED_MIN_WIDTH = 200
+const OP_COL_EXPANDED_WIDTH = 300
+const OP_COL_EXPANDED_MIN_WIDTH = 280
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
 function toggleOpCol() {
@@ -340,6 +391,66 @@ function handleGeneratePurchaseOrder(row: any) {
     return
   }
   router.push({ name: 'PurchaseOrderCreate', query: { requisitionId: row?.id } })
+}
+
+async function handleSoftDelete(row: any) {
+  if (!canPrSoftDelete.value) return
+  if (row?.status !== 0) {
+    ElMessage.warning(t('purchaseRequisitionList.actions.deleteDeniedStatus'))
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      t('purchaseRequisitionList.actions.deleteConfirm'),
+      t('purchaseRequisitionList.actions.delete'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  try {
+    await purchaseRequisitionApi.softDelete(row.id)
+    ElMessage.success(t('purchaseRequisitionList.actions.deleteSuccess'))
+    await loadList()
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    ElMessage.error(msg || '删除失败')
+  }
+}
+
+async function handleForceDelete(row: any) {
+  if (!canPrForceDelete.value) return
+  let value: string | undefined
+  try {
+    const res = await ElMessageBox.prompt(
+      t('purchaseRequisitionList.actions.forceDeletePrompt'),
+      t('purchaseRequisitionList.actions.forceDeleteTitle'),
+      {
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
+        inputPlaceholder: t('purchaseRequisitionList.actions.forceDeleteBillPlaceholder'),
+        inputValidator: (v) =>
+          !!(v && String(v).trim()) || t('purchaseRequisitionList.actions.forceDeleteBillPlaceholder')
+      }
+    )
+    value = res.value
+  } catch {
+    return
+  }
+  const entered = String(value ?? '').trim()
+  const code = String(row?.billCode ?? '').trim()
+  if (!entered || entered !== code) {
+    ElMessage.error(t('purchaseRequisitionList.actions.forceDeleteBillMismatch'))
+    return
+  }
+  try {
+    await purchaseRequisitionApi.forceDelete(row.id, entered)
+    ElMessage.success(t('purchaseRequisitionList.actions.forceDeleteSuccess'))
+    await loadList()
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    ElMessage.error(msg || '强制删除失败')
+  }
 }
 
 onMounted(loadList)
@@ -555,6 +666,18 @@ onMounted(loadList)
 
 .op-more-item--muted {
   opacity: 0.45;
+}
+
+.op-more-item--danger {
+  color: var(--el-color-danger);
+}
+
+.action-btns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  justify-content: flex-end;
 }
 </style>
 

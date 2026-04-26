@@ -946,6 +946,7 @@ const zhCN = {
       selected: '已选价',
       converted: '已转订单',
       closed: '已关闭',
+      cancelled: '已取消',
       unknown: '未知'
     },
     actions: { column: '操作', view: '查看', edit: '编辑', generateQuote: '报价单' },
@@ -2402,6 +2403,48 @@ const zhCN = {
     submitAuditConfirm: '确认将采购订单 {code} 提交审核吗？',
     submitAuditSuccess: '提交审核成功'
   },
+  salesOrderDetailView: {
+    tabs: {
+      pr: '采购申请',
+      stockIn: '入库',
+      stock: '库存',
+      outNotify: '出库通知',
+      stockOut: '出库',
+      receipt: '收款',
+      sellInvoice: '销项发票'
+    },
+    empty: '暂无数据',
+    goExecute: '去出库',
+    prStatus0: '新建',
+    prStatus1: '部分完成',
+    prStatus2: '全部完成',
+    prStatus3: '已取消',
+    stockInType1: '采购入库',
+    stockInType2: '退货入库',
+    stockInType3: '调拨入库',
+    stockInType4: '其他入库',
+    stockInSt0: '草稿',
+    stockInSt1: '待入库',
+    stockInSt2: '已入库',
+    stockInSt3: '已取消',
+    outReqSt0: '待出库',
+    outReqSt1: '已出库',
+    outReqSt2: '已取消',
+    soSt0: '草稿',
+    soSt1: '待出库',
+    soSt2: '已出库',
+    soSt3: '已取消',
+    recSt0: '草稿',
+    recSt1: '待审核',
+    recSt2: '已审核',
+    recSt3: '已收款',
+    recSt4: '已取消',
+    invSt1: '未申请',
+    invSt2: '申请中',
+    invSt100: '已开票',
+    invSt101: '开票失败',
+    invStNeg1: '已作废'
+  },
   purchaseOrderItemList: {
     title: '采购订单明细',
     totalCount: '共 {total} 条',
@@ -2759,9 +2802,50 @@ const zhCN = {
     actions: {
       view: '查看',
       generatePo: '生成采购订单',
-      generatePoDeniedTip: '仅采购岗位或持有采购订单写权限的用户可从申请生成采购订单'
+      generatePoDeniedTip: '仅采购岗位或持有采购订单写权限的用户可从申请生成采购订单',
+      delete: '删除',
+      deleteConfirm: '确定删除该采购申请吗？仅「新建」状态可普通删除。',
+      deleteDeniedStatus: '仅「新建」状态可普通删除',
+      forceDelete: '强制删除',
+      forceDeleteTitle: '强制删除采购申请',
+      forceDeletePrompt: '请输入采购申请单号以确认（需与单号完全一致）',
+      forceDeleteBillPlaceholder: '采购申请单号',
+      forceDeleteBillMismatch: '输入的单号与当前申请不一致，已取消',
+      deleteSuccess: '已删除',
+      forceDeleteSuccess: '已强制删除'
     },
     columnSettings: '列设置'
+  },
+  purchaseRequisitionDetail: {
+    tabs: {
+      poItems: '采购订单明细'
+    },
+    poItemTable: {
+      empty: '暂无关联的采购订单明细（与当前申请同一销售明细行）',
+      loadError: '加载采购订单明细失败',
+      purchaseOrderCode: '采购单号',
+      lineCode: '明细编号',
+      pn: '物料型号',
+      brand: '品牌',
+      qty: '数量',
+      cost: '采购单价',
+      currency: '币别',
+      poStatus: '采购单状态',
+      actionOpenPo: '打开采购单',
+      rmb: 'RMB',
+      usd: 'USD',
+      eur: 'EUR',
+      hkd: 'HKD',
+      poSt1: '新建',
+      poSt2: '待审核',
+      poSt10: '审核通过',
+      poSt20: '待确认',
+      poSt30: '已确认',
+      poSt50: '进行中',
+      poSt100: '采购完成',
+      poStNeg1: '审核失败',
+      poStNeg2: '取消'
+    }
   },
   purchaseRequisitionCreate: {
     table: {

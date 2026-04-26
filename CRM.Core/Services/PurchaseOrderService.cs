@@ -3,6 +3,7 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.System;
+using CRM.Core.Models.Inventory;
 using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
 
@@ -24,6 +25,8 @@ namespace CRM.Core.Services
         private readonly IRepository<PurchaseOrder> _poRepo;
         private readonly IRepository<PurchaseOrderItem> _poItemRepo;
         private readonly IRepository<PurchaseOrderItemExtend> _poItemExtendRepo;
+        private readonly IRepository<PurchaseRequisition>? _prRepo;
+        private readonly IRepository<StockInNotify>? _notifyRepo;
         private readonly IRepository<SellOrder> _soRepo;
         private readonly IRepository<SellOrderItem> _soItemRepo;
         private readonly IDataPermissionService _dataPermissionService;
@@ -32,10 +35,50 @@ namespace CRM.Core.Services
         private readonly IFinanceExchangeRateService _financeExchangeRateService;
         private readonly IOrderJourneyLogService _orderJourneyLog;
         private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
+        private readonly IPurchaseRequisitionService? _purchaseRequisitionService;
         private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
         private readonly IPurchaseOrderExtendLineSeqService _poLineSeq;
         private readonly ILogger<PurchaseOrderService> _logger;
 
+        public PurchaseOrderService(
+            IRepository<PurchaseOrder> poRepo,
+            IRepository<PurchaseOrderItem> poItemRepo,
+            IRepository<PurchaseOrderItemExtend> poItemExtendRepo,
+            IRepository<PurchaseRequisition>? prRepo,
+            IRepository<StockInNotify>? notifyRepo,
+            IRepository<SellOrder> soRepo,
+            IRepository<SellOrderItem> soItemRepo,
+            IDataPermissionService dataPermissionService,
+            ISerialNumberService serialNumberService,
+            IFinanceExchangeRateService financeExchangeRateService,
+            IOrderJourneyLogService orderJourneyLog,
+            ISellOrderItemExtendSyncService sellOrderItemExtendSync,
+            IPurchaseRequisitionService? purchaseRequisitionService,
+            IPurchaseOrderItemExtendSyncService poItemExtendSync,
+            IPurchaseOrderExtendLineSeqService poLineSeq,
+            ILogger<PurchaseOrderService> logger,
+            IUnitOfWork? unitOfWork = null)
+        {
+            _poRepo = poRepo;
+            _poItemRepo = poItemRepo;
+            _poItemExtendRepo = poItemExtendRepo;
+            _prRepo = prRepo;
+            _notifyRepo = notifyRepo;
+            _soRepo = soRepo;
+            _soItemRepo = soItemRepo;
+            _dataPermissionService = dataPermissionService;
+            _serialNumberService = serialNumberService;
+            _financeExchangeRateService = financeExchangeRateService;
+            _orderJourneyLog = orderJourneyLog;
+            _sellOrderItemExtendSync = sellOrderItemExtendSync;
+            _purchaseRequisitionService = purchaseRequisitionService;
+            _poItemExtendSync = poItemExtendSync;
+            _poLineSeq = poLineSeq;
+            _logger = logger;
+            _unitOfWork = unitOfWork;
+        }
+
+        // 兼容旧调用方（单测/临时构造）：不注入采购申请回写依赖时，状态回写能力自动降级为 no-op。
         public PurchaseOrderService(
             IRepository<PurchaseOrder> poRepo,
             IRepository<PurchaseOrderItem> poItemRepo,
@@ -51,21 +94,49 @@ namespace CRM.Core.Services
             IPurchaseOrderExtendLineSeqService poLineSeq,
             ILogger<PurchaseOrderService> logger,
             IUnitOfWork? unitOfWork = null)
+            : this(
+                poRepo,
+                poItemRepo,
+                poItemExtendRepo,
+                null,
+                null,
+                soRepo,
+                soItemRepo,
+                dataPermissionService,
+                serialNumberService,
+                financeExchangeRateService,
+                orderJourneyLog,
+                sellOrderItemExtendSync,
+                null,
+                poItemExtendSync,
+                poLineSeq,
+                logger,
+                unitOfWork)
         {
-            _poRepo = poRepo;
-            _poItemRepo = poItemRepo;
-            _poItemExtendRepo = poItemExtendRepo;
-            _soRepo = soRepo;
-            _soItemRepo = soItemRepo;
-            _dataPermissionService = dataPermissionService;
-            _serialNumberService = serialNumberService;
-            _financeExchangeRateService = financeExchangeRateService;
-            _orderJourneyLog = orderJourneyLog;
-            _sellOrderItemExtendSync = sellOrderItemExtendSync;
-            _poItemExtendSync = poItemExtendSync;
-            _poLineSeq = poLineSeq;
-            _logger = logger;
-            _unitOfWork = unitOfWork;
+        }
+
+        private async Task<Dictionary<string, short>> LoadArrivalNoticeStatusMapByPoLineIdsAsync(
+            IReadOnlyCollection<string> purchaseOrderItemIds)
+        {
+            if (_notifyRepo == null || purchaseOrderItemIds.Count == 0)
+                return new Dictionary<string, short>(StringComparer.OrdinalIgnoreCase);
+            var rows = (await _notifyRepo.FindAsync(n =>
+                    n.PurchaseOrderItemId != null && purchaseOrderItemIds.Contains(n.PurchaseOrderItemId)))
+                .ToList();
+            return rows.ToDictionary(x => x.Id, x => x.Status, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static int CountArrivalNoticeStatusChanges(
+            IReadOnlyDictionary<string, short> before,
+            IReadOnlyDictionary<string, short> after)
+        {
+            var changed = 0;
+            foreach (var kv in after)
+            {
+                if (before.TryGetValue(kv.Key, out var prev) && prev == kv.Value) continue;
+                changed++;
+            }
+            return changed;
         }
 
         private static string? NormalizeActingUserId(string? actingUserId) =>
@@ -77,6 +148,22 @@ namespace CRM.Core.Services
         private static bool IsLinkedSellOrderPurchaseLine(string? sellOrderItemId) =>
             !string.IsNullOrWhiteSpace(sellOrderItemId) &&
             !string.Equals(sellOrderItemId.Trim(), EmptySellOrderItemSentinel, StringComparison.OrdinalIgnoreCase);
+
+        private async Task<int> RecalculatePurchaseRequisitionBySellLinesAsync(IEnumerable<string> sellOrderItemIds)
+        {
+            if (_purchaseRequisitionService == null || _prRepo == null) return 0;
+            var ids = sellOrderItemIds
+                .Where(IsLinkedSellOrderPurchaseLine)
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0) return 0;
+
+            var prs = (await _prRepo.FindAsync(x => ids.Contains(x.SellOrderItemId))).ToList();
+            foreach (var pr in prs)
+                await _purchaseRequisitionService.RecalculateAsync(pr.Id);
+            return prs.Count;
+        }
 
         /// <summary>写入库：无销售行或前端占位 GUID → NULL，避免违反 sellorderitem 外键。</summary>
         private static string? NormalizeStoredSellOrderItemId(string? sellOrderItemId) =>
@@ -192,12 +279,15 @@ namespace CRM.Core.Services
                 await _unitOfWork.SaveChangesAsync();
             }
 
-            foreach (var sid in createdLines
+            var linkedSellLineIds = createdLines
                          .Select(x => x.SellOrderItemId)
                          .Where(s => IsLinkedSellOrderPurchaseLine(s))
                          .Select(s => s!.Trim())
-                         .Distinct(StringComparer.OrdinalIgnoreCase))
+                         .Distinct(StringComparer.OrdinalIgnoreCase)
+                         .ToList();
+            foreach (var sid in linkedSellLineIds)
                 await _sellOrderItemExtendSync.RecalculateAsync(sid);
+            await RecalculatePurchaseRequisitionBySellLinesAsync(linkedSellLineIds);
 
             foreach (var line in createdLines)
                 await _poItemExtendSync.RecalculateAsync(line.Id);
@@ -482,6 +572,7 @@ namespace CRM.Core.Services
 
             foreach (var sid in recalcSellLineIds)
                 await _sellOrderItemExtendSync.RecalculateAsync(sid);
+            await RecalculatePurchaseRequisitionBySellLinesAsync(recalcSellLineIds);
 
             if (newLines != null)
             {
@@ -562,6 +653,7 @@ namespace CRM.Core.Services
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
             foreach (var sid in recalcAfterDelete)
                 await _sellOrderItemExtendSync.RecalculateAsync(sid);
+            await RecalculatePurchaseRequisitionBySellLinesAsync(recalcAfterDelete);
         }
 
         public async Task<PurchaseOrderItemExtendRefreshResult> RefreshItemExtendsAsync(string purchaseOrderId, CancellationToken cancellationToken = default)
@@ -580,6 +672,9 @@ namespace CRM.Core.Services
                 TotalItems = items.Count,
                 RefreshedAt = DateTime.UtcNow
             };
+            var poLineIds = items.Select(x => x.Id).ToList();
+            var beforeArrivalStatus =
+                await LoadArrivalNoticeStatusMapByPoLineIdsAsync(poLineIds);
 
             foreach (var item in items)
             {
@@ -598,6 +693,19 @@ namespace CRM.Core.Services
                 });
                 result.ChangedFieldsCount += fields.Count;
             }
+
+            var refreshSellLineIds = items
+                .Select(i => i.SellOrderItemId)
+                .Where(s => IsLinkedSellOrderPurchaseLine(s))
+                .Select(s => s!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            result.SyncedPurchaseRequisitionStatusCount =
+                await RecalculatePurchaseRequisitionBySellLinesAsync(refreshSellLineIds);
+            var afterArrivalStatus =
+                await LoadArrivalNoticeStatusMapByPoLineIdsAsync(poLineIds);
+            result.SyncedArrivalNoticeStatusCount =
+                CountArrivalNoticeStatusChanges(beforeArrivalStatus, afterArrivalStatus);
 
             result.ChangedItems = result.Changes.Count;
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
@@ -653,12 +761,15 @@ namespace CRM.Core.Services
             });
 
             var statusSyncItems = await _poItemRepo.FindAsync(i => i.PurchaseOrderId == id);
-            foreach (var sid in statusSyncItems
+            var statusSyncSellLineIds = statusSyncItems
                          .Select(i => i.SellOrderItemId)
                          .Where(s => IsLinkedSellOrderPurchaseLine(s))
                          .Select(s => s!.Trim())
-                         .Distinct(StringComparer.OrdinalIgnoreCase))
+                         .Distinct(StringComparer.OrdinalIgnoreCase)
+                         .ToList();
+            foreach (var sid in statusSyncSellLineIds)
                 await _sellOrderItemExtendSync.RecalculateAsync(sid);
+            await RecalculatePurchaseRequisitionBySellLinesAsync(statusSyncSellLineIds);
 
             foreach (var line in statusSyncItems)
                 await _poItemExtendSync.RecalculateAsync(line.Id);

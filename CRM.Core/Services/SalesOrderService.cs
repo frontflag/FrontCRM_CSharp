@@ -791,6 +791,8 @@ namespace CRM.Core.Services
                     Fields = fields
                 });
                 result.ChangedFieldsCount += fields.Count;
+                if (fields.Any(f => string.Equals(f.Field, "stockOutNotifyProgressStatus", StringComparison.Ordinal)))
+                    result.SyncedStockOutNotifyStatusCount += 1;
             }
 
             result.ChangedItems = result.Changes.Count;
@@ -934,6 +936,12 @@ namespace CRM.Core.Services
             AddDecimalField(changes, "qtyNotPurchase", "未采购数量", before.QtyNotPurchase, after.QtyNotPurchase, 4);
             AddDecimalField(changes, "qtyStockOutNotify", "已通知出库数量", before.QtyStockOutNotify, after.QtyStockOutNotify, 4);
             AddDecimalField(changes, "qtyStockOutNotifyNot", "待通知出库数量", before.QtyStockOutNotifyNot, after.QtyStockOutNotifyNot, 4);
+            AddShortField(
+                changes,
+                "stockOutNotifyProgressStatus",
+                "出库通知状态",
+                ComputeStockOutNotifyProgressStatus(before.QtyStockOutNotify, before.QtyStockOutNotifyNot),
+                ComputeStockOutNotifyProgressStatus(after.QtyStockOutNotify, after.QtyStockOutNotifyNot));
             AddDecimalField(changes, "qtyStockOutActual", "已实际出库数量", before.QtyStockOutActual, after.QtyStockOutActual, 4);
             AddDecimalField(changes, "invoiceAmount", "销项开票总额", before.InvoiceAmount, after.InvoiceAmount, 2);
             AddDecimalField(changes, "invoiceAmountNot", "待开票金额", before.InvoiceAmountNot, after.InvoiceAmountNot, 2);
@@ -951,6 +959,13 @@ namespace CRM.Core.Services
             AddDecimalField(changes, "profitOutFinUsd", "出库利润(财务USD)", before.ProfitOutFinUsd, after.ProfitOutFinUsd, 2);
             AddDecimalField(changes, "profitOutRateFin", "出库利润率(财务)", before.ProfitOutRateFin, after.ProfitOutRateFin, 6);
             return changes;
+        }
+
+        private static short ComputeStockOutNotifyProgressStatus(decimal qtyNotify, decimal qtyNotifyNot)
+        {
+            if (qtyNotify <= 0m) return 0;
+            if (qtyNotifyNot <= 0m) return 2;
+            return 1;
         }
 
         private static void AddShortField(List<SalesOrderItemExtendFieldChangeDto> changes, string field, string label, short before, short after)

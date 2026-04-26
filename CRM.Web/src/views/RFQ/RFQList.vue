@@ -69,7 +69,8 @@
           <el-option :label="t('rfqList.status.quoted')" :value="3" />
           <el-option :label="t('rfqList.status.selected')" :value="4" />
           <el-option :label="t('rfqList.status.converted')" :value="5" />
-          <el-option :label="t('rfqList.status.closed')" :value="6" />
+          <el-option :label="t('rfqList.status.closed')" :value="7" />
+          <el-option :label="t('rfqList.status.cancelled')" :value="8" />
         </el-select>
         <button type="button" class="btn-primary btn-sm" @click="handleSearch">
           <el-icon><Search /></el-icon>{{ t('rfqList.filters.query') }}
@@ -349,17 +350,31 @@ const formatItemCountCell = (v: unknown) => {
 
 // 状态处理
 const getStatusType = (status: number) => {
-  const map: Record<number, string> = { 
-    0: 'info', 1: 'warning', 2: 'primary', 3: 'success', 
-    4: 'success', 5: 'success', 6: 'danger'
+  const map: Record<number, string> = {
+    0: 'info',
+    1: 'warning',
+    2: 'primary',
+    3: 'success',
+    4: 'success',
+    5: 'success',
+    6: 'info',
+    7: 'info',
+    8: 'warning'
   }
   return map[status] || 'info'
 }
 
 const getStatusText = (status: number) => {
   const map: Record<number, string> = {
-    0: t('rfqList.status.pending'), 1: t('rfqList.status.assigned'), 2: t('rfqList.status.processing'), 3: t('rfqList.status.quoted'),
-    4: t('rfqList.status.selected'), 5: t('rfqList.status.converted'), 6: t('rfqList.status.closed')
+    0: t('rfqList.status.pending'),
+    1: t('rfqList.status.assigned'),
+    2: t('rfqList.status.processing'),
+    3: t('rfqList.status.quoted'),
+    4: t('rfqList.status.selected'),
+    5: t('rfqList.status.converted'),
+    6: t('rfqList.status.closed'),
+    7: t('rfqList.status.closed'),
+    8: t('rfqList.status.cancelled')
   }
   return map[status] || t('rfqList.status.unknown')
 }
@@ -408,7 +423,10 @@ const loadData = async () => {
       total: res.totalCount || 0,
       pending: rfqList.value.filter((r: any) => r.status === 0).length,
       processing: rfqList.value.filter((r: any) => r.status === 1 || r.status === 2).length,
-      quoted: rfqList.value.filter((r: any) => r.status >= 3).length
+      quoted: rfqList.value.filter((r: any) => {
+        const s = r.status
+        return s === 3 || s === 4 || s === 5
+      }).length
     }
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, t('rfqList.loadFailed')))
@@ -443,7 +461,7 @@ watch(
     if (qs !== undefined && qs !== null && qs !== '') {
       const raw = Array.isArray(qs) ? qs[0] : qs
       const n = Number(raw)
-      if (!Number.isNaN(n)) st = n
+      if (!Number.isNaN(n)) st = n === 6 ? 7 : n
     }
     searchForm.value = { keyword: kw, status: st }
     pageInfo.value.page = 1

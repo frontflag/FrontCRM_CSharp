@@ -17,8 +17,14 @@ namespace CRM.Core.Interfaces
         /// <summary>以销定采：自动生成采购申请（简化实现：为剩余明细创建）</summary>
         Task<IEnumerable<PurchaseRequisition>> AutoGenerateAsync(string sellOrderId, string purchaseUserId, string? actingUserId = null);
 
-        /// <summary>重新计算（占位：当前简化实现不做处理）</summary>
+        /// <summary>按关联采购订单明细数量重算并回写采购申请状态。</summary>
         Task RecalculateAsync(string id);
+
+        /// <summary>普通删除：软删；仅状态为新建(0)且无下游采购订单明细引用本销售明细时可删。</summary>
+        Task SoftDeleteAsync(string id, string? actingUserId, string? actingUserName, CancellationToken cancellationToken = default);
+
+        /// <summary>强制删除（软删）：任意状态（在业务边界内），须校验单号与无下游；调用方须已校验 SYS_ADMIN。</summary>
+        Task ForceDeleteAsync(string id, string confirmBillCode, string? actingUserId, string? actingUserName, CancellationToken cancellationToken = default);
     }
 
     public class CreatePurchaseRequisitionRequest
@@ -44,5 +50,11 @@ namespace CRM.Core.Interfaces
         public decimal openPurchaseRequisitionQty { get; set; }
         /// <summary>仍可申请的采购数量上限（前端仅展示，以服务端校验为准）</summary>
         public decimal remainingQty { get; set; }
+    }
+
+    /// <summary>强制删除请求体：须与目标采购申请单号完全一致。</summary>
+    public class ForceDeletePurchaseRequisitionRequest
+    {
+        public string ConfirmBillCode { get; set; } = string.Empty;
     }
 }

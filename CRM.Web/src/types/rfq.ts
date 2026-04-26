@@ -3,17 +3,20 @@
 // 字段标准：对齐参考系统 RF2603J6UB 页面
 // ============================================================
 
-// RFQ 流转状态
+/** RFQ 主表 status，与后端 `RfqMainStatus` / DB `rfq.status` 一致 */
 export enum RFQStatus {
-  Draft = 0,        // 草稿/新建
-  Pending = 1,      // 待处理
-  Assigned = 2,     // 已分配
-  Processing = 3,   // 处理中
-  Quoted = 4,       // 已报价
-  Accepted = 5,     // 已接受
-  Rejected = 6,     // 已拒绝
-  Closed = 7,       // 已关闭
-  Cancelled = 8,    // 已取消
+  PendingAssign = 0,
+  Assigned = 1,
+  Quoting = 2,
+  Quoted = 3,
+  PriceSelected = 4,
+  ConvertedToOrder = 5,
+  /** 已废弃：旧「已关闭」码，写入时归一为 Closed(7)；勿新写入 */
+  LegacyObsoleteClosed = 6,
+  /** 已关闭：已转销售订单，需求完成使命 */
+  Closed = 7,
+  /** 已取消：终止执行，保留留痕 */
+  Cancelled = 8
 }
 
 // RFQ 明细状态

@@ -18,8 +18,75 @@ export interface PurchaseOrderItemExtendRefreshResult {
   totalItems: number
   changedItems: number
   changedFieldsCount: number
+  syncedPurchaseRequisitionStatusCount?: number
+  syncedArrivalNoticeStatusCount?: number
   refreshedAt: string
   changes: PurchaseOrderItemExtendChangeDto[]
+}
+
+export interface PurchaseOrderDetailTabAggregates {
+  purchaseRequisitions: Array<{
+    id: string
+    billCode: string
+    status: number
+    sellOrderItemId: string
+    pn?: string | null
+    brand?: string | null
+    qty: number
+    expectedPurchaseTime: string
+    createTime: string
+  }>
+  payments: Array<{
+    id: string
+    financePaymentCode: string
+    vendorName?: string | null
+    status: number
+    paymentAmountToBe: number
+    paymentAmount: number
+    paymentCurrency: number
+    paymentDate?: string | null
+    createTime: string
+  }>
+  arrivalNotices: Array<{
+    id: string
+    noticeCode: string
+    pn?: string | null
+    brand?: string | null
+    expectQty: number
+    receiveQty: number
+    status: number
+    expectedArrivalDate?: string | null
+    createTime: string
+  }>
+  stockIns: Array<{
+    id: string
+    stockInCode: string
+    stockInType: number
+    status: number
+    stockInDate: string
+    createTime: string
+  }>
+  stockItems: Array<{
+    id: string
+    stockItemCode?: string | null
+    stockAggregateId: string
+    purchasePn?: string | null
+    purchaseBrand?: string | null
+    qtyRepertory: number
+    qtyRepertoryAvailable: number
+    purchaseOrderItemId?: string | null
+    purchaseOrderItemCode?: string | null
+  }>
+  purchaseInvoices: Array<{
+    id: string
+    vendorName?: string | null
+    invoiceNo?: string | null
+    invoiceAmount: number
+    invoiceDate?: string | null
+    confirmStatus: number
+    redInvoiceStatus: number
+    createTime: string
+  }>
 }
 
 // 采购订单API
@@ -40,6 +107,11 @@ export const purchaseOrderApi = {
   // 获取采购订单详情
   async getById(id: string) {
     return await apiClient.get(`/api/v1/purchase-orders/${id}`)
+  },
+
+  async getDetailTabAggregates(id: string) {
+    const enc = encodeURIComponent(id)
+    return await apiClient.get<PurchaseOrderDetailTabAggregates>(`/api/v1/purchase-orders/${enc}/detail-tab-aggregates`)
   },
 
   /** 报表页：订单 + 公司参数（单请求，不依赖 company-profile/report-bundle） */

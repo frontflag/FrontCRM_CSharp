@@ -24,8 +24,85 @@ export interface SalesOrderItemExtendRefreshResult {
   totalItems: number
   changedItems: number
   changedFieldsCount: number
+  syncedStockOutNotifyStatusCount?: number
   refreshedAt: string
   changes: SalesOrderItemExtendChangeDto[]
+}
+
+/** GET /api/v1/sales-orders/{id}/detail-tab-aggregates */
+export interface SalesOrderDetailTabAggregates {
+  purchaseRequisitions: Array<{
+    id: string
+    billCode: string
+    status: number
+    sellOrderItemId: string
+    pn?: string | null
+    brand?: string | null
+    qty: number
+    expectedPurchaseTime: string
+    createTime: string
+  }>
+  stockIns: Array<{
+    id: string
+    stockInCode: string
+    stockInType: number
+    status: number
+    stockInDate: string
+    createTime: string
+  }>
+  stockItems: Array<{
+    id: string
+    stockItemCode?: string | null
+    stockAggregateId: string
+    purchasePn?: string | null
+    purchaseBrand?: string | null
+    qtyRepertory: number
+    qtyRepertoryAvailable: number
+    sellOrderItemId?: string | null
+    sellOrderItemCode?: string | null
+    warehouseId: string
+  }>
+  stockOutRequests: Array<{
+    id: string
+    requestCode: string
+    materialCode: string
+    quantity: number
+    status: number
+    requestDate: string
+    createTime: string
+  }>
+  stockOuts: Array<{
+    id: string
+    stockOutCode: string
+    status: number
+    totalQuantity: number
+    stockOutDate: string
+    sellOrderItemId?: string | null
+    createTime: string
+  }>
+  receipts: Array<{
+    id: string
+    financeReceiptCode: string
+    status: number
+    customerName?: string | null
+    receiptAmount: number
+    receiptCurrency: number
+    receiptDate?: string | null
+    createTime: string
+  }>
+  sellInvoices: Array<{
+    id: string
+    invoiceCode?: string | null
+    invoiceNo?: string | null
+    customerName?: string | null
+    invoiceTotal: number
+    makeInvoiceDate?: string | null
+    invoiceStatus: number
+    receiveDone: number
+    receiveToBe: number
+    currency: number
+    createTime: string
+  }>
 }
 
 // 销售订单API
@@ -53,6 +130,12 @@ export const salesOrderApi = {
   // 获取销售订单详情
   async getById(id: string) {
     return await apiClient.get(`/api/v1/sales-orders/${id}`)
+  },
+
+  /** 详情页：采购申请/入库/库存/出库通知/出库/收款/销项发票等列表 */
+  async getDetailTabAggregates(id: string) {
+    const enc = encodeURIComponent(id)
+    return await apiClient.get<SalesOrderDetailTabAggregates>(`/api/v1/sales-orders/${enc}/detail-tab-aggregates`)
   },
 
   /**

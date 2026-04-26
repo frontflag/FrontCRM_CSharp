@@ -9,6 +9,7 @@ public class SalesOrderItemExtendRefreshResult
     public int TotalItems { get; set; }
     public int ChangedItems { get; set; }
     public int ChangedFieldsCount { get; set; }
+    public int SyncedStockOutNotifyStatusCount { get; set; }
     public DateTime RefreshedAt { get; set; } = DateTime.UtcNow;
     public List<SalesOrderItemExtendChangeDto> Changes { get; set; } = new();
 }

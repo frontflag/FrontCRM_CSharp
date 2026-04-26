@@ -4330,6 +4330,11 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expected_purchase_time");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
                     b.Property<string>("ModifyByUserId")
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)")

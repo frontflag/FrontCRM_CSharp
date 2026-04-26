@@ -28,7 +28,9 @@ function getStatusText(status: number) {
     3: t('rfqList.status.quoted'),
     4: t('rfqList.status.selected'),
     5: t('rfqList.status.converted'),
-    6: t('rfqList.status.closed')
+    6: t('rfqList.status.closed'),
+    7: t('rfqList.status.closed'),
+    8: t('rfqList.status.cancelled')
   }
   return map[status] ?? '—'
 }

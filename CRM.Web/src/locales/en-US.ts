@@ -966,6 +966,7 @@ const enUS = {
       selected: 'Price Selected',
       converted: 'Converted to Order',
       closed: 'Closed',
+      cancelled: 'Cancelled',
       unknown: 'Unknown'
     },
     actions: { column: 'Actions', view: 'View', edit: 'Edit', generateQuote: 'Quotation' },
@@ -2427,6 +2428,48 @@ const enUS = {
     submitAuditConfirm: 'Submit purchase order {code} for review?',
     submitAuditSuccess: 'Submitted for review'
   },
+  salesOrderDetailView: {
+    tabs: {
+      pr: 'Purchase requisitions',
+      stockIn: 'Stock-in',
+      stock: 'Inventory',
+      outNotify: 'Outbound notice',
+      stockOut: 'Stock-out',
+      receipt: 'Receipts',
+      sellInvoice: 'Sales invoices'
+    },
+    empty: 'No data',
+    goExecute: 'Execute stock-out',
+    prStatus0: 'New',
+    prStatus1: 'Partial',
+    prStatus2: 'Completed',
+    prStatus3: 'Cancelled',
+    stockInType1: 'Purchase receipt',
+    stockInType2: 'Return',
+    stockInType3: 'Transfer in',
+    stockInType4: 'Other',
+    stockInSt0: 'Draft',
+    stockInSt1: 'Pending receipt',
+    stockInSt2: 'Received',
+    stockInSt3: 'Cancelled',
+    outReqSt0: 'Pending ship',
+    outReqSt1: 'Shipped',
+    outReqSt2: 'Cancelled',
+    soSt0: 'Draft',
+    soSt1: 'Pending ship',
+    soSt2: 'Shipped',
+    soSt3: 'Cancelled',
+    recSt0: 'Draft',
+    recSt1: 'Pending review',
+    recSt2: 'Approved',
+    recSt3: 'Collected',
+    recSt4: 'Cancelled',
+    invSt1: 'Not applied',
+    invSt2: 'In progress',
+    invSt100: 'Issued',
+    invSt101: 'Failed',
+    invStNeg1: 'Voided'
+  },
   purchaseOrderItemList: {
     title: 'Purchase order line items',
     totalCount: 'Total {total} items',
@@ -2785,9 +2828,50 @@ const enUS = {
     actions: {
       view: 'View',
       generatePo: 'Create PO',
-      generatePoDeniedTip: 'Only purchasing roles or users with purchase-order write may create a PO from a requisition'
+      generatePoDeniedTip: 'Only purchasing roles or users with purchase-order write may create a PO from a requisition',
+      delete: 'Delete',
+      deleteConfirm: 'Delete this requisition? Only rows in "New" status can be soft-deleted.',
+      deleteDeniedStatus: 'Only "New" status can be soft-deleted',
+      forceDelete: 'Force delete',
+      forceDeleteTitle: 'Force delete requisition',
+      forceDeletePrompt: 'Type the requisition number to confirm (must match exactly).',
+      forceDeleteBillPlaceholder: 'Requisition no.',
+      forceDeleteBillMismatch: 'The number does not match. Cancelled.',
+      deleteSuccess: 'Deleted',
+      forceDeleteSuccess: 'Force-deleted'
     },
     columnSettings: 'Column settings'
+  },
+  purchaseRequisitionDetail: {
+    tabs: {
+      poItems: 'PO line items'
+    },
+    poItemTable: {
+      empty: 'No purchase order lines for this requisition’s sales line yet.',
+      loadError: 'Failed to load PO lines',
+      purchaseOrderCode: 'PO no.',
+      lineCode: 'Line code',
+      pn: 'MPN / PN',
+      brand: 'Brand',
+      qty: 'Qty',
+      cost: 'Unit cost',
+      currency: 'Ccy',
+      poStatus: 'PO status',
+      actionOpenPo: 'Open PO',
+      rmb: 'CNY',
+      usd: 'USD',
+      eur: 'EUR',
+      hkd: 'HKD',
+      poSt1: 'New',
+      poSt2: 'Pending review',
+      poSt10: 'Approved',
+      poSt20: 'To confirm',
+      poSt30: 'Confirmed',
+      poSt50: 'In progress',
+      poSt100: 'PO complete',
+      poStNeg1: 'Review failed',
+      poStNeg2: 'Cancelled'
+    }
   },
   purchaseRequisitionCreate: {
     table: {

@@ -92,5 +92,9 @@ namespace CRM.Core.Models.Purchase
         [StringLength(36)]
         [Column("modify_by_user_id")]
         public string? ModifyByUserId { get; set; }
+
+        /// <summary>软删除标记（一期：全员查询默认不可见；删除人/时间见 log_operation）。</summary>
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 }

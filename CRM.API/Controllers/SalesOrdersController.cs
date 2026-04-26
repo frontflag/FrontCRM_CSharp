@@ -7,6 +7,7 @@ using CRM.API.Services;
 using CRM.Infrastructure.Data;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace CRM.API.Controllers
@@ -177,6 +178,248 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>销售订单详情页：底部页签用下游列表（采购申请/入库/库存/出库通知/出库/收款/销项发票）。</summary>
+        [HttpGet("{id}/detail-tab-aggregates")]
+        public async Task<IActionResult> GetDetailTabAggregates(string id)
+        {
+            try
+            {
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "销售订单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessSalesOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该销售订单" });
+                var summary = await GetPermissionSummaryAsync(userId);
+                var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
+
+                var itemIds = (order.Items ?? new List<SellOrderItem>())
+                    .Select(i => i.Id)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                var prRows = await _db.PurchaseRequisitions.AsNoTracking()
+                    .Where(p => p.SellOrderId == id)
+                    .OrderByDescending(p => p.CreateTime)
+                    .Select(p => new
+                    {
+                        id = p.Id,
+                        billCode = p.BillCode,
+                        p.Status,
+                        sellOrderItemId = p.SellOrderItemId,
+                        p.PN,
+                        p.Brand,
+                        p.Qty,
+                        p.ExpectedPurchaseTime,
+                        p.CreateTime
+                    })
+                    .ToListAsync();
+
+                List<string> stockInIdList;
+                if (itemIds.Count == 0)
+                    stockInIdList = new List<string>();
+                else
+                    stockInIdList = await _db.StockInItemExtends.AsNoTracking()
+                        .Where(e => e.SellOrderItemId != null && itemIds.Contains(e.SellOrderItemId!))
+                        .Select(e => e.StockInId)
+                        .Distinct()
+                        .ToListAsync();
+
+                var stockInRows = await _db.StockIns.AsNoTracking()
+                    .Where(si => stockInIdList.Contains(si.Id))
+                    .OrderByDescending(si => si.CreateTime)
+                    .Select(si => new
+                    {
+                        id = si.Id,
+                        stockInCode = si.StockInCode,
+                        si.StockInType,
+                        si.Status,
+                        si.StockInDate,
+                        si.CreateTime
+                    })
+                    .ToListAsync();
+
+                List<object> stockItemRows;
+                if (itemIds.Count == 0)
+                {
+                    stockItemRows = new List<object>();
+                }
+                else
+                {
+                    stockItemRows = (await _db.StockItems.AsNoTracking()
+                        .Where(s => s.SellOrderItemId != null && itemIds.Contains(s.SellOrderItemId!))
+                        .OrderByDescending(s => s.CreateTime)
+                        .Select(s => new
+                        {
+                            s.Id,
+                            s.StockItemCode,
+                            s.StockAggregateId,
+                            s.PurchasePn,
+                            s.PurchaseBrand,
+                            s.QtyRepertory,
+                            s.QtyRepertoryAvailable,
+                            s.SellOrderItemId,
+                            s.SellOrderItemCode,
+                            s.WarehouseId
+                        })
+                        .ToListAsync()).Cast<object>().ToList();
+                }
+
+                var outReqRows = await _db.StockOutRequests.AsNoTracking()
+                    .Where(r => r.SalesOrderId == id)
+                    .OrderByDescending(r => r.CreateTime)
+                    .Select(r => new
+                    {
+                        r.Id,
+                        r.RequestCode,
+                        r.MaterialCode,
+                        r.Quantity,
+                        r.Status,
+                        r.RequestDate,
+                        r.CreateTime
+                    })
+                    .ToListAsync();
+
+                List<object> stockOutRows;
+                if (itemIds.Count == 0)
+                {
+                    stockOutRows = new List<object>();
+                }
+                else
+                {
+                    stockOutRows = (await _db.StockOuts.AsNoTracking()
+                        .Where(so => so.SellOrderItemId != null && itemIds.Contains(so.SellOrderItemId!))
+                        .OrderByDescending(so => so.CreateTime)
+                        .Select(so => new
+                        {
+                            so.Id,
+                            stockOutCode = so.StockOutCode,
+                            so.Status,
+                            so.TotalQuantity,
+                            so.StockOutDate,
+                            so.SellOrderItemId,
+                            so.CreateTime
+                        })
+                        .ToListAsync()).Cast<object>().ToList();
+                }
+
+                var receiptHeaderIds = await _db.FinanceReceiptItems.AsNoTracking()
+                    .Where(i => i.SellOrderId == id
+                        || (i.SellOrderItemId != null && itemIds.Contains(i.SellOrderItemId!)))
+                    .Select(i => i.FinanceReceiptId)
+                    .Distinct()
+                    .ToListAsync();
+
+                var receiptEntities = await _db.FinanceReceipts.AsNoTracking()
+                    .Where(r => receiptHeaderIds.Contains(r.Id))
+                    .OrderByDescending(r => r.CreateTime)
+                    .ToListAsync();
+
+                var receiptRows = receiptEntities
+                    .Select(r =>
+                    {
+                        var cname = r.CustomerName;
+                        var amt = r.ReceiptAmount;
+                        if (mask521)
+                        {
+                            cname = null;
+                            amt = 0m;
+                        }
+                        return new
+                        {
+                            id = r.Id,
+                            financeReceiptCode = r.FinanceReceiptCode,
+                            r.Status,
+                            customerName = cname,
+                            receiptAmount = amt,
+                            r.ReceiptCurrency,
+                            r.ReceiptDate,
+                            r.CreateTime
+                        };
+                    })
+                    .ToList();
+
+                List<string> sellInvIds;
+                if (itemIds.Count == 0)
+                {
+                    sellInvIds = new List<string>();
+                }
+                else
+                {
+                    var soIds = await _db.StockOuts.AsNoTracking()
+                        .Where(so => so.SellOrderItemId != null && itemIds.Contains(so.SellOrderItemId!))
+                        .Select(so => so.Id)
+                        .ToListAsync();
+                    var outItemIds = await _db.StockOutItems.AsNoTracking()
+                        .Where(oi => soIds.Contains(oi.StockOutId))
+                        .Select(oi => oi.Id)
+                        .ToListAsync();
+                    sellInvIds = await _db.SellInvoiceItems.AsNoTracking()
+                        .Where(sii => sii.StockOutItemId != null && outItemIds.Contains(sii.StockOutItemId!))
+                        .Select(sii => sii.FinanceSellInvoiceId)
+                        .Distinct()
+                        .ToListAsync();
+                }
+
+                var invEntities = await _db.FinanceSellInvoices.AsNoTracking()
+                    .Where(x => sellInvIds.Contains(x.Id))
+                    .OrderByDescending(x => x.CreateTime)
+                    .ToListAsync();
+
+                var sellInvRows = invEntities
+                    .Select(inv =>
+                    {
+                        var cname = inv.CustomerName;
+                        var total = inv.InvoiceTotal;
+                        var done = inv.ReceiveDone;
+                        var tobe = inv.ReceiveToBe;
+                        if (mask521)
+                        {
+                            cname = null;
+                            total = 0m;
+                            done = 0m;
+                            tobe = 0m;
+                        }
+                        return new
+                        {
+                            id = inv.Id,
+                            inv.InvoiceCode,
+                            inv.InvoiceNo,
+                            customerName = cname,
+                            invoiceTotal = total,
+                            inv.MakeInvoiceDate,
+                            inv.InvoiceStatus,
+                            receiveDone = done,
+                            receiveToBe = tobe,
+                            inv.Currency,
+                            inv.CreateTime
+                        };
+                    })
+                    .ToList();
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        purchaseRequisitions = prRows,
+                        stockIns = stockInRows,
+                        stockItems = stockItemRows,
+                        stockOutRequests = outReqRows,
+                        stockOuts = stockOutRows,
+                        receipts = receiptRows,
+                        sellInvoices = sellInvRows
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取销售订单页签数据失败: {Id}", id);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(string id)
         {
@@ -193,8 +436,8 @@ namespace CRM.API.Controllers
                 {
                     var ids = order.Items
                         .Select(i => i.Id)
-                        .Where(id => !string.IsNullOrWhiteSpace(id))
-                        .Select(id => id.Trim())
+                        .Where(oid => !string.IsNullOrWhiteSpace(oid))
+                        .Select(oid => oid.Trim())
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
                     itemExtends = await LoadSellOrderItemExtendsByItemIdsAsync(ids, order.Id);

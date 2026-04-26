@@ -339,6 +339,22 @@ namespace CRM.Core.Tests.Services
         }
 
         [Fact]
+        public async Task UpdateStatusAsync_LegacyStatus6_NormalizesToClosed7()
+        {
+            var existingRFQ = new RFQ
+            {
+                Id = "RFQ-123",
+                RfqCode = "RF20260001",
+                Status = 0
+            };
+            _rfqRepository.GetByIdAsync("RFQ-123").Returns(existingRFQ);
+
+            await _rfqService.UpdateStatusAsync("RFQ-123", (short)RfqMainStatus.LegacyObsoleteClosed);
+
+            await _rfqRepository.Received(1).UpdateAsync(Arg.Is<RFQ>(r => r.Status == (short)RfqMainStatus.Closed));
+        }
+
+        [Fact]
         public async Task DeleteAsync_ExistingId_ShouldDeleteRFQ()
         {
             // Arrange

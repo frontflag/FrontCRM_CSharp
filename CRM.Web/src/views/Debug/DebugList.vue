@@ -1,3 +1,40 @@
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { getDebugPage } from '@/api/debug'
+import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { FRONTEND_DEBUG_VERSION } from './debugConstants'
+
+/** 可配置列示例（列设置 / 顺序 / localStorage 持久化） */
+const debugTableColumns: CrmTableColumnDef[] = [
+  { key: 'name', label: 'Name', prop: 'name', minWidth: 200 },
+  { key: 'value', label: 'Value', prop: 'value', minWidth: 320, showOverflowTooltip: true }
+]
+
+const items = ref<{ name: string; value: string }[]>([])
+const databaseConnectionDisplay = ref('')
+const loading = ref(false)
+const error = ref<string | null>(null)
+
+const connectionDisplay = computed(() => databaseConnectionDisplay.value || '—')
+
+onMounted(async () => {
+  loading.value = true
+  error.value = null
+  try {
+    const page = await getDebugPage()
+    databaseConnectionDisplay.value = page.databaseConnectionDisplay ?? ''
+    items.value = page.items ?? []
+  } catch (e: any) {
+    error.value =
+      e?.response?.data?.message ||
+      e?.message ||
+      '获取 Debug 数据失败'
+  } finally {
+    loading.value = false
+  }
+})
+</script>
+
 <template>
   <div class="debug-page">
     <div class="debug-header">
@@ -48,45 +85,6 @@
     </template>
   </div>
 </template>
-
-<script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { getDebugPage } from '@/api/debug'
-import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
-
-/** debug 页面展示版本号（按发布批次手动维护） */
-const FRONTEND_DEBUG_VERSION = '1.1.0425-2100'
-
-/** 可配置列示例（列设置 / 顺序 / localStorage 持久化） */
-const debugTableColumns: CrmTableColumnDef[] = [
-  { key: 'name', label: 'Name', prop: 'name', minWidth: 200 },
-  { key: 'value', label: 'Value', prop: 'value', minWidth: 320, showOverflowTooltip: true }
-]
-
-const items = ref<{ name: string; value: string }[]>([])
-const databaseConnectionDisplay = ref('')
-const loading = ref(false)
-const error = ref<string | null>(null)
-
-const connectionDisplay = computed(() => databaseConnectionDisplay.value || '—')
-
-onMounted(async () => {
-  loading.value = true
-  error.value = null
-  try {
-    const page = await getDebugPage()
-    databaseConnectionDisplay.value = page.databaseConnectionDisplay ?? ''
-    items.value = page.items ?? []
-  } catch (e: any) {
-    error.value =
-      e?.response?.data?.message ||
-      e?.message ||
-      '获取 Debug 数据失败'
-  } finally {
-    loading.value = false
-  }
-})
-</script>
 
 <style lang="scss" scoped>
 /* 本页在 AppLayout 浅色主内容区内渲染，使用深色文字与 Element 变量以保证对比度 */

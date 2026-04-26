@@ -77,7 +77,8 @@ function handleSearch() {
           <el-option :label="t('rfqList.status.quoted')" :value="3" />
           <el-option :label="t('rfqList.status.selected')" :value="4" />
           <el-option :label="t('rfqList.status.converted')" :value="5" />
-          <el-option :label="t('rfqList.status.closed')" :value="6" />
+          <el-option :label="t('rfqList.status.closed')" :value="7" />
+          <el-option :label="t('rfqList.status.cancelled')" :value="8" />
         </el-select>
       </div>
     </div>

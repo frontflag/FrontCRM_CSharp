@@ -108,7 +108,11 @@ namespace CRM.Core.Models.RFQ
         [Column("competitor")]
         public string? Competitor { get; set; }
 
-        /// <summary>状态 (0:待分配 1:已分配 2:报价中 3:已报价 4:已选价 5:已转订单 6:已关闭)</summary>
+        /// <summary>
+        /// 主状态，取值见 <see cref="RfqMainStatus"/>：
+        /// 0 待分配、1 已分配、2 报价中、3 已报价、4 已选价、5 已转订单、
+        /// 6 历史占位（已废弃，等同已关闭，须使用 7）、7 已关闭、8 已取消。
+        /// </summary>
         [Column("status")]
         public short Status { get; set; } = 0;
 

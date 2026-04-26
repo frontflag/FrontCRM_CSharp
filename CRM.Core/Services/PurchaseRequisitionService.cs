@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
@@ -16,6 +17,8 @@ namespace CRM.Core.Services
         private readonly IRepository<QuoteItem> _quoteItemRepo;
         private readonly IUnitOfWork? _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
+        private readonly ILogOperationAppendService? _logOperationAppend;
+        private readonly ISellOrderItemExtendSyncService? _sellOrderItemExtendSync;
 
         public PurchaseRequisitionService(
             IRepository<PurchaseRequisition> prRepo,
@@ -24,7 +27,9 @@ namespace CRM.Core.Services
             IRepository<PurchaseOrderItem> poItemRepo,
             IRepository<QuoteItem> quoteItemRepo,
             ISerialNumberService serialNumberService,
-            IUnitOfWork? unitOfWork = null)
+            IUnitOfWork? unitOfWork = null,
+            ILogOperationAppendService? logOperationAppend = null,
+            ISellOrderItemExtendSyncService? sellOrderItemExtendSync = null)
         {
             _prRepo = prRepo;
             _soRepo = soRepo;
@@ -33,6 +38,8 @@ namespace CRM.Core.Services
             _quoteItemRepo = quoteItemRepo;
             _serialNumberService = serialNumberService;
             _unitOfWork = unitOfWork;
+            _logOperationAppend = logOperationAppend;
+            _sellOrderItemExtendSync = sellOrderItemExtendSync;
         }
 
         /// <summary>
@@ -165,8 +172,134 @@ namespace CRM.Core.Services
 
         public async Task RecalculateAsync(string id)
         {
-            // MVP：当前不做重算
-            await Task.CompletedTask;
+            if (string.IsNullOrWhiteSpace(id)) return;
+            var pr = await _prRepo.GetByIdAsync(id.Trim());
+            if (pr == null || pr.IsDeleted) return;
+
+            // 已取消保持已取消，不参与自动回写。
+            if (pr.Status == 3) return;
+
+            var poItems = (await _poItemRepo.FindAsync(i =>
+                i.SellOrderItemId != null &&
+                i.SellOrderItemId == pr.SellOrderItemId))
+                .ToList();
+
+            var linkedQty = poItems
+                .Where(i => i.Status != -1 && i.Status != -2)
+                .Sum(i => i.Qty);
+
+            short nextStatus;
+            if (linkedQty <= 0m)
+                nextStatus = 0; // 新建
+            else if (linkedQty < pr.Qty)
+                nextStatus = 1; // 部分完成
+            else
+                nextStatus = 2; // 全部完成
+
+            if (pr.Status == nextStatus) return;
+
+            pr.Status = nextStatus;
+            await _prRepo.UpdateAsync(pr);
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+        }
+
+        private async Task<bool> HasPurchaseOrderDownstreamAsync(string sellOrderItemId, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(sellOrderItemId)) return false;
+            var key = sellOrderItemId.Trim();
+            var items = (await _poItemRepo.FindAsync(i =>
+                i.SellOrderItemId != null &&
+                i.SellOrderItemId == key)).ToList();
+            return items.Count > 0;
+        }
+
+        private static void EnsureUnitOfWork(IUnitOfWork? uow)
+        {
+            if (uow == null)
+                throw new InvalidOperationException("当前环境未配置工作单元，无法执行删除。");
+        }
+
+        public async Task SoftDeleteAsync(string id, string? actingUserId, string? actingUserName, CancellationToken cancellationToken = default)
+        {
+            EnsureUnitOfWork(_unitOfWork);
+            if (_logOperationAppend == null || _sellOrderItemExtendSync == null)
+                throw new InvalidOperationException("当前环境未配置操作日志或销售明细扩展同步，无法执行删除。");
+
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("Id不能为空", nameof(id));
+
+            var pr = await _prRepo.GetByIdAsync(id.Trim());
+            if (pr == null)
+                throw new InvalidOperationException("采购申请不存在或已删除。");
+            if (pr.IsDeleted)
+                return;
+
+            if (pr.Status != 0)
+                throw new InvalidOperationException("仅状态为「新建」的采购申请可普通删除。");
+
+            if (await HasPurchaseOrderDownstreamAsync(pr.SellOrderItemId, cancellationToken))
+                throw new InvalidOperationException("已存在关联的采购订单明细（以销定采），无法删除采购申请。");
+
+            var uid = ActingUserIdNormalizer.Normalize(actingUserId);
+            pr.IsDeleted = true;
+            await _prRepo.UpdateAsync(pr);
+            await _unitOfWork!.SaveChangesAsync();
+
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.PurchaseRequisition,
+                pr.Id,
+                pr.BillCode,
+                "采购申请普通删除",
+                uid,
+                actingUserName?.Trim(),
+                $"普通删除采购申请，单号 {pr.BillCode}",
+                reason: null,
+                cancellationToken);
+
+            await _sellOrderItemExtendSync.RecalculateAsync(pr.SellOrderItemId, cancellationToken);
+        }
+
+        public async Task ForceDeleteAsync(string id, string confirmBillCode, string? actingUserId, string? actingUserName, CancellationToken cancellationToken = default)
+        {
+            EnsureUnitOfWork(_unitOfWork);
+            if (_logOperationAppend == null || _sellOrderItemExtendSync == null)
+                throw new InvalidOperationException("当前环境未配置操作日志或销售明细扩展同步，无法执行删除。");
+
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("Id不能为空", nameof(id));
+            if (string.IsNullOrWhiteSpace(confirmBillCode))
+                throw new ArgumentException("请填写待删除采购申请的单号以确认。", nameof(confirmBillCode));
+
+            var pr = await _prRepo.GetByIdAsync(id.Trim());
+            if (pr == null)
+                throw new InvalidOperationException("采购申请不存在或已删除。");
+            if (pr.IsDeleted)
+                return;
+
+            if (!string.Equals(confirmBillCode.Trim(), pr.BillCode.Trim(), StringComparison.Ordinal))
+                throw new InvalidOperationException("确认单号与采购申请单号不一致，已拒绝删除。");
+
+            if (await HasPurchaseOrderDownstreamAsync(pr.SellOrderItemId, cancellationToken))
+                throw new InvalidOperationException("已存在关联的采购订单明细（以销定采），无法强制删除采购申请。");
+
+            var uid = ActingUserIdNormalizer.Normalize(actingUserId);
+            pr.IsDeleted = true;
+            await _prRepo.UpdateAsync(pr);
+            await _unitOfWork!.SaveChangesAsync();
+
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.PurchaseRequisition,
+                pr.Id,
+                pr.BillCode,
+                "采购申请强制删除",
+                uid,
+                actingUserName?.Trim(),
+                $"强制删除采购申请，单号 {pr.BillCode}，状态={pr.Status}",
+                reason: null,
+                cancellationToken);
+
+            await _sellOrderItemExtendSync.RecalculateAsync(pr.SellOrderItemId, cancellationToken);
         }
     }
 }

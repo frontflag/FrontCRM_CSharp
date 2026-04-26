@@ -11,4 +11,5 @@ public static class BusinessLogTypes
     public const string VendorContact = "VendorContact";
     public const string SalesOrder = "SalesOrder";
     public const string PurchaseOrder = "PurchaseOrder";
+    public const string PurchaseRequisition = "PurchaseRequisition";
 }

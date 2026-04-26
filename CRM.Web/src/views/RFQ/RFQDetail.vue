@@ -647,8 +647,15 @@ const cellStyle = {
 
 function getStatusLabel(status?: number) {
   const map: Record<number, string> = {
-    0: t('rfqDetail.status.draft'), 1: t('rfqDetail.status.pending'), 2: t('rfqDetail.status.assigned'), 3: t('rfqDetail.status.processing'),
-    4: t('rfqDetail.status.quoted'), 5: t('rfqDetail.status.accepted'), 6: t('rfqDetail.status.rejected'), 7: t('rfqDetail.status.closed'), 8: t('rfqDetail.status.cancelled')
+    0: t('rfqList.status.pending'),
+    1: t('rfqList.status.assigned'),
+    2: t('rfqList.status.processing'),
+    3: t('rfqList.status.quoted'),
+    4: t('rfqList.status.selected'),
+    5: t('rfqList.status.converted'),
+    6: t('rfqList.status.closed'),
+    7: t('rfqList.status.closed'),
+    8: t('rfqList.status.cancelled')
   }
   return status !== undefined ? (map[status] ?? t('rfqDetail.unknown')) : t('quoteList.na')
 }
@@ -974,7 +981,7 @@ onMounted(() => {
   &.status-3 { background: rgba(0,212,255,0.12); color: $cyan-primary; border: 1px solid rgba(0,212,255,0.25); }
   &.status-4 { background: rgba(70,191,145,0.15); color: $color-mint-green; border: 1px solid rgba(70,191,145,0.3); }
   &.status-5 { background: rgba(70,191,145,0.2); color: $color-mint-green; border: 1px solid rgba(70,191,145,0.4); }
-  &.status-6 { background: rgba(201,87,69,0.15); color: $color-red-brown; border: 1px solid rgba(201,87,69,0.3); }
+  &.status-6 { background: rgba(107,122,141,0.15); color: #6B7A8D; border: 1px solid rgba(107,122,141,0.25); }
   &.status-7 { background: rgba(107,122,141,0.15); color: #6B7A8D; border: 1px solid rgba(107,122,141,0.25); }
   &.status-8 { background: rgba(107,122,141,0.1); color: #6B7A8D; border: 1px solid rgba(107,122,141,0.2); }
 }

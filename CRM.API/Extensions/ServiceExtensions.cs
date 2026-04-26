@@ -66,6 +66,7 @@ namespace CRM.API.Extensions
             services.AddScoped<IFavoriteService, FavoriteService>();
             services.AddScoped<ILogRecentService, LogRecentService>();
             services.AddScoped<IOperationLogQueryService, OperationLogQueryService>();
+            services.AddScoped<ILogOperationAppendService, LogOperationAppendService>();
             services.AddScoped<ILoginLogQueryService, LoginLogQueryService>();
             services.AddScoped<ILoginLogService, LoginLogService>();
 
