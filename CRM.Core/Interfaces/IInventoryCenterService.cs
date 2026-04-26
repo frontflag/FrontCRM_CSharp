@@ -119,6 +119,9 @@ namespace CRM.Core.Interfaces
         /// <summary>地域类型（<c>stock_item.RegionType</c>）：10=境内 20=境外（与仓库、到货通知枚举一致）。</summary>
         public short RegionType { get; set; } = RegionTypeCode.Domestic;
 
+        /// <summary>库存类型（<c>stock_item.Type</c>）：1=客单 2=备货 3=样品。</summary>
+        public short StockType { get; set; } = 1;
+
         public DateTime CreateTime { get; set; }
     }
 
@@ -144,6 +147,10 @@ namespace CRM.Core.Interfaces
     public class InventoryStockItemListQuery
     {
         public string? StockInCode { get; set; }
+
+        /// <summary>在库明细业务编号（<c>stock_item.stock_item_code</c>）；模糊匹配，空则不过滤。</summary>
+        public string? StockItemCode { get; set; }
+
         public DateTime? StockInDateFrom { get; set; }
         public DateTime? StockInDateTo { get; set; }
         public string? WarehouseId { get; set; }

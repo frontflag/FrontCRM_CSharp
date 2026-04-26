@@ -96,7 +96,11 @@
       <template #col-materialModel="{ row }">{{ materialModelDisplay(row) }}</template>
       <template #col-materialBrand="{ row }">{{ materialBrandDisplay(row) }}</template>
       <template #col-warehouseName="{ row }">{{ warehouseNameOf(row.warehouseId) }}</template>
-      <template #col-region="{ row }">{{ regionLabel(row) }}</template>
+      <template #col-region="{ row }">
+        <span class="region-type-chip" :class="`region-type-chip--${regionTypeKind(row)}`">
+          <span>{{ regionLabel(row) }}</span>
+        </span>
+      </template>
       <template #col-stockType="{ row }">
         <span
           class="inv-stock-type-cell"
@@ -342,7 +346,7 @@ const inventoryTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'lockedQty', label: t('inventoryList.columns.lockedQty'), prop: 'lockedQty', width: 110, align: 'right' },
   { key: 'inventoryAmount', label: t('inventoryList.columns.inventoryAmount'), prop: 'inventoryAmount', width: 120, align: 'right' },
   { key: 'warehouseName', label: t('inventoryList.columns.warehouseName'), width: 160, showOverflowTooltip: true },
-  { key: 'region', label: t('inventoryList.columns.region'), width: 88, align: 'center', showOverflowTooltip: true },
+  { key: 'region', label: t('inventoryList.columns.region'), width: 88, align: 'center', showOverflowTooltip: false },
   { key: 'lastMoveTime', label: t('inventoryList.columns.lastMoveTime'), prop: 'lastMoveTime', width: 170 },
   { key: 'stockCode', label: t('inventoryList.columns.stockCode'), width: 132, showOverflowTooltip: true },
   { key: 'createTime', label: t('inventoryList.columns.createTime'), width: 160 },
@@ -534,6 +538,13 @@ const regionLabel = (row: InventoryOverview) => {
   const r = row as unknown as Record<string, unknown>
   const n = normalizeRegionType(r.regionType ?? r.RegionType)
   return n === REGION_TYPE_OVERSEAS ? t('inventoryList.warehouse.regionOverseas') : t('inventoryList.warehouse.regionDomestic')
+}
+
+/** 与全库库存明细列表地域列样式一致（胶囊 domestic / overseas） */
+function regionTypeKind(row: InventoryOverview): 'domestic' | 'overseas' {
+  const r = row as unknown as Record<string, unknown>
+  const n = normalizeRegionType(r.regionType ?? r.RegionType)
+  return n === REGION_TYPE_OVERSEAS ? 'overseas' : 'domestic'
 }
 
 const warehouseNameOf = (warehouseId?: string) => {
@@ -909,6 +920,26 @@ html[data-theme='dark'] .inv-list-amt-frac {
 .inv-stock-type-icon {
   font-size: 16px;
   flex-shrink: 0;
+}
+
+.region-type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.region-type-chip--domestic {
+  color: #e6a23c;
+  background: rgba(230, 162, 60, 0.14);
+}
+
+.region-type-chip--overseas {
+  color: #409eff;
+  background: rgba(64, 158, 255, 0.14);
 }
 
 .btn-primary,

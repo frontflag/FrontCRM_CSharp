@@ -2964,6 +2964,7 @@ const enUS = {
       outboundPartial: 'Partially shipped',
       outboundDone: 'Fully shipped',
       stockInCode: 'Stock-in code',
+      stockItemCode: 'Stock item code',
       stockInDateRange: 'Stock-in date',
       stockInDateFrom: 'From',
       stockInDateTo: 'To',

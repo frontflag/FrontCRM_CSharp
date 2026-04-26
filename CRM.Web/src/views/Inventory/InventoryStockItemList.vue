@@ -44,6 +44,12 @@
             @keyup.enter="fetchList"
           />
         </div>
+        <input
+          v-model="filters.stockItemCode"
+          class="search-input search-input--filter"
+          :placeholder="t('inventoryStockItemList.filters.stockItemCode')"
+          @keyup.enter="fetchList"
+        />
         <div
           class="filter-date-range"
           role="group"
@@ -163,7 +169,18 @@
       <template #col-stockItemCode="{ row }">
         <span class="stock-item-code-with-badge">
           <span>{{ row.stockItemCode || '—' }}</span>
-          <el-tag v-if="Number(row.stockType ?? 0) === 2" type="warning" effect="plain" size="small" round>备货</el-tag>
+          <el-tooltip
+            v-if="isStockingStockItem(row)"
+            :content="t('inventoryList.stockTypes.stocking')"
+            placement="top"
+            :hide-after="0"
+          >
+            <span class="inv-stock-item-code-stocking-hit" role="img" :aria-label="t('inventoryList.stockTypes.stocking')">
+              <el-icon class="inv-stock-item-code-stocking-icon" aria-hidden="true">
+                <Box />
+              </el-icon>
+            </span>
+          </el-tooltip>
         </span>
       </template>
       <template #col-stockInDate="{ row }">
@@ -252,7 +269,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Setting } from '@element-plus/icons-vue'
+import { Box, Setting } from '@element-plus/icons-vue'
 import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
 import { inventoryCenterApi, type StockItemListQuery, type StockItemListRow, type WarehouseInfo } from '@/api/inventoryCenter'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
@@ -291,9 +308,36 @@ const stockItemTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'regionType', label: t('inventoryStockItemList.columns.regionType'), width: 88, align: 'center', showOverflowTooltip: true },
   { key: 'purchasePn', label: t('inventoryStockItemList.columns.purchasePn'), prop: 'purchasePn', minWidth: 130, showOverflowTooltip: true },
   { key: 'purchaseBrand', label: t('inventoryStockItemList.columns.purchaseBrand'), prop: 'purchaseBrand', minWidth: 100, showOverflowTooltip: true },
-  { key: 'qtyInbound', label: t('inventoryStockItemList.columns.qtyInbound'), prop: 'qtyInbound', width: 88, align: 'right' },
-  { key: 'qtyStockOut', label: t('inventoryStockItemList.columns.qtyStockOut'), prop: 'qtyStockOut', width: 88, align: 'right' },
-  { key: 'qtyRepertory', label: t('inventoryStockItemList.columns.qtyRepertory'), prop: 'qtyRepertory', width: 88, align: 'right' },
+  {
+    key: 'qtyInbound',
+    label: t('inventoryStockItemList.columns.qtyInbound'),
+    prop: 'qtyInbound',
+    minWidth: 124,
+    align: 'right',
+    showOverflowTooltip: false,
+    className: 'inv-stock-item-qty-col',
+    labelClassName: 'inv-stock-item-qty-col'
+  },
+  {
+    key: 'qtyStockOut',
+    label: t('inventoryStockItemList.columns.qtyStockOut'),
+    prop: 'qtyStockOut',
+    minWidth: 124,
+    align: 'right',
+    showOverflowTooltip: false,
+    className: 'inv-stock-item-qty-col',
+    labelClassName: 'inv-stock-item-qty-col'
+  },
+  {
+    key: 'qtyRepertory',
+    label: t('inventoryStockItemList.columns.qtyRepertory'),
+    prop: 'qtyRepertory',
+    minWidth: 124,
+    align: 'right',
+    showOverflowTooltip: false,
+    className: 'inv-stock-item-qty-col',
+    labelClassName: 'inv-stock-item-qty-col'
+  },
   { key: 'vendorName', label: t('inventoryStockItemList.columns.vendorName'), prop: 'vendorName', minWidth: 120, showOverflowTooltip: true },
   { key: 'purchaserName', label: t('inventoryStockItemList.columns.purchaserName'), prop: 'purchaserName', width: 100, showOverflowTooltip: true },
   { key: 'purchaseOrderItemCode', label: t('inventoryStockItemList.columns.purchaseOrderItemCode'), prop: 'purchaseOrderItemCode', width: 136, showOverflowTooltip: true },
@@ -313,6 +357,7 @@ const warehouseOptions = computed(() => warehouses.value.filter((w) => !!(w.id &
 
 const filters = reactive({
   stockInCode: '',
+  stockItemCode: '',
   purchasePn: '',
   purchaseBrand: '',
   warehouseId: '',
@@ -336,6 +381,7 @@ function purchaseUserLabel(u: PurchaseUserSelectOption) {
 function buildQuery(): StockItemListQuery {
   const q: StockItemListQuery = {
     stockInCode: filters.stockInCode.trim() || undefined,
+    stockItemCode: filters.stockItemCode.trim() || undefined,
     stockInDateFrom: dateFrom.value?.trim() || undefined,
     stockInDateTo: dateTo.value?.trim() || undefined,
     warehouseId: filters.warehouseId.trim() || undefined,
@@ -370,6 +416,7 @@ const fetchList = () => void runStockItemFetch(true)
 
 const resetFilters = () => {
   filters.stockInCode = ''
+  filters.stockItemCode = ''
   filters.purchasePn = ''
   filters.purchaseBrand = ''
   filters.warehouseId = ''
@@ -420,6 +467,11 @@ const splitUsdMoneyParts = (n: number): { intPart: string; fracPart: string } =>
   }
   if (!fracPart) fracPart = '.00'
   return { intPart, fracPart }
+}
+
+/** 备货库存：<c>stock_type === 2</c>，与汇总库存列表一致 */
+function isStockingStockItem(row: StockItemListRow): boolean {
+  return Number(row.stockType ?? 0) === 2
 }
 
 const outboundLabel = (s: number) => {
@@ -619,6 +671,23 @@ onMounted(async () => {
   gap: 6px;
 }
 
+.inv-stock-item-code-stocking-hit {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  cursor: default;
+  line-height: 1;
+}
+
+.inv-stock-item-code-stocking-icon {
+  font-size: 16px;
+  color: #e6a23c;
+}
+
+html[data-theme='dark'] .inv-stock-item-code-stocking-icon {
+  color: #ebb563;
+}
+
 .outbound-status-chip {
   display: inline-flex;
   align-items: center;
@@ -672,9 +741,12 @@ onMounted(async () => {
 }
 
 .inv-list-qty {
+  display: inline-block;
+  max-width: 100%;
   font-weight: 700;
   color: #27292c;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 html[data-theme='dark'] .inv-list-qty {
@@ -825,6 +897,14 @@ html[data-theme='dark'] .inv-list-amt-frac {
 .inventory-stock-item-list-crm-table.table-wrapper {
   :deep(.el-table .cell) {
     line-height: 1.2;
+  }
+
+  /* 入库量 / 已出库 / 在库：列宽与单元格勿省略，标题与千分位数字完整展示 */
+  :deep(.el-table th.inv-stock-item-qty-col .cell),
+  :deep(.el-table td.inv-stock-item-qty-col .cell) {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
   }
 }
 </style>

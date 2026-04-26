@@ -4,6 +4,7 @@ using CRM.Core.Constants;
 using CRM.Core.Document;
 using CRM.Core.Interfaces;
 using CRM.Core.Services;
+using CRM.Core.Services.InternalTransfer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -57,6 +58,7 @@ namespace CRM.API.Extensions
             services.AddScoped<ILogisticsService, LogisticsService>();
             services.AddScoped<IStockService, StockService>();
             services.AddScoped<IInventoryCenterService, InventoryCenterService>();
+            services.AddScoped<IInternalTransferPostingKernel, InternalTransferPostingKernel>();
             services.AddScoped<IManualStockTransferService, ManualStockTransferService>();
 
             // 标签系统

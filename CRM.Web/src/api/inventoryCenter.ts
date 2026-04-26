@@ -78,12 +78,16 @@ export interface StockItemRow {
   customerName?: string | null
   /** 地域 10=境内 20=境外（stock_item.RegionType） */
   regionType?: number
+  /** 库存类型 1=客单 2=备货 3=样品（stock_item.Type） */
+  stockType?: number
   createTime?: string
 }
 
 /** 全库 stockitem 列表查询（query 参数与后端 InventoryStockItemListQuery 一致） */
 export interface StockItemListQuery {
   stockInCode?: string
+  /** 库存明细编号 stock_item_code，模糊匹配 */
+  stockItemCode?: string
   stockInDateFrom?: string
   stockInDateTo?: string
   warehouseId?: string
@@ -271,6 +275,7 @@ export const inventoryCenterApi = {
       params.set(key, s)
     }
     add('stockInCode', q.stockInCode)
+    add('stockItemCode', q.stockItemCode)
     add('stockInDateFrom', q.stockInDateFrom)
     add('stockInDateTo', q.stockInDateTo)
     add('warehouseId', q.warehouseId)

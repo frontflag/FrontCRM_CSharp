@@ -27,7 +27,25 @@
     <section class="section">
       <h2 class="section-title">{{ t('inventoryStockDetail.stockItemsSection') }}</h2>
       <CrmDataTable :data="pagedStockItems" v-loading="loadingItems">
-        <el-table-column prop="stockItemCode" :label="t('inventoryStockDetail.columns.stockItemCode')" width="168" show-overflow-tooltip />
+        <el-table-column :label="t('inventoryStockDetail.columns.stockItemCode')" width="188" min-width="168">
+          <template #default="{ row }">
+            <span class="stock-item-code-with-badge">
+              <span>{{ row.stockItemCode || '—' }}</span>
+              <el-tooltip
+                v-if="isStockingStockItem(row)"
+                :content="t('inventoryList.stockTypes.stocking')"
+                placement="top"
+                :hide-after="0"
+              >
+                <span class="inv-stock-item-code-stocking-hit" role="img" :aria-label="t('inventoryList.stockTypes.stocking')">
+                  <el-icon class="inv-stock-item-code-stocking-icon" aria-hidden="true">
+                    <Box />
+                  </el-icon>
+                </span>
+              </el-tooltip>
+            </span>
+          </template>
+        </el-table-column>
         <el-table-column prop="stockInCode" :label="t('inventoryStockDetail.columns.stockInCode')" width="150" />
         <el-table-column prop="batchNo" :label="t('inventoryStockDetail.columns.batchNo')" width="120" />
         <el-table-column :label="t('inventoryStockDetail.columns.productionDate')" width="120">
@@ -36,7 +54,11 @@
         <el-table-column prop="purchasePn" :label="t('inventoryStockDetail.columns.pn')" min-width="120" show-overflow-tooltip />
         <el-table-column prop="purchaseBrand" :label="t('inventoryStockDetail.columns.brand')" min-width="100" show-overflow-tooltip />
         <el-table-column :label="t('inventoryStockDetail.columns.regionType')" width="88" align="center">
-          <template #default="{ row }">{{ stockItemRegionLabel(row) }}</template>
+          <template #default="{ row }">
+            <span class="region-type-chip" :class="`region-type-chip--${regionTypeKind(row)}`">
+              <span>{{ stockItemRegionLabel(row) }}</span>
+            </span>
+          </template>
         </el-table-column>
         <el-table-column prop="sellOrderItemCode" :label="t('inventoryStockDetail.columns.sellLineCode')" width="140" show-overflow-tooltip />
         <el-table-column prop="qtyInbound" :label="t('inventoryStockDetail.columns.qtyInbound')" width="100" align="right" />
@@ -145,6 +167,7 @@ import { computed, onActivated, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
+import { Box } from '@element-plus/icons-vue'
 import { inventoryCenterApi, type MaterialTrace, type StockItemRow, type WarehouseInfo } from '@/api/inventoryCenter'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
@@ -204,6 +227,16 @@ const materialIdForTrace = computed(() => {
 const stockItemRegionLabel = (row: StockItemRow) => {
   const n = normalizeRegionType(row.regionType)
   return n === REGION_TYPE_OVERSEAS ? t('inventoryList.warehouse.regionOverseas') : t('inventoryList.warehouse.regionDomestic')
+}
+
+function regionTypeKind(row: StockItemRow): 'domestic' | 'overseas' {
+  const n = normalizeRegionType(row.regionType)
+  return n === REGION_TYPE_OVERSEAS ? 'overseas' : 'domestic'
+}
+
+/** 备货库存：<c>stock_type === 2</c>，与全库库存明细列表一致 */
+function isStockingStockItem(row: StockItemRow): boolean {
+  return Number(row.stockType ?? 0) === 2
 }
 
 const formatTime = (v?: string) => formatDisplayDateTime(v)
@@ -398,5 +431,49 @@ onActivated(async () => {
   display: flex;
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+/* 与 /inventory/stock-items 列表一致：地域胶囊、备货图标 */
+.stock-item-code-with-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inv-stock-item-code-stocking-hit {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  cursor: default;
+  line-height: 1;
+}
+
+.inv-stock-item-code-stocking-icon {
+  font-size: 16px;
+  color: #e6a23c;
+}
+
+html[data-theme='dark'] .inv-stock-item-code-stocking-icon {
+  color: #ebb563;
+}
+
+.region-type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.region-type-chip--domestic {
+  color: #e6a23c;
+  background: rgba(230, 162, 60, 0.14);
+}
+
+.region-type-chip--overseas {
+  color: #409eff;
+  background: rgba(64, 158, 255, 0.14);
 }
 </style>

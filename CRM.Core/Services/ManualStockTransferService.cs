@@ -2,6 +2,7 @@ using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Material;
+using CRM.Core.Services.InternalTransfer;
 using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
 
@@ -11,9 +12,6 @@ public sealed class ManualStockTransferService : IManualStockTransferService
 {
     private readonly IRepository<StockItem> _stockItemRepository;
     private readonly IRepository<StockInfo> _stockRepository;
-    private readonly IRepository<StockIn> _stockInRepository;
-    private readonly IRepository<StockInItem> _stockInItemRepository;
-    private readonly IRepository<InventoryLedger> _ledgerRepository;
     private readonly IRepository<StockTransferManual> _transferManualRepository;
     private readonly IRepository<StockTransferItemManual> _transferItemManualRepository;
     private readonly IRepository<MaterialInfo> _materialRepository;
@@ -22,16 +20,13 @@ public sealed class ManualStockTransferService : IManualStockTransferService
     private readonly IRepository<PickingTaskItem> _pickingTaskItemRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ISerialNumberService _serialNumberService;
-    private readonly IStockExtendLineSeqService _stockExtendLineSeq;
     private readonly ISellOrderItemPurchasedStockAvailableSyncService _purchasedStockAvailableSync;
+    private readonly IInternalTransferPostingKernel _postingKernel;
     private readonly ILogger<ManualStockTransferService> _logger;
 
     public ManualStockTransferService(
         IRepository<StockItem> stockItemRepository,
         IRepository<StockInfo> stockRepository,
-        IRepository<StockIn> stockInRepository,
-        IRepository<StockInItem> stockInItemRepository,
-        IRepository<InventoryLedger> ledgerRepository,
         IRepository<StockTransferManual> transferManualRepository,
         IRepository<StockTransferItemManual> transferItemManualRepository,
         IRepository<MaterialInfo> materialRepository,
@@ -40,15 +35,12 @@ public sealed class ManualStockTransferService : IManualStockTransferService
         IRepository<PickingTaskItem> pickingTaskItemRepository,
         IUnitOfWork unitOfWork,
         ISerialNumberService serialNumberService,
-        IStockExtendLineSeqService stockExtendLineSeq,
         ISellOrderItemPurchasedStockAvailableSyncService purchasedStockAvailableSync,
+        IInternalTransferPostingKernel postingKernel,
         ILogger<ManualStockTransferService> logger)
     {
         _stockItemRepository = stockItemRepository;
         _stockRepository = stockRepository;
-        _stockInRepository = stockInRepository;
-        _stockInItemRepository = stockInItemRepository;
-        _ledgerRepository = ledgerRepository;
         _transferManualRepository = transferManualRepository;
         _transferItemManualRepository = transferItemManualRepository;
         _materialRepository = materialRepository;
@@ -57,8 +49,8 @@ public sealed class ManualStockTransferService : IManualStockTransferService
         _pickingTaskItemRepository = pickingTaskItemRepository;
         _unitOfWork = unitOfWork;
         _serialNumberService = serialNumberService;
-        _stockExtendLineSeq = stockExtendLineSeq;
         _purchasedStockAvailableSync = purchasedStockAvailableSync;
+        _postingKernel = postingKernel;
         _logger = logger;
     }
 
@@ -162,11 +154,9 @@ public sealed class ManualStockTransferService : IManualStockTransferService
         var toWarehouse = await _warehouseRepository.GetByIdAsync(toWh)
                           ?? throw new InvalidOperationException("目标仓库不存在。");
 
-        var targetRegion = RegionTypeCode.Normalize(toWarehouse.RegionType);
         if (toWarehouse.Status != 1)
             throw new InvalidOperationException("目标仓库已停用。");
 
-        // 二次占用校验（与 Preview 间隔内并发）
         var latePick = await GetPickingBlockReasonsAsync(layer.Id, cancellationToken);
         if (latePick.Count > 0)
             throw new InvalidOperationException(string.Join(" ", latePick));
@@ -175,166 +165,33 @@ public sealed class ManualStockTransferService : IManualStockTransferService
             throw new InvalidOperationException("可用库存已变化，请关闭后重新打开本页再试。");
 
         var transferCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.StockTransferManual);
-        var stockInCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.StockIn);
         var transferId = Guid.NewGuid().ToString();
         var itemManualId = Guid.NewGuid().ToString();
-        var stockInId = Guid.NewGuid().ToString();
-        var stockInItemId = Guid.NewGuid().ToString();
-        var targetStockItemId = Guid.NewGuid().ToString();
-
-        var pnKey = NormStockBucketText(sourceStock.PurchasePn);
-        var brKey = NormStockBucketText(sourceStock.PurchaseBrand);
-        var soKey = NormStockBucketText(sourceStock.SellOrderItemId);
-
-        var allStocks = (await _stockRepository.GetAllAsync()).ToList();
-        var targetStock = allStocks.FirstOrDefault(s =>
-            StockMatchesInboundBucket(s, pnKey, brKey, toWh, sourceStock.StockType, targetRegion, soKey));
-
-        var isNewTargetStock = targetStock == null;
-        if (isNewTargetStock)
-        {
-            var stockCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.Stock);
-            targetStock = new StockInfo
-            {
-                Id = Guid.NewGuid().ToString(),
-                StockCode = stockCode,
-                MaterialId = layer.MaterialId,
-                WarehouseId = toWh,
-                LocationId = string.IsNullOrWhiteSpace(request.ToLocationId) ? null : request.ToLocationId.Trim(),
-                BatchNo = string.IsNullOrWhiteSpace(layer.BatchNo) ? null : layer.BatchNo.Trim(),
-                Unit = string.IsNullOrWhiteSpace(sourceStock.Unit) ? "PCS" : sourceStock.Unit,
-                Status = 1,
-                StockType = sourceStock.StockType,
-                RegionType = targetRegion,
-                PurchasePn = sourceStock.PurchasePn,
-                PurchaseBrand = sourceStock.PurchaseBrand,
-                PurchaseOrderItemId = sourceStock.PurchaseOrderItemId,
-                PurchaseOrderItemCode = sourceStock.PurchaseOrderItemCode,
-                SellOrderItemId = sourceStock.SellOrderItemId,
-                SellOrderItemCode = sourceStock.SellOrderItemCode,
-                ProductionDate = layer.ProductionDate,
-                ExpiryDate = layer.ExpiryDate,
-                CreateTime = DateTime.UtcNow
-            };
-            await _stockRepository.AddAsync(targetStock);
-            await _unitOfWork.SaveChangesAsync();
-        }
-
-        var tgt = targetStock!;
-
-        var lineAmount = layer.QtyInbound > 0
-            ? Math.Round(layer.PurchaseAmount * (moveQty / (decimal)Math.Max(1, layer.QtyInbound)), 2, MidpointRounding.AwayFromZero)
-            : Math.Round(layer.PurchasePrice * moveQty, 2, MidpointRounding.AwayFromZero);
-
-        var virtualStockIn = new StockIn
-        {
-            Id = stockInId,
-            StockInCode = stockInCode,
-            StockInType = 3,
-            WarehouseId = toWh,
-            StockInDate = DateTime.UtcNow,
-            TotalQuantity = moveQty,
-            TotalAmount = lineAmount,
-            Status = 2,
-            InspectStatus = 1,
-            RegionType = targetRegion,
-            Remark = $"手工移库虚拟入库（手工单 {transferCode}）",
-            CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId),
-            CreateTime = DateTime.UtcNow
-        };
-        await _stockInRepository.AddAsync(virtualStockIn);
-
-        var targetLocationId = string.IsNullOrWhiteSpace(request.ToLocationId) ? layer.LocationId : request.ToLocationId.Trim();
-        var virtualLine = new StockInItem
-        {
-            Id = stockInItemId,
-            StockInId = stockInId,
-            MaterialId = layer.MaterialId,
-            PurchasePn = layer.PurchasePn,
-            PurchaseBrand = layer.PurchaseBrand,
-            StockInItemCode = OrderLineItemCodes.StockIn(stockInCode, 1),
-            Quantity = moveQty,
-            OrderQty = moveQty,
-            QtyReceived = moveQty,
-            Price = layer.PurchasePrice,
-            Amount = lineAmount,
-            LocationId = targetLocationId,
-            BatchNo = layer.BatchNo,
-            ProductionDate = layer.ProductionDate,
-            ExpiryDate = layer.ExpiryDate,
-            CreateTime = DateTime.UtcNow
-        };
-        await _stockInItemRepository.AddAsync(virtualLine);
-
-        tgt.Qty += moveQty;
-        tgt.QtyRepertory = tgt.Qty - tgt.QtyStockOut;
-        tgt.QtyRepertoryAvailable = tgt.QtyRepertory - tgt.QtyOccupy - tgt.QtySales;
-        tgt.ModifyTime = DateTime.UtcNow;
-        await _stockRepository.UpdateAsync(tgt);
-
-        var lineSeq = await _stockExtendLineSeq.ReserveNextSequenceBlockAsync(tgt.Id, 1, cancellationToken);
-        var stockItemBizCode = OrderLineItemCodes.StockItemLine(tgt.StockCode?.Trim(), lineSeq);
-        if (string.IsNullOrEmpty(stockItemBizCode))
-        {
-            var compact = targetStockItemId.Replace("-", "", StringComparison.Ordinal);
-            var tail = compact.Length >= 12 ? compact[..12] : compact;
-            stockItemBizCode = $"SKI-MT-{tail}";
-        }
-
-        var targetLayer = new StockItem
-        {
-            Id = targetStockItemId,
-            StockItemCode = stockItemBizCode,
-            StockInItemCode = virtualLine.StockInItemCode,
-            StockInItemId = virtualLine.Id,
-            StockInId = stockInId,
-            StockAggregateId = tgt.Id,
-            MaterialId = layer.MaterialId,
-            WarehouseId = toWh,
-            LocationId = targetLocationId,
-            BatchNo = layer.BatchNo,
-            ProductionDate = layer.ProductionDate,
-            ExpiryDate = layer.ExpiryDate,
-            StockType = layer.StockType,
-            RegionType = targetRegion,
-            PurchasePn = layer.PurchasePn,
-            PurchaseBrand = layer.PurchaseBrand,
-            SellOrderItemId = layer.SellOrderItemId,
-            SellOrderItemCode = layer.SellOrderItemCode,
-            PurchaseOrderItemId = layer.PurchaseOrderItemId,
-            PurchaseOrderItemCode = layer.PurchaseOrderItemCode,
-            PurchasePrice = layer.PurchasePrice,
-            PurchaseCurrency = layer.PurchaseCurrency,
-            PurchasePriceUsd = layer.PurchasePriceUsd,
-            PurchaseAmount = lineAmount,
-            VendorId = layer.VendorId,
-            VendorName = layer.VendorName,
-            PurchaserId = layer.PurchaserId,
-            PurchaserName = layer.PurchaserName,
-            CustomerId = layer.CustomerId,
-            CustomerName = layer.CustomerName,
-            SalespersonId = layer.SalespersonId,
-            SalespersonName = layer.SalespersonName,
-            SalesPrice = layer.SalesPrice,
-            SalesCurrency = layer.SalesCurrency,
-            SalesPriceUsd = layer.SalesPriceUsd,
-            QtyInbound = moveQty,
-            QtyStockOut = 0,
-            QtyOccupy = 0,
-            QtySales = 0,
-            QtyRepertory = moveQty,
-            QtyRepertoryAvailable = moveQty,
-            CreateTime = DateTime.UtcNow
-        };
-        targetLayer.SyncDenormalizedComputedFields();
-        await _stockItemRepository.AddAsync(targetLayer);
-
-        ApplyManualTransferOut(sourceStock, layer, moveQty);
-        await _stockRepository.UpdateAsync(sourceStock);
-        await _stockItemRepository.UpdateAsync(layer);
-
         var now = DateTime.UtcNow;
         var actor = ActingUserIdNormalizer.Normalize(actingUserId);
+
+        var kernelRequest = new InternalTransferPostingRequest
+        {
+            Kind = InternalTransferKind.Manual,
+            MoveQty = moveQty,
+            SourceStockItemId = sid,
+            FromWarehouseId = fromWh,
+            ToWarehouseId = toWh,
+            ToLocationId = request.ToLocationId,
+            TransferHeaderId = transferId,
+            TransferBusinessCode = transferCode,
+            TransferItemLineId = itemManualId,
+            LedgerBizType = StockLedgerBizType.ManualTransfer,
+            ActingUserId = actor
+        };
+
+        var posted = await _postingKernel.ExecuteAsync(kernelRequest, cancellationToken);
+
+        var sourceStockAfter = await _stockRepository.GetByIdAsync(sourceStock.Id)
+                               ?? throw new InvalidOperationException("汇总库存分桶不存在。");
+        var targetStockAfter = await _stockRepository.GetByIdAsync(posted.TargetStockAggregateId)
+                               ?? throw new InvalidOperationException("目标汇总库存分桶不存在。");
+
         var header = new StockTransferManual
         {
             Id = transferId,
@@ -355,72 +212,33 @@ public sealed class ManualStockTransferService : IManualStockTransferService
             Id = itemManualId,
             StockTransferManualId = transferId,
             SourceStockItemId = sid,
-            TargetStockItemId = targetStockItemId,
-            Qty = moveQty,
+            TargetStockItemId = posted.TargetStockItemId,
+            Qty = posted.MoveQty,
             CreateTime = now
         };
         await _transferItemManualRepository.AddAsync(itemRow);
 
-        var ledger = new InventoryLedger
-        {
-            Id = Guid.NewGuid().ToString(),
-            BizType = StockLedgerBizType.ManualTransfer,
-            BizId = transferId,
-            BizLineId = itemManualId,
-            MaterialId = layer.MaterialId,
-            WarehouseId = fromWh,
-            LocationId = layer.LocationId,
-            BatchNo = layer.BatchNo,
-            QtyIn = 0,
-            QtyOut = moveQty,
-            UnitCost = layer.PurchasePrice,
-            Amount = -lineAmount,
-            Remark = $"手工移库 {transferCode}",
-            CreateTime = now,
-            FromWarehouseId = fromWh,
-            ToWarehouseId = toWh,
-            StockTransferId = transferId,
-            SourceStockItemId = sid,
-            TargetStockItemId = targetStockItemId,
-            CreateByUserId = actor,
-            PurchaseOrderItemId = sourceStock.PurchaseOrderItemId,
-            PurchaseOrderItemCode = sourceStock.PurchaseOrderItemCode,
-            SellOrderItemId = sourceStock.SellOrderItemId,
-            SellOrderItemCode = sourceStock.SellOrderItemCode
-        };
-        await _ledgerRepository.AddAsync(ledger);
-
         await _unitOfWork.SaveChangesAsync();
 
-        var changed = new List<StockInfo> { sourceStock, tgt };
+        var changed = new List<StockInfo> { sourceStockAfter, targetStockAfter };
         await _purchasedStockAvailableSync.TryRecalculateFromChangedStockInfosAsync(changed, cancellationToken);
 
         _logger.LogInformation(
-            "ManualStockTransfer done TransferCode={Code} MoveQty={Qty} SourceItem={S} TargetItem={T}",
-            transferCode, moveQty, sid, targetStockItemId);
+            "ManualStockTransfer done TransferCode={Code} MoveQty={Qty} SourceItem={S} TargetItem={T} VOut={Vo} VIn={Vi}",
+            transferCode, posted.MoveQty, sid, posted.TargetStockItemId, posted.VirtualStockOutId, posted.VirtualStockInId);
 
         return new ManualStockTransferExecuteResultDto
         {
             StockTransferManualId = transferId,
             TransferCode = transferCode,
-            MoveQty = moveQty,
-            TargetStockItemId = targetStockItemId,
-            TargetStockAggregateId = tgt.Id
+            MoveQty = posted.MoveQty,
+            TargetStockItemId = posted.TargetStockItemId,
+            TargetStockAggregateId = posted.TargetStockAggregateId,
+            VirtualStockOutId = posted.VirtualStockOutId,
+            VirtualStockInId = posted.VirtualStockInId,
+            StockOutCode = posted.StockOutCode,
+            StockInCode = posted.StockInCode
         };
-    }
-
-    private static void ApplyManualTransferOut(StockInfo stock, StockItem layer, int moveQty)
-    {
-        stock.QtyStockOut += moveQty;
-        stock.QtyRepertory = stock.Qty - stock.QtyStockOut;
-        stock.QtyRepertoryAvailable = stock.QtyRepertory - stock.QtyOccupy - stock.QtySales;
-        stock.ModifyTime = DateTime.UtcNow;
-
-        layer.QtyStockOut += moveQty;
-        layer.QtyRepertory = layer.QtyInbound - layer.QtyStockOut;
-        layer.QtyRepertoryAvailable = layer.QtyRepertory - layer.QtyOccupy - layer.QtySales;
-        layer.ModifyTime = DateTime.UtcNow;
-        layer.SyncDenormalizedComputedFields();
     }
 
     private async Task<IReadOnlyList<string>> GetPickingBlockReasonsAsync(string stockItemId, CancellationToken cancellationToken)
@@ -446,26 +264,5 @@ public sealed class ManualStockTransferService : IManualStockTransferService
         }
 
         return reasons;
-    }
-
-    private static string NormStockBucketText(string? v) =>
-        string.IsNullOrWhiteSpace(v) ? string.Empty : v.Trim();
-
-    private static bool StockMatchesInboundBucket(
-        StockInfo s,
-        string purchasePnKey,
-        string purchaseBrandKey,
-        string warehouseId,
-        short stockType,
-        short regionType,
-        string sellOrderItemKey)
-    {
-        var wh = warehouseId.Trim();
-        return s.StockType == stockType
-               && RegionTypeCode.Normalize(s.RegionType) == RegionTypeCode.Normalize(regionType)
-               && string.Equals(s.WarehouseId?.Trim() ?? string.Empty, wh, StringComparison.OrdinalIgnoreCase)
-               && string.Equals(NormStockBucketText(s.PurchasePn), purchasePnKey, StringComparison.OrdinalIgnoreCase)
-               && string.Equals(NormStockBucketText(s.PurchaseBrand), purchaseBrandKey, StringComparison.OrdinalIgnoreCase)
-               && string.Equals(NormStockBucketText(s.SellOrderItemId), sellOrderItemKey, StringComparison.OrdinalIgnoreCase);
     }
 }

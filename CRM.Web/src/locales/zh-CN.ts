@@ -2936,6 +2936,7 @@ const zhCN = {
       outboundStatusAll: '全部',
       outboundNone: '未出库',
       stockInCode: '入库单号',
+      stockItemCode: '库存明细编号',
       stockInDateRange: '入库日期',
       stockInDateFrom: '起',
       stockInDateTo: '止',

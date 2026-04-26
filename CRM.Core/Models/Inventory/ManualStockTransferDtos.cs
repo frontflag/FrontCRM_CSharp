@@ -39,4 +39,13 @@ public sealed class ManualStockTransferExecuteResultDto
     public int MoveQty { get; set; }
     public string TargetStockItemId { get; set; } = string.Empty;
     public string TargetStockAggregateId { get; set; } = string.Empty;
+
+    /// <summary>虚拟调拨出库主键（<c>StockOutType=3</c>）。</summary>
+    public string? VirtualStockOutId { get; set; }
+
+    /// <summary>虚拟调拨入库主键（<c>StockInType=3</c>）。</summary>
+    public string? VirtualStockInId { get; set; }
+
+    public string? StockOutCode { get; set; }
+    public string? StockInCode { get; set; }
 }

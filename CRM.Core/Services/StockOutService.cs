@@ -721,7 +721,10 @@ namespace CRM.Core.Services
 
         public async Task<IEnumerable<StockOutListItemDto>> GetStockOutListAsync()
         {
-            var outs = (await _stockOutRepository.GetAllAsync()).ToList();
+            const short transferStockOutType = 3;
+            var outs = (await _stockOutRepository.GetAllAsync())
+                .Where(x => x.StockOutType != transferStockOutType)
+                .ToList();
             var lineIdSet = outs
                 .Select(x => x.SellOrderItemId)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -1078,6 +1081,14 @@ namespace CRM.Core.Services
             var stockOut = await _stockOutRepository.GetByIdAsync(id);
             if (stockOut == null)
                 throw new InvalidOperationException($"出库单 {id} 不存在");
+
+            const short transferStockOutType = 3;
+            if (stockOut.StockOutType == transferStockOutType)
+            {
+                if (stockOut.Status == status)
+                    return;
+                throw new InvalidOperationException("调拨类虚拟出库单不可通过此入口变更状态。");
+            }
 
             var previousStatus = stockOut.Status;
             stockOut.Status = status;

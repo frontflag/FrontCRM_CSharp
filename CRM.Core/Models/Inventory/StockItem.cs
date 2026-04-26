@@ -67,6 +67,13 @@ namespace CRM.Core.Models.Inventory
         [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public short RegionType { get; set; } = RegionTypeCode.Domestic;
 
+        /// <summary>
+        /// 列表过滤用（与数量无关）：<see cref="CRM.Core.Constants.StockItemTransferTypeCodes.ManualTransferSource"/> 表示手工移库源行已整行出清；其它为 null。
+        /// </summary>
+        [Column("TransferType")]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public short? TransferType { get; set; }
+
         [StringLength(200)]
         [Column("purchase_pn")]
         public string? PurchasePn { get; set; }

@@ -3156,6 +3156,10 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasDefaultValue((short)1)
                         .HasColumnName("Type");
 
+                    b.Property<short?>("TransferType")
+                        .HasColumnType("smallint")
+                        .HasColumnName("TransferType");
+
                     b.Property<string>("VendorId")
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)");

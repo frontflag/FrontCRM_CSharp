@@ -840,6 +840,7 @@ namespace CRM.Core.Services
             }
 
             return items
+                .Where(x => x.TransferType != StockItemTransferTypeCodes.ManualTransferSource)
                 .OrderBy(x => x.ProductionDate ?? x.CreateTime)
                 .ThenBy(x => x.CreateTime)
                 .ThenBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
@@ -874,6 +875,7 @@ namespace CRM.Core.Services
                     VendorName = string.IsNullOrWhiteSpace(x.VendorName) ? null : x.VendorName.Trim(),
                     CustomerName = string.IsNullOrWhiteSpace(x.CustomerName) ? null : x.CustomerName.Trim(),
                     RegionType = RegionTypeCode.Normalize(x.RegionType),
+                    StockType = x.StockType,
                     CreateTime = x.CreateTime
                 })
                 .ToList();
@@ -952,6 +954,7 @@ namespace CRM.Core.Services
             }
 
             var codeNeedle = query.StockInCode?.Trim();
+            var stockItemCodeNeedle = query.StockItemCode?.Trim();
             var warehouseIdNeedle = query.WarehouseId?.Trim();
             var pnNeedle = query.PurchasePn?.Trim();
             var brandNeedle = query.PurchaseBrand?.Trim();
@@ -966,11 +969,16 @@ namespace CRM.Core.Services
             var result = new List<InventoryStockItemListRowDto>();
             foreach (var x in items)
             {
+                if (x.TransferType == StockItemTransferTypeCodes.ManualTransferSource)
+                    continue;
+
                 stockInById.TryGetValue(x.StockInId?.Trim() ?? string.Empty, out var sin);
                 var stockInCode = sin == null || string.IsNullOrWhiteSpace(sin.StockInCode) ? null : sin.StockInCode.Trim();
                 var stockInDate = sin?.StockInDate;
 
                 if (!TextContainsOptional(stockInCode, codeNeedle))
+                    continue;
+                if (!TextContainsOptional(string.IsNullOrWhiteSpace(x.StockItemCode) ? null : x.StockItemCode.Trim(), stockItemCodeNeedle))
                     continue;
                 if (!StockInDateInRange(stockInDate, query.StockInDateFrom, query.StockInDateTo))
                     continue;
@@ -1044,6 +1052,7 @@ namespace CRM.Core.Services
                     VendorName = string.IsNullOrWhiteSpace(x.VendorName) ? null : x.VendorName.Trim(),
                     CustomerName = string.IsNullOrWhiteSpace(x.CustomerName) ? null : x.CustomerName.Trim(),
                     RegionType = RegionTypeCode.Normalize(x.RegionType),
+                    StockType = x.StockType,
                     PurchaserName = string.IsNullOrWhiteSpace(x.PurchaserName) ? null : x.PurchaserName.Trim(),
                     SalespersonName = string.IsNullOrWhiteSpace(x.SalespersonName) ? null : x.SalespersonName.Trim(),
                     CreateTime = x.CreateTime,

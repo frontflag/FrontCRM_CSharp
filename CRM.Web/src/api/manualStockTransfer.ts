@@ -34,6 +34,11 @@ export interface ManualTransferExecuteResult {
   moveQty: number
   targetStockItemId: string
   targetStockAggregateId: string
+  /** 虚拟调拨出库（类型 3） */
+  virtualStockOutId?: string | null
+  virtualStockInId?: string | null
+  stockOutCode?: string | null
+  stockInCode?: string | null
 }
 
 export const manualStockTransferApi = {

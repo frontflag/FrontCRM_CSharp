@@ -345,7 +345,9 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<StockInListItemDto>> GetListAsync(StockInQueryRequest? request = null)
         {
             // 列表按创建时间降序（与业务列表「创建日期」口径一致）
+            const short transferStockInType = 3;
             var raw = (await _stockInRepository.GetAllAsync())
+                .Where(x => x.StockInType != transferStockInType)
                 .OrderByDescending(x => x.CreateTime)
                 .ThenByDescending(x => x.Id)
                 .ToList();
@@ -757,6 +759,14 @@ namespace CRM.Core.Services
             var stockIn = await _stockInRepository.GetByIdAsync(id);
             if (stockIn == null)
                 throw new InvalidOperationException($"入库单 {id} 不存在");
+
+            const short transferStockInType = 3;
+            if (stockIn.StockInType == transferStockInType)
+            {
+                if (stockIn.Status == status)
+                    return;
+                throw new InvalidOperationException("调拨类虚拟入库单不可通过常规入库流程变更状态。");
+            }
 
             // 幂等保护：状态未变化时直接返回，避免重复点击导致重复推进回写
             if (stockIn.Status == status)
