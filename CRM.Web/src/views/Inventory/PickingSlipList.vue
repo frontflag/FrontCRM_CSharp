@@ -80,6 +80,13 @@
       <template #col-createUserDisplay="{ row }">
         <span>{{ displayCell(row, 'createUserDisplay') }}</span>
       </template>
+      <template #col-actions="{ row }">
+        <div @click.stop @dblclick.stop>
+          <button type="button" class="action-btn action-btn--primary" @click.stop="goDetail(row)">详情</button>
+          <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
+          <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">强制删除</button>
+        </div>
+      </template>
     </CrmDataTable>
     <div class="pagination-wrapper">
       <div class="list-footer-left">
@@ -114,18 +121,21 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { inventoryCenterApi, type PickingTaskListRow } from '@/api/inventoryCenter'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import { getApiErrorMessage } from '@/utils/apiError'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useAuthStore } from '@/stores/auth'
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const router = useRouter()
 const { t, locale } = useI18n()
+const authStore = useAuthStore()
+const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
 const keyword = ref('')
 const list = ref<PickingTaskListRow[]>([])
@@ -173,7 +183,8 @@ const columns = computed<CrmTableColumnDef[]>(() => {
     { key: 'stockOutRequestCode', label: t('pickingSlip.columns.stockOutRequestCode'), width: 160, minWidth: 140, showOverflowTooltip: true },
     { key: 'taskCode', label: t('pickingSlip.columns.taskCode'), width: 150, minWidth: 130, showOverflowTooltip: true },
     { key: 'createTime', label: t('pickingSlip.columns.createTime'), width: 170 },
-    { key: 'createUserDisplay', label: t('pickingSlip.columns.createUser'), width: 120, showOverflowTooltip: true }
+    { key: 'createUserDisplay', label: t('pickingSlip.columns.createUser'), width: 120, showOverflowTooltip: true },
+    { key: 'actions', label: '操作', width: 250, fixed: 'right', hideable: false, reorderable: false }
   ]
 })
 
@@ -216,10 +227,60 @@ watch(keyword, () => {
 })
 
 const onRowDblClick = (row: PickingTaskListRow) => {
+  goDetail(row)
+}
+
+const goDetail = (row: PickingTaskListRow) => {
   const r = rowRecord(row)
   const id = String(r.id ?? r.Id ?? '').trim()
   if (!id) return
   router.push({ name: 'PickingSlipDetail', params: { id } })
+}
+
+const handleDeleteRow = async (row: PickingTaskListRow) => {
+  const r = rowRecord(row)
+  const id = String(r.id ?? r.Id ?? '').trim()
+  const code = String(r.taskCode ?? r.TaskCode ?? '').trim()
+  if (!id) return
+  try {
+    await ElMessageBox.confirm(`确认删除拣货单 ${code || id} 吗？`, '删除确认', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await inventoryCenterApi.deletePickingSlip(id)
+    ElMessage.success('删除成功')
+    fetchList()
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '删除失败'))
+  }
+}
+
+const handleForceDeleteRow = async (row: PickingTaskListRow) => {
+  const r = rowRecord(row)
+  const id = String(r.id ?? r.Id ?? '').trim()
+  const code = String(r.taskCode ?? r.TaskCode ?? '').trim()
+  if (!id || !code) return
+  let entered = ''
+  try {
+    const ret = await ElMessageBox.prompt('请输入拣货单号以确认强制删除', '强制删除确认', {
+      inputPlaceholder: code
+    })
+    entered = String(ret.value || '').trim()
+  } catch {
+    return
+  }
+  if (entered !== code) {
+    ElMessage.error('输入单号不匹配，已取消')
+    return
+  }
+  try {
+    await inventoryCenterApi.forceDeletePickingSlip(id, entered)
+    ElMessage.success('强制删除成功')
+    fetchList()
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '强制删除失败'))
+  }
 }
 
 async function runPickingFetch(resetPage: boolean) {

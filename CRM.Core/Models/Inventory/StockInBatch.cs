@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Interfaces;
 using CRM.Core.Models;
 
 namespace CRM.Core.Models.Inventory
@@ -8,7 +9,7 @@ namespace CRM.Core.Models.Inventory
     /// 入库批次记录：关联入库单/明细，记录 LOT、SN、产地与数量等批次维度信息。
     /// </summary>
     [Table("stock_in_batch")]
-    public class StockInBatch : BaseGuidEntity
+    public class StockInBatch : BaseGuidEntity, ISoftDeletable
     {
         [Key]
         [StringLength(36)]
@@ -83,5 +84,8 @@ namespace CRM.Core.Models.Inventory
         [StringLength(1000)]
         [Column("remark")]
         public string? Remark { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 }

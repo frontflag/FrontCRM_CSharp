@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using CRM.Core.Constants;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Inventory
 {
@@ -97,7 +98,7 @@ namespace CRM.Core.Models.Inventory
     }
 
     [Table("qcinfo")]
-    public class QCInfo : BaseGuidEntity
+    public class QCInfo : BaseGuidEntity, ISoftDeletable
     {
         [StringLength(32)]
         public string QcCode { get; set; } = string.Empty;
@@ -150,11 +151,14 @@ namespace CRM.Core.Models.Inventory
         [Column("modify_by_user_id")]
         public string? ModifyByUserId { get; set; }
 
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
+
         public ICollection<QCItem> Items { get; set; } = new List<QCItem>();
     }
 
     [Table("qcitem")]
-    public class QCItem : BaseGuidEntity
+    public class QCItem : BaseGuidEntity, ISoftDeletable
     {
         [StringLength(36)]
         public string QcInfoId { get; set; } = string.Empty;
@@ -166,6 +170,9 @@ namespace CRM.Core.Models.Inventory
         public int ArrivedQty { get; set; }
         public int PassedQty { get; set; }
         public int RejectQty { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
 
         public QCInfo? QcInfo { get; set; }
     }

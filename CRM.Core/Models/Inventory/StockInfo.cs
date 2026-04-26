@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using CRM.Core.Constants;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Inventory
 {
@@ -9,7 +10,7 @@ namespace CRM.Core.Models.Inventory
     /// 库存主表
     /// </summary>
     [Table("stock")]
-    public class StockInfo : BaseGuidEntity
+    public class StockInfo : BaseGuidEntity, ISoftDeletable
     {
         /// <summary>
         /// 库存ID (主键)
@@ -157,13 +158,16 @@ namespace CRM.Core.Models.Inventory
         /// </summary>
         [StringLength(500)]
         public string? Remark { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 
     /// <summary>
     /// 入库单主表
     /// </summary>
     [Table("stock_in")]
-    public class StockIn : BaseGuidEntity
+    public class StockIn : BaseGuidEntity, ISoftDeletable
     {
         /// <summary>
         /// 入库单ID (主键)
@@ -296,6 +300,9 @@ namespace CRM.Core.Models.Inventory
         [NotMapped]
         public string? DetailVendorName { get; set; }
 
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
+
         // 导航属性
         public virtual ICollection<StockInItem> Items { get; set; } = new List<StockInItem>();
     }
@@ -304,7 +311,7 @@ namespace CRM.Core.Models.Inventory
     /// 入库单明细表
     /// </summary>
     [Table("stock_in_item")]
-    public class StockInItem : BaseGuidEntity
+    public class StockInItem : BaseGuidEntity, ISoftDeletable
     {
         /// <summary>
         /// 明细ID (主键)
@@ -435,13 +442,16 @@ namespace CRM.Core.Models.Inventory
         [ForeignKey("StockInId")]
         [JsonIgnore]
         public virtual StockIn? StockIn { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 
     /// <summary>
     /// 出库单主表
     /// </summary>
     [Table("stock_out")]
-    public class StockOut : BaseGuidEntity
+    public class StockOut : BaseGuidEntity, ISoftDeletable
     {
         /// <summary>
         /// 出库单ID (主键)
@@ -580,6 +590,9 @@ namespace CRM.Core.Models.Inventory
         [Column("picking_task_id")]
         public string? PickingTaskId { get; set; }
 
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
+
         // 导航属性
         public virtual ICollection<StockOutItem> Items { get; set; } = new List<StockOutItem>();
     }
@@ -588,7 +601,7 @@ namespace CRM.Core.Models.Inventory
     /// 出库单明细表
     /// </summary>
     [Table("stock_out_item")]
-    public class StockOutItem : BaseGuidEntity
+    public class StockOutItem : BaseGuidEntity, ISoftDeletable
     {
         /// <summary>
         /// 明细ID (主键)
@@ -700,6 +713,9 @@ namespace CRM.Core.Models.Inventory
         /// </summary>
         [StringLength(500)]
         public string? Remark { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
 
         /// <summary>扩展表，与明细 1:1（主键均为 <c>ItemId</c>）。</summary>
         public virtual StockOutItemExtend? Extend { get; set; }

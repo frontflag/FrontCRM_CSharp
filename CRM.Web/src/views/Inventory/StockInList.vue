@@ -145,6 +145,8 @@
             >
               {{ t('stockInList.actions.markStockedIn') }}
             </button>
+            <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
+            <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">强制删除</button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -161,6 +163,12 @@
                   @click.stop="handleFinish(row)"
                 >
                   <span class="op-more-item op-more-item--warning">{{ t('stockInList.actions.markStockedIn') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item divided @click.stop="handleDeleteRow(row)">
+                  <span class="op-more-item op-more-item--danger">删除</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
+                  <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -203,7 +211,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { stockInApi, type StockInListItemDto } from '@/api/stockIn'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
@@ -211,12 +219,15 @@ import { inventoryCenterApi, type WarehouseInfo } from '@/api/inventoryCenter'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useAuthStore } from '@/stores/auth'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
+const authStore = useAuthStore()
+const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
 const list = ref<StockInListItemDto[]>([])
 const listPage = ref(1)
@@ -507,6 +518,44 @@ const handleFinish = async (row: StockInListItemDto) => {
   } catch (e) {
     console.error(e)
     ElMessage.error(t('stockInList.messages.updateStatusFailed'))
+  }
+}
+
+const handleDeleteRow = async (row: StockInListItemDto) => {
+  try {
+    await ElMessageBox.confirm(`确认删除入库单 ${row.stockInCode} 吗？`, '删除确认', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await stockInApi.delete(row.id)
+    ElMessage.success('删除成功')
+    void fetchList(false)
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+  }
+}
+
+const handleForceDeleteRow = async (row: StockInListItemDto) => {
+  let entered = ''
+  try {
+    const ret = await ElMessageBox.prompt('请输入入库单号以确认强制删除', '强制删除确认', {
+      inputPlaceholder: row.stockInCode
+    })
+    entered = String(ret.value || '').trim()
+  } catch {
+    return
+  }
+  if (entered !== String(row.stockInCode || '').trim()) {
+    ElMessage.error('输入单号不匹配，已取消')
+    return
+  }
+  try {
+    await stockInApi.forceDelete(row.id, entered)
+    ElMessage.success('强制删除成功')
+    void fetchList(false)
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '强制删除失败')
   }
 }
 

@@ -1912,6 +1912,8 @@ namespace CRM.IntegrationTests
             var stockInLineSeq = Substitute.For<IStockInExtendLineSeqService>();
             var stockInService = new StockInService(
                 stockInRepo, stockInItemRepo, stockInItemExtendRepoWf,
+                Substitute.For<IRepository<StockInBatch>>(),
+                Substitute.For<IRepository<StockItem>>(),
                 purchaseOrderRepo, poItemRepo,
                 _salesOrderItemRepository, _salesOrderRepository,
                 qcRepo, stockInNotifyRepo, vendorRepoLocal, warehouseRepoLocal, materialRepo,

@@ -64,7 +64,7 @@
         <template #default="{ row }">{{ formatDt(row.createTime) }}</template>
       </el-table-column>
       <el-table-column prop="createUserDisplay" :label="t('customsPages.declarations.colCreator')" width="120" />
-      <el-table-column :label="t('customsPages.declarations.colActions')" width="200" fixed="right">
+      <el-table-column :label="t('customsPages.declarations.colActions')" width="320" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click.stop="openClearance(row)">{{ t('customsPages.declarations.setClearance') }}</el-button>
           <el-button
@@ -75,6 +75,8 @@
           >
             {{ t('customsPages.declarations.complete') }}
           </el-button>
+          <el-button link type="danger" @click.stop="handleDelete(row)">删除</el-button>
+          <el-button v-if="isSysAdmin" link type="danger" @click.stop="handleForceDelete(row)">强制删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -121,14 +123,19 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   completeCustomsDeclaration,
+  deleteCustomsDeclaration,
   fetchCustomsDeclarationById,
   fetchCustomsDeclarations,
+  forceDeleteCustomsDeclaration,
   patchCustomsClearanceStatus,
   type CustomsDeclarationDetailDto,
   type CustomsDeclarationListItemDto
 } from '@/api/customs'
+import { useAuthStore } from '@/stores/auth'
 
 const { t } = useI18n()
+const authStore = useAuthStore()
+const isSysAdmin = authStore.user?.isSysAdmin === true
 const loading = ref(false)
 const list = ref<CustomsDeclarationListItemDto[]>([])
 const filters = reactive<{
@@ -235,6 +242,44 @@ async function doComplete(row: CustomsDeclarationListItemDto) {
   try {
     await completeCustomsDeclaration(row.id)
     ElMessage.success(t('customsPages.declarations.completeOk'))
+    await load()
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleDelete(row: CustomsDeclarationListItemDto) {
+  try {
+    await ElMessageBox.confirm(`确认删除报关单 ${row.declarationCode} 吗？`, '删除确认', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await deleteCustomsDeclaration(row.id)
+    ElMessage.success('删除成功')
+    await load()
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : String(e))
+  }
+}
+
+async function handleForceDelete(row: CustomsDeclarationListItemDto) {
+  let entered = ''
+  try {
+    const ret = await ElMessageBox.prompt('请输入报关单号以确认强制删除', '强制删除确认', {
+      inputPlaceholder: row.declarationCode
+    })
+    entered = String(ret.value || '').trim()
+  } catch {
+    return
+  }
+  if (entered !== String(row.declarationCode || '').trim()) {
+    ElMessage.error('输入单号不匹配，已取消')
+    return
+  }
+  try {
+    await forceDeleteCustomsDeclaration(row.id, entered)
+    ElMessage.success('强制删除成功')
     await load()
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : String(e))

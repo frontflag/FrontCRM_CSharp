@@ -86,6 +86,8 @@
             >
               {{ t('stockOutList.actions.markFinished') }}
             </button>
+            <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
+            <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">强制删除</button>
           </div>
           <el-dropdown v-else trigger="click" placement="bottom-end">
             <div class="op-more-dropdown-trigger">
@@ -110,6 +112,12 @@
                 </el-dropdown-item>
                 <el-dropdown-item v-if="row.status !== 4" @click.stop="handleMarkFinish(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('stockOutList.actions.markFinished') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item divided @click.stop="handleDeleteRow(row)">
+                  <span class="op-more-item op-more-item--danger">删除</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
+                  <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -150,12 +158,15 @@ import { stockOutApi, type StockOutDto } from '@/api/stockOut'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useAuthStore } from '@/stores/auth'
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const authStore = useAuthStore()
+const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
 const list = ref<StockOutDto[]>([])
 const listPage = ref(1)
@@ -325,6 +336,36 @@ const handleMarkFinish = async (row: StockOutDto) => {
   } catch (e) {
     console.error(e)
     ElMessage.error(t('stockOutList.messages.updateStatusFailed'))
+  }
+}
+
+const handleDeleteRow = async (row: StockOutDto) => {
+  const ok = window.confirm(`确认删除出库单 ${row.stockOutCode} 吗？`)
+  if (!ok) return
+  try {
+    await stockOutApi.deleteStockOut(row.id)
+    ElMessage.success('删除成功')
+    await runStockOutListFetch(false)
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('删除失败')
+  }
+}
+
+const handleForceDeleteRow = async (row: StockOutDto) => {
+  const entered = window.prompt('请输入出库单号以确认强制删除', row.stockOutCode || '')?.trim() ?? ''
+  if (!entered) return
+  if (entered !== String(row.stockOutCode || '').trim()) {
+    ElMessage.error('输入单号不匹配，已取消')
+    return
+  }
+  try {
+    await stockOutApi.forceDeleteStockOut(row.id, entered)
+    ElMessage.success('强制删除成功')
+    await runStockOutListFetch(false)
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('强制删除失败')
   }
 }
 

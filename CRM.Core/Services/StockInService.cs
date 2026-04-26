@@ -18,6 +18,8 @@ namespace CRM.Core.Services
         private readonly IRepository<StockIn> _stockInRepository;
         private readonly IRepository<StockInItem> _stockInItemRepository;
         private readonly IRepository<StockInItemExtend> _stockInItemExtendRepository;
+        private readonly IRepository<StockInBatch> _stockInBatchRepository;
+        private readonly IRepository<StockItem> _stockItemRepository;
         private readonly IRepository<PurchaseOrder> _purchaseOrderRepository;
         private readonly IRepository<PurchaseOrderItem> _purchaseOrderItemRepository;
         private readonly IRepository<SellOrderItem> _sellOrderItemRepository;
@@ -41,6 +43,8 @@ namespace CRM.Core.Services
             IRepository<StockIn> stockInRepository,
             IRepository<StockInItem> stockInItemRepository,
             IRepository<StockInItemExtend> stockInItemExtendRepository,
+            IRepository<StockInBatch> stockInBatchRepository,
+            IRepository<StockItem> stockItemRepository,
             IRepository<PurchaseOrder> purchaseOrderRepository,
             IRepository<PurchaseOrderItem> purchaseOrderItemRepository,
             IRepository<SellOrderItem> sellOrderItemRepository,
@@ -63,6 +67,8 @@ namespace CRM.Core.Services
             _stockInRepository = stockInRepository;
             _stockInItemRepository = stockInItemRepository;
             _stockInItemExtendRepository = stockInItemExtendRepository;
+            _stockInBatchRepository = stockInBatchRepository;
+            _stockItemRepository = stockItemRepository;
             _purchaseOrderRepository = purchaseOrderRepository;
             _purchaseOrderItemRepository = purchaseOrderItemRepository;
             _sellOrderItemRepository = sellOrderItemRepository;
@@ -713,9 +719,35 @@ namespace CRM.Core.Services
             if (stockIn == null)
                 throw new InvalidOperationException($"入库单 {id} 不存在");
 
-            await _stockInRepository.DeleteAsync(id);
+            var sid = id.Trim();
+            var items = (await _stockInItemRepository.FindAsync(i => i.StockInId == sid)).ToList();
+            foreach (var item in items)
+            {
+                foreach (var batch in (await _stockInBatchRepository.FindAsync(b => b.StockInItemId == item.Id)).ToList())
+                    await _stockInBatchRepository.DeleteAsync(batch.Id);
+
+                foreach (var si in (await _stockItemRepository.FindAsync(x => x.StockInItemId == item.Id)).ToList())
+                    await _stockItemRepository.DeleteAsync(si.Id);
+
+                await _stockInItemExtendRepository.DeleteAsync(item.Id);
+                await _stockInItemRepository.DeleteAsync(item.Id);
+            }
+
+            await _unitOfWork.ExecuteNonQueryAsync(
+                $@"UPDATE public.stock_in_extend SET is_deleted = true, ""ModifyTime"" = NOW() WHERE ""StockInId"" = '{EscapeSqlLiteral(sid)}'");
+
+            foreach (var qc in (await _qcRepository.FindAsync(q => q.StockInId == sid)).ToList())
+            {
+                qc.StockInId = null;
+                qc.StockInStatus = 1;
+                await _qcRepository.UpdateAsync(qc);
+            }
+
+            await _stockInRepository.DeleteAsync(sid);
             await _unitOfWork.SaveChangesAsync();
         }
+
+        private static string EscapeSqlLiteral(string s) => s.Replace("'", "''", StringComparison.Ordinal);
 
         public async Task UpdateStatusAsync(string id, short status, string? actingUserId = null)
         {

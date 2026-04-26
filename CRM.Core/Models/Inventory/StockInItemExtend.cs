@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Inventory;
 
@@ -9,7 +10,7 @@ namespace CRM.Core.Models.Inventory;
 /// 冗余 <see cref="StockInItem.StockInId"/> 便于按单查询；采销订单行主键与业务编号按入库明细行存储。
 /// </summary>
 [Table("stock_in_item_extend")]
-public class StockInItemExtend : BaseGuidEntity
+public class StockInItemExtend : BaseGuidEntity, ISoftDeletable
 {
     [Key]
     [StringLength(36)]
@@ -41,4 +42,7 @@ public class StockInItemExtend : BaseGuidEntity
     /// <summary>入库明细（主键与 <see cref="Id"/> / <c>StockInItemId</c> 相同）。</summary>
     [JsonIgnore]
     public virtual StockInItem? StockInItem { get; set; }
+
+    [Column("is_deleted")]
+    public bool IsDeleted { get; set; }
 }

@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using CRM.Core.Constants;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Inventory
 {
@@ -10,7 +11,7 @@ namespace CRM.Core.Models.Inventory
     /// 记录拣货层（<c>StockItemId</c>、<c>Type</c>）及过账时采销价、币别、折合 USD 与业务利润快照。
     /// </summary>
     [Table("stock_out_item_extend")]
-    public class StockOutItemExtend : BaseGuidEntity
+    public class StockOutItemExtend : BaseGuidEntity, ISoftDeletable
     {
         [Key]
         [StringLength(36)]
@@ -80,5 +81,8 @@ namespace CRM.Core.Models.Inventory
 
         /// <summary>出库明细（主键与 <see cref="Id"/> / <c>StockOutItemId</c> 相同）。</summary>
         public virtual StockOutItem? StockOutItem { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 }

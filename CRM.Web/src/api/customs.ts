@@ -147,6 +147,16 @@ export async function completeCustomsDeclaration(id: string): Promise<void> {
   await apiClient.post(`/api/v1/customs-declarations/${encodeURIComponent(id)}/complete`, {})
 }
 
+export async function deleteCustomsDeclaration(id: string): Promise<void> {
+  await apiClient.delete(`/api/v1/customs-declarations/${encodeURIComponent(id)}`)
+}
+
+export async function forceDeleteCustomsDeclaration(id: string, confirmBillCode: string): Promise<void> {
+  await apiClient.post(`/api/v1/customs-declarations/${encodeURIComponent(id)}/force-delete`, {
+    confirmBillCode: confirmBillCode.trim()
+  })
+}
+
 export async function fetchCustomsDeclarationItems(
   params: Record<string, unknown>
 ): Promise<CustomsDeclarationItemListItemDto[]> {

@@ -20,4 +20,7 @@ public class StockInExtend
 
     [Column("ModifyTime")]
     public DateTime? ModifyTime { get; set; }
+
+    [Column("is_deleted")]
+    public bool IsDeleted { get; set; }
 }

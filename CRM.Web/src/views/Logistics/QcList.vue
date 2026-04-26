@@ -100,6 +100,8 @@
             >
               {{ t('qcList.actions.createStockIn') }}
             </el-button>
+            <el-button link type="danger" @click.stop="handleDeleteQc(row)">删除</el-button>
+            <el-button v-if="isSysAdmin" link type="danger" @click.stop="handleForceDeleteQc(row)">强制删除</el-button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -113,6 +115,12 @@
                 </el-dropdown-item>
                 <el-dropdown-item v-if="canCreateStockIn(row)" @click.stop="createStockIn(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('qcList.actions.createStockIn') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item divided @click.stop="handleDeleteQc(row)">
+                  <span class="op-more-item op-more-item--danger">删除</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteQc(row)">
+                  <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -190,6 +198,7 @@ const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const { t, locale } = useI18n()
 const loading = ref(false)
 const list = ref<QcInfoDto[]>([])
@@ -408,6 +417,46 @@ const goView = (row: QcInfoDto) => {
 }
 
 const canCreateStockIn = (row: QcInfoDto) => row.status !== -1 && !row.stockInId
+
+const handleDeleteQc = async (row: QcInfoDto) => {
+  try {
+    await ElMessageBox.confirm(`确认删除质检单 ${row.qcCode} 吗？`, '删除确认', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await logisticsApi.deleteQc(row.id)
+    ElMessage.success('删除成功')
+    refreshQcList()
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '删除失败'))
+  }
+}
+
+const handleForceDeleteQc = async (row: QcInfoDto) => {
+  let entered = ''
+  try {
+    const ret = await ElMessageBox.prompt('请输入质检单号以确认强制删除', '强制删除确认', {
+      inputPlaceholder: row.qcCode,
+      confirmButtonText: '确认',
+      cancelButtonText: '取消'
+    })
+    entered = String(ret.value || '').trim()
+  } catch {
+    return
+  }
+  if (entered !== String(row.qcCode || '').trim()) {
+    ElMessage.error('输入单号不匹配，已取消')
+    return
+  }
+  try {
+    await logisticsApi.forceDeleteQc(row.id, entered)
+    ElMessage.success('强制删除成功')
+    refreshQcList()
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '强制删除失败'))
+  }
+}
 
 type WarehouseRow = WarehouseInfo & { id: string }
 

@@ -179,6 +179,12 @@ export const stockInApi = {
     await apiClient.delete(`/api/v1/stock-in/${id}`)
   },
 
+  async forceDelete(id: string, confirmBillCode: string): Promise<void> {
+    await apiClient.post(`/api/v1/stock-in/${id}/force-delete`, {
+      confirmBillCode: confirmBillCode.trim()
+    })
+  },
+
   async updateStatus(id: string, status: number): Promise<void> {
     await apiClient.patch(`/api/v1/stock-in/${id}/status?status=${status}`)
   }

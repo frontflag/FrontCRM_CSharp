@@ -15,20 +15,37 @@ namespace CRM.API.Controllers
     public class StockOutController : ControllerBase
     {
         private readonly IStockOutService _service;
+        private readonly IRepository<StockOut> _stockOutRepo;
+        private readonly IRepository<StockOutItem> _stockOutItemRepo;
+        private readonly IRepository<StockOutItemExtend> _stockOutItemExtendRepo;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ApplicationDbContext _db;
         private readonly IRbacService _rbacService;
         private readonly ILogger<StockOutController> _logger;
 
         public StockOutController(
             IStockOutService service,
+            IRepository<StockOut> stockOutRepo,
+            IRepository<StockOutItem> stockOutItemRepo,
+            IRepository<StockOutItemExtend> stockOutItemExtendRepo,
+            IUnitOfWork unitOfWork,
             ApplicationDbContext db,
             IRbacService rbacService,
             ILogger<StockOutController> logger)
         {
             _service = service;
+            _stockOutRepo = stockOutRepo;
+            _stockOutItemRepo = stockOutItemRepo;
+            _stockOutItemExtendRepo = stockOutItemExtendRepo;
+            _unitOfWork = unitOfWork;
             _db = db;
             _rbacService = rbacService;
             _logger = logger;
+        }
+
+        public class ForceDeleteStockOutRequest
+        {
+            public string ConfirmBillCode { get; set; } = string.Empty;
         }
 
         [HttpGet]
@@ -319,6 +336,79 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "更新出库单状态失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"更新状态失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteStockOut(string id)
+        {
+            try
+            {
+                var entity = await _stockOutRepo.GetByIdAsync(id);
+                if (entity == null)
+                    return NotFound(ApiResponse<object>.Fail("出库单不存在", 404));
+                if (entity.Status == 2 || entity.Status == 4)
+                    return BadRequest(ApiResponse<object>.Fail("已执行出库的单据不能普通删除", 400));
+
+                var items = (await _stockOutItemRepo.FindAsync(x => x.StockOutId == entity.Id)).ToList();
+                var itemIds = items.Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var exts = (await _stockOutItemExtendRepo.GetAllAsync())
+                    .Where(x => itemIds.Contains(x.Id))
+                    .ToList();
+                foreach (var ext in exts)
+                    await _stockOutItemExtendRepo.DeleteAsync(ext.Id);
+                foreach (var item in items)
+                    await _stockOutItemRepo.DeleteAsync(item.Id);
+                await _stockOutRepo.DeleteAsync(entity.Id);
+                await _unitOfWork.SaveChangesAsync();
+                return Ok(ApiResponse<object>.Ok(null, "删除出库单成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "删除出库单失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"删除出库单失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpPost("{id}/force-delete")]
+        public async Task<ActionResult<ApiResponse<object>>> ForceDeleteStockOut(string id, [FromBody] ForceDeleteStockOutRequest? body)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, ApiResponse<object>.Fail("未登录或身份无效", 403));
+
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+                if (summary?.IsSysAdmin != true)
+                    return StatusCode(403, ApiResponse<object>.Fail("仅系统管理员可执行强制删除", 403));
+
+                if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
+                    return BadRequest(ApiResponse<object>.Fail("请填写 confirmBillCode", 400));
+
+                var entity = await _stockOutRepo.GetByIdAsync(id);
+                if (entity == null)
+                    return NotFound(ApiResponse<object>.Fail("出库单不存在", 404));
+                if (!string.Equals(body.ConfirmBillCode.Trim(), entity.StockOutCode.Trim(), StringComparison.Ordinal))
+                    return BadRequest(ApiResponse<object>.Fail("确认单号不匹配，已拒绝删除", 400));
+
+                var items = (await _stockOutItemRepo.FindAsync(x => x.StockOutId == entity.Id)).ToList();
+                var itemIds = items.Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var exts = (await _stockOutItemExtendRepo.GetAllAsync())
+                    .Where(x => itemIds.Contains(x.Id))
+                    .ToList();
+                foreach (var ext in exts)
+                    await _stockOutItemExtendRepo.DeleteAsync(ext.Id);
+                foreach (var item in items)
+                    await _stockOutItemRepo.DeleteAsync(item.Id);
+                await _stockOutRepo.DeleteAsync(entity.Id);
+                await _unitOfWork.SaveChangesAsync();
+                return Ok(ApiResponse<object>.Ok(null, "强制删除出库单成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "强制删除出库单失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"强制删除出库单失败: {ex.Message}", 500));
             }
         }
     }

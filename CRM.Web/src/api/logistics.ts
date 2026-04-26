@@ -116,5 +116,13 @@ export const logisticsApi = {
   },
   async bindQcStockIn(id: string, stockInId: string): Promise<void> {
     await apiClient.patch(`/api/v1/logistics/qcs/${id}/bind-stock-in?stockInId=${encodeURIComponent(stockInId)}`)
+  },
+  async deleteQc(id: string): Promise<void> {
+    await apiClient.delete(`/api/v1/logistics/qcs/${encodeURIComponent(id)}`)
+  },
+  async forceDeleteQc(id: string, confirmBillCode: string): Promise<void> {
+    await apiClient.post(`/api/v1/logistics/qcs/${encodeURIComponent(id)}/force-delete`, {
+      confirmBillCode: confirmBillCode.trim()
+    })
   }
 }

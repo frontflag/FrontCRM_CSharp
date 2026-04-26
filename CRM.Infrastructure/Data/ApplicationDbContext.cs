@@ -613,6 +613,8 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<StockInfo>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.MaterialId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.WarehouseId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.LocationId).HasMaxLength(36);
@@ -632,7 +634,7 @@ namespace CRM.Infrastructure.Data
                 entity.HasIndex(e => e.StockCode)
                     .IsUnique()
                     .HasDatabaseName("IX_stock_StockCode_unique_not_null")
-                    .HasFilter("\"StockCode\" IS NOT NULL");
+                    .HasFilter("\"StockCode\" IS NOT NULL AND is_deleted = false");
             });
 
             modelBuilder.Entity<StockExtend>(entity =>
@@ -643,6 +645,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.LastItemLineSeq).HasColumnName("last_item_line_seq");
                 entity.Property(e => e.CreateTime).HasColumnName("CreateTime");
                 entity.Property(e => e.ModifyTime).HasColumnName("ModifyTime");
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.HasOne<StockInfo>()
                     .WithOne()
                     .HasForeignKey<StockExtend>(e => e.StockId)
@@ -652,6 +656,8 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<StockIn>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.StockInCode).IsRequired().HasMaxLength(32);
                 entity.Property(e => e.SourceCode).HasMaxLength(32);
                 entity.Property(e => e.SourceId).HasMaxLength(36);
@@ -672,6 +678,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.LastItemLineSeq).HasColumnName("last_item_line_seq");
                 entity.Property(e => e.CreateTime).HasColumnName("CreateTime");
                 entity.Property(e => e.ModifyTime).HasColumnName("ModifyTime");
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.HasOne<StockIn>()
                     .WithOne()
                     .HasForeignKey<StockInExtend>(e => e.StockInId)
@@ -681,6 +689,8 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<StockInItem>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.StockInId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.MaterialId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.PurchasePn).HasColumnName("purchase_pn").HasMaxLength(200);
@@ -692,12 +702,15 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.HasIndex(e => new { e.StockInId, e.StockInItemCode })
                     .IsUnique()
-                    .HasDatabaseName("IX_stockinitem_stockin_linecode");
+                    .HasDatabaseName("IX_stockinitem_stockin_linecode")
+                    .HasFilter("is_deleted = false");
             });
 
             modelBuilder.Entity<StockInItemExtend>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.ToTable("stock_in_item_extend");
                 entity.Property(e => e.Id).HasColumnName("StockInItemId").HasMaxLength(36);
                 entity.Property(e => e.StockInId).IsRequired().HasMaxLength(36);
@@ -715,6 +728,8 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<StockInBatch>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.ToTable("stock_in_batch");
                 entity.Property(e => e.Id).HasMaxLength(36);
                 entity.Property(e => e.StockInId).IsRequired().HasMaxLength(36).HasColumnName("stock_in_id");
@@ -742,6 +757,8 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<StockOut>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.StockOutCode).IsRequired().HasMaxLength(32);
                 entity.Property(e => e.SourceCode).HasMaxLength(32);
                 entity.Property(e => e.WarehouseId).IsRequired().HasMaxLength(36);
@@ -759,6 +776,8 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<StockOutItem>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.StockOutId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.MaterialId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.PurchasePn).HasColumnName("purchase_pn").HasMaxLength(200);
@@ -773,6 +792,8 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<StockOutItemExtend>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.Id).HasColumnName("StockOutItemId");
                 entity.ToTable("stock_out_item_extend");
                 entity.Property(e => e.StockItemId).HasMaxLength(36);
@@ -799,6 +820,8 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<StockItem>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.ToTable("stock_item");
                 // stock_item 表无 BaseEntity 的 long CreateUserId/ModifyUserId 列（与 approval_record 等一致）
                 entity.Ignore(e => e.CreateUserId);
@@ -829,11 +852,12 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.SalespersonName).HasMaxLength(100);
                 entity.Property(e => e.StockType).HasColumnName("Type").HasDefaultValue((short)1);
                 entity.Property(e => e.RegionType).HasColumnName("RegionType").HasDefaultValue((short)10);
-                entity.HasIndex(e => e.StockInItemId).IsUnique().HasDatabaseName("IX_stockitem_StockInItemId");
+                entity.HasIndex(e => e.StockInItemId).IsUnique().HasDatabaseName("IX_stockitem_StockInItemId").HasFilter("is_deleted = false");
                 entity.HasIndex(e => e.StockAggregateId).HasDatabaseName("IX_stockitem_StockAggregateId");
                 entity.HasIndex(e => new { e.StockAggregateId, e.StockItemCode })
                     .IsUnique()
-                    .HasDatabaseName("IX_stock_item_agg_linecode");
+                    .HasDatabaseName("IX_stock_item_agg_linecode")
+                    .HasFilter("is_deleted = false");
                 entity.Property(e => e.StockOutStatus).HasDefaultValue((short)0);
                 // ProfitOutBizUsd：入库价差 USD × QtyInbound 快照；按行出库利润在 stock_out_item_extend.ProfitOutBizUsd
                 entity.Property(e => e.ProfitOutBizUsd).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
@@ -882,6 +906,8 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<QCInfo>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.QcCode).IsRequired().HasMaxLength(32);
                 entity.Property(e => e.StockInNotifyId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.StockInNotifyCode).IsRequired().HasMaxLength(32);
@@ -899,6 +925,8 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<QCItem>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.QcInfoId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.ArrivalStockInNotifyId).IsRequired().HasMaxLength(36);
             });
@@ -999,10 +1027,12 @@ namespace CRM.Infrastructure.Data
                 entity.ToTable("customs_declaration");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("CustomsDeclarationId");
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.DeclarationCode).IsRequired().HasMaxLength(32);
-                entity.HasIndex(e => e.DeclarationCode).IsUnique();
+                entity.HasIndex(e => e.DeclarationCode).IsUnique().HasFilter("is_deleted = false");
                 entity.Property(e => e.StockOutRequestId).IsRequired().HasMaxLength(36);
-                entity.HasIndex(e => e.StockOutRequestId).IsUnique();
+                entity.HasIndex(e => e.StockOutRequestId).IsUnique().HasFilter("is_deleted = false");
                 entity.Property(e => e.CustomsBrokerId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.ExchangeRate).HasColumnType("numeric(18,6)");
                 entity.Property(e => e.TotalTaxAmount).HasColumnType("numeric(18,2)");
@@ -1019,6 +1049,8 @@ namespace CRM.Infrastructure.Data
             {
                 entity.ToTable("customs_declaration_item");
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.Id).HasColumnName("CustomsDeclarationItemId");
                 entity.Property(e => e.PurchasePn).HasColumnName("purchase_pn").HasMaxLength(200);
                 entity.Property(e => e.PurchaseBrand).HasColumnName("purchase_brand").HasMaxLength(200);
@@ -1043,11 +1075,13 @@ namespace CRM.Infrastructure.Data
                 entity.ToTable("stocktransfer_customers");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("StockTransferId");
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.TransferCode).IsRequired().HasMaxLength(32);
-                entity.HasIndex(e => e.TransferCode).IsUnique();
+                entity.HasIndex(e => e.TransferCode).IsUnique().HasFilter("is_deleted = false");
                 entity.Property(e => e.BizScene).IsRequired().HasMaxLength(32);
                 entity.Property(e => e.CustomsDeclarationId).IsRequired().HasMaxLength(36);
-                entity.HasIndex(e => e.CustomsDeclarationId).IsUnique();
+                entity.HasIndex(e => e.CustomsDeclarationId).IsUnique().HasFilter("is_deleted = false");
                 entity.Property(e => e.ConfirmedByUserId).HasMaxLength(36);
                 entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
                 entity.Property(e => e.ModifyByUserId).HasColumnName("modify_by_user_id").HasMaxLength(36);
@@ -1066,6 +1100,8 @@ namespace CRM.Infrastructure.Data
                 entity.ToTable("stocktransfer_item_customers");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("StockTransferItemId");
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
             });
 
             modelBuilder.Entity<StockTransferManual>(entity =>
@@ -1101,12 +1137,14 @@ namespace CRM.Infrastructure.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("Id");
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.TaskCode).IsRequired().HasMaxLength(32);
                 entity.Property(e => e.StockOutRequestId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.WarehouseId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.OperatorId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.Remark).HasMaxLength(500);
-                entity.HasIndex(e => e.TaskCode).IsUnique();
+                entity.HasIndex(e => e.TaskCode).IsUnique().HasFilter("is_deleted = false");
                 entity.HasMany(e => e.Items)
                     .WithOne(e => e.PickingTask)
                     .HasForeignKey(e => e.PickingTaskId)
@@ -1117,6 +1155,8 @@ namespace CRM.Infrastructure.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("Id");
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.PickingTaskId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.MaterialId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.StockId).HasMaxLength(36);

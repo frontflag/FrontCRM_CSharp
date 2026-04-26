@@ -58,10 +58,29 @@ namespace CRM.Infrastructure.Repositories
         public async Task DeleteAsync(string id)
         {
             var entity = await _dbSet.FindAsync(id);
-            if (entity != null)
+            if (entity == null)
             {
-                _dbSet.Remove(entity);
+                await Task.CompletedTask;
+                return;
             }
+
+            if (entity is ISoftDeletable soft)
+            {
+                if (soft.IsDeleted)
+                {
+                    await Task.CompletedTask;
+                    return;
+                }
+
+                soft.IsDeleted = true;
+                if (entity is BaseEntity be)
+                    be.ModifyTime = DateTime.UtcNow;
+                _dbSet.Update(entity);
+                await Task.CompletedTask;
+                return;
+            }
+
+            _dbSet.Remove(entity);
             await Task.CompletedTask;
         }
     }

@@ -13,14 +13,25 @@ namespace CRM.API.Controllers
     public class StockInController : ControllerBase
     {
         private readonly IStockInService _service;
+        private readonly IRepository<StockIn> _stockInRepo;
         private readonly IRbacService _rbacService;
         private readonly ILogger<StockInController> _logger;
 
-        public StockInController(IStockInService service, IRbacService rbacService, ILogger<StockInController> logger)
+        public StockInController(
+            IStockInService service,
+            IRepository<StockIn> stockInRepo,
+            IRbacService rbacService,
+            ILogger<StockInController> logger)
         {
             _service = service;
+            _stockInRepo = stockInRepo;
             _rbacService = rbacService;
             _logger = logger;
+        }
+
+        public class ForceDeleteStockInRequest
+        {
+            public string ConfirmBillCode { get; set; } = string.Empty;
         }
 
         [HttpGet]
@@ -149,6 +160,43 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "删除入库单失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"删除入库单失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpPost("{id}/force-delete")]
+        public async Task<ActionResult<ApiResponse<object>>> ForceDelete(string id, [FromBody] ForceDeleteStockInRequest? body)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, ApiResponse<object>.Fail("未登录或身份无效", 403));
+
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+                if (summary?.IsSysAdmin != true)
+                    return StatusCode(403, ApiResponse<object>.Fail("仅系统管理员可执行强制删除", 403));
+
+                if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
+                    return BadRequest(ApiResponse<object>.Fail("请填写 confirmBillCode", 400));
+
+                var stockIn = await _stockInRepo.GetByIdAsync(id);
+                if (stockIn == null)
+                    return NotFound(ApiResponse<object>.Fail("入库单不存在", 404));
+
+                if (!string.Equals(body.ConfirmBillCode.Trim(), stockIn.StockInCode?.Trim(), StringComparison.Ordinal))
+                    return BadRequest(ApiResponse<object>.Fail("确认单号不匹配，已拒绝删除", 400));
+
+                await _service.DeleteAsync(id);
+                return Ok(ApiResponse<object>.Ok(null, "强制删除入库单成功"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "强制删除入库单失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"强制删除入库单失败: {ex.Message}", 500));
             }
         }
 

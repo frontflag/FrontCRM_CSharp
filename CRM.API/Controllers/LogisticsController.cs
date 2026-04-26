@@ -14,14 +14,31 @@ namespace CRM.API.Controllers
     public class LogisticsController : ControllerBase
     {
         private readonly ILogisticsService _service;
+        private readonly IRepository<QCInfo> _qcRepo;
+        private readonly IRepository<QCItem> _qcItemRepo;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IRbacService _rbacService;
         private readonly ILogger<LogisticsController> _logger;
 
-        public LogisticsController(ILogisticsService service, IRbacService rbacService, ILogger<LogisticsController> logger)
+        public LogisticsController(
+            ILogisticsService service,
+            IRepository<QCInfo> qcRepo,
+            IRepository<QCItem> qcItemRepo,
+            IUnitOfWork unitOfWork,
+            IRbacService rbacService,
+            ILogger<LogisticsController> logger)
         {
             _service = service;
+            _qcRepo = qcRepo;
+            _qcItemRepo = qcItemRepo;
+            _unitOfWork = unitOfWork;
             _rbacService = rbacService;
             _logger = logger;
+        }
+
+        public class ForceDeleteQcRequest
+        {
+            public string ConfirmBillCode { get; set; } = string.Empty;
         }
 
         [HttpGet("arrival-notices")]
@@ -190,6 +207,70 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "绑定入库单失败");
                 return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+        }
+
+        [HttpDelete("qcs/{id}")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteQc(string id)
+        {
+            try
+            {
+                var qc = await _qcRepo.GetByIdAsync(id);
+                if (qc == null)
+                    return NotFound(ApiResponse<object>.Fail("质检单不存在", 404));
+
+                if (!string.IsNullOrWhiteSpace(qc.StockInId) || qc.StockInStatus >= 100)
+                    return BadRequest(ApiResponse<object>.Fail("该质检单已关联入库，不能普通删除", 400));
+
+                var items = (await _qcItemRepo.FindAsync(x => x.QcInfoId == qc.Id)).ToList();
+                foreach (var item in items)
+                    await _qcItemRepo.DeleteAsync(item.Id);
+
+                await _qcRepo.DeleteAsync(qc.Id);
+                await _unitOfWork.SaveChangesAsync();
+                return Ok(ApiResponse<object>.Ok(null, "删除质检单成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "删除质检单失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"删除质检单失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpPost("qcs/{id}/force-delete")]
+        public async Task<ActionResult<ApiResponse<object>>> ForceDeleteQc(string id, [FromBody] ForceDeleteQcRequest? body)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, ApiResponse<object>.Fail("未登录或身份无效", 403));
+
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+                if (summary?.IsSysAdmin != true)
+                    return StatusCode(403, ApiResponse<object>.Fail("仅系统管理员可执行强制删除", 403));
+
+                if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
+                    return BadRequest(ApiResponse<object>.Fail("请填写 confirmBillCode", 400));
+
+                var qc = await _qcRepo.GetByIdAsync(id);
+                if (qc == null)
+                    return NotFound(ApiResponse<object>.Fail("质检单不存在", 404));
+
+                if (!string.Equals(body.ConfirmBillCode.Trim(), qc.QcCode?.Trim(), StringComparison.Ordinal))
+                    return BadRequest(ApiResponse<object>.Fail("确认单号不匹配，已拒绝删除", 400));
+
+                var items = (await _qcItemRepo.FindAsync(x => x.QcInfoId == qc.Id)).ToList();
+                foreach (var item in items)
+                    await _qcItemRepo.DeleteAsync(item.Id);
+                await _qcRepo.DeleteAsync(qc.Id);
+                await _unitOfWork.SaveChangesAsync();
+                return Ok(ApiResponse<object>.Ok(null, "强制删除质检单成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "强制删除质检单失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"强制删除质检单失败: {ex.Message}", 500));
             }
         }
     }

@@ -165,6 +165,8 @@
               {{ t('inventoryList.actions.stockDetail') }}
             </button>
             <button type="button" class="action-btn action-btn--info" @click.stop="openTrace(row.materialId)">{{ t('inventoryList.actions.trace') }}</button>
+            <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteStock(row)">删除</button>
+            <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteStock(row)">强制删除</button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -178,6 +180,12 @@
                 </el-dropdown-item>
                 <el-dropdown-item @click.stop="openTrace(row.materialId)">
                   <span class="op-more-item op-more-item--info">{{ t('inventoryList.actions.trace') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item divided @click.stop="handleDeleteStock(row)">
+                  <span class="op-more-item op-more-item--danger">删除</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteStock(row)">
+                  <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -284,7 +292,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Box, Setting } from '@element-plus/icons-vue'
 import { inventoryCenterApi, type FinanceSummary, type InventoryOverview, type WarehouseInfo } from '@/api/inventoryCenter'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
@@ -292,9 +300,12 @@ import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const { t } = useI18n()
+const authStore = useAuthStore()
+const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
 const list = ref<InventoryOverview[]>([])
 const listPage = ref(1)
@@ -312,8 +323,8 @@ const warehouses = ref<WarehouseInfo[]>([])
 // 列表操作列：主表默认收起（Collapsed）
 const opColMainExpanded = ref(false)
 const OP_COL_MAIN_COLLAPSED_WIDTH = 96
-const OP_COL_MAIN_EXPANDED_WIDTH = 100
-const OP_COL_MAIN_EXPANDED_MIN_WIDTH = 100
+const OP_COL_MAIN_EXPANDED_WIDTH = 300
+const OP_COL_MAIN_EXPANDED_MIN_WIDTH = 260
 const opColMainWidth = computed(() => (opColMainExpanded.value ? OP_COL_MAIN_EXPANDED_WIDTH : OP_COL_MAIN_COLLAPSED_WIDTH))
 const opColMainMinWidth = computed(() =>
   opColMainExpanded.value ? OP_COL_MAIN_EXPANDED_MIN_WIDTH : OP_COL_MAIN_COLLAPSED_WIDTH
@@ -646,6 +657,49 @@ const openStockDetail = (row: InventoryOverview) => {
 
 const onRowClick = (row: InventoryOverview) => {
   openStockDetail(row)
+}
+
+const handleDeleteStock = async (row: InventoryOverview) => {
+  const sid = String(row.stockId || '').trim()
+  if (!sid) return
+  try {
+    await ElMessageBox.confirm(`确认删除库存 ${row.stockCode || sid} 吗？`, '删除确认', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await inventoryCenterApi.deleteStock(sid)
+    ElMessage.success('删除成功')
+    fetchList()
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '删除失败'))
+  }
+}
+
+const handleForceDeleteStock = async (row: InventoryOverview) => {
+  const sid = String(row.stockId || '').trim()
+  if (!sid) return
+  const expectCode = String(row.stockCode || sid).trim()
+  let entered = ''
+  try {
+    const ret = await ElMessageBox.prompt('请输入库存编号以确认强制删除', '强制删除确认', {
+      inputPlaceholder: expectCode
+    })
+    entered = String(ret.value || '').trim()
+  } catch {
+    return
+  }
+  if (entered !== expectCode) {
+    ElMessage.error('输入编号不匹配，已取消')
+    return
+  }
+  try {
+    await inventoryCenterApi.forceDeleteStock(sid, entered)
+    ElMessage.success('强制删除成功')
+    fetchList()
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '强制删除失败'))
+  }
 }
 
 const openWarehouseDialog = async () => {

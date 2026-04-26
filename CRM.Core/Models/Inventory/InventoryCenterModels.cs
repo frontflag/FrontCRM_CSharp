@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using CRM.Core.Constants;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Inventory
 {
@@ -180,7 +181,7 @@ namespace CRM.Core.Models.Inventory
     }
 
     [Table("pickingtask")]
-    public class PickingTask : BaseGuidEntity
+    public class PickingTask : BaseGuidEntity, ISoftDeletable
     {
         [Key]
         [StringLength(36)]
@@ -205,11 +206,14 @@ namespace CRM.Core.Models.Inventory
         [StringLength(500)]
         public string? Remark { get; set; }
 
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
+
         public ICollection<PickingTaskItem> Items { get; set; } = new List<PickingTaskItem>();
     }
 
     [Table("pickingtaskitem")]
-    public class PickingTaskItem : BaseGuidEntity
+    public class PickingTaskItem : BaseGuidEntity, ISoftDeletable
     {
         [Key]
         [StringLength(36)]
@@ -244,6 +248,9 @@ namespace CRM.Core.Models.Inventory
         /// true：来自备货库存补充（销售关联采购类型之外的备货批次，且物料型号/品牌与销单行一致）；false：来自与出库通知销售明细关联采购单类型一致的库存。
         /// </summary>
         public bool IsStockingSupplement { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
 
         public PickingTask? PickingTask { get; set; }
     }

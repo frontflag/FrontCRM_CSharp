@@ -264,6 +264,16 @@ export const stockOutApi = {
     await apiClient.patch(`/api/v1/stock-out/${id}/header`, body)
   },
 
+  async deleteStockOut(id: string): Promise<void> {
+    await apiClient.delete(`/api/v1/stock-out/${encodeURIComponent(id)}`)
+  },
+
+  async forceDeleteStockOut(id: string, confirmBillCode: string): Promise<void> {
+    await apiClient.post(`/api/v1/stock-out/${encodeURIComponent(id)}/force-delete`, {
+      confirmBillCode: confirmBillCode.trim()
+    })
+  },
+
   async getRequestList(): Promise<StockOutRequestDto[]> {
     const res = await apiClient.get<unknown>('/api/v1/stock-out/request')
     return unwrapArray<StockOutRequestDto>(res)

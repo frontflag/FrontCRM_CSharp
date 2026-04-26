@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using CRM.Core.Constants;
+using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using System.Collections.Generic;
 
@@ -57,7 +58,7 @@ public class CustomsBroker : BaseGuidEntity
 
 /// <summary>报关主单；与出库通知、移库单 1:1:1。</summary>
 [Table("customs_declaration")]
-public class CustomsDeclaration : BaseGuidEntity
+public class CustomsDeclaration : BaseGuidEntity, ISoftDeletable
 {
     [Key]
     [StringLength(36)]
@@ -109,13 +110,16 @@ public class CustomsDeclaration : BaseGuidEntity
     [Column("modify_by_user_id")]
     public string? ModifyByUserId { get; set; }
 
+    [Column("is_deleted")]
+    public bool IsDeleted { get; set; }
+
     public virtual StockTransfer? StockTransfer { get; set; }
 
     public virtual ICollection<CustomsDeclarationItem> Items { get; set; } = new List<CustomsDeclarationItem>();
 }
 
 [Table("customs_declaration_item")]
-public class CustomsDeclarationItem : BaseGuidEntity
+public class CustomsDeclarationItem : BaseGuidEntity, ISoftDeletable
 {
     [Key]
     [StringLength(36)]
@@ -204,10 +208,13 @@ public class CustomsDeclarationItem : BaseGuidEntity
 
     [ForeignKey(nameof(DeclarationId))]
     public virtual CustomsDeclaration? Declaration { get; set; }
+
+    [Column("is_deleted")]
+    public bool IsDeleted { get; set; }
 }
 
 [Table("stocktransfer_customers")]
-public class StockTransfer : BaseGuidEntity
+public class StockTransfer : BaseGuidEntity, ISoftDeletable
 {
     [Key]
     [StringLength(36)]
@@ -252,10 +259,13 @@ public class StockTransfer : BaseGuidEntity
     public virtual CustomsDeclaration? Declaration { get; set; }
 
     public virtual ICollection<StockTransferItem> Items { get; set; } = new List<StockTransferItem>();
+
+    [Column("is_deleted")]
+    public bool IsDeleted { get; set; }
 }
 
 [Table("stocktransfer_item_customers")]
-public class StockTransferItem : BaseGuidEntity
+public class StockTransferItem : BaseGuidEntity, ISoftDeletable
 {
     [Key]
     [StringLength(36)]
@@ -285,4 +295,7 @@ public class StockTransferItem : BaseGuidEntity
 
     [ForeignKey(nameof(StockTransferId))]
     public virtual StockTransfer? StockTransfer { get; set; }
+
+    [Column("is_deleted")]
+    public bool IsDeleted { get; set; }
 }

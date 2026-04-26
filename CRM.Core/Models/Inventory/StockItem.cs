@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using CRM.Core.Constants;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Inventory
 {
@@ -9,7 +10,7 @@ namespace CRM.Core.Models.Inventory
     /// 在库明细层：与 <see cref="StockInItem"/> 1:1，数量与采销冗余的事实来源；汇总至 <see cref="StockInfo"/>（<c>StockAggregateId</c>）。
     /// </summary>
     [Table("stock_item")]
-    public class StockItem : BaseGuidEntity
+    public class StockItem : BaseGuidEntity, ISoftDeletable
     {
         [Key]
         [StringLength(36)]
@@ -258,5 +259,8 @@ namespace CRM.Core.Models.Inventory
         public int QtyRepertory { get; set; }
 
         public int QtyRepertoryAvailable { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 }

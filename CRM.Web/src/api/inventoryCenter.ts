@@ -346,6 +346,22 @@ export const inventoryCenterApi = {
     items: { materialId: string; locationId?: string; countQty: number; countAmount: number }[]
   }): Promise<void> {
     await apiClient.post('/api/v1/inventory-center/count-plans/submit', payload)
+  },
+  async deleteStock(stockId: string): Promise<void> {
+    await apiClient.delete(`/api/v1/inventory-center/stocks/${encodeURIComponent(stockId)}`)
+  },
+  async forceDeleteStock(stockId: string, confirmBillCode: string): Promise<void> {
+    await apiClient.post(`/api/v1/inventory-center/stocks/${encodeURIComponent(stockId)}/force-delete`, {
+      confirmBillCode: confirmBillCode.trim()
+    })
+  },
+  async deletePickingSlip(id: string): Promise<void> {
+    await apiClient.delete(`/api/v1/inventory-center/picking-list/${encodeURIComponent(id)}`)
+  },
+  async forceDeletePickingSlip(id: string, confirmBillCode: string): Promise<void> {
+    await apiClient.post(`/api/v1/inventory-center/picking-list/${encodeURIComponent(id)}/force-delete`, {
+      confirmBillCode: confirmBillCode.trim()
+    })
   }
 }
 
