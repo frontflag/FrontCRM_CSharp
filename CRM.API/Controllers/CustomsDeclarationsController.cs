@@ -19,6 +19,7 @@ public class CustomsDeclarationsController : ControllerBase
     private readonly IUnitOfWork _unitOfWork;
     private readonly IRbacService _rbacService;
     private readonly ApplicationDbContext _db;
+    private readonly ILogOperationAppendService _logOperationAppend;
     private readonly ILogger<CustomsDeclarationsController> _logger;
 
     public CustomsDeclarationsController(
@@ -28,6 +29,7 @@ public class CustomsDeclarationsController : ControllerBase
         IUnitOfWork unitOfWork,
         IRbacService rbacService,
         ApplicationDbContext db,
+        ILogOperationAppendService logOperationAppend,
         ILogger<CustomsDeclarationsController> logger)
     {
         _service = service;
@@ -36,6 +38,7 @@ public class CustomsDeclarationsController : ControllerBase
         _unitOfWork = unitOfWork;
         _rbacService = rbacService;
         _db = db;
+        _logOperationAppend = logOperationAppend;
         _logger = logger;
     }
 
@@ -248,6 +251,19 @@ public class CustomsDeclarationsController : ControllerBase
                 await _itemRepo.DeleteAsync(item.Id);
             await _declarationRepo.DeleteAsync(row.Id);
             await _unitOfWork.SaveChangesAsync();
+
+            var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+            var recordCode = string.IsNullOrWhiteSpace(row.DeclarationCode) ? null : row.DeclarationCode.Trim();
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.CustomsDeclaration,
+                row.Id,
+                recordCode,
+                "报关单强制删除",
+                userId.Trim(),
+                string.IsNullOrWhiteSpace(userName) ? null : userName.Trim(),
+                $"强制删除报关单 DeclarationId={row.Id}，确认单号={recordCode}，明细行数={items.Count}",
+                reason: null);
+
             return Ok(ApiResponse<object>.Ok(null, "强制删除报关单成功"));
         }
         catch (Exception ex)

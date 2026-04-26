@@ -502,6 +502,7 @@ import { formatTotalAmountNumber, formatUnitPriceNumber, listAmountCurrencyDockC
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import type { SalesOrderItemLineRow } from '@/stores/salesOrderItemListBasket'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { buildSalesOrderItemListColumns } from '@/composables/buildSalesOrderItemListColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const router = useRouter()
@@ -575,182 +576,15 @@ function toggleOpCol() {
 
 const salesOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
-  const cols: CrmTableColumnDef[] = [
-    { key: 'selection', type: 'selection', width: 48, reserveSelection: true, fixed: 'left', hideable: false, reorderable: false },
-    {
-      key: 'sellOrderItemCode',
-      label: t('salesOrderItemList.columns.sellOrderItemCode'),
-      prop: 'sellOrderItemCode',
-      width: 180,
-      minWidth: 168,
-      showOverflowTooltip: true
-    },
-    {
-      key: 'sellOrderCode',
-      label: t('salesOrderItemList.columns.sellOrderCode'),
-      prop: 'sellOrderCode',
-      width: 160,
-      minWidth: 160,
-      showOverflowTooltip: true
-    },
-    { key: 'orderStatus', label: t('salesOrderItemList.columns.status'), prop: 'orderStatus', width: 160, align: 'center' },
-    { key: 'orderCreateTime', label: t('salesOrderItemList.columns.orderCreateDate'), prop: 'orderCreateTime', width: 160 },
-    { key: 'salesUserName', label: t('salesOrderItemList.columns.salesUser'), prop: 'salesUserName', width: 100, showOverflowTooltip: true },
-    { key: 'pn', label: t('salesOrderItemList.columns.pn'), prop: 'pn', minWidth: 130, showOverflowTooltip: true },
-    { key: 'brand', label: t('salesOrderItemList.columns.brand'), prop: 'brand', width: 110, showOverflowTooltip: true },
-    { key: 'qty', label: t('salesOrderItemList.columns.qty'), prop: 'qty', width: 100, align: 'right' },
-    { key: 'createTime', label: t('salesOrderItemList.columns.createTime'), width: 160 },
-    { key: 'createUser', label: t('salesOrderItemList.columns.createUser'), width: 120, showOverflowTooltip: true }
-  ]
-  if (listCustomerColumnOk.value) {
-    cols.splice(4, 0, {
-      key: 'customerName',
-      label: t('salesOrderItemList.columns.customerName'),
-      prop: 'customerName',
-      minWidth: 200,
-      showOverflowTooltip: true
-    })
-  }
-  const currencyColumn: CrmTableColumnDef = {
-    key: 'currency',
-    label: t('salesOrderItemList.columns.currency'),
-    prop: 'currency',
-    width: 72,
-    minWidth: 72,
-    align: 'center',
-    hideable: false
-  }
-
-  if (listShowAmountColumns.value) {
-    cols.splice(cols.length - 2, 0,
-      currencyColumn,
-      {
-        key: 'price',
-        label: t('salesOrderItemList.columns.unitPrice'),
-        prop: 'price',
-        width: 128,
-        minWidth: 112,
-        align: 'right',
-        hideable: false
-      },
-      {
-        key: 'lineTotal',
-        label: t('salesOrderItemList.columns.lineTotal'),
-        prop: 'lineTotal',
-        width: 132,
-        minWidth: 120,
-        align: 'right',
-        hideable: false
-      },
-      {
-        key: 'usdUnitPrice',
-        label: t('salesOrderItemList.columns.usdUnitPrice'),
-        width: 132,
-        minWidth: 120,
-        align: 'right',
-        hideable: false
-      },
-      {
-        key: 'usdLineTotal',
-        label: t('salesOrderItemList.columns.usdLineTotal'),
-        width: 132,
-        minWidth: 120,
-        align: 'right',
-        hideable: false
-      },
-      {
-        key: 'salesProfitExpected',
-        label: t('salesOrderItemList.columns.salesProfitExpected'),
-        prop: 'salesProfitExpected',
-        width: 140,
-        align: 'right'
-      },
-      {
-        key: 'profitOutBizUsd',
-        label: t('salesOrderItemList.columns.profitOutBizUsd'),
-        prop: 'profitOutBizUsd',
-        width: 120,
-        align: 'right'
-      },
-      {
-        key: 'profitOutRateBiz',
-        label: t('salesOrderItemList.columns.profitOutRateBiz'),
-        prop: 'profitOutRateBiz',
-        width: 120,
-        align: 'right'
-      }
-    )
-  } else {
-    cols.splice(cols.length - 2, 0, currencyColumn)
-  }
-
-  // 采购/入库/出库/收款/开票进度列：放在「利润率」之后（无金额列权限时仍在「数量」后）
-  const progressSix: CrmTableColumnDef[] = [
-    {
-      key: 'purchaseProgressStatus',
-      label: t('salesOrderItemList.columns.purchaseProgressStatus'),
-      prop: 'purchaseProgressStatus',
-      width: 108,
-      align: 'center'
-    },
-    {
-      key: 'stockInProgressStatus',
-      label: t('salesOrderItemList.columns.stockInProgressStatus'),
-      prop: 'stockInProgressStatus',
-      width: 108,
-      align: 'center'
-    },
-    {
-      key: 'stockOutNotifyProgressStatus',
-      label: t('salesOrderItemList.columns.stockOutNotifyProgressStatus'),
-      prop: 'stockOutNotifyProgressStatus',
-      width: 108,
-      align: 'center'
-    },
-    {
-      key: 'stockOutProgressStatus',
-      label: t('salesOrderItemList.columns.stockOutProgressStatus'),
-      prop: 'stockOutProgressStatus',
-      width: 108,
-      align: 'center'
-    },
-    {
-      key: 'receiptProgressStatus',
-      label: t('salesOrderItemList.columns.receiptProgressStatus'),
-      prop: 'receiptProgressStatus',
-      width: 108,
-      align: 'center'
-    },
-    {
-      key: 'invoiceProgressStatus',
-      label: t('salesOrderItemList.columns.invoiceProgressStatus'),
-      prop: 'invoiceProgressStatus',
-      width: 108,
-      align: 'center'
-    }
-  ]
-  const profitIdx = cols.findIndex((c) => c.key === 'profitOutRateBiz')
-  const qtyIdx = cols.findIndex((c) => c.key === 'qty')
-  if (profitIdx >= 0) {
-    cols.splice(profitIdx + 1, 0, ...progressSix)
-  } else if (qtyIdx >= 0) {
-    cols.splice(qtyIdx + 1, 0, ...progressSix)
-  }
-
-  cols.push({
-    key: 'actions',
-    label: t('salesOrderItemList.columns.actions'),
-    width: opColWidth.value,
-    minWidth: opColMinWidth.value,
-    fixed: 'right',
-    align: 'center',
-    hideable: false,
-    pinned: 'end',
-    reorderable: false,
-    className: 'op-col',
-    labelClassName: 'op-col'
+  return buildSalesOrderItemListColumns({
+    t,
+    listCustomerColumnOk: listCustomerColumnOk.value,
+    listShowAmountColumns: listShowAmountColumns.value,
+    opColWidth: opColWidth.value,
+    opColMinWidth: opColMinWidth.value,
+    withSelection: true,
+    withActions: true
   })
-  return cols
 })
 
 const dateRange = ref<[string, string] | null>(null)

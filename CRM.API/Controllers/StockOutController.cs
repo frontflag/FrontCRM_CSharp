@@ -2,6 +2,7 @@ using System.Security.Claims;
 using CRM.API.Models.DTOs;
 using CRM.API.Services;
 using CRM.API.Utilities;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Utilities;
@@ -21,6 +22,7 @@ namespace CRM.API.Controllers
         private readonly IUnitOfWork _unitOfWork;
         private readonly ApplicationDbContext _db;
         private readonly IRbacService _rbacService;
+        private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<StockOutController> _logger;
 
         public StockOutController(
@@ -31,6 +33,7 @@ namespace CRM.API.Controllers
             IUnitOfWork unitOfWork,
             ApplicationDbContext db,
             IRbacService rbacService,
+            ILogOperationAppendService logOperationAppend,
             ILogger<StockOutController> logger)
         {
             _service = service;
@@ -40,6 +43,7 @@ namespace CRM.API.Controllers
             _unitOfWork = unitOfWork;
             _db = db;
             _rbacService = rbacService;
+            _logOperationAppend = logOperationAppend;
             _logger = logger;
         }
 
@@ -403,6 +407,19 @@ namespace CRM.API.Controllers
                     await _stockOutItemRepo.DeleteAsync(item.Id);
                 await _stockOutRepo.DeleteAsync(entity.Id);
                 await _unitOfWork.SaveChangesAsync();
+
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                var recordCode = string.IsNullOrWhiteSpace(entity.StockOutCode) ? null : entity.StockOutCode.Trim();
+                await _logOperationAppend.AppendAsync(
+                    BusinessLogTypes.StockOut,
+                    entity.Id,
+                    recordCode,
+                    "出库单强制删除",
+                    userId.Trim(),
+                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim(),
+                    $"强制删除出库单 StockOutId={entity.Id}，确认单号={recordCode}，明细行数={items.Count}",
+                    reason: null);
+
                 return Ok(ApiResponse<object>.Ok(null, "强制删除出库单成功"));
             }
             catch (Exception ex)

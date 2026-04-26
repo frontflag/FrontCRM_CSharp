@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Utilities;
@@ -18,6 +19,7 @@ namespace CRM.API.Controllers
         private readonly IRepository<QCItem> _qcItemRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IRbacService _rbacService;
+        private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<LogisticsController> _logger;
 
         public LogisticsController(
@@ -26,6 +28,7 @@ namespace CRM.API.Controllers
             IRepository<QCItem> qcItemRepo,
             IUnitOfWork unitOfWork,
             IRbacService rbacService,
+            ILogOperationAppendService logOperationAppend,
             ILogger<LogisticsController> logger)
         {
             _service = service;
@@ -33,6 +36,7 @@ namespace CRM.API.Controllers
             _qcItemRepo = qcItemRepo;
             _unitOfWork = unitOfWork;
             _rbacService = rbacService;
+            _logOperationAppend = logOperationAppend;
             _logger = logger;
         }
 
@@ -265,6 +269,19 @@ namespace CRM.API.Controllers
                     await _qcItemRepo.DeleteAsync(item.Id);
                 await _qcRepo.DeleteAsync(qc.Id);
                 await _unitOfWork.SaveChangesAsync();
+
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                var recordCode = string.IsNullOrWhiteSpace(qc.QcCode) ? null : qc.QcCode.Trim();
+                await _logOperationAppend.AppendAsync(
+                    BusinessLogTypes.QcInspection,
+                    qc.Id,
+                    recordCode,
+                    "质检单强制删除",
+                    userId.Trim(),
+                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim(),
+                    $"强制删除质检单 QcId={qc.Id}，确认单号={recordCode}，明细行数={items.Count}",
+                    reason: null);
+
                 return Ok(ApiResponse<object>.Ok(null, "强制删除质检单成功"));
             }
             catch (Exception ex)

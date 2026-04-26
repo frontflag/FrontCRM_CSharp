@@ -2,6 +2,7 @@ using System.Linq;
 using System.Security.Claims;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Utilities;
@@ -20,6 +21,7 @@ namespace CRM.API.Controllers
         private readonly IRepository<PickingTaskItem> _pickingTaskItemRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IRbacService _rbacService;
+        private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<InventoryCenterController> _logger;
 
         public InventoryCenterController(
@@ -30,6 +32,7 @@ namespace CRM.API.Controllers
             IRepository<PickingTaskItem> pickingTaskItemRepo,
             IUnitOfWork unitOfWork,
             IRbacService rbacService,
+            ILogOperationAppendService logOperationAppend,
             ILogger<InventoryCenterController> logger)
         {
             _service = service;
@@ -39,6 +42,7 @@ namespace CRM.API.Controllers
             _pickingTaskItemRepo = pickingTaskItemRepo;
             _unitOfWork = unitOfWork;
             _rbacService = rbacService;
+            _logOperationAppend = logOperationAppend;
             _logger = logger;
         }
 
@@ -445,6 +449,18 @@ namespace CRM.API.Controllers
                 await _unitOfWork.ExecuteNonQueryAsync(
                     $@"UPDATE public.stock_extend SET is_deleted = true, ""ModifyTime"" = NOW() WHERE ""StockId"" = '{SqlEscape(stock.Id)}'");
                 await _unitOfWork.SaveChangesAsync();
+
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                await _logOperationAppend.AppendAsync(
+                    BusinessLogTypes.InventoryStock,
+                    stock.Id,
+                    string.IsNullOrWhiteSpace(stock.StockCode) ? null : stock.StockCode.Trim(),
+                    "库存强制删除",
+                    userId.Trim(),
+                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim(),
+                    $"强制删除库存：库存内部主键={stock.Id}，确认编号={targetCode}，在库明细行数={stockItems.Count}",
+                    reason: null);
+
                 return Ok(ApiResponse<object>.Ok(null, "强制删除库存成功"));
             }
             catch (Exception ex)
@@ -508,6 +524,18 @@ namespace CRM.API.Controllers
                     await _pickingTaskItemRepo.DeleteAsync(item.Id);
                 await _pickingTaskRepo.DeleteAsync(task.Id);
                 await _unitOfWork.SaveChangesAsync();
+
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                await _logOperationAppend.AppendAsync(
+                    BusinessLogTypes.PickingTask,
+                    task.Id,
+                    string.IsNullOrWhiteSpace(task.TaskCode) ? null : task.TaskCode.Trim(),
+                    "拣货单强制删除",
+                    userId.Trim(),
+                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim(),
+                    $"强制删除拣货单：拣货单内部主键={task.Id}（接口/库表主键），拣货单号={task.TaskCode}，明细行数={items.Count}",
+                    reason: null);
+
                 return Ok(ApiResponse<object>.Ok(null, "强制删除拣货单成功"));
             }
             catch (Exception ex)

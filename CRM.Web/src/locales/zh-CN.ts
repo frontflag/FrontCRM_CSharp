@@ -3533,11 +3533,25 @@ const zhCN = {
       sectionHeader: '基本信息',
       sectionLines: '拣货明细',
       remark: '备注',
-      stockTypes: '涉及库存类型'
+      stockTypes: '涉及库存类型',
+      tabs: {
+        sellLine: '销售订单明细',
+        stockOutRequest: '出库通知',
+        stockOut: '出库',
+        viewOrder: '查看销售订单',
+        viewStockOut: '详情'
+      },
+      relatedEmpty: {
+        noRequestCode: '无出库通知编号，无法关联下游数据',
+        noMatchedRequest: '未在出库通知列表中找到与编号一致的记录',
+        noSalesLine: '未找到对应的销售订单明细行',
+        noStockOuts: '暂无来源为该出库通知的出库单'
+      }
     },
     messages: {
       loadFailed: '加载拣货单列表失败',
-      loadDetailFailed: '加载拣货单详情失败'
+      loadDetailFailed: '加载拣货单详情失败',
+      loadRelatedFailed: '加载关联业务数据失败'
     }
   },
   draftList: {

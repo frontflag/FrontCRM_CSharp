@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Utilities;
@@ -15,17 +16,20 @@ namespace CRM.API.Controllers
         private readonly IStockInService _service;
         private readonly IRepository<StockIn> _stockInRepo;
         private readonly IRbacService _rbacService;
+        private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<StockInController> _logger;
 
         public StockInController(
             IStockInService service,
             IRepository<StockIn> stockInRepo,
             IRbacService rbacService,
+            ILogOperationAppendService logOperationAppend,
             ILogger<StockInController> logger)
         {
             _service = service;
             _stockInRepo = stockInRepo;
             _rbacService = rbacService;
+            _logOperationAppend = logOperationAppend;
             _logger = logger;
         }
 
@@ -186,7 +190,20 @@ namespace CRM.API.Controllers
                 if (!string.Equals(body.ConfirmBillCode.Trim(), stockIn.StockInCode?.Trim(), StringComparison.Ordinal))
                     return BadRequest(ApiResponse<object>.Fail("确认单号不匹配，已拒绝删除", 400));
 
+                var recordCode = string.IsNullOrWhiteSpace(stockIn.StockInCode) ? null : stockIn.StockInCode.Trim();
                 await _service.DeleteAsync(id);
+
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                await _logOperationAppend.AppendAsync(
+                    BusinessLogTypes.StockIn,
+                    id,
+                    recordCode,
+                    "入库单强制删除",
+                    userId.Trim(),
+                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim(),
+                    $"强制删除入库单 StockInId={id}，确认单号={recordCode}",
+                    reason: null);
+
                 return Ok(ApiResponse<object>.Ok(null, "强制删除入库单成功"));
             }
             catch (InvalidOperationException ex)

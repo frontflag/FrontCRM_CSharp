@@ -12,4 +12,15 @@ public static class BusinessLogTypes
     public const string SalesOrder = "SalesOrder";
     public const string PurchaseOrder = "PurchaseOrder";
     public const string PurchaseRequisition = "PurchaseRequisition";
+
+    /// <summary>库存聚合（库存中心 stock）</summary>
+    public const string InventoryStock = "InventoryStock";
+
+    /// <summary>拣货单（库存中心 picking_task）</summary>
+    public const string PickingTask = "PickingTask";
+
+    public const string StockIn = "StockIn";
+    public const string StockOut = "StockOut";
+    public const string QcInspection = "QcInspection";
+    public const string CustomsDeclaration = "CustomsDeclaration";
 }

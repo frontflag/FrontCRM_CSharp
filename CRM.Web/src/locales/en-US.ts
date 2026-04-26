@@ -3555,11 +3555,25 @@ const enUS = {
       sectionHeader: 'Overview',
       sectionLines: 'Picking lines',
       remark: 'Remark',
-      stockTypes: 'Stock types'
+      stockTypes: 'Stock types',
+      tabs: {
+        sellLine: 'Sales order line',
+        stockOutRequest: 'Stock-out notice',
+        stockOut: 'Stock-out',
+        viewOrder: 'Open sales order',
+        viewStockOut: 'Detail'
+      },
+      relatedEmpty: {
+        noRequestCode: 'No stock-out notice number on this slip; related data cannot be resolved.',
+        noMatchedRequest: 'No stock-out notice matches this number in the notice list.',
+        noSalesLine: 'Notice matched, but the corresponding sales order line was not found.',
+        noStockOuts: 'No stock-out documents sourced from this notice yet.'
+      }
     },
     messages: {
       loadFailed: 'Failed to load picking slips',
-      loadDetailFailed: 'Failed to load picking slip detail'
+      loadDetailFailed: 'Failed to load picking slip detail',
+      loadRelatedFailed: 'Failed to load related business data'
     }
   },
   draftList: {
