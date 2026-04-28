@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Interfaces;
 using CRM.Core.Models;
 
 namespace CRM.Core.Models.Customer
@@ -8,7 +9,7 @@ namespace CRM.Core.Models.Customer
     /// 客户联系人表
     /// </summary>
     [Table("customercontactinfo")]
-    public class CustomerContactInfo : BaseGuidEntity
+    public class CustomerContactInfo : BaseGuidEntity, ISoftDeletable
     {
         /// <summary>
         /// 联系人ID (主键)
@@ -175,5 +176,8 @@ namespace CRM.Core.Models.Customer
         // 导航属性
         [ForeignKey("CustomerId")]
         public virtual CustomerInfo? Customer { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 }

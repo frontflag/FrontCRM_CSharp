@@ -1232,8 +1232,7 @@ namespace CRM.Core.Services
             var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
             var inventoryCapital = overview.Sum(x => x.InventoryAmount);
-            var outCost = ledgers.Where(x => x.BizType == "STOCK_OUT" && x.CreateTime >= monthStart)
-                .Sum(x => Math.Abs(x.Amount));
+            var outCost = CalculateNetMonthlyOutCost(ledgers, monthStart);
             var avgInventory = inventoryCapital;
             var turnoverRate = avgInventory <= 0 ? 0 : outCost / avgInventory;
             var turnoverDays = turnoverRate <= 0 ? 0 : 30 / turnoverRate;
@@ -1249,6 +1248,20 @@ namespace CRM.Core.Services
                 TurnoverDays = decimal.Round(turnoverDays, 2),
                 StagnantMaterialCount = stagnantCount
             };
+        }
+
+        private static decimal CalculateNetMonthlyOutCost(IEnumerable<InventoryLedger> ledgers, DateTime monthStart)
+        {
+            return ledgers
+                .Where(x => x.CreateTime >= monthStart)
+                .Sum(x =>
+                {
+                    if (x.BizType == "STOCK_OUT")
+                        return Math.Abs(x.Amount);
+                    if (x.BizType == "STOCK_OUT_REVERSE")
+                        return -Math.Abs(x.Amount);
+                    return 0m;
+                });
         }
 
         public async Task<IEnumerable<WarehouseInfo>> GetWarehousesAsync()

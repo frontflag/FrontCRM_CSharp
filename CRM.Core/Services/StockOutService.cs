@@ -27,6 +27,7 @@ namespace CRM.Core.Services
         private readonly IRepository<PickingTaskItem> _pickingTaskItemRepository;
         private readonly IRepository<StockInfo> _stockRepository;
         private readonly IRepository<StockItem> _stockItemRepository;
+        private readonly IRepository<InventoryLedger> _ledgerRepository;
         private readonly IRepository<StockInItem> _stockInItemRepository;
         private readonly IRepository<StockIn> _stockInRepository;
         private readonly IRepository<SellOrder> _sellOrderRepository;
@@ -53,6 +54,7 @@ namespace CRM.Core.Services
             IRepository<PickingTaskItem> pickingTaskItemRepository,
             IRepository<StockInfo> stockRepository,
             IRepository<StockItem> stockItemRepository,
+            IRepository<InventoryLedger> ledgerRepository,
             IRepository<StockInItem> stockInItemRepository,
             IRepository<StockIn> stockInRepository,
             IRepository<SellOrder> sellOrderRepository,
@@ -78,6 +80,7 @@ namespace CRM.Core.Services
             _pickingTaskItemRepository = pickingTaskItemRepository;
             _stockRepository = stockRepository;
             _stockItemRepository = stockItemRepository;
+            _ledgerRepository = ledgerRepository;
             _stockInItemRepository = stockInItemRepository;
             _stockInRepository = stockInRepository;
             _sellOrderRepository = sellOrderRepository;
@@ -1072,6 +1075,161 @@ namespace CRM.Core.Services
             await _stockOutRepository.UpdateAsync(stockOut);
             await _unitOfWork.SaveChangesAsync();
         }
+
+        /// <inheritdoc />
+        public async Task ForceDeleteWithInventoryRollbackAsync(string id, string? actingUserId = null)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("ID不能为空", nameof(id));
+
+            var stockOut = await _stockOutRepository.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException($"出库单 {id} 不存在");
+
+            var lineItems = (await _stockOutItemRepository.FindAsync(x => x.StockOutId == stockOut.Id)).ToList();
+            var itemIds = lineItems
+                .Select(x => x.Id)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var exts = (await _stockOutItemExtendRepository.GetAllAsync())
+                .Where(x => itemIds.Contains(x.Id))
+                .ToList();
+            var originalOutLedgers = (await _ledgerRepository.FindAsync(x =>
+                    x.BizType == "STOCK_OUT"
+                    && x.BizId == stockOut.Id
+                    && x.BizLineId != null))
+                .ToList();
+            var outLedgerByLineId = originalOutLedgers
+                .Where(x => !string.IsNullOrWhiteSpace(x.BizLineId))
+                .GroupBy(x => x.BizLineId!.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var changedStocks = new HashSet<StockInfo>();
+            var changedLayers = new HashSet<StockItem>();
+            var reverseLedgerRows = new List<InventoryLedger>();
+            var stocksById = new Dictionary<string, StockInfo>(StringComparer.OrdinalIgnoreCase);
+            var layersById = new Dictionary<string, StockItem>(StringComparer.OrdinalIgnoreCase);
+            if (IsOutboundDoneStatus(stockOut.Status))
+            {
+                stocksById = (await _stockRepository.GetAllAsync())
+                    .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+                layersById = (await _stockItemRepository.GetAllAsync())
+                    .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+                foreach (var line in lineItems)
+                {
+                    var rollbackQty = line.ActualQty > 0 ? line.ActualQty : line.Quantity;
+                    if (rollbackQty <= 0)
+                        continue;
+
+                    StockInfo? ledgerStock = null;
+                    if (!string.IsNullOrWhiteSpace(line.StockId)
+                        && stocksById.TryGetValue(line.StockId.Trim(), out var stock))
+                    {
+                        stock.QtyStockOut = Math.Max(0, stock.QtyStockOut - rollbackQty);
+                        stock.QtyRepertory = stock.Qty - stock.QtyStockOut;
+                        stock.QtyRepertoryAvailable = stock.QtyRepertory - stock.QtyOccupy - stock.QtySales;
+                        stock.ModifyTime = DateTime.UtcNow;
+                        changedStocks.Add(stock);
+                        ledgerStock = stock;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(line.StockItemId)
+                        && layersById.TryGetValue(line.StockItemId.Trim(), out var layer))
+                    {
+                        layer.QtyStockOut = Math.Max(0, layer.QtyStockOut - rollbackQty);
+                        layer.QtyRepertory = layer.QtyInbound - layer.QtyStockOut;
+                        layer.QtyRepertoryAvailable = layer.QtyRepertory - layer.QtyOccupy - layer.QtySales;
+                        layer.SyncStockOutStatusFromQuantities();
+                        layer.ModifyTime = DateTime.UtcNow;
+                        changedLayers.Add(layer);
+
+                        if (ledgerStock == null
+                            && !string.IsNullOrWhiteSpace(layer.StockAggregateId)
+                            && stocksById.TryGetValue(layer.StockAggregateId.Trim(), out var stockFromLayer))
+                        {
+                            ledgerStock = stockFromLayer;
+                        }
+                    }
+
+                    reverseLedgerRows.Add(new InventoryLedger
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        BizType = "STOCK_OUT_REVERSE",
+                        BizId = stockOut.Id,
+                        BizLineId = line.Id,
+                        MaterialId = line.MaterialId,
+                        WarehouseId = string.IsNullOrWhiteSpace(line.WarehouseId) ? stockOut.WarehouseId : line.WarehouseId!,
+                        LocationId = line.LocationId,
+                        BatchNo = line.BatchNo,
+                        QtyIn = rollbackQty,
+                        QtyOut = 0,
+                        UnitCost = outLedgerByLineId.TryGetValue(line.Id.Trim(), out var outLedger)
+                            ? outLedger.UnitCost
+                            : 0m,
+                        Amount = outLedgerByLineId.TryGetValue(line.Id.Trim(), out outLedger)
+                            ? Math.Round(Math.Abs(outLedger.UnitCost) * rollbackQty, 2, MidpointRounding.AwayFromZero)
+                            : 0m,
+                        PurchaseOrderItemCode = ledgerStock?.PurchaseOrderItemCode,
+                        PurchaseOrderItemId = ledgerStock?.PurchaseOrderItemId,
+                        SellOrderItemCode = ledgerStock?.SellOrderItemCode,
+                        SellOrderItemId = ledgerStock?.SellOrderItemId,
+                        Remark = $"强制删除出库单反向冲销 {stockOut.StockOutCode}",
+                        CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId),
+                        CreateTime = DateTime.UtcNow
+                    });
+                }
+            }
+
+            foreach (var stock in changedStocks)
+                await _stockRepository.UpdateAsync(stock);
+            foreach (var layer in changedLayers)
+                await _stockItemRepository.UpdateAsync(layer);
+            foreach (var ledger in reverseLedgerRows)
+                await _ledgerRepository.AddAsync(ledger);
+
+            foreach (var ext in exts)
+                await _stockOutItemExtendRepository.DeleteAsync(ext.Id);
+            foreach (var item in lineItems)
+                await _stockOutItemRepository.DeleteAsync(item.Id);
+            await _stockOutRepository.DeleteAsync(stockOut.Id);
+
+            if (!string.IsNullOrWhiteSpace(stockOut.SourceId))
+            {
+                var sourceId = stockOut.SourceId.Trim();
+                var req = await _stockOutRequestRepository.GetByIdAsync(sourceId);
+                if (req != null && req.Status == 1)
+                {
+                    var otherDone = (await _stockOutRepository.FindAsync(x => x.SourceId == sourceId))
+                        .Any(x => !string.Equals(x.Id, stockOut.Id, StringComparison.OrdinalIgnoreCase)
+                                  && IsOutboundDoneStatus(x.Status));
+                    if (!otherDone)
+                    {
+                        req.Status = 0;
+                        req.ModifyTime = DateTime.UtcNow;
+                        req.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+                        await _stockOutRequestRepository.UpdateAsync(req);
+                    }
+                }
+            }
+
+            var lineId = !string.IsNullOrWhiteSpace(stockOut.SellOrderItemId)
+                ? stockOut.SellOrderItemId.Trim()
+                : null;
+            if (!string.IsNullOrWhiteSpace(lineId))
+            {
+                await _sellOrderItemExtendSync.RecalculateAsync(lineId);
+            }
+            if (changedStocks.Count > 0)
+            {
+                await _purchasedStockAvailableSync.TryRecalculateFromChangedStockInfosAsync(changedStocks);
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        private static bool IsOutboundDoneStatus(short status) => status == 2 || status == 4;
 
         public async Task UpdateStatusAsync(string id, short status, string? actingUserId = null)
         {

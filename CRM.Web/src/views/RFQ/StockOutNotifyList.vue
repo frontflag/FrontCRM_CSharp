@@ -81,6 +81,8 @@
             <button type="button" class="action-btn action-btn--warning" @click.stop="goExecute(row)">
               {{ t('stockOutNotifyList.actions.executeStockOut') }}
             </button>
+            <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
+            <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">强制删除</button>
           </div>
           <span v-else-if="Number(row.status) === 1" class="op-done">{{ t('stockOutNotifyList.actions.alreadyShipped') }}</span>
 
@@ -92,6 +94,12 @@
               <el-dropdown-menu>
                 <el-dropdown-item @click.stop="goExecute(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('stockOutNotifyList.actions.executeStockOut') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item divided @click.stop="handleDeleteRow(row)">
+                  <span class="op-more-item op-more-item--danger">删除</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
+                  <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -139,9 +147,12 @@ import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionTyp
 import { inventoryCenterApi, type PickingTask } from '@/api/inventoryCenter'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const { t, locale } = useI18n()
+const authStore = useAuthStore()
+const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
 const keyword = ref('')
 const workflowFilter = ref<string>('all')
@@ -155,8 +166,8 @@ const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 96
-const OP_COL_EXPANDED_WIDTH = 140
-const OP_COL_EXPANDED_MIN_WIDTH = 140
+const OP_COL_EXPANDED_WIDTH = 280
+const OP_COL_EXPANDED_MIN_WIDTH = 240
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() =>
   opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH
@@ -257,6 +268,7 @@ const filteredList = computed(() => {
     (x) =>
       (x.requestCode || '').toLowerCase().includes(k) ||
       (x.salesOrderCode || '').toLowerCase().includes(k) ||
+      (x.materialModel || '').toLowerCase().includes(k) ||
       (x.customerName || '').toLowerCase().includes(k)
   )
 })
@@ -307,6 +319,36 @@ function handleReset() {
 
 const goExecute = (row: StockOutRequestDto) => {
   router.push({ path: '/inventory/stock-out/create', query: { requestId: row.id } })
+}
+
+const handleDeleteRow = async (row: StockOutRequestDto) => {
+  const ok = window.confirm(`确认删除出库通知 ${row.requestCode} 吗？`)
+  if (!ok) return
+  try {
+    await stockOutApi.deleteStockOutRequest(row.id)
+    ElMessage.success('删除成功')
+    await runNotifyFetch(false)
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('删除失败')
+  }
+}
+
+const handleForceDeleteRow = async (row: StockOutRequestDto) => {
+  const entered = window.prompt('请输入出库通知单号以确认强制删除', row.requestCode || '')?.trim() ?? ''
+  if (!entered) return
+  if (entered !== String(row.requestCode || '').trim()) {
+    ElMessage.error('输入单号不匹配，已取消')
+    return
+  }
+  try {
+    await stockOutApi.forceDeleteStockOutRequest(row.id, entered)
+    ElMessage.success('强制删除成功')
+    await runNotifyFetch(false)
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('强制删除失败')
+  }
 }
 
 onMounted(() => {

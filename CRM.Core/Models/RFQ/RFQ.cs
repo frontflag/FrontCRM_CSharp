@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.RFQ
 {
@@ -8,7 +9,7 @@ namespace CRM.Core.Models.RFQ
     /// 业务文档: 一个需求单可包含多个物料明细(1:N)
     /// </summary>
     [Table("rfq")]
-    public class RFQ : BaseEntity
+    public class RFQ : BaseEntity, ISoftDeletable
     {
         /// <summary>主键ID</summary>
         [Key]
@@ -125,6 +126,9 @@ namespace CRM.Core.Models.RFQ
         [Column("remark")]
         public string? Remark { get; set; }
 
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
+
         // 导航属性
         public virtual ICollection<RFQItem> Items { get; set; } = new List<RFQItem>();
     }
@@ -134,7 +138,7 @@ namespace CRM.Core.Models.RFQ
     /// 业务文档: 一个需求明细可收到多个供应商报价(1:N)
     /// </summary>
     [Table("rfqitem")]
-    public class RFQItem : BaseEntity
+    public class RFQItem : BaseEntity, ISoftDeletable
     {
         /// <summary>明细ID (主键)</summary>
         [Key]
@@ -255,5 +259,8 @@ namespace CRM.Core.Models.RFQ
         // 导航属性
         [ForeignKey("RfqId")]
         public virtual RFQ? RFQ { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 }

@@ -136,6 +136,8 @@
             >
               {{ t('financePaymentList.actions.cancel') }}
             </el-button>
+            <el-button size="small" text type="danger" @click.stop="handleDeleteRow(row)" v-if="canFinancePaymentWrite">删除</el-button>
+            <el-button size="small" text type="danger" @click.stop="handleForceDeleteRow(row)" v-if="canFinancePaymentWrite && isSysAdmin">强制删除</el-button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -161,6 +163,12 @@
                   @click.stop="cancelPayment(row)"
                 >
                   <span class="op-more-item op-more-item--danger">{{ t('financePaymentList.actions.cancel') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item divided v-if="canFinancePaymentWrite" @click.stop="handleDeleteRow(row)">
+                  <span class="op-more-item op-more-item--danger">删除</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="canFinancePaymentWrite && isSysAdmin" @click.stop="handleForceDeleteRow(row)">
+                  <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -366,6 +374,7 @@ const canFinancePaymentWrite = computed(
     authStore.hasPermission('finance-payment.write') &&
     !authStore.isIdentityBlockedForPermission('finance-payment.write')
 )
+const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const { paymentStatusLabel, paymentStatusTag, paymentModeLabel } = useFinanceEnumLabels()
 
 const paymentStatusSelectKeys = Object.keys(PAYMENT_STATUS_MAP).map(k => Number(k))
@@ -655,6 +664,37 @@ const cancelPayment = async (row: FinancePayment) => {
     await loadData()
   } catch (e: any) {
     ElMessage.error(e?.message || t('financePaymentList.messages.operationFailed'))
+  }
+}
+
+const handleDeleteRow = async (row: FinancePayment) => {
+  try {
+    await ElMessageBox.confirm(`确认删除付款单 ${row.financePaymentCode} 吗？`, '删除确认', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await financePaymentApi.delete(row.id)
+    ElMessage.success('删除成功')
+    await loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '删除失败')
+  }
+}
+
+const handleForceDeleteRow = async (row: FinancePayment) => {
+  const entered = window.prompt('请输入付款单号以确认强制删除', row.financePaymentCode || '')?.trim() ?? ''
+  if (!entered) return
+  if (entered !== String(row.financePaymentCode || '').trim()) {
+    ElMessage.error('输入单号不匹配，已取消')
+    return
+  }
+  try {
+    await financePaymentApi.forceDelete(row.id, entered)
+    ElMessage.success('强制删除成功')
+    await loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '强制删除失败')
   }
 }
 

@@ -54,13 +54,23 @@ export interface SalesOrderDetailTabAggregates {
     id: string
     stockItemCode?: string | null
     stockAggregateId: string
+    stockInCode?: string | null
+    stockInDate?: string | null
+    warehouseName?: string | null
+    regionType?: number
     purchasePn?: string | null
     purchaseBrand?: string | null
+    stockOutStatus?: number
+    qtyInbound?: number
+    qtyStockOut?: number
     qtyRepertory: number
     qtyRepertoryAvailable: number
     sellOrderItemId?: string | null
     sellOrderItemCode?: string | null
     warehouseId: string
+    purchaseOrderItemCode?: string | null
+    batchNo?: string | null
+    locationId?: string | null
   }>
   stockOutRequests: Array<{
     id: string
@@ -136,6 +146,15 @@ export const salesOrderApi = {
   async getDetailTabAggregates(id: string) {
     const enc = encodeURIComponent(id)
     return await apiClient.get<SalesOrderDetailTabAggregates>(`/api/v1/sales-orders/${enc}/detail-tab-aggregates`)
+  },
+
+  /** 单条销售明细：同上结构，按销售明细主键过滤 */
+  async getSellOrderItemDetailTabAggregates(orderId: string, sellOrderItemId: string) {
+    const encO = encodeURIComponent(orderId)
+    const encI = encodeURIComponent(sellOrderItemId)
+    return await apiClient.get<SalesOrderDetailTabAggregates>(
+      `/api/v1/sales-orders/${encO}/sell-order-items/${encI}/detail-tab-aggregates`
+    )
   },
 
   /**

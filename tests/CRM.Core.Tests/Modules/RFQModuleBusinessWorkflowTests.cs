@@ -183,16 +183,17 @@ public sealed class RFQModuleBusinessWorkflowTests
             }
         });
 
-        h.ItemRepo.Snapshot().Should().HaveCount(1);
-        h.ItemRepo.Snapshot()[0].Mpn.Should().Be("NEW-ONLY-ONE");
+        var activeItemsAfterUpdate = (await h.ItemRepo.GetAllAsync()).ToList();
+        activeItemsAfterUpdate.Should().HaveCount(1);
+        activeItemsAfterUpdate[0].Mpn.Should().Be("NEW-ONLY-ONE");
         (await h.RfqRepo.GetByIdAsync(created.Id))!.ItemCount.Should().Be(1);
 
         await h.Service.UpdateStatusAsync(created.Id, 3);
         (await h.RfqRepo.GetByIdAsync(created.Id))!.Status.Should().Be(3);
 
         await h.Service.DeleteAsync(created.Id);
-        h.RfqRepo.Snapshot().Should().BeEmpty();
-        h.ItemRepo.Snapshot().Should().BeEmpty();
+        (await h.RfqRepo.GetAllAsync()).Should().BeEmpty();
+        (await h.ItemRepo.GetAllAsync()).Should().BeEmpty();
         await h.UnitOfWork.Received(4).SaveChangesAsync();
     }
 

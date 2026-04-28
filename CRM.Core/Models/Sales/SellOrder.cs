@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Sales
 {
@@ -9,7 +10,7 @@ namespace CRM.Core.Models.Sales
     /// 主状态: <see cref="SellOrderMainStatus"/>
     /// </summary>
     [Table("sellorder")]
-    public class SellOrder : BaseGuidEntity
+    public class SellOrder : BaseGuidEntity, ISoftDeletable
     {
         [Key]
         [StringLength(36)]
@@ -129,6 +130,9 @@ namespace CRM.Core.Models.Sales
         [Column("modify_by_user_id")]
         public string? ModifyByUserId { get; set; }
 
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
+
         // 导航属性
         public virtual ICollection<SellOrderItem> Items { get; set; } = new List<SellOrderItem>();
     }
@@ -138,7 +142,7 @@ namespace CRM.Core.Models.Sales
     /// 对应数据库表: sellorderitem
     /// </summary>
     [Table("sellorderitem")]
-    public class SellOrderItem : BaseGuidEntity
+    public class SellOrderItem : BaseGuidEntity, ISoftDeletable
     {
         [Key]
         [StringLength(36)]
@@ -218,6 +222,9 @@ namespace CRM.Core.Models.Sales
         [StringLength(500)]
         [Column("comment")]
         public string? Comment { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
 
         // 导航属性
         public virtual SellOrder? SellOrder { get; set; }

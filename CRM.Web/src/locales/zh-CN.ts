@@ -3455,7 +3455,7 @@ const zhCN = {
       workflowPickedPendingOut: '已拣货待出库',
       workflowDone: '已出库',
       keyword: '关键词',
-      keywordPlaceholder: '通知单号/销售单号/客户',
+      keywordPlaceholder: '通知单号/销售单号/物料型号/客户',
       search: '搜索',
       reset: '重置',
       refresh: '刷新'

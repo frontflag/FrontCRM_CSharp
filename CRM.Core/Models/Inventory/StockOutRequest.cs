@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using CRM.Core.Constants;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Inventory
 {
@@ -9,7 +10,7 @@ namespace CRM.Core.Models.Inventory
     /// 出库申请单（单表：一条通知对应一条销售订单明细）
     /// </summary>
     [Table("stockoutrequest")]
-    public class StockOutRequest : BaseGuidEntity
+    public class StockOutRequest : BaseGuidEntity, ISoftDeletable
     {
         /// <summary>
         /// 申请单号
@@ -92,5 +93,8 @@ namespace CRM.Core.Models.Inventory
         [StringLength(36)]
         [Column("modify_by_user_id")]
         public string? ModifyByUserId { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 }

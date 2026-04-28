@@ -12,7 +12,7 @@
     <PackageReference Include="coverlet.collector" Version="*" />
     <PackageReference Include="FluentAssertions" Version="*" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="*" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="NSubstitute" Version="*" />
     <PackageReference Include="NSubstitute.Analyzers.CSharp" Version="*" />
     <PackageReference Include="xunit" Version="*" />

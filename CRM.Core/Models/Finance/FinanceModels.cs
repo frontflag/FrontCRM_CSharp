@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Finance
 {
@@ -9,7 +10,7 @@ namespace CRM.Core.Models.Finance
     /// 付款单主表 (FinancePayment)
     /// </summary>
     [Table("financepayment")]
-    public class FinancePayment : BaseGuidEntity
+    public class FinancePayment : BaseGuidEntity, ISoftDeletable
     {
         [Key][StringLength(36)][Column("FinancePaymentId")]
         public override string Id { get; set; } = Guid.NewGuid().ToString();
@@ -78,6 +79,9 @@ namespace CRM.Core.Models.Finance
         [NotMapped]
         public string? CreateUserName { get; set; }
 
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
+
         public virtual ICollection<FinancePaymentItem> Items { get; set; } = new List<FinancePaymentItem>();
     }
 
@@ -85,7 +89,7 @@ namespace CRM.Core.Models.Finance
     /// 付款明细表 (FinancePaymentItem)
     /// </summary>
     [Table("financepaymentitem")]
-    public class FinancePaymentItem : BaseGuidEntity
+    public class FinancePaymentItem : BaseGuidEntity, ISoftDeletable
     {
         [Key][StringLength(36)][Column("FinancePaymentItemId")]
         public override string Id { get; set; } = Guid.NewGuid().ToString();
@@ -135,6 +139,9 @@ namespace CRM.Core.Models.Finance
 
         [ForeignKey("FinancePaymentId")]
         public virtual FinancePayment? Payment { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 
     // ==================== 收款模块 ====================
@@ -143,7 +150,7 @@ namespace CRM.Core.Models.Finance
     /// 收款单主表 (FinanceReceipt)
     /// </summary>
     [Table("financereceipt")]
-    public class FinanceReceipt : BaseGuidEntity
+    public class FinanceReceipt : BaseGuidEntity, ISoftDeletable
     {
         [Key][StringLength(36)][Column("FinanceReceiptId")]
         public override string Id { get; set; } = Guid.NewGuid().ToString();
@@ -212,6 +219,9 @@ namespace CRM.Core.Models.Finance
         [NotMapped]
         public string? CreateUserName { get; set; }
 
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
+
         public virtual ICollection<FinanceReceiptItem> Items { get; set; } = new List<FinanceReceiptItem>();
     }
 
@@ -219,7 +229,7 @@ namespace CRM.Core.Models.Finance
     /// 收款明细表 (FinanceReceiptItem)
     /// </summary>
     [Table("financereceiptitem")]
-    public class FinanceReceiptItem : BaseGuidEntity
+    public class FinanceReceiptItem : BaseGuidEntity, ISoftDeletable
     {
         [Key][StringLength(36)][Column("FinanceReceiptItemId")]
         public override string Id { get; set; } = Guid.NewGuid().ToString();
@@ -277,6 +287,9 @@ namespace CRM.Core.Models.Finance
 
         [ForeignKey("FinanceReceiptId")]
         public virtual FinanceReceipt? Receipt { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 
     // ==================== 进项发票模块 ====================
@@ -285,7 +298,7 @@ namespace CRM.Core.Models.Finance
     /// 进项发票主表 (FinancePurchaseInvoice)
     /// </summary>
     [Table("financepurchaseinvoice")]
-    public class FinancePurchaseInvoice : BaseGuidEntity
+    public class FinancePurchaseInvoice : BaseGuidEntity, ISoftDeletable
     {
         [Key][StringLength(36)][Column("FinancePurchaseInvoiceId")]
         public override string Id { get; set; } = Guid.NewGuid().ToString();
@@ -342,6 +355,9 @@ namespace CRM.Core.Models.Finance
         [Column("modify_by_user_id")]
         public string? ModifyByUserId { get; set; }
 
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
+
         public virtual ICollection<FinancePurchaseInvoiceItem> Items { get; set; } = new List<FinancePurchaseInvoiceItem>();
     }
 
@@ -349,7 +365,7 @@ namespace CRM.Core.Models.Finance
     /// 进项发票明细表 (FinancePurchaseInvoiceItem)
     /// </summary>
     [Table("financepurchaseinvoiceitem")]
-    public class FinancePurchaseInvoiceItem : BaseGuidEntity
+    public class FinancePurchaseInvoiceItem : BaseGuidEntity, ISoftDeletable
     {
         [Key][StringLength(36)][Column("FinancePurchaseInvoiceItemId")]
         public override string Id { get; set; } = Guid.NewGuid().ToString();
@@ -399,6 +415,9 @@ namespace CRM.Core.Models.Finance
 
         [ForeignKey("FinancePurchaseInvoiceId")]
         public virtual FinancePurchaseInvoice? PurchaseInvoice { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 
     // ==================== 销项发票模块 ====================
@@ -407,7 +426,7 @@ namespace CRM.Core.Models.Finance
     /// 销项发票主表 (FinanceSellInvoice)
     /// </summary>
     [Table("financesellinvoice")]
-    public class FinanceSellInvoice : BaseGuidEntity
+    public class FinanceSellInvoice : BaseGuidEntity, ISoftDeletable
     {
         [Key][StringLength(36)][Column("FinanceSellInvoiceId")]
         public override string Id { get; set; } = Guid.NewGuid().ToString();
@@ -470,6 +489,9 @@ namespace CRM.Core.Models.Finance
         [Column("modify_by_user_id")]
         public string? ModifyByUserId { get; set; }
 
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
+
         public virtual ICollection<SellInvoiceItem> Items { get; set; } = new List<SellInvoiceItem>();
     }
 
@@ -477,7 +499,7 @@ namespace CRM.Core.Models.Finance
     /// 销项发票明细表 (SellInvoiceItem)
     /// </summary>
     [Table("sellinvoiceitem")]
-    public class SellInvoiceItem : BaseGuidEntity
+    public class SellInvoiceItem : BaseGuidEntity, ISoftDeletable
     {
         [Key][StringLength(36)][Column("FinanceSellInvoiceItemId")]
         public override string Id { get; set; } = Guid.NewGuid().ToString();
@@ -521,5 +543,8 @@ namespace CRM.Core.Models.Finance
 
         [ForeignKey("FinanceSellInvoiceId")]
         public virtual FinanceSellInvoice? SellInvoice { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 }

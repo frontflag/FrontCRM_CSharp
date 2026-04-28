@@ -278,6 +278,14 @@ export const stockOutApi = {
     const res = await apiClient.get<unknown>('/api/v1/stock-out/request')
     return unwrapArray<StockOutRequestDto>(res)
   },
+  async deleteStockOutRequest(id: string): Promise<void> {
+    await apiClient.delete(`/api/v1/stock-out/request/${encodeURIComponent(id)}`)
+  },
+  async forceDeleteStockOutRequest(id: string, confirmBillCode: string): Promise<void> {
+    await apiClient.post(`/api/v1/stock-out/request/${encodeURIComponent(id)}/force-delete`, {
+      confirmBillCode: confirmBillCode.trim()
+    })
+  },
 
   async getApplyContext(salesOrderId: string, salesOrderItemId: string): Promise<StockOutApplyContextDto> {
     const res = await apiClient.get<unknown>('/api/v1/stock-out/request/apply-context', {

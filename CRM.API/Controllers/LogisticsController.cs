@@ -15,6 +15,7 @@ namespace CRM.API.Controllers
     public class LogisticsController : ControllerBase
     {
         private readonly ILogisticsService _service;
+        private readonly IRepository<StockInNotify> _notifyRepo;
         private readonly IRepository<QCInfo> _qcRepo;
         private readonly IRepository<QCItem> _qcItemRepo;
         private readonly IUnitOfWork _unitOfWork;
@@ -24,6 +25,7 @@ namespace CRM.API.Controllers
 
         public LogisticsController(
             ILogisticsService service,
+            IRepository<StockInNotify> notifyRepo,
             IRepository<QCInfo> qcRepo,
             IRepository<QCItem> qcItemRepo,
             IUnitOfWork unitOfWork,
@@ -32,6 +34,7 @@ namespace CRM.API.Controllers
             ILogger<LogisticsController> logger)
         {
             _service = service;
+            _notifyRepo = notifyRepo;
             _qcRepo = qcRepo;
             _qcItemRepo = qcItemRepo;
             _unitOfWork = unitOfWork;
@@ -132,6 +135,85 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "更新到货通知状态失败");
                 return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+        }
+
+        [HttpDelete("arrival-notices/{id}")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteArrivalNotice(string id)
+        {
+            try
+            {
+                var notice = await _notifyRepo.GetByIdAsync(id);
+                if (notice == null)
+                    return NotFound(ApiResponse<object>.Fail("到货通知不存在", 404));
+
+                var hasQc = (await _qcRepo.FindAsync(x => x.StockInNotifyId == notice.Id)).Any();
+                if (hasQc || notice.Status >= 30 || notice.ReceiveQty > 0 || notice.PassedQty > 0)
+                    return BadRequest(ApiResponse<object>.Fail("该到货通知已进入质检/入库流程，不能普通删除", 400));
+
+                await _notifyRepo.DeleteAsync(notice.Id);
+                await _unitOfWork.SaveChangesAsync();
+                return Ok(ApiResponse<object>.Ok(null, "删除到货通知成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "删除到货通知失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"删除到货通知失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpPost("arrival-notices/{id}/force-delete")]
+        public async Task<ActionResult<ApiResponse<object>>> ForceDeleteArrivalNotice(string id, [FromBody] ForceDeleteQcRequest? body)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, ApiResponse<object>.Fail("未登录或身份无效", 403));
+
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+                if (summary?.IsSysAdmin != true)
+                    return StatusCode(403, ApiResponse<object>.Fail("仅系统管理员可执行强制删除", 403));
+
+                if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
+                    return BadRequest(ApiResponse<object>.Fail("请填写 confirmBillCode", 400));
+
+                var notice = await _notifyRepo.GetByIdAsync(id);
+                if (notice == null)
+                    return NotFound(ApiResponse<object>.Fail("到货通知不存在", 404));
+                if (!string.Equals(body.ConfirmBillCode.Trim(), notice.NoticeCode?.Trim(), StringComparison.Ordinal))
+                    return BadRequest(ApiResponse<object>.Fail("确认单号不匹配，已拒绝删除", 400));
+
+                var qcs = (await _qcRepo.FindAsync(x => x.StockInNotifyId == notice.Id)).ToList();
+                foreach (var qc in qcs)
+                {
+                    var items = (await _qcItemRepo.FindAsync(x => x.QcInfoId == qc.Id)).ToList();
+                    foreach (var item in items)
+                        await _qcItemRepo.DeleteAsync(item.Id);
+                    await _qcRepo.DeleteAsync(qc.Id);
+                }
+
+                await _notifyRepo.DeleteAsync(notice.Id);
+                await _unitOfWork.SaveChangesAsync();
+
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                var recordCode = string.IsNullOrWhiteSpace(notice.NoticeCode) ? null : notice.NoticeCode.Trim();
+                await _logOperationAppend.AppendAsync(
+                    BusinessLogTypes.StockIn,
+                    notice.Id,
+                    recordCode,
+                    "到货通知强制删除",
+                    userId.Trim(),
+                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim(),
+                    $"强制删除到货通知 NoticeId={notice.Id}，确认单号={recordCode}，关联质检单数={qcs.Count}",
+                    reason: null);
+
+                return Ok(ApiResponse<object>.Ok(null, "强制删除到货通知成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "强制删除到货通知失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"强制删除到货通知失败: {ex.Message}", 500));
             }
         }
 

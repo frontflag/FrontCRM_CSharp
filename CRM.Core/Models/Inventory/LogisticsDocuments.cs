@@ -10,7 +10,7 @@ namespace CRM.Core.Models.Inventory
     /// 到货通知（单表：一条记录 = 采购明细上的一次到货批次）
     /// </summary>
     [Table("stockinnotify")]
-    public class StockInNotify : BaseGuidEntity
+    public class StockInNotify : BaseGuidEntity, ISoftDeletable
     {
         [StringLength(32)]
         public string NoticeCode { get; set; } = string.Empty;
@@ -80,6 +80,9 @@ namespace CRM.Core.Models.Inventory
         /// <summary>兼容旧前端：明细弹窗 items[]，由服务填充为单元素</summary>
         [NotMapped]
         public ICollection<StockInNotifyItemSnapshot>? Items { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 
     /// <summary>

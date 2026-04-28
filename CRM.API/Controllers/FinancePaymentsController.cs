@@ -1,6 +1,7 @@
 using CRM.API.Authorization;
 using CRM.API.Utilities;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Finance;
 using CRM.Core.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,17 +17,26 @@ namespace CRM.API.Controllers
         private readonly IFinancePaymentService _service;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
+        private readonly IRepository<FinancePayment> _paymentRepo;
+        private readonly IRepository<FinancePaymentItem> _paymentItemRepo;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<FinancePaymentsController> _logger;
 
         public FinancePaymentsController(
             IFinancePaymentService service,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
+            IRepository<FinancePayment> paymentRepo,
+            IRepository<FinancePaymentItem> paymentItemRepo,
+            IUnitOfWork unitOfWork,
             ILogger<FinancePaymentsController> logger)
         {
             _service = service;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
+            _paymentRepo = paymentRepo;
+            _paymentItemRepo = paymentItemRepo;
+            _unitOfWork = unitOfWork;
             _logger = logger;
         }
 
@@ -298,6 +308,47 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>强制删除付款单（仅系统管理员）</summary>
+        [HttpPost("{id}/force-delete")]
+        [RequirePermission("finance-payment.write")]
+        public async Task<IActionResult> ForceDelete(string id, [FromBody] ForceDeleteFinancePaymentRequest? body)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, new { success = false, message = "未登录或身份无效" });
+
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+                if (summary?.IsSysAdmin != true)
+                    return StatusCode(403, new { success = false, message = "仅系统管理员可执行强制删除" });
+
+                if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
+                    return BadRequest(new { success = false, message = "请填写 confirmBillCode" });
+
+                var entity = await _paymentRepo.GetByIdAsync(id);
+                if (entity == null)
+                    return NotFound(new { success = false, message = "付款单不存在" });
+
+                if (!string.Equals(body.ConfirmBillCode.Trim(), entity.FinancePaymentCode?.Trim(), StringComparison.Ordinal))
+                    return BadRequest(new { success = false, message = "确认单号不匹配，已拒绝删除" });
+
+                var items = (await _paymentItemRepo.FindAsync(x => x.FinancePaymentId == entity.Id)).ToList();
+                foreach (var item in items)
+                    await _paymentItemRepo.DeleteAsync(item.Id);
+
+                await _paymentRepo.DeleteAsync(entity.Id);
+                await _unitOfWork.SaveChangesAsync();
+
+                return Ok(new { success = true, message = "强制删除成功" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "强制删除付款单失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         /// <summary>核销付款明细</summary>
         [HttpPost("items/{paymentItemId}/verify")]
         [RequirePermission("finance-payment.write")]
@@ -329,5 +380,10 @@ namespace CRM.API.Controllers
     public class FinancePaymentDecisionRequest
     {
         public string? Remark { get; set; }
+    }
+
+    public class ForceDeleteFinancePaymentRequest
+    {
+        public string ConfirmBillCode { get; set; } = string.Empty;
     }
 }

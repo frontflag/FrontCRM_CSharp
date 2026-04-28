@@ -28,6 +28,8 @@ namespace CRM.Core.Interfaces
         Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
         /// <summary>可改：出库日期、出货方式、快递单号</summary>
         Task UpdateHeaderAsync(string id, UpdateStockOutHeaderRequest request, string? actingUserId = null);
+        /// <summary>强制删除出库单；若单据已执行出库（状态 2/4）则自动反向回补库存数量。</summary>
+        Task ForceDeleteWithInventoryRollbackAsync(string id, string? actingUserId = null);
     }
 
     public class CreateStockOutRequestRequest

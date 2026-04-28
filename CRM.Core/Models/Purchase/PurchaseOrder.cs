@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Interfaces;
 using CRM.Core.Models.Sales;
 
 namespace CRM.Core.Models.Purchase
@@ -10,7 +11,7 @@ namespace CRM.Core.Models.Purchase
     /// 状态: 1=新建 2=待审核 10=审核通过 20=待确认 30=已确认 50=进行中 100=采购完成 -1=审核失败 -2=取消
     /// </summary>
     [Table("purchaseorder")]
-    public class PurchaseOrder : BaseGuidEntity
+    public class PurchaseOrder : BaseGuidEntity, ISoftDeletable
     {
         [Key]
         [StringLength(36)]
@@ -140,6 +141,9 @@ namespace CRM.Core.Models.Purchase
         [Column("modify_by_user_id")]
         public string? ModifyByUserId { get; set; }
 
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
+
         // 导航属性
         public virtual ICollection<PurchaseOrderItem> Items { get; set; } = new List<PurchaseOrderItem>();
     }
@@ -150,7 +154,7 @@ namespace CRM.Core.Models.Purchase
     /// 核心关联字段: SellOrderItemId — 以销定采的关键
     /// </summary>
     [Table("purchaseorderitem")]
-    public class PurchaseOrderItem : BaseGuidEntity
+    public class PurchaseOrderItem : BaseGuidEntity, ISoftDeletable
     {
         [Key]
         [StringLength(36)]
@@ -243,6 +247,9 @@ namespace CRM.Core.Models.Purchase
         [StringLength(500)]
         [Column("inner_comment")]
         public string? InnerComment { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
 
         // 导航属性
         public virtual PurchaseOrder? PurchaseOrder { get; set; }

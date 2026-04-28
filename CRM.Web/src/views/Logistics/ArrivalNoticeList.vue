@@ -123,6 +123,8 @@
             <button type="button" class="action-btn action-btn--info" @click.stop="viewItems(row)">
               {{ t('arrivalNoticeList.actions.detail') }}
             </button>
+            <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
+            <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">强制删除</button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -139,6 +141,12 @@
                 </el-dropdown-item>
                 <el-dropdown-item @click.stop="viewItems(row)">
                   <span class="op-more-item op-more-item--info">{{ t('arrivalNoticeList.actions.detail') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item divided @click.stop="handleDeleteRow(row)">
+                  <span class="op-more-item op-more-item--danger">删除</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
+                  <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -243,8 +251,11 @@ import { useRouter } from 'vue-router'
 import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useAuthStore } from '@/stores/auth'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const authStore = useAuthStore()
+const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const router = useRouter()
 const { t, locale } = useI18n()
 const loading = ref(false)
@@ -266,8 +277,8 @@ const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 96
-const OP_COL_EXPANDED_WIDTH = 220
-const OP_COL_EXPANDED_MIN_WIDTH = 220
+const OP_COL_EXPANDED_WIDTH = 320
+const OP_COL_EXPANDED_MIN_WIDTH = 280
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
 function toggleOpCol() {
@@ -412,6 +423,36 @@ const markArrived = async (row: StockInNotifyDto) => {
   await logisticsApi.updateArrivalStatus(row.id, 20)
   applyArrivalList(false)
   ElMessage.success(t('arrivalNoticeList.messages.arrivedSuccess'))
+}
+
+const handleDeleteRow = async (row: StockInNotifyDto) => {
+  const ok = window.confirm(`确认删除到货通知 ${row.noticeCode} 吗？`)
+  if (!ok) return
+  try {
+    await logisticsApi.deleteArrivalNotice(row.id)
+    ElMessage.success('删除成功')
+    applyArrivalList(false)
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('删除失败')
+  }
+}
+
+const handleForceDeleteRow = async (row: StockInNotifyDto) => {
+  const entered = window.prompt('请输入到货通知单号以确认强制删除', row.noticeCode || '')?.trim() ?? ''
+  if (!entered) return
+  if (entered !== String(row.noticeCode || '').trim()) {
+    ElMessage.error('输入单号不匹配，已取消')
+    return
+  }
+  try {
+    await logisticsApi.forceDeleteArrivalNotice(row.id, entered)
+    ElMessage.success('强制删除成功')
+    applyArrivalList(false)
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('强制删除失败')
+  }
 }
 
 const goCreateQc = (row: StockInNotifyDto) => {

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Tag
 {
@@ -7,7 +8,7 @@ namespace CRM.Core.Models.Tag
     /// 标签定义表
     /// </summary>
     [Table("tag_definition")]
-    public class TagDefinition : BaseGuidEntity
+    public class TagDefinition : BaseGuidEntity, ISoftDeletable
     {
         /// <summary>
         /// 标签主键
@@ -83,5 +84,8 @@ namespace CRM.Core.Models.Tag
         /// 可见范围：1=仅自己，2=团队共享，3=全局公开
         /// </summary>
         public short Visibility { get; set; } = 3;
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 }

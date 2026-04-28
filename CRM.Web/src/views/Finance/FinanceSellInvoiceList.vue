@@ -117,6 +117,8 @@
             <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="row.invoiceStatus === 1">{{ t('financeSellInvoiceList.actions.edit') }}</el-button>
             <el-button size="small" text type="warning" @click.stop="applyInvoice(row)" v-if="row.invoiceStatus === 1">{{ t('financeSellInvoiceList.actions.apply') }}</el-button>
             <el-button size="small" text type="danger" @click.stop="voidInvoice(row)" v-if="row.invoiceStatus === 100">{{ t('financeSellInvoiceList.actions.void') }}</el-button>
+            <el-button size="small" text type="danger" @click.stop="handleDeleteRow(row)">删除</el-button>
+            <el-button v-if="isSysAdmin" size="small" text type="danger" @click.stop="handleForceDeleteRow(row)">强制删除</el-button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -136,6 +138,12 @@
                 </el-dropdown-item>
                 <el-dropdown-item v-if="row.invoiceStatus === 100" @click.stop="voidInvoice(row)">
                   <span class="op-more-item op-more-item--danger">{{ t('financeSellInvoiceList.actions.void') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item divided @click.stop="handleDeleteRow(row)">
+                  <span class="op-more-item op-more-item--danger">删除</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
+                  <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -283,10 +291,13 @@ import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTim
 import { customerApi } from '@/api/customer'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { t } = useI18n()
+const authStore = useAuthStore()
+const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const {
   invoiceStatusLabel,
   invoiceStatusTag,
@@ -511,6 +522,31 @@ const voidInvoice = async (row: FinanceSellInvoice) => {
   )
   await financeSellInvoiceApi.void(row.id)
   ElMessage.success(t('financeSellInvoiceList.messages.voided'))
+  await loadData()
+}
+
+const handleDeleteRow = async (row: FinanceSellInvoice) => {
+  const code = row.invoiceCode || row.invoiceNo || row.id
+  await ElMessageBox.confirm(
+    `确认删除销项发票 ${code} 吗？`,
+    '删除确认',
+    { type: 'warning' }
+  )
+  await financeSellInvoiceApi.delete(row.id)
+  ElMessage.success('删除成功')
+  await loadData()
+}
+
+const handleForceDeleteRow = async (row: FinanceSellInvoice) => {
+  const code = row.invoiceCode || row.id
+  const entered = window.prompt('请输入发票单号以确认强制删除', String(code || ''))?.trim() ?? ''
+  if (!entered) return
+  if (entered !== String(code || '').trim()) {
+    ElMessage.error('输入单号不匹配，已取消')
+    return
+  }
+  await financeSellInvoiceApi.forceDelete(row.id, entered)
+  ElMessage.success('强制删除成功')
   await loadData()
 }
 

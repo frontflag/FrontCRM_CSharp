@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Interfaces;
 using CRM.Core.Models;
 
 namespace CRM.Core.Models.Vendor
@@ -8,7 +9,7 @@ namespace CRM.Core.Models.Vendor
     /// 供应商联系历史记录（电话、拜访、邮件、会议等）
     /// </summary>
     [Table("vendorcontacthistory")]
-    public class VendorContactHistory : BaseGuidEntity
+    public class VendorContactHistory : BaseGuidEntity, ISoftDeletable
     {
         [StringLength(36)]
         [Column("HistoryId")]
@@ -47,6 +48,9 @@ namespace CRM.Core.Models.Vendor
         /// <summary>操作人ID</summary>
         [StringLength(36)]
         public string? OperatorId { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 }
 

@@ -3477,7 +3477,7 @@ const enUS = {
       workflowPickedPendingOut: 'Picked — pending ship',
       workflowDone: 'Shipped',
       keyword: 'Keyword',
-      keywordPlaceholder: 'Notice no. / sales order / customer',
+      keywordPlaceholder: 'Notice no. / sales order / material / customer',
       search: 'Search',
       reset: 'Reset',
       refresh: 'Refresh'

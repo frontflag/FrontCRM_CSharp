@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Vendor
 {
@@ -8,7 +9,7 @@ namespace CRM.Core.Models.Vendor
     /// 供应商银行账户表
     /// </summary>
     [Table("vendorbankinfo")]
-    public class VendorBankInfo : BaseGuidEntity
+    public class VendorBankInfo : BaseGuidEntity, ISoftDeletable
     {
         /// <summary>
         /// 银行账户ID (主键)
@@ -69,5 +70,8 @@ namespace CRM.Core.Models.Vendor
         [ForeignKey("VendorId")]
         [JsonIgnore]
         public virtual VendorInfo? Vendor { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 }

@@ -1,10 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Draft
 {
     [Table("biz_draft")]
-    public class BizDraft : BaseGuidEntity
+    public class BizDraft : BaseGuidEntity, ISoftDeletable
     {
         [Key]
         [StringLength(36)]
@@ -37,5 +38,8 @@ namespace CRM.Core.Models.Draft
         public string? ConvertedEntityId { get; set; }
 
         public DateTime? ConvertedAt { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 }

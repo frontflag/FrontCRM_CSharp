@@ -123,6 +123,8 @@
             <el-button size="small" text type="warning" @click.stop="submitAudit(row)" v-if="row.status === 0">{{ t('financeReceiptList.actions.submitAudit') }}</el-button>
             <el-button size="small" text type="warning" @click.stop="approveReceipt(row)" v-if="row.status === 1">{{ t('financeReceiptList.actions.approve') }}</el-button>
             <el-button size="small" text type="danger" @click.stop="cancelReceipt(row)" v-if="[0,1].includes(row.status)">{{ t('financeReceiptList.actions.cancel') }}</el-button>
+            <el-button size="small" text type="danger" @click.stop="handleDeleteRow(row)">删除</el-button>
+            <el-button v-if="isSysAdmin" size="small" text type="danger" @click.stop="handleForceDeleteRow(row)">强制删除</el-button>
           </div>
 
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -145,6 +147,12 @@
                 </el-dropdown-item>
                 <el-dropdown-item v-if="[0,1].includes(row.status)" @click.stop="cancelReceipt(row)">
                   <span class="op-more-item op-more-item--danger">{{ t('financeReceiptList.actions.cancel') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item divided @click.stop="handleDeleteRow(row)">
+                  <span class="op-more-item op-more-item--danger">删除</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
+                  <span class="op-more-item op-more-item--danger">强制删除</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -351,10 +359,13 @@ import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTim
 import { customerApi } from '@/api/customer'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { t } = useI18n()
+const authStore = useAuthStore()
+const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const { receiptStatusLabel, receiptStatusTag, paymentModeLabel } = useFinanceEnumLabels()
 
 const receiptStatusSelectKeys = Object.keys(RECEIPT_STATUS_MAP).map(k => Number(k))
@@ -688,6 +699,29 @@ const cancelReceipt = async (row: FinanceReceipt) => {
   )
   await financeReceiptApi.cancel(row.id)
   ElMessage.success(t('financeReceiptList.messages.cancelled'))
+  await loadData()
+}
+
+const handleDeleteRow = async (row: FinanceReceipt) => {
+  try {
+    await ElMessageBox.confirm(`确认删除收款单 ${row.financeReceiptCode} 吗？`, '删除确认', { type: 'warning' })
+  } catch {
+    return
+  }
+  await financeReceiptApi.delete(row.id)
+  ElMessage.success('删除成功')
+  await loadData()
+}
+
+const handleForceDeleteRow = async (row: FinanceReceipt) => {
+  const entered = window.prompt('请输入收款单号以确认强制删除', row.financeReceiptCode || '')?.trim() ?? ''
+  if (!entered) return
+  if (entered !== String(row.financeReceiptCode || '').trim()) {
+    ElMessage.error('输入单号不匹配，已取消')
+    return
+  }
+  await financeReceiptApi.forceDelete(row.id, entered)
+  ElMessage.success('强制删除成功')
   await loadData()
 }
 

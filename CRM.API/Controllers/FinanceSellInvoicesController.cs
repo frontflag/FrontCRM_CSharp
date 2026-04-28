@@ -1,4 +1,5 @@
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Finance;
 using CRM.Core.Utilities;
 using CRM.API.Authorization;
 using CRM.API.Utilities;
@@ -16,17 +17,26 @@ namespace CRM.API.Controllers
         private readonly IFinanceSellInvoiceService _service;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
+        private readonly IRepository<FinanceSellInvoice> _invoiceRepo;
+        private readonly IRepository<SellInvoiceItem> _invoiceItemRepo;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<FinanceSellInvoicesController> _logger;
 
         public FinanceSellInvoicesController(
             IFinanceSellInvoiceService service,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
+            IRepository<FinanceSellInvoice> invoiceRepo,
+            IRepository<SellInvoiceItem> invoiceItemRepo,
+            IUnitOfWork unitOfWork,
             ILogger<FinanceSellInvoicesController> logger)
         {
             _service = service;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
+            _invoiceRepo = invoiceRepo;
+            _invoiceItemRepo = invoiceItemRepo;
+            _unitOfWork = unitOfWork;
             _logger = logger;
         }
 
@@ -271,10 +281,58 @@ namespace CRM.API.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
+        /// <summary>强制删除销项发票（仅系统管理员）</summary>
+        [HttpPost("{id}/force-delete")]
+        [RequirePermission("finance-sell-invoice.write")]
+        public async Task<IActionResult> ForceDelete(string id, [FromBody] ForceDeleteFinanceSellInvoiceRequest? body)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, new { success = false, message = "未登录或身份无效" });
+
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+                if (summary?.IsSysAdmin != true)
+                    return StatusCode(403, new { success = false, message = "仅系统管理员可执行强制删除" });
+
+                if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
+                    return BadRequest(new { success = false, message = "请填写 confirmBillCode" });
+
+                var entity = await _invoiceRepo.GetByIdAsync(id);
+                if (entity == null)
+                    return NotFound(new { success = false, message = "销项发票不存在" });
+
+                var confirm = body.ConfirmBillCode.Trim();
+                var matched = string.Equals(confirm, entity.InvoiceCode?.Trim(), StringComparison.Ordinal)
+                              || string.Equals(confirm, entity.Id?.Trim(), StringComparison.Ordinal);
+                if (!matched)
+                    return BadRequest(new { success = false, message = "确认单号不匹配，已拒绝删除" });
+
+                var items = (await _invoiceItemRepo.FindAsync(x => x.FinanceSellInvoiceId == entity.Id)).ToList();
+                foreach (var item in items)
+                    await _invoiceItemRepo.DeleteAsync(item.Id);
+                await _invoiceRepo.DeleteAsync(id);
+                await _unitOfWork.SaveChangesAsync();
+
+                return Ok(new { success = true, message = "强制删除成功" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "强制删除销项发票失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
     }
 
     public class UpdateInvoiceStatusRequest
     {
         public short InvoiceStatus { get; set; }
+    }
+
+    public class ForceDeleteFinanceSellInvoiceRequest
+    {
+        public string ConfirmBillCode { get; set; } = string.Empty;
     }
 }

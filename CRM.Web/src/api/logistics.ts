@@ -88,6 +88,14 @@ export const logisticsApi = {
   async updateArrivalStatus(id: string, status: number): Promise<void> {
     await apiClient.patch(`/api/v1/logistics/arrival-notices/${id}/status?status=${status}`)
   },
+  async deleteArrivalNotice(id: string): Promise<void> {
+    await apiClient.delete(`/api/v1/logistics/arrival-notices/${encodeURIComponent(id)}`)
+  },
+  async forceDeleteArrivalNotice(id: string, confirmBillCode: string): Promise<void> {
+    await apiClient.post(`/api/v1/logistics/arrival-notices/${encodeURIComponent(id)}/force-delete`, {
+      confirmBillCode: confirmBillCode.trim()
+    })
+  },
   async getQcs(params?: {
     model?: string
     vendorName?: string

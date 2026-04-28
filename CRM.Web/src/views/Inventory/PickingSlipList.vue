@@ -1,5 +1,5 @@
 <template>
-  <div class="picking-slip-page stockout-notify-page">
+  <div class="picking-slip-page">
     <div class="page-header">
       <div class="header-left">
         <div class="page-title-group">
@@ -10,7 +10,7 @@
           </div>
           <h1 class="page-title">{{ t('pickingSlip.title') }}</h1>
         </div>
-        <div class="picking-count-badge">{{ t('pickingSlip.count', { count: filteredList.length }) }}</div>
+        <div class="count-badge">{{ t('pickingSlip.count', { count: filteredList.length }) }}</div>
       </div>
     </div>
 
@@ -37,13 +37,21 @@
       ref="dataTableRef"
       column-layout-key="picking-slip-list-main"
       :columns="columns"
-      :show-column-settings="true"
+      :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="pagedFilteredList"
       :row-key="rowKey"
       v-loading="loading"
       @row-dblclick="onRowDblClick"
     >
+      <template #col-actions-header>
+        <div class="op-col-header">
+          <span class="op-col-header-text">操作</span>
+          <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+            {{ opColExpanded ? '>' : '<' }}
+          </button>
+        </div>
+      </template>
       <template #col-status="{ row }">
         <span class="status-badge">{{ statusLabel(row) }}</span>
       </template>
@@ -82,9 +90,29 @@
       </template>
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
-          <button type="button" class="action-btn action-btn--primary" @click.stop="goDetail(row)">详情</button>
-          <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
-          <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">强制删除</button>
+          <div v-if="opColExpanded" class="action-btns">
+            <button type="button" class="action-btn action-btn--primary" @click.stop="goDetail(row)">详情</button>
+            <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
+            <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">强制删除</button>
+          </div>
+          <el-dropdown v-else trigger="click" placement="bottom-end">
+            <div class="op-more-dropdown-trigger">
+              <button type="button" class="op-more-trigger">...</button>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click.stop="goDetail(row)">
+                  <span class="op-more-item op-more-item--primary">详情</span>
+                </el-dropdown-item>
+                <el-dropdown-item divided @click.stop="handleDeleteRow(row)">
+                  <span class="op-more-item op-more-item--danger">删除</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
+                  <span class="op-more-item op-more-item--danger">强制删除</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </template>
     </CrmDataTable>
@@ -143,6 +171,16 @@ const listPage = ref(1)
 const listPageSize = ref(20)
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
+const opColExpanded = ref(false)
+const OP_COL_COLLAPSED_WIDTH = 96
+const OP_COL_EXPANDED_WIDTH = 260
+const OP_COL_EXPANDED_MIN_WIDTH = 240
+const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
+
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
 
 function rowKey(row: PickingTaskListRow) {
   const r = row as unknown as Record<string, unknown>
@@ -184,7 +222,18 @@ const columns = computed<CrmTableColumnDef[]>(() => {
     { key: 'taskCode', label: t('pickingSlip.columns.taskCode'), width: 150, minWidth: 130, showOverflowTooltip: true },
     { key: 'createTime', label: t('pickingSlip.columns.createTime'), width: 170 },
     { key: 'createUserDisplay', label: t('pickingSlip.columns.createUser'), width: 120, showOverflowTooltip: true },
-    { key: 'actions', label: '操作', width: 250, fixed: 'right', hideable: false, reorderable: false }
+    {
+      key: 'actions',
+      label: '操作',
+      width: opColWidth.value,
+      minWidth: opColMinWidth.value,
+      fixed: 'right',
+      hideable: false,
+      pinned: 'end',
+      reorderable: false,
+      className: 'op-col',
+      labelClassName: 'op-col'
+    }
   ]
 })
 
@@ -320,7 +369,6 @@ onMounted(() => void fetchList())
   padding: 24px;
   min-height: 100%;
   background: $layer-1;
-  font-family: 'Noto Sans SC', sans-serif;
 }
 
 .page-header {
@@ -362,7 +410,7 @@ onMounted(() => void fetchList())
   letter-spacing: 0.5px;
 }
 
-.picking-count-badge {
+.count-badge {
   font-size: 12px;
   color: $text-muted;
   background: rgba(255, 255, 255, 0.05);
@@ -495,17 +543,26 @@ onMounted(() => void fetchList())
   margin-left: auto;
 }
 .list-footer-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
 }
+
+.list-settings-btn {
+  padding: 4px 6px !important;
+  min-width: 28px;
+}
+
 .list-footer-density-anchor {
-  display: inline-block;
-  width: 1px;
-  height: 1px;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
+
 .list-footer-spacer {
-  flex: 1;
+  width: 26px;
+  flex: 0 0 26px;
 }
 .status-badge {
   font-size: 12px;
@@ -513,5 +570,50 @@ onMounted(() => void fetchList())
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.06);
   color: $text-primary;
+}
+
+.op-col-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.op-col-header-text {
+  font-size: 12px;
+}
+
+.op-col-toggle-btn {
+  border: none;
+  background: transparent;
+  color: $cyan-primary;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.op-more-dropdown-trigger {
+  display: inline-flex;
+}
+
+.op-more-trigger {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: $cyan-primary;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 6px;
+}
+
+.op-more-item {
+  font-size: 13px;
+}
+
+.op-more-item--primary {
+  color: $cyan-primary;
+}
+
+.op-more-item--danger {
+  color: #f56c6c;
 }
 </style>

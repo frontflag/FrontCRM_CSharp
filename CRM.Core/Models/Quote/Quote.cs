@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Quote
 {
@@ -9,7 +10,7 @@ namespace CRM.Core.Models.Quote
     /// 说明: 一个报价单对应一个 RFQ 明细行（rfqitem），包含多个供应商报价行（quoteitem）
     /// </summary>
     [Table("quote")]
-    public class Quote : BaseGuidEntity
+    public class Quote : BaseGuidEntity, ISoftDeletable
     {
         [Key]
         [StringLength(36)]
@@ -85,6 +86,9 @@ namespace CRM.Core.Models.Quote
         [Column("modify_by_user_id")]
         public string? ModifyByUserId { get; set; }
 
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
+
         // 导航属性
         public virtual ICollection<QuoteItem> Items { get; set; } = new List<QuoteItem>();
     }
@@ -95,7 +99,7 @@ namespace CRM.Core.Models.Quote
     /// 说明: 每行对应一个供应商的报价，包含价格、库存、交期等信息
     /// </summary>
     [Table("quoteitem")]
-    public class QuoteItem : BaseGuidEntity
+    public class QuoteItem : BaseGuidEntity, ISoftDeletable
     {
         [Key]
         [StringLength(36)]
@@ -238,6 +242,9 @@ namespace CRM.Core.Models.Quote
         /// <summary>状态 (0:有效 1:已取消)</summary>
         [Column("status")]
         public short Status { get; set; } = 0;
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
 
         // 导航属性
         public virtual Quote? Quote { get; set; }

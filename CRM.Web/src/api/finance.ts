@@ -287,6 +287,8 @@ export const financePaymentApi = {
     apiClient.put<FinancePayment>(`${PAYMENT_BASE}/${id}`, data),
   delete: (id: string) =>
     apiClient.delete(`${PAYMENT_BASE}/${id}`),
+  forceDelete: (id: string, confirmBillCode: string) =>
+    apiClient.post(`${PAYMENT_BASE}/${id}/force-delete`, { confirmBillCode: confirmBillCode.trim() }),
   updateStatus: (id: string, status: number) =>
     apiClient.patch(`${PAYMENT_BASE}/${id}/status`, { status }),
   submit: (id: string) =>
@@ -315,6 +317,8 @@ export const financeReceiptApi = {
     apiClient.put<FinanceReceipt>(`${RECEIPT_BASE}/${id}`, data),
   delete: (id: string) =>
     apiClient.delete(`${RECEIPT_BASE}/${id}`),
+  forceDelete: (id: string, confirmBillCode: string) =>
+    apiClient.post(`${RECEIPT_BASE}/${id}/force-delete`, { confirmBillCode: confirmBillCode.trim() }),
   updateStatus: (id: string, status: number) =>
     apiClient.patch(`${RECEIPT_BASE}/${id}/status`, { status }),
   submit: (id: string) =>
@@ -341,6 +345,8 @@ export const financePurchaseInvoiceApi = {
     apiClient.put<FinancePurchaseInvoice>(`${PURCHASE_INVOICE_BASE}/${id}`, data),
   delete: (id: string) =>
     apiClient.delete(`${PURCHASE_INVOICE_BASE}/${id}`),
+  forceDelete: (id: string, confirmBillCode: string) =>
+    apiClient.post(`${PURCHASE_INVOICE_BASE}/${id}/force-delete`, { confirmBillCode: confirmBillCode.trim() }),
   confirm: (id: string, confirmDate?: string) =>
     apiClient.post(`${PURCHASE_INVOICE_BASE}/${id}/confirm`, { confirmDate }),
   unconfirm: (id: string) =>
@@ -363,6 +369,8 @@ export const financeSellInvoiceApi = {
     apiClient.put<FinanceSellInvoice>(`${SELL_INVOICE_BASE}/${id}`, data),
   delete: (id: string) =>
     apiClient.delete(`${SELL_INVOICE_BASE}/${id}`),
+  forceDelete: (id: string, confirmBillCode: string) =>
+    apiClient.post(`${SELL_INVOICE_BASE}/${id}/force-delete`, { confirmBillCode: confirmBillCode.trim() }),
   updateInvoiceStatus: (id: string, invoiceStatus: number) =>
     apiClient.patch(`${SELL_INVOICE_BASE}/${id}/invoice-status`, { invoiceStatus }),
   submitApplication: (id: string) =>
