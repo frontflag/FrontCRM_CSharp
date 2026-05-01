@@ -52,6 +52,10 @@ onMounted(async () => {
         <span class="meta-label">版本号</span>
         <span class="meta-value mono version-strong">{{ FRONTEND_DEBUG_VERSION }}</span>
       </div>
+      <div class="panel-body debug-links">
+        <router-link class="debug-link" to="/debug/data">Debug 模拟数据</router-link>
+        <router-link class="debug-link" to="/debug/tools">Debug 工具</router-link>
+      </div>
     </section>
 
     <div v-if="loading" class="debug-loading">Loading...</div>
@@ -153,6 +157,20 @@ onMounted(async () => {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
+}
+
+.debug-links {
+  margin-top: 10px;
+}
+
+.debug-link {
+  color: var(--el-color-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.debug-link:hover {
+  text-decoration: underline;
 }
 
 .connection-block {

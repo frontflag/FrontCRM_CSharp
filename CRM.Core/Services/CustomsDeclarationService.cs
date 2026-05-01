@@ -21,6 +21,7 @@ public class CustomsDeclarationService : ICustomsDeclarationService
     private readonly ISerialNumberService _serialNumberService;
     private readonly ISellOrderItemPurchasedStockAvailableSyncService _purchasedStockAvailableSync;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogOperationAppendService _logOperationAppend;
     private readonly ILogger<CustomsDeclarationService> _logger;
 
     public CustomsDeclarationService(
@@ -35,6 +36,7 @@ public class CustomsDeclarationService : ICustomsDeclarationService
         ISerialNumberService serialNumberService,
         ISellOrderItemPurchasedStockAvailableSyncService purchasedStockAvailableSync,
         IUnitOfWork unitOfWork,
+        ILogOperationAppendService logOperationAppend,
         ILogger<CustomsDeclarationService> logger)
     {
         _declarationRepo = declarationRepo;
@@ -48,6 +50,7 @@ public class CustomsDeclarationService : ICustomsDeclarationService
         _serialNumberService = serialNumberService;
         _purchasedStockAvailableSync = purchasedStockAvailableSync;
         _unitOfWork = unitOfWork;
+        _logOperationAppend = logOperationAppend;
         _logger = logger;
     }
 
@@ -245,5 +248,79 @@ public class CustomsDeclarationService : ICustomsDeclarationService
         _logger.LogInformation(
             "CustomsDeclaration complete+transfer DeclarationId={D} TransferCode={Code} Lines={N} TransferId={T}",
             dec.Id, transferCode, lineResults.Count, transferId);
+    }
+
+    /// <inheritdoc />
+    public async Task DeleteDeclarationAsync(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            throw new ArgumentException("报关单 ID 不能为空", nameof(id));
+
+        var row = await _declarationRepo.GetByIdAsync(id.Trim())
+                  ?? throw new InvalidOperationException("报关单不存在");
+        if (row.InternalStatus == CustomsDeclarationInternalStatus.Completed)
+            throw new InvalidOperationException("已完成报关单不能普通删除");
+
+        await SoftDeleteLinkedStockTransfersAsync(row.Id);
+
+        var items = (await _declarationItemRepo.FindAsync(x => x.DeclarationId == row.Id)).ToList();
+        foreach (var item in items)
+            await _declarationItemRepo.DeleteAsync(item.Id);
+        await _declarationRepo.DeleteAsync(row.Id);
+        await _unitOfWork.SaveChangesAsync();
+    }
+
+    /// <inheritdoc />
+    public async Task ForceDeleteDeclarationAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName)
+    {
+        if (string.IsNullOrWhiteSpace(confirmBillCode))
+            throw new ArgumentException("请填写 confirmBillCode", nameof(confirmBillCode));
+        if (string.IsNullOrWhiteSpace(actingUserId))
+            throw new ArgumentException("操作人不能为空", nameof(actingUserId));
+
+        var row = await _declarationRepo.GetByIdAsync(id.Trim())
+                  ?? throw new InvalidOperationException("报关单不存在");
+        if (!string.Equals(confirmBillCode.Trim(), row.DeclarationCode.Trim(), StringComparison.Ordinal))
+            throw new ArgumentException("确认单号不匹配，已拒绝删除");
+
+        await SoftDeleteLinkedStockTransfersAsync(row.Id);
+
+        var items = (await _declarationItemRepo.FindAsync(x => x.DeclarationId == row.Id)).ToList();
+        foreach (var item in items)
+            await _declarationItemRepo.DeleteAsync(item.Id);
+        await _declarationRepo.DeleteAsync(row.Id);
+        await _unitOfWork.SaveChangesAsync();
+
+        var recordCode = string.IsNullOrWhiteSpace(row.DeclarationCode) ? null : row.DeclarationCode.Trim();
+        await _logOperationAppend.AppendAsync(
+            BusinessLogTypes.CustomsDeclaration,
+            row.Id,
+            recordCode,
+            "报关单强制删除",
+            actingUserId.Trim(),
+            string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
+            $"强制删除报关单 DeclarationId={row.Id}，确认单号={recordCode}，明细行数={items.Count}",
+            reason: null);
+    }
+
+    private async Task SoftDeleteLinkedStockTransfersAsync(string customsDeclarationId)
+    {
+        var key = customsDeclarationId.Trim();
+        var transfers = (await _transferRepo.FindAsync(t => t.CustomsDeclarationId == key && !t.IsDeleted)).ToList();
+        foreach (var transfer in transfers)
+        {
+            var lines = (await _transferItemRepo.FindAsync(x => x.StockTransferId == transfer.Id)).ToList();
+            foreach (var line in lines)
+            {
+                if (!line.IsDeleted)
+                {
+                    line.IsDeleted = true;
+                    await _transferItemRepo.UpdateAsync(line);
+                }
+            }
+
+            transfer.IsDeleted = true;
+            await _transferRepo.UpdateAsync(transfer);
+        }
     }
 }

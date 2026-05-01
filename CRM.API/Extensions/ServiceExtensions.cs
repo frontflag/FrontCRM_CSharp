@@ -127,6 +127,7 @@ namespace CRM.API.Extensions
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceSellInvoice>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceSellInvoice>>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.SellInvoiceItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.SellInvoiceItem>>();
             services.AddScoped<IFinanceExchangeRateService, FinanceExchangeRateService>();
+            services.AddScoped<IForceDeleteGuardService, ForceDeleteGuardService>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceExchangeRateSetting>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceExchangeRateSetting>>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceExchangeRateChangeLog>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceExchangeRateChangeLog>>();
 
@@ -174,7 +175,11 @@ namespace CRM.API.Extensions
                 {
                     Title = "FrontCRM API",
                     Version = "v1",
-                    Description = "FrontCRM 智能进销存管理系统 API",
+                    Description =
+                        "FrontCRM 智能进销存管理系统 API。\n\n" +
+                        "**强制删除**：所有 `POST …/force-delete` 须在 JSON 体中提交 **confirmBillCode**，且与对应业务单号完全一致（进项=InvoiceNo，销项=InvoiceCode，其余见仓库文档 `document/实现方案/强制删除_API契约与错误码.md`）。\n" +
+                        "成功响应多为 **ApiResponse**（success/message/data/errorCode）或财务/采购申请的 **{ success, message }**；错误时优先展示响应体 **message**（与前端 `getApiErrorMessage` 一致）。\n" +
+                        "多数强制删除仅 **系统管理员** 可调用。",
                     Contact = new OpenApiContact
                     {
                         Name = "FrontCRM Team"

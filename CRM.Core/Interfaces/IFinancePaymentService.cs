@@ -12,6 +12,8 @@ namespace CRM.Core.Interfaces
         Task<IEnumerable<FinancePayment>> GetAllAsync();
         Task<FinancePayment> UpdateAsync(string id, UpdateFinancePaymentRequest request, string? actingUserId = null);
         Task DeleteAsync(string id);
+        /// <summary>管理员强制删除：确认单号、守卫、删除（含采购扩展回算）并写操作日志。</summary>
+        Task ForceDeleteAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
         /// <param name="remark">审核驳回原因等补充说明（可选）</param>
         Task UpdateStatusAsync(string id, short status, string? remark = null, string? actingUserId = null);
         Task VerifyPaymentItemAsync(string paymentItemId, decimal amount);

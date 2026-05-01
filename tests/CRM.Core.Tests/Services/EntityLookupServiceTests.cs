@@ -76,4 +76,14 @@ public sealed class EntityLookupServiceTests
 
         Assert.Equal("login", await svc.GetUserDisplayNameAsync("u1"));
     }
+
+    [Fact]
+    public async Task GetUserLoginNameAsync_returns_user_name_even_when_real_name_present()
+    {
+        var users = Substitute.For<IUserService>();
+        users.GetByIdAsync("u1").Returns(new User { Id = "u1", UserName = "acct1", RealName = "张三" });
+        var svc = CreateSut(users: users);
+
+        Assert.Equal("acct1", await svc.GetUserLoginNameAsync("u1"));
+    }
 }

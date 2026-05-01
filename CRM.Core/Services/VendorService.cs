@@ -467,8 +467,8 @@ namespace CRM.Core.Services
 
         public async Task<PagedResult<VendorInfo>> GetDeletedAsync(int pageIndex, int pageSize, string? keyword)
         {
-            var allEntities = await _repository.GetAllAsync();
-            var query = allEntities.Where(e => e.IsDeleted).AsQueryable();
+            var allEntities = (await _repository.FindIgnoreFiltersAsync(e => e.IsDeleted)).ToList();
+            var query = allEntities.AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(keyword))
             {
@@ -501,7 +501,10 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("ID不能为空", nameof(id));
 
-            var entity = await GetByIdAsync(id);
+            var trimmed = id.Trim();
+            var entity =
+                (await _repository.FindIgnoreFiltersAsync(e => e.Id == trimmed)).FirstOrDefault()
+                ?? (await _repository.FindIgnoreFiltersAsync(e => e.Code == trimmed)).FirstOrDefault();
             if (entity == null)
                 throw new KeyNotFoundException($"找不到ID为 '{id}' 的记录");
 
@@ -1177,7 +1180,7 @@ ORDER BY c.""ChangedAt"" DESC";
         public async Task AddOperationLogAsync(string vendorId, string operationType, string? desc, string? userId, string? userName, string? remark = null)
         {
             var canonicalId = (await ResolveVendorByIdOrCodeAsync(vendorId))?.Id ?? vendorId.Trim();
-            var venList = await _repository.FindAsync(e => e.Id == canonicalId);
+            var venList = await _repository.FindIgnoreFiltersAsync(e => e.Id == canonicalId);
             var ven = venList.FirstOrDefault();
             var recordCodeSql = ven?.Code != null ? $"'{SqlQ(ven.Code)}'" : "NULL";
             var safeRecordId = SqlQ(canonicalId);

@@ -545,9 +545,13 @@ const handleForceDeleteRow = async (row: FinanceSellInvoice) => {
     ElMessage.error('输入单号不匹配，已取消')
     return
   }
-  await financeSellInvoiceApi.forceDelete(row.id, entered)
-  ElMessage.success('强制删除成功')
-  await loadData()
+  try {
+    await financeSellInvoiceApi.forceDelete(row.id, entered)
+    ElMessage.success('强制删除成功')
+    await loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '强制删除失败')
+  }
 }
 
 const formatAmount = (v: number) => v?.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'

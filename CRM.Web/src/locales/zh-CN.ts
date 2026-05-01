@@ -3059,6 +3059,8 @@ const zhCN = {
       /** 按仓库档案筛选总览（展示为仓库编码） */
       inventoryCode: '库存编号',
       allInventoryCodes: '全部仓库',
+      materialModelPlaceholder: '物料型号',
+      stockCodePlaceholder: '库存编号',
       /** 物料列表等按 stock 地域筛选 */
       allRegions: '全部地域',
       search: '搜索',
@@ -3068,7 +3070,7 @@ const zhCN = {
       capitalOccupied: '在库资金占用',
       monthlyOutCost: '本月出库成本',
       turnoverDays: '周转天数',
-      stagnantCount: '呆滞料数'
+      stagnantCount: '呆滞料数（90天）'
     },
     stockTypes: {
       customer: '客单库存',

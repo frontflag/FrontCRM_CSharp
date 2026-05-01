@@ -136,12 +136,7 @@
           </template>
         </template>
         <template #col-createUser="{ row }">
-          {{
-            row.createUserName ||
-              row.createdBy ||
-              (!maskSaleSensitiveFields ? row.salesUserName : '') ||
-              '—'
-          }}
+          {{ row.createUserName || row.CreateUserName || row.createdBy || '—' }}
         </template>
         <template #col-actions-header>
           <div class="op-col-header">

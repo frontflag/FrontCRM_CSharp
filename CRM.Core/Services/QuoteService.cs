@@ -62,7 +62,7 @@ namespace CRM.Core.Services
             }
         }
 
-        /// <summary>为列表/详情 JSON 填充采购员、业务员展示名（与需求明细列表一致）。</summary>
+        /// <summary>为列表/详情 JSON 填充采购员、业务员登录账号（业务列表与客户习惯一致）。</summary>
         private async Task HydrateQuoteUserDisplayAsync(IReadOnlyCollection<Quote> quotes)
         {
             if (quotes.Count == 0) return;
@@ -72,10 +72,10 @@ namespace CRM.Core.Services
             {
                 if (!string.IsNullOrWhiteSpace(q.PurchaseUserId) &&
                     users.TryGetValue(q.PurchaseUserId.Trim(), out var pu))
-                    q.PurchaseUserName = EntityLookupService.FormatUserDisplayName(pu);
+                    q.PurchaseUserName = EntityLookupService.FormatUserLoginName(pu);
                 if (!string.IsNullOrWhiteSpace(q.SalesUserId) &&
                     users.TryGetValue(q.SalesUserId.Trim(), out var su))
-                    q.SalesUserName = EntityLookupService.FormatUserDisplayName(su);
+                    q.SalesUserName = EntityLookupService.FormatUserLoginName(su);
             }
         }
 

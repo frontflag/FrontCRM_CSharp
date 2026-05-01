@@ -2,7 +2,6 @@ using System.Linq;
 using System.Security.Claims;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
-using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Utilities;
@@ -17,32 +16,32 @@ namespace CRM.API.Controllers
         private readonly IInventoryCenterService _service;
         private readonly IRepository<StockInfo> _stockRepo;
         private readonly IRepository<StockItem> _stockItemRepo;
+        private readonly IRepository<StockOutItem> _stockOutItemRepo;
         private readonly IRepository<PickingTask> _pickingTaskRepo;
         private readonly IRepository<PickingTaskItem> _pickingTaskItemRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IRbacService _rbacService;
-        private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<InventoryCenterController> _logger;
 
         public InventoryCenterController(
             IInventoryCenterService service,
             IRepository<StockInfo> stockRepo,
             IRepository<StockItem> stockItemRepo,
+            IRepository<StockOutItem> stockOutItemRepo,
             IRepository<PickingTask> pickingTaskRepo,
             IRepository<PickingTaskItem> pickingTaskItemRepo,
             IUnitOfWork unitOfWork,
             IRbacService rbacService,
-            ILogOperationAppendService logOperationAppend,
             ILogger<InventoryCenterController> logger)
         {
             _service = service;
             _stockRepo = stockRepo;
             _stockItemRepo = stockItemRepo;
+            _stockOutItemRepo = stockOutItemRepo;
             _pickingTaskRepo = pickingTaskRepo;
             _pickingTaskItemRepo = pickingTaskItemRepo;
             _unitOfWork = unitOfWork;
             _rbacService = rbacService;
-            _logOperationAppend = logOperationAppend;
             _logger = logger;
         }
 
@@ -52,11 +51,14 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("overview")]
-        public async Task<ActionResult<ApiResponse<IEnumerable<InventoryMaterialOverviewDto>>>> GetOverview([FromQuery] string? warehouseId)
+        public async Task<ActionResult<ApiResponse<IEnumerable<InventoryMaterialOverviewDto>>>> GetOverview(
+            [FromQuery] string? warehouseId,
+            [FromQuery] string? materialModel,
+            [FromQuery] string? stockCode)
         {
             try
             {
-                var list = await _service.GetMaterialOverviewAsync(warehouseId);
+                var list = await _service.GetMaterialOverviewAsync(warehouseId, materialModel, stockCode);
                 if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
                 {
                     var masked = list.ToList();
@@ -418,8 +420,39 @@ namespace CRM.API.Controllers
             }
         }
 
-        [HttpPost("stocks/{id}/force-delete")]
-        public async Task<ActionResult<ApiResponse<object>>> ForceDeleteStock(string id, [FromBody] ForceDeleteInventoryRequest? body)
+        [HttpDelete("stock-items/{id}")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteStockItem(string id)
+        {
+            try
+            {
+                var item = await _stockItemRepo.GetByIdAsync(id);
+                if (item == null)
+                    return NotFound(ApiResponse<object>.Fail("库存明细不存在", 404));
+
+                if (item.QtyRepertory > 0 || item.QtyRepertoryAvailable > 0)
+                    return BadRequest(ApiResponse<object>.Fail("当前库存明细数量大于 0，不能普通删除", 400));
+
+                var aggregateId = item.StockAggregateId?.Trim();
+                var hasDownstreamStockOut = (await _stockOutItemRepo.FindAsync(x => x.StockItemId == item.Id)).Any();
+                if (hasDownstreamStockOut)
+                    return BadRequest(ApiResponse<object>.Fail("存在下游出库明细引用，不能普通删除库存明细", 400));
+                var hasDownstreamPicking = (await _pickingTaskItemRepo.FindAsync(x => x.StockItemId == item.Id)).Any();
+                if (hasDownstreamPicking)
+                    return BadRequest(ApiResponse<object>.Fail("存在下游拣货明细引用，不能普通删除库存明细", 400));
+                await _stockItemRepo.DeleteAsync(item.Id);
+                await _service.RecalculateStockAggregateTotalsAsync(aggregateId);
+                await _unitOfWork.SaveChangesAsync();
+                return Ok(ApiResponse<object>.Ok(null, "删除库存明细成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "删除库存明细失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"删除库存明细失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpPost("stock-items/{id}/force-delete")]
+        public async Task<ActionResult<ApiResponse<object>>> ForceDeleteStockItem(string id, [FromBody] ForceDeleteInventoryRequest? body)
         {
             try
             {
@@ -434,39 +467,27 @@ namespace CRM.API.Controllers
                 if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
                     return BadRequest(ApiResponse<object>.Fail("请填写 confirmBillCode", 400));
 
-                var stock = await _stockRepo.GetByIdAsync(id);
-                if (stock == null)
-                    return NotFound(ApiResponse<object>.Fail("库存不存在", 404));
-
-                var targetCode = !string.IsNullOrWhiteSpace(stock.StockCode) ? stock.StockCode.Trim() : stock.Id.Trim();
-                if (!string.Equals(body.ConfirmBillCode.Trim(), targetCode, StringComparison.Ordinal))
-                    return BadRequest(ApiResponse<object>.Fail("确认编号不匹配，已拒绝删除", 400));
-
-                var stockItems = (await _stockItemRepo.FindAsync(x => x.StockAggregateId == stock.Id)).ToList();
-                foreach (var item in stockItems)
-                    await _stockItemRepo.DeleteAsync(item.Id);
-                await _stockRepo.DeleteAsync(stock.Id);
-                await _unitOfWork.ExecuteNonQueryAsync(
-                    $@"UPDATE public.stock_extend SET is_deleted = true, ""ModifyTime"" = NOW() WHERE ""StockId"" = '{SqlEscape(stock.Id)}'");
-                await _unitOfWork.SaveChangesAsync();
-
                 var userName = User.FindFirst(ClaimTypes.Name)?.Value;
-                await _logOperationAppend.AppendAsync(
-                    BusinessLogTypes.InventoryStock,
-                    stock.Id,
-                    string.IsNullOrWhiteSpace(stock.StockCode) ? null : stock.StockCode.Trim(),
-                    "库存强制删除",
+                await _service.ForceDeleteStockItemAsync(
+                    id,
+                    body.ConfirmBillCode.Trim(),
                     userId.Trim(),
-                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim(),
-                    $"强制删除库存：库存内部主键={stock.Id}，确认编号={targetCode}，在库明细行数={stockItems.Count}",
-                    reason: null);
+                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim());
 
-                return Ok(ApiResponse<object>.Ok(null, "强制删除库存成功"));
+                return Ok(ApiResponse<object>.Ok(null, "强制删除库存明细成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "强制删除库存失败");
-                return StatusCode(500, ApiResponse<object>.Fail($"强制删除库存失败: {ex.Message}", 500));
+                _logger.LogError(ex, "强制删除库存明细失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"强制删除库存明细失败: {ex.Message}", 500));
             }
         }
 
@@ -481,6 +502,9 @@ namespace CRM.API.Controllers
 
                 if (task.Status != 1)
                     return BadRequest(ApiResponse<object>.Fail("仅待拣货状态可普通删除", 400));
+
+                if (await _service.HasStockOutLinkedToPickingTaskAsync(task.Id))
+                    return BadRequest(ApiResponse<object>.Fail("存在下游出库单关联本拣货任务，不能删除", 400));
 
                 var items = (await _pickingTaskItemRepo.FindAsync(x => x.PickingTaskId == task.Id)).ToList();
                 foreach (var item in items)
@@ -512,31 +536,22 @@ namespace CRM.API.Controllers
                 if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
                     return BadRequest(ApiResponse<object>.Fail("请填写 confirmBillCode", 400));
 
-                var task = await _pickingTaskRepo.GetByIdAsync(id);
-                if (task == null)
-                    return NotFound(ApiResponse<object>.Fail("拣货单不存在", 404));
-
-                if (!string.Equals(body.ConfirmBillCode.Trim(), task.TaskCode.Trim(), StringComparison.Ordinal))
-                    return BadRequest(ApiResponse<object>.Fail("确认单号不匹配，已拒绝删除", 400));
-
-                var items = (await _pickingTaskItemRepo.FindAsync(x => x.PickingTaskId == task.Id)).ToList();
-                foreach (var item in items)
-                    await _pickingTaskItemRepo.DeleteAsync(item.Id);
-                await _pickingTaskRepo.DeleteAsync(task.Id);
-                await _unitOfWork.SaveChangesAsync();
-
                 var userName = User.FindFirst(ClaimTypes.Name)?.Value;
-                await _logOperationAppend.AppendAsync(
-                    BusinessLogTypes.PickingTask,
-                    task.Id,
-                    string.IsNullOrWhiteSpace(task.TaskCode) ? null : task.TaskCode.Trim(),
-                    "拣货单强制删除",
+                await _service.ForceDeletePickingSlipAsync(
+                    id,
+                    body.ConfirmBillCode.Trim(),
                     userId.Trim(),
-                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim(),
-                    $"强制删除拣货单：拣货单内部主键={task.Id}（接口/库表主键），拣货单号={task.TaskCode}，明细行数={items.Count}",
-                    reason: null);
+                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim());
 
                 return Ok(ApiResponse<object>.Ok(null, "强制删除拣货单成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
             }
             catch (Exception ex)
             {

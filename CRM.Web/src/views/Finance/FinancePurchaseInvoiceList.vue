@@ -559,9 +559,13 @@ const handleForceDeleteRow = async (row: FinancePurchaseInvoice) => {
   const code = row.financePurchaseInvoiceCode || row.invoiceNo || row.id
   const entered = window.prompt('请输入发票单号或ID以确认强制删除', String(code || ''))?.trim() ?? ''
   if (!entered) return
-  await financePurchaseInvoiceApi.forceDelete(row.id, entered)
-  ElMessage.success('强制删除成功')
-  await loadData()
+  try {
+    await financePurchaseInvoiceApi.forceDelete(row.id, entered)
+    ElMessage.success('强制删除成功')
+    await loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '强制删除失败')
+  }
 }
 
 const formatAmount = (v: number | unknown) => {

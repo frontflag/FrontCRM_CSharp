@@ -166,7 +166,7 @@ public sealed class RFQModuleBusinessWorkflowTests
         itemList.TotalCount.Should().Be(1);
         itemList.Items.First().Mpn.Should().Contain("F103");
         itemList.Items.First().CustomerName.Should().Be("模拟客户公司");
-        itemList.Items.First().SalesUserName.Should().Be("李业务");
+        itemList.Items.First().SalesUserName.Should().Be("saler1");
 
         await h.Service.UpdateAsync(created.Id, new UpdateRFQRequest
         {

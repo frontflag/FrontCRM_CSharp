@@ -17,26 +17,17 @@ namespace CRM.API.Controllers
         private readonly IFinanceReceiptService _service;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
-        private readonly IRepository<FinanceReceipt> _receiptRepo;
-        private readonly IRepository<FinanceReceiptItem> _receiptItemRepo;
-        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<FinanceReceiptsController> _logger;
 
         public FinanceReceiptsController(
             IFinanceReceiptService service,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
-            IRepository<FinanceReceipt> receiptRepo,
-            IRepository<FinanceReceiptItem> receiptItemRepo,
-            IUnitOfWork unitOfWork,
             ILogger<FinanceReceiptsController> logger)
         {
             _service = service;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
-            _receiptRepo = receiptRepo;
-            _receiptItemRepo = receiptItemRepo;
-            _unitOfWork = unitOfWork;
             _logger = logger;
         }
 
@@ -298,21 +289,22 @@ namespace CRM.API.Controllers
                 if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
                     return BadRequest(new { success = false, message = "请填写 confirmBillCode" });
 
-                var entity = await _receiptRepo.GetByIdAsync(id);
-                if (entity == null)
-                    return NotFound(new { success = false, message = "收款单不存在" });
-
-                if (!string.Equals(body.ConfirmBillCode.Trim(), entity.FinanceReceiptCode?.Trim(), StringComparison.Ordinal))
-                    return BadRequest(new { success = false, message = "确认单号不匹配，已拒绝删除" });
-
-                var items = (await _receiptItemRepo.FindAsync(x => x.FinanceReceiptId == entity.Id)).ToList();
-                foreach (var item in items)
-                    await _receiptItemRepo.DeleteAsync(item.Id);
-
-                await _receiptRepo.DeleteAsync(entity.Id);
-                await _unitOfWork.SaveChangesAsync();
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                await _service.ForceDeleteAsync(
+                    id,
+                    body.ConfirmBillCode.Trim(),
+                    userId.Trim(),
+                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim());
 
                 return Ok(new { success = true, message = "强制删除成功" });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {

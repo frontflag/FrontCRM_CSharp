@@ -46,6 +46,8 @@ namespace CRM.Core.Interfaces
         Task<IReadOnlyList<StockInListItemDto>> GetListAsync(StockInQueryRequest? request = null);
         Task<StockIn> UpdateAsync(string id, UpdateStockInRequest request, string? actingUserId = null);
         Task DeleteAsync(string id);
+        /// <summary>管理员强制删除：校验入库单号、调用删除链并写操作日志。</summary>
+        Task ForceDeleteAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
         Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
     }
 

@@ -82,6 +82,19 @@ export type RfqChainPreview = {
   nodes: RfqChainNode[]
 }
 
+export type RefreshStockLedgerResult = {
+  stockOutUpdated: number
+  stockOutReverseUpdated: number
+  currencyDefaulted: number
+}
+
+export type RefreshPurchaseOrderMainStatusResult = {
+  totalOrders: number
+  changedOrders: number
+  changedOrderCodes: string[]
+  skippedTerminalOrders: number
+}
+
 function normalizeRfqChainPreview(raw: unknown): RfqChainPreview {
   const r = raw as Record<string, unknown> | null | undefined
   const inner = (r?.data ?? r?.Data ?? r) as Record<string, unknown> | null | undefined
@@ -111,4 +124,28 @@ export async function getRfqChainPreview(rfqCode: string): Promise<RfqChainPrevi
 export async function deleteRfqChain(rfqCode: string): Promise<void> {
   const enc = encodeURIComponent(rfqCode.trim())
   await apiClient.delete(`/api/v1/debug/rfq-chain?rfqCode=${enc}`)
+}
+
+export async function refreshStockLedger(): Promise<RefreshStockLedgerResult> {
+  const raw = await apiClient.post<any>('/api/v1/debug/refresh-stockledger', {})
+  const outer = (raw?.data ?? raw?.Data ?? raw) as Record<string, any>
+  const inner = (outer?.data ?? outer?.Data ?? outer) as Record<string, any>
+  return {
+    stockOutUpdated: Number(inner?.stockOutUpdated ?? inner?.StockOutUpdated ?? 0),
+    stockOutReverseUpdated: Number(inner?.stockOutReverseUpdated ?? inner?.StockOutReverseUpdated ?? 0),
+    currencyDefaulted: Number(inner?.currencyDefaulted ?? inner?.CurrencyDefaulted ?? 0)
+  }
+}
+
+export async function refreshPurchaseOrderMainStatus(): Promise<RefreshPurchaseOrderMainStatusResult> {
+  const raw = await apiClient.post<any>('/api/v1/debug/refresh-purchase-order-main-status', {})
+  const outer = (raw?.data ?? raw?.Data ?? raw) as Record<string, any>
+  const inner = (outer?.data ?? outer?.Data ?? outer) as Record<string, any>
+  const codesRaw = inner?.changedOrderCodes ?? inner?.ChangedOrderCodes
+  return {
+    totalOrders: Number(inner?.totalOrders ?? inner?.TotalOrders ?? 0),
+    changedOrders: Number(inner?.changedOrders ?? inner?.ChangedOrders ?? 0),
+    changedOrderCodes: Array.isArray(codesRaw) ? codesRaw.map((x: unknown) => String(x)) : [],
+    skippedTerminalOrders: Number(inner?.skippedTerminalOrders ?? inner?.SkippedTerminalOrders ?? 0)
+  }
 }

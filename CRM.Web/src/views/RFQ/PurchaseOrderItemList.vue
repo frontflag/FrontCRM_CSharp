@@ -471,6 +471,7 @@
                   <el-select
                     :model-value="normalizeRegionType(arrivalForm.regionType)"
                     :teleported="false"
+                    disabled
                     style="width: 100%"
                     @update:model-value="(v: string | number) => { arrivalForm.regionType = normalizeRegionType(v) }"
                   >
@@ -614,6 +615,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
+import { CurrencyCode } from '@/constants/currency'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
 const router = useRouter()
@@ -1021,7 +1023,7 @@ async function openArrivalDialog(row: any) {
   arrivalForm.arrivalMethod = ''
   arrivalForm.expressMethod = ''
   arrivalForm.expressNo = ''
-  arrivalForm.regionType = REGION_TYPE_DOMESTIC
+  arrivalForm.regionType = inferArrivalRegionTypeByCurrency(row.currency)
   arrivalForm.inspectionRequirement = ''
   arrivalForm.remark = ''
   arrivalForm.signer = ''
@@ -1047,6 +1049,12 @@ function toDatePickerValue(v: unknown): string {
   if (m) return m[1]
   const d = formatDisplayDate(s)
   return d === '--' ? '' : d
+}
+
+function inferArrivalRegionTypeByCurrency(currency: unknown): number {
+  return Number(currency) === CurrencyCode.RMB
+    ? REGION_TYPE_DOMESTIC
+    : REGION_TYPE_OVERSEAS
 }
 
 async function submitArrivalNotice() {

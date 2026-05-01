@@ -12,6 +12,7 @@ namespace CRM.Core.Interfaces
         Task<IEnumerable<FinanceSellInvoice>> GetAllAsync();
         Task<FinanceSellInvoice> UpdateAsync(string id, UpdateFinanceSellInvoiceRequest request, string? actingUserId = null);
         Task DeleteAsync(string id);
+        Task ForceDeleteAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
         Task UpdateInvoiceStatusAsync(string id, short invoiceStatus, string? actingUserId = null);
         Task VoidAsync(string id, string? actingUserId = null);
         Task<PagedResult<FinanceSellInvoice>> GetPagedAsync(FinanceSellInvoiceQueryRequest request);

@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Finance;
@@ -19,6 +20,8 @@ namespace CRM.Core.Services
         private readonly IUnitOfWork? _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
+        private readonly IForceDeleteGuardService _forceDeleteGuard;
+        private readonly ILogOperationAppendService _logOperationAppend;
 
         public FinancePaymentService(
             IRepository<FinancePayment> paymentRepo,
@@ -30,6 +33,8 @@ namespace CRM.Core.Services
             IPurchaseOrderItemExtendSyncService poItemExtendSync,
             IRepository<VendorInfo> vendorRepo,
             IRepository<User> userRepository,
+            IForceDeleteGuardService forceDeleteGuard,
+            ILogOperationAppendService logOperationAppend,
             IUnitOfWork? unitOfWork = null)
         {
             _paymentRepo = paymentRepo;
@@ -41,11 +46,10 @@ namespace CRM.Core.Services
             _poItemExtendSync = poItemExtendSync;
             _vendorRepo = vendorRepo;
             _userRepository = userRepository;
+            _forceDeleteGuard = forceDeleteGuard;
+            _logOperationAppend = logOperationAppend;
             _unitOfWork = unitOfWork;
         }
-
-        private static string FormatUserDisplayName(User u) =>
-            string.IsNullOrWhiteSpace(u.RealName) ? u.UserName : u.RealName!;
 
         private async Task EnrichCreateUserNamesAsync(IReadOnlyList<FinancePayment> items)
         {
@@ -61,7 +65,10 @@ namespace CRM.Core.Services
             var map = users
                 .Where(u => !string.IsNullOrWhiteSpace(u.Id))
                 .GroupBy(u => u.Id.Trim(), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => FormatUserDisplayName(g.First()), StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(
+                    g => g.Key,
+                    g => EntityLookupService.FormatUserLoginName(g.First()) ?? g.Key,
+                    StringComparer.OrdinalIgnoreCase);
             foreach (var p in items)
             {
                 if (string.IsNullOrWhiteSpace(p.CreateByUserId)) continue;
@@ -239,6 +246,36 @@ namespace CRM.Core.Services
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
             foreach (var pid in poItemIds)
                 await _poItemExtendSync.RecalculateAsync(pid);
+        }
+
+        /// <inheritdoc />
+        public async Task ForceDeleteAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName)
+        {
+            if (string.IsNullOrWhiteSpace(confirmBillCode))
+                throw new ArgumentException("请填写 confirmBillCode", nameof(confirmBillCode));
+            if (string.IsNullOrWhiteSpace(actingUserId))
+                throw new ArgumentException("操作人不能为空", nameof(actingUserId));
+
+            var entity = await _paymentRepo.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException("付款单不存在");
+            if (!string.Equals(confirmBillCode.Trim(), entity.FinancePaymentCode?.Trim(), StringComparison.Ordinal))
+                throw new ArgumentException("确认单号不匹配，已拒绝删除");
+
+            var guard = await _forceDeleteGuard.CanForceDeleteFinancePaymentAsync(entity.Id);
+            if (!guard.CanDelete)
+                throw new ArgumentException(guard.Message);
+
+            await DeleteAsync(entity.Id);
+
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.PurchaseOrder,
+                entity.Id,
+                string.IsNullOrWhiteSpace(entity.FinancePaymentCode) ? null : entity.FinancePaymentCode.Trim(),
+                "付款单强制删除",
+                actingUserId.Trim(),
+                string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
+                $"强制删除付款单：Id={entity.Id}，Code={entity.FinancePaymentCode}",
+                reason: null);
         }
 
         public async Task UpdateStatusAsync(string id, short status, string? remark = null, string? actingUserId = null)

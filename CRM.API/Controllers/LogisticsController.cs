@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
-using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Utilities;
@@ -18,9 +17,9 @@ namespace CRM.API.Controllers
         private readonly IRepository<StockInNotify> _notifyRepo;
         private readonly IRepository<QCInfo> _qcRepo;
         private readonly IRepository<QCItem> _qcItemRepo;
+        private readonly IRepository<StockIn> _stockInRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IRbacService _rbacService;
-        private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<LogisticsController> _logger;
 
         public LogisticsController(
@@ -28,18 +27,18 @@ namespace CRM.API.Controllers
             IRepository<StockInNotify> notifyRepo,
             IRepository<QCInfo> qcRepo,
             IRepository<QCItem> qcItemRepo,
+            IRepository<StockIn> stockInRepo,
             IUnitOfWork unitOfWork,
             IRbacService rbacService,
-            ILogOperationAppendService logOperationAppend,
             ILogger<LogisticsController> logger)
         {
             _service = service;
             _notifyRepo = notifyRepo;
             _qcRepo = qcRepo;
             _qcItemRepo = qcItemRepo;
+            _stockInRepo = stockInRepo;
             _unitOfWork = unitOfWork;
             _rbacService = rbacService;
-            _logOperationAppend = logOperationAppend;
             _logger = logger;
         }
 
@@ -178,37 +177,22 @@ namespace CRM.API.Controllers
                 if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
                     return BadRequest(ApiResponse<object>.Fail("请填写 confirmBillCode", 400));
 
-                var notice = await _notifyRepo.GetByIdAsync(id);
-                if (notice == null)
-                    return NotFound(ApiResponse<object>.Fail("到货通知不存在", 404));
-                if (!string.Equals(body.ConfirmBillCode.Trim(), notice.NoticeCode?.Trim(), StringComparison.Ordinal))
-                    return BadRequest(ApiResponse<object>.Fail("确认单号不匹配，已拒绝删除", 400));
-
-                var qcs = (await _qcRepo.FindAsync(x => x.StockInNotifyId == notice.Id)).ToList();
-                foreach (var qc in qcs)
-                {
-                    var items = (await _qcItemRepo.FindAsync(x => x.QcInfoId == qc.Id)).ToList();
-                    foreach (var item in items)
-                        await _qcItemRepo.DeleteAsync(item.Id);
-                    await _qcRepo.DeleteAsync(qc.Id);
-                }
-
-                await _notifyRepo.DeleteAsync(notice.Id);
-                await _unitOfWork.SaveChangesAsync();
-
                 var userName = User.FindFirst(ClaimTypes.Name)?.Value;
-                var recordCode = string.IsNullOrWhiteSpace(notice.NoticeCode) ? null : notice.NoticeCode.Trim();
-                await _logOperationAppend.AppendAsync(
-                    BusinessLogTypes.StockIn,
-                    notice.Id,
-                    recordCode,
-                    "到货通知强制删除",
+                await _service.ForceDeleteArrivalNoticeAsync(
+                    id,
+                    body.ConfirmBillCode.Trim(),
                     userId.Trim(),
-                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim(),
-                    $"强制删除到货通知 NoticeId={notice.Id}，确认单号={recordCode}，关联质检单数={qcs.Count}",
-                    reason: null);
+                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim());
 
                 return Ok(ApiResponse<object>.Ok(null, "强制删除到货通知成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
             }
             catch (Exception ex)
             {
@@ -339,32 +323,22 @@ namespace CRM.API.Controllers
                 if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
                     return BadRequest(ApiResponse<object>.Fail("请填写 confirmBillCode", 400));
 
-                var qc = await _qcRepo.GetByIdAsync(id);
-                if (qc == null)
-                    return NotFound(ApiResponse<object>.Fail("质检单不存在", 404));
-
-                if (!string.Equals(body.ConfirmBillCode.Trim(), qc.QcCode?.Trim(), StringComparison.Ordinal))
-                    return BadRequest(ApiResponse<object>.Fail("确认单号不匹配，已拒绝删除", 400));
-
-                var items = (await _qcItemRepo.FindAsync(x => x.QcInfoId == qc.Id)).ToList();
-                foreach (var item in items)
-                    await _qcItemRepo.DeleteAsync(item.Id);
-                await _qcRepo.DeleteAsync(qc.Id);
-                await _unitOfWork.SaveChangesAsync();
-
                 var userName = User.FindFirst(ClaimTypes.Name)?.Value;
-                var recordCode = string.IsNullOrWhiteSpace(qc.QcCode) ? null : qc.QcCode.Trim();
-                await _logOperationAppend.AppendAsync(
-                    BusinessLogTypes.QcInspection,
-                    qc.Id,
-                    recordCode,
-                    "质检单强制删除",
+                await _service.ForceDeleteQcAsync(
+                    id,
+                    body.ConfirmBillCode.Trim(),
                     userId.Trim(),
-                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim(),
-                    $"强制删除质检单 QcId={qc.Id}，确认单号={recordCode}，明细行数={items.Count}",
-                    reason: null);
+                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim());
 
                 return Ok(ApiResponse<object>.Ok(null, "强制删除质检单成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
             }
             catch (Exception ex)
             {

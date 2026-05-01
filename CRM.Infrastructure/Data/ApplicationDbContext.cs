@@ -374,9 +374,44 @@ namespace CRM.Infrastructure.Data
             });
 
             // ===== 软删除全局过滤器 =====
-            // 所有查询自动过滤已删除的客户
+            // 与 Repository.DeleteAsync(ISoftDeletable) 一致：普通 DbSet/LINQ 默认排除已标删行。需含已删数据时用 IgnoreQueryFilters()。
             modelBuilder.Entity<CustomerInfo>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<PurchaseRequisition>().HasQueryFilter(e => !e.IsDeleted);
+
+            modelBuilder.Entity<CustomerAddress>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<CustomerBankInfo>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<CustomerContactInfo>().HasQueryFilter(e => !e.IsDeleted);
+
+            modelBuilder.Entity<VendorInfo>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<VendorAddress>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<VendorBankInfo>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<VendorContactInfo>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<VendorContactHistory>().HasQueryFilter(e => !e.IsDeleted);
+
+            modelBuilder.Entity<RFQ>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<RFQItem>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<Quote>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<QuoteItem>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<SellOrder>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<SellOrderItem>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<PurchaseOrder>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<PurchaseOrderItem>().HasQueryFilter(e => !e.IsDeleted);
+
+            modelBuilder.Entity<FinancePayment>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<FinancePaymentItem>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<FinanceReceipt>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<FinanceReceiptItem>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<FinancePurchaseInvoice>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<FinancePurchaseInvoiceItem>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<FinanceSellInvoice>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<SellInvoiceItem>().HasQueryFilter(e => !e.IsDeleted);
+
+            modelBuilder.Entity<StockOutRequest>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<StockInNotify>().HasQueryFilter(e => !e.IsDeleted);
+
+            modelBuilder.Entity<TagDefinition>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<BizDraft>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<UploadDocument>().HasQueryFilter(e => !e.IsDeleted);
 
             // User configuration
             modelBuilder.Entity<User>(entity =>
@@ -403,7 +438,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.IsDeleted).HasDefaultValue(false);
             });
 
-            // Customer Address configuration
+            // Customer Address configuration（IsDeleted：见实体 [Column("is_deleted")]；HasQueryFilter 见上文「软删除全局过滤器」）
             modelBuilder.Entity<CustomerAddress>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -412,7 +447,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.ContactPhone).HasMaxLength(20);
             });
 
-            // Customer Contact configuration
+            // Customer Contact configuration（IsDeleted：见实体 [Column("is_deleted")]；HasQueryFilter 见上文）
             modelBuilder.Entity<CustomerContactInfo>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -428,7 +463,7 @@ namespace CRM.Infrastructure.Data
                 entity.Ignore(e => e.Fax);
             });
 
-            // Customer Bank configuration
+            // Customer Bank configuration（IsDeleted：见实体 [Column("is_deleted")]；HasQueryFilter 见上文）
             modelBuilder.Entity<CustomerBankInfo>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -445,10 +480,11 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Content).HasMaxLength(500);
             });
 
-            // Vendor configuration
+            // Vendor configuration（主表 HasQueryFilter 见上文「软删除全局过滤器」；DeleteAsync 走 ISoftDeletable 与 VendorService 标删一致）
             modelBuilder.Entity<VendorInfo>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.IsDeleted).HasDefaultValue(false);
                 entity.Property(e => e.Code).IsRequired().HasMaxLength(16);
                 entity.Property(e => e.OfficialName).HasMaxLength(64);
                 entity.Property(e => e.NickName).HasMaxLength(64);

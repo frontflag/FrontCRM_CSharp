@@ -181,7 +181,7 @@
         <div class="section-body">
           <div class="qc-upload-hint-block">
             <p v-if="!currentQcId" class="qc-upload-hint">
-              <strong>新建：</strong>当前尚无质检单号，首次点击「保存质检」会创建单据；保存前已选好的图片会随本次保存一并上传。
+              <strong>新建：</strong>当前尚无质检单号，首次点击「保存质检」会创建单据；保存前已选好的图片会随本次保存一并上传。单张图片上限 8MB，最多 24 张。
             </p>
             <p v-else class="qc-upload-hint">
               <strong>编辑：</strong>可随时添加图片，点击「保存质检」后新选择的图片会上传并关联本单；删除已保存缩略图会同步删除服务端文档。通过「质检列表」再次进入本页可查看历史图片。
@@ -196,6 +196,7 @@
             multiple
             accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
             :limit="24"
+            :before-upload="beforeSelectQcImage"
             :before-remove="beforeRemoveQcImage"
             :on-preview="onPreviewQcImage"
           >
@@ -210,7 +211,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { UploadFile } from 'element-plus'
+import type { UploadFile, UploadRawFile } from 'element-plus'
 import { logisticsApi } from '@/api/logistics'
 import { authApi, type SalesUserSelectOption } from '@/api/auth'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
@@ -305,7 +306,7 @@ async function loadQcDocuments(qcId: string) {
     const list: QcUploadFile[] = []
     let seq = 0
     for (const d of imageDocs) {
-      const blob = (await apiClient.get(`/api/v1/documents/${encodeURIComponent(d.id)}/preview`, {
+      const blob = (await apiClient.get(`/api/v1/documents/${encodeURIComponent(d.id)}/preview?thumbnail=true`, {
         responseType: 'blob',
       })) as unknown as Blob
       if (!(blob instanceof Blob) || blob.size === 0) continue
@@ -364,6 +365,16 @@ function onPreviewQcImage(uploadFile: UploadFile) {
 }
 
 const MAX_FILES_PER_UPLOAD = 5
+const MAX_QC_IMAGE_SIZE_MB = 8
+
+function beforeSelectQcImage(rawFile: UploadRawFile) {
+  const maxBytes = MAX_QC_IMAGE_SIZE_MB * 1024 * 1024
+  if (rawFile.size > maxBytes) {
+    ElMessage.warning(`单张图片不能超过 ${MAX_QC_IMAGE_SIZE_MB}MB，请压缩后再上传`)
+    return false
+  }
+  return true
+}
 
 async function uploadPendingQcImages(qcId: string, files: File[]) {
   if (!files.length) return
@@ -480,9 +491,12 @@ const submitQc = async () => {
   submitting.value = true
   try {
     let qcId = currentQcId.value
+    const wasEdit = isEdit.value
     if (!isEdit.value) {
       const qc = await logisticsApi.createQc(form.noticeId)
       qcId = qc.id
+      currentQcId.value = qcId
+      isEdit.value = true
     }
     const passQty = Math.round(Number(form.stockInQty || 0))
     const rejectQty = Math.max(0, Math.round(Number(form.arrivedTotalQty || 0)) - passQty)
@@ -497,11 +511,21 @@ const submitQc = async () => {
     const pendingFiles: File[] = qcFileList.value
       .filter((f) => f.raw != null)
       .map((f) => f.raw as File)
+    let uploadFailed = false
     if (pendingFiles.length) {
-      await uploadPendingQcImages(qcId, pendingFiles)
+      try {
+        // 附件走独立上传接口；上传失败不回滚已保存的质检主单
+        await uploadPendingQcImages(qcId, pendingFiles)
+      } catch {
+        uploadFailed = true
+      }
     }
     await loadQcDocuments(qcId)
-    ElMessage.success(isEdit.value ? '质检已更新' : '质检已保存')
+    if (uploadFailed) {
+      ElMessage.warning('质检主单已保存，部分图片上传失败，请在编辑页重试上传')
+    } else {
+      ElMessage.success(wasEdit ? '质检已更新' : '质检已保存')
+    }
     router.push({ name: 'QcList', query: { qcId } })
   } catch (e: any) {
     ElMessage.error(e?.message || (isEdit.value ? '更新质检失败' : '创建质检失败'))
@@ -636,6 +660,42 @@ onUnmounted(() => {
   strong {
     color: $text-secondary;
     font-weight: 600;
+  }
+}
+
+.qc-upload {
+  :deep(.el-upload-list--picture-card .el-upload-list__item-actions) {
+    position: absolute;
+    inset: 0;
+  }
+
+  :deep(.el-upload-list--picture-card .el-upload-list__item-preview) {
+    position: absolute;
+    inset: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff !important;
+  }
+
+  :deep(.el-upload-list--picture-card .el-upload-list__item-delete) {
+    position: absolute;
+    right: 10px !important;
+    bottom: 10px !important;
+    top: auto !important;
+    left: auto !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(214, 48, 49, 0.92);
+    color: #fff !important;
+  }
+
+  :deep(.el-upload-list--picture-card .el-upload-list__item-delete .el-icon) {
+    font-size: 12px;
   }
 }
 

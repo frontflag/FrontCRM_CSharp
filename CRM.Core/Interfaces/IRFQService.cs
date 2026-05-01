@@ -119,11 +119,11 @@ namespace CRM.Core.Interfaces
 
         /// <summary>业务员用户 ID</summary>
         public string? SalesUserId { get; set; }
-        /// <summary>业务员展示名（列表组装）</summary>
+        /// <summary>业务员登录账号（列表组装，序列化为 salesUserName）</summary>
         public string? SalesUserName { get; set; }
         /// <summary>创建人用户 ID</summary>
         public string? CreateByUserId { get; set; }
-        /// <summary>创建人展示名（列表组装；前端亦可能读 createUserName）</summary>
+        /// <summary>创建人登录账号（列表组装；前端 createUserName）</summary>
         public string? CreateUserName { get; set; }
     }
 
@@ -166,12 +166,15 @@ namespace CRM.Core.Interfaces
         public string? CustomerId { get; set; }
         public string? CustomerName { get; set; }
         public string? SalesUserId { get; set; }
+        /// <summary>业务员登录账号（明细分页列表）</summary>
         public string? SalesUserName { get; set; }
 
         /// <summary>轮询分配的询价采购员1</summary>
         public string? AssignedPurchaserUserId1 { get; set; }
         public string? AssignedPurchaserUserId2 { get; set; }
+        /// <summary>采购员登录账号（列表展示）</summary>
         public string? AssignedPurchaserName1 { get; set; }
+        /// <summary>采购员登录账号（列表展示）</summary>
         public string? AssignedPurchaserName2 { get; set; }
     }
 }

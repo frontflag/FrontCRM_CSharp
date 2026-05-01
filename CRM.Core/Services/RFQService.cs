@@ -333,9 +333,9 @@ namespace CRM.Core.Services
                     Remark = r.Remark,
                     CreateTime = r.CreateTime,
                     SalesUserId = r.SalesUserId,
-                    SalesUserName = EntityLookupService.FormatUserDisplayName(salesUser),
+                    SalesUserName = EntityLookupService.FormatUserLoginName(salesUser),
                     CreateByUserId = r.CreateByUserId,
-                    CreateUserName = EntityLookupService.FormatUserDisplayName(createUser)
+                    CreateUserName = EntityLookupService.FormatUserLoginName(createUser)
                 };
             }).ToList();
 
@@ -445,11 +445,11 @@ namespace CRM.Core.Services
                     CustomerId = rfq.CustomerId,
                     CustomerName = customerName,
                     SalesUserId = rfq.SalesUserId,
-                    SalesUserName = EntityLookupService.FormatUserDisplayName(salesUser),
+                    SalesUserName = EntityLookupService.FormatUserLoginName(salesUser),
                     AssignedPurchaserUserId1 = item.AssignedPurchaserUserId1,
                     AssignedPurchaserUserId2 = item.AssignedPurchaserUserId2,
-                    AssignedPurchaserName1 = EntityLookupService.FormatUserDisplayName(pu1),
-                    AssignedPurchaserName2 = EntityLookupService.FormatUserDisplayName(pu2),
+                    AssignedPurchaserName1 = EntityLookupService.FormatUserLoginName(pu1),
+                    AssignedPurchaserName2 = EntityLookupService.FormatUserLoginName(pu2),
                 });
             }
 

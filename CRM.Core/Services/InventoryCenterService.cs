@@ -35,6 +35,7 @@ namespace CRM.Core.Services
         private readonly IRepository<QCInfo> _qcRepository;
         private readonly IRepository<User> _userRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IFinanceExchangeRateService _financeExchangeRateService;
         private readonly IStockExtendLineSeqService _stockExtendLineSeq;
@@ -146,6 +147,7 @@ namespace CRM.Core.Services
             IFinanceExchangeRateService financeExchangeRateService,
             IStockExtendLineSeqService stockExtendLineSeq,
             IUnitOfWork unitOfWork,
+            ILogOperationAppendService logOperationAppend,
             ILogger<InventoryCenterService> logger)
         {
             _stockRepository = stockRepository;
@@ -173,6 +175,7 @@ namespace CRM.Core.Services
             _financeExchangeRateService = financeExchangeRateService;
             _stockExtendLineSeq = stockExtendLineSeq;
             _unitOfWork = unitOfWork;
+            _logOperationAppend = logOperationAppend;
             _logger = logger;
         }
 
@@ -301,6 +304,9 @@ namespace CRM.Core.Services
                     QtyOut = 0,
                     UnitCost = line.Price,
                     Amount = line.Amount,
+                    Currency = line.Currency.GetValueOrDefault((short)CurrencyCode.RMB) > 0
+                        ? line.Currency!.Value
+                        : (short)CurrencyCode.RMB,
                     Remark = $"入库单 {stockIn.StockInCode}",
                     CreateTime = DateTime.UtcNow
                 };
@@ -518,6 +524,10 @@ namespace CRM.Core.Services
             var allLedgers = (await _ledgerRepository.GetAllAsync()).ToList();
             var lines = (await _stockOutItemRepository.GetAllAsync()).Where(x => x.StockOutId == stockOutId).ToList();
             var stocks = (await _stockRepository.GetAllAsync()).ToDictionary(x => x.Id, x => x);
+            var stockItems = (await _stockItemRepository.GetAllAsync())
+                .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var stockItemRows = stockItems.Values.ToList();
             var changed = false;
 
             foreach (var line in lines)
@@ -540,8 +550,20 @@ namespace CRM.Core.Services
                         outStockTypes.Contains(s.StockType));
                 }
 
-                if (rowStock != null)
-                    cost = rowStock.Qty > 0 ? (rowStock.QtyStockOut > 0 ? 0 : 0) : 0;
+                // 出库成本优先取实际出库层 stockitem 的采购单价；缺失时回退到同聚合最近入库层价格。
+                if (!string.IsNullOrWhiteSpace(line.StockItemId)
+                    && stockItems.TryGetValue(line.StockItemId.Trim(), out var costLayer))
+                {
+                    cost = costLayer.PurchasePrice;
+                }
+                else if (rowStock != null)
+                {
+                    var fallbackLayer = stockItemRows
+                        .Where(x => string.Equals(x.StockAggregateId, rowStock.Id, StringComparison.OrdinalIgnoreCase))
+                        .OrderByDescending(x => x.CreateTime)
+                        .FirstOrDefault();
+                    cost = fallbackLayer?.PurchasePrice ?? 0m;
+                }
 
                 var ledger = new InventoryLedger
                 {
@@ -557,6 +579,11 @@ namespace CRM.Core.Services
                     QtyOut = line.ActualQty > 0 ? line.ActualQty : line.Quantity,
                     UnitCost = cost,
                     Amount = -(line.ActualQty > 0 ? line.ActualQty : line.Quantity) * cost,
+                    Currency = !string.IsNullOrWhiteSpace(line.StockItemId)
+                        && stockItems.TryGetValue(line.StockItemId.Trim(), out var layer)
+                        && layer.PurchaseCurrency > 0
+                            ? layer.PurchaseCurrency
+                            : (short)CurrencyCode.RMB,
                     Remark = $"出库单 {stockOut.StockOutCode}",
                     CreateTime = DateTime.UtcNow
                 };
@@ -568,7 +595,10 @@ namespace CRM.Core.Services
             if (changed) await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task<IEnumerable<InventoryMaterialOverviewDto>> GetMaterialOverviewAsync(string? warehouseId)
+        public async Task<IEnumerable<InventoryMaterialOverviewDto>> GetMaterialOverviewAsync(
+            string? warehouseId,
+            string? materialModel = null,
+            string? stockCode = null)
         {
             List<StockInfo> stocks;
             List<InventoryLedger> ledgers;
@@ -668,6 +698,45 @@ namespace CRM.Core.Services
             {
             }
 
+            Dictionary<string, DateTime?> detailLastMoveByStockAggregateId = new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, (DateTime? CreateTime, string? StockInId)> firstDetailByStockAggregateId = new(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                var detailRows = (await _stockItemRepository.GetAllAsync()).ToList();
+                detailLastMoveByStockAggregateId = detailRows
+                    .Where(x => !string.IsNullOrWhiteSpace(x.StockAggregateId))
+                    .GroupBy(x => x.StockAggregateId!.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(
+                        g => g.Key,
+                        g =>
+                        {
+                            var ts = g
+                                .Select(x => x.ModifyTime > x.CreateTime ? x.ModifyTime : x.CreateTime)
+                                .OrderByDescending(t => t)
+                                .FirstOrDefault();
+                            return ts == default ? (DateTime?)null : ts;
+                        },
+                        StringComparer.OrdinalIgnoreCase);
+                firstDetailByStockAggregateId = detailRows
+                    .Where(x => !string.IsNullOrWhiteSpace(x.StockAggregateId))
+                    .GroupBy(x => x.StockAggregateId!.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .Select(g =>
+                    {
+                        var first = g
+                            .OrderBy(x => x.CreateTime)
+                            .ThenBy(x => x.Id, StringComparer.Ordinal)
+                            .FirstOrDefault();
+                        var value = first == null
+                            ? ((DateTime?)null, (string?)null)
+                            : (first.CreateTime == default ? (DateTime?)null : first.CreateTime, first.StockInId);
+                        return new KeyValuePair<string, (DateTime? CreateTime, string? StockInId)>(g.Key, value);
+                    })
+                    .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
+            }
+            catch (Exception ex) when (IsTableMissingException(ex))
+            {
+            }
+
             Dictionary<string, StockIn> overviewStockInById = new(StringComparer.Ordinal);
             Dictionary<string, string?> overviewPrimaryPoLineByStockIn = new(StringComparer.Ordinal);
             Dictionary<string, PurchaseOrder> overviewPoById = new(StringComparer.Ordinal);
@@ -707,7 +776,23 @@ namespace CRM.Core.Services
             {
             }
 
-            return stocks
+            Dictionary<string, string> userDisplayById = new(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var u in await _userRepository.GetAllAsync())
+                {
+                    var uid = u.Id?.Trim();
+                    if (string.IsNullOrWhiteSpace(uid))
+                        continue;
+                    var login = EntityLookupService.FormatUserLoginName(u) ?? uid;
+                    userDisplayById[uid] = login;
+                }
+            }
+            catch (Exception ex) when (IsTableMissingException(ex))
+            {
+            }
+
+            var overview = stocks
                 .Select(s =>
                 {
                     var material = s.MaterialId ?? string.Empty;
@@ -765,10 +850,36 @@ namespace CRM.Core.Services
                         }
                     }
 
-                    var lastMove = ledgers
-                        .Where(x => x.MaterialId == material && x.WarehouseId == warehouse)
-                        .OrderByDescending(x => x.CreateTime)
-                        .FirstOrDefault()?.CreateTime;
+                    var stockAggregateId = (s.Id ?? string.Empty).Trim();
+                    DateTime? firstDetailCreateTime = null;
+                    string? firstDetailCreateUserName = null;
+                    if (!string.IsNullOrWhiteSpace(stockAggregateId)
+                        && firstDetailByStockAggregateId.TryGetValue(stockAggregateId, out var firstDetail))
+                    {
+                        firstDetailCreateTime = firstDetail.CreateTime;
+                        var firstDetailStockInId = firstDetail.StockInId?.Trim();
+                        if (!string.IsNullOrWhiteSpace(firstDetailStockInId)
+                            && overviewStockInById.TryGetValue(firstDetailStockInId, out var firstStockIn))
+                        {
+                            var uid = !string.IsNullOrWhiteSpace(firstStockIn.CreateByUserId)
+                                ? firstStockIn.CreateByUserId!.Trim()
+                                : (firstStockIn.CreatedBy?.Trim() ?? string.Empty);
+                            if (!string.IsNullOrWhiteSpace(uid))
+                            {
+                                firstDetailCreateUserName = userDisplayById.TryGetValue(uid, out var display)
+                                    ? display
+                                    : uid;
+                            }
+                        }
+                    }
+
+                    var lastMove = !string.IsNullOrWhiteSpace(stockAggregateId)
+                        && detailLastMoveByStockAggregateId.TryGetValue(stockAggregateId, out var detailLastMove)
+                            ? detailLastMove
+                            : ledgers
+                                .Where(x => x.MaterialId == material && x.WarehouseId == warehouse)
+                                .OrderByDescending(x => x.CreateTime)
+                                .FirstOrDefault()?.CreateTime;
 
                     string? whCode = null;
                     var whKey = warehouse.Trim();
@@ -793,15 +904,24 @@ namespace CRM.Core.Services
                         LockedQty = locked,
                         InventoryAmount = onHand * avgCost,
                         Currency = amountCurrency,
+                        CreateTime = firstDetailCreateTime,
+                        CreateUserName = firstDetailCreateUserName,
                         LastMoveTime = lastMove
                     };
                 })
+                .Where(x => string.IsNullOrWhiteSpace(materialModel)
+                    || (!string.IsNullOrWhiteSpace(x.MaterialModel)
+                        && x.MaterialModel.Contains(materialModel.Trim(), StringComparison.OrdinalIgnoreCase)))
+                .Where(x => string.IsNullOrWhiteSpace(stockCode)
+                    || (!string.IsNullOrWhiteSpace(x.StockCode)
+                        && x.StockCode.Contains(stockCode.Trim(), StringComparison.OrdinalIgnoreCase)))
                 .OrderByDescending(x => x.LastMoveTime ?? DateTime.MinValue)
                 .ThenBy(x => x.WarehouseId, StringComparer.Ordinal)
                 .ThenBy(x => x.StockType)
                 .ThenBy(x => x.MaterialId, StringComparer.Ordinal)
                 .ThenBy(x => x.StockId, StringComparer.Ordinal)
                 .ToList();
+            return overview;
         }
 
         public async Task<IEnumerable<InventoryStockItemRowDto>> GetStockItemsForAggregateAsync(string stockAggregateId)
@@ -1220,6 +1340,7 @@ namespace CRM.Core.Services
         {
             var overview = (await GetMaterialOverviewAsync(null)).ToList();
             List<InventoryLedger> ledgers;
+            FinanceExchangeRateDto fx;
             try
             {
                 ledgers = (await _ledgerRepository.GetAllAsync()).ToList();
@@ -1228,11 +1349,21 @@ namespace CRM.Core.Services
             {
                 ledgers = new List<InventoryLedger>();
             }
+            try
+            {
+                fx = await _financeExchangeRateService.GetCurrentAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取汇率失败，库存财务汇总拒绝按降级汇率计算");
+                throw new InvalidOperationException("获取汇率失败，无法进行 RMB 折算，请先检查财务参数中的汇率配置。", ex);
+            }
             var now = DateTime.UtcNow;
             var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
-            var inventoryCapital = overview.Sum(x => x.InventoryAmount);
-            var outCost = CalculateNetMonthlyOutCost(ledgers, monthStart);
+            var currencyBreakdowns = CalculateFinanceByCurrency(overview, ledgers, monthStart);
+            var inventoryCapital = currencyBreakdowns.Sum(x => ConvertToRmb(x.InventoryCapital, x.Currency, fx));
+            var outCost = currencyBreakdowns.Sum(x => ConvertToRmb(x.MonthlyOutCost, x.Currency, fx));
             var avgInventory = inventoryCapital;
             var turnoverRate = avgInventory <= 0 ? 0 : outCost / avgInventory;
             var turnoverDays = turnoverRate <= 0 ? 0 : 30 / turnoverRate;
@@ -1246,7 +1377,14 @@ namespace CRM.Core.Services
                 AverageInventoryCapital = decimal.Round(avgInventory, 2),
                 TurnoverRate = decimal.Round(turnoverRate, 4),
                 TurnoverDays = decimal.Round(turnoverDays, 2),
-                StagnantMaterialCount = stagnantCount
+                StagnantMaterialCount = stagnantCount,
+                CurrencyBreakdowns = currencyBreakdowns,
+                AppliedRates = new InventoryFinanceAppliedRatesDto
+                {
+                    UsdToCny = fx.UsdToCny,
+                    UsdToHkd = fx.UsdToHkd,
+                    UsdToEur = fx.UsdToEur
+                }
             };
         }
 
@@ -1262,6 +1400,59 @@ namespace CRM.Core.Services
                         return -Math.Abs(x.Amount);
                     return 0m;
                 });
+        }
+
+        private static decimal ConvertToRmb(decimal amount, short currency, FinanceExchangeRateDto fx)
+        {
+            if (amount == 0) return 0m;
+            var usdToCny = fx.UsdToCny > 0 ? fx.UsdToCny : 1m;
+            var usdToEur = fx.UsdToEur > 0 ? fx.UsdToEur : 1m;
+            var usdToHkd = fx.UsdToHkd > 0 ? fx.UsdToHkd : 1m;
+            return currency switch
+            {
+                (short)CurrencyCode.RMB => amount,
+                (short)CurrencyCode.USD => amount * usdToCny,
+                (short)CurrencyCode.EUR => (amount / usdToEur) * usdToCny,
+                (short)CurrencyCode.HKD => (amount / usdToHkd) * usdToCny,
+                _ => amount
+            };
+        }
+
+        private static List<InventoryFinanceCurrencyBreakdownDto> CalculateFinanceByCurrency(
+            IEnumerable<InventoryMaterialOverviewDto> overview,
+            IEnumerable<InventoryLedger> ledgers,
+            DateTime monthStart)
+        {
+            var capitalByCurrency = overview
+                .GroupBy(x => x.Currency > 0 ? x.Currency : (short)CurrencyCode.RMB)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Sum(x => x.InventoryAmount));
+
+            var outByCurrency = ledgers
+                .Where(x => x.CreateTime >= monthStart)
+                .GroupBy(x => x.Currency > 0 ? x.Currency : (short)CurrencyCode.RMB)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Sum(x =>
+                    {
+                        if (x.BizType == "STOCK_OUT")
+                            return Math.Abs(x.Amount);
+                        if (x.BizType == "STOCK_OUT_REVERSE")
+                            return -Math.Abs(x.Amount);
+                        return 0m;
+                    }));
+
+            return capitalByCurrency.Keys
+                .Union(outByCurrency.Keys)
+                .OrderBy(k => k)
+                .Select(k => new InventoryFinanceCurrencyBreakdownDto
+                {
+                    Currency = k,
+                    InventoryCapital = decimal.Round(capitalByCurrency.TryGetValue(k, out var cap) ? cap : 0m, 2),
+                    MonthlyOutCost = decimal.Round(outByCurrency.TryGetValue(k, out var oc) ? oc : 0m, 2)
+                })
+                .ToList();
         }
 
         public async Task<IEnumerable<WarehouseInfo>> GetWarehousesAsync()
@@ -1442,10 +1633,10 @@ namespace CRM.Core.Services
             {
                 if (string.IsNullOrWhiteSpace(u.Id))
                     continue;
-                var disp = string.IsNullOrWhiteSpace(u.RealName) ? u.UserName : u.RealName!;
-                byId[u.Id.Trim()] = disp;
+                var login = EntityLookupService.FormatUserLoginName(u) ?? u.Id.Trim();
+                byId[u.Id.Trim()] = login;
                 if (!string.IsNullOrWhiteSpace(u.UserName))
-                    byLogin[u.UserName.Trim()] = disp;
+                    byLogin[u.UserName.Trim()] = login;
             }
 
             return (byId, byLogin);
@@ -2182,6 +2373,7 @@ namespace CRM.Core.Services
                         QtyOut = diffQty < 0 ? -diffQty : 0,
                         UnitCost = 0,
                         Amount = diffAmount,
+                        Currency = (short)CurrencyCode.RMB,
                         Remark = $"月度盘点调整 {plan.PlanMonth}",
                         CreateTime = DateTime.UtcNow
                     };
@@ -2195,6 +2387,175 @@ namespace CRM.Core.Services
             plan.ModifyTime = DateTime.UtcNow;
             await _countPlanRepository.UpdateAsync(plan);
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        /// <inheritdoc />
+        public async Task ForceDeleteStockItemAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName)
+        {
+            if (string.IsNullOrWhiteSpace(confirmBillCode))
+                throw new ArgumentException("请填写 confirmBillCode", nameof(confirmBillCode));
+            if (string.IsNullOrWhiteSpace(actingUserId))
+                throw new ArgumentException("操作人不能为空", nameof(actingUserId));
+
+            var item = await _stockItemRepository.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException("库存明细不存在");
+
+            var targetCode = !string.IsNullOrWhiteSpace(item.StockItemCode) ? item.StockItemCode.Trim() : item.Id.Trim();
+            if (!string.Equals(confirmBillCode.Trim(), targetCode, StringComparison.Ordinal))
+                throw new ArgumentException("确认编号不匹配，已拒绝删除");
+
+            var linkedStockOutItems = (await _stockOutItemRepository.FindAsync(x => x.StockItemId == item.Id))
+                .Where(x => !x.IsDeleted)
+                .ToList();
+            if (linkedStockOutItems.Count > 0)
+            {
+                var stockOutIds = linkedStockOutItems
+                    .Select(x => x.StockOutId?.Trim())
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList()!;
+                var stockOutCodes = stockOutIds.Count == 0
+                    ? Array.Empty<string>()
+                    : (await _stockOutRepository.FindAsync(x => stockOutIds.Contains(x.Id)))
+                        .Select(x => string.IsNullOrWhiteSpace(x.StockOutCode) ? x.Id : x.StockOutCode.Trim())
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .Take(5)
+                        .ToArray();
+                throw new ArgumentException(stockOutCodes.Length == 0
+                    ? "存在下游业务节点：出库单明细，不能强制删除库存明细。"
+                    : $"存在下游业务节点：出库单；下游数据单号：{string.Join("、", stockOutCodes)}");
+            }
+            var linkedPickingItems = (await _pickingTaskItemRepository.FindAsync(x => x.StockItemId == item.Id)).ToList();
+            if (linkedPickingItems.Count > 0)
+            {
+                var taskIds = linkedPickingItems
+                    .Select(x => x.PickingTaskId?.Trim())
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList()!;
+                var taskCodes = taskIds.Count == 0
+                    ? Array.Empty<string>()
+                    : (await _pickingTaskRepository.FindAsync(x => taskIds.Contains(x.Id)))
+                        .Select(x => string.IsNullOrWhiteSpace(x.TaskCode) ? x.Id : x.TaskCode.Trim())
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .Take(5)
+                        .ToArray();
+                throw new ArgumentException(taskCodes.Length == 0
+                    ? "存在下游业务节点：拣货单明细，不能强制删除库存明细。"
+                    : $"存在下游业务节点：拣货单；下游数据单号：{string.Join("、", taskCodes)}");
+            }
+
+            var aggregateId = item.StockAggregateId?.Trim();
+            await _stockItemRepository.DeleteAsync(item.Id);
+            await RecalculateStockAggregateTotalsAsync(aggregateId);
+            await _unitOfWork.SaveChangesAsync();
+
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.InventoryStock,
+                item.Id,
+                string.IsNullOrWhiteSpace(item.StockItemCode) ? null : item.StockItemCode.Trim(),
+                "库存明细强制删除",
+                actingUserId.Trim(),
+                string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
+                $"强制删除库存明细：库存明细主键={item.Id}，确认编号={targetCode}，库存聚合主键={aggregateId}",
+                reason: null);
+        }
+
+        /// <inheritdoc />
+        public async Task ForceDeletePickingSlipAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName)
+        {
+            if (string.IsNullOrWhiteSpace(confirmBillCode))
+                throw new ArgumentException("请填写 confirmBillCode", nameof(confirmBillCode));
+            if (string.IsNullOrWhiteSpace(actingUserId))
+                throw new ArgumentException("操作人不能为空", nameof(actingUserId));
+
+            var task = await _pickingTaskRepository.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException("拣货单不存在");
+
+            if (!string.Equals(confirmBillCode.Trim(), task.TaskCode.Trim(), StringComparison.Ordinal))
+                throw new ArgumentException("确认单号不匹配，已拒绝删除");
+
+            if (await HasStockOutLinkedToPickingTaskAsync(task.Id))
+            {
+                var tidLower = task.Id.Trim().ToLowerInvariant();
+                var stockOutCodes = (await _stockOutRepository.FindAsync(x =>
+                        x.PickingTaskId != null && x.PickingTaskId.ToLower() == tidLower))
+                    .Where(x => !x.IsDeleted)
+                    .Select(x => string.IsNullOrWhiteSpace(x.StockOutCode) ? x.Id : x.StockOutCode.Trim())
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Take(5)
+                    .ToArray();
+                throw new ArgumentException(stockOutCodes.Length == 0
+                    ? "存在下游业务节点：出库单，不能强制删除拣货单。"
+                    : $"存在下游业务节点：出库单；下游数据单号：{string.Join("、", stockOutCodes)}");
+            }
+
+            var items = (await _pickingTaskItemRepository.FindAsync(x => x.PickingTaskId == task.Id)).ToList();
+            foreach (var line in items)
+                await _pickingTaskItemRepository.DeleteAsync(line.Id);
+            await _pickingTaskRepository.DeleteAsync(task.Id);
+            await _unitOfWork.SaveChangesAsync();
+
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.PickingTask,
+                task.Id,
+                string.IsNullOrWhiteSpace(task.TaskCode) ? null : task.TaskCode.Trim(),
+                "拣货单强制删除",
+                actingUserId.Trim(),
+                string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
+                $"强制删除拣货单：拣货单内部主键={task.Id}（接口/库表主键），拣货单号={task.TaskCode}，删除时状态={task.Status}，明细行数={items.Count}",
+                reason: null);
+        }
+
+        /// <inheritdoc />
+        public async Task<bool> HasStockOutLinkedToPickingTaskAsync(string pickingTaskId)
+        {
+            if (string.IsNullOrWhiteSpace(pickingTaskId))
+                return false;
+            var tid = pickingTaskId.Trim();
+            var tidLower = tid.ToLowerInvariant();
+            var headerLinked = (await _stockOutRepository.FindAsync(x =>
+                    x.PickingTaskId != null &&
+                    x.PickingTaskId.ToLower() == tidLower))
+                .Any(x => !x.IsDeleted);
+            if (headerLinked)
+                return true;
+
+            var itemIds = (await _pickingTaskItemRepository.FindAsync(x =>
+                    x.PickingTaskId != null &&
+                    x.PickingTaskId.ToLower() == tidLower))
+                .Select(x => x.Id?.Trim() ?? "")
+                .Where(x => x.Length > 0)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (itemIds.Count == 0)
+                return false;
+
+            return (await _stockOutItemRepository.FindAsync(x =>
+                    x.PickingTaskItemId != null &&
+                    itemIds.Contains(x.PickingTaskItemId.Trim())))
+                .Any(x => !x.IsDeleted);
+        }
+
+        /// <inheritdoc />
+        public async Task RecalculateStockAggregateTotalsAsync(string? stockAggregateId)
+        {
+            var aggId = stockAggregateId?.Trim();
+            if (string.IsNullOrWhiteSpace(aggId))
+                return;
+
+            var stock = await _stockRepository.GetByIdAsync(aggId);
+            if (stock == null)
+                return;
+
+            var rows = (await _stockItemRepository.FindAsync(x => x.StockAggregateId == stock.Id)).ToList();
+            stock.QtyOccupy = rows.Sum(x => x.QtyOccupy);
+            stock.QtySales = rows.Sum(x => x.QtySales);
+            stock.QtyRepertory = rows.Sum(x => x.QtyRepertory);
+            stock.QtyRepertoryAvailable = rows.Sum(x => x.QtyRepertoryAvailable);
+            await _stockRepository.UpdateAsync(stock);
         }
     }
 }

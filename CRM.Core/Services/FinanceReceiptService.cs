@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Finance;
@@ -18,6 +19,8 @@ namespace CRM.Core.Services
         private readonly IUnitOfWork? _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
         private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
+        private readonly IForceDeleteGuardService _forceDeleteGuard;
+        private readonly ILogOperationAppendService _logOperationAppend;
 
         public FinanceReceiptService(
             IRepository<FinanceReceipt> receiptRepo,
@@ -29,6 +32,8 @@ namespace CRM.Core.Services
             IDataPermissionService dataPermissionService,
             ISerialNumberService serialNumberService,
             ISellOrderItemExtendSyncService sellOrderItemExtendSync,
+            IForceDeleteGuardService forceDeleteGuard,
+            ILogOperationAppendService logOperationAppend,
             IUnitOfWork? unitOfWork = null)
         {
             _receiptRepo = receiptRepo;
@@ -40,11 +45,10 @@ namespace CRM.Core.Services
             _dataPermissionService = dataPermissionService;
             _serialNumberService = serialNumberService;
             _sellOrderItemExtendSync = sellOrderItemExtendSync;
+            _forceDeleteGuard = forceDeleteGuard;
+            _logOperationAppend = logOperationAppend;
             _unitOfWork = unitOfWork;
         }
-
-        private static string FormatUserDisplayName(User u) =>
-            string.IsNullOrWhiteSpace(u.RealName) ? u.UserName : u.RealName!;
 
         private async Task EnrichCreateUserNamesAsync(IReadOnlyList<FinanceReceipt> items)
         {
@@ -60,7 +64,10 @@ namespace CRM.Core.Services
             var map = users
                 .Where(u => !string.IsNullOrWhiteSpace(u.Id))
                 .GroupBy(u => u.Id.Trim(), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => FormatUserDisplayName(g.First()), StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(
+                    g => g.Key,
+                    g => EntityLookupService.FormatUserLoginName(g.First()) ?? g.Key,
+                    StringComparer.OrdinalIgnoreCase);
             foreach (var r in items)
             {
                 if (string.IsNullOrWhiteSpace(r.CreateByUserId)) continue;
@@ -218,6 +225,36 @@ namespace CRM.Core.Services
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
             foreach (var sid in recalcLineIds)
                 await _sellOrderItemExtendSync.RecalculateAsync(sid);
+        }
+
+        /// <inheritdoc />
+        public async Task ForceDeleteAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName)
+        {
+            if (string.IsNullOrWhiteSpace(confirmBillCode))
+                throw new ArgumentException("请填写 confirmBillCode", nameof(confirmBillCode));
+            if (string.IsNullOrWhiteSpace(actingUserId))
+                throw new ArgumentException("操作人不能为空", nameof(actingUserId));
+
+            var entity = await _receiptRepo.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException("收款单不存在");
+            if (!string.Equals(confirmBillCode.Trim(), entity.FinanceReceiptCode?.Trim(), StringComparison.Ordinal))
+                throw new ArgumentException("确认单号不匹配，已拒绝删除");
+
+            var guard = await _forceDeleteGuard.CanForceDeleteFinanceReceiptAsync(entity.Id);
+            if (!guard.CanDelete)
+                throw new ArgumentException(guard.Message);
+
+            await DeleteAsync(entity.Id);
+
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.SalesOrder,
+                entity.Id,
+                string.IsNullOrWhiteSpace(entity.FinanceReceiptCode) ? null : entity.FinanceReceiptCode.Trim(),
+                "收款单强制删除",
+                actingUserId.Trim(),
+                string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
+                $"强制删除收款单：Id={entity.Id}，Code={entity.FinanceReceiptCode}",
+                reason: null);
         }
 
         public async Task UpdateStatusAsync(string id, short status, string? actingUserId = null)

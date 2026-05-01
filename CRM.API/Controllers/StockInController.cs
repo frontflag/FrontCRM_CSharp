@@ -2,7 +2,6 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
-using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Utilities;
@@ -14,22 +13,16 @@ namespace CRM.API.Controllers
     public class StockInController : ControllerBase
     {
         private readonly IStockInService _service;
-        private readonly IRepository<StockIn> _stockInRepo;
         private readonly IRbacService _rbacService;
-        private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<StockInController> _logger;
 
         public StockInController(
             IStockInService service,
-            IRepository<StockIn> stockInRepo,
             IRbacService rbacService,
-            ILogOperationAppendService logOperationAppend,
             ILogger<StockInController> logger)
         {
             _service = service;
-            _stockInRepo = stockInRepo;
             _rbacService = rbacService;
-            _logOperationAppend = logOperationAppend;
             _logger = logger;
         }
 
@@ -156,6 +149,10 @@ namespace CRM.API.Controllers
                 await _service.DeleteAsync(id);
                 return Ok(ApiResponse<object>.Ok(null, "删除入库单成功"));
             }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
             catch (InvalidOperationException ex)
             {
                 return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
@@ -183,28 +180,18 @@ namespace CRM.API.Controllers
                 if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
                     return BadRequest(ApiResponse<object>.Fail("请填写 confirmBillCode", 400));
 
-                var stockIn = await _stockInRepo.GetByIdAsync(id);
-                if (stockIn == null)
-                    return NotFound(ApiResponse<object>.Fail("入库单不存在", 404));
-
-                if (!string.Equals(body.ConfirmBillCode.Trim(), stockIn.StockInCode?.Trim(), StringComparison.Ordinal))
-                    return BadRequest(ApiResponse<object>.Fail("确认单号不匹配，已拒绝删除", 400));
-
-                var recordCode = string.IsNullOrWhiteSpace(stockIn.StockInCode) ? null : stockIn.StockInCode.Trim();
-                await _service.DeleteAsync(id);
-
                 var userName = User.FindFirst(ClaimTypes.Name)?.Value;
-                await _logOperationAppend.AppendAsync(
-                    BusinessLogTypes.StockIn,
+                await _service.ForceDeleteAsync(
                     id,
-                    recordCode,
-                    "入库单强制删除",
+                    body.ConfirmBillCode.Trim(),
                     userId.Trim(),
-                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim(),
-                    $"强制删除入库单 StockInId={id}，确认单号={recordCode}",
-                    reason: null);
+                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim());
 
                 return Ok(ApiResponse<object>.Ok(null, "强制删除入库单成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
             }
             catch (InvalidOperationException ex)
             {

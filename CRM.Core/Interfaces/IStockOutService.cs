@@ -30,6 +30,12 @@ namespace CRM.Core.Interfaces
         Task UpdateHeaderAsync(string id, UpdateStockOutHeaderRequest request, string? actingUserId = null);
         /// <summary>强制删除出库单；若单据已执行出库（状态 2/4）则自动反向回补库存数量。</summary>
         Task ForceDeleteWithInventoryRollbackAsync(string id, string? actingUserId = null);
+
+        /// <summary>管理员强制删除出库通知：校验确认单号、守卫、删除并写操作日志。</summary>
+        Task ForceDeleteStockOutRequestAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
+
+        /// <summary>管理员强制删除出库单：校验确认单号、守卫、库存回冲与级联删除并写操作日志。</summary>
+        Task ForceDeleteStockOutAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
     }
 
     public class CreateStockOutRequestRequest

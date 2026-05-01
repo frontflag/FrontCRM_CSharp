@@ -5,6 +5,7 @@
       <div class="debug-sub muted">
         业务链路模拟写入数据库，需登录后使用。
         <router-link class="debug-link" to="/debug">返回 Debug</router-link>
+        <router-link class="debug-link" to="/debug/tools">打开 Debug 工具</router-link>
       </div>
     </div>
 
@@ -47,35 +48,6 @@
         <div>链路号：<span class="mono">{{ simulateResult.chainNo }}</span></div>
         <div>节点：{{ simulateResult.businessNode }}，状态：{{ simulateResult.targetStatus }}</div>
         <div>创建结果：{{ simulateResult.createdNodes.join(' -> ') }}</div>
-      </div>
-    </section>
-
-    <section class="debug-panel panel-refresh">
-      <h2 class="panel-title">刷新订单面板</h2>
-      <div class="panel-body refresh-actions">
-        <el-button type="primary" :loading="refreshingSalesOrders" :disabled="refreshingAny" @click="refreshAllSalesOrders">
-          刷新全部销售订单
-        </el-button>
-        <el-button type="warning" :loading="refreshingPurchaseOrders" :disabled="refreshingAny" @click="refreshAllPurchaseOrders">
-          刷新全部采购单
-        </el-button>
-      </div>
-      <div class="refresh-hint">逐条调用订单详情页“刷新”同源接口，自动循环执行。</div>
-      <div class="refresh-result-grid">
-        <div class="refresh-result-card">
-          <div class="refresh-result-title">销售订单刷新结果</div>
-          <div class="refresh-result-line">共刷新：{{ salesRefreshResult.total }} 条</div>
-          <div class="refresh-result-line">有数据变更：{{ salesRefreshResult.changed }} 条</div>
-          <div class="refresh-result-line">变更单号：{{ salesRefreshResult.codesText }}</div>
-          <div class="refresh-result-line">失败条数：{{ salesRefreshResult.failed }} 条（{{ salesRefreshResult.failedCodesText }}）</div>
-        </div>
-        <div class="refresh-result-card">
-          <div class="refresh-result-title">采购订单刷新结果</div>
-          <div class="refresh-result-line">共刷新：{{ purchaseRefreshResult.total }} 条</div>
-          <div class="refresh-result-line">有数据变更：{{ purchaseRefreshResult.changed }} 条</div>
-          <div class="refresh-result-line">变更单号：{{ purchaseRefreshResult.codesText }}</div>
-          <div class="refresh-result-line">失败条数：{{ purchaseRefreshResult.failed }} 条（{{ purchaseRefreshResult.failedCodesText }}）</div>
-        </div>
       </div>
     </section>
 
@@ -122,6 +94,21 @@
       </el-table>
       <div v-else-if="chainSearched && !chainLoading && !chainError" class="chain-empty">未查询到数据或无下游记录</div>
     </section>
+
+    <section class="debug-panel panel-temp">
+      <h2 class="panel-title">临时</h2>
+      <div class="panel-body refresh-actions">
+        <el-button type="danger" :loading="refreshingStockLedger" @click="onRefreshStockLedger">
+          刷新stockledger
+        </el-button>
+      </div>
+      <div class="refresh-hint">回填 STOCK_OUT / STOCK_OUT_REVERSE 的 UnitCost、Amount、currency（调试临时工具）。</div>
+      <div v-if="stockLedgerRefreshResult" class="simulate-result">
+        <div>STOCK_OUT 更新：{{ stockLedgerRefreshResult.stockOutUpdated }} 条</div>
+        <div>STOCK_OUT_REVERSE 更新：{{ stockLedgerRefreshResult.stockOutReverseUpdated }} 条</div>
+        <div>币别兜底（currency<=0）：{{ stockLedgerRefreshResult.currencyDefaulted }} 条</div>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -132,12 +119,12 @@ import {
   simulateBusinessChain,
   getRfqChainPreview,
   deleteRfqChain,
+  refreshStockLedger,
   type SimulateBusinessChainResponse,
   type SimulateDataOrigin,
-  type RfqChainPreview
+  type RfqChainPreview,
+  type RefreshStockLedgerResult
 } from '@/api/debug'
-import { salesOrderApi } from '@/api/salesOrder'
-import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 const simulating = ref(false)
@@ -285,136 +272,8 @@ const chainDeleting = ref(false)
 const chainPreview = ref<RfqChainPreview | null>(null)
 const chainError = ref<string | null>(null)
 const chainSearched = ref(false)
-const refreshingSalesOrders = ref(false)
-const refreshingPurchaseOrders = ref(false)
-const salesRefreshTotal = ref(0)
-const salesRefreshChanged = ref(0)
-const salesRefreshCodes = ref<string[]>([])
-const salesRefreshFailedCodes = ref<string[]>([])
-const purchaseRefreshTotal = ref(0)
-const purchaseRefreshChanged = ref(0)
-const purchaseRefreshCodes = ref<string[]>([])
-const purchaseRefreshFailedCodes = ref<string[]>([])
-
-const refreshingAny = computed(() => refreshingSalesOrders.value || refreshingPurchaseOrders.value)
-const salesRefreshResult = computed(() => ({
-  total: salesRefreshTotal.value,
-  changed: salesRefreshChanged.value,
-  codesText: salesRefreshCodes.value.length ? salesRefreshCodes.value.join('，') : '无',
-  failed: salesRefreshFailedCodes.value.length,
-  failedCodesText: salesRefreshFailedCodes.value.length ? salesRefreshFailedCodes.value.join('，') : '无'
-}))
-const purchaseRefreshResult = computed(() => ({
-  total: purchaseRefreshTotal.value,
-  changed: purchaseRefreshChanged.value,
-  codesText: purchaseRefreshCodes.value.length ? purchaseRefreshCodes.value.join('，') : '无',
-  failed: purchaseRefreshFailedCodes.value.length,
-  failedCodesText: purchaseRefreshFailedCodes.value.length ? purchaseRefreshFailedCodes.value.join('，') : '无'
-}))
-
-async function loadAllSalesOrders() {
-  const pageSize = 200
-  let page = 1
-  const rows: any[] = []
-  while (true) {
-    const res = await salesOrderApi.getList({ page, pageSize })
-    const batch = (res as { items?: any[] }).items || []
-    rows.push(...batch)
-    if (batch.length < pageSize) break
-    page += 1
-  }
-  return rows
-}
-
-async function loadAllPurchaseOrders() {
-  const pageSize = 200
-  let page = 1
-  const rows: any[] = []
-  while (true) {
-    const res = await purchaseOrderApi.getList({ page, pageSize })
-    const batch = (res as { items?: any[] }).items || []
-    rows.push(...batch)
-    if (batch.length < pageSize) break
-    page += 1
-  }
-  return rows
-}
-
-async function refreshAllSalesOrders() {
-  if (refreshingAny.value) return
-  refreshingSalesOrders.value = true
-  salesRefreshTotal.value = 0
-  salesRefreshChanged.value = 0
-  salesRefreshCodes.value = []
-  salesRefreshFailedCodes.value = []
-  try {
-    const allRows = await loadAllSalesOrders()
-    const orders = allRows
-      .map((x) => ({
-        id: String(x.id ?? ''),
-        code: String(x.sellOrderCode ?? x.code ?? x.id ?? '')
-      }))
-      .filter((x) => x.id)
-    salesRefreshTotal.value = orders.length
-
-    const changedCodes: string[] = []
-    const failedCodes: string[] = []
-    for (const order of orders) {
-      try {
-        const result = await salesOrderApi.refreshItemExtends(order.id)
-        if ((result?.changedItems ?? 0) > 0 || (result?.changedFieldsCount ?? 0) > 0) changedCodes.push(order.code)
-      } catch {
-        failedCodes.push(order.code)
-      }
-    }
-    salesRefreshCodes.value = changedCodes
-    salesRefreshFailedCodes.value = failedCodes
-    salesRefreshChanged.value = changedCodes.length
-    ElMessage.success(`销售订单刷新完成：共 ${orders.length} 条，变更 ${changedCodes.length} 条，失败 ${failedCodes.length} 条`)
-  } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '刷新销售订单失败'))
-  } finally {
-    refreshingSalesOrders.value = false
-  }
-}
-
-async function refreshAllPurchaseOrders() {
-  if (refreshingAny.value) return
-  refreshingPurchaseOrders.value = true
-  purchaseRefreshTotal.value = 0
-  purchaseRefreshChanged.value = 0
-  purchaseRefreshCodes.value = []
-  purchaseRefreshFailedCodes.value = []
-  try {
-    const allRows = await loadAllPurchaseOrders()
-    const orders = allRows
-      .map((x) => ({
-        id: String(x.id ?? ''),
-        code: String(x.purchaseOrderCode ?? x.code ?? x.id ?? '')
-      }))
-      .filter((x) => x.id)
-    purchaseRefreshTotal.value = orders.length
-
-    const changedCodes: string[] = []
-    const failedCodes: string[] = []
-    for (const order of orders) {
-      try {
-        const result = await purchaseOrderApi.refreshItemExtends(order.id)
-        if ((result?.changedItems ?? 0) > 0 || (result?.changedFieldsCount ?? 0) > 0) changedCodes.push(order.code)
-      } catch {
-        failedCodes.push(order.code)
-      }
-    }
-    purchaseRefreshCodes.value = changedCodes
-    purchaseRefreshFailedCodes.value = failedCodes
-    purchaseRefreshChanged.value = changedCodes.length
-    ElMessage.success(`采购订单刷新完成：共 ${orders.length} 条，变更 ${changedCodes.length} 条，失败 ${failedCodes.length} 条`)
-  } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '刷新采购订单失败'))
-  } finally {
-    refreshingPurchaseOrders.value = false
-  }
-}
+const refreshingStockLedger = ref(false)
+const stockLedgerRefreshResult = ref<RefreshStockLedgerResult | null>(null)
 
 const onPreviewRfqChain = async () => {
   const code = rfqChainCode.value.trim()
@@ -501,6 +360,23 @@ const onSimulate = async () => {
     simulating.value = false
   }
 }
+
+const onRefreshStockLedger = async () => {
+  if (refreshingStockLedger.value) return
+  refreshingStockLedger.value = true
+  try {
+    const result = await refreshStockLedger()
+    stockLedgerRefreshResult.value = result
+    ElMessage.success(
+      `刷新完成：STOCK_OUT ${result.stockOutUpdated} 条，REVERSE ${result.stockOutReverseUpdated} 条，币别兜底 ${result.currencyDefaulted} 条`
+    )
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '刷新 stockledger 失败'))
+  } finally {
+    refreshingStockLedger.value = false
+  }
+}
+
 </script>
 
 <style lang="scss" scoped>
@@ -653,41 +529,4 @@ const onSimulate = async () => {
   width: 100%;
 }
 
-.refresh-actions {
-  gap: 10px;
-}
-
-.refresh-hint {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #909399;
-}
-
-.refresh-result-grid {
-  margin-top: 12px;
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-}
-
-.refresh-result-card {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
-  background: var(--el-fill-color-blank);
-  padding: 10px 12px;
-}
-
-.refresh-result-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 8px;
-}
-
-.refresh-result-line {
-  font-size: 13px;
-  color: #606266;
-  line-height: 1.6;
-  word-break: break-all;
-}
 </style>

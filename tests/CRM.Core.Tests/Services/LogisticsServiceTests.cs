@@ -73,7 +73,9 @@ public class LogisticsServiceTests
             .Returns(Task.FromResult(Enumerable.Empty<StockInItemExtend>()));
         var svc = new LogisticsService(
             notifyRepo, stockInRepo, stockInItemExtendRepo, qcRepo, qcItemRepo, poRepo, poItemRepo, poItemExtendRepo,
-            sellOrderItemRepo, sellOrderRepo, serial, poExtendSync, uow, userService, log);
+            sellOrderItemRepo, sellOrderRepo, serial, poExtendSync, uow, userService,
+            Substitute.For<ILogOperationAppendService>(),
+            log);
 
         var result = await svc.GetQcsAsync(new QcQueryRequest { Model = "UG-MPN-455565" });
 

@@ -43,6 +43,8 @@ namespace CRM.Core.Services
         private readonly ISerialNumberService _serialNumberService;
         private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
         private readonly ISellOrderItemPurchasedStockAvailableSyncService _purchasedStockAvailableSync;
+        private readonly IForceDeleteGuardService _forceDeleteGuard;
+        private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<StockOutService> _logger;
 
         public StockOutService(
@@ -70,6 +72,8 @@ namespace CRM.Core.Services
             ISellOrderItemExtendSyncService sellOrderItemExtendSync,
             ISellOrderItemPurchasedStockAvailableSyncService purchasedStockAvailableSync,
             IUnitOfWork unitOfWork,
+            IForceDeleteGuardService forceDeleteGuard,
+            ILogOperationAppendService logOperationAppend,
             ILogger<StockOutService> logger)
         {
             _stockOutRepository = stockOutRepository;
@@ -96,6 +100,8 @@ namespace CRM.Core.Services
             _sellOrderItemExtendSync = sellOrderItemExtendSync;
             _purchasedStockAvailableSync = purchasedStockAvailableSync;
             _unitOfWork = unitOfWork;
+            _forceDeleteGuard = forceDeleteGuard;
+            _logOperationAppend = logOperationAppend;
             _logger = logger;
         }
 
@@ -284,7 +290,7 @@ namespace CRM.Core.Services
             var soMap = (await _sellOrderRepository.GetAllAsync())
                 .ToDictionary(x => x.Id, x => x);
             var users = (await _userRepository.GetAllAsync()).ToList();
-            var userNameById = users
+            var userLoginById = users
                 .Where(x => !string.IsNullOrWhiteSpace(x.Id))
                 .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(
@@ -292,10 +298,10 @@ namespace CRM.Core.Services
                     g =>
                     {
                         var first = g.First();
-                        return string.IsNullOrWhiteSpace(first.RealName) ? first.UserName : first.RealName!;
+                        return EntityLookupService.FormatUserLoginName(first) ?? first.UserName ?? "";
                     },
                     StringComparer.OrdinalIgnoreCase);
-            var userNameByLogin = users
+            var userLoginByLoginKey = users
                 .Where(x => !string.IsNullOrWhiteSpace(x.UserName))
                 .GroupBy(x => x.UserName, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(
@@ -303,7 +309,7 @@ namespace CRM.Core.Services
                     g =>
                     {
                         var first = g.First();
-                        return string.IsNullOrWhiteSpace(first.RealName) ? first.UserName : first.RealName!;
+                        return EntityLookupService.FormatUserLoginName(first) ?? first.UserName ?? "";
                     },
                     StringComparer.OrdinalIgnoreCase);
 
@@ -320,9 +326,9 @@ namespace CRM.Core.Services
                     string? requestUserName = null;
                     if (!string.IsNullOrWhiteSpace(x.RequestUserId))
                     {
-                        if (!userNameById.TryGetValue(x.RequestUserId, out requestUserName))
+                        if (!userLoginById.TryGetValue(x.RequestUserId, out requestUserName))
                         {
-                            userNameByLogin.TryGetValue(x.RequestUserId, out requestUserName);
+                            userLoginByLoginKey.TryGetValue(x.RequestUserId, out requestUserName);
                         }
                     }
                     return new StockOutRequestListItemDto
@@ -336,7 +342,7 @@ namespace CRM.Core.Services
                         Brand = brand,
                         OutQuantity = x.Quantity,
                         ExpectedStockOutDate = x.RequestDate == default ? null : x.RequestDate,
-                        SalesUserName = so?.SalesUserName,
+                        SalesUserName = ResolveSellOrderSalesLogin(so, userLoginById),
                         CustomerId = x.CustomerId,
                         CustomerName = so?.CustomerName,
                         RequestUserId = x.RequestUserId,
@@ -350,6 +356,19 @@ namespace CRM.Core.Services
                     };
                 })
                 .ToList();
+        }
+
+        private static string? ResolveSellOrderSalesLogin(
+            SellOrder? so,
+            IReadOnlyDictionary<string, string> userLoginById)
+        {
+            if (so == null) return null;
+            var sid = so.SalesUserId?.Trim();
+            if (!string.IsNullOrWhiteSpace(sid) &&
+                userLoginById.TryGetValue(sid, out var login) &&
+                !string.IsNullOrWhiteSpace(login))
+                return login;
+            return string.IsNullOrWhiteSpace(so.SalesUserName) ? null : so.SalesUserName.Trim();
         }
 
         /// <summary>汇总层与可选在库明细层同步扣减可用量、占用与已出库量。</summary>
@@ -653,7 +672,14 @@ namespace CRM.Core.Services
             if (customerName == null && so != null)
                 customerName = so.CustomerName;
 
-            var salesUserName = so?.SalesUserName;
+            string? salesUserName = so?.SalesUserName;
+            if (so != null && !string.IsNullOrWhiteSpace(so.SalesUserId))
+            {
+                var su = await _userRepository.GetByIdAsync(so.SalesUserId.Trim());
+                if (su != null)
+                    salesUserName = EntityLookupService.FormatUserLoginName(su) ?? salesUserName;
+            }
+
             var sellOrderItemCode = string.IsNullOrWhiteSpace(line?.SellOrderItemCode)
                 ? null
                 : line!.SellOrderItemCode;
@@ -663,7 +689,7 @@ namespace CRM.Core.Services
             {
                 var u = await _userRepository.GetByIdAsync(x.CreateByUserId.Trim());
                 if (u != null)
-                    createUserName = string.IsNullOrWhiteSpace(u.RealName) ? u.UserName : u.RealName;
+                    createUserName = EntityLookupService.FormatUserLoginName(u) ?? u.UserName;
             }
 
             string? warehouseCode = null;
@@ -767,7 +793,7 @@ namespace CRM.Core.Services
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             var users = (await _userRepository.GetAllAsync()).ToList();
-            var userNameById = users
+            var userLoginById = users
                 .Where(x => !string.IsNullOrWhiteSpace(x.Id))
                 .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(
@@ -775,10 +801,10 @@ namespace CRM.Core.Services
                     g =>
                     {
                         var first = g.First();
-                        return string.IsNullOrWhiteSpace(first.RealName) ? first.UserName : first.RealName!;
+                        return EntityLookupService.FormatUserLoginName(first) ?? first.UserName ?? "";
                     },
                     StringComparer.OrdinalIgnoreCase);
-            var userNameByLogin = users
+            var userLoginByLoginKey = users
                 .Where(x => !string.IsNullOrWhiteSpace(x.UserName))
                 .GroupBy(x => x.UserName, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(
@@ -786,7 +812,7 @@ namespace CRM.Core.Services
                     g =>
                     {
                         var first = g.First();
-                        return string.IsNullOrWhiteSpace(first.RealName) ? first.UserName : first.RealName!;
+                        return EntityLookupService.FormatUserLoginName(first) ?? first.UserName ?? "";
                     },
                     StringComparer.OrdinalIgnoreCase);
 
@@ -814,7 +840,7 @@ namespace CRM.Core.Services
                         customerName = so.CustomerName;
                     }
 
-                    var salesUserName = so?.SalesUserName;
+                    var salesUserName = ResolveSellOrderSalesLogin(so, userLoginById);
                     var sellOrderItemCode = string.IsNullOrWhiteSpace(line?.SellOrderItemCode)
                         ? null
                         : line!.SellOrderItemCode;
@@ -822,8 +848,8 @@ namespace CRM.Core.Services
                     string? createUserName = null;
                     if (!string.IsNullOrWhiteSpace(x.CreateByUserId))
                     {
-                        if (!userNameById.TryGetValue(x.CreateByUserId, out createUserName))
-                            userNameByLogin.TryGetValue(x.CreateByUserId, out createUserName);
+                        if (!userLoginById.TryGetValue(x.CreateByUserId, out createUserName))
+                            userLoginByLoginKey.TryGetValue(x.CreateByUserId, out createUserName);
                     }
 
                     return new StockOutListItemDto
@@ -886,6 +912,18 @@ namespace CRM.Core.Services
                 .Where(x => orderIdSet.Contains(x.Id))
                 .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var userLoginByIdForSo = (await _userRepository.GetAllAsync())
+                .Where(x => !string.IsNullOrWhiteSpace(x.Id))
+                .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g =>
+                    {
+                        var first = g.First();
+                        return EntityLookupService.FormatUserLoginName(first) ?? first.UserName ?? "";
+                    },
+                    StringComparer.OrdinalIgnoreCase);
 
             foreach (var o in orderById.Values)
             {
@@ -968,7 +1006,7 @@ namespace CRM.Core.Services
                 if (!TextContainsOptional(customerName, custNeedle))
                     continue;
 
-                var salesUserName = so?.SalesUserName;
+                var salesUserName = ResolveSellOrderSalesLogin(so, userLoginByIdForSo);
                 if (!TextContainsOptional(salesUserName, salesNeedle))
                     continue;
 
@@ -1171,6 +1209,9 @@ namespace CRM.Core.Services
                         Amount = outLedgerByLineId.TryGetValue(line.Id.Trim(), out outLedger)
                             ? Math.Round(Math.Abs(outLedger.UnitCost) * rollbackQty, 2, MidpointRounding.AwayFromZero)
                             : 0m,
+                        Currency = outLedgerByLineId.TryGetValue(line.Id.Trim(), out outLedger)
+                            ? (outLedger.Currency > 0 ? outLedger.Currency : (short)CurrencyCode.RMB)
+                            : (short)CurrencyCode.RMB,
                         PurchaseOrderItemCode = ledgerStock?.PurchaseOrderItemCode,
                         PurchaseOrderItemId = ledgerStock?.PurchaseOrderItemId,
                         SellOrderItemCode = ledgerStock?.SellOrderItemCode,
@@ -1227,6 +1268,74 @@ namespace CRM.Core.Services
             }
 
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        /// <inheritdoc />
+        public async Task ForceDeleteStockOutRequestAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("ID不能为空", nameof(id));
+            if (string.IsNullOrWhiteSpace(confirmBillCode))
+                throw new ArgumentException("请填写 confirmBillCode", nameof(confirmBillCode));
+            if (string.IsNullOrWhiteSpace(actingUserId))
+                throw new ArgumentException("操作人不能为空", nameof(actingUserId));
+
+            var entity = await _stockOutRequestRepository.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException("出库通知不存在");
+            if (!string.Equals(confirmBillCode.Trim(), entity.RequestCode?.Trim(), StringComparison.Ordinal))
+                throw new ArgumentException("确认单号不匹配，已拒绝删除");
+
+            var guard = await _forceDeleteGuard.CanForceDeleteStockOutRequestAsync(entity.Id);
+            if (!guard.CanDelete)
+                throw new ArgumentException(guard.Message);
+
+            await _stockOutRequestRepository.DeleteAsync(entity.Id);
+            await _unitOfWork.SaveChangesAsync();
+
+            var recordCode = string.IsNullOrWhiteSpace(entity.RequestCode) ? null : entity.RequestCode.Trim();
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.StockOut,
+                entity.Id,
+                recordCode,
+                "出库通知强制删除",
+                actingUserId.Trim(),
+                string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
+                $"强制删除出库通知 RequestId={entity.Id}，确认单号={recordCode}",
+                reason: null);
+        }
+
+        /// <inheritdoc />
+        public async Task ForceDeleteStockOutAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("ID不能为空", nameof(id));
+            if (string.IsNullOrWhiteSpace(confirmBillCode))
+                throw new ArgumentException("请填写 confirmBillCode", nameof(confirmBillCode));
+            if (string.IsNullOrWhiteSpace(actingUserId))
+                throw new ArgumentException("操作人不能为空", nameof(actingUserId));
+
+            var entity = await _stockOutRepository.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException("出库单不存在");
+            if (string.IsNullOrWhiteSpace(entity.StockOutCode)
+                || !string.Equals(confirmBillCode.Trim(), entity.StockOutCode.Trim(), StringComparison.Ordinal))
+                throw new ArgumentException("确认单号不匹配，已拒绝删除");
+
+            var guard = await _forceDeleteGuard.CanForceDeleteStockOutAsync(entity.Id);
+            if (!guard.CanDelete)
+                throw new ArgumentException(guard.Message);
+
+            await ForceDeleteWithInventoryRollbackAsync(entity.Id, actingUserId.Trim());
+
+            var recordCode = string.IsNullOrWhiteSpace(entity.StockOutCode) ? null : entity.StockOutCode.Trim();
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.StockOut,
+                entity.Id,
+                recordCode,
+                "出库单强制删除",
+                actingUserId.Trim(),
+                string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
+                $"强制删除出库单 StockOutId={entity.Id}，确认单号={recordCode}",
+                reason: null);
         }
 
         private static bool IsOutboundDoneStatus(short status) => status == 2 || status == 4;

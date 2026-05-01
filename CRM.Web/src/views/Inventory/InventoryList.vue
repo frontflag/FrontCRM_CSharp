@@ -24,11 +24,23 @@
     <div class="stat-row" v-if="finance">
       <div class="stat-card">
         <div class="label">{{ t('inventoryList.stats.capitalOccupied') }}</div>
-        <div class="value">{{ formatMoney(finance.inventoryCapital) }}</div>
+        <div class="value">{{ formatMoney(finance.inventoryCapital) }} RMB（折算）</div>
+        <div v-if="financeByCurrencyRows.length" class="stat-subrows">
+          <div v-for="row in financeByCurrencyRows" :key="`cap-${row.currency}`" class="stat-subrow">
+            <span>{{ currencyCodeText(row.currency) }}</span>
+            <span>{{ formatMoney(row.inventoryCapital) }}</span>
+          </div>
+        </div>
       </div>
       <div class="stat-card">
         <div class="label">{{ t('inventoryList.stats.monthlyOutCost') }}</div>
-        <div class="value">{{ formatMoney(finance.monthlyOutCost) }}</div>
+        <div class="value">{{ formatMoney(finance.monthlyOutCost) }} RMB（折算）</div>
+        <div v-if="financeByCurrencyRows.length" class="stat-subrows">
+          <div v-for="row in financeByCurrencyRows" :key="`out-${row.currency}`" class="stat-subrow">
+            <span>{{ currencyCodeText(row.currency) }}</span>
+            <span>{{ formatMoney(row.monthlyOutCost) }}</span>
+          </div>
+        </div>
       </div>
       <div class="stat-card">
         <div class="label">{{ t('inventoryList.stats.turnoverDays') }}</div>
@@ -72,6 +84,20 @@
             :value="opt.value"
           />
         </el-select>
+        <el-input
+          v-model.trim="materialModelFilter"
+          :placeholder="t('inventoryList.filters.materialModelPlaceholder')"
+          clearable
+          class="search-input search-input--material-model"
+          @keyup.enter="fetchList"
+        />
+        <el-input
+          v-model.trim="stockCodeFilter"
+          :placeholder="t('inventoryList.filters.stockCodePlaceholder')"
+          clearable
+          class="search-input search-input--stock-code"
+          @keyup.enter="fetchList"
+        />
         <button type="button" class="btn-primary btn-sm" @click="fetchList">
           {{ t('inventoryList.filters.search') }}
         </button>
@@ -154,48 +180,6 @@
         </template>
       </template>
       <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '—' }}</template>
-      <template #col-actions-header>
-        <div class="op-col-header">
-          <span class="op-col-header-text">{{ t('inventoryList.columns.actions') }}</span>
-          <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpColMain">
-            {{ opColMainExpanded ? '>' : '<' }}
-          </button>
-        </div>
-      </template>
-      <template #col-actions="{ row }">
-        <div @click.stop @dblclick.stop>
-          <div v-if="opColMainExpanded" class="action-btns">
-            <button type="button" class="action-btn action-btn--primary" @click.stop="openStockDetail(row)">
-              {{ t('inventoryList.actions.stockDetail') }}
-            </button>
-            <button type="button" class="action-btn action-btn--info" @click.stop="openTrace(row.materialId)">{{ t('inventoryList.actions.trace') }}</button>
-            <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteStock(row)">删除</button>
-            <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteStock(row)">强制删除</button>
-          </div>
-
-          <el-dropdown v-else trigger="click" placement="bottom-end">
-            <div class="op-more-dropdown-trigger">
-              <button type="button" class="op-more-trigger">...</button>
-            </div>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item @click.stop="openStockDetail(row)">
-                  <span class="op-more-item op-more-item--primary">{{ t('inventoryList.actions.stockDetail') }}</span>
-                </el-dropdown-item>
-                <el-dropdown-item @click.stop="openTrace(row.materialId)">
-                  <span class="op-more-item op-more-item--info">{{ t('inventoryList.actions.trace') }}</span>
-                </el-dropdown-item>
-                <el-dropdown-item divided @click.stop="handleDeleteStock(row)">
-                  <span class="op-more-item op-more-item--danger">删除</span>
-                </el-dropdown-item>
-                <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteStock(row)">
-                  <span class="op-more-item op-more-item--danger">强制删除</span>
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </div>
-      </template>
     </CrmDataTable>
     <div class="pagination-wrapper">
       <div class="list-footer-left">
@@ -296,7 +280,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { Box, Setting } from '@element-plus/icons-vue'
 import { inventoryCenterApi, type FinanceSummary, type InventoryOverview, type WarehouseInfo } from '@/api/inventoryCenter'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
@@ -304,12 +288,9 @@ import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
-import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const { t } = useI18n()
-const authStore = useAuthStore()
-const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
 const list = ref<InventoryOverview[]>([])
 const listPage = ref(1)
@@ -320,22 +301,11 @@ const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 /** 筛选总览用的仓库主键或编码（与 stock.warehouseId 一致） */
 const warehouseFilter = ref<string | undefined>(undefined)
+const materialModelFilter = ref('')
+const stockCodeFilter = ref('')
 const finance = ref<FinanceSummary | null>(null)
 const warehouseVisible = ref(false)
 const warehouses = ref<WarehouseInfo[]>([])
-
-// 列表操作列：主表默认收起（Collapsed）
-const opColMainExpanded = ref(false)
-const OP_COL_MAIN_COLLAPSED_WIDTH = 96
-const OP_COL_MAIN_EXPANDED_WIDTH = 300
-const OP_COL_MAIN_EXPANDED_MIN_WIDTH = 260
-const opColMainWidth = computed(() => (opColMainExpanded.value ? OP_COL_MAIN_EXPANDED_WIDTH : OP_COL_MAIN_COLLAPSED_WIDTH))
-const opColMainMinWidth = computed(() =>
-  opColMainExpanded.value ? OP_COL_MAIN_EXPANDED_MIN_WIDTH : OP_COL_MAIN_COLLAPSED_WIDTH
-)
-function toggleOpColMain() {
-  opColMainExpanded.value = !opColMainExpanded.value
-}
 
 const inventoryTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'stockType', label: t('inventoryList.columns.stockType'), width: 138, showOverflowTooltip: true },
@@ -350,19 +320,7 @@ const inventoryTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'lastMoveTime', label: t('inventoryList.columns.lastMoveTime'), prop: 'lastMoveTime', width: 170 },
   { key: 'stockCode', label: t('inventoryList.columns.stockCode'), width: 132, showOverflowTooltip: true },
   { key: 'createTime', label: t('inventoryList.columns.createTime'), width: 160 },
-  { key: 'createUser', label: t('inventoryList.columns.createUser'), width: 120, showOverflowTooltip: true },
-  {
-    key: 'actions',
-    label: t('inventoryList.columns.actions'),
-    width: opColMainWidth.value,
-    minWidth: opColMainMinWidth.value,
-    fixed: 'right',
-    hideable: false,
-    pinned: 'end',
-    reorderable: false,
-    className: 'op-col',
-    labelClassName: 'op-col'
-  }
+  { key: 'createUser', label: t('inventoryList.columns.createUser'), width: 120, showOverflowTooltip: true }
 ])
 
 // 列表操作列：弹窗表格默认收起（Collapsed）
@@ -478,10 +436,17 @@ watch(stockTypeFilter, () => {
 function resetInventorySearch() {
   stockTypeFilter.value = undefined
   warehouseFilter.value = undefined
+  materialModelFilter.value = ''
+  stockCodeFilter.value = ''
   void fetchList()
 }
 
-const formatMoney = (v: number) => (v == null ? '—' : Number(v).toFixed(2))
+const formatMoney = (v: number) =>
+  v == null
+    ? '—'
+    : Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const financeByCurrencyRows = computed(() => (finance.value?.currencyBreakdowns ?? []).slice().sort((a, b) => a.currency - b.currency))
+const currencyCodeText = (currency?: number) => CURRENCY_CODE_TO_TEXT[Number(currency) || 1] ?? 'RMB'
 
 /** 数量列：与《业务列表规范》§3.2 一致（千分位、tabular） */
 const formatQtyCell = (v: unknown) => {
@@ -611,7 +576,11 @@ async function runInventoryFetch(resetPage: boolean) {
   loading.value = true
   try {
     const [overviewRes, summaryRes, warehouseRes] = await Promise.allSettled([
-      inventoryCenterApi.getOverview(warehouseFilter.value?.trim() || undefined),
+      inventoryCenterApi.getOverview({
+        warehouseId: warehouseFilter.value?.trim() || undefined,
+        materialModel: materialModelFilter.value?.trim() || undefined,
+        stockCode: stockCodeFilter.value?.trim() || undefined
+      }),
       inventoryCenterApi.getFinanceSummary(),
       inventoryCenterApi.getWarehouses()
     ])
@@ -644,10 +613,6 @@ async function runInventoryFetch(resetPage: boolean) {
 
 const fetchList = () => void runInventoryFetch(true)
 
-const openTrace = (materialId: string) => {
-  router.push(`/inventory/traces/${encodeURIComponent(materialId)}`)
-}
-
 const openStockDetail = (row: InventoryOverview) => {
   const sid = (row.stockId || '').trim()
   if (!sid) {
@@ -668,49 +633,6 @@ const openStockDetail = (row: InventoryOverview) => {
 
 const onRowClick = (row: InventoryOverview) => {
   openStockDetail(row)
-}
-
-const handleDeleteStock = async (row: InventoryOverview) => {
-  const sid = String(row.stockId || '').trim()
-  if (!sid) return
-  try {
-    await ElMessageBox.confirm(`确认删除库存 ${row.stockCode || sid} 吗？`, '删除确认', { type: 'warning' })
-  } catch {
-    return
-  }
-  try {
-    await inventoryCenterApi.deleteStock(sid)
-    ElMessage.success('删除成功')
-    fetchList()
-  } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '删除失败'))
-  }
-}
-
-const handleForceDeleteStock = async (row: InventoryOverview) => {
-  const sid = String(row.stockId || '').trim()
-  if (!sid) return
-  const expectCode = String(row.stockCode || sid).trim()
-  let entered = ''
-  try {
-    const ret = await ElMessageBox.prompt('请输入库存编号以确认强制删除', '强制删除确认', {
-      inputPlaceholder: expectCode
-    })
-    entered = String(ret.value || '').trim()
-  } catch {
-    return
-  }
-  if (entered !== expectCode) {
-    ElMessage.error('输入编号不匹配，已取消')
-    return
-  }
-  try {
-    await inventoryCenterApi.forceDeleteStock(sid, entered)
-    ElMessage.success('强制删除成功')
-    fetchList()
-  } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '强制删除失败'))
-  }
 }
 
 const openWarehouseDialog = async () => {
@@ -882,6 +804,20 @@ html[data-theme='dark'] .inv-list-amt-frac {
   width: 220px;
 }
 
+.search-input {
+  width: 180px;
+  :deep(.el-input__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+}
+
+.search-input--material-model {
+  width: 220px;
+}
+
 .page-title-group {
   display: flex;
   align-items: center;
@@ -1028,6 +964,20 @@ html[data-theme='dark'] .inv-list-amt-frac {
     font-weight: 600;
     margin-top: 4px;
   }
+}
+
+.stat-subrows {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-subrow {
+  display: flex;
+  justify-content: space-between;
+  color: #8fa2b7;
+  font-size: 12px;
 }
 
 // 列表操作列规范（收起/展开）

@@ -21,6 +21,9 @@ namespace CRM.Core.Services
         private const short StatusCompleted = 100;
         private const short StatusAuditFailed = -1;
         private const short StatusCancelled = -2;
+        private const short ItemStatusPaid = 40;
+        private const short ItemStatusShipped = 50;
+        private const short ItemStatusStockedIn = 60;
 
         private readonly IRepository<PurchaseOrder> _poRepo;
         private readonly IRepository<PurchaseOrderItem> _poItemRepo;
@@ -679,10 +682,30 @@ namespace CRM.Core.Services
             foreach (var item in items)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                var beforeItemStatus = item.Status;
                 var before = await BuildRefreshSnapshotAsync(item.Id);
                 await _poItemExtendSync.RecalculateAsync(item.Id, cancellationToken);
                 var after = await BuildRefreshSnapshotAsync(item.Id);
                 var fields = BuildFieldChanges(before, after);
+
+                var targetItemStatus = ComputeItemStatusAfterRefresh(item, after);
+                if (targetItemStatus != beforeItemStatus)
+                {
+                    item.Status = targetItemStatus;
+                    item.ModifyTime = DateTime.UtcNow;
+                    await _poItemRepo.UpdateAsync(item);
+                    fields.Add(new PurchaseOrderItemExtendFieldChangeDto
+                    {
+                        Field = "status",
+                        Label = "明细状态",
+                        Before = beforeItemStatus.ToString(),
+                        After = targetItemStatus.ToString()
+                    });
+                    // 扩展里「采购进度状态」等仍按本行 status 推导；主状态下调后需再算一遍，避免 extend 与主状态长期不一致
+                    await _poItemExtendSync.RecalculateAsync(item.Id, cancellationToken);
+                    var afterStatusFix = await BuildRefreshSnapshotAsync(item.Id);
+                    fields.AddRange(BuildFieldChanges(after, afterStatusFix));
+                }
                 if (fields.Count == 0) continue;
 
                 result.Changes.Add(new PurchaseOrderItemExtendChangeDto
@@ -708,6 +731,16 @@ namespace CRM.Core.Services
                 CountArrivalNoticeStatusChanges(beforeArrivalStatus, afterArrivalStatus);
 
             result.ChangedItems = result.Changes.Count;
+
+            var targetOrderStatus = ComputeOrderStatusAfterRefresh(order, items);
+            if (targetOrderStatus != order.Status)
+            {
+                result.ChangedFieldsCount += 1;
+                order.Status = targetOrderStatus;
+                order.ModifyTime = DateTime.UtcNow;
+                await _poRepo.UpdateAsync(order);
+            }
+
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
             _logger.LogInformation(
@@ -715,6 +748,60 @@ namespace CRM.Core.Services
                 orderId, order.PurchaseOrderCode, result.TotalItems, result.ChangedItems, result.ChangedFieldsCount);
 
             return result;
+        }
+
+        private static short ComputeItemStatusAfterRefresh(PurchaseOrderItem item, PoItemExtendRefreshSnapshot? after)
+        {
+            var current = item.Status;
+            if (current is StatusCancelled or StatusAuditFailed)
+                return current;
+            var next = current;
+            // 与扩展表/行上事实一致：先按里程碑上调（原逻辑）
+            if ((after?.PaymentProgressStatus ?? 0) >= 2 && next < ItemStatusPaid)
+                next = ItemStatusPaid;
+            if (item.StockOutStatus >= 2 && next < ItemStatusShipped)
+                next = ItemStatusShipped;
+            if ((after?.StockInProgressStatus ?? 0) >= 2 && next < ItemStatusStockedIn)
+                next = ItemStatusStockedIn;
+
+            // 刷新时允许下调：主状态曾被人为/历史写高，但扩展已按单据重算为「未达该里程碑」时应对齐（否则出现「主状态=已入库」与「入库状态=待入库」并存）
+            if ((after?.StockInProgressStatus ?? 0) < 2 && next >= ItemStatusStockedIn)
+            {
+                var cap = StatusConfirmed;
+                if ((after?.PaymentProgressStatus ?? 0) >= 2)
+                    cap = ItemStatusPaid;
+                if (item.StockOutStatus >= 2)
+                    cap = ItemStatusShipped;
+                next = Math.Min(next, cap);
+            }
+
+            if (item.StockOutStatus < 2 && next >= ItemStatusShipped)
+            {
+                var cap = StatusConfirmed;
+                if ((after?.PaymentProgressStatus ?? 0) >= 2)
+                    cap = ItemStatusPaid;
+                next = Math.Min(next, cap);
+            }
+
+            if ((after?.PaymentProgressStatus ?? 0) < 2 && next >= ItemStatusPaid)
+                next = Math.Min(next, StatusConfirmed);
+
+            return next;
+        }
+
+        private static short ComputeOrderStatusAfterRefresh(PurchaseOrder order, IReadOnlyList<PurchaseOrderItem> items)
+        {
+            if (order.Status is StatusCancelled or StatusAuditFailed)
+                return order.Status;
+            var activeItems = items.Where(i => i.Status != StatusCancelled).ToList();
+            if (activeItems.Count == 0)
+                return order.Status;
+            var next = order.Status;
+            if (next < StatusInProgress && activeItems.All(i => i.Status >= ItemStatusShipped))
+                next = StatusInProgress;
+            if (next < StatusCompleted && activeItems.All(i => i.Status >= StatusCompleted))
+                next = StatusCompleted;
+            return next;
         }
 
         public async Task UpdateStatusAsync(string id, short status, string? actingUserId = null)

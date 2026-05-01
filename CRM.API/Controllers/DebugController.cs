@@ -32,6 +32,15 @@ namespace CRM.API.Controllers
         private readonly ISellOrderExtendLineSeqService _sellLineSeq;
         private readonly IPurchaseOrderExtendLineSeqService _poLineSeq;
         private readonly IStockInExtendLineSeqService _stockInLineSeq;
+        private const short PoStatusInProgress = 50;
+        private const short PoStatusCompleted = 100;
+        private const short PoStatusAuditFailed = -1;
+        private const short PoStatusCancelled = -2;
+        private const short PoStatusNew = 1;
+        private const short PoStatusPendingAudit = 2;
+        private const short PoStatusApproved = 10;
+        private const short PoStatusPendingConfirm = 20;
+        private const short PoStatusConfirmed = 30;
 
         public DebugController(
             ApplicationDbContext context,
@@ -84,6 +93,21 @@ namespace CRM.API.Controllers
             public short TargetStatus { get; set; }
             public List<string> CreatedNodes { get; set; } = new();
             public bool StockInPostedThroughRealFlow { get; set; }
+        }
+
+        public class RefreshStockLedgerResultDto
+        {
+            public int StockOutUpdated { get; set; }
+            public int StockOutReverseUpdated { get; set; }
+            public int CurrencyDefaulted { get; set; }
+        }
+
+        public class RefreshPurchaseOrderMainStatusResultDto
+        {
+            public int TotalOrders { get; set; }
+            public int ChangedOrders { get; set; }
+            public List<string> ChangedOrderCodes { get; set; } = new();
+            public int SkippedTerminalOrders { get; set; }
         }
 
         [HttpGet]
@@ -763,6 +787,216 @@ namespace CRM.API.Controllers
             }
 
             return Ok(ApiResponse<object>.Ok(null, "已删除该需求单及其下游数据"));
+        }
+
+        /// <summary>
+        /// 临时调试工具：回填 stockledger 的出库成本与币别（避免手工 SQL 受大小写列名影响）。
+        /// </summary>
+        [Authorize]
+        [HttpPost("refresh-purchase-order-main-status")]
+        public async Task<ActionResult<ApiResponse<RefreshPurchaseOrderMainStatusResultDto>>> RefreshPurchaseOrderMainStatus()
+        {
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var orders = await _context.PurchaseOrders.ToListAsync();
+                if (orders.Count == 0)
+                {
+                    var empty = new RefreshPurchaseOrderMainStatusResultDto();
+                    return Ok(ApiResponse<RefreshPurchaseOrderMainStatusResultDto>.Ok(empty, "无采购订单可刷新"));
+                }
+
+                var orderIds = orders.Select(o => o.Id).ToList();
+                var items = await _context.PurchaseOrderItems
+                    .Where(i => orderIds.Contains(i.PurchaseOrderId))
+                    .ToListAsync();
+                var itemGroups = items
+                    .GroupBy(i => i.PurchaseOrderId)
+                    .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+                var now = DateTime.UtcNow;
+                var result = new RefreshPurchaseOrderMainStatusResultDto
+                {
+                    TotalOrders = orders.Count
+                };
+
+                foreach (var order in orders)
+                {
+                    if (order.Status is PoStatusCancelled or PoStatusAuditFailed)
+                    {
+                        result.SkippedTerminalOrders++;
+                        continue;
+                    }
+
+                    if (!itemGroups.TryGetValue(order.Id, out var orderItems) || orderItems.Count == 0)
+                        continue;
+
+                    var activeItems = orderItems.Where(i => i.Status != PoStatusCancelled).ToList();
+                    if (activeItems.Count == 0)
+                        continue;
+
+                    var next = ComputePurchaseOrderMainStatusFromItems(activeItems);
+
+                    if (next == order.Status)
+                        continue;
+
+                    order.Status = next;
+                    order.ModifyTime = now;
+                    result.ChangedOrders++;
+                    result.ChangedOrderCodes.Add(order.PurchaseOrderCode ?? order.Id);
+                }
+
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return Ok(ApiResponse<RefreshPurchaseOrderMainStatusResultDto>.Ok(result, "采购订单主状态刷新完成"));
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
+                return StatusCode(500, ApiResponse<RefreshPurchaseOrderMainStatusResultDto>.Fail($"刷新采购订单主状态失败: {ex.Message}", 500));
+            }
+        }
+
+        private static short ComputePurchaseOrderMainStatusFromItems(IReadOnlyList<PurchaseOrderItem> activeItems)
+        {
+            // 与业务语义对齐：主状态只取主流程节点，不映射明细的 40(已付款)/60(已入库)。
+            if (activeItems.All(i => i.Status >= PoStatusCompleted))
+                return PoStatusCompleted;
+            if (activeItems.All(i => i.Status >= PoStatusInProgress))
+                return PoStatusInProgress;
+            if (activeItems.All(i => i.Status >= PoStatusConfirmed))
+                return PoStatusConfirmed;
+            if (activeItems.All(i => i.Status >= PoStatusPendingConfirm))
+                return PoStatusPendingConfirm;
+            if (activeItems.All(i => i.Status >= PoStatusApproved))
+                return PoStatusApproved;
+            if (activeItems.All(i => i.Status >= PoStatusPendingAudit))
+                return PoStatusPendingAudit;
+            return PoStatusNew;
+        }
+
+        [Authorize]
+        [HttpPost("refresh-stockledger")]
+        public async Task<ActionResult<ApiResponse<RefreshStockLedgerResultDto>>> RefreshStockLedger()
+        {
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var one = (short)CurrencyCode.RMB;
+                var result = new RefreshStockLedgerResultDto();
+
+                var stockOutLedgers = await _context.InventoryLedgers
+                    .Where(x => x.BizType == "STOCK_OUT"
+                                && !string.IsNullOrWhiteSpace(x.BizLineId)
+                                && (x.UnitCost == 0m || x.Amount == 0m || x.Currency <= 0))
+                    .ToListAsync();
+
+                var outLineIds = stockOutLedgers
+                    .Select(x => x.BizLineId!.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                var outItems = await _context.StockOutItems
+                    .Where(x => outLineIds.Contains(x.Id))
+                    .Select(x => new { x.Id, x.StockItemId })
+                    .ToListAsync();
+
+                var stockItemIds = outItems
+                    .Where(x => !string.IsNullOrWhiteSpace(x.StockItemId))
+                    .Select(x => x.StockItemId!.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                var stockItems = await _context.StockItems
+                    .Where(x => stockItemIds.Contains(x.Id))
+                    .Select(x => new { x.Id, x.PurchasePrice, x.PurchaseCurrency })
+                    .ToListAsync();
+
+                var outItemById = outItems.ToDictionary(x => x.Id, x => x, StringComparer.OrdinalIgnoreCase);
+                var stockItemById = stockItems.ToDictionary(x => x.Id, x => x, StringComparer.OrdinalIgnoreCase);
+
+                foreach (var ledger in stockOutLedgers)
+                {
+                    var lineId = ledger.BizLineId!.Trim();
+                    if (!outItemById.TryGetValue(lineId, out var outItem))
+                        continue;
+
+                    decimal unitCost = 0m;
+                    short currency = one;
+                    if (!string.IsNullOrWhiteSpace(outItem.StockItemId)
+                        && stockItemById.TryGetValue(outItem.StockItemId.Trim(), out var stockItem))
+                    {
+                        unitCost = stockItem.PurchasePrice;
+                        currency = stockItem.PurchaseCurrency > 0 ? stockItem.PurchaseCurrency : one;
+                    }
+
+                    var newAmount = -Math.Abs(ledger.QtyOut) * unitCost;
+                    if (ledger.UnitCost != unitCost || ledger.Amount != newAmount || ledger.Currency != currency)
+                    {
+                        ledger.UnitCost = unitCost;
+                        ledger.Amount = newAmount;
+                        ledger.Currency = currency;
+                        result.StockOutUpdated++;
+                    }
+                }
+
+                var outLedgerMap = await _context.InventoryLedgers
+                    .Where(x => x.BizType == "STOCK_OUT" && !string.IsNullOrWhiteSpace(x.BizLineId))
+                    .OrderByDescending(x => x.CreateTime)
+                    .ThenByDescending(x => x.Id)
+                    .ToListAsync();
+                var latestOutByLine = new Dictionary<string, InventoryLedger>(StringComparer.OrdinalIgnoreCase);
+                foreach (var outLedger in outLedgerMap)
+                {
+                    var key = outLedger.BizLineId!.Trim();
+                    if (!latestOutByLine.ContainsKey(key))
+                        latestOutByLine[key] = outLedger;
+                }
+
+                var reverseLedgers = await _context.InventoryLedgers
+                    .Where(x => x.BizType == "STOCK_OUT_REVERSE"
+                                && !string.IsNullOrWhiteSpace(x.BizLineId)
+                                && (x.UnitCost == 0m || x.Amount == 0m || x.Currency <= 0))
+                    .ToListAsync();
+
+                foreach (var reverse in reverseLedgers)
+                {
+                    var lineId = reverse.BizLineId!.Trim();
+                    if (!latestOutByLine.TryGetValue(lineId, out var source))
+                        continue;
+
+                    var unitCost = source.UnitCost;
+                    var currency = source.Currency > 0 ? source.Currency : one;
+                    var newAmount = Math.Abs(reverse.QtyIn) * unitCost;
+                    if (reverse.UnitCost != unitCost || reverse.Amount != newAmount || reverse.Currency != currency)
+                    {
+                        reverse.UnitCost = unitCost;
+                        reverse.Amount = newAmount;
+                        reverse.Currency = currency;
+                        result.StockOutReverseUpdated++;
+                    }
+                }
+
+                var invalidCurrencyRows = await _context.InventoryLedgers
+                    .Where(x => x.Currency <= 0)
+                    .ToListAsync();
+                foreach (var row in invalidCurrencyRows)
+                {
+                    row.Currency = one;
+                    result.CurrencyDefaulted++;
+                }
+
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return Ok(ApiResponse<RefreshStockLedgerResultDto>.Ok(result, "刷新 stockledger 成功"));
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
+                return StatusCode(500, ApiResponse<RefreshStockLedgerResultDto>.Fail($"刷新 stockledger 失败: {ex.Message}", 500));
+            }
         }
 
         /// <summary>

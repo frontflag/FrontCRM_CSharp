@@ -16,6 +16,9 @@ namespace CRM.Core.Interfaces
         Task<QCInfo> UpdateQcResultAsync(string id, UpdateQcResultRequest request, string? actingUserId = null);
         Task BindQcStockInAsync(string id, string stockInId, string? actingUserId = null);
         Task HandleStockInCompletedAsync(string stockInId, string? purchaseOrderId);
+
+        Task ForceDeleteArrivalNoticeAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
+        Task ForceDeleteQcAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
     }
 
     public class CreateArrivalNoticeRequest

@@ -84,10 +84,30 @@ public sealed class EntityLookupService : IEntityLookupService
         return FormatUserDisplayName(u);
     }
 
+    /// <inheritdoc />
+    public async Task<string?> GetUserLoginNameAsync(string? userId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            return null;
+
+        var raw = userId.Trim();
+        var u = await GetUserByIdAsync(raw, cancellationToken);
+        if (u == null)
+            u = await _userService.GetByUserNameAsync(raw);
+        return FormatUserLoginName(u);
+    }
+
     /// <summary>与列表/详情中业务员展示规则一致。</summary>
     public static string? FormatUserDisplayName(User? u)
     {
         if (u == null) return null;
         return string.IsNullOrWhiteSpace(u.RealName) ? u.UserName : u.RealName;
+    }
+
+    /// <summary>员工登录账号（<see cref="User.UserName"/>），用于部分列表列展示。</summary>
+    public static string? FormatUserLoginName(User? u)
+    {
+        if (u == null) return null;
+        return string.IsNullOrWhiteSpace(u.UserName) ? null : u.UserName.Trim();
     }
 }

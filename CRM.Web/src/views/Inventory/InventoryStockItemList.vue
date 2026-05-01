@@ -234,6 +234,12 @@
           <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
         </div>
       </template>
+      <template #col-actions="{ row }">
+        <div class="action-btns" @click.stop>
+          <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteStockItem(row)">删除</button>
+          <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteStockItem(row)">强制删除</button>
+        </div>
+      </template>
     </CrmDataTable>
     <div class="pagination-wrapper">
       <div class="list-footer-left">
@@ -268,7 +274,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Box, Setting } from '@element-plus/icons-vue'
 import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } from '@/api/auth'
 import { inventoryCenterApi, type StockItemListQuery, type StockItemListRow, type WarehouseInfo } from '@/api/inventoryCenter'
@@ -278,11 +284,14 @@ import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useAuthStore } from '@/stores/auth'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const router = useRouter()
 const { t } = useI18n()
+const authStore = useAuthStore()
+const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const loading = ref(false)
@@ -346,7 +355,8 @@ const stockItemTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'sellOrderItemCode', label: t('inventoryStockItemList.columns.sellOrderItemCode'), prop: 'sellOrderItemCode', width: 120, showOverflowTooltip: true },
   { key: 'batchNo', label: t('inventoryStockItemList.columns.batchNo'), prop: 'batchNo', width: 100, showOverflowTooltip: true },
   { key: 'locationId', label: t('inventoryStockItemList.columns.locationId'), prop: 'locationId', minWidth: 100, showOverflowTooltip: true },
-  { key: 'profitOutBizUsd', label: t('inventoryStockItemList.columns.profitOutBizUsd'), prop: 'profitOutBizUsd', width: 148, align: 'right' }
+  { key: 'profitOutBizUsd', label: t('inventoryStockItemList.columns.profitOutBizUsd'), prop: 'profitOutBizUsd', width: 148, align: 'right' },
+  { key: 'actions', label: t('inventoryList.columns.actions'), width: 180, fixed: 'right' }
 ])
 const dateFrom = ref<string | null>(null)
 const dateTo = ref<string | null>(null)
@@ -517,6 +527,49 @@ const onRowDblclick = (row: StockItemListRow) => {
       warehouseId: row.warehouseId || undefined
     }
   })
+}
+
+const handleDeleteStockItem = async (row: StockItemListRow) => {
+  const sid = String(row.stockItemId || '').trim()
+  if (!sid) return
+  try {
+    await ElMessageBox.confirm(`确认删除库存明细 ${row.stockItemCode || sid} 吗？`, '删除确认', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await inventoryCenterApi.deleteStockItem(sid)
+    ElMessage.success('删除成功')
+    fetchList()
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '删除失败'))
+  }
+}
+
+const handleForceDeleteStockItem = async (row: StockItemListRow) => {
+  const sid = String(row.stockItemId || '').trim()
+  if (!sid) return
+  const expectCode = String(row.stockItemCode || sid).trim()
+  let entered = ''
+  try {
+    const ret = await ElMessageBox.prompt('请输入库存明细编号以确认强制删除', '强制删除确认', {
+      inputPlaceholder: expectCode
+    })
+    entered = String(ret.value || '').trim()
+  } catch {
+    return
+  }
+  if (entered !== expectCode) {
+    ElMessage.error('输入编号不匹配，已取消')
+    return
+  }
+  try {
+    await inventoryCenterApi.forceDeleteStockItem(sid, entered)
+    ElMessage.success('强制删除成功')
+    fetchList()
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '强制删除失败'))
+  }
 }
 
 onMounted(async () => {
@@ -855,6 +908,24 @@ html[data-theme='dark'] .inv-list-amt-frac {
   background: transparent;
   border-color: $border-panel;
   color: $text-secondary;
+}
+
+.action-btns {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+}
+
+.action-btn--danger {
+  color: $color-red-brown;
 }
 
 .pagination-wrapper {

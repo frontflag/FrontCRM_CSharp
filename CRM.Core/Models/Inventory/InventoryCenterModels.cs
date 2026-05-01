@@ -130,6 +130,10 @@ namespace CRM.Core.Models.Inventory
         [Column(TypeName = "numeric(18,2)")]
         public decimal Amount { get; set; }
 
+        /// <summary>原始业务币别（1=RMB 2=USD ...）。</summary>
+        [Column("currency")]
+        public short Currency { get; set; } = (short)CurrencyCode.RMB;
+
         /// <summary>采购订单明细业务编号（写入时自 <c>stock</c> 冗余）</summary>
         [StringLength(64)]
         public string? PurchaseOrderItemCode { get; set; }

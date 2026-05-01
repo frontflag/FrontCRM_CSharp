@@ -89,8 +89,8 @@ public class StockTransfersController : ControllerBase
                 ToWarehouseName = wh.GetValueOrDefault(x.t.ToWarehouseId),
                 CreateTime = x.t.CreateTime,
                 CreateByUserId = x.t.CreateByUserId,
-                CreateUserDisplay = x.u != null
-                    ? (string.IsNullOrWhiteSpace(x.u.RealName) ? x.u.UserName : x.u.RealName)
+                CreateUserDisplay = x.u != null && !string.IsNullOrWhiteSpace(x.u.UserName)
+                    ? x.u.UserName.Trim()
                     : null,
                 IsConfirmed = x.t.ConfirmedTime != null
             }).ToList();

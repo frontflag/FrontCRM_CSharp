@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
 using CRM.Core.Utilities;
@@ -11,18 +12,24 @@ namespace CRM.Core.Services
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork? _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
+        private readonly IForceDeleteGuardService _forceDeleteGuard;
+        private readonly ILogOperationAppendService _logOperationAppend;
 
         public FinanceSellInvoiceService(
             IRepository<FinanceSellInvoice> invoiceRepo,
             IRepository<SellInvoiceItem> itemRepo,
             IDataPermissionService dataPermissionService,
             ISerialNumberService serialNumberService,
+            IForceDeleteGuardService forceDeleteGuard,
+            ILogOperationAppendService logOperationAppend,
             IUnitOfWork? unitOfWork = null)
         {
             _invoiceRepo = invoiceRepo;
             _itemRepo = itemRepo;
             _dataPermissionService = dataPermissionService;
             _serialNumberService = serialNumberService;
+            _forceDeleteGuard = forceDeleteGuard;
+            _logOperationAppend = logOperationAppend;
             _unitOfWork = unitOfWork;
         }
 
@@ -163,6 +170,37 @@ namespace CRM.Core.Services
                 await _itemRepo.DeleteAsync(item.Id);
             await _invoiceRepo.DeleteAsync(id);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+        }
+
+        /// <inheritdoc />
+        public async Task ForceDeleteAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName)
+        {
+            if (string.IsNullOrWhiteSpace(confirmBillCode))
+                throw new ArgumentException("请填写 confirmBillCode", nameof(confirmBillCode));
+            if (string.IsNullOrWhiteSpace(actingUserId))
+                throw new ArgumentException("操作人不能为空", nameof(actingUserId));
+
+            var entity = await _invoiceRepo.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException("销项发票不存在");
+            var confirm = confirmBillCode.Trim();
+            if (string.IsNullOrWhiteSpace(entity.InvoiceCode) || !string.Equals(confirm, entity.InvoiceCode.Trim(), StringComparison.Ordinal))
+                throw new ArgumentException("确认单号不匹配，已拒绝删除");
+
+            var guard = await _forceDeleteGuard.CanForceDeleteFinanceSellInvoiceAsync(entity.Id);
+            if (!guard.CanDelete)
+                throw new ArgumentException(guard.Message);
+
+            await DeleteAsync(entity.Id);
+
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.SalesOrder,
+                entity.Id,
+                string.IsNullOrWhiteSpace(entity.InvoiceCode) ? null : entity.InvoiceCode.Trim(),
+                "销项发票强制删除",
+                actingUserId.Trim(),
+                string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
+                $"强制删除销项发票：Id={entity.Id}，InvoiceCode={entity.InvoiceCode}",
+                reason: null);
         }
 
         public async Task UpdateInvoiceStatusAsync(string id, short invoiceStatus, string? actingUserId = null)

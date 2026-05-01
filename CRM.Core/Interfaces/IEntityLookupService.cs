@@ -31,4 +31,10 @@ public interface IEntityLookupService
     /// 标识为空或用户不存在时返回 null。
     /// </summary>
     Task<string?> GetUserDisplayNameAsync(string? userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 根据用户标识返回登录账号（<see cref="User.UserName"/>）：先按用户ID、再按 UserName 查询；
+    /// 与 <see cref="GetUserDisplayNameAsync"/> 的解析规则一致，仅展示字段不同（业务列表列统一用账号）。
+    /// </summary>
+    Task<string?> GetUserLoginNameAsync(string? userId, CancellationToken cancellationToken = default);
 }

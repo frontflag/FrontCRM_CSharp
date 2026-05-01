@@ -3083,6 +3083,8 @@ const enUS = {
       allOrderTypes: 'All types',
       inventoryCode: 'Inventory code',
       allInventoryCodes: 'All warehouses',
+      materialModelPlaceholder: 'Material model',
+      stockCodePlaceholder: 'Stock code',
       allRegions: 'All regions',
       search: 'Search',
       reset: 'Reset'
@@ -3091,7 +3093,7 @@ const enUS = {
       capitalOccupied: 'Capital Occupied',
       monthlyOutCost: 'Monthly Outbound Cost',
       turnoverDays: 'Turnover Days',
-      stagnantCount: 'Stagnant Materials'
+      stagnantCount: 'Stagnant Materials (90d)'
     },
     stockTypes: {
       customer: 'Customer-order stock',

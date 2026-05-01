@@ -49,7 +49,10 @@ namespace CRM.Core.Tests.Services
             poRepo.GetByIdAsync("po-1").Returns(po);
 
             var svc = new FinancePaymentService(
-                paymentRepo, payItemRepo, poRepo, poItemRepo, dataPermission, serialNumber, poExtendSync, vendorRepo, userRepo, uow);
+                paymentRepo, payItemRepo, poRepo, poItemRepo, dataPermission, serialNumber, poExtendSync, vendorRepo, userRepo,
+                Substitute.For<IForceDeleteGuardService>(),
+                Substitute.For<ILogOperationAppendService>(),
+                uow);
 
             await svc.VerifyPaymentItemAsync("pi-1", 100m);
 
@@ -106,7 +109,10 @@ namespace CRM.Core.Tests.Services
             poRepo.GetByIdAsync("po-1").Returns(po);
 
             var svc = new FinancePaymentService(
-                paymentRepo, payItemRepo, poRepo, poItemRepo, dataPermission, serialNumber, poExtendSync, vendorRepo, userRepo, uow);
+                paymentRepo, payItemRepo, poRepo, poItemRepo, dataPermission, serialNumber, poExtendSync, vendorRepo, userRepo,
+                Substitute.For<IForceDeleteGuardService>(),
+                Substitute.For<ILogOperationAppendService>(),
+                uow);
 
             await svc.UpdateStatusAsync(paymentId, 100);
 
@@ -135,7 +141,10 @@ namespace CRM.Core.Tests.Services
             receiptRepo.GetByIdAsync("r-1").Returns(new FinanceReceipt { Id = "r-1", Status = 0 });
 
             var svc = new FinanceReceiptService(
-                receiptRepo, receiptItemRepo, sellInvoiceRepo, sellInvoiceItemRepo, sellOrderRepo, userRepo, dataPermission, serialNumber, extendSync, uow);
+                receiptRepo, receiptItemRepo, sellInvoiceRepo, sellInvoiceItemRepo, sellOrderRepo, userRepo, dataPermission, serialNumber, extendSync,
+                Substitute.For<IForceDeleteGuardService>(),
+                Substitute.For<ILogOperationAppendService>(),
+                uow);
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => svc.UpdateStatusAsync("r-1", 3));
         }
@@ -150,7 +159,11 @@ namespace CRM.Core.Tests.Services
             var uow = Substitute.For<IUnitOfWork>();
             invoiceRepo.GetByIdAsync("si-1").Returns(new FinanceSellInvoice { Id = "si-1", InvoiceStatus = 1 });
 
-            var svc = new FinanceSellInvoiceService(invoiceRepo, itemRepo, dataPermission, serialNumber, uow);
+            var svc = new FinanceSellInvoiceService(
+                invoiceRepo, itemRepo, dataPermission, serialNumber,
+                Substitute.For<IForceDeleteGuardService>(),
+                Substitute.For<ILogOperationAppendService>(),
+                uow);
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => svc.UpdateInvoiceStatusAsync("si-1", 100));
         }

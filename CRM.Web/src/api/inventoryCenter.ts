@@ -126,6 +126,18 @@ export interface SellOrderLineAvailableQty {
   availableQty: number
 }
 
+export interface FinanceSummaryCurrencyBreakdown {
+  currency: number
+  inventoryCapital: number
+  monthlyOutCost: number
+}
+
+export interface FinanceSummaryAppliedRates {
+  usdToCny: number
+  usdToHkd: number
+  usdToEur: number
+}
+
 export interface FinanceSummary {
   inventoryCapital: number
   monthlyOutCost: number
@@ -133,6 +145,8 @@ export interface FinanceSummary {
   turnoverRate: number
   turnoverDays: number
   stagnantMaterialCount: number
+  currencyBreakdowns?: FinanceSummaryCurrencyBreakdown[]
+  appliedRates?: FinanceSummaryAppliedRates
 }
 
 export interface WarehouseInfo {
@@ -253,9 +267,18 @@ export const inventoryCenterApi = {
       await apiClient.get(`/api/v1/inventory-center/sell-order-items/${encodeURIComponent(sellOrderItemId)}/available-qty`)
     )
   },
-  async getOverview(warehouseId?: string): Promise<InventoryOverview[]> {
-    const suffix = warehouseId ? `?warehouseId=${encodeURIComponent(warehouseId)}` : ''
-    return unwrap<InventoryOverview[]>(await apiClient.get(`/api/v1/inventory-center/overview${suffix}`))
+  async getOverview(query?: { warehouseId?: string; materialModel?: string; stockCode?: string }): Promise<InventoryOverview[]> {
+    const params = new URLSearchParams()
+    const add = (key: string, v: string | undefined) => {
+      const s = (v ?? '').trim()
+      if (!s) return
+      params.set(key, s)
+    }
+    add('warehouseId', query?.warehouseId)
+    add('materialModel', query?.materialModel)
+    add('stockCode', query?.stockCode)
+    const qs = params.toString()
+    return unwrap<InventoryOverview[]>(await apiClient.get(`/api/v1/inventory-center/overview${qs ? `?${qs}` : ''}`))
   },
   async getMaterialTrace(materialId: string): Promise<MaterialTrace[]> {
     return unwrap<MaterialTrace[]>(await apiClient.get(`/api/v1/inventory-center/materials/${encodeURIComponent(materialId)}/traces`))
@@ -355,8 +378,11 @@ export const inventoryCenterApi = {
   async deleteStock(stockId: string): Promise<void> {
     await apiClient.delete(`/api/v1/inventory-center/stocks/${encodeURIComponent(stockId)}`)
   },
-  async forceDeleteStock(stockId: string, confirmBillCode: string): Promise<void> {
-    await apiClient.post(`/api/v1/inventory-center/stocks/${encodeURIComponent(stockId)}/force-delete`, {
+  async deleteStockItem(stockItemId: string): Promise<void> {
+    await apiClient.delete(`/api/v1/inventory-center/stock-items/${encodeURIComponent(stockItemId)}`)
+  },
+  async forceDeleteStockItem(stockItemId: string, confirmBillCode: string): Promise<void> {
+    await apiClient.post(`/api/v1/inventory-center/stock-items/${encodeURIComponent(stockItemId)}/force-delete`, {
       confirmBillCode: confirmBillCode.trim()
     })
   },

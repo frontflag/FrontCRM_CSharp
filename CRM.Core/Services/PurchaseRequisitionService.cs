@@ -214,6 +214,24 @@ namespace CRM.Core.Services
             return items.Count > 0;
         }
 
+        private async Task<IReadOnlyList<string>> GetDownstreamPurchaseOrderItemCodesAsync(string sellOrderItemId, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(sellOrderItemId))
+                return Array.Empty<string>();
+            var key = sellOrderItemId.Trim();
+            var items = (await _poItemRepo.FindAsync(i =>
+                    i.SellOrderItemId != null &&
+                    i.SellOrderItemId == key))
+                .ToList();
+            return items
+                .Select(i => string.IsNullOrWhiteSpace(i.PurchaseOrderItemCode) ? i.Id : i.PurchaseOrderItemCode.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(5)
+                .ToArray();
+        }
+
         private static void EnsureUnitOfWork(IUnitOfWork? uow)
         {
             if (uow == null)
@@ -280,8 +298,10 @@ namespace CRM.Core.Services
             if (!string.Equals(confirmBillCode.Trim(), pr.BillCode.Trim(), StringComparison.Ordinal))
                 throw new InvalidOperationException("确认单号与采购申请单号不一致，已拒绝删除。");
 
-            if (await HasPurchaseOrderDownstreamAsync(pr.SellOrderItemId, cancellationToken))
-                throw new InvalidOperationException("已存在关联的采购订单明细（以销定采），无法强制删除采购申请。");
+            var downstreamPoItemCodes = await GetDownstreamPurchaseOrderItemCodesAsync(pr.SellOrderItemId, cancellationToken);
+            if (downstreamPoItemCodes.Count > 0)
+                throw new InvalidOperationException(
+                    $"存在下游业务节点：采购订单明细；下游数据单号：{string.Join("、", downstreamPoItemCodes)}");
 
             var uid = ActingUserIdNormalizer.Normalize(actingUserId);
             pr.IsDeleted = true;
@@ -1135,10 +1155,10 @@ namespace CRM.Core.Services
             IReadOnlyDictionary<string, string?> vendorNames)
         {
             string? salesUserName = null;
-            if (so != null && p.SalesUserId == so.SalesUserId)
-                salesUserName = so.SalesUserName;
-            if (string.IsNullOrEmpty(salesUserName) && !string.IsNullOrEmpty(p.SalesUserId))
+            if (!string.IsNullOrEmpty(p.SalesUserId))
                 userNames.TryGetValue(p.SalesUserId, out salesUserName);
+            if (string.IsNullOrEmpty(salesUserName) && so != null)
+                salesUserName = so.SalesUserName;
 
             string? purchaseUserName = null;
             if (!string.IsNullOrEmpty(p.PurchaseUserId))

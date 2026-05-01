@@ -147,6 +147,7 @@ namespace CRM.IntegrationTests
                 soItemExtendSync,
                 Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(),
                 soLineSeq,
+                _userService,
                 _unitOfWork,
                 NullLogger<SalesOrderService>.Instance);
         }
@@ -420,13 +421,19 @@ namespace CRM.IntegrationTests
             stockInItemRepoForStockOut.GetAllAsync().Returns(new List<StockInItem>());
             var stockInRepoForStockOut = Substitute.For<IRepository<StockIn>>();
             stockInRepoForStockOut.GetAllAsync().Returns(new List<StockIn>());
+            var ledgerRepoForStockOut = Substitute.For<IRepository<InventoryLedger>>();
+            ledgerRepoForStockOut.FindAsync(Arg.Any<Expression<Func<InventoryLedger, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<InventoryLedger>>(new List<InventoryLedger>()));
             var service = new StockOutService(
                 stockOutRepo, stockOutItemRepo, stockOutItemExtendRepo, stockOutRequestRepo, pickingTaskRepo, pickingTaskItemRepo, stockRepo, stockItemRepo,
+                ledgerRepoForStockOut,
                 stockInItemRepoForStockOut, stockInRepoForStockOut,
                 sellOrderRepo, sellOrderItemRepo, sellOrderItemLineExtendRepo, customerRepoForStockOut, purchaseOrderItemRepo, purchaseOrderRepo, userRepo,
                 warehouseRepoForStockOut,
                 inventoryCenterService, serialNumberService, sellOrderItemExtendSync,
                 Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(), unitOfWork,
+                Substitute.For<IForceDeleteGuardService>(),
+                Substitute.For<ILogOperationAppendService>(),
                 NullLogger<StockOutService>.Instance);
 
             // 准备销售订单明细
@@ -584,13 +591,19 @@ namespace CRM.IntegrationTests
             stockInItemRepoForStockOut2.GetAllAsync().Returns(new List<StockInItem>());
             var stockInRepoForStockOut2 = Substitute.For<IRepository<StockIn>>();
             stockInRepoForStockOut2.GetAllAsync().Returns(new List<StockIn>());
+            var ledgerRepoForStockOut2 = Substitute.For<IRepository<InventoryLedger>>();
+            ledgerRepoForStockOut2.FindAsync(Arg.Any<Expression<Func<InventoryLedger, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<InventoryLedger>>(new List<InventoryLedger>()));
             var service = new StockOutService(
                 stockOutRepo, stockOutItemRepo, stockOutItemExtendRepo2, stockOutRequestRepo, pickingTaskRepo, pickingTaskItemRepo, stockRepo, stockItemRepo2,
+                ledgerRepoForStockOut2,
                 stockInItemRepoForStockOut2, stockInRepoForStockOut2,
                 sellOrderRepo, sellOrderItemRepo, sellOrderItemLineExtendRepo2, customerRepoForStockOut, purchaseOrderItemRepo, purchaseOrderRepo, userRepo,
                 warehouseRepoForStockOut,
                 inventoryCenterService, serialNumberService, sellOrderItemExtendSync,
                 Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(), unitOfWork,
+                Substitute.For<IForceDeleteGuardService>(),
+                Substitute.For<ILogOperationAppendService>(),
                 NullLogger<StockOutService>.Instance);
 
             var sellOrderItem = new SellOrderItem
@@ -747,6 +760,7 @@ namespace CRM.IntegrationTests
                 notifyRepo, stockInRepoForLogistics, stockInItemExtendRepoForLogistics, qcRepo, qcItemRepo, poRepo, poItemRepo, poItemExtendRepo,
                 sellOrderItemRepo, sellOrderRepo, serialNumberService, poItemExtendSync, unitOfWork,
                 _userService,
+                Substitute.For<ILogOperationAppendService>(),
                 logisticsLogger);
 
             // 准备采购订单明细
@@ -1449,9 +1463,9 @@ namespace CRM.IntegrationTests
             Assert.NotNull(listItem);
             Assert.Equal(savedRfq.Id, listItem.Id);
             Assert.Equal(salesUserId, listItem.SalesUserId);
-            Assert.Equal(salesUserName, listItem.SalesUserName); // 业务员姓名应显示
+            Assert.Equal(salesUserName, listItem.SalesUserName); // 主列表为业务员登录账号（UserName）
             Assert.Equal(createUserId, listItem.CreateByUserId);
-            Assert.Equal(createUserName, listItem.CreateUserName); // 创建人姓名应显示
+            Assert.Equal(createUserName, listItem.CreateUserName); // 主列表为创建人登录账号（UserName）
         }
 
         [Fact]
@@ -1544,9 +1558,9 @@ namespace CRM.IntegrationTests
             var listItem = pagedResult.Items.FirstOrDefault();
             Assert.NotNull(listItem);
             Assert.Equal(salesUserId, listItem.SalesUserId);
-            Assert.Equal(salesUserName, listItem.SalesUserName); // 业务员姓名应显示
+            Assert.Equal(salesUserName, listItem.SalesUserName); // 主列表为业务员登录账号（UserName）
             Assert.Equal(createUserId, listItem.CreateByUserId);
-            Assert.Equal(createUserName, listItem.CreateUserName); // 创建人姓名应显示
+            Assert.Equal(createUserName, listItem.CreateUserName); // 主列表为创建人登录账号（UserName）
         }
 
         [Fact]
@@ -1817,7 +1831,9 @@ namespace CRM.IntegrationTests
             var logisticsService = new LogisticsService(
                 notifyRepo, stockInRepoForLogistics2, stockInItemExtendRepoForLogistics2, qcRepo, qcItemRepo, poRepo, poItemRepo, poItemExtendRepo,
                 sellOrderItemRepo, sellOrderRepo, logisticsSerialNumberService, poItemExtendSyncForLogistics,
-                logisticsUnitOfWork, _userService, logisticsLogger2);
+                logisticsUnitOfWork, _userService,
+                Substitute.For<ILogOperationAppendService>(),
+                logisticsLogger2);
 
             // 模拟到货通知仓储
             var allNotices = new List<StockInNotify>();
@@ -1920,7 +1936,9 @@ namespace CRM.IntegrationTests
                 logisticsServiceLocal, inventoryCenterServiceLocal,
                 stockInSerialNumberService, _userService,
                 stockInSellExtendSync, Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(),
-                stockInLineSeq, stockInUnitOfWork, stockInLogger);
+                stockInLineSeq, stockInUnitOfWork,
+                Substitute.For<ILogOperationAppendService>(),
+                stockInLogger);
 
             // 模拟入库单仓储
             var allStockIns = new List<StockIn>();
@@ -1975,13 +1993,19 @@ namespace CRM.IntegrationTests
             stockInItemRepoWf.GetAllAsync().Returns(new List<StockInItem>());
             var stockInRepoWf = Substitute.For<IRepository<StockIn>>();
             stockInRepoWf.GetAllAsync().Returns(new List<StockIn>());
+            var ledgerRepoWf = Substitute.For<IRepository<InventoryLedger>>();
+            ledgerRepoWf.FindAsync(Arg.Any<Expression<Func<InventoryLedger, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<InventoryLedger>>(new List<InventoryLedger>()));
             var stockOutService = new StockOutService(
                 stockOutRepo, stockOutItemRepo, stockOutItemExtendRepoWf, stockOutRequestRepo, pickingTaskRepo, pickingTaskItemRepoWf, stockRepo, stockItemRepoForWorkflow,
+                ledgerRepoWf,
                 stockInItemRepoWf, stockInRepoWf,
                 _salesOrderRepository, _salesOrderItemRepository, sellOrderItemLineExtendRepoWf, customerRepoForStockOut2, poItemRepo, poRepo, userRepo,
                 warehouseRepoForStockOut2,
                 inventoryCenterServiceForStockOut, stockOutSerialNumberService, sellOrderItemExtendSyncForStockOut,
                 Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(), stockOutUnitOfWork,
+                Substitute.For<IForceDeleteGuardService>(),
+                Substitute.For<ILogOperationAppendService>(),
                 NullLogger<StockOutService>.Instance);
 
             // 模拟出库申请仓储
@@ -2059,7 +2083,10 @@ namespace CRM.IntegrationTests
             var receiptService = new FinanceReceiptService(
                 receiptRepo, receiptItemRepo, financeSellInvoiceRepo, sellInvoiceItemRepoLocal, _salesOrderRepository,
                 _userRepo,
-                dataPermissionServiceLocal, receiptSerialNumberService, sellOrderItemExtendSyncLocal, receiptUnitOfWork);
+                dataPermissionServiceLocal, receiptSerialNumberService, sellOrderItemExtendSyncLocal,
+                Substitute.For<IForceDeleteGuardService>(),
+                Substitute.For<ILogOperationAppendService>(),
+                receiptUnitOfWork);
 
             // 模拟收款仓储
             var allReceipts = new List<FinanceReceipt>();
@@ -2100,7 +2127,10 @@ namespace CRM.IntegrationTests
             var invoiceDataPermissionService = Substitute.For<IDataPermissionService>();
             var invoiceUnitOfWork = Substitute.For<IUnitOfWork>();
             var sellInvoiceService = new FinanceSellInvoiceService(
-                sellInvoiceRepo, sellInvoiceItemRepoForInvoice, invoiceDataPermissionService, sellInvoiceSerialNumberService, invoiceUnitOfWork);
+                sellInvoiceRepo, sellInvoiceItemRepoForInvoice, invoiceDataPermissionService, sellInvoiceSerialNumberService,
+                Substitute.For<IForceDeleteGuardService>(),
+                Substitute.For<ILogOperationAppendService>(),
+                invoiceUnitOfWork);
 
             // 模拟销项发票仓储
             var allSellInvoices = new List<FinanceSellInvoice>();

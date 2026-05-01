@@ -25,6 +25,7 @@ namespace CRM.Core.Services
         private readonly ISerialNumberService _serialNumberService;
         private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
         private readonly IUserService _userService;
+        private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<LogisticsService> _logger;
 
         public LogisticsService(
@@ -42,6 +43,7 @@ namespace CRM.Core.Services
             IPurchaseOrderItemExtendSyncService poItemExtendSync,
             IUnitOfWork unitOfWork,
             IUserService userService,
+            ILogOperationAppendService logOperationAppend,
             ILogger<LogisticsService> logger)
         {
             _notifyRepo = notifyRepo;
@@ -58,6 +60,7 @@ namespace CRM.Core.Services
             _poItemExtendSync = poItemExtendSync;
             _unitOfWork = unitOfWork;
             _userService = userService;
+            _logOperationAppend = logOperationAppend;
             _logger = logger;
         }
 
@@ -837,7 +840,7 @@ namespace CRM.Core.Services
             return string.IsNullOrWhiteSpace(notice?.PurchaseOrderId) ? null : notice!.PurchaseOrderId.Trim();
         }
 
-        /// <summary>质检列表：根据 <see cref="QCInfo.CreateByUserId"/> 填充 <see cref="QCInfo.CreateUserName"/>（兼容历史把登录名写入该列）。</summary>
+        /// <summary>质检列表：根据 <see cref="QCInfo.CreateByUserId"/> 填充 <see cref="QCInfo.CreateUserName"/>（展示登录账号；兼容历史把登录名写入该列）。</summary>
         private async Task AttachQcCreateUserDisplayNamesAsync(List<QCInfo> list)
         {
             if (list.Count == 0) return;
@@ -846,13 +849,6 @@ namespace CRM.Core.Services
             var userById = users
                 .Where(x => !string.IsNullOrWhiteSpace(x.Id))
                 .ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
-            var displayNameByLogin = users
-                .Where(x => !string.IsNullOrWhiteSpace(x.UserName))
-                .GroupBy(x => x.UserName.Trim(), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(
-                    g => g.Key,
-                    g => EntityLookupService.FormatUserDisplayName(g.First()),
-                    StringComparer.OrdinalIgnoreCase);
 
             foreach (var qc in list)
             {
@@ -860,12 +856,179 @@ namespace CRM.Core.Services
                 var key = qc.CreateByUserId.Trim();
                 if (userById.TryGetValue(key, out var u))
                 {
-                    qc.CreateUserName = EntityLookupService.FormatUserDisplayName(u);
+                    qc.CreateUserName = EntityLookupService.FormatUserLoginName(u) ?? key;
                     continue;
                 }
-                if (displayNameByLogin.TryGetValue(key, out var name))
-                    qc.CreateUserName = name;
+                qc.CreateUserName = key;
             }
         }
+
+        /// <inheritdoc />
+        public async Task ForceDeleteArrivalNoticeAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName)
+        {
+            if (string.IsNullOrWhiteSpace(confirmBillCode))
+                throw new ArgumentException("请填写 confirmBillCode", nameof(confirmBillCode));
+            if (string.IsNullOrWhiteSpace(actingUserId))
+                throw new ArgumentException("操作人不能为空", nameof(actingUserId));
+
+            var notice = await _notifyRepo.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException("到货通知不存在");
+            if (!string.Equals(confirmBillCode.Trim(), notice.NoticeCode?.Trim(), StringComparison.Ordinal))
+                throw new ArgumentException("确认单号不匹配，已拒绝删除");
+
+            var qcs = (await _qcRepo.FindAsync(x => x.StockInNotifyId == notice.Id)).ToList();
+            if (qcs.Count > 0)
+            {
+                var qcCodes = qcs
+                    .Select(x => string.IsNullOrWhiteSpace(x.QcCode) ? x.Id : x.QcCode.Trim())
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Take(5)
+                    .ToArray();
+                throw new ArgumentException(qcCodes.Length == 0
+                    ? "存在下游业务节点：质检单，不能强制删除到货通知。"
+                    : $"存在下游业务节点：质检单；下游数据单号：{string.Join("、", qcCodes)}");
+            }
+            var noticeIdLower = notice.Id.Trim().ToLowerInvariant();
+            var linkedStockIns = (await _stockInRepo.FindAsync(si =>
+                    si.SourceId != null && si.SourceId.ToLower() == noticeIdLower))
+                .ToList();
+            if (linkedStockIns.Count > 0)
+            {
+                var stockInCodes = linkedStockIns
+                    .Select(x => string.IsNullOrWhiteSpace(x.StockInCode) ? x.Id : x.StockInCode.Trim())
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Take(5)
+                    .ToArray();
+                throw new ArgumentException(stockInCodes.Length == 0
+                    ? "存在下游业务节点：入库单，不能强制删除到货通知。"
+                    : $"存在下游业务节点：入库单；下游数据单号：{string.Join("、", stockInCodes)}");
+            }
+
+            await _notifyRepo.DeleteAsync(notice.Id);
+            await _unitOfWork.SaveChangesAsync();
+
+            var recordCode = string.IsNullOrWhiteSpace(notice.NoticeCode) ? null : notice.NoticeCode.Trim();
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.StockIn,
+                notice.Id,
+                recordCode,
+                "到货通知强制删除",
+                actingUserId.Trim(),
+                string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
+                $"强制删除到货通知 NoticeId={notice.Id}，确认单号={recordCode}",
+                reason: null);
+        }
+
+        /// <inheritdoc />
+        public async Task ForceDeleteQcAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName)
+        {
+            if (string.IsNullOrWhiteSpace(confirmBillCode))
+                throw new ArgumentException("请填写 confirmBillCode", nameof(confirmBillCode));
+            if (string.IsNullOrWhiteSpace(actingUserId))
+                throw new ArgumentException("操作人不能为空", nameof(actingUserId));
+
+            var qc = await _qcRepo.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException("质检单不存在");
+            if (!string.Equals(confirmBillCode.Trim(), qc.QcCode?.Trim(), StringComparison.Ordinal))
+                throw new ArgumentException("确认单号不匹配，已拒绝删除");
+            if (!string.IsNullOrWhiteSpace(qc.StockInId) || qc.StockInStatus >= 100)
+            {
+                var linkedCode = qc.StockInId?.Trim();
+                throw new ArgumentException(string.IsNullOrWhiteSpace(linkedCode)
+                    ? "存在下游业务节点：入库单，不能强制删除质检单。"
+                    : $"存在下游业务节点：入库单；下游数据单号：{linkedCode}");
+            }
+            var linkedStockIn = !string.IsNullOrWhiteSpace(qc.StockInId)
+                ? await _stockInRepo.GetByIdAsync(qc.StockInId.Trim())
+                : null;
+            if (linkedStockIn != null)
+            {
+                var stockInCode = string.IsNullOrWhiteSpace(linkedStockIn.StockInCode) ? linkedStockIn.Id : linkedStockIn.StockInCode.Trim();
+                throw new ArgumentException($"存在下游业务节点：入库单；下游数据单号：{stockInCode}");
+            }
+
+            var items = (await _qcItemRepo.FindAsync(x => x.QcInfoId == qc.Id)).ToList();
+            foreach (var item in items)
+                await _qcItemRepo.DeleteAsync(item.Id);
+            await _qcRepo.DeleteAsync(qc.Id);
+            await _unitOfWork.SaveChangesAsync();
+
+            var rollback = await RecalculateArrivalNoticeStatusAfterQcDeleteAsync(qc.StockInNotifyId);
+            await _unitOfWork.SaveChangesAsync();
+
+            var recordCode = string.IsNullOrWhiteSpace(qc.QcCode) ? null : qc.QcCode.Trim();
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.QcInspection,
+                qc.Id,
+                recordCode,
+                "质检单强制删除",
+                actingUserId.Trim(),
+                string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
+                $"强制删除质检单 QcId={qc.Id}，确认单号={recordCode}，明细行数={items.Count}",
+                reason: null);
+
+            if (rollback.changed && rollback.noticeId != null)
+            {
+                await _logOperationAppend.AppendAsync(
+                    BusinessLogTypes.StockIn,
+                    rollback.noticeId,
+                    rollback.noticeCode,
+                    "到货通知状态回滚",
+                    actingUserId.Trim(),
+                    string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
+                    $"质检单强制删除后回滚到货通知状态：{ArrivalNoticeStatusText(rollback.fromStatus)}({rollback.fromStatus}) -> {ArrivalNoticeStatusText(rollback.toStatus)}({rollback.toStatus})",
+                    reason: null);
+            }
+        }
+
+        /// <summary>
+        /// 强制删除质检后，回滚关联到货通知状态：
+        /// - 有入库单关联到该到货通知：100 已入库
+        /// - 仍有质检单关联：30 已质检
+        /// - 无质检/入库关联：20 到货待检
+        /// </summary>
+        private async Task<(bool changed, short fromStatus, short toStatus, string? noticeId, string? noticeCode)> RecalculateArrivalNoticeStatusAfterQcDeleteAsync(string? stockInNotifyId)
+        {
+            var noticeId = stockInNotifyId?.Trim();
+            if (string.IsNullOrWhiteSpace(noticeId))
+                return (false, 0, 0, null, null);
+
+            var notice = await _notifyRepo.GetByIdAsync(noticeId);
+            if (notice == null) return (false, 0, 0, null, null);
+
+            var hasStockIn = (await _stockInRepo.FindAsync(x =>
+                    x.SourceId != null && x.SourceId == noticeId))
+                .Any();
+            short targetStatus;
+            if (hasStockIn)
+            {
+                targetStatus = 100;
+            }
+            else
+            {
+                var hasQc = (await _qcRepo.FindAsync(x => x.StockInNotifyId == noticeId)).Any();
+                targetStatus = hasQc ? (short)30 : (short)20;
+            }
+
+            if (notice.Status == targetStatus)
+                return (false, notice.Status, targetStatus, notice.Id, string.IsNullOrWhiteSpace(notice.NoticeCode) ? null : notice.NoticeCode.Trim());
+            var fromStatus = notice.Status;
+            notice.Status = targetStatus;
+            notice.ModifyTime = DateTime.UtcNow;
+            await _notifyRepo.UpdateAsync(notice);
+            return (true, fromStatus, targetStatus, notice.Id, string.IsNullOrWhiteSpace(notice.NoticeCode) ? null : notice.NoticeCode.Trim());
+        }
+
+        private static string ArrivalNoticeStatusText(short status) => status switch
+        {
+            1 => "新建",
+            10 => "未到货",
+            20 => "到货待检",
+            30 => "已质检",
+            100 => "已入库",
+            _ => "未知"
+        };
     }
 }

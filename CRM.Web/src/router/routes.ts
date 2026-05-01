@@ -752,10 +752,20 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Debug/DebugData.vue'),
         meta: { requiresAuth: true, title: 'Debug 模拟数据', sysAdminOnly: true }
       },
+      {
+        path: 'debug/tools',
+        name: 'DebugTools',
+        component: () => import('@/views/Debug/DebugTools.vue'),
+        meta: { requiresAuth: true, title: 'Debug 工具', sysAdminOnly: true }
+      },
       // 兼容历史访问链接：/debugdata -> /debug/data
       {
         path: 'debugdata',
         redirect: '/debug/data'
+      },
+      {
+        path: 'debugtools',
+        redirect: '/debug/tools'
       },
       // 免登录：便于部署后核对脱敏数据库连接串与前端构建版本（PRD）
       {

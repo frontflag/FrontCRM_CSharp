@@ -330,7 +330,7 @@ const handleDeleteRow = async (row: StockOutRequestDto) => {
     await runNotifyFetch(false)
   } catch (e) {
     console.error(e)
-    ElMessage.error('删除失败')
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
   }
 }
 
@@ -347,7 +347,7 @@ const handleForceDeleteRow = async (row: StockOutRequestDto) => {
     await runNotifyFetch(false)
   } catch (e) {
     console.error(e)
-    ElMessage.error('强制删除失败')
+    ElMessage.error(e instanceof Error ? e.message : '强制删除失败')
   }
 }
 

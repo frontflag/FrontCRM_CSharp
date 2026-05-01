@@ -125,6 +125,14 @@ public static class PurchaseSensitiveFieldMask511
         dto.AverageInventoryCapital = 0m;
         dto.TurnoverRate = 0m;
         dto.TurnoverDays = 0m;
+        if (dto.CurrencyBreakdowns?.Count > 0)
+        {
+            foreach (var row in dto.CurrencyBreakdowns)
+            {
+                row.InventoryCapital = 0m;
+                row.MonthlyOutCost = 0m;
+            }
+        }
     }
 
     public static void ApplyVendorInfos(IEnumerable<VendorInfo>? items, bool mask)

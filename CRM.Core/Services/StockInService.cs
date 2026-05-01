@@ -37,6 +37,7 @@ namespace CRM.Core.Services
         private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
         private readonly ISellOrderItemPurchasedStockAvailableSyncService _purchasedStockAvailableSync;
         private readonly IStockInExtendLineSeqService _stockInLineSeq;
+        private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<StockInService> _logger;
 
         public StockInService(
@@ -62,6 +63,7 @@ namespace CRM.Core.Services
             ISellOrderItemPurchasedStockAvailableSyncService purchasedStockAvailableSync,
             IStockInExtendLineSeqService stockInLineSeq,
             IUnitOfWork unitOfWork,
+            ILogOperationAppendService logOperationAppend,
             ILogger<StockInService> logger)
         {
             _stockInRepository = stockInRepository;
@@ -86,6 +88,7 @@ namespace CRM.Core.Services
             _purchasedStockAvailableSync = purchasedStockAvailableSync;
             _stockInLineSeq = stockInLineSeq;
             _unitOfWork = unitOfWork;
+            _logOperationAppend = logOperationAppend;
             _logger = logger;
         }
 
@@ -595,7 +598,7 @@ namespace CRM.Core.Services
 
                 string? createUserName = null;
                 if (!string.IsNullOrWhiteSpace(s.CreatedBy) && userById.TryGetValue(s.CreatedBy.Trim(), out var cu))
-                    createUserName = EntityLookupService.FormatUserDisplayName(cu);
+                    createUserName = EntityLookupService.FormatUserLoginName(cu) ?? s.CreatedBy.Trim();
 
                 short? currencyCode = null;
                 if (headerPoLine != null)
@@ -722,6 +725,24 @@ namespace CRM.Core.Services
                 throw new InvalidOperationException($"入库单 {id} 不存在");
 
             var sid = id.Trim();
+            var sidLower = sid.ToLowerInvariant();
+            var downstreamStockItems = (await _stockItemRepository.FindAsync(x =>
+                    x.StockInId != null &&
+                    x.StockInId.ToLower() == sidLower))
+                .Where(x => !x.IsDeleted)
+                .ToList();
+            if (downstreamStockItems.Count > 0)
+            {
+                var stockItemCodes = downstreamStockItems
+                    .Select(x => string.IsNullOrWhiteSpace(x.StockItemCode) ? x.Id : x.StockItemCode.Trim())
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Take(5)
+                    .ToArray();
+                throw new ArgumentException(
+                    $"存在下游业务节点：库存明细；下游数据单号：{string.Join("、", stockItemCodes)}");
+            }
+
             var items = (await _stockInItemRepository.FindAsync(i => i.StockInId == sid)).ToList();
             foreach (var item in items)
             {
@@ -747,6 +768,33 @@ namespace CRM.Core.Services
 
             await _stockInRepository.DeleteAsync(sid);
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        /// <inheritdoc />
+        public async Task ForceDeleteAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName)
+        {
+            if (string.IsNullOrWhiteSpace(confirmBillCode))
+                throw new ArgumentException("请填写 confirmBillCode", nameof(confirmBillCode));
+            if (string.IsNullOrWhiteSpace(actingUserId))
+                throw new ArgumentException("操作人不能为空", nameof(actingUserId));
+
+            var stockIn = await _stockInRepository.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException("入库单不存在");
+            if (!string.Equals(confirmBillCode.Trim(), stockIn.StockInCode?.Trim(), StringComparison.Ordinal))
+                throw new ArgumentException("确认单号不匹配，已拒绝删除");
+
+            await DeleteAsync(id);
+
+            var recordCode = string.IsNullOrWhiteSpace(stockIn.StockInCode) ? null : stockIn.StockInCode.Trim();
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.StockIn,
+                id.Trim(),
+                recordCode,
+                "入库单强制删除",
+                actingUserId.Trim(),
+                string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
+                $"强制删除入库单 StockInId={id.Trim()}，确认单号={recordCode}",
+                reason: null);
         }
 
         private static string EscapeSqlLiteral(string s) => s.Replace("'", "''", StringComparison.Ordinal);

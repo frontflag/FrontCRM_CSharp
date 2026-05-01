@@ -215,7 +215,7 @@ namespace CRM.API.Controllers
 
         /// <summary>预览（图片/PDF 直接返回文件流，便于前端 iframe/img）</summary>
         [HttpGet("{id}/preview")]
-        public async Task<IActionResult> Preview(string id)
+        public async Task<IActionResult> Preview(string id, [FromQuery] bool thumbnail = false)
         {
             try
             {
@@ -232,8 +232,19 @@ namespace CRM.API.Controllers
 
                 try
                 {
-                    var stream = await _fileStorage.OpenReadAsync(doc.RelativePath);
+                    var relPath = doc.RelativePath;
                     var mime = doc.MimeType ?? "application/octet-stream";
+                    if (thumbnail && !string.IsNullOrWhiteSpace(doc.ThumbnailRelativePath))
+                    {
+                        var thumbPath = doc.ThumbnailRelativePath.Trim();
+                        if (await _fileStorage.ExistsAsync(thumbPath))
+                        {
+                            relPath = thumbPath;
+                            mime = "image/jpeg";
+                        }
+                    }
+
+                    var stream = await _fileStorage.OpenReadAsync(relPath);
                     return File(stream, mime);
                 }
                 catch (FileNotFoundException ex)

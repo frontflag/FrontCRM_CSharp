@@ -399,13 +399,13 @@ onMounted(() => {
   font-family: 'Noto Sans SC', sans-serif;
   font-size: 20px;
   font-weight: 600;
-  color: #e8f4ff;
+  color: vars.$text-primary;
   margin: 0 0 8px;
 }
 .welcome-sub {
   font-family: 'Noto Sans SC', sans-serif;
   font-size: 13px;
-  color: rgba(200, 220, 240, 0.6);
+  color: vars.$text-muted;
   margin: 0;
   line-height: 1.6;
   max-width: 480px;

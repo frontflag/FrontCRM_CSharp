@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Vendor
 {
@@ -7,7 +8,7 @@ namespace CRM.Core.Models.Vendor
     /// 供应商主表
     /// </summary>
     [Table("vendorinfo")]
-    public class VendorInfo : BaseGuidEntity
+    public class VendorInfo : BaseGuidEntity, ISoftDeletable
     {
         /// <summary>
         /// 供应商ID (主键)

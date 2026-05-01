@@ -9,7 +9,10 @@ namespace CRM.Core.Interfaces
         Task PostStockInAsync(string stockInId);
         Task RecordStockOutAsync(string stockOutId);
 
-        Task<IEnumerable<InventoryMaterialOverviewDto>> GetMaterialOverviewAsync(string? warehouseId);
+        Task<IEnumerable<InventoryMaterialOverviewDto>> GetMaterialOverviewAsync(
+            string? warehouseId,
+            string? materialModel = null,
+            string? stockCode = null);
         /// <summary>按销售明细解析物料键（含关联采购行），汇总全仓库可用库存；用于出库申请展示。</summary>
         Task<SellOrderLineAvailableQtyDto> GetAvailableQtyForSellOrderItemAsync(string sellOrderItemId);
         Task<IEnumerable<InventoryMaterialTraceDto>> GetMaterialTraceAsync(string materialId);
@@ -43,6 +46,15 @@ namespace CRM.Core.Interfaces
         Task<IEnumerable<InventoryCountPlan>> GetCountPlansAsync();
         Task<InventoryCountPlan> CreateMonthlyCountPlanAsync(CreateCountPlanRequest request);
         Task SubmitCountPlanAsync(SubmitCountPlanRequest request);
+
+        Task ForceDeleteStockItemAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
+        Task ForceDeletePickingSlipAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
+
+        /// <summary>按当前在库明细行汇总回写 <c>stock</c> 占用/销售/在库数量（删除明细后调用）。</summary>
+        Task RecalculateStockAggregateTotalsAsync(string? stockAggregateId);
+
+        /// <summary>是否存在未软删出库单头或明细关联本拣货任务。</summary>
+        Task<bool> HasStockOutLinkedToPickingTaskAsync(string pickingTaskId);
     }
 
     public class SellOrderLineAvailableQtyDto
@@ -74,6 +86,10 @@ namespace CRM.Core.Interfaces
         public decimal InventoryAmount { get; set; }
         /// <summary>库存金额币别（与最近一次采购入库台账关联的采购单一致；缺省 1=RMB）</summary>
         public short Currency { get; set; } = 1;
+        /// <summary>首笔库存明细创建时间（同聚合 <c>stock_item</c> 的最早创建时间）。</summary>
+        public DateTime? CreateTime { get; set; }
+        /// <summary>首笔库存明细创建人（由关联入库单创建人解析）。</summary>
+        public string? CreateUserName { get; set; }
         public DateTime? LastMoveTime { get; set; }
     }
 
@@ -193,6 +209,25 @@ namespace CRM.Core.Interfaces
         public decimal TurnoverRate { get; set; }
         public decimal TurnoverDays { get; set; }
         public int StagnantMaterialCount { get; set; }
+        /// <summary>按原始币别分组的资金占用/出库成本统计。</summary>
+        public List<InventoryFinanceCurrencyBreakdownDto> CurrencyBreakdowns { get; set; } = new();
+        /// <summary>本次汇总折算使用的汇率快照（1 USD 对应多少外币）。</summary>
+        public InventoryFinanceAppliedRatesDto? AppliedRates { get; set; }
+    }
+
+    public class InventoryFinanceCurrencyBreakdownDto
+    {
+        /// <summary>币别编码（1=RMB 2=USD ...）。</summary>
+        public short Currency { get; set; } = 1;
+        public decimal InventoryCapital { get; set; }
+        public decimal MonthlyOutCost { get; set; }
+    }
+
+    public class InventoryFinanceAppliedRatesDto
+    {
+        public decimal UsdToCny { get; set; }
+        public decimal UsdToHkd { get; set; }
+        public decimal UsdToEur { get; set; }
     }
 
     /// <summary>拣货任务明细行（前端可展示备货补充标记）</summary>

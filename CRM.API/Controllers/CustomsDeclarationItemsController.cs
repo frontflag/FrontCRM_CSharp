@@ -77,8 +77,8 @@ public class CustomsDeclarationItemsController : ControllerBase
                 CustomerId = x.i.CustomerId,
                 CustomerName = x.c?.OfficialName,
                 SalesUserId = x.i.SalesUserId,
-                SalesUserName = x.u != null
-                    ? (string.IsNullOrWhiteSpace(x.u.RealName) ? x.u.UserName : x.u.RealName)
+                SalesUserName = x.u != null && !string.IsNullOrWhiteSpace(x.u.UserName)
+                    ? x.u.UserName.Trim()
                     : null,
                 SellOrderItemCode = x.i.SellOrderItemCode,
                 PurchasePn = x.i.PurchasePn,

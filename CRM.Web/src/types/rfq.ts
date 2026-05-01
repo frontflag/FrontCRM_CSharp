@@ -93,9 +93,11 @@ export interface RFQ {
   contactPersonName?: string         // 客户联系人姓名
   contactPersonEmail?: string        // 联系人邮箱
   salesUserId?: string
+  /** 需求主列表（GET 分页）为登录账号；详情等场景可能仍为展示名 */
   salesUserName?: string
   /** 创建人用户 ID（与 JWT 一致）；列表项可能带 createUserName */
   createByUserId?: string
+  /** 需求主列表为登录账号 */
   createUserName?: string
 
   // 需求信息

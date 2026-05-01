@@ -710,6 +710,7 @@
               <el-select
                 :model-value="normalizeRegionType(applyForm.regionType)"
                 :teleported="false"
+                disabled
                 style="width: 100%"
                 @update:model-value="(v: string | number) => { applyForm.regionType = normalizeRegionType(v) }"
               >
@@ -935,6 +936,7 @@ import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
+import { CurrencyCode } from '@/constants/currency'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const router = useRouter()
@@ -1745,11 +1747,13 @@ const handleOpenApplyStockOut = async (item?: any) => {
     const ctx = await stockOutApi.getApplyContext(order.value.id, sellOrderItemId)
     const maxQ = Math.max(0, Math.trunc(Number(ctx.suggestedMaxQty) || 0))
     const stocking = Math.max(0, Math.trunc(Number(ctx.purchasedStockAvailableQty ?? 0) || 0))
+    const lineCurrency = Number(line.currency ?? line.Currency ?? 0)
+    const regionType = lineCurrency === CurrencyCode.RMB ? REGION_TYPE_DOMESTIC : REGION_TYPE_OVERSEAS
     applyForm.value = {
       requestCode: '',
       requestDate: new Date(),
       shipmentMethod: '',
-      regionType: REGION_TYPE_DOMESTIC,
+      regionType,
       remark: '',
       sellOrderItemId,
       materialCode: String(line.pn ?? line.PN ?? '').trim(),

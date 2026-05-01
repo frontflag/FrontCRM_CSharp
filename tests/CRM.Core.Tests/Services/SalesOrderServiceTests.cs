@@ -1,4 +1,5 @@
 using CRM.Core.Interfaces;
+using CRM.Core.Models;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.Sales;
@@ -25,6 +26,7 @@ namespace CRM.Core.Tests.Services
         private readonly ISellOrderItemExtendSyncService _soItemExtendSync;
         private readonly ISellOrderItemPurchasedStockAvailableSyncService _purchasedStockAvailableSync;
         private readonly ISellOrderExtendLineSeqService _soLineSeq;
+        private readonly IUserService _userService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly SalesOrderService _orderService;
 
@@ -52,6 +54,8 @@ namespace CRM.Core.Tests.Services
             _purchasedStockAvailableSync = Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>();
             _soLineSeq = Substitute.For<ISellOrderExtendLineSeqService>();
             _soLineSeq.ReserveNextSequenceBlockAsync(default!, default, default).ReturnsForAnyArgs(1);
+            _userService = Substitute.For<IUserService>();
+            _userService.GetAllAsync().Returns(Array.Empty<User>());
             _unitOfWork = Substitute.For<IUnitOfWork>();
             _unitOfWork.SaveChangesAsync().Returns(1);
             _orderService = new SalesOrderService(
@@ -69,6 +73,7 @@ namespace CRM.Core.Tests.Services
                 _soItemExtendSync,
                 _purchasedStockAvailableSync,
                 _soLineSeq,
+                _userService,
                 _unitOfWork,
                 NullLogger<SalesOrderService>.Instance);
         }

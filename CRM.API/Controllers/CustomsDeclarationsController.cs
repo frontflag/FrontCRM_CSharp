@@ -1,5 +1,4 @@
 using CRM.API.Models.DTOs;
-using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customs;
 using CRM.Infrastructure.Data;
@@ -14,31 +13,19 @@ namespace CRM.API.Controllers;
 public class CustomsDeclarationsController : ControllerBase
 {
     private readonly ICustomsDeclarationService _service;
-    private readonly IRepository<CustomsDeclaration> _declarationRepo;
-    private readonly IRepository<CustomsDeclarationItem> _itemRepo;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly IRbacService _rbacService;
     private readonly ApplicationDbContext _db;
-    private readonly ILogOperationAppendService _logOperationAppend;
     private readonly ILogger<CustomsDeclarationsController> _logger;
 
     public CustomsDeclarationsController(
         ICustomsDeclarationService service,
-        IRepository<CustomsDeclaration> declarationRepo,
-        IRepository<CustomsDeclarationItem> itemRepo,
-        IUnitOfWork unitOfWork,
         IRbacService rbacService,
         ApplicationDbContext db,
-        ILogOperationAppendService logOperationAppend,
         ILogger<CustomsDeclarationsController> logger)
     {
         _service = service;
-        _declarationRepo = declarationRepo;
-        _itemRepo = itemRepo;
-        _unitOfWork = unitOfWork;
         _rbacService = rbacService;
         _db = db;
-        _logOperationAppend = logOperationAppend;
         _logger = logger;
     }
 
@@ -111,8 +98,8 @@ public class CustomsDeclarationsController : ControllerBase
                 Remark = x.d.Remark,
                 CreateTime = x.d.CreateTime,
                 CreateByUserId = x.d.CreateByUserId,
-                CreateUserDisplay = x.u != null
-                    ? (string.IsNullOrWhiteSpace(x.u.RealName) ? x.u.UserName : x.u.RealName)
+                CreateUserDisplay = x.u != null && !string.IsNullOrWhiteSpace(x.u.UserName)
+                    ? x.u.UserName.Trim()
                     : null
             }).ToList();
 
@@ -200,20 +187,14 @@ public class CustomsDeclarationsController : ControllerBase
     {
         try
         {
-            var row = await _declarationRepo.GetByIdAsync(id);
-            if (row == null)
-                return NotFound(ApiResponse<object>.Fail("报关单不存在", 404));
-            if (row.InternalStatus == CustomsDeclarationInternalStatus.Completed)
-                return BadRequest(ApiResponse<object>.Fail("已完成报关单不能普通删除", 400));
-
-            await SoftDeleteLinkedStockTransferAsync(row.Id);
-
-            var items = (await _itemRepo.FindAsync(x => x.DeclarationId == row.Id)).ToList();
-            foreach (var item in items)
-                await _itemRepo.DeleteAsync(item.Id);
-            await _declarationRepo.DeleteAsync(row.Id);
-            await _unitOfWork.SaveChangesAsync();
+            await _service.DeleteDeclarationAsync(id);
             return Ok(ApiResponse<object>.Ok(null, "删除报关单成功"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            if (ex.Message.Contains("不存在", StringComparison.Ordinal))
+                return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
         }
         catch (Exception ex)
         {
@@ -238,51 +219,27 @@ public class CustomsDeclarationsController : ControllerBase
             if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
                 return BadRequest(ApiResponse<object>.Fail("请填写 confirmBillCode", 400));
 
-            var row = await _declarationRepo.GetByIdAsync(id);
-            if (row == null)
-                return NotFound(ApiResponse<object>.Fail("报关单不存在", 404));
-            if (!string.Equals(body.ConfirmBillCode.Trim(), row.DeclarationCode.Trim(), StringComparison.Ordinal))
-                return BadRequest(ApiResponse<object>.Fail("确认单号不匹配，已拒绝删除", 400));
-
-            await SoftDeleteLinkedStockTransferAsync(row.Id);
-
-            var items = (await _itemRepo.FindAsync(x => x.DeclarationId == row.Id)).ToList();
-            foreach (var item in items)
-                await _itemRepo.DeleteAsync(item.Id);
-            await _declarationRepo.DeleteAsync(row.Id);
-            await _unitOfWork.SaveChangesAsync();
-
             var userName = User.FindFirst(ClaimTypes.Name)?.Value;
-            var recordCode = string.IsNullOrWhiteSpace(row.DeclarationCode) ? null : row.DeclarationCode.Trim();
-            await _logOperationAppend.AppendAsync(
-                BusinessLogTypes.CustomsDeclaration,
-                row.Id,
-                recordCode,
-                "报关单强制删除",
+            await _service.ForceDeleteDeclarationAsync(
+                id,
+                body.ConfirmBillCode.Trim(),
                 userId.Trim(),
-                string.IsNullOrWhiteSpace(userName) ? null : userName.Trim(),
-                $"强制删除报关单 DeclarationId={row.Id}，确认单号={recordCode}，明细行数={items.Count}",
-                reason: null);
+                string.IsNullOrWhiteSpace(userName) ? null : userName.Trim());
 
             return Ok(ApiResponse<object>.Ok(null, "强制删除报关单成功"));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "强制删除报关单失败");
             return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500));
         }
-    }
-
-    private async Task SoftDeleteLinkedStockTransferAsync(string customsDeclarationId)
-    {
-        var key = customsDeclarationId.Trim();
-        var transfer = await _db.StockTransfers.FirstOrDefaultAsync(t => t.CustomsDeclarationId == key);
-        if (transfer == null)
-            return;
-
-        var lines = await _db.StockTransferItems.Where(x => x.StockTransferId == transfer.Id).ToListAsync();
-        foreach (var line in lines)
-            line.IsDeleted = true;
-        transfer.IsDeleted = true;
     }
 }

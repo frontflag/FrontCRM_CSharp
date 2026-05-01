@@ -336,6 +336,7 @@ public sealed class InternalTransferPostingKernel : IInternalTransferPostingKern
             QtyOut = moveQty,
             UnitCost = layer.PurchasePrice,
             Amount = -lineAmount,
+            Currency = layer.PurchaseCurrency > 0 ? layer.PurchaseCurrency : (short)CurrencyCode.RMB,
             Remark = $"{request.TransferBusinessCode.Trim()}（含虚拟调拨出/入库凭证）",
             CreateTime = now,
             FromWarehouseId = fromWh,

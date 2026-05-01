@@ -17,26 +17,17 @@ namespace CRM.API.Controllers
         private readonly IFinancePurchaseInvoiceService _service;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
-        private readonly IRepository<FinancePurchaseInvoice> _invoiceRepo;
-        private readonly IRepository<FinancePurchaseInvoiceItem> _invoiceItemRepo;
-        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<FinancePurchaseInvoicesController> _logger;
 
         public FinancePurchaseInvoicesController(
             IFinancePurchaseInvoiceService service,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
-            IRepository<FinancePurchaseInvoice> invoiceRepo,
-            IRepository<FinancePurchaseInvoiceItem> invoiceItemRepo,
-            IUnitOfWork unitOfWork,
             ILogger<FinancePurchaseInvoicesController> logger)
         {
             _service = service;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
-            _invoiceRepo = invoiceRepo;
-            _invoiceItemRepo = invoiceItemRepo;
-            _unitOfWork = unitOfWork;
             _logger = logger;
         }
 
@@ -252,24 +243,22 @@ namespace CRM.API.Controllers
                 if (body == null || string.IsNullOrWhiteSpace(body.ConfirmBillCode))
                     return BadRequest(new { success = false, message = "请填写 confirmBillCode" });
 
-                var entity = await _invoiceRepo.GetByIdAsync(id);
-                if (entity == null)
-                    return NotFound(new { success = false, message = "进项发票不存在" });
-
-                var confirm = body.ConfirmBillCode.Trim();
-                var matched = string.Equals(confirm, entity.Id?.Trim(), StringComparison.Ordinal)
-                              || (!string.IsNullOrWhiteSpace(entity.InvoiceNo) && string.Equals(confirm, entity.InvoiceNo.Trim(), StringComparison.Ordinal));
-                if (!matched)
-                    return BadRequest(new { success = false, message = "确认单号不匹配，已拒绝删除" });
-
-                var items = (await _invoiceItemRepo.FindAsync(x => x.FinancePurchaseInvoiceId == entity.Id)).ToList();
-                foreach (var item in items)
-                    await _invoiceItemRepo.DeleteAsync(item.Id);
-
-                await _invoiceRepo.DeleteAsync(id);
-                await _unitOfWork.SaveChangesAsync();
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                await _service.ForceDeleteAsync(
+                    id,
+                    body.ConfirmBillCode.Trim(),
+                    userId.Trim(),
+                    string.IsNullOrWhiteSpace(userName) ? null : userName.Trim());
 
                 return Ok(new { success = true, message = "强制删除成功" });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {

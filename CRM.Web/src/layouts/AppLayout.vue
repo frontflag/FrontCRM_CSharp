@@ -1455,6 +1455,7 @@ const pageTitleMap: Record<string, string> = {
   '/drafts': 'layout.menu.drafts',
   '/debug': 'layout.menu.debug',
   '/debug/data': 'layout.menu.debugData',
+  '/debug/tools': 'layout.menu.debugData',
   '/finance/payments': 'layout.menu.paymentManagement',
   '/finance/receipts': 'layout.menu.receiptManagement',
   '/finance/purchase-invoices': 'layout.menu.purchaseInvoices',
