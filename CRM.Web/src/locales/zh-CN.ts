@@ -1056,7 +1056,11 @@ const zhCN = {
       createTime: '创建时间',
       actions: '操作',
       edit: '编辑',
-      genSalesOrder: '生成销售订单'
+      genSalesOrder: '生成销售订单',
+      layoutSideBySide: '左右各半：需求明细与采购报价并排',
+      layoutStackHalf: '上下各半：需求明细与采购报价高度各占约 50%',
+      layoutStackCompact: '上下布局：采购报价区高度约显示 2 行报价',
+      layoutHeaderOnly: '仅显示采购报价标题栏'
     },
     actions: { column: '操作', detail: '详情', quote: '报价' },
     loadFailed: '加载需求明细失败',

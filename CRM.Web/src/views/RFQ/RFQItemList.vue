@@ -1,5 +1,6 @@
 <template>
   <div class="rfq-item-list-page customer-list-theme">
+    <div class="rfq-items-split-root" :class="dockSplitRootClass">
     <div class="rfq-item-main">
     <div class="page-header">
       <div class="header-left">
@@ -232,58 +233,15 @@
     </div>
     </div>
 
-    <el-drawer
-      v-model="basketDrawerVisible"
-      title="复选篮子"
-      direction="rtl"
-      size="min(560px, 94vw)"
-      class="rfq-basket-drawer"
-    >
-      <p v-if="!basketCount" class="basket-drawer-hint">篮子里暂无记录。在列表中勾选行即可加入篮子，翻页后已选记录会保留。</p>
-      <template v-else>
-        <p class="basket-drawer-summary">
-          共 <strong>{{ basketCount }}</strong> 条，可在此移除单条或点击
-          <el-button
-            class="basket-clear-btn basket-clear-btn--drawer-inline"
-            link
-            type="warning"
-            @click="handleClearBasket"
-          >
-            清空篮子
-          </el-button>
-          全部清除。
-        </p>
-        <div class="crm-items-table crm-data-table">
-          <el-table :data="basketItems" max-height="70vh" size="small" border stripe>
-            <el-table-column prop="rfqCode" label="需求编号" min-width="140" show-overflow-tooltip />
-            <el-table-column v-if="canViewCustomerInRfq" prop="customerName" label="客户" min-width="120" show-overflow-tooltip />
-            <el-table-column label="物料型号" min-width="130" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.materialModel || row.mpn || '—' }}</template>
-            </el-table-column>
-            <el-table-column prop="quantity" label="数量" width="72" align="right" />
-            <el-table-column label="操作" width="88" fixed="right" align="center" class-name="op-col" label-class-name="op-col">
-              <template #default="{ row }">
-                <div @click.stop @dblclick.stop>
-                  <div class="action-btns">
-                    <button type="button" class="action-btn action-btn--danger" @click.stop="removeOneFromBasket(row.id)">移除</button>
-                  </div>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
-        </div>
-      </template>
-    </el-drawer>
-
     <!-- 底部：采购报价（当前选中需求明细对应的报价列表） -->
-    <div class="supplier-quote-dock" :class="{ collapsed: !supplierPanelExpanded }">
+    <div class="supplier-quote-dock" :class="{ collapsed: isPurchaseQuoteDockCollapsed }">
       <div class="dock-header">
         <div class="dock-header-top">
           <div class="dock-header-main">
             <span class="dock-title">{{ t('rfqItemList.dockQuotes.title') }}</span>
             <!-- 与新建报价页提示栏同一套字段与拉数逻辑；与标题同一行 -->
             <div
-              v-show="supplierPanelExpanded && selectedRfqItem"
+              v-show="isPurchaseQuoteDockBodyVisible && selectedRfqItem"
               v-loading="dockSummaryLoading"
               class="dock-link-alert-wrap dock-link-alert-wrap--inline"
             >
@@ -309,23 +267,68 @@
               </div>
             </div>
           </div>
-          <div class="dock-header-actions">
-            <el-button
-              class="dock-toggle"
-              text
-              circle
-              :title="supplierPanelExpanded ? '收起' : '展开'"
-              @click="supplierPanelExpanded = !supplierPanelExpanded"
-            >
-              <el-icon :size="18">
-                <ArrowUp v-if="supplierPanelExpanded" />
-                <ArrowDown v-else />
-              </el-icon>
-            </el-button>
+          <div class="dock-header-actions dock-layout-actions">
+            <el-tooltip :content="t('rfqItemList.dockQuotes.layoutSideBySide')" placement="top" :hide-after="0">
+              <el-button
+                class="dock-layout-btn"
+                :class="{ 'is-active': purchaseQuoteDockLayout === 'sideBySide' }"
+                text
+                circle
+                :aria-pressed="purchaseQuoteDockLayout === 'sideBySide'"
+                @click="setPurchaseQuoteDockLayout('sideBySide')"
+              >
+                <svg class="rfq-dock-layout-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <rect x="4" y="3" width="6" height="18" rx="1.2" fill="currentColor" />
+                  <rect x="14" y="3" width="6" height="18" rx="1.2" fill="currentColor" />
+                </svg>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip :content="t('rfqItemList.dockQuotes.layoutStackHalf')" placement="top" :hide-after="0">
+              <el-button
+                class="dock-layout-btn"
+                :class="{ 'is-active': purchaseQuoteDockLayout === 'stackHalf' }"
+                text
+                circle
+                :aria-pressed="purchaseQuoteDockLayout === 'stackHalf'"
+                @click="setPurchaseQuoteDockLayout('stackHalf')"
+              >
+                <svg class="rfq-dock-layout-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <path fill="currentColor" d="M12 3.5 16 8H8l4-4.5zm0 7L16 15H8l4-4.5z" />
+                </svg>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip :content="t('rfqItemList.dockQuotes.layoutStackCompact')" placement="top" :hide-after="0">
+              <el-button
+                class="dock-layout-btn"
+                :class="{ 'is-active': purchaseQuoteDockLayout === 'stackCompact' }"
+                text
+                circle
+                :aria-pressed="purchaseQuoteDockLayout === 'stackCompact'"
+                @click="setPurchaseQuoteDockLayout('stackCompact')"
+              >
+                <svg class="rfq-dock-layout-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <path fill="currentColor" d="M12 6.5 17.5 12H6.5L12 6.5z" />
+                </svg>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip :content="t('rfqItemList.dockQuotes.layoutHeaderOnly')" placement="top" :hide-after="0">
+              <el-button
+                class="dock-layout-btn"
+                :class="{ 'is-active': purchaseQuoteDockLayout === 'headerOnly' }"
+                text
+                circle
+                :aria-pressed="purchaseQuoteDockLayout === 'headerOnly'"
+                @click="setPurchaseQuoteDockLayout('headerOnly')"
+              >
+                <svg class="rfq-dock-layout-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <rect x="5" y="11" width="14" height="2.5" rx="1" fill="currentColor" />
+                </svg>
+              </el-button>
+            </el-tooltip>
           </div>
         </div>
       </div>
-      <div v-show="supplierPanelExpanded" class="dock-body">
+      <div v-show="isPurchaseQuoteDockBodyVisible" class="dock-body">
         <div v-if="!selectedRfqItem" class="dock-placeholder">{{ t('rfqItemList.dockQuotes.pickRowHint') }}</div>
         <template v-else>
           <div
@@ -341,7 +344,7 @@
               :data="quotesForItem"
               size="small"
               stripe
-              max-height="260"
+              v-bind="dockQuoteTableExtraAttrs"
               :row-key="dockQuoteRowKey"
             >
               <el-table-column
@@ -549,6 +552,50 @@
         </template>
       </div>
     </div>
+    </div>
+
+    <el-drawer
+      v-model="basketDrawerVisible"
+      title="复选篮子"
+      direction="rtl"
+      size="min(560px, 94vw)"
+      class="rfq-basket-drawer"
+    >
+      <p v-if="!basketCount" class="basket-drawer-hint">篮子里暂无记录。在列表中勾选行即可加入篮子，翻页后已选记录会保留。</p>
+      <template v-else>
+        <p class="basket-drawer-summary">
+          共 <strong>{{ basketCount }}</strong> 条，可在此移除单条或点击
+          <el-button
+            class="basket-clear-btn basket-clear-btn--drawer-inline"
+            link
+            type="warning"
+            @click="handleClearBasket"
+          >
+            清空篮子
+          </el-button>
+          全部清除。
+        </p>
+        <div class="crm-items-table crm-data-table">
+          <el-table :data="basketItems" max-height="70vh" size="small" border stripe>
+            <el-table-column prop="rfqCode" label="需求编号" min-width="140" show-overflow-tooltip />
+            <el-table-column v-if="canViewCustomerInRfq" prop="customerName" label="客户" min-width="120" show-overflow-tooltip />
+            <el-table-column label="物料型号" min-width="130" show-overflow-tooltip>
+              <template #default="{ row }">{{ row.materialModel || row.mpn || '—' }}</template>
+            </el-table-column>
+            <el-table-column prop="quantity" label="数量" width="72" align="right" />
+            <el-table-column label="操作" width="88" fixed="right" align="center" class-name="op-col" label-class-name="op-col">
+              <template #default="{ row }">
+                <div @click.stop @dblclick.stop>
+                  <div class="action-btns">
+                    <button type="button" class="action-btn action-btn--danger" @click.stop="removeOneFromBasket(row.id)">移除</button>
+                  </div>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </template>
+    </el-drawer>
   </div>
 </template>
 
@@ -556,7 +603,6 @@
 import { computed, ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import { rfqApi } from '@/api/rfq'
@@ -801,7 +847,59 @@ const pageInfo = reactive({
 
 /** 当前点击选中的需求明细（用于底部采购报价面板） */
 const selectedRfqItem = ref<RFQItem | null>(null)
-const supplierPanelExpanded = ref(true)
+
+/** 需求明细主表与采购报价面板的相对布局（持久化至 localStorage） */
+type PurchaseQuoteDockLayout = 'sideBySide' | 'stackHalf' | 'stackCompact' | 'headerOnly'
+const PURCHASE_QUOTE_DOCK_LAYOUT_STORAGE_KEY = 'crm:rfq-item-list:purchase-quote-dock-layout'
+const PURCHASE_QUOTE_DOCK_LAYOUTS: PurchaseQuoteDockLayout[] = [
+  'sideBySide',
+  'stackHalf',
+  'stackCompact',
+  'headerOnly'
+]
+/** 紧凑模式下报价表 max-height（约 2 行数据 + 表头，small 表格） */
+const DOCK_QUOTE_TABLE_MAX_HEIGHT_COMPACT = 128
+
+function readPersistedPurchaseQuoteDockLayout(): PurchaseQuoteDockLayout {
+  try {
+    const raw = localStorage.getItem(PURCHASE_QUOTE_DOCK_LAYOUT_STORAGE_KEY)
+    if (raw && (PURCHASE_QUOTE_DOCK_LAYOUTS as string[]).includes(raw)) {
+      return raw as PurchaseQuoteDockLayout
+    }
+  } catch {
+    /* ignore */
+  }
+  return 'stackCompact'
+}
+
+const purchaseQuoteDockLayout = ref<PurchaseQuoteDockLayout>(readPersistedPurchaseQuoteDockLayout())
+
+watch(purchaseQuoteDockLayout, (v) => {
+  try {
+    localStorage.setItem(PURCHASE_QUOTE_DOCK_LAYOUT_STORAGE_KEY, v)
+  } catch {
+    /* ignore */
+  }
+})
+
+function setPurchaseQuoteDockLayout(mode: PurchaseQuoteDockLayout) {
+  purchaseQuoteDockLayout.value = mode
+}
+
+const isPurchaseQuoteDockCollapsed = computed(() => purchaseQuoteDockLayout.value === 'headerOnly')
+const isPurchaseQuoteDockBodyVisible = computed(() => purchaseQuoteDockLayout.value !== 'headerOnly')
+
+const dockSplitRootClass = computed(() => ({
+  'rfq-items-split-root--side': purchaseQuoteDockLayout.value === 'sideBySide',
+  'rfq-items-split-root--stack-half': purchaseQuoteDockLayout.value === 'stackHalf',
+  'rfq-items-split-root--stack-compact': purchaseQuoteDockLayout.value === 'stackCompact',
+  'rfq-items-split-root--dock-body-fill':
+    purchaseQuoteDockLayout.value === 'sideBySide' || purchaseQuoteDockLayout.value === 'stackHalf'
+}))
+
+const dockQuoteTableExtraAttrs = computed(() =>
+  purchaseQuoteDockLayout.value === 'stackCompact' ? { maxHeight: DOCK_QUOTE_TABLE_MAX_HEIGHT_COMPACT } : {}
+)
 const quotesForItem = ref<Record<string, unknown>[]>([])
 const quotesLoading = ref(false)
 /** 正在预检并跳转生成销售订单的报价行 id（行内按钮 loading） */
@@ -1393,6 +1491,66 @@ onUnmounted(() => {
   font-family: 'Noto Sans SC', sans-serif;
 }
 
+.rfq-items-split-root {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rfq-items-split-root--side {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 12px;
+
+  .rfq-item-main {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-bottom: 0;
+  }
+
+  .supplier-quote-dock {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+.rfq-items-split-root--stack-half {
+  .rfq-item-main {
+    flex: 1 1 50%;
+    min-height: 0;
+  }
+
+  .supplier-quote-dock {
+    flex: 1 1 50%;
+    min-height: 0;
+  }
+}
+
+.rfq-items-split-root--stack-compact {
+  .rfq-item-main {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .supplier-quote-dock {
+    flex: 0 0 auto;
+  }
+}
+
+.rfq-items-split-root--dock-body-fill .supplier-quote-dock:not(.collapsed) .dock-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rfq-items-split-root--dock-body-fill .dock-table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
 .rfq-item-main {
   flex: 1 1 0;
   min-height: 0;
@@ -1410,6 +1568,12 @@ onUnmounted(() => {
   border: 1px solid $border-card;
   border-radius: 8px;
   overflow: hidden;
+
+  &:not(.collapsed) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
 }
 
 .dock-header {
@@ -1449,8 +1613,21 @@ onUnmounted(() => {
   line-height: 1.4;
 }
 
-.dock-toggle {
+.dock-layout-actions {
+  gap: 2px;
+}
+
+.dock-layout-btn {
   color: $cyan-primary !important;
+
+  &.is-active {
+    background: rgba(0, 212, 255, 0.12) !important;
+    outline: 1px solid rgba(0, 212, 255, 0.35);
+  }
+}
+
+.rfq-dock-layout-icon {
+  display: block;
 }
 
 .dock-link-alert-wrap {

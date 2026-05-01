@@ -1076,7 +1076,11 @@ const enUS = {
       createTime: 'Created At',
       actions: 'Actions',
       edit: 'Edit',
-      genSalesOrder: 'Generate Sales Order'
+      genSalesOrder: 'Generate Sales Order',
+      layoutSideBySide: 'Split vertically: RFQ lines and purchase quotes each ~50% width',
+      layoutStackHalf: 'Split horizontally: RFQ lines and purchase quotes each ~50% height',
+      layoutStackCompact: 'Stacked: quote panel height fits ~2 quote rows',
+      layoutHeaderOnly: 'Collapse quotes panel to header bar only'
     },
     actions: { column: 'Actions', detail: 'Detail', quote: 'Quote' },
     loadFailed: 'Failed to load RFQ items',
