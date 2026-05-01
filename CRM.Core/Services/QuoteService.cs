@@ -1,4 +1,5 @@
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Customer;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Utilities;
@@ -15,6 +16,7 @@ namespace CRM.Core.Services
         private readonly IRepository<QuoteItem> _quoteItemRepository;
         private readonly IRepository<RFQItem> _rfqItemRepository;
         private readonly IRepository<RFQ> _rfqRepository;
+        private readonly IRepository<CustomerInfo> _customerRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IUserService _userService;
@@ -25,6 +27,7 @@ namespace CRM.Core.Services
             IRepository<QuoteItem> quoteItemRepository,
             IRepository<RFQItem> rfqItemRepository,
             IRepository<RFQ> rfqRepository,
+            IRepository<CustomerInfo> customerRepository,
             IUnitOfWork unitOfWork,
             ISerialNumberService serialNumberService,
             IUserService userService,
@@ -34,6 +37,7 @@ namespace CRM.Core.Services
             _quoteItemRepository = quoteItemRepository;
             _rfqItemRepository = rfqItemRepository;
             _rfqRepository = rfqRepository;
+            _customerRepository = customerRepository;
             _unitOfWork = unitOfWork;
             _serialNumberService = serialNumberService;
             _userService = userService;
@@ -59,6 +63,64 @@ namespace CRM.Core.Services
                 if (string.IsNullOrWhiteSpace(q.RFQId)) continue;
                 if (byId.TryGetValue(q.RFQId.Trim(), out var rfq))
                     q.RfqCode = rfq.RfqCode;
+            }
+        }
+
+        private static string? FormatQuoteCustomerDisplayName(CustomerInfo c)
+        {
+            if (!string.IsNullOrWhiteSpace(c.OfficialName)) return c.OfficialName.Trim();
+            if (!string.IsNullOrWhiteSpace(c.NickName)) return c.NickName.Trim();
+            if (!string.IsNullOrWhiteSpace(c.CustomerCode)) return c.CustomerCode.Trim();
+            return null;
+        }
+
+        /// <summary>为列表/详情 JSON 填充客户展示名（报价头 customer_id；缺省时由关联 RFQ 主表客户解析）。</summary>
+        private async Task HydrateQuoteCustomerDisplayAsync(IReadOnlyCollection<Quote> quotes)
+        {
+            if (quotes.Count == 0) return;
+
+            var rfqIdsForFallback = quotes
+                .Where(q => string.IsNullOrWhiteSpace(q.CustomerId) && !string.IsNullOrWhiteSpace(q.RFQId))
+                .Select(q => q.RFQId!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            Dictionary<string, string> customerIdByRfqId = new(StringComparer.OrdinalIgnoreCase);
+            if (rfqIdsForFallback.Count > 0)
+            {
+                var rfqs = (await _rfqRepository.FindAsync(r => rfqIdsForFallback.Contains(r.Id))).ToList();
+                foreach (var r in rfqs)
+                {
+                    if (!string.IsNullOrWhiteSpace(r.CustomerId))
+                        customerIdByRfqId[r.Id.Trim()] = r.CustomerId.Trim();
+                }
+            }
+
+            var customerIdSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var q in quotes)
+            {
+                if (!string.IsNullOrWhiteSpace(q.CustomerId))
+                    customerIdSet.Add(q.CustomerId.Trim());
+                else if (!string.IsNullOrWhiteSpace(q.RFQId) &&
+                         customerIdByRfqId.TryGetValue(q.RFQId.Trim(), out var cidFromRfq))
+                    customerIdSet.Add(cidFromRfq);
+            }
+
+            if (customerIdSet.Count == 0) return;
+            var idList = customerIdSet.ToList();
+            var customers = (await _customerRepository.FindAsync(c => idList.Contains(c.Id))).ToList();
+            var customerById = customers.ToDictionary(c => c.Id, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var q in quotes)
+            {
+                var cid = !string.IsNullOrWhiteSpace(q.CustomerId)
+                    ? q.CustomerId.Trim()
+                    : (!string.IsNullOrWhiteSpace(q.RFQId) &&
+                       customerIdByRfqId.TryGetValue(q.RFQId.Trim(), out var x)
+                        ? x
+                        : null);
+                if (cid == null) continue;
+                if (!customerById.TryGetValue(cid, out var cust)) continue;
+                q.CustomerName = FormatQuoteCustomerDisplayName(cust);
             }
         }
 
@@ -151,6 +213,7 @@ namespace CRM.Core.Services
 
             await _unitOfWork.SaveChangesAsync();
             await HydrateQuoteRfqCodeAsync(new[] { quote });
+            await HydrateQuoteCustomerDisplayAsync(new[] { quote });
             return quote;
         }
 
@@ -166,6 +229,7 @@ namespace CRM.Core.Services
             var items = await _quoteItemRepository.FindAsync(i => i.QuoteId == id);
             quote.Items = items.ToList();
             await HydrateQuoteRfqCodeAsync(new[] { quote });
+            await HydrateQuoteCustomerDisplayAsync(new[] { quote });
             await HydrateQuoteUserDisplayAsync(new[] { quote });
             return quote;
         }
@@ -188,6 +252,7 @@ namespace CRM.Core.Services
             }
 
             await HydrateQuoteRfqCodeAsync(quotes);
+            await HydrateQuoteCustomerDisplayAsync(quotes);
             await HydrateQuoteUserDisplayAsync(quotes);
             return quotes.OrderByDescending(q => q.CreateTime).ToList();
         }
@@ -231,6 +296,8 @@ namespace CRM.Core.Services
 
             await _unitOfWork.SaveChangesAsync();
             await HydrateQuoteRfqCodeAsync(new[] { quote });
+            await HydrateQuoteCustomerDisplayAsync(new[] { quote });
+            await HydrateQuoteUserDisplayAsync(new[] { quote });
             return quote;
         }
 

@@ -972,6 +972,7 @@ const zhCN = {
       rfqCode: '需求编号',
       mpn: '物料型号',
       brand: '品牌',
+      productionDateDc: '生产日期/DC',
       unitPrice: '价格',
       quantity: '数量',
       customer: '客户',
@@ -1046,6 +1047,7 @@ const zhCN = {
       quoteCode: '报价编号',
       mpn: '物料型号',
       brand: '品牌',
+      productionDateDc: '生产日期/DC',
       vendorName: '供应商名称',
       quoteQty: '报价数量',
       unitPriceTiers: '单价（阶梯）',
@@ -1053,11 +1055,13 @@ const zhCN = {
       purchaser: '采购员',
       createTime: '创建时间',
       actions: '操作',
+      edit: '编辑',
       genSalesOrder: '生成销售订单'
     },
     actions: { column: '操作', detail: '详情', quote: '报价' },
     loadFailed: '加载需求明细失败',
     warnings: {
+      missingQuoteId: '无法识别报价主键，无法编辑',
       missingIds: '缺少需求或明细标识，无法打开新建报价',
       selectFromBasket: '请先在复选篮子中加入需求明细（可跨页勾选）',
       sameRfqOnly: '批量报价仅支持同一需求下的多条明细，请重新选择'

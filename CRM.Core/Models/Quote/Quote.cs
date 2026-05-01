@@ -43,6 +43,10 @@ namespace CRM.Core.Models.Quote
         [Column("customer_id")]
         public string? CustomerId { get; set; }
 
+        /// <summary>展示用：客户名称（由服务层按 CustomerId 或关联 RFQ 的客户填充，非表字段）</summary>
+        [NotMapped]
+        public string? CustomerName { get; set; }
+
         /// <summary>业务员 ID</summary>
         [StringLength(36)]
         [Column("sales_user_id")]

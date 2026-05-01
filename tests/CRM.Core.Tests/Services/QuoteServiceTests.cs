@@ -1,8 +1,10 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
+using CRM.Core.Models.Customer;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Services;
+using System.Linq.Expressions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
@@ -21,6 +23,7 @@ namespace CRM.Core.Tests.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IUserService _userService;
+        private readonly IRepository<CustomerInfo> _customerRepository;
         private readonly QuoteService _quoteService;
 
         public QuoteServiceTests()
@@ -33,12 +36,16 @@ namespace CRM.Core.Tests.Services
             _serialNumberService = Substitute.For<ISerialNumberService>();
             _userService = Substitute.For<IUserService>();
             _userService.GetAllAsync().Returns(new List<User>());
+            _customerRepository = Substitute.For<IRepository<CustomerInfo>>();
+            _customerRepository.FindAsync(Arg.Any<Expression<Func<CustomerInfo, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<CustomerInfo>>(Array.Empty<CustomerInfo>()));
             _serialNumberService.GenerateNextAsync(ModuleCodes.Quotation).Returns("QT2603240001");
             _quoteService = new QuoteService(
                 _quoteRepository,
                 _quoteItemRepository,
                 _rfqItemRepository,
                 _rfqRepository,
+                _customerRepository,
                 _unitOfWork,
                 _serialNumberService,
                 _userService,

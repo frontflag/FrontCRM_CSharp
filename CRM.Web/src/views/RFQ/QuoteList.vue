@@ -108,6 +108,9 @@
         <template #col-brand="{ row }">
           <span>{{ displayFirstItemBrand(row) }}</span>
         </template>
+        <template #col-productionDateDc="{ row }">
+          <span>{{ displayQuoteProductionDateDc(row) }}</span>
+        </template>
         <template #col-lineUnitPrice="{ row }">
           <span class="amount-with-code">
             <span>{{ displayFirstItemUnitPriceValue(row) }}</span>
@@ -219,9 +222,11 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMaterialProductionDateDict()
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
@@ -273,6 +278,13 @@ const quoteTableColumns = computed<CrmTableColumnDef[]>(() => {
     { key: 'status', label: t('quoteList.columns.status'), prop: 'status', width: 160, align: 'center' },
     { key: 'mpn', label: t('quoteList.columns.mpn'), prop: 'mpn', minWidth: 150, showOverflowTooltip: true },
     { key: 'brand', label: t('quoteList.columns.brand'), width: 100, minWidth: 90, showOverflowTooltip: true },
+    {
+      key: 'productionDateDc',
+      label: t('quoteList.columns.productionDateDc'),
+      width: 120,
+      minWidth: 104,
+      showOverflowTooltip: true
+    },
     {
       key: 'lineUnitPrice',
       label: t('quoteList.columns.unitPrice'),
@@ -391,6 +403,33 @@ function displayFirstItemQuantity(row: Record<string, unknown>) {
   const n = Number(q)
   if (Number.isNaN(n)) return t('quoteList.na')
   return String(n)
+}
+
+/** 生产日期/DC：字典 ItemCode → 文案；多明细去重后顿号拼接 */
+function displayQuoteProductionDateDc(row: Record<string, unknown>): string {
+  const opts = materialPdOptions.value
+  const mapOne = (code: string) => {
+    const label = productionDateDisplayLabel(code, opts)
+    return (label && label.trim()) || code
+  }
+  const items = row.items ?? row.Items
+  if (!Array.isArray(items) || items.length === 0) {
+    const hdr = row.dateCode ?? row.DateCode
+    const s = hdr != null ? String(hdr).trim() : ''
+    if (!s) return t('quoteList.na')
+    return mapOne(s) || t('quoteList.na')
+  }
+  const labels = new Set<string>()
+  for (const raw of items) {
+    const o = raw as Record<string, unknown>
+    const dcRaw = o.dateCode ?? o.DateCode
+    if (dcRaw == null || String(dcRaw).trim() === '') continue
+    const code = String(dcRaw).trim()
+    const text = mapOne(code)
+    if (text) labels.add(text)
+  }
+  if (labels.size === 0) return t('quoteList.na')
+  return [...labels].join('、')
 }
 
 // 状态处理
@@ -514,7 +553,10 @@ const handleDelete = async (row: any) => {
   }
 }
 
-onMounted(loadData)
+onMounted(() => {
+  void ensureMaterialPdDict()
+  void loadData()
+})
 </script>
 
 <style scoped lang="scss">

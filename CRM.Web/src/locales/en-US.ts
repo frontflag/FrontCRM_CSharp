@@ -992,6 +992,7 @@ const enUS = {
       rfqCode: 'RFQ Code',
       mpn: 'MPN',
       brand: 'Brand',
+      productionDateDc: 'Mfr date / DC',
       unitPrice: 'Price',
       quantity: 'Qty',
       customer: 'Customer',
@@ -1066,6 +1067,7 @@ const enUS = {
       quoteCode: 'Quote No.',
       mpn: 'MPN',
       brand: 'Brand',
+      productionDateDc: 'Mfr date / DC',
       vendorName: 'Supplier',
       quoteQty: 'Quote Qty',
       unitPriceTiers: 'Unit price (tiers)',
@@ -1073,11 +1075,13 @@ const enUS = {
       purchaser: 'Purchaser',
       createTime: 'Created At',
       actions: 'Actions',
+      edit: 'Edit',
       genSalesOrder: 'Generate Sales Order'
     },
     actions: { column: 'Actions', detail: 'Detail', quote: 'Quote' },
     loadFailed: 'Failed to load RFQ items',
     warnings: {
+      missingQuoteId: 'Cannot resolve quote id',
       missingIds: 'Missing RFQ or item identifier, cannot open quote creation',
       selectFromBasket: 'Please add RFQ items to basket first (cross-page selection supported)',
       sameRfqOnly: 'Batch quote supports items from the same RFQ only'

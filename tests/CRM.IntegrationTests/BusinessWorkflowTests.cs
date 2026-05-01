@@ -111,11 +111,15 @@ namespace CRM.IntegrationTests
                 _userRepo,
                 rfqRbac,
                 NullLogger<RFQService>.Instance);
+            var quoteCustomerRepo = Substitute.For<IRepository<CustomerInfo>>();
+            quoteCustomerRepo.FindAsync(Arg.Any<Expression<Func<CustomerInfo, bool>>>())
+                .Returns(Task.FromResult<IEnumerable<CustomerInfo>>(Array.Empty<CustomerInfo>()));
             _quoteService = new QuoteService(
                 _quoteRepository,
                 _quoteItemRepository,
                 _rfqItemRepository,
                 _rfqRepository,
+                quoteCustomerRepo,
                 _unitOfWork,
                 _serialNumberService,
                 _userService,

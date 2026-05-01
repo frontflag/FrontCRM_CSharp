@@ -367,6 +367,28 @@
                 <template #default="{ row }">{{ dockQuoteBrandDisplay(row as Record<string, unknown>) }}</template>
               </el-table-column>
               <el-table-column
+                :label="t('rfqItemList.dockQuotes.productionDateDc')"
+                min-width="104"
+                width="120"
+                show-overflow-tooltip
+                class-name="dock-tier-col"
+              >
+                <template #default="{ row }">
+                  <div class="dock-quote-tiers">
+                    <template v-if="dockQuoteLineItems(row as Record<string, unknown>).length">
+                      <div
+                        v-for="(it, idx) in dockQuoteLineItems(row as Record<string, unknown>)"
+                        :key="idx"
+                        class="dock-quote-tier-line"
+                      >
+                        {{ formatDockTierDateCode(it.dateCode) }}
+                      </div>
+                    </template>
+                    <span v-else class="dock-tier-empty">—</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column
                 :label="t('rfqItemList.dockQuotes.vendorName')"
                 min-width="140"
                 show-overflow-tooltip
@@ -485,6 +507,15 @@
                   <div v-if="opDockColExpanded" @click.stop @dblclick.stop>
                     <div class="action-btns">
                       <el-button
+                        class="action-btn action-btn--primary"
+                        link
+                        type="primary"
+                        size="small"
+                        @click.stop="goEditDockQuote(row)"
+                      >
+                        {{ t('rfqItemList.dockQuotes.edit') }}
+                      </el-button>
+                      <el-button
                         class="action-btn action-btn--warning"
                         link
                         type="warning"
@@ -502,6 +533,9 @@
                     </div>
                     <template #dropdown>
                       <el-dropdown-menu>
+                        <el-dropdown-item @click.stop="goEditDockQuote(row)">
+                          <span class="op-more-item op-more-item--primary">{{ t('rfqItemList.dockQuotes.edit') }}</span>
+                        </el-dropdown-item>
                         <el-dropdown-item @click.stop="handleDockRowGenerateSalesOrder(row)">
                           <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.dockQuotes.genSalesOrder') }}</span>
                         </el-dropdown-item>
@@ -535,6 +569,7 @@ import { authApi, type PurchaseUserSelectOption, type SalesUserSelectOption } fr
 import { useAuthStore } from '@/stores/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { useRfqItemListBasketStore } from '@/stores/rfqItemListBasket'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -546,6 +581,7 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMaterialProductionDateDict()
 /** 与后端 RFQ 脱敏一致：采购等角色可有 customer.read 但不应见需求侧客户名/客户料号筛选（需 customer.info.read）；§5.2.1 时强制不可见 */
 const canViewCustomerInRfq = computed(
   () => authStore.hasPermission('customer.info.read') && !maskSaleSensitiveFields.value
@@ -726,8 +762,8 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
 // 底部抽屉内子表格操作列：默认收起（Collapsed）
 const opDockColExpanded = ref(false)
 const OP_DOCK_COL_COLLAPSED_WIDTH = 110
-const OP_DOCK_COL_EXPANDED_WIDTH = 128
-const OP_DOCK_COL_EXPANDED_MIN_WIDTH = 128
+const OP_DOCK_COL_EXPANDED_WIDTH = 212
+const OP_DOCK_COL_EXPANDED_MIN_WIDTH = 212
 const opDockColWidth = computed(() => (opDockColExpanded.value ? OP_DOCK_COL_EXPANDED_WIDTH : OP_DOCK_COL_COLLAPSED_WIDTH))
 const opDockColMinWidth = computed(() =>
   opDockColExpanded.value ? OP_DOCK_COL_EXPANDED_MIN_WIDTH : OP_DOCK_COL_COLLAPSED_WIDTH
@@ -891,6 +927,8 @@ interface DockQuoteTierLine {
   quantity: number
   unitPrice: number
   currency: number
+  /** 生产日期 / DC（quoteitem.date_code） */
+  dateCode?: string | null
 }
 
 function dockQuoteLineItems(quoteRow: Record<string, unknown>): DockQuoteTierLine[] {
@@ -903,17 +941,30 @@ function dockQuoteLineItems(quoteRow: Record<string, unknown>): DockQuoteTierLin
       const quantity = Number(o.quantity ?? o.Quantity ?? 0)
       const unitPrice = Number(o.unitPrice ?? o.UnitPrice ?? 0)
       const currency = Number(o.currency ?? o.Currency ?? headerCurrency) || 1
-      lines.push({ quantity, unitPrice, currency })
+      const dcRaw = o.dateCode ?? o.DateCode
+      const dateCode =
+        dcRaw != null && String(dcRaw).trim() !== '' ? String(dcRaw).trim() : null
+      lines.push({ quantity, unitPrice, currency, dateCode })
     }
     return lines
   }
   const q = Number(quoteRow.quantity ?? quoteRow.quoteLineQuantity ?? 0)
   const p = Number(quoteRow.unitPrice ?? quoteRow.UnitPrice ?? 0)
   const c = Number(quoteRow.currency ?? quoteRow.Currency ?? 1) || 1
+  const hdrDc = quoteRow.dateCode ?? quoteRow.DateCode
+  const dateCode =
+    hdrDc != null && String(hdrDc).trim() !== '' ? String(hdrDc).trim() : null
   if ((Number.isFinite(q) && q !== 0) || (Number.isFinite(p) && p !== 0)) {
-    return [{ quantity: q, unitPrice: p, currency: c }]
+    return [{ quantity: q, unitPrice: p, currency: c, dateCode }]
   }
   return []
+}
+
+/** 采购报价「生产日期/DC」：库内多为字典 ItemCode，展示为字典文案（与需求详情 / 销售订单明细一致） */
+function formatDockTierDateCode(dc: string | null | undefined) {
+  const s = String(dc ?? '').trim()
+  if (!s) return '—'
+  return productionDateDisplayLabel(s, materialPdOptions.value) || '—'
 }
 
 function formatDockTierQuantity(q: number) {
@@ -1237,6 +1288,19 @@ function resolveQuoteRowId(row: Record<string, unknown>): string | undefined {
   return undefined
 }
 
+function goEditDockQuote(row: Record<string, unknown>) {
+  const id = resolveQuoteRowId(row)
+  if (!id) {
+    ElMessage.warning(t('rfqItemList.warnings.missingQuoteId'))
+    return
+  }
+  router.push({
+    name: 'QuoteEdit',
+    params: { id },
+    query: { returnTo: route.fullPath }
+  })
+}
+
 async function handleDockRowGenerateSalesOrder(row: Record<string, unknown>) {
   const id = resolveQuoteRowId(row)
   if (!id) {
@@ -1285,6 +1349,7 @@ function handleBatchQuote() {
 }
 
 onMounted(async () => {
+  void ensureMaterialPdDict()
   try {
     salesUsers.value = await authApi.getSalesUsersForSelect()
   } catch {
