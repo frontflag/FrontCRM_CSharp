@@ -234,10 +234,39 @@
           <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
         </div>
       </template>
+      <template #col-actions-header>
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpCol"
+            >
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
       <template #col-actions="{ row }">
-        <div class="action-btns" @click.stop>
-          <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteStockItem(row)">删除</button>
-          <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteStockItem(row)">强制删除</button>
+        <div @click.stop @dblclick.stop>
+          <div v-if="opColExpanded" class="action-btns">
+            <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteStockItem(row)">删除</button>
+            <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteStockItem(row)">强制删除</button>
+          </div>
+          <el-dropdown v-else trigger="click" placement="bottom-end">
+            <div class="op-more-dropdown-trigger">
+              <button type="button" class="op-more-trigger">...</button>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click.stop="handleDeleteStockItem(row)">
+                  <span class="op-more-item op-more-item--danger">删除</span>
+                </el-dropdown-item>
+                <el-dropdown-item v-if="isSysAdmin" divided @click.stop="handleForceDeleteStockItem(row)">
+                  <span class="op-more-item op-more-item--danger">强制删除</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </template>
     </CrmDataTable>
@@ -308,13 +337,23 @@ watch(listTotal, () => {
   if (listPage.value > maxP) listPage.value = maxP
 })
 
+const opColExpanded = ref(false)
+const OP_COL_COLLAPSED_WIDTH = 43
+const OP_COL_EXPANDED_WIDTH = 173
+const OP_COL_EXPANDED_MIN_WIDTH = 160
+const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
+
 const stockItemTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'outboundStatus', label: t('inventoryStockItemList.columns.outboundStatus'), width: 110, align: 'center' },
   { key: 'stockItemCode', label: t('inventoryStockItemList.columns.stockItemCode'), prop: 'stockItemCode', width: 168, showOverflowTooltip: true },
   { key: 'stockInCode', label: t('inventoryStockItemList.columns.stockInCode'), prop: 'stockInCode', width: 150, showOverflowTooltip: true },
   { key: 'stockInDate', label: t('inventoryStockItemList.columns.stockInDate'), prop: 'stockInDate', width: 118 },
   { key: 'warehouse', label: t('inventoryStockItemList.columns.warehouse'), minWidth: 120, showOverflowTooltip: true },
-  { key: 'regionType', label: t('inventoryStockItemList.columns.regionType'), width: 88, align: 'center', showOverflowTooltip: true },
+  { key: 'regionType', label: t('inventoryStockItemList.columns.regionType'), width: 100, minWidth: 100, align: 'center', showOverflowTooltip: true },
   { key: 'purchasePn', label: t('inventoryStockItemList.columns.purchasePn'), prop: 'purchasePn', minWidth: 130, showOverflowTooltip: true },
   { key: 'purchaseBrand', label: t('inventoryStockItemList.columns.purchaseBrand'), prop: 'purchaseBrand', minWidth: 100, showOverflowTooltip: true },
   {
@@ -348,15 +387,47 @@ const stockItemTableColumns = computed<CrmTableColumnDef[]>(() => [
     labelClassName: 'inv-stock-item-qty-col'
   },
   { key: 'vendorName', label: t('inventoryStockItemList.columns.vendorName'), prop: 'vendorName', minWidth: 120, showOverflowTooltip: true },
-  { key: 'purchaserName', label: t('inventoryStockItemList.columns.purchaserName'), prop: 'purchaserName', width: 100, showOverflowTooltip: true },
-  { key: 'purchaseOrderItemCode', label: t('inventoryStockItemList.columns.purchaseOrderItemCode'), prop: 'purchaseOrderItemCode', width: 136, showOverflowTooltip: true },
+  { key: 'purchaserName', label: t('inventoryStockItemList.columns.purchaserName'), prop: 'purchaserName', width: 112, minWidth: 112, showOverflowTooltip: true },
+  {
+    key: 'purchaseOrderItemCode',
+    label: t('inventoryStockItemList.columns.purchaseOrderItemCode'),
+    prop: 'purchaseOrderItemCode',
+    width: 168,
+    minWidth: 168,
+    showOverflowTooltip: true
+  },
   { key: 'customerName', label: t('inventoryStockItemList.columns.customerName'), prop: 'customerName', minWidth: 120, showOverflowTooltip: true },
-  { key: 'salespersonName', label: t('inventoryStockItemList.columns.salespersonName'), prop: 'salespersonName', width: 100, showOverflowTooltip: true },
+  {
+    key: 'salespersonName',
+    label: t('inventoryStockItemList.columns.salespersonName'),
+    prop: 'salespersonName',
+    width: 112,
+    minWidth: 112,
+    showOverflowTooltip: true
+  },
   { key: 'sellOrderItemCode', label: t('inventoryStockItemList.columns.sellOrderItemCode'), prop: 'sellOrderItemCode', width: 120, showOverflowTooltip: true },
   { key: 'batchNo', label: t('inventoryStockItemList.columns.batchNo'), prop: 'batchNo', width: 100, showOverflowTooltip: true },
   { key: 'locationId', label: t('inventoryStockItemList.columns.locationId'), prop: 'locationId', minWidth: 100, showOverflowTooltip: true },
-  { key: 'profitOutBizUsd', label: t('inventoryStockItemList.columns.profitOutBizUsd'), prop: 'profitOutBizUsd', width: 148, align: 'right' },
-  { key: 'actions', label: t('inventoryList.columns.actions'), width: 180, fixed: 'right' }
+  {
+    key: 'profitOutBizUsd',
+    label: t('inventoryStockItemList.columns.profitOutBizUsd'),
+    prop: 'profitOutBizUsd',
+    width: 200,
+    minWidth: 200,
+    align: 'right'
+  },
+  {
+    key: 'actions',
+    label: t('inventoryList.columns.actions'),
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    className: 'op-col',
+    labelClassName: 'op-col',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false
+  }
 ])
 const dateFrom = ref<string | null>(null)
 const dateTo = ref<string | null>(null)

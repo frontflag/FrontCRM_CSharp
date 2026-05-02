@@ -102,13 +102,17 @@
       <template #col-createTime="{ row }">{{ row.createdAt ? formatDisplayDateTime(row.createdAt) : '-' }}</template>
       <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || '-' }}</template>
       <template #col-actions-header>
-        <div class="op-col-header">
-          <span class="op-col-header-text">{{ t('financeSellInvoiceList.columns.actions') }}</span>
-          <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-            {{ opColExpanded ? '>' : '<' }}
-          </button>
-        </div>
-      </template>
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpCol"
+            >
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
 
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
@@ -365,9 +369,9 @@ const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
-const OP_COL_COLLAPSED_WIDTH = 96
-const OP_COL_EXPANDED_WIDTH = 120
-const OP_COL_EXPANDED_MIN_WIDTH = 120
+const OP_COL_COLLAPSED_WIDTH = 43
+const OP_COL_EXPANDED_WIDTH = 173
+const OP_COL_EXPANDED_MIN_WIDTH = 160
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
 function toggleOpCol() {
@@ -375,12 +379,26 @@ function toggleOpCol() {
 }
 
 const sellInvoiceTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'invoiceStatus', label: t('financeSellInvoiceList.columns.invoiceStatus'), prop: 'invoiceStatus', width: 100, align: 'center' },
+  {
+    key: 'invoiceStatus',
+    label: t('financeSellInvoiceList.columns.invoiceStatus'),
+    prop: 'invoiceStatus',
+    width: 132,
+    minWidth: 132,
+    align: 'center'
+  },
   { key: 'customerName', label: t('financeSellInvoiceList.columns.customer'), prop: 'customerName', minWidth: 160, showOverflowTooltip: true },
   { key: 'invoiceNo', label: t('financeSellInvoiceList.columns.invoiceNo'), prop: 'invoiceNo', width: 140, showOverflowTooltip: true },
   { key: 'invoiceTotal', label: t('financeSellInvoiceList.columns.amount'), prop: 'invoiceTotal', width: 130, align: 'right' },
   { key: 'receiveDone', label: t('financeSellInvoiceList.columns.received'), prop: 'receiveDone', width: 130, align: 'right' },
-  { key: 'receiveStatus', label: t('financeSellInvoiceList.columns.receiveStatus'), prop: 'receiveStatus', width: 110, align: 'center' },
+  {
+    key: 'receiveStatus',
+    label: t('financeSellInvoiceList.columns.receiveStatus'),
+    prop: 'receiveStatus',
+    width: 128,
+    minWidth: 128,
+    align: 'center'
+  },
   { key: 'sellInvoiceType', label: t('financeSellInvoiceList.columns.invoiceType'), prop: 'sellInvoiceType', width: 140 },
   { key: 'makeInvoiceDate', label: t('financeSellInvoiceList.columns.makeDate'), prop: 'makeInvoiceDate', width: 120 },
   { key: 'invoiceCode', label: t('financeSellInvoiceList.columns.code'), prop: 'invoiceCode', width: 160, minWidth: 160, showOverflowTooltip: true },
@@ -396,7 +414,8 @@ const sellInvoiceTableColumns = computed<CrmTableColumnDef[]>(() => [
     pinned: 'end',
     reorderable: false,
     className: 'op-col',
-    labelClassName: 'op-col'
+    labelClassName: 'op-col',
+  resizable: false
   }
 ])
 

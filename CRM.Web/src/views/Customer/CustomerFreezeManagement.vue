@@ -177,7 +177,7 @@ onMounted(() => fetchData())
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .freeze-page {
   padding: 24px;
@@ -319,7 +319,7 @@ onMounted(() => fetchData())
 }
 
 .meta-code {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 11px;
   color: $color-ice-blue;
 }

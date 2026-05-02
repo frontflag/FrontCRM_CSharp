@@ -165,10 +165,30 @@
               <span v-else class="text-muted">—</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="160" fixed="right" class-name="op-col" label-class-name="op-col">
+          <el-table-column
+            label="操作"
+            :width="bomItemsOpColWidth"
+            :min-width="bomItemsOpColMinWidth"
+            fixed="right"
+            align="center"
+            class-name="op-col"
+            label-class-name="op-col"
+          >
+            <template #header>
+              <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="bomItemsOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleBomItemsOpCol"
+            >
+              {{ bomItemsOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+            </template>
             <template #default="{ row }">
               <div @click.stop @dblclick.stop>
-                <div class="action-btns">
+                <div v-if="bomItemsOpColExpanded" class="action-btns">
                   <el-button
                     v-if="row.quoteStatus === 0 || row.quoteStatus === 3"
                     size="small"
@@ -182,6 +202,24 @@
                     @click.stop="openManualQuote(row, true)"
                   >修改报价</el-button>
                 </div>
+                <el-dropdown v-else trigger="click" placement="bottom-end">
+                  <div class="op-more-dropdown-trigger">
+                    <button type="button" class="op-more-trigger">...</button>
+                  </div>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item
+                        v-if="row.quoteStatus === 0 || row.quoteStatus === 3"
+                        @click.stop="openManualQuote(row, false)"
+                      >
+                        <span class="op-more-item op-more-item--primary">人工报价</span>
+                      </el-dropdown-item>
+                      <el-dropdown-item v-else @click.stop="openManualQuote(row, true)">
+                        <span class="op-more-item op-more-item--warning">修改报价</span>
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
               </div>
             </template>
           </el-table-column>
@@ -270,7 +308,9 @@ import type { BOM, BOMItem } from '@/types/bom'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatUnitPriceNumber } from '@/utils/moneyFormat'
 import { SETTLEMENT_CURRENCY_STRING_OPTIONS } from '@/constants/currency'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const bomId = computed(() => route.params.id as string)
@@ -280,6 +320,21 @@ const loading = ref(false)
 const bom = ref<BOM | null>(null)
 const filterStatus = ref<number | ''>('')
 const selectedItemIds = ref<string[]>([])
+
+/** 《列表操作列规范》：BOM 明细表操作列展开/收起 */
+const bomItemsOpColExpanded = ref(false)
+const BOM_ITEMS_OP_COL_COLLAPSED = 43
+const BOM_ITEMS_OP_COL_EXPANDED = 173
+const BOM_ITEMS_OP_COL_EXPANDED_MIN = 160
+const bomItemsOpColWidth = computed(() =>
+  bomItemsOpColExpanded.value ? BOM_ITEMS_OP_COL_EXPANDED : BOM_ITEMS_OP_COL_COLLAPSED
+)
+const bomItemsOpColMinWidth = computed(() =>
+  bomItemsOpColExpanded.value ? BOM_ITEMS_OP_COL_EXPANDED_MIN : BOM_ITEMS_OP_COL_COLLAPSED
+)
+function toggleBomItemsOpCol() {
+  bomItemsOpColExpanded.value = !bomItemsOpColExpanded.value
+}
 
 // ── 统计 ──
 const quotedCount = computed(() => bom.value?.items?.filter(i => i.quoteStatus === 1 || i.quoteStatus === 2 || i.quoteStatus === 4).length ?? 0)
@@ -445,7 +500,7 @@ onMounted(loadData)
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .bom-detail-page {
   padding: 24px;
@@ -530,7 +585,7 @@ onMounted(loadData)
   font-size: 20px;
   font-weight: 600;
   color: $text-primary;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 .caption-meta-line {
   margin-top: 0;

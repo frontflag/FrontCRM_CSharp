@@ -374,7 +374,7 @@ onMounted(() => {
   color: vars.$text-muted;
 }
 .stat-value {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 22px;
   font-weight: 700;
   color: vars.$text-primary;

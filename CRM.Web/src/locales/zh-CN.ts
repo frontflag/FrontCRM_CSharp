@@ -5,6 +5,7 @@ const zhCN = {
     confirm: '确定',
     cancel: '取消',
     loading: '加载中...',
+    listOpCol: { expand: '展开操作列', collapse: '收起操作列' },
     save: '保存修改',
     saveSuccess: '保存成功',
     saveFailed: '保存失败',
@@ -995,7 +996,10 @@ const zhCN = {
       unknown: '未知'
     },
     actions: { column: '操作', edit: '编辑', delete: '删除' },
-    warnings: { selectFirst: '请先勾选报价记录', invalidId: '无法识别报价主键' },
+    warnings: {
+      selectFirst: '请先在列表中勾选报价加入复选篮子，再生成销售订单',
+      invalidId: '无法识别报价主键'
+    },
     deleteTitle: '警告',
     deleteConfirm: '确定要删除报价单 {code} 吗？',
     loadFailed: '加载数据失败',
@@ -2114,7 +2118,7 @@ const zhCN = {
       cancelled: '取消',
       unknown: '未知'
     },
-    purchaseStatus: { none: '未采购', partial: '部分采购', all: '全部采购' },
+    purchaseStatus: { none: '未采购', partial: '采购中', all: '全部采购' },
     actions: { detail: '详情', edit: '编辑', submitAudit: '提交审核', printReport: '打印销售订单' },
     submit: '提交',
     loadFailed: '加载数据失败',
@@ -2271,7 +2275,7 @@ const zhCN = {
       actions: '操作'
     },
     extendProgress: {
-      purchase: { pending: '待采购', partial: '部分采购', complete: '采购完成' },
+      purchase: { pending: '待采购', partial: '采购中', complete: '采购完成' },
       stockIn: { pending: '待入库', partial: '部分入库', complete: '入库完成' },
       stockOut: { pending: '待出库', partial: '部分出库', complete: '出库完成' },
       stockOutNotify: { pending: '未通知', partial: '部分通知', complete: '通知完成' },
@@ -2509,9 +2513,14 @@ const zhCN = {
       reviewFailed: '审核失败',
       cancelled: '取消'
     },
+    lineDetailPanel: {
+      title: '采购订单明细详情',
+      close: '收起',
+      empty: '暂无数据'
+    },
     extendProgress: {
       purchasePending: '待采购',
-      purchasePartial: '部分采购',
+      purchasePartial: '采购中',
       purchaseDone: '采购完成',
       stockInPending: '待入库',
       stockInPartial: '部分入库',

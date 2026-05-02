@@ -2267,7 +2267,7 @@ onBeforeUnmount(() => {
   font-weight: 700;
   line-height: 16px;
   text-align: center;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
 .global-user-dropdown {

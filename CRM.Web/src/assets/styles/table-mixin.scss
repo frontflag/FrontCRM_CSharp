@@ -70,9 +70,11 @@
     }
   }
 
-  // 操作列按钮禁止折行
-  :deep(.el-table__cell) {
-    .el-button { white-space: nowrap !important; }
-    .cell { white-space: nowrap; }
+  // 数据格单行；表头换行由 main.scss / crm-unified-list 统一处理
+  :deep(.el-table__cell .el-button) {
+    white-space: nowrap !important;
+  }
+  :deep(td.el-table__cell .cell) {
+    white-space: nowrap;
   }
 }

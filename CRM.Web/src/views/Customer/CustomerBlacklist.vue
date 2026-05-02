@@ -57,12 +57,41 @@
         <template #col-blackListTime="{ row }">{{ formatDateTime(row.blackListTime || row.updatedAt) }}</template>
         <template #col-blackListUserName="{ row }">{{ row.blackListUserName || t('customerBlacklist.systemUser') }}</template>
         <template #col-blackListReason="{ row }">{{ row.blackListReason || '--' }}</template>
+        <template #col-actions-header>
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpCol"
+            >
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
         <template #col-actions="{ row }">
-          <div class="record-actions" @dblclick.stop>
-            <el-button type="primary" size="small" style="margin-right:8px" @click="goDetail(row)">{{ t('customerBlacklist.viewDetail') }}</el-button>
-            <el-button type="warning" size="small" :loading="removingId === row.id" @click="handleRemove(row)">
-              {{ t('customerBlacklist.remove') }}
-            </el-button>
+          <div @click.stop @dblclick.stop>
+            <div v-if="opColExpanded" class="action-btns">
+              <el-button type="primary" size="small" @click.stop="goDetail(row)">{{ t('customerBlacklist.viewDetail') }}</el-button>
+              <el-button type="warning" size="small" :loading="removingId === row.id" @click.stop="handleRemove(row)">
+                {{ t('customerBlacklist.remove') }}
+              </el-button>
+            </div>
+            <el-dropdown v-else trigger="click" placement="bottom-end">
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click.stop="goDetail(row)">
+                    <span class="op-more-item op-more-item--primary">{{ t('customerBlacklist.viewDetail') }}</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item divided @click.stop="handleRemove(row)">
+                    <span class="op-more-item op-more-item--warning">{{ t('customerBlacklist.remove') }}</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </template>
       </CrmDataTable>
@@ -112,7 +141,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElNotification } from 'element-plus';
 import { useI18n } from 'vue-i18n'
@@ -137,15 +166,36 @@ const removeReason = ref('');
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
-const blacklistColumns: CrmTableColumnDef[] = [
+const opColExpanded = ref(false)
+const OP_COL_COLLAPSED_WIDTH = 43
+const OP_COL_EXPANDED_WIDTH = 173
+const OP_COL_EXPANDED_MIN_WIDTH = 160
+const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
+
+const blacklistColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'customerCode', label: t('customerBlacklist.columns.customerCode'), prop: 'customerCode', width: 180, showOverflowTooltip: true },
   { key: 'customerName', label: t('customerBlacklist.columns.customerName'), minWidth: 260, showOverflowTooltip: true },
   { key: 'customerLevel', label: t('customerBlacklist.columns.level'), width: 100, align: 'center' },
   { key: 'blackListTime', label: t('customerBlacklist.columns.joinTime'), width: 180 },
   { key: 'blackListUserName', label: t('customerBlacklist.columns.operator'), width: 130, showOverflowTooltip: true },
   { key: 'blackListReason', label: t('customerBlacklist.columns.reason'), minWidth: 220, showOverflowTooltip: true },
-  { key: 'actions', label: t('customerBlacklist.columns.actions'), width: 190, fixed: 'right', hideable: false, pinned: 'end', reorderable: false }
-];
+  {
+    key: 'actions',
+    label: t('customerBlacklist.columns.actions'),
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    className: 'op-col',
+    labelClassName: 'op-col',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false
+  }
+]);
 
 const fetchData = async () => {
   loading.value = true;
@@ -202,7 +252,7 @@ onMounted(() => fetchData());
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .blacklist-page {
   padding: 24px;
@@ -342,7 +392,7 @@ onMounted(() => fetchData());
 }
 
 .meta-code {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 11px;
   color: $color-ice-blue;
 }

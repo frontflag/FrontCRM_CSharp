@@ -52,13 +52,17 @@
       <template #col-shipmentMethod="{ row }">{{ row.shipmentMethod || t('quoteList.na') }}</template>
       <template #col-courierTrackingNo="{ row }">{{ row.courierTrackingNo || t('quoteList.na') }}</template>
       <template #col-actions-header>
-        <div class="op-col-header">
-          <span class="op-col-header-text">{{ t('stockOutList.columns.actions') }}</span>
-          <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-            {{ opColExpanded ? '>' : '<' }}
-          </button>
-        </div>
-      </template>
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpCol"
+            >
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns action-btns--stockout-wrap">
@@ -176,10 +180,10 @@ const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 const opColExpanded = ref(false)
-const OP_COL_COLLAPSED_WIDTH = 96
+const OP_COL_COLLAPSED_WIDTH = 43
 /** 三枚操作按钮；全局 .op-col 为 overflow:hidden + nowrap，列窄时会把中间的「打印 Invoice」裁掉，故加宽并允许换行 */
-const OP_COL_EXPANDED_WIDTH = 400
-const OP_COL_EXPANDED_MIN_WIDTH = 360
+const OP_COL_EXPANDED_WIDTH = 173
+const OP_COL_EXPANDED_MIN_WIDTH = 160
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() =>
   opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH
@@ -212,7 +216,8 @@ const stockOutTableColumns = computed<CrmTableColumnDef[]>(() => [
     pinned: 'end',
     reorderable: false,
     className: 'op-col',
-    labelClassName: 'op-col'
+    labelClassName: 'op-col',
+  resizable: false
   }
 ])
 

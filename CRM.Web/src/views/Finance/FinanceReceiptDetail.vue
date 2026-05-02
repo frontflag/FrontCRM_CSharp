@@ -98,13 +98,48 @@
               {{ row.createTime ? formatDisplayDateTime(row.createTime) : '-' }}
             </template>
           </el-table-column>
-          <el-table-column :label="t('financeReceiptDetail.labels.actions')" width="140" fixed="right" class-name="op-col" label-class-name="op-col">
+          <el-table-column
+            :label="t('financeReceiptDetail.labels.actions')"
+            :width="receiptDocsOpColWidth"
+            :min-width="receiptDocsOpColMinWidth"
+            fixed="right"
+            align="center"
+            class-name="op-col"
+            label-class-name="op-col"
+          >
+            <template #header>
+              <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="receiptDocsOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleReceiptDocsOpCol"
+            >
+              {{ receiptDocsOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+            </template>
             <template #default="{ row }">
               <div @click.stop @dblclick.stop>
-                <div class="action-btns">
+                <div v-if="receiptDocsOpColExpanded" class="action-btns">
                   <el-button size="small" text type="primary" @click.stop="previewDoc(row)">{{ t('financeReceiptDetail.preview') }}</el-button>
                   <el-button size="small" text type="primary" @click.stop="downloadDoc(row)">{{ t('financeReceiptDetail.download') }}</el-button>
                 </div>
+                <el-dropdown v-else trigger="click" placement="bottom-end">
+                  <div class="op-more-dropdown-trigger">
+                    <button type="button" class="op-more-trigger">...</button>
+                  </div>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item @click.stop="previewDoc(row)">
+                        <span class="op-more-item op-more-item--primary">{{ t('financeReceiptDetail.preview') }}</span>
+                      </el-dropdown-item>
+                      <el-dropdown-item divided @click.stop="downloadDoc(row)">
+                        <span class="op-more-item op-more-item--primary">{{ t('financeReceiptDetail.download') }}</span>
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
               </div>
             </template>
           </el-table-column>
@@ -142,6 +177,21 @@ const detail = ref<FinanceReceipt | null>(null)
 const receiptDocs = ref<UploadDocumentDto[]>([])
 
 const receiptId = computed(() => route.params.id as string)
+
+/** 《列表操作列规范》：银行水单附件表 */
+const receiptDocsOpColExpanded = ref(false)
+const RECEIPT_DOCS_OP_COL_COLLAPSED = 43
+const RECEIPT_DOCS_OP_COL_EXPANDED = 173
+const RECEIPT_DOCS_OP_COL_EXPANDED_MIN = 160
+const receiptDocsOpColWidth = computed(() =>
+  receiptDocsOpColExpanded.value ? RECEIPT_DOCS_OP_COL_EXPANDED : RECEIPT_DOCS_OP_COL_COLLAPSED
+)
+const receiptDocsOpColMinWidth = computed(() =>
+  receiptDocsOpColExpanded.value ? RECEIPT_DOCS_OP_COL_EXPANDED_MIN : RECEIPT_DOCS_OP_COL_COLLAPSED
+)
+function toggleReceiptDocsOpCol() {
+  receiptDocsOpColExpanded.value = !receiptDocsOpColExpanded.value
+}
 
 onMounted(() => {
   fetchDetail()

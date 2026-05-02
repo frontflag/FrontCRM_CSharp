@@ -317,7 +317,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&display=swap');
 
 .rfq-home {
   min-height: 100%;
@@ -591,7 +591,7 @@ onMounted(() => {
   font-size: 24px;
   font-weight: 700;
   color: $text-primary;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   line-height: 1.15;
   letter-spacing: -0.02em;
 }

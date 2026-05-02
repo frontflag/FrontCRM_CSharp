@@ -155,7 +155,7 @@ onBeforeUnmount(() => {
 }
 
 .po-favorite-panel__code {
-  font-family: 'Space Mono', ui-monospace, monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   color: rgba(0, 212, 255, 0.95);
 }
 

@@ -192,9 +192,13 @@
           <span class="td-muted">{{ (row as any).createUserName || (row as any).createdBy || (row as any).salesPersonName || '--' }}</span>
         </template>
         <template #col-actions-header>
-          <div class="op-col-header">
-            <span class="op-col-header-text">{{ t('customerList.actions.column') }}</span>
-            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpCol"
+            >
               {{ opColExpanded ? '>' : '<' }}
             </button>
           </div>
@@ -325,10 +329,13 @@ const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 /** 行高切换 Teleport 锚点（与列设置齿轮同排） */
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const opColExpanded = ref(false)
-const OP_COL_COLLAPSED_WIDTH = 96
-const OP_COL_EXPANDED_WIDTH = 220
+const OP_COL_COLLAPSED_WIDTH = 43
+const OP_COL_EXPANDED_WIDTH = 173
+const OP_COL_EXPANDED_MIN_WIDTH = 160
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
-const opColMinWidth = computed(() => (opColExpanded.value ? 220 : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() =>
+  opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH
+)
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
@@ -372,8 +379,8 @@ const customerTableColumns = computed<CrmTableColumnDef[]>(() => {
     ...(canViewCustomerNameColumn
       ? [{ key: 'customerName', label: t('customerList.columns.customerName'), minWidth: 200, showOverflowTooltip: true } as CrmTableColumnDef]
       : []),
-    { key: 'customerType', label: t('customerList.columns.type'), width: 80, align: 'center' },
-    { key: 'customerLevel', label: t('customerList.columns.level'), width: 80, align: 'center' },
+    { key: 'customerType', label: t('customerList.columns.type'), width: 108, minWidth: 108, align: 'center' },
+    { key: 'customerLevel', label: t('customerList.columns.level'), width: 108, minWidth: 108, align: 'center' },
     { key: 'industry', label: t('customerList.columns.industry'), width: 110, showOverflowTooltip: true },
   ]
   if (canViewCustomerInfo) {
@@ -396,7 +403,10 @@ const customerTableColumns = computed<CrmTableColumnDef[]>(() => {
     fixed: 'right',
     hideable: false,
     pinned: 'end',
-    reorderable: false
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col',
+    resizable: false
   })
   return cols
 })
@@ -628,7 +638,7 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .customer-list-page {
   padding: 24px;
@@ -1041,7 +1051,7 @@ onMounted(async () => {
 }
 
 .td-code {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 12px;
   color: $text-muted;
 }
@@ -1059,7 +1069,7 @@ onMounted(async () => {
 .td-phone {
   color: $text-secondary;
   font-size: 12px;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
 .td-empty {

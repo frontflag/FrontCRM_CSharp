@@ -121,9 +121,45 @@
               </template>
             </el-table-column>
 
-            <el-table-column label="操作" width="80" align="center" class-name="op-col" label-class-name="op-col">
+            <el-table-column
+              label="操作"
+              :width="quoteEditLineOpColWidth"
+              :min-width="quoteEditLineOpColMinWidth"
+              align="center"
+              fixed="right"
+              class-name="op-col"
+              label-class-name="op-col"
+            >
+              <template #header>
+                <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="quoteEditLineOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleQuoteEditLineOpCol"
+            >
+              {{ quoteEditLineOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+              </template>
               <template #default="{ $index }">
-                <el-button link type="danger" @click.stop="removeItem($index)">删除</el-button>
+                <div @click.stop @dblclick.stop>
+                  <div v-if="quoteEditLineOpColExpanded" class="action-btns">
+                    <el-button link type="danger" @click.stop="removeItem($index)">删除</el-button>
+                  </div>
+                  <el-dropdown v-else trigger="click" placement="bottom-end">
+                    <div class="op-more-dropdown-trigger">
+                      <button type="button" class="op-more-trigger">...</button>
+                    </div>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item @click.stop="removeItem($index)">
+                          <span class="op-more-item op-more-item--danger">删除</span>
+                        </el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -145,13 +181,30 @@ import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmount
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const router = useRouter()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const route = useRoute()
 
 const quoteId = computed(() => route.params.id as string)
+
+/** 《列表操作列规范》：报价明细行 */
+const quoteEditLineOpColExpanded = ref(false)
+const QUOTE_EDIT_OP_COL_COLLAPSED = 43
+const QUOTE_EDIT_OP_COL_EXPANDED = 173
+const QUOTE_EDIT_OP_COL_EXPANDED_MIN = 160
+const quoteEditLineOpColWidth = computed(() =>
+  quoteEditLineOpColExpanded.value ? QUOTE_EDIT_OP_COL_EXPANDED : QUOTE_EDIT_OP_COL_COLLAPSED
+)
+const quoteEditLineOpColMinWidth = computed(() =>
+  quoteEditLineOpColExpanded.value ? QUOTE_EDIT_OP_COL_EXPANDED_MIN : QUOTE_EDIT_OP_COL_COLLAPSED
+)
+function toggleQuoteEditLineOpCol() {
+  quoteEditLineOpColExpanded.value = !quoteEditLineOpColExpanded.value
+}
 
 function onQuoteEditSalesUserChange(p: { id: string; label: string }) {
   formData.value.salesUserName = p.label || ''

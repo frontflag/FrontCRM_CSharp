@@ -115,9 +115,45 @@
               <span class="qty-cell">{{ formatQty(row.quantity) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="80" fixed="right" class-name="op-col" label-class-name="op-col">
+          <el-table-column
+            label="操作"
+            :width="stockOutItemsOpColWidth"
+            :min-width="stockOutItemsOpColMinWidth"
+            fixed="right"
+            align="center"
+            class-name="op-col"
+            label-class-name="op-col"
+          >
+            <template #header>
+              <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="stockOutItemsOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleStockOutItemsOpCol"
+            >
+              {{ stockOutItemsOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+            </template>
             <template #default>
-              <button type="button" class="action-btn" disabled title="明细来自出库通知，不可手工删除">删除</button>
+              <div @click.stop @dblclick.stop>
+                <div v-if="stockOutItemsOpColExpanded" class="action-btns">
+                  <button type="button" class="action-btn" disabled title="明细来自出库通知，不可手工删除">删除</button>
+                </div>
+                <el-dropdown v-else trigger="click" placement="bottom-end">
+                  <div class="op-more-dropdown-trigger">
+                    <button type="button" class="op-more-trigger">...</button>
+                  </div>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item disabled>
+                        <span class="op-more-item op-more-item--danger">删除（不可删）</span>
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -194,14 +230,52 @@
         <el-table-column label="创建时间" min-width="168" show-overflow-tooltip>
           <template #default="{ row }">{{ formatTaskTime(row.createTime) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="120" class-name="op-col" label-class-name="op-col">
-          <template #default="{ row }">
+        <el-table-column
+          label="操作"
+          :width="pickingTasksOpColWidth"
+          :min-width="pickingTasksOpColMinWidth"
+          align="center"
+          class-name="op-col"
+          label-class-name="op-col"
+        >
+          <template #header>
+            <div class="list-op-col-header--icon-only">
             <button
-              v-if="row.status !== 100"
               type="button"
-              class="action-btn action-btn--warning"
-              @click.stop="completePicking(row.id)"
-            >完成拣货</button>
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="pickingTasksOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="togglePickingTasksOpCol"
+            >
+              {{ pickingTasksOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+          </template>
+          <template #default="{ row }">
+            <div @click.stop @dblclick.stop>
+              <div v-if="pickingTasksOpColExpanded" class="action-btns">
+                <button
+                  v-if="row.status !== 100"
+                  type="button"
+                  class="action-btn action-btn--warning"
+                  @click.stop="completePicking(row.id)"
+                >完成拣货</button>
+              </div>
+              <el-dropdown v-else trigger="click" placement="bottom-end">
+                <div class="op-more-dropdown-trigger">
+                  <button type="button" class="op-more-trigger">...</button>
+                </div>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item v-if="row.status !== 100" @click.stop="completePicking(row.id)">
+                      <span class="op-more-item op-more-item--warning">完成拣货</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item v-else disabled>
+                      <span class="op-more-item">—</span>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -373,6 +447,31 @@ const form = reactive<ExecuteForm>({
   remark: '',
   items: []
 })
+
+/** 《列表操作列规范》 */
+const STOCK_OUT_OP_COL_COLLAPSED = 43
+const STOCK_OUT_OP_COL_EXPANDED = 173
+const STOCK_OUT_OP_COL_EXPANDED_MIN = 160
+const stockOutItemsOpColExpanded = ref(false)
+const stockOutItemsOpColWidth = computed(() =>
+  stockOutItemsOpColExpanded.value ? STOCK_OUT_OP_COL_EXPANDED : STOCK_OUT_OP_COL_COLLAPSED
+)
+const stockOutItemsOpColMinWidth = computed(() =>
+  stockOutItemsOpColExpanded.value ? STOCK_OUT_OP_COL_EXPANDED_MIN : STOCK_OUT_OP_COL_COLLAPSED
+)
+function toggleStockOutItemsOpCol() {
+  stockOutItemsOpColExpanded.value = !stockOutItemsOpColExpanded.value
+}
+const pickingTasksOpColExpanded = ref(false)
+const pickingTasksOpColWidth = computed(() =>
+  pickingTasksOpColExpanded.value ? STOCK_OUT_OP_COL_EXPANDED : STOCK_OUT_OP_COL_COLLAPSED
+)
+const pickingTasksOpColMinWidth = computed(() =>
+  pickingTasksOpColExpanded.value ? STOCK_OUT_OP_COL_EXPANDED_MIN : STOCK_OUT_OP_COL_COLLAPSED
+)
+function togglePickingTasksOpCol() {
+  pickingTasksOpColExpanded.value = !pickingTasksOpColExpanded.value
+}
 
 const totalQuantity = computed(() => form.items.reduce((sum, x) => sum + (x.quantity || 0), 0))
 const pickingStatusText = (s: number) => ({ 1: '待拣货', 2: '拣货中', 100: '已完成', [-1]: '已取消' }[s] || '未知')

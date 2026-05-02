@@ -212,9 +212,13 @@
           <span class="td-muted">{{ maskPurchaseSensitiveFields ? '—' : (row.code || '—') }}</span>
         </template>
         <template #col-actions-header>
-          <div class="op-col-header">
-            <span class="op-col-header-text">{{ t('vendorList.actions.column') }}</span>
-            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpCol"
+            >
               {{ opColExpanded ? '>' : '<' }}
             </button>
           </div>
@@ -363,10 +367,13 @@ const importDialogVisible = ref(false);
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const opColExpanded = ref(false)
-const OP_COL_COLLAPSED_WIDTH = 120
-const OP_COL_EXPANDED_WIDTH = 320
+const OP_COL_COLLAPSED_WIDTH = 43
+const OP_COL_EXPANDED_WIDTH = 173
+const OP_COL_EXPANDED_MIN_WIDTH = 160
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
-const opColMinWidth = computed(() => (opColExpanded.value ? 300 : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() =>
+  opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH
+)
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
@@ -482,7 +489,7 @@ const vendorTableColumns = computed<CrmTableColumnDef[]>(() => {
     { key: 'status', label: t('vendorList.columns.status'), prop: 'status', width: 160, align: 'center' },
     { key: 'chineseOfficialName', label: t('vendorList.columns.chineseOfficialName'), minWidth: 160, showOverflowTooltip: true },
     { key: 'englishOfficialName', label: t('vendorList.columns.englishOfficialName'), minWidth: 160, showOverflowTooltip: true },
-    { key: 'level', label: t('vendorList.columns.level'), prop: 'level', width: 80, align: 'center' },
+    { key: 'level', label: t('vendorList.columns.level'), prop: 'level', width: 108, minWidth: 108, align: 'center' },
     { key: 'credit', label: t('vendorList.columns.identity'), prop: 'credit', width: 100, align: 'center' },
     { key: 'industry', label: t('vendorList.columns.industry'), prop: 'industry', width: 100, showOverflowTooltip: true },
     { key: 'officeAddress', label: t('vendorList.columns.address'), prop: 'officeAddress', width: 160, showOverflowTooltip: true }
@@ -512,7 +519,10 @@ const vendorTableColumns = computed<CrmTableColumnDef[]>(() => {
     fixed: 'right',
     hideable: false,
     pinned: 'end',
-    reorderable: false
+    reorderable: false,
+    className: 'op-col',
+    labelClassName: 'op-col',
+    resizable: false
   })
   return cols
 })
@@ -658,7 +668,7 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .vendor-list-page {
   padding: 24px;
@@ -1007,7 +1017,7 @@ onMounted(async () => {
   font-size: 11px;
   color: $text-muted;
   margin-top: 1px;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
 // 紧密：供应商「主名 + 状态图标」与「编号」同一行并排（仅本列；依赖 CrmDataTable 根类 crm-items-table--density-compact）
@@ -1035,7 +1045,7 @@ onMounted(async () => {
 }
 
 .td-code {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 12px;
   color: $text-muted;
 }
@@ -1053,7 +1063,7 @@ onMounted(async () => {
 .td-phone {
   color: $text-secondary;
   font-size: 12px;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
 .td-address {

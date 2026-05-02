@@ -412,24 +412,41 @@
                 <el-table-column
                   v-if="canAssignRfqPurchaser"
                   label="操作"
-                  width="100"
-                  min-width="88"
+                  :width="rfqDetailAssignOpColWidth"
+                  :min-width="rfqDetailAssignOpColMinWidth"
                   align="center"
                   fixed="right"
                   class-name="op-col"
                   label-class-name="op-col"
                 >
+                  <template #header>
+                    <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="rfqDetailAssignOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleRfqDetailAssignOpCol"
+            >
+              {{ rfqDetailAssignOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+                  </template>
                   <template #default>
                     <div v-if="rfqClosedForAssign" class="cell-muted">—</div>
                     <div v-else @click.stop @dblclick.stop>
-                      <el-dropdown trigger="click" placement="bottom-end">
+                      <div v-if="rfqDetailAssignOpColExpanded" class="action-btns">
+                        <button type="button" class="action-btn action-btn--primary" @click.stop="showAssignDialog">
+                          {{ t('rfqDetail.assignPurchaser') }}
+                        </button>
+                      </div>
+                      <el-dropdown v-else trigger="click" placement="bottom-end">
                         <div class="op-more-dropdown-trigger">
                           <button type="button" class="op-more-trigger">...</button>
                         </div>
                         <template #dropdown>
                           <el-dropdown-menu>
                             <el-dropdown-item @click.stop="showAssignDialog">
-                            <span class="op-more-item op-more-item--primary">{{ t('rfqDetail.assignPurchaser') }}</span>
+                              <span class="op-more-item op-more-item--primary">{{ t('rfqDetail.assignPurchaser') }}</span>
                             </el-dropdown-item>
                           </el-dropdown-menu>
                         </template>
@@ -611,6 +628,21 @@ const itemsLoading = ref(false)
 const activeTab = ref('items')
 /** 需求明细：列表（默认） / 面板 */
 const itemsViewMode = ref<'list' | 'panel'>('list')
+
+/** 《列表操作列规范》：需求明细「分配采购员」列 */
+const rfqDetailAssignOpColExpanded = ref(false)
+const RFQ_DETAIL_ASSIGN_OP_COL_COLLAPSED = 43
+const RFQ_DETAIL_ASSIGN_OP_COL_EXPANDED = 173
+const RFQ_DETAIL_ASSIGN_OP_COL_EXPANDED_MIN = 160
+const rfqDetailAssignOpColWidth = computed(() =>
+  rfqDetailAssignOpColExpanded.value ? RFQ_DETAIL_ASSIGN_OP_COL_EXPANDED : RFQ_DETAIL_ASSIGN_OP_COL_COLLAPSED
+)
+const rfqDetailAssignOpColMinWidth = computed(() =>
+  rfqDetailAssignOpColExpanded.value ? RFQ_DETAIL_ASSIGN_OP_COL_EXPANDED_MIN : RFQ_DETAIL_ASSIGN_OP_COL_COLLAPSED
+)
+function toggleRfqDetailAssignOpCol() {
+  rfqDetailAssignOpColExpanded.value = !rfqDetailAssignOpColExpanded.value
+}
 
 const tabs = computed(() => [
   { key: 'items', label: t('rfqDetail.tabs.items'), count: rfqItems.value.length },
@@ -831,7 +863,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .rfq-detail-page {
   padding: 24px;
@@ -905,7 +937,7 @@ onMounted(() => {
   font-weight: 600;
   color: $text-primary;
   margin: 0;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
 .title-meta {
@@ -1070,7 +1102,7 @@ onMounted(() => {
   .info-label { font-size: 11px; color: $text-muted; letter-spacing: 0.5px; text-transform: uppercase; }
   .info-value {
     font-size: 13px; color: $text-secondary;
-    &--code { font-family: 'Space Mono', monospace; font-size: 12px; color: $color-ice-blue; }
+    &--code { font-family: 'Noto Sans SC', sans-serif; font-size: 12px; color: $color-ice-blue; }
     &--time { font-size: 12px; color: $text-muted; }
   }
 }
@@ -1113,7 +1145,7 @@ onMounted(() => {
   border-radius: 10px;
   font-size: 11px;
   color: $cyan-primary;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 .tabs-body { padding: 20px; }
 .tab-toolbar {
@@ -1196,7 +1228,7 @@ onMounted(() => {
   word-break: break-word;
 }
 .item-panel-field__value--code {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 12px;
   color: $color-ice-blue;
 }
@@ -1268,7 +1300,7 @@ onMounted(() => {
 .cell-primary   { color: $text-primary; font-size: 13px; }
 .cell-secondary { color: $text-secondary; font-size: 13px; }
 .cell-muted     { color: $text-muted; font-size: 12px; }
-.cell-code      { font-family: 'Space Mono', monospace; font-size: 12px; color: $color-ice-blue; }
+.cell-code      { font-family: 'Noto Sans SC', sans-serif; font-size: 12px; color: $color-ice-blue; }
 
 .amount-with-code {
   display: inline-flex;

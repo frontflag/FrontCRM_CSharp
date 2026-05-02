@@ -5,6 +5,7 @@ const enUS = {
     confirm: 'Confirm',
     cancel: 'Cancel',
     loading: 'Loading...',
+    listOpCol: { expand: 'Expand action column', collapse: 'Collapse action column' },
     save: 'Save',
     saveSuccess: 'Saved successfully',
     saveFailed: 'Save failed',
@@ -1015,7 +1016,10 @@ const enUS = {
       unknown: 'Unknown'
     },
     actions: { column: 'Actions', edit: 'Edit', delete: 'Delete' },
-    warnings: { selectFirst: 'Please select quote records first', invalidId: 'Unable to identify quote ID' },
+    warnings: {
+      selectFirst: 'Add quotes to the multi-select basket from the list first, then generate the sales order.',
+      invalidId: 'Unable to identify quote ID'
+    },
     deleteTitle: 'Warning',
     deleteConfirm: 'Are you sure you want to delete quote {code}?',
     loadFailed: 'Failed to load data',
@@ -2134,7 +2138,7 @@ const enUS = {
       cancelled: 'Cancelled',
       unknown: 'Unknown'
     },
-    purchaseStatus: { none: 'Not Purchased', partial: 'Partially Purchased', all: 'Fully Purchased' },
+    purchaseStatus: { none: 'Not Purchased', partial: 'Purchasing', all: 'Fully Purchased' },
     actions: { detail: 'Detail', edit: 'Edit', submitAudit: 'Submit for Review', printReport: 'Print sales order' },
     submit: 'Submit',
     loadFailed: 'Failed to load data',
@@ -2291,7 +2295,7 @@ const enUS = {
       actions: 'Actions'
     },
     extendProgress: {
-      purchase: { pending: 'To purchase', partial: 'Partial PO', complete: 'Purchased' },
+      purchase: { pending: 'To purchase', partial: 'Purchasing', complete: 'Purchased' },
       stockIn: { pending: 'To receive', partial: 'Partial receipt', complete: 'Received' },
       stockOut: { pending: 'To ship', partial: 'Partial ship', complete: 'Shipped' },
       stockOutNotify: { pending: 'Not notified', partial: 'Partially notified', complete: 'Notify completed' },
@@ -2534,9 +2538,14 @@ const enUS = {
       reviewFailed: 'Review failed',
       cancelled: 'Cancelled'
     },
+    lineDetailPanel: {
+      title: 'Purchase order line detail',
+      close: 'Collapse',
+      empty: 'No data'
+    },
     extendProgress: {
       purchasePending: 'Pending purchase',
-      purchasePartial: 'Partially purchased',
+      purchasePartial: 'Purchasing',
       purchaseDone: 'Purchase complete',
       stockInPending: 'Pending receipt',
       stockInPartial: 'Partially received',

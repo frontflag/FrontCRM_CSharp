@@ -174,14 +174,47 @@
                   </el-table-column>
                   <el-table-column
                     :label="t('purchaseRequisitionList.columns.actions')"
-                    width="110"
+                    :width="prPoItemsOpColWidth"
+                    :min-width="prPoItemsOpColMinWidth"
                     align="center"
                     fixed="right"
+                    class-name="op-col"
+                    label-class-name="op-col"
                   >
+                    <template #header>
+                      <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="prPoItemsOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="togglePrPoItemsOpCol"
+            >
+              {{ prPoItemsOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+                    </template>
                     <template #default="{ row }">
-                      <el-button type="primary" link size="small" @click="goPurchaseOrder(row.purchaseOrderId)">
-                        {{ t('purchaseRequisitionDetail.poItemTable.actionOpenPo') }}
-                      </el-button>
+                      <div @click.stop @dblclick.stop>
+                        <div v-if="prPoItemsOpColExpanded" class="action-btns">
+                          <el-button type="primary" link size="small" @click.stop="goPurchaseOrder(row.purchaseOrderId)">
+                            {{ t('purchaseRequisitionDetail.poItemTable.actionOpenPo') }}
+                          </el-button>
+                        </div>
+                        <el-dropdown v-else trigger="click" placement="bottom-end">
+                          <div class="op-more-dropdown-trigger">
+                            <button type="button" class="op-more-trigger">...</button>
+                          </div>
+                          <template #dropdown>
+                            <el-dropdown-menu>
+                              <el-dropdown-item @click.stop="goPurchaseOrder(row.purchaseOrderId)">
+                                <span class="op-more-item op-more-item--primary">{{
+                                  t('purchaseRequisitionDetail.poItemTable.actionOpenPo')
+                                }}</span>
+                              </el-dropdown-item>
+                            </el-dropdown-menu>
+                          </template>
+                        </el-dropdown>
+                      </div>
                     </template>
                   </el-table-column>
                 </el-table>
@@ -230,6 +263,21 @@ const poLineItems = ref<
   }[]
 >([])
 const poItemsLoading = ref(false)
+
+/** 《列表操作列规范》：关联采购订单明细表 */
+const prPoItemsOpColExpanded = ref(false)
+const PR_PO_ITEMS_OP_COL_COLLAPSED = 43
+const PR_PO_ITEMS_OP_COL_EXPANDED = 173
+const PR_PO_ITEMS_OP_COL_EXPANDED_MIN = 160
+const prPoItemsOpColWidth = computed(() =>
+  prPoItemsOpColExpanded.value ? PR_PO_ITEMS_OP_COL_EXPANDED : PR_PO_ITEMS_OP_COL_COLLAPSED
+)
+const prPoItemsOpColMinWidth = computed(() =>
+  prPoItemsOpColExpanded.value ? PR_PO_ITEMS_OP_COL_EXPANDED_MIN : PR_PO_ITEMS_OP_COL_COLLAPSED
+)
+function togglePrPoItemsOpCol() {
+  prPoItemsOpColExpanded.value = !prPoItemsOpColExpanded.value
+}
 
 const canPrSoftDelete = computed(
   () =>
@@ -390,7 +438,7 @@ onMounted(load)
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .purchase-requisition-detail-page {
   padding: 24px;
@@ -467,7 +515,7 @@ onMounted(load)
 }
 
 .customer-code {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 11px;
   color: $text-muted;
 }
@@ -541,13 +589,13 @@ onMounted(load)
     color: $text-secondary;
 
     &--code {
-      font-family: 'Space Mono', monospace;
+      font-family: 'Noto Sans SC', sans-serif;
       font-size: 12px;
       color: $color-ice-blue;
     }
 
     &--amount {
-      font-family: 'Space Mono', monospace;
+      font-family: 'Noto Sans SC', sans-serif;
       font-size: 13px;
       color: $text-primary;
       font-weight: 500;

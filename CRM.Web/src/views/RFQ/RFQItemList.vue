@@ -108,7 +108,9 @@
         @selection-change="onSelectionChange"
       >
         <template #col-itemStatus="{ row }">
-          <el-tag size="small" effect="dark">{{ itemStatusText(effectiveItemLineStatus(row)) }}</el-tag>
+          <el-tag size="small" effect="dark" :type="itemStatusTagType(effectiveItemLineStatus(row))">
+            {{ itemStatusText(effectiveItemLineStatus(row)) }}
+          </el-tag>
         </template>
         <template #col-quoteCount="{ row }">
           <span
@@ -154,9 +156,13 @@
           }}
         </template>
         <template #col-actions-header>
-          <div class="op-col-header">
-            <span class="op-col-header-text">{{ t('rfqItemList.actions.column') }}</span>
-            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpCol"
+            >
               {{ opColExpanded ? '>' : '<' }}
             </button>
           </div>
@@ -489,18 +495,23 @@
                 </template>
               </el-table-column>
               <el-table-column
-                :label="t('rfqItemList.dockQuotes.actions')"
+                :label="t('rfqItemList.actions.column')"
                 :width="opDockColWidth"
                 :min-width="opDockColMinWidth"
                 align="center"
                 fixed="right"
                 class-name="op-col"
                 label-class-name="op-col"
+                :resizable="false"
               >
                 <template #header>
-                  <div class="op-col-header">
-                    <span class="op-col-header-text">{{ t('rfqItemList.dockQuotes.actions') }}</span>
-                    <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpDockCol">
+                  <div class="list-op-col-header--icon-only">
+                    <button
+                      type="button"
+                      class="op-col-toggle-btn list-op-col-toggle"
+                      :aria-label="opDockColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+                      @click.stop="toggleOpDockCol"
+                    >
                       {{ opDockColExpanded ? '>' : '<' }}
                     </button>
                   </div>
@@ -583,12 +594,45 @@
               <template #default="{ row }">{{ row.materialModel || row.mpn || '—' }}</template>
             </el-table-column>
             <el-table-column prop="quantity" label="数量" width="72" align="right" />
-            <el-table-column label="操作" width="88" fixed="right" align="center" class-name="op-col" label-class-name="op-col">
+            <el-table-column
+              :label="t('rfqItemList.actions.column')"
+              :width="rfqBasketOpColWidth"
+              :min-width="rfqBasketOpColMinWidth"
+              fixed="right"
+              align="center"
+              class-name="op-col"
+              label-class-name="op-col"
+              :resizable="false"
+            >
+              <template #header>
+                <div class="list-op-col-header--icon-only">
+                  <button
+                    type="button"
+                    class="op-col-toggle-btn list-op-col-toggle"
+                    :aria-label="rfqBasketOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+                    @click.stop="toggleRfqBasketOpCol"
+                  >
+                    {{ rfqBasketOpColExpanded ? '>' : '<' }}
+                  </button>
+                </div>
+              </template>
               <template #default="{ row }">
                 <div @click.stop @dblclick.stop>
-                  <div class="action-btns">
+                  <div v-if="rfqBasketOpColExpanded" class="action-btns">
                     <button type="button" class="action-btn action-btn--danger" @click.stop="removeOneFromBasket(row.id)">移除</button>
                   </div>
+                  <el-dropdown v-else trigger="click" placement="bottom-end">
+                    <div class="op-more-dropdown-trigger">
+                      <button type="button" class="op-more-trigger">...</button>
+                    </div>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item @click.stop="removeOneFromBasket(row.id)">
+                          <span class="op-more-item op-more-item--danger">移除</span>
+                        </el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
                 </div>
               </template>
             </el-table-column>
@@ -651,15 +695,32 @@ const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const suppressBasketMerge = ref(false)
 const basketDrawerVisible = ref(false)
+
+/** 全页列表操作列宽度（《列表操作列规范》高密度，与采购订单明细表对齐） */
+const LIST_OP_COL_COLLAPSED_WIDTH = 43
+const LIST_OP_COL_EXPANDED_WIDTH = 173
+const LIST_OP_COL_EXPANDED_MIN_WIDTH = 160
+
+/** 《列表操作列规范》：复选篮子抽屉内表（列宽与主表一致） */
+const rfqBasketOpColExpanded = ref(false)
+const rfqBasketOpColWidth = computed(() =>
+  rfqBasketOpColExpanded.value ? LIST_OP_COL_EXPANDED_WIDTH : LIST_OP_COL_COLLAPSED_WIDTH
+)
+const rfqBasketOpColMinWidth = computed(() =>
+  rfqBasketOpColExpanded.value ? LIST_OP_COL_EXPANDED_MIN_WIDTH : LIST_OP_COL_COLLAPSED_WIDTH
+)
+function toggleRfqBasketOpCol() {
+  rfqBasketOpColExpanded.value = !rfqBasketOpColExpanded.value
+}
 const dateRange = ref<[string, string] | null>(null)
 
-// 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
-const OP_COL_COLLAPSED_WIDTH = 96
-const OP_COL_EXPANDED_WIDTH = 220
-const OP_COL_EXPANDED_MIN_WIDTH = 220
-const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
-const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const opColWidth = computed(() =>
+  opColExpanded.value ? LIST_OP_COL_EXPANDED_WIDTH : LIST_OP_COL_COLLAPSED_WIDTH
+)
+const opColMinWidth = computed(() =>
+  opColExpanded.value ? LIST_OP_COL_EXPANDED_MIN_WIDTH : LIST_OP_COL_COLLAPSED_WIDTH
+)
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
@@ -708,7 +769,7 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
     key: 'customerPart',
     label: t('rfqItemList.columns.customerPart'),
     width: 120,
-    minWidth: 88,
+    minWidth: 118,
     showOverflowTooltip: true,
     resizable: true
   },
@@ -737,8 +798,8 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
     key: 'quantity',
     label: t('rfqItemList.columns.quantity'),
     prop: 'quantity',
-    width: 90,
-    minWidth: 72,
+    width: 108,
+    minWidth: 96,
     align: 'right',
     resizable: true
   }
@@ -748,8 +809,8 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
       key: 'salesUserName',
       label: t('rfqItemList.columns.salesUser'),
       prop: 'salesUserName',
-      width: 100,
-      minWidth: 80,
+      width: 112,
+      minWidth: 104,
       showOverflowTooltip: true,
       resizable: true
     })
@@ -796,7 +857,7 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
     reorderable: false,
     className: 'op-col',
     labelClassName: 'op-col',
-    resizable: true
+    resizable: false
   }
   )
   if (!canViewCustomerInRfq.value) {
@@ -805,14 +866,13 @@ const rfqItemMainTableColumns = computed<CrmTableColumnDef[]>(() => {
   return cols
 })
 
-// 底部抽屉内子表格操作列：默认收起（Collapsed）
+// 底部采购报价表操作列：与主表同宽、同列头
 const opDockColExpanded = ref(false)
-const OP_DOCK_COL_COLLAPSED_WIDTH = 110
-const OP_DOCK_COL_EXPANDED_WIDTH = 212
-const OP_DOCK_COL_EXPANDED_MIN_WIDTH = 212
-const opDockColWidth = computed(() => (opDockColExpanded.value ? OP_DOCK_COL_EXPANDED_WIDTH : OP_DOCK_COL_COLLAPSED_WIDTH))
+const opDockColWidth = computed(() =>
+  opDockColExpanded.value ? LIST_OP_COL_EXPANDED_WIDTH : LIST_OP_COL_COLLAPSED_WIDTH
+)
 const opDockColMinWidth = computed(() =>
-  opDockColExpanded.value ? OP_DOCK_COL_EXPANDED_MIN_WIDTH : OP_DOCK_COL_COLLAPSED_WIDTH
+  opDockColExpanded.value ? LIST_OP_COL_EXPANDED_MIN_WIDTH : LIST_OP_COL_COLLAPSED_WIDTH
 )
 function toggleOpDockCol() {
   opDockColExpanded.value = !opDockColExpanded.value
@@ -941,6 +1001,12 @@ function itemStatusText(s?: number | string) {
     4: t('rfqItemList.status.closed')
   }
   return Number.isFinite(n) ? map[n] ?? t('quoteList.na') : t('quoteList.na')
+}
+
+/** 待报价单独灰色标签；其余沿用主题 primary（蓝色） */
+function itemStatusTagType(s?: number | string) {
+  const n = s === undefined || s === null || s === '' ? NaN : Number(s)
+  return Number.isFinite(n) && n === 0 ? 'info' : undefined
 }
 
 /** 库内 status 未回写或接口未部署旧版时，与「报价条目」列一致：有条数则不应仍显示待报价 */
@@ -1474,7 +1540,7 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .rfq-item-list-page {
   display: flex;
@@ -2018,9 +2084,10 @@ onUnmounted(() => {
     --el-table-tr-bg-color: transparent;
     --el-table-border-color: #{$border-panel};
   }
+
 }
 
-// 主列表操作列 op-col：main.scss 全局；按钮：crm-unified-list.scss
+// 操作列表头 / 列宽：crm-unified-list.scss 全局 .el-table th.op-col + .list-op-col-*
 
 /* 底栏：与《业务列表规范》及 CustomerList 一致（列设置齿轮 → 行高密度锚点 → Spacer → 复选篮子） */
 .pagination-wrapper {
@@ -2150,5 +2217,6 @@ onUnmounted(() => {
     font-size: 13px !important;
     font-weight: 500;
   }
+
 }
 </style>

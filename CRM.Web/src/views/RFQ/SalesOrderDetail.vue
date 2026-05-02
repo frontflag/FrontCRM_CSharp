@@ -307,11 +307,30 @@
                 </template>
               </el-table-column>
               <el-table-column prop="comment" label="备注" min-width="120" />
-              <el-table-column label="操作" width="200" fixed="right" class-name="op-col" label-class-name="op-col">
+              <el-table-column
+                label="操作"
+                :width="soDetailItemsOpColWidth"
+                :min-width="soDetailItemsOpColMinWidth"
+                fixed="right"
+                align="center"
+                class-name="op-col"
+                label-class-name="op-col"
+              >
+                <template #header>
+                  <div class="so-detail-op-col-header--icon-only">
+                    <button
+                      type="button"
+                      class="op-col-toggle-btn so-detail-op-col-toggle"
+                      @click.stop="toggleSoDetailItemsOpCol"
+                    >
+                      {{ soDetailItemsOpColExpanded ? '>' : '<' }}
+                    </button>
+                  </div>
+                </template>
                 <template #default="{ row }">
                   <div @click.stop @dblclick.stop>
                     <div
-                      v-if="canApplyStockOutForItems && (canPurchaseReq || canWriteSo)"
+                      v-if="soDetailItemsOpColExpanded && canApplyStockOutForItems && (canPurchaseReq || canWriteSo)"
                       class="action-btns action-btns--detail-items"
                     >
                       <button
@@ -332,6 +351,30 @@
                         申请出库
                       </button>
                     </div>
+                    <el-dropdown
+                      v-else-if="!soDetailItemsOpColExpanded && canApplyStockOutForItems && (canPurchaseReq || canWriteSo)"
+                      trigger="click"
+                      placement="bottom-end"
+                    >
+                      <div class="op-more-dropdown-trigger">
+                        <button type="button" class="op-more-trigger">...</button>
+                      </div>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item v-if="canPurchaseReq" @click.stop="handleOpenApplyPurchase(row)">
+                            <span class="op-more-item op-more-item--warning">申请采购</span>
+                          </el-dropdown-item>
+                          <el-dropdown-item
+                            v-if="canWriteSo && (stockOutApplyPurchaseGateOk(row) || salesOrderLinePurchasedStockReliefOk(row))"
+                            :divided="canPurchaseReq"
+                            :disabled="salesOrderLineApplyStockOutButtonDisabled(row)"
+                            @click.stop="handleOpenApplyStockOut(row)"
+                          >
+                            <span class="op-more-item op-more-item--warning">申请出库</span>
+                          </el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
                   </div>
                 </template>
               </el-table-column>
@@ -508,16 +551,53 @@
                   <el-table-column label="申请日期" width="160" prop="requestDate">
                     <template #default="{ row }">{{ formatDateTime(row?.requestDate) }}</template>
                   </el-table-column>
-                  <el-table-column label="操作" width="120" fixed="right">
+                  <el-table-column
+                    label="操作"
+                    :width="soOutNotifyOpColWidth"
+                    :min-width="soOutNotifyOpColMinWidth"
+                    fixed="right"
+                    align="center"
+                    class-name="op-col"
+                    label-class-name="op-col"
+                  >
+                    <template #header>
+                      <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="soOutNotifyOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleSoOutNotifyOpCol"
+            >
+              {{ soOutNotifyOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+                    </template>
                     <template #default="{ row }">
-                      <router-link
-                        v-if="Number(row.status) !== 1"
-                        class="so-tab-link so-tab-link--sm"
-                        :to="`/inventory/stock-out/create?requestId=${encodeURIComponent(row.id)}`"
-                      >
-                        {{ t('salesOrderDetailView.goExecute') }}
-                      </router-link>
-                      <span v-else>—</span>
+                      <div @click.stop @dblclick.stop>
+                        <template v-if="Number(row.status) !== 1">
+                          <div v-if="soOutNotifyOpColExpanded">
+                            <router-link
+                              class="so-tab-link so-tab-link--sm"
+                              :to="`/inventory/stock-out/create?requestId=${encodeURIComponent(String(row.id))}`"
+                            >
+                              {{ t('salesOrderDetailView.goExecute') }}
+                            </router-link>
+                          </div>
+                          <el-dropdown v-else trigger="click" placement="bottom-end">
+                            <div class="op-more-dropdown-trigger">
+                              <button type="button" class="op-more-trigger">...</button>
+                            </div>
+                            <template #dropdown>
+                              <el-dropdown-menu>
+                                <el-dropdown-item @click.stop="goStockOutCreateFromNotify(row)">
+                                  <span class="op-more-item op-more-item--primary">{{ t('salesOrderDetailView.goExecute') }}</span>
+                                </el-dropdown-item>
+                              </el-dropdown-menu>
+                            </template>
+                          </el-dropdown>
+                        </template>
+                        <span v-else class="cell-muted">—</span>
+                      </div>
                     </template>
                   </el-table-column>
                 </el-table>
@@ -1137,6 +1217,41 @@ const favoriteLoading = ref(false)
 const activeTab = ref('items')
 const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
 
+/** 《列表操作列规范》：销售订单明细操作列（列宽与采购订单明细表对齐） */
+const soDetailItemsOpColExpanded = ref(false)
+const SO_DETAIL_ITEMS_OP_COL_EXPANDED_WIDTH = 173
+const SO_DETAIL_ITEMS_OP_COL_COLLAPSED_WIDTH = 43
+const SO_DETAIL_ITEMS_OP_COL_EXPANDED_MIN_WIDTH = 160
+const soDetailItemsOpColWidth = computed(() =>
+  soDetailItemsOpColExpanded.value ? SO_DETAIL_ITEMS_OP_COL_EXPANDED_WIDTH : SO_DETAIL_ITEMS_OP_COL_COLLAPSED_WIDTH
+)
+const soDetailItemsOpColMinWidth = computed(() =>
+  soDetailItemsOpColExpanded.value ? SO_DETAIL_ITEMS_OP_COL_EXPANDED_MIN_WIDTH : SO_DETAIL_ITEMS_OP_COL_COLLAPSED_WIDTH
+)
+function toggleSoDetailItemsOpCol() {
+  soDetailItemsOpColExpanded.value = !soDetailItemsOpColExpanded.value
+}
+
+/** 《列表操作列规范》：明细面板「出库通知」聚合表 */
+const soOutNotifyOpColExpanded = ref(false)
+const SO_OUT_NOTIFY_OP_COL_COLLAPSED = 43
+const SO_OUT_NOTIFY_OP_COL_EXPANDED = 173
+const SO_OUT_NOTIFY_OP_COL_EXPANDED_MIN = 160
+const soOutNotifyOpColWidth = computed(() =>
+  soOutNotifyOpColExpanded.value ? SO_OUT_NOTIFY_OP_COL_EXPANDED : SO_OUT_NOTIFY_OP_COL_COLLAPSED
+)
+const soOutNotifyOpColMinWidth = computed(() =>
+  soOutNotifyOpColExpanded.value ? SO_OUT_NOTIFY_OP_COL_EXPANDED_MIN : SO_OUT_NOTIFY_OP_COL_COLLAPSED
+)
+function toggleSoOutNotifyOpCol() {
+  soOutNotifyOpColExpanded.value = !soOutNotifyOpColExpanded.value
+}
+function goStockOutCreateFromNotify(row: Record<string, unknown>) {
+  const id = String(row?.id ?? row?.Id ?? '').trim()
+  if (!id) return
+  router.push(`/inventory/stock-out/create?requestId=${encodeURIComponent(id)}`)
+}
+
 /** 双击订单明细行：底部「销售订单明细详情」面板数据（按销售明细主键） */
 const lineTabAggregates = ref<SalesOrderDetailTabAggregates | null>(null)
 const soItemLinePanel = reactive({
@@ -1428,6 +1543,7 @@ const fetchOrder = async () => {
       return
     }
     order.value = await salesOrderApi.getById(id)
+    soDetailItemsOpColExpanded.value = false
     if (order.value) {
       loadError.value = ''
       refreshTags()
@@ -1526,7 +1642,7 @@ const getExtendTriStatusTagType = (v?: number): '' | 'info' | 'success' | 'warni
   return v !== undefined && v !== null ? (map[v] ?? 'info') : 'info'
 }
 const getPurchaseProgressText = (v?: number) => {
-  const map: Record<number, string> = { 0: '待采购', 1: '部分采购', 2: '采购完成' }
+  const map: Record<number, string> = { 0: '待采购', 1: '采购中', 2: '采购完成' }
   return v !== undefined && v !== null ? (map[v] ?? '--') : '--'
 }
 const getStockInProgressText = (v?: number) => {
@@ -1554,7 +1670,7 @@ function salesRefreshStatusText(field: string, value: string) {
   const n = Number(value)
   if (!Number.isFinite(n)) return value
   if (field === 'purchaseProgressStatus') {
-    const map: Record<number, string> = { 0: '待采购', 1: '部分采购', 2: '采购完成' }
+    const map: Record<number, string> = { 0: '待采购', 1: '采购中', 2: '采购完成' }
     return map[n] ?? value
   }
   if (field === 'stockInProgressStatus') {
@@ -1920,7 +2036,7 @@ const submitApplyStockOut = async () => {
 }
 
 .caption-code {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 11px;
   color: $text-muted;
 }
@@ -2080,7 +2196,7 @@ const submitApplyStockOut = async () => {
 }
 
 .order-code {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 11px;
   color: $text-muted;
 }
@@ -2123,7 +2239,7 @@ const submitApplyStockOut = async () => {
 }
 
 .info-value--code {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   color: $color-ice-blue;
 }
 
@@ -2320,6 +2436,26 @@ const submitApplyStockOut = async () => {
   :deep(.el-table__cell) {
     .el-button { white-space: nowrap !important; }
     .cell { white-space: nowrap; }
+  }
+  :deep(th.op-col.el-table__cell .cell) {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+  }
+  :deep(th.op-col .so-detail-op-col-header--icon-only) {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
+  :deep(th.op-col .so-detail-op-col-toggle) {
+    min-width: 28px;
+    min-height: 28px;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
   }
 }
 

@@ -114,6 +114,15 @@ export const purchaseOrderApi = {
     return await apiClient.get<PurchaseOrderDetailTabAggregates>(`/api/v1/purchase-orders/${enc}/detail-tab-aggregates`)
   },
 
+  /** 单条采购明细：与 detail-tab-aggregates 结构一致，按采购明细主键过滤 */
+  async getPurchaseOrderItemDetailTabAggregates(purchaseOrderId: string, purchaseOrderItemId: string) {
+    const encO = encodeURIComponent(purchaseOrderId)
+    const encI = encodeURIComponent(purchaseOrderItemId)
+    return await apiClient.get<PurchaseOrderDetailTabAggregates>(
+      `/api/v1/purchase-orders/${encO}/purchase-order-items/${encI}/detail-tab-aggregates`
+    )
+  },
+
   /** 报表页：订单 + 公司参数（单请求，不依赖 company-profile/report-bundle） */
   async getReportData(id: string) {
     return await apiClient.get(`/api/v1/purchase-orders/${id}/report-data`)

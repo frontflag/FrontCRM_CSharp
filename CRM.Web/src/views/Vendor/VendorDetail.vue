@@ -215,10 +215,30 @@
                   <span v-else class="cell-muted">--</span>
                 </template>
               </el-table-column>
-              <el-table-column :label="t('vendorDetail.contacts.actions')" width="200" fixed="right" class-name="op-col" label-class-name="op-col">
+              <el-table-column
+                :label="t('vendorDetail.contacts.actions')"
+                :width="vendorDetailSubOpColWidth"
+                :min-width="vendorDetailSubOpColMinWidth"
+                fixed="right"
+                align="center"
+                class-name="op-col"
+                label-class-name="op-col"
+              >
+                <template #header>
+                  <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="vendorDetailSubOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleVendorDetailSubOpCol"
+            >
+              {{ vendorDetailSubOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+                </template>
                 <template #default="{ row }">
                   <div @click.stop @dblclick.stop>
-                    <div class="action-btns">
+                    <div v-if="vendorDetailSubOpColExpanded" class="action-btns">
                       <button type="button" class="action-btn action-btn--primary" @click.stop="goEditContact(row)">{{ t('vendorDetail.contacts.edit') }}</button>
                       <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteContact(row)">{{ t('vendorDetail.contacts.delete') }}</button>
                       <button
@@ -230,6 +250,24 @@
                         {{ t('vendorDetail.contacts.setMain') }}
                       </button>
                     </div>
+                    <el-dropdown v-else trigger="click" placement="bottom-end">
+                      <div class="op-more-dropdown-trigger">
+                        <button type="button" class="op-more-trigger">...</button>
+                      </div>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item @click.stop="goEditContact(row)">
+                            <span class="op-more-item op-more-item--primary">{{ t('vendorDetail.contacts.edit') }}</span>
+                          </el-dropdown-item>
+                          <el-dropdown-item divided @click.stop="handleDeleteContact(row)">
+                            <span class="op-more-item op-more-item--danger">{{ t('vendorDetail.contacts.delete') }}</span>
+                          </el-dropdown-item>
+                          <el-dropdown-item v-if="!row.isMain" divided @click.stop="handleSetMainContact(row)">
+                            <span class="op-more-item op-more-item--info">{{ t('vendorDetail.contacts.setMain') }}</span>
+                          </el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
                   </div>
                 </template>
               </el-table-column>
@@ -274,10 +312,30 @@
                   <span v-else class="cell-muted">--</span>
                 </template>
               </el-table-column>
-              <el-table-column :label="t('vendorDetail.contacts.actions')" width="220" fixed="right" class-name="op-col" label-class-name="op-col">
+              <el-table-column
+                :label="t('vendorDetail.contacts.actions')"
+                :width="vendorDetailSubOpColWidth"
+                :min-width="vendorDetailSubOpColMinWidth"
+                fixed="right"
+                align="center"
+                class-name="op-col"
+                label-class-name="op-col"
+              >
+                <template #header>
+                  <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="vendorDetailSubOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleVendorDetailSubOpCol"
+            >
+              {{ vendorDetailSubOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+                </template>
                 <template #default="{ row }">
                   <div @click.stop @dblclick.stop>
-                    <div class="action-btns">
+                    <div v-if="vendorDetailSubOpColExpanded" class="action-btns">
                       <button type="button" class="action-btn action-btn--primary" @click.stop="openEditAddress(row)">{{ t('vendorDetail.addresses.edit') }}</button>
                       <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteAddress(row)">{{ t('vendorDetail.addresses.delete') }}</button>
                       <button
@@ -289,6 +347,24 @@
                         {{ t('vendorDetail.addresses.setDefault') }}
                       </button>
                     </div>
+                    <el-dropdown v-else trigger="click" placement="bottom-end">
+                      <div class="op-more-dropdown-trigger">
+                        <button type="button" class="op-more-trigger">...</button>
+                      </div>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item @click.stop="openEditAddress(row)">
+                            <span class="op-more-item op-more-item--primary">{{ t('vendorDetail.addresses.edit') }}</span>
+                          </el-dropdown-item>
+                          <el-dropdown-item divided @click.stop="handleDeleteAddress(row)">
+                            <span class="op-more-item op-more-item--danger">{{ t('vendorDetail.addresses.delete') }}</span>
+                          </el-dropdown-item>
+                          <el-dropdown-item v-if="!row.isDefault" divided @click.stop="handleSetDefaultAddress(row)">
+                            <span class="op-more-item op-more-item--info">{{ t('vendorDetail.addresses.setDefault') }}</span>
+                          </el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
                   </div>
                 </template>
               </el-table-column>
@@ -329,10 +405,30 @@
                   <span v-else class="cell-muted">--</span>
                 </template>
               </el-table-column>
-              <el-table-column :label="t('vendorDetail.contacts.actions')" width="220" fixed="right" class-name="op-col" label-class-name="op-col">
+              <el-table-column
+                :label="t('vendorDetail.contacts.actions')"
+                :width="vendorDetailSubOpColWidth"
+                :min-width="vendorDetailSubOpColMinWidth"
+                fixed="right"
+                align="center"
+                class-name="op-col"
+                label-class-name="op-col"
+              >
+                <template #header>
+                  <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="vendorDetailSubOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleVendorDetailSubOpCol"
+            >
+              {{ vendorDetailSubOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+                </template>
                 <template #default="{ row }">
                   <div @click.stop @dblclick.stop>
-                    <div class="action-btns">
+                    <div v-if="vendorDetailSubOpColExpanded" class="action-btns">
                       <button type="button" class="action-btn action-btn--primary" @click.stop="openEditBank(row)">{{ t('vendorDetail.banks.edit') }}</button>
                       <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteBank(row)">{{ t('vendorDetail.banks.delete') }}</button>
                       <button
@@ -344,6 +440,24 @@
                         {{ t('vendorDetail.banks.setDefault') }}
                       </button>
                     </div>
+                    <el-dropdown v-else trigger="click" placement="bottom-end">
+                      <div class="op-more-dropdown-trigger">
+                        <button type="button" class="op-more-trigger">...</button>
+                      </div>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item @click.stop="openEditBank(row)">
+                            <span class="op-more-item op-more-item--primary">{{ t('vendorDetail.banks.edit') }}</span>
+                          </el-dropdown-item>
+                          <el-dropdown-item divided @click.stop="handleDeleteBank(row)">
+                            <span class="op-more-item op-more-item--danger">{{ t('vendorDetail.banks.delete') }}</span>
+                          </el-dropdown-item>
+                          <el-dropdown-item v-if="!row.isDefault" divided @click.stop="handleSetDefaultBank(row)">
+                            <span class="op-more-item op-more-item--info">{{ t('vendorDetail.banks.setDefault') }}</span>
+                          </el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
                   </div>
                 </template>
               </el-table-column>
@@ -692,6 +806,20 @@ const tabs = computed(() => {
   ];
 });
 const activeTab = ref('contacts');
+/** 《列表操作列规范》：联系人/地址/银行子表共用列头切换 */
+const vendorDetailSubOpColExpanded = ref(false);
+const VENDOR_SUB_OP_COL_COLLAPSED = 43;
+const VENDOR_SUB_OP_COL_EXPANDED = 173;
+const VENDOR_SUB_OP_COL_EXPANDED_MIN = 160;
+const vendorDetailSubOpColWidth = computed(() =>
+  vendorDetailSubOpColExpanded.value ? VENDOR_SUB_OP_COL_EXPANDED : VENDOR_SUB_OP_COL_COLLAPSED
+);
+const vendorDetailSubOpColMinWidth = computed(() =>
+  vendorDetailSubOpColExpanded.value ? VENDOR_SUB_OP_COL_EXPANDED_MIN : VENDOR_SUB_OP_COL_COLLAPSED
+);
+function toggleVendorDetailSubOpCol() {
+  vendorDetailSubOpColExpanded.value = !vendorDetailSubOpColExpanded.value;
+}
 
 /** 与列表 VendorList / types 一致：1=新建 2=待审核 10=已审核… */
 const vendorStatusText = computed(() => {
@@ -1234,7 +1362,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .customer-detail-page {
   padding: 24px;
@@ -1508,7 +1636,7 @@ onMounted(() => {
 }
 
 .customer-code {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 11px;
   color: $text-muted;
 }
@@ -1639,7 +1767,7 @@ onMounted(() => {
     color: $text-secondary;
 
     &--code {
-      font-family: 'Space Mono', monospace;
+      font-family: 'Noto Sans SC', sans-serif;
       font-size: 12px;
       color: $color-ice-blue;
     }
@@ -1750,7 +1878,7 @@ onMounted(() => {
   font-size: 12px;
 }
 .cell-code {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 12px;
   color: $color-ice-blue;
 }

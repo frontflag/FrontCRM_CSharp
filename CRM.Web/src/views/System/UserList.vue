@@ -118,9 +118,13 @@
           {{ row.createUserName || row.createdBy || '-' }}
         </template>
         <template #col-actions-header>
-          <div class="op-col-header">
-            <span class="op-col-header-text">{{ t('systemUser.action') }}</span>
-            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpCol"
+            >
               {{ opColExpanded ? '>' : '<' }}
             </button>
           </div>
@@ -314,7 +318,7 @@ const canImpersonate = computed(() => authStore.user?.isSysAdmin === true)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
-const OP_COL_COLLAPSED_WIDTH = 96
+const OP_COL_COLLAPSED_WIDTH = 43
 const OP_COL_EXPANDED_WIDTH = computed(() => (canImpersonate.value ? 520 : 420))
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH.value : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH.value : OP_COL_COLLAPSED_WIDTH))
@@ -409,7 +413,8 @@ const userTableColumns = computed<CrmTableColumnDef[]>(() => [
     pinned: 'end',
     reorderable: false,
     className: 'op-col',
-    labelClassName: 'op-col'
+    labelClassName: 'op-col',
+  resizable: false
   }
 ])
 

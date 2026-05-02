@@ -140,12 +140,44 @@
                   <span v-else class="cell-muted">—</span>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="100" fixed="right" class-name="op-col" label-class-name="op-col">
+              <el-table-column
+                label="操作"
+                :width="deptUsersOpColWidth"
+                :min-width="deptUsersOpColMinWidth"
+                fixed="right"
+                align="center"
+                class-name="op-col"
+                label-class-name="op-col"
+              >
+                <template #header>
+                  <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="deptUsersOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleDeptUsersOpCol"
+            >
+              {{ deptUsersOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+                </template>
                 <template #default="{ row }">
                   <div @click.stop @dblclick.stop>
-                    <div class="action-btns">
+                    <div v-if="deptUsersOpColExpanded" class="action-btns">
                       <button type="button" class="action-btn action-btn--primary" @click.stop="goEditUser(row.id)">编辑</button>
                     </div>
+                    <el-dropdown v-else trigger="click" placement="bottom-end">
+                      <div class="op-more-dropdown-trigger">
+                        <button type="button" class="op-more-trigger">...</button>
+                      </div>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item @click.stop="goEditUser(row.id)">
+                            <span class="op-more-item op-more-item--primary">编辑</span>
+                          </el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
                   </div>
                 </template>
               </el-table-column>
@@ -164,10 +196,27 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { rbacAdminApi, type AdminUserDto, type RbacDepartment } from '@/api/rbacAdmin'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const departmentId = computed(() => route.params.id as string)
+
+/** 《列表操作列规范》：部门员工表操作列 */
+const deptUsersOpColExpanded = ref(false)
+const DEPT_USERS_OP_COL_COLLAPSED = 43
+const DEPT_USERS_OP_COL_EXPANDED = 173
+const DEPT_USERS_OP_COL_EXPANDED_MIN = 160
+const deptUsersOpColWidth = computed(() =>
+  deptUsersOpColExpanded.value ? DEPT_USERS_OP_COL_EXPANDED : DEPT_USERS_OP_COL_COLLAPSED
+)
+const deptUsersOpColMinWidth = computed(() =>
+  deptUsersOpColExpanded.value ? DEPT_USERS_OP_COL_EXPANDED_MIN : DEPT_USERS_OP_COL_COLLAPSED
+)
+function toggleDeptUsersOpCol() {
+  deptUsersOpColExpanded.value = !deptUsersOpColExpanded.value
+}
 
 const loading = ref(false)
 const usersLoading = ref(false)
@@ -279,7 +328,7 @@ const handleDeleteClick = async () => {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .department-detail-page {
   padding: 24px;
@@ -364,7 +413,7 @@ const handleDeleteClick = async () => {
 }
 
 .dept-code {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 11px;
   color: $text-muted;
   max-width: 360px;
@@ -508,7 +557,7 @@ const handleDeleteClick = async () => {
     color: $text-secondary;
 
     &--code {
-      font-family: 'Space Mono', monospace;
+      font-family: 'Noto Sans SC', sans-serif;
       font-size: 12px;
       color: $color-ice-blue;
     }
@@ -589,7 +638,7 @@ const handleDeleteClick = async () => {
   font-size: 12px;
 }
 .cell-code {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 12px;
   color: $color-ice-blue;
 }

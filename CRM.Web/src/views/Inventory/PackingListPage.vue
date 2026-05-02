@@ -34,10 +34,39 @@
           <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName?.trim() || '—') }}</span>
         </template>
         <template #col-createTime="{ row }">{{ formatTime(row.createTime) }}</template>
+        <template #col-actions-header>
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpCol"
+            >
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
         <template #col-actions>
-          <div class="action-btns">
-            <button class="action-btn action-btn--primary" type="button">详情</button>
-            <button class="action-btn action-btn--warning" type="button">编辑</button>
+          <div @click.stop @dblclick.stop>
+            <div v-if="opColExpanded" class="action-btns">
+              <button class="action-btn action-btn--primary" type="button">详情</button>
+              <button class="action-btn action-btn--warning" type="button">编辑</button>
+            </div>
+            <el-dropdown v-else trigger="click" placement="bottom-end">
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item>
+                    <span class="op-more-item op-more-item--primary">详情</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item divided>
+                    <span class="op-more-item op-more-item--warning">编辑</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </template>
       </CrmDataTable>
@@ -58,6 +87,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import CrmDataTable from '@/components/CrmDataTable.vue'
@@ -66,6 +96,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const { t } = useI18n()
 
 type PackingRow = {
   id: string
@@ -82,13 +113,35 @@ const list = ref<PackingRow[]>([])
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
+const opColExpanded = ref(false)
+const OP_COL_COLLAPSED_WIDTH = 43
+const OP_COL_EXPANDED_WIDTH = 173
+const OP_COL_EXPANDED_MIN_WIDTH = 160
+const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
+
 const packingColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'customerName', label: '客户', prop: 'customerName', minWidth: 180, showOverflowTooltip: true },
   { key: 'status', label: '状态', prop: 'status', width: 120, align: 'center' },
   { key: 'packingCode', label: '装箱单号', prop: 'packingCode', width: 180, showOverflowTooltip: true },
   { key: 'salesOrderCode', label: '销售单号', prop: 'salesOrderCode', width: 180, showOverflowTooltip: true },
   { key: 'createTime', label: '创建时间', prop: 'createTime', width: 180 },
-  { key: 'actions', label: '操作', width: 160, fixed: 'right', hideable: false, pinned: 'end', reorderable: false }
+  {
+    key: 'actions',
+    label: '操作',
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
+    fixed: 'right',
+    className: 'op-col',
+    labelClassName: 'op-col',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
+    resizable: false
+  }
 ])
 
 function formatTime(v?: string) {

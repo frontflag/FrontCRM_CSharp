@@ -260,13 +260,48 @@
                     <span v-if="parseApiBoolean(row.isDefault)" class="default-badge">默认</span>
                   </template>
                 </el-table-column>
-                <el-table-column label="操作" width="200" fixed="right" class-name="op-col" label-class-name="op-col">
+                <el-table-column
+                  label="操作"
+                  :width="customerDetailSubOpColWidth"
+                  :min-width="customerDetailSubOpColMinWidth"
+                  fixed="right"
+                  align="center"
+                  class-name="op-col"
+                  label-class-name="op-col"
+                >
+                  <template #header>
+                    <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="customerDetailSubOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleCustomerDetailSubOpCol"
+            >
+              {{ customerDetailSubOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+                  </template>
                   <template #default="{ row }">
                     <div @click.stop @dblclick.stop>
-                      <div class="action-btns">
+                      <div v-if="customerDetailSubOpColExpanded" class="action-btns">
                         <button type="button" class="action-btn action-btn--primary" @click.stop="goEditContact(row)">编辑</button>
                         <button type="button" class="action-btn action-btn--danger" @click.stop="deleteContact(row)">删除</button>
                       </div>
+                      <el-dropdown v-else trigger="click" placement="bottom-end">
+                        <div class="op-more-dropdown-trigger">
+                          <button type="button" class="op-more-trigger">...</button>
+                        </div>
+                        <template #dropdown>
+                          <el-dropdown-menu>
+                            <el-dropdown-item @click.stop="goEditContact(row)">
+                              <span class="op-more-item op-more-item--primary">编辑</span>
+                            </el-dropdown-item>
+                            <el-dropdown-item divided @click.stop="deleteContact(row)">
+                              <span class="op-more-item op-more-item--danger">删除</span>
+                            </el-dropdown-item>
+                          </el-dropdown-menu>
+                        </template>
+                      </el-dropdown>
                     </div>
                   </template>
                 </el-table-column>
@@ -304,13 +339,48 @@
                     <span v-if="parseApiBoolean(row.isDefault)" class="default-badge">默认</span>
                   </template>
                 </el-table-column>
-                <el-table-column label="操作" width="200" fixed="right" class-name="op-col" label-class-name="op-col">
+                <el-table-column
+                  label="操作"
+                  :width="customerDetailSubOpColWidth"
+                  :min-width="customerDetailSubOpColMinWidth"
+                  fixed="right"
+                  align="center"
+                  class-name="op-col"
+                  label-class-name="op-col"
+                >
+                  <template #header>
+                    <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="customerDetailSubOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleCustomerDetailSubOpCol"
+            >
+              {{ customerDetailSubOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+                  </template>
                   <template #default="{ row }">
                     <div @click.stop @dblclick.stop>
-                      <div class="action-btns">
+                      <div v-if="customerDetailSubOpColExpanded" class="action-btns">
                         <button type="button" class="action-btn action-btn--primary" @click.stop="editAddress(row)">编辑</button>
                         <button type="button" class="action-btn action-btn--danger" @click.stop="deleteAddress(row)">删除</button>
                       </div>
+                      <el-dropdown v-else trigger="click" placement="bottom-end">
+                        <div class="op-more-dropdown-trigger">
+                          <button type="button" class="op-more-trigger">...</button>
+                        </div>
+                        <template #dropdown>
+                          <el-dropdown-menu>
+                            <el-dropdown-item @click.stop="editAddress(row)">
+                              <span class="op-more-item op-more-item--primary">编辑</span>
+                            </el-dropdown-item>
+                            <el-dropdown-item divided @click.stop="deleteAddress(row)">
+                              <span class="op-more-item op-more-item--danger">删除</span>
+                            </el-dropdown-item>
+                          </el-dropdown-menu>
+                        </template>
+                      </el-dropdown>
                     </div>
                   </template>
                 </el-table-column>
@@ -349,13 +419,48 @@
                     <span v-if="parseApiBoolean(row.isDefault)" class="default-badge">默认</span>
                   </template>
                 </el-table-column>
-                <el-table-column label="操作" width="200" fixed="right" class-name="op-col" label-class-name="op-col">
+                <el-table-column
+                  label="操作"
+                  :width="customerDetailSubOpColWidth"
+                  :min-width="customerDetailSubOpColMinWidth"
+                  fixed="right"
+                  align="center"
+                  class-name="op-col"
+                  label-class-name="op-col"
+                >
+                  <template #header>
+                    <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="customerDetailSubOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleCustomerDetailSubOpCol"
+            >
+              {{ customerDetailSubOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+                  </template>
                   <template #default="{ row }">
                     <div @click.stop @dblclick.stop>
-                      <div class="action-btns">
+                      <div v-if="customerDetailSubOpColExpanded" class="action-btns">
                         <button type="button" class="action-btn action-btn--primary" @click.stop="editBank(row)">编辑</button>
                         <button type="button" class="action-btn action-btn--danger" @click.stop="deleteBank(row)">删除</button>
                       </div>
+                      <el-dropdown v-else trigger="click" placement="bottom-end">
+                        <div class="op-more-dropdown-trigger">
+                          <button type="button" class="op-more-trigger">...</button>
+                        </div>
+                        <template #dropdown>
+                          <el-dropdown-menu>
+                            <el-dropdown-item @click.stop="editBank(row)">
+                              <span class="op-more-item op-more-item--primary">编辑</span>
+                            </el-dropdown-item>
+                            <el-dropdown-item divided @click.stop="deleteBank(row)">
+                              <span class="op-more-item op-more-item--danger">删除</span>
+                            </el-dropdown-item>
+                          </el-dropdown-menu>
+                        </template>
+                      </el-dropdown>
                     </div>
                   </template>
                 </el-table-column>
@@ -654,6 +759,20 @@ const detailAvatarChar = computed(() => {
 
 const customerTags = ref<TagDefinitionDto[]>([]);
 const activeTab = ref('contacts');
+/** 《列表操作列规范》：联系人/地址/银行子表共用列头切换（同页仅一张 v-show 表可见） */
+const customerDetailSubOpColExpanded = ref(false);
+const CUST_SUB_OP_COL_COLLAPSED = 43;
+const CUST_SUB_OP_COL_EXPANDED = 173;
+const CUST_SUB_OP_COL_EXPANDED_MIN = 160;
+const customerDetailSubOpColWidth = computed(() =>
+  customerDetailSubOpColExpanded.value ? CUST_SUB_OP_COL_EXPANDED : CUST_SUB_OP_COL_COLLAPSED
+);
+const customerDetailSubOpColMinWidth = computed(() =>
+  customerDetailSubOpColExpanded.value ? CUST_SUB_OP_COL_EXPANDED_MIN : CUST_SUB_OP_COL_COLLAPSED
+);
+function toggleCustomerDetailSubOpCol() {
+  customerDetailSubOpColExpanded.value = !customerDetailSubOpColExpanded.value;
+}
 const showAddressDialog = ref(false);
 const showBankDialog = ref(false);
 const editingAddress = ref<CustomerAddress | undefined>(undefined);
@@ -1026,7 +1145,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .customer-detail-page {
   padding: 24px;
@@ -1194,7 +1313,7 @@ onMounted(() => {
 }
 
 .customer-code {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 11px;
   color: $text-muted;
 }
@@ -1404,7 +1523,7 @@ onMounted(() => {
     font-size: 13px;
     color: $text-secondary;
 
-    &--code   { font-family: 'Space Mono', monospace; font-size: 12px; color: $color-ice-blue; }
+    &--code   { font-family: 'Noto Sans SC', sans-serif; font-size: 12px; color: $color-ice-blue; }
     &--time   { font-size: 12px; color: $text-muted; }
   }
 }
@@ -1500,7 +1619,7 @@ onMounted(() => {
 .cell-primary   { color: $text-primary; font-size: 13px; }
 .cell-secondary { color: $text-secondary; font-size: 13px; }
 .cell-muted     { color: $text-muted; font-size: 12px; }
-.cell-code      { font-family: 'Space Mono', monospace; font-size: 12px; color: $color-ice-blue; }
+.cell-code      { font-family: 'Noto Sans SC', sans-serif; font-size: 12px; color: $color-ice-blue; }
 
 .default-badge {
   display: inline-block;
@@ -1600,7 +1719,7 @@ onMounted(() => {
   gap: 3px;
 
   .timeline-text { font-size: 13px; color: $text-secondary; }
-  .timeline-time { font-size: 11px; color: $text-muted; font-family: 'Space Mono', monospace; }
+  .timeline-time { font-size: 11px; color: $text-muted; font-family: 'Noto Sans SC', sans-serif; }
 }
 
 .log-biz-pill {

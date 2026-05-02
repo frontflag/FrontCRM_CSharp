@@ -19,12 +19,43 @@
       <el-table-column prop="createTime" :label="t('inventoryCheck.columns.createTime')" width="170">
         <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
       </el-table-column>
-      <el-table-column :label="t('inventoryCheck.columns.actions')" width="220" class-name="op-col" label-class-name="op-col">
+      <el-table-column
+        :label="t('inventoryCheck.columns.actions')"
+        :width="checkPlansOpColWidth"
+        :min-width="checkPlansOpColMinWidth"
+        class-name="op-col"
+        label-class-name="op-col"
+        align="center"
+      >
+        <template #header>
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="checkPlansOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleCheckPlansOpCol"
+            >
+              {{ checkPlansOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
         <template #default="{ row }">
           <div @click.stop @dblclick.stop>
-            <div class="action-btns">
+            <div v-if="checkPlansOpColExpanded" class="action-btns">
               <button type="button" class="action-btn action-btn--warning" @click.stop="openSubmit(row.id)">{{ t('inventoryCheck.actions.submitResult') }}</button>
             </div>
+            <el-dropdown v-else trigger="click" placement="bottom-end">
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click.stop="openSubmit(row.id)">
+                    <span class="op-more-item op-more-item--warning">{{ t('inventoryCheck.actions.submitResult') }}</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </template>
       </el-table-column>
@@ -44,9 +75,44 @@
         <el-table-column prop="countAmount" :label="t('inventoryCheck.columns.countAmount')" width="140">
           <template #default="{ row }"><el-input-number v-model="row.countAmount" :min="0" :step="0.01" /></template>
         </el-table-column>
-        <el-table-column :label="t('inventoryCheck.columns.actions')" width="90" class-name="op-col" label-class-name="op-col">
+        <el-table-column
+          :label="t('inventoryCheck.columns.actions')"
+          :width="checkDialogOpColWidth"
+          :min-width="checkDialogOpColMinWidth"
+          align="center"
+          class-name="op-col"
+          label-class-name="op-col"
+        >
+          <template #header>
+            <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="checkDialogOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleCheckDialogOpCol"
+            >
+              {{ checkDialogOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+          </template>
           <template #default="{ $index }">
-            <button type="button" class="action-btn action-btn--danger" @click.stop="removeRow($index)">{{ t('inventoryCheck.actions.delete') }}</button>
+            <div @click.stop @dblclick.stop>
+              <div v-if="checkDialogOpColExpanded" class="action-btns">
+                <button type="button" class="action-btn action-btn--danger" @click.stop="removeRow($index)">{{ t('inventoryCheck.actions.delete') }}</button>
+              </div>
+              <el-dropdown v-else trigger="click" placement="bottom-end">
+                <div class="op-more-dropdown-trigger">
+                  <button type="button" class="op-more-trigger">...</button>
+                </div>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item @click.stop="removeRow($index)">
+                      <span class="op-more-item op-more-item--danger">{{ t('inventoryCheck.actions.delete') }}</span>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -59,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { inventoryCenterApi, type CountPlan } from '@/api/inventoryCenter'
@@ -67,6 +133,30 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
 const loading = ref(false)
 const { t } = useI18n()
+/** 《列表操作列规范》 */
+const CHECK_OP_COL_COLLAPSED = 43
+const CHECK_OP_COL_EXPANDED = 173
+const CHECK_OP_COL_EXPANDED_MIN = 160
+const checkPlansOpColExpanded = ref(false)
+const checkPlansOpColWidth = computed(() =>
+  checkPlansOpColExpanded.value ? CHECK_OP_COL_EXPANDED : CHECK_OP_COL_COLLAPSED
+)
+const checkPlansOpColMinWidth = computed(() =>
+  checkPlansOpColExpanded.value ? CHECK_OP_COL_EXPANDED_MIN : CHECK_OP_COL_COLLAPSED
+)
+function toggleCheckPlansOpCol() {
+  checkPlansOpColExpanded.value = !checkPlansOpColExpanded.value
+}
+const checkDialogOpColExpanded = ref(false)
+const checkDialogOpColWidth = computed(() =>
+  checkDialogOpColExpanded.value ? CHECK_OP_COL_EXPANDED : CHECK_OP_COL_COLLAPSED
+)
+const checkDialogOpColMinWidth = computed(() =>
+  checkDialogOpColExpanded.value ? CHECK_OP_COL_EXPANDED_MIN : CHECK_OP_COL_COLLAPSED
+)
+function toggleCheckDialogOpCol() {
+  checkDialogOpColExpanded.value = !checkDialogOpColExpanded.value
+}
 const plans = ref<CountPlan[]>([])
 const submitVisible = ref(false)
 const currentPlanId = ref('')

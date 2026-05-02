@@ -193,13 +193,17 @@
         row.createUserName || row.createdBy || (!maskSaleSensitiveFields ? row.salesUserName : '') || '—'
       }}</template>
       <template #col-actions-header>
-        <div class="op-col-header">
-          <span class="op-col-header-text">{{ t('salesOrderItemList.columns.actions') }}</span>
-          <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
-            {{ opColExpanded ? '>' : '<' }}
-          </button>
-        </div>
-      </template>
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpCol"
+            >
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
@@ -366,15 +370,29 @@
             <el-table-column prop="qty" :label="t('salesOrderItemList.columns.qty')" width="72" align="right" />
             <el-table-column
               :label="t('salesOrderItemList.columns.actions')"
-              width="88"
+              :width="soItemBasketOpColWidth"
+              :min-width="soItemBasketOpColMinWidth"
               fixed="right"
               align="center"
               class-name="op-col"
               label-class-name="op-col"
+              :resizable="false"
             >
+              <template #header>
+                <div class="list-op-col-header--icon-only">
+                  <button
+                    type="button"
+                    class="op-col-toggle-btn list-op-col-toggle"
+                    :aria-label="soItemBasketOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+                    @click.stop="toggleSoItemBasketOpCol"
+                  >
+                    {{ soItemBasketOpColExpanded ? '>' : '<' }}
+                  </button>
+                </div>
+              </template>
               <template #default="{ row }">
                 <div @click.stop @dblclick.stop>
-                  <div class="action-btns">
+                  <div v-if="soItemBasketOpColExpanded" class="action-btns">
                     <el-button
                       link
                       type="danger"
@@ -384,6 +402,18 @@
                       {{ t('salesOrderItemList.actions.remove') }}
                     </el-button>
                   </div>
+                  <el-dropdown v-else trigger="click" placement="bottom-end">
+                    <div class="op-more-dropdown-trigger">
+                      <button type="button" class="op-more-trigger">...</button>
+                    </div>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item @click.stop="removeOneFromBasket(String(row.sellOrderItemId ?? ''))">
+                          <span class="op-more-item op-more-item--danger">{{ t('salesOrderItemList.actions.remove') }}</span>
+                        </el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
                 </div>
               </template>
             </el-table-column>
@@ -513,6 +543,20 @@ const basketStore = useSalesOrderItemListBasketStore()
 const { count: basketCount, items: basketItems } = storeToRefs(basketStore)
 const suppressBasketMerge = ref(false)
 const basketDrawerVisible = ref(false)
+/** 《列表操作列规范》：复选篮子抽屉内表 */
+const soItemBasketOpColExpanded = ref(false)
+const SO_ITEM_BASKET_OP_COL_COLLAPSED = 43
+const SO_ITEM_BASKET_OP_COL_EXPANDED = 173
+const SO_ITEM_BASKET_OP_COL_EXPANDED_MIN = 160
+const soItemBasketOpColWidth = computed(() =>
+  soItemBasketOpColExpanded.value ? SO_ITEM_BASKET_OP_COL_EXPANDED : SO_ITEM_BASKET_OP_COL_COLLAPSED
+)
+const soItemBasketOpColMinWidth = computed(() =>
+  soItemBasketOpColExpanded.value ? SO_ITEM_BASKET_OP_COL_EXPANDED_MIN : SO_ITEM_BASKET_OP_COL_COLLAPSED
+)
+function toggleSoItemBasketOpCol() {
+  soItemBasketOpColExpanded.value = !soItemBasketOpColExpanded.value
+}
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const canViewCustomer = computed(
@@ -564,10 +608,10 @@ const pageSize = ref(20)
 
 // 规范：列表进入页面时“操作”列默认处于收起态（Collapsed）
 const opColExpanded = ref(false)
-const OP_COL_EXPANDED_WIDTH = 280 // 与原始配置一致
+const OP_COL_EXPANDED_WIDTH = 173
 // 收起态需要同时显示列头「操作」与「<」按钮；
 // 由于 el-table header/cell 默认 padding 较大，这里给一个偏保守的最小宽度，避免被裁剪。
-const OP_COL_COLLAPSED_WIDTH = 96
+const OP_COL_COLLAPSED_WIDTH = 43
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() => (opColExpanded.value ? 260 : OP_COL_COLLAPSED_WIDTH))
 function toggleOpCol() {

@@ -476,9 +476,45 @@
                 <el-input v-model="formData.items[$index].remark" placeholder="备注" class="q-input" />
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="72" align="center" fixed="right" class-name="op-col" label-class-name="op-col">
+            <el-table-column
+              label="操作"
+              :width="rfqCreateLineOpColWidth"
+              :min-width="rfqCreateLineOpColMinWidth"
+              align="center"
+              fixed="right"
+              class-name="op-col"
+              label-class-name="op-col"
+            >
+              <template #header>
+                <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="rfqCreateLineOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleRfqCreateLineOpCol"
+            >
+              {{ rfqCreateLineOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+              </template>
               <template #default="{ $index }">
-                <el-button link type="danger" @click.stop="removeItem($index)">删除</el-button>
+                <div @click.stop @dblclick.stop>
+                  <div v-if="rfqCreateLineOpColExpanded" class="action-btns">
+                    <el-button link type="danger" @click.stop="removeItem($index)">删除</el-button>
+                  </div>
+                  <el-dropdown v-else trigger="click" placement="bottom-end">
+                    <div class="op-more-dropdown-trigger">
+                      <button type="button" class="op-more-trigger">...</button>
+                    </div>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item @click.stop="removeItem($index)">
+                          <span class="op-more-item op-more-item--danger">删除</span>
+                        </el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -513,7 +549,9 @@ import MaterialProductionDateSelect from '@/components/MaterialProductionDateSel
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { useCustomerDictStore } from '@/stores/customerDict'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const formRef = ref()
@@ -526,6 +564,21 @@ const customerDict = useCustomerDictStore()
 
 /** 物料明细展示：面板（默认，每行 4 字段） / 列表（横向表格） */
 const materialItemsViewMode = ref<'panel' | 'list'>('panel')
+
+/** 《列表操作列规范》：需求明细行 */
+const rfqCreateLineOpColExpanded = ref(false)
+const RFQ_CREATE_OP_COL_COLLAPSED = 43
+const RFQ_CREATE_OP_COL_EXPANDED = 173
+const RFQ_CREATE_OP_COL_EXPANDED_MIN = 160
+const rfqCreateLineOpColWidth = computed(() =>
+  rfqCreateLineOpColExpanded.value ? RFQ_CREATE_OP_COL_EXPANDED : RFQ_CREATE_OP_COL_COLLAPSED
+)
+const rfqCreateLineOpColMinWidth = computed(() =>
+  rfqCreateLineOpColExpanded.value ? RFQ_CREATE_OP_COL_EXPANDED_MIN : RFQ_CREATE_OP_COL_COLLAPSED
+)
+function toggleRfqCreateLineOpCol() {
+  rfqCreateLineOpColExpanded.value = !rfqCreateLineOpColExpanded.value
+}
 
 const rfqId = computed(() => {
   const id = route.params.id

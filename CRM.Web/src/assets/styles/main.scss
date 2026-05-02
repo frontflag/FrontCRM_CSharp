@@ -403,14 +403,27 @@ html {
   flex-wrap: nowrap;
 }
 
-// el-table 操作列中的 el-button 也禁止折行
+// el-table：数据格单行 nowrap；表头允许换行，避免窄列截断列标题
 .el-table .el-table__cell {
   .el-button {
     white-space: nowrap !important;
   }
-  .cell {
-    white-space: nowrap;
-  }
+}
+.el-table td.el-table__cell .cell {
+  white-space: nowrap;
+}
+/*
+ * 表头允许换行以完整显示标题；须压过各页 scoped 的 `.el-table__cell .cell { nowrap }`
+ *（其选择器特异性可能高于「仅多一个 th」的全局规则）。
+ */
+.el-table .el-table__header-wrapper th.el-table__cell .cell,
+.el-table .el-table__fixed-header-wrapper th.el-table__cell .cell {
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  line-height: 1.35;
+  overflow: visible !important;
+  text-overflow: clip !important;
 }
 
 // ============================================================

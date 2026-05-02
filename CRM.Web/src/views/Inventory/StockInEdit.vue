@@ -158,23 +158,86 @@
             <el-table-column
               v-if="!isCreateMode"
               label="操作"
-              width="100"
+              :width="stockInReportOpColWidth"
+              :min-width="stockInReportOpColMinWidth"
               fixed="right"
               align="center"
               header-align="center"
+              class-name="op-col"
+              label-class-name="op-col"
             >
+              <template #header>
+                <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="stockInReportOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleStockInReportOpCol"
+            >
+              {{ stockInReportOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+              </template>
               <template #default="{ row }">
-                <el-dropdown trigger="click">
-                  <button type="button" class="action-btn">操作</button>
-                  <template #dropdown>
-                    <el-dropdown-item @click="openBatchImport(row)">录入批次</el-dropdown-item>
-                  </template>
-                </el-dropdown>
+                <div @click.stop @dblclick.stop>
+                  <div v-if="stockInReportOpColExpanded" class="action-btns">
+                    <button type="button" class="action-btn action-btn--primary" @click.stop="openBatchImport(row)">录入批次</button>
+                  </div>
+                  <el-dropdown v-else trigger="click" placement="bottom-end">
+                    <div class="op-more-dropdown-trigger">
+                      <button type="button" class="op-more-trigger">...</button>
+                    </div>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item @click.stop="openBatchImport(row)">
+                          <span class="op-more-item op-more-item--primary">录入批次</span>
+                        </el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </div>
               </template>
             </el-table-column>
-            <el-table-column v-if="isCreateMode" label="操作" width="80" fixed="right" class-name="op-col" label-class-name="op-col">
+            <el-table-column
+              v-if="isCreateMode"
+              label="操作"
+              :width="stockInCreateOpColWidth"
+              :min-width="stockInCreateOpColMinWidth"
+              fixed="right"
+              align="center"
+              class-name="op-col"
+              label-class-name="op-col"
+            >
+              <template #header>
+                <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="stockInCreateOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleStockInCreateOpCol"
+            >
+              {{ stockInCreateOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+              </template>
               <template #default="{ $index }">
-                <button type="button" class="action-btn action-btn--danger" @click.stop="removeRow($index)">删除</button>
+                <div @click.stop @dblclick.stop>
+                  <div v-if="stockInCreateOpColExpanded" class="action-btns">
+                    <button type="button" class="action-btn action-btn--danger" @click.stop="removeRow($index)">删除</button>
+                  </div>
+                  <el-dropdown v-else trigger="click" placement="bottom-end">
+                    <div class="op-more-dropdown-trigger">
+                      <button type="button" class="op-more-trigger">...</button>
+                    </div>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item @click.stop="removeRow($index)">
+                          <span class="op-more-item op-more-item--danger">删除</span>
+                        </el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -256,8 +319,10 @@ import { stockInApi, type CreateStockInRequest, type StockInDto, type StockInIte
 import { inventoryCenterApi, type StockItemListRow } from '@/api/inventoryCenter'
 import StockInBatchImportDialog from '@/components/Inventory/StockInBatchImportDialog.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useI18n } from 'vue-i18n'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { t } = useI18n()
 
 const router = useRouter()
 const route = useRoute()
@@ -275,6 +340,31 @@ const batchImportItemId = ref('')
 const batchImportItemCode = ref('')
 
 const isCreateMode = computed(() => route.name === 'StockInCreate')
+
+/** 《列表操作列规范》：新建明细行 / 详情行内操作 */
+const stockInReportOpColExpanded = ref(false)
+const stockInCreateOpColExpanded = ref(false)
+const STOCK_IN_OP_COL_COLLAPSED = 43
+const STOCK_IN_OP_COL_EXPANDED = 173
+const STOCK_IN_OP_COL_EXPANDED_MIN = 160
+const stockInReportOpColWidth = computed(() =>
+  stockInReportOpColExpanded.value ? STOCK_IN_OP_COL_EXPANDED : STOCK_IN_OP_COL_COLLAPSED
+)
+const stockInReportOpColMinWidth = computed(() =>
+  stockInReportOpColExpanded.value ? STOCK_IN_OP_COL_EXPANDED_MIN : STOCK_IN_OP_COL_COLLAPSED
+)
+const stockInCreateOpColWidth = computed(() =>
+  stockInCreateOpColExpanded.value ? STOCK_IN_OP_COL_EXPANDED : STOCK_IN_OP_COL_COLLAPSED
+)
+const stockInCreateOpColMinWidth = computed(() =>
+  stockInCreateOpColExpanded.value ? STOCK_IN_OP_COL_EXPANDED_MIN : STOCK_IN_OP_COL_COLLAPSED
+)
+function toggleStockInReportOpCol() {
+  stockInReportOpColExpanded.value = !stockInReportOpColExpanded.value
+}
+function toggleStockInCreateOpCol() {
+  stockInCreateOpColExpanded.value = !stockInCreateOpColExpanded.value
+}
 
 const stockInHeaderId = computed(() =>
   route.name === 'StockInDetail' && typeof route.params.id === 'string' ? route.params.id : ''

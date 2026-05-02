@@ -188,7 +188,7 @@ watch(
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .user-detail-page {
   padding: 24px;
@@ -282,7 +282,7 @@ watch(
 }
 
 .customer-code {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 11px;
   color: $text-muted;
 }
@@ -395,7 +395,7 @@ watch(
     color: $text-secondary;
 
     &--code {
-      font-family: 'Space Mono', monospace;
+      font-family: 'Noto Sans SC', sans-serif;
       font-size: 12px;
       color: $color-ice-blue;
     }

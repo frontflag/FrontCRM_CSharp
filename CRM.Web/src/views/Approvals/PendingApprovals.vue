@@ -106,10 +106,30 @@
           {{ row.submitter || '—' }}
         </template>
       </el-table-column>
-      <el-table-column :label="t('pendingApprovals.columns.actions')" width="180" fixed="right" class-name="op-col" label-class-name="op-col">
+      <el-table-column
+        :label="t('pendingApprovals.columns.actions')"
+        :width="opColWidth"
+        :min-width="opColMinWidth"
+        fixed="right"
+        class-name="op-col"
+        label-class-name="op-col"
+        :resizable="false"
+      >
+        <template #header>
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpCol"
+            >
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+        </template>
         <template #default="{ row }">
           <div @click.stop @dblclick.stop>
-            <div class="action-btns">
+            <div v-if="opColExpanded" class="action-btns">
               <template v-if="activeState === 'pending'">
                 <el-button
                   v-if="rowCanDecide(row)"
@@ -126,6 +146,26 @@
               </template>
               <el-button v-else link type="primary" size="small" @click.stop="handleView(row)">{{ t('pendingApprovals.actions.detail') }}</el-button>
             </div>
+            <el-dropdown v-else trigger="click" placement="bottom-end">
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <template v-if="activeState === 'pending'">
+                    <el-dropdown-item v-if="rowCanDecide(row)" @click.stop="openAuditDialog(row)">
+                      <span class="op-more-item op-more-item--primary">{{ t('pendingApprovals.actions.audit') }}</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item v-else @click.stop="openAuditDialog(row)">
+                      <span class="op-more-item op-more-item--primary">{{ t('pendingApprovals.actions.viewOnly') }}</span>
+                    </el-dropdown-item>
+                  </template>
+                  <el-dropdown-item v-else @click.stop="handleView(row)">
+                    <span class="op-more-item op-more-item--primary">{{ t('pendingApprovals.actions.detail') }}</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </template>
       </el-table-column>
@@ -323,6 +363,16 @@ const router = useRouter()
 const { t, te } = useI18n()
 
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
+
+const opColExpanded = ref(false)
+const OP_COL_COLLAPSED_WIDTH = 43
+const OP_COL_EXPANDED_WIDTH = 173
+const OP_COL_EXPANDED_MIN_WIDTH = 160
+const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
 
 const loading = ref(false)
 const actionLoading = ref(false)
@@ -770,7 +820,7 @@ onMounted(() => {
   font-size: 30px;
   line-height: 1;
   font-weight: 700;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
 .stat-card--pending .stat-value {
@@ -833,7 +883,7 @@ onMounted(() => {
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   transition: color 0.15s;
 
   &:hover {
@@ -846,7 +896,7 @@ onMounted(() => {
   color: #f0f6ff;
   font-size: 15px;
   font-weight: 600;
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
 .text-muted {
@@ -938,7 +988,7 @@ onMounted(() => {
   }
 
   .audit-doc {
-    font-family: 'Space Mono', monospace;
+    font-family: 'Noto Sans SC', sans-serif;
     color: $text-primary;
     font-weight: 600;
   }

@@ -113,13 +113,48 @@
               {{ row.createTime ? formatDisplayDateTime(row.createTime) : '-' }}
             </template>
           </el-table-column>
-          <el-table-column :label="t('financePaymentDetail.labels.actions')" width="140" fixed="right" class-name="op-col" label-class-name="op-col">
+          <el-table-column
+            :label="t('financePaymentDetail.labels.actions')"
+            :width="paymentDocsOpColWidth"
+            :min-width="paymentDocsOpColMinWidth"
+            fixed="right"
+            align="center"
+            class-name="op-col"
+            label-class-name="op-col"
+          >
+            <template #header>
+              <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="paymentDocsOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="togglePaymentDocsOpCol"
+            >
+              {{ paymentDocsOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+            </template>
             <template #default="{ row }">
               <div @click.stop @dblclick.stop>
-                <div class="action-btns">
+                <div v-if="paymentDocsOpColExpanded" class="action-btns">
                   <el-button size="small" text type="primary" @click.stop="previewDoc(row)">{{ t('financePaymentDetail.preview') }}</el-button>
                   <el-button size="small" text type="primary" @click.stop="downloadDoc(row)">{{ t('financePaymentDetail.download') }}</el-button>
                 </div>
+                <el-dropdown v-else trigger="click" placement="bottom-end">
+                  <div class="op-more-dropdown-trigger">
+                    <button type="button" class="op-more-trigger">...</button>
+                  </div>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item @click.stop="previewDoc(row)">
+                        <span class="op-more-item op-more-item--primary">{{ t('financePaymentDetail.preview') }}</span>
+                      </el-dropdown-item>
+                      <el-dropdown-item divided @click.stop="downloadDoc(row)">
+                        <span class="op-more-item op-more-item--primary">{{ t('financePaymentDetail.download') }}</span>
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
               </div>
             </template>
           </el-table-column>
@@ -161,6 +196,21 @@ const paymentDocs = ref<UploadDocumentDto[]>([])
 const vendorDisplayName = ref('-')
 
 const paymentId = computed(() => route.params.id as string)
+
+/** 《列表操作列规范》：银行水单附件表 */
+const paymentDocsOpColExpanded = ref(false)
+const PAYMENT_DOCS_OP_COL_COLLAPSED = 43
+const PAYMENT_DOCS_OP_COL_EXPANDED = 173
+const PAYMENT_DOCS_OP_COL_EXPANDED_MIN = 160
+const paymentDocsOpColWidth = computed(() =>
+  paymentDocsOpColExpanded.value ? PAYMENT_DOCS_OP_COL_EXPANDED : PAYMENT_DOCS_OP_COL_COLLAPSED
+)
+const paymentDocsOpColMinWidth = computed(() =>
+  paymentDocsOpColExpanded.value ? PAYMENT_DOCS_OP_COL_EXPANDED_MIN : PAYMENT_DOCS_OP_COL_COLLAPSED
+)
+function togglePaymentDocsOpCol() {
+  paymentDocsOpColExpanded.value = !paymentDocsOpColExpanded.value
+}
 
 onMounted(() => {
   fetchDetail()

@@ -208,12 +208,12 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'packageOrigin', label: t('stockInBatchList.columns.packageOrigin'), prop: 'packageOrigin', minWidth: 100, showOverflowTooltip: true },
   { key: 'waferOrigin', label: t('stockInBatchList.columns.waferOrigin'), prop: 'waferOrigin', minWidth: 100, showOverflowTooltip: true },
   { key: 'lot', label: t('stockInBatchList.columns.lot'), prop: 'lot', width: 100, showOverflowTooltip: true },
-  { key: 'lotQtyIn', label: t('stockInBatchList.columns.lotQtyIn'), prop: 'lotQtyIn', width: 100, align: 'right' },
-  { key: 'lotQtyOut', label: t('stockInBatchList.columns.lotQtyOut'), prop: 'lotQtyOut', width: 100, align: 'right' },
+  { key: 'lotQtyIn', label: t('stockInBatchList.columns.lotQtyIn'), prop: 'lotQtyIn', width: 148, minWidth: 148, align: 'right' },
+  { key: 'lotQtyOut', label: t('stockInBatchList.columns.lotQtyOut'), prop: 'lotQtyOut', width: 148, minWidth: 148, align: 'right' },
   { key: 'origin', label: t('stockInBatchList.columns.origin'), prop: 'origin', minWidth: 90, showOverflowTooltip: true },
   { key: 'serialNumber', label: t('stockInBatchList.columns.serialNumber'), prop: 'serialNumber', minWidth: 110, showOverflowTooltip: true },
-  { key: 'snQtyIn', label: t('stockInBatchList.columns.snQtyIn'), prop: 'snQtyIn', width: 110, align: 'right' },
-  { key: 'snQtyOut', label: t('stockInBatchList.columns.snQtyOut'), prop: 'snQtyOut', width: 110, align: 'right' },
+  { key: 'snQtyIn', label: t('stockInBatchList.columns.snQtyIn'), prop: 'snQtyIn', width: 158, minWidth: 158, align: 'right' },
+  { key: 'snQtyOut', label: t('stockInBatchList.columns.snQtyOut'), prop: 'snQtyOut', width: 158, minWidth: 158, align: 'right' },
   { key: 'firmwareVersion', label: t('stockInBatchList.columns.firmwareVersion'), prop: 'firmwareVersion', minWidth: 110, showOverflowTooltip: true },
   { key: 'remark', label: t('stockInBatchList.columns.remark'), prop: 'remark', minWidth: 120, showOverflowTooltip: true }
 ])

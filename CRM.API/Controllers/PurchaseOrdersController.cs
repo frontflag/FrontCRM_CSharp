@@ -136,159 +136,240 @@ namespace CRM.API.Controllers
                 var summary = await GetPermissionSummaryAsync(userId);
                 var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
 
-                var poItemIds = (order.Items ?? new List<PurchaseOrderItem>())
-                    .Select(i => i.Id)
-                    .Where(x => !string.IsNullOrWhiteSpace(x))
-                    .Select(x => x.Trim())
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-                var soItemIds = (order.Items ?? new List<PurchaseOrderItem>())
-                    .Select(i => i.SellOrderItemId)
-                    .Where(x => !string.IsNullOrWhiteSpace(x))
-                    .Select(x => x!.Trim())
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                var prRows = soItemIds.Count == 0
-                    ? new List<object>()
-                    : (await _db.PurchaseRequisitions.AsNoTracking()
-                        .Where(x => soItemIds.Contains(x.SellOrderItemId))
-                        .OrderByDescending(x => x.CreateTime)
-                        .Select(x => new
-                        {
-                            id = x.Id,
-                            billCode = x.BillCode,
-                            x.Status,
-                            sellOrderItemId = x.SellOrderItemId,
-                            x.PN,
-                            x.Brand,
-                            x.Qty,
-                            x.ExpectedPurchaseTime,
-                            x.CreateTime
-                        })
-                        .ToListAsync()).Cast<object>().ToList();
-
-                var payHeaderIds = await _db.FinancePaymentItems.AsNoTracking()
-                    .Where(x => x.PurchaseOrderId == id || (x.PurchaseOrderItemId != null && poItemIds.Contains(x.PurchaseOrderItemId)))
-                    .Select(x => x.FinancePaymentId)
-                    .Distinct()
-                    .ToListAsync();
-                var paymentRows = await _db.FinancePayments.AsNoTracking()
-                    .Where(x => payHeaderIds.Contains(x.Id))
-                    .OrderByDescending(x => x.CreateTime)
-                    .Select(x => new
-                    {
-                        id = x.Id,
-                        financePaymentCode = x.FinancePaymentCode,
-                        vendorName = mask511 ? null : x.VendorName,
-                        x.Status,
-                        paymentAmountToBe = x.PaymentAmountToBe,
-                        paymentAmount = x.PaymentAmount,
-                        x.PaymentCurrency,
-                        x.PaymentDate,
-                        x.CreateTime
-                    })
-                    .ToListAsync();
-
-                var noticeRows = await _db.StockInNotifies.AsNoTracking()
-                    .Where(x => x.PurchaseOrderId == id)
-                    .OrderByDescending(x => x.CreateTime)
-                    .Select(x => new
-                    {
-                        id = x.Id,
-                        noticeCode = x.NoticeCode,
-                        x.Pn,
-                        x.Brand,
-                        x.ExpectQty,
-                        x.ReceiveQty,
-                        x.Status,
-                        x.ExpectedArrivalDate,
-                        x.CreateTime
-                    })
-                    .ToListAsync();
-
-                var stockInIds = poItemIds.Count == 0
-                    ? new List<string>()
-                    : await _db.StockInItemExtends.AsNoTracking()
-                        .Where(x => x.PurchaseOrderItemId != null && poItemIds.Contains(x.PurchaseOrderItemId))
-                        .Select(x => x.StockInId)
-                        .Distinct()
-                        .ToListAsync();
-                var stockInRows = await _db.StockIns.AsNoTracking()
-                    .Where(x => stockInIds.Contains(x.Id))
-                    .OrderByDescending(x => x.CreateTime)
-                    .Select(x => new
-                    {
-                        id = x.Id,
-                        stockInCode = x.StockInCode,
-                        x.StockInType,
-                        x.Status,
-                        x.StockInDate,
-                        x.CreateTime
-                    })
-                    .ToListAsync();
-
-                var stockItemRows = poItemIds.Count == 0
-                    ? new List<object>()
-                    : (await _db.StockItems.AsNoTracking()
-                        .Where(x => x.PurchaseOrderItemId != null && poItemIds.Contains(x.PurchaseOrderItemId))
-                        .OrderByDescending(x => x.CreateTime)
-                        .Select(x => new
-                        {
-                            id = x.Id,
-                            x.StockItemCode,
-                            x.StockAggregateId,
-                            x.PurchasePn,
-                            x.PurchaseBrand,
-                            x.QtyRepertory,
-                            x.QtyRepertoryAvailable,
-                            x.PurchaseOrderItemId,
-                            x.PurchaseOrderItemCode
-                        })
-                        .ToListAsync()).Cast<object>().ToList();
-
-                var invHeaderIds = stockInIds.Count == 0
-                    ? new List<string>()
-                    : await _db.FinancePurchaseInvoiceItems.AsNoTracking()
-                        .Where(x => x.StockInId != null && stockInIds.Contains(x.StockInId))
-                        .Select(x => x.FinancePurchaseInvoiceId)
-                        .Distinct()
-                        .ToListAsync();
-                var invoiceRows = await _db.FinancePurchaseInvoices.AsNoTracking()
-                    .Where(x => invHeaderIds.Contains(x.Id))
-                    .OrderByDescending(x => x.CreateTime)
-                    .Select(x => new
-                    {
-                        id = x.Id,
-                        vendorName = mask511 ? null : x.VendorName,
-                        x.InvoiceNo,
-                        invoiceAmount = mask511 ? 0m : x.InvoiceAmount,
-                        x.InvoiceDate,
-                        x.ConfirmStatus,
-                        x.RedInvoiceStatus,
-                        x.CreateTime
-                    })
-                    .ToListAsync();
-
-                return Ok(new
-                {
-                    success = true,
-                    data = new
-                    {
-                        purchaseRequisitions = prRows,
-                        payments = paymentRows,
-                        arrivalNotices = noticeRows,
-                        stockIns = stockInRows,
-                        stockItems = stockItemRows,
-                        purchaseInvoices = invoiceRows
-                    }
-                });
+                var data = await BuildPurchaseOrderDetailTabAggregatesPayloadAsync(id, order, purchaseOrderItemIdScope: null, mask511);
+                return Ok(new { success = true, data });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取采购订单页签数据失败: {Id}", id);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
+        }
+
+        /// <summary>采购订单「单条明细」下游列表：与 <c>detail-tab-aggregates</c> 字段一致，按采购明细主键过滤。</summary>
+        [HttpGet("{id}/purchase-order-items/{purchaseOrderItemId}/detail-tab-aggregates")]
+        public async Task<IActionResult> GetPurchaseOrderItemDetailTabAggregates(string id, string purchaseOrderItemId)
+        {
+            try
+            {
+                var lineId = (purchaseOrderItemId ?? string.Empty).Trim();
+                if (string.IsNullOrEmpty(lineId))
+                    return BadRequest(new { success = false, message = "采购订单明细主键无效" });
+
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+
+                var orderLineIds = (order.Items ?? new List<PurchaseOrderItem>())
+                    .Select(i => i.Id)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (!orderLineIds.Contains(lineId, StringComparer.OrdinalIgnoreCase))
+                    return NotFound(new { success = false, message = "采购订单明细不属于该订单" });
+
+                var summary = await GetPermissionSummaryAsync(userId);
+                var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
+
+                var data = await BuildPurchaseOrderDetailTabAggregatesPayloadAsync(id, order, lineId, mask511);
+                return Ok(new { success = true, data });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取采购订单明细页签数据失败: {OrderId} {ItemId}", id, purchaseOrderItemId);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <param name="purchaseOrderItemIdScope">非 null 时：采购申请仅保留该明细关联销售行；付款明细仅保留该行；到货通知按采购明细过滤；入库/库存/进项发票链仅使用该明细。</param>
+        private async Task<object> BuildPurchaseOrderDetailTabAggregatesPayloadAsync(
+            string purchaseOrderId,
+            PurchaseOrder order,
+            string? purchaseOrderItemIdScope,
+            bool mask511)
+        {
+            var allItems = order.Items ?? new List<PurchaseOrderItem>();
+            List<string> poItemIds;
+            List<string> soItemIds;
+
+            if (!string.IsNullOrWhiteSpace(purchaseOrderItemIdScope))
+            {
+                var scope = purchaseOrderItemIdScope.Trim();
+                var line = allItems.FirstOrDefault(i =>
+                    !string.IsNullOrWhiteSpace(i.Id) &&
+                    string.Equals(i.Id.Trim(), scope, StringComparison.OrdinalIgnoreCase));
+                if (line == null)
+                    throw new InvalidOperationException("采购订单明细不属于该订单");
+
+                poItemIds = new List<string> { scope };
+                var so = line.SellOrderItemId?.Trim();
+                soItemIds = string.IsNullOrEmpty(so) ? new List<string>() : new List<string> { so };
+            }
+            else
+            {
+                poItemIds = allItems
+                    .Select(i => i.Id)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                soItemIds = allItems
+                    .Select(i => i.SellOrderItemId)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x!.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+
+            var prRows = soItemIds.Count == 0
+                ? new List<object>()
+                : (await _db.PurchaseRequisitions.AsNoTracking()
+                    .Where(x => soItemIds.Contains(x.SellOrderItemId))
+                    .OrderByDescending(x => x.CreateTime)
+                    .Select(x => new
+                    {
+                        id = x.Id,
+                        billCode = x.BillCode,
+                        x.Status,
+                        sellOrderItemId = x.SellOrderItemId,
+                        x.PN,
+                        x.Brand,
+                        x.Qty,
+                        x.ExpectedPurchaseTime,
+                        x.CreateTime
+                    })
+                    .ToListAsync()).Cast<object>().ToList();
+
+            List<string> payHeaderIds;
+            if (!string.IsNullOrWhiteSpace(purchaseOrderItemIdScope))
+            {
+                payHeaderIds = await _db.FinancePaymentItems.AsNoTracking()
+                    .Where(x => x.PurchaseOrderItemId != null && poItemIds.Contains(x.PurchaseOrderItemId))
+                    .Select(x => x.FinancePaymentId)
+                    .Distinct()
+                    .ToListAsync();
+            }
+            else
+            {
+                payHeaderIds = await _db.FinancePaymentItems.AsNoTracking()
+                    .Where(x => x.PurchaseOrderId == purchaseOrderId || (x.PurchaseOrderItemId != null && poItemIds.Contains(x.PurchaseOrderItemId)))
+                    .Select(x => x.FinancePaymentId)
+                    .Distinct()
+                    .ToListAsync();
+            }
+
+            var paymentRows = await _db.FinancePayments.AsNoTracking()
+                .Where(x => payHeaderIds.Contains(x.Id))
+                .OrderByDescending(x => x.CreateTime)
+                .Select(x => new
+                {
+                    id = x.Id,
+                    financePaymentCode = x.FinancePaymentCode,
+                    vendorName = mask511 ? null : x.VendorName,
+                    x.Status,
+                    paymentAmountToBe = x.PaymentAmountToBe,
+                    paymentAmount = x.PaymentAmount,
+                    x.PaymentCurrency,
+                    x.PaymentDate,
+                    x.CreateTime
+                })
+                .ToListAsync();
+
+            IQueryable<StockInNotify> noticeQuery = _db.StockInNotifies.AsNoTracking().Where(x => x.PurchaseOrderId == purchaseOrderId);
+            if (!string.IsNullOrWhiteSpace(purchaseOrderItemIdScope))
+                noticeQuery = noticeQuery.Where(x => poItemIds.Contains(x.PurchaseOrderItemId));
+
+            var noticeRows = await noticeQuery
+                .OrderByDescending(x => x.CreateTime)
+                .Select(x => new
+                {
+                    id = x.Id,
+                    noticeCode = x.NoticeCode,
+                    x.Pn,
+                    x.Brand,
+                    x.ExpectQty,
+                    x.ReceiveQty,
+                    x.Status,
+                    x.ExpectedArrivalDate,
+                    x.CreateTime
+                })
+                .ToListAsync();
+
+            var stockInIds = poItemIds.Count == 0
+                ? new List<string>()
+                : await _db.StockInItemExtends.AsNoTracking()
+                    .Where(x => x.PurchaseOrderItemId != null && poItemIds.Contains(x.PurchaseOrderItemId))
+                    .Select(x => x.StockInId)
+                    .Distinct()
+                    .ToListAsync();
+            var stockInRows = await _db.StockIns.AsNoTracking()
+                .Where(x => stockInIds.Contains(x.Id))
+                .OrderByDescending(x => x.CreateTime)
+                .Select(x => new
+                {
+                    id = x.Id,
+                    stockInCode = x.StockInCode,
+                    x.StockInType,
+                    x.Status,
+                    x.StockInDate,
+                    x.CreateTime
+                })
+                .ToListAsync();
+
+            var stockItemRows = poItemIds.Count == 0
+                ? new List<object>()
+                : (await _db.StockItems.AsNoTracking()
+                    .Where(x => x.PurchaseOrderItemId != null && poItemIds.Contains(x.PurchaseOrderItemId))
+                    .OrderByDescending(x => x.CreateTime)
+                    .Select(x => new
+                    {
+                        id = x.Id,
+                        x.StockItemCode,
+                        x.StockAggregateId,
+                        x.PurchasePn,
+                        x.PurchaseBrand,
+                        x.QtyRepertory,
+                        x.QtyRepertoryAvailable,
+                        x.PurchaseOrderItemId,
+                        x.PurchaseOrderItemCode
+                    })
+                    .ToListAsync()).Cast<object>().ToList();
+
+            var invHeaderIds = stockInIds.Count == 0
+                ? new List<string>()
+                : await _db.FinancePurchaseInvoiceItems.AsNoTracking()
+                    .Where(x => x.StockInId != null && stockInIds.Contains(x.StockInId))
+                    .Select(x => x.FinancePurchaseInvoiceId)
+                    .Distinct()
+                    .ToListAsync();
+            var invoiceRows = await _db.FinancePurchaseInvoices.AsNoTracking()
+                .Where(x => invHeaderIds.Contains(x.Id))
+                .OrderByDescending(x => x.CreateTime)
+                .Select(x => new
+                {
+                    id = x.Id,
+                    vendorName = mask511 ? null : x.VendorName,
+                    x.InvoiceNo,
+                    invoiceAmount = mask511 ? 0m : x.InvoiceAmount,
+                    x.InvoiceDate,
+                    x.ConfirmStatus,
+                    x.RedInvoiceStatus,
+                    x.CreateTime
+                })
+                .ToListAsync();
+
+            return new
+            {
+                purchaseRequisitions = prRows,
+                payments = paymentRows,
+                arrivalNotices = noticeRows,
+                stockIns = stockInRows,
+                stockItems = stockItemRows,
+                purchaseInvoices = invoiceRows
+            };
         }
 
         [HttpGet("{id}")]

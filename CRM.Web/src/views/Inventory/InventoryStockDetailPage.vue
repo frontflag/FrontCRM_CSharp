@@ -111,11 +111,47 @@
         <el-table-column :label="t('inventoryStockDetail.columns.createTime')" width="170">
           <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
         </el-table-column>
-        <el-table-column fixed="right" :label="t('inventoryStockDetail.columns.actions')" width="108" align="center">
+        <el-table-column
+          fixed="right"
+          :label="t('inventoryStockDetail.columns.actions')"
+          :width="stockDetailOpColWidth"
+          :min-width="stockDetailOpColMinWidth"
+          align="center"
+          class-name="op-col"
+          label-class-name="op-col"
+        >
+          <template #header>
+            <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="stockDetailOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleStockDetailOpCol"
+            >
+              {{ stockDetailOpColExpanded ? '>' : '<' }}
+            </button>
+          </div>
+          </template>
           <template #default="{ row }">
-            <el-button type="primary" link @click="goManualTransfer(row.stockItemId)">
-              {{ t('inventoryStockDetail.actions.manualTransfer') }}
-            </el-button>
+            <div @click.stop @dblclick.stop>
+              <div v-if="stockDetailOpColExpanded" class="action-btns">
+                <el-button type="primary" link @click.stop="goManualTransfer(row.stockItemId)">
+                  {{ t('inventoryStockDetail.actions.manualTransfer') }}
+                </el-button>
+              </div>
+              <el-dropdown v-else trigger="click" placement="bottom-end">
+                <div class="op-more-dropdown-trigger">
+                  <button type="button" class="op-more-trigger">...</button>
+                </div>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item @click.stop="goManualTransfer(row.stockItemId)">
+                      <span class="op-more-item op-more-item--primary">{{ t('inventoryStockDetail.actions.manualTransfer') }}</span>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
           </template>
         </el-table-column>
       </CrmDataTable>
@@ -197,6 +233,21 @@ const stockItemsPageSize = ref(10)
 const traceList = ref<MaterialTrace[]>([])
 const loadingItems = ref(false)
 const loadingTrace = ref(false)
+
+/** 《列表操作列规范》 */
+const stockDetailOpColExpanded = ref(false)
+const STOCK_DETAIL_OP_COL_COLLAPSED = 43
+const STOCK_DETAIL_OP_COL_EXPANDED = 173
+const STOCK_DETAIL_OP_COL_EXPANDED_MIN = 160
+const stockDetailOpColWidth = computed(() =>
+  stockDetailOpColExpanded.value ? STOCK_DETAIL_OP_COL_EXPANDED : STOCK_DETAIL_OP_COL_COLLAPSED
+)
+const stockDetailOpColMinWidth = computed(() =>
+  stockDetailOpColExpanded.value ? STOCK_DETAIL_OP_COL_EXPANDED_MIN : STOCK_DETAIL_OP_COL_COLLAPSED
+)
+function toggleStockDetailOpCol() {
+  stockDetailOpColExpanded.value = !stockDetailOpColExpanded.value
+}
 
 const pagedStockItems = computed(() => {
   const all = stockItems.value

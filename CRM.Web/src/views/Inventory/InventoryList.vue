@@ -241,14 +241,19 @@
           fixed="right"
           class-name="op-col"
           label-class-name="op-col"
+          :resizable="false"
         >
           <template #header>
-            <div class="op-col-header">
-              <span class="op-col-header-text">{{ t('inventoryList.columns.actions') }}</span>
-              <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpColWarehouse">
-                {{ opColWarehouseExpanded ? '>' : '<' }}
-              </button>
-            </div>
+            <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColWarehouseExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpColWarehouse"
+            >
+              {{ opColWarehouseExpanded ? '>' : '<' }}
+            </button>
+          </div>
           </template>
           <template #default="{ row }">
             <div @click.stop @dblclick.stop>
@@ -316,7 +321,7 @@ const inventoryTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'lockedQty', label: t('inventoryList.columns.lockedQty'), prop: 'lockedQty', width: 110, align: 'right' },
   { key: 'inventoryAmount', label: t('inventoryList.columns.inventoryAmount'), prop: 'inventoryAmount', width: 120, align: 'right' },
   { key: 'warehouseName', label: t('inventoryList.columns.warehouseName'), width: 160, showOverflowTooltip: true },
-  { key: 'region', label: t('inventoryList.columns.region'), width: 88, align: 'center', showOverflowTooltip: false },
+  { key: 'region', label: t('inventoryList.columns.region'), width: 100, minWidth: 100, align: 'center', showOverflowTooltip: false },
   { key: 'lastMoveTime', label: t('inventoryList.columns.lastMoveTime'), prop: 'lastMoveTime', width: 170 },
   { key: 'stockCode', label: t('inventoryList.columns.stockCode'), width: 132, showOverflowTooltip: true },
   { key: 'createTime', label: t('inventoryList.columns.createTime'), width: 160 },
@@ -325,9 +330,9 @@ const inventoryTableColumns = computed<CrmTableColumnDef[]>(() => [
 
 // 列表操作列：弹窗表格默认收起（Collapsed）
 const opColWarehouseExpanded = ref(false)
-const OP_COL_WAREHOUSE_COLLAPSED_WIDTH = 96
-const OP_COL_WAREHOUSE_EXPANDED_WIDTH = 110
-const OP_COL_WAREHOUSE_EXPANDED_MIN_WIDTH = 110
+const OP_COL_WAREHOUSE_COLLAPSED_WIDTH = 43
+const OP_COL_WAREHOUSE_EXPANDED_WIDTH = 173
+const OP_COL_WAREHOUSE_EXPANDED_MIN_WIDTH = 160
 const opColWarehouseWidth = computed(() =>
   opColWarehouseExpanded.value ? OP_COL_WAREHOUSE_EXPANDED_WIDTH : OP_COL_WAREHOUSE_COLLAPSED_WIDTH
 )

@@ -140,9 +140,13 @@
           {{ row.createUserName || row.createdBy || row.salesUserName || '—' }}
         </template>
         <template #col-actions-header>
-          <div class="op-col-header">
-            <span class="op-col-header-text">{{ t('salesOrderList.columns.actions') }}</span>
-            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpCol"
+            >
               {{ opColExpanded ? '>' : '<' }}
             </button>
           </div>
@@ -274,9 +278,9 @@ const pageInfo = ref({
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
-const OP_COL_COLLAPSED_WIDTH = 96
-const OP_COL_EXPANDED_WIDTH = 340
-const OP_COL_EXPANDED_MIN_WIDTH = 300
+const OP_COL_COLLAPSED_WIDTH = 43
+const OP_COL_EXPANDED_WIDTH = 173
+const OP_COL_EXPANDED_MIN_WIDTH = 160
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
 function toggleOpCol() {
@@ -293,7 +297,14 @@ const salesOrderTableColumns = computed((): CrmTableColumnDef[] => {
     : []),
   { key: 'salesUserName', label: t('salesOrderList.columns.salesUser'), prop: 'salesUserName', width: 120, minWidth: 120, showOverflowTooltip: true },
   ...(canViewSalesAmount.value ? [{ key: 'total', label: t('salesOrderList.columns.totalAmount'), prop: 'total', width: 160, align: 'right' as const }] : []),
-  { key: 'itemRows', label: t('salesOrderList.columns.itemRows'), prop: 'itemRows', width: 80, align: 'center' as const },
+  {
+    key: 'itemRows',
+    label: t('salesOrderList.columns.itemRows'),
+    prop: 'itemRows',
+    width: 120,
+    minWidth: 120,
+    align: 'center' as const
+  },
   {
     key: 'sellOrderCode',
     label: t('salesOrderList.columns.orderCode'),
@@ -315,7 +326,8 @@ const salesOrderTableColumns = computed((): CrmTableColumnDef[] => {
     pinned: 'end',
     reorderable: false,
     className: 'op-col',
-    labelClassName: 'op-col'
+    labelClassName: 'op-col',
+  resizable: false
   }
   ]
 })

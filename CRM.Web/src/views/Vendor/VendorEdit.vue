@@ -1078,7 +1078,7 @@ onMounted(() => {
   }
   :deep(.el-input__inner) {
     color: rgba(255,255,255,0.4) !important;
-    font-family: 'Space Mono', monospace;
+    font-family: 'Noto Sans SC', sans-serif;
     font-size: 12px;
     letter-spacing: 0.5px;
     cursor: default !important;

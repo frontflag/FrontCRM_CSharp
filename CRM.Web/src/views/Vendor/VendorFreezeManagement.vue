@@ -301,7 +301,7 @@ onMounted(fetchData)
 }
 
 .meta-code {
-  font-family: 'Space Mono', monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 11px;
   color: $color-ice-blue;
 }

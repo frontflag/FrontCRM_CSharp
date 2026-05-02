@@ -139,9 +139,13 @@
           {{ row.createUserName || row.CreateUserName || row.createdBy || '—' }}
         </template>
         <template #col-actions-header>
-          <div class="op-col-header">
-            <span class="op-col-header-text">{{ t('rfqList.actions.column') }}</span>
-            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpCol"
+            >
               {{ opColExpanded ? '>' : '<' }}
             </button>
           </div>
@@ -266,13 +270,17 @@ const pageInfo = ref({
   total: 0
 })
 
-// 列表操作列：默认收起（Collapsed）
+// 列表操作列：《列表操作列规范》高密度（与需求明细主表一致）
 const opColExpanded = ref(false)
-const OP_COL_COLLAPSED_WIDTH = 96
-const OP_COL_EXPANDED_WIDTH = 168
-const OP_COL_EXPANDED_MIN_WIDTH = 160
-const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
-const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const LIST_OP_COL_COLLAPSED_WIDTH = 43
+const LIST_OP_COL_EXPANDED_WIDTH = 173
+const LIST_OP_COL_EXPANDED_MIN_WIDTH = 160
+const opColWidth = computed(() =>
+  opColExpanded.value ? LIST_OP_COL_EXPANDED_WIDTH : LIST_OP_COL_COLLAPSED_WIDTH
+)
+const opColMinWidth = computed(() =>
+  opColExpanded.value ? LIST_OP_COL_EXPANDED_MIN_WIDTH : LIST_OP_COL_COLLAPSED_WIDTH
+)
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
@@ -325,7 +333,8 @@ const rfqTableColumns = computed((): CrmTableColumnDef[] => {
       pinned: 'end',
       reorderable: false,
       className: 'op-col',
-      labelClassName: 'op-col'
+      labelClassName: 'op-col',
+      resizable: false
     }
   )
   return cols
@@ -500,7 +509,7 @@ const handleView = (row: any) => {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .rfq-list-page {
   padding: 24px;
@@ -547,7 +556,7 @@ const handleView = (row: any) => {
     font-weight: 700;
     color: $text-primary;
     margin-bottom: 5px;
-    font-family: 'Space Mono', monospace;
+    font-family: 'Noto Sans SC', sans-serif;
   }
   .stat-label { font-size: 12px; color: $text-muted; }
 }
@@ -645,6 +654,7 @@ const handleView = (row: any) => {
   :deep(.el-table__fixed-body-wrapper .el-table__body tr.el-table__row.current-row) {
     transform: translateY(-1px);
   }
+
 }
 
 /** 《业务列表规范》§3.2：数量字重与字色 */
@@ -774,21 +784,7 @@ html[data-theme='dark'] .rfq-list-qty {
   :deep(.el-pagination__total) { color: $text-muted; }
 }
 
-// 列表操作列规范（收起/展开）
-.op-col-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0;
-  width: 100%;
-}
-
-.op-col-header-text {
-  font-size: 12px;
-  line-height: 1;
-  white-space: nowrap;
-}
-
+// 操作列切换钮（列头见上 .table-wrapper :deep(th.op-col…)）
 .op-col-toggle-btn {
   padding: 0;
   border: none;

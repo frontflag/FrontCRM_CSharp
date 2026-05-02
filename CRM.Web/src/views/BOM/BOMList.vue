@@ -146,9 +146,13 @@
         <template #col-createdAt="{ row }">{{ formatDate(row.createdAt) }}</template>
         <template #col-createUser="{ row }">{{ row.salesUserName || row.createdBy || '—' }}</template>
         <template #col-actions-header>
-          <div class="op-col-header">
-            <span class="op-col-header-text">{{ t('bomList.columns.actions') }}</span>
-            <button type="button" class="op-col-toggle-btn" @click.stop="toggleOpCol">
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpCol"
+            >
               {{ opColExpanded ? '>' : '<' }}
             </button>
           </div>
@@ -237,9 +241,9 @@ const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
-const OP_COL_COLLAPSED_WIDTH = 96
-const OP_COL_EXPANDED_WIDTH = 168
-const OP_COL_EXPANDED_MIN_WIDTH = 168
+const OP_COL_COLLAPSED_WIDTH = 43
+const OP_COL_EXPANDED_WIDTH = 173
+const OP_COL_EXPANDED_MIN_WIDTH = 160
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
 const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
 function toggleOpCol() {
@@ -248,14 +252,14 @@ function toggleOpCol() {
 
 const bomTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'selection', type: 'selection', width: 44, fixed: 'left', hideable: false, reorderable: false },
-  { key: 'status', label: t('bomList.columns.status'), width: 90, align: 'center' },
+  { key: 'status', label: t('bomList.columns.status'), width: 110, minWidth: 110, align: 'center' },
   { key: 'customerName', label: t('bomList.columns.customer'), minWidth: 160, showOverflowTooltip: true },
-  { key: 'itemCount', label: t('bomList.columns.itemCount'), width: 80, align: 'center' },
-  { key: 'quotedCount', label: t('bomList.columns.quotedCount'), width: 80, align: 'center' },
-  { key: 'bomType', label: t('bomList.columns.type'), width: 80, align: 'center' },
+  { key: 'itemCount', label: t('bomList.columns.itemCount'), width: 120, minWidth: 120, align: 'center' },
+  { key: 'quotedCount', label: t('bomList.columns.quotedCount'), width: 120, minWidth: 120, align: 'center' },
+  { key: 'bomType', label: t('bomList.columns.type'), width: 104, minWidth: 104, align: 'center' },
   { key: 'bomCode', label: t('bomList.columns.bomCode'), width: 160, minWidth: 160 },
   { key: 'createdAt', label: t('bomList.columns.createdAt'), width: 150 },
-  { key: 'createUser', label: t('bomList.columns.createUser'), width: 90, showOverflowTooltip: true },
+  { key: 'createUser', label: t('bomList.columns.createUser'), width: 120, minWidth: 120, showOverflowTooltip: true },
   {
     key: 'actions',
     label: t('bomList.columns.actions'),
@@ -266,7 +270,8 @@ const bomTableColumns = computed<CrmTableColumnDef[]>(() => [
     pinned: 'end',
     reorderable: false,
     className: 'op-col',
-    labelClassName: 'op-col'
+    labelClassName: 'op-col',
+  resizable: false
   }
 ])
 

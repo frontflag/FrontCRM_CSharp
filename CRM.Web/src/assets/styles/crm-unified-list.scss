@@ -32,7 +32,10 @@
     font-size: 12px;
     font-weight: 500;
     color: $text-muted;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
     letter-spacing: 0.3px;
   }
 
@@ -235,8 +238,20 @@
     white-space: nowrap !important;
   }
 
-  .el-table__cell .cell {
+  /* 仅数据格单行；表头见下方，避免列标题被窄宽 + nowrap 截断 */
+  .el-table__body-wrapper td.el-table__cell .cell,
+  .el-table__fixed-body-wrapper td.el-table__cell .cell {
     white-space: nowrap;
+  }
+
+  .el-table__header-wrapper th.el-table__cell .cell,
+  .el-table__fixed-header-wrapper th.el-table__cell .cell {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    line-height: 1.35;
+    overflow: visible !important;
+    text-overflow: clip !important;
   }
 
   .el-table__body tr.table-row-pointer {
@@ -266,8 +281,8 @@
   }
 
   // --- 操作列：与客户列表 CustomerList 末列 .action-btns / .action-btn 一致（含行悬停显隐）---
-  td.op-col .cell,
-  th.op-col .cell {
+  /* 操作列：仅数据格隐藏溢出；表头为图标/切换钮，需可见命中区 */
+  td.op-col .cell {
     overflow: hidden;
   }
 
@@ -385,6 +400,30 @@
   flex: 0 0 auto;
 }
 
+/** 《列表操作列规范》高密度：列头仅展示 < >；单元格居中（全站 .el-table th.op-col） */
+.el-table th.op-col.el-table__cell .cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-left: 2px !important;
+  padding-right: 2px !important;
+}
+
+.list-op-col-header--icon-only {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.op-col-toggle-btn.list-op-col-toggle {
+  min-width: 28px;
+  min-height: 28px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .op-more-trigger {
   padding: 0;
   border: none;
@@ -476,6 +515,26 @@ td.op-col .cell .el-dropdown {
 .el-table__body-wrapper .el-table__body tr.current-row .op-more-dropdown-trigger .op-more-trigger,
 .el-table__fixed-body-wrapper .el-table__body tr.current-row .op-more-dropdown-trigger .op-more-trigger {
   opacity: 1;
+}
+
+/** 《列表操作列规范》：悬停操作列单元格或「...」热区时，背景与阴影贴合 .op-more-dropdown-trigger 热点 */
+.crm-items-table.crm-data-table td.op-col:hover .op-more-dropdown-trigger,
+.crm-items-table.crm-data-table td.op-col .op-more-dropdown-trigger:hover {
+  background: rgba(0, 212, 255, 0.14);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.crm-items-table.crm-data-table td.op-col:hover .op-more-trigger,
+.crm-items-table.crm-data-table td.op-col .op-more-dropdown-trigger:hover .op-more-trigger {
+  opacity: 1;
+}
+
+html[data-theme='dark'] .crm-items-table.crm-data-table td.op-col:hover .op-more-dropdown-trigger,
+html[data-theme='dark'] .crm-items-table.crm-data-table td.op-col .op-more-dropdown-trigger:hover {
+  background: rgba(0, 212, 255, 0.12);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
 }
 
 .op-more-item {

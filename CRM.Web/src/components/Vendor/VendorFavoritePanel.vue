@@ -108,7 +108,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
 
 .vendor-favorite-panel {
   min-height: 80px;
@@ -164,7 +164,7 @@ onBeforeUnmount(() => {
 }
 
 .vendor-favorite-panel__code {
-  font-family: 'Space Mono', ui-monospace, monospace;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 11px;
   color: rgba(180, 210, 230, 0.85);
 }
