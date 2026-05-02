@@ -8,7 +8,9 @@
         <el-breadcrumb separator="/">
           <el-breadcrumb-item>{{ t('salesOrderCreate.breadcrumb.orders') }}</el-breadcrumb-item>
           <el-breadcrumb-item>{{ t('salesOrderCreate.breadcrumb.sales') }}</el-breadcrumb-item>
-          <el-breadcrumb-item>{{ t('salesOrderCreate.breadcrumb.newOrder') }}</el-breadcrumb-item>
+          <el-breadcrumb-item>{{
+            isEditMode ? t('salesOrderCreate.breadcrumb.editOrder') : t('salesOrderCreate.breadcrumb.newOrder')
+          }}</el-breadcrumb-item>
         </el-breadcrumb>
       </div>
       <div class="header-right">
@@ -342,6 +344,10 @@ const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+
+/** 与采购订单一致：编辑走独立路由 `SalesOrderEdit`（/sales-orders/:id/edit） */
+const editId = computed(() => (route.name === 'SalesOrderEdit' ? String(route.params.id || '').trim() : ''))
+const isEditMode = computed(() => !!editId.value)
 const { ensureLoaded: ensureMaterialPdDict, defaultCode: defaultProductionDateCode, coerceProductionDateToCode: coercePd } =
   useMaterialProductionDateDict()
 
@@ -532,14 +538,16 @@ function syncInvoiceFromCustomer(c: Customer) {
   }
 }
 
-async function loadCustomerDetail(id: string) {
+async function loadCustomerDetail(id: string, opts?: { skipInvoiceSync?: boolean }) {
   if (!id) {
     contactOptions.value = []
     return
   }
   try {
     const c = await customerApi.getCustomerById(id)
-    syncInvoiceFromCustomer(c)
+    if (!opts?.skipInvoiceSync) {
+      syncInvoiceFromCustomer(c)
+    }
     const list = c.contacts || []
     contactOptions.value = list.map((x) => ({
       value: x.id,
@@ -629,6 +637,162 @@ function buildItemComment(it: OrderLineDraft): string | undefined {
   return parts.length ? parts.join('\n') : undefined
 }
 
+/** 与 buildItemComment 对称：从明细 comment 拆出「客户物料型号」与行备注，避免编辑加载后重复前缀、保存串味 */
+function parseItemCommentForDraft(raw: string | null | undefined): { customerMaterialModel: string; comment: string } {
+  const s = String(raw ?? '')
+    .replace(/\r\n/g, '\n')
+    .trim()
+  if (!s) return { customerMaterialModel: '', comment: '' }
+  const prefix = `${t('salesOrderCreate.comment.customerMpn')}：`
+  if (s.startsWith(prefix)) {
+    const rest = s.slice(prefix.length).trim()
+    const nl = rest.indexOf('\n')
+    if (nl >= 0) {
+      return {
+        customerMaterialModel: rest.slice(0, nl).trim(),
+        comment: rest.slice(nl + 1).trim()
+      }
+    }
+    return { customerMaterialModel: rest, comment: '' }
+  }
+  return { customerMaterialModel: '', comment: s }
+}
+
+const PRODUCT_KINDS = new Set(['现货', '期货', '排单', '样品'])
+
+function pickRowStr(obj: Record<string, unknown>, ...keys: string[]): string {
+  for (const k of keys) {
+    const v = obj[k]
+    if (v != null && v !== '') return String(v).trim()
+  }
+  return ''
+}
+
+/** 反向解析「订单信息」折叠区写入主表 comment 的结构化前缀行（与 buildHeaderComment 对应） */
+function parseHeaderCommentBlocks(comment: string | null | undefined) {
+  const blocks = {
+    productKind: '',
+    customerContactName: '',
+    invoiceInfo: '',
+    paymentTermsLabel: '',
+    orderRemark: ''
+  }
+  const raw = String(comment ?? '')
+    .replace(/\r\n/g, '\n')
+    .trim()
+  if (!raw) return blocks
+  const loose: string[] = []
+  const prefix = (k: 'product' | 'contact' | 'invoice' | 'terms') => `${t(`salesOrderCreate.comment.${k}`)}：`
+  for (const line of raw.split('\n').map((l) => l.trim())) {
+    if (!line) continue
+    const pp = prefix('product')
+    const pc = prefix('contact')
+    const pi = prefix('invoice')
+    const pt = prefix('terms')
+    if (line.startsWith(pp)) blocks.productKind = line.slice(pp.length).trim()
+    else if (line.startsWith(pc)) blocks.customerContactName = line.slice(pc.length).trim()
+    else if (line.startsWith(pi)) blocks.invoiceInfo = line.slice(pi.length).trim()
+    else if (line.startsWith(pt)) blocks.paymentTermsLabel = line.slice(pt.length).trim()
+    else loose.push(line)
+  }
+  blocks.orderRemark = loose.join('\n').trim()
+  return blocks
+}
+
+async function loadOrderForEdit(id: string) {
+  const order = (await salesOrderApi.getById(id)) as Record<string, unknown>
+  const itemsRaw = order.items ?? order.Items
+  const items = Array.isArray(itemsRaw) ? (itemsRaw as Record<string, unknown>[]) : []
+
+  formData.value.sellOrderCode = pickRowStr(order, 'sellOrderCode', 'SellOrderCode') || formData.value.sellOrderCode
+  formData.value.type = Number(order.type ?? order.Type ?? 1) || 1
+  formData.value.salesUserId = pickRowStr(order, 'salesUserId', 'SalesUserId')
+  formData.value.salesUserName = pickRowStr(order, 'salesUserName', 'SalesUserName')
+  formData.value.currency = Number(order.currency ?? order.Currency ?? 1) || 1
+  formData.value.customerId = pickRowStr(order, 'customerId', 'CustomerId')
+  formData.value.customerName = pickRowStr(order, 'customerName', 'CustomerName')
+  formData.value.deliveryAddress = pickRowStr(order, 'deliveryAddress', 'DeliveryAddress')
+
+  const rawOrderComment = pickRowStr(order, 'comment', 'Comment')
+  /** 与 buildHeaderComment 一致的结构化主表备注：存在时禁止 loadCustomerDetail 用档案覆盖发票/账期 */
+  const productPrefix = `${t('salesOrderCreate.comment.product')}：`
+  const invoiceNeedle = `${t('salesOrderCreate.comment.invoice')}：`
+  const hasStructuredHeaderComment =
+    !!rawOrderComment.trim() &&
+    (rawOrderComment.trim().startsWith(productPrefix) || rawOrderComment.includes(invoiceNeedle))
+
+  const blocks = parseHeaderCommentBlocks(rawOrderComment || undefined)
+  if (blocks.productKind && PRODUCT_KINDS.has(blocks.productKind)) {
+    formData.value.productKind = blocks.productKind
+  } else {
+    formData.value.productKind = '现货'
+  }
+  formData.value.invoiceInfo = blocks.invoiceInfo
+  formData.value.paymentTermsLabel = blocks.paymentTermsLabel?.trim() || 'NET 30'
+  formData.value.orderRemark = blocks.orderRemark
+  formData.value.customerContactId = ''
+  formData.value.customerContactName = blocks.customerContactName
+
+  if (formData.value.customerId) {
+    customerOptions.value = [
+      {
+        value: formData.value.customerId,
+        label: formData.value.customerName || t('salesOrderCreate.unknownCustomer')
+      }
+    ]
+    await loadCustomerDetail(formData.value.customerId, { skipInvoiceSync: hasStructuredHeaderComment })
+    if (formData.value.customerContactName) {
+      const hit = contactOptions.value.find(
+        (c) => (c.label || '').trim() === formData.value.customerContactName.trim()
+      )
+      if (hit) {
+        formData.value.customerContactId = hit.value
+      }
+    }
+    if (!formData.value.customerContactId && contactOptions.value.length === 1) {
+      formData.value.customerContactId = contactOptions.value[0].value
+      formData.value.customerContactName = contactOptions.value[0].label
+    }
+  }
+
+  prefillCustomerId.value = formData.value.customerId || undefined
+  prefillSalesUserId.value = formData.value.salesUserId || undefined
+
+  if (!items.length) {
+    addItem()
+    return
+  }
+
+  formData.value.items = items.map((row) => {
+    const quoteIdRaw = pickRowStr(row, 'quoteId', 'QuoteId')
+    const dd = row.deliveryDate ?? row.DeliveryDate
+    let deliveryDate = ''
+    if (dd != null && dd !== '') {
+      const s = String(dd)
+      deliveryDate = s.includes('T') ? s.slice(0, 10) : s.slice(0, 10)
+    }
+    const dateCodeRaw = pickRowStr(row, 'dateCode', 'DateCode')
+    const rawLineComment = pickRowStr(row, 'comment', 'Comment')
+    const parsedLine = parseItemCommentForDraft(rawLineComment || undefined)
+    const line: OrderLineDraft = {
+      quoteId: quoteIdRaw || undefined,
+      pn: pickRowStr(row, 'pn', 'PN'),
+      customerMaterialModel: parsedLine.customerMaterialModel,
+      brand: pickRowStr(row, 'brand', 'Brand'),
+      customerPo: pickRowStr(row, 'customerPnNo', 'CustomerPnNo'),
+      price: Number(row.price ?? row.Price ?? 0) || 0,
+      currency: Number(row.currency ?? row.Currency ?? formData.value.currency) || 1,
+      purchasePriceDisplay: 0,
+      qty: Number(row.qty ?? row.Qty ?? 1) || 1,
+      dateCode: dateCodeRaw ? coercePd(dateCodeRaw) : defaultProductionDateCode(),
+      deliveryDate,
+      comment: parsedLine.comment,
+      purchaseQuoteLabel: ''
+    }
+    return line
+  })
+}
+
 function parseReturnTo(): string | null {
   const raw = route.query.returnTo
   const s = Array.isArray(raw) ? raw[0] : raw
@@ -679,6 +843,16 @@ function purchaseQuoteLabelFromRow(first: Record<string, unknown> | undefined): 
 
 onMounted(async () => {
   await ensureMaterialPdDict()
+
+  if (editId.value) {
+    try {
+      await loadOrderForEdit(editId.value)
+    } catch (e) {
+      ElMessage.error(getApiErrorMessage(e, t('salesOrderCreate.messages.loadOrderFailed')))
+      await router.replace({ name: 'SalesOrderList' })
+    }
+    return
+  }
 
   const user = authStore.user
   if (user?.id && !formData.value.salesUserId) {
@@ -792,13 +966,54 @@ onMounted(async () => {
   }
 })
 
+function buildCreateOrUpdateLinePayloads(headerCurrency: number) {
+  return formData.value.items.map((it) => ({
+    quoteId: it.quoteId,
+    pn: it.pn,
+    brand: it.brand,
+    customerPnNo: it.customerPo,
+    qty: it.qty,
+    price: it.price,
+    currency: it.currency ?? headerCurrency,
+    dateCode: it.dateCode || undefined,
+    deliveryDate: it.deliveryDate || null,
+    comment: buildItemComment(it)
+  }))
+}
+
 const handleSubmit = async () => {
+  const firstLineCur = formData.value.items[0]?.currency
+  const headerCurrency = firstLineCur ?? formData.value.currency
+
+  if (editId.value) {
+    await runValidatedFormSave(formRef, {
+      loading: submitLoading,
+      successMessage: t('salesOrderCreate.messages.updateSuccess'),
+      task: async () => {
+        await salesOrderApi.update(editId.value, {
+          customerName: formData.value.customerName || undefined,
+          salesUserId: formData.value.salesUserId || prefillSalesUserId.value || authStore.user?.id || undefined,
+          salesUserName: formData.value.salesUserName || undefined,
+          type: formData.value.type,
+          currency: headerCurrency,
+          deliveryDate: null,
+          deliveryAddress: formData.value.deliveryAddress || undefined,
+          comment: buildHeaderComment() || undefined,
+          items: buildCreateOrUpdateLinePayloads(headerCurrency)
+        })
+      },
+      onSuccess: () => {
+        router.push({ name: 'SalesOrderDetail', params: { id: editId.value } })
+      },
+      errorMessage: (e) => getApiErrorMessage(e, t('salesOrderCreate.messages.updateFailed'))
+    })
+    return
+  }
+
   await runValidatedFormSave(formRef, {
     loading: submitLoading,
     successMessage: t('salesOrderCreate.messages.createSuccess'),
     task: async () => {
-      const firstLineCur = formData.value.items[0]?.currency
-      const headerCurrency = firstLineCur ?? formData.value.currency
       await salesOrderApi.create({
         sellOrderCode: formData.value.sellOrderCode,
         customerId: formData.value.customerId || prefillCustomerId.value || MANUAL_CUSTOMER_ID,
@@ -810,18 +1025,7 @@ const handleSubmit = async () => {
         deliveryDate: null,
         deliveryAddress: formData.value.deliveryAddress || undefined,
         comment: buildHeaderComment() || undefined,
-        items: formData.value.items.map((it) => ({
-          quoteId: it.quoteId,
-          pn: it.pn,
-          brand: it.brand,
-          customerPnNo: it.customerPo,
-          qty: it.qty,
-          price: it.price,
-          currency: it.currency ?? headerCurrency,
-          dateCode: it.dateCode || undefined,
-          deliveryDate: it.deliveryDate || null,
-          comment: buildItemComment(it)
-        }))
+        items: buildCreateOrUpdateLinePayloads(headerCurrency)
       })
     },
     onSuccess: () => {

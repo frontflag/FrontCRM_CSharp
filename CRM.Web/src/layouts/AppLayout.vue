@@ -1252,6 +1252,7 @@ const isSalesOrderLeftAuxRoute = computed(() => {
     n === 'SalesOrderList' ||
     n === 'SalesOrderDetail' ||
     n === 'SalesOrderCreate' ||
+    n === 'SalesOrderEdit' ||
     n === 'SalesOrderItemList' ||
     n === 'SalesOrderReport'
   )

@@ -2141,7 +2141,7 @@ const zhCN = {
   },
   salesOrderCreate: {
     backToList: '返回列表',
-    breadcrumb: { orders: '订单管理', sales: '销售管理', newOrder: '新建销售订单' },
+    breadcrumb: { orders: '订单管理', sales: '销售管理', newOrder: '新建销售订单', editOrder: '编辑销售订单' },
     cancel: '取消',
     save: '保存',
     sections: { order: '订单信息', customer: '客户信息', items: '物料明细' },
@@ -2216,7 +2216,10 @@ const zhCN = {
       sameCustomerRequired: '请选择同一家客户生成销售订单',
       loadQuotesFailed: '加载报价失败',
       createSuccess: '销售订单创建成功',
-      createFailed: '创建失败，请重试'
+      createFailed: '创建失败，请重试',
+      updateSuccess: '销售订单已保存',
+      updateFailed: '保存失败，请重试',
+      loadOrderFailed: '加载销售订单失败'
     },
     comment: {
       product: '产品',

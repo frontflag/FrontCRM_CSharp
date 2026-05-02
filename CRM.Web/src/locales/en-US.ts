@@ -2161,7 +2161,7 @@ const enUS = {
   },
   salesOrderCreate: {
     backToList: 'Back to list',
-    breadcrumb: { orders: 'Order management', sales: 'Sales', newOrder: 'New sales order' },
+    breadcrumb: { orders: 'Order management', sales: 'Sales', newOrder: 'New sales order', editOrder: 'Edit sales order' },
     cancel: 'Cancel',
     save: 'Save',
     sections: { order: 'Order information', customer: 'Customer information', items: 'Line items' },
@@ -2236,7 +2236,10 @@ const enUS = {
       sameCustomerRequired: 'Select quotes for the same customer only',
       loadQuotesFailed: 'Failed to load quotes',
       createSuccess: 'Sales order created',
-      createFailed: 'Create failed, please try again'
+      createFailed: 'Create failed, please try again',
+      updateSuccess: 'Sales order saved',
+      updateFailed: 'Save failed, please try again',
+      loadOrderFailed: 'Failed to load sales order'
     },
     comment: {
       product: 'Product',

@@ -481,9 +481,10 @@ watch(
   }
 )
 
-// 编辑
-const handleEdit = (row: any) => {
-  router.push({ name: 'SalesOrderCreate', query: { id: row.id, edit: '1' } })
+// 编辑（独立路由 /sales-orders/:id/edit，与采购订单 /purchase-orders/:id/edit 一致）
+const handleEdit = (row: { id?: string }) => {
+  if (!row?.id) return
+  router.push({ name: 'SalesOrderEdit', params: { id: String(row.id) } })
 }
 
 // 查看

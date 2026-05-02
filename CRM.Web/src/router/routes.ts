@@ -536,6 +536,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '销售订单报表', permission: 'sales-order.read' }
       },
       {
+        path: 'sales-orders/:id/edit',
+        name: 'SalesOrderEdit',
+        component: () => import('@/views/RFQ/SalesOrderCreate.vue'),
+        meta: { requiresAuth: true, title: '编辑销售订单', permission: 'sales-order.write' }
+      },
+      {
         path: 'sales-orders/:id',
         name: 'SalesOrderDetail',
         component: () => import('@/views/RFQ/SalesOrderDetail.vue'),
