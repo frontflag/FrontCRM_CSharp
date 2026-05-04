@@ -420,17 +420,26 @@ const loadData = async () => {
       pageSize: pageInfo.value.pageSize
     })
     rfqList.value = res.items || []
-    pageInfo.value.total = res.totalCount || 0
-    
-    // 计算统计数据
-    stats.value = {
-      total: res.totalCount || 0,
-      pending: rfqList.value.filter((r: any) => r.status === 0).length,
-      processing: rfqList.value.filter((r: any) => r.status === 1 || r.status === 2).length,
-      quoted: rfqList.value.filter((r: any) => {
-        const s = r.status
-        return s === 3 || s === 4 || s === 5
-      }).length
+    pageInfo.value.total = res.totalCount ?? res.total ?? 0
+
+    const agg = (res as any).aggregates
+    if (agg && typeof agg.total === 'number') {
+      stats.value = {
+        total: agg.total,
+        pending: agg.pending ?? 0,
+        processing: agg.processing ?? 0,
+        quoted: agg.quoted ?? 0
+      }
+    } else {
+      stats.value = {
+        total: pageInfo.value.total,
+        pending: rfqList.value.filter((r: any) => r.status === 0).length,
+        processing: rfqList.value.filter((r: any) => r.status === 1 || r.status === 2).length,
+        quoted: rfqList.value.filter((r: any) => {
+          const s = r.status
+          return s === 3 || s === 4 || s === 5
+        }).length
+      }
     }
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, t('rfqList.loadFailed')))

@@ -49,6 +49,7 @@ namespace CRM.API.Controllers
         [HttpGet]
         public async Task<ActionResult<ApiResponse<object>>> GetCustomers(
             [FromQuery] int pageNumber = 1,
+            [FromQuery] int? page = null,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? searchTerm = null,
             [FromQuery] short? customerType = null,
@@ -62,7 +63,9 @@ namespace CRM.API.Controllers
             /// <summary>工作流状态（与 customerinfo.Status 一致）；传入时优先于 isActive 的兼容映射</summary>
             [FromQuery] short? status = null,
             [FromQuery] string? sortBy = null,
-            [FromQuery] bool? sortDescending = null)
+            [FromQuery] bool? sortDescending = null,
+            [FromQuery] bool favoriteOnly = false,
+            [FromQuery] string? favoriteIds = null)
         {
             try
             {
@@ -72,9 +75,21 @@ namespace CRM.API.Controllers
                 else if (isActive.HasValue)
                     statusFilter = isActive.Value ? (short)1 : (short)0;
 
+                var effectivePage = page is >= 1 ? page.Value : pageNumber;
+                IReadOnlyList<string>? favoriteIdList = null;
+                if (favoriteOnly)
+                {
+                    favoriteIdList = string.IsNullOrWhiteSpace(favoriteIds)
+                        ? Array.Empty<string>()
+                        : favoriteIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                            .Where(s => !string.IsNullOrWhiteSpace(s))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+                }
+
                 var request = new CustomerQueryRequest
                 {
-                    PageIndex = pageNumber,
+                    PageIndex = effectivePage,
                     PageSize = pageSize,
                     Keyword = searchTerm,
                     Type = customerType,
@@ -85,7 +100,8 @@ namespace CRM.API.Controllers
                     CreatedFrom = createdFrom,
                     CreatedTo = createdTo,
                     Status = statusFilter,
-                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                    FavoriteCustomerIds = favoriteIdList
                 };
 
                 var result = await _customerService.GetCustomersPagedAsync(request);
@@ -96,7 +112,9 @@ namespace CRM.API.Controllers
                 return Ok(ApiResponse<object>.Ok(new
                 {
                     items,
+                    total = result.TotalCount,
                     totalCount = result.TotalCount,
+                    page = result.PageIndex,
                     pageNumber = result.PageIndex,
                     pageSize = result.PageSize,
                     totalPages = result.TotalPages
@@ -839,8 +857,18 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var result = await _customerService.GetDeletedCustomersAsync(page, pageSize, keyword);
-                return Ok(ApiResponse<object>.Ok(new { items = result.Items, totalCount = result.TotalCount, pageNumber = result.PageIndex, pageSize = result.PageSize, totalPages = result.TotalPages }));
+                var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var result = await _customerService.GetDeletedCustomersAsync(page, pageSize, keyword, uid);
+                return Ok(ApiResponse<object>.Ok(new
+                {
+                    items = result.Items,
+                    total = result.TotalCount,
+                    totalCount = result.TotalCount,
+                    page = result.PageIndex,
+                    pageNumber = result.PageIndex,
+                    pageSize = result.PageSize,
+                    totalPages = result.TotalPages
+                }));
             }
             catch (Exception ex) { return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500)); }
         }
@@ -851,8 +879,18 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var result = await _customerService.GetBlackListCustomersAsync(page, pageSize, keyword);
-                return Ok(ApiResponse<object>.Ok(new { items = result.Items, totalCount = result.TotalCount, pageNumber = result.PageIndex, pageSize = result.PageSize, totalPages = result.TotalPages }));
+                var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var result = await _customerService.GetBlackListCustomersAsync(page, pageSize, keyword, uid);
+                return Ok(ApiResponse<object>.Ok(new
+                {
+                    items = result.Items,
+                    total = result.TotalCount,
+                    totalCount = result.TotalCount,
+                    page = result.PageIndex,
+                    pageNumber = result.PageIndex,
+                    pageSize = result.PageSize,
+                    totalPages = result.TotalPages
+                }));
             }
             catch (Exception ex) { return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500)); }
         }
@@ -863,8 +901,18 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var result = await _customerService.GetFrozenCustomersAsync(page, pageSize, keyword);
-                return Ok(ApiResponse<object>.Ok(new { items = result.Items, totalCount = result.TotalCount, pageNumber = result.PageIndex, pageSize = result.PageSize, totalPages = result.TotalPages }));
+                var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var result = await _customerService.GetFrozenCustomersAsync(page, pageSize, keyword, uid);
+                return Ok(ApiResponse<object>.Ok(new
+                {
+                    items = result.Items,
+                    total = result.TotalCount,
+                    totalCount = result.TotalCount,
+                    page = result.PageIndex,
+                    pageNumber = result.PageIndex,
+                    pageSize = result.PageSize,
+                    totalPages = result.TotalPages
+                }));
             }
             catch (Exception ex) { return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500)); }
         }

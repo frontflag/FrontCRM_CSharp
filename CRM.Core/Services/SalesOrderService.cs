@@ -29,6 +29,8 @@ namespace CRM.Core.Services
         private readonly ISellOrderItemPurchasedStockAvailableSyncService _purchasedStockAvailableSync;
         private readonly ISellOrderExtendLineSeqService _soLineSeq;
         private readonly IUserService _userService;
+        private readonly ISalesOrderListQuery _salesOrderListQuery;
+        private readonly ISalesOrderItemLineListQuery _salesOrderItemLineListQuery;
         private readonly ILogger<SalesOrderService> _logger;
 
         public SalesOrderService(
@@ -47,6 +49,8 @@ namespace CRM.Core.Services
             ISellOrderItemPurchasedStockAvailableSyncService purchasedStockAvailableSync,
             ISellOrderExtendLineSeqService soLineSeq,
             IUserService userService,
+            ISalesOrderListQuery salesOrderListQuery,
+            ISalesOrderItemLineListQuery salesOrderItemLineListQuery,
             IUnitOfWork unitOfWork,
             ILogger<SalesOrderService> logger)
         {
@@ -65,6 +69,8 @@ namespace CRM.Core.Services
             _purchasedStockAvailableSync = purchasedStockAvailableSync;
             _soLineSeq = soLineSeq;
             _userService = userService ?? throw new ArgumentNullException(nameof(userService));
+            _salesOrderListQuery = salesOrderListQuery ?? throw new ArgumentNullException(nameof(salesOrderListQuery));
+            _salesOrderItemLineListQuery = salesOrderItemLineListQuery ?? throw new ArgumentNullException(nameof(salesOrderItemLineListQuery));
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _logger = logger;
         }
@@ -91,12 +97,12 @@ namespace CRM.Core.Services
                 Currency = request.Currency,
                 DeliveryDate = PostgreSqlDateTime.ToUtc(request.DeliveryDate),
                 DeliveryAddress = request.DeliveryAddress,
-                Comment = request.Comment,
                 Status = SellOrderMainStatus.New,
                 ItemRows = request.Items.Count,
                 CreateTime = DateTime.UtcNow,
                 CreateByUserId = NormalizeActingUserId(actingUserId)
             };
+            ApplySalesOrderHeaderRemarksForCreate(order, request);
             await _soRepo.AddAsync(order);
             // 先落库主表，避免 sellorderextend 外键及明细外键失败；且序号预留 SQL 需能读到已提交的 sellorder 行
             await _unitOfWork.SaveChangesAsync();
@@ -120,7 +126,9 @@ namespace CRM.Core.Services
                     ProductId = item.ProductId,
                     PN = item.PN,
                     Brand = item.Brand,
-                    CustomerPnNo = item.CustomerPnNo,
+                    CustomerSo = item.CustomerSo,
+                    CustomerPn = string.IsNullOrWhiteSpace(item.CustomerPn) ? null : item.CustomerPn.Trim(),
+                    CustomerBrand = string.IsNullOrWhiteSpace(item.CustomerBrand) ? null : item.CustomerBrand.Trim(),
                     Qty = item.Qty,
                     Price = item.Price,
                     Currency = item.Currency,
@@ -189,6 +197,68 @@ namespace CRM.Core.Services
             var s = $"{pn ?? ""} / {brand ?? ""}".Trim();
             if (s == "/") return null;
             return s.Length <= 200 ? s : s[..200];
+        }
+
+        private static string? TrimHeaderField(string? s) =>
+            string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+        private static void ApplySalesOrderHeaderRemarksForCreate(SellOrder order, CreateSalesOrderRequest request)
+        {
+            order.ProductKind = TrimHeaderField(request.ProductKind);
+            order.CustomerContactName = TrimHeaderField(request.CustomerContactName);
+            order.InvoiceInfo = TrimHeaderField(request.InvoiceInfo);
+            order.PaymentTermsText = TrimHeaderField(request.PaymentTermsText);
+
+            var incoming = TrimHeaderField(request.Comment);
+            if (string.IsNullOrWhiteSpace(incoming))
+            {
+                order.Comment = null;
+                return;
+            }
+
+            if (SellOrderHeaderRemarkCodec.LooksLikeLegacyHeaderBlob(incoming))
+            {
+                var b = SellOrderHeaderRemarkCodec.ParseLegacyComment(incoming);
+                if (order.ProductKind == null && b.ProductKind != null) order.ProductKind = b.ProductKind;
+                if (order.CustomerContactName == null && b.CustomerContactName != null) order.CustomerContactName = b.CustomerContactName;
+                if (order.InvoiceInfo == null && b.InvoiceInfo != null) order.InvoiceInfo = b.InvoiceInfo;
+                if (order.PaymentTermsText == null && b.PaymentTermsText != null) order.PaymentTermsText = b.PaymentTermsText;
+                order.Comment = TrimHeaderField(b.LooseRemark);
+            }
+            else
+            {
+                order.Comment = incoming;
+            }
+        }
+
+        private static bool HeaderRemarksTouched(UpdateSalesOrderRequest request) =>
+            request.Comment != null
+            || request.ProductKind != null
+            || request.CustomerContactName != null
+            || request.InvoiceInfo != null
+            || request.PaymentTermsText != null;
+
+        private static void PatchSalesOrderHeaderRemarksFromRequest(SellOrder order, UpdateSalesOrderRequest request)
+        {
+            if (request.Comment != null)
+            {
+                var trimmed = TrimHeaderField(request.Comment);
+                if (string.IsNullOrWhiteSpace(trimmed))
+                    order.Comment = null;
+                else if (SellOrderHeaderRemarkCodec.LooksLikeLegacyHeaderBlob(trimmed))
+                {
+                    var b = SellOrderHeaderRemarkCodec.ParseLegacyComment(trimmed);
+                    SellOrderHeaderRemarkCodec.MergeNonNullFromBlocks(order, b);
+                    order.Comment = TrimHeaderField(b.LooseRemark);
+                }
+                else
+                    order.Comment = trimmed;
+            }
+
+            if (request.ProductKind != null) order.ProductKind = TrimHeaderField(request.ProductKind);
+            if (request.CustomerContactName != null) order.CustomerContactName = TrimHeaderField(request.CustomerContactName);
+            if (request.InvoiceInfo != null) order.InvoiceInfo = TrimHeaderField(request.InvoiceInfo);
+            if (request.PaymentTermsText != null) order.PaymentTermsText = TrimHeaderField(request.PaymentTermsText);
         }
 
         /// <summary>
@@ -285,6 +355,12 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(id)) return null;
             var order = await _soRepo.GetByIdAsync(id);
             if (order == null) return null;
+            if (SellOrderHeaderRemarkCodec.TryMaterializeFromLegacyComment(order))
+            {
+                await _soRepo.UpdateAsync(order);
+                await _unitOfWork.SaveChangesAsync();
+            }
+
             var items = await _soItemRepo.FindAsync(i => i.SellOrderId == id);
             order.Items = items.ToList();
             return order;
@@ -297,48 +373,17 @@ namespace CRM.Core.Services
 
         public async Task<PagedResult<SellOrder>> GetPagedAsync(SalesOrderQueryRequest request)
         {
-            var all = await _soRepo.GetAllAsync();
-            var filteredByPermission = all.AsEnumerable();
-            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
-            {
-                filteredByPermission = await _dataPermissionService.FilterSalesOrdersAsync(request.CurrentUserId, filteredByPermission);
-            }
-
-            var query = filteredByPermission.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(request.Keyword))
-            {
-                var keyword = request.Keyword.Trim();
-                query = query.Where(o =>
-                    (!string.IsNullOrWhiteSpace(o.SellOrderCode) && o.SellOrderCode.Contains(keyword, StringComparison.OrdinalIgnoreCase)) ||
-                    (!string.IsNullOrWhiteSpace(o.CustomerName) && o.CustomerName.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
-            }
-
-            if (request.Status.HasValue)
-                query = query.Where(o => o.Status == (SellOrderMainStatus)request.Status.Value);
-
-            if (request.StartDate.HasValue)
-                query = query.Where(o => o.CreateTime >= request.StartDate.Value);
-
-            if (request.EndDate.HasValue)
-                query = query.Where(o => o.CreateTime <= request.EndDate.Value.AddDays(1));
-
-            var totalCount = query.Count();
-            var page = request.Page < 1 ? 1 : request.Page;
-            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
-            var items = query.OrderByDescending(o => o.CreateTime)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
-
-            await HydrateSellOrderListSalesLoginAsync(items);
+            var result = await _salesOrderListQuery.GetPagedAsync(request, CancellationToken.None);
+            var list = result.Items.ToList();
+            if (list.Count > 0)
+                await HydrateSellOrderListSalesLoginAsync(list);
 
             return new PagedResult<SellOrder>
             {
-                Items = items,
-                TotalCount = totalCount,
-                PageIndex = page,
-                PageSize = pageSize
+                Items = list,
+                TotalCount = result.TotalCount,
+                PageIndex = result.PageIndex,
+                PageSize = result.PageSize
             };
         }
 
@@ -388,6 +433,10 @@ namespace CRM.Core.Services
             var order = await _soRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"销售订单 {id} 不存在");
 
+            SellOrderHeaderRemarkCodec.TryMaterializeFromLegacyComment(order);
+            if (HeaderRemarksTouched(request))
+                PatchSalesOrderHeaderRemarksFromRequest(order, request);
+
             if (request.CustomerName != null) order.CustomerName = request.CustomerName;
             if (request.SalesUserId != null) order.SalesUserId = request.SalesUserId;
             if (request.SalesUserName != null) order.SalesUserName = request.SalesUserName;
@@ -395,7 +444,6 @@ namespace CRM.Core.Services
             if (request.Currency.HasValue) order.Currency = request.Currency.Value;
             if (request.DeliveryDate.HasValue) order.DeliveryDate = PostgreSqlDateTime.ToUtc(request.DeliveryDate.Value);
             if (request.DeliveryAddress != null) order.DeliveryAddress = request.DeliveryAddress;
-            if (request.Comment != null) order.Comment = request.Comment;
 
             var replacedItemCount = 0;
             List<SellOrderItem>? newLines = null;
@@ -426,7 +474,9 @@ namespace CRM.Core.Services
                         ProductId = item.ProductId,
                         PN = item.PN,
                         Brand = item.Brand,
-                        CustomerPnNo = item.CustomerPnNo,
+                        CustomerSo = item.CustomerSo,
+                        CustomerPn = string.IsNullOrWhiteSpace(item.CustomerPn) ? null : item.CustomerPn.Trim(),
+                        CustomerBrand = string.IsNullOrWhiteSpace(item.CustomerBrand) ? null : item.CustomerBrand.Trim(),
                         Qty = item.Qty,
                         Price = item.Price,
                         Currency = item.Currency,
@@ -590,212 +640,126 @@ namespace CRM.Core.Services
 
         public async Task<PagedResult<SellOrderItemLineDto>> GetSellOrderItemLinesPagedAsync(SellOrderItemLineQueryRequest request)
         {
-            var allOrders = await _soRepo.GetAllAsync();
-            var filteredOrders = allOrders.AsEnumerable();
-            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
-                filteredOrders = await _dataPermissionService.FilterSalesOrdersAsync(request.CurrentUserId, filteredOrders);
-            var orderDict = filteredOrders.ToDictionary(o => o.Id);
+            var pageResult = await _salesOrderItemLineListQuery.GetPagedAsync(request, CancellationToken.None);
+            var list = pageResult.Items.ToList();
+            if (list.Count == 0)
+                return pageResult;
 
-            var allItems = await _soItemRepo.GetAllAsync();
-            IEnumerable<(SellOrderItem Item, SellOrder Order)> joined = allItems
-                .Where(i => orderDict.ContainsKey(i.SellOrderId))
-                .Select(i => (i, orderDict[i.SellOrderId]));
-
-            if (request.OrderCreateStart.HasValue)
-            {
-                var s = request.OrderCreateStart.Value;
-                joined = joined.Where(x => x.Order.CreateTime >= s);
-            }
-
-            if (request.OrderCreateEnd.HasValue)
-            {
-                var e = request.OrderCreateEnd.Value.Date.AddDays(1);
-                joined = joined.Where(x => x.Order.CreateTime < e);
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.CustomerName))
-            {
-                var k = request.CustomerName.Trim();
-                joined = joined.Where(x =>
-                    !string.IsNullOrWhiteSpace(x.Order.CustomerName) &&
-                    x.Order.CustomerName.Contains(k, StringComparison.OrdinalIgnoreCase));
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.SalesUserName))
-            {
-                var k = request.SalesUserName.Trim();
-                joined = joined.Where(x =>
-                    !string.IsNullOrWhiteSpace(x.Order.SalesUserName) &&
-                    x.Order.SalesUserName.Contains(k, StringComparison.OrdinalIgnoreCase));
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.SellOrderCode))
-            {
-                var k = request.SellOrderCode.Trim();
-                joined = joined.Where(x =>
-                    !string.IsNullOrWhiteSpace(x.Order.SellOrderCode) &&
-                    x.Order.SellOrderCode.Contains(k, StringComparison.OrdinalIgnoreCase));
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.Pn))
-            {
-                var k = request.Pn.Trim();
-                joined = joined.Where(x =>
-                    !string.IsNullOrWhiteSpace(x.Item.PN) &&
-                    x.Item.PN.Contains(k, StringComparison.OrdinalIgnoreCase));
-            }
-
-            var list = joined
-                .OrderByDescending(x => x.Order.CreateTime)
-                .ThenBy(x => x.Item.Id)
-                .Select(x =>
-                {
-                    var lineTotal = Math.Round(x.Item.Qty * x.Item.Price, 2, MidpointRounding.AwayFromZero);
-                    decimal? usdUnit;
-                    decimal? usdLine;
-                    if (x.Item.Currency == (short)CurrencyCode.USD)
-                    {
-                        usdUnit = x.Item.ConvertPrice;
-                        usdLine = Math.Round(x.Item.Qty * x.Item.ConvertPrice, 2, MidpointRounding.AwayFromZero);
-                    }
-                    else
-                    {
-                        usdUnit = x.Item.ConvertPrice != 0m ? x.Item.ConvertPrice : null;
-                        usdLine = usdUnit.HasValue
-                            ? Math.Round(x.Item.Qty * usdUnit.Value, 2, MidpointRounding.AwayFromZero)
-                            : null;
-                    }
-                    return new SellOrderItemLineDto
-                    {
-                        SellOrderItemId = x.Item.Id,
-                        SellOrderId = x.Order.Id,
-                        SellOrderCode = x.Order.SellOrderCode,
-                        SellOrderItemCode = x.Item.SellOrderItemCode,
-                        OrderStatus = (short)x.Order.Status,
-                        OrderCreateTime = x.Order.CreateTime,
-                        CustomerId = x.Order.CustomerId,
-                        CustomerName = x.Order.CustomerName,
-                        SalesUserName = x.Order.SalesUserName,
-                        PN = x.Item.PN,
-                        Brand = x.Item.Brand,
-                        Qty = x.Item.Qty,
-                        Price = x.Item.Price,
-                        LineTotal = lineTotal,
-                        Currency = x.Item.Currency,
-                        UsdUnitPrice = usdUnit,
-                        UsdLineTotal = usdLine,
-                        ItemStatus = x.Item.Status
-                    };
-                })
+            var orderIds = list
+                .Select(x => x.SellOrderId)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            var orders = (await _soRepo.FindAsync(o => orderIds.Contains(o.Id))).ToList();
+            var orderDict = orders.ToDictionary(o => o.Id, StringComparer.OrdinalIgnoreCase);
 
             await HydrateSellOrderLineListSalesLoginAsync(list, orderDict);
-
-            if (list.Count > 0)
-            {
-                try
-                {
-                    var lineIds = list.Select(x => x.SellOrderItemId).Distinct().ToList();
-                    var extendRows = (await _soItemExtendRepo.FindAsync(e => lineIds.Contains(e.Id))).ToList();
-                    var extById = extendRows.ToDictionary(e => e.Id, e => e, StringComparer.OrdinalIgnoreCase);
-                    foreach (var row in list)
-                    {
-                        if (!extById.TryGetValue(row.SellOrderItemId, out var ext))
-                            continue;
-                        row.PurchaseProgressStatus = ext.PurchaseProgressStatus;
-                        row.StockInProgressStatus = ext.StockInProgressStatus;
-                        row.StockOutProgressStatus = ext.StockOutProgressStatus;
-                        var notifyQty = ext.QtyStockOutNotify;
-                        if (notifyQty <= 0m)
-                            row.StockOutNotifyProgressStatus = 0;
-                        else if (notifyQty + 1e-9m >= row.Qty)
-                            row.StockOutNotifyProgressStatus = 2;
-                        else
-                            row.StockOutNotifyProgressStatus = 1;
-                        row.ReceiptProgressStatus = ext.ReceiptProgressStatus;
-                        row.InvoiceProgressStatus = ext.InvoiceProgressStatus;
-                        row.SalesProfitExpected = ext.SalesProfitExpected;
-                        row.ProfitOutBizUsd = ext.ProfitOutBizUsd;
-                        row.ProfitOutRateBiz = ext.ProfitOutRateBiz;
-                        row.PurchasedStockAvailableQty = ext.PurchasedStock_AvailableQty;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // 静默失败会导致列表上采购/入库/出库等进度列全为 0，与库内 sellorderitemextend 不一致；必须打日志便于排查
-                    _logger.LogWarning(ex,
-                        "[SellLineStockOutSync] GetSellOrderItemLinesPagedAsync merge sellorderitemextend failed; progress columns left at default 0. LineIdCount={Count}",
-                        list.Count);
-                }
-
-                var gate = await GetStockOutApplyPurchaseGateBySellLineIdsAsync(list.Select(x => x.SellOrderItemId));
-                foreach (var row in list)
-                {
-                    var key = row.SellOrderItemId?.Trim() ?? string.Empty;
-                    row.StockOutApplyPurchaseGateOk = !string.IsNullOrEmpty(key) &&
-                                                      gate.TryGetValue(key, out var g) && g;
-                }
-
-                try
-                {
-                    var idsForQty = list
-                        .Select(x => x.SellOrderItemId)
-                        .Where(s => !string.IsNullOrWhiteSpace(s))
-                        .Select(s => s.Trim())
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .ToList();
-                    if (idsForQty.Count > 0)
-                    {
-                        var poItemsForQty = (await _poItemRepo.FindAsync(i => i.SellOrderItemId != null && idsForQty.Contains(i.SellOrderItemId!)))
-                            .ToList();
-                        var purchasedByLine = poItemsForQty
-                            .Where(i => !string.IsNullOrWhiteSpace(i.SellOrderItemId))
-                            .GroupBy(i => i.SellOrderItemId!.Trim(), StringComparer.OrdinalIgnoreCase)
-                            .ToDictionary(g => g.Key, g => g.Sum(x => x.Qty), StringComparer.OrdinalIgnoreCase);
-
-                        var prForQty = (await _prRepo.FindAsync(r => idsForQty.Contains(r.SellOrderItemId)))
-                            .ToList();
-                        var openPrByLine = prForQty
-                            .Where(r => r.Status == 0 || r.Status == 1)
-                            .Where(r => !string.IsNullOrWhiteSpace(r.SellOrderItemId))
-                            .GroupBy(r => r.SellOrderItemId.Trim(), StringComparer.OrdinalIgnoreCase)
-                            .ToDictionary(g => g.Key, g => g.Sum(x => x.Qty), StringComparer.OrdinalIgnoreCase);
-
-                        foreach (var row in list)
-                        {
-                            var id = row.SellOrderItemId?.Trim() ?? string.Empty;
-                            if (string.IsNullOrEmpty(id))
-                            {
-                                row.PurchaseRemainingQty = 0m;
-                                continue;
-                            }
-
-                            var purchased = purchasedByLine.TryGetValue(id, out var pv) ? pv : 0m;
-                            var openPr = openPrByLine.TryGetValue(id, out var ov) ? ov : 0m;
-                            row.PurchaseRemainingQty = row.Qty - purchased - openPr;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex,
-                        "[SellLinePurchaseRemaining] GetSellOrderItemLinesPagedAsync merge purchase remaining qty failed; PurchaseRemainingQty left unset. LineIdCount={Count}",
-                        list.Count);
-                }
-            }
-
-            var total = list.Count;
-            var page = request.Page < 1 ? 1 : request.Page;
-            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
-            var pageItems = list.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            await EnrichSellOrderItemLineListAsync(list);
 
             return new PagedResult<SellOrderItemLineDto>
             {
-                Items = pageItems,
-                TotalCount = total,
-                PageIndex = page,
-                PageSize = pageSize
+                Items = list,
+                TotalCount = pageResult.TotalCount,
+                PageIndex = pageResult.PageIndex,
+                PageSize = pageResult.PageSize
             };
+        }
+
+        /// <summary>扩展表、出库门闸、剩余可采等（仅当前页行）。</summary>
+        private async Task EnrichSellOrderItemLineListAsync(List<SellOrderItemLineDto> list)
+        {
+            if (list.Count == 0)
+                return;
+
+            try
+            {
+                var lineIds = list.Select(x => x.SellOrderItemId).Distinct().ToList();
+                var extendRows = (await _soItemExtendRepo.FindAsync(e => lineIds.Contains(e.Id))).ToList();
+                var extById = extendRows.ToDictionary(e => e.Id, e => e, StringComparer.OrdinalIgnoreCase);
+                foreach (var row in list)
+                {
+                    if (!extById.TryGetValue(row.SellOrderItemId, out var ext))
+                        continue;
+                    row.PurchaseProgressStatus = ext.PurchaseProgressStatus;
+                    row.StockInProgressStatus = ext.StockInProgressStatus;
+                    row.StockOutProgressStatus = ext.StockOutProgressStatus;
+                    var notifyQty = ext.QtyStockOutNotify;
+                    if (notifyQty <= 0m)
+                        row.StockOutNotifyProgressStatus = 0;
+                    else if (notifyQty + 1e-9m >= row.Qty)
+                        row.StockOutNotifyProgressStatus = 2;
+                    else
+                        row.StockOutNotifyProgressStatus = 1;
+                    row.ReceiptProgressStatus = ext.ReceiptProgressStatus;
+                    row.InvoiceProgressStatus = ext.InvoiceProgressStatus;
+                    row.SalesProfitExpected = ext.SalesProfitExpected;
+                    row.ProfitOutBizUsd = ext.ProfitOutBizUsd;
+                    row.ProfitOutRateBiz = ext.ProfitOutRateBiz;
+                    row.PurchasedStockAvailableQty = ext.PurchasedStock_AvailableQty;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "[SellLineStockOutSync] GetSellOrderItemLinesPagedAsync merge sellorderitemextend failed; progress columns left at default 0. LineIdCount={Count}",
+                    list.Count);
+            }
+
+            var gate = await GetStockOutApplyPurchaseGateBySellLineIdsAsync(list.Select(x => x.SellOrderItemId));
+            foreach (var row in list)
+            {
+                var key = row.SellOrderItemId?.Trim() ?? string.Empty;
+                row.StockOutApplyPurchaseGateOk = !string.IsNullOrEmpty(key) &&
+                                                  gate.TryGetValue(key, out var g) && g;
+            }
+
+            try
+            {
+                var idsForQty = list
+                    .Select(x => x.SellOrderItemId)
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Select(s => s.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (idsForQty.Count > 0)
+                {
+                    var poItemsForQty = (await _poItemRepo.FindAsync(i => i.SellOrderItemId != null && idsForQty.Contains(i.SellOrderItemId!)))
+                        .ToList();
+                    var purchasedByLine = poItemsForQty
+                        .Where(i => !string.IsNullOrWhiteSpace(i.SellOrderItemId))
+                        .GroupBy(i => i.SellOrderItemId!.Trim(), StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(g => g.Key, g => g.Sum(x => x.Qty), StringComparer.OrdinalIgnoreCase);
+
+                    var prForQty = (await _prRepo.FindAsync(r => idsForQty.Contains(r.SellOrderItemId)))
+                        .ToList();
+                    var openPrByLine = prForQty
+                        .Where(r => r.Status == 0 || r.Status == 1)
+                        .Where(r => !string.IsNullOrWhiteSpace(r.SellOrderItemId))
+                        .GroupBy(r => r.SellOrderItemId.Trim(), StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(g => g.Key, g => g.Sum(x => x.Qty), StringComparer.OrdinalIgnoreCase);
+
+                    foreach (var row in list)
+                    {
+                        var id = row.SellOrderItemId?.Trim() ?? string.Empty;
+                        if (string.IsNullOrEmpty(id))
+                        {
+                            row.PurchaseRemainingQty = 0m;
+                            continue;
+                        }
+
+                        var purchased = purchasedByLine.TryGetValue(id, out var pv) ? pv : 0m;
+                        var openPr = openPrByLine.TryGetValue(id, out var ov) ? ov : 0m;
+                        row.PurchaseRemainingQty = row.Qty - purchased - openPr;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "[SellLinePurchaseRemaining] GetSellOrderItemLinesPagedAsync merge purchase remaining qty failed; PurchaseRemainingQty left unset. LineIdCount={Count}",
+                    list.Count);
+            }
         }
 
         public async Task<SalesOrderItemExtendRefreshResult> RefreshItemExtendsAsync(string salesOrderId, CancellationToken cancellationToken = default)

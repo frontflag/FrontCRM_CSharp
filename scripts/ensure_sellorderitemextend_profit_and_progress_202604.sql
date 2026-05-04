@@ -1,4 +1,4 @@
--- 修复销售订单明细列表 /lines 等接口 500：42703 sellorderitemextend 缺列（如 FxUsdToCnySnapshot）
+-- 修复销售订单明细列表 /api/v1/sales-orders/items 等接口 500：42703 sellorderitemextend 缺列（如 FxUsdToCnySnapshot）
 -- 与迁移 20260406100000_SellOrderItemExtendProfitP1P3、20260408100000_SellOrderItemExtendProgressStatuses 一致。
 -- 日志若提示「待执行迁移」也可改用：dotnet run --project CRM.DbMigrator（或对本库执行 dotnet ef database update）
 -- 本脚本可重复执行（IF NOT EXISTS）。

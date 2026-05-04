@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Threading;
 using Microsoft.AspNetCore.Mvc;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
@@ -32,7 +33,7 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponse<IReadOnlyList<StockInListItemDto>>>> GetAll(
+        public async Task<IActionResult> GetAll(
             [FromQuery] string? model,
             [FromQuery] string? vendorName,
             [FromQuery] string? purchaseOrderCode,
@@ -42,7 +43,10 @@ namespace CRM.API.Controllers
             [FromQuery] string? warehouseId,
             [FromQuery] DateTime? stockInDateStart,
             [FromQuery] DateTime? stockInDateEnd,
-            [FromQuery] string? remark)
+            [FromQuery] string? remark,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
             try
             {
@@ -59,13 +63,24 @@ namespace CRM.API.Controllers
                     StockInDateEnd = stockInDateEnd,
                     Remark = remark
                 };
-                var list = await _service.GetListAsync(query);
-                return Ok(ApiResponse<IReadOnlyList<StockInListItemDto>>.Ok(list, "获取入库单列表成功"));
+                var result = await _service.GetListPagedAsync(query, page, pageSize, cancellationToken);
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items = result.Items,
+                        total = result.TotalCount,
+                        page = result.PageIndex,
+                        pageSize = result.PageSize
+                    },
+                    message = "获取入库单列表成功"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取入库单列表失败");
-                return StatusCode(500, ApiResponse<IReadOnlyList<StockInListItemDto>>.Fail($"获取入库单列表失败: {ex.Message}", 500));
+                return StatusCode(500, new { success = false, message = $"获取入库单列表失败: {ex.Message}" });
             }
         }
 

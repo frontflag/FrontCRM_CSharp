@@ -20,6 +20,7 @@ namespace CRM.Core.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IUserService _userService;
+        private readonly IQuoteListQuery _quoteListQuery;
         private readonly ILogger<QuoteService> _logger;
 
         public QuoteService(
@@ -31,6 +32,7 @@ namespace CRM.Core.Services
             IUnitOfWork unitOfWork,
             ISerialNumberService serialNumberService,
             IUserService userService,
+            IQuoteListQuery quoteListQuery,
             ILogger<QuoteService> logger)
         {
             _quoteRepository = quoteRepository;
@@ -41,6 +43,7 @@ namespace CRM.Core.Services
             _unitOfWork = unitOfWork;
             _serialNumberService = serialNumberService;
             _userService = userService;
+            _quoteListQuery = quoteListQuery;
             _logger = logger;
         }
 
@@ -236,9 +239,32 @@ namespace CRM.Core.Services
 
         public async Task<IEnumerable<Quote>> GetAllAsync()
         {
-            var quotes = (await _quoteRepository.GetAllAsync()).ToList();
+            var quotes = (await _quoteRepository.GetAllAsync())
+                .OrderByDescending(q => q.CreateTime)
+                .ToList();
+            await AttachItemsAndHydrateAsync(quotes);
+            return quotes;
+        }
+
+        /// <inheritdoc />
+        public async Task<PagedResult<Quote>> GetPagedAsync(QuoteQueryRequest request)
+        {
+            var page = await _quoteListQuery.GetPagedAsync(request);
+            var list = page.Items.ToList();
+            await AttachItemsAndHydrateAsync(list);
+            return new PagedResult<Quote>
+            {
+                Items = list,
+                TotalCount = page.TotalCount,
+                PageIndex = page.PageIndex,
+                PageSize = page.PageSize
+            };
+        }
+
+        private async Task AttachItemsAndHydrateAsync(List<Quote> quotes)
+        {
             if (quotes.Count == 0)
-                return quotes;
+                return;
 
             var quoteIds = quotes.Select(q => q.Id).ToList();
             var itemRows = await _quoteItemRepository.FindAsync(i => quoteIds.Contains(i.QuoteId));
@@ -247,14 +273,11 @@ namespace CRM.Core.Services
                 .ToDictionary(g => g.Key, g => (ICollection<QuoteItem>)g.ToList());
 
             foreach (var q in quotes)
-            {
                 q.Items = byQuoteId.TryGetValue(q.Id, out var list) ? list : new List<QuoteItem>();
-            }
 
             await HydrateQuoteRfqCodeAsync(quotes);
             await HydrateQuoteCustomerDisplayAsync(quotes);
             await HydrateQuoteUserDisplayAsync(quotes);
-            return quotes.OrderByDescending(q => q.CreateTime).ToList();
         }
 
         public async Task<Quote> UpdateAsync(string id, UpdateQuoteRequest request, string? actingUserId = null)

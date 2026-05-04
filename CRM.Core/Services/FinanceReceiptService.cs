@@ -1,3 +1,4 @@
+using System.Linq;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
@@ -21,6 +22,7 @@ namespace CRM.Core.Services
         private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
         private readonly IForceDeleteGuardService _forceDeleteGuard;
         private readonly ILogOperationAppendService _logOperationAppend;
+        private readonly IFinanceReceiptListQuery _receiptListQuery;
 
         public FinanceReceiptService(
             IRepository<FinanceReceipt> receiptRepo,
@@ -34,6 +36,7 @@ namespace CRM.Core.Services
             ISellOrderItemExtendSyncService sellOrderItemExtendSync,
             IForceDeleteGuardService forceDeleteGuard,
             ILogOperationAppendService logOperationAppend,
+            IFinanceReceiptListQuery receiptListQuery,
             IUnitOfWork? unitOfWork = null)
         {
             _receiptRepo = receiptRepo;
@@ -47,6 +50,7 @@ namespace CRM.Core.Services
             _sellOrderItemExtendSync = sellOrderItemExtendSync;
             _forceDeleteGuard = forceDeleteGuard;
             _logOperationAppend = logOperationAppend;
+            _receiptListQuery = receiptListQuery;
             _unitOfWork = unitOfWork;
         }
 
@@ -143,47 +147,15 @@ namespace CRM.Core.Services
 
         public async Task<PagedResult<FinanceReceipt>> GetPagedAsync(FinanceReceiptQueryRequest request)
         {
-            var all = await _receiptRepo.GetAllAsync();
-            var filteredByPermission = all.AsEnumerable();
-            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
-            {
-                filteredByPermission = await _dataPermissionService.FilterFinanceReceiptsAsync(request.CurrentUserId, filteredByPermission);
-            }
-
-            var query = filteredByPermission.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(request.Keyword))
-            {
-                var keyword = request.Keyword.Trim();
-                query = query.Where(r =>
-                    (!string.IsNullOrWhiteSpace(r.FinanceReceiptCode) && r.FinanceReceiptCode.Contains(keyword, StringComparison.OrdinalIgnoreCase)) ||
-                    (!string.IsNullOrWhiteSpace(r.CustomerName) && r.CustomerName.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
-            }
-
-            if (request.Status.HasValue)
-                query = query.Where(r => r.Status == request.Status.Value);
-
-            if (request.StartDate.HasValue)
-                query = query.Where(r => r.CreateTime >= request.StartDate.Value);
-
-            if (request.EndDate.HasValue)
-                query = query.Where(r => r.CreateTime <= request.EndDate.Value.AddDays(1));
-
-            var totalCount = query.Count();
-            var page = request.Page < 1 ? 1 : request.Page;
-            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
-            var items = query.OrderByDescending(r => r.CreateTime)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
+            var result = await _receiptListQuery.GetPagedAsync(request);
+            var items = result.Items.ToList();
             await EnrichCreateUserNamesAsync(items);
-
             return new PagedResult<FinanceReceipt>
             {
                 Items = items,
-                TotalCount = totalCount,
-                PageIndex = page,
-                PageSize = pageSize
+                TotalCount = result.TotalCount,
+                PageIndex = result.PageIndex,
+                PageSize = result.PageSize
             };
         }
 

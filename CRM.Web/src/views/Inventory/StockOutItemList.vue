@@ -10,7 +10,7 @@
           </div>
           <h1 class="page-title">{{ t('stockOutItemList.title') }}</h1>
         </div>
-        <div class="count-badge">{{ t('stockOutItemList.count', { count: list.length }) }}</div>
+        <div class="count-badge">{{ t('stockOutItemList.count', { count: listTotal }) }}</div>
       </div>
     </div>
 
@@ -97,7 +97,7 @@
       </div>
     </div>
 
-    <CrmDataTable :data="pagedList" v-loading="loading" row-key="stockOutItemId" @row-dblclick="onRowDblclick">
+    <CrmDataTable :data="list" v-loading="loading" row-key="stockOutItemId" @row-dblclick="onRowDblclick">
       <el-table-column :label="t('stockOutItemList.columns.status')" width="100" align="center">
         <template #default="{ row }">
           <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
@@ -147,7 +147,8 @@
         :total="listTotal"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
-        @size-change="listPage = 1"
+        @current-change="() => void runStockOutItemFetch(false)"
+        @size-change="onStockOutItemPageSizeChange"
       />
     </div>
   </div>
@@ -193,11 +194,7 @@ const loading = ref(false)
 const list = ref<StockOutItemListRow[]>([])
 const listPage = ref(1)
 const listPageSize = ref(20)
-const listTotal = computed(() => list.value.length)
-const pagedList = computed(() => {
-  const start = (listPage.value - 1) * listPageSize.value
-  return list.value.slice(start, start + listPageSize.value)
-})
+const listTotal = ref(0)
 watch(listTotal, () => {
   const maxP = Math.max(1, Math.ceil(listTotal.value / listPageSize.value) || 1)
   if (listPage.value > maxP) listPage.value = maxP
@@ -236,14 +233,26 @@ async function runStockOutItemFetch(resetPage: boolean) {
   if (resetPage) listPage.value = 1
   loading.value = true
   try {
-    list.value = await stockOutApi.searchItems(buildQuery())
+    const res = await stockOutApi.searchItemsPaged({
+      ...buildQuery(),
+      page: listPage.value,
+      pageSize: listPageSize.value
+    })
+    list.value = res.items
+    listTotal.value = res.total
   } catch (e) {
     console.error(e)
     ElMessage.error(getApiErrorMessage(e, t('stockOutItemList.messages.loadFailed')))
     list.value = []
+    listTotal.value = 0
   } finally {
     loading.value = false
   }
+}
+
+function onStockOutItemPageSizeChange() {
+  listPage.value = 1
+  void runStockOutItemFetch(false)
 }
 
 const fetchList = () => void runStockOutItemFetch(true)

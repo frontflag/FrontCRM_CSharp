@@ -415,8 +415,12 @@ async function applyPurchaseUserFromPurchaseOrder(purchaseOrderId: string | unde
 const fillNotice = async (noticeId: string, opts?: { skipDefaultStockInPlanDate?: boolean }): Promise<string> => {
   form.noticeId = noticeId
   if (!noticeId) return Promise.resolve('')
-  const notices = await logisticsApi.getArrivalNotices()
-  const row = notices.find(x => x.id === noticeId)
+  const { items: noticeRows } = await logisticsApi.getArrivalNotices({
+    id: noticeId,
+    page: 1,
+    pageSize: 1
+  })
+  const row = noticeRows[0]
   if (!row) return ''
   const firstItem = row.items?.[0]
   const sumItemArrived = Number((row.items || []).reduce((s, x) => s + Number(x.arrivedQty || 0), 0))
@@ -451,8 +455,8 @@ const loadPageData = async () => {
   if (qcId) {
     isEdit.value = true
     currentQcId.value = qcId
-    const qcs = await logisticsApi.getQcs()
-    const qc = qcs.find(x => x.id === qcId)
+    const { items: qcRows } = await logisticsApi.getQcs({ qcId, page: 1, pageSize: 1 })
+    const qc = qcRows[0]
     if (qc) {
       // 先回填质检记录本身，保证“查看”打开时一定带出已有判定数据
       form.noticeId = qc.stockInNotifyId || ''

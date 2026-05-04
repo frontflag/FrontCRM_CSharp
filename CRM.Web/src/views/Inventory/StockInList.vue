@@ -12,7 +12,7 @@
           </div>
           <h1 class="page-title">{{ t('stockInList.title') }}</h1>
         </div>
-        <div class="count-badge">{{ t('stockInList.count', { count: filteredList.length }) }}</div>
+        <div class="count-badge">{{ t('stockInList.count', { count: listTotalServer }) }}</div>
       </div>
     </div>
 
@@ -98,7 +98,7 @@
       :columns="stockInTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-      :data="pagedFilteredList"
+      :data="list"
       v-loading="loading"
       @row-dblclick="handleView"
     >
@@ -194,10 +194,11 @@
         class="list-main-pagination"
         v-model:current-page="listPage"
         v-model:page-size="listPageSize"
-        :total="filteredListTotal"
+        :total="listTotalServer"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
-        @size-change="listPage = 1"
+        @current-change="() => void fetchList(false)"
+        @size-change="onStockInPageSizeChange"
       />
     </div>
 
@@ -234,6 +235,7 @@ const authStore = useAuthStore()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
 const list = ref<StockInListItemDto[]>([])
+const listTotalServer = ref(0)
 const listPage = ref(1)
 const listPageSize = ref(20)
 const warehouses = ref<WarehouseInfo[]>([])
@@ -375,7 +377,7 @@ const fetchList = async (resetPage = true) => {
         warehouses.value = []
       }
     }
-    list.value = await stockInApi.getAll({
+    const paged = await stockInApi.getListPaged({
       stockInCode: filters.stockInCode || undefined,
       sourceDisplayNo: filters.sourceDisplayNo || undefined,
       warehouseId: filters.warehouseId || undefined,
@@ -385,14 +387,23 @@ const fetchList = async (resetPage = true) => {
       model: filters.model || undefined,
       vendorName: maskPurchaseSensitiveFields.value ? undefined : filters.vendorName || undefined,
       purchaseOrderCode: filters.purchaseOrderCode || undefined,
-      salesOrderCode: filters.salesOrderCode || undefined
+      salesOrderCode: filters.salesOrderCode || undefined,
+      page: listPage.value,
+      pageSize: listPageSize.value
     })
+    list.value = paged.items
+    listTotalServer.value = paged.total
   } catch (e) {
     console.error(e)
     ElMessage.error(t('stockInList.messages.loadFailed'))
   } finally {
     loading.value = false
   }
+}
+
+function onStockInPageSizeChange() {
+  listPage.value = 1
+  void fetchList(false)
 }
 
 watch(
@@ -429,53 +440,8 @@ const handleSearch = () => {
   router.replace({ name: 'StockInList', query })
 }
 
-const keywordHit = (text: string | undefined, keyword: string): boolean => {
-  if (!keyword) return true
-  return (text ?? '').toLowerCase().includes(keyword.toLowerCase())
-}
-
-// 前端兜底过滤：避免后端筛选偶发不生效时页面无响应
-const filteredList = computed(() => {
-  const model = filters.model.trim()
-  const stockInCode = filters.stockInCode.trim()
-  const sourceDisplayNo = filters.sourceDisplayNo.trim()
-  const warehouseId = filters.warehouseId.trim()
-  const remark = filters.remark.trim()
-  const stockInDateStart = filters.stockInDateRange[0] ? new Date(`${filters.stockInDateRange[0]}T00:00:00`) : null
-  const stockInDateEnd = filters.stockInDateRange[1] ? new Date(`${filters.stockInDateRange[1]}T23:59:59`) : null
-  const vendorName = filters.vendorName.trim()
-  const purchaseOrderCode = filters.purchaseOrderCode.trim()
-  const salesOrderCode = filters.salesOrderCode.trim()
-
-  return list.value.filter((row) => {
-    const rowAny = row as any
-    const modelText = `${rowAny.materialModelSummary ?? rowAny.MaterialModelSummary ?? ''} ${rowAny.materialBrandSummary ?? rowAny.MaterialBrandSummary ?? ''} ${rowAny.model ?? ''} ${rowAny.materialCode ?? ''} ${rowAny.remark ?? ''}`
-    const poText = `${row.sourceDisplayNo ?? ''} ${row.stockInCode ?? ''}`
-    const stockInDate = row.stockInDate ? new Date(row.stockInDate) : null
-    return (
-      keywordHit(row.stockInCode, stockInCode) &&
-      keywordHit(row.sourceDisplayNo, sourceDisplayNo) &&
-      (warehouseId ? String(row.warehouseId || '').trim() === warehouseId : true) &&
-      (stockInDateStart ? !!stockInDate && stockInDate >= stockInDateStart : true) &&
-      (stockInDateEnd ? !!stockInDate && stockInDate <= stockInDateEnd : true) &&
-      keywordHit(row.remark, remark) &&
-      keywordHit(modelText, model) &&
-      (maskPurchaseSensitiveFields.value ? true : keywordHit(row.vendorName, vendorName)) &&
-      keywordHit(poText, purchaseOrderCode) &&
-      keywordHit(row.salesOrderCode, salesOrderCode)
-    )
-  })
-})
-
-const filteredListTotal = computed(() => filteredList.value.length)
-const pagedFilteredList = computed(() => {
-  const rows = filteredList.value
-  const start = (listPage.value - 1) * listPageSize.value
-  return rows.slice(start, start + listPageSize.value)
-})
-
-watch(filteredListTotal, () => {
-  const maxP = Math.max(1, Math.ceil(filteredListTotal.value / listPageSize.value) || 1)
+watch(listTotalServer, () => {
+  const maxP = Math.max(1, Math.ceil(listTotalServer.value / listPageSize.value) || 1)
   if (listPage.value > maxP) listPage.value = maxP
 })
 

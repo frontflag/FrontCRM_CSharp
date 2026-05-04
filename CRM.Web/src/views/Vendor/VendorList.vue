@@ -545,12 +545,6 @@ const getStatusClass = (status?: number) => {
   return 'status-draft';
 };
 
-const parseDateMs = (v?: string) => {
-  if (!v) return 0;
-  const t = new Date(v).getTime();
-  return Number.isFinite(t) ? t : 0;
-};
-
 const formatDate = (v?: string) => {
   return formatDisplayDateTime(v);
 };
@@ -558,6 +552,14 @@ const formatDate = (v?: string) => {
 const fetchVendorList = async () => {
   loading.value = true;
   try {
+    const favoriteIdsList = await favoriteApi.getFavoriteEntityIds('VENDOR');
+    const favoriteSet = new Set(favoriteIdsList);
+    if (favoriteOnly.value && favoriteIdsList.length === 0) {
+      vendorList.value = [];
+      totalCount.value = 0;
+      return;
+    }
+
     const params: VendorSearchRequest = {
       searchTerm: searchForm.searchTerm,
       status: searchForm.status,
@@ -568,25 +570,19 @@ const fetchVendorList = async () => {
       purchaseUserId: searchForm.purchaseUserId,
       createdFrom: searchForm.createdFrom,
       createdTo: searchForm.createdTo,
+      page: pagination.pageNumber,
       pageNumber: pagination.pageNumber,
-      pageSize: pagination.pageSize
+      pageSize: pagination.pageSize,
+      favoriteOnly: favoriteOnly.value ? true : undefined,
+      favoriteIds: favoriteOnly.value ? favoriteIdsList.join(',') : undefined
     };
-    const [response, favoriteIds] = await Promise.all([
-      vendorApi.searchVendors(params),
-      favoriteApi.getFavoriteEntityIds('VENDOR')
-    ]);
-    const favoriteSet = new Set(favoriteIds);
-    let mapped = (response.items || []).map((item: any) => ({
+    const response = await vendorApi.searchVendors(params);
+    const mapped = (response.items || []).map((item: any) => ({
       ...item,
       isFavorite: favoriteSet.has(item.id)
     }));
-    if (favoriteOnly.value) {
-      mapped = mapped.filter((item: any) => item.isFavorite);
-    }
-    // 兜底：确保按创建日期（createTime）降序展示
-    mapped.sort((a: any, b: any) => (parseDateMs(b?.createTime) - parseDateMs(a?.createTime)));
     vendorList.value = mapped;
-    totalCount.value = favoriteOnly.value ? mapped.length : (response.totalCount ?? 0);
+    totalCount.value = response.totalCount ?? response.total ?? 0;
   } catch (error: any) {
     // 仅在 404 时按“空结果”兜底；其余错误（如 401/403/500）应明确提示
     const httpStatus = error?.httpStatus ?? error?.response?.status;

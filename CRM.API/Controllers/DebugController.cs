@@ -110,6 +110,24 @@ namespace CRM.API.Controllers
             public int SkippedTerminalOrders { get; set; }
         }
 
+        public class RefreshSellOrderCommentSplitResultDto
+        {
+            /// <summary>执行前 <c>comment</c> 非空的行数（含软删）。</summary>
+            public int TotalWithComment { get; set; }
+
+            /// <summary>已拆分并清空 <c>comment</c> 的行数。</summary>
+            public int RowsProcessed { get; set; }
+        }
+
+        public class RefreshSellOrderItemCustomerPnFromCommentResultDto
+        {
+            /// <summary>执行前 <c>comment</c> 非空的明细行数（含软删）。</summary>
+            public int TotalWithComment { get; set; }
+
+            /// <summary>已向 <c>customer_pn</c> 写入解析值的行数（仅原 <c>customer_pn</c> 为空的行）。</summary>
+            public int RowsFilled { get; set; }
+        }
+
         [HttpGet]
         public async Task<ActionResult<ApiResponse<DebugPageDto>>> GetAll()
         {
@@ -996,6 +1014,91 @@ namespace CRM.API.Controllers
             {
                 await tx.RollbackAsync();
                 return StatusCode(500, ApiResponse<RefreshStockLedgerResultDto>.Fail($"刷新 stockledger 失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>
+        /// Debug：将仍为历史多行前缀格式的 <c>sellorder.comment</c> 拆入结构化列（仅填空）；自由段写回 <c>comment</c>。非 legacy 整段不修改。含软删行。
+        /// </summary>
+        [Authorize]
+        [HttpPost("refresh-sellorder-comment-split")]
+        public async Task<ActionResult<ApiResponse<RefreshSellOrderCommentSplitResultDto>>> RefreshSellOrderCommentSplit()
+        {
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var orders = await _context.SellOrders
+                    .IgnoreQueryFilters()
+                    .Where(o => o.Comment != null && o.Comment != "")
+                    .ToListAsync();
+
+                var result = new RefreshSellOrderCommentSplitResultDto { TotalWithComment = orders.Count };
+                foreach (var o in orders)
+                {
+                    if (SellOrderHeaderRemarkCodec.TrySplitCommentOntoStructuredColumns(o))
+                        result.RowsProcessed++;
+                }
+
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return Ok(ApiResponse<RefreshSellOrderCommentSplitResultDto>.Ok(
+                    result,
+                    $"已处理 {result.RowsProcessed} 条销售订单备注拆分（共 {result.TotalWithComment} 条待处理）"));
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
+                return StatusCode(500,
+                    ApiResponse<RefreshSellOrderCommentSplitResultDto>.Fail($"拆分 sellorder.comment 失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>
+        /// Debug：从 <c>sellorderitem.comment</c> 解析「客户物料型号」前缀行写入 <c>customer_pn</c>（仅填空；含软删行）。
+        /// </summary>
+        [Authorize]
+        [HttpPost("refresh-sellorderitem-customer-pn-from-comment")]
+        public async Task<ActionResult<ApiResponse<RefreshSellOrderItemCustomerPnFromCommentResultDto>>>
+            RefreshSellOrderItemCustomerPnFromComment()
+        {
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var items = await _context.SellOrderItems
+                    .IgnoreQueryFilters()
+                    .Where(i => i.Comment != null && i.Comment != "")
+                    .ToListAsync();
+
+                var result = new RefreshSellOrderItemCustomerPnFromCommentResultDto
+                {
+                    TotalWithComment = items.Count
+                };
+
+                foreach (var line in items)
+                {
+                    if (!string.IsNullOrWhiteSpace(line.CustomerPn))
+                        continue;
+                    var parsed = SellOrderItemCommentCodec.TryParseCustomerMaterialModelFromComment(line.Comment);
+                    if (string.IsNullOrWhiteSpace(parsed))
+                        continue;
+                    line.CustomerPn = parsed;
+                    result.RowsFilled++;
+                }
+
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return Ok(ApiResponse<RefreshSellOrderItemCustomerPnFromCommentResultDto>.Ok(
+                    result,
+                    $"已回填 customer_pn {result.RowsFilled} 条（comment 非空共 {result.TotalWithComment} 条）"));
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
+                return StatusCode(500,
+                    ApiResponse<RefreshSellOrderItemCustomerPnFromCommentResultDto>.Fail(
+                        $"刷新 sellorderitem.customer_pn 失败: {ex.Message}", 500));
             }
         }
 

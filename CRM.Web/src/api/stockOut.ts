@@ -1,17 +1,6 @@
 import apiClient, { type ApiRejectedError } from './client'
 import { fetchCompanyProfileForReport, type CompanyProfileBundle } from '@/api/companyProfile'
 
-/** 兼容 axios 拦截器已解包 / 未解包、以及 data / Data */
-function unwrapArray<T>(res: unknown): T[] {
-  if (Array.isArray(res)) return res as T[]
-  if (res && typeof res === 'object') {
-    const o = res as Record<string, unknown>
-    const inner = o.data ?? o.Data
-    if (Array.isArray(inner)) return inner as T[]
-  }
-  return []
-}
-
 export interface StockOutDto {
   id: string
   stockOutCode: string
@@ -208,15 +197,84 @@ export interface StockOutRequestDto {
   createTime?: string
 }
 
+/** GET 出库单列表：<code>data</code> 与《翻页查询规范》一致 */
+export type StockOutListPaged = { items: StockOutDto[]; total: number; page: number; pageSize: number }
+
+/** GET 出库通知列表 */
+export type StockOutRequestListPaged = { items: StockOutRequestDto[]; total: number; page: number; pageSize: number }
+
+/** GET 出库明细列表 */
+export type StockOutItemListPaged = { items: StockOutItemListRow[]; total: number; page: number; pageSize: number }
+
+function unwrapPagedStockOuts(res: unknown): StockOutListPaged {
+  const d = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
+  if (d && Array.isArray(d.items)) {
+    return {
+      items: d.items as StockOutDto[],
+      total: Number(d.total ?? 0),
+      page: Number(d.page ?? 1),
+      pageSize: Number(d.pageSize ?? 20)
+    }
+  }
+  return { items: [], total: 0, page: 1, pageSize: 20 }
+}
+
+function unwrapPagedRequests(res: unknown): StockOutRequestListPaged {
+  const d = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
+  if (d && Array.isArray(d.items)) {
+    return {
+      items: d.items as StockOutRequestDto[],
+      total: Number(d.total ?? 0),
+      page: Number(d.page ?? 1),
+      pageSize: Number(d.pageSize ?? 20)
+    }
+  }
+  return { items: [], total: 0, page: 1, pageSize: 20 }
+}
+
+function unwrapPagedStockOutItems(res: unknown): StockOutItemListPaged {
+  const d = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
+  if (d && Array.isArray(d.items)) {
+    return {
+      items: d.items as StockOutItemListRow[],
+      total: Number(d.total ?? 0),
+      page: Number(d.page ?? 1),
+      pageSize: Number(d.pageSize ?? 20)
+    }
+  }
+  return { items: [], total: 0, page: 1, pageSize: 20 }
+}
+
 export const stockOutApi = {
-  async getAll(): Promise<StockOutDto[]> {
-    const res = await apiClient.get<unknown>('/api/v1/stock-out')
-    return unwrapArray<StockOutDto>(res)
+  /** 出库单列表分页（主列表页） */
+  async getListPaged(params?: {
+    keyword?: string
+    /** 与出库来源单号精确匹配（忽略 keyword） */
+    sourceCode?: string
+    page?: number
+    pageSize?: number
+  }): Promise<StockOutListPaged> {
+    const res = await apiClient.get<unknown>('/api/v1/stock-out', { params: params ?? {} })
+    return unwrapPagedStockOuts(res)
   },
 
-  async searchItems(query?: StockOutItemListQuery): Promise<StockOutItemListRow[]> {
+  /** @deprecated 请使用 {@link stockOutApi.getListPaged}；保留兼容时拉一页大页 */
+  async getAll(): Promise<StockOutDto[]> {
+    const p = await stockOutApi.getListPaged({ page: 1, pageSize: 2000 })
+    return p.items
+  },
+
+  async searchItemsPaged(
+    query?: StockOutItemListQuery & { page?: number; pageSize?: number }
+  ): Promise<StockOutItemListPaged> {
     const res = await apiClient.get<unknown>('/api/v1/stock-out/items', { params: query ?? {} })
-    return unwrapArray<StockOutItemListRow>(res)
+    return unwrapPagedStockOutItems(res)
+  },
+
+  /** @deprecated 请使用 {@link stockOutApi.searchItemsPaged} */
+  async searchItems(query?: StockOutItemListQuery): Promise<StockOutItemListRow[]> {
+    const p = await stockOutApi.searchItemsPaged({ ...query, page: 1, pageSize: 2000 })
+    return p.items
   },
 
   async getById(id: string): Promise<StockOutDetailDto | null> {
@@ -274,9 +332,20 @@ export const stockOutApi = {
     })
   },
 
+  async getRequestListPaged(params?: {
+    keyword?: string
+    workflow?: string
+    page?: number
+    pageSize?: number
+  }): Promise<StockOutRequestListPaged> {
+    const res = await apiClient.get<unknown>('/api/v1/stock-out/request', { params: params ?? {} })
+    return unwrapPagedRequests(res)
+  },
+
+  /** @deprecated 请使用 {@link stockOutApi.getRequestListPaged} */
   async getRequestList(): Promise<StockOutRequestDto[]> {
-    const res = await apiClient.get<unknown>('/api/v1/stock-out/request')
-    return unwrapArray<StockOutRequestDto>(res)
+    const p = await stockOutApi.getRequestListPaged({ page: 1, pageSize: 2000 })
+    return p.items
   },
   async deleteStockOutRequest(id: string): Promise<void> {
     await apiClient.delete(`/api/v1/stock-out/request/${encodeURIComponent(id)}`)

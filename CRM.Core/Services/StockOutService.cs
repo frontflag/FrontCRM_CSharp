@@ -10,6 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Globalization;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace CRM.Core.Services
@@ -46,6 +47,9 @@ namespace CRM.Core.Services
         private readonly IForceDeleteGuardService _forceDeleteGuard;
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<StockOutService> _logger;
+        private readonly IStockOutListQuery _stockOutListQuery;
+        private readonly IStockOutRequestListQuery _stockOutRequestListQuery;
+        private readonly IStockOutItemListQuery _stockOutItemListQuery;
 
         public StockOutService(
             IRepository<StockOut> stockOutRepository,
@@ -74,7 +78,10 @@ namespace CRM.Core.Services
             IUnitOfWork unitOfWork,
             IForceDeleteGuardService forceDeleteGuard,
             ILogOperationAppendService logOperationAppend,
-            ILogger<StockOutService> logger)
+            ILogger<StockOutService> logger,
+            IStockOutListQuery stockOutListQuery,
+            IStockOutRequestListQuery stockOutRequestListQuery,
+            IStockOutItemListQuery stockOutItemListQuery)
         {
             _stockOutRepository = stockOutRepository;
             _stockOutItemRepository = stockOutItemRepository;
@@ -103,6 +110,9 @@ namespace CRM.Core.Services
             _forceDeleteGuard = forceDeleteGuard;
             _logOperationAppend = logOperationAppend;
             _logger = logger;
+            _stockOutListQuery = stockOutListQuery;
+            _stockOutRequestListQuery = stockOutRequestListQuery;
+            _stockOutItemListQuery = stockOutItemListQuery;
         }
 
         public async Task<StockOutRequest> CreateStockOutRequestAsync(CreateStockOutRequestRequest request, string? actingUserId = null)
@@ -286,7 +296,63 @@ namespace CRM.Core.Services
 
         public async Task<IEnumerable<StockOutRequestListItemDto>> GetStockOutRequestListAsync()
         {
-            var reqs = (await _stockOutRequestRepository.GetAllAsync()).ToList();
+            var reqs = (await _stockOutRequestRepository.GetAllAsync())
+                .OrderByDescending(x => x.CreateTime)
+                .ThenByDescending(x => x.RequestDate)
+                .ThenBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            return await ProjectStockOutRequestListDtosAsync(reqs);
+        }
+
+        /// <inheritdoc />
+        public async Task<PagedResult<StockOutRequestListItemDto>> GetStockOutRequestListPagedAsync(
+            string? keyword,
+            string? workflow,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            var paged = await _stockOutRequestListQuery.GetPagedStockOutRequestIdsAsync(
+                keyword,
+                workflow,
+                page,
+                pageSize,
+                cancellationToken);
+            if (paged.TotalCount == 0)
+            {
+                return new PagedResult<StockOutRequestListItemDto>
+                {
+                    Items = Array.Empty<StockOutRequestListItemDto>(),
+                    TotalCount = 0,
+                    PageIndex = paged.PageIndex,
+                    PageSize = paged.PageSize
+                };
+            }
+
+            var idOrder = paged.Items.ToList();
+            var idSet = idOrder.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var loaded = (await _stockOutRequestRepository.FindAsync(x => idSet.Contains(x.Id))).ToList();
+            var byId = loaded.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
+            var ordered = new List<StockOutRequest>();
+            foreach (var id in idOrder)
+            {
+                if (byId.TryGetValue(id.Trim(), out var ent))
+                    ordered.Add(ent);
+            }
+
+            var dtos = await ProjectStockOutRequestListDtosAsync(ordered);
+            return new PagedResult<StockOutRequestListItemDto>
+            {
+                Items = dtos,
+                TotalCount = paged.TotalCount,
+                PageIndex = paged.PageIndex,
+                PageSize = paged.PageSize
+            };
+        }
+
+        private async Task<List<StockOutRequestListItemDto>> ProjectStockOutRequestListDtosAsync(
+            IReadOnlyList<StockOutRequest> reqs)
+        {
             var soMap = (await _sellOrderRepository.GetAllAsync())
                 .ToDictionary(x => x.Id, x => x);
             var users = (await _userRepository.GetAllAsync()).ToList();
@@ -314,9 +380,6 @@ namespace CRM.Core.Services
                     StringComparer.OrdinalIgnoreCase);
 
             return reqs
-                .OrderByDescending(x => x.CreateTime)
-                .ThenByDescending(x => x.RequestDate)
-                .ThenBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
                 .Select(x =>
                 {
                     soMap.TryGetValue(x.SalesOrderId, out var so);
@@ -327,10 +390,9 @@ namespace CRM.Core.Services
                     if (!string.IsNullOrWhiteSpace(x.RequestUserId))
                     {
                         if (!userLoginById.TryGetValue(x.RequestUserId, out requestUserName))
-                        {
                             userLoginByLoginKey.TryGetValue(x.RequestUserId, out requestUserName);
-                        }
                     }
+
                     return new StockOutRequestListItemDto
                     {
                         Id = x.Id,
@@ -753,7 +815,60 @@ namespace CRM.Core.Services
             const short transferStockOutType = 3;
             var outs = (await _stockOutRepository.GetAllAsync())
                 .Where(x => x.StockOutType != transferStockOutType)
+                .OrderByDescending(x => x.CreateTime)
+                .ThenByDescending(x => x.Id)
                 .ToList();
+            return await ProjectStockOutListDtosForOutsAsync(outs);
+        }
+
+        /// <inheritdoc />
+        public async Task<PagedResult<StockOutListItemDto>> GetStockOutListPagedAsync(
+            string? keyword,
+            string? sourceCode,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            var paged = await _stockOutListQuery.GetPagedStockOutIdsAsync(
+                keyword,
+                sourceCode,
+                page,
+                pageSize,
+                cancellationToken);
+            if (paged.TotalCount == 0)
+            {
+                return new PagedResult<StockOutListItemDto>
+                {
+                    Items = Array.Empty<StockOutListItemDto>(),
+                    TotalCount = 0,
+                    PageIndex = paged.PageIndex,
+                    PageSize = paged.PageSize
+                };
+            }
+
+            var idOrder = paged.Items.ToList();
+            var idSet = idOrder.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var loaded = (await _stockOutRepository.FindAsync(x => idSet.Contains(x.Id))).ToList();
+            var byId = loaded.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
+            var ordered = new List<StockOut>();
+            foreach (var id in idOrder)
+            {
+                if (byId.TryGetValue(id.Trim(), out var ent))
+                    ordered.Add(ent);
+            }
+
+            var dtos = await ProjectStockOutListDtosForOutsAsync(ordered);
+            return new PagedResult<StockOutListItemDto>
+            {
+                Items = dtos,
+                TotalCount = paged.TotalCount,
+                PageIndex = paged.PageIndex,
+                PageSize = paged.PageSize
+            };
+        }
+
+        private async Task<List<StockOutListItemDto>> ProjectStockOutListDtosForOutsAsync(IReadOnlyList<StockOut> outs)
+        {
             var lineIdSet = outs
                 .Select(x => x.SellOrderItemId)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -817,8 +932,6 @@ namespace CRM.Core.Services
                     StringComparer.OrdinalIgnoreCase);
 
             return outs
-                .OrderByDescending(x => x.CreateTime)
-                .ThenByDescending(x => x.Id)
                 .Select(x =>
                 {
                     SellOrderItem? line = null;
@@ -1059,6 +1172,208 @@ namespace CRM.Core.Services
                 .ThenBy(x => x.StockOutCode, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(x => x.StockOutItemId, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+        }
+
+        /// <inheritdoc />
+        public async Task<PagedResult<StockOutItemListRowDto>> GetStockOutItemListPagedAsync(
+            StockOutItemListQuery? query,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            query ??= new StockOutItemListQuery();
+            var paged = await _stockOutItemListQuery.GetPagedStockOutItemIdsAsync(query, page, pageSize, cancellationToken);
+            if (paged.TotalCount == 0)
+            {
+                return new PagedResult<StockOutItemListRowDto>
+                {
+                    Items = Array.Empty<StockOutItemListRowDto>(),
+                    TotalCount = 0,
+                    PageIndex = paged.PageIndex,
+                    PageSize = paged.PageSize
+                };
+            }
+
+            var idOrder = paged.Items.ToList();
+            var idSet = idOrder.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var loaded = (await _stockOutItemRepository.FindAsync(x => idSet.Contains(x.Id))).ToList();
+            var byId = loaded.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
+            var ordered = new List<StockOutItem>();
+            foreach (var id in idOrder)
+            {
+                if (byId.TryGetValue(id.Trim(), out var ent))
+                    ordered.Add(ent);
+            }
+
+            var rows = await BuildStockOutItemListRowsForItemsAsync(ordered);
+            return new PagedResult<StockOutItemListRowDto>
+            {
+                Items = rows,
+                TotalCount = paged.TotalCount,
+                PageIndex = paged.PageIndex,
+                PageSize = paged.PageSize
+            };
+        }
+
+        private async Task<List<StockOutItemListRowDto>> BuildStockOutItemListRowsForItemsAsync(
+            IReadOnlyList<StockOutItem> linesOrdered)
+        {
+            if (linesOrdered.Count == 0)
+                return new List<StockOutItemListRowDto>();
+
+            var outIds = linesOrdered
+                .Select(x => x.StockOutId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var outs = (await _stockOutRepository.FindAsync(x => outIds.Contains(x.Id))).ToList();
+            var outById = outs.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
+
+            var lineIdSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var custIdSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var x in linesOrdered)
+            {
+                if (!outById.TryGetValue(x.StockOutId?.Trim() ?? string.Empty, out var hdr))
+                    continue;
+                if (!string.IsNullOrWhiteSpace(hdr.SellOrderItemId))
+                    lineIdSet.Add(hdr.SellOrderItemId.Trim());
+                if (!string.IsNullOrWhiteSpace(hdr.CustomerId))
+                    custIdSet.Add(hdr.CustomerId.Trim());
+            }
+
+            var itemById = (await _sellOrderItemRepository.GetAllAsync())
+                .Where(x => lineIdSet.Contains(x.Id))
+                .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var orderIdSet = itemById.Values
+                .Select(x => x.SellOrderId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var orderById = (await _sellOrderRepository.GetAllAsync())
+                .Where(x => orderIdSet.Contains(x.Id))
+                .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var userLoginByIdForSo = (await _userRepository.GetAllAsync())
+                .Where(x => !string.IsNullOrWhiteSpace(x.Id))
+                .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g =>
+                    {
+                        var first = g.First();
+                        return EntityLookupService.FormatUserLoginName(first) ?? first.UserName ?? "";
+                    },
+                    StringComparer.OrdinalIgnoreCase);
+
+            foreach (var o in orderById.Values)
+            {
+                if (!string.IsNullOrWhiteSpace(o.CustomerId))
+                    custIdSet.Add(o.CustomerId.Trim());
+            }
+
+            var customerById = (await _customerRepository.GetAllAsync())
+                .Where(c => custIdSet.Contains(c.Id))
+                .GroupBy(c => c.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var lineIdSetForExt = linesOrdered.Select(x => x.Id.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var extendByOutItemId = (await _stockOutItemExtendRepository.GetAllAsync())
+                .Where(e => lineIdSetForExt.Contains(e.Id.Trim()))
+                .GroupBy(e => e.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var stockInItemIdSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var line in linesOrdered)
+            {
+                if (!extendByOutItemId.TryGetValue(line.Id.Trim(), out var ext))
+                    continue;
+                if (!string.IsNullOrWhiteSpace(ext.StockInItemId))
+                    stockInItemIdSet.Add(ext.StockInItemId.Trim());
+            }
+
+            var stockInItemById = (await _stockInItemRepository.GetAllAsync())
+                .Where(x => stockInItemIdSet.Contains(x.Id.Trim()))
+                .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var stockInIdSet = stockInItemById.Values
+                .Select(x => x.StockInId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var stockInById = (await _stockInRepository.GetAllAsync())
+                .Where(x => stockInIdSet.Contains(x.Id.Trim()))
+                .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var result = new List<StockOutItemListRowDto>();
+            foreach (var line in linesOrdered)
+            {
+                if (!outById.TryGetValue(line.StockOutId?.Trim() ?? string.Empty, out var hdr))
+                    continue;
+
+                SellOrderItem? soLine = null;
+                if (!string.IsNullOrWhiteSpace(hdr.SellOrderItemId))
+                    itemById.TryGetValue(hdr.SellOrderItemId.Trim(), out soLine);
+
+                SellOrder? so = null;
+                if (soLine != null && !string.IsNullOrWhiteSpace(soLine.SellOrderId))
+                    orderById.TryGetValue(soLine.SellOrderId.Trim(), out so);
+
+                string? customerName = null;
+                if (!string.IsNullOrWhiteSpace(hdr.CustomerId)
+                    && customerById.TryGetValue(hdr.CustomerId.Trim(), out var cust))
+                {
+                    customerName = string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.CustomerName : cust.OfficialName;
+                }
+                else if (so != null)
+                {
+                    customerName = so.CustomerName;
+                }
+
+                var salesUserName = ResolveSellOrderSalesLogin(so, userLoginByIdForSo);
+                var sellOrderItemCode = string.IsNullOrWhiteSpace(soLine?.SellOrderItemCode)
+                    ? null
+                    : soLine!.SellOrderItemCode.Trim();
+                var pn = string.IsNullOrWhiteSpace(line.PurchasePn) ? null : line.PurchasePn.Trim();
+
+                string? headerStockInCode = null;
+                if (extendByOutItemId.TryGetValue(line.Id.Trim(), out var extRow)
+                    && !string.IsNullOrWhiteSpace(extRow.StockInItemId)
+                    && stockInItemById.TryGetValue(extRow.StockInItemId.Trim(), out var sinIt)
+                    && !string.IsNullOrWhiteSpace(sinIt.StockInId)
+                    && stockInById.TryGetValue(sinIt.StockInId.Trim(), out var sinHdr))
+                {
+                    headerStockInCode = string.IsNullOrWhiteSpace(sinHdr.StockInCode) ? null : sinHdr.StockInCode.Trim();
+                }
+
+                var outQty = line.ActualQty > 0 ? line.ActualQty : line.Quantity;
+
+                result.Add(new StockOutItemListRowDto
+                {
+                    StockOutItemId = line.Id,
+                    StockOutId = hdr.Id,
+                    Status = hdr.Status,
+                    StockOutCode = hdr.StockOutCode,
+                    StockOutDate = hdr.StockOutDate,
+                    CustomerName = customerName,
+                    SalesUserName = salesUserName,
+                    PurchasePn = pn,
+                    PurchaseBrand = string.IsNullOrWhiteSpace(line.PurchaseBrand) ? null : line.PurchaseBrand.Trim(),
+                    OutQuantity = outQty,
+                    ShipmentMethod = string.IsNullOrWhiteSpace(hdr.ShipmentMethod) ? null : hdr.ShipmentMethod.Trim(),
+                    CourierTrackingNo = string.IsNullOrWhiteSpace(hdr.CourierTrackingNo) ? null : hdr.CourierTrackingNo.Trim(),
+                    SellOrderItemCode = sellOrderItemCode,
+                    StockInCode = headerStockInCode
+                });
+            }
+
+            return result;
         }
 
         private static bool TextContainsOptional(string? haystack, string? needleTrimmedOrNull)

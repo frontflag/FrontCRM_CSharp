@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Threading;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
 using CRM.Core.Interfaces;
@@ -14,6 +15,7 @@ namespace CRM.API.Controllers
     public class LogisticsController : ControllerBase
     {
         private readonly ILogisticsService _service;
+        private readonly IArrivalNoticeListQuery _arrivalNoticeListQuery;
         private readonly IRepository<StockInNotify> _notifyRepo;
         private readonly IRepository<QCInfo> _qcRepo;
         private readonly IRepository<QCItem> _qcItemRepo;
@@ -24,6 +26,7 @@ namespace CRM.API.Controllers
 
         public LogisticsController(
             ILogisticsService service,
+            IArrivalNoticeListQuery arrivalNoticeListQuery,
             IRepository<StockInNotify> notifyRepo,
             IRepository<QCInfo> qcRepo,
             IRepository<QCItem> qcItemRepo,
@@ -33,6 +36,7 @@ namespace CRM.API.Controllers
             ILogger<LogisticsController> logger)
         {
             _service = service;
+            _arrivalNoticeListQuery = arrivalNoticeListQuery;
             _notifyRepo = notifyRepo;
             _qcRepo = qcRepo;
             _qcItemRepo = qcItemRepo;
@@ -48,49 +52,46 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("arrival-notices")]
-        public async Task<ActionResult<ApiResponse<IReadOnlyList<StockInNotify>>>> GetArrivalNotices(
+        public async Task<IActionResult> GetArrivalNotices(
             [FromQuery] short? status,
             [FromQuery] string? purchaseOrderCode,
-            [FromQuery] DateTime? expectedArrivalDate)
+            [FromQuery] DateTime? expectedArrivalDate,
+            [FromQuery] string? id,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                var list = await _service.GetArrivalNoticesAsync();
-
-                if (status.HasValue)
-                {
-                    list = list.Where(x => x.Status == status.Value).ToList();
-                }
-
-                if (!string.IsNullOrWhiteSpace(purchaseOrderCode))
-                {
-                    var keyword = purchaseOrderCode.Trim();
-                    list = list.Where(x =>
-                        !string.IsNullOrWhiteSpace(x.PurchaseOrderCode) &&
-                        x.PurchaseOrderCode.Contains(keyword, StringComparison.OrdinalIgnoreCase)).ToList();
-                }
-
-                if (expectedArrivalDate.HasValue)
-                {
-                    var targetDate = expectedArrivalDate.Value.Date;
-                    list = list.Where(x =>
-                        x.ExpectedArrivalDate.HasValue &&
-                        x.ExpectedArrivalDate.Value.Date == targetDate).ToList();
-                }
-
+                var paged = await _arrivalNoticeListQuery.GetPagedAsync(
+                    status,
+                    purchaseOrderCode,
+                    expectedArrivalDate,
+                    string.IsNullOrWhiteSpace(id) ? null : id.Trim(),
+                    page,
+                    pageSize,
+                    cancellationToken);
+                var items = paged.Items.ToList();
                 if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
-                {
-                    var masked = list.ToList();
-                    PurchaseSensitiveFieldMask511.ApplyStockInNotifies(masked, true);
-                    list = masked;
-                }
+                    PurchaseSensitiveFieldMask511.ApplyStockInNotifies(items, true);
 
-                return Ok(ApiResponse<IReadOnlyList<StockInNotify>>.Ok(list, "获取到货通知成功"));
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items,
+                        total = paged.TotalCount,
+                        page = paged.PageIndex,
+                        pageSize = paged.PageSize
+                    },
+                    message = "获取到货通知成功"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取到货通知失败");
-                return StatusCode(500, ApiResponse<IReadOnlyList<StockInNotify>>.Fail(ex.Message, 500));
+                return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
 
@@ -202,24 +203,36 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("qcs")]
-        public async Task<ActionResult<ApiResponse<IReadOnlyList<QCInfo>>>> GetQcs([FromQuery] QcQueryRequest? request)
+        public async Task<IActionResult> GetQcs(
+            [FromQuery] QcQueryRequest? request,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                var list = await _service.GetQcsAsync(request);
+                var paged = await _service.GetQcsPagedAsync(page, pageSize, request, cancellationToken);
+                var items = paged.Items.ToList();
                 if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
-                {
-                    var masked = list.ToList();
-                    PurchaseSensitiveFieldMask511.ApplyQcInfos(masked, true);
-                    list = masked;
-                }
+                    PurchaseSensitiveFieldMask511.ApplyQcInfos(items, true);
 
-                return Ok(ApiResponse<IReadOnlyList<QCInfo>>.Ok(list, "获取质检单成功"));
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items,
+                        total = paged.TotalCount,
+                        page = paged.PageIndex,
+                        pageSize = paged.PageSize
+                    },
+                    message = "获取质检单成功"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取质检单失败");
-                return StatusCode(500, ApiResponse<IReadOnlyList<QCInfo>>.Fail(ex.Message, 500));
+                return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
 

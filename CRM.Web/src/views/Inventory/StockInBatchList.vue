@@ -11,7 +11,7 @@
           </div>
           <h1 class="page-title">{{ t('stockInBatchList.title') }}</h1>
         </div>
-        <div class="count-badge">{{ t('stockInBatchList.count', { count: listTotal }) }}</div>
+        <div class="count-badge">{{ t('stockInBatchList.count', { count: listTotalServer }) }}</div>
       </div>
       <div class="header-right">
         <button type="button" class="btn-header-blue" @click="writeOffVisible = true">
@@ -24,7 +24,7 @@
       </div>
     </div>
 
-    <StockInBatchWriteOffDialog v-model="writeOffVisible" @success="fetchList" />
+    <StockInBatchWriteOffDialog v-model="writeOffVisible" @success="() => void fetchList(true)" />
 
     <!-- 搜索栏：与客户列表 /customerlist 同一套结构与样式 -->
     <div class="search-bar">
@@ -38,7 +38,7 @@
             v-model="filters.stockInItemCode"
             class="search-input"
             :placeholder="t('stockInBatchList.filters.stockInItemCodePlaceholder')"
-            @keyup.enter="fetchList"
+            @keyup.enter="() => void fetchList(true)"
           />
         </div>
         <div class="search-input-wrap">
@@ -50,7 +50,7 @@
             v-model="filters.lot"
             class="search-input"
             :placeholder="t('stockInBatchList.filters.lotPlaceholder')"
-            @keyup.enter="fetchList"
+            @keyup.enter="() => void fetchList(true)"
           />
         </div>
         <div class="search-input-wrap">
@@ -62,10 +62,10 @@
             v-model="filters.serialNumber"
             class="search-input"
             :placeholder="t('stockInBatchList.filters.serialNumberPlaceholder')"
-            @keyup.enter="fetchList"
+            @keyup.enter="() => void fetchList(true)"
           />
         </div>
-        <button type="button" class="btn-primary btn-sm" @click="fetchList">{{ t('stockInBatchList.filters.search') }}</button>
+        <button type="button" class="btn-primary btn-sm" @click="() => void fetchList(true)">{{ t('stockInBatchList.filters.search') }}</button>
         <button type="button" class="btn-ghost btn-sm" @click="resetFilters">{{ t('stockInBatchList.filters.reset') }}</button>
       </div>
     </div>
@@ -76,7 +76,7 @@
       :columns="tableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-      :data="pagedList"
+      :data="list"
       v-loading="loading"
       @row-dblclick="openEdit"
     />
@@ -89,10 +89,11 @@
         class="list-main-pagination"
         v-model:current-page="listPage"
         v-model:page-size="listPageSize"
-        :total="listTotal"
+        :total="listTotalServer"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
-        @size-change="listPage = 1"
+        @current-change="() => void fetchList(false)"
+        @size-change="onBatchListPageSizeChange"
       />
     </div>
 
@@ -185,13 +186,9 @@ const saving = ref(false)
 const list = ref<StockInBatchRow[]>([])
 const listPage = ref(1)
 const listPageSize = ref(20)
-const listTotal = computed(() => list.value.length)
-const pagedList = computed(() => {
-  const start = (listPage.value - 1) * listPageSize.value
-  return list.value.slice(start, start + listPageSize.value)
-})
-watch(listTotal, () => {
-  const maxP = Math.max(1, Math.ceil(listTotal.value / listPageSize.value) || 1)
+const listTotalServer = ref(0)
+watch(listTotalServer, () => {
+  const maxP = Math.max(1, Math.ceil(listTotalServer.value / listPageSize.value) || 1)
   if (listPage.value > maxP) listPage.value = maxP
 })
 
@@ -305,32 +302,42 @@ async function saveEdit() {
   }
 }
 
-async function fetchList() {
+async function fetchList(resetPage = true) {
+  if (resetPage) listPage.value = 1
   loading.value = true
   try {
-    list.value = await stockInBatchApi.list({
+    const paged = await stockInBatchApi.listPaged({
       stockInItemCode: filters.stockInItemCode.trim() || undefined,
       lot: filters.lot.trim() || undefined,
-      serialNumber: filters.serialNumber.trim() || undefined
+      serialNumber: filters.serialNumber.trim() || undefined,
+      page: listPage.value,
+      pageSize: listPageSize.value
     })
-    listPage.value = 1
+    list.value = paged.items
+    listTotalServer.value = paged.total
   } catch (e) {
     ElMessage.error(getApiErrorMessage(e, t('stockInBatchList.messages.loadFailed')))
     list.value = []
+    listTotalServer.value = 0
   } finally {
     loading.value = false
   }
+}
+
+function onBatchListPageSizeChange() {
+  listPage.value = 1
+  void fetchList(false)
 }
 
 function resetFilters() {
   filters.stockInItemCode = ''
   filters.lot = ''
   filters.serialNumber = ''
-  void fetchList()
+  void fetchList(true)
 }
 
 onMounted(() => {
-  void fetchList()
+  void fetchList(true)
 })
 </script>
 

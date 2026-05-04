@@ -2,6 +2,7 @@ using CRM.API.Models.DTOs;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading;
 
 namespace CRM.API.Controllers
 {
@@ -10,11 +11,16 @@ namespace CRM.API.Controllers
     public class StockInBatchController : ControllerBase
     {
         private readonly IStockInBatchService _service;
+        private readonly IStockInBatchListQuery _batchListQuery;
         private readonly ILogger<StockInBatchController> _logger;
 
-        public StockInBatchController(IStockInBatchService service, ILogger<StockInBatchController> logger)
+        public StockInBatchController(
+            IStockInBatchService service,
+            IStockInBatchListQuery batchListQuery,
+            ILogger<StockInBatchController> logger)
         {
             _service = service;
+            _batchListQuery = batchListQuery;
             _logger = logger;
         }
 
@@ -70,27 +76,40 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponse<IReadOnlyList<StockInBatch>>>> List(
+        public async Task<IActionResult> List(
             [FromQuery] string? stockInItemCode,
             [FromQuery] string? lot,
             [FromQuery] string? serialNumber,
-            CancellationToken cancellationToken)
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                var query = new StockInBatchListQuery
+                var result = await _batchListQuery.GetPagedAsync(
+                    stockInItemCode,
+                    lot,
+                    serialNumber,
+                    page,
+                    pageSize,
+                    cancellationToken);
+                return Ok(new
                 {
-                    StockInItemCode = stockInItemCode,
-                    Lot = lot,
-                    SerialNumber = serialNumber
-                };
-                var list = await _service.ListAsync(query, cancellationToken);
-                return Ok(ApiResponse<IReadOnlyList<StockInBatch>>.Ok(list, "获取入库批次记录成功"));
+                    success = true,
+                    data = new
+                    {
+                        items = result.Items,
+                        total = result.TotalCount,
+                        page = result.PageIndex,
+                        pageSize = result.PageSize
+                    },
+                    message = "获取入库批次记录成功"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取入库批次记录失败");
-                return StatusCode(500, ApiResponse<IReadOnlyList<StockInBatch>>.Fail($"获取入库批次记录失败: {ex.Message}", 500));
+                return StatusCode(500, new { success = false, message = $"获取入库批次记录失败: {ex.Message}" });
             }
         }
 

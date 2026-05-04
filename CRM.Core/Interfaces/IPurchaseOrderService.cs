@@ -101,7 +101,18 @@ namespace CRM.Core.Interfaces
 
     public class PurchaseOrderQueryRequest
     {
+        /// <summary>兼容旧版：单关键字匹配采购单号或供应商名称（OR）；若同时传 <see cref="PurchaseOrderCodeFilter"/> / <see cref="VendorNameFilter"/> 则忽略本字段。</summary>
         public string? Keyword { get; set; }
+
+        /// <summary>采购单号包含（与 <see cref="VendorNameFilter"/>、状态等为 AND）。</summary>
+        public string? PurchaseOrderCodeFilter { get; set; }
+
+        /// <summary>供应商名称包含。</summary>
+        public string? VendorNameFilter { get; set; }
+
+        /// <summary>主表订单类型 1/2/3。</summary>
+        public short? OrderType { get; set; }
+
         public short? Status { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }

@@ -27,6 +27,8 @@ namespace CRM.Core.Tests.Services
         private readonly ISellOrderItemPurchasedStockAvailableSyncService _purchasedStockAvailableSync;
         private readonly ISellOrderExtendLineSeqService _soLineSeq;
         private readonly IUserService _userService;
+        private readonly ISalesOrderListQuery _salesOrderListQuery;
+        private readonly ISalesOrderItemLineListQuery _salesOrderItemLineListQuery;
         private readonly IUnitOfWork _unitOfWork;
         private readonly SalesOrderService _orderService;
 
@@ -58,6 +60,12 @@ namespace CRM.Core.Tests.Services
             _userService.GetAllAsync().Returns(Array.Empty<User>());
             _unitOfWork = Substitute.For<IUnitOfWork>();
             _unitOfWork.SaveChangesAsync().Returns(1);
+            _salesOrderListQuery = Substitute.For<ISalesOrderListQuery>();
+            _salesOrderListQuery.GetPagedAsync(Arg.Any<SalesOrderQueryRequest>(), Arg.Any<CancellationToken>())
+                .Returns(new PagedResult<SellOrder> { Items = new List<SellOrder>(), TotalCount = 0, PageIndex = 1, PageSize = 20 });
+            _salesOrderItemLineListQuery = Substitute.For<ISalesOrderItemLineListQuery>();
+            _salesOrderItemLineListQuery.GetPagedAsync(Arg.Any<SellOrderItemLineQueryRequest>(), Arg.Any<CancellationToken>())
+                .Returns(new PagedResult<SellOrderItemLineDto> { Items = new List<SellOrderItemLineDto>(), TotalCount = 0, PageIndex = 1, PageSize = 20 });
             _orderService = new SalesOrderService(
                 _orderRepository,
                 _orderItemRepository,
@@ -74,6 +82,8 @@ namespace CRM.Core.Tests.Services
                 _purchasedStockAvailableSync,
                 _soLineSeq,
                 _userService,
+                _salesOrderListQuery,
+                _salesOrderItemLineListQuery,
                 _unitOfWork,
                 NullLogger<SalesOrderService>.Instance);
         }

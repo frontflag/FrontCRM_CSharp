@@ -49,7 +49,7 @@
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card stat-info">
-          <div class="stat-value">{{ canViewPurchaseAmount ? `¥${statAmount.toLocaleString()}` : '--' }}</div>
+          <div class="stat-value">{{ statAmountDisplay }}</div>
           <div class="stat-label">{{ t('purchaseOrderList.stats.totalAmount') }}</div>
         </el-card>
       </el-col>
@@ -145,7 +145,7 @@
         :columns="purchaseOrderTableColumns"
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-        :data="filteredList"
+        :data="orderList"
         row-key="id"
         highlight-current-row
         @row-dblclick="handleView"
@@ -436,33 +436,25 @@ const pageInfo = ref({
   total: 0
 })
 
-// 对话框控制
-// 计算属性：筛选后的列表
-const filteredList = computed(() => {
-  let result = orderList.value
-  if (filterForm.value.code) {
-    result = result.filter(o => o.purchaseOrderCode.toLowerCase().includes(filterForm.value.code.toLowerCase()))
-  }
-  if (filterForm.value.vendor) {
-    result = result.filter(o => o.vendorName?.toLowerCase().includes(filterForm.value.vendor.toLowerCase()))
-  }
-  if (filterForm.value.status !== undefined) {
-    result = result.filter(o => poListMainStatus(o) === filterForm.value.status)
-  }
-  if (filterForm.value.orderType !== undefined) {
-    const ot = filterForm.value.orderType
-    result = result.filter(o => purchaseOrderHeaderType(o as Record<string, unknown>) === ot)
-  }
-  pageInfo.value.total = result.length
-  const start = (pageInfo.value.page - 1) * pageInfo.value.pageSize
-  return result.slice(start, start + pageInfo.value.pageSize)
+/** 与当前筛选一致的全量汇总（后端 aggregates） */
+const listAggregates = ref({
+  totalCount: 0,
+  pendingConfirmCount: 0,
+  inProgressCount: 0,
+  totalAmountSum: null as number | null
 })
 
-// 统计
-const statTotal = computed(() => orderList.value.length)
-const statPending = computed(() => orderList.value.filter(o => poListMainStatus(o) === 20).length)
-const statInProgress = computed(() => orderList.value.filter(o => poListMainStatus(o) === 50).length)
-const statAmount = computed(() => orderList.value.reduce((sum, o) => sum + (o.total || 0), 0))
+// 统计（全筛选范围，非仅当前页）
+const statTotal = computed(() => listAggregates.value.totalCount)
+const statPending = computed(() => listAggregates.value.pendingConfirmCount)
+const statInProgress = computed(() => listAggregates.value.inProgressCount)
+const statAmountDisplay = computed(() => {
+  if (!canViewPurchaseAmount.value) return '--'
+  if (listAggregates.value.totalAmountSum == null) return '--'
+  const n = Number(listAggregates.value.totalAmountSum)
+  if (!Number.isFinite(n)) return '--'
+  return `¥${n.toLocaleString()}`
+})
 
 // 状态处理
 const getStatusType = (status: number) => {
@@ -503,9 +495,59 @@ const getStatusText = (status: number) => {
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await purchaseOrderApi.getList({ page: 1, pageSize: 2000 })
-    orderList.value = (res as { items?: unknown[] }).items || []
-    pageInfo.value.total = orderList.value.length
+    const params: {
+      page: number
+      pageSize: number
+      code?: string
+      vendor?: string
+      status?: number
+      orderType?: number
+    } = {
+      page: pageInfo.value.page,
+      pageSize: pageInfo.value.pageSize
+    }
+    const c = filterForm.value.code?.trim()
+    const v = filterForm.value.vendor?.trim()
+    if (c) params.code = c
+    if (v) params.vendor = v
+    if (filterForm.value.status !== undefined) params.status = filterForm.value.status
+    if (filterForm.value.orderType !== undefined) params.orderType = filterForm.value.orderType
+
+    const res = (await purchaseOrderApi.getList(params)) as {
+      items?: unknown[]
+      total?: number
+      aggregates?: {
+        totalCount?: number
+        pendingConfirmCount?: number
+        inProgressCount?: number
+        totalAmountSum?: number | null
+      }
+    }
+    const items = (res.items || []) as any[]
+    const total = res.total ?? 0
+    if (pageInfo.value.page > 1 && items.length === 0 && total > 0) {
+      pageInfo.value.page = 1
+      await loadData()
+      return
+    }
+    orderList.value = items
+    pageInfo.value.total = total
+    const agg = res.aggregates
+    if (agg) {
+      listAggregates.value = {
+        totalCount: agg.totalCount ?? total,
+        pendingConfirmCount: agg.pendingConfirmCount ?? 0,
+        inProgressCount: agg.inProgressCount ?? 0,
+        totalAmountSum: agg.totalAmountSum ?? null
+      }
+    } else {
+      listAggregates.value = {
+        totalCount: total,
+        pendingConfirmCount: 0,
+        inProgressCount: 0,
+        totalAmountSum: null
+      }
+    }
   } catch (error) {
     ElMessage.error(t('purchaseOrderList.loadFailed'))
   } finally {
@@ -516,20 +558,25 @@ const loadData = async () => {
 // 搜索和重置
 const handleSearch = () => {
   pageInfo.value.page = 1
+  void loadData()
 }
 
 const handleReset = () => {
   filterForm.value = { code: '', vendor: '', status: undefined, orderType: undefined }
   pageInfo.value.page = 1
+  void loadData()
 }
 
 // 分页
 const handleSizeChange = (val: number) => {
   pageInfo.value.pageSize = val
+  pageInfo.value.page = 1
+  void loadData()
 }
 
 const handlePageChange = (val: number) => {
   pageInfo.value.page = val
+  void loadData()
 }
 
 // 新建：直接进入创建页，默认备货采购（Type=2），无销售/申请链路

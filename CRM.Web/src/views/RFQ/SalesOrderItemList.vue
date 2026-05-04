@@ -39,7 +39,7 @@
             v-model="filters.sellOrderCode"
             class="search-input"
             :placeholder="t('salesOrderItemList.filters.sellOrderCode')"
-            @keyup.enter="loadList"
+            @keyup.enter="runSearch"
           />
         </div>
         <template v-if="listCustomerColumnOk">
@@ -52,7 +52,7 @@
               v-model="filters.customerName"
               class="search-input"
               :placeholder="t('salesOrderItemList.filters.customerName')"
-              @keyup.enter="loadList"
+              @keyup.enter="runSearch"
             />
           </div>
         </template>
@@ -66,7 +66,7 @@
               v-model="filters.salesUserName"
               class="search-input"
               :placeholder="t('salesOrderItemList.filters.salesUserName')"
-              @keyup.enter="loadList"
+              @keyup.enter="runSearch"
             />
           </div>
         </template>
@@ -79,10 +79,10 @@
             v-model="filters.pn"
             class="search-input"
             :placeholder="t('salesOrderItemList.filters.pn')"
-            @keyup.enter="loadList"
+            @keyup.enter="runSearch"
           />
         </div>
-        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="loadList">{{ t('salesOrderItemList.filters.query') }}</button>
+        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="runSearch">{{ t('salesOrderItemList.filters.query') }}</button>
         <button type="button" class="btn-ghost btn-sm" @click="resetFilters">{{ t('salesOrderItemList.filters.reset') }}</button>
       </div>
     </div>
@@ -315,11 +315,11 @@
         v-model:current-page="page"
         v-model:page-size="pageSize"
         :total="total"
-        :page-sizes="[10, 20, 50]"
+        :page-sizes="[10, 20, 50, 100]"
         layout="total, prev, pager, next, sizes"
         class="quantum-pagination"
-        @current-change="loadList"
-        @size-change="loadList"
+        @current-change="onPageChange"
+        @size-change="onPageSizeChange"
       />
     </div>
 
@@ -863,12 +863,27 @@ async function handleClearBasket() {
   ElMessage.success(t('salesOrderItemList.messages.basketCleared'))
 }
 
+function runSearch() {
+  page.value = 1
+  void loadList()
+}
+
+function onPageChange() {
+  void loadList()
+}
+
+function onPageSizeChange(next: number) {
+  pageSize.value = Math.min(100, next)
+  page.value = 1
+  void loadList()
+}
+
 async function loadList() {
   loading.value = true
   try {
     const params: Record<string, unknown> = {
       page: page.value,
-      pageSize: pageSize.value
+      pageSize: Math.min(100, pageSize.value)
     }
     if (dateRange.value?.[0]) params.orderCreateStart = dateRange.value[0]
     if (dateRange.value?.[1]) params.orderCreateEnd = dateRange.value[1]
@@ -883,9 +898,23 @@ async function loadList() {
     const pnk = String(filters.pn ?? '').trim()
     if (pnk) params.pn = pnk
 
-    const data = await salesOrderApi.getItemLines(params)
-    list.value = data?.items ?? []
-    total.value = data?.total ?? 0
+    const data = (await salesOrderApi.getItemLines(params)) as {
+      items?: any[]
+      total?: number
+      page?: number
+      pageSize?: number
+    }
+    const items = data.items ?? []
+    const nTotal = data.total ?? 0
+    if (page.value > 1 && items.length === 0 && nTotal > 0) {
+      page.value = 1
+      await loadList()
+      return
+    }
+    list.value = items
+    total.value = nTotal
+    if (typeof data.page === 'number' && data.page >= 1) page.value = data.page
+    if (typeof data.pageSize === 'number' && data.pageSize >= 1) pageSize.value = Math.min(100, data.pageSize)
   } catch (e: any) {
     ElMessage.error(e?.message || t('salesOrderItemList.messages.loadListFailed'))
   } finally {
@@ -916,7 +945,7 @@ function goDetail(row: any) {
 }
 
 function goEdit(row: any) {
-  router.push({ path: `/sales-orders/${row.sellOrderId}`, query: { edit: '1' } })
+  router.push({ name: 'SalesOrderEdit', params: { id: String(row.sellOrderId) } })
 }
 
 function navigateNewPr(sellOrderId: string, itemIds: string[]) {

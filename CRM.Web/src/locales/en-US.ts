@@ -2164,7 +2164,8 @@ const enUS = {
     breadcrumb: { orders: 'Order management', sales: 'Sales', newOrder: 'New sales order', editOrder: 'Edit sales order' },
     cancel: 'Cancel',
     save: 'Save',
-    sections: { order: 'Order information', customer: 'Customer information', items: 'Line items' },
+    sections: { order: 'Order information', customer: 'Payment & delivery', items: 'Line items' },
+    orderHeaderCodeLabel: 'Sales order no.',
     fields: {
       sellOrderCode: 'Order no.',
       orderType: 'Order type',
@@ -2178,6 +2179,7 @@ const enUS = {
       deliveryAddress: 'Ship-to address',
       mpn: 'Material / MPN',
       customerMpn: 'Customer part no.',
+      customerBrand: 'Customer brand',
       brand: 'Brand',
       customerPo: 'Customer PO no.',
       unitPrice: 'Unit price',
@@ -2212,8 +2214,8 @@ const enUS = {
     productKinds: { spot: 'Spot', futures: 'Futures', backlog: 'Backlog', sample: 'Sample' },
     paymentTermsExtra: { prepayment: 'Prepaid before shipment', cod: 'Cash on delivery' },
     itemsToolbar: { addLine: 'Add line' },
-    itemsEmpty: 'No lines yet, or no MPN matches the filter.',
-    cardHeadMpn: 'MPN',
+    itemsEmpty: 'No lines yet. Use "Add line" in the section header.',
+    cardHeadMaterialLabel: 'Material:',
     purchaseQuoteFallback: 'Purchase quote: —',
     deleteLine: 'Remove line',
     grandTotal: 'Grand total',
@@ -2239,7 +2241,9 @@ const enUS = {
       createFailed: 'Create failed, please try again',
       updateSuccess: 'Sales order saved',
       updateFailed: 'Save failed, please try again',
-      loadOrderFailed: 'Failed to load sales order'
+      loadOrderFailed: 'Failed to load sales order',
+      confirmDeleteLineTitle: 'Remove line',
+      confirmDeleteLineMessage: 'Remove this line item?'
     },
     comment: {
       product: 'Product',

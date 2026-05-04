@@ -31,9 +31,11 @@ namespace CRM.API.Controllers
         private readonly IRbacService _rbacService;
         private readonly IRepository<PurchaseOrder> _poRepo;
         private readonly IRepository<PurchaseOrderItem> _poItemRepo;
+        private readonly IPurchaseRequisitionListQuery _purchaseRequisitionListQuery;
 
         public PurchaseRequisitionsController(
             IPurchaseRequisitionService service,
+            IPurchaseRequisitionListQuery purchaseRequisitionListQuery,
             IRepository<PurchaseRequisition> prRepo,
             IRepository<SellOrder> soRepo,
             IRepository<SellOrderItem> soItemRepo,
@@ -62,6 +64,7 @@ namespace CRM.API.Controllers
             _poRepo = poRepo;
             _poItemRepo = poItemRepo;
             _rbacService = rbacService;
+            _purchaseRequisitionListQuery = purchaseRequisitionListQuery;
         }
 
         private async Task<UserPermissionSummaryDto?> TryGetPermissionSummaryAsync()
@@ -78,96 +81,31 @@ namespace CRM.API.Controllers
             [FromQuery] string? sellOrderId,
             [FromQuery] short? status,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20)
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                var all = (await _prRepo.GetAllAsync()).ToList();
-
-                if (!string.IsNullOrWhiteSpace(sellOrderId))
-                    all = all.Where(p => p.SellOrderId == sellOrderId.Trim()).ToList();
-
-                if (status.HasValue)
-                    all = all.Where(p => p.Status == status.Value).ToList();
-
-                if (!string.IsNullOrWhiteSpace(keyword))
-                {
-                    var kw = keyword.Trim();
-                    all = all.Where(p =>
-                        (p.BillCode != null && p.BillCode.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
-                        (!string.IsNullOrWhiteSpace(p.PN) && p.PN.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
-                        (!string.IsNullOrWhiteSpace(p.Brand) && p.Brand.Contains(kw, StringComparison.OrdinalIgnoreCase)) ||
-                        (!string.IsNullOrWhiteSpace(p.Remark) && p.Remark.Contains(kw, StringComparison.OrdinalIgnoreCase))
-                    ).ToList();
-                }
-
-                var total = all.Count;
-                var safePage = page < 1 ? 1 : page;
-                var safePageSize = pageSize < 1 ? 20 : pageSize;
-                var slice = all.OrderByDescending(p => p.CreateTime)
-                    .Skip((safePage - 1) * safePageSize)
-                    .Take(safePageSize)
-                    .ToList();
-
-                var soCodeById = (await _soRepo.GetAllAsync()).ToDictionary(s => s.Id, s => s.SellOrderCode);
-
-                var userIds = slice
-                    .SelectMany(p => new[] { p.PurchaseUserId, p.CreateByUserId })
-                    .Where(id => !string.IsNullOrWhiteSpace(id))
-                    .Select(id => id!.Trim())
-                    .Distinct()
-                    .ToList();
-
-                var userNameById = new Dictionary<string, string>(StringComparer.Ordinal);
-                if (userIds.Count > 0)
-                {
-                    var idSet = userIds.ToHashSet(StringComparer.Ordinal);
-                    var users = await _userRepo.FindIgnoreFiltersAsync(u => idSet.Contains(u.Id));
-                    foreach (var u in users)
+                var result = await _purchaseRequisitionListQuery.GetPagedAsync(
+                    new PurchaseRequisitionListQueryRequest
                     {
-                        if (!string.IsNullOrWhiteSpace(u.UserName))
-                            userNameById[u.Id] = u.UserName.Trim();
-                    }
-                }
-
-                string? AccountFor(string? userId)
-                {
-                    if (string.IsNullOrWhiteSpace(userId)) return null;
-                    var key = userId.Trim();
-                    return userNameById.TryGetValue(key, out var name) ? name : null;
-                }
-
-                var items = slice.Select(p => new
-                {
-                    id = p.Id,
-                    billCode = p.BillCode,
-                    sellOrderId = p.SellOrderId,
-                    sellOrderItemId = p.SellOrderItemId,
-                    sellOrderCode = soCodeById.TryGetValue(p.SellOrderId, out var code) ? code : null,
-                    pn = p.PN,
-                    brand = p.Brand,
-                    qty = p.Qty,
-                    expectedPurchaseTime = p.ExpectedPurchaseTime,
-                    status = p.Status,
-                    type = p.Type,
-                    purchaseUserId = p.PurchaseUserId,
-                    purchaseUserAccount = AccountFor(p.PurchaseUserId),
-                    quoteVendorId = p.QuoteVendorId,
-                    quoteCost = p.QuoteCost,
-                    remark = p.Remark,
-                    createTime = p.CreateTime,
-                    createUserAccount = AccountFor(p.CreateByUserId)
-                }).ToList();
+                        Keyword = keyword,
+                        SellOrderId = sellOrderId,
+                        Status = status,
+                        Page = page,
+                        PageSize = pageSize
+                    },
+                    cancellationToken);
 
                 return Ok(new
                 {
                     success = true,
                     data = new
                     {
-                        items,
-                        total,
-                        page = safePage,
-                        pageSize = safePageSize
+                        items = result.Items.ToList(),
+                        total = result.TotalCount,
+                        page = result.PageIndex,
+                        pageSize = result.PageSize
                     }
                 });
             }
@@ -280,7 +218,7 @@ namespace CRM.API.Controllers
                         pn = pr.PN,
                         brand = pr.Brand,
                         // 图2红框内“订单明细”所需的销售订单明细字段
-                        customerMaterialModel = line?.CustomerPnNo,
+                        customerMaterialModel = line?.CustomerPn,
                         targetPrice = line?.Price,
                         currency = line?.Currency,
                         dateCode = line?.DateCode,

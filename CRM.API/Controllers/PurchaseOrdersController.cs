@@ -1,4 +1,5 @@
 using CRM.Core.Interfaces;
+using CRM.Core.Models;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
@@ -23,6 +24,8 @@ namespace CRM.API.Controllers
     public class PurchaseOrdersController : ControllerBase
     {
         private readonly IPurchaseOrderService _service;
+        private readonly IPurchaseOrderListQuery _purchaseOrderListQuery;
+        private readonly IPurchaseOrderItemListQuery _purchaseOrderItemListQuery;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
         private readonly IEntityLookupService _entityLookup;
@@ -32,6 +35,8 @@ namespace CRM.API.Controllers
 
         public PurchaseOrdersController(
             IPurchaseOrderService service,
+            IPurchaseOrderListQuery purchaseOrderListQuery,
+            IPurchaseOrderItemListQuery purchaseOrderItemListQuery,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
             IEntityLookupService entityLookup,
@@ -40,6 +45,8 @@ namespace CRM.API.Controllers
             ILogger<PurchaseOrdersController> logger)
         {
             _service = service;
+            _purchaseOrderListQuery = purchaseOrderListQuery;
+            _purchaseOrderItemListQuery = purchaseOrderItemListQuery;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
             _entityLookup = entityLookup;
@@ -51,17 +58,24 @@ namespace CRM.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll(
             [FromQuery] string? keyword,
+            [FromQuery] string? code,
+            [FromQuery] string? vendor,
+            [FromQuery] short? orderType,
             [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20)
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
             try
             {
                 var request = new PurchaseOrderQueryRequest
                 {
                     Keyword = keyword,
+                    PurchaseOrderCodeFilter = string.IsNullOrWhiteSpace(code) ? null : code.Trim(),
+                    VendorNameFilter = string.IsNullOrWhiteSpace(vendor) ? null : vendor.Trim(),
+                    OrderType = orderType,
                     Status = status,
                     StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
                     EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
@@ -72,7 +86,27 @@ namespace CRM.API.Controllers
                 var result = await _service.GetPagedAsync(request);
                 var summary = await GetPermissionSummaryAsync(request.CurrentUserId);
                 var items = result.Items.Select(x => MaskPurchaseOrder(x, summary)).ToList();
-                return Ok(new { success = true, data = new { items, total = result.TotalCount, page = result.PageIndex, pageSize = result.PageSize } });
+                var aggregates = await _purchaseOrderListQuery.GetAggregatesAsync(request, cancellationToken);
+                var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
+                var canViewPurchaseAmount = !mask511 && (summary?.IsSysAdmin == true || SummaryHasPermission(summary, "purchase.amount.read"));
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items,
+                        total = result.TotalCount,
+                        page = result.PageIndex,
+                        pageSize = result.PageSize,
+                        aggregates = new
+                        {
+                            totalCount = aggregates.TotalCount,
+                            pendingConfirmCount = aggregates.PendingConfirmCount,
+                            inProgressCount = aggregates.InProgressCount,
+                            totalAmountSum = canViewPurchaseAmount ? aggregates.TotalAmountSum : (decimal?)null
+                        }
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -81,8 +115,72 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>采购订单明细行列表（数据库分页；与前端 <c>/purchase-order-items</c> 对齐）。</summary>
+        [HttpGet("items")]
+        public async Task<IActionResult> GetPurchaseOrderItemLines(
+            [FromQuery] string? startDate,
+            [FromQuery] string? endDate,
+            [FromQuery] string? purchaseOrderCode,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] string? pn,
+            [FromQuery] short? orderType,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var summary = await GetPermissionSummaryAsync(userId);
+                var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
+                var canViewVendorInfo = !mask511 && (summary?.IsSysAdmin == true
+                    || SummaryHasPermission(summary, "vendor.info.read")
+                    || SummaryHasPermission(summary, "vendor.read")
+                    || SummaryHasPermission(summary, "purchase-order.read")
+                    || SummaryHasPermission(summary, "purchase-order.write"));
+                var canViewPurchaseUser = summary?.IsSysAdmin == true
+                    || SummaryHasPermission(summary, "purchase.user.read")
+                    || SummaryHasPermission(summary, "purchase-order.read");
+
+                var request = new PurchaseOrderItemListQueryRequest
+                {
+                    CurrentUserId = userId,
+                    StartDate = DateTime.TryParse(startDate, out var sd) ? sd : null,
+                    EndDate = DateTime.TryParse(endDate, out var ed) ? ed : null,
+                    PurchaseOrderCode = string.IsNullOrWhiteSpace(purchaseOrderCode) ? null : purchaseOrderCode.Trim(),
+                    VendorName = canViewVendorInfo && !string.IsNullOrWhiteSpace(vendorName) ? vendorName.Trim() : null,
+                    PurchaseUserName = canViewPurchaseUser && !string.IsNullOrWhiteSpace(purchaseUserName) ? purchaseUserName.Trim() : null,
+                    Pn = string.IsNullOrWhiteSpace(pn) ? null : pn.Trim(),
+                    OrderType = orderType,
+                    Page = page,
+                    PageSize = pageSize
+                };
+
+                var result = await _purchaseOrderItemListQuery.GetPagedAsync(request, cancellationToken);
+                var loginMap = await LoadCreateUserLoginNamesForPoLinesAsync(result.Items, cancellationToken);
+                var items = MapPurchaseOrderItemListLines(result.Items, summary, loginMap);
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items,
+                        total = result.TotalCount,
+                        page = result.PageIndex,
+                        pageSize = result.PageSize
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取采购订单明细行列表失败");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         /// <summary>采购订单报表页：一次返回订单详情（含供应商扩展字段）与公司参数，避免单独请求 company-profile/report-bundle。</summary>
-        [HttpGet("{id}/report-data")]
+        [HttpGet("{id:guid}/report-data")]
         public async Task<IActionResult> GetReportData(string id, CancellationToken cancellationToken)
         {
             try
@@ -123,7 +221,7 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>采购订单详情页：底部页签下游列表（采购申请/付款/到货通知/入库/库存/进项发票）。</summary>
-        [HttpGet("{id}/detail-tab-aggregates")]
+        [HttpGet("{id:guid}/detail-tab-aggregates")]
         public async Task<IActionResult> GetDetailTabAggregates(string id)
         {
             try
@@ -147,7 +245,7 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>采购订单「单条明细」下游列表：与 <c>detail-tab-aggregates</c> 字段一致，按采购明细主键过滤。</summary>
-        [HttpGet("{id}/purchase-order-items/{purchaseOrderItemId}/detail-tab-aggregates")]
+        [HttpGet("{id:guid}/purchase-order-items/{purchaseOrderItemId}/detail-tab-aggregates")]
         public async Task<IActionResult> GetPurchaseOrderItemDetailTabAggregates(string id, string purchaseOrderItemId)
         {
             try
@@ -372,7 +470,8 @@ namespace CRM.API.Controllers
             };
         }
 
-        [HttpGet("{id}")]
+        /// <summary>按主键获取采购订单详情；使用 <c>{id:guid}</c> 避免与字面路由 <c>items</c> 冲突。</summary>
+        [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(string id, CancellationToken cancellationToken)
         {
             try
@@ -404,7 +503,7 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>将当前预览的采购订单 PDF（Base64）作为附件发送至指定邮箱。</summary>
-        [HttpPost("{id}/report/send-email")]
+        [HttpPost("{id:guid}/report/send-email")]
         public async Task<IActionResult> SendReportEmail(string id, [FromBody] SendPurchaseOrderReportEmailRequest request, CancellationToken cancellationToken)
         {
             try
@@ -532,7 +631,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{id:guid}")]
         [RequirePermission("purchase-order.write")]
         public async Task<IActionResult> Update(string id, [FromBody] UpdatePurchaseOrderRequest request)
         {
@@ -557,7 +656,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:guid}")]
         [RequirePermission("purchase-order.write")]
         public async Task<IActionResult> Delete(string id)
         {
@@ -576,7 +675,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        [HttpPatch("{id}/status")]
+        [HttpPatch("{id:guid}/status")]
         [RequirePermission("purchase-order.write")]
         public async Task<IActionResult> UpdateStatus(string id, [FromBody] PurchaseOrderUpdateStatusRequest request)
         {
@@ -596,7 +695,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        [HttpPost("{id}/refresh-item-extends")]
+        [HttpPost("{id:guid}/refresh-item-extends")]
         [RequirePermission("purchase-order.write")]
         public async Task<IActionResult> RefreshItemExtends(string id, CancellationToken cancellationToken)
         {
@@ -683,6 +782,92 @@ namespace CRM.API.Controllers
                 x => x.Id,
                 x => x.SellOrderItemCode ?? string.Empty,
                 StringComparer.OrdinalIgnoreCase);
+        }
+
+        private async Task<IReadOnlyDictionary<string, string?>> LoadCreateUserLoginNamesForPoLinesAsync(
+            IEnumerable<PurchaseOrderItemListLineRaw> lines,
+            CancellationToken cancellationToken)
+        {
+            var ids = lines
+                .Select(x => x.CreateByUserId)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0)
+                return new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+            var rows = await _db.Users.AsNoTracking()
+                .Where(u => ids.Contains(u.Id))
+                .Select(u => new { u.Id, u.UserName })
+                .ToListAsync(cancellationToken);
+            return rows.ToDictionary(x => x.Id, x => (string?)x.UserName, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static List<object> MapPurchaseOrderItemListLines(
+            IEnumerable<PurchaseOrderItemListLineRaw> lines,
+            UserPermissionSummaryDto? summary,
+            IReadOnlyDictionary<string, string?> createUserLoginByUserId)
+        {
+            var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
+            var canViewVendorInfo = !mask511 && (summary?.IsSysAdmin == true
+                || SummaryHasPermission(summary, "vendor.info.read")
+                || SummaryHasPermission(summary, "vendor.read")
+                || SummaryHasPermission(summary, "purchase-order.read")
+                || SummaryHasPermission(summary, "purchase-order.write"));
+            var canViewPurchaseAmount = !mask511 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("purchase.amount.read") ?? false));
+            var canInitiatePaymentFromPo = !mask511 && (summary?.IsSysAdmin == true
+                || SummaryHasPermission(summary, "finance-payment.write")
+                || SummaryHasPermission(summary, "purchase-order.write"));
+            var canViewPurchaseUser = summary?.IsSysAdmin == true
+                || SummaryHasPermission(summary, "purchase.user.read")
+                || SummaryHasPermission(summary, "purchase-order.read");
+
+            var list = new List<object>();
+            foreach (var r in lines)
+            {
+                var costOut = canViewPurchaseAmount ? r.Cost : 0m;
+                var qty = r.Qty;
+                var lineTotal = canViewPurchaseAmount ? qty * r.Cost : 0m;
+                var canApply = canInitiatePaymentFromPo
+                    && r.FinancePaymentStatus < 2
+                    && (r.ItemStatus == 30 || r.OrderStatus == 30);
+                var createKey = (r.CreateByUserId ?? string.Empty).Trim();
+                string? createUserName = null;
+                if (!string.IsNullOrEmpty(createKey) && createUserLoginByUserId.TryGetValue(createKey, out var login))
+                    createUserName = login;
+
+                list.Add(new
+                {
+                    purchaseOrderItemId = r.PurchaseOrderItemId,
+                    purchaseOrderId = r.PurchaseOrderId,
+                    purchaseOrderItemCode = r.PurchaseOrderItemCode,
+                    purchaseOrderCode = r.PurchaseOrderCode,
+                    purchaseOrderType = r.PurchaseOrderType,
+                    vendorId = canViewVendorInfo ? r.VendorId : null,
+                    vendorName = canViewVendorInfo ? r.VendorName : null,
+                    itemStatus = r.ItemStatus,
+                    purchaseProgressStatus = r.PurchaseProgressStatus,
+                    stockInProgressStatus = r.StockInProgressStatus,
+                    paymentProgressStatus = r.PaymentProgressStatus,
+                    invoiceProgressStatus = r.InvoiceProgressStatus,
+                    canApplyPayment = canApply,
+                    orderCreateTime = r.OrderCreateTime,
+                    purchaseUserName = canViewPurchaseUser ? r.PurchaseUserName : null,
+                    createUserName,
+                    createdBy = (string?)null,
+                    pn = r.Pn,
+                    brand = r.Brand,
+                    qty = r.Qty,
+                    cost = costOut,
+                    lineTotal,
+                    paymentRequestedAmount = canViewPurchaseAmount ? r.PaymentAmountRequested : 0m,
+                    currency = r.Currency,
+                    deliveryDate = r.DeliveryDate
+                });
+            }
+
+            return list;
         }
 
         private static bool SummaryHasPermission(UserPermissionSummaryDto? summary, string code)

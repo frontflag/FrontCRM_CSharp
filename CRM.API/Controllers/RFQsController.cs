@@ -27,6 +27,7 @@ namespace CRM.API.Controllers
         [RequirePermission("rfq.read")]
         public async Task<ActionResult<ApiResponse<object>>> GetRFQs(
             [FromQuery] int pageNumber = 1,
+            [FromQuery] int? page = null,
             [FromQuery] int pageSize = 20,
             [FromQuery] string? keyword = null,
             [FromQuery] short? status = null,
@@ -36,9 +37,10 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var pageNorm = page is >= 1 ? page!.Value : (pageNumber < 1 ? 1 : pageNumber);
                 var request = new RFQQueryRequest
                 {
-                    PageIndex = pageNumber,
+                    PageIndex = pageNorm,
                     PageSize = pageSize,
                     Keyword = keyword,
                     Status = status,
@@ -52,9 +54,12 @@ namespace CRM.API.Controllers
                 {
                     items = result.Items,
                     totalCount = result.TotalCount,
+                    total = result.TotalCount,
                     pageNumber = result.PageIndex,
+                    page = result.PageIndex,
                     pageSize = result.PageSize,
-                    totalPages = result.TotalPages
+                    totalPages = result.TotalPages,
+                    aggregates = result.Aggregates
                 }, "获取需求列表成功"));
             }
             catch (Exception ex)
@@ -70,6 +75,7 @@ namespace CRM.API.Controllers
         [RequirePermission("rfq.read")]
         public async Task<ActionResult<ApiResponse<object>>> GetRFQItems(
             [FromQuery] int pageNumber = 1,
+            [FromQuery] int? page = null,
             [FromQuery] int pageSize = 20,
             [FromQuery] string? startDate = null,
             [FromQuery] string? endDate = null,
@@ -82,9 +88,10 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var pageNorm = page is >= 1 ? page!.Value : (pageNumber < 1 ? 1 : pageNumber);
                 var request = new RFQItemQueryRequest
                 {
-                    PageIndex = pageNumber,
+                    PageIndex = pageNorm,
                     PageSize = pageSize,
                     StartDate = string.IsNullOrEmpty(startDate) ? null : DateTime.Parse(startDate),
                     EndDate = string.IsNullOrEmpty(endDate) ? null : DateTime.Parse(endDate),
@@ -101,7 +108,9 @@ namespace CRM.API.Controllers
                 {
                     items = result.Items,
                     totalCount = result.TotalCount,
+                    total = result.TotalCount,
                     pageNumber = result.PageIndex,
+                    page = result.PageIndex,
                     pageSize = result.PageSize,
                     totalPages = result.TotalPages
                 }, "获取需求明细列表成功"));

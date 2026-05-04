@@ -10,6 +10,8 @@ namespace CRM.Core.Interfaces
         Task<Quote> CreateAsync(CreateQuoteRequest request, string? actingUserId = null);
         Task<Quote?> GetByIdAsync(string id);
         Task<IEnumerable<Quote>> GetAllAsync();
+        /// <summary>报价主表列表（数据库分页 + 当前页明细与展示字段填充）。</summary>
+        Task<PagedResult<Quote>> GetPagedAsync(QuoteQueryRequest request);
         Task<Quote> UpdateAsync(string id, UpdateQuoteRequest request, string? actingUserId = null);
         Task DeleteAsync(string id);
         Task UpdateStatusAsync(string id, short status, string? actingUserId = null);

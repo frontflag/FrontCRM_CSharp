@@ -22,8 +22,11 @@ public class StockTransfersController : ControllerBase
         _logger = logger;
     }
 
+    public const int StockTransferListMaxPageSize = 500;
+
+    /// <param name="take">兼容旧客户端：大于 0 且为默认 <c>page=1,pageSize=20</c> 时，按该值截断为每页条数（上限 500）。</param>
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<StockTransferListItemDto>>>> GetList(
+    public async Task<IActionResult> GetList(
         [FromQuery] short? status,
         [FromQuery] DateTime? confirmedFrom,
         [FromQuery] DateTime? confirmedTo,
@@ -31,11 +34,19 @@ public class StockTransfersController : ControllerBase
         [FromQuery] string? fromWarehouseId,
         [FromQuery] string? toWarehouseId,
         [FromQuery] bool? pendingConfirm,
-        [FromQuery] int take = 200)
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] int take = 0)
     {
         try
         {
-            var n = Math.Clamp(take, 1, 500);
+            var p = page < 1 ? 1 : page;
+            var ps = pageSize < 1 ? 20 : Math.Min(pageSize, StockTransferListMaxPageSize);
+            if (take > 0 && page == 1 && pageSize == 20)
+            {
+                // 旧链接只传 take=500 等：视为请求单页条数
+                ps = Math.Clamp(take, 1, StockTransferListMaxPageSize);
+            }
             var decQ = (declarationCode ?? string.Empty).Trim();
             var fromW = (fromWarehouseId ?? string.Empty).Trim();
             var toW = (toWarehouseId ?? string.Empty).Trim();
@@ -67,7 +78,8 @@ public class StockTransfersController : ControllerBase
                 orderby t.CreateTime descending
                 select new { t, d, u };
 
-            var rows = await query.Take(n).ToListAsync();
+            var total = await query.CountAsync();
+            var rows = await query.Skip((p - 1) * ps).Take(ps).ToListAsync();
             var whIds = rows.SelectMany(x => new[] { x.t.FromWarehouseId, x.t.ToWarehouseId }).Distinct().ToList();
             var wh = await _db.Warehouses.AsNoTracking()
                 .Where(w => whIds.Contains(w.Id))
@@ -95,12 +107,23 @@ public class StockTransfersController : ControllerBase
                 IsConfirmed = x.t.ConfirmedTime != null
             }).ToList();
 
-            return Ok(ApiResponse<List<StockTransferListItemDto>>.Ok(list, "OK"));
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    items = list,
+                    total,
+                    page = p,
+                    pageSize = ps
+                },
+                message = "OK"
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取移库单列表失败");
-            return StatusCode(500, ApiResponse<List<StockTransferListItemDto>>.Fail(ex.Message, 500));
+            return StatusCode(500, new { success = false, message = ex.Message });
         }
     }
 

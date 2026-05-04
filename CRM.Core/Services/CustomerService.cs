@@ -20,6 +20,7 @@ namespace CRM.Core.Services
         private readonly ISerialNumberService _serialNumberService;
         private readonly IErrorLogService _errorLogService;
         private readonly IDataPermissionService _dataPermissionService;
+        private readonly ICustomerListQuery _customerListQuery;
 
         public CustomerService(
             IRepository<CustomerInfo> customerRepository,
@@ -30,7 +31,8 @@ namespace CRM.Core.Services
             IUnitOfWork unitOfWork,
             ISerialNumberService serialNumberService,
             IErrorLogService errorLogService,
-            IDataPermissionService dataPermissionService)
+            IDataPermissionService dataPermissionService,
+            ICustomerListQuery customerListQuery)
         {
             _customerRepository = customerRepository;
             _addressRepository = addressRepository;
@@ -41,6 +43,7 @@ namespace CRM.Core.Services
             _serialNumberService = serialNumberService;
             _errorLogService = errorLogService;
             _dataPermissionService = dataPermissionService;
+            _customerListQuery = customerListQuery;
         }
 
         /// <summary>
@@ -255,92 +258,8 @@ namespace CRM.Core.Services
         /// <summary>
         /// 分页获取客户列表
         /// </summary>
-        public async Task<PagedResult<CustomerInfo>> GetCustomersPagedAsync(CustomerQueryRequest request)
-        {
-            var allCustomers = await _customerRepository.GetAllAsync();
-            var query = allCustomers.AsQueryable();
-
-            // 关键词搜索
-            if (!string.IsNullOrWhiteSpace(request.Keyword))
-            {
-                var keyword = request.Keyword.Trim().ToLower();
-                query = query.Where(c =>
-                    (c.CustomerCode != null && c.CustomerCode.ToLower().Contains(keyword)) ||
-                    (c.OfficialName != null && c.OfficialName.ToLower().Contains(keyword)) ||
-                    (c.NickName != null && c.NickName.ToLower().Contains(keyword)) ||
-                    (c.EnglishOfficialName != null && c.EnglishOfficialName.ToLower().Contains(keyword)) ||
-                    (c.Industry != null && c.Industry.ToLower().Contains(keyword)));
-            }
-
-            // 等级筛选
-            if (request.Level.HasValue)
-                query = query.Where(c => c.Level == request.Level.Value);
-
-            // 类型筛选
-            if (request.Type.HasValue)
-                query = query.Where(c => c.Type == request.Type.Value);
-
-            // 行业（精确匹配存储值）
-            if (!string.IsNullOrWhiteSpace(request.Industry))
-                query = query.Where(c => c.Industry == request.Industry);
-
-            // 地区（省/市包含）
-            if (!string.IsNullOrWhiteSpace(request.Region))
-            {
-                var r = request.Region.Trim();
-                query = query.Where(c =>
-                    (c.City != null && c.City.Contains(r)) ||
-                    (c.Province != null && c.Province.Contains(r)));
-            }
-
-            // 创建日期区间（CreateTime 为 UTC）
-            if (request.CreatedFrom.HasValue)
-            {
-                var from = request.CreatedFrom.Value.Date;
-                query = query.Where(c => c.CreateTime >= from);
-            }
-            if (request.CreatedTo.HasValue)
-            {
-                var toExclusive = request.CreatedTo.Value.Date.AddDays(1);
-                query = query.Where(c => c.CreateTime < toExclusive);
-            }
-
-            // 业务员筛选
-            if (!string.IsNullOrWhiteSpace(request.SalesUserId))
-                query = query.Where(c => c.SalesUserId == request.SalesUserId);
-
-            // 状态筛选
-            if (request.Status.HasValue)
-                query = query.Where(c => c.Status == request.Status.Value);
-
-            // 数据权限过滤（在分页前）
-            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
-            {
-                var filtered = await _dataPermissionService.FilterCustomersAsync(request.CurrentUserId, query.ToList());
-                query = filtered.AsQueryable();
-            }
-
-            var totalCount = query.Count();
-            var items = query
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
-                .ToList();
-
-            // 加载每个客户的联系人信息
-            foreach (var customer in items)
-            {
-                var contacts = await _contactRepository.FindAsync(c => c.CustomerId == customer.Id);
-                customer.Contacts = contacts.ToList();
-            }
-
-            return new PagedResult<CustomerInfo>
-            {
-                Items = items,
-                TotalCount = totalCount,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize
-            };
-        }
+        public async Task<PagedResult<CustomerInfo>> GetCustomersPagedAsync(CustomerQueryRequest request) =>
+            await _customerListQuery.GetCustomersPagedAsync(request, default);
 
         /// <summary>
         /// 更新客户信息
@@ -1204,61 +1123,16 @@ namespace CRM.Core.Services
         }
 
         /// <summary>获取已删除的客户列表（回收站）</summary>
-        public async Task<PagedResult<CustomerInfo>> GetDeletedCustomersAsync(int pageIndex, int pageSize, string? keyword)
-        {
-            var all = await _customerRepository.FindIgnoreFiltersAsync(c => c.IsDeleted);
-            if (!string.IsNullOrWhiteSpace(keyword))
-            {
-                var kw = keyword.Trim().ToLower();
-                all = all.Where(c =>
-                    (c.CustomerCode != null && c.CustomerCode.ToLower().Contains(kw)) ||
-                    (c.OfficialName != null && c.OfficialName.ToLower().Contains(kw)) ||
-                    (c.NickName != null && c.NickName.ToLower().Contains(kw)) ||
-                    (c.EnglishOfficialName != null && c.EnglishOfficialName.ToLower().Contains(kw)));
-            }
-            var sorted = all.OrderByDescending(c => c.DeletedAt).ToList();
-            var total = sorted.Count;
-            var items = sorted.Skip((pageIndex - 1) * pageSize).Take(pageSize);
-            return new PagedResult<CustomerInfo> { Items = items, TotalCount = total, PageIndex = pageIndex, PageSize = pageSize };
-        }
+        public Task<PagedResult<CustomerInfo>> GetDeletedCustomersAsync(int pageIndex, int pageSize, string? keyword, string? currentUserId = null) =>
+            _customerListQuery.GetDeletedCustomersPagedAsync(pageIndex, pageSize, keyword, currentUserId, default);
 
         /// <summary>获取黑名单客户列表</summary>
-        public async Task<PagedResult<CustomerInfo>> GetBlackListCustomersAsync(int pageIndex, int pageSize, string? keyword)
-        {
-            var all = await _customerRepository.FindAsync(c => c.BlackList && !c.IsDeleted);
-            if (!string.IsNullOrWhiteSpace(keyword))
-            {
-                var kw = keyword.Trim().ToLower();
-                all = all.Where(c =>
-                    (c.CustomerCode != null && c.CustomerCode.ToLower().Contains(kw)) ||
-                    (c.OfficialName != null && c.OfficialName.ToLower().Contains(kw)) ||
-                    (c.NickName != null && c.NickName.ToLower().Contains(kw)) ||
-                    (c.EnglishOfficialName != null && c.EnglishOfficialName.ToLower().Contains(kw)));
-            }
-            var sorted = all.OrderByDescending(c => c.BlackListAt).ToList();
-            var total = sorted.Count;
-            var items = sorted.Skip((pageIndex - 1) * pageSize).Take(pageSize);
-            return new PagedResult<CustomerInfo> { Items = items, TotalCount = total, PageIndex = pageIndex, PageSize = pageSize };
-        }
+        public Task<PagedResult<CustomerInfo>> GetBlackListCustomersAsync(int pageIndex, int pageSize, string? keyword, string? currentUserId = null) =>
+            _customerListQuery.GetBlackListCustomersPagedAsync(pageIndex, pageSize, keyword, currentUserId, default);
 
         /// <summary>获取已冻结客户列表（DisenableStatus，未删除）</summary>
-        public async Task<PagedResult<CustomerInfo>> GetFrozenCustomersAsync(int pageIndex, int pageSize, string? keyword)
-        {
-            var all = await _customerRepository.FindAsync(c => c.DisenableStatus && !c.IsDeleted);
-            if (!string.IsNullOrWhiteSpace(keyword))
-            {
-                var kw = keyword.Trim().ToLower();
-                all = all.Where(c =>
-                    (c.CustomerCode != null && c.CustomerCode.ToLower().Contains(kw)) ||
-                    (c.OfficialName != null && c.OfficialName.ToLower().Contains(kw)) ||
-                    (c.NickName != null && c.NickName.ToLower().Contains(kw)) ||
-                    (c.EnglishOfficialName != null && c.EnglishOfficialName.ToLower().Contains(kw)));
-            }
-            var sorted = all.OrderByDescending(c => c.ModifyTime ?? c.CreateTime).ToList();
-            var total = sorted.Count;
-            var items = sorted.Skip((pageIndex - 1) * pageSize).Take(pageSize);
-            return new PagedResult<CustomerInfo> { Items = items, TotalCount = total, PageIndex = pageIndex, PageSize = pageSize };
-        }
+        public Task<PagedResult<CustomerInfo>> GetFrozenCustomersAsync(int pageIndex, int pageSize, string? keyword, string? currentUserId = null) =>
+            _customerListQuery.GetFrozenCustomersPagedAsync(pageIndex, pageSize, keyword, currentUserId, default);
 
         /// <summary>获取客户操作日志（含本客户主体及下属客户联系人的统一 log_operation）</summary>
         public async Task<IEnumerable<CustomerOperationLog>> GetOperationLogsAsync(string customerId)

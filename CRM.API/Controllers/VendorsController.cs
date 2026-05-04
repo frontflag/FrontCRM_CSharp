@@ -81,6 +81,7 @@ namespace CRM.API.Controllers
         [HttpGet]
         public async Task<ActionResult<ApiResponse<object>>> GetVendors(
             [FromQuery] int pageNumber = 1,
+            [FromQuery] int? page = null,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? keyword = null,
             /// <summary>与客户列表 searchTerm 对齐的别名</summary>
@@ -93,14 +94,28 @@ namespace CRM.API.Controllers
             [FromQuery] short? ascriptionType = null,
             [FromQuery] string? purchaseUserId = null,
             [FromQuery] DateTime? createdFrom = null,
-            [FromQuery] DateTime? createdTo = null)
+            [FromQuery] DateTime? createdTo = null,
+            [FromQuery] bool favoriteOnly = false,
+            [FromQuery] string? favoriteIds = null)
         {
             try
             {
                 var kw = !string.IsNullOrWhiteSpace(searchTerm) ? searchTerm : keyword;
+                var effectivePage = page is >= 1 ? page.Value : pageNumber;
+                IReadOnlyList<string>? favoriteIdList = null;
+                if (favoriteOnly)
+                {
+                    favoriteIdList = string.IsNullOrWhiteSpace(favoriteIds)
+                        ? Array.Empty<string>()
+                        : favoriteIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                            .Where(s => !string.IsNullOrWhiteSpace(s))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+                }
+
                 var request = new VendorQueryRequest
                 {
-                    PageIndex = pageNumber,
+                    PageIndex = effectivePage,
                     PageSize = pageSize,
                     Keyword = kw,
                     Status = status,
@@ -111,7 +126,8 @@ namespace CRM.API.Controllers
                     PurchaseUserId = purchaseUserId,
                     CreatedFrom = createdFrom,
                     CreatedTo = createdTo,
-                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                    FavoriteVendorIds = favoriteIdList
                 };
                 var result = await _vendorService.GetPagedAsync(request);
                 var items = result.Items.ToList();
@@ -120,7 +136,9 @@ namespace CRM.API.Controllers
                 return Ok(ApiResponse<object>.Ok(new
                 {
                     items,
+                    total = result.TotalCount,
                     totalCount = result.TotalCount,
+                    page = result.PageIndex,
                     pageNumber = result.PageIndex,
                     pageSize = result.PageSize,
                     totalPages = result.TotalPages
@@ -380,22 +398,28 @@ namespace CRM.API.Controllers
         [HttpGet("blacklist")]
         public async Task<ActionResult<ApiResponse<object>>> GetBlacklist(
             [FromQuery] int pageNumber = 1,
+            [FromQuery] int? page = null,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? keyword = null)
         {
             try
             {
+                var effectivePage = page is >= 1 ? page.Value : pageNumber;
+                var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var request = new VendorQueryRequest
                 {
-                    PageIndex = pageNumber,
+                    PageIndex = effectivePage,
                     PageSize = pageSize,
-                    Keyword = keyword
+                    Keyword = keyword,
+                    CurrentUserId = uid
                 };
                 var result = await _vendorService.GetBlacklistAsync(request);
                 return Ok(ApiResponse<object>.Ok(new
                 {
                     items = result.Items,
+                    total = result.TotalCount,
                     totalCount = result.TotalCount,
+                    page = result.PageIndex,
                     pageNumber = result.PageIndex,
                     pageSize = result.PageSize,
                     totalPages = (int)Math.Ceiling(result.TotalCount / (double)result.PageSize)
@@ -411,22 +435,28 @@ namespace CRM.API.Controllers
         [HttpGet("frozen")]
         public async Task<ActionResult<ApiResponse<object>>> GetFrozen(
             [FromQuery] int pageNumber = 1,
+            [FromQuery] int? page = null,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? keyword = null)
         {
             try
             {
+                var effectivePage = page is >= 1 ? page.Value : pageNumber;
+                var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var request = new VendorQueryRequest
                 {
-                    PageIndex = pageNumber,
+                    PageIndex = effectivePage,
                     PageSize = pageSize,
-                    Keyword = keyword
+                    Keyword = keyword,
+                    CurrentUserId = uid
                 };
                 var result = await _vendorService.GetFrozenAsync(request);
                 return Ok(ApiResponse<object>.Ok(new
                 {
                     items = result.Items,
+                    total = result.TotalCount,
                     totalCount = result.TotalCount,
+                    page = result.PageIndex,
                     pageNumber = result.PageIndex,
                     pageSize = result.PageSize,
                     totalPages = (int)Math.Ceiling(result.TotalCount / (double)result.PageSize)
@@ -511,16 +541,21 @@ namespace CRM.API.Controllers
         [HttpGet("recycle-bin")]
         public async Task<ActionResult<ApiResponse<object>>> GetRecycleBin(
             [FromQuery] int pageNumber = 1,
+            [FromQuery] int? page = null,
             [FromQuery] int pageSize = 20,
             [FromQuery] string? keyword = null)
         {
             try
             {
-                var result = await _vendorService.GetDeletedAsync(pageNumber, pageSize, keyword);
+                var effectivePage = page is >= 1 ? page.Value : pageNumber;
+                var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var result = await _vendorService.GetDeletedAsync(effectivePage, pageSize, keyword, uid);
                 return Ok(ApiResponse<object>.Ok(new
                 {
                     items = result.Items,
+                    total = result.TotalCount,
                     totalCount = result.TotalCount,
+                    page = result.PageIndex,
                     pageNumber = result.PageIndex,
                     pageSize = result.PageSize,
                     totalPages = (int)Math.Ceiling(result.TotalCount / (double)result.PageSize)

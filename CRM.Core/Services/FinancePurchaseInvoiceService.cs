@@ -14,6 +14,7 @@ namespace CRM.Core.Services
         private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
         private readonly IForceDeleteGuardService _forceDeleteGuard;
         private readonly ILogOperationAppendService _logOperationAppend;
+        private readonly IFinancePurchaseInvoiceListQuery _purchaseInvoiceListQuery;
 
         public FinancePurchaseInvoiceService(
             IRepository<FinancePurchaseInvoice> invoiceRepo,
@@ -22,6 +23,7 @@ namespace CRM.Core.Services
             IPurchaseOrderItemExtendSyncService poItemExtendSync,
             IForceDeleteGuardService forceDeleteGuard,
             ILogOperationAppendService logOperationAppend,
+            IFinancePurchaseInvoiceListQuery purchaseInvoiceListQuery,
             IUnitOfWork? unitOfWork = null)
         {
             _invoiceRepo = invoiceRepo;
@@ -30,6 +32,7 @@ namespace CRM.Core.Services
             _poItemExtendSync = poItemExtendSync;
             _forceDeleteGuard = forceDeleteGuard;
             _logOperationAppend = logOperationAppend;
+            _purchaseInvoiceListQuery = purchaseInvoiceListQuery;
             _unitOfWork = unitOfWork;
         }
 
@@ -89,53 +92,8 @@ namespace CRM.Core.Services
         public async Task<IEnumerable<FinancePurchaseInvoice>> GetAllAsync() =>
             await _invoiceRepo.GetAllAsync();
 
-        public async Task<PagedResult<FinancePurchaseInvoice>> GetPagedAsync(FinancePurchaseInvoiceQueryRequest request)
-        {
-            var all = await _invoiceRepo.GetAllAsync();
-            var filteredByPermission = all.AsEnumerable();
-            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
-            {
-                filteredByPermission = await _dataPermissionService.FilterFinancePurchaseInvoicesAsync(request.CurrentUserId, filteredByPermission);
-            }
-
-            var query = filteredByPermission.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(request.Keyword))
-            {
-                var keyword = request.Keyword.Trim();
-                query = query.Where(inv =>
-                    (!string.IsNullOrWhiteSpace(inv.VendorName) && inv.VendorName.Contains(keyword, StringComparison.OrdinalIgnoreCase)) ||
-                    (!string.IsNullOrWhiteSpace(inv.InvoiceNo) && inv.InvoiceNo.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
-            }
-
-            if (request.ConfirmStatus.HasValue)
-                query = query.Where(inv => inv.ConfirmStatus == request.ConfirmStatus.Value);
-
-            if (request.InvoiceStatus.HasValue)
-                query = query.Where(inv => inv.RedInvoiceStatus == request.InvoiceStatus.Value);
-
-            if (request.StartDate.HasValue)
-                query = query.Where(inv => inv.InvoiceDate >= request.StartDate.Value);
-
-            if (request.EndDate.HasValue)
-                query = query.Where(inv => inv.InvoiceDate <= request.EndDate.Value.AddDays(1));
-
-            var totalCount = query.Count();
-            var page = request.Page < 1 ? 1 : request.Page;
-            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
-            var items = query.OrderByDescending(inv => inv.CreateTime)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
-
-            return new PagedResult<FinancePurchaseInvoice>
-            {
-                Items = items,
-                TotalCount = totalCount,
-                PageIndex = page,
-                PageSize = pageSize
-            };
-        }
+        public async Task<PagedResult<FinancePurchaseInvoice>> GetPagedAsync(FinancePurchaseInvoiceQueryRequest request) =>
+            await _purchaseInvoiceListQuery.GetPagedAsync(request);
 
         public async Task<FinancePurchaseInvoice> UpdateAsync(string id, UpdateFinancePurchaseInvoiceRequest request, string? actingUserId = null)
         {

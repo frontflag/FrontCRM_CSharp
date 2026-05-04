@@ -163,8 +163,15 @@ export async function fetchCustomsDeclarationItems(
   return apiClient.get<CustomsDeclarationItemListItemDto[]>('/api/v1/customs-declaration-items', { params })
 }
 
-export async function fetchStockTransfers(params: Record<string, unknown>): Promise<StockTransferListItemDto[]> {
-  return apiClient.get<StockTransferListItemDto[]>('/api/v1/inventory/transfers-customers', { params })
+export interface StockTransferPaged {
+  items: StockTransferListItemDto[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export async function fetchStockTransfers(params: Record<string, unknown>): Promise<StockTransferPaged> {
+  return apiClient.get<StockTransferPaged>('/api/v1/inventory/transfers-customers', { params })
 }
 
 export async function confirmStockTransfer(id: string): Promise<void> {

@@ -163,13 +163,13 @@ namespace CRM.Core.Interfaces
         Task RestoreCustomerAsync(string id, string? operatorUserId, string? operatorUserName);
 
         /// <summary>获取已删除的客户列表（回收站）</summary>
-        Task<PagedResult<CustomerInfo>> GetDeletedCustomersAsync(int pageIndex, int pageSize, string? keyword);
+        Task<PagedResult<CustomerInfo>> GetDeletedCustomersAsync(int pageIndex, int pageSize, string? keyword, string? currentUserId = null);
 
         /// <summary>获取黑名单客户列表</summary>
-        Task<PagedResult<CustomerInfo>> GetBlackListCustomersAsync(int pageIndex, int pageSize, string? keyword);
+        Task<PagedResult<CustomerInfo>> GetBlackListCustomersAsync(int pageIndex, int pageSize, string? keyword, string? currentUserId = null);
 
         /// <summary>获取已冻结（禁用）客户列表</summary>
-        Task<PagedResult<CustomerInfo>> GetFrozenCustomersAsync(int pageIndex, int pageSize, string? keyword);
+        Task<PagedResult<CustomerInfo>> GetFrozenCustomersAsync(int pageIndex, int pageSize, string? keyword, string? currentUserId = null);
 
         /// <summary>获取客户操作日志</summary>
         Task<IEnumerable<CustomerOperationLog>> GetOperationLogsAsync(string customerId);
@@ -743,6 +743,11 @@ namespace CRM.Core.Interfaces
         /// <summary>工作流状态：1 新建、2 待审核、10 已审核、12 待财务审核、20 财务建档、-1 审核失败等</summary>
         public short? Status { get; set; }
         public string? CurrentUserId { get; set; }
+
+        /// <summary>
+        /// 非 null 时按客户主键限制结果（如「仅收藏」：非空列表为 IN 过滤，空列表表示无匹配）。
+        /// </summary>
+        public IReadOnlyList<string>? FavoriteCustomerIds { get; set; }
     }
 
     /// <summary>

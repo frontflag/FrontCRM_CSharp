@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.Threading;
 using CRM.Core.Constants;
 using CRM.Core.Models.Inventory;
 
@@ -13,6 +14,14 @@ namespace CRM.Core.Interfaces
         /// <summary>销售订单明细申请出库前的数量上下文（前端只读展示）</summary>
         Task<StockOutApplyContextDto> GetApplyContextAsync(string salesOrderId, string salesOrderItemId);
         Task<IEnumerable<StockOutRequestListItemDto>> GetStockOutRequestListAsync();
+
+        /// <summary>出库通知列表分页（workflow：all / done / pending_pick / picked_pending_out）。</summary>
+        Task<PagedResult<StockOutRequestListItemDto>> GetStockOutRequestListPagedAsync(
+            string? keyword,
+            string? workflow,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default);
         /// <summary>
         /// 执行出库（内部包含预占/拣货/出库确认的 FIFO 逻辑）
         /// </summary>
@@ -23,8 +32,23 @@ namespace CRM.Core.Interfaces
         /// <summary>出库单列表（含客户、业务员、销售明细编号等展示字段）</summary>
         Task<IEnumerable<StockOutListItemDto>> GetStockOutListAsync();
 
+        /// <summary>出库单列表分页；<paramref name="sourceCode"/> 非空时按来源单号精确匹配（忽略 <paramref name="keyword"/>）。</summary>
+        Task<PagedResult<StockOutListItemDto>> GetStockOutListPagedAsync(
+            string? keyword,
+            string? sourceCode,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default);
+
         /// <summary>出库明细（<c>stockoutitem</c>）全量列表，头表字段与 <see cref="GetStockOutListAsync"/> 展示口径一致。</summary>
         Task<IEnumerable<StockOutItemListRowDto>> GetStockOutItemListAsync(StockOutItemListQuery? query);
+
+        /// <summary>出库明细分页，筛选与 <see cref="GetStockOutItemListAsync"/> 一致。</summary>
+        Task<PagedResult<StockOutItemListRowDto>> GetStockOutItemListPagedAsync(
+            StockOutItemListQuery? query,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default);
         Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
         /// <summary>可改：出库日期、出货方式、快递单号</summary>
         Task UpdateHeaderAsync(string id, UpdateStockOutHeaderRequest request, string? actingUserId = null);

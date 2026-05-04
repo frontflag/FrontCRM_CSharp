@@ -112,6 +112,8 @@ export interface UpdateVendorRequest {
 
 // 供应商列表查询参数（与后端 VendorQueryRequest 对应，前端用 pageNumber/pageSize）
 export interface VendorSearchRequest {
+  /** 与《翻页查询规范》一致，优先于 pageNumber */
+  page?: number
   pageNumber?: number
   pageSize?: number
   keyword?: string
@@ -127,13 +129,17 @@ export interface VendorSearchRequest {
   purchaseUserId?: string
   createdFrom?: string
   createdTo?: string
+  favoriteOnly?: boolean
+  favoriteIds?: string
 }
 
 // 供应商列表响应（与后端分页结果对应）
 export interface VendorSearchResponse {
   items: Vendor[]
   totalCount: number
+  total?: number
   pageNumber?: number
+  page?: number
   pageSize?: number
   totalPages?: number
 }

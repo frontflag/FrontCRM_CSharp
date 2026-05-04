@@ -24,6 +24,7 @@ namespace CRM.Core.Tests.Services
         private readonly ISerialNumberService _serialNumberService;
         private readonly IUserService _userService;
         private readonly IRepository<CustomerInfo> _customerRepository;
+        private readonly IQuoteListQuery _quoteListQuery;
         private readonly QuoteService _quoteService;
 
         public QuoteServiceTests()
@@ -40,6 +41,17 @@ namespace CRM.Core.Tests.Services
             _customerRepository.FindAsync(Arg.Any<Expression<Func<CustomerInfo, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<CustomerInfo>>(Array.Empty<CustomerInfo>()));
             _serialNumberService.GenerateNextAsync(ModuleCodes.Quotation).Returns("QT2603240001");
+            _quoteListQuery = Substitute.For<IQuoteListQuery>();
+            _quoteListQuery.GetPagedAsync(Arg.Any<QuoteQueryRequest>(), default)
+                .Returns(Task.FromResult(new PagedResult<Quote>
+                {
+                    Items = Array.Empty<Quote>(),
+                    TotalCount = 0,
+                    PageIndex = 1,
+                    PageSize = 20
+                }));
+            _quoteListQuery.GetQuoteCountsByRfqItemIdsAsync(Arg.Any<IReadOnlyCollection<string>>(), default)
+                .Returns(Task.FromResult((IReadOnlyDictionary<string, int>)new Dictionary<string, int>()));
             _quoteService = new QuoteService(
                 _quoteRepository,
                 _quoteItemRepository,
@@ -49,6 +61,7 @@ namespace CRM.Core.Tests.Services
                 _unitOfWork,
                 _serialNumberService,
                 _userService,
+                _quoteListQuery,
                 NullLogger<QuoteService>.Instance);
         }
 

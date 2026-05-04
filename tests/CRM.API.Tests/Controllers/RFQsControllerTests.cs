@@ -62,7 +62,7 @@ public sealed class RFQsControllerTests
     public async Task GetRFQs_Returns200_AndPagedShape()
     {
         var rfq = Substitute.For<IRFQService>();
-        rfq.GetPagedAsync(Arg.Any<RFQQueryRequest>()).Returns(new PagedResult<RFQListItem>
+        rfq.GetPagedAsync(Arg.Any<RFQQueryRequest>()).Returns(new RFQListPagedResult
         {
             Items = new List<RFQListItem>
             {
@@ -81,7 +81,8 @@ public sealed class RFQsControllerTests
             },
             TotalCount = 1,
             PageIndex = 1,
-            PageSize = 20
+            PageSize = 20,
+            Aggregates = new RfqMainListAggregates { Total = 1, Pending = 1, Processing = 0, Quoted = 0 }
         });
 
         var c = CreateController(rfq, Substitute.For<IDataPermissionService>());

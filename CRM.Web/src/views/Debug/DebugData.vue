@@ -101,12 +101,34 @@
         <el-button type="danger" :loading="refreshingStockLedger" @click="onRefreshStockLedger">
           刷新stockledger
         </el-button>
+        <el-button type="warning" :loading="refreshingSellOrderComments" @click="onRefreshSellOrderCommentSplit">
+          刷新Sellorder
+        </el-button>
+        <el-button type="warning" :loading="refreshingSellOrderItemCustomerPn" @click="onRefreshSellOrderItemCustomerPn">
+          刷新sellorderitem
+        </el-button>
       </div>
       <div class="refresh-hint">回填 STOCK_OUT / STOCK_OUT_REVERSE 的 UnitCost、Amount、currency（调试临时工具）。</div>
       <div v-if="stockLedgerRefreshResult" class="simulate-result">
         <div>STOCK_OUT 更新：{{ stockLedgerRefreshResult.stockOutUpdated }} 条</div>
         <div>STOCK_OUT_REVERSE 更新：{{ stockLedgerRefreshResult.stockOutReverseUpdated }} 条</div>
         <div>币别兜底（currency<=0）：{{ stockLedgerRefreshResult.currencyDefaulted }} 条</div>
+      </div>
+      <div class="refresh-hint refresh-hint--second">
+        「刷新Sellorder」：仅当 <span class="mono">comment</span> 仍为历史多行前缀格式时，拆入
+        <span class="mono">product_kind</span> 等列并将自由段写回 <span class="mono">comment</span>；普通一句话备注不会改（含软删行）。仅调试使用。
+      </div>
+      <div v-if="sellOrderCommentSplitResult" class="simulate-result">
+        <div>扫描（comment 非空）：{{ sellOrderCommentSplitResult.totalWithComment }} 条</div>
+        <div>已执行 legacy 拆分：{{ sellOrderCommentSplitResult.rowsProcessed }} 条</div>
+      </div>
+      <div class="refresh-hint refresh-hint--second">
+        「刷新sellorderitem」：从 <span class="mono">sellorderitem.comment</span> 首行「客户物料型号：」等前缀解析，写入
+        <span class="mono">customer_pn</span>（仅 <span class="mono">customer_pn</span> 为空时写入；不改 comment；含软删行）。
+      </div>
+      <div v-if="sellOrderItemCustomerPnResult" class="simulate-result">
+        <div>扫描（comment 非空）：{{ sellOrderItemCustomerPnResult.totalWithComment }} 条</div>
+        <div>已回填 customer_pn：{{ sellOrderItemCustomerPnResult.rowsFilled }} 条</div>
       </div>
     </section>
   </div>
@@ -120,10 +142,14 @@ import {
   getRfqChainPreview,
   deleteRfqChain,
   refreshStockLedger,
+  refreshSellOrderCommentSplit,
+  refreshSellOrderItemCustomerPnFromComment,
   type SimulateBusinessChainResponse,
   type SimulateDataOrigin,
   type RfqChainPreview,
-  type RefreshStockLedgerResult
+  type RefreshStockLedgerResult,
+  type RefreshSellOrderCommentSplitResult,
+  type RefreshSellOrderItemCustomerPnFromCommentResult
 } from '@/api/debug'
 import { getApiErrorMessage } from '@/utils/apiError'
 
@@ -274,6 +300,10 @@ const chainError = ref<string | null>(null)
 const chainSearched = ref(false)
 const refreshingStockLedger = ref(false)
 const stockLedgerRefreshResult = ref<RefreshStockLedgerResult | null>(null)
+const refreshingSellOrderComments = ref(false)
+const sellOrderCommentSplitResult = ref<RefreshSellOrderCommentSplitResult | null>(null)
+const refreshingSellOrderItemCustomerPn = ref(false)
+const sellOrderItemCustomerPnResult = ref<RefreshSellOrderItemCustomerPnFromCommentResult | null>(null)
 
 const onPreviewRfqChain = async () => {
   const code = rfqChainCode.value.trim()
@@ -374,6 +404,52 @@ const onRefreshStockLedger = async () => {
     ElMessage.error(getApiErrorMessage(e, '刷新 stockledger 失败'))
   } finally {
     refreshingStockLedger.value = false
+  }
+}
+
+const onRefreshSellOrderCommentSplit = async () => {
+  if (refreshingSellOrderComments.value) return
+  try {
+    await ElMessageBox.confirm(
+      '将扫描 sellorder.comment 非空行；仅 legacy 多行前缀格式会拆入结构化列并回写自由段（含软删订单）。是否继续？',
+      '确认拆分销售订单备注',
+      { type: 'warning', confirmButtonText: '继续', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  refreshingSellOrderComments.value = true
+  try {
+    const result = await refreshSellOrderCommentSplit()
+    sellOrderCommentSplitResult.value = result
+    ElMessage.success(`已处理 ${result.rowsProcessed} 条（待处理 ${result.totalWithComment} 条）`)
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '拆分 sellorder.comment 失败'))
+  } finally {
+    refreshingSellOrderComments.value = false
+  }
+}
+
+const onRefreshSellOrderItemCustomerPn = async () => {
+  if (refreshingSellOrderItemCustomerPn.value) return
+  try {
+    await ElMessageBox.confirm(
+      '将扫描 sellorderitem.comment 非空行；仅当 customer_pn 为空且 comment 以「客户物料型号：」等前缀开头时写入 customer_pn（含软删行）。是否继续？',
+      '确认刷新销售明细 customer_pn',
+      { type: 'warning', confirmButtonText: '继续', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  refreshingSellOrderItemCustomerPn.value = true
+  try {
+    const result = await refreshSellOrderItemCustomerPnFromComment()
+    sellOrderItemCustomerPnResult.value = result
+    ElMessage.success(`已回填 ${result.rowsFilled} 条（comment 非空 ${result.totalWithComment} 条）`)
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '刷新 sellorderitem.customer_pn 失败'))
+  } finally {
+    refreshingSellOrderItemCustomerPn.value = false
   }
 }
 
@@ -527,6 +603,10 @@ const onRefreshStockLedger = async () => {
 .chain-table {
   margin-top: 12px;
   width: 100%;
+}
+
+.refresh-hint--second {
+  margin-top: 8px;
 }
 
 </style>

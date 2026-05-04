@@ -9,7 +9,7 @@
       </div>
     </div>
 
-    <CrmDataTable :data="plans" v-loading="loading">
+    <CrmDataTable :data="plans" v-loading="loading" class="inventory-check-table">
       <el-table-column prop="planMonth" :label="t('inventoryCheck.columns.planMonth')" width="120" />
       <el-table-column prop="warehouseId" :label="t('inventoryCheck.columns.warehouseId')" width="140" />
       <el-table-column prop="status" :label="t('inventoryCheck.columns.status')" width="100">
@@ -60,6 +60,17 @@
         </template>
       </el-table-column>
     </CrmDataTable>
+    <div class="pagination-bar">
+      <el-pagination
+        v-model:current-page="planPage"
+        v-model:page-size="planPageSize"
+        :total="plansTotal"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="onPlanPageSizeChange"
+        @current-change="loadPlans"
+      />
+    </div>
 
     <el-dialog v-model="submitVisible" :title="t('inventoryCheck.actions.submitResult')" width="760px">
       <el-table :data="submitItems">
@@ -158,6 +169,14 @@ function toggleCheckDialogOpCol() {
   checkDialogOpColExpanded.value = !checkDialogOpColExpanded.value
 }
 const plans = ref<CountPlan[]>([])
+const plansTotal = ref(0)
+const planPage = ref(1)
+const planPageSize = ref(20)
+
+function onPlanPageSizeChange() {
+  planPage.value = 1
+  void loadPlans()
+}
 const submitVisible = ref(false)
 const currentPlanId = ref('')
 const submitItems = ref<Array<{ materialId: string; locationId?: string; countQty: number; countAmount: number }>>([])
@@ -174,7 +193,9 @@ const formatTime = (v?: string) => formatDisplayDateTime(v)
 const loadPlans = async () => {
   loading.value = true
   try {
-    plans.value = await inventoryCenterApi.getCountPlans()
+    const res = await inventoryCenterApi.getCountPlans(planPage.value, planPageSize.value)
+    plans.value = res.items
+    plansTotal.value = res.total
   } finally {
     loading.value = false
   }
@@ -226,13 +247,18 @@ const submitPlan = async () => {
   }
 }
 
-onMounted(loadPlans)
+onMounted(() => void loadPlans())
 </script>
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
 .inventory-check-page {
   padding: 24px;
+  .pagination-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+  }
   .page-header {
     display: flex;
     align-items: center;

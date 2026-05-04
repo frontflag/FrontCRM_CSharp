@@ -419,17 +419,24 @@ function salesUserLabel(u: SalesUserOption) {
 const fetchCustomerList = async () => {
   loading.value = true;
   try {
+    const favoriteIdsList = await favoriteApi.getFavoriteEntityIds('CUSTOMER')
+    const favoriteSet = new Set(favoriteIdsList)
+    if (favoriteOnly.value && favoriteIdsList.length === 0) {
+      customerList.value = []
+      totalCount.value = 0
+      return
+    }
+
     const params: CustomerSearchRequest = {
       ...searchForm,
+      page: pagination.pageNumber,
       pageNumber: pagination.pageNumber,
-      pageSize: pagination.pageSize
-    };
-    const [response, favoriteIds] = await Promise.all([
-      customerApi.searchCustomers(params),
-      favoriteApi.getFavoriteEntityIds('CUSTOMER')
-    ]);
-    const favoriteSet = new Set(favoriteIds);
-    let mapped = response.items.map((item: any) => ({
+      pageSize: pagination.pageSize,
+      favoriteOnly: favoriteOnly.value ? true : undefined,
+      favoriteIds: favoriteOnly.value ? favoriteIdsList.join(',') : undefined
+    }
+    const response = await customerApi.searchCustomers(params)
+    const mapped = response.items.map((item: any) => ({
       ...item,
       customerName: item.customerName || item.officialName,
       customerShortName: item.customerShortName || item.nickName,
@@ -444,14 +451,9 @@ const fetchCustomerList = async () => {
       contacts: item.contacts || [],
       // 后端 CustomerInfo 序列化字段为 createTime，与前端 Customer.createdAt 对齐
       createdAt: item.createdAt ?? item.createTime
-    }));
-    if (favoriteOnly.value) {
-      mapped = mapped.filter((item: any) => item.isFavorite);
-    }
-    // 兜底：确保按创建日期（createdAt）降序展示
-    mapped.sort((a: any, b: any) => (parseDateMs(b?.createdAt) - parseDateMs(a?.createdAt)));
-    customerList.value = mapped;
-    totalCount.value = favoriteOnly.value ? mapped.length : response.totalCount;
+    }))
+    customerList.value = mapped
+    totalCount.value = response.totalCount ?? response.total ?? 0
   } catch (error: any) {
     // 仅在真实网络/服务器错误时提示，空数据不报错
     const isEmptyResult = !error?.response || error?.response?.status === 404;
@@ -601,12 +603,6 @@ const handleSubmitAudit = async (row: Customer) => {
 
 const handleSizeChange = (size: number) => { pagination.pageSize = size; fetchCustomerList(); };
 const handlePageChange = (page: number) => { pagination.pageNumber = page; fetchCustomerList(); };
-
-const parseDateMs = (v?: string) => {
-  if (!v) return 0;
-  const t = new Date(v).getTime();
-  return Number.isFinite(t) ? t : 0;
-};
 
 const formatDate = (v?: string) => {
   return formatDisplayDateTime(v);

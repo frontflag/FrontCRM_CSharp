@@ -42,6 +42,7 @@ namespace CRM.Core.Services
         private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
         private readonly IPurchaseOrderExtendLineSeqService _poLineSeq;
         private readonly ILogger<PurchaseOrderService> _logger;
+        private readonly IPurchaseOrderListQuery _purchaseOrderListQuery;
 
         public PurchaseOrderService(
             IRepository<PurchaseOrder> poRepo,
@@ -52,6 +53,7 @@ namespace CRM.Core.Services
             IRepository<SellOrder> soRepo,
             IRepository<SellOrderItem> soItemRepo,
             IDataPermissionService dataPermissionService,
+            IPurchaseOrderListQuery purchaseOrderListQuery,
             ISerialNumberService serialNumberService,
             IFinanceExchangeRateService financeExchangeRateService,
             IOrderJourneyLogService orderJourneyLog,
@@ -70,6 +72,7 @@ namespace CRM.Core.Services
             _soRepo = soRepo;
             _soItemRepo = soItemRepo;
             _dataPermissionService = dataPermissionService;
+            _purchaseOrderListQuery = purchaseOrderListQuery;
             _serialNumberService = serialNumberService;
             _financeExchangeRateService = financeExchangeRateService;
             _orderJourneyLog = orderJourneyLog;
@@ -89,6 +92,7 @@ namespace CRM.Core.Services
             IRepository<SellOrder> soRepo,
             IRepository<SellOrderItem> soItemRepo,
             IDataPermissionService dataPermissionService,
+            IPurchaseOrderListQuery purchaseOrderListQuery,
             ISerialNumberService serialNumberService,
             IFinanceExchangeRateService financeExchangeRateService,
             IOrderJourneyLogService orderJourneyLog,
@@ -106,6 +110,7 @@ namespace CRM.Core.Services
                 soRepo,
                 soItemRepo,
                 dataPermissionService,
+                purchaseOrderListQuery,
                 serialNumberService,
                 financeExchangeRateService,
                 orderJourneyLog,
@@ -372,50 +377,8 @@ namespace CRM.Core.Services
             return await _poRepo.GetAllAsync();
         }
 
-        public async Task<PagedResult<PurchaseOrder>> GetPagedAsync(PurchaseOrderQueryRequest request)
-        {
-            var all = await _poRepo.GetAllAsync();
-            var filteredByPermission = all.AsEnumerable();
-            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
-            {
-                filteredByPermission = await _dataPermissionService.FilterPurchaseOrdersAsync(request.CurrentUserId, filteredByPermission);
-            }
-
-            var query = filteredByPermission.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(request.Keyword))
-            {
-                var keyword = request.Keyword.Trim();
-                query = query.Where(o =>
-                    (!string.IsNullOrWhiteSpace(o.PurchaseOrderCode) && o.PurchaseOrderCode.Contains(keyword, StringComparison.OrdinalIgnoreCase)) ||
-                    (!string.IsNullOrWhiteSpace(o.VendorName) && o.VendorName.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
-            }
-
-            if (request.Status.HasValue)
-                query = query.Where(o => o.Status == request.Status.Value);
-
-            if (request.StartDate.HasValue)
-                query = query.Where(o => o.CreateTime >= request.StartDate.Value);
-
-            if (request.EndDate.HasValue)
-                query = query.Where(o => o.CreateTime <= request.EndDate.Value.AddDays(1));
-
-            var totalCount = query.Count();
-            var page = request.Page < 1 ? 1 : request.Page;
-            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
-            var items = query.OrderByDescending(o => o.CreateTime)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
-
-            return new PagedResult<PurchaseOrder>
-            {
-                Items = items,
-                TotalCount = totalCount,
-                PageIndex = page,
-                PageSize = pageSize
-            };
-        }
+        public Task<PagedResult<PurchaseOrder>> GetPagedAsync(PurchaseOrderQueryRequest request) =>
+            _purchaseOrderListQuery.GetPagedAsync(request, CancellationToken.None);
 
         public async Task<IEnumerable<PurchaseOrder>> GetBySellOrderCodeAsync(string sellOrderCode)
         {

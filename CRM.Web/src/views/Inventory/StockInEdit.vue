@@ -479,8 +479,8 @@ async function loadStockInDetail(id: string) {
     applyDetailToForm(data)
     const stockInCode = (data.stockInCode ?? '').trim()
     if (stockInCode) {
-      const rows = await inventoryCenterApi.searchStockItems({ stockInCode })
-      stockItemRows.value = rows.filter((r) => String(r.stockInId || '').trim() === id)
+      const res = await inventoryCenterApi.searchStockItems({ stockInCode, page: 1, pageSize: 2000 })
+      stockItemRows.value = res.items.filter((r) => String(r.stockInId || '').trim() === id)
     } else {
       stockItemRows.value = []
     }

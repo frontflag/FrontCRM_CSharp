@@ -67,9 +67,7 @@ namespace CRM.API.Extensions
             services.AddScoped<ITagFilterService, TagFilterService>();
             services.AddScoped<IFavoriteService, FavoriteService>();
             services.AddScoped<ILogRecentService, LogRecentService>();
-            services.AddScoped<IOperationLogQueryService, OperationLogQueryService>();
             services.AddScoped<ILogOperationAppendService, LogOperationAppendService>();
-            services.AddScoped<ILoginLogQueryService, LoginLogQueryService>();
             services.AddScoped<ILoginLogService, LoginLogService>();
 
             var xdbRel = configuration["Ip2Region:Ipv4XdbPath"] ?? "../data/ip2region/ip2region_v4.xdb";

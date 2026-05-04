@@ -75,7 +75,8 @@ public class LogisticsServiceTests
             notifyRepo, stockInRepo, stockInItemExtendRepo, qcRepo, qcItemRepo, poRepo, poItemRepo, poItemExtendRepo,
             sellOrderItemRepo, sellOrderRepo, serial, poExtendSync, uow, userService,
             Substitute.For<ILogOperationAppendService>(),
-            log);
+            log,
+            Substitute.For<IQcListQuery>());
 
         var result = await svc.GetQcsAsync(new QcQueryRequest { Model = "UG-MPN-455565" });
 

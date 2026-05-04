@@ -7,6 +7,7 @@ using CRM.Core.Models.Sales;
 using CRM.Core.Models.Vendor;
 using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
+using System.Threading;
 
 namespace CRM.Core.Services
 {
@@ -39,6 +40,7 @@ namespace CRM.Core.Services
         private readonly IStockInExtendLineSeqService _stockInLineSeq;
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<StockInService> _logger;
+        private readonly IStockInListQuery _stockInListQuery;
 
         public StockInService(
             IRepository<StockIn> stockInRepository,
@@ -64,7 +66,8 @@ namespace CRM.Core.Services
             IStockInExtendLineSeqService stockInLineSeq,
             IUnitOfWork unitOfWork,
             ILogOperationAppendService logOperationAppend,
-            ILogger<StockInService> logger)
+            ILogger<StockInService> logger,
+            IStockInListQuery stockInListQuery)
         {
             _stockInRepository = stockInRepository;
             _stockInItemRepository = stockInItemRepository;
@@ -90,6 +93,7 @@ namespace CRM.Core.Services
             _unitOfWork = unitOfWork;
             _logOperationAppend = logOperationAppend;
             _logger = logger;
+            _stockInListQuery = stockInListQuery;
         }
 
         public async Task<StockIn> CreateAsync(CreateStockInRequest request, string? actingUserId = null)
@@ -345,18 +349,69 @@ namespace CRM.Core.Services
             return stockIn;
         }
 
-        public async Task<IReadOnlyList<StockInListItemDto>> GetListAsync(StockInQueryRequest? request = null)
+        private List<StockInListItemDto> ApplyStockInMemoryFilters(
+            List<StockInListItemDto> result,
+            StockInQueryRequest? request,
+            Dictionary<string, List<StockInItem>> stockInItemsMap)
         {
-            // 列表按创建时间降序（与业务列表「创建日期」口径一致）
-            const short transferStockInType = 3;
-            var raw = (await _stockInRepository.GetAllAsync())
-                .Where(x => x.StockInType != transferStockInType)
-                .OrderByDescending(x => x.CreateTime)
-                .ThenByDescending(x => x.Id)
-                .ToList();
+            var modelKeyword = request?.Model?.Trim();
+            var vendorKeyword = request?.VendorName?.Trim();
+            var poCodeKeyword = request?.PurchaseOrderCode?.Trim();
+            var soCodeKeyword = request?.SalesOrderCode?.Trim();
+            var stockInCodeKeyword = request?.StockInCode?.Trim();
+            var sourceDisplayKeyword = request?.SourceDisplayNo?.Trim();
+            var warehouseId = request?.WarehouseId?.Trim();
+            var stockInDateStart = request?.StockInDateStart?.Date;
+            var stockInDateEnd = request?.StockInDateEnd?.Date;
+            var remarkKeyword = request?.Remark?.Trim();
 
+            return result.Where(x =>
+            {
+                if (!string.IsNullOrWhiteSpace(modelKeyword))
+                {
+                    var idHit = stockInItemsMap.TryGetValue(x.Id, out var items)
+                        && items.Any(i => !string.IsNullOrWhiteSpace(i.MaterialId)
+                                          && i.MaterialId.Contains(modelKeyword, StringComparison.OrdinalIgnoreCase));
+                    var textHit =
+                        (x.MaterialModelSummary?.Contains(modelKeyword, StringComparison.OrdinalIgnoreCase) ?? false)
+                        || (x.MaterialBrandSummary?.Contains(modelKeyword, StringComparison.OrdinalIgnoreCase) ?? false);
+                    if (!idHit && !textHit) return false;
+                }
+                if (!string.IsNullOrWhiteSpace(vendorKeyword)
+                    && !(x.VendorName?.Contains(vendorKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+                    return false;
+                if (!string.IsNullOrWhiteSpace(poCodeKeyword)
+                    && !((x.PurchaseOrderCode?.Contains(poCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false)
+                         || (x.SourceDisplayNo?.Contains(poCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false)))
+                    return false;
+                if (!string.IsNullOrWhiteSpace(soCodeKeyword)
+                    && !(x.SalesOrderCode?.Contains(soCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+                    return false;
+                if (!string.IsNullOrWhiteSpace(stockInCodeKeyword)
+                    && !(x.StockInCode?.Contains(stockInCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+                    return false;
+                if (!string.IsNullOrWhiteSpace(sourceDisplayKeyword)
+                    && !(x.SourceDisplayNo?.Contains(sourceDisplayKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+                    return false;
+                if (!string.IsNullOrWhiteSpace(warehouseId)
+                    && !string.Equals(x.WarehouseId?.Trim(), warehouseId, StringComparison.OrdinalIgnoreCase))
+                    return false;
+                var stockInDate = x.StockInDate.Date;
+                if (stockInDateStart.HasValue && stockInDate < stockInDateStart.Value)
+                    return false;
+                if (stockInDateEnd.HasValue && stockInDate > stockInDateEnd.Value)
+                    return false;
+                if (!string.IsNullOrWhiteSpace(remarkKeyword)
+                    && !(x.Remark?.Contains(remarkKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+                    return false;
+                return true;
+            }).ToList();
+        }
+
+        private async Task<(List<StockInListItemDto> Dtos, Dictionary<string, List<StockInItem>> ItemsMap)> BuildStockInListDtosCoreAsync(List<StockIn> raw)
+        {
             if (raw.Count == 0)
-                return Array.Empty<StockInListItemDto>();
+                return (new List<StockInListItemDto>(), new Dictionary<string, List<StockInItem>>(StringComparer.Ordinal));
 
             var stockInIds = raw.Select(x => x.Id).ToList();
             var vendorIds = raw.Select(x => x.VendorId).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToList();
@@ -578,7 +633,6 @@ namespace CRM.Core.Services
                 {
                     displayTotalAmount = silAmt.Sum(line =>
                         line.Amount != 0m ? line.Amount : line.Quantity * line.Price);
-                    // 历史数据：明细单价为 0 但 MaterialId 为采购行 Id 时，用采购单价回算展示金额
                     if (displayTotalAmount == 0m && headerPoId != null &&
                         poItemsMap.TryGetValue(headerPoId, out var poLinesForAmt) &&
                         poLinesForAmt.Count > 0)
@@ -641,58 +695,64 @@ namespace CRM.Core.Services
                 });
             }
 
-            var modelKeyword = request?.Model?.Trim();
-            var vendorKeyword = request?.VendorName?.Trim();
-            var poCodeKeyword = request?.PurchaseOrderCode?.Trim();
-            var soCodeKeyword = request?.SalesOrderCode?.Trim();
-            var stockInCodeKeyword = request?.StockInCode?.Trim();
-            var sourceDisplayKeyword = request?.SourceDisplayNo?.Trim();
-            var warehouseId = request?.WarehouseId?.Trim();
-            var stockInDateStart = request?.StockInDateStart?.Date;
-            var stockInDateEnd = request?.StockInDateEnd?.Date;
-            var remarkKeyword = request?.Remark?.Trim();
+            return (result, stockInItemsMap);
+        }
 
-            return result.Where(x =>
+        public async Task<PagedResult<StockInListItemDto>> GetListPagedAsync(
+            StockInQueryRequest? request,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var pagedIds = await _stockInListQuery.GetPagedStockInIdsAsync(request, page, pageSize, cancellationToken);
+            if (pagedIds.TotalCount == 0)
             {
-                if (!string.IsNullOrWhiteSpace(modelKeyword))
+                return new PagedResult<StockInListItemDto>
                 {
-                    var idHit = stockInItemsMap.TryGetValue(x.Id, out var items)
-                        && items.Any(i => !string.IsNullOrWhiteSpace(i.MaterialId)
-                                          && i.MaterialId.Contains(modelKeyword, StringComparison.OrdinalIgnoreCase));
-                    var textHit =
-                        (x.MaterialModelSummary?.Contains(modelKeyword, StringComparison.OrdinalIgnoreCase) ?? false)
-                        || (x.MaterialBrandSummary?.Contains(modelKeyword, StringComparison.OrdinalIgnoreCase) ?? false);
-                    if (!idHit && !textHit) return false;
-                }
-                if (!string.IsNullOrWhiteSpace(vendorKeyword)
-                    && !(x.VendorName?.Contains(vendorKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
-                    return false;
-                if (!string.IsNullOrWhiteSpace(poCodeKeyword)
-                    && !((x.PurchaseOrderCode?.Contains(poCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false)
-                         || (x.SourceDisplayNo?.Contains(poCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false)))
-                    return false;
-                if (!string.IsNullOrWhiteSpace(soCodeKeyword)
-                    && !(x.SalesOrderCode?.Contains(soCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
-                    return false;
-                if (!string.IsNullOrWhiteSpace(stockInCodeKeyword)
-                    && !(x.StockInCode?.Contains(stockInCodeKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
-                    return false;
-                if (!string.IsNullOrWhiteSpace(sourceDisplayKeyword)
-                    && !(x.SourceDisplayNo?.Contains(sourceDisplayKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
-                    return false;
-                if (!string.IsNullOrWhiteSpace(warehouseId)
-                    && !string.Equals(x.WarehouseId?.Trim(), warehouseId, StringComparison.OrdinalIgnoreCase))
-                    return false;
-                var stockInDate = x.StockInDate.Date;
-                if (stockInDateStart.HasValue && stockInDate < stockInDateStart.Value)
-                    return false;
-                if (stockInDateEnd.HasValue && stockInDate > stockInDateEnd.Value)
-                    return false;
-                if (!string.IsNullOrWhiteSpace(remarkKeyword)
-                    && !(x.Remark?.Contains(remarkKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
-                    return false;
-                return true;
-            }).ToList();
+                    Items = Array.Empty<StockInListItemDto>(),
+                    TotalCount = 0,
+                    PageIndex = pagedIds.PageIndex,
+                    PageSize = pagedIds.PageSize
+                };
+            }
+
+            var idOrder = pagedIds.Items.ToList();
+            var idSet = idOrder.ToHashSet(StringComparer.Ordinal);
+            var loaded = (await _stockInRepository.FindAsync(x => idSet.Contains(x.Id))).ToList();
+            var byId = loaded.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
+            var ordered = new List<StockIn>();
+            foreach (var id in idOrder)
+            {
+                var key = id.Trim();
+                if (byId.TryGetValue(key, out var ent))
+                    ordered.Add(ent);
+            }
+
+            var (dtos, _) = await BuildStockInListDtosCoreAsync(ordered);
+            return new PagedResult<StockInListItemDto>
+            {
+                Items = dtos,
+                TotalCount = pagedIds.TotalCount,
+                PageIndex = pagedIds.PageIndex,
+                PageSize = pagedIds.PageSize
+            };
+        }
+
+        public async Task<IReadOnlyList<StockInListItemDto>> GetListAsync(StockInQueryRequest? request = null)
+        {
+            const short transferStockInType = 3;
+            var raw = (await _stockInRepository.GetAllAsync())
+                .Where(x => x.StockInType != transferStockInType)
+                .OrderByDescending(x => x.CreateTime)
+                .ThenByDescending(x => x.Id)
+                .ToList();
+
+            if (raw.Count == 0)
+                return Array.Empty<StockInListItemDto>();
+
+            var (dtos, itemsMap) = await BuildStockInListDtosCoreAsync(raw);
+            return ApplyStockInMemoryFilters(dtos, request, itemsMap);
         }
 
         public async Task<StockIn> UpdateAsync(string id, UpdateStockInRequest request, string? actingUserId = null)

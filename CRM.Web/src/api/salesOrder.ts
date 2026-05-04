@@ -122,7 +122,7 @@ export const salesOrderApi = {
     return await apiClient.get('/api/v1/sales-orders', { params })
   },
 
-  /** 销售订单明细分页 */
+  /** 销售订单明细分页（GET /api/v1/sales-orders/items） */
   async getItemLines(params?: {
     orderCreateStart?: string
     orderCreateEnd?: string
@@ -134,7 +134,7 @@ export const salesOrderApi = {
     page?: number
     pageSize?: number
   }) {
-    return await apiClient.get('/api/v1/sales-orders/lines', { params })
+    return await apiClient.get('/api/v1/sales-orders/items', { params })
   },
 
   // 获取销售订单详情

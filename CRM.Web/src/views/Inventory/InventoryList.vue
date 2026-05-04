@@ -12,7 +12,7 @@
           </div>
           <h1 class="page-title">{{ t('inventoryList.title') }}</h1>
         </div>
-        <div class="count-badge">{{ t('inventoryList.count', { count: filteredInventoryList.length }) }}</div>
+        <div class="count-badge">{{ t('inventoryList.count', { count: listTotal }) }}</div>
       </div>
       <div class="header-right">
         <button class="btn-primary" type="button" @click="openWarehouseDialog">
@@ -114,7 +114,7 @@
       :columns="inventoryTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-      :data="pagedInventoryList"
+      :data="list"
       v-loading="loading"
       @row-click="onRowClick"
     >
@@ -195,10 +195,11 @@
         class="list-main-pagination"
         v-model:current-page="listPage"
         v-model:page-size="listPageSize"
-        :total="filteredInventoryTotal"
+        :total="listTotal"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
-        @size-change="listPage = 1"
+        @size-change="onInventoryPageSizeChange"
+        @current-change="onInventoryPageChange"
       />
     </div>
 
@@ -298,6 +299,7 @@ const router = useRouter()
 const { t } = useI18n()
 const loading = ref(false)
 const list = ref<InventoryOverview[]>([])
+const listTotal = ref(0)
 const listPage = ref(1)
 const listPageSize = ref(20)
 /** 库存类型 1/2/3，空为全部（仅前端筛选当前已加载总览） */
@@ -415,28 +417,18 @@ const stockTypeLabel = (row: InventoryOverview) => {
   return t('inventoryList.stockTypes.unknown')
 }
 
-const filteredInventoryList = computed(() => {
-  const rows = list.value
-  const ft = stockTypeFilter.value
-  if (ft === undefined || ft === null) return rows
-  return rows.filter(r => rowStockTypeNum(r) === ft)
-})
-
-const filteredInventoryTotal = computed(() => filteredInventoryList.value.length)
-const pagedInventoryList = computed(() => {
-  const rows = filteredInventoryList.value
-  const start = (listPage.value - 1) * listPageSize.value
-  return rows.slice(start, start + listPageSize.value)
-})
-
-watch(filteredInventoryTotal, () => {
-  const maxP = Math.max(1, Math.ceil(filteredInventoryTotal.value / listPageSize.value) || 1)
+watch(listTotal, () => {
+  const maxP = Math.max(1, Math.ceil(listTotal.value / listPageSize.value) || 1)
   if (listPage.value > maxP) listPage.value = maxP
 })
 
-watch(stockTypeFilter, () => {
-  listPage.value = 1
-})
+function onInventoryPageSizeChange() {
+  void runInventoryFetch(true)
+}
+
+function onInventoryPageChange() {
+  void runInventoryFetch(false)
+}
 
 function resetInventorySearch() {
   stockTypeFilter.value = undefined
@@ -558,42 +550,29 @@ const materialBrandDisplay = (row: InventoryOverview) => {
   return name || '—'
 }
 
-/** 最后移动时间降序；无时间排后 */
-const sortByLastMoveDesc = (rows: InventoryOverview[]) =>
-  [...rows].sort((a, b) => {
-    const ta = a.lastMoveTime ? new Date(a.lastMoveTime).getTime() : null
-    const tb = b.lastMoveTime ? new Date(b.lastMoveTime).getTime() : null
-    if (ta == null && tb == null) {
-      return pickRowStr(a as unknown as Record<string, unknown>, 'warehouseId', 'WarehouseId').localeCompare(
-        pickRowStr(b as unknown as Record<string, unknown>, 'warehouseId', 'WarehouseId')
-      )
-    }
-    if (ta == null) return 1
-    if (tb == null) return -1
-    if (tb !== ta) return tb - ta
-    return pickRowStr(a as unknown as Record<string, unknown>, 'warehouseId', 'WarehouseId').localeCompare(
-      pickRowStr(b as unknown as Record<string, unknown>, 'warehouseId', 'WarehouseId')
-    )
-  })
-
 async function runInventoryFetch(resetPage: boolean) {
   if (resetPage) listPage.value = 1
   loading.value = true
   try {
     const [overviewRes, summaryRes, warehouseRes] = await Promise.allSettled([
-      inventoryCenterApi.getOverview({
+      inventoryCenterApi.getOverviewPaged({
         warehouseId: warehouseFilter.value?.trim() || undefined,
         materialModel: materialModelFilter.value?.trim() || undefined,
-        stockCode: stockCodeFilter.value?.trim() || undefined
+        stockCode: stockCodeFilter.value?.trim() || undefined,
+        stockType: stockTypeFilter.value,
+        page: listPage.value,
+        pageSize: listPageSize.value
       }),
       inventoryCenterApi.getFinanceSummary(),
       inventoryCenterApi.getWarehouses()
     ])
 
     if (overviewRes.status === 'fulfilled') {
-      list.value = sortByLastMoveDesc(overviewRes.value)
+      list.value = overviewRes.value.items
+      listTotal.value = overviewRes.value.total
     } else {
       list.value = []
+      listTotal.value = 0
       ElMessage.error(getApiErrorMessage(overviewRes.reason, t('inventoryList.messages.loadOverviewFailed')))
     }
 
@@ -611,6 +590,7 @@ async function runInventoryFetch(resetPage: boolean) {
     console.error(e)
     ElMessage.error(getApiErrorMessage(e, t('inventoryList.messages.loadCenterFailed')))
     list.value = []
+    listTotal.value = 0
   } finally {
     loading.value = false
   }

@@ -155,7 +155,7 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 获取已删除供应商（回收站）分页列表
         /// </summary>
-        Task<PagedResult<VendorInfo>> GetDeletedAsync(int pageIndex, int pageSize, string? keyword);
+        Task<PagedResult<VendorInfo>> GetDeletedAsync(int pageIndex, int pageSize, string? keyword, string? currentUserId = null);
 
         /// <summary>
         /// 恢复已删除供应商
@@ -504,6 +504,11 @@ namespace CRM.Core.Interfaces
         public DateTime? CreatedFrom { get; set; }
         public DateTime? CreatedTo { get; set; }
         public string? CurrentUserId { get; set; }
+
+        /// <summary>
+        /// 非 null 时按供应商主键限制结果（如「仅收藏」：非空为 IN，空列表表示无匹配）。
+        /// </summary>
+        public IReadOnlyList<string>? FavoriteVendorIds { get; set; }
     }
 
     /// <summary>

@@ -18,6 +18,7 @@ namespace CRM.API.Controllers
     public class SalesOrdersController : ControllerBase
     {
         private readonly ISalesOrderService _service;
+        private readonly ISalesOrderListQuery _salesOrderListQuery;
         private readonly ISalesOrderJourneyService _journeyService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IRbacService _rbacService;
@@ -27,6 +28,7 @@ namespace CRM.API.Controllers
 
         public SalesOrdersController(
             ISalesOrderService service,
+            ISalesOrderListQuery salesOrderListQuery,
             ISalesOrderJourneyService journeyService,
             IDataPermissionService dataPermissionService,
             IRbacService rbacService,
@@ -35,6 +37,7 @@ namespace CRM.API.Controllers
             ILogger<SalesOrdersController> logger)
         {
             _service = service;
+            _salesOrderListQuery = salesOrderListQuery;
             _journeyService = journeyService;
             _dataPermissionService = dataPermissionService;
             _rbacService = rbacService;
@@ -46,28 +49,56 @@ namespace CRM.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll(
             [FromQuery] string? keyword,
+            [FromQuery] string? code,
+            [FromQuery] string? customer,
             [FromQuery] short? status,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20)
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
             try
             {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var summary = await GetPermissionSummaryAsync(userId);
+                var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
+                var canViewCustomerInfo = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("customer.info.read") ?? false));
+
                 var request = new SalesOrderQueryRequest
                 {
                     Keyword = keyword,
+                    SellOrderCodeFilter = string.IsNullOrWhiteSpace(code) ? null : code.Trim(),
+                    CustomerNameFilter = canViewCustomerInfo && !string.IsNullOrWhiteSpace(customer) ? customer.Trim() : null,
                     Status = status,
                     StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
                     EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
                     Page = page,
                     PageSize = pageSize,
-                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    CurrentUserId = userId
                 };
                 var result = await _service.GetPagedAsync(request);
-                var summary = await GetPermissionSummaryAsync(request.CurrentUserId);
                 var items = result.Items.Select(x => MaskSalesOrder(x, summary)).ToList();
-                return Ok(new { success = true, data = new { items, total = result.TotalCount, page = result.PageIndex, pageSize = result.PageSize } });
+                var aggregates = await _salesOrderListQuery.GetAggregatesAsync(request, cancellationToken);
+                var canViewSalesAmount = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("sales.amount.read") ?? false));
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items,
+                        total = result.TotalCount,
+                        page = result.PageIndex,
+                        pageSize = result.PageSize,
+                        aggregates = new
+                        {
+                            totalCount = aggregates.TotalCount,
+                            pendingCount = aggregates.PendingCount,
+                            approvedPlusCount = aggregates.ApprovedPlusCount,
+                            totalAmountSum = canViewSalesAmount ? aggregates.TotalAmountSum : (decimal?)null
+                        }
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -76,9 +107,9 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>销售订单明细分页（须在 {id} 路由之前注册）</summary>
-        [HttpGet("lines")]
-        public async Task<IActionResult> GetSellOrderLines(
+        /// <summary>销售订单明细分页（字面路由 <c>items</c>；与 <c>{id:guid}</c> 子路由并存，避免 <c>items</c> 被误解析为订单主键）。</summary>
+        [HttpGet("items")]
+        public async Task<IActionResult> GetSellOrderItemLines(
             [FromQuery] string? orderCreateStart,
             [FromQuery] string? orderCreateEnd,
             [FromQuery] string? customerName,
@@ -86,26 +117,32 @@ namespace CRM.API.Controllers
             [FromQuery] string? sellOrderCode,
             [FromQuery] string? pn,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20)
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
+            _ = cancellationToken;
             try
             {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var summary = await GetPermissionSummaryAsync(userId);
+                var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
+                var canViewCustomer = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("customer.info.read") ?? false));
+                var canViewSalesUser = summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("sales.user.read") ?? false)
+                    || (summary?.PermissionCodes?.Contains("sales-order.read") ?? false);
+
                 var request = new SellOrderItemLineQueryRequest
                 {
                     OrderCreateStart = DateTime.TryParse(orderCreateStart, out var ds) ? ds : null,
                     OrderCreateEnd = DateTime.TryParse(orderCreateEnd, out var de) ? de : null,
-                    CustomerName = customerName,
-                    SalesUserName = salesUserName,
+                    CustomerName = canViewCustomer && !string.IsNullOrWhiteSpace(customerName) ? customerName.Trim() : null,
+                    SalesUserName = canViewSalesUser && !string.IsNullOrWhiteSpace(salesUserName) ? salesUserName.Trim() : null,
                     SellOrderCode = sellOrderCode,
                     Pn = pn,
                     Page = page,
                     PageSize = pageSize,
-                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    CurrentUserId = userId
                 };
                 var result = await _service.GetSellOrderItemLinesPagedAsync(request);
-                var summary = await GetPermissionSummaryAsync(request.CurrentUserId);
-                var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
-                var canViewCustomer = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("customer.info.read") ?? false));
                 var canViewAmount = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("sales.amount.read") ?? false));
                 var items = result.Items.Select(r => MaskSellOrderLine(r, canViewCustomer, canViewAmount, mask521)).ToList();
                 return Ok(new
@@ -128,7 +165,7 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>销售订单报表页：一次返回订单详情（与详情权限、脱敏一致）与公司参数。</summary>
-        [HttpGet("{id}/report-data")]
+        [HttpGet("{id:guid}/report-data")]
         public async Task<IActionResult> GetReportData(string id, CancellationToken cancellationToken)
         {
             try
@@ -179,7 +216,7 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>销售订单详情页：底部页签用下游列表（采购申请/入库/库存/出库通知/出库/收款/销项发票）。</summary>
-        [HttpGet("{id}/detail-tab-aggregates")]
+        [HttpGet("{id:guid}/detail-tab-aggregates")]
         public async Task<IActionResult> GetDetailTabAggregates(string id)
         {
             try
@@ -210,7 +247,7 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>销售订单「单条明细」下游列表：与 <c>detail-tab-aggregates</c> 字段一致，按销售明细主键过滤。</summary>
-        [HttpGet("{id}/sell-order-items/{sellOrderItemId}/detail-tab-aggregates")]
+        [HttpGet("{id:guid}/sell-order-items/{sellOrderItemId:guid}/detail-tab-aggregates")]
         public async Task<IActionResult> GetSellOrderItemDetailTabAggregates(string id, string sellOrderItemId)
         {
             try
@@ -550,7 +587,7 @@ namespace CRM.API.Controllers
             };
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(string id)
         {
             try
@@ -605,7 +642,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        [HttpGet("{id}/purchase-orders")]
+        [HttpGet("{id:guid}/purchase-orders")]
         public async Task<IActionResult> GetRelatedPurchaseOrders(string id)
         {
             try
@@ -619,7 +656,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        [HttpGet("{id}/journey")]
+        [HttpGet("{id:guid}/journey")]
         public async Task<IActionResult> GetJourney(string id)
         {
             try
@@ -642,7 +679,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        [HttpPost("{id}/refresh-item-extends")]
+        [HttpPost("{id:guid}/refresh-item-extends")]
         [RequirePermission("sales-order.write")]
         public async Task<IActionResult> RefreshItemExtends(string id, CancellationToken cancellationToken)
         {
@@ -673,8 +710,30 @@ namespace CRM.API.Controllers
             {
                 var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var order = await _service.CreateAsync(request, actorId);
-                return CreatedAtAction(nameof(GetById), new { id = order.Id },
-                    new { success = true, data = order });
+                var loaded = await _service.GetByIdAsync(order.Id) ?? order;
+                var summary = await GetPermissionSummaryAsync(actorId);
+                IReadOnlyDictionary<string, SellOrderItemExtend>? itemExtends = null;
+                if (loaded.Items != null && loaded.Items.Count > 0)
+                {
+                    var ids = loaded.Items
+                        .Select(i => i.Id)
+                        .Where(oid => !string.IsNullOrWhiteSpace(oid))
+                        .Select(oid => oid.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    itemExtends = await LoadSellOrderItemExtendsByItemIdsAsync(ids, loaded.Id);
+                }
+
+                IReadOnlyDictionary<string, bool> stockOutGate =
+                    new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                if (loaded.Items != null && loaded.Items.Count > 0)
+                {
+                    stockOutGate = await _service.GetStockOutApplyPurchaseGateBySellLineIdsAsync(
+                        loaded.Items.Select(i => i.Id));
+                }
+
+                return CreatedAtAction(nameof(GetById), new { id = loaded.Id },
+                    new { success = true, data = MaskSalesOrder(loaded, summary, itemExtends, stockOutGate) });
             }
             catch (ArgumentException ex)
             {
@@ -692,7 +751,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{id:guid}")]
         [RequirePermission("sales-order.write")]
         public async Task<IActionResult> Update(string id, [FromBody] UpdateSalesOrderRequest request)
         {
@@ -712,7 +771,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:guid}")]
         [RequirePermission("sales-order.write")]
         public async Task<IActionResult> Delete(string id)
         {
@@ -731,7 +790,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        [HttpPatch("{id}/status")]
+        [HttpPatch("{id:guid}/status")]
         [RequirePermission("sales-order.write")]
         public async Task<IActionResult> UpdateStatus(string id, [FromBody] SalesOrderUpdateStatusRequest request)
         {
@@ -895,7 +954,12 @@ namespace CRM.API.Controllers
                 order.InvoiceStatus,
                 order.DeliveryAddress,
                 order.DeliveryDate,
-                order.Comment,
+                productKind = order.ProductKind,
+                customerContactName = order.CustomerContactName,
+                invoiceInfo = order.InvoiceInfo,
+                paymentTermsText = order.PaymentTermsText,
+                comment = order.Comment,
+                headerRemarkDisplay = SellOrderHeaderRemarkCodec.BuildDisplayComment(order),
                 order.AuditRemark,
                 order.CreateTime,
                 order.ModifyTime,
@@ -915,7 +979,9 @@ namespace CRM.API.Controllers
                         i.ProductId,
                         i.PN,
                         i.Brand,
-                        CustomerPnNo = canViewCustomerInfo ? i.CustomerPnNo : null,
+                        customerSo = canViewCustomerInfo ? i.CustomerSo : null,
+                        customerPn = canViewCustomerInfo ? i.CustomerPn : null,
+                        customerBrand = canViewCustomerInfo ? i.CustomerBrand : null,
                         i.Qty,
                         i.PurchasedQty,
                         Price = canViewSalesAmount ? i.Price : 0m,
@@ -954,7 +1020,9 @@ namespace CRM.API.Controllers
                             !string.IsNullOrWhiteSpace(i.Id) &&
                             stockOutApplyPurchaseGate.TryGetValue(i.Id.Trim(), out var gateOk) &&
                             gateOk,
-                        purchasedStockAvailableQty = ext?.PurchasedStock_AvailableQty ?? 0
+                        purchasedStockAvailableQty = ext?.PurchasedStock_AvailableQty ?? 0,
+                        purchaseQuoteCost = canViewSalesAmount ? ext?.QuoteCost : null,
+                        purchaseQuoteCurrency = ext != null ? ext.QuoteCurrency : (short?)null
                     };
                 }).ToList()
             };

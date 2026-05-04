@@ -63,7 +63,7 @@
       :columns="qcTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-      :data="pagedList"
+      :data="list"
       v-loading="loading"
       @row-dblclick="goView"
     >
@@ -155,7 +155,8 @@
         :total="listTotal"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
-        @size-change="listPage = 1"
+        @current-change="() => void applyQcList(false)"
+        @size-change="onQcPageSizeChange"
       />
     </div>
 
@@ -208,11 +209,7 @@ const loading = ref(false)
 const list = ref<QcInfoDto[]>([])
 const listPage = ref(1)
 const listPageSize = ref(20)
-const listTotal = computed(() => list.value.length)
-const pagedList = computed(() => {
-  const start = (listPage.value - 1) * listPageSize.value
-  return list.value.slice(start, start + listPageSize.value)
-})
+const listTotal = ref(0)
 watch(listTotal, () => {
   const maxP = Math.max(1, Math.ceil(listTotal.value / listPageSize.value) || 1)
   if (listPage.value > maxP) listPage.value = maxP
@@ -358,6 +355,11 @@ function syncFiltersFromRoute() {
   filters.value.salesOrderCode = typeof q.salesOrderCode === 'string' ? q.salesOrderCode : ''
 }
 
+function onQcPageSizeChange() {
+  listPage.value = 1
+  void applyQcList(false)
+}
+
 function applyQcList(resetPage: boolean) {
   if (resetPage) listPage.value = 1
   loading.value = true
@@ -366,10 +368,13 @@ function applyQcList(resetPage: boolean) {
       model: filters.value.model || undefined,
       vendorName: filters.value.vendorName || undefined,
       purchaseOrderCode: filters.value.purchaseOrderCode || undefined,
-      salesOrderCode: filters.value.salesOrderCode || undefined
+      salesOrderCode: filters.value.salesOrderCode || undefined,
+      page: listPage.value,
+      pageSize: listPageSize.value
     })
     .then(res => {
-      list.value = (res || []).sort((a, b) => (a.createTime < b.createTime ? 1 : -1))
+      list.value = res.items || []
+      listTotal.value = res.total
     })
     .catch((e: unknown) => {
       console.error(e)
@@ -559,8 +564,12 @@ const createStockIn = async (row: QcInfoDto) => {
     return
   }
 
-  const notices = await logisticsApi.getArrivalNotices()
-  const notice = notices.find(x => x.id === row.stockInNotifyId)
+  const { items: noticeRows } = await logisticsApi.getArrivalNotices({
+    id: row.stockInNotifyId,
+    page: 1,
+    pageSize: 1
+  })
+  const notice = noticeRows[0]
   if (!notice) {
     ElMessage.error(t('qcList.messages.noticeMissing'))
     return

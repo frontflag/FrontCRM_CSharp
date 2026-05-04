@@ -124,49 +124,79 @@ function mapQuoteCreateFormToUpdate(form: Record<string, unknown>): Record<strin
   }
 }
 
+/** 与 GET /api/v1/quotes 的 data.aggregates 对齐（axios 已解包外层 success/data）。 */
+export type QuoteListAggregates = {
+  totalCount: number
+  pendingCount: number
+  sentCount: number
+  acceptedCount: number
+  createdInRangeCount: number | null
+}
+
+type QuotePagedListPayload = {
+  items?: unknown[]
+  total?: number
+  page?: number
+  pageSize?: number
+  aggregates?: QuoteListAggregates
+}
+
 export const quoteApi = {
   /**
-   * GET /api/v1/quotes（后端暂无筛选参数，在此做前端过滤）
-   * 返回形状与旧 mock 一致：{ data, total }
+   * GET /api/v1/quotes — 后端数据库分页与筛选；可选传 aggregateCreateFrom / aggregateCreateToExclusive（ISO）用于首页等区间统计。
    */
   async getList(params?: {
+    page?: number
+    pageSize?: number
     keyword?: string
     status?: number
     rfqItemId?: string | null
+    aggregateCreateFrom?: string | null
+    aggregateCreateToExclusive?: string | null
   }) {
-    const rows = await apiClient.get<unknown[]>('/api/v1/quotes')
-    const list = Array.isArray(rows) ? rows : []
-    let result = [...list] as Record<string, unknown>[]
-    if (params?.keyword) {
-      const kw = params.keyword.toLowerCase()
-      result = result.filter((q) => {
-        const items = (q.items ?? q.Items) as Record<string, unknown>[] | undefined
-        const it0 = Array.isArray(items) && items.length > 0 ? items[0] : null
-        const parts = [
-          q.quoteCode,
-          q.quoteNumber,
-          q.rfqCode,
-          q.mpn,
-          q.customerName,
-          q.salesUserName,
-          it0?.brand,
-          it0?.Brand,
-          it0?.unitPrice,
-          it0?.UnitPrice
-        ]
-          .filter((x) => x != null)
-          .map((x) => String(x).toLowerCase())
-        return parts.some((s) => s.includes(kw))
-      })
+    const q = new URLSearchParams()
+    const page = params?.page != null && params.page >= 1 ? params.page : 1
+    const pageSize = params?.pageSize != null && params.pageSize >= 1 ? params.pageSize : 20
+    q.set('page', String(page))
+    q.set('pageSize', String(pageSize))
+    if (params?.keyword != null && String(params.keyword).trim() !== '') q.set('keyword', String(params.keyword).trim())
+    if (params?.status !== undefined && params?.status !== null) q.set('status', String(params.status))
+    if (params?.rfqItemId != null && String(params.rfqItemId).trim() !== '')
+      q.set('rfqItemId', String(params.rfqItemId).trim())
+    if (params?.aggregateCreateFrom != null && String(params.aggregateCreateFrom).trim() !== '')
+      q.set('aggregateCreateFrom', String(params.aggregateCreateFrom).trim())
+    if (
+      params?.aggregateCreateToExclusive != null &&
+      String(params.aggregateCreateToExclusive).trim() !== ''
+    )
+      q.set('aggregateCreateToExclusive', String(params.aggregateCreateToExclusive).trim())
+
+    const qs = q.toString()
+    const payload = await apiClient.get<QuotePagedListPayload>(`/api/v1/quotes${qs ? `?${qs}` : ''}`)
+    const rows = payload?.items
+    const list = (Array.isArray(rows) ? rows : []) as Record<string, unknown>[]
+    return {
+      data: list,
+      total: payload?.total ?? 0,
+      page: payload?.page ?? page,
+      pageSize: payload?.pageSize ?? pageSize,
+      aggregates: payload?.aggregates
     }
-    if (params?.status !== undefined && params?.status !== null) {
-      result = result.filter((q) => Number(q.status) === Number(params.status))
-    }
-    if (params?.rfqItemId != null && String(params.rfqItemId).trim() !== '') {
-      const rid = String(params.rfqItemId).trim()
-      result = result.filter((q) => String(q.rfqItemId ?? q.RfqItemId ?? '') === rid)
-    }
-    return { data: result, total: result.length }
+  },
+
+  /**
+   * GET /api/v1/quotes/aggregate/quote-counts-by-rfq-item-ids?rfqItemIds=id1,id2
+   * 返回 data.counts：各需求明细行关联的报价主表条数。
+   */
+  async getQuoteCountsByRfqItemIds(rfqItemIds: string[]) {
+    const filtered = [...new Set(rfqItemIds.map((x) => String(x).trim()).filter(Boolean))]
+    if (!filtered.length) return { counts: {} as Record<string, number> }
+    const q = new URLSearchParams()
+    q.set('rfqItemIds', filtered.slice(0, 500).join(','))
+    const payload = await apiClient.get<{ counts?: Record<string, number> }>(
+      `/api/v1/quotes/aggregate/quote-counts-by-rfq-item-ids?${q.toString()}`
+    )
+    return { counts: payload?.counts ?? {} }
   },
 
   async getById(id: string) {

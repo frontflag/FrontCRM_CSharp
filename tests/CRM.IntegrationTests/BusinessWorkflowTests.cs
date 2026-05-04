@@ -14,6 +14,7 @@ using CRM.Core.Models.RFQ;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.System;
 using CRM.Core.Services;
+using CRM.TestCommon.Rfq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -65,6 +66,10 @@ namespace CRM.IntegrationTests
             _serialNumberService = Substitute.For<ISerialNumberService>();
             _unitOfWork = Substitute.For<IUnitOfWork>();
             _dataPermissionService = Substitute.For<IDataPermissionService>();
+            _dataPermissionService.FilterRFQsAsync(Arg.Any<string>(), Arg.Any<IEnumerable<RFQListItem>>())
+                .Returns(ci => Task.FromResult<IReadOnlyList<RFQListItem>>(ci.ArgAt<IEnumerable<RFQListItem>>(1).ToList()));
+            _dataPermissionService.GetRfqItemLineVisibilityPredicateAsync(Arg.Any<string>())
+                .Returns(_ => Task.FromResult<Func<RFQ, RFQItem, bool>>((__, ___) => true));
             _userService = Substitute.For<IUserService>();
             _userService.GetAllAsync().Returns(new List<User>());
             _serialNumberService.GenerateNextAsync(ModuleCodes.RFQ).Returns("RF20260001");
@@ -93,6 +98,8 @@ namespace CRM.IntegrationTests
                     RoleCodes = Array.Empty<string>(),
                     PermissionCodes = Array.Empty<string>()
                 });
+            var rfqMainMem = new MemoryRfqMainListQuery(_rfqRepository, null, _userService, _dataPermissionService);
+            var rfqItemMem = new MemoryRfqItemListQuery(_rfqRepository, _rfqItemRepository, null, _quoteRepository, _userService, _dataPermissionService);
             _rfqService = new RFQService(
                 _rfqRepository,
                 _rfqItemRepository,
@@ -110,10 +117,23 @@ namespace CRM.IntegrationTests
                 _quoteRepository,
                 _userRepo,
                 rfqRbac,
+                rfqMainMem,
+                rfqItemMem,
                 NullLogger<RFQService>.Instance);
             var quoteCustomerRepo = Substitute.For<IRepository<CustomerInfo>>();
             quoteCustomerRepo.FindAsync(Arg.Any<Expression<Func<CustomerInfo, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<CustomerInfo>>(Array.Empty<CustomerInfo>()));
+            var quoteListQuery = Substitute.For<CRM.Core.Interfaces.IQuoteListQuery>();
+            quoteListQuery.GetPagedAsync(Arg.Any<CRM.Core.Interfaces.QuoteQueryRequest>(), default)
+                .Returns(Task.FromResult(new CRM.Core.Interfaces.PagedResult<CRM.Core.Models.Quote.Quote>
+                {
+                    Items = Array.Empty<CRM.Core.Models.Quote.Quote>(),
+                    TotalCount = 0,
+                    PageIndex = 1,
+                    PageSize = 20
+                }));
+            quoteListQuery.GetQuoteCountsByRfqItemIdsAsync(Arg.Any<IReadOnlyCollection<string>>(), default)
+                .Returns(Task.FromResult((IReadOnlyDictionary<string, int>)new Dictionary<string, int>()));
             _quoteService = new QuoteService(
                 _quoteRepository,
                 _quoteItemRepository,
@@ -123,6 +143,7 @@ namespace CRM.IntegrationTests
                 _unitOfWork,
                 _serialNumberService,
                 _userService,
+                quoteListQuery,
                 NullLogger<QuoteService>.Instance);
             _financeExchangeRateService = Substitute.For<IFinanceExchangeRateService>();
             _financeExchangeRateService.GetCurrentAsync(default).ReturnsForAnyArgs(new FinanceExchangeRateDto
@@ -136,6 +157,24 @@ namespace CRM.IntegrationTests
             var soLineSeq = Substitute.For<ISellOrderExtendLineSeqService>();
             soLineSeq.ReserveNextSequenceBlockAsync(Arg.Any<string>(), Arg.Any<int>(), default)
                 .Returns(call => 1);
+            var soListQuery = Substitute.For<CRM.Core.Interfaces.ISalesOrderListQuery>();
+            soListQuery.GetPagedAsync(Arg.Any<CRM.Core.Interfaces.SalesOrderQueryRequest>(), Arg.Any<CancellationToken>())
+                .Returns(new CRM.Core.Interfaces.PagedResult<CRM.Core.Models.Sales.SellOrder>
+                {
+                    Items = new List<CRM.Core.Models.Sales.SellOrder>(),
+                    TotalCount = 0,
+                    PageIndex = 1,
+                    PageSize = 20
+                });
+            var soItemLineQuery = Substitute.For<CRM.Core.Interfaces.ISalesOrderItemLineListQuery>();
+            soItemLineQuery.GetPagedAsync(Arg.Any<CRM.Core.Interfaces.SellOrderItemLineQueryRequest>(), Arg.Any<CancellationToken>())
+                .Returns(new CRM.Core.Interfaces.PagedResult<CRM.Core.Interfaces.SellOrderItemLineDto>
+                {
+                    Items = new List<CRM.Core.Interfaces.SellOrderItemLineDto>(),
+                    TotalCount = 0,
+                    PageIndex = 1,
+                    PageSize = 20
+                });
             _salesOrderService = new SalesOrderService(
                 _salesOrderRepository,
                 _salesOrderItemRepository,
@@ -152,6 +191,8 @@ namespace CRM.IntegrationTests
                 Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(),
                 soLineSeq,
                 _userService,
+                soListQuery,
+                soItemLineQuery,
                 _unitOfWork,
                 NullLogger<SalesOrderService>.Instance);
         }
@@ -438,7 +479,10 @@ namespace CRM.IntegrationTests
                 Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(), unitOfWork,
                 Substitute.For<IForceDeleteGuardService>(),
                 Substitute.For<ILogOperationAppendService>(),
-                NullLogger<StockOutService>.Instance);
+                NullLogger<StockOutService>.Instance,
+                Substitute.For<IStockOutListQuery>(),
+                Substitute.For<IStockOutRequestListQuery>(),
+                Substitute.For<IStockOutItemListQuery>());
 
             // 准备销售订单明细
             var sellOrderItem = new SellOrderItem
@@ -608,7 +652,10 @@ namespace CRM.IntegrationTests
                 Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(), unitOfWork,
                 Substitute.For<IForceDeleteGuardService>(),
                 Substitute.For<ILogOperationAppendService>(),
-                NullLogger<StockOutService>.Instance);
+                NullLogger<StockOutService>.Instance,
+                Substitute.For<IStockOutListQuery>(),
+                Substitute.For<IStockOutRequestListQuery>(),
+                Substitute.For<IStockOutItemListQuery>());
 
             var sellOrderItem = new SellOrderItem
             {
@@ -765,7 +812,8 @@ namespace CRM.IntegrationTests
                 sellOrderItemRepo, sellOrderRepo, serialNumberService, poItemExtendSync, unitOfWork,
                 _userService,
                 Substitute.For<ILogOperationAppendService>(),
-                logisticsLogger);
+                logisticsLogger,
+                Substitute.For<IQcListQuery>());
 
             // 准备采购订单明细
             var purchaseOrderItemId = Guid.NewGuid().ToString();
@@ -1264,12 +1312,14 @@ namespace CRM.IntegrationTests
                     PermissionCodes = Array.Empty<string>()
                 });
 
+            var rfqMainMem = new MemoryRfqMainListQuery(rfqRepo, customerRepo, userService, dataPermissionService);
+            var rfqItemMem = new MemoryRfqItemListQuery(rfqRepo, itemRepo, customerRepo, quoteRepo, userService, dataPermissionService);
             // 创建服务
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
                 sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, rbacDepartmentRepo, rbacUserDepartmentRepo, quoteRepo,
-                userRepo, rbacSvc, logger);
+                userRepo, rbacSvc, rfqMainMem, rfqItemMem, logger);
 
             // 模拟序列号生成
             serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -1378,12 +1428,14 @@ namespace CRM.IntegrationTests
                     PermissionCodes = Array.Empty<string>()
                 });
 
+            var rfqMainMem = new MemoryRfqMainListQuery(rfqRepo, customerRepo, userService, dataPermissionService);
+            var rfqItemMem = new MemoryRfqItemListQuery(rfqRepo, itemRepo, customerRepo, quoteRepo, userService, dataPermissionService);
             // 创建服务
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
                 sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, rbacDepartmentRepo, rbacUserDepartmentRepo, quoteRepo,
-                userRepo, rbacSvc, logger);
+                userRepo, rbacSvc, rfqMainMem, rfqItemMem, logger);
 
             // 模拟序列号生成
             serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -1504,12 +1556,14 @@ namespace CRM.IntegrationTests
                     PermissionCodes = Array.Empty<string>()
                 });
 
+            var rfqMainMem = new MemoryRfqMainListQuery(rfqRepo, customerRepo, userService, dataPermissionService);
+            var rfqItemMem = new MemoryRfqItemListQuery(rfqRepo, itemRepo, customerRepo, quoteRepo, userService, dataPermissionService);
             // 创建服务
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
                 sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, rbacDepartmentRepo, rbacUserDepartmentRepo, quoteRepo,
-                userRepo, rbacSvc, logger);
+                userRepo, rbacSvc, rfqMainMem, rfqItemMem, logger);
 
             // 准备用户数据
             var salesUserId = "SALES-USER-001";
@@ -1742,11 +1796,20 @@ namespace CRM.IntegrationTests
             var poItemExtendSync = Substitute.For<IPurchaseOrderItemExtendSyncService>();
             var poLineSeq = Substitute.For<IPurchaseOrderExtendLineSeqService>();
             var sellOrderItemExtendSync = Substitute.For<ISellOrderItemExtendSyncService>();
-            
+            var poListQuery = Substitute.For<IPurchaseOrderListQuery>();
+            poListQuery.GetPagedAsync(Arg.Any<PurchaseOrderQueryRequest>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromResult(new PagedResult<PurchaseOrder>
+                {
+                    Items = new List<PurchaseOrder>(),
+                    TotalCount = 0,
+                    PageIndex = 1,
+                    PageSize = 20
+                }));
+
             var poService = new PurchaseOrderService(
                 poRepo, poItemRepo, poItemExtendRepo,
                 _salesOrderRepository, _salesOrderItemRepository,
-                _dataPermissionService, poSerialNumberService,
+                _dataPermissionService, poListQuery, poSerialNumberService,
                 _financeExchangeRateService, _orderJourneyLog,
                 sellOrderItemExtendSync, poItemExtendSync, poLineSeq,
                 NullLogger<PurchaseOrderService>.Instance,
@@ -1837,7 +1900,8 @@ namespace CRM.IntegrationTests
                 sellOrderItemRepo, sellOrderRepo, logisticsSerialNumberService, poItemExtendSyncForLogistics,
                 logisticsUnitOfWork, _userService,
                 Substitute.For<ILogOperationAppendService>(),
-                logisticsLogger2);
+                logisticsLogger2,
+                Substitute.For<IQcListQuery>());
 
             // 模拟到货通知仓储
             var allNotices = new List<StockInNotify>();
@@ -1942,7 +2006,8 @@ namespace CRM.IntegrationTests
                 stockInSellExtendSync, Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(),
                 stockInLineSeq, stockInUnitOfWork,
                 Substitute.For<ILogOperationAppendService>(),
-                stockInLogger);
+                stockInLogger,
+                Substitute.For<IStockInListQuery>());
 
             // 模拟入库单仓储
             var allStockIns = new List<StockIn>();
@@ -2010,7 +2075,10 @@ namespace CRM.IntegrationTests
                 Substitute.For<ISellOrderItemPurchasedStockAvailableSyncService>(), stockOutUnitOfWork,
                 Substitute.For<IForceDeleteGuardService>(),
                 Substitute.For<ILogOperationAppendService>(),
-                NullLogger<StockOutService>.Instance);
+                NullLogger<StockOutService>.Instance,
+                Substitute.For<IStockOutListQuery>(),
+                Substitute.For<IStockOutRequestListQuery>(),
+                Substitute.For<IStockOutItemListQuery>());
 
             // 模拟出库申请仓储
             var allStockOutRequests = new List<StockOutRequest>();
@@ -2090,6 +2158,7 @@ namespace CRM.IntegrationTests
                 dataPermissionServiceLocal, receiptSerialNumberService, sellOrderItemExtendSyncLocal,
                 Substitute.For<IForceDeleteGuardService>(),
                 Substitute.For<ILogOperationAppendService>(),
+                Substitute.For<IFinanceReceiptListQuery>(),
                 receiptUnitOfWork);
 
             // 模拟收款仓储
@@ -2134,6 +2203,7 @@ namespace CRM.IntegrationTests
                 sellInvoiceRepo, sellInvoiceItemRepoForInvoice, invoiceDataPermissionService, sellInvoiceSerialNumberService,
                 Substitute.For<IForceDeleteGuardService>(),
                 Substitute.For<ILogOperationAppendService>(),
+                Substitute.For<IFinanceSellInvoiceListQuery>(),
                 invoiceUnitOfWork);
 
             // 模拟销项发票仓储

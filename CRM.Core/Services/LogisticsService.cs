@@ -6,6 +6,7 @@ using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
+using System.Threading;
 
 namespace CRM.Core.Services
 {
@@ -27,6 +28,7 @@ namespace CRM.Core.Services
         private readonly IUserService _userService;
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<LogisticsService> _logger;
+        private readonly IQcListQuery _qcListQuery;
 
         public LogisticsService(
             IRepository<StockInNotify> notifyRepo,
@@ -44,7 +46,8 @@ namespace CRM.Core.Services
             IUnitOfWork unitOfWork,
             IUserService userService,
             ILogOperationAppendService logOperationAppend,
-            ILogger<LogisticsService> logger)
+            ILogger<LogisticsService> logger,
+            IQcListQuery qcListQuery)
         {
             _notifyRepo = notifyRepo;
             _stockInRepo = stockInRepo;
@@ -62,6 +65,166 @@ namespace CRM.Core.Services
             _userService = userService;
             _logOperationAppend = logOperationAppend;
             _logger = logger;
+            _qcListQuery = qcListQuery;
+        }
+
+        /// <inheritdoc />
+        public async Task<PagedResult<QCInfo>> GetQcsPagedAsync(
+            int page,
+            int pageSize,
+            QcQueryRequest? request = null,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var pageIds = await _qcListQuery.GetPagedQcIdsAsync(request, page, pageSize, cancellationToken);
+            if (pageIds.TotalCount == 0)
+            {
+                return new PagedResult<QCInfo>
+                {
+                    Items = Array.Empty<QCInfo>(),
+                    TotalCount = 0,
+                    PageIndex = pageIds.PageIndex,
+                    PageSize = pageIds.PageSize
+                };
+            }
+
+            var idList = pageIds.Items.ToList();
+            var set = idList.ToHashSet(StringComparer.Ordinal);
+            var loaded = (await _qcRepo.FindAsync(q => set.Contains(q.Id))).ToList();
+            var byId = loaded.ToDictionary(x => x.Id, x => x, StringComparer.OrdinalIgnoreCase);
+            var ordered = new List<QCInfo>();
+            foreach (var id in idList)
+            {
+                if (byId.TryGetValue(id, out var row))
+                    ordered.Add(row);
+            }
+
+            var qcItems = (await _qcItemRepo.FindAsync(i => set.Contains(i.QcInfoId))).ToList();
+            var map = qcItems.GroupBy(x => x.QcInfoId).ToDictionary(g => g.Key, g => (ICollection<QCItem>)g.ToList());
+            foreach (var row in ordered)
+                row.Items = map.TryGetValue(row.Id, out var v) ? v : new List<QCItem>();
+
+            var noticeKeyIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var q in ordered)
+            {
+                if (!string.IsNullOrWhiteSpace(q.StockInNotifyId))
+                    noticeKeyIds.Add(q.StockInNotifyId.Trim());
+                foreach (var it in q.Items)
+                {
+                    if (!string.IsNullOrWhiteSpace(it.ArrivalStockInNotifyId))
+                        noticeKeyIds.Add(it.ArrivalStockInNotifyId.Trim());
+                }
+            }
+
+            var notices = noticeKeyIds.Count == 0
+                ? new List<StockInNotify>()
+                : (await _notifyRepo.FindAsync(n => noticeKeyIds.Contains(n.Id))).ToList();
+            var noticeMap = notices.ToDictionary(x => x.Id, x => x);
+
+            var poIdsScope = notices.Select(n => n.PurchaseOrderId).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
+            var poItems = poIdsScope.Count == 0
+                ? new List<PurchaseOrderItem>()
+                : (await _poItemRepo.FindAsync(x => poIdsScope.Contains(x.PurchaseOrderId))).ToList();
+            var poItemMap = poItems.ToDictionary(x => x.Id, x => x);
+            var poItemsByPurchaseOrderId = poItems
+                .Where(x => !string.IsNullOrWhiteSpace(x.PurchaseOrderId))
+                .GroupBy(x => x.PurchaseOrderId.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            var sellOrderItemIds = poItems
+                .Select(x => x.SellOrderItemId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var sellOrderItems = sellOrderItemIds.Count == 0
+                ? new List<SellOrderItem>()
+                : (await _sellOrderItemRepo.FindAsync(x => sellOrderItemIds.Contains(x.Id))).ToList();
+            var soIds = sellOrderItems
+                .Select(x => x.SellOrderId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var sellOrders = soIds.Count == 0
+                ? new List<SellOrder>()
+                : (await _sellOrderRepo.FindAsync(x => soIds.Contains(x.Id))).ToList();
+            var sellOrderCodeById = sellOrders.ToDictionary(x => x.Id, x => x.SellOrderCode ?? string.Empty);
+            var sellOrderCodeBySellOrderItemId = sellOrderItems.ToDictionary(
+                x => x.Id,
+                x => x.SellOrderId != null && sellOrderCodeById.TryGetValue(x.SellOrderId, out var code) ? code : string.Empty);
+
+            foreach (var qc in ordered)
+            {
+                noticeMap.TryGetValue(qc.StockInNotifyId, out var notice);
+
+                qc.VendorName = notice?.VendorName;
+                qc.PurchaseOrderCode = notice?.PurchaseOrderCode;
+
+                var modelSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (notice != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(notice.Pn)) modelSet.Add(notice.Pn.Trim());
+                    else if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
+                             && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var poi0)
+                             && !string.IsNullOrWhiteSpace(poi0.PN))
+                        modelSet.Add(poi0.PN.Trim());
+                }
+
+                if (notice != null
+                    && !string.IsNullOrWhiteSpace(notice.PurchaseOrderId)
+                    && poItemsByPurchaseOrderId.TryGetValue(notice.PurchaseOrderId.Trim(), out var poLines))
+                {
+                    foreach (var pl in poLines)
+                    {
+                        if (!string.IsNullOrWhiteSpace(pl.PN)) modelSet.Add(pl.PN.Trim());
+                    }
+                }
+
+                qc.Model = modelSet.Count == 0 ? null : string.Join(", ", modelSet.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+
+                var brandSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (notice != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(notice.Brand)) brandSet.Add(notice.Brand.Trim());
+                    else if (!string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
+                             && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var poiBrand)
+                             && !string.IsNullOrWhiteSpace(poiBrand.Brand))
+                        brandSet.Add(poiBrand.Brand.Trim());
+                }
+
+                if (notice != null
+                    && !string.IsNullOrWhiteSpace(notice.PurchaseOrderId)
+                    && poItemsByPurchaseOrderId.TryGetValue(notice.PurchaseOrderId.Trim(), out var poLinesBrand))
+                {
+                    foreach (var pl in poLinesBrand)
+                    {
+                        if (!string.IsNullOrWhiteSpace(pl.Brand)) brandSet.Add(pl.Brand.Trim());
+                    }
+                }
+
+                qc.Brand = brandSet.Count == 0 ? null : string.Join(", ", brandSet.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+
+                if (notice != null && !string.IsNullOrWhiteSpace(notice.PurchaseOrderItemId)
+                    && poItemMap.TryGetValue(notice.PurchaseOrderItemId, out var poiSo)
+                    && !string.IsNullOrWhiteSpace(poiSo.SellOrderItemId)
+                    && sellOrderCodeBySellOrderItemId.TryGetValue(poiSo.SellOrderItemId, out var so)
+                    && !string.IsNullOrWhiteSpace(so))
+                    qc.SalesOrderCode = so;
+            }
+
+            await AttachQcCreateUserDisplayNamesAsync(ordered);
+            await ReconcileQcMissingStockInBindingAsync(ordered, noticeMap);
+            await ReconcileQcBoundStockInStatusForPostedAsync(ordered);
+            await NormalizeUnboundQcStockInDisplayStatusAsync(ordered);
+
+            return new PagedResult<QCInfo>
+            {
+                Items = ordered,
+                TotalCount = pageIds.TotalCount,
+                PageIndex = pageIds.PageIndex,
+                PageSize = pageIds.PageSize
+            };
         }
 
         public async Task<IReadOnlyList<StockInNotify>> GetArrivalNoticesAsync()

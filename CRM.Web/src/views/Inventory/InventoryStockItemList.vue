@@ -157,7 +157,7 @@
       :columns="stockItemTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-      :data="pagedList"
+      :data="list"
       v-loading="loading"
       @row-dblclick="onRowDblclick"
     >
@@ -293,7 +293,8 @@
         :total="listTotal"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
-        @size-change="listPage = 1"
+        @size-change="onStockItemPageSizeChange"
+        @current-change="onStockItemPageChange"
       />
     </div>
   </div>
@@ -327,15 +328,19 @@ const loading = ref(false)
 const list = ref<StockItemListRow[]>([])
 const listPage = ref(1)
 const listPageSize = ref(20)
-const listTotal = computed(() => list.value.length)
-const pagedList = computed(() => {
-  const start = (listPage.value - 1) * listPageSize.value
-  return list.value.slice(start, start + listPageSize.value)
-})
+const listTotal = ref(0)
 watch(listTotal, () => {
   const maxP = Math.max(1, Math.ceil(listTotal.value / listPageSize.value) || 1)
   if (listPage.value > maxP) listPage.value = maxP
 })
+
+function onStockItemPageSizeChange() {
+  void runStockItemFetch(true)
+}
+
+function onStockItemPageChange() {
+  void runStockItemFetch(false)
+}
 
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 43
@@ -483,11 +488,18 @@ async function runStockItemFetch(resetPage: boolean) {
   if (resetPage) listPage.value = 1
   loading.value = true
   try {
-    list.value = await inventoryCenterApi.searchStockItems(buildQuery())
+    const res = await inventoryCenterApi.searchStockItems({
+      ...buildQuery(),
+      page: listPage.value,
+      pageSize: listPageSize.value
+    })
+    list.value = res.items
+    listTotal.value = res.total
   } catch (e) {
     console.error(e)
     ElMessage.error(getApiErrorMessage(e, t('inventoryStockItemList.messages.loadFailed')))
     list.value = []
+    listTotal.value = 0
   } finally {
     loading.value = false
   }

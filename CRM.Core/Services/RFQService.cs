@@ -32,6 +32,8 @@ namespace CRM.Core.Services
         private readonly IRepository<Quote> _quoteRepo;
         private readonly IRepository<User> _userRepo;
         private readonly IRbacService _rbacService;
+        private readonly IRfqMainListQuery _rfqMainListQuery;
+        private readonly IRfqItemListQuery _rfqItemListQuery;
         private readonly ILogger<RFQService> _logger;
 
         public RFQService(
@@ -51,6 +53,8 @@ namespace CRM.Core.Services
             IRepository<Quote> quoteRepo,
             IRepository<User> userRepo,
             IRbacService rbacService,
+            IRfqMainListQuery rfqMainListQuery,
+            IRfqItemListQuery rfqItemListQuery,
             ILogger<RFQService> logger)
         {
             _rfqRepo = rfqRepo;
@@ -69,6 +73,8 @@ namespace CRM.Core.Services
             _quoteRepo = quoteRepo;
             _userRepo = userRepo;
             _rbacService = rbacService;
+            _rfqMainListQuery = rfqMainListQuery;
+            _rfqItemListQuery = rfqItemListQuery;
             _logger = logger;
         }
 
@@ -268,39 +274,27 @@ namespace CRM.Core.Services
             row.CustomerBrand = null;
         }
 
-        public async Task<PagedResult<RFQListItem>> GetPagedAsync(RFQQueryRequest request)
+        public async Task<RFQListPagedResult> GetPagedAsync(RFQQueryRequest request)
         {
             var canViewCustomerInList = string.IsNullOrWhiteSpace(request.CurrentUserId)
                 || await UserCanViewCustomerInRfqContextAsync(request.CurrentUserId!);
             var effectiveCustomerIdFilter = canViewCustomerInList ? request.CustomerId : null;
 
-            var all = await _rfqRepo.GetAllAsync();
-            var query = all.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(request.Keyword))
+            var queryReq = new RFQQueryRequest
             {
-                var kw = request.Keyword.ToLower();
-                query = query.Where(r =>
-                    r.RfqCode.ToLower().Contains(kw) ||
-                    (r.Industry != null && r.Industry.ToLower().Contains(kw)) ||
-                    (r.Product != null && r.Product.ToLower().Contains(kw)) ||
-                    (r.Remark != null && r.Remark.ToLower().Contains(kw)));
-            }
-            if (request.Status.HasValue)
-                query = query.Where(r => r.Status == request.Status.Value);
-            if (!string.IsNullOrWhiteSpace(effectiveCustomerIdFilter))
-                query = query.Where(r => r.CustomerId == effectiveCustomerIdFilter);
-            if (request.StartDate.HasValue)
-                query = query.Where(r => r.CreateTime >= request.StartDate.Value);
-            if (request.EndDate.HasValue)
-                query = query.Where(r => r.CreateTime <= request.EndDate.Value);
+                PageIndex = request.PageIndex,
+                PageSize = request.PageSize,
+                Keyword = request.Keyword,
+                Status = request.Status,
+                CustomerId = effectiveCustomerIdFilter,
+                StartDate = request.StartDate,
+                EndDate = request.EndDate,
+                CurrentUserId = request.CurrentUserId
+            };
 
-            var items = query
-                .OrderByDescending(r => r.CreateTime)
-                .ToList();
+            var page = await _rfqMainListQuery.GetPagedWithAggregatesAsync(queryReq, default);
 
-            // 批量获取客户名称
-            var customerIds = items.Where(r => r.CustomerId != null).Select(r => r.CustomerId!).Distinct().ToList();
+            var customerIds = page.Items.Where(r => r.CustomerId != null).Select(r => r.CustomerId!).Distinct().ToList();
             var customers = new Dictionary<string, string>();
             if (customerIds.Count > 0 && _customerRepo != null)
             {
@@ -313,7 +307,7 @@ namespace CRM.Core.Services
             var users = (await _userService.GetAllAsync())
                 .ToDictionary(u => u.Id, u => u, StringComparer.OrdinalIgnoreCase);
 
-            var listItems = items.Select(r =>
+            var listItems = page.Items.Select(r =>
             {
                 users.TryGetValue(r.SalesUserId ?? string.Empty, out var salesUser);
                 users.TryGetValue(r.CreateByUserId ?? string.Empty, out var createUser);
@@ -339,21 +333,9 @@ namespace CRM.Core.Services
                 };
             }).ToList();
 
-            // 数据权限过滤（在分页前）
-            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
-            {
-                listItems = (await _dataPermissionService.FilterRFQsAsync(request.CurrentUserId, listItems)).ToList();
-            }
-
-            var totalCount = listItems.Count;
-            var pagedItems = listItems
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
-                .ToList();
-
             if (!canViewCustomerInList)
             {
-                foreach (var it in pagedItems)
+                foreach (var it in listItems)
                     MaskRfqListItemCustomerFields(it);
             }
 
@@ -362,7 +344,7 @@ namespace CRM.Core.Services
                 var s = await _rbacService.GetUserPermissionSummaryAsync(request.CurrentUserId.Trim());
                 if (SaleSensitiveFieldMask521.ShouldMask(s))
                 {
-                    foreach (var it in pagedItems)
+                    foreach (var it in listItems)
                     {
                         it.SalesUserId = null;
                         it.SalesUserName = null;
@@ -370,12 +352,13 @@ namespace CRM.Core.Services
                 }
             }
 
-            return new PagedResult<RFQListItem>
+            return new RFQListPagedResult
             {
-                Items = pagedItems,
-                TotalCount = totalCount,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize,
+                Items = listItems,
+                TotalCount = page.TotalCount,
+                PageIndex = page.PageIndex,
+                PageSize = page.PageSize,
+                Aggregates = page.Aggregates
             };
         }
 
@@ -383,147 +366,24 @@ namespace CRM.Core.Services
         {
             var canViewCustomerInList = string.IsNullOrWhiteSpace(request.CurrentUserId)
                 || await UserCanViewCustomerInRfqContextAsync(request.CurrentUserId!);
-            var customerKeywordForFilter = canViewCustomerInList ? request.CustomerKeyword : null;
-
-            var allRfqs = (await _rfqRepo.GetAllAsync()).ToDictionary(r => r.Id);
-
-            System.Func<RFQ, RFQItem, bool>? linePredicate = null;
-            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
-                linePredicate = await _dataPermissionService.GetRfqItemLineVisibilityPredicateAsync(request.CurrentUserId!);
-
-            var customers = new Dictionary<string, string>();
-            if (_customerRepo != null)
+            var itemReq = new RFQItemQueryRequest
             {
-                var allCustomers = await _customerRepo.GetAllAsync();
-                customers = allCustomers.ToDictionary(c => c.Id, c => c.OfficialName ?? c.NickName ?? "");
-            }
+                PageIndex = request.PageIndex,
+                PageSize = request.PageSize,
+                StartDate = request.StartDate,
+                EndDate = request.EndDate,
+                CustomerKeyword = canViewCustomerInList ? request.CustomerKeyword : null,
+                MaterialModel = request.MaterialModel,
+                SalesUserId = request.SalesUserId,
+                SalesUserKeyword = request.SalesUserKeyword,
+                PurchaserUserId = request.PurchaserUserId,
+                HasQuotesOnly = request.HasQuotesOnly,
+                CurrentUserId = request.CurrentUserId,
+                CanViewCustomerInList = canViewCustomerInList
+            };
 
-            var users = (await _userService.GetAllAsync()).ToDictionary(u => u.Id, u => u);
-
-            var allItems = (await _itemRepo.GetAllAsync()).ToList();
-
-            // 存在报价头 rfq_item_id 指向该明细时，库内 status 可能未回写；列表展示与「报价条数」一致（仅按 RFQItemId，不按 RFQId+Mpn，避免同 PN 多行歧义）。
-            var allQuotes = (await _quoteRepo.GetAllAsync()).ToList();
-            var itemIdsWithQuoteHeader = new HashSet<string>(
-                allQuotes
-                    .Where(q => !string.IsNullOrWhiteSpace(q.RFQItemId))
-                    .Select(q => q.RFQItemId!.Trim()),
-                StringComparer.OrdinalIgnoreCase);
-
-            var rows = new List<RFQItemListItem>();
-            foreach (var item in allItems)
-            {
-                if (!allRfqs.TryGetValue(item.RfqId, out var rfq))
-                    continue;
-                if (linePredicate != null && !linePredicate(rfq, item))
-                    continue;
-
-                users.TryGetValue(rfq.SalesUserId ?? "", out var salesUser);
-                users.TryGetValue(item.AssignedPurchaserUserId1 ?? "", out var pu1);
-                users.TryGetValue(item.AssignedPurchaserUserId2 ?? "", out var pu2);
-                var customerName = rfq.CustomerId != null && customers.TryGetValue(rfq.CustomerId, out var cn)
-                    ? cn
-                    : null;
-
-                var lineStatus = item.Status;
-                if (lineStatus == 0 && itemIdsWithQuoteHeader.Contains((item.Id ?? string.Empty).Trim()))
-                    lineStatus = 1;
-
-                rows.Add(new RFQItemListItem
-                {
-                    Id = item.Id ?? string.Empty,
-                    RfqId = item.RfqId,
-                    RfqCode = rfq.RfqCode,
-                    RfqCreateTime = rfq.CreateTime,
-                    LineNo = item.LineNo,
-                    Mpn = item.Mpn,
-                    CustomerMpn = item.CustomerMpn,
-                    CustomerBrand = string.IsNullOrWhiteSpace(item.CustomerBrand) ? null : item.CustomerBrand.Trim(),
-                    Brand = item.Brand,
-                    Quantity = item.Quantity,
-                    Status = lineStatus,
-                    CustomerId = rfq.CustomerId,
-                    CustomerName = customerName,
-                    SalesUserId = rfq.SalesUserId,
-                    SalesUserName = EntityLookupService.FormatUserLoginName(salesUser),
-                    AssignedPurchaserUserId1 = item.AssignedPurchaserUserId1,
-                    AssignedPurchaserUserId2 = item.AssignedPurchaserUserId2,
-                    AssignedPurchaserName1 = EntityLookupService.FormatUserLoginName(pu1),
-                    AssignedPurchaserName2 = EntityLookupService.FormatUserLoginName(pu2),
-                });
-            }
-
-            if (request.StartDate.HasValue)
-            {
-                var start = request.StartDate.Value.Date;
-                rows = rows.Where(r => r.RfqCreateTime >= start).ToList();
-            }
-
-            if (request.EndDate.HasValue)
-            {
-                var endExclusive = request.EndDate.Value.Date.AddDays(1);
-                rows = rows.Where(r => r.RfqCreateTime < endExclusive).ToList();
-            }
-
-            if (!string.IsNullOrWhiteSpace(customerKeywordForFilter))
-            {
-                var kw = customerKeywordForFilter.Trim().ToLowerInvariant();
-                rows = rows.Where(r =>
-                    (r.CustomerName != null && r.CustomerName.ToLowerInvariant().Contains(kw)) ||
-                    (r.CustomerId != null && r.CustomerId.ToLowerInvariant().Contains(kw))).ToList();
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.MaterialModel))
-            {
-                var kw = request.MaterialModel.Trim().ToLowerInvariant();
-                rows = rows.Where(r =>
-                    r.Mpn.ToLowerInvariant().Contains(kw) ||
-                    (canViewCustomerInList && r.CustomerMpn != null && r.CustomerMpn.ToLowerInvariant().Contains(kw))).ToList();
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.SalesUserId))
-            {
-                var sid = request.SalesUserId.Trim();
-                rows = rows.Where(r =>
-                    r.SalesUserId != null &&
-                    string.Equals(r.SalesUserId, sid, StringComparison.OrdinalIgnoreCase)).ToList();
-            }
-            else if (!string.IsNullOrWhiteSpace(request.SalesUserKeyword))
-            {
-                var kw = request.SalesUserKeyword.Trim().ToLowerInvariant();
-                rows = rows.Where(r =>
-                    (r.SalesUserName != null && r.SalesUserName.ToLowerInvariant().Contains(kw)) ||
-                    (r.SalesUserId != null && r.SalesUserId.ToLowerInvariant().Contains(kw)) ||
-                    (users.TryGetValue(r.SalesUserId ?? "", out var u) &&
-                     (u.UserName.ToLowerInvariant().Contains(kw) ||
-                      (u.RealName != null && u.RealName.ToLowerInvariant().Contains(kw))))).ToList();
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.PurchaserUserId))
-            {
-                var pid = request.PurchaserUserId.Trim();
-                rows = rows.Where(r =>
-                    string.Equals(r.AssignedPurchaserUserId1, pid, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(r.AssignedPurchaserUserId2, pid, StringComparison.OrdinalIgnoreCase)).ToList();
-            }
-
-            if (request.HasQuotesOnly == true)
-            {
-                var rfqItemIdsWithQuote = new HashSet<string>(
-                    allQuotes
-                        .Where(q => !string.IsNullOrWhiteSpace(q.RFQItemId))
-                        .Select(q => q.RFQItemId!.Trim()),
-                    StringComparer.OrdinalIgnoreCase);
-                rows = rows.Where(r => rfqItemIdsWithQuote.Contains(r.Id.Trim())).ToList();
-            }
-
-            rows = rows.OrderByDescending(r => r.RfqCreateTime).ThenBy(r => r.LineNo).ToList();
-
-            var totalCount = rows.Count;
-            var pagedItems = rows
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
-                .ToList();
+            var result = await _rfqItemListQuery.GetPagedAsync(itemReq, default);
+            var pagedItems = result.Items.ToList();
 
             if (!canViewCustomerInList)
             {
@@ -547,9 +407,9 @@ namespace CRM.Core.Services
             return new PagedResult<RFQItemListItem>
             {
                 Items = pagedItems,
-                TotalCount = totalCount,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize,
+                TotalCount = result.TotalCount,
+                PageIndex = result.PageIndex,
+                PageSize = result.PageSize,
             };
         }
 

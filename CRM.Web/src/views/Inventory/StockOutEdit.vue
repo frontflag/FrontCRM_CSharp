@@ -704,10 +704,10 @@ const loadWarehouses = async () => {
 const loadRequest = async () => {
   if (!form.stockOutRequestId) return
   try {
-    const requests = await stockOutApi.getRequestList()
+    const p = await stockOutApi.getRequestListPaged({ page: 1, pageSize: 2000 })
     const rid = form.stockOutRequestId.trim()
     currentRequest.value =
-      requests.find((x) => x.id === rid || x.id?.toLowerCase?.() === rid.toLowerCase()) || null
+      p.items.find((x) => x.id === rid || x.id?.toLowerCase?.() === rid.toLowerCase()) || null
   } catch (e) {
     console.error(e)
     currentRequest.value = null

@@ -10,7 +10,7 @@
           </div>
           <h1 class="page-title">{{ t('stockOutNotifyList.title') }}</h1>
         </div>
-        <div class="count-badge">{{ t('stockOutNotifyList.count', { count: filteredList.length }) }}</div>
+        <div class="count-badge">{{ t('stockOutNotifyList.count', { count: listTotal }) }}</div>
       </div>
     </div>
 
@@ -53,7 +53,7 @@
       :columns="stockOutNotifyColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-      :data="pagedFilteredList"
+      :data="list"
       v-loading="loading"
     >
       <template #col-workflow="{ row }">
@@ -131,10 +131,11 @@
         class="list-main-pagination"
         v-model:current-page="listPage"
         v-model:page-size="listPageSize"
-        :total="filteredListTotal"
+        :total="listTotal"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
-        @size-change="listPage = 1"
+        @current-change="() => void runNotifyFetch(false)"
+        @size-change="onNotifyPageSizeChange"
       />
     </div>
   </div>
@@ -161,6 +162,7 @@ const loading = ref(false)
 const keyword = ref('')
 const workflowFilter = ref<string>('all')
 const list = ref<StockOutRequestDto[]>([])
+const listTotal = ref(0)
 const listPage = ref(1)
 const listPageSize = ref(20)
 const pickingTasks = ref<PickingTask[]>([])
@@ -256,54 +258,32 @@ const formatRequestDateTime = (v?: string | null) => {
   return formatDateTimeZh(v, 'YYYY-MM-DD HH:mm')
 }
 
-const filteredList = computed(() => {
-  let rows = list.value
-  const wf = workflowFilter.value || 'all'
-  if (wf !== 'all') {
-    rows = rows.filter((x) => {
-      const st = Number(x.status)
-      if (wf === 'done') return st === 1
-      if (wf === 'pending_pick') return st === 0 && !hasPickingCompleted(x.id)
-      if (wf === 'picked_pending_out') return st === 0 && hasPickingCompleted(x.id)
-      return true
-    })
-  }
-  const k = keyword.value.trim().toLowerCase()
-  if (!k) return rows
-  return rows.filter(
-    (x) =>
-      (x.requestCode || '').toLowerCase().includes(k) ||
-      (x.salesOrderCode || '').toLowerCase().includes(k) ||
-      (x.materialModel || '').toLowerCase().includes(k) ||
-      (x.customerName || '').toLowerCase().includes(k)
-  )
-})
-
-const filteredListTotal = computed(() => filteredList.value.length)
-const pagedFilteredList = computed(() => {
-  const rows = filteredList.value
-  const start = (listPage.value - 1) * listPageSize.value
-  return rows.slice(start, start + listPageSize.value)
-})
-
-watch(filteredListTotal, () => {
-  const maxP = Math.max(1, Math.ceil(filteredListTotal.value / listPageSize.value) || 1)
+watch(listTotal, () => {
+  const maxP = Math.max(1, Math.ceil(listTotal.value / listPageSize.value) || 1)
   if (listPage.value > maxP) listPage.value = maxP
 })
 
 watch(workflowFilter, () => {
-  listPage.value = 1
+  void runNotifyFetch(true)
 })
 
 async function runNotifyFetch(resetPage: boolean) {
   if (resetPage) listPage.value = 1
   loading.value = true
   try {
-    const [requests, tasks] = await Promise.all([
-      stockOutApi.getRequestList(),
+    const wf = (workflowFilter.value || 'all') as string
+    const kw = keyword.value.trim()
+    const [reqPage, tasks] = await Promise.all([
+      stockOutApi.getRequestListPaged({
+        keyword: kw || undefined,
+        workflow: wf === 'all' ? undefined : wf,
+        page: listPage.value,
+        pageSize: listPageSize.value
+      }),
       inventoryCenterApi.getPickingTasks().catch(() => [] as PickingTask[])
     ])
-    list.value = requests
+    list.value = reqPage.items
+    listTotal.value = reqPage.total
     pickingTasks.value = tasks || []
   } catch (e) {
     console.error(e)
@@ -315,6 +295,11 @@ async function runNotifyFetch(resetPage: boolean) {
 
 function handleSearch() {
   void runNotifyFetch(true)
+}
+
+function onNotifyPageSizeChange() {
+  listPage.value = 1
+  void runNotifyFetch(false)
 }
 
 function handleReset() {

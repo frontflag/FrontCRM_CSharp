@@ -200,18 +200,8 @@ function addDays(base: Date, days: number) {
   return d
 }
 
-function parseTime(raw: unknown): Date | null {
-  if (raw == null || raw === '') return null
-  const d = new Date(String(raw))
-  return Number.isNaN(d.getTime()) ? null : d
-}
-
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
-}
-
-function isInRange(t: Date, start: Date, endExclusive: Date) {
-  return t >= start && t < endExclusive
 }
 
 function formatInt(n: number) {
@@ -278,15 +268,17 @@ async function loadStats() {
         endDate: tomorrowStr,
         status: 5
       }),
-      quoteApi.getList({}).catch(() => ({ data: [] as unknown[] }))
+      quoteApi
+        .getList({
+          page: 1,
+          pageSize: 1,
+          aggregateCreateFrom: rangeStart.toISOString(),
+          aggregateCreateToExclusive: rangeEndExclusive.toISOString()
+        })
+        .catch(() => ({ data: [], total: 0, aggregates: undefined }))
     ])
 
-    const quotes = (quoteListRes.data || []) as Record<string, unknown>[]
-    let quotesLast30 = 0
-    for (const q of quotes) {
-      const t = parseTime(q.createTime ?? q.createdAt ?? q.quoteDate ?? q.QuoteDate)
-      if (t && isInRange(t, rangeStart, rangeEndExclusive)) quotesLast30++
-    }
+    const quotesLast30 = Number(quoteListRes.aggregates?.createdInRangeCount ?? 0)
 
     const newRfq30 = new30Res.totalCount ?? 0
     const items30 = items30Res.totalCount ?? 0

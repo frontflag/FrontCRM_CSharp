@@ -92,9 +92,30 @@ export interface PurchaseOrderDetailTabAggregates {
 // 采购订单API
 export const purchaseOrderApi = {
   // 获取采购订单列表（分页，与后端 PurchaseOrdersController 一致）
+  /** 采购订单明细行列表（数据库分页），对应 GET /api/v1/purchase-orders/items */
+  async getItemLinesPage(params: {
+    page: number
+    pageSize: number
+    startDate?: string
+    endDate?: string
+    purchaseOrderCode?: string
+    vendorName?: string
+    purchaseUserName?: string
+    pn?: string
+    orderType?: number
+  }) {
+    return await apiClient.get('/api/v1/purchase-orders/items', { params })
+  },
+
   async getList(params?: {
-    /** 采购单号/供应商名称模糊 */
+    /** 采购单号/供应商名称模糊（兼容旧版；与 code+vendor 拆分条件二选一语义见后端） */
     keyword?: string
+    /** 采购单号包含 */
+    code?: string
+    /** 供应商名称包含 */
+    vendor?: string
+    /** 主表订单类型 1/2/3 */
+    orderType?: number
     status?: number
     startDate?: string
     endDate?: string

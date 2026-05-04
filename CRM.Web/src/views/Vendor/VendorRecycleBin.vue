@@ -17,8 +17,8 @@
           :placeholder="t('vendorRecycle.searchPlaceholder')"
           clearable
           style="width:220px"
-          @keyup.enter="fetchData"
-          @clear="fetchData"
+          @keyup.enter="onSearch"
+          @clear="onSearch"
         >
           <template #prefix>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -62,13 +62,15 @@
       </div>
     </div>
 
-    <div v-if="totalCount > pageSize" class="pagination-wrapper">
+    <div v-if="totalCount > 0" class="pagination-wrapper">
       <el-pagination
         v-model:current-page="pageIndex"
-        :page-size="pageSize"
+        v-model:page-size="pageSize"
+        :page-sizes="[20, 50, 100]"
         :total="totalCount"
-        layout="prev, pager, next"
+        layout="total, sizes, prev, pager, next"
         background
+        @size-change="onPageSizeChange"
         @current-change="fetchData"
       />
     </div>
@@ -88,16 +90,26 @@ const { t } = useI18n()
 const items = ref<Vendor[]>([]);
 const totalCount = ref(0);
 const pageIndex = ref(1);
-const pageSize = 20;
+const pageSize = ref(20);
 const keyword = ref('');
 const restoringId = ref<string | null>(null);
+
+function onPageSizeChange() {
+  pageIndex.value = 1;
+  fetchData();
+}
+
+function onSearch() {
+  pageIndex.value = 1;
+  fetchData();
+}
 
 const fetchData = async () => {
   loading.value = true;
   try {
-    const res = await vendorApi.getRecycleBin({ pageIndex: pageIndex.value, pageSize, keyword: keyword.value });
+    const res = await vendorApi.getRecycleBin({ page: pageIndex.value, pageSize: pageSize.value, keyword: keyword.value });
     items.value = res?.items ?? (Array.isArray(res) ? res : []);
-    totalCount.value = res?.totalCount ?? items.value.length;
+    totalCount.value = res?.totalCount ?? res?.total ?? 0;
   } catch {
     ElNotification.error({ title: t('vendorRecycle.loadFailedTitle'), message: t('vendorRecycle.loadFailedMessage') });
   } finally {

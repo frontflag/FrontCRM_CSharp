@@ -1,3 +1,4 @@
+using System.Linq;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Finance;
@@ -57,6 +58,30 @@ namespace CRM.Core.Services
             return list.Where(x => !string.IsNullOrWhiteSpace(x.SalesUserId) && allowUserIds.Contains(x.SalesUserId!)).ToList();
         }
 
+        /// <inheritdoc />
+        public async Task<IQueryable<CustomerInfo>> ApplyCustomerListDataScopeAsync(
+            string? userId,
+            IQueryable<CustomerInfo> query,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                return query;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+                return query;
+            if (summary.SaleDataScope == 4)
+                return query.Where(_ => false);
+            if (summary.SaleDataScope == 1)
+                return query.Where(x => x.SalesUserId == userId);
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
+            var ids = allowUserIds.ToList();
+            if (ids.Count == 0)
+                return query.Where(_ => false);
+            return query.Where(x => x.SalesUserId != null && ids.Contains(x.SalesUserId!));
+        }
+
         public async Task<IReadOnlyList<VendorInfo>> FilterVendorsAsync(string userId, IEnumerable<VendorInfo> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
@@ -72,6 +97,25 @@ namespace CRM.Core.Services
 
         private static List<VendorInfo> ApplyVendorExclusiveVisibilityFilter(IEnumerable<VendorInfo> source) =>
             source.ToList();
+
+        /// <inheritdoc />
+        public async Task<IQueryable<VendorInfo>> ApplyVendorListDataScopeAsync(
+            string? userId,
+            IQueryable<VendorInfo> query,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                return query;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || summary.PurchaseDataScope == 0)
+                return query;
+            if (summary.PurchaseDataScope == 4)
+                return query.Where(_ => false);
+
+            // 与 FilterVendorsAsync 一致：当前不按采购员收窄；专属供应商逻辑落地后在此扩展表达式。
+            return query;
+        }
 
         public async Task<IReadOnlyList<RFQListItem>> FilterRFQsAsync(string userId, IEnumerable<RFQListItem> source)
         {
@@ -158,6 +202,242 @@ namespace CRM.Core.Services
 
             var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.PurchaseDataScope == 3);
             return list.Where(x => !string.IsNullOrWhiteSpace(x.PurchaseUserId) && allowUserIds.Contains(x.PurchaseUserId!)).ToList();
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<PurchaseOrder>> ApplyPurchaseOrderDataScopeAsync(
+            string? userId,
+            IQueryable<PurchaseOrder> query,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (string.IsNullOrWhiteSpace(userId))
+                return query;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || summary.PurchaseDataScope == 0)
+                return query;
+            if (summary.PurchaseDataScope == 4)
+                return query.Where(_ => false);
+
+            if (summary.PurchaseDataScope == 1)
+                return query.Where(x => x.PurchaseUserId == userId);
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.PurchaseDataScope == 3);
+            return query.Where(x => x.PurchaseUserId != null && allowUserIds.Contains(x.PurchaseUserId));
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<FinancePayment>> ApplyFinancePaymentListDataScopeAsync(
+            string? userId,
+            IQueryable<FinancePayment> payments,
+            IQueryable<VendorInfo> vendors,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (string.IsNullOrWhiteSpace(userId))
+                return payments;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
+                return payments;
+            if (summary.PurchaseDataScope == 4)
+                return payments.Where(_ => false);
+
+            var uid = userId.Trim();
+            if (summary.PurchaseDataScope == 1)
+            {
+                return payments.Where(p =>
+                    vendors.Any(v => v.Id == p.VendorId && v.PurchaseUserId == uid));
+            }
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.PurchaseDataScope == 3);
+            return payments.Where(p =>
+                vendors.Any(v =>
+                    v.Id == p.VendorId &&
+                    v.PurchaseUserId != null &&
+                    allowUserIds.Contains(v.PurchaseUserId)));
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<FinancePurchaseInvoice>> ApplyFinancePurchaseInvoiceListDataScopeAsync(
+            string? userId,
+            IQueryable<FinancePurchaseInvoice> invoices,
+            IQueryable<VendorInfo> vendors,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (string.IsNullOrWhiteSpace(userId))
+                return invoices;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
+                return invoices;
+            if (summary.PurchaseDataScope == 4)
+                return invoices.Where(_ => false);
+
+            var uid = userId.Trim();
+            if (summary.PurchaseDataScope == 1)
+            {
+                return invoices.Where(inv =>
+                    vendors.Any(v => v.Id == inv.VendorId && v.PurchaseUserId == uid));
+            }
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.PurchaseDataScope == 3);
+            return invoices.Where(inv =>
+                vendors.Any(v =>
+                    v.Id == inv.VendorId &&
+                    v.PurchaseUserId != null &&
+                    allowUserIds.Contains(v.PurchaseUserId)));
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<FinanceReceipt>> ApplyFinanceReceiptListDataScopeAsync(
+            string? userId,
+            IQueryable<FinanceReceipt> receipts,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (string.IsNullOrWhiteSpace(userId))
+                return receipts;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
+                return receipts;
+            if (summary.SaleDataScope == 4)
+                return receipts.Where(_ => false);
+
+            var uid = userId.Trim();
+            if (summary.SaleDataScope == 1)
+                return receipts.Where(r => r.SalesUserId == uid);
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
+            return receipts.Where(r => r.SalesUserId != null && allowUserIds.Contains(r.SalesUserId));
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<FinanceSellInvoice>> ApplyFinanceSellInvoiceListDataScopeAsync(
+            string? userId,
+            IQueryable<FinanceSellInvoice> invoices,
+            IQueryable<CustomerInfo> customers,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (string.IsNullOrWhiteSpace(userId))
+                return invoices;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
+                return invoices;
+            if (summary.SaleDataScope == 4)
+                return invoices.Where(_ => false);
+
+            var uid = userId.Trim();
+            if (summary.SaleDataScope == 1)
+            {
+                return invoices.Where(inv =>
+                    customers.Any(c => c.Id == inv.CustomerId && c.SalesUserId == uid));
+            }
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
+            return invoices.Where(inv =>
+                customers.Any(c =>
+                    c.Id == inv.CustomerId &&
+                    c.SalesUserId != null &&
+                    allowUserIds.Contains(c.SalesUserId)));
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<SellOrder>> ApplySellOrderDataScopeAsync(
+            string? userId,
+            IQueryable<SellOrder> query,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (string.IsNullOrWhiteSpace(userId))
+                return query;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+                return query;
+            if (summary.SaleDataScope == 4)
+                return query.Where(_ => false);
+
+            if (summary.SaleDataScope == 1)
+                return query.Where(x => x.SalesUserId == userId);
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
+            return query.Where(x => x.SalesUserId != null && allowUserIds.Contains(x.SalesUserId));
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<RFQ>> ApplyRfqMainListDataScopeAsync(
+            string? userId,
+            IQueryable<RFQ> query,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (string.IsNullOrWhiteSpace(userId))
+                return query;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin)
+                return query;
+
+            if (summary.SaleDataScope == 0 || summary.PurchaseDataScope == 0)
+                return query;
+
+            if (summary.SaleDataScope == 4 && summary.PurchaseDataScope == 4)
+                return query.Where(_ => false);
+
+            HashSet<string>? saleAllow = null;
+            if (summary.SaleDataScope == 2 || summary.SaleDataScope == 3)
+                saleAllow = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
+
+            HashSet<string>? purchaseAllow = null;
+            if (summary.PurchaseDataScope == 2 || summary.PurchaseDataScope == 3)
+                purchaseAllow = await GetAllowedUserIdsAsync(summary, includeChildren: summary.PurchaseDataScope == 3);
+
+            var uid = userId.Trim();
+
+            return query.Where(r =>
+                (
+                    summary.SaleDataScope != 4 &&
+                    (
+                        (summary.SaleDataScope == 1 && r.SalesUserId != null && r.SalesUserId == uid) ||
+                        ((summary.SaleDataScope == 2 || summary.SaleDataScope == 3) &&
+                         saleAllow != null &&
+                         r.SalesUserId != null &&
+                         saleAllow.Contains(r.SalesUserId))
+                    )
+                )
+                ||
+                (
+                    summary.PurchaseDataScope != 4 &&
+                    (
+                        (summary.PurchaseDataScope == 1 &&
+                         r.Items.Any(i =>
+                             i.AssignedPurchaserUserId1 == uid ||
+                             i.AssignedPurchaserUserId2 == uid)) ||
+                        ((summary.PurchaseDataScope == 2 || summary.PurchaseDataScope == 3) &&
+                         purchaseAllow != null &&
+                         r.Items.Any(i =>
+                             (!string.IsNullOrWhiteSpace(i.AssignedPurchaserUserId1) &&
+                              purchaseAllow.Contains(i.AssignedPurchaserUserId1!)) ||
+                             (!string.IsNullOrWhiteSpace(i.AssignedPurchaserUserId2) &&
+                              purchaseAllow.Contains(i.AssignedPurchaserUserId2!))))
+                    )
+                ));
+        }
+
+        /// <inheritdoc />
+        public Task<HashSet<string>> GetAllowedUserIdsForDataScopeAsync(
+            UserPermissionSummaryDto summary,
+            bool includeChildren,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            return GetAllowedUserIdsAsync(summary, includeChildren);
         }
 
         public async Task<IReadOnlyList<FinanceReceipt>> FilterFinanceReceiptsAsync(string userId, IEnumerable<FinanceReceipt> source)

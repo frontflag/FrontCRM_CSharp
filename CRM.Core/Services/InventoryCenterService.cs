@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
@@ -11,7 +12,7 @@ using Microsoft.Extensions.Logging;
 
 namespace CRM.Core.Services
 {
-    public class InventoryCenterService : IInventoryCenterService
+    public partial class InventoryCenterService : IInventoryCenterService
     {
         private readonly IRepository<StockInfo> _stockRepository;
         private readonly IRepository<MaterialInfo> _materialRepository;
@@ -40,6 +41,9 @@ namespace CRM.Core.Services
         private readonly IFinanceExchangeRateService _financeExchangeRateService;
         private readonly IStockExtendLineSeqService _stockExtendLineSeq;
         private readonly ILogger<InventoryCenterService> _logger;
+        private readonly IInventoryStockItemListQuery _inventoryStockItemListQuery;
+        private readonly IInventoryMaterialOverviewStockPageQuery _inventoryMaterialOverviewStockPageQuery;
+        private readonly IInventoryCountPlanListQuery _inventoryCountPlanListQuery;
         private static bool IsTableMissingException(Exception ex)
             => (ex.Message?.Contains("42P01") ?? false)
                || (ex.InnerException?.Message?.Contains("42P01") ?? false)
@@ -148,6 +152,9 @@ namespace CRM.Core.Services
             IStockExtendLineSeqService stockExtendLineSeq,
             IUnitOfWork unitOfWork,
             ILogOperationAppendService logOperationAppend,
+            IInventoryStockItemListQuery inventoryStockItemListQuery,
+            IInventoryMaterialOverviewStockPageQuery inventoryMaterialOverviewStockPageQuery,
+            IInventoryCountPlanListQuery inventoryCountPlanListQuery,
             ILogger<InventoryCenterService> logger)
         {
             _stockRepository = stockRepository;
@@ -176,6 +183,9 @@ namespace CRM.Core.Services
             _stockExtendLineSeq = stockExtendLineSeq;
             _unitOfWork = unitOfWork;
             _logOperationAppend = logOperationAppend;
+            _inventoryStockItemListQuery = inventoryStockItemListQuery;
+            _inventoryMaterialOverviewStockPageQuery = inventoryMaterialOverviewStockPageQuery;
+            _inventoryCountPlanListQuery = inventoryCountPlanListQuery;
             _logger = logger;
         }
 
@@ -615,313 +625,7 @@ namespace CRM.Core.Services
                 return Array.Empty<InventoryMaterialOverviewDto>();
             }
 
-            Dictionary<string, MaterialInfo> materialById = new();
-            try
-            {
-                materialById = (await _materialRepository.GetAllAsync()).ToDictionary(m => m.Id, m => m);
-            }
-            catch (Exception ex) when (IsTableMissingException(ex))
-            {
-                // material 表不可用时仍返回库存行，仅不展示型号/名称
-            }
-
-            // 库存行的 MaterialId 常与销售/采购明细的 ProductId 一致（调试链等为 GUID），PN/品牌在订单行上
-            Dictionary<string, (string? Pn, string? Brand)> productLineByProductId = new(StringComparer.Ordinal);
-            var poItemsList = new List<PurchaseOrderItem>();
-            try
-            {
-                foreach (var line in await _sellOrderItemRepository.GetAllAsync())
-                    MergeProductDisplay(productLineByProductId, line.ProductId, line.PN, line.Brand);
-
-                poItemsList = (await _purchaseOrderItemRepository.GetAllAsync()).ToList();
-                foreach (var line in poItemsList)
-                    MergeProductDisplay(productLineByProductId, line.ProductId, line.PN, line.Brand);
-            }
-            catch (Exception ex) when (IsTableMissingException(ex))
-            {
-            }
-
-            // 回退：入库单头带采购行主键时，按入库明细 MaterialId 与该行对齐（ProductId 为空或历史数据时）
-            Dictionary<string, (string? Pn, string? Brand)> displayByStockMaterialId = new(StringComparer.Ordinal);
-            try
-            {
-                var inLines = (await _stockInItemRepository.GetAllAsync()).ToList();
-                var stockInById = (await _stockInRepository.GetAllAsync()).ToDictionary(x => x.Id, x => x);
-                var siIdsForExt = inLines.Select(x => x.StockInId).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-                var inExtends = siIdsForExt.Count == 0
-                    ? new List<StockInItemExtend>()
-                    : (await _stockInItemExtendRepository.FindAsync(e => siIdsForExt.Contains(e.StockInId))).ToList();
-                var extByLineId = inExtends.ToDictionary(e => e.Id, e => e, StringComparer.OrdinalIgnoreCase);
-                var primaryExtBySi = StockInItemExtendPrimaryPicker.PrimaryByStockInId(inExtends);
-                foreach (var sil in inLines)
-                {
-                    var mid = sil.MaterialId?.Trim();
-                    if (string.IsNullOrEmpty(mid) || displayByStockMaterialId.ContainsKey(mid))
-                        continue;
-                    if (!stockInById.TryGetValue(sil.StockInId, out _))
-                        continue;
-                    string? poLineId = null;
-                    if (extByLineId.TryGetValue(sil.Id, out var le) && !string.IsNullOrWhiteSpace(le.PurchaseOrderItemId))
-                        poLineId = le.PurchaseOrderItemId.Trim();
-                    else if (primaryExtBySi.TryGetValue(sil.StockInId, out var prim) &&
-                             !string.IsNullOrWhiteSpace(prim?.PurchaseOrderItemId))
-                        poLineId = prim!.PurchaseOrderItemId.Trim();
-                    if (string.IsNullOrEmpty(poLineId))
-                        continue;
-                    var hit = poItemsList.FirstOrDefault(p =>
-                        string.Equals(p.Id?.Trim(), poLineId, StringComparison.OrdinalIgnoreCase));
-                    if (hit == null)
-                        continue;
-                    if (!string.Equals(mid, hit.Id, StringComparison.OrdinalIgnoreCase) &&
-                        !(string.Equals(mid, hit.ProductId?.Trim(), StringComparison.OrdinalIgnoreCase)) &&
-                        !(string.Equals(mid, hit.PN?.Trim(), StringComparison.OrdinalIgnoreCase)))
-                        continue;
-                    displayByStockMaterialId[mid] = (hit.PN, hit.Brand);
-                }
-            }
-            catch (Exception ex) when (IsTableMissingException(ex))
-            {
-            }
-
-            Dictionary<string, string> warehouseCodeById = new(StringComparer.Ordinal);
-            try
-            {
-                foreach (var w in await _warehouseRepository.GetAllAsync())
-                {
-                    var id = w.Id?.Trim();
-                    if (string.IsNullOrEmpty(id)) continue;
-                    var code = string.IsNullOrWhiteSpace(w.WarehouseCode) ? null : w.WarehouseCode.Trim();
-                    warehouseCodeById[id] = code ?? id;
-                }
-            }
-            catch (Exception ex) when (IsTableMissingException(ex))
-            {
-            }
-
-            Dictionary<string, DateTime?> detailLastMoveByStockAggregateId = new(StringComparer.OrdinalIgnoreCase);
-            Dictionary<string, (DateTime? CreateTime, string? StockInId)> firstDetailByStockAggregateId = new(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                var detailRows = (await _stockItemRepository.GetAllAsync()).ToList();
-                detailLastMoveByStockAggregateId = detailRows
-                    .Where(x => !string.IsNullOrWhiteSpace(x.StockAggregateId))
-                    .GroupBy(x => x.StockAggregateId!.Trim(), StringComparer.OrdinalIgnoreCase)
-                    .ToDictionary(
-                        g => g.Key,
-                        g =>
-                        {
-                            var ts = g
-                                .Select(x => x.ModifyTime > x.CreateTime ? x.ModifyTime : x.CreateTime)
-                                .OrderByDescending(t => t)
-                                .FirstOrDefault();
-                            return ts == default ? (DateTime?)null : ts;
-                        },
-                        StringComparer.OrdinalIgnoreCase);
-                firstDetailByStockAggregateId = detailRows
-                    .Where(x => !string.IsNullOrWhiteSpace(x.StockAggregateId))
-                    .GroupBy(x => x.StockAggregateId!.Trim(), StringComparer.OrdinalIgnoreCase)
-                    .Select(g =>
-                    {
-                        var first = g
-                            .OrderBy(x => x.CreateTime)
-                            .ThenBy(x => x.Id, StringComparer.Ordinal)
-                            .FirstOrDefault();
-                        var value = first == null
-                            ? ((DateTime?)null, (string?)null)
-                            : (first.CreateTime == default ? (DateTime?)null : first.CreateTime, first.StockInId);
-                        return new KeyValuePair<string, (DateTime? CreateTime, string? StockInId)>(g.Key, value);
-                    })
-                    .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
-            }
-            catch (Exception ex) when (IsTableMissingException(ex))
-            {
-            }
-
-            Dictionary<string, StockIn> overviewStockInById = new(StringComparer.Ordinal);
-            Dictionary<string, string?> overviewPrimaryPoLineByStockIn = new(StringComparer.Ordinal);
-            Dictionary<string, PurchaseOrder> overviewPoById = new(StringComparer.Ordinal);
-            Dictionary<string, string> overviewPoIdByPoLineId = new(StringComparer.Ordinal);
-            Dictionary<string, PurchaseOrderItem> overviewPoItemByLineId = new(StringComparer.Ordinal);
-            try
-            {
-                foreach (var sin in await _stockInRepository.GetAllAsync())
-                {
-                    var sid = sin.Id?.Trim();
-                    if (!string.IsNullOrEmpty(sid))
-                        overviewStockInById[sid] = sin;
-                }
-
-                var overviewExtends = (await _stockInItemExtendRepository.GetAllAsync()).ToList();
-                foreach (var kv in StockInItemExtendPrimaryPicker.PrimaryByStockInId(overviewExtends))
-                    overviewPrimaryPoLineByStockIn[kv.Key] = kv.Value?.PurchaseOrderItemId?.Trim();
-
-                foreach (var po in await _purchaseOrderRepository.GetAllAsync())
-                {
-                    var pid = po.Id?.Trim();
-                    if (!string.IsNullOrEmpty(pid))
-                        overviewPoById[pid] = po;
-                }
-
-                foreach (var pil in await _purchaseOrderItemRepository.GetAllAsync())
-                {
-                    var lid = pil.Id?.Trim();
-                    var poid = pil.PurchaseOrderId?.Trim();
-                    if (!string.IsNullOrEmpty(lid) && !string.IsNullOrEmpty(poid))
-                        overviewPoIdByPoLineId[lid] = poid;
-                    if (!string.IsNullOrEmpty(lid))
-                        overviewPoItemByLineId[lid] = pil;
-                }
-            }
-            catch (Exception ex) when (IsTableMissingException(ex))
-            {
-            }
-
-            Dictionary<string, string> userDisplayById = new(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                foreach (var u in await _userRepository.GetAllAsync())
-                {
-                    var uid = u.Id?.Trim();
-                    if (string.IsNullOrWhiteSpace(uid))
-                        continue;
-                    var login = EntityLookupService.FormatUserLoginName(u) ?? uid;
-                    userDisplayById[uid] = login;
-                }
-            }
-            catch (Exception ex) when (IsTableMissingException(ex))
-            {
-            }
-
-            var overview = stocks
-                .Select(s =>
-                {
-                    var material = s.MaterialId ?? string.Empty;
-                    var warehouse = s.WarehouseId ?? string.Empty;
-                    var stockType = s.StockType;
-                    var model = string.IsNullOrWhiteSpace(s.PurchasePn) ? null : s.PurchasePn.Trim();
-                    var name = string.IsNullOrWhiteSpace(s.PurchaseBrand) ? null : s.PurchaseBrand.Trim();
-                    materialById.TryGetValue(material, out var mat);
-                    if (string.IsNullOrWhiteSpace(model))
-                        model = string.IsNullOrWhiteSpace(mat?.MaterialModel) ? null : mat!.MaterialModel!.Trim();
-                    if (string.IsNullOrWhiteSpace(name))
-                        name = string.IsNullOrWhiteSpace(mat?.MaterialName) ? null : mat!.MaterialName!.Trim();
-                    if ((model == null || name == null) && productLineByProductId.TryGetValue(material, out var pl))
-                    {
-                        if (model == null && !string.IsNullOrWhiteSpace(pl.Pn))
-                            model = pl.Pn.Trim();
-                        if (name == null && !string.IsNullOrWhiteSpace(pl.Brand))
-                            name = pl.Brand.Trim();
-                    }
-
-                    if ((model == null || name == null) && displayByStockMaterialId.TryGetValue(material, out var sl))
-                    {
-                        if (model == null && !string.IsNullOrWhiteSpace(sl.Pn))
-                            model = sl.Pn.Trim();
-                        if (name == null && !string.IsNullOrWhiteSpace(sl.Brand))
-                            name = sl.Brand.Trim();
-                    }
-
-                    var onHand = s.QtyRepertory;
-                    var available = s.QtyRepertoryAvailable;
-                    var locked = s.QtyOccupy + s.QtySales;
-                    var latestIn = ledgers
-                        .Where(x => x.MaterialId == material && x.WarehouseId == warehouse && x.BizType == "STOCK_IN" && x.QtyIn > 0)
-                        .OrderByDescending(x => x.CreateTime)
-                        .FirstOrDefault();
-                    var avgCost = latestIn?.UnitCost ?? 0m;
-                    short amountCurrency = 1;
-                    if (latestIn != null &&
-                        !string.IsNullOrWhiteSpace(latestIn.BizId) &&
-                        overviewStockInById.TryGetValue(latestIn.BizId.Trim(), out _) &&
-                        overviewPrimaryPoLineByStockIn.TryGetValue(latestIn.BizId.Trim(), out var poLineForCur) &&
-                        !string.IsNullOrWhiteSpace(poLineForCur))
-                    {
-                        var lineId = poLineForCur.Trim();
-                        if (overviewPoItemByLineId.TryGetValue(lineId, out var poiForCur) && poiForCur.Currency > 0)
-                        {
-                            // 与库存明细 StockItem.PurchaseCurrency 一致：优先采购明细币别（主表币别可能与行不一致）
-                            amountCurrency = poiForCur.Currency;
-                        }
-                        else if (overviewPoIdByPoLineId.TryGetValue(lineId, out var poIdForCur) &&
-                                 overviewPoById.TryGetValue(poIdForCur.Trim(), out var poForCur) &&
-                                 poForCur.Currency > 0)
-                        {
-                            amountCurrency = poForCur.Currency;
-                        }
-                    }
-
-                    var stockAggregateId = (s.Id ?? string.Empty).Trim();
-                    DateTime? firstDetailCreateTime = null;
-                    string? firstDetailCreateUserName = null;
-                    if (!string.IsNullOrWhiteSpace(stockAggregateId)
-                        && firstDetailByStockAggregateId.TryGetValue(stockAggregateId, out var firstDetail))
-                    {
-                        firstDetailCreateTime = firstDetail.CreateTime;
-                        var firstDetailStockInId = firstDetail.StockInId?.Trim();
-                        if (!string.IsNullOrWhiteSpace(firstDetailStockInId)
-                            && overviewStockInById.TryGetValue(firstDetailStockInId, out var firstStockIn))
-                        {
-                            var uid = !string.IsNullOrWhiteSpace(firstStockIn.CreateByUserId)
-                                ? firstStockIn.CreateByUserId!.Trim()
-                                : (firstStockIn.CreatedBy?.Trim() ?? string.Empty);
-                            if (!string.IsNullOrWhiteSpace(uid))
-                            {
-                                firstDetailCreateUserName = userDisplayById.TryGetValue(uid, out var display)
-                                    ? display
-                                    : uid;
-                            }
-                        }
-                    }
-
-                    var lastMove = !string.IsNullOrWhiteSpace(stockAggregateId)
-                        && detailLastMoveByStockAggregateId.TryGetValue(stockAggregateId, out var detailLastMove)
-                            ? detailLastMove
-                            : ledgers
-                                .Where(x => x.MaterialId == material && x.WarehouseId == warehouse)
-                                .OrderByDescending(x => x.CreateTime)
-                                .FirstOrDefault()?.CreateTime;
-
-                    string? whCode = null;
-                    var whKey = warehouse.Trim();
-                    if (!string.IsNullOrEmpty(whKey) && warehouseCodeById.TryGetValue(whKey, out var resolved))
-                        whCode = resolved;
-
-                    var overviewRegionType = RegionTypeCode.Normalize(s.RegionType);
-
-                    return new InventoryMaterialOverviewDto
-                    {
-                        StockId = s.Id ?? string.Empty,
-                        StockCode = string.IsNullOrWhiteSpace(s.StockCode) ? null : s.StockCode.Trim(),
-                        MaterialId = material,
-                        MaterialModel = model,
-                        MaterialName = name,
-                        WarehouseId = warehouse,
-                        WarehouseCode = whCode,
-                        StockType = stockType,
-                        RegionType = overviewRegionType,
-                        OnHandQty = onHand,
-                        AvailableQty = available,
-                        LockedQty = locked,
-                        InventoryAmount = onHand * avgCost,
-                        Currency = amountCurrency,
-                        CreateTime = firstDetailCreateTime,
-                        CreateUserName = firstDetailCreateUserName,
-                        LastMoveTime = lastMove
-                    };
-                })
-                .Where(x => string.IsNullOrWhiteSpace(materialModel)
-                    || (!string.IsNullOrWhiteSpace(x.MaterialModel)
-                        && x.MaterialModel.Contains(materialModel.Trim(), StringComparison.OrdinalIgnoreCase)))
-                .Where(x => string.IsNullOrWhiteSpace(stockCode)
-                    || (!string.IsNullOrWhiteSpace(x.StockCode)
-                        && x.StockCode.Contains(stockCode.Trim(), StringComparison.OrdinalIgnoreCase)))
-                .OrderByDescending(x => x.LastMoveTime ?? DateTime.MinValue)
-                .ThenBy(x => x.WarehouseId, StringComparer.Ordinal)
-                .ThenBy(x => x.StockType)
-                .ThenBy(x => x.MaterialId, StringComparer.Ordinal)
-                .ThenBy(x => x.StockId, StringComparer.Ordinal)
-                .ToList();
-            return overview;
+            return await BuildMaterialOverviewDtosAsync(stocks, ledgers, materialModel, stockCode, applyMaterialStockCodePostFilter: true);
         }
 
         public async Task<IEnumerable<InventoryStockItemRowDto>> GetStockItemsForAggregateAsync(string stockAggregateId)
@@ -1026,171 +730,12 @@ namespace CRM.Core.Services
             return true;
         }
 
-        public async Task<IEnumerable<InventoryStockItemListRowDto>> GetStockItemsListAsync(InventoryStockItemListQuery? query)
-        {
-            query ??= new InventoryStockItemListQuery();
-            List<StockItem> items;
-            try
-            {
-                items = (await _stockItemRepository.GetAllAsync()).ToList();
-            }
-            catch (Exception ex) when (IsTableMissingException(ex))
-            {
-                return Array.Empty<InventoryStockItemListRowDto>();
-            }
-
-            if (items.Count == 0)
-                return Array.Empty<InventoryStockItemListRowDto>();
-
-            Dictionary<string, StockIn> stockInById = new(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                foreach (var sin in await _stockInRepository.GetAllAsync())
-                {
-                    if (!string.IsNullOrWhiteSpace(sin.Id))
-                        stockInById[sin.Id.Trim()] = sin;
-                }
-            }
-            catch (Exception ex) when (IsTableMissingException(ex))
-            {
-            }
-
-            Dictionary<string, string?> warehouseCodeById = new(StringComparer.OrdinalIgnoreCase);
-            Dictionary<string, string?> warehouseNameById = new(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                foreach (var w in await _warehouseRepository.GetAllAsync())
-                {
-                    var wid = w.Id?.Trim();
-                    if (string.IsNullOrEmpty(wid))
-                        continue;
-                    warehouseCodeById[wid] = string.IsNullOrWhiteSpace(w.WarehouseCode) ? null : w.WarehouseCode.Trim();
-                    warehouseNameById[wid] = string.IsNullOrWhiteSpace(w.WarehouseName) ? null : w.WarehouseName.Trim();
-                }
-            }
-            catch
-            {
-                // ignore
-            }
-
-            var codeNeedle = query.StockInCode?.Trim();
-            var stockItemCodeNeedle = query.StockItemCode?.Trim();
-            var warehouseIdNeedle = query.WarehouseId?.Trim();
-            var pnNeedle = query.PurchasePn?.Trim();
-            var brandNeedle = query.PurchaseBrand?.Trim();
-            var customerNeedle = query.CustomerName?.Trim();
-            var vendorNeedle = query.VendorName?.Trim();
-            var spNeedle = query.SalespersonName?.Trim();
-            var puNeedle = query.PurchaserName?.Trim();
-            var spUserId = query.SalespersonUserId?.Trim();
-            var puUserId = query.PurchaserUserId?.Trim();
-            var outboundFilter = query.OutboundStatus;
-
-            var result = new List<InventoryStockItemListRowDto>();
-            foreach (var x in items)
-            {
-                if (x.TransferType == StockItemTransferTypeCodes.ManualTransferSource)
-                    continue;
-
-                stockInById.TryGetValue(x.StockInId?.Trim() ?? string.Empty, out var sin);
-                var stockInCode = sin == null || string.IsNullOrWhiteSpace(sin.StockInCode) ? null : sin.StockInCode.Trim();
-                var stockInDate = sin?.StockInDate;
-
-                if (!TextContainsOptional(stockInCode, codeNeedle))
-                    continue;
-                if (!TextContainsOptional(string.IsNullOrWhiteSpace(x.StockItemCode) ? null : x.StockItemCode.Trim(), stockItemCodeNeedle))
-                    continue;
-                if (!StockInDateInRange(stockInDate, query.StockInDateFrom, query.StockInDateTo))
-                    continue;
-                if (!TextContainsOptional(string.IsNullOrWhiteSpace(x.PurchasePn) ? null : x.PurchasePn.Trim(), pnNeedle))
-                    continue;
-                if (!TextContainsOptional(string.IsNullOrWhiteSpace(x.PurchaseBrand) ? null : x.PurchaseBrand.Trim(), brandNeedle))
-                    continue;
-                if (!TextContainsOptional(string.IsNullOrWhiteSpace(x.CustomerName) ? null : x.CustomerName.Trim(), customerNeedle))
-                    continue;
-                if (!TextContainsOptional(string.IsNullOrWhiteSpace(x.VendorName) ? null : x.VendorName.Trim(), vendorNeedle))
-                    continue;
-                if (!string.IsNullOrEmpty(spUserId))
-                {
-                    if (!string.Equals(x.SalespersonId?.Trim(), spUserId, StringComparison.OrdinalIgnoreCase))
-                        continue;
-                }
-                else if (!TextContainsOptional(string.IsNullOrWhiteSpace(x.SalespersonName) ? null : x.SalespersonName.Trim(), spNeedle))
-                    continue;
-
-                if (!string.IsNullOrEmpty(puUserId))
-                {
-                    if (!string.Equals(x.PurchaserId?.Trim(), puUserId, StringComparison.OrdinalIgnoreCase))
-                        continue;
-                }
-                else if (!TextContainsOptional(string.IsNullOrWhiteSpace(x.PurchaserName) ? null : x.PurchaserName.Trim(), puNeedle))
-                    continue;
-
-                var ob = x.StockOutStatus;
-                if (outboundFilter is >= 1 and <= 3)
-                {
-                    if (ob != outboundFilter.Value)
-                        continue;
-                }
-
-                var wid = x.WarehouseId?.Trim() ?? string.Empty;
-                if (!string.IsNullOrEmpty(warehouseIdNeedle)
-                    && !string.Equals(wid, warehouseIdNeedle, StringComparison.OrdinalIgnoreCase))
-                    continue;
-                warehouseCodeById.TryGetValue(wid, out var whCode);
-                warehouseNameById.TryGetValue(wid, out var whName);
-
-                result.Add(new InventoryStockItemListRowDto
-                {
-                    StockItemId = x.Id,
-                    StockItemCode = string.IsNullOrWhiteSpace(x.StockItemCode) ? null : x.StockItemCode.Trim(),
-                    StockInItemId = x.StockInItemId,
-                    StockInItemCode = string.IsNullOrWhiteSpace(x.StockInItemCode) ? null : x.StockInItemCode.Trim(),
-                    StockInId = x.StockInId,
-                    StockInCode = stockInCode,
-                    StockInDate = stockInDate,
-                    MaterialId = x.MaterialId,
-                    LocationId = string.IsNullOrWhiteSpace(x.LocationId) ? null : x.LocationId.Trim(),
-                    BatchNo = string.IsNullOrWhiteSpace(x.BatchNo) ? null : x.BatchNo.Trim(),
-                    ProductionDate = x.ProductionDate,
-                    PurchasePn = string.IsNullOrWhiteSpace(x.PurchasePn) ? null : x.PurchasePn.Trim(),
-                    PurchaseBrand = string.IsNullOrWhiteSpace(x.PurchaseBrand) ? null : x.PurchaseBrand.Trim(),
-                    PurchaseOrderItemCode = string.IsNullOrWhiteSpace(x.PurchaseOrderItemCode) ? null : x.PurchaseOrderItemCode.Trim(),
-                    SellOrderItemCode = string.IsNullOrWhiteSpace(x.SellOrderItemCode) ? null : x.SellOrderItemCode.Trim(),
-                    QtyInbound = x.QtyInbound,
-                    QtyStockOut = x.QtyStockOut,
-                    QtyRepertory = x.QtyRepertory,
-                    QtyRepertoryAvailable = x.QtyRepertoryAvailable,
-                    QtyOccupy = x.QtyOccupy,
-                    QtySales = x.QtySales,
-                    PurchasePrice = x.PurchasePrice,
-                    PurchaseCurrency = x.PurchaseCurrency,
-                    PurchasePriceUsd = x.PurchasePriceUsd,
-                    SalesPrice = x.SalesPrice,
-                    SalesCurrency = x.SalesCurrency,
-                    SalesPriceUsd = x.SalesPriceUsd,
-                    VendorName = string.IsNullOrWhiteSpace(x.VendorName) ? null : x.VendorName.Trim(),
-                    CustomerName = string.IsNullOrWhiteSpace(x.CustomerName) ? null : x.CustomerName.Trim(),
-                    RegionType = RegionTypeCode.Normalize(x.RegionType),
-                    StockType = x.StockType,
-                    PurchaserName = string.IsNullOrWhiteSpace(x.PurchaserName) ? null : x.PurchaserName.Trim(),
-                    SalespersonName = string.IsNullOrWhiteSpace(x.SalespersonName) ? null : x.SalespersonName.Trim(),
-                    CreateTime = x.CreateTime,
-                    StockAggregateId = x.StockAggregateId?.Trim() ?? string.Empty,
-                    WarehouseId = wid,
-                    WarehouseCode = string.IsNullOrWhiteSpace(whCode) ? null : whCode,
-                    WarehouseName = string.IsNullOrWhiteSpace(whName) ? null : whName,
-                    OutboundStatus = ob,
-                    ProfitOutBizUsd = x.ProfitOutBizUsd
-                });
-            }
-
-            return result
-                .OrderByDescending(r => r.StockInDate ?? r.CreateTime)
-                .ThenBy(r => r.StockInCode, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(r => r.StockItemId, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
+        public async Task<PagedResult<InventoryStockItemListRowDto>> GetStockItemsListPagedAsync(
+            InventoryStockItemListQuery? query,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default) =>
+            await _inventoryStockItemListQuery.GetPagedAsync(query, page, pageSize, cancellationToken);
 
         public async Task<IEnumerable<InventoryMaterialTraceDto>> GetMaterialTraceAsync(string materialId)
         {
@@ -2258,17 +1803,11 @@ namespace CRM.Core.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task<IEnumerable<InventoryCountPlan>> GetCountPlansAsync()
-        {
-            try
-            {
-                return (await _countPlanRepository.GetAllAsync()).OrderByDescending(x => x.PlanMonth).ThenByDescending(x => x.CreateTime).ToList();
-            }
-            catch (Exception ex) when (IsTableMissingException(ex))
-            {
-                return Array.Empty<InventoryCountPlan>();
-            }
-        }
+        public async Task<PagedResult<InventoryCountPlan>> GetCountPlansPagedAsync(
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default) =>
+            await _inventoryCountPlanListQuery.GetPagedAsync(page, pageSize, cancellationToken);
 
         public async Task<InventoryCountPlan> CreateMonthlyCountPlanAsync(CreateCountPlanRequest request)
         {

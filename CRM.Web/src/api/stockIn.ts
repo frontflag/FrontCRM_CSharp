@@ -123,23 +123,37 @@ export interface StockInListItemDto {
   createUserName?: string | null
 }
 
+/** GET 入库单列表：与《翻页查询规范》<code>data</code> 结构一致 */
+export type StockInListPaged = { items: StockInListItemDto[]; total: number; page: number; pageSize: number }
+
 export const stockInApi = {
-  async getAll(params?: {
-    model?: string
-    vendorName?: string
-    purchaseOrderCode?: string
-    salesOrderCode?: string
-    stockInCode?: string
-    sourceDisplayNo?: string
-    warehouseId?: string
-    stockInDateStart?: string
-    stockInDateEnd?: string
-    remark?: string
-  }): Promise<StockInListItemDto[]> {
+  async getListPaged(
+    params?: {
+      model?: string
+      vendorName?: string
+      purchaseOrderCode?: string
+      salesOrderCode?: string
+      stockInCode?: string
+      sourceDisplayNo?: string
+      warehouseId?: string
+      stockInDateStart?: string
+      stockInDateEnd?: string
+      remark?: string
+      page?: number
+      pageSize?: number
+    }
+  ): Promise<StockInListPaged> {
     const res = await apiClient.get<any>('/api/v1/stock-in', { params })
-    // 与 inventoryCenter 等一致：兼容拦截器已解包为数组，或仍带一层 data
-    const payload = res?.data ?? res
-    return Array.isArray(payload) ? (payload as StockInListItemDto[]) : []
+    const d = res?.data ?? res
+    if (d && typeof d === 'object' && Array.isArray(d.items)) {
+      return {
+        items: d.items as StockInListItemDto[],
+        total: Number(d.total ?? 0),
+        page: Number(d.page ?? 1),
+        pageSize: Number(d.pageSize ?? 20)
+      }
+    }
+    return { items: [], total: 0, page: 1, pageSize: 20 }
   },
 
   async getById(id: string): Promise<StockInDto | null> {

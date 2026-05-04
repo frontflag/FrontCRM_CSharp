@@ -2144,7 +2144,9 @@ const zhCN = {
     breadcrumb: { orders: '订单管理', sales: '销售管理', newOrder: '新建销售订单', editOrder: '编辑销售订单' },
     cancel: '取消',
     save: '保存',
-    sections: { order: '订单信息', customer: '客户信息', items: '物料明细' },
+    sections: { order: '订单信息', customer: '款货信息', items: '物料明细' },
+    /** 折叠标题栏右侧：销售订单号 */
+    orderHeaderCodeLabel: '销售订单号',
     fields: {
       sellOrderCode: '订单号',
       orderType: '订单类型',
@@ -2158,6 +2160,7 @@ const zhCN = {
       deliveryAddress: '送货地址',
       mpn: '物料型号',
       customerMpn: '客户物料型号',
+      customerBrand: '客户品牌',
       brand: '品牌',
       customerPo: '客户订单号',
       unitPrice: '销售单价',
@@ -2192,8 +2195,9 @@ const zhCN = {
     productKinds: { spot: '现货', futures: '期货', backlog: '排单', sample: '样品' },
     paymentTermsExtra: { prepayment: '款到发货', cod: '货到付款' },
     itemsToolbar: { addLine: '添加明细' },
-    itemsEmpty: '暂无明细或没有匹配的型号',
-    cardHeadMpn: '物料型号',
+    itemsEmpty: '暂无明细',
+    /** 卡片标题前缀（与型号、品牌间距见 .head-mpn__* margin） */
+    cardHeadMaterialLabel: '物料：',
     purchaseQuoteFallback: '采购报价：—',
     deleteLine: '删除本行',
     grandTotal: '合计金额：',
@@ -2219,7 +2223,9 @@ const zhCN = {
       createFailed: '创建失败，请重试',
       updateSuccess: '销售订单已保存',
       updateFailed: '保存失败，请重试',
-      loadOrderFailed: '加载销售订单失败'
+      loadOrderFailed: '加载销售订单失败',
+      confirmDeleteLineTitle: '删除确认',
+      confirmDeleteLineMessage: '确定删除该条物料明细吗？'
     },
     comment: {
       product: '产品',

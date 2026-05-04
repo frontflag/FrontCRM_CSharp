@@ -35,6 +35,8 @@ namespace CRM.Core.Tests.Services
         private readonly IRepository<Quote> _quoteRepo;
         private readonly IRepository<User> _userRepo;
         private readonly IRbacService _rbacService;
+        private readonly IRfqMainListQuery _rfqMainListQuery;
+        private readonly IRfqItemListQuery _rfqItemListQuery;
         private readonly RFQService _rfqService;
 
         public RFQServiceTests()
@@ -76,6 +78,44 @@ namespace CRM.Core.Tests.Services
                     PermissionCodes = Array.Empty<string>()
                 });
 
+            _rfqMainListQuery = Substitute.For<IRfqMainListQuery>();
+            _rfqMainListQuery.GetPagedWithAggregatesAsync(Arg.Any<RFQQueryRequest>(), Arg.Any<CancellationToken>())
+                .Returns(async ci =>
+                {
+                    var req = ci.Arg<RFQQueryRequest>();
+                    var all = (await _rfqRepository.GetAllAsync()).ToList();
+                    IEnumerable<RFQ> q = all;
+                    if (!string.IsNullOrWhiteSpace(req.CustomerId))
+                        q = q.Where(r => r.CustomerId == req.CustomerId);
+                    var list = q.ToList();
+                    var page = req.PageIndex < 1 ? 1 : req.PageIndex;
+                    var ps = req.PageSize < 1 ? 20 : req.PageSize;
+                    var slice = list.Skip((page - 1) * ps).Take(ps).ToList();
+                    return new RfqMainListQueryPage
+                    {
+                        Items = slice,
+                        TotalCount = list.Count,
+                        PageIndex = page,
+                        PageSize = ps,
+                        Aggregates = new RfqMainListAggregates
+                        {
+                            Total = list.Count,
+                            Pending = list.Count(r => r.Status == 0),
+                            Processing = list.Count(r => r.Status == 1 || r.Status == 2),
+                            Quoted = list.Count(r => r.Status == 3 || r.Status == 4 || r.Status == 5)
+                        }
+                    };
+                });
+            _rfqItemListQuery = Substitute.For<IRfqItemListQuery>();
+            _rfqItemListQuery.GetPagedAsync(Arg.Any<RFQItemQueryRequest>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromResult(new PagedResult<RFQItemListItem>
+                {
+                    Items = Array.Empty<RFQItemListItem>(),
+                    TotalCount = 0,
+                    PageIndex = 1,
+                    PageSize = 20
+                }));
+
             _rfqService = new RFQService(
                 _rfqRepository,
                 _rfqItemRepository,
@@ -93,6 +133,8 @@ namespace CRM.Core.Tests.Services
                 _quoteRepo,
                 _userRepo,
                 _rbacService,
+                _rfqMainListQuery,
+                _rfqItemListQuery,
                 NullLogger<RFQService>.Instance);
         }
 
@@ -198,6 +240,25 @@ namespace CRM.Core.Tests.Services
                     RoleCodes = Array.Empty<string>(),
                     PermissionCodes = Array.Empty<string>()
                 });
+            var rfqMain = Substitute.For<IRfqMainListQuery>();
+            rfqMain.GetPagedWithAggregatesAsync(Arg.Any<RFQQueryRequest>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromResult(new RfqMainListQueryPage
+                {
+                    Items = Array.Empty<RFQ>(),
+                    TotalCount = 0,
+                    PageIndex = 1,
+                    PageSize = 20,
+                    Aggregates = new RfqMainListAggregates()
+                }));
+            var rfqItem = Substitute.For<IRfqItemListQuery>();
+            rfqItem.GetPagedAsync(Arg.Any<RFQItemQueryRequest>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromResult(new PagedResult<RFQItemListItem>
+                {
+                    Items = Array.Empty<RFQItemListItem>(),
+                    TotalCount = 0,
+                    PageIndex = 1,
+                    PageSize = 20
+                }));
             var svc = new RFQService(
                 rfqRepo,
                 itemRepo,
@@ -215,6 +276,8 @@ namespace CRM.Core.Tests.Services
                 Substitute.For<IRepository<Quote>>(),
                 userRepo,
                 rbacSvc,
+                rfqMain,
+                rfqItem,
                 NullLogger<RFQService>.Instance);
 
             var req = BuildValidCreateRequest(r =>

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Threading;
 using CRM.API.Models.DTOs;
 using CRM.API.Services;
 using CRM.API.Utilities;
@@ -55,47 +56,72 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponse<IEnumerable<StockOutListItemDto>>>> GetAll()
+        public async Task<IActionResult> GetAll(
+            [FromQuery] string? keyword,
+            [FromQuery] string? sourceCode,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                var list = await _service.GetStockOutListAsync();
+                var result = await _service.GetStockOutListPagedAsync(keyword, sourceCode, page, pageSize, cancellationToken);
+                var items = result.Items.ToList();
                 if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
-                {
-                    var masked = list.ToList();
-                    SaleSensitiveFieldMask521.ApplyStockOutListItems(masked, true);
-                    list = masked;
-                }
+                    SaleSensitiveFieldMask521.ApplyStockOutListItems(items, true);
 
-                return Ok(ApiResponse<IEnumerable<StockOutListItemDto>>.Ok(list, "获取出库单列表成功"));
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items,
+                        total = result.TotalCount,
+                        page = result.PageIndex,
+                        pageSize = result.PageSize
+                    },
+                    message = "获取出库单列表成功"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取出库单列表失败");
-                return StatusCode(500, ApiResponse<IEnumerable<StockOutListItemDto>>.Fail($"获取出库单列表失败: {ex.Message}", 500));
+                return StatusCode(500, new { success = false, message = $"获取出库单列表失败: {ex.Message}" });
             }
         }
 
         /// <summary>出库明细（stockoutitem）列表，query 与 <see cref="StockOutItemListQuery"/> 一致。</summary>
         [HttpGet("items")]
-        public async Task<ActionResult<ApiResponse<IEnumerable<StockOutItemListRowDto>>>> GetItems([FromQuery] StockOutItemListQuery? query)
+        public async Task<IActionResult> GetItems(
+            [FromQuery] StockOutItemListQuery? query,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                var list = await _service.GetStockOutItemListAsync(query);
+                var result = await _service.GetStockOutItemListPagedAsync(query, page, pageSize, cancellationToken);
+                var items = result.Items.ToList();
                 if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
-                {
-                    var masked = list.ToList();
-                    SaleSensitiveFieldMask521.ApplyStockOutItemListRows(masked, true);
-                    list = masked;
-                }
+                    SaleSensitiveFieldMask521.ApplyStockOutItemListRows(items, true);
 
-                return Ok(ApiResponse<IEnumerable<StockOutItemListRowDto>>.Ok(list, "获取出库明细列表成功"));
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items,
+                        total = result.TotalCount,
+                        page = result.PageIndex,
+                        pageSize = result.PageSize
+                    },
+                    message = "获取出库明细列表成功"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取出库明细列表失败");
-                return StatusCode(500, ApiResponse<IEnumerable<StockOutItemListRowDto>>.Fail($"获取出库明细列表失败: {ex.Message}", 500));
+                return StatusCode(500, new { success = false, message = $"获取出库明细列表失败: {ex.Message}" });
             }
         }
 
@@ -262,24 +288,37 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("request")]
-        public async Task<ActionResult<ApiResponse<IEnumerable<StockOutRequestListItemDto>>>> GetRequests()
+        public async Task<IActionResult> GetRequests(
+            [FromQuery] string? keyword,
+            [FromQuery] string? workflow,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                var list = await _service.GetStockOutRequestListAsync();
+                var result = await _service.GetStockOutRequestListPagedAsync(keyword, workflow, page, pageSize, cancellationToken);
+                var items = result.Items.ToList();
                 if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
-                {
-                    var masked = list.ToList();
-                    SaleSensitiveFieldMask521.ApplyStockOutRequestListItems(masked, true);
-                    list = masked;
-                }
+                    SaleSensitiveFieldMask521.ApplyStockOutRequestListItems(items, true);
 
-                return Ok(ApiResponse<IEnumerable<StockOutRequestListItemDto>>.Ok(list, "获取出库通知列表成功"));
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items,
+                        total = result.TotalCount,
+                        page = result.PageIndex,
+                        pageSize = result.PageSize
+                    },
+                    message = "获取出库通知列表成功"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取出库通知列表失败");
-                return StatusCode(500, ApiResponse<IEnumerable<StockOutRequestListItemDto>>.Fail($"获取出库通知列表失败: {ex.Message}", 500));
+                return StatusCode(500, new { success = false, message = $"获取出库通知列表失败: {ex.Message}" });
             }
         }
 

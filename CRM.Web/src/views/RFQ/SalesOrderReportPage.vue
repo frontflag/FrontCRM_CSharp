@@ -243,7 +243,7 @@ const docBind = computed(() => {
     taxRateLabel,
     extraLines: [
       `交货地址：${shipTo}`,
-      `订单备注：${(o.comment && String(o.comment).trim()) || '—'}`
+      `订单备注：${(o.headerRemarkDisplay && String(o.headerRemarkDisplay).trim()) || (o.HeaderRemarkDisplay && String(o.HeaderRemarkDisplay).trim()) || (o.comment && String(o.comment).trim()) || '—'}`
     ],
     terms: SALES_ORDER_SERVICE_TERMS,
     sealUrl: sealUrl.value,

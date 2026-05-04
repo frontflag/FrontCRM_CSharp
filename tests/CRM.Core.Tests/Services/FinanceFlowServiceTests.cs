@@ -52,6 +52,7 @@ namespace CRM.Core.Tests.Services
                 paymentRepo, payItemRepo, poRepo, poItemRepo, dataPermission, serialNumber, poExtendSync, vendorRepo, userRepo,
                 Substitute.For<IForceDeleteGuardService>(),
                 Substitute.For<ILogOperationAppendService>(),
+                Substitute.For<IFinancePaymentListQuery>(),
                 uow);
 
             await svc.VerifyPaymentItemAsync("pi-1", 100m);
@@ -112,6 +113,7 @@ namespace CRM.Core.Tests.Services
                 paymentRepo, payItemRepo, poRepo, poItemRepo, dataPermission, serialNumber, poExtendSync, vendorRepo, userRepo,
                 Substitute.For<IForceDeleteGuardService>(),
                 Substitute.For<ILogOperationAppendService>(),
+                Substitute.For<IFinancePaymentListQuery>(),
                 uow);
 
             await svc.UpdateStatusAsync(paymentId, 100);
@@ -144,6 +146,7 @@ namespace CRM.Core.Tests.Services
                 receiptRepo, receiptItemRepo, sellInvoiceRepo, sellInvoiceItemRepo, sellOrderRepo, userRepo, dataPermission, serialNumber, extendSync,
                 Substitute.For<IForceDeleteGuardService>(),
                 Substitute.For<ILogOperationAppendService>(),
+                Substitute.For<IFinanceReceiptListQuery>(),
                 uow);
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => svc.UpdateStatusAsync("r-1", 3));
@@ -163,6 +166,7 @@ namespace CRM.Core.Tests.Services
                 invoiceRepo, itemRepo, dataPermission, serialNumber,
                 Substitute.For<IForceDeleteGuardService>(),
                 Substitute.For<ILogOperationAppendService>(),
+                Substitute.For<IFinanceSellInvoiceListQuery>(),
                 uow);
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => svc.UpdateInvoiceStatusAsync("si-1", 100));

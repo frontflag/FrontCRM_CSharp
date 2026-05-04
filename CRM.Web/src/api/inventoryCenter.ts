@@ -2,6 +2,14 @@ import apiClient from './client'
 
 const unwrap = <T>(res: any): T => (res?.data ?? res) as T
 
+/** 与《翻页查询规范》后端 <c>data</c> 形状一致（axios 拦截器已解包外层 <c>data</c>）。 */
+export interface PagedList<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 export interface InventoryOverview {
   /** stock.StockId */
   stockId: string
@@ -280,6 +288,36 @@ export const inventoryCenterApi = {
     const qs = params.toString()
     return unwrap<InventoryOverview[]>(await apiClient.get(`/api/v1/inventory-center/overview${qs ? `?${qs}` : ''}`))
   },
+  async getOverviewPaged(
+    query?: {
+      warehouseId?: string
+      materialModel?: string
+      stockCode?: string
+      stockType?: number
+      page?: number
+      pageSize?: number
+    }
+  ): Promise<PagedList<InventoryOverview>> {
+    const params = new URLSearchParams()
+    const add = (key: string, v: string | number | undefined) => {
+      if (v === undefined || v === null) return
+      const s = typeof v === 'string' ? v.trim() : String(v)
+      if (s === '') return
+      params.set(key, s)
+    }
+    add('warehouseId', query?.warehouseId)
+    add('materialModel', query?.materialModel)
+    add('stockCode', query?.stockCode)
+    if (query?.stockType != null && query.stockType >= 1 && query.stockType <= 3) {
+      params.set('stockType', String(query.stockType))
+    }
+    const p = query?.page != null && query.page >= 1 ? query.page : 1
+    const ps = query?.pageSize != null && query.pageSize >= 1 ? query.pageSize : 20
+    params.set('page', String(p))
+    params.set('pageSize', String(ps))
+    const qs = params.toString()
+    return unwrap<PagedList<InventoryOverview>>(await apiClient.get(`/api/v1/inventory-center/overview/paged?${qs}`))
+  },
   async getMaterialTrace(materialId: string): Promise<MaterialTrace[]> {
     return unwrap<MaterialTrace[]>(await apiClient.get(`/api/v1/inventory-center/materials/${encodeURIComponent(materialId)}/traces`))
   },
@@ -288,7 +326,9 @@ export const inventoryCenterApi = {
       await apiClient.get(`/api/v1/inventory-center/stocks/${encodeURIComponent(stockId)}/stock-items`)
     )
   },
-  async searchStockItems(query?: StockItemListQuery): Promise<StockItemListRow[]> {
+  async searchStockItems(
+    query?: StockItemListQuery & { page?: number; pageSize?: number }
+  ): Promise<PagedList<StockItemListRow>> {
     const params = new URLSearchParams()
     const q = query || {}
     const add = (key: string, v: string | number | undefined | null) => {
@@ -313,8 +353,12 @@ export const inventoryCenterApi = {
     add('purchaserName', q.purchaserName)
     add('salespersonUserId', q.salespersonUserId)
     add('purchaserUserId', q.purchaserUserId)
+    const p = q.page != null && q.page >= 1 ? q.page : 1
+    const ps = q.pageSize != null && q.pageSize >= 1 ? q.pageSize : 20
+    params.set('page', String(p))
+    params.set('pageSize', String(ps))
     const qs = params.toString()
-    return unwrap<StockItemListRow[]>(await apiClient.get(`/api/v1/inventory-center/stock-items${qs ? `?${qs}` : ''}`))
+    return unwrap<PagedList<StockItemListRow>>(await apiClient.get(`/api/v1/inventory-center/stock-items?${qs}`))
   },
   async getFinanceSummary(stagnantDays = 90): Promise<FinanceSummary> {
     return unwrap<FinanceSummary>(await apiClient.get(`/api/v1/inventory-center/finance/summary?stagnantDays=${stagnantDays}`))
@@ -362,8 +406,12 @@ export const inventoryCenterApi = {
   async completePickingTask(taskId: string): Promise<void> {
     await apiClient.post(`/api/v1/inventory-center/picking-tasks/${encodeURIComponent(taskId)}/complete`, {})
   },
-  async getCountPlans(): Promise<CountPlan[]> {
-    return unwrap<CountPlan[]>(await apiClient.get('/api/v1/inventory-center/count-plans'))
+  async getCountPlans(page = 1, pageSize = 20): Promise<PagedList<CountPlan>> {
+    const p = page < 1 ? 1 : page
+    const ps = pageSize < 1 ? 20 : pageSize
+    return unwrap<PagedList<CountPlan>>(
+      await apiClient.get(`/api/v1/inventory-center/count-plans?page=${p}&pageSize=${ps}`)
+    )
   },
   async createCountPlan(payload: { planMonth: string; warehouseId: string; creatorId: string; remark?: string }): Promise<CountPlan> {
     return unwrap<CountPlan>(await apiClient.post('/api/v1/inventory-center/count-plans', payload))

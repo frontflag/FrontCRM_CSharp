@@ -244,9 +244,19 @@ export interface RFQSearchRequest {
 export interface RFQSearchResponse {
   items: RFQ[]
   totalCount: number
+  /** 与《翻页查询规范》对齐的别名 */
+  total?: number
   pageNumber: number
+  page?: number
   pageSize: number
   totalPages: number
+  /** 全量筛选维度统计（后端返回时优先使用） */
+  aggregates?: {
+    total: number
+    pending: number
+    processing: number
+    quoted: number
+  }
 }
 
 export interface RFQItemSearchRequest {

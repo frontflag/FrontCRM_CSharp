@@ -22,6 +22,7 @@ namespace CRM.Core.Services
         private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
         private readonly IForceDeleteGuardService _forceDeleteGuard;
         private readonly ILogOperationAppendService _logOperationAppend;
+        private readonly IFinancePaymentListQuery _paymentListQuery;
 
         public FinancePaymentService(
             IRepository<FinancePayment> paymentRepo,
@@ -35,6 +36,7 @@ namespace CRM.Core.Services
             IRepository<User> userRepository,
             IForceDeleteGuardService forceDeleteGuard,
             ILogOperationAppendService logOperationAppend,
+            IFinancePaymentListQuery paymentListQuery,
             IUnitOfWork? unitOfWork = null)
         {
             _paymentRepo = paymentRepo;
@@ -48,6 +50,7 @@ namespace CRM.Core.Services
             _userRepository = userRepository;
             _forceDeleteGuard = forceDeleteGuard;
             _logOperationAppend = logOperationAppend;
+            _paymentListQuery = paymentListQuery;
             _unitOfWork = unitOfWork;
         }
 
@@ -163,49 +166,16 @@ namespace CRM.Core.Services
 
         public async Task<PagedResult<FinancePayment>> GetPagedAsync(FinancePaymentQueryRequest request)
         {
-            var all = await _paymentRepo.GetAllAsync();
-            var filteredByPermission = all.AsEnumerable();
-            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
-            {
-                filteredByPermission = await _dataPermissionService.FilterFinancePaymentsAsync(request.CurrentUserId, filteredByPermission);
-            }
-
-            var query = filteredByPermission.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(request.Keyword))
-            {
-                var keyword = request.Keyword.Trim();
-                query = query.Where(p =>
-                    (!string.IsNullOrWhiteSpace(p.FinancePaymentCode) && p.FinancePaymentCode.Contains(keyword, StringComparison.OrdinalIgnoreCase)) ||
-                    (!string.IsNullOrWhiteSpace(p.VendorName) && p.VendorName.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
-            }
-
-            if (request.Status.HasValue)
-                query = query.Where(p => p.Status == request.Status.Value);
-
-            if (request.StartDate.HasValue)
-                query = query.Where(p => p.CreateTime >= request.StartDate.Value);
-
-            if (request.EndDate.HasValue)
-                query = query.Where(p => p.CreateTime <= request.EndDate.Value.AddDays(1));
-
-            var totalCount = query.Count();
-            var page = request.Page < 1 ? 1 : request.Page;
-            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
-            var items = query.OrderByDescending(p => p.CreateTime)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
-
+            var result = await _paymentListQuery.GetPagedAsync(request);
+            var items = result.Items.ToList();
             await EnrichVendorCodesAsync(items);
             await EnrichCreateUserNamesAsync(items);
-
             return new PagedResult<FinancePayment>
             {
                 Items = items,
-                TotalCount = totalCount,
-                PageIndex = page,
-                PageSize = pageSize
+                TotalCount = result.TotalCount,
+                PageIndex = result.PageIndex,
+                PageSize = result.PageSize
             };
         }
 

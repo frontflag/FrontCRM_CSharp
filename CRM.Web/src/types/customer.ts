@@ -349,6 +349,8 @@ export interface UpdateCustomerRequest {
 
 // 客户搜索请求
 export interface CustomerSearchRequest {
+  /** 与《翻页查询规范》一致，优先于 pageNumber */
+  page?: number
   pageNumber?: number
   pageSize?: number
   searchTerm?: string
@@ -368,13 +370,19 @@ export interface CustomerSearchRequest {
   isActive?: boolean
   sortBy?: string
   sortDescending?: boolean
+  /** 仅收藏：须同时传 favoriteIds（逗号分隔客户主键） */
+  favoriteOnly?: boolean
+  favoriteIds?: string
 }
 
 // 客户搜索响应
 export interface CustomerSearchResponse {
   items: Customer[]
   totalCount: number
+  /** 与规范字段 total 对齐 */
+  total?: number
   pageNumber: number
+  page?: number
   pageSize: number
   totalPages: number
 }

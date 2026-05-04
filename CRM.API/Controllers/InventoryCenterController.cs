@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Security.Claims;
+using System.Threading;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
 using CRM.Core.Interfaces;
@@ -75,6 +76,51 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>库存总览列表（数据库分页；<c>stockType</c> 1/2/3 与前端库存类型筛选一致）。</summary>
+        [HttpGet("overview/paged")]
+        public async Task<IActionResult> GetOverviewPaged(
+            [FromQuery] string? warehouseId,
+            [FromQuery] string? materialModel,
+            [FromQuery] string? stockCode,
+            [FromQuery] short? stockType,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var result = await _service.GetMaterialOverviewPagedAsync(
+                    warehouseId,
+                    materialModel,
+                    stockCode,
+                    stockType,
+                    page,
+                    pageSize,
+                    cancellationToken);
+                var items = result.Items.ToList();
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                    SaleSensitiveFieldMask521.ApplyInventoryMaterialOverviews(items, true);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items,
+                        total = result.TotalCount,
+                        page = result.PageIndex,
+                        pageSize = result.PageSize
+                    },
+                    message = "获取库存总览成功"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取库存总览分页失败");
+                return StatusCode(500, new { success = false, message = $"获取库存总览失败: {ex.Message}" });
+            }
+        }
+
         [HttpGet("sell-order-items/{sellOrderItemId}/available-qty")]
         public async Task<ActionResult<ApiResponse<SellOrderLineAvailableQtyDto>>> GetAvailableQtyForSellOrderLine(string sellOrderItemId)
         {
@@ -120,31 +166,39 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("stock-items")]
-        public async Task<ActionResult<ApiResponse<IEnumerable<InventoryStockItemListRowDto>>>> GetStockItemsList([FromQuery] InventoryStockItemListQuery? query)
+        public async Task<IActionResult> GetStockItemsList(
+            [FromQuery] InventoryStockItemListQuery? query,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                var list = await _service.GetStockItemsListAsync(query);
+                var result = await _service.GetStockItemsListPagedAsync(query, page, pageSize, cancellationToken);
+                var items = result.Items.ToList();
                 if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
-                {
-                    var masked = list.ToList();
-                    PurchaseSensitiveFieldMask511.ApplyInventoryStockItemListRows(masked, true);
-                    list = masked;
-                }
+                    PurchaseSensitiveFieldMask511.ApplyInventoryStockItemListRows(items, true);
 
                 if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
-                {
-                    var masked2 = list.ToList();
-                    SaleSensitiveFieldMask521.ApplyInventoryStockItemListRows(masked2, true);
-                    list = masked2;
-                }
+                    SaleSensitiveFieldMask521.ApplyInventoryStockItemListRows(items, true);
 
-                return Ok(ApiResponse<IEnumerable<InventoryStockItemListRowDto>>.Ok(list, "获取库存明细列表成功"));
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items,
+                        total = result.TotalCount,
+                        page = result.PageIndex,
+                        pageSize = result.PageSize
+                    },
+                    message = "获取库存明细列表成功"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取库存明细列表失败");
-                return StatusCode(500, ApiResponse<IEnumerable<InventoryStockItemListRowDto>>.Fail($"获取库存明细列表失败: {ex.Message}", 500));
+                return StatusCode(500, new { success = false, message = $"获取库存明细列表失败: {ex.Message}" });
             }
         }
 
@@ -561,17 +615,32 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("count-plans")]
-        public async Task<ActionResult<ApiResponse<IEnumerable<InventoryCountPlan>>>> GetCountPlans()
+        public async Task<IActionResult> GetCountPlans(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                var list = await _service.GetCountPlansAsync();
-                return Ok(ApiResponse<IEnumerable<InventoryCountPlan>>.Ok(list, "获取盘点计划成功"));
+                var result = await _service.GetCountPlansPagedAsync(page, pageSize, cancellationToken);
+                var items = result.Items.ToList();
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        items,
+                        total = result.TotalCount,
+                        page = result.PageIndex,
+                        pageSize = result.PageSize
+                    },
+                    message = "获取盘点计划成功"
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "获取盘点计划失败");
-                return StatusCode(500, ApiResponse<IEnumerable<InventoryCountPlan>>.Fail($"获取盘点计划失败: {ex.Message}", 500));
+                return StatusCode(500, new { success = false, message = $"获取盘点计划失败: {ex.Message}" });
             }
         }
 

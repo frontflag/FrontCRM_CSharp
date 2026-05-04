@@ -1194,19 +1194,6 @@ function mapRow(row: any): RFQItem {
   }
 }
 
-/** 仅按 quote.rfqItemId 计数（与后端一致；同需求同 PN 多行不能用 rfqId+mpn 推断） */
-function aggregateQuoteCountByRfqItemId(quotes: unknown[]): Record<string, number> {
-  const counts: Record<string, number> = {}
-  for (const q of quotes) {
-    const row = q as Record<string, unknown>
-    const rid = row.rfqItemId ?? row.RfqItemId
-    if (rid == null || String(rid).trim() === '') continue
-    const k = String(rid).trim()
-    counts[k] = (counts[k] || 0) + 1
-  }
-  return counts
-}
-
 function applyRouteQueryToFilters() {
   const q = route.query
   const s = q.startDate
@@ -1235,22 +1222,30 @@ function applyRouteQueryToFilters() {
 async function loadData() {
   loading.value = true
   try {
-    const [res, quoteRes] = await Promise.all([
-      rfqApi.searchRFQItems({
-        pageNumber: pageInfo.page,
-        pageSize: pageInfo.pageSize,
-        startDate: dateRange.value?.[0],
-        endDate: dateRange.value?.[1],
-        customerKeyword: searchForm.customerKeyword.trim() || undefined,
-        materialModel: searchForm.materialModel.trim() || undefined,
-        salesUserId: searchForm.salesUserId || undefined,
-        purchaserUserId: searchForm.purchaserUserId || undefined,
-        ...(searchForm.hasQuotesOnly ? { hasQuotesOnly: true } : {})
-      }),
-      quoteApi.getList({}).catch(() => ({ data: [] as unknown[] }))
-    ])
-    quoteRecordCountByRfqItemId.value = aggregateQuoteCountByRfqItemId(quoteRes.data || [])
-    tableData.value = (res.items || []).map(mapRow)
+    const res = await rfqApi.searchRFQItems({
+      pageNumber: pageInfo.page,
+      pageSize: pageInfo.pageSize,
+      startDate: dateRange.value?.[0],
+      endDate: dateRange.value?.[1],
+      customerKeyword: searchForm.customerKeyword.trim() || undefined,
+      materialModel: searchForm.materialModel.trim() || undefined,
+      salesUserId: searchForm.salesUserId || undefined,
+      purchaserUserId: searchForm.purchaserUserId || undefined,
+      ...(searchForm.hasQuotesOnly ? { hasQuotesOnly: true } : {})
+    })
+    const rawItems = (res.items || []) as { id?: string }[]
+    const idList = rawItems.map((r) => String(r.id ?? '').trim()).filter(Boolean)
+    let countMap: Record<string, number> = {}
+    if (idList.length) {
+      try {
+        const { counts } = await quoteApi.getQuoteCountsByRfqItemIds(idList)
+        countMap = counts || {}
+      } catch {
+        countMap = {}
+      }
+    }
+    quoteRecordCountByRfqItemId.value = countMap
+    tableData.value = rawItems.map(mapRow)
     totalCount.value = res.totalCount ?? 0
     pageInfo.total = res.totalCount ?? 0
 
@@ -1394,7 +1389,7 @@ async function loadQuotesForRfqItem(item: RFQItem | null) {
   }
   quotesLoading.value = true
   try {
-    const res = await quoteApi.getList({ rfqItemId: item.id })
+    const res = await quoteApi.getList({ rfqItemId: item.id, page: 1, pageSize: 2000 })
     quotesForItem.value = (res.data || []) as Record<string, unknown>[]
   } catch {
     quotesForItem.value = []

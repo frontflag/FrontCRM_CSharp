@@ -19,6 +19,7 @@ namespace CRM.Core.Services
         private readonly ISerialNumberService _serialNumberService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUserService _userService;
+        private readonly IVendorListQuery _vendorListQuery;
 
         public VendorService(
             IRepository<VendorInfo> repository,
@@ -29,7 +30,8 @@ namespace CRM.Core.Services
             IUnitOfWork unitOfWork,
             ISerialNumberService serialNumberService,
             IDataPermissionService dataPermissionService,
-            IUserService userService)
+            IUserService userService,
+            IVendorListQuery vendorListQuery)
         {
             _repository = repository;
             _contactRepository = contactRepository;
@@ -40,6 +42,7 @@ namespace CRM.Core.Services
             _serialNumberService = serialNumberService;
             _dataPermissionService = dataPermissionService;
             _userService = userService;
+            _vendorListQuery = vendorListQuery;
         }
 
         /// <summary>前端未传采购员姓名时，用归属用户（RBAC Id）的姓名/账号填充展示字段。</summary>
@@ -211,156 +214,24 @@ namespace CRM.Core.Services
         /// <summary>
         /// 分页查询
         /// </summary>
-        public async Task<PagedResult<VendorInfo>> GetPagedAsync(VendorQueryRequest request)
-        {
-            var allEntities = await _repository.GetAllAsync();
-            var query = allEntities.Where(e => !e.IsDeleted).AsQueryable();
+        public Task<PagedResult<VendorInfo>> GetPagedAsync(VendorQueryRequest request) =>
+            _vendorListQuery.GetVendorsPagedAsync(request, default);
 
-            if (!string.IsNullOrWhiteSpace(request.Keyword))
-            {
-                var keyword = request.Keyword.Trim().ToLower();
-                query = query.Where(e =>
-                    (e.Code != null && e.Code.ToLower().Contains(keyword)) ||
-                    (e.OfficialName != null && e.OfficialName.ToLower().Contains(keyword)) ||
-                    (e.NickName != null && e.NickName.ToLower().Contains(keyword)) ||
-                    (e.EnglishOfficialName != null && e.EnglishOfficialName.ToLower().Contains(keyword)));
-            }
+        public Task<PagedResult<VendorInfo>> GetBlacklistAsync(VendorQueryRequest request) =>
+            _vendorListQuery.GetBlacklistVendorsPagedAsync(
+                request.PageIndex,
+                request.PageSize,
+                request.Keyword,
+                request.CurrentUserId,
+                default);
 
-            if (request.Status.HasValue)
-                query = query.Where(e => e.Status == request.Status.Value);
-
-            if (request.Level.HasValue)
-                query = query.Where(e => e.Level == request.Level.Value);
-
-            if (!string.IsNullOrWhiteSpace(request.Industry))
-            {
-                var ind = request.Industry.Trim();
-                query = query.Where(e => e.Industry != null && e.Industry.Contains(ind));
-            }
-
-            if (request.Credit.HasValue)
-                query = query.Where(e => e.Credit == request.Credit.Value);
-
-            if (request.AscriptionType.HasValue)
-                query = query.Where(e => e.AscriptionType == request.AscriptionType.Value);
-
-            if (!string.IsNullOrWhiteSpace(request.PurchaseUserId))
-            {
-                var pid = request.PurchaseUserId.Trim();
-                query = query.Where(e => e.PurchaseUserId == pid);
-            }
-
-            if (request.CreatedFrom.HasValue)
-            {
-                var from = request.CreatedFrom.Value.Date;
-                query = query.Where(e => e.CreateTime >= from);
-            }
-
-            if (request.CreatedTo.HasValue)
-            {
-                var toExclusive = request.CreatedTo.Value.Date.AddDays(1);
-                query = query.Where(e => e.CreateTime < toExclusive);
-            }
-
-            // 数据权限过滤（在分页前）
-            if (!string.IsNullOrWhiteSpace(request.CurrentUserId))
-            {
-                var filtered = await _dataPermissionService.FilterVendorsAsync(request.CurrentUserId, query.ToList());
-                query = filtered.AsQueryable();
-            }
-
-            var totalCount = query.Count();
-            var items = query
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
-                .ToList();
-
-            // 加载联系人列表并按供应商分组，便于列表页展示主联系人信息
-            var allContacts = await _contactRepository.GetAllAsync();
-            var contactGroups = allContacts
-                .GroupBy(c => c.VendorId)
-                .ToDictionary(g => g.Key, g => g
-                    .OrderByDescending(c => c.IsMain)
-                    .ThenBy(c => c.CName)
-                    .ToList());
-
-            foreach (var vendor in items)
-            {
-                if (contactGroups.TryGetValue(vendor.Id, out var contacts))
-                    vendor.Contacts = contacts;
-                else
-                    vendor.Contacts = new List<VendorContactInfo>();
-            }
-
-            return new PagedResult<VendorInfo>
-            {
-                Items = items,
-                TotalCount = totalCount,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize
-            };
-        }
-
-        public async Task<PagedResult<VendorInfo>> GetBlacklistAsync(VendorQueryRequest request)
-        {
-            var allEntities = await _repository.GetAllAsync();
-            var query = allEntities.Where(e => e.BlackList && !e.IsDeleted).AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(request.Keyword))
-            {
-                var keyword = request.Keyword.Trim().ToLower();
-                query = query.Where(e =>
-                    (e.Code != null && e.Code.ToLower().Contains(keyword)) ||
-                    (e.OfficialName != null && e.OfficialName.ToLower().Contains(keyword)) ||
-                    (e.NickName != null && e.NickName.ToLower().Contains(keyword)) ||
-                    (e.EnglishOfficialName != null && e.EnglishOfficialName.ToLower().Contains(keyword)));
-            }
-
-            var totalCount = query.Count();
-            var items = query
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
-                .ToList();
-
-            return new PagedResult<VendorInfo>
-            {
-                Items = items,
-                TotalCount = totalCount,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize
-            };
-        }
-
-        public async Task<PagedResult<VendorInfo>> GetFrozenAsync(VendorQueryRequest request)
-        {
-            var allEntities = await _repository.GetAllAsync();
-            var query = allEntities.Where(e => e.IsDisenable && !e.IsDeleted).AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(request.Keyword))
-            {
-                var keyword = request.Keyword.Trim().ToLower();
-                query = query.Where(e =>
-                    (e.Code != null && e.Code.ToLower().Contains(keyword)) ||
-                    (e.OfficialName != null && e.OfficialName.ToLower().Contains(keyword)) ||
-                    (e.NickName != null && e.NickName.ToLower().Contains(keyword)) ||
-                    (e.EnglishOfficialName != null && e.EnglishOfficialName.ToLower().Contains(keyword)));
-            }
-
-            var totalCount = query.Count();
-            var items = query
-                .OrderByDescending(e => e.ModifyTime ?? e.CreateTime)
-                .Skip((request.PageIndex - 1) * request.PageSize)
-                .Take(request.PageSize)
-                .ToList();
-
-            return new PagedResult<VendorInfo>
-            {
-                Items = items,
-                TotalCount = totalCount,
-                PageIndex = request.PageIndex,
-                PageSize = request.PageSize
-            };
-        }
+        public Task<PagedResult<VendorInfo>> GetFrozenAsync(VendorQueryRequest request) =>
+            _vendorListQuery.GetFrozenVendorsPagedAsync(
+                request.PageIndex,
+                request.PageSize,
+                request.Keyword,
+                request.CurrentUserId,
+                default);
 
         /// <summary>
         /// 更新
@@ -465,36 +336,8 @@ namespace CRM.Core.Services
             }
         }
 
-        public async Task<PagedResult<VendorInfo>> GetDeletedAsync(int pageIndex, int pageSize, string? keyword)
-        {
-            var allEntities = (await _repository.FindIgnoreFiltersAsync(e => e.IsDeleted)).ToList();
-            var query = allEntities.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(keyword))
-            {
-                var k = keyword.Trim().ToLower();
-                query = query.Where(e =>
-                    (e.Code != null && e.Code.ToLower().Contains(k)) ||
-                    (e.OfficialName != null && e.OfficialName.ToLower().Contains(k)) ||
-                    (e.NickName != null && e.NickName.ToLower().Contains(k)) ||
-                    (e.EnglishOfficialName != null && e.EnglishOfficialName.ToLower().Contains(k)));
-            }
-
-            var totalCount = query.Count();
-            var items = query
-                .OrderByDescending(e => e.DeleteTime ?? e.ModifyTime ?? e.CreateTime)
-                .Skip((pageIndex - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
-
-            return new PagedResult<VendorInfo>
-            {
-                Items = items,
-                TotalCount = totalCount,
-                PageIndex = pageIndex,
-                PageSize = pageSize
-            };
-        }
+        public Task<PagedResult<VendorInfo>> GetDeletedAsync(int pageIndex, int pageSize, string? keyword, string? currentUserId = null) =>
+            _vendorListQuery.GetDeletedVendorsPagedAsync(pageIndex, pageSize, keyword, currentUserId, default);
 
         public async Task RestoreAsync(string id, string? actingUserId = null)
         {

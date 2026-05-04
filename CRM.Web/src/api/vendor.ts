@@ -49,7 +49,11 @@ export const vendorApi = {
   // 分页查询供应商列表
   async searchVendors(params: VendorSearchRequest): Promise<VendorSearchResponse> {
     const queryParams = new URLSearchParams();
-    if (params.pageNumber != null) queryParams.append('pageNumber', params.pageNumber.toString());
+    const pageVal = params.page ?? params.pageNumber ?? 1;
+    if (pageVal >= 1) {
+      queryParams.append('page', String(pageVal));
+      queryParams.append('pageNumber', String(pageVal));
+    }
     if (params.pageSize != null) queryParams.append('pageSize', params.pageSize.toString());
     const kw = params.searchTerm?.trim() || params.keyword?.trim();
     if (kw) queryParams.append('searchTerm', kw);
@@ -61,6 +65,8 @@ export const vendorApi = {
     if (params.purchaseUserId) queryParams.append('purchaseUserId', params.purchaseUserId);
     if (params.createdFrom) queryParams.append('createdFrom', params.createdFrom);
     if (params.createdTo) queryParams.append('createdTo', params.createdTo);
+    if (params.favoriteOnly) queryParams.append('favoriteOnly', 'true');
+    if (params.favoriteIds) queryParams.append('favoriteIds', params.favoriteIds);
 
     const response = await apiClient.get<any>(`/api/v1/vendors?${queryParams.toString()}`);
     if (response && typeof response === 'object' && 'data' in response && response.data)
@@ -190,9 +196,11 @@ export const vendorApi = {
     await apiClient.post(vendorsPath(id, '/unfreeze'), { reason });
   },
 
-  async getBlacklist(params: { pageNumber?: number; pageSize?: number; keyword?: string } = {}): Promise<VendorSearchResponse> {
+  async getBlacklist(params: { page?: number; pageNumber?: number; pageSize?: number; keyword?: string } = {}): Promise<VendorSearchResponse> {
     const q = new URLSearchParams();
-    q.append('pageNumber', String(params.pageNumber ?? 1));
+    const p = params.page ?? params.pageNumber ?? 1;
+    q.append('page', String(p));
+    q.append('pageNumber', String(p));
     q.append('pageSize', String(params.pageSize ?? 20));
     if (params.keyword) q.append('keyword', params.keyword);
     const res = await apiClient.get<any>(`/api/v1/vendors/blacklist?${q.toString()}`);
@@ -200,9 +208,11 @@ export const vendorApi = {
     return res || { items: [], totalCount: 0 };
   },
 
-  async getFrozen(params: { pageNumber?: number; pageSize?: number; keyword?: string } = {}): Promise<VendorSearchResponse> {
+  async getFrozen(params: { page?: number; pageNumber?: number; pageSize?: number; keyword?: string } = {}): Promise<VendorSearchResponse> {
     const q = new URLSearchParams();
-    q.append('pageNumber', String(params.pageNumber ?? 1));
+    const p = params.page ?? params.pageNumber ?? 1;
+    q.append('page', String(p));
+    q.append('pageNumber', String(p));
     q.append('pageSize', String(params.pageSize ?? 20));
     if (params.keyword) q.append('keyword', params.keyword);
     const res = await apiClient.get<any>(`/api/v1/vendors/frozen?${q.toString()}`);
@@ -214,9 +224,11 @@ export const vendorApi = {
     await apiClient.delete(`/api/v1/vendors/${id}`, { data: { reason } });
   },
 
-  async getRecycleBin(params: { pageIndex?: number; pageSize?: number; keyword?: string } = {}): Promise<VendorSearchResponse> {
+  async getRecycleBin(params: { page?: number; pageNumber?: number; pageSize?: number; keyword?: string } = {}): Promise<VendorSearchResponse> {
     const q = new URLSearchParams();
-    q.append('pageNumber', String(params.pageIndex ?? 1));
+    const p = params.page ?? params.pageNumber ?? 1;
+    q.append('page', String(p));
+    q.append('pageNumber', String(p));
     q.append('pageSize', String(params.pageSize ?? 20));
     if (params.keyword) q.append('keyword', params.keyword);
     const res = await apiClient.get<any>(`/api/v1/vendors/recycle-bin?${q.toString()}`);

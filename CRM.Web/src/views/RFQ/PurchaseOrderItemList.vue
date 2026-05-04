@@ -40,7 +40,7 @@
             v-model="filters.purchaseOrderCode"
             class="search-input"
             :placeholder="t('purchaseOrderItemList.filters.poCodePlaceholder')"
-            @keyup.enter="loadList"
+            @keyup.enter="runSearch"
           />
         </div>
         <template v-if="canViewVendor">
@@ -53,7 +53,7 @@
               v-model="filters.vendorName"
               class="search-input"
               :placeholder="t('purchaseOrderItemList.filters.vendorPlaceholder')"
-              @keyup.enter="loadList"
+              @keyup.enter="runSearch"
             />
           </div>
         </template>
@@ -67,7 +67,7 @@
               v-model="filters.purchaseUserName"
               class="search-input"
               :placeholder="t('purchaseOrderItemList.filters.purchaserPlaceholder')"
-              @keyup.enter="loadList"
+              @keyup.enter="runSearch"
             />
           </div>
         </template>
@@ -80,7 +80,7 @@
             v-model="filters.pn"
             class="search-input"
             :placeholder="t('purchaseOrderItemList.filters.pnPlaceholder')"
-            @keyup.enter="loadList"
+            @keyup.enter="runSearch"
           />
         </div>
 
@@ -90,14 +90,14 @@
           clearable
           class="po-order-type-select"
           :teleported="false"
-          @change="applyOrderTypeFilter"
+          @change="onOrderTypeFilterChange"
         >
           <el-option :label="t('purchaseOrderItemList.filters.orderTypeCustomer')" :value="1" />
           <el-option :label="t('purchaseOrderItemList.filters.orderTypeStocking')" :value="2" />
           <el-option :label="t('purchaseOrderItemList.filters.orderTypeSample')" :value="3" />
         </el-select>
 
-        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="loadList">
+        <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="runSearch">
           {{ t('purchaseOrderItemList.filters.search') }}
         </button>
         <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="resetFilters">
@@ -113,7 +113,7 @@
       :columns="purchaseOrderItemColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-      :data="pagedList"
+      :data="tableRows"
       v-loading="loading"
       row-key="purchaseOrderItemId"
       @selection-change="onSelectionChange"
@@ -258,7 +258,7 @@
         v-model:current-page="page"
         v-model:page-size="pageSize"
         :total="total"
-        :page-sizes="[10, 20, 50]"
+        :page-sizes="[10, 20, 50, 100]"
         layout="total, prev, pager, next, sizes"
         class="quantum-pagination"
         @current-change="onPageChange"
@@ -931,10 +931,8 @@ const canViewAmount = computed(
 const canCreateArrivalNotice = computed(() => authStore.hasPermission('purchase-order.read'))
 
 const loading = ref(false)
-const allLines = ref<any[]>([])
-/** 未按采购订单类型筛选前的明细行（便于仅改类型下拉时不重新拉接口） */
-const linesBeforeOrderType = ref<any[]>([])
-const pagedList = ref<any[]>([])
+/** 当前页明细行（服务端分页） */
+const tableRows = ref<any[]>([])
 
 const total = ref(0)
 const page = ref(1)
@@ -1131,32 +1129,24 @@ const filters = reactive({
   orderType: undefined as number | undefined
 })
 
-function normalizePurchaseOrderType(detail: any, orderSummary: any): number {
-  const n = Number(detail?.type ?? detail?.Type ?? orderSummary?.type ?? orderSummary?.Type ?? 1)
-  return n >= 1 && n <= 3 ? n : 1
-}
-
 function isLineStockingPurchase(row: any) {
   return Number(row?.purchaseOrderType) === 2
 }
 
-function applyOrderTypeFilter() {
-  const ot = filters.orderType
-  allLines.value = linesBeforeOrderType.value.filter((x: any) => {
-    if (ot === undefined || ot === null) return true
-    return Number(x.purchaseOrderType) === ot
-  })
-  page.value = 1
-  applyPagination()
-}
-
-const applyPagination = () => {
-  const start = (page.value - 1) * pageSize.value
-  pagedList.value = allLines.value.slice(start, start + pageSize.value)
-  total.value = allLines.value.length
-  // 避免分页切换后 checkbox 状态“残留”
+function clearTableSelection() {
   selectedRows.value = []
   ;(tableRef.value as any)?.clearSelection?.()
+}
+
+function onOrderTypeFilterChange() {
+  page.value = 1
+  void loadList()
+}
+
+/** 筛选条件变更后查询：回到第一页（与分页切换区分）。 */
+function runSearch() {
+  page.value = 1
+  void loadList()
 }
 
 function statusText(s: number) {
@@ -1456,88 +1446,44 @@ async function loadList() {
   closePoItemLinePanel()
   loading.value = true
   try {
-    const params: Record<string, unknown> = {
-      page: 1,
-      pageSize: 2000
+    const params: {
+      page: number
+      pageSize: number
+      startDate?: string
+      endDate?: string
+      purchaseOrderCode?: string
+      vendorName?: string
+      purchaseUserName?: string
+      pn?: string
+      orderType?: number
+    } = {
+      page: page.value,
+      pageSize: pageSize.value
     }
     if (dateRange.value?.[0]) params.startDate = dateRange.value[0]
     if (dateRange.value?.[1]) params.endDate = dateRange.value[1]
-    if (filters.purchaseOrderCode.trim()) params.keyword = filters.purchaseOrderCode.trim()
+    if (filters.purchaseOrderCode.trim()) params.purchaseOrderCode = filters.purchaseOrderCode.trim()
+    if (canViewVendor.value && filters.vendorName.trim()) params.vendorName = filters.vendorName.trim()
+    if (canViewPurchaseUser.value && filters.purchaseUserName.trim()) params.purchaseUserName = filters.purchaseUserName.trim()
+    if (filters.pn.trim()) params.pn = filters.pn.trim()
+    if (filters.orderType !== undefined && filters.orderType !== null) params.orderType = filters.orderType
 
-    const res = await purchaseOrderApi.getList(params)
-    const orders = (res as { items?: any[] } | undefined)?.items ?? []
-
-    // 列表接口通常不带完整明细，逐单拉详情后再展开明细行
-    const detailResults = await Promise.allSettled(
-      orders
-        .filter((o: any) => !!o?.id)
-        .map((o: any) => purchaseOrderApi.getById(o.id))
-    )
-    const detailMap = new Map<string, any>()
-    detailResults.forEach((result) => {
-      if (result.status !== 'fulfilled') return
-      const detail = result.value as any
-      if (!detail?.id) return
-      detailMap.set(detail.id, detail)
-    })
-
-    const pnK = filters.pn.trim().toLowerCase()
-    const vendorK = filters.vendorName.trim().toLowerCase()
-    const purchaseUserK = filters.purchaseUserName.trim().toLowerCase()
-    const poCodeK = filters.purchaseOrderCode.trim().toLowerCase()
-
-    const lines = orders.flatMap((o: any) => {
-      const detail = detailMap.get(o.id) ?? o
-      const items = detail?.items ?? []
-      return items.map((it: any) => ({
-        purchaseOrderItemId: it.purchaseOrderItemId ?? it.id ?? it.Id,
-        purchaseOrderId: detail.id ?? o.id,
-        purchaseOrderItemCode: it.purchaseOrderItemCode ?? it.PurchaseOrderItemCode ?? '',
-        purchaseOrderCode: detail.purchaseOrderCode ?? o.purchaseOrderCode,
-        purchaseOrderType: normalizePurchaseOrderType(detail, o),
-        vendorId:
-          it.vendorId ??
-          it.VendorId ??
-          detail.vendorId ??
-          detail.VendorId ??
-          o.vendorId ??
-          o.VendorId,
-        itemStatus: it.status,
-        purchaseProgressStatus: Number(it.purchaseProgressStatus ?? 0),
-        stockInProgressStatus: Number(it.stockInProgressStatus ?? 0),
-        paymentProgressStatus: Number(it.paymentProgressStatus ?? 0),
-        invoiceProgressStatus: Number(it.invoiceProgressStatus ?? 0),
-        canApplyPayment: Boolean(it.canApplyPayment ?? it.CanApplyPayment ?? false),
-        orderCreateTime: detail.createTime ?? o.createTime,
-        vendorName:
-          it.vendorName ??
-          it.VendorName ??
-          detail.vendorName ??
-          detail.VendorName ??
-          o.vendorName ??
-          o.VendorName,
-        purchaseUserName: detail.purchaseUserName ?? o.purchaseUserName,
-        pn: it.pn,
-        brand: it.brand,
-        qty: it.qty,
-        cost: it.cost,
-        lineTotal: (it.qty || 0) * (it.cost || 0),
-        paymentRequestedAmount: Number(it.paymentRequestedAmount ?? it.PaymentRequestedAmount ?? 0),
-        currency: it.currency ?? detail.currency ?? o.currency,
-        deliveryDate: it.deliveryDate ?? detail.deliveryDate
-      }))
-    })
-
-    // 采购单号/供应商/采购员/物料型号等在前端做过滤（后端采购订单明细分页接口尚未补齐）
-    linesBeforeOrderType.value = lines.filter((x: any) => {
-      if (poCodeK && !String(x.purchaseOrderCode || '').toLowerCase().includes(poCodeK)) return false
-      if (pnK && !String(x.pn || '').toLowerCase().includes(pnK)) return false
-      if (canViewVendor.value && vendorK && !String(x.vendorName || '').toLowerCase().includes(vendorK)) return false
-      if (canViewPurchaseUser.value && purchaseUserK && !String(x.purchaseUserName || '').toLowerCase().includes(purchaseUserK)) return false
-      return true
-    })
-
-    applyOrderTypeFilter()
+    const data = (await purchaseOrderApi.getItemLinesPage(params)) as {
+      items?: any[]
+      total?: number
+      page?: number
+    }
+    const items = data.items ?? []
+    const nTotal = data.total ?? 0
+    if (page.value > 1 && items.length === 0 && nTotal > 0) {
+      page.value = 1
+      await loadList()
+      return
+    }
+    tableRows.value = items
+    total.value = nTotal
+    if (typeof data.page === 'number' && data.page >= 1) page.value = data.page
+    clearTableSelection()
   } catch (e: any) {
     // eslint-disable-next-line no-console
     console.error(e)
@@ -1554,18 +1500,18 @@ function resetFilters() {
   filters.pn = ''
   filters.orderType = undefined
   page.value = 1
-  loadList()
+  void loadList()
 }
 
 function onPageChange(nextPage: number) {
   page.value = nextPage
-  applyPagination()
+  void loadList()
 }
 
 function onPageSizeChange(nextSize: number) {
   pageSize.value = nextSize
   page.value = 1
-  applyPagination()
+  void loadList()
 }
 
 function goDetail(row: any) {
@@ -1577,7 +1523,7 @@ onMounted(() => {
   if (typeof qpn === 'string' && qpn.trim()) {
     filters.pn = qpn.trim()
   }
-  loadList()
+  void loadList()
 })
 </script>
 

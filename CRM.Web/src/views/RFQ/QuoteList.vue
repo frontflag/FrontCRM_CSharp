@@ -78,7 +78,7 @@
         :columns="quoteTableColumns"
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-        :data="pagedQuoteList"
+        :data="quoteListRows"
         row-key="id"
         highlight-current-row
         @selection-change="onQuoteSelectionChange"
@@ -331,7 +331,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
@@ -359,8 +359,8 @@ const loading = ref(false)
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const salesOrderPreflightLoading = ref(false)
-/** 接口返回的全量列表（筛选后）；表格按分页切片展示 */
-const quoteListAll = ref<Record<string, unknown>[]>([])
+/** 当前页数据（后端分页） */
+const quoteListRows = ref<Record<string, unknown>[]>([])
 const basketStore = useQuoteListBasketStore()
 const { count: basketCount, items: basketItems } = storeToRefs(basketStore)
 const basketDrawerVisible = ref(false)
@@ -477,12 +477,6 @@ const quoteTableColumns = computed<CrmTableColumnDef[]>(() => {
 })
 
 const totalCount = computed(() => pageInfo.value.total)
-
-const pagedQuoteList = computed(() => {
-  const all = quoteListAll.value
-  const start = (pageInfo.value.page - 1) * pageInfo.value.pageSize
-  return all.slice(start, start + pageInfo.value.pageSize)
-})
 
 /** 兼容 camelCase / PascalCase / 后端字段，避免编号列空白 */
 function displayQuoteCode(row: Record<string, unknown>) {
@@ -607,27 +601,31 @@ const getStatusText = (status: number) => {
   return map[status] || t('quoteList.status.unknown')
 }
 
-// 计算统计
-const calculateStats = () => {
-  const list = quoteListAll.value
-  stats.value = {
-    total: pageInfo.value.total,
-    pending: list.filter(q => Number(q.status) === 0 || Number(q.status) === 1).length,
-    sent: list.filter(q => Number(q.status) === 3).length,
-    accepted: list.filter(q => Number(q.status) === 4).length
-  }
-}
-
 // 加载数据
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await quoteApi.getList(searchForm.value)
-    quoteListAll.value = (res.data || []) as Record<string, unknown>[]
+    const res = await quoteApi.getList({
+      page: pageInfo.value.page,
+      pageSize: pageInfo.value.pageSize,
+      keyword: searchForm.value.keyword,
+      status: searchForm.value.status,
+      rfqItemId: undefined
+    })
+    quoteListRows.value = (res.data || []) as Record<string, unknown>[]
     pageInfo.value.total = res.total || 0
     const maxPage = Math.max(1, Math.ceil(pageInfo.value.total / pageInfo.value.pageSize) || 1)
-    if (pageInfo.value.page > maxPage) pageInfo.value.page = maxPage
-    calculateStats()
+    if (pageInfo.value.page > maxPage) {
+      pageInfo.value.page = maxPage
+      return await loadData()
+    }
+    const agg = res.aggregates
+    stats.value = {
+      total: agg?.totalCount ?? res.total ?? 0,
+      pending: agg?.pendingCount ?? 0,
+      sent: agg?.sentCount ?? 0,
+      accepted: agg?.acceptedCount ?? 0
+    }
   } catch (error) {
     ElMessage.error(t('quoteList.loadFailed'))
   } finally {
@@ -649,19 +647,20 @@ const handleReset = () => {
   loadData()
 }
 
-// 分页（数据已在内存中，仅切换切片）
 const handleSizeChange = (val: number) => {
   pageInfo.value.pageSize = val
   pageInfo.value.page = 1
+  void loadData()
 }
 
 const handlePageChange = (val: number) => {
   pageInfo.value.page = val
+  void loadData()
 }
 
 function onQuoteSelectionChange(rows: Record<string, unknown>[]) {
   if (suppressBasketMerge.value) return
-  basketStore.mergePageSelection(pagedQuoteList.value, rows)
+  basketStore.mergePageSelection(quoteListRows.value, rows)
 }
 
 async function restoreTableSelectionFromBasket() {
@@ -671,7 +670,7 @@ async function restoreTableSelectionFromBasket() {
   await nextTick()
   table.clearSelection()
   await nextTick()
-  for (const row of pagedQuoteList.value) {
+  for (const row of quoteListRows.value) {
     const id = resolveQuoteId(row)
     if (id && basketStore.has(id)) {
       table.toggleRowSelection(row, true)
@@ -685,7 +684,7 @@ function removeOneFromBasket(id: string) {
   if (!id) return
   basketStore.remove(id)
   suppressBasketMerge.value = true
-  const row = pagedQuoteList.value.find((r) => resolveQuoteId(r) === id)
+  const row = quoteListRows.value.find((r) => resolveQuoteId(r) === id)
   if (row) {
     dataTableRef.value?.toggleRowSelection(row, false)
   }
@@ -712,14 +711,6 @@ async function handleClearBasket() {
   suppressBasketMerge.value = false
   ElMessage.success('已清空复选篮子')
 }
-
-watch(
-  () => [pageInfo.value.page, pageInfo.value.pageSize] as const,
-  async () => {
-    await nextTick()
-    await restoreTableSelectionFromBasket()
-  }
-)
 
 function resolveQuoteId(row: Record<string, unknown>): string {
   const id = row.id ?? row.Id

@@ -79,14 +79,27 @@ export interface StockInBatchWriteOffResultDto {
   invalidSerialNumbers: string[]
 }
 
+export type StockInBatchListPaged = { items: StockInBatchRow[]; total: number; page: number; pageSize: number }
+
 export const stockInBatchApi = {
-  async list(params?: {
+  async listPaged(params?: {
     stockInItemCode?: string
     lot?: string
     serialNumber?: string
-  }): Promise<StockInBatchRow[]> {
-    const rows = await apiClient.get<StockInBatchRow[] | null>('/api/v1/stock-in/batches', { params })
-    return Array.isArray(rows) ? rows : []
+    page?: number
+    pageSize?: number
+  }): Promise<StockInBatchListPaged> {
+    const res = await apiClient.get<any>('/api/v1/stock-in/batches', { params })
+    const d = res?.data ?? res
+    if (d && typeof d === 'object' && Array.isArray(d.items)) {
+      return {
+        items: d.items as StockInBatchRow[],
+        total: Number(d.total ?? 0),
+        page: Number(d.page ?? 1),
+        pageSize: Number(d.pageSize ?? 20)
+      }
+    }
+    return { items: [], total: 0, page: 1, pageSize: 20 }
   },
 
   async getById(id: string): Promise<StockInBatchRow | null> {

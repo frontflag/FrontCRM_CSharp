@@ -101,26 +101,32 @@
     <template v-else-if="order">
       <!-- 基本信息卡片 -->
       <div class="info-section">
-        <div class="section-header">
-          <div class="section-dot section-dot--cyan"></div>
-          <span class="section-title">基本信息</span>
+        <div class="section-header section-header--with-inline-code">
+          <div class="section-header-left">
+            <div class="section-dot section-dot--cyan"></div>
+            <span class="section-title">基本信息</span>
+            <div class="section-header-code">
+              <span class="section-header-code__label">{{ t('salesOrderCreate.orderHeaderCodeLabel') }}</span>
+              <span class="section-header-code__value">{{ order.sellOrderCode || '—' }}</span>
+            </div>
+          </div>
         </div>
         <div class="info-grid">
-          <div class="info-item">
-            <span class="info-label">销售订单号</span>
-            <span class="info-value">{{ order.sellOrderCode }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">状态</span>
-            <span class="info-value">{{ getStatusText(order.status) }}</span>
+          <div class="info-item" v-if="showCustomerIdentityFields">
+            <span class="info-label">{{ t('salesOrderCreate.fields.customer') }}</span>
+            <span class="info-value">{{ order.customerName || '--' }}</span>
           </div>
           <div class="info-item" v-if="showCustomerIdentityFields">
-            <span class="info-label">客户</span>
-            <span class="info-value">{{ order.customerName || '--' }}</span>
+            <span class="info-label">{{ t('salesOrderCreate.fields.customerContact') }}</span>
+            <span class="info-value">{{ order.customerContactName || order.CustomerContactName || '--' }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">业务员</span>
             <span class="info-value">{{ maskSaleSensitiveFields ? '—' : order.salesUserName || '--' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">状态</span>
+            <span class="info-value">{{ getStatusText(order.status) }}</span>
           </div>
           <div class="info-item" v-if="showSalesMoneyFields">
             <span class="info-label">总金额</span>
@@ -156,7 +162,7 @@
           </div>
           <div class="info-item info-item--span-all">
             <span class="info-label">备注</span>
-            <span class="info-value">{{ order.comment || '--' }}</span>
+            <span class="info-value">{{ order.headerRemarkDisplay || order.HeaderRemarkDisplay || order.comment || '--' }}</span>
           </div>
           <div v-if="order.auditRemark || order.status === -1" class="info-item info-item--span-all">
             <span class="info-label">审核拒绝原因</span>
@@ -195,8 +201,67 @@
                 min-width="168"
                 show-overflow-tooltip
               />
+              <el-table-column
+                v-if="showCustomerIdentityFields"
+                prop="customerPn"
+                label="客户物料型号"
+                min-width="140"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                v-if="showCustomerIdentityFields"
+                prop="customerBrand"
+                label="客户品牌"
+                width="100"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                v-if="showCustomerIdentityFields"
+                prop="customerSo"
+                label="客户订单号"
+                min-width="120"
+                show-overflow-tooltip
+              />
               <el-table-column prop="pn" label="物料型号" min-width="160" />
               <el-table-column prop="brand" label="品牌" width="120" />
+              <el-table-column label="" width="48" class-name="so-item-col-spacer" label-class-name="so-item-col-spacer">
+                <template #default />
+              </el-table-column>
+              <el-table-column v-if="showSalesMoneyFields" prop="price" label="销售单价" align="right" width="120">
+                <template #default="{ row }">
+                  <span class="amount-with-code">
+                    <span>{{ formatUnitPriceNumber(row.price) }}</span>
+                    <span v-if="formatUnitPriceNumber(row.price) !== '—'" :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">
+                      {{ listAmountCurrencyIso(row.currency) }}
+                    </span>
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="qty" label="销售数量" align="right" width="100" />
+              <el-table-column v-if="showSalesMoneyFields" label="销售总额" align="right" width="130">
+                <template #default="{ row }">
+                  <span class="amount-with-code">
+                    <span>{{ formatTotalAmountNumber(row.qty * row.price) }}</span>
+                    <span v-if="formatTotalAmountNumber(row.qty * row.price) !== '—'" :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">
+                      {{ listAmountCurrencyIso(row.currency) }}
+                    </span>
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column label="生产日期" width="108" align="center">
+                <template #default="{ row }">
+                  {{ fmtSoItemDateCode(row) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="交期" width="112" align="center">
+                <template #default="{ row }">
+                  {{ fmtSoItemDeliveryDate(row) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="" width="48" class-name="so-item-col-spacer" label-class-name="so-item-col-spacer">
+                <template #default />
+              </el-table-column>
+              <el-table-column prop="comment" label="备注" min-width="200" show-overflow-tooltip />
               <el-table-column label="采购状态" width="100" align="center">
                 <template #default="{ row }">
                   <el-tag :type="getExtendTriStatusTagType(row.purchaseProgressStatus)" size="small" effect="dark">
@@ -237,32 +302,6 @@
                   <el-tag :type="getExtendTriStatusTagType(row.invoiceProgressStatus)" size="small" effect="dark">
                     {{ getSellInvoiceProgressText(row.invoiceProgressStatus) }}
                   </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column label="生产日期" width="108" align="center">
-                <template #default="{ row }">
-                  {{ fmtSoItemDateCode(row) }}
-                </template>
-              </el-table-column>
-              <el-table-column prop="qty" label="数量" align="right" width="100" />
-              <el-table-column v-if="showSalesMoneyFields" prop="price" label="单价" align="right" width="120">
-                <template #default="{ row }">
-                  <span class="amount-with-code">
-                    <span>{{ formatUnitPriceNumber(row.price) }}</span>
-                    <span v-if="formatUnitPriceNumber(row.price) !== '—'" :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">
-                      {{ listAmountCurrencyIso(row.currency) }}
-                    </span>
-                  </span>
-                </template>
-              </el-table-column>
-              <el-table-column v-if="showSalesMoneyFields" label="金额" align="right" width="130">
-                <template #default="{ row }">
-                  <span class="amount-with-code">
-                    <span>{{ formatTotalAmountNumber(row.qty * row.price) }}</span>
-                    <span v-if="formatTotalAmountNumber(row.qty * row.price) !== '—'" :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">
-                      {{ listAmountCurrencyIso(row.currency) }}
-                    </span>
-                  </span>
                 </template>
               </el-table-column>
               <el-table-column v-if="showSalesMoneyFields" label="折算美金单价" align="right" width="140">
@@ -306,7 +345,6 @@
                   {{ row.profitOutRateBiz != null ? Number(row.profitOutRateBiz).toFixed(6) : '—' }}
                 </template>
               </el-table-column>
-              <el-table-column prop="comment" label="备注" min-width="120" />
               <el-table-column
                 label="操作"
                 :width="soDetailItemsOpColWidth"
@@ -930,52 +968,6 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="editDialogVisible" title="编辑销售订单" width="560px" destroy-on-close @closed="onEditDialogClosed">
-      <el-form v-if="order" label-width="100px">
-        <el-form-item v-if="showCustomerIdentityFields" label="客户名称">
-          <el-input v-model="editForm.customerName" />
-        </el-form-item>
-        <el-form-item label="业务员">
-          <el-input v-if="maskSaleSensitiveFields" model-value="—" disabled />
-          <SalesUserCascader
-            v-else
-            v-model="editForm.salesUserId"
-            placeholder="请选择业务员"
-            @change="onEditSalesUserChange"
-          />
-        </el-form-item>
-        <el-form-item label="订单类型">
-          <el-select v-model="editForm.type" style="width: 100%">
-            <el-option :label="t('salesOrderCreate.orderTypes.normal')" :value="1" />
-            <el-option :label="t('salesOrderCreate.orderTypes.urgent')" :value="2" />
-            <el-option :label="t('salesOrderCreate.orderTypes.sample')" :value="3" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="币别">
-          <el-select v-model="editForm.currency" style="width: 100%">
-            <el-option
-              v-for="opt in SETTLEMENT_CURRENCY_OPTIONS"
-              :key="opt.value"
-              :label="opt.label"
-              :value="opt.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="交货日期">
-          <el-date-picker v-model="editForm.deliveryDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="送货地址">
-          <el-input v-model="editForm.deliveryAddress" type="textarea" :rows="2" />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="editForm.comment" type="textarea" :rows="2" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="editDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="editSaving" @click="saveEdit">保存</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -1009,10 +1001,8 @@ import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatTotalAmountNumber, formatUnitPriceNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
-import SalesUserCascader from '@/components/SalesUserCascader.vue'
-import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
@@ -1031,6 +1021,14 @@ function fmtSoItemDateCode(row: { dateCode?: string; DateCode?: string } | null 
   const raw = String(row.dateCode ?? row.DateCode ?? '').trim()
   if (!raw) return '—'
   return productionDateDisplayLabel(raw, materialPdOptions.value) || raw
+}
+
+function fmtSoItemDeliveryDate(row: { deliveryDate?: unknown; DeliveryDate?: unknown } | null | undefined) {
+  if (!row) return '—'
+  const v = row.deliveryDate ?? row.DeliveryDate
+  if (v == null || v === '') return '—'
+  const s = formatDisplayDate(v as string | Date)
+  return s === '--' ? '—' : s
 }
 
 const canViewCustomerInfo = computed(() => authStore.hasPermission('customer.info.read'))
@@ -1307,8 +1305,6 @@ watch(
 const currentTags = ref<TagDefinitionDto[]>([])
 const tagDialogVisible = ref(false)
 
-const editDialogVisible = ref(false)
-const editSaving = ref(false)
 const applyDialogVisible = ref(false)
 const applySubmitting = ref(false)
 const applyStockOutLoading = ref(false)
@@ -1371,21 +1367,6 @@ const applyPurchasedStockingPurchasingHasQty = computed(
 const applyFormSalesOrderQtyText = computed(() => intQtyText(applyForm.value.salesOrderQty))
 const applyFormAlreadyNotifiedText = computed(() => intQtyText(applyForm.value.alreadyNotifiedQty))
 const applyFormRemainingNotifyText = computed(() => intQtyText(applyForm.value.remainingNotifyQty))
-const editForm = ref({
-  customerName: '',
-  salesUserId: '',
-  salesUserName: '',
-  type: 1,
-  currency: 1,
-  deliveryDate: '' as string | undefined,
-  deliveryAddress: '',
-  comment: ''
-})
-
-function onEditSalesUserChange(p: { id: string; label: string }) {
-  editForm.value.salesUserName = p.label || ''
-}
-
 const orderId = computed(() => {
   const raw = route.params.id
   if (Array.isArray(raw)) return String(raw[0] ?? '').trim()
@@ -1454,15 +1435,6 @@ onMounted(() => {
 watch(orderId, () => {
   fetchOrder()
 })
-
-watch(
-  () => [route.query.edit, order.value?.id] as const,
-  () => {
-    if (route.query.edit === '1' && order.value && canWriteSo.value) {
-      openEditDialog()
-    }
-  }
-)
 
 watch(
   () => [route.query.applyStockOut, order.value?.id] as const,
@@ -1572,52 +1544,6 @@ const fetchOrder = async () => {
     ElMessage.error(loadError.value)
   } finally {
     loading.value = false
-  }
-}
-
-function openEditDialog() {
-  if (!order.value) return
-  const o = order.value
-  editForm.value = {
-    customerName: o.customerName || '',
-    salesUserId: o.salesUserId || '',
-    salesUserName: o.salesUserName || '',
-    type: o.type ?? 1,
-    currency: o.currency ?? 1,
-    deliveryDate: o.deliveryDate ? String(o.deliveryDate).slice(0, 10) : undefined,
-    deliveryAddress: o.deliveryAddress || '',
-    comment: o.comment || ''
-  }
-  editDialogVisible.value = true
-}
-
-function onEditDialogClosed() {
-  if (route.query.edit === '1') {
-    router.replace({ path: route.path, query: {} })
-  }
-}
-
-const saveEdit = async () => {
-  if (!order.value) return
-  editSaving.value = true
-  try {
-    await salesOrderApi.update(order.value.id, {
-      customerName: editForm.value.customerName || undefined,
-      salesUserId: editForm.value.salesUserId || undefined,
-      salesUserName: editForm.value.salesUserName || undefined,
-      type: editForm.value.type,
-      currency: editForm.value.currency,
-      deliveryDate: editForm.value.deliveryDate || undefined,
-      deliveryAddress: editForm.value.deliveryAddress || undefined,
-      comment: editForm.value.comment || undefined
-    })
-    ElMessage.success('已保存')
-    editDialogVisible.value = false
-    await fetchOrder()
-  } catch (e: any) {
-    ElMessage.error(e?.message || '保存失败')
-  } finally {
-    editSaving.value = false
   }
 }
 
@@ -1823,7 +1749,9 @@ const handleEdit = () => {
     ElMessage.warning('无编辑权限')
     return
   }
-  openEditDialog()
+  const id = orderId.value
+  if (!id) return
+  router.push({ name: 'SalesOrderEdit', params: { id } })
 }
 
 const handleOpenApplyStockOut = async (item?: any) => {
@@ -2182,6 +2110,45 @@ const submitApplyStockOut = async () => {
   background: rgba(0,0,0,0.1);
 }
 
+.section-header--with-inline-code {
+  .section-header-left {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    column-gap: 14px;
+    row-gap: 6px;
+    min-width: 0;
+    .section-dot {
+      flex-shrink: 0;
+    }
+    .section-title {
+      flex-shrink: 0;
+    }
+  }
+  .section-header-code {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-shrink: 1;
+    min-width: 0;
+    max-width: min(520px, 72vw);
+  }
+  .section-header-code__label {
+    font-size: 12px;
+    font-weight: 500;
+    color: $text-muted;
+    white-space: nowrap;
+  }
+  .section-header-code__value {
+    font-size: 13px;
+    font-weight: 500;
+    color: $warning-color;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 .section-dot {
   width: 8px;
   height: 8px;
@@ -2456,6 +2423,12 @@ const submitApplyStockOut = async () => {
     font-size: 18px;
     font-weight: 700;
     line-height: 1;
+  }
+  /** 物料明细表：与编辑页一致的第三列空白占位 */
+  :deep(th.so-item-col-spacer .cell),
+  :deep(td.so-item-col-spacer .cell) {
+    padding-left: 2px;
+    padding-right: 2px;
   }
 }
 

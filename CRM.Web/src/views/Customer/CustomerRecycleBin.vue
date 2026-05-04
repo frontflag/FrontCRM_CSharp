@@ -19,8 +19,8 @@
           clearable
           size="default"
           style="width:220px"
-          @keyup.enter="fetchData"
-          @clear="fetchData"
+          @keyup.enter="onSearch"
+          @clear="onSearch"
         >
           <template #prefix>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -70,14 +70,16 @@
       </div>
     </div>
 
-    <!-- 分页 -->
-    <div v-if="totalCount > pageSize" class="pagination-wrapper">
+    <!-- 分页（与规范：后端 total + page + pageSize） -->
+    <div v-if="totalCount > 0" class="pagination-wrapper">
       <el-pagination
         v-model:current-page="pageIndex"
-        :page-size="pageSize"
+        v-model:page-size="pageSize"
+        :page-sizes="[20, 50, 100]"
         :total="totalCount"
-        layout="prev, pager, next"
+        layout="total, sizes, prev, pager, next"
         background
+        @size-change="onPageSizeChange"
         @current-change="fetchData"
       />
     </div>
@@ -96,16 +98,26 @@ const { t } = useI18n()
 const items = ref<any[]>([]);
 const totalCount = ref(0);
 const pageIndex = ref(1);
-const pageSize = 20;
+const pageSize = ref(20);
 const keyword = ref('');
 const restoringId = ref<string | null>(null);
+
+function onPageSizeChange() {
+  pageIndex.value = 1
+  fetchData()
+}
+
+function onSearch() {
+  pageIndex.value = 1
+  fetchData()
+}
 
 const fetchData = async () => {
   loading.value = true;
   try {
-    const res = await customerApi.getRecycleBin({ pageIndex: pageIndex.value, pageSize, keyword: keyword.value });
+    const res = await customerApi.getRecycleBin({ page: pageIndex.value, pageSize: pageSize.value, keyword: keyword.value });
     items.value = res?.items ?? res?.data ?? (Array.isArray(res) ? res : []);
-    totalCount.value = res?.totalCount ?? res?.total ?? items.value.length;
+    totalCount.value = res?.totalCount ?? res?.total ?? 0;
   } catch {
     ElNotification.error({ title: t('customerRecycle.loadFailedTitle'), message: t('customerRecycle.loadFailedMessage') });
   } finally {

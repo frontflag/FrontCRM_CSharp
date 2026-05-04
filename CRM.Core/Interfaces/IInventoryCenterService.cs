@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using CRM.Core.Constants;
 using CRM.Core.Models.Inventory;
 
@@ -13,14 +15,28 @@ namespace CRM.Core.Interfaces
             string? warehouseId,
             string? materialModel = null,
             string? stockCode = null);
+
+        /// <summary>库存总览列表（<c>stock</c> 主表数据库分页；DTO 组装逻辑与 <see cref="GetMaterialOverviewAsync"/> 共享）。</summary>
+        Task<PagedResult<InventoryMaterialOverviewDto>> GetMaterialOverviewPagedAsync(
+            string? warehouseId,
+            string? materialModel,
+            string? stockCode,
+            short? stockType,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default);
         /// <summary>按销售明细解析物料键（含关联采购行），汇总全仓库可用库存；用于出库申请展示。</summary>
         Task<SellOrderLineAvailableQtyDto> GetAvailableQtyForSellOrderItemAsync(string sellOrderItemId);
         Task<IEnumerable<InventoryMaterialTraceDto>> GetMaterialTraceAsync(string materialId);
         /// <summary>某条汇总库存（<c>stock.StockId</c>）下的全部在库明细 <c>stockitem</c>。</summary>
         Task<IEnumerable<InventoryStockItemRowDto>> GetStockItemsForAggregateAsync(string stockAggregateId);
 
-        /// <summary>全库 <c>stockitem</c> 列表，支持入库单、日期、型号、品牌、出库状态及采销人员等筛选。</summary>
-        Task<IEnumerable<InventoryStockItemListRowDto>> GetStockItemsListAsync(InventoryStockItemListQuery? query);
+        /// <summary>全库 <c>stockitem</c> 列表（数据库分页），筛选语义同原 <c>GetStockItemsListAsync</c>。</summary>
+        Task<PagedResult<InventoryStockItemListRowDto>> GetStockItemsListPagedAsync(
+            InventoryStockItemListQuery? query,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default);
         Task<InventoryFinanceSummaryDto> GetFinanceSummaryAsync(int stagnantDays = 90);
 
         Task<IEnumerable<WarehouseInfo>> GetWarehousesAsync();
@@ -43,7 +59,10 @@ namespace CRM.Core.Interfaces
         /// <summary>拣货单详情（列表头字段 + 明细行）。</summary>
         Task<PickingTaskDetailViewDto?> GetPickingTaskDetailForUiAsync(string pickingTaskId);
 
-        Task<IEnumerable<InventoryCountPlan>> GetCountPlansAsync();
+        Task<PagedResult<InventoryCountPlan>> GetCountPlansPagedAsync(
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default);
         Task<InventoryCountPlan> CreateMonthlyCountPlanAsync(CreateCountPlanRequest request);
         Task SubmitCountPlanAsync(SubmitCountPlanRequest request);
 

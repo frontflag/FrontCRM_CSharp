@@ -10,7 +10,7 @@
           </div>
           <h1 class="page-title">{{ t('stockOutList.title') }}</h1>
         </div>
-        <div class="count-badge">{{ t('stockOutList.count', { count: filteredList.length }) }}</div>
+        <div class="count-badge">{{ t('stockOutList.count', { count: listTotal }) }}</div>
       </div>
       <div class="header-right">
         <el-input
@@ -32,7 +32,7 @@
       :columns="stockOutTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-      :data="pagedFilteredList"
+      :data="list"
       row-key="id"
       v-loading="loading"
       @row-dblclick="onRowDblclick"
@@ -143,17 +143,18 @@
         class="list-main-pagination"
         v-model:current-page="listPage"
         v-model:page-size="listPageSize"
-        :total="filteredListTotal"
+        :total="listTotal"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
-        @size-change="listPage = 1"
+        @current-change="() => void runStockOutListFetch(false)"
+        @size-change="onStockOutListPageSizeChange"
       />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -173,6 +174,7 @@ const authStore = useAuthStore()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
 const list = ref<StockOutDto[]>([])
+const listTotal = ref(0)
 const listPage = ref(1)
 const listPageSize = ref(20)
 const keyword = ref('')
@@ -229,13 +231,13 @@ function syncKeywordFromRoute() {
 
 watch(
   () => route.query,
-  () => syncKeywordFromRoute(),
+  () => {
+    syncKeywordFromRoute()
+    void runStockOutListFetch(true)
+  },
   { deep: true, immediate: true }
 )
 
-watch(keyword, () => {
-  listPage.value = 1
-})
 
 const formatNum = (v: number) => (v == null ? t('quoteList.na') : Number(v).toLocaleString())
 const formatDate = (v?: string) => formatDisplayDateTime(v)
@@ -257,28 +259,8 @@ const statusLabel = (s: number) => {
   }
 }
 
-const filteredList = computed(() => {
-  if (!keyword.value) return list.value
-  const k = keyword.value.toLowerCase()
-  return list.value.filter(
-    (x) =>
-      (x.stockOutCode || '').toLowerCase().includes(k) ||
-      (x.sourceCode && x.sourceCode.toLowerCase().includes(k)) ||
-      (x.sellOrderItemCode && String(x.sellOrderItemCode).toLowerCase().includes(k)) ||
-      (x.shipmentMethod && String(x.shipmentMethod).toLowerCase().includes(k)) ||
-      (x.courierTrackingNo && String(x.courierTrackingNo).toLowerCase().includes(k))
-  )
-})
-
-const filteredListTotal = computed(() => filteredList.value.length)
-const pagedFilteredList = computed(() => {
-  const rows = filteredList.value
-  const start = (listPage.value - 1) * listPageSize.value
-  return rows.slice(start, start + listPageSize.value)
-})
-
-watch(filteredListTotal, () => {
-  const maxP = Math.max(1, Math.ceil(filteredListTotal.value / listPageSize.value) || 1)
+watch(listTotal, () => {
+  const maxP = Math.max(1, Math.ceil(listTotal.value / listPageSize.value) || 1)
   if (listPage.value > maxP) listPage.value = maxP
 })
 
@@ -286,7 +268,14 @@ async function runStockOutListFetch(resetPage: boolean) {
   if (resetPage) listPage.value = 1
   loading.value = true
   try {
-    list.value = await stockOutApi.getAll()
+    const kw = keyword.value.trim()
+    const res = await stockOutApi.getListPaged({
+      keyword: kw || undefined,
+      page: listPage.value,
+      pageSize: listPageSize.value
+    })
+    list.value = res.items
+    listTotal.value = res.total
   } catch (e) {
     console.error(e)
     ElMessage.error(t('stockOutList.messages.loadFailed'))
@@ -295,8 +284,12 @@ async function runStockOutListFetch(resetPage: boolean) {
   }
 }
 
-const fetchList = () => void runStockOutListFetch(true)
 const refreshStockOutList = () => void runStockOutListFetch(false)
+
+function onStockOutListPageSizeChange() {
+  listPage.value = 1
+  void runStockOutListFetch(false)
+}
 
 const handleSearch = () => {
   const k = keyword.value.trim()
@@ -374,9 +367,6 @@ const handleForceDeleteRow = async (row: StockOutDto) => {
   }
 }
 
-onMounted(() => {
-  void fetchList()
-})
 </script>
 
 <style scoped lang="scss">

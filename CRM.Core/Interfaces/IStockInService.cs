@@ -44,6 +44,13 @@ namespace CRM.Core.Interfaces
         Task<StockIn> CreateAsync(CreateStockInRequest request, string? actingUserId = null);
         Task<StockIn?> GetByIdAsync(string id);
         Task<IReadOnlyList<StockInListItemDto>> GetListAsync(StockInQueryRequest? request = null);
+
+        /// <summary>入库单列表：数据库分页（排除调拨等由查询层约定）。</summary>
+        Task<PagedResult<StockInListItemDto>> GetListPagedAsync(
+            StockInQueryRequest? request,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default);
         Task<StockIn> UpdateAsync(string id, UpdateStockInRequest request, string? actingUserId = null);
         Task DeleteAsync(string id);
         /// <summary>管理员强制删除：校验入库单号、调用删除链并写操作日志。</summary>

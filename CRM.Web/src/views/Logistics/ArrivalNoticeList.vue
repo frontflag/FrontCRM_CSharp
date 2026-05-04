@@ -61,7 +61,7 @@
       :columns="arrivalNoticeColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-      :data="pagedList"
+      :data="list"
       v-loading="loading"
     >
       <template #col-status="{ row }">
@@ -181,7 +181,8 @@
         :total="listTotal"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
-        @size-change="listPage = 1"
+        @current-change="() => void applyArrivalList(false)"
+        @size-change="onArrivalPageSizeChange"
       />
     </div>
 
@@ -266,11 +267,7 @@ const loading = ref(false)
 const list = ref<StockInNotifyDto[]>([])
 const listPage = ref(1)
 const listPageSize = ref(20)
-const listTotal = computed(() => list.value.length)
-const pagedList = computed(() => {
-  const start = (listPage.value - 1) * listPageSize.value
-  return list.value.slice(start, start + listPageSize.value)
-})
+const listTotal = ref(0)
 watch(listTotal, () => {
   const maxP = Math.max(1, Math.ceil(listTotal.value / listPageSize.value) || 1)
   if (listPage.value > maxP) listPage.value = maxP
@@ -400,16 +397,29 @@ const regionTypeLabel = (row: StockInNotifyDto) => {
   return n === REGION_TYPE_OVERSEAS ? t('inventoryList.warehouse.regionOverseas') : t('inventoryList.warehouse.regionDomestic')
 }
 
+function onArrivalPageSizeChange() {
+  listPage.value = 1
+  void applyArrivalList(false)
+}
+
 function applyArrivalList(resetPage: boolean) {
   if (resetPage) listPage.value = 1
   loading.value = true
-  logisticsApi.getArrivalNotices({
-    status: filters.value.status,
-    purchaseOrderCode: filters.value.purchaseOrderCode.trim() || undefined,
-    expectedArrivalDate: filters.value.expectedArrivalDate || undefined
-  })
-    .then(res => { list.value = (res || []).sort((a, b) => (a.createTime < b.createTime ? 1 : -1)) })
-    .finally(() => { loading.value = false })
+  logisticsApi
+    .getArrivalNotices({
+      status: filters.value.status,
+      purchaseOrderCode: filters.value.purchaseOrderCode.trim() || undefined,
+      expectedArrivalDate: filters.value.expectedArrivalDate || undefined,
+      page: listPage.value,
+      pageSize: listPageSize.value
+    })
+    .then(res => {
+      list.value = res.items || []
+      listTotal.value = res.total
+    })
+    .finally(() => {
+      loading.value = false
+    })
 }
 
 const loadData = () => applyArrivalList(true)

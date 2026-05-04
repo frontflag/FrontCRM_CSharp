@@ -563,11 +563,17 @@ async function loadRelated(d: PickingTaskDetailView) {
 
   relatedLoading.value = true
   try {
-    const [requests, outs] = await Promise.all([stockOutApi.getRequestList(), stockOutApi.getAll()])
     const c = normCode(code)
-    const req = requests.find((x) => normCode(x.requestCode || '') === c) ?? null
+    const [reqPage, outPage] = await Promise.all([
+      stockOutApi.getRequestListPaged({ keyword: code.trim() || undefined, page: 1, pageSize: 100 }),
+      stockOutApi.getListPaged({ sourceCode: code.trim() || undefined, page: 1, pageSize: 200 })
+    ])
+    const req =
+      reqPage.items.find((x) => normCode(x.requestCode || '') === c) ??
+      reqPage.items[0] ??
+      null
     matchedRequest.value = req
-    relatedStockOuts.value = outs.filter((x) => normCode(String(x.sourceCode || '')) === c)
+    relatedStockOuts.value = outPage.items.filter((x) => normCode(String(x.sourceCode || '')) === c)
 
     if (req) {
       const soId = String(req.salesOrderId || '').trim()

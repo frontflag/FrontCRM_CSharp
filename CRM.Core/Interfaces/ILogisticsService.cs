@@ -12,6 +12,13 @@ namespace CRM.Core.Interfaces
         Task UpdateArrivalNoticeStatusAsync(string id, short status);
 
         Task<IReadOnlyList<QCInfo>> GetQcsAsync(QcQueryRequest? request = null);
+
+        /// <summary>质检列表：数据库分页后再做行展示填充与列表侧自愈（与 <see cref="GetQcsAsync"/> 展示口径一致）。</summary>
+        Task<PagedResult<QCInfo>> GetQcsPagedAsync(
+            int page,
+            int pageSize,
+            QcQueryRequest? request = null,
+            CancellationToken cancellationToken = default);
         Task<QCInfo> CreateQcAsync(CreateQcRequest request, string? actingUserId = null);
         Task<QCInfo> UpdateQcResultAsync(string id, UpdateQcResultRequest request, string? actingUserId = null);
         Task BindQcStockInAsync(string id, string stockInId, string? actingUserId = null);
@@ -62,6 +69,9 @@ namespace CRM.Core.Interfaces
 
     public class QcQueryRequest
     {
+        /// <summary>按质检主键精确筛选（编辑页等场景）。</summary>
+        public string? QcId { get; set; }
+
         public string? Model { get; set; }
         public string? VendorName { get; set; }
         public string? PurchaseOrderCode { get; set; }

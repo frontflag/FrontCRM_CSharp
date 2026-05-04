@@ -88,6 +88,16 @@ export type RefreshStockLedgerResult = {
   currencyDefaulted: number
 }
 
+export type RefreshSellOrderCommentSplitResult = {
+  totalWithComment: number
+  rowsProcessed: number
+}
+
+export type RefreshSellOrderItemCustomerPnFromCommentResult = {
+  totalWithComment: number
+  rowsFilled: number
+}
+
 export type RefreshPurchaseOrderMainStatusResult = {
   totalOrders: number
   changedOrders: number
@@ -134,6 +144,28 @@ export async function refreshStockLedger(): Promise<RefreshStockLedgerResult> {
     stockOutUpdated: Number(inner?.stockOutUpdated ?? inner?.StockOutUpdated ?? 0),
     stockOutReverseUpdated: Number(inner?.stockOutReverseUpdated ?? inner?.StockOutReverseUpdated ?? 0),
     currencyDefaulted: Number(inner?.currencyDefaulted ?? inner?.CurrencyDefaulted ?? 0)
+  }
+}
+
+/** POST /api/v1/debug/refresh-sellorder-comment-split — 将 sellorder.comment 拆入结构化列并清空 comment */
+export async function refreshSellOrderCommentSplit(): Promise<RefreshSellOrderCommentSplitResult> {
+  const raw = await apiClient.post<any>('/api/v1/debug/refresh-sellorder-comment-split', {})
+  const outer = (raw?.data ?? raw?.Data ?? raw) as Record<string, any>
+  const inner = (outer?.data ?? outer?.Data ?? outer) as Record<string, any>
+  return {
+    totalWithComment: Number(inner?.totalWithComment ?? inner?.TotalWithComment ?? 0),
+    rowsProcessed: Number(inner?.rowsProcessed ?? inner?.RowsProcessed ?? 0)
+  }
+}
+
+/** POST /api/v1/debug/refresh-sellorderitem-customer-pn-from-comment — 从行 comment 解析客户物料型号写入 customer_pn（仅填空） */
+export async function refreshSellOrderItemCustomerPnFromComment(): Promise<RefreshSellOrderItemCustomerPnFromCommentResult> {
+  const raw = await apiClient.post<any>('/api/v1/debug/refresh-sellorderitem-customer-pn-from-comment', {})
+  const outer = (raw?.data ?? raw?.Data ?? raw) as Record<string, any>
+  const inner = (outer?.data ?? outer?.Data ?? outer) as Record<string, any>
+  return {
+    totalWithComment: Number(inner?.totalWithComment ?? inner?.TotalWithComment ?? 0),
+    rowsFilled: Number(inner?.rowsFilled ?? inner?.RowsFilled ?? 0)
   }
 }
 

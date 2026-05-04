@@ -153,6 +153,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<ApprovalRecord> ApprovalRecords { get; set; } = null!;
         public DbSet<OrderJourneyLog> OrderJourneyLogs { get; set; } = null!;
         public DbSet<LoginLog> LoginLogs { get; set; } = null!;
+        public DbSet<OperationLog> OperationLogs { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -1641,6 +1642,26 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.GeoSource).IsRequired().HasMaxLength(32);
                 entity.HasIndex(e => e.LoginAt);
                 entity.HasIndex(e => e.UserId);
+            });
+
+            modelBuilder.Entity<OperationLog>(entity =>
+            {
+                entity.ToTable("log_operation");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasMaxLength(36);
+                entity.Property(e => e.BizType).IsRequired().HasMaxLength(64);
+                entity.Property(e => e.RecordId).IsRequired();
+                entity.Property(e => e.RecordCode).HasMaxLength(128);
+                entity.Property(e => e.ActionType).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.OperationTime);
+                entity.Property(e => e.OperatorUserId);
+                entity.Property(e => e.OperatorUserName).HasMaxLength(100);
+                entity.Property(e => e.Reason);
+                entity.Property(e => e.ExtraInfo);
+                entity.Property(e => e.SysRemark);
+                entity.Property(e => e.OperationDesc);
+                entity.HasIndex(e => e.OperationTime);
+                entity.HasIndex(e => new { e.BizType, e.RecordId });
             });
         }
     }

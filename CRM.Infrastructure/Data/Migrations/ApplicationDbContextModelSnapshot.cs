@@ -5194,6 +5194,11 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasColumnType("character varying(36)")
                         .HasColumnName("customer_id");
 
+                    b.Property<string>("CustomerContactName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("customer_contact_name");
+
                     b.Property<string>("CustomerName")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
@@ -5228,6 +5233,11 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("item_rows");
 
+                    b.Property<string>("InvoiceInfo")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("invoice_info");
+
                     b.Property<string>("ModifyByUserId")
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)")
@@ -5238,6 +5248,16 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.Property<long?>("ModifyUserId")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("PaymentTermsText")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("payment_terms_text");
+
+                    b.Property<string>("ProductKind")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("product_kind");
 
                     b.Property<string>("PurchaseGroupId")
                         .HasMaxLength(36)
@@ -5353,10 +5373,20 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasColumnType("smallint")
                         .HasColumnName("currency");
 
-                    b.Property<string>("CustomerPnNo")
+                    b.Property<string>("CustomerBrand")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
-                        .HasColumnName("customer_pn_no");
+                        .HasColumnName("customer_brand");
+
+                    b.Property<string>("CustomerPn")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("customer_pn");
+
+                    b.Property<string>("CustomerSo")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("customer_so");
 
                     b.Property<string>("DateCode")
                         .HasMaxLength(100)

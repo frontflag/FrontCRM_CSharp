@@ -269,7 +269,11 @@ export const customerApi = {
   // 搜索客户列表
   async searchCustomers(params: CustomerSearchRequest): Promise<CustomerSearchResponse> {
     const queryParams = new URLSearchParams();
-    if (params.pageNumber) queryParams.append('pageNumber', params.pageNumber.toString());
+    const pageVal = params.page ?? params.pageNumber ?? 1;
+    if (pageVal >= 1) {
+      queryParams.append('page', String(pageVal));
+      queryParams.append('pageNumber', String(pageVal));
+    }
     if (params.pageSize) queryParams.append('pageSize', params.pageSize.toString());
     if (params.searchTerm) queryParams.append('searchTerm', params.searchTerm);
     if (params.customerType !== undefined && params.customerType > 0) queryParams.append('customerType', params.customerType.toString());
@@ -289,6 +293,8 @@ export const customerApi = {
     }
     if (params.sortBy) queryParams.append('sortBy', params.sortBy);
     if (params.sortDescending !== undefined) queryParams.append('sortDescending', params.sortDescending.toString());
+    if (params.favoriteOnly) queryParams.append('favoriteOnly', 'true');
+    if (params.favoriteIds) queryParams.append('favoriteIds', params.favoriteIds);
 
     const response = await apiClient.get<any>(`/api/v1/customers?${queryParams.toString()}`);
     const data = response || { items: [], totalCount: 0 };
@@ -417,9 +423,9 @@ export const customerApi = {
   },
 
   // 获取回收站列表
-  async getRecycleBin(params: { pageIndex?: number; pageSize?: number; keyword?: string } = {}): Promise<any> {
+  async getRecycleBin(params: { page?: number; pageSize?: number; keyword?: string } = {}): Promise<any> {
     const q = new URLSearchParams();
-    q.append('pageIndex', String(params.pageIndex ?? 1));
+    q.append('page', String(params.page ?? 1));
     q.append('pageSize', String(params.pageSize ?? 20));
     if (params.keyword) q.append('keyword', params.keyword);
     const res = await apiClient.get<any>(`/api/v1/customers/recycle-bin?${q.toString()}`);
@@ -435,9 +441,9 @@ export const customerApi = {
   },
 
   // 获取黑名单列表
-  async getBlacklist(params: { pageIndex?: number; pageSize?: number; keyword?: string } = {}): Promise<any> {
+  async getBlacklist(params: { page?: number; pageSize?: number; keyword?: string } = {}): Promise<any> {
     const q = new URLSearchParams();
-    q.append('pageIndex', String(params.pageIndex ?? 1));
+    q.append('page', String(params.page ?? 1));
     q.append('pageSize', String(params.pageSize ?? 20));
     if (params.keyword) q.append('keyword', params.keyword);
     const res = await apiClient.get<any>(`/api/v1/customers/blacklist?${q.toString()}`);
@@ -448,9 +454,9 @@ export const customerApi = {
   },
 
   // 获取冻结客户列表
-  async getFrozen(params: { pageIndex?: number; pageSize?: number; keyword?: string } = {}): Promise<any> {
+  async getFrozen(params: { page?: number; pageSize?: number; keyword?: string } = {}): Promise<any> {
     const q = new URLSearchParams();
-    q.append('page', String(params.pageIndex ?? 1));
+    q.append('page', String(params.page ?? 1));
     q.append('pageSize', String(params.pageSize ?? 20));
     if (params.keyword) q.append('keyword', params.keyword);
     const res = await apiClient.get<any>(`/api/v1/customers/frozen?${q.toString()}`);

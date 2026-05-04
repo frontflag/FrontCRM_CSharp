@@ -9,7 +9,7 @@ namespace CRM.Core.Interfaces
         Task<RFQ> CreateAsync(CreateRFQRequest request, string? actingUserId = null);
         /// <param name="viewerUserId">当前查看者用户 ID；传入且不具备 customer.info.read 时，响应中脱敏客户相关字段。</param>
         Task<RFQ?> GetByIdAsync(string id, string? viewerUserId = null);
-        Task<PagedResult<RFQListItem>> GetPagedAsync(RFQQueryRequest request);
+        Task<RFQListPagedResult> GetPagedAsync(RFQQueryRequest request);
         /// <summary>需求明细分页（联主表、客户、业务员，含数据权限）</summary>
         Task<PagedResult<RFQItemListItem>> GetPagedItemsAsync(RFQItemQueryRequest request);
         /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
@@ -88,6 +88,12 @@ namespace CRM.Core.Interfaces
         public List<CreateRFQItemRequest>? Items { get; set; }
     }
 
+    /// <summary>需求主列表 HTTP 分页结果（含全量筛选维度统计卡片数据）。</summary>
+    public sealed class RFQListPagedResult : PagedResult<RFQListItem>
+    {
+        public RfqMainListAggregates? Aggregates { get; set; }
+    }
+
     public class RFQQueryRequest
     {
         public int PageIndex { get; set; } = 1;
@@ -145,6 +151,9 @@ namespace CRM.Core.Interfaces
         /// <summary>为 true 时仅返回至少存在一条关联报价单（quote.rfq_item_id）的需求明细</summary>
         public bool? HasQuotesOnly { get; set; }
         public string? CurrentUserId { get; set; }
+
+        /// <summary>具备 customer.info.read 等时由服务层置为 true；否则物料型号筛选不包含客户物料号。</summary>
+        public bool CanViewCustomerInList { get; set; } = true;
     }
 
     /// <summary>需求明细列表行（主表扩展字段供前端展示）</summary>

@@ -10,6 +10,7 @@ using CRM.Core.Models.System;
 using CRM.Core.Models.Vendor;
 using CRM.Core.Services;
 using CRM.Core.Tests.Fakes;
+using CRM.TestCommon.Rfq;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -80,7 +81,9 @@ public sealed class RFQModuleBusinessWorkflowTests
                     RoleCodes = Array.Empty<string>(),
                     PermissionCodes = Array.Empty<string>()
                 });
-            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, SysParamRepo, RbacRoleRepo, RbacUserRoleRepo, RbacDepartmentRepo, RbacUserDepartmentRepo, QuoteRepo, UserRepo, rbac, NullLogger<RFQService>.Instance);
+            var rfqMain = new MemoryRfqMainListQuery(RfqRepo, CustomerRepo, UserService, DataPermission);
+            var rfqItem = new MemoryRfqItemListQuery(RfqRepo, ItemRepo, CustomerRepo, QuoteRepo, UserService, DataPermission);
+            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, SysParamRepo, RbacRoleRepo, RbacUserRoleRepo, RbacDepartmentRepo, RbacUserDepartmentRepo, QuoteRepo, UserRepo, rbac, rfqMain, rfqItem, NullLogger<RFQService>.Instance);
         }
 
         private sealed class ConcurrentInt

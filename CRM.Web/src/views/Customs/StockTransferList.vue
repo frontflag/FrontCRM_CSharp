@@ -31,7 +31,7 @@
         <el-input v-model="filters.toWarehouseId" clearable style="width: 160px" />
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="load">{{ t('customsPages.declarations.search') }}</el-button>
+        <el-button type="primary" @click="searchTransfers">{{ t('customsPages.declarations.search') }}</el-button>
       </el-form-item>
     </el-form>
 
@@ -62,6 +62,17 @@
         </template>
       </el-table-column>
     </el-table>
+    <div class="pagination-bar">
+      <el-pagination
+        v-model:current-page="transferPage"
+        v-model:page-size="transferPageSize"
+        :total="listTotal"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="onTransferPageSizeChange"
+        @current-change="loadTransfersPage"
+      />
+    </div>
 
     <el-dialog v-model="detailVisible" :title="t('customsPages.transfers.detailTitle')" width="560px" destroy-on-close>
       <el-descriptions v-if="detailRow" :column="1" border>
@@ -85,6 +96,9 @@ import { confirmStockTransfer, fetchStockTransfers, type StockTransferListItemDt
 const { t } = useI18n()
 const loading = ref(false)
 const list = ref<StockTransferListItemDto[]>([])
+const listTotal = ref(0)
+const transferPage = ref(1)
+const transferPageSize = ref(20)
 const filters = reactive<{
   status?: number
   pendingOnly: boolean
@@ -111,10 +125,14 @@ function transferStatusLabel(row: StockTransferListItemDto) {
   return row.isConfirmed ? t('customsPages.transfers.statusConfirmed') : t('customsPages.transfers.statusPending')
 }
 
-async function load() {
+async function loadTransfers(resetPage: boolean) {
+  if (resetPage) transferPage.value = 1
   loading.value = true
   try {
-    const params: Record<string, unknown> = { take: 500 }
+    const params: Record<string, unknown> = {
+      page: transferPage.value,
+      pageSize: transferPageSize.value
+    }
     if (filters.status != null) params.status = filters.status
     if (filters.pendingOnly) params.pendingConfirm = true
     if (filters.confirmedRange?.length === 2) {
@@ -124,12 +142,28 @@ async function load() {
     if (filters.declarationCode.trim()) params.declarationCode = filters.declarationCode.trim()
     if (filters.fromWarehouseId.trim()) params.fromWarehouseId = filters.fromWarehouseId.trim()
     if (filters.toWarehouseId.trim()) params.toWarehouseId = filters.toWarehouseId.trim()
-    list.value = await fetchStockTransfers(params)
+    const res = await fetchStockTransfers(params)
+    list.value = res.items
+    listTotal.value = res.total
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : String(e))
+    list.value = []
+    listTotal.value = 0
   } finally {
     loading.value = false
   }
+}
+
+function searchTransfers() {
+  void loadTransfers(true)
+}
+
+function onTransferPageSizeChange() {
+  void loadTransfers(true)
+}
+
+function loadTransfersPage() {
+  void loadTransfers(false)
 }
 
 async function confirmOne(row: StockTransferListItemDto) {
@@ -144,7 +178,7 @@ async function confirmOne(row: StockTransferListItemDto) {
   try {
     await confirmStockTransfer(row.id)
     ElMessage.success(t('customsPages.transfers.confirmOk'))
-    await load()
+    await loadTransfers(false)
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : String(e))
   }
@@ -156,7 +190,7 @@ function onDblClick(row: StockTransferListItemDto) {
 }
 
 onMounted(() => {
-  void load()
+  void loadTransfers(true)
 })
 </script>
 
@@ -177,5 +211,10 @@ onMounted(() => {
 }
 .data-table {
   width: 100%;
+}
+.pagination-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
 }
 </style>

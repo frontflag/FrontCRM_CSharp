@@ -99,7 +99,7 @@
         :columns="salesOrderTableColumns"
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-        :data="filteredList"
+        :data="orderList"
         row-key="id"
         highlight-current-row
         @row-dblclick="handleView"
@@ -221,7 +221,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -333,25 +333,15 @@ const salesOrderTableColumns = computed((): CrmTableColumnDef[] => {
 })
 
 // 对话框控制
-// 计算属性：筛选后的列表
-const filteredList = computed(() => {
-  let result = orderList.value
-  if (filterForm.value.code) {
-    result = result.filter(o => o.sellOrderCode.toLowerCase().includes(filterForm.value.code.toLowerCase()))
-  }
-  if (filterForm.value.customer) {
-    result = result.filter(o => o.customerName?.toLowerCase().includes(filterForm.value.customer.toLowerCase()))
-  }
-  if (filterForm.value.status !== undefined) {
-    result = result.filter(o => o.status === filterForm.value.status)
-  }
-  pageInfo.value.total = result.length
-  const start = (pageInfo.value.page - 1) * pageInfo.value.pageSize
-  return result.slice(start, start + pageInfo.value.pageSize)
+/** 与当前筛选条件一致的全量汇总（来自后端 aggregates，非仅当前页） */
+const listAggregates = ref({
+  totalCount: 0,
+  pendingCount: 0,
+  approvedPlusCount: 0,
+  totalAmountSum: 0
 })
 
-// 统计
-const statTotal = computed(() => orderList.value.length)
+const statTotal = computed(() => listAggregates.value.totalCount)
 const statusFilterOptions = computed(() => {
   void locale.value
   return [
@@ -365,16 +355,9 @@ const statusFilterOptions = computed(() => {
   ]
 })
 
-const terminalOkStatuses = new Set([10, 20, 100])
-
-const statPending = computed(() => orderList.value.filter(o => o.status === 1 || o.status === 2).length)
-const statApproved = computed(() => orderList.value.filter(o => terminalOkStatuses.has(o.status)).length)
-const statAmount = computed(() =>
-  orderList.value.reduce((sum, o) => {
-    const n = Number((o as { total?: unknown }).total)
-    return sum + (Number.isFinite(n) ? n : 0)
-  }, 0)
-)
+const statPending = computed(() => listAggregates.value.pendingCount)
+const statApproved = computed(() => listAggregates.value.approvedPlusCount)
+const statAmount = computed(() => listAggregates.value.totalAmountSum)
 
 // 状态处理
 const getStatusType = (status: number) => salesOrderStatusTagType(status)
@@ -382,7 +365,7 @@ const getStatusText = (status: number) => translateSalesOrderStatus(status, t)
 
 /** 分页/筛选后同步表格当前行：仍在本页则保持，否则落到本页首行 */
 function syncTableCurrentRowFromPage() {
-  const rows = filteredList.value
+  const rows = orderList.value
   if (!rows.length) {
     listFocusedOrderId.value = ''
     listTableRef.value?.setCurrentRow(undefined)
@@ -411,9 +394,54 @@ function onTableCurrentRowChange(row: Record<string, unknown> | null) {
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await salesOrderApi.getList({ page: 1, pageSize: 2000 })
-    orderList.value = (res as { items?: unknown[] }).items || []
-    pageInfo.value.total = orderList.value.length
+    const params: Record<string, unknown> = {
+      page: pageInfo.value.page,
+      pageSize: pageInfo.value.pageSize
+    }
+    const code = filterForm.value.code.trim()
+    if (code) params.code = code
+    if (canViewCustomerInfo.value) {
+      const customer = filterForm.value.customer.trim()
+      if (customer) params.customer = customer
+    }
+    if (filterForm.value.status !== undefined && filterForm.value.status !== null) {
+      params.status = filterForm.value.status
+    }
+
+    const res = (await salesOrderApi.getList(params)) as {
+      items?: any[]
+      total?: number
+      page?: number
+      pageSize?: number
+      aggregates?: {
+        totalCount?: number
+        pendingCount?: number
+        approvedPlusCount?: number
+        totalAmountSum?: number | null
+      }
+    }
+    const items = res.items ?? []
+    const nTotal = res.total ?? 0
+    if (pageInfo.value.page > 1 && items.length === 0 && nTotal > 0) {
+      pageInfo.value.page = 1
+      await loadData()
+      return
+    }
+    orderList.value = items
+    pageInfo.value.total = nTotal
+    if (typeof res.page === 'number' && res.page >= 1) pageInfo.value.page = res.page
+    if (typeof res.pageSize === 'number' && res.pageSize >= 1) pageInfo.value.pageSize = res.pageSize
+    const agg = res.aggregates
+    if (agg) {
+      listAggregates.value = {
+        totalCount: agg.totalCount ?? 0,
+        pendingCount: agg.pendingCount ?? 0,
+        approvedPlusCount: agg.approvedPlusCount ?? 0,
+        totalAmountSum: agg.totalAmountSum != null && Number.isFinite(Number(agg.totalAmountSum)) ? Number(agg.totalAmountSum) : 0
+      }
+    } else {
+      listAggregates.value = { totalCount: nTotal, pendingCount: 0, approvedPlusCount: 0, totalAmountSum: 0 }
+    }
     syncTableCurrentRowFromPage()
   } catch (error) {
     ElMessage.error(t('salesOrderList.loadFailed'))
@@ -438,7 +466,10 @@ function syncFiltersFromRoute() {
 
 watch(
   () => [route.name, route.query] as const,
-  () => syncFiltersFromRoute(),
+  async () => {
+    syncFiltersFromRoute()
+    if (route.name === 'SalesOrderList') await loadData()
+  },
   { deep: true, immediate: true }
 )
 
@@ -452,29 +483,30 @@ const handleSearch = () => {
   if (filterForm.value.status !== undefined && filterForm.value.status !== null) {
     query.status = String(filterForm.value.status)
   }
-  router.replace({ name: 'SalesOrderList', query })
   pageInfo.value.page = 1
+  router.replace({ name: 'SalesOrderList', query })
 }
 
 const handleReset = () => {
   filterForm.value = { code: '', customer: '', status: undefined }
-  router.replace({ name: 'SalesOrderList', query: {} })
   pageInfo.value.page = 1
+  router.replace({ name: 'SalesOrderList', query: {} })
 }
 
 // 分页
 const handleSizeChange = (val: number) => {
   pageInfo.value.pageSize = val
+  pageInfo.value.page = 1
+  void loadData()
 }
 
-const handlePageChange = (val: number) => {
-  pageInfo.value.page = val
+const handlePageChange = () => {
+  void loadData()
 }
 
-/** 分页 / 筛选变化时同步表格当前行 */
+/** 分页后同步表格当前行 */
 watch(
-  () =>
-    [pageInfo.value.page, pageInfo.value.pageSize, filterForm.value.code, filterForm.value.customer, filterForm.value.status, orderList.value.length] as const,
+  () => [pageInfo.value.page, pageInfo.value.pageSize, orderList.value.length] as const,
   () => {
     if (!orderList.value.length) return
     syncTableCurrentRowFromPage()
@@ -515,7 +547,6 @@ const submitForAudit = async (row: any) => {
   }
 }
 
-onMounted(loadData)
 </script>
 
 <style scoped lang="scss">

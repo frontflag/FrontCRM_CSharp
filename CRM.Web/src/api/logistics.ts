@@ -68,13 +68,34 @@ export interface QcInfoDto {
 
 const unwrap = <T>(res: any): T => (res?.data ?? res) as T
 
+/** 与《翻页查询规范》一致：<code>data.items</code> / <code>data.total</code> / <code>data.page</code> / <code>data.pageSize</code> */
+export type ListPaged<T> = { items: T[]; total: number; page: number; pageSize: number }
+
+function unwrapListPaged<T>(res: any): ListPaged<T> {
+  const d = res?.data ?? res
+  if (d && typeof d === 'object' && Array.isArray(d.items)) {
+    return {
+      items: d.items as T[],
+      total: Number(d.total ?? 0),
+      page: Number(d.page ?? 1),
+      pageSize: Number(d.pageSize ?? 20)
+    }
+  }
+  return { items: [], total: 0, page: 1, pageSize: 20 }
+}
+
 export const logisticsApi = {
   async getArrivalNotices(params?: {
     status?: number
     purchaseOrderCode?: string
     expectedArrivalDate?: string
-  }): Promise<StockInNotifyDto[]> {
-    return unwrap<StockInNotifyDto[]>(await apiClient.get('/api/v1/logistics/arrival-notices', { params }))
+    /** 按到货通知主键精确查（编辑/联动场景） */
+    id?: string
+    page?: number
+    pageSize?: number
+  }): Promise<ListPaged<StockInNotifyDto>> {
+    const res = await apiClient.get<any>('/api/v1/logistics/arrival-notices', { params })
+    return unwrapListPaged<StockInNotifyDto>(res)
   },
   async createArrivalNotice(payload: {
     purchaseOrderItemId: string
@@ -97,14 +118,16 @@ export const logisticsApi = {
     })
   },
   async getQcs(params?: {
+    qcId?: string
     model?: string
     vendorName?: string
     purchaseOrderCode?: string
     salesOrderCode?: string
-  }): Promise<QcInfoDto[]> {
+    page?: number
+    pageSize?: number
+  }): Promise<ListPaged<QcInfoDto>> {
     const res = await apiClient.get<any>('/api/v1/logistics/qcs', { params })
-    const payload = res?.data ?? res
-    return Array.isArray(payload) ? (payload as QcInfoDto[]) : []
+    return unwrapListPaged<QcInfoDto>(res)
   },
   async createQc(stockInNotifyId: string): Promise<QcInfoDto> {
     return unwrap<QcInfoDto>(await apiClient.post('/api/v1/logistics/qcs', { stockInNotifyId }))

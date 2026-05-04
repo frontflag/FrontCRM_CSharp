@@ -139,8 +139,22 @@ namespace CRM.Core.Interfaces
         public DateTime? DeliveryDate { get; set; }
         /// <summary>送货地址</summary>
         public string? DeliveryAddress { get; set; }
-        /// <summary>备注</summary>
+
+        /// <summary>产品类型（现货/期货等）。</summary>
+        public string? ProductKind { get; set; }
+
+        /// <summary>客户联系人。</summary>
+        public string? CustomerContactName { get; set; }
+
+        /// <summary>发票信息。</summary>
+        public string? InvoiceInfo { get; set; }
+
+        /// <summary>账期/付款条款展示文案。</summary>
+        public string? PaymentTermsText { get; set; }
+
+        /// <summary>主表 <c>comment</c>：自由备注；若为多行历史前缀格式则由服务端解析并合并进结构化列。</summary>
         public string? Comment { get; set; }
+
         /// <summary>明细行</summary>
         public List<CreateSalesOrderItemRequest> Items { get; set; } = new();
     }
@@ -155,8 +169,15 @@ namespace CRM.Core.Interfaces
         public string? PN { get; set; }
         /// <summary>品牌</summary>
         public string? Brand { get; set; }
-        /// <summary>客户料号</summary>
-        public string? CustomerPnNo { get; set; }
+        /// <summary>客户订单号码（原 <c>customer_pn_no</c>，现库列 <c>customer_so</c>）。</summary>
+        public string? CustomerSo { get; set; }
+
+        /// <summary>客户物料型号（库列 <c>customer_pn</c>）。</summary>
+        public string? CustomerPn { get; set; }
+
+        /// <summary>客户品牌（库列 <c>customer_brand</c>）。</summary>
+        public string? CustomerBrand { get; set; }
+
         /// <summary>销售数量</summary>
         public decimal Qty { get; set; }
         /// <summary>销售单价</summary>
@@ -181,13 +202,29 @@ namespace CRM.Core.Interfaces
         public short? Currency { get; set; }
         public DateTime? DeliveryDate { get; set; }
         public string? DeliveryAddress { get; set; }
+
+        public string? ProductKind { get; set; }
+        public string? CustomerContactName { get; set; }
+        public string? InvoiceInfo { get; set; }
+        public string? PaymentTermsText { get; set; }
+
+        /// <summary>主表 <c>comment</c>：自由备注；历史多行前缀格式可解析合并进结构化列。</summary>
         public string? Comment { get; set; }
+
         public List<CreateSalesOrderItemRequest>? Items { get; set; }
     }
 
     public class SalesOrderQueryRequest
     {
+        /// <summary>兼容旧版：单关键字匹配销售单号或客户名称（OR）。若同时传 <see cref="SellOrderCodeFilter"/> / <see cref="CustomerNameFilter"/> 则忽略本字段。</summary>
         public string? Keyword { get; set; }
+
+        /// <summary>销售单号包含（与 <see cref="CustomerNameFilter"/>、状态等为 AND）。</summary>
+        public string? SellOrderCodeFilter { get; set; }
+
+        /// <summary>客户名称包含。</summary>
+        public string? CustomerNameFilter { get; set; }
+
         public short? Status { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
