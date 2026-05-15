@@ -23,11 +23,18 @@
         <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item label="供应商银行" required>
-              <el-select v-model="paymentForm.vendorBankId" placeholder="请选择供应商银行" style="width: 100%">
-                <el-option label="中国银行" value="bank-boc" />
-                <el-option label="工商银行" value="bank-icbc" />
-                <el-option label="建设银行" value="bank-ccb" />
-                <el-option label="农业银行" value="bank-abc" />
+              <el-select
+                v-model="paymentForm.vendorBankId"
+                placeholder="请选择供应商银行"
+                filterable
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="b in paymentBankOptions"
+                  :key="b.id"
+                  :label="b.bankName"
+                  :value="b.id"
+                />
               </el-select>
             </el-form-item>
           </el-col>
@@ -293,8 +300,10 @@ import { logisticsApi } from '@/api/logistics'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBankOptions'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { paymentBankOptions, loadPaymentBankOptions } = useFinancePaymentBankOptions()
 
 const emit = defineEmits<{ success: [] }>()
 
@@ -385,7 +394,8 @@ function toDatePickerValue(v: unknown): string {
 }
 
 /** 与 PurchaseOrderItemList 行结构一致 */
-function openPayment(row: any) {
+async function openPayment(row: any) {
+  await loadPaymentBankOptions()
   paymentForm.vendorId = row.vendorId || ''
   paymentForm.vendorName = row.vendorName || ''
   paymentForm.purchaseUserName = row.purchaseUserName || ''
@@ -509,19 +519,7 @@ async function submitPayment() {
     ElMessage.warning('请填写本次请款金额，且必须大于0')
     return
   }
-  const lineRemark = paymentForm.lines
-    .filter((x: any) => x.remark)
-    .map((x: any) => `${x.pn || x.purchaseOrderCode}:${x.remark}`)
-    .join('; ')
-  const extRemark = [
-    paymentForm.remark || '',
-    `供应商银行:${paymentForm.vendorBankId}`,
-    `费用(中转/手续费/运费/杂费/尾差):${paymentForm.fee.intermediateBankFee}/${paymentForm.fee.bankCharge}/${paymentForm.fee.freight}/${paymentForm.fee.miscFee}/${paymentForm.fee.rounding}`,
-    `中转行费用承担方:${paymentForm.fee.intermediateBankFeePayer}`,
-    lineRemark ? `明细备注:${lineRemark}` : ''
-  ]
-    .filter(Boolean)
-    .join(' | ')
+  const payer = paymentForm.fee.intermediateBankFeePayer === '供应商' ? '供应商' : '我方'
 
   paymentSubmitting.value = true
   try {
@@ -532,13 +530,21 @@ async function submitPayment() {
       paymentMode: paymentForm.paymentMode,
       paymentCurrency: paymentForm.currency,
       paymentAmountToBe: paymentTotalAmount.value,
-      remark: extRemark,
+      financePaymentBankId: paymentForm.vendorBankId,
+      requestRemark: paymentForm.remark?.trim() || undefined,
+      feeIntermediateBank: Number(paymentForm.fee.intermediateBankFee || 0),
+      feeBankCharge: Number(paymentForm.fee.bankCharge || 0),
+      feeFreight: Number(paymentForm.fee.freight || 0),
+      feeMisc: Number(paymentForm.fee.miscFee || 0),
+      feeRounding: Number(paymentForm.fee.rounding || 0),
+      feeIntermediateBankPayer: payer,
       items: paymentForm.lines.map((line: any) => ({
         purchaseOrderId: line.purchaseOrderId,
         purchaseOrderItemId: line.purchaseOrderItemId,
         paymentAmountToBe: Number(line.requestAmount || 0),
         pn: line.pn,
-        brand: line.brand
+        brand: line.brand,
+        lineRemark: line.remark?.trim() || undefined
       }))
     })
     const paymentId = (created as any)?.id || (created as any)?.data?.id || (created as any)?.data?.data?.id

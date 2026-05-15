@@ -88,6 +88,7 @@ namespace CRM.Core.Services
             var entity = new VendorInfo
             {
                 Id = Guid.NewGuid().ToString(),
+                IsDeleted = false,
                 Code = request.Code.Trim(),
                 OfficialName = string.IsNullOrEmpty(official) ? null : official,
                 EnglishOfficialName = string.IsNullOrWhiteSpace(request.EnglishOfficialName)

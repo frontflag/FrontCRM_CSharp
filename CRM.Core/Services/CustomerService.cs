@@ -64,6 +64,7 @@ namespace CRM.Core.Services
             var customer = new CustomerInfo
             {
                 Id = Guid.NewGuid().ToString(),
+                IsDeleted = false,
                 CustomerCode = request.CustomerCode.Trim(),
                 OfficialName = request.OfficialName?.Trim(),
                 EnglishOfficialName = string.IsNullOrWhiteSpace(request.EnglishOfficialName)

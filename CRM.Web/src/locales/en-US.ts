@@ -137,9 +137,31 @@ const enUS = {
   },
   financeParams: {
     pageTitle: 'Finance parameters',
-    pageSubtitle: 'Manage exchange rates and other finance-related settings.',
+    pageSubtitle: 'Manage exchange rates, payment banks, and other finance-related settings.',
     navTitle: 'Categories',
     exchangeRatesNav: 'Exchange rates',
+    paymentBanksNav: 'Payment banks',
+    paymentBanksTitle: 'Payment banks',
+    paymentBanksHint:
+      'Maintain payer bank names; add, edit, or disable entries. Disabled banks are hidden from business dropdowns.',
+    paymentBanksAdd: 'Add bank',
+    paymentBanksLoadFailed: 'Failed to load payment banks',
+    colSortOrder: 'Sort',
+    colBankName: 'Bank name',
+    colStatus: 'Status',
+    colActions: 'Actions',
+    statusEnabled: 'On',
+    statusDisabled: 'Off',
+    editBtn: 'Edit',
+    fieldBankName: 'Bank name',
+    fieldSortOrder: 'Sort order',
+    fieldDisabled: 'Disabled',
+    dialogAddBank: 'Add payment bank',
+    dialogEditBank: 'Edit payment bank',
+    ruleBankName: 'Enter bank name',
+    ruleSortOrder: 'Enter sort order',
+    cancelBtn: 'Cancel',
+    switchDisabledOn: 'Disable this bank',
     exchangeTitle: 'Exchange rate',
     exchangeHint: 'Amount of foreign currency per 1 USD. Up to 4 decimal places.',
     usdToCny: 'USD / CNY',
@@ -163,7 +185,8 @@ const enUS = {
       'Exchange-rate API unavailable (often 404): deploy CRM.API that includes FinanceExchangeRateController, ensure /api is proxied to the API, and DB migrations for finance exchange rates are applied.'
   },
   layout: {
-    brandSub: 'AI Smart CRM',
+    brandFull: 'Semicore Ai Intelligent System',
+    brandSub: 'Semicore Ai Intelligent System',
     switchToLight: 'Switch to light theme',
     switchToDark: 'Switch to dark theme',
     notifications: 'Notifications',
@@ -1309,7 +1332,15 @@ const enUS = {
       createdAt: 'Created At',
       createUser: 'Created By'
     },
-    actions: { column: 'Actions', detail: 'Detail', edit: 'Edit', submitAudit: 'Submit for Review' },
+    actions: {
+      column: 'Actions',
+      detail: 'Detail',
+      edit: 'Edit',
+      submitAudit: 'Submit for Review',
+      printWarranty: 'Print warranty',
+      warrantyEn: 'Warranty (English)',
+      warrantyZh: 'Warranty (Chinese)'
+    },
     status: {
       new: 'New',
       pending: 'Pending Review',
@@ -1605,6 +1636,34 @@ const enUS = {
     labelToNameEn: 'To (Vendor): ',
     labelCodeZh: '供应商编号：',
     labelCodeEn: 'Vendor Code: ',
+    labelAddrZh: '地址：',
+    labelAddrEn: 'Address: ',
+    signIssuerZh: '需方（盖章）',
+    signIssuerEn: 'Buyer (Stamp)'
+  },
+  customerWarrantyReport: {
+    back: 'Back',
+    sealOnReport: 'Include seal',
+    sealHint: 'When off, preview, print, and PDF export omit the seal image',
+    print: 'Print',
+    exportPdf: 'Export PDF',
+    loadFailed: 'Load failed',
+    missingId: 'Missing customer ID',
+    badLang: 'Invalid language parameter',
+    pdfNoDom: 'Report content not found. Please try again.',
+    exportOk: 'PDF exported',
+    exportFailed: 'Export failed',
+    pageTitle: 'Customer quality warranty',
+    titleZh: '质量保证书',
+    titleEn: 'QUALITY WARRANTY',
+    labelNoZh: '文件编号：',
+    labelNoEn: 'Ref. No.: ',
+    labelDateZh: '日期：',
+    labelDateEn: 'Date: ',
+    labelToNameZh: '致（客户名称）：',
+    labelToNameEn: 'To (Customer): ',
+    labelCodeZh: '客户编号：',
+    labelCodeEn: 'Customer Code: ',
     labelAddrZh: '地址：',
     labelAddrEn: 'Address: ',
     signIssuerZh: '需方（盖章）',
@@ -2586,10 +2645,6 @@ const enUS = {
       purchaser: 'Buyer',
       vendorBank: 'Vendor bank',
       vendorBankPlaceholder: 'Select vendor bank',
-      bankBoc: 'Bank of China',
-      bankIcbc: 'ICBC',
-      bankCcb: 'China Construction Bank',
-      bankAbc: 'Agricultural Bank of China',
       paymentMode: 'Payment method',
       modeWire: 'Wire transfer',
       modeCash: 'Cash',
@@ -2660,6 +2715,8 @@ const enUS = {
       arrivalFailed: 'Failed to create arrival notice.',
       missingVendorId: 'Missing vendor ID; cannot create payment request.',
       selectVendorBank: 'Please select a vendor bank.',
+      paymentBanksLoadFailed:
+        'Failed to load payment banks. Try again later or ask an admin to maintain Finance parameters → Payment banks.',
       fillRequestAmount: 'Enter a payment amount greater than 0.',
       paymentNoId: 'Payment request created but no document ID was returned.',
       paymentSubmitted: 'Payment request submitted for approval.',
@@ -2987,6 +3044,10 @@ const enUS = {
       outboundNone: 'Not shipped',
       outboundPartial: 'Partially shipped',
       outboundDone: 'Fully shipped',
+      stockPresenceField: 'On-hand quantity filter',
+      stockPresenceBlank: 'Blank',
+      stockPresenceHas: 'Has on-hand qty',
+      stockPresenceNone: 'Zero on-hand qty',
       stockInCode: 'Stock-in code',
       stockItemCode: 'Stock item code',
       stockInDateRange: 'Stock-in date',
@@ -3492,6 +3553,8 @@ const enUS = {
   },
   stockOutNotifyList: {
     title: 'Stock-Out Notices',
+    detailTitle: 'Stock-Out Notice Detail',
+    executeTitle: 'Execute Stock-Out',
     count: '{count} records total',
     applyDialog: {
       regionType: 'Delivery region'
@@ -3542,8 +3605,30 @@ const enUS = {
       alreadyShipped: 'Shipped'
     },
     columnSettings: 'Column settings',
+    detail: {
+      viewOrder: 'View sales order',
+      loadRelatedFailed: 'Failed to load related data',
+      tabs: {
+        sellLine: 'Sales order line',
+        packing: 'Packing records',
+        stockOut: 'Stock-out records'
+      },
+      packingColumns: {
+        code: 'Packing No.',
+        status: 'Status',
+        createTime: 'Created at'
+      },
+      relatedEmpty: {
+        noRequest: 'Stock-out notice not loaded',
+        noRequestCode: 'No notice number; cannot load related records',
+        noSalesLine: 'No matching sales order line',
+        noPacking: 'Packing list API not available yet',
+        noStockOuts: 'No stock-out documents for this notice'
+      }
+    },
     messages: {
-      loadFailed: 'Failed to load stock-out notices'
+      loadFailed: 'Failed to load stock-out notices',
+      missingId: 'Missing stock-out notice ID; cannot open detail'
     }
   },
   pickingSlip: {
@@ -3866,6 +3951,7 @@ const enUS = {
       code: 'Payment code',
       status: 'Status',
       vendor: 'Vendor',
+      paymentBank: 'Payment bank',
       amount: 'Amount',
       mode: 'Method',
       date: 'Payment date',
@@ -3930,6 +4016,7 @@ const enUS = {
     notFound: 'Payment not found',
     noItems: 'No lines',
     noAttachments: 'No attachments',
+    feeSummaryLabel: 'Fees & payer',
     labels: {
       code: 'Payment code',
       status: 'Status',
@@ -3938,7 +4025,15 @@ const enUS = {
       mode: 'Method',
       date: 'Payment date',
       bankSlip: 'Bank slip no.',
-      remark: 'Remark',
+      paymentBank: 'Payment bank',
+      requestRemark: 'Payment request remark',
+      feeIntermediateBank: 'Correspondent bank fee',
+      feeBankCharge: 'Bank charge',
+      feeFreight: 'Freight',
+      feeMisc: 'Misc. fees',
+      feeRounding: 'Rounding',
+      feePayer: 'Correspondent fee payer',
+      remark: 'Other remarks',
       poCode: 'PO code',
       pn: 'Part number',
       brand: 'Brand',
@@ -3948,6 +4043,7 @@ const enUS = {
       poCreatedAt: 'PO created at',
       creator: 'Created by',
       verifyStatus: 'Clearing status',
+      lineRemark: 'Line remark',
       fileName: 'File name',
       uploadTime: 'Uploaded at',
       actions: 'Actions'

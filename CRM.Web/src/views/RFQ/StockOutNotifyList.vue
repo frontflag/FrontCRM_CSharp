@@ -49,16 +49,14 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="stock-out-notify-list-main"
+      column-layout-key="stock-out-notify-list-main-v2"
       :columns="stockOutNotifyColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="list"
       v-loading="loading"
+      @row-dblclick="goDetail"
     >
-      <template #col-workflow="{ row }">
-        <span class="flow-tag" :class="`flow-tag--${workflowTagKey(row)}`">{{ workflowLabel(row) }}</span>
-      </template>
       <template #col-status="{ row }">
         <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
       </template>
@@ -81,16 +79,28 @@
         </template>
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
-          <div v-if="opColExpanded" v-show="Number(row.status) !== 1" class="action-btns">
-            <button type="button" class="action-btn action-btn--warning" @click.stop="goExecute(row)">
-              {{ t('stockOutNotifyList.actions.executeStockOut') }}
-            </button>
-            <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
-            <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">强制删除</button>
-          </div>
-          <span v-else-if="Number(row.status) === 1" class="op-done">{{ t('stockOutNotifyList.actions.alreadyShipped') }}</span>
-
-          <el-dropdown v-else trigger="click" placement="bottom-end" v-if="Number(row.status) !== 1">
+          <template v-if="opColExpanded">
+            <div v-if="Number(row.status) !== 1" class="action-btns">
+              <button type="button" class="action-btn action-btn--warning" @click.stop="goExecute(row)">
+                {{ t('stockOutNotifyList.actions.executeStockOut') }}
+              </button>
+              <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
+              <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">
+                强制删除
+              </button>
+            </div>
+            <span v-else class="op-done">{{ t('stockOutNotifyList.actions.alreadyShipped') }}</span>
+          </template>
+          <template v-else>
+            <el-tooltip
+              v-if="Number(row.status) === 1"
+            :content="t('stockOutNotifyList.actions.alreadyShipped')"
+            placement="left"
+            :hide-after="0"
+          >
+            <span class="op-done op-done--collapsed" :aria-label="t('stockOutNotifyList.actions.alreadyShipped')">—</span>
+            </el-tooltip>
+            <el-dropdown v-else trigger="click" placement="bottom-end">
             <div class="op-more-dropdown-trigger">
               <button type="button" class="op-more-trigger">...</button>
             </div>
@@ -107,7 +117,8 @@
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
-          </el-dropdown>
+            </el-dropdown>
+          </template>
         </div>
       </template>
     </CrmDataTable>
@@ -149,7 +160,6 @@ import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { stockOutApi, type StockOutRequestDto } from '@/api/stockOut'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
-import { inventoryCenterApi, type PickingTask } from '@/api/inventoryCenter'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useAuthStore } from '@/stores/auth'
@@ -165,7 +175,6 @@ const list = ref<StockOutRequestDto[]>([])
 const listTotal = ref(0)
 const listPage = ref(1)
 const listPageSize = ref(20)
-const pickingTasks = ref<PickingTask[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
@@ -185,7 +194,6 @@ function toggleOpCol() {
 const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
   return [
-  { key: 'workflow', label: t('stockOutNotifyList.columns.workflow'), width: 130, align: 'center' },
   { key: 'status', label: t('stockOutNotifyList.columns.status'), prop: 'status', width: 110, align: 'center' },
   { key: 'materialModel', label: t('stockOutNotifyList.columns.materialModel'), prop: 'materialModel', width: 180, showOverflowTooltip: true },
   { key: 'brand', label: t('stockOutNotifyList.columns.brand'), prop: 'brand', width: 140, showOverflowTooltip: true },
@@ -228,24 +236,6 @@ const statusLabel = (s: number) => {
   return t('stockOutNotifyList.status.unknown')
 }
 
-function hasPickingCompleted(requestId: string): boolean {
-  return pickingTasks.value.some((t) => t.stockOutRequestId === requestId && t.status === 100)
-}
-
-/** 用于样式：pending_pick | picked | done */
-function workflowTagKey(row: StockOutRequestDto): string {
-  if (Number(row.status) === 1) return 'done'
-  if (hasPickingCompleted(row.id)) return 'picked'
-  return 'pending_pick'
-}
-
-function workflowLabel(row: StockOutRequestDto): string {
-  if (Number(row.status) === 1) return t('stockOutNotifyList.workflow.done')
-  if (Number(row.status) === 2) return t('stockOutNotifyList.workflow.cancelled')
-  if (hasPickingCompleted(row.id)) return t('stockOutNotifyList.workflow.pickedPendingOut')
-  return t('stockOutNotifyList.workflow.pendingPick')
-}
-
 const regionTypeLabel = (row: StockOutRequestDto) => {
   const r = row as unknown as Record<string, unknown>
   const n = normalizeRegionType(r.regionType ?? r.RegionType)
@@ -273,18 +263,14 @@ async function runNotifyFetch(resetPage: boolean) {
   try {
     const wf = (workflowFilter.value || 'all') as string
     const kw = keyword.value.trim()
-    const [reqPage, tasks] = await Promise.all([
-      stockOutApi.getRequestListPaged({
-        keyword: kw || undefined,
-        workflow: wf === 'all' ? undefined : wf,
-        page: listPage.value,
-        pageSize: listPageSize.value
-      }),
-      inventoryCenterApi.getPickingTasks().catch(() => [] as PickingTask[])
-    ])
+    const reqPage = await stockOutApi.getRequestListPaged({
+      keyword: kw || undefined,
+      workflow: wf === 'all' ? undefined : wf,
+      page: listPage.value,
+      pageSize: listPageSize.value
+    })
     list.value = reqPage.items
     listTotal.value = reqPage.total
-    pickingTasks.value = tasks || []
   } catch (e) {
     console.error(e)
     ElMessage.error(t('stockOutNotifyList.messages.loadFailed'))
@@ -306,6 +292,15 @@ function handleReset() {
   workflowFilter.value = 'all'
   keyword.value = ''
   void runNotifyFetch(true)
+}
+
+function goDetail(row: StockOutRequestDto) {
+  const id = String(row?.id || '').trim()
+  if (!id) {
+    ElMessage.warning(t('stockOutNotifyList.messages.missingId'))
+    return
+  }
+  router.push({ name: 'StockOutNotifyDetail', params: { id } })
 }
 
 const goExecute = (row: StockOutRequestDto) => {
@@ -539,27 +534,15 @@ onMounted(() => {
   padding: 2px 6px;
   &:hover { text-decoration: underline; }
 }
-.flow-tag {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  &--pending_pick {
-    background: rgba(255, 193, 7, 0.12);
-    color: #ffc107;
-  }
-  &--picked {
-    background: rgba(0, 212, 255, 0.12);
-    color: #00d4ff;
-  }
-  &--done {
-    background: rgba(70, 191, 145, 0.15);
-    color: #46bf91;
-  }
-}
 .op-done {
   font-size: 12px;
   color: $text-muted;
+}
+
+.op-done--collapsed {
+  display: inline-block;
+  width: 100%;
+  text-align: center;
 }
 
 .pagination-wrapper {

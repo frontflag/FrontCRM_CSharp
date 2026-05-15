@@ -86,6 +86,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<SellInvoiceItem> SellInvoiceItems { get; set; } = null!;
         public DbSet<FinanceExchangeRateSetting> FinanceExchangeRateSettings { get; set; } = null!;
         public DbSet<FinanceExchangeRateChangeLog> FinanceExchangeRateChangeLogs { get; set; } = null!;
+        public DbSet<FinancePaymentBank> FinancePaymentBanks { get; set; } = null!;
         public DbSet<PaymentRequest> PaymentRequests { get; set; } = null!;
 
         // ===== 物料主数据 =====
@@ -436,7 +437,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.City).HasMaxLength(50);
                 entity.Property(e => e.District).HasMaxLength(50);
                 entity.Property(e => e.Status).HasDefaultValue((short)1);
-                entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+                // 与 vendorinfo 一致：勿对 IsDeleted 使用 HasDefaultValue，否则插入省略列且库无 DB default 会得到 NULL。
             });
 
             // Customer Address configuration（IsDeleted：见实体 [Column("is_deleted")]；HasQueryFilter 见上文「软删除全局过滤器」）
@@ -485,7 +486,7 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<VendorInfo>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+                // 勿对 IsDeleted 使用 HasDefaultValue：插入时 EF 会省略列，而库表无 DB default 会得到 NULL 违反 NOT NULL（见供应商创建）。
                 entity.Property(e => e.Code).IsRequired().HasMaxLength(16);
                 entity.Property(e => e.OfficialName).HasMaxLength(64);
                 entity.Property(e => e.NickName).HasMaxLength(64);
@@ -1361,10 +1362,19 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Id).HasColumnName("FinancePaymentId");
                 entity.Property(e => e.FinancePaymentCode).IsRequired().HasMaxLength(16);
                 entity.Property(e => e.BankSlipNo).HasMaxLength(100);
+                entity.Property(e => e.FinancePaymentBankId).HasMaxLength(36);
+                entity.Property(e => e.RequestRemark).HasMaxLength(500);
+                entity.Property(e => e.FeeIntermediateBank).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.FeeBankCharge).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.FeeFreight).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.FeeMisc).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.FeeRounding).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.FeeIntermediateBankPayer).HasMaxLength(20);
                 entity.Property(e => e.PaymentAmount).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.PaymentAmountToBe).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.PaymentTotalAmount).HasColumnType("numeric(18,2)");
                 entity.HasIndex(e => e.FinancePaymentCode).IsUnique();
+                entity.HasIndex(e => e.FinancePaymentBankId);
                 entity.HasMany(e => e.Items)
                     .WithOne(i => i.Payment)
                     .HasForeignKey(i => i.FinancePaymentId)
@@ -1375,6 +1385,7 @@ namespace CRM.Infrastructure.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("FinancePaymentItemId");
+                entity.Property(e => e.LineRemark).HasMaxLength(500);
                 entity.Property(e => e.PaymentAmount).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.PaymentAmountToBe).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.VerificationDone).HasColumnType("numeric(18,2)");
@@ -1564,6 +1575,19 @@ namespace CRM.Infrastructure.Data
                 entity.Ignore(e => e.ModifyUserId);
                 entity.Ignore(e => e.ModifyTime);
                 entity.HasIndex(e => e.CreateTime);
+            });
+
+            modelBuilder.Entity<FinancePaymentBank>(entity =>
+            {
+                entity.ToTable("financepaymentbank");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FinancePaymentBankId").HasMaxLength(36);
+                entity.Property(e => e.BankName).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.SortOrder);
+                entity.Property(e => e.IsDisabled);
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.HasIndex(e => e.SortOrder);
             });
 
             modelBuilder.Entity<ApprovalRecord>(entity =>

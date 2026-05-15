@@ -31,18 +31,20 @@ namespace CRM.Core.Services
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<DraftDto> SaveDraftAsync(long userId, SaveDraftRequest request)
+        public async Task<DraftDto> SaveDraftAsync(long userId, SaveDraftRequest request, IReadOnlyList<string>? allowedEntityTypes = null)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
             if (string.IsNullOrWhiteSpace(request.EntityType)) throw new ArgumentException("EntityType不能为空");
 
             ValidatePayloadJson(request.PayloadJson);
             var entityType = request.EntityType.Trim().ToUpperInvariant();
+            EnsureEntityTypeAllowed(entityType, allowedEntityTypes);
 
             BizDraft draft;
             if (!string.IsNullOrWhiteSpace(request.DraftId))
             {
                 draft = await GetOwnedDraftOrThrowAsync(userId, request.DraftId);
+                EnsureEntityTypeAllowed(draft.EntityType.Trim().ToUpperInvariant(), allowedEntityTypes);
                 draft.EntityType = entityType;
                 draft.DraftName = request.DraftName?.Trim();
                 draft.PayloadJson = request.PayloadJson;
@@ -72,12 +74,23 @@ namespace CRM.Core.Services
 
         public async Task<IReadOnlyList<DraftDto>> GetDraftsAsync(long userId, GetDraftsRequest request)
         {
+            var allowed = NormalizeEntityTypeWhitelist(request.AllowedEntityTypes);
+            var typeFilterUpper = string.IsNullOrWhiteSpace(request.EntityType)
+                ? null
+                : request.EntityType.Trim().ToUpperInvariant();
+            if (allowed != null && typeFilterUpper != null && !allowed.Contains(typeFilterUpper))
+            {
+                return Array.Empty<DraftDto>();
+            }
+
             var all = await _draftRepository.FindAsync(d =>
                 d.UserId == userId &&
-                (string.IsNullOrWhiteSpace(request.EntityType) || d.EntityType == request.EntityType.Trim().ToUpperInvariant()) &&
+                (typeFilterUpper == null || d.EntityType == typeFilterUpper) &&
                 (!request.Status.HasValue || d.Status == request.Status.Value));
 
             var query = all.AsQueryable();
+            if (allowed != null)
+                query = query.Where(d => allowed.Contains(d.EntityType.Trim().ToUpperInvariant()));
             if (!string.IsNullOrWhiteSpace(request.Keyword))
             {
                 var keyword = request.Keyword.Trim().ToLowerInvariant();
@@ -92,23 +105,26 @@ namespace CRM.Core.Services
                 .ToList();
         }
 
-        public async Task<DraftDto?> GetDraftByIdAsync(long userId, string draftId)
+        public async Task<DraftDto?> GetDraftByIdAsync(long userId, string draftId, IReadOnlyList<string>? allowedEntityTypes = null)
         {
             var draft = await _draftRepository.GetByIdAsync(draftId);
             if (draft == null || draft.UserId != userId) return null;
+            if (!IsEntityTypeAllowed(draft.EntityType, allowedEntityTypes)) return null;
             return ToDto(draft);
         }
 
-        public async Task DeleteDraftAsync(long userId, string draftId)
+        public async Task DeleteDraftAsync(long userId, string draftId, IReadOnlyList<string>? allowedEntityTypes = null)
         {
             var draft = await GetOwnedDraftOrThrowAsync(userId, draftId);
+            EnsureEntityTypeAllowed(draft.EntityType.Trim().ToUpperInvariant(), allowedEntityTypes);
             await _draftRepository.DeleteAsync(draft.Id);
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task<DraftConvertResultDto> ConvertDraftAsync(long userId, string draftId, string? actingRbacUserId = null)
+        public async Task<DraftConvertResultDto> ConvertDraftAsync(long userId, string draftId, string? actingRbacUserId = null, IReadOnlyList<string>? allowedEntityTypes = null)
         {
             var draft = await GetOwnedDraftOrThrowAsync(userId, draftId);
+            EnsureEntityTypeAllowed(draft.EntityType.Trim().ToUpperInvariant(), allowedEntityTypes);
             if (draft.Status != 0) throw new InvalidOperationException("仅草稿状态可以转正式");
 
             var entityType = draft.EntityType.Trim().ToUpperInvariant();
@@ -326,6 +342,31 @@ namespace CRM.Core.Services
             if (draft == null || draft.UserId != userId)
                 throw new KeyNotFoundException("草稿不存在");
             return draft;
+        }
+
+        private static HashSet<string>? NormalizeEntityTypeWhitelist(IReadOnlyList<string>? allowed)
+        {
+            if (allowed == null || allowed.Count == 0) return null;
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var a in allowed)
+            {
+                if (string.IsNullOrWhiteSpace(a)) continue;
+                set.Add(a.Trim().ToUpperInvariant());
+            }
+            return set.Count == 0 ? null : set;
+        }
+
+        private static bool IsEntityTypeAllowed(string entityType, IReadOnlyList<string>? allowedEntityTypes)
+        {
+            var allowed = NormalizeEntityTypeWhitelist(allowedEntityTypes);
+            if (allowed == null) return true;
+            return allowed.Contains(entityType.Trim().ToUpperInvariant());
+        }
+
+        private static void EnsureEntityTypeAllowed(string entityTypeUpper, IReadOnlyList<string>? allowedEntityTypes)
+        {
+            if (IsEntityTypeAllowed(entityTypeUpper, allowedEntityTypes)) return;
+            throw new UnauthorizedAccessException($"无权限访问该类型草稿: {entityTypeUpper}");
         }
 
         private static DraftDto ToDto(BizDraft d) => new()

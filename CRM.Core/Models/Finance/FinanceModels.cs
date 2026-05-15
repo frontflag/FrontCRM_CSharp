@@ -63,9 +63,40 @@ namespace CRM.Core.Models.Finance
         [StringLength(100)]
         public string? BankSlipNo { get; set; }
 
-        /// <summary>备注</summary>
+        /// <summary>财务参数「付款银行」主键；请款场景写入。</summary>
+        [StringLength(36)]
+        public string? FinancePaymentBankId { get; set; }
+
+        /// <summary>请款人填写的申请备注（与审核等写入的 <see cref="Remark"/> 区分）。</summary>
+        [StringLength(500)]
+        public string? RequestRemark { get; set; }
+
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal FeeIntermediateBank { get; set; }
+
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal FeeBankCharge { get; set; }
+
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal FeeFreight { get; set; }
+
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal FeeMisc { get; set; }
+
+        [Column(TypeName = "numeric(18,2)")]
+        public decimal FeeRounding { get; set; }
+
+        /// <summary>中转行费用承担方：我方 / 供应商</summary>
+        [StringLength(20)]
+        public string? FeeIntermediateBankPayer { get; set; }
+
+        /// <summary>通用备注；财务手工建单、审核驳回原因等。</summary>
         [StringLength(500)]
         public string? Remark { get; set; }
+
+        /// <summary>列表/详情由后端按 <see cref="FinancePaymentBankId"/> 填充。</summary>
+        [NotMapped]
+        public string? PaymentBankName { get; set; }
 
         [StringLength(36)]
         [Column("create_by_user_id")]
@@ -136,6 +167,10 @@ namespace CRM.Core.Models.Finance
         /// <summary>待核销金额</summary>
         [Column(TypeName = "numeric(18,2)")]
         public decimal VerificationToBe { get; set; } = 0m;
+
+        /// <summary>请款明细行备注</summary>
+        [StringLength(500)]
+        public string? LineRemark { get; set; }
 
         [ForeignKey("FinancePaymentId")]
         public virtual FinancePayment? Payment { get; set; }

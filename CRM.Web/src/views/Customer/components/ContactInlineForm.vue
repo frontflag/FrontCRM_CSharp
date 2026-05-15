@@ -137,29 +137,11 @@ const formData = ref<CreateContactRequest>({
   remarks: ''
 });
 
-const mobilePhonePattern = /^1[3-9]\d{9}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const formRules: FormRules = {
   contactName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-  mobilePhone: [
-    { required: true, message: '请输入手机号码', trigger: 'blur' },
-    {
-      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
-        const v = (value || '').trim();
-        if (v === '-') {
-          callback();
-          return;
-        }
-        if (!mobilePhonePattern.test(v)) {
-          callback(new Error('请输入正确的手机号码'));
-          return;
-        }
-        callback();
-      },
-      trigger: 'blur'
-    }
-  ],
+  mobilePhone: [{ required: true, message: '请输入手机号码', trigger: 'blur' }],
   email: [
     {
       validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {

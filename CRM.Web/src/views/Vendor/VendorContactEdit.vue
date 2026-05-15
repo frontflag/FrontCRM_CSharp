@@ -158,7 +158,6 @@ const formRef = ref<FormInstance>();
 // 新建成功后保存联系人 ID，用于名片上传
 const savedContactId = ref<string | null>(contactId || null);
 
-const mobilePhonePattern = /^1[3-9]\d{9}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const formData = reactive<AddVendorContactRequest & { id?: string }>({
@@ -168,27 +167,6 @@ const formData = reactive<AddVendorContactRequest & { id?: string }>({
 });
 
 const formRules: FormRules = {
-  mobile: [
-    {
-      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
-        const v = (value || '').trim();
-        if (!v) {
-          callback();
-          return;
-        }
-        if (v === '-') {
-          callback();
-          return;
-        }
-        if (!mobilePhonePattern.test(v)) {
-          callback(new Error('请输入正确的手机号码'));
-          return;
-        }
-        callback();
-      },
-      trigger: ['blur', 'change']
-    }
-  ],
   email: [
     {
       validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {

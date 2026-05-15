@@ -11,9 +11,12 @@
       <el-form :inline="true">
         <el-form-item :label="t('draftList.filters.entityType')">
           <el-select v-model="filters.entityType" clearable :placeholder="t('draftList.filters.allEntityTypes')" style="width: 170px">
-            <el-option :label="t('draftList.entityType.CUSTOMER')" value="CUSTOMER" />
-            <el-option :label="t('draftList.entityType.VENDOR')" value="VENDOR" />
-            <el-option :label="t('draftList.entityType.RFQ')" value="RFQ" />
+            <el-option
+              v-for="code in draftEntityTypeFilterCodes"
+              :key="code"
+              :label="t(`draftList.entityType.${code}`)"
+              :value="code"
+            />
           </el-select>
         </el-form-item>
         <el-form-item :label="t('draftList.filters.status')">
@@ -123,9 +126,23 @@ import { Setting } from '@element-plus/icons-vue'
 import { draftApi, type DraftDto } from '@/api/draft'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const { t, locale } = useI18n()
+const authStore = useAuthStore()
+
+/** 与后端 DraftsController：purchase_buyer → VENDOR；主部门销售 identityType=1 或 sales_operator → CUSTOMER */
+const draftEntityTypeFilterCodes = computed(() => {
+  if (authStore.user?.isSysAdmin) return ['CUSTOMER', 'VENDOR', 'RFQ'] as const
+  const codes = authStore.user?.roleCodes ?? []
+  const isPurchaser = codes.some((c) => String(c).trim().toLowerCase() === 'purchase_buyer')
+  if (isPurchaser) return ['VENDOR'] as const
+  const idType = Number(authStore.user?.identityType ?? 0)
+  const isSalesOperator = codes.some((c) => String(c).trim().toLowerCase() === 'sales_operator')
+  if (idType === 1 || isSalesOperator) return ['CUSTOMER'] as const
+  return ['CUSTOMER', 'VENDOR', 'RFQ'] as const
+})
 
 /** 后端历史文案带中文前缀时去掉，避免与前端 i18n 标题重复 */
 function trimStr(v: unknown): string {

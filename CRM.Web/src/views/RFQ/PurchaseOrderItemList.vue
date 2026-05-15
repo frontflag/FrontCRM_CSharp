@@ -487,12 +487,15 @@
               <el-select
                 v-model="paymentForm.vendorBankId"
                 :placeholder="t('purchaseOrderItemList.paymentDialog.vendorBankPlaceholder')"
+                filterable
                 style="width: 100%"
               >
-                <el-option :label="t('purchaseOrderItemList.paymentDialog.bankBoc')" value="bank-boc" />
-                <el-option :label="t('purchaseOrderItemList.paymentDialog.bankIcbc')" value="bank-icbc" />
-                <el-option :label="t('purchaseOrderItemList.paymentDialog.bankCcb')" value="bank-ccb" />
-                <el-option :label="t('purchaseOrderItemList.paymentDialog.bankAbc')" value="bank-abc" />
+                <el-option
+                  v-for="b in paymentBankOptions"
+                  :key="b.id"
+                  :label="b.bankName"
+                  :value="b.id"
+                />
               </el-select>
             </el-form-item>
           </el-col>
@@ -815,6 +818,7 @@ import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { CurrencyCode } from '@/constants/currency'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBankOptions'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 const router = useRouter()
@@ -822,6 +826,7 @@ const route = useRoute()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { paymentBankOptions, loadPaymentBankOptions } = useFinancePaymentBankOptions()
 
 const lineTabAggregates = ref<PurchaseOrderDetailTabAggregates | null>(null)
 const poItemLinePanel = reactive({
@@ -1253,7 +1258,8 @@ function buildFinancePaymentCode() {
   return `FP${yy}${MM}${dd}${HH}${mm}${ss}${rand}`
 }
 
-function openPaymentDialog(row: any) {
+async function openPaymentDialog(row: any) {
+  await loadPaymentBankOptions()
   paymentForm.vendorId = row.vendorId || ''
   paymentForm.vendorName = row.vendorName || ''
   paymentForm.purchaseUserName = row.purchaseUserName || ''
@@ -1391,17 +1397,7 @@ async function submitPayment() {
     return
   }
 
-  const lineRemark = paymentForm.lines
-    .filter((x: any) => x.remark)
-    .map((x: any) => `${x.pn || x.purchaseOrderCode}:${x.remark}`)
-    .join('; ')
-  const extRemark = [
-    paymentForm.remark || '',
-    `供应商银行:${paymentForm.vendorBankId}`,
-    `费用(中转/手续费/运费/杂费/尾差):${paymentForm.fee.intermediateBankFee}/${paymentForm.fee.bankCharge}/${paymentForm.fee.freight}/${paymentForm.fee.miscFee}/${paymentForm.fee.rounding}`,
-    `中转行费用承担方:${paymentForm.fee.intermediateBankFeePayer}`,
-    lineRemark ? `明细备注:${lineRemark}` : ''
-  ].filter(Boolean).join(' | ')
+  const payer = paymentForm.fee.intermediateBankFeePayer === '供应商' ? '供应商' : '我方'
 
   paymentSubmitting.value = true
   try {
@@ -1412,13 +1408,21 @@ async function submitPayment() {
       paymentMode: paymentForm.paymentMode,
       paymentCurrency: paymentForm.currency,
       paymentAmountToBe: paymentTotalAmount.value,
-      remark: extRemark,
+      financePaymentBankId: paymentForm.vendorBankId,
+      requestRemark: paymentForm.remark?.trim() || undefined,
+      feeIntermediateBank: Number(paymentForm.fee.intermediateBankFee || 0),
+      feeBankCharge: Number(paymentForm.fee.bankCharge || 0),
+      feeFreight: Number(paymentForm.fee.freight || 0),
+      feeMisc: Number(paymentForm.fee.miscFee || 0),
+      feeRounding: Number(paymentForm.fee.rounding || 0),
+      feeIntermediateBankPayer: payer,
       items: paymentForm.lines.map((line: any) => ({
         purchaseOrderId: line.purchaseOrderId,
         purchaseOrderItemId: line.purchaseOrderItemId,
         paymentAmountToBe: Number(line.requestAmount || 0),
         pn: line.pn,
-        brand: line.brand
+        brand: line.brand,
+        lineRemark: line.remark?.trim() || undefined
       }))
     })
 

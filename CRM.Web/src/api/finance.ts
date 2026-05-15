@@ -25,7 +25,21 @@ export interface FinancePayment {
   paymentUserId?: string
   paymentMode: number  // 1:银行转账 2:现金 3:支票 4:承兑汇票
   bankSlipNo?: string
-  remark?: string
+  /** 财务参数-付款银行主键 */
+  financePaymentBankId?: string | null
+  /** 请款申请备注 */
+  requestRemark?: string | null
+  feeIntermediateBank?: number
+  feeBankCharge?: number
+  feeFreight?: number
+  feeMisc?: number
+  feeRounding?: number
+  /** 我方 / 供应商 */
+  feeIntermediateBankPayer?: string | null
+  /** 列表/详情由后端填充 */
+  paymentBankName?: string | null
+  /** 通用备注（审核等） */
+  remark?: string | null
   /** 后端 BaseEntity 序列化字段（camelCase: createTime） */
   createTime?: string
   /** 兼容旧前端命名 */
@@ -45,6 +59,7 @@ export interface FinancePaymentItem {
   productId?: string
   pn?: string
   brand?: string
+  lineRemark?: string | null
   verificationStatus: number  // 0未核销 1部分核销 2核销完成
   verificationDone: number
   verificationToBe: number

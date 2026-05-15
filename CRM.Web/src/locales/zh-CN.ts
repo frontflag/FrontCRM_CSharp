@@ -137,9 +137,30 @@ const zhCN = {
   },
   financeParams: {
     pageTitle: '财务参数',
-    pageSubtitle: '维护汇率等财务相关系统参数。',
+    pageSubtitle: '维护汇率、付款银行等财务相关系统参数。',
     navTitle: '参数分类',
     exchangeRatesNav: '汇率设置',
+    paymentBanksNav: '付款银行',
+    paymentBanksTitle: '付款银行',
+    paymentBanksHint: '维护付款方银行名称列表，可新增、修改或禁用条目；禁用的银行将不在业务下拉中使用。',
+    paymentBanksAdd: '新增银行',
+    paymentBanksLoadFailed: '加载付款银行列表失败',
+    colSortOrder: '排序',
+    colBankName: '银行名称',
+    colStatus: '状态',
+    colActions: '操作',
+    statusEnabled: '启用',
+    statusDisabled: '禁用',
+    editBtn: '编辑',
+    fieldBankName: '银行名称',
+    fieldSortOrder: '排序号',
+    fieldDisabled: '禁用',
+    dialogAddBank: '新增付款银行',
+    dialogEditBank: '编辑付款银行',
+    ruleBankName: '请输入银行名称',
+    ruleSortOrder: '请输入排序号',
+    cancelBtn: '取消',
+    switchDisabledOn: '禁用该银行',
     exchangeTitle: '汇率',
     exchangeHint: '以下为 1 美元（USD）兑换对应外币的数量，保留 4 位小数。',
     usdToCny: '人民币汇率',
@@ -163,7 +184,9 @@ const zhCN = {
       '汇率接口不可用（常见为 404）：请确认生产环境已部署包含汇率 API 的 CRM.API，且网关将 /api 转发到后端；数据库需已执行 finance 汇率相关迁移。'
   },
   layout: {
-    brandSub: 'AI智销系统',
+    /** 顶栏 Logo 旁完整品牌文案（与产品对外名称一致） */
+    brandFull: 'Semicore Ai智能系統',
+    brandSub: 'Semicore Ai智能系統',
     switchToLight: '切换为浅色主题',
     switchToDark: '切换为深色主题',
     notifications: '消息通知',
@@ -1288,7 +1311,15 @@ const zhCN = {
       createdAt: '创建日期',
       createUser: '创建人'
     },
-    actions: { column: '操作', detail: '详情', edit: '编辑', submitAudit: '提交审核' },
+    actions: {
+      column: '操作',
+      detail: '详情',
+      edit: '编辑',
+      submitAudit: '提交审核',
+      printWarranty: '打印质保书',
+      warrantyEn: '质保书（英文）',
+      warrantyZh: '质保书（中文）'
+    },
     status: {
       new: '新建',
       pending: '待审核',
@@ -1585,6 +1616,34 @@ const zhCN = {
     labelToNameEn: 'To (Vendor): ',
     labelCodeZh: '供应商编号：',
     labelCodeEn: 'Vendor Code: ',
+    labelAddrZh: '地址：',
+    labelAddrEn: 'Address: ',
+    signIssuerZh: '需方（盖章）',
+    signIssuerEn: 'Buyer (Stamp)'
+  },
+  customerWarrantyReport: {
+    back: '返回',
+    sealOnReport: '报表含印章',
+    sealHint: '关闭后预览、打印、导出 PDF 均不包含电子印章图',
+    print: '打印',
+    exportPdf: '导出 PDF',
+    loadFailed: '加载失败',
+    missingId: '缺少客户 ID',
+    badLang: '无效的语言参数',
+    pdfNoDom: '未找到报表内容，请稍后重试',
+    exportOk: '已导出 PDF',
+    exportFailed: '导出失败',
+    pageTitle: '客户质保书',
+    titleZh: '质量保证书',
+    titleEn: 'QUALITY WARRANTY',
+    labelNoZh: '文件编号：',
+    labelNoEn: 'Ref. No.: ',
+    labelDateZh: '日期：',
+    labelDateEn: 'Date: ',
+    labelToNameZh: '致（客户名称）：',
+    labelToNameEn: 'To (Customer): ',
+    labelCodeZh: '客户编号：',
+    labelCodeEn: 'Customer Code: ',
     labelAddrZh: '地址：',
     labelAddrEn: 'Address: ',
     signIssuerZh: '需方（盖章）',
@@ -2563,10 +2622,6 @@ const zhCN = {
       purchaser: '采购员',
       vendorBank: '供应商银行',
       vendorBankPlaceholder: '请选择供应商银行',
-      bankBoc: '中国银行',
-      bankIcbc: '工商银行',
-      bankCcb: '建设银行',
-      bankAbc: '农业银行',
       paymentMode: '请款方式',
       modeWire: '银行转账',
       modeCash: '现金',
@@ -2637,6 +2692,7 @@ const zhCN = {
       arrivalFailed: '创建到货通知失败',
       missingVendorId: '缺少供应商ID，无法创建请款单',
       selectVendorBank: '请选择供应商银行',
+      paymentBanksLoadFailed: '加载付款银行列表失败，请稍后重试或联系管理员维护「财务参数-付款银行」。',
       fillRequestAmount: '请填写本次请款金额，且必须大于0',
       paymentNoId: '创建请款单成功，但未获取到单据ID',
       paymentSubmitted: '请款单已提交审批',
@@ -2961,6 +3017,10 @@ const zhCN = {
       outboundStatus: '出库状态',
       outboundStatusAll: '全部',
       outboundNone: '未出库',
+      stockPresenceField: '是否有库存',
+      stockPresenceBlank: '空白',
+      stockPresenceHas: '有库存',
+      stockPresenceNone: '无库存',
       stockInCode: '入库单号',
       stockItemCode: '库存明细编号',
       stockInDateRange: '入库日期',
@@ -3472,6 +3532,8 @@ const zhCN = {
   },
   stockOutNotifyList: {
     title: '出库通知',
+    detailTitle: '出库通知详情',
+    executeTitle: '执行出库',
     count: '共 {count} 条',
     applyDialog: {
       regionType: '送达地域'
@@ -3522,8 +3584,30 @@ const zhCN = {
       alreadyShipped: '已出库'
     },
     columnSettings: '列设置',
+    detail: {
+      viewOrder: '查看销售订单',
+      loadRelatedFailed: '加载关联数据失败',
+      tabs: {
+        sellLine: '销售订单明细',
+        packing: '装箱记录',
+        stockOut: '出库记录'
+      },
+      packingColumns: {
+        code: '装箱单号',
+        status: '状态',
+        createTime: '创建时间'
+      },
+      relatedEmpty: {
+        noRequest: '未加载出库通知',
+        noRequestCode: '无出库通知编号，无法关联下游数据',
+        noSalesLine: '未找到对应的销售订单明细行',
+        noPacking: '装箱单列表接口尚未接入，暂无装箱记录',
+        noStockOuts: '暂无来源为该出库通知的出库单'
+      }
+    },
     messages: {
-      loadFailed: '加载出库通知列表失败'
+      loadFailed: '加载出库通知列表失败',
+      missingId: '缺少出库通知 ID，无法打开详情'
     }
   },
   pickingSlip: {
@@ -3846,6 +3930,7 @@ const zhCN = {
       code: '付款单号',
       status: '状态',
       vendor: '供应商',
+      paymentBank: '付款银行',
       amount: '付款金额',
       mode: '付款方式',
       date: '付款日期',
@@ -3910,6 +3995,7 @@ const zhCN = {
     notFound: '付款单不存在',
     noItems: '暂无明细',
     noAttachments: '暂无附件',
+    feeSummaryLabel: '费用与承担方',
     labels: {
       code: '付款单号',
       status: '状态',
@@ -3918,7 +4004,15 @@ const zhCN = {
       mode: '付款方式',
       date: '付款日期',
       bankSlip: '银行水单号',
-      remark: '备注',
+      paymentBank: '付款银行',
+      requestRemark: '请款备注',
+      feeIntermediateBank: '中转行费用',
+      feeBankCharge: '银行手续费',
+      feeFreight: '运费',
+      feeMisc: '杂费',
+      feeRounding: '尾差',
+      feePayer: '中转行费用承担方',
+      remark: '其他备注',
       poCode: '采购单号',
       pn: '型号',
       brand: '品牌',
@@ -3928,6 +4022,7 @@ const zhCN = {
       poCreatedAt: '采购订单创建日期',
       creator: '创建人',
       verifyStatus: '核销状态',
+      lineRemark: '行备注',
       fileName: '文件名',
       uploadTime: '上传时间',
       actions: '操作'

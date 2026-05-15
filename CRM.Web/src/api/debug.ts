@@ -98,6 +98,15 @@ export type RefreshSellOrderItemCustomerPnFromCommentResult = {
   rowsFilled: number
 }
 
+export type RefreshFinancePaymentLegacyRemarkResult = {
+  totalPaymentsRemarkNonEmpty: number
+  legacyPackedCandidates: number
+  parsedAndApplied: number
+  skippedMalformed: number
+  itemsLineRemarkUpdated: number
+  bankIdsResolvedFromName: number
+}
+
 export type RefreshPurchaseOrderMainStatusResult = {
   totalOrders: number
   changedOrders: number
@@ -179,5 +188,20 @@ export async function refreshPurchaseOrderMainStatus(): Promise<RefreshPurchaseO
     changedOrders: Number(inner?.changedOrders ?? inner?.ChangedOrders ?? 0),
     changedOrderCodes: Array.isArray(codesRaw) ? codesRaw.map((x: unknown) => String(x)) : [],
     skippedTerminalOrders: Number(inner?.skippedTerminalOrders ?? inner?.SkippedTerminalOrders ?? 0)
+  }
+}
+
+/** POST /api/v1/debug/refresh-financepayment-remark-from-legacy */
+export async function refreshFinancePaymentRemarkFromLegacy(): Promise<RefreshFinancePaymentLegacyRemarkResult> {
+  const raw = await apiClient.post<any>('/api/v1/debug/refresh-financepayment-remark-from-legacy', {})
+  const outer = (raw?.data ?? raw?.Data ?? raw) as Record<string, any>
+  const inner = (outer?.data ?? outer?.Data ?? outer) as Record<string, any>
+  return {
+    totalPaymentsRemarkNonEmpty: Number(inner?.totalPaymentsRemarkNonEmpty ?? inner?.TotalPaymentsRemarkNonEmpty ?? 0),
+    legacyPackedCandidates: Number(inner?.legacyPackedCandidates ?? inner?.LegacyPackedCandidates ?? 0),
+    parsedAndApplied: Number(inner?.parsedAndApplied ?? inner?.ParsedAndApplied ?? 0),
+    skippedMalformed: Number(inner?.skippedMalformed ?? inner?.SkippedMalformed ?? 0),
+    itemsLineRemarkUpdated: Number(inner?.itemsLineRemarkUpdated ?? inner?.ItemsLineRemarkUpdated ?? 0),
+    bankIdsResolvedFromName: Number(inner?.bankIdsResolvedFromName ?? inner?.BankIdsResolvedFromName ?? 0)
   }
 }

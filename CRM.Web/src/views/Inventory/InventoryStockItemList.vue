@@ -32,6 +32,17 @@
           <el-option :label="t('inventoryStockItemList.filters.outboundPartial')" :value="2" />
           <el-option :label="t('inventoryStockItemList.filters.outboundDone')" :value="3" />
         </el-select>
+        <el-select
+          v-model="filters.stockPresence"
+          class="status-select status-select--stock-presence"
+          :teleported="false"
+          :aria-label="t('inventoryStockItemList.filters.stockPresenceField')"
+          @change="fetchList"
+        >
+          <el-option :label="t('inventoryStockItemList.filters.stockPresenceBlank')" value="" />
+          <el-option :label="t('inventoryStockItemList.filters.stockPresenceHas')" value="has" />
+          <el-option :label="t('inventoryStockItemList.filters.stockPresenceNone')" value="none" />
+        </el-select>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -448,6 +459,8 @@ const filters = reactive({
   purchaseBrand: '',
   warehouseId: '',
   outboundStatus: undefined as number | undefined,
+  /** 是否有库存：''=不限，has=&gt;0，none===0 */
+  stockPresence: '' as '' | 'has' | 'none',
   customerName: '',
   vendorName: '',
   salespersonUserId: undefined as string | undefined,
@@ -477,6 +490,8 @@ function buildQuery(): StockItemListQuery {
     vendorName: filters.vendorName.trim() || undefined,
     purchaserUserId: filters.purchaserUserId?.trim() || undefined
   }
+  if (filters.stockPresence === 'has') q.repertoryHasStock = true
+  else if (filters.stockPresence === 'none') q.repertoryHasStock = false
   if (!maskSaleSensitiveFields.value) {
     q.customerName = filters.customerName.trim() || undefined
     q.salespersonUserId = filters.salespersonUserId?.trim() || undefined
@@ -514,6 +529,7 @@ const resetFilters = () => {
   filters.purchaseBrand = ''
   filters.warehouseId = ''
   filters.outboundStatus = undefined
+  filters.stockPresence = ''
   filters.customerName = ''
   filters.vendorName = ''
   filters.salespersonUserId = undefined
@@ -799,6 +815,11 @@ onMounted(async () => {
 
 .status-select--warehouse {
   width: 190px;
+}
+
+.status-select--stock-presence {
+  width: 128px;
+  min-width: 120px;
 }
 
 .stock-item-code-with-badge {

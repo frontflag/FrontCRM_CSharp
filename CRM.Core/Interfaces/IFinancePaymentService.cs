@@ -31,6 +31,18 @@ namespace CRM.Core.Interfaces
         public string? PaymentUserId { get; set; }
         public short PaymentMode { get; set; } = 1;
         public string? BankSlipNo { get; set; }
+        /// <summary>财务参数-付款银行主键；请款时建议必填。</summary>
+        public string? FinancePaymentBankId { get; set; }
+        /// <summary>请款人申请备注。</summary>
+        public string? RequestRemark { get; set; }
+        public decimal FeeIntermediateBank { get; set; }
+        public decimal FeeBankCharge { get; set; }
+        public decimal FeeFreight { get; set; }
+        public decimal FeeMisc { get; set; }
+        public decimal FeeRounding { get; set; }
+        /// <summary>我方 / 供应商</summary>
+        public string? FeeIntermediateBankPayer { get; set; }
+        /// <summary>通用备注（财务手工建单等）。</summary>
         public string? Remark { get; set; }
         public List<CreateFinancePaymentItemRequest> Items { get; set; } = new();
     }
@@ -43,6 +55,7 @@ namespace CRM.Core.Interfaces
         public string? ProductId { get; set; }
         public string? PN { get; set; }
         public string? Brand { get; set; }
+        public string? LineRemark { get; set; }
     }
 
     public class UpdateFinancePaymentRequest
@@ -53,6 +66,14 @@ namespace CRM.Core.Interfaces
         public DateTime? PaymentDate { get; set; }
         public short? PaymentMode { get; set; }
         public string? BankSlipNo { get; set; }
+        public string? FinancePaymentBankId { get; set; }
+        public string? RequestRemark { get; set; }
+        public decimal? FeeIntermediateBank { get; set; }
+        public decimal? FeeBankCharge { get; set; }
+        public decimal? FeeFreight { get; set; }
+        public decimal? FeeMisc { get; set; }
+        public decimal? FeeRounding { get; set; }
+        public string? FeeIntermediateBankPayer { get; set; }
         public string? Remark { get; set; }
     }
 

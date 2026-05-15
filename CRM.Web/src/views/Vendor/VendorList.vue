@@ -259,10 +259,10 @@
                   <el-dropdown-item disabled class="vendor-warranty-menu-heading">
                     {{ t('vendorList.actions.printWarranty') }}
                   </el-dropdown-item>
-                  <el-dropdown-item class="vendor-warranty-submenu" @click.stop="goWarrantyReport(row, 'en')">
+                  <el-dropdown-item class="vendor-warranty-submenu" @click.stop="goVendorWarrantyReport(row, 'en')">
                     {{ t('vendorList.actions.warrantyEn') }}
                   </el-dropdown-item>
-                  <el-dropdown-item class="vendor-warranty-submenu" @click.stop="goWarrantyReport(row, 'zh')">
+                  <el-dropdown-item class="vendor-warranty-submenu" @click.stop="goVendorWarrantyReport(row, 'zh')">
                     {{ t('vendorList.actions.warrantyZh') }}
                   </el-dropdown-item>
                   <el-dropdown-item v-if="row.status === 1 || row.status === -1" @click.stop="handleSubmitAudit(row)">
@@ -607,13 +607,13 @@ function onCreateDropdownCommand(cmd: string) {
 const handleView = (row: Vendor) => router.push(`/vendors/${row.id}`);
 const handleEdit = (row: Vendor) => router.push(`/vendors/${row.id}/edit`);
 
-function goWarrantyReport(row: Vendor, lang: 'en' | 'zh') {
-  if (!row?.id) return;
-  router.push({ name: 'VendorWarrantyReport', params: { id: row.id, lang } });
+function goVendorWarrantyReport(row: Vendor, lang: 'en' | 'zh') {
+  if (!row?.id) return
+  router.push({ name: 'VendorWarrantyReport', params: { id: row.id, lang } })
 }
 
 function handleWarrantyCommand(row: Vendor, cmd: string) {
-  if (cmd === 'en' || cmd === 'zh') goWarrantyReport(row, cmd);
+  if (cmd === 'en' || cmd === 'zh') goVendorWarrantyReport(row, cmd)
 }
 
 const handleSubmitAudit = async (row: Vendor) => {

@@ -93,6 +93,7 @@ declare module 'vue' {
     StockInBatchWriteOffDialog: typeof import('./src/components/Inventory/StockInBatchWriteOffDialog.vue')['default']
     StockInSearchPanel: typeof import('./src/components/Inventory/StockInSearchPanel.vue')['default']
     StockOutInvoiceReportDocument: typeof import('./src/components/stockOut/StockOutInvoiceReportDocument.vue')['default']
+    StockOutNotifyDetailTabs: typeof import('./src/components/Inventory/StockOutNotifyDetailTabs.vue')['default']
     StockOutPackingReportDocument: typeof import('./src/components/stockOut/StockOutPackingReportDocument.vue')['default']
     StockOutSearchPanel: typeof import('./src/components/Inventory/StockOutSearchPanel.vue')['default']
     TagListDisplay: typeof import('./src/components/Tag/TagListDisplay.vue')['default']

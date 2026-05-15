@@ -107,6 +107,9 @@
         <el-button type="warning" :loading="refreshingSellOrderItemCustomerPn" @click="onRefreshSellOrderItemCustomerPn">
           刷新sellorderitem
         </el-button>
+        <el-button type="primary" :loading="refreshingFinancePaymentRemark" @click="onRefreshFinancePaymentRemark">
+          刷新付款备注
+        </el-button>
       </div>
       <div class="refresh-hint">回填 STOCK_OUT / STOCK_OUT_REVERSE 的 UnitCost、Amount、currency（调试临时工具）。</div>
       <div v-if="stockLedgerRefreshResult" class="simulate-result">
@@ -130,6 +133,17 @@
         <div>扫描（comment 非空）：{{ sellOrderItemCustomerPnResult.totalWithComment }} 条</div>
         <div>已回填 customer_pn：{{ sellOrderItemCustomerPnResult.rowsFilled }} 条</div>
       </div>
+      <div class="refresh-hint refresh-hint--second">
+        「刷新付款备注」：识别采购请款旧版写入 <span class="mono">financepayment.Remark</span> 的管道串；<span class="mono">供应商银行:</span> 后为名称或历史占位串时，按 <span class="mono">financepaymentbank.BankName</span> 匹配写入真实主键。随后会扫描全表已填写的 <span class="mono">FinancePaymentBankId</span>：若非表内主键则再按名称解析一次（用于纠正已误写入的「名称/slug」）。仅调试使用。
+      </div>
+      <div v-if="financePaymentRemarkLegacyResult" class="simulate-result">
+        <div>Remark 非空付款单：{{ financePaymentRemarkLegacyResult.totalPaymentsRemarkNonEmpty }} 条</div>
+        <div>命中旧版打包形态：{{ financePaymentRemarkLegacyResult.legacyPackedCandidates }} 条</div>
+        <div>已解析并写库：{{ financePaymentRemarkLegacyResult.parsedAndApplied }} 条</div>
+        <div>形态命中但费用段无法解析：{{ financePaymentRemarkLegacyResult.skippedMalformed }} 条</div>
+        <div>明细 LineRemark 更新：{{ financePaymentRemarkLegacyResult.itemsLineRemarkUpdated }} 条</div>
+        <div>付款银行 Id 按名称纠正：{{ financePaymentRemarkLegacyResult.bankIdsResolvedFromName }} 条</div>
+      </div>
     </section>
   </div>
 </template>
@@ -144,12 +158,14 @@ import {
   refreshStockLedger,
   refreshSellOrderCommentSplit,
   refreshSellOrderItemCustomerPnFromComment,
+  refreshFinancePaymentRemarkFromLegacy,
   type SimulateBusinessChainResponse,
   type SimulateDataOrigin,
   type RfqChainPreview,
   type RefreshStockLedgerResult,
   type RefreshSellOrderCommentSplitResult,
-  type RefreshSellOrderItemCustomerPnFromCommentResult
+  type RefreshSellOrderItemCustomerPnFromCommentResult,
+  type RefreshFinancePaymentLegacyRemarkResult
 } from '@/api/debug'
 import { getApiErrorMessage } from '@/utils/apiError'
 
@@ -304,6 +320,8 @@ const refreshingSellOrderComments = ref(false)
 const sellOrderCommentSplitResult = ref<RefreshSellOrderCommentSplitResult | null>(null)
 const refreshingSellOrderItemCustomerPn = ref(false)
 const sellOrderItemCustomerPnResult = ref<RefreshSellOrderItemCustomerPnFromCommentResult | null>(null)
+const refreshingFinancePaymentRemark = ref(false)
+const financePaymentRemarkLegacyResult = ref<RefreshFinancePaymentLegacyRemarkResult | null>(null)
 
 const onPreviewRfqChain = async () => {
   const code = rfqChainCode.value.trim()
@@ -450,6 +468,31 @@ const onRefreshSellOrderItemCustomerPn = async () => {
     ElMessage.error(getApiErrorMessage(e, '刷新 sellorderitem.customer_pn 失败'))
   } finally {
     refreshingSellOrderItemCustomerPn.value = false
+  }
+}
+
+const onRefreshFinancePaymentRemark = async () => {
+  if (refreshingFinancePaymentRemark.value) return
+  try {
+    await ElMessageBox.confirm(
+      '将把旧版打包在 financepayment.Remark 中的请款信息拆入结构化列并清空 Remark。已拆过的单据（Remark 已空）不会再次处理。是否继续？',
+      '确认刷新付款备注',
+      { type: 'warning', confirmButtonText: '继续', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  refreshingFinancePaymentRemark.value = true
+  try {
+    const result = await refreshFinancePaymentRemarkFromLegacy()
+    financePaymentRemarkLegacyResult.value = result
+    ElMessage.success(
+      `已写库 ${result.parsedAndApplied} 条付款单，明细行备注 ${result.itemsLineRemarkUpdated} 条，付款银行 Id 纠正 ${result.bankIdsResolvedFromName} 条（无法解析 ${result.skippedMalformed}）`
+    )
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '刷新付款备注失败'))
+  } finally {
+    refreshingFinancePaymentRemark.value = false
   }
 }
 

@@ -83,6 +83,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '编辑客户', permission: 'customer.write' }
       },
       {
+        path: 'customers/:id/warranty/:lang',
+        name: 'CustomerWarrantyReport',
+        component: () => import('@/views/Customer/CustomerWarrantyReportPage.vue'),
+        meta: { requiresAuth: true, title: '客户质保书', permission: 'customer.read' }
+      },
+      {
         path: 'customers/:id/contacts/create',
         name: 'CustomerContactCreate',
         component: () => import('@/views/Customer/CustomerContactEdit.vue'),
@@ -339,6 +345,16 @@ const routes: RouteRecordRaw[] = [
         name: 'StockOutDetail',
         component: () => import('@/views/Inventory/StockOutDetail.vue'),
         meta: { requiresAuth: true, title: '出库单详情' }
+      },
+      {
+        path: 'inventory/stock-out-notifies/:id',
+        name: 'StockOutNotifyDetail',
+        component: () => import('@/views/Inventory/StockOutEdit.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '出库通知详情',
+          permissions: ['sales-order.read', 'purchase-order.read']
+        }
       },
       {
         path: 'inventory/stock-out-notifies',
@@ -681,6 +697,12 @@ const routes: RouteRecordRaw[] = [
             path: 'exchange-rates',
             name: 'FinanceExchangeRates',
             component: () => import('@/views/System/FinanceExchangeRateSettings.vue'),
+            meta: { requiresAuth: true, title: '财务参数', permission: 'rbac.manage' }
+          },
+          {
+            path: 'payment-banks',
+            name: 'FinancePaymentBanks',
+            component: () => import('@/views/System/FinancePaymentBankSettings.vue'),
             meta: { requiresAuth: true, title: '财务参数', permission: 'rbac.manage' }
           }
         ]

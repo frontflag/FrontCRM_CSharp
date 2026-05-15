@@ -1,2 +1,2 @@
 /** Debug 页展示用前端版本号（按发布批次手动维护） */
-export const FRONTEND_DEBUG_VERSION = '1.1.0504-1130 销售订单改表'
+export const FRONTEND_DEBUG_VERSION = '1.1.0513-2100 补加客户COC'

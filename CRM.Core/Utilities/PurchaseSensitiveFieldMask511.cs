@@ -187,6 +187,9 @@ public static class PurchaseSensitiveFieldMask511
         p.VendorId = string.Empty;
         p.VendorName = null;
         p.VendorCode = null;
+        p.FinancePaymentBankId = null;
+        p.PaymentBankName = null;
+        p.RequestRemark = null;
     }
 
     public static void ApplyFinancePayments(IEnumerable<FinancePayment>? items, bool mask)

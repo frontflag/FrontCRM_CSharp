@@ -128,6 +128,21 @@ namespace CRM.API.Controllers
             public int RowsFilled { get; set; }
         }
 
+        /// <summary>Debug：将历史打包在 <c>financepayment.Remark</c> 中的请款信息拆回结构化列并清空 Remark。</summary>
+        public class RefreshFinancePaymentLegacyRemarkResultDto
+        {
+            public int TotalPaymentsRemarkNonEmpty { get; set; }
+            /// <summary>命中「供应商银行 + 费用(」形态的主表条数。</summary>
+            public int LegacyPackedCandidates { get; set; }
+            /// <summary>解析费用段成功并已写库的主表条数。</summary>
+            public int ParsedAndApplied { get; set; }
+            /// <summary>形态像打包备注但费用段无法解析的条数。</summary>
+            public int SkippedMalformed { get; set; }
+            public int ItemsLineRemarkUpdated { get; set; }
+            /// <summary>主表 <c>FinancePaymentBankId</c> 原非表内主键，经 <c>BankName</c> 匹配后写回真实 Id 的条数（含仅走本段修正的历史行）。</summary>
+            public int BankIdsResolvedFromName { get; set; }
+        }
+
         [HttpGet]
         public async Task<ActionResult<ApiResponse<DebugPageDto>>> GetAll()
         {
@@ -1099,6 +1114,100 @@ namespace CRM.API.Controllers
                 return StatusCode(500,
                     ApiResponse<RefreshSellOrderItemCustomerPnFromCommentResultDto>.Fail(
                         $"刷新 sellorderitem.customer_pn 失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>
+        /// Debug：将采购请款旧版写入 <c>financepayment.Remark</c> 的管道串（供应商银行 / 费用 / 承担方 / 明细备注）拆入
+        /// <c>RequestRemark</c>、费用列、<c>FinancePaymentBankId</c>、明细 <c>LineRemark</c>，并清空主表 <c>Remark</c>。
+        /// </summary>
+        [Authorize]
+        [HttpPost("refresh-financepayment-remark-from-legacy")]
+        public async Task<ActionResult<ApiResponse<RefreshFinancePaymentLegacyRemarkResultDto>>> RefreshFinancePaymentRemarkFromLegacy()
+        {
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var payments = await _context.FinancePayments
+                    .Include(p => p.Items)
+                    .Where(p => p.Remark != null && p.Remark != "")
+                    .ToListAsync();
+
+                var poIds = payments
+                    .SelectMany(p => p.Items)
+                    .Select(i => i.PurchaseOrderId)
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Select(id => id!.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                var poCodeById = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+                if (poIds.Count > 0)
+                {
+                    var rows = await _context.PurchaseOrders.AsNoTracking()
+                        .IgnoreQueryFilters()
+                        .Where(po => poIds.Contains(po.Id))
+                        .Select(po => new { po.Id, po.PurchaseOrderCode })
+                        .ToListAsync();
+                    foreach (var row in rows)
+                        poCodeById[row.Id] = row.PurchaseOrderCode;
+                }
+
+                var paymentBanks = await _context.FinancePaymentBanks.AsNoTracking().ToListAsync();
+                var validBankIds = new HashSet<string>(paymentBanks.Select(b => b.Id), StringComparer.OrdinalIgnoreCase);
+
+                var dto = new RefreshFinancePaymentLegacyRemarkResultDto
+                {
+                    TotalPaymentsRemarkNonEmpty = payments.Count
+                };
+
+                foreach (var p in payments)
+                {
+                    if (!FinancePaymentLegacyRemarkCodec.LooksLikePackedRemark(p.Remark))
+                        continue;
+                    dto.LegacyPackedCandidates++;
+                    if (!FinancePaymentLegacyRemarkCodec.TryParse(p.Remark, out var parsed))
+                    {
+                        dto.SkippedMalformed++;
+                        continue;
+                    }
+
+                    var itemsList = p.Items.ToList();
+                    dto.ItemsLineRemarkUpdated += FinancePaymentLegacyRemarkCodec.ApplyToEntities(
+                        p, itemsList, poCodeById, parsed, paymentBanks);
+                    dto.ParsedAndApplied++;
+                }
+
+                var now = DateTime.UtcNow;
+                var allPaymentsForBank = await _context.FinancePayments
+                    .Where(x => x.FinancePaymentBankId != null && x.FinancePaymentBankId != "")
+                    .ToListAsync();
+                foreach (var p in allPaymentsForBank)
+                {
+                    var raw = p.FinancePaymentBankId!.Trim();
+                    if (validBankIds.Contains(raw))
+                        continue;
+                    var resolved = FinancePaymentBankIdResolver.ResolveFromToken(raw, paymentBanks);
+                    if (resolved == null)
+                        continue;
+                    p.FinancePaymentBankId = resolved;
+                    p.ModifyTime = now;
+                    dto.BankIdsResolvedFromName++;
+                }
+
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return Ok(ApiResponse<RefreshFinancePaymentLegacyRemarkResultDto>.Ok(
+                    dto,
+                    $"已处理 {dto.ParsedAndApplied} 条付款单（候选 {dto.LegacyPackedCandidates}，无法解析 {dto.SkippedMalformed}，明细行备注更新 {dto.ItemsLineRemarkUpdated}，付款银行 Id 按名称纠正 {dto.BankIdsResolvedFromName}）"));
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
+                return StatusCode(500,
+                    ApiResponse<RefreshFinancePaymentLegacyRemarkResultDto>.Fail(
+                        $"刷新付款备注失败: {ex.Message}", 500));
             }
         }
 

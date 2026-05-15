@@ -533,7 +533,6 @@ const formRules = computed<FormRules>(() => {
   };
 });
 
-const mobilePhonePattern = /^1[3-9]\d{9}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const regionOptions = regionData;
@@ -654,10 +653,6 @@ const validateContactMobilePhone = (_rule: unknown, value: string, callback: (er
   }
   if (!v) {
     callback(new Error(t('customerEdit.contacts.mobileRequired')));
-    return;
-  }
-  if (!mobilePhonePattern.test(v)) {
-    callback(new Error(t('customerEdit.contacts.mobileInvalid')));
     return;
   }
   callback();

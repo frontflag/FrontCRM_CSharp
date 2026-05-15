@@ -18,6 +18,14 @@
           <el-icon class="nav-icon"><TrendCharts /></el-icon>
           <span>{{ t('financeParams.exchangeRatesNav') }}</span>
         </router-link>
+        <router-link
+          to="/system/finance-params/payment-banks"
+          class="nav-item"
+          active-class="active"
+        >
+          <el-icon class="nav-icon"><Wallet /></el-icon>
+          <span>{{ t('financeParams.paymentBanksNav') }}</span>
+        </router-link>
       </div>
 
       <div class="settings-content">
@@ -29,7 +37,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { TrendCharts } from '@element-plus/icons-vue'
+import { TrendCharts, Wallet } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
 </script>

@@ -208,6 +208,18 @@
             <div v-if="opColExpanded" class="action-btns always-visible">
               <button class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('customerList.actions.detail') }}</button>
               <button class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('customerList.actions.edit') }}</button>
+              <el-dropdown trigger="click" @command="(cmd: string) => handleWarrantyCommand(row, cmd)">
+                <button type="button" class="action-btn action-btn--primary action-btn--dropdown">
+                  {{ t('customerList.actions.printWarranty') }}
+                  <span class="action-btn__caret" aria-hidden="true">▾</span>
+                </button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="en">{{ t('customerList.actions.warrantyEn') }}</el-dropdown-item>
+                    <el-dropdown-item command="zh">{{ t('customerList.actions.warrantyZh') }}</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
               <button
                 v-if="row.status === 1 || row.status === -1"
                 class="action-btn action-btn--warning"
@@ -224,6 +236,15 @@
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="handleView(row)">{{ t('customerList.actions.detail') }}</el-dropdown-item>
                   <el-dropdown-item @click.stop="handleEdit(row)">{{ t('customerList.actions.edit') }}</el-dropdown-item>
+                  <el-dropdown-item disabled class="customer-warranty-menu-heading">
+                    {{ t('customerList.actions.printWarranty') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item class="customer-warranty-submenu" @click.stop="goCustomerWarrantyReport(row, 'en')">
+                    {{ t('customerList.actions.warrantyEn') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item class="customer-warranty-submenu" @click.stop="goCustomerWarrantyReport(row, 'zh')">
+                    {{ t('customerList.actions.warrantyZh') }}
+                  </el-dropdown-item>
                   <el-dropdown-item v-if="row.status === 1 || row.status === -1" @click.stop="handleSubmitAudit(row)">
                     {{ t('customerList.actions.submitAudit') }}
                   </el-dropdown-item>
@@ -557,6 +578,15 @@ function onCreateDropdownCommand(cmd: string) {
 }
 const handleView = (row: Customer) => router.push(`/customers/${row.id}`);
 const handleEdit = (row: Customer) => router.push(`/customers/${row.id}/edit`);
+
+function goCustomerWarrantyReport(row: Customer, lang: 'en' | 'zh') {
+  if (!row?.id) return
+  router.push({ name: 'CustomerWarrantyReport', params: { id: row.id, lang } })
+}
+
+function handleWarrantyCommand(row: Customer, cmd: string) {
+  if (cmd === 'en' || cmd === 'zh') goCustomerWarrantyReport(row, cmd)
+}
 
 const getStatusText = (status: number | undefined) => {
   const s = Number(status ?? 0);
@@ -1229,6 +1259,27 @@ onMounted(async () => {
       border-color: rgba(201, 154, 69, 0.5);
     }
   }
+
+  &--dropdown {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+.action-btn__caret {
+  font-size: 9px;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.action-btns :deep(.el-dropdown) {
+  flex-shrink: 0;
+}
+
+.customer-warranty-menu-heading {
+  font-size: 12px;
+  color: $text-muted;
 }
 
 // ---- 空状态 ----

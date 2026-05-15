@@ -398,7 +398,6 @@ const formRules = computed<FormRules>(() => {
   };
 });
 
-const mobilePhonePattern = /^1[3-9]\d{9}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function onPurchaserChange(p: { id: string; label: string }) {
@@ -652,12 +651,7 @@ const validateVendorContacts = () => {
       continue;
     }
 
-    const mobile = (contact.mobile || '').trim();
     const email = (contact.email || '').trim();
-
-    if (mobile && mobile !== '-' && !mobilePhonePattern.test(mobile)) {
-      throw new Error(t('vendorEdit.messages.contactMobileInvalid', { n: i + 1 }));
-    }
 
     if (email && email !== '-' && !emailPattern.test(email)) {
       throw new Error(t('vendorEdit.messages.contactEmailInvalid', { n: i + 1 }));

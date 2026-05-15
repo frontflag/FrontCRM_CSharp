@@ -49,7 +49,7 @@ namespace CRM.Core.Tests.Services
             poRepo.GetByIdAsync("po-1").Returns(po);
 
             var svc = new FinancePaymentService(
-                paymentRepo, payItemRepo, poRepo, poItemRepo, dataPermission, serialNumber, poExtendSync, vendorRepo, userRepo,
+                paymentRepo, payItemRepo, Substitute.For<IRepository<FinancePaymentBank>>(), poRepo, poItemRepo, dataPermission, serialNumber, poExtendSync, vendorRepo, userRepo,
                 Substitute.For<IForceDeleteGuardService>(),
                 Substitute.For<ILogOperationAppendService>(),
                 Substitute.For<IFinancePaymentListQuery>(),
@@ -110,7 +110,7 @@ namespace CRM.Core.Tests.Services
             poRepo.GetByIdAsync("po-1").Returns(po);
 
             var svc = new FinancePaymentService(
-                paymentRepo, payItemRepo, poRepo, poItemRepo, dataPermission, serialNumber, poExtendSync, vendorRepo, userRepo,
+                paymentRepo, payItemRepo, Substitute.For<IRepository<FinancePaymentBank>>(), poRepo, poItemRepo, dataPermission, serialNumber, poExtendSync, vendorRepo, userRepo,
                 Substitute.For<IForceDeleteGuardService>(),
                 Substitute.For<ILogOperationAppendService>(),
                 Substitute.For<IFinancePaymentListQuery>(),

@@ -4,16 +4,19 @@
     <header class="global-top-bar">
       <div class="global-top-inner">
         <router-link to="/dashboard" class="global-logo" @click="closeDropdown">
-          <span class="global-logo-mark" aria-hidden="true">
-            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke="#00D4FF" stroke-width="1.5"/>
-              <polygon points="20,8 30,14 30,26 20,32 10,26 10,14" fill="rgba(0,212,255,0.12)" stroke="#0066FF" stroke-width="1"/>
-              <circle cx="20" cy="20" r="5" fill="#00D4FF" opacity="0.95"/>
-            </svg>
+          <span class="global-logo-mark">
+            <img
+              class="global-logo-img"
+              :src="headerBrandLogoSrc"
+              :alt="t('layout.brandFull')"
+              width="36"
+              height="36"
+              decoding="async"
+              @error="onHeaderBrandLogoError"
+            />
           </span>
-          <span class="global-logo-stack">
-            <span class="global-logo-title">FrontCRM</span>
-            <span class="global-logo-sub">{{ t('layout.brandSub') }}</span>
+          <span class="global-logo-stack global-logo-stack--brand">
+            <span class="global-logo-title">{{ t('layout.brandFull') }}</span>
           </span>
         </router-link>
         <div class="global-top-right">
@@ -1103,6 +1106,8 @@ import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
 import { Sunny, Moon } from '@element-plus/icons-vue'
 import { useUiTheme } from '@/composables/useUiTheme'
 import { setAppLocale, type AppLocale } from '@/plugins/i18n'
+import { COMPANY_LOGIN_LOGO_URL } from '@/api/companyProfile'
+import fallbackHeaderLogoUrl from '@/assets/brand/semicore-login-logo.png'
 
 const route = useRoute()
 const router = useRouter()
@@ -1110,6 +1115,15 @@ const authStore = useAuthStore()
 const { isDark, toggleTheme } = useUiTheme()
 const { t, locale } = useI18n()
 const currentLocale = ref<AppLocale>(locale.value as AppLocale)
+
+/** 顶栏图标：与登录页同源（公司信息 Logo），接口/文件缺失时回退内置图 */
+const headerLogoUseFallback = ref(false)
+const headerBrandLogoSrc = computed(() =>
+  headerLogoUseFallback.value ? fallbackHeaderLogoUrl : COMPANY_LOGIN_LOGO_URL
+)
+function onHeaderBrandLogoError() {
+  if (!headerLogoUseFallback.value) headerLogoUseFallback.value = true
+}
 
 const onLocaleChange = (val: AppLocale) => {
   console.info('[i18n] switch locale', { from: locale.value, to: val })
@@ -1166,7 +1180,8 @@ const isCustomerLeftAuxRoute = computed(() => {
     n === 'CustomerBlacklist' ||
     n === 'CustomerFreezeManagement' ||
     n === 'CustomerContactCreate' ||
-    n === 'CustomerContactEdit'
+    n === 'CustomerContactEdit' ||
+    n === 'CustomerWarrantyReport'
   )
 })
 
@@ -1294,6 +1309,7 @@ const isStockOutLeftAuxRoute = computed(() => {
     n === 'StockOutList' ||
     n === 'StockOutItemList' ||
     n === 'StockOutCreate' ||
+    n === 'StockOutNotifyDetail' ||
     n === 'StockOutDetail' ||
     n === 'StockOutInvoiceReport' ||
     n === 'StockOutPackingReport'
@@ -1420,6 +1436,7 @@ const pageTitleMap: Record<string, string> = {
   '/system/company-info': 'layout.menu.companyInfo',
   '/system/dict-items': 'layout.menu.dictItems',
   '/system/finance-params/exchange-rates': 'layout.menu.financeParams',
+  '/system/finance-params/payment-banks': 'financeParams.paymentBanksNav',
   '/system/login-logs': 'layout.menu.loginLog',
   '/system/operation-logs': 'layout.menu.operationLog',
   '/inventory/list': 'layout.menu.inventoryCenter',
@@ -1503,6 +1520,7 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '出库单列表': 'stockOutList.title',
   '出库明细': 'stockOutItemList.title',
   '出库通知': 'layout.menu.stockOutNotifies',
+  '出库通知详情': 'stockOutNotifyList.detailTitle',
   '拣货单': 'layout.menu.pickingSlip',
   '拣货单详情': 'pickingSlip.detailTitle',
   '执行出库': 'layout.menu.stockOut',
@@ -1520,6 +1538,7 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '采购订单报表': 'purchaseOrderList.actions.report',
   '销售订单报表': 'salesOrderReport.pageTitle',
   '供应商质保书': 'vendorWarrantyReport.pageTitle',
+  '客户质保书': 'customerWarrantyReport.pageTitle',
   '编辑采购订单': 'purchaseOrderList.actions.edit',
   '采购订单详情': 'layout.menu.purchaseOrderDetail',
   '销售订单': 'layout.menu.salesOrders',
@@ -1588,7 +1607,7 @@ const resolveRouteTitle = (path: string): string => {
 
   const resolved = router.resolve(path)
   const rawTitle = (resolved.meta?.title as string | undefined) || ''
-  if (!rawTitle) return 'FrontCRM'
+  if (!rawTitle) return t('layout.brandFull')
   const key = routeMetaTitleKeyMap[rawTitle]
   return key ? t(key) : rawTitle
 }
@@ -2133,9 +2152,14 @@ onBeforeUnmount(() => {
   width: 36px;
   height: 36px;
   flex-shrink: 0;
-  svg {
+  border-radius: 6px;
+  overflow: hidden;
+  background: transparent;
+  .global-logo-img {
     width: 100%;
     height: 100%;
+    object-fit: contain;
+    display: block;
   }
 }
 
@@ -2148,6 +2172,11 @@ onBeforeUnmount(() => {
   line-height: 1.15;
 }
 
+.global-logo-stack--brand {
+  flex-direction: row;
+  align-items: center;
+}
+
 .global-logo-title {
   font-family: 'Orbitron', 'Noto Sans SC', sans-serif;
   font-weight: 700;
@@ -2155,6 +2184,11 @@ onBeforeUnmount(() => {
   letter-spacing: 0.04em;
   color: var(--crm-logo-title);
   white-space: nowrap;
+}
+
+.global-logo-stack--brand .global-logo-title {
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
 }
 
 .global-logo-sub {

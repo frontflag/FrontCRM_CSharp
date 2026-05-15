@@ -93,6 +93,11 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
         if (!string.IsNullOrEmpty(warehouseIdNeedle))
             filtered = filtered.Where(x => x.si.WarehouseId == warehouseIdNeedle);
 
+        if (query.RepertoryHasStock == true)
+            filtered = filtered.Where(x => x.si.QtyRepertory > 0);
+        else if (query.RepertoryHasStock == false)
+            filtered = filtered.Where(x => x.si.QtyRepertory == 0);
+
         var ordered = filtered
             .OrderByDescending(x => x.sin.StockInDate)
             .ThenByDescending(x => x.si.CreateTime)

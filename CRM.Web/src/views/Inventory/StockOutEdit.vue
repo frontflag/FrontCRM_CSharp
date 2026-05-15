@@ -8,33 +8,35 @@
               <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM17 14l4 4-4 4M10 17h11" />
             </svg>
           </div>
-          <h1 class="page-title">执行出库</h1>
+          <h1 class="page-title">{{ pageTitle }}</h1>
         </div>
       </div>
       <div class="header-right">
         <button class="btn-secondary" @click="goBack">返回出库通知</button>
-        <button
-          class="btn-picking"
-          :disabled="requestAlreadyShipped || hasActivePickingTask"
-          :title="generatePickingBtnTitle"
-          @click="handleGeneratePicking"
-        >
-          生成拣货任务
-        </button>
-        <button
-          class="btn-primary"
-          style="margin-left: 8px"
-          :disabled="submitting || !canExecuteStockOut"
-          :title="executeOutHint"
-          @click="handleSubmit"
-        >
-          {{ submitting ? '执行中...' : '执行出库' }}
-        </button>
+        <template v-if="!isNotifyDetailPage">
+          <button
+            class="btn-picking"
+            :disabled="requestAlreadyShipped || hasActivePickingTask"
+            :title="generatePickingBtnTitle"
+            @click="handleGeneratePicking"
+          >
+            生成拣货任务
+          </button>
+          <button
+            class="btn-primary"
+            style="margin-left: 8px"
+            :disabled="submitting || !canExecuteStockOut"
+            :title="executeOutHint"
+            @click="handleSubmit"
+          >
+            {{ submitting ? '执行中...' : '执行出库' }}
+          </button>
+        </template>
       </div>
     </div>
 
     <el-alert
-      v-if="form.stockOutRequestId"
+      v-if="!isNotifyDetailPage && form.stockOutRequestId"
       class="flow-alert"
       type="info"
       :closable="false"
@@ -57,7 +59,24 @@
     <div class="form-layout">
       <div class="form-card">
         <h3 class="section-title">基础信息</h3>
-        <el-form class="basic-info-form" :model="form" label-width="6em">
+        <el-descriptions v-if="isNotifyDetailPage" :column="2" border class="notify-detail-desc">
+          <el-descriptions-item label="出库通知单号">{{ notifyRequestCodeDisplay }}</el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutNotifyList.columns.status')">{{ notifyDetailStatusLabel }}</el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutNotifyList.columns.materialModel')">{{ currentRequest?.materialModel || '—' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutNotifyList.columns.brand')">{{ currentRequest?.brand || '—' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutNotifyList.columns.outQuantity')">{{ formatQty(currentRequest?.outQuantity) }}</el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutNotifyList.columns.regionType')">{{ notifyDetailRegionLabel }}</el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutNotifyList.columns.requestDate')">{{ notifyDetailRequestDate }}</el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutNotifyList.columns.salesOrderCode')">{{ currentRequest?.salesOrderCode || '—' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutNotifyList.columns.customer')">{{ currentRequest?.customerName || '—' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutNotifyList.columns.salesUserName')">{{ currentRequest?.salesUserName || '—' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutNotifyList.columns.remark')" :span="2">{{ currentRequest?.remark || '—' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutNotifyList.columns.createTime')">{{ notifyDetailCreateTime }}</el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutNotifyList.columns.createUser')">
+            {{ notifyDetailCreateUser }}
+          </el-descriptions-item>
+        </el-descriptions>
+        <el-form v-else class="basic-info-form" :model="form" label-width="6em">
           <el-form-item label="出库执行单号" required>
             <el-input v-model="form.stockOutCode" placeholder="如：SOUT202603180001" />
           </el-form-item>
@@ -93,6 +112,7 @@
         </el-form>
       </div>
 
+      <template v-if="!isNotifyDetailPage">
       <div class="form-card">
         <div class="section-header">
           <h3 class="section-title">出库明细</h3>
@@ -163,9 +183,12 @@
           </div>
         </div>
       </div>
+      </template>
     </div>
 
-    <div class="form-card form-card--after-outbound" v-if="form.stockOutRequestId">
+    <StockOutNotifyDetailTabs v-if="isNotifyDetailPage" :request="currentRequest" />
+
+    <div v-if="!isNotifyDetailPage" class="form-card form-card--after-outbound" v-show="form.stockOutRequestId">
       <h3 class="section-title">拣货任务</h3>
       <p class="picking-hint">
         每个出库通知仅允许生成<strong>一个</strong>未取消的拣货任务。候选在库明细 = 与本销售行绑定的 stockitem + 符合规则的备货（型号/品牌匹配）；FIFO 仅用于排序与「自动分配」顺序。请在下方「拣货明细」卡片中加载候选、分配数量并保存后，再点「完成拣货」。执行出库时仅按已保存的拣货行扣减。
@@ -281,7 +304,7 @@
       </el-table>
     </div>
 
-    <div v-if="form.stockOutRequestId && pendingPickingTask" class="form-card">
+    <div v-if="!isNotifyDetailPage && form.stockOutRequestId && pendingPickingTask" class="form-card">
       <h3 class="section-title">拣货明细（按在库 stockitem）</h3>
       <p class="picking-hint">
         任务号：<strong>{{ pendingPickingTask.taskCode }}</strong>。合计须等于出库通知数量（{{ notifyTargetQty }}）。保存后方可「完成拣货」。
@@ -398,6 +421,9 @@ import {
 } from '@/api/inventoryCenter'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
+import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
+import { formatDate as formatDateTimeZh } from '@/utils/date'
+import StockOutNotifyDetailTabs from '@/components/Inventory/StockOutNotifyDetailTabs.vue'
 
 type ExecuteItem = {
   lineNo: number
@@ -438,8 +464,54 @@ const getYYMMDD = (d: Date) => {
 }
 const random4 = () => String(Math.floor(Math.random() * 10000)).padStart(4, '0')
 
+function resolveStockOutRequestId(): string {
+  const fromParam = route.params.id
+  if (typeof fromParam === 'string' && fromParam.trim()) return fromParam.trim()
+  return String(route.query.requestId || '').trim()
+}
+
+const isNotifyDetailPage = computed(() => route.name === 'StockOutNotifyDetail')
+
+const pageTitle = computed(() =>
+  isNotifyDetailPage.value
+    ? t('stockOutNotifyList.detailTitle')
+    : t('stockOutNotifyList.executeTitle')
+)
+
+const notifyDetailStatusLabel = computed(() => {
+  const s = Number(currentRequest.value?.status)
+  if (s === 0) return t('stockOutNotifyList.status.pendingOut')
+  if (s === 1) return t('stockOutNotifyList.status.done')
+  if (s === 2) return t('stockOutNotifyList.status.cancelled')
+  return t('stockOutNotifyList.status.unknown')
+})
+
+const notifyDetailRegionLabel = computed(() => {
+  const r = currentRequest.value as unknown as Record<string, unknown> | null
+  if (!r) return '—'
+  const n = normalizeRegionType(r.regionType ?? r.RegionType)
+  return n === REGION_TYPE_OVERSEAS ? t('inventoryList.warehouse.regionOverseas') : t('inventoryList.warehouse.regionDomestic')
+})
+
+const notifyDetailRequestDate = computed(() => {
+  const v = currentRequest.value?.requestDate
+  if (v == null || v === '') return '—'
+  return formatDateTimeZh(v, 'YYYY-MM-DD HH:mm')
+})
+
+const notifyDetailCreateTime = computed(() => {
+  const v = currentRequest.value?.createTime
+  if (v == null || v === '') return '—'
+  return formatDateTimeZh(v, 'YYYY-MM-DD HH:mm')
+})
+
+const notifyDetailCreateUser = computed(() => {
+  const r = currentRequest.value as StockOutRequestDto & { createUserName?: string }
+  return r?.createUserName || r?.requestUserName || '—'
+})
+
 const form = reactive<ExecuteForm>({
-  stockOutRequestId: (route.query.requestId as string) || '',
+  stockOutRequestId: resolveStockOutRequestId(),
   stockOutCode: `SOUT${getYYMMDD(new Date())}${random4()}`,
   warehouseId: '',
   operatorId: '',
@@ -933,6 +1005,7 @@ const goBack = () => {
 const init = async () => {
   await loadWarehouses()
   await loadRequest()
+  if (isNotifyDetailPage.value) return
   if (requestAlreadyShipped.value) {
     ElMessage.info('该出库通知已执行出库，仅可查看信息')
   }

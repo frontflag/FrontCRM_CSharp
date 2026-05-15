@@ -43,7 +43,14 @@
           <el-descriptions-item :label="t('financePaymentDetail.labels.mode')">{{ paymentModeLabel(detail.paymentMode) }}</el-descriptions-item>
           <el-descriptions-item :label="t('financePaymentDetail.labels.date')">{{ detail.paymentDate ? formatDisplayDate(detail.paymentDate) : '-' }}</el-descriptions-item>
           <el-descriptions-item :label="t('financePaymentDetail.labels.bankSlip')">{{ (detail as any).bankSlipNo || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('financePaymentDetail.labels.remark')" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financePaymentDetail.labels.paymentBank')" :span="2">
+            {{ detail.paymentBankName || '—' }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('financePaymentDetail.labels.requestRemark')" :span="2">
+            {{ detail.requestRemark || '—' }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('financePaymentDetail.feeSummaryLabel')" :span="2">{{ feeSummaryText }}</el-descriptions-item>
+          <el-descriptions-item :label="t('financePaymentDetail.labels.remark')" :span="2">{{ detail.remark || '—' }}</el-descriptions-item>
         </el-descriptions>
       </div>
 
@@ -80,6 +87,7 @@
             </template>
           </el-table-column>
           <el-table-column prop="purchaseOrderCreateUserName" :label="t('financePaymentDetail.labels.creator')" width="120" show-overflow-tooltip />
+          <el-table-column prop="lineRemark" :label="t('financePaymentDetail.labels.lineRemark')" min-width="120" show-overflow-tooltip />
           <el-table-column :label="t('financePaymentDetail.labels.verifyStatus')" width="120" align="center">
             <template #default="{ row }">
               <el-tag effect="dark" size="small" :type="row.verificationStatus === 2 ? 'success' : row.verificationStatus === 1 ? 'warning' : 'info'">
@@ -196,6 +204,15 @@ const paymentDocs = ref<UploadDocumentDto[]>([])
 const vendorDisplayName = ref('-')
 
 const paymentId = computed(() => route.params.id as string)
+
+const feeSummaryText = computed(() => {
+  const d = detail.value
+  if (!d) return '—'
+  const sym = CURRENCY_MAP[d.paymentCurrency] || ''
+  const f = (n: unknown) => formatAmount(Number(n ?? 0))
+  const payer = (d.feeIntermediateBankPayer || '—').trim() || '—'
+  return `${sym} ${t('financePaymentDetail.labels.feeIntermediateBank')}${f(d.feeIntermediateBank)} · ${t('financePaymentDetail.labels.feeBankCharge')}${f(d.feeBankCharge)} · ${t('financePaymentDetail.labels.feeFreight')}${f(d.feeFreight)} · ${t('financePaymentDetail.labels.feeMisc')}${f(d.feeMisc)} · ${t('financePaymentDetail.labels.feeRounding')}${f(d.feeRounding)} · ${t('financePaymentDetail.labels.feePayer')}${payer}`
+})
 
 /** 《列表操作列规范》：银行水单附件表 */
 const paymentDocsOpColExpanded = ref(false)

@@ -112,6 +112,8 @@ export interface StockItemListQuery {
   salespersonUserId?: string
   /** 与 stockitem.PurchaserId 精确匹配 */
   purchaserUserId?: string
+  /** 在库数量 QtyRepertory：true 为大于 0，false 为等于 0；不传则不限 */
+  repertoryHasStock?: boolean
 }
 
 export interface StockItemListRow extends StockItemRow {
@@ -353,6 +355,8 @@ export const inventoryCenterApi = {
     add('purchaserName', q.purchaserName)
     add('salespersonUserId', q.salespersonUserId)
     add('purchaserUserId', q.purchaserUserId)
+    if (q.repertoryHasStock === true) params.set('repertoryHasStock', 'true')
+    if (q.repertoryHasStock === false) params.set('repertoryHasStock', 'false')
     const p = q.page != null && q.page >= 1 ? q.page : 1
     const ps = q.pageSize != null && q.pageSize >= 1 ? q.pageSize : 20
     params.set('page', String(p))

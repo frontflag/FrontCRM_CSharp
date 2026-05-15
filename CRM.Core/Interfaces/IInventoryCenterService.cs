@@ -201,6 +201,9 @@ namespace CRM.Core.Interfaces
         public string? SalespersonUserId { get; set; }
         /// <summary>采购员用户主键（与 <c>stockitem</c> 冗余 <c>PurchaserId</c> 一致）；优先于 <see cref="PurchaserName"/> 模糊匹配。</summary>
         public string? PurchaserUserId { get; set; }
+
+        /// <summary>在库数量（<c>QtyRepertory</c>）筛选：<see langword="null"/> 不限；<see langword="true"/> 仅 &gt;0；<see langword="false"/> 仅 ==0。</summary>
+        public bool? RepertoryHasStock { get; set; }
     }
 
     public class InventoryMaterialTraceDto

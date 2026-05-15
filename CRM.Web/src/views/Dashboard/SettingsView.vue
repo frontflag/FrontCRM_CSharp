@@ -164,8 +164,7 @@
                 <circle cx="20" cy="20" r="5" fill="#00D4FF" opacity="0.9"/>
               </svg>
               <div class="about-brand">
-                <h3>FrontCRM</h3>
-                <p>{{ t('layout.brandSub') }}</p>
+                <h3>{{ t('layout.brandFull') }}</h3>
               </div>
             </div>
             <p class="about-desc">{{ t('dashboardSettings.about.description') }}</p>

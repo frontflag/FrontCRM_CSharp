@@ -1437,7 +1437,34 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)");
 
+                    b.Property<decimal>("FeeBankCharge")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("FeeFreight")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("FeeIntermediateBank")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("FeeIntermediateBankPayer")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<decimal>("FeeMisc")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("FeeRounding")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("FinancePaymentBankId")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)");
+
                     b.Property<string>("Remark")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("RequestRemark")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
@@ -1455,10 +1482,43 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("FinancePaymentBankId");
+
                     b.HasIndex("FinancePaymentCode")
                         .IsUnique();
 
                     b.ToTable("financepayment");
+                });
+
+            modelBuilder.Entity("CRM.Core.Models.Finance.FinancePaymentBank", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)")
+                        .HasColumnName("FinancePaymentBankId");
+
+                    b.Property<string>("BankName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDisabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("ModifyTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SortOrder");
+
+                    b.ToTable("financepaymentbank");
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Finance.FinancePaymentItem", b =>
@@ -1482,6 +1542,10 @@ namespace CRM.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)");
+
+                    b.Property<string>("LineRemark")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<DateTime?>("ModifyTime")
                         .HasColumnType("timestamp with time zone");

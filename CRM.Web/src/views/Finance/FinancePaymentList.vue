@@ -84,6 +84,9 @@
       <template #col-vendorName="{ row }">
         <span>{{ maskPurchaseSensitiveFields ? '—' : ((row as any).vendorName?.trim() || '—') }}</span>
       </template>
+      <template #col-paymentBankName="{ row }">
+        <span>{{ maskPurchaseSensitiveFields ? '—' : (paymentRowBankName(row) || '—') }}</span>
+      </template>
       <template #col-paymentAmount="{ row }">
         <span class="amount-text">{{ CURRENCY_MAP[row.paymentCurrency] }} {{ formatAmount(row.paymentAmount) }}</span>
       </template>
@@ -415,9 +418,24 @@ function paymentRowCreateTime(row: FinancePayment): string | undefined {
   return s || undefined
 }
 
+function paymentRowBankName(row: FinancePayment): string {
+  const ext = row as unknown as Record<string, unknown>
+  const raw = row.paymentBankName ?? ext.PaymentBankName ?? ext.paymentBankName
+  const s = raw != null ? String(raw).trim() : ''
+  return s
+}
+
 const paymentTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'status', label: t('financePaymentList.columns.status'), prop: 'status', width: 100, align: 'center' },
   { key: 'vendorName', label: t('financePaymentList.columns.vendor'), prop: 'vendorName', minWidth: 160, showOverflowTooltip: true },
+  {
+    key: 'paymentBankName',
+    label: t('financePaymentList.columns.paymentBank'),
+    prop: 'paymentBankName',
+    minWidth: 140,
+    width: 160,
+    showOverflowTooltip: true
+  },
   { key: 'paymentAmount', label: t('financePaymentList.columns.amount'), prop: 'paymentAmount', width: 200, minWidth: 180, align: 'right' },
   { key: 'paymentMode', label: t('financePaymentList.columns.mode'), prop: 'paymentMode', width: 110 },
   { key: 'paymentDate', label: t('financePaymentList.columns.date'), prop: 'paymentDate', width: 120 },
@@ -477,11 +495,11 @@ const loadData = async () => {
 
 // 演示数据
 const getMockData = (): FinancePayment[] => [
-  { id: '1', financePaymentCode: 'PAY-2026-0001', vendorId: 'v1', vendorCode: 'DEMO01', vendorName: '深圳华强电子有限公司', paymentAmount: 128500, paymentCurrency: 1, paymentMode: 1, paymentDate: '2026-03-15', status: 100, remark: '3月采购款', createTime: '2026-03-10T08:00:00Z', createUserName: '演示用户' },
-  { id: '2', financePaymentCode: 'PAY-2026-0002', vendorId: 'v2', vendorCode: 'DEMO02', vendorName: '上海元器件贸易公司', paymentAmount: 56800, paymentCurrency: 1, paymentMode: 1, paymentDate: undefined, status: 2, remark: '', createTime: '2026-03-12T08:00:00Z', createUserName: '演示用户' },
-  { id: '3', financePaymentCode: 'PAY-2026-0003', vendorId: 'v3', vendorCode: 'DEMO03', vendorName: 'Arrow Electronics', paymentAmount: 23400, paymentCurrency: 2, paymentMode: 1, paymentDate: undefined, status: 1, remark: '待提交', createTime: '2026-03-14T08:00:00Z', createUserName: '演示用户' },
-  { id: '4', financePaymentCode: 'PAY-2026-0004', vendorId: 'v4', vendorCode: 'DEMO04', vendorName: '广州立创电子科技', paymentAmount: 89200, paymentCurrency: 1, paymentMode: 2, paymentDate: undefined, status: 10, remark: '', createTime: '2026-03-13T08:00:00Z', createUserName: '演示用户' },
-  { id: '5', financePaymentCode: 'PAY-2026-0005', vendorId: 'v1', vendorCode: 'DEMO01', vendorName: '深圳华强电子有限公司', paymentAmount: 34600, paymentCurrency: 1, paymentMode: 3, paymentDate: undefined, status: -1, remark: '审核驳回', createTime: '2026-03-08T08:00:00Z', createUserName: '演示用户' },
+  { id: '1', financePaymentCode: 'PAY-2026-0001', vendorId: 'v1', vendorCode: 'DEMO01', vendorName: '深圳华强电子有限公司', paymentBankName: '中国银行', paymentAmount: 128500, paymentCurrency: 1, paymentMode: 1, paymentDate: '2026-03-15', status: 100, remark: '3月采购款', createTime: '2026-03-10T08:00:00Z', createUserName: '演示用户' },
+  { id: '2', financePaymentCode: 'PAY-2026-0002', vendorId: 'v2', vendorCode: 'DEMO02', vendorName: '上海元器件贸易公司', paymentBankName: '工商银行', paymentAmount: 56800, paymentCurrency: 1, paymentMode: 1, paymentDate: undefined, status: 2, remark: '', createTime: '2026-03-12T08:00:00Z', createUserName: '演示用户' },
+  { id: '3', financePaymentCode: 'PAY-2026-0003', vendorId: 'v3', vendorCode: 'DEMO03', vendorName: 'Arrow Electronics', paymentBankName: '', paymentAmount: 23400, paymentCurrency: 2, paymentMode: 1, paymentDate: undefined, status: 1, remark: '待提交', createTime: '2026-03-14T08:00:00Z', createUserName: '演示用户' },
+  { id: '4', financePaymentCode: 'PAY-2026-0004', vendorId: 'v4', vendorCode: 'DEMO04', vendorName: '广州立创电子科技', paymentBankName: '建设银行', paymentAmount: 89200, paymentCurrency: 1, paymentMode: 2, paymentDate: undefined, status: 10, remark: '', createTime: '2026-03-13T08:00:00Z', createUserName: '演示用户' },
+  { id: '5', financePaymentCode: 'PAY-2026-0005', vendorId: 'v1', vendorCode: 'DEMO01', vendorName: '深圳华强电子有限公司', paymentBankName: '农业银行', paymentAmount: 34600, paymentCurrency: 1, paymentMode: 3, paymentDate: undefined, status: -1, remark: '审核驳回', createTime: '2026-03-08T08:00:00Z', createUserName: '演示用户' },
 ]
 
 // 弹窗

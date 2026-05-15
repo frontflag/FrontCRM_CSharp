@@ -125,6 +125,8 @@ namespace CRM.API.Extensions
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceSellInvoice>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceSellInvoice>>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.SellInvoiceItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.SellInvoiceItem>>();
             services.AddScoped<IFinanceExchangeRateService, FinanceExchangeRateService>();
+            services.AddScoped<IFinancePaymentBankService, FinancePaymentBankService>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FinancePaymentBank>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinancePaymentBank>>();
             services.AddScoped<IForceDeleteGuardService, ForceDeleteGuardService>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceExchangeRateSetting>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceExchangeRateSetting>>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceExchangeRateChangeLog>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceExchangeRateChangeLog>>();
