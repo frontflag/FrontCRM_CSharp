@@ -20,15 +20,28 @@ namespace CRM.Core.Models.Inventory
         [StringLength(100)]
         public string WarehouseName { get; set; } = string.Empty;
 
-        [StringLength(200)]
+        [StringLength(500)]
         public string? Address { get; set; }
+
+        [StringLength(100)]
+        [Column("contact_name")]
+        public string? ContactName { get; set; }
+
+        [StringLength(64)]
+        [Column("contact_phone")]
+        public string? ContactPhone { get; set; }
+
+        [StringLength(100)]
+        [Column("work_hours")]
+        public string? WorkHours { get; set; }
 
         /// <summary>地域类型 RegionType：10=境内 20=境外</summary>
         [Column("RegionType")]
         [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public short RegionType { get; set; } = RegionTypeCode.Domestic;
 
-        public short Status { get; set; } = 1;
+        /// <summary>启用状态：1=启用，0=停用（对应 UI「启用」开关）。</summary>
+        public short Status { get; set; } = WarehouseStatusCode.Enabled;
     }
 
     [Table("warehousezone")]
@@ -195,8 +208,10 @@ namespace CRM.Core.Models.Inventory
         [StringLength(32)]
         public string TaskCode { get; set; } = string.Empty;
 
+        /// <summary>关联装箱单 <c>packing.Id</c>。</summary>
         [StringLength(36)]
-        public string StockOutRequestId { get; set; } = string.Empty;
+        [Column("packing_id")]
+        public string? PackingId { get; set; }
 
         [StringLength(36)]
         public string WarehouseId { get; set; } = string.Empty;
@@ -237,6 +252,16 @@ namespace CRM.Core.Models.Inventory
         [StringLength(36)]
         [Column("stock_item_id")]
         public string? StockItemId { get; set; }
+
+        /// <summary>关联装箱明细 <c>packing_item.Id</c>。</summary>
+        [StringLength(36)]
+        [Column("packing_item_id")]
+        public string? PackingItemId { get; set; }
+
+        /// <summary>拣货明细业务编号（通常以装箱明细编号为前缀，拆行加子序号）。</summary>
+        [StringLength(64)]
+        [Column("item_code")]
+        public string? ItemCode { get; set; }
 
         [StringLength(50)]
         public string? BatchNo { get; set; }

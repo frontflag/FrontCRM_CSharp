@@ -229,9 +229,18 @@ public static class RfqDebugChainHelper
             : await db.StockOutRequests.AsNoTracking().Where(r => soItemIds.Contains(r.SalesOrderItemId)).ToListAsync(ct);
         var sorIds = sors.Select(s => s.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var pickingTasks = sorIds.Count == 0
+        var pickingPackingIds = sorIds.Count == 0
+            ? new List<string>()
+            : await db.PackingItems.AsNoTracking()
+                .Where(pi => !pi.IsDeleted && pi.StockOutNotifyId != null && sorIds.Contains(pi.StockOutNotifyId))
+                .Select(pi => pi.PackingId)
+                .Distinct()
+                .ToListAsync(ct);
+        var pickingTasks = pickingPackingIds.Count == 0
             ? new List<PickingTask>()
-            : await db.PickingTasks.AsNoTracking().Where(t => sorIds.Contains(t.StockOutRequestId)).ToListAsync(ct);
+            : await db.PickingTasks.AsNoTracking()
+                .Where(t => t.PackingId != null && pickingPackingIds.Contains(t.PackingId))
+                .ToListAsync(ct);
         var pickingIds = pickingTasks.Select(t => t.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var pickingItems = pickingIds.Count == 0
@@ -303,10 +312,17 @@ public static class RfqDebugChainHelper
         var sorIds = snap.StockOutRequests.Select(s => s.Id).ToList();
         if (sorIds.Count > 0)
         {
-            var ptIds = await db.PickingTasks.AsNoTracking()
-                .Where(t => sorIds.Contains(t.StockOutRequestId))
-                .Select(t => t.Id)
+            var deletePackingIds = await db.PackingItems.AsNoTracking()
+                .Where(pi => !pi.IsDeleted && pi.StockOutNotifyId != null && sorIds.Contains(pi.StockOutNotifyId))
+                .Select(pi => pi.PackingId)
+                .Distinct()
                 .ToListAsync(ct);
+            var ptIds = deletePackingIds.Count == 0
+                ? new List<string>()
+                : await db.PickingTasks.AsNoTracking()
+                    .Where(t => t.PackingId != null && deletePackingIds.Contains(t.PackingId))
+                    .Select(t => t.Id)
+                    .ToListAsync(ct);
             if (ptIds.Count > 0)
             {
                 await db.PickingTaskItems.Where(i => ptIds.Contains(i.PickingTaskId)).ExecuteDeleteAsync(ct);

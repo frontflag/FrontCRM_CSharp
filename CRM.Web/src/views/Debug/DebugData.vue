@@ -280,9 +280,10 @@ const statusOptionsByNode: Record<string, StatusOption[]> = {
     { value: 3, label: '已取消' }
   ],
   stockoutrequest: [
-    { value: 0, label: '待出库' },
-    { value: 1, label: '已出库' },
-    { value: 2, label: '已取消' }
+    { value: 10, label: '待装箱' },
+    { value: 20, label: '已装箱' },
+    { value: 100, label: '已出库' },
+    { value: -1, label: '已取消' }
   ]
 }
 

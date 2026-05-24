@@ -55,6 +55,11 @@ namespace CRM.Core.Models.Purchase
         [Column("purchase_user_name")]
         public string? PurchaseUserName { get; set; }
 
+        /// <summary>采购助理用户 ID（<c>user.UserId</c>），负责跟进本采购订单。</summary>
+        [StringLength(36)]
+        [Column("assistor")]
+        public string? Assistor { get; set; }
+
         /// <summary>采购组ID</summary>
         [StringLength(36)]
         [Column("purchase_group_id")]

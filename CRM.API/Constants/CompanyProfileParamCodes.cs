@@ -13,5 +13,17 @@ namespace CRM.API.Constants
 
         /// <summary>SMTP / 发件人（单对象 JSON，公司信息页「公司邮箱」）。</summary>
         public const string SmtpEmail = "Company.Profile.SmtpEmail";
+
+        /// <summary>Invoice 报表备注（中文，多行字符串）。</summary>
+        public const string ReportInvoiceRemarkCn = "Company.Profile.ReportInfo.Invoice.Remark.CN";
+
+        /// <summary>Invoice 报表备注（英文，多行字符串）。</summary>
+        public const string ReportInvoiceRemarkEn = "Company.Profile.ReportInfo.Invoice.Remark.EN";
+
+        /// <summary>Packing List 报表备注（中文，多行字符串）。</summary>
+        public const string ReportPackingListRemarkCn = "Company.Profile.ReportInfo.PackingList.Remark.CN";
+
+        /// <summary>Packing List 报表备注（英文，多行字符串）。</summary>
+        public const string ReportPackingListRemarkEn = "Company.Profile.ReportInfo.PackingList.Remark.EN";
     }
 }

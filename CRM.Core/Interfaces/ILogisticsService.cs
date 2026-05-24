@@ -44,6 +44,10 @@ namespace CRM.Core.Interfaces
         /// <summary>地域类型 RegionType：10=境内 20=境外（与仓库档案共用）</summary>
         [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public short RegionType { get; set; } = RegionTypeCode.Domestic;
+
+        /// <summary>入库类型 <see cref="StockInTypeCode"/>；未传或非法时服务端默认为采购入库。</summary>
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public short StockInType { get; set; } = StockInTypeCode.Purchase;
     }
 
     public class CreateQcRequest

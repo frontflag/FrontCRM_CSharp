@@ -1,0 +1,35 @@
+{
+  "deploy_config": {
+    "project_name": "FrontCRM",
+    "target_server": "43.129.212.65",
+    "services": [
+      {
+        "name": "postgres",
+        "image": "postgres:15-alpine",
+        "ports": ["5432:5432"],
+        "env": {
+          "POSTGRES_USER": "postgres",
+          "POSTGRES_PASSWORD": "postgres123",
+          "POSTGRES_DB": "FrontCRM"
+        }
+      },
+      {
+        "name": "backend",
+        "build_context": ".",
+        "dockerfile": "Dockerfile.backend",
+        "ports": ["5000:5000"],
+        "env": {
+          "ASPNETCORE_URLS": "http://+:5000",
+          "ASPNETCORE_ENVIRONMENT": "Production",
+          "ConnectionStrings__DefaultConnection": "Host=postgres;Port=5432;Database=FrontCRM;Username=postgres;Password=postgres123"
+        }
+      },
+      {
+        "name": "frontend",
+        "build_context": "CRM.Web",
+        "dockerfile": "Dockerfile",
+        "ports": ["80:80"]
+      }
+    ]
+  }
+}

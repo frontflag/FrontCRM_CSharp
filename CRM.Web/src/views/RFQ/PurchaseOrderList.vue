@@ -584,9 +584,9 @@ const handleCreate = () => {
   router.push({ name: 'PurchaseOrderCreate', query: { type: '2' } })
 }
 
-// 编辑
+// 编辑（须走 PurchaseOrderEdit，组件内以 route.name + params.id 识别编辑模式）
 const handleEdit = (row: any) => {
-  router.push({ name: 'PurchaseOrderCreate', query: { id: row.id, edit: '1' } })
+  router.push({ name: 'PurchaseOrderEdit', params: { id: row.id } })
 }
 
 // 查看

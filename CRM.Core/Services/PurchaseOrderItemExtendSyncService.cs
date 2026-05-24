@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
@@ -16,7 +17,6 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
     private const short FinancePaymentAuditFailed = -1;
     private const short StockInCancelled = 3;
     private const short StockInCompleted = 2;
-    private const short StockInTypePurchase = 1;
 
     /// <summary>0=待 1=部分 2=完成</summary>
     private const short ProgressPending = 0;
@@ -213,7 +213,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
             var hasQc = qcByNotice.TryGetValue(noticeKey, out var qcRows) && qcRows.Count > 0;
             var hasPostedStockIn = stockIns.Any(si =>
                 si.Status == StockInCompleted &&
-                si.StockInType == StockInTypePurchase &&
+                si.StockInType == StockInTypeCode.Purchase &&
                 (
                     (!string.IsNullOrWhiteSpace(si.SourceId) &&
                      string.Equals(si.SourceId.Trim(), noticeKey, StringComparison.OrdinalIgnoreCase))
@@ -295,7 +295,7 @@ public class PurchaseOrderItemExtendSyncService : IPurchaseOrderItemExtendSyncSe
         var completedIds = (await _stockInRepo.FindAsync(s =>
                 siIds.Contains(s.Id)
                 && s.Status == StockInCompleted
-                && s.StockInType == StockInTypePurchase))
+                && s.StockInType == StockInTypeCode.Purchase))
             .Select(s => s.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         return items.Where(i => completedIds.Contains(i.StockInId)).Sum(i => (decimal)i.Quantity);

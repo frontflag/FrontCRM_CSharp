@@ -1,4 +1,5 @@
 import apiClient from './client'
+import { REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 
 export interface CompanyBasicRow {
   id: string
@@ -24,7 +25,9 @@ export interface CompanyBankRow {
   swift: string
   iban: string
   bankCode: string
+  accountNumber: string
   currency: string
+  country: string
   bankType: string
   purposeType: string
   remark: string
@@ -73,6 +76,84 @@ export interface CompanySmtpEmailSettings {
   passwordSet?: boolean
 }
 
+export interface CompanyReportRemarks {
+  remarkCn: string
+  remarkEn: string
+}
+
+export interface CompanyReportInfo {
+  invoice: CompanyReportRemarks
+  packingList: CompanyReportRemarks
+}
+
+export function isRmbCurrency(currency: string | undefined | null): boolean {
+  const c = (currency ?? '').trim().toUpperCase()
+  return c === 'RMB' || c === 'CNY' || c === 'CNH'
+}
+
+/** 按人民币/外币分组选取默认银行账户；可指定优先分组。 */
+export function pickDefaultBank(
+  rows: CompanyBankRow[] | undefined | null,
+  options?: { preferRmb?: boolean }
+): CompanyBankRow | undefined {
+  if (!rows?.length) return undefined
+  const pickFrom = (list: CompanyBankRow[]) => {
+    if (!list.length) return undefined
+    return list.find((r) => r.isDefault && r.enabled !== false) ?? list[0]
+  }
+  const rmb = rows.filter((r) => isRmbCurrency(r.currency))
+  const fx = rows.filter((r) => !isRmbCurrency(r.currency))
+  if (options?.preferRmb === true) {
+    return pickFrom(rmb) ?? pickFrom(fx) ?? pickFrom(rows)
+  }
+  if (options?.preferRmb === false) {
+    return pickFrom(fx) ?? pickFrom(rmb) ?? pickFrom(rows)
+  }
+  return rows.find((r) => r.isDefault && r.enabled !== false) ?? rows[0]
+}
+
+/** 按仓库地域选取默认银行：海外仓→外币默认，大陆仓→人民币默认。 */
+export function pickDefaultBankByRegion(
+  rows: CompanyBankRow[] | undefined | null,
+  regionType: number | undefined | null
+): CompanyBankRow | undefined {
+  const preferRmb = normalizeRegionType(regionType) !== REGION_TYPE_OVERSEAS
+  return pickDefaultBank(rows, { preferRmb })
+}
+
+export function emptyCompanyReportInfo(): CompanyReportInfo {
+  return {
+    invoice: { remarkCn: '', remarkEn: '' },
+    packingList: { remarkCn: '', remarkEn: '' }
+  }
+}
+
+/** 多行备注按行拆分；空行忽略 */
+export function splitReportRemarkLines(text: string | undefined | null): string[] {
+  if (!text?.trim()) return []
+  return text
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
+/** Packing List 报表页脚备注：固定读取 sysparam Remark.EN */
+export function packingListReportRemarkLines(remarks: CompanyReportRemarks | undefined | null): string[] {
+  return splitReportRemarkLines(remarks?.remarkEn)
+}
+
+/** 按界面语言取备注行；未配置时回退 fallback */
+export function pickReportRemarkLines(
+  remarks: CompanyReportRemarks | undefined,
+  locale: string,
+  fallback: string[] = []
+): string[] {
+  const en = splitReportRemarkLines(remarks?.remarkEn)
+  const cn = splitReportRemarkLines(remarks?.remarkCn)
+  if (locale === 'en-US') return en.length ? en : fallback
+  return cn.length ? cn : fallback
+}
+
 export interface CompanyProfileBundle {
   basicInfos: CompanyBasicRow[]
   bankInfos: CompanyBankRow[]
@@ -81,6 +162,7 @@ export interface CompanyProfileBundle {
   seals: CompanySealRow[]
   warehouses: CompanyWarehouseRow[]
   smtpEmail?: CompanySmtpEmailSettings | null
+  reportInfo?: CompanyReportInfo | null
 }
 
 const BASE = '/api/v1/company-profile'

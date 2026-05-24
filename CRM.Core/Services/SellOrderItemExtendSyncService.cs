@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
@@ -12,8 +13,7 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
 {
     private const short PoItemStatusConfirmed = 30;
     private const short StockInCompleted = 2;
-    private const short StockInTypePurchase = 1;
-    private const short SalesStockOutType = 1;
+    private const short SalesStockOutType = StockOutTypeCode.Sales;
     /// <summary>已出库</summary>
     private const short StockOutCompleted = 2;
     /// <summary>已完成（列表「标记完成」）</summary>
@@ -155,7 +155,7 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
             var completedSiIds = (await _stockInRepo.FindAsync(s =>
                     siIds.Contains(s.Id)
                     && s.Status == StockInCompleted
-                    && s.StockInType == StockInTypePurchase))
+                    && s.StockInType == StockInTypeCode.Purchase))
                 .Select(s => s.Id)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             sumReceive = siItems.Where(i => completedSiIds.Contains(i.StockInId)).Sum(i => (decimal)i.Quantity);

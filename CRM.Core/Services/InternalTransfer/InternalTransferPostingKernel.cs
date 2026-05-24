@@ -9,8 +9,7 @@ namespace CRM.Core.Services.InternalTransfer;
 /// <inheritdoc />
 public sealed class InternalTransferPostingKernel : IInternalTransferPostingKernel
 {
-    private const short TransferStockOutType = 3;
-    private const short TransferStockInType = 3;
+    private const short TransferStockOutType = StockOutTypeCode.Transfer;
     private const short VirtualDocumentCompletedStatus = 2;
     private const int SourceCodeMaxLen = 32;
 
@@ -171,7 +170,7 @@ public sealed class InternalTransferPostingKernel : IInternalTransferPostingKern
         {
             Id = stockInId,
             StockInCode = stockInCode,
-            StockInType = TransferStockInType,
+            StockInType = StockInTypeCode.Transfer,
             WarehouseId = toWh,
             StockInDate = now,
             TotalQuantity = moveQty,

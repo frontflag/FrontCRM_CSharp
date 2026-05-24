@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- 清空业务数据（PostgreSQL）
 --
 -- 保留（不执行任何 DELETE/TRUNCATE）：
@@ -50,8 +50,8 @@ TRUNCATE TABLE
   public.stock,
   public.qcitem,
   public.qcinfo,
-  public.stockinnotify,
-  public.stockoutrequest,
+  public.stockin_notify,
+  public.stockout_notify,
   -- 采购 / 销售
   public.purchaseorderitemextend,
   public.purchaseorderitem,

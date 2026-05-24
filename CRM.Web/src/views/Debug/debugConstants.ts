@@ -1,2 +1,2 @@
 /** Debug 页展示用前端版本号（按发布批次手动维护） */
-export const FRONTEND_DEBUG_VERSION = '1.1.0513-2100 补加客户COC'
+export const FRONTEND_DEBUG_VERSION = '1.1.0524-1200 装箱单V6，优化编辑仓库地址'

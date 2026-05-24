@@ -151,6 +151,10 @@
             <span class="info-label">采购员</span>
             <span class="info-value">{{ order.purchaseUserName || '--' }}</span>
           </div>
+          <div class="info-item">
+            <span class="info-label">采购助理</span>
+            <span class="info-value">{{ order.assistorUserName || '--' }}</span>
+          </div>
           <div class="info-item" v-if="canViewPurchaseAmount">
             <span class="info-label">总金额</span>
             <span class="info-value info-value--amount amount-with-code">
@@ -638,6 +642,7 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
+import { stockInTypeLabel } from '@/constants/stockInType'
 import { recordPurchaseOrderRecentView } from '@/utils/purchaseOrderRecentHistory'
 import PurchaseOrderItemLineDialogs from '@/components/purchaseOrder/PurchaseOrderItemLineDialogs.vue'
 import { buildPurchaseOrderDetailItemsColumns } from '@/composables/buildPurchaseOrderDetailItemsColumns'
@@ -1141,7 +1146,7 @@ const formatDateTime = (v?: string) => (v ? formatDisplayDateTime(v) : '--')
 const prStatusText = (v?: number) => ({ 0: '新建', 1: '部分完成', 2: '全部完成', 3: '已取消' } as Record<number, string>)[Number(v)] ?? '--'
 const paymentStatusText = (v?: number) => ({ 1: '新建', 2: '待审核', 10: '审核通过', 100: '付款完成', [-1]: '审核失败', [-2]: '已取消' } as Record<number, string>)[Number(v)] ?? '--'
 const arrivalStatusText = (v?: number) => ({ 10: '未到货', 20: '到货待检', 30: '已质检', 100: '已入库', 1: '新建' } as Record<number, string>)[Number(v)] ?? '--'
-const stockInTypeText = (v?: number) => ({ 1: '采购入库', 2: '退货入库', 3: '调拨入库', 4: '其他入库' } as Record<number, string>)[Number(v)] ?? '--'
+const stockInTypeText = (v?: number) => stockInTypeLabel(Number(v))
 const stockInStatusText = (v?: number) => ({ 0: '草稿', 1: '待入库', 2: '已入库', 3: '已取消' } as Record<number, string>)[Number(v)] ?? '--'
 
 const handleEdit = () => {

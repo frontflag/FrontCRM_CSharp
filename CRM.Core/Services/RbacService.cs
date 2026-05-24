@@ -139,6 +139,16 @@ namespace CRM.Core.Services
                     "purchase.amount.read");
             }
 
+            // 商务部（IdentityType=4）：不授予供应商/采购订单/草稿只读/进项发票只读（DEPT_EMPLOYEE 种子为全员共用，此处按主部门剥离）。
+            if (identityType == 4)
+            {
+                RemovePermissionCodes(permissionCodes,
+                    "vendor.read", "vendor.info.read",
+                    "purchase-order.read", "purchase.amount.read",
+                    "draft.read",
+                    "finance-purchase-invoice.read");
+            }
+
             // 隶属采购/采购助理部门时合并：仅 DEPT_EMPLOYEE 时种子常无 PR/PO 写权限，与员工页「可选 purchase_buyer」说明一致，
             // 采购部员工仍应能维护采购申请、生成采购订单（与销售员仅 PR、不 PO 的剥离策略独立）。
             // 需求维护（编辑/分配）与「新建需求」拆分：此处补 rfq.read + rfq.write，不补 rfq.create（见上方采购侧剥离）。

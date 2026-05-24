@@ -124,37 +124,49 @@
             <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">{{ t('companyInfo.saveAll') }}</el-button>
           </div>
 
-          <div v-for="(row, idx) in bankInfos" :key="row.id" class="group-card">
+          <el-tabs v-model="bankActiveTab" class="bank-info-tabs">
+            <el-tab-pane :label="t('companyInfo.bank.tabRmb')" name="rmb" />
+            <el-tab-pane :label="t('companyInfo.bank.tabForeign')" name="foreign" />
+          </el-tabs>
+
+          <div v-if="filteredBankInfos.length === 0" class="bank-info-empty">
+            <p class="bank-info-empty__hint">{{ t('companyInfo.bank.emptyTabHint') }}</p>
+            <el-button type="primary" plain @click="insertBankAtEnd(bankActiveTab)">
+              {{ t('companyInfo.bank.addAccount') }}
+            </el-button>
+          </div>
+
+          <div v-for="(item, idx) in filteredBankInfos" :key="item.row.id" class="group-card">
             <div class="group-card__head">
               <span class="group-card__title">{{ t('companyInfo.bank.groupTitle', { n: idx + 1 }) }}</span>
               <div class="group-card__actions">
                 <el-checkbox
-                  :model-value="row.isDefault"
-                  @update:model-value="(on: boolean) => toggleDefault(bankInfos, row, on)"
+                  :model-value="item.row.isDefault"
+                  @update:model-value="(on: boolean) => toggleBankDefault(item.row, on)"
                 >
                   {{ t('companyInfo.common.default') }}
                 </el-checkbox>
                 <span class="switch-label">{{ t('companyInfo.common.enabled') }}</span>
-                <el-switch v-model="row.enabled" />
+                <el-switch v-model="item.row.enabled" />
               </div>
             </div>
-            <el-form label-width="120px" class="settings-form" :model="row">
+            <el-form label-width="120px" class="settings-form" :model="item.row">
               <el-row :gutter="16">
                 <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.bank.bankName')"><el-input v-model="row.bankName" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.bank.bankName')"><el-input v-model="item.row.bankName" /></el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.bank.accountName')"><el-input v-model="row.accountName" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.bank.accountName')"><el-input v-model="item.row.accountName" /></el-form-item>
                 </el-col>
                 <el-col :span="24">
-                  <el-form-item :label="t('companyInfo.bank.bankAddress')"><el-input v-model="row.bankAddress" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.bank.bankAddress')"><el-input v-model="item.row.bankAddress" /></el-form-item>
                 </el-col>
                 <el-col :span="12">
                   <el-form-item>
                     <template #label>
                       <span :title="t('companyInfo.bank.swiftTitle')">{{ t('companyInfo.bank.swift') }}</span>
                     </template>
-                    <el-input v-model="row.swift" :placeholder="t('companyInfo.bank.phSwift')" />
+                    <el-input v-model="item.row.swift" :placeholder="t('companyInfo.bank.phSwift')" />
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
@@ -162,15 +174,18 @@
                     <template #label>
                       <span :title="t('companyInfo.bank.ibanTitle')">{{ t('companyInfo.bank.iban') }}</span>
                     </template>
-                    <el-input v-model="row.iban" :placeholder="t('companyInfo.bank.phIban')" />
+                    <el-input v-model="item.row.iban" :placeholder="t('companyInfo.bank.phIban')" />
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.bank.bankCode')"><el-input v-model="row.bankCode" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.bank.bankCode')"><el-input v-model="item.row.bankCode" /></el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item :label="t('companyInfo.bank.accountNumber')"><el-input v-model="item.row.accountNumber" /></el-form-item>
                 </el-col>
                 <el-col :span="12">
                   <el-form-item :label="t('companyInfo.bank.currency')">
-                    <el-select v-model="row.currency" style="width: 100%">
+                    <el-select v-model="item.row.currency" style="width: 100%">
                       <el-option label="RMB" value="RMB" />
                       <el-option label="USD" value="USD" />
                       <el-option label="EUR" value="EUR" />
@@ -179,22 +194,25 @@
                 </el-col>
                 <el-col :span="12">
                   <el-form-item :label="t('companyInfo.bank.bankType')">
-                    <el-select v-model="row.bankType" style="width: 100%">
+                    <el-select v-model="item.row.bankType" style="width: 100%">
                       <el-option :label="t('companyInfo.bank.bankTypeRmb')" value="rmb" />
                       <el-option :label="t('companyInfo.bank.bankTypeForeign')" value="foreign" />
                     </el-select>
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
+                  <el-form-item :label="t('companyInfo.bank.country')"><el-input v-model="item.row.country" /></el-form-item>
+                </el-col>
+                <el-col :span="12">
                   <el-form-item :label="t('companyInfo.bank.purposeType')">
-                    <el-select v-model="row.purposeType" style="width: 100%">
+                    <el-select v-model="item.row.purposeType" style="width: 100%">
                       <el-option :label="t('companyInfo.bank.purposePayment')" value="payment" />
                       <el-option :label="t('companyInfo.bank.purposeReceipt')" value="receipt" />
                     </el-select>
                   </el-form-item>
                 </el-col>
                 <el-col :span="24">
-                  <el-form-item :label="t('companyInfo.bank.remark')"><el-input v-model="row.remark" type="textarea" :rows="2" /></el-form-item>
+                  <el-form-item :label="t('companyInfo.bank.remark')"><el-input v-model="item.row.remark" type="textarea" :rows="2" /></el-form-item>
                 </el-col>
               </el-row>
             </el-form>
@@ -205,7 +223,7 @@
                 type="primary"
                 plain
                 :title="t('companyInfo.common.addGroupBelow')"
-                @click="insertBankAfter(idx)"
+                @click="insertBankAfter(item.index)"
               >
                 <el-icon><Plus /></el-icon>
               </el-button>
@@ -214,7 +232,7 @@
                 circle
                 plain
                 :title="t('companyInfo.common.removeGroup')"
-                @click="removeBankAt(idx)"
+                @click="removeBankAt(item.index)"
               >
                 <el-icon><Minus /></el-icon>
               </el-button>
@@ -419,48 +437,63 @@
           </div>
         </div>
 
-        <!-- 公司仓库信息 -->
+        <!-- 公司仓库信息（warehouseinfo 表） -->
         <div v-show="activeNav === 'warehouse'" class="form-section">
           <div class="section-head">
             <div class="section-head__left">
               <div class="section-title"><span class="title-bar"></span>{{ t('companyInfo.warehouse.sectionTitle') }}</div>
-              <p class="section-hint">{{ t('companyInfo.warehouse.sectionHint') }}</p>
+              <p class="section-hint">{{ t('warehouseManage.sectionHint') }}</p>
             </div>
             <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">{{ t('companyInfo.saveAll') }}</el-button>
           </div>
 
-          <div v-for="(row, idx) in warehouses" :key="row.id" class="group-card">
+          <div v-for="(row, idx) in warehouses" :key="row._key" class="group-card">
             <div class="group-card__head">
-              <span class="group-card__title">{{ t('companyInfo.warehouse.groupTitle', { n: idx + 1 }) }}</span>
+              <span class="group-card__title">{{ t('warehouseManage.groupTitle', { n: idx + 1 }) }}</span>
               <div class="group-card__actions">
-                <el-checkbox
-                  :model-value="row.isDefault"
-                  @update:model-value="(on: boolean) => toggleDefault(warehouses, row, on)"
-                >
-                  {{ t('companyInfo.common.default') }}
-                </el-checkbox>
-                <span class="switch-label">{{ t('companyInfo.common.enabled') }}</span>
-                <el-switch v-model="row.enabled" />
+                <span class="switch-label">{{ t('warehouseManage.enabled') }}</span>
+                <el-switch :model-value="row.status === 1" @update:model-value="(on: boolean) => (row.status = on ? 1 : 0)" />
               </div>
             </div>
             <el-form label-width="120px" class="settings-form" :model="row">
               <el-row :gutter="16">
-                <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.warehouse.warehouseName')"><el-input v-model="row.warehouseName" /></el-form-item>
+                <el-col :span="8">
+                  <el-form-item :label="t('warehouseManage.warehouseCode')" required>
+                    <el-input v-model="row.warehouseCode" :placeholder="t('warehouseManage.phCode')" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item :label="t('warehouseManage.warehouseName')" required>
+                    <el-input v-model="row.warehouseName" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item :label="t('warehouseManage.regionType')">
+                    <el-select v-model="row.regionType" style="width: 100%" :teleported="false">
+                      <el-option :value="REGION_TYPE_DOMESTIC" :label="t('warehouseManage.regionDomestic')" />
+                      <el-option :value="REGION_TYPE_OVERSEAS" :label="t('warehouseManage.regionOverseas')" />
+                    </el-select>
+                  </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.warehouse.contactName')"><el-input v-model="row.contactName" /></el-form-item>
+                  <el-form-item :label="t('warehouseManage.contactName')">
+                    <el-input v-model="row.contactName" />
+                  </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.warehouse.contactPhone')"><el-input v-model="row.contactPhone" /></el-form-item>
+                  <el-form-item :label="t('warehouseManage.contactPhone')">
+                    <el-input v-model="row.contactPhone" />
+                  </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item :label="t('companyInfo.warehouse.workHours')">
-                    <el-input v-model="row.workHours" :placeholder="t('companyInfo.warehouse.phWorkHours')" />
+                  <el-form-item :label="t('warehouseManage.workHours')">
+                    <el-input v-model="row.workHours" :placeholder="t('warehouseManage.phWorkHours')" />
                   </el-form-item>
                 </el-col>
                 <el-col :span="24">
-                  <el-form-item :label="t('companyInfo.warehouse.address')"><el-input v-model="row.address" /></el-form-item>
+                  <el-form-item :label="t('warehouseManage.address')">
+                    <el-input v-model="row.address" type="textarea" :rows="2" />
+                  </el-form-item>
                 </el-col>
               </el-row>
             </el-form>
@@ -470,7 +503,7 @@
                 circle
                 type="primary"
                 plain
-                :title="t('companyInfo.common.addGroupBelow')"
+                :title="t('warehouseManage.addBelow')"
                 @click="insertWarehouseAfter(idx)"
               >
                 <el-icon><Plus /></el-icon>
@@ -479,7 +512,7 @@
                 class="group-mini-btn group-mini-btn--minus"
                 circle
                 plain
-                :title="t('companyInfo.common.removeGroup')"
+                :title="t('warehouseManage.remove')"
                 @click="removeWarehouseAt(idx)"
               >
                 <el-icon><Minus /></el-icon>
@@ -568,6 +601,64 @@
             </el-form>
           </div>
         </div>
+
+        <!-- 报表信息 -->
+        <div v-show="activeNav === 'report'" class="form-section">
+          <div class="section-head">
+            <div class="section-head__left">
+              <div class="section-title"><span class="title-bar"></span>{{ t('companyInfo.reportInfo.sectionTitle') }}</div>
+              <p class="section-hint">
+                {{ t('companyInfo.reportInfo.sectionHint') }}
+              </p>
+            </div>
+            <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">{{ t('companyInfo.saveAll') }}</el-button>
+          </div>
+
+          <div class="group-card group-card--single">
+            <el-tabs v-model="reportActiveTab" class="report-info-tabs">
+              <el-tab-pane :label="t('companyInfo.reportInfo.tabInvoice')" name="invoice">
+                <el-form label-width="140px" class="settings-form" :model="reportInfo.invoice">
+                  <el-form-item :label="t('companyInfo.reportInfo.remarkCn')">
+                    <el-input
+                      v-model="reportInfo.invoice.remarkCn"
+                      type="textarea"
+                      :rows="6"
+                      :placeholder="t('companyInfo.reportInfo.phRemark')"
+                    />
+                  </el-form-item>
+                  <el-form-item :label="t('companyInfo.reportInfo.remarkEn')">
+                    <el-input
+                      v-model="reportInfo.invoice.remarkEn"
+                      type="textarea"
+                      :rows="6"
+                      :placeholder="t('companyInfo.reportInfo.phRemark')"
+                    />
+                  </el-form-item>
+                </el-form>
+              </el-tab-pane>
+              <el-tab-pane :label="t('companyInfo.reportInfo.tabPacking')" name="packing">
+                <el-form label-width="140px" class="settings-form" :model="reportInfo.packingList">
+                  <el-form-item :label="t('companyInfo.reportInfo.remarkCn')">
+                    <el-input
+                      v-model="reportInfo.packingList.remarkCn"
+                      type="textarea"
+                      :rows="6"
+                      :placeholder="t('companyInfo.reportInfo.phRemark')"
+                    />
+                  </el-form-item>
+                  <el-form-item :label="t('companyInfo.reportInfo.remarkEn')">
+                    <el-input
+                      v-model="reportInfo.packingList.remarkEn"
+                      type="textarea"
+                      :rows="6"
+                      :placeholder="t('companyInfo.reportInfo.phRemark')"
+                    />
+                  </el-form-item>
+                </el-form>
+              </el-tab-pane>
+            </el-tabs>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -576,28 +667,39 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { UploadRequestOptions } from 'element-plus'
-import { OfficeBuilding, Wallet, Picture, PictureFilled, Location, Promotion, Plus, Minus } from '@element-plus/icons-vue'
+import { OfficeBuilding, Wallet, Picture, PictureFilled, Location, Promotion, Document, Plus, Minus } from '@element-plus/icons-vue'
 import {
   fetchCompanyProfile,
   saveCompanyProfile,
+  emptyCompanyReportInfo,
+  isRmbCurrency,
   type CompanyBasicRow,
   type CompanyBankRow,
   type CompanyLogoRow,
   type CompanySealRow,
   type CompanyWarehouseRow,
-  type CompanySmtpEmailSettings
+  type CompanySmtpEmailSettings,
+  type CompanyReportInfo
 } from '@/api/companyProfile'
+import { inventoryCenterApi, type WarehouseInfo } from '@/api/inventoryCenter'
+import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { documentApi } from '@/api/document'
 import apiClient from '@/api/client'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 type AssetPreview = { url: string; kind: 'image' | 'pdf' | 'other' }
+type WarehouseRowVm = WarehouseInfo & { _key: string }
+
+let profileWarehousesSnapshot: CompanyWarehouseRow[] = []
 
 const { t, locale } = useI18n()
 
-const activeNav = ref<'basic' | 'bank' | 'logo' | 'seal' | 'warehouse' | 'email'>('basic')
+const activeNav = ref<'basic' | 'bank' | 'logo' | 'seal' | 'warehouse' | 'email' | 'report'>('basic')
+const reportActiveTab = ref<'invoice' | 'packing'>('invoice')
+type BankCurrencyTab = 'rmb' | 'foreign'
+const bankActiveTab = ref<BankCurrencyTab>('rmb')
 const loading = ref(false)
 const saving = ref(false)
 
@@ -605,7 +707,7 @@ const basicInfos = ref<CompanyBasicRow[]>([])
 const bankInfos = ref<CompanyBankRow[]>([])
 const logos = ref<CompanyLogoRow[]>([])
 const seals = ref<CompanySealRow[]>([])
-const warehouses = ref<CompanyWarehouseRow[]>([])
+const warehouses = ref<WarehouseRowVm[]>([])
 
 const previewByDocId = ref<Record<string, AssetPreview>>({})
 
@@ -672,6 +774,7 @@ function emptySmtp(): CompanySmtpEmailSettings {
 }
 
 const smtpEmail = ref<CompanySmtpEmailSettings>(emptySmtp())
+const reportInfo = ref<CompanyReportInfo>(emptyCompanyReportInfo())
 /** 已保存过密码时占位显示 ******，聚焦后进入真实编辑 */
 const smtpPasswordMaskActive = ref(false)
 
@@ -700,7 +803,8 @@ const navItems = computed(() => {
     { key: 'logo' as const, label: t('companyInfo.nav.logo'), icon: Picture },
     { key: 'seal' as const, label: t('companyInfo.nav.seal'), icon: PictureFilled },
     { key: 'warehouse' as const, label: t('companyInfo.nav.warehouse'), icon: Location },
-    { key: 'email' as const, label: t('companyInfo.nav.email'), icon: Promotion }
+    { key: 'email' as const, label: t('companyInfo.nav.email'), icon: Promotion },
+    { key: 'report' as const, label: t('companyInfo.nav.report'), icon: Document }
   ]
 })
 
@@ -737,6 +841,56 @@ function emptyBasic(): CompanyBasicRow {
   }
 }
 
+const filteredBankInfos = computed(() =>
+  bankInfos.value
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) =>
+      bankActiveTab.value === 'rmb' ? isRmbCurrency(row.currency) : !isRmbCurrency(row.currency)
+    )
+)
+
+function normalizeBankInfos(rows: CompanyBankRow[] | undefined | null): CompanyBankRow[] {
+  if (!rows?.length) {
+    const r = emptyBankForTab('rmb')
+    r.isDefault = true
+    return [r]
+  }
+  const list = rows.map((row) => ({ ...row }))
+  for (const inRmb of [true, false] as const) {
+    const group = list.filter((r) => isRmbCurrency(r.currency) === inRmb)
+    const defaults = group.filter((r) => r.isDefault)
+    if (defaults.length <= 1) continue
+    let kept = false
+    group.forEach((r) => {
+      if (!r.isDefault) return
+      if (kept) r.isDefault = false
+      else kept = true
+    })
+  }
+  return list
+}
+
+function toggleBankDefault(row: CompanyBankRow, on: boolean) {
+  const inRmb = isRmbCurrency(row.currency)
+  bankInfos.value.forEach((r) => {
+    if (isRmbCurrency(r.currency) !== inRmb) return
+    if (on) r.isDefault = r.id === row.id
+    else if (r.id === row.id) r.isDefault = false
+  })
+}
+
+function emptyBankForTab(tab: BankCurrencyTab): CompanyBankRow {
+  const row = emptyBank()
+  if (tab === 'foreign') {
+    row.currency = 'USD'
+    row.bankType = 'foreign'
+  } else {
+    row.currency = 'RMB'
+    row.bankType = 'rmb'
+  }
+  return row
+}
+
 function emptyBank(): CompanyBankRow {
   return {
     id: newId(),
@@ -748,7 +902,9 @@ function emptyBank(): CompanyBankRow {
     swift: '',
     iban: '',
     bankCode: '',
+    accountNumber: '',
     currency: 'RMB',
+    country: '',
     bankType: 'rmb',
     purposeType: 'payment',
     remark: ''
@@ -778,17 +934,80 @@ function emptySeal(): CompanySealRow {
   }
 }
 
-function emptyWarehouse(): CompanyWarehouseRow {
+function emptyWarehouse(): WarehouseRowVm {
   return {
-    id: newId(),
-    isDefault: false,
-    enabled: true,
+    _key: newId(),
+    warehouseCode: '',
     warehouseName: '',
     address: '',
     contactName: '',
     contactPhone: '',
-    workHours: ''
+    workHours: '',
+    regionType: REGION_TYPE_DOMESTIC,
+    status: 1
   }
+}
+
+function normalizeWarehouseRow(raw: WarehouseInfo): WarehouseRowVm {
+  const r = raw as unknown as Record<string, unknown>
+  const idRaw = r.id ?? r.Id
+  const id = typeof idRaw === 'string' && idRaw.trim() ? idRaw.trim() : undefined
+  return {
+    _key: id || newId(),
+    id,
+    warehouseCode: String(r.warehouseCode ?? r.WarehouseCode ?? '').trim(),
+    warehouseName: String(r.warehouseName ?? r.WarehouseName ?? '').trim(),
+    address: String(r.address ?? r.Address ?? ''),
+    contactName: String(r.contactName ?? r.ContactName ?? ''),
+    contactPhone: String(r.contactPhone ?? r.ContactPhone ?? ''),
+    workHours: String(r.workHours ?? r.WorkHours ?? ''),
+    regionType: normalizeRegionType(r.regionType ?? r.RegionType),
+    status: Number(r.status ?? r.Status ?? 1) === 0 ? 0 : 1
+  }
+}
+
+function normalizeWarehouseList(rows: WarehouseInfo[] | undefined | null): WarehouseRowVm[] {
+  const normalized = (rows ?? []).map(normalizeWarehouseRow)
+  return normalized.length > 0 ? normalized : [emptyWarehouse()]
+}
+
+function warehouseToPayload(row: WarehouseRowVm): WarehouseInfo {
+  const rt = normalizeRegionType(row.regionType)
+  const base: WarehouseInfo = {
+    warehouseCode: row.warehouseCode.trim(),
+    warehouseName: row.warehouseName.trim(),
+    address: row.address?.trim() || undefined,
+    contactName: row.contactName?.trim() || undefined,
+    contactPhone: row.contactPhone?.trim() || undefined,
+    workHours: row.workHours?.trim() || undefined,
+    regionType: rt,
+    status: row.status === 0 ? 0 : 1
+  }
+  const persistedId = row.id?.trim()
+  if (persistedId && !persistedId.startsWith('00000000')) {
+    return { ...base, id: persistedId }
+  }
+  return base
+}
+
+function validateWarehouseRows(): boolean {
+  for (let i = 0; i < warehouses.value.length; i++) {
+    const r = warehouses.value[i]
+    if (!r.warehouseCode.trim()) {
+      ElMessage.warning(t('warehouseManage.validateCode', { n: i + 1 }))
+      return false
+    }
+    if (!r.warehouseName.trim()) {
+      ElMessage.warning(t('warehouseManage.validateName', { n: i + 1 }))
+      return false
+    }
+  }
+  const codes = warehouses.value.map((r) => r.warehouseCode.trim().toLowerCase()).filter(Boolean)
+  if (new Set(codes).size !== codes.length) {
+    ElMessage.warning(t('warehouseManage.validateDuplicateCode'))
+    return false
+  }
+  return true
 }
 
 function setDefaultById<T extends { id: string; isDefault: boolean }>(list: T[], id: string) {
@@ -835,11 +1054,27 @@ function removeBasicAt(index: number) {
   removeGroupAt(basicInfos, index)
 }
 
-function insertBankAfter(index: number) {
-  bankInfos.value.splice(index + 1, 0, emptyBank())
+function insertBankAfter(fullIndex: number) {
+  const tab = bankActiveTab.value
+  bankInfos.value.splice(fullIndex + 1, 0, emptyBankForTab(tab))
 }
-function removeBankAt(index: number) {
-  removeGroupAt(bankInfos, index)
+
+function insertBankAtEnd(tab: BankCurrencyTab) {
+  bankInfos.value.push(emptyBankForTab(tab))
+}
+
+function removeBankAt(fullIndex: number) {
+  const arr = bankInfos.value
+  if (fullIndex < 0 || fullIndex >= arr.length) return
+  const removed = arr[fullIndex]
+  const inRmb = isRmbCurrency(removed.currency)
+  arr.splice(fullIndex, 1)
+  if (removed.isDefault) {
+    const sameGroup = arr.filter((r) => isRmbCurrency(r.currency) === inRmb)
+    if (sameGroup.length > 0 && !sameGroup.some((r) => r.isDefault)) {
+      sameGroup[0].isDefault = true
+    }
+  }
 }
 
 function insertLogoAfter(index: number) {
@@ -859,8 +1094,25 @@ function removeSealAt(index: number) {
 function insertWarehouseAfter(index: number) {
   warehouses.value.splice(index + 1, 0, emptyWarehouse())
 }
-function removeWarehouseAt(index: number) {
-  removeGroupAt(warehouses, index)
+
+async function removeWarehouseAt(index: number) {
+  if (warehouses.value.length <= 1) {
+    ElMessage.warning(t('warehouseManage.keepOne'))
+    return
+  }
+  const row = warehouses.value[index]
+  const name = row.warehouseName.trim() || row.warehouseCode.trim()
+  const message = name
+    ? t('warehouseManage.removeConfirmMessageWithName', { name })
+    : t('warehouseManage.removeConfirmMessage', { n: index + 1 })
+  try {
+    await ElMessageBox.confirm(message, t('warehouseManage.removeConfirmTitle'), {
+      type: 'warning'
+    })
+    warehouses.value.splice(index, 1)
+  } catch {
+    // user cancelled
+  }
 }
 
 async function onLogoUpload(row: CompanyLogoRow, opt: UploadRequestOptions) {
@@ -895,13 +1147,29 @@ async function onSealUpload(row: CompanySealRow, opt: UploadRequestOptions) {
   }
 }
 
+function normalizeReportInfo(raw: CompanyReportInfo | null | undefined): CompanyReportInfo {
+  const base = emptyCompanyReportInfo()
+  if (!raw) return base
+  return {
+    invoice: {
+      remarkCn: raw.invoice?.remarkCn ?? '',
+      remarkEn: raw.invoice?.remarkEn ?? ''
+    },
+    packingList: {
+      remarkCn: raw.packingList?.remarkCn ?? '',
+      remarkEn: raw.packingList?.remarkEn ?? ''
+    }
+  }
+}
+
 function bundle() {
   return {
     basicInfos: basicInfos.value,
     bankInfos: bankInfos.value,
     logos: logos.value,
     seals: seals.value,
-    warehouses: warehouses.value,
+    warehouses: profileWarehousesSnapshot,
+    reportInfo: reportInfo.value,
     smtpEmail: {
       enabled: smtpEmail.value.enabled,
       smtpHost: smtpEmail.value.smtpHost,
@@ -918,12 +1186,16 @@ function bundle() {
 async function load() {
   loading.value = true
   try {
-    const data = await fetchCompanyProfile()
+    const [data, warehouseList] = await Promise.all([
+      fetchCompanyProfile(),
+      inventoryCenterApi.getWarehouses().catch(() => [] as WarehouseInfo[])
+    ])
+    profileWarehousesSnapshot = data.warehouses ?? []
     basicInfos.value = normalizeGroups(data.basicInfos, emptyBasic)
-    bankInfos.value = normalizeGroups(data.bankInfos, emptyBank)
+    bankInfos.value = normalizeBankInfos(data.bankInfos)
     logos.value = normalizeGroups(data.logos, emptyLogo)
     seals.value = normalizeGroups(data.seals, emptySeal)
-    warehouses.value = normalizeGroups(data.warehouses, emptyWarehouse)
+    warehouses.value = normalizeWarehouseList(warehouseList)
     const se = data.smtpEmail
     const pwdSet = !!(se && se.passwordSet)
     smtpEmail.value = {
@@ -938,16 +1210,18 @@ async function load() {
       passwordSet: pwdSet
     }
     smtpPasswordMaskActive.value = pwdSet
+    reportInfo.value = normalizeReportInfo(data.reportInfo ?? undefined)
     await refreshAssetPreviews()
   } catch (e) {
     ElMessage.error(getApiErrorMessage(e, t('companyInfo.messages.loadFailed')))
     basicInfos.value = normalizeGroups([], emptyBasic)
-    bankInfos.value = normalizeGroups([], emptyBank)
+    bankInfos.value = normalizeBankInfos([])
     logos.value = normalizeGroups([], emptyLogo)
     seals.value = normalizeGroups([], emptySeal)
-    warehouses.value = normalizeGroups([], emptyWarehouse)
+    warehouses.value = normalizeWarehouseList([])
     smtpEmail.value = emptySmtp()
     smtpPasswordMaskActive.value = false
+    reportInfo.value = emptyCompanyReportInfo()
     revokeAllAssetPreviews()
   } finally {
     loading.value = false
@@ -957,11 +1231,23 @@ async function load() {
 async function saveAll() {
   saving.value = true
   try {
+    if (activeNav.value === 'warehouse') {
+      if (!validateWarehouseRows()) return
+      const saved = await inventoryCenterApi.saveWarehousesBatch(warehouses.value.map(warehouseToPayload))
+      warehouses.value = saved.length > 0 ? saved.map(normalizeWarehouseRow) : [emptyWarehouse()]
+      ElMessage.success(t('warehouseManage.saveSuccess'))
+      return
+    }
     await saveCompanyProfile(bundle())
     ElMessage.success(t('companyInfo.messages.saved'))
     await load()
   } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, t('companyInfo.messages.saveFailed')))
+    ElMessage.error(
+      getApiErrorMessage(
+        e,
+        activeNav.value === 'warehouse' ? t('warehouseManage.saveFailed') : t('companyInfo.messages.saveFailed')
+      )
+    )
   } finally {
     saving.value = false
   }
@@ -978,6 +1264,35 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
+
+.report-info-tabs {
+  :deep(.el-tabs__header) {
+    margin-bottom: 16px;
+  }
+}
+
+.bank-info-tabs {
+  margin-bottom: 16px;
+
+  :deep(.el-tabs__header) {
+    margin-bottom: 0;
+  }
+}
+
+.bank-info-empty {
+  padding: 32px 16px;
+  text-align: center;
+  border: 1px dashed var(--el-border-color);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  background: var(--el-fill-color-lighter);
+
+  &__hint {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: $text-muted;
+  }
+}
 
 .company-info-page {
   padding: 20px;

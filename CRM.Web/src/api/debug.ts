@@ -11,6 +11,36 @@ export type DebugPage = {
   items: DebugItem[]
 }
 
+/** GET /api/v1/debug/simulation-banner — 仿真顶栏（FZFlag / FZColor / FZCaption） */
+export type SimulationBanner = {
+  enabled: boolean
+  backgroundColor: string
+  caption: string
+}
+
+const emptySimulationBanner = (): SimulationBanner => ({
+  enabled: false,
+  backgroundColor: '',
+  caption: ''
+})
+
+function normalizeSimulationBanner(raw: unknown): SimulationBanner {
+  const r = raw as Record<string, unknown> | null | undefined
+  const inner = (r?.data ?? r?.Data ?? r) as Record<string, unknown> | null | undefined
+  if (!inner || typeof inner !== 'object') return emptySimulationBanner()
+  const enabled = inner.enabled ?? inner.Enabled
+  return {
+    enabled: enabled === true || enabled === 'true',
+    backgroundColor: String(inner.backgroundColor ?? inner.BackgroundColor ?? '').trim(),
+    caption: String(inner.caption ?? inner.Caption ?? '').trim()
+  }
+}
+
+export async function getSimulationBanner(): Promise<SimulationBanner> {
+  const raw = await apiClient.get<unknown>('/api/v1/debug/simulation-banner')
+  return normalizeSimulationBanner(raw)
+}
+
 /** 与后端 DataOrigin 一致：ignore | customer | vendor | salesorder | purchaseorder */
 export type SimulateDataOrigin = 'ignore' | 'customer' | 'vendor' | 'salesorder' | 'purchaseorder'
 

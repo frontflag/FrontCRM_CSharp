@@ -13,6 +13,7 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
     private readonly IRepository<FinanceSellInvoice> _financeSellInvoiceRepo;
     private readonly IRepository<SellInvoiceItem> _financeSellInvoiceItemRepo;
     private readonly IRepository<StockOutRequest> _stockOutRequestRepo;
+    private readonly IRepository<PackingItem> _packingItemRepo;
     private readonly IRepository<PickingTask> _pickingTaskRepo;
     private readonly IRepository<StockOut> _stockOutRepo;
     private readonly IRepository<StockOutItem> _stockOutItemRepo;
@@ -26,6 +27,7 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
         IRepository<FinanceSellInvoice> financeSellInvoiceRepo,
         IRepository<SellInvoiceItem> financeSellInvoiceItemRepo,
         IRepository<StockOutRequest> stockOutRequestRepo,
+        IRepository<PackingItem> packingItemRepo,
         IRepository<PickingTask> pickingTaskRepo,
         IRepository<StockOut> stockOutRepo,
         IRepository<StockOutItem> stockOutItemRepo,
@@ -38,6 +40,7 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
         _financeSellInvoiceRepo = financeSellInvoiceRepo;
         _financeSellInvoiceItemRepo = financeSellInvoiceItemRepo;
         _stockOutRequestRepo = stockOutRequestRepo;
+        _packingItemRepo = packingItemRepo;
         _pickingTaskRepo = pickingTaskRepo;
         _stockOutRepo = stockOutRepo;
         _stockOutItemRepo = stockOutItemRepo;
@@ -162,11 +165,20 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
             return ForceDeleteGuardResult.Deny("出库通知不存在");
         var key = stockOutRequestId.Trim();
         var keyLower = key.ToLowerInvariant();
-        var linkedPickingTasks = (await _pickingTaskRepo.FindAsync(x =>
-                x.StockOutRequestId != null &&
-                x.StockOutRequestId.ToLower() == keyLower))
-            .Where(t => !t.IsDeleted && t.Status != -1)
+        var packingIds = (await _packingItemRepo.FindAsync(pi =>
+                pi.StockOutNotifyId != null && pi.StockOutNotifyId == key))
+            .Where(pi => !pi.IsDeleted)
+            .Select(pi => pi.PackingId?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+        var linkedPickingTasks = packingIds.Count == 0
+            ? new List<PickingTask>()
+            : (await _pickingTaskRepo.FindAsync(t =>
+                    t.PackingId != null && packingIds.Contains(t.PackingId)))
+                .Where(t => !t.IsDeleted && t.Status != -1)
+                .ToList();
         if (linkedPickingTasks.Count > 0)
         {
             var codes = linkedPickingTasks

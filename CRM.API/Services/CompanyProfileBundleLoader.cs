@@ -23,11 +23,31 @@ public static class CompanyProfileBundleLoader
         return new CompanyProfileBundleDto
         {
             BasicInfos = await ReadListAsync<CompanyBasicInfoRowDto>(db, logger, CompanyProfileParamCodes.BasicInfos, cancellationToken),
-            BankInfos = await ReadListAsync<CompanyBankInfoRowDto>(db, logger, CompanyProfileParamCodes.BankInfos, cancellationToken),
+            BankInfos = await CompanyBankInfoStore.ReadAllAsync(db, logger, cancellationToken),
             Logos = await ReadListAsync<CompanyLogoRowDto>(db, logger, CompanyProfileParamCodes.Logos, cancellationToken),
             Seals = await ReadListAsync<CompanySealRowDto>(db, logger, CompanyProfileParamCodes.Seals, cancellationToken),
             Warehouses = await ReadListAsync<CompanyWarehouseRowDto>(db, logger, CompanyProfileParamCodes.Warehouses, cancellationToken),
-            SmtpEmail = await ReadSmtpEmailAsync(db, logger, cancellationToken) ?? new CompanySmtpEmailSettingsDto()
+            SmtpEmail = await ReadSmtpEmailAsync(db, logger, cancellationToken) ?? new CompanySmtpEmailSettingsDto(),
+            ReportInfo = await ReadReportInfoAsync(db, cancellationToken)
+        };
+    }
+
+    public static async Task<CompanyReportInfoDto> ReadReportInfoAsync(
+        ApplicationDbContext db,
+        CancellationToken cancellationToken = default)
+    {
+        return new CompanyReportInfoDto
+        {
+            Invoice = new CompanyReportRemarksDto
+            {
+                RemarkCn = await ReadStringParamAsync(db, CompanyProfileParamCodes.ReportInvoiceRemarkCn, cancellationToken),
+                RemarkEn = await ReadStringParamAsync(db, CompanyProfileParamCodes.ReportInvoiceRemarkEn, cancellationToken)
+            },
+            PackingList = new CompanyReportRemarksDto
+            {
+                RemarkCn = await ReadStringParamAsync(db, CompanyProfileParamCodes.ReportPackingListRemarkCn, cancellationToken),
+                RemarkEn = await ReadStringParamAsync(db, CompanyProfileParamCodes.ReportPackingListRemarkEn, cancellationToken)
+            }
         };
     }
 
@@ -78,5 +98,32 @@ public static class CompanyProfileBundleLoader
             logger.LogWarning(ex, "反序列化参数 {Code} 失败，返回空列表", paramCode);
             return new List<T>();
         }
+    }
+
+    /// <summary>读取单值字符串参数（ValueString 或 ValueJson 存长文本）。</summary>
+    public static async Task<string> ReadStringParamAsync(
+        ApplicationDbContext db,
+        string paramCode,
+        CancellationToken cancellationToken = default)
+    {
+        var p = await db.SysParams.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.ParamCode == paramCode, cancellationToken);
+        if (p == null)
+            return string.Empty;
+        if (!string.IsNullOrEmpty(p.ValueString))
+            return p.ValueString;
+        if (string.IsNullOrWhiteSpace(p.ValueJson))
+            return string.Empty;
+        try
+        {
+            var s = JsonSerializer.Deserialize<string>(p.ValueJson, JsonOpts);
+            if (s != null)
+                return s;
+        }
+        catch
+        {
+            /* 非 JSON 字符串时按原文返回 */
+        }
+        return p.ValueJson;
     }
 }

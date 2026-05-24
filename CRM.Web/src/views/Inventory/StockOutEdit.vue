@@ -1,5 +1,5 @@
 <template>
-  <div class="stockout-edit-page">
+  <div class="stockout-edit-page" :class="{ 'pick-only-page': isPickOnlyPage }">
     <div class="page-header">
       <div class="header-left">
         <div class="page-title-group">
@@ -12,31 +12,45 @@
         </div>
       </div>
       <div class="header-right">
-        <button class="btn-secondary" @click="goBack">返回出库通知</button>
+        <button class="btn-secondary" @click="goBack">
+          {{ isPickOnlyPage ? t('pickCreate.back') : t('stockOutNotifyList.backToNotifyList') }}
+        </button>
         <template v-if="!isNotifyDetailPage">
           <button
+            v-if="isPickOnlyPage && packingId && form.warehouseId"
+            type="button"
+            class="btn-primary"
+            :disabled="submittingPickingOrder || !pickDraftConfirmed"
+            :title="submitPickingOrderBtnTitle"
+            @click="submitPickingOrder"
+          >
+            {{ submittingPickingOrder ? t('pickCreate.submittingPickingOrder') : t('pickCreate.submitPickingOrder') }}
+          </button>
+          <button
+            v-if="!isPickOnlyPage"
             class="btn-picking"
             :disabled="requestAlreadyShipped || hasActivePickingTask"
             :title="generatePickingBtnTitle"
             @click="handleGeneratePicking"
           >
-            生成拣货任务
+            {{ t('pickCreate.generateTask') }}
           </button>
           <button
+            v-if="!isPickOnlyPage"
             class="btn-primary"
             style="margin-left: 8px"
             :disabled="submitting || !canExecuteStockOut"
             :title="executeOutHint"
             @click="handleSubmit"
           >
-            {{ submitting ? '执行中...' : '执行出库' }}
+            {{ submitting ? t('stockOutNotifyList.executing') : t('stockOutNotifyList.executeSubmit') }}
           </button>
         </template>
       </div>
     </div>
 
     <el-alert
-      v-if="!isNotifyDetailPage && form.stockOutRequestId"
+      v-if="!isNotifyDetailPage && !isPickOnlyPage && form.stockOutRequestId"
       class="flow-alert"
       type="info"
       :closable="false"
@@ -56,7 +70,7 @@
       <p v-else-if="!pickingCompleted && pickingTasks.length > 0" class="flow-warn-msg">请先完成拣货任务，再执行出库。</p>
     </el-alert>
 
-    <div class="form-layout">
+    <div v-if="!isPickOnlyPage" class="form-layout">
       <div class="form-card">
         <h3 class="section-title">基础信息</h3>
         <el-descriptions v-if="isNotifyDetailPage" :column="2" border class="notify-detail-desc">
@@ -188,12 +202,38 @@
 
     <StockOutNotifyDetailTabs v-if="isNotifyDetailPage" :request="currentRequest" />
 
-    <div v-if="!isNotifyDetailPage" class="form-card form-card--after-outbound" v-show="form.stockOutRequestId">
+    <div
+      v-if="isPickOnlyPage && packingId"
+      class="form-card form-card--pick-warehouse"
+    >
+      <el-descriptions :column="2" border class="pick-kv-descriptions">
+        <el-descriptions-item v-if="pickPage?.packingCode" :label="t('pickCreate.packingCodeLabel')">
+          {{ pickPage.packingCode }}
+        </el-descriptions-item>
+        <el-descriptions-item :label="t('pickCreate.warehouseLabel')">
+          <span v-if="pickWarehouseDisplay" class="pick-kv-warehouse-readonly">{{ pickWarehouseDisplay }}</span>
+          <span v-else class="picking-empty picking-empty--warn">{{ t('pickCreate.missingPackingWarehouse') }}</span>
+        </el-descriptions-item>
+      </el-descriptions>
+      <p v-if="pickPagePickingCompleted" class="picking-empty picking-empty--done">
+        {{ t('pickCreate.pickingCompletedHint') }}
+      </p>
+      <p v-else-if="!pendingPickingTask && form.warehouseId" class="picking-empty">{{ t('pickCreate.noTaskHint') }}</p>
+    </div>
+
+    <div
+      v-if="!isNotifyDetailPage && !isPickOnlyPage"
+      class="form-card form-card--after-outbound"
+      v-show="form.stockOutRequestId"
+    >
       <h3 class="section-title">拣货任务</h3>
       <p class="picking-hint">
         每个出库通知仅允许生成<strong>一个</strong>未取消的拣货任务。候选在库明细 = 与本销售行绑定的 stockitem + 符合规则的备货（型号/品牌匹配）；FIFO 仅用于排序与「自动分配」顺序。请在下方「拣货明细」卡片中加载候选、分配数量并保存后，再点「完成拣货」。执行出库时仅按已保存的拣货行扣减。
       </p>
-      <p v-if="!pickingTasks.length" class="picking-empty">暂无拣货任务，请先确认明细与仓库后点击「生成拣货任务」。</p>
+      <p v-if="!pickingTasks.length && !isPickOnlyPage" class="picking-empty">
+        暂无拣货任务，请先确认明细与仓库后点击「生成拣货任务」。
+      </p>
+      <p v-else-if="!pickingTasks.length" class="picking-empty">{{ t('pickCreate.noTask') }}</p>
       <el-table v-else :data="pickingTasks" row-key="id" class="picking-task-table">
         <el-table-column type="expand" width="44">
           <template #default="{ row }">
@@ -304,15 +344,94 @@
       </el-table>
     </div>
 
-    <div v-if="!isNotifyDetailPage && form.stockOutRequestId && pendingPickingTask" class="form-card">
-      <h3 class="section-title">拣货明细（按在库 stockitem）</h3>
-      <p class="picking-hint">
-        任务号：<strong>{{ pendingPickingTask.taskCode }}</strong>。合计须等于出库通知数量（{{ notifyTargetQty }}）。保存后方可「完成拣货」。
+
+    <div
+      v-if="isPickOnlyPage && packingId"
+      class="form-card form-card--after-outbound"
+    >
+      <h3 class="section-title">{{ t('pickCreate.packingLinesTitle') }}</h3>
+      <p v-if="loadingPickPage" class="picking-empty">{{ t('pickCreate.packingLinesLoading') }}</p>
+      <p v-else-if="pickPageLoadError" class="picking-empty picking-empty--warn">{{ pickPageLoadError }}</p>
+      <p v-else-if="!pickPage?.lines?.length" class="picking-empty">{{ t('pickCreate.packingLinesEmpty') }}</p>
+      <el-table
+        v-else
+        ref="packingLinesTableRef"
+        :data="pickPage!.lines"
+        row-key="packingItemId"
+        border
+        size="small"
+        highlight-current-row
+        class="quantum-table packing-lines-on-pick-table"
+        :empty-text="t('pickCreate.packingLinesEmpty')"
+        :current-row-key="selectedPackingItemId"
+        @row-click="onPackingLineRowClick"
+      >
+        <el-table-column :label="t('pickCreate.columns.planPick')" width="96" align="right">
+          <template #default="{ row }">{{ formatQty(displayPlanQtyForPickLine(row)) }}</template>
+        </el-table-column>
+        <el-table-column :label="t('pickCreate.columns.picked')" width="88" align="right">
+          <template #default="{ row }">{{ formatQty(displayPickedQtyForPickLine(row)) }}</template>
+        </el-table-column>
+        <el-table-column :label="t('pickCreate.columns.lineStatus')" width="100" align="center">
+          <template #default="{ row }">
+            <span
+              class="pick-line-status"
+              :class="`pick-line-status--${displayPickLineStatusForPickLine(row)}`"
+            >
+              {{ pickLineStatusLabel(displayPickLineStatusForPickLine(row)) }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('packingDetail.itemCode')" prop="itemCode" min-width="140" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.itemCode || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="t('packingItemList.columns.pn')" prop="pn" min-width="140" show-overflow-tooltip />
+        <el-table-column :label="t('packingItemList.columns.brand')" prop="brand" min-width="120" show-overflow-tooltip />
+        <el-table-column :label="t('packingItemList.columns.qty')" prop="qty" width="88" align="right">
+          <template #default="{ row }">{{ formatQty(row.qty) }}</template>
+        </el-table-column>
+        <el-table-column :label="t('packingDetail.unit')" prop="unit" width="72" />
+        <el-table-column :label="t('packingItemList.columns.sellOrderCode')" min-width="140" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.sellOrderCode || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="t('packingItemList.columns.sellOrderItemCode')" min-width="140" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.sellOrderItemCode || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="t('packingDetail.comment')" prop="comment" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.comment || '—' }}</template>
+        </el-table-column>
+      </el-table>
+    </div>
+
+
+    <div
+      v-if="!isNotifyDetailPage && (isPickOnlyPage ? packingId && form.warehouseId : pendingPickingTask && form.stockOutRequestId)"
+      class="form-card"
+    >
+      <h3 class="section-title">{{ isPickOnlyPage ? t('pickCreate.pickingDetailsTitle') : '拣货明细（按在库 stockitem）' }}</h3>
+      <p v-if="!isPickOnlyPage && pendingPickingTask" class="picking-hint">
+        任务号：<strong>{{ pendingPickingTask.taskCode }}</strong>。合计须等于出库通知数量（{{ notifyTargetQty }}）。
+        保存后方可「完成拣货」。
       </p>
       <div class="picking-draft-toolbar">
         <div class="picking-draft-toolbar__left">
-          <button type="button" class="btn-secondary btn-sm" :disabled="loadingCandidates" @click="loadPickingCandidates">
+          <button
+            v-if="!isPickOnlyPage"
+            type="button"
+            class="btn-secondary btn-sm"
+            :disabled="loadingCandidates"
+            @click="loadPickingCandidates()"
+          >
             {{ loadingCandidates ? '加载中…' : '加载拣货候选' }}
+          </button>
+          <button
+            v-else
+            type="button"
+            class="btn-secondary btn-sm"
+            :disabled="loadingCandidates || !selectedPackingItemId || !form.warehouseId"
+            @click="ensurePickCandidatesLoaded(true)"
+          >
+            {{ loadingCandidates ? '加载中…' : t('pickCreate.refreshCandidates') }}
           </button>
           <button
             type="button"
@@ -334,23 +453,40 @@
           <el-radio-button label="customer">客单库存</el-radio-button>
         </el-radio-group>
         <div class="picking-draft-toolbar__right">
-          <span class="picking-draft-sum">已分配：<strong>{{ allocatedPickTotal }}</strong> / 目标：<strong>{{ notifyTargetQty }}</strong></span>
+          <span class="picking-draft-sum">
+            <template v-if="isPickOnlyPage">
+              {{ t('pickCreate.currentLineAllocated', { current: allocatedPickTotal, target: selectedLineTargetQty }) }}
+              · {{ t('pickCreate.wholeSheetAllocated', { current: allocatedPickTotalAllLines, target: pickPageTotalQty }) }}
+            </template>
+            <template v-else>
+              已分配：<strong>{{ allocatedPickTotal }}</strong> / 目标：<strong>{{ notifyTargetQty }}</strong>
+            </template>
+            <span v-if="pickDraftConfirmed" class="picking-draft-confirmed-tag">{{ t('pickCreate.qtyConfirmed') }}</span>
+          </span>
           <button
             type="button"
             class="btn-primary btn-sm picking-draft-save-btn"
-            :disabled="savingPicking || !pendingPickingTask"
-            @click="savePickingDraft"
+            :class="{ 'picking-draft-save-btn--confirmed': pickDraftConfirmed && isPickOnlyPage }"
+            :disabled="(isPickOnlyPage ? !form.warehouseId : !pendingPickingTask) || submittingPickingOrder"
+            @click="isPickOnlyPage ? confirmPickQuantities() : savePickingDraftToDb()"
           >
-            {{ savingPicking ? '保存中…' : '保存拣货明细' }}
+            {{
+              submittingPickingOrder && !isPickOnlyPage
+                ? t('pickCreate.submittingPickingOrder')
+                : isPickOnlyPage
+                  ? t('pickCreate.confirmQty')
+                  : t('pickCreate.savePickingLines')
+            }}
           </button>
         </div>
       </div>
       <el-table
-        v-if="pickingCandidates.length"
+        v-if="isPickOnlyPage ? Boolean(selectedPackingItemId) : pickingCandidates.length > 0"
+        v-loading="loadingCandidates"
         :data="filteredPickingCandidates"
         class="quantum-table picking-candidates-table"
         max-height="380"
-        empty-text="当前筛选下无在库明细，请切换筛选项或选「全部库存」"
+        :empty-text="pickingCandidatesTableEmptyText"
       >
         <el-table-column label="入库日期" width="110" align="center" show-overflow-tooltip>
           <template #default="{ row }">{{ pickingCandidateStockInDate(row) }}</template>
@@ -400,30 +536,42 @@
           </template>
         </el-table-column>
       </el-table>
-      <p v-else class="picking-empty subtle">请点击「加载拣货候选」获取本仓库可拣在库明细。</p>
+      <p v-if="!isPickOnlyPage && !pickingCandidates.length" class="picking-empty subtle">
+        请点击「加载拣货候选」获取本仓库可拣在库明细。
+      </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
+import type { TableInstance } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Box } from '@element-plus/icons-vue'
 import { stockOutApi, type StockOutRequestDto } from '@/api/stockOut'
 import {
   inventoryCenterApi,
+  type PickPageByPacking,
+  type PickPagePackingLine,
   type PickingStockItemCandidate,
   type PickingTask,
   type PickingTaskLine,
+  type SavePickingTaskItemLine,
   type WarehouseInfo
 } from '@/api/inventoryCenter'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
+import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import StockOutNotifyDetailTabs from '@/components/Inventory/StockOutNotifyDetailTabs.vue'
+import { packingApi } from '@/api/packing'
+import {
+  PACKING_STOCK_OUT_QUEUE_KEY,
+  popNextPackingStockOutQueueEntry
+} from '@/utils/packingStockOutQueue'
 
 type ExecuteItem = {
   lineNo: number
@@ -447,15 +595,28 @@ const route = useRoute()
 const { t, locale } = useI18n()
 const submitting = ref(false)
 const pickingTasks = ref<PickingTask[]>([])
+const linkedPackingId = ref('')
 const warehouses = ref<WarehouseInfo[]>([])
 const currentRequest = ref<StockOutRequestDto | null>(null)
 const pickingCandidates = ref<PickingStockItemCandidate[]>([])
+const pickingCandidatesLoaded = ref(false)
+const lastPickCandidatesKey = ref('')
+const packingLinesTableRef = ref<TableInstance>()
 /** 拣货明细按「来源」筛选：与表格「备货 / 客单」列一致（isStockingCandidate） */
 type PickingSourceFilterKey = 'all' | 'stocking' | 'customer'
 const pickingSourceFilter = ref<PickingSourceFilterKey>('all')
 const pickDraft = reactive<Record<string, number>>({})
+/** 用户已在本页确认拣货数量（仅内存，未写库） */
+const pickDraftConfirmed = ref(false)
 const loadingCandidates = ref(false)
-const savingPicking = ref(false)
+const submittingPickingOrder = ref(false)
+const completingPicking = ref(false)
+const pickPage = ref<PickPageByPacking | null>(null)
+const loadingPickPage = ref(false)
+const pickPageLoadError = ref('')
+const selectedPackingItemId = ref('')
+/** 按装箱明细行分桶的拣货草稿：packingItemId -> stockItemId -> qty */
+const pickDraftByLine = reactive<Record<string, Record<string, number>>>({})
 const getYYMMDD = (d: Date) => {
   const yy = String(d.getFullYear()).slice(-2)
   const mm = String(d.getMonth() + 1).padStart(2, '0')
@@ -470,19 +631,27 @@ function resolveStockOutRequestId(): string {
   return String(route.query.requestId || '').trim()
 }
 
-const isNotifyDetailPage = computed(() => route.name === 'StockOutNotifyDetail')
+function resolvePackingId(): string {
+  return String(route.query.packingId || '').trim()
+}
 
-const pageTitle = computed(() =>
-  isNotifyDetailPage.value
-    ? t('stockOutNotifyList.detailTitle')
-    : t('stockOutNotifyList.executeTitle')
-)
+const packingId = computed(() => resolvePackingId())
+
+const isNotifyDetailPage = computed(() => route.name === 'StockOutNotifyDetail')
+const isPickOnlyPage = computed(() => route.name === 'PickCreate')
+
+const pageTitle = computed(() => {
+  if (isPickOnlyPage.value) return t('pickCreate.title')
+  if (isNotifyDetailPage.value) return t('stockOutNotifyList.detailTitle')
+  return t('stockOutNotifyList.executeTitle')
+})
 
 const notifyDetailStatusLabel = computed(() => {
   const s = Number(currentRequest.value?.status)
-  if (s === 0) return t('stockOutNotifyList.status.pendingOut')
-  if (s === 1) return t('stockOutNotifyList.status.done')
-  if (s === 2) return t('stockOutNotifyList.status.cancelled')
+  if (s === STOCK_OUT_REQUEST_STATUS.PendingPacking) return t('stockOutNotifyList.status.pendingPacking')
+  if (s === STOCK_OUT_REQUEST_STATUS.Packed) return t('stockOutNotifyList.status.packed')
+  if (s === STOCK_OUT_REQUEST_STATUS.StockedOut) return t('stockOutNotifyList.status.stockedOut')
+  if (s === STOCK_OUT_REQUEST_STATUS.Cancelled) return t('stockOutNotifyList.status.cancelled')
   return t('stockOutNotifyList.status.unknown')
 })
 
@@ -561,6 +730,15 @@ const warehouseLabel = (warehouseId: string) => {
   return w ? `${w.warehouseName}（${w.warehouseCode}）` : warehouseId
 }
 
+const pickWarehouseDisplay = computed(() => {
+  if (!isPickOnlyPage.value) return ''
+  const fromPage = pickPage.value?.warehouseDisplay?.trim()
+  if (fromPage) return fromPage
+  const whId = form.warehouseId?.trim()
+  if (!whId) return ''
+  return warehouseLabel(whId)
+})
+
 /** 出库通知业务单号（SON），无则退回显式内部 ID */
 const notifyRequestCodeDisplay = computed(() => {
   const code = currentRequest.value?.requestCode?.trim()
@@ -631,7 +809,9 @@ const formatTaskTime = (v?: string) => {
   return formatDisplayDateTime(r)
 }
 
-const requestAlreadyShipped = computed(() => Number(currentRequest.value?.status) === 1)
+const requestAlreadyShipped = computed(
+  () => Number(currentRequest.value?.status) === STOCK_OUT_REQUEST_STATUS.StockedOut
+)
 
 const notifyTargetQty = computed(() => {
   const r = currentRequest.value as unknown as Record<string, unknown> | null
@@ -640,22 +820,130 @@ const notifyTargetQty = computed(() => {
   return Math.round(totalQuantity.value)
 })
 
+function pickingTaskPackingId(t: PickingTask): string {
+  return String(t.packingId ?? (t as unknown as Record<string, string>).PackingId ?? '').trim()
+}
+
+function pickingTaskMatchesCurrentRequest(t: PickingTask): boolean {
+  const pid = linkedPackingId.value.trim()
+  return Boolean(pid) && pickingTaskPackingId(t) === pid
+}
+
 const pendingPickingTask = computed(() => {
-  const rid = form.stockOutRequestId?.trim()
-  if (!rid) return null
+  if (isPickOnlyPage.value) {
+    const t = pickPage.value?.pickingTask
+    if (!t || t.status === 100 || t.status === -1) return null
+    return t
+  }
   return (
-    pickingTasks.value.find(
-      (t) =>
-        (t.stockOutRequestId === rid || (t as unknown as Record<string, string>).StockOutRequestId === rid) &&
-        t.status !== 100 &&
-        t.status !== -1
-    ) ?? null
+    pickingTasks.value.find((t) => pickingTaskMatchesCurrentRequest(t) && t.status !== 100 && t.status !== -1) ??
+    null
   )
 })
 
-const allocatedPickTotal = computed(() =>
-  pickingCandidates.value.reduce((s, c) => s + (pickDraft[c.stockItemId] ?? 0), 0)
+const selectedPackingLine = computed(() => {
+  const id = selectedPackingItemId.value?.trim()
+  if (!id || !pickPage.value?.lines?.length) return null
+  return pickPage.value.lines.find((l) => l.packingItemId === id) ?? null
+})
+
+const selectedLineTargetQty = computed(() => selectedPackingLine.value?.qty ?? 0)
+
+function pickLineStatusLabel(status: string): string {
+  const m: Record<string, string> = {
+    pending: t('pickCreate.lineStatus.pending'),
+    partial: t('pickCreate.lineStatus.partial'),
+    allocated: t('pickCreate.lineStatus.allocated'),
+    done: t('pickCreate.lineStatus.done'),
+    over: t('pickCreate.lineStatus.over')
+  }
+  return m[status] ?? status
+}
+
+/** 装箱行「本次拣货」草稿合计（随拣货明细输入实时变化） */
+function lineDraftPickSum(packingItemId: string): number {
+  const draft = pickDraftByLine[packingItemId] ?? {}
+  return Object.values(draft).reduce((a, n) => a + (Number(n) || 0), 0)
+}
+
+/** 计划拣货：本行须拣数量（与装箱明细「数量」一致，不随本次分配变化） */
+function displayPlanQtyForPickLine(row: PickPagePackingLine): number {
+  return Number(row.qty) || 0
+}
+
+/** 已拣货：编辑中随本次拣货草稿变化；完成拣货后以库中 PickedQty 为准 */
+function displayPickedQtyForPickLine(row: PickPagePackingLine): number {
+  const draft = lineDraftPickSum(row.packingItemId)
+  const savedPlan = Number(row.planQtyTotal) || 0
+  const savedPicked = Number(row.pickedQtyTotal) || 0
+  if (savedPicked > 0 && savedPlan > 0 && savedPicked >= savedPlan) return savedPicked
+  return draft > 0 ? draft : savedPicked
+}
+
+function displayPickLineStatusForPickLine(row: PickPagePackingLine): string {
+  const target = Number(row.qty) || 0
+  const draft = lineDraftPickSum(row.packingItemId)
+  const savedPlan = Number(row.planQtyTotal) || 0
+  const savedPicked = Number(row.pickedQtyTotal) || 0
+  const pickedEffective =
+    savedPicked > 0 && savedPlan > 0 && savedPicked >= savedPlan
+      ? savedPicked
+      : draft > 0
+        ? draft
+        : savedPicked
+  if (pickedEffective <= 0) return 'pending'
+  if (pickedEffective > target) return 'over'
+  if (pickedEffective < target) return 'partial'
+  if (savedPicked >= savedPlan && savedPlan >= target && savedPlan > 0) return 'done'
+  return 'allocated'
+}
+
+function activePickDraft(): Record<string, number> {
+  if (!isPickOnlyPage.value) return pickDraft
+  const lid = selectedPackingItemId.value?.trim()
+  if (!lid) return {}
+  if (!pickDraftByLine[lid]) pickDraftByLine[lid] = {}
+  return pickDraftByLine[lid]
+}
+
+function clearActivePickDraft() {
+  if (!isPickOnlyPage.value) {
+    clearPickDraft()
+    return
+  }
+  const lid = selectedPackingItemId.value?.trim()
+  if (!lid) return
+  pickDraftByLine[lid] = {}
+  pickDraftConfirmed.value = false
+}
+
+const allocatedPickTotal = computed(() => {
+  if (!isPickOnlyPage.value) {
+    return pickingCandidates.value.reduce((s, c) => s + (pickDraft[c.stockItemId] ?? 0), 0)
+  }
+  const draft = activePickDraft()
+  return pickingCandidates.value.reduce((s, c) => s + (draft[c.stockItemId] ?? 0), 0)
+})
+
+const allocatedPickTotalAllLines = computed(() => {
+  if (!pickPage.value?.lines?.length) return 0
+  let sum = 0
+  for (const line of pickPage.value.lines) {
+    const draft = pickDraftByLine[line.packingItemId] ?? {}
+    sum += Object.values(draft).reduce((a, n) => a + (Number(n) || 0), 0)
+  }
+  return sum
+})
+
+const pickPageTotalQty = computed(() =>
+  (pickPage.value?.lines ?? []).reduce((s, l) => s + (Number(l.qty) || 0), 0)
 )
+
+const pickPagePickingCompleted = computed(() => {
+  if (!isPickOnlyPage.value) return false
+  const st = pickPage.value?.pickingTask?.status
+  return st === 100
+})
 
 const filteredPickingCandidates = computed((): PickingStockItemCandidate[] => {
   const list = pickingCandidates.value
@@ -666,11 +954,19 @@ const filteredPickingCandidates = computed((): PickingStockItemCandidate[] => {
   return list
 })
 
+const pickingCandidatesTableEmptyText = computed(() => {
+  if (isPickOnlyPage.value) {
+    if (!pickingCandidatesLoaded.value) return ' '
+    if (pickingCandidates.value.length === 0) return t('pickCreate.noAvailableStock')
+    return t('pickCreate.pickingCandidatesFilterEmpty')
+  }
+  return t('pickCreate.pickingCandidatesFilterEmpty')
+})
+
 const pickingLinesSaved = computed(() => {
-  const rid = form.stockOutRequestId?.trim()
-  if (!rid) return false
+  if (!linkedPackingId.value.trim()) return false
   return pickingTasks.value.some((t) => {
-    if (t.stockOutRequestId !== rid && (t as unknown as Record<string, string>).StockOutRequestId !== rid) return false
+    if (!pickingTaskMatchesCurrentRequest(t)) return false
     const n = pickingQty(t, 'plan')
     return n != null && n > 0
   })
@@ -679,7 +975,13 @@ const pickingLinesSaved = computed(() => {
 const pickingCompleted = computed(() => pickingTasks.value.some((t) => t.status === 100))
 
 /** 是否存在未取消的拣货任务（与后端「禁止重复生成」一致） */
-const hasActivePickingTask = computed(() => pickingTasks.value.some((t) => t.status !== -1))
+const hasActivePickingTask = computed(() => {
+  if (isPickOnlyPage.value) {
+    const t = pickPage.value?.pickingTask
+    return Boolean(t && t.status !== -1)
+  }
+  return pickingTasks.value.some((t) => t.status !== -1)
+})
 
 const generatePickingBtnTitle = computed(() => {
   if (requestAlreadyShipped.value) return '该出库通知已执行出库'
@@ -706,8 +1008,14 @@ const canExecuteStockOut = computed(
 
 const executeOutHint = computed(() => {
   if (requestAlreadyShipped.value) return '该出库通知已出库'
-  if (!pickingCompleted.value) return '请先保存拣货明细并完成拣货任务后再执行出库'
+  if (!pickingCompleted.value) return '请先生成拣货单并完成拣货任务后再执行出库'
   return '将按已保存的拣货明细扣减在库并标记出库通知为已出库'
+})
+
+const submitPickingOrderBtnTitle = computed(() => {
+  if (!pickDraftConfirmed.value) return t('pickCreate.confirmQtyFirst')
+  if (pickingLinesSaved.value) return t('pickCreate.resubmitPickingOrderHint')
+  return ''
 })
 
 function pickingLineStockItemCode(line: PickingTaskLine) {
@@ -746,25 +1054,124 @@ function pickingCandidateStockInItemCode(row: PickingStockItemCandidate) {
 }
 
 function pickQty(c: PickingStockItemCandidate) {
-  return pickDraft[c.stockItemId] ?? 0
+  return activePickDraft()[c.stockItemId] ?? 0
 }
 
 function setPickQty(c: PickingStockItemCandidate, v: number | undefined | null) {
   const k = c.stockItemId
   const raw = typeof v === 'number' && Number.isFinite(v) ? Math.floor(v) : 0
   const n = Math.max(0, Math.min(raw, Math.max(0, Math.floor(Number(c.availableQty)))))
-  if (n <= 0) delete pickDraft[k]
-  else pickDraft[k] = n
+  const draft = activePickDraft()
+  if (n <= 0) delete draft[k]
+  else draft[k] = n
+  pickDraftConfirmed.value = false
 }
 
 function clearPickDraft() {
   for (const k of Object.keys(pickDraft)) delete pickDraft[k]
+  pickDraftConfirmed.value = false
+}
+
+function buildPickLinesFromDraft() {
+  return pickingCandidates.value
+    .map((c) => ({
+      packingItemId: selectedPackingItemId.value || undefined,
+      stockItemId: c.stockItemId,
+      stockId: c.stockAggregateId,
+      qty: pickQty(c)
+    }))
+    .filter((l) => l.qty > 0)
+}
+
+function buildAllPickLinesFromDraft(): SavePickingTaskItemLine[] {
+  const lines: SavePickingTaskItemLine[] = []
+  if (!pickPage.value?.lines?.length) return lines
+  for (const pl of pickPage.value.lines) {
+    const draft = pickDraftByLine[pl.packingItemId] ?? {}
+    for (const [stockItemId, qty] of Object.entries(draft)) {
+      const n = Math.floor(Number(qty) || 0)
+      if (n <= 0) continue
+      const cand = pickingCandidatesCache.value[pl.packingItemId]?.find((c) => c.stockItemId === stockItemId)
+      const saved = pl.pickingItems?.find((p) => String(p.stockItemId ?? '').trim() === stockItemId)
+      const stockId = cand?.stockAggregateId ?? String(saved?.stockId ?? '').trim()
+      if (!stockId) continue
+      lines.push({
+        packingItemId: pl.packingItemId,
+        stockItemId,
+        stockId,
+        qty: n
+      })
+    }
+  }
+  return lines
+}
+
+/** 装箱行 -> 候选缓存（保存整单时合并各行的 stockitem） */
+const pickingCandidatesCache = ref<Record<string, PickingStockItemCandidate[]>>({})
+
+function validatePickDraftTotal(): boolean {
+  if (isPickOnlyPage.value) {
+    return validateAllPackingLinesDraft()
+  }
+  const lines = buildPickLinesFromDraft()
+  const sum = lines.reduce((a, l) => a + l.qty, 0)
+  if (sum !== notifyTargetQty.value) {
+    ElMessage.error(`拣货数量合计须等于出库通知数量（${notifyTargetQty.value}），当前为 ${sum}`)
+    return false
+  }
+  if (lines.length === 0) {
+    ElMessage.warning(t('pickCreate.allocateQtyFirst'))
+    return false
+  }
+  return true
+}
+
+function validateAllPackingLinesDraft(): boolean {
+  if (!pickPage.value?.lines?.length) {
+    ElMessage.warning(t('pickCreate.packingLinesEmpty'))
+    return false
+  }
+  for (const pl of pickPage.value.lines) {
+    const draft = pickDraftByLine[pl.packingItemId] ?? {}
+    const sum = Object.values(draft).reduce((a, n) => a + (Number(n) || 0), 0)
+    if (sum !== pl.qty) {
+      ElMessage.error(
+        t('pickCreate.lineQtyMismatch', {
+          code: pl.itemCode || pl.packingItemId,
+          target: pl.qty,
+          actual: sum
+        })
+      )
+      return false
+    }
+  }
+  for (const pl of pickPage.value.lines) {
+    const draft = pickDraftByLine[pl.packingItemId] ?? {}
+    for (const [stockItemId, qty] of Object.entries(draft)) {
+      if (Math.floor(Number(qty) || 0) <= 0) continue
+      const cand = pickingCandidatesCache.value[pl.packingItemId]?.find((c) => c.stockItemId === stockItemId)
+      const saved = pl.pickingItems?.find((p) => String(p.stockItemId ?? '').trim() === stockItemId)
+      const stockId = cand?.stockAggregateId ?? String(saved?.stockId ?? '').trim()
+      if (!stockId) {
+        ElMessage.error(
+          t('pickCreate.reloadCandidatesForLine', { code: pl.itemCode || pl.packingItemId })
+        )
+        return false
+      }
+    }
+  }
+  const allLines = buildAllPickLinesFromDraft()
+  if (allLines.length === 0) {
+    ElMessage.warning(t('pickCreate.allocateQtyFirst'))
+    return false
+  }
+  return true
 }
 
 const loadWarehouses = async () => {
   try {
     warehouses.value = await inventoryCenterApi.getWarehouses()
-    if (!form.warehouseId && warehouses.value.length) {
+    if (!isPickOnlyPage.value && !form.warehouseId && warehouses.value.length) {
       form.warehouseId = warehouses.value[0].id || ''
     }
   } catch (e) {
@@ -836,15 +1243,176 @@ const pickRecommendedWarehouse = async () => {
   }
 }
 
+const resolveLinkedPackingId = async () => {
+  const rid = form.stockOutRequestId?.trim()
+  if (!rid) {
+    linkedPackingId.value = ''
+    return
+  }
+  try {
+    const packing = await packingApi.getByStockOutRequestId(rid)
+    linkedPackingId.value = String(packing?.id ?? '').trim()
+  } catch {
+    linkedPackingId.value = ''
+  }
+}
+
 const loadPickingTasks = async () => {
   try {
+    await resolveLinkedPackingId()
     const tasks = await inventoryCenterApi.getPickingTasks()
-    const requestId = form.stockOutRequestId
-    pickingTasks.value = (tasks || []).filter(x => requestId && x.stockOutRequestId === requestId)
+    pickingTasks.value = (tasks || []).filter((t) => pickingTaskMatchesCurrentRequest(t))
   } catch {
     pickingTasks.value = []
   }
 }
+
+function hydratePickDraftFromPage(page: PickPageByPacking) {
+  for (const k of Object.keys(pickDraftByLine)) delete pickDraftByLine[k]
+  for (const line of page.lines) {
+    const items = line.pickingItems ?? []
+    if (!items.length) continue
+    const bucket: Record<string, number> = {}
+    for (const pi of items) {
+      const sid = String(pi.stockItemId ?? '').trim()
+      if (!sid) continue
+      const q = Math.max(0, Math.floor(Number(pi.pickedQty ?? pi.planQty) || 0))
+      if (q > 0) bucket[sid] = (bucket[sid] ?? 0) + q
+    }
+    if (Object.keys(bucket).length) pickDraftByLine[line.packingItemId] = bucket
+  }
+}
+
+function syncPackingLinesTableHighlight() {
+  const lines = pickPage.value?.lines
+  const lineId = selectedPackingItemId.value?.trim()
+  if (!lines?.length || !lineId) return
+  const row = lines.find((l) => l.packingItemId === lineId)
+  if (row) packingLinesTableRef.value?.setCurrentRow(row)
+}
+
+function resolvePickPageWarehouse(page: PickPageByPacking) {
+  const fromTask = page.pickingTask?.warehouseId?.trim()
+  const fromPacking = page.warehouseId?.trim()
+  if (fromTask) {
+    form.warehouseId = fromTask
+    return
+  }
+  if (fromPacking) {
+    form.warehouseId = fromPacking
+    return
+  }
+  form.warehouseId = ''
+}
+
+async function applyDefaultPackingLineSelection(page: PickPageByPacking) {
+  if (!page.lines.length) {
+    selectedPackingItemId.value = ''
+    pickingCandidates.value = []
+    pickingCandidatesLoaded.value = false
+    lastPickCandidatesKey.value = ''
+    return
+  }
+  const current = selectedPackingItemId.value?.trim()
+  const keep = Boolean(current && page.lines.some((l) => l.packingItemId === current))
+  selectedPackingItemId.value = keep ? current! : page.lines[0].packingItemId
+  pickingCandidatesLoaded.value = false
+  lastPickCandidatesKey.value = ''
+  if (!form.warehouseId?.trim()) {
+    pickingCandidates.value = []
+    return
+  }
+  await ensurePickCandidatesLoaded()
+}
+
+async function ensurePickCandidatesLoaded(force = false) {
+  if (!isPickOnlyPage.value || loadingPickPage.value) return
+  const lineId = selectedPackingItemId.value?.trim()
+  const wh = form.warehouseId?.trim()
+  if (!lineId || !wh) return
+  const key = `${lineId}|${wh}`
+  if (!force && lastPickCandidatesKey.value === key && pickingCandidatesLoaded.value) return
+  await loadPickingCandidatesForSelectedLine()
+  lastPickCandidatesKey.value = key
+}
+
+const loadPickPage = async () => {
+  if (!isPickOnlyPage.value) return
+  const pid = packingId.value
+  if (!pid) {
+    pickPage.value = null
+    pickPageLoadError.value = t('pickCreate.missingPackingId')
+    return
+  }
+  loadingPickPage.value = true
+  pickPageLoadError.value = ''
+  try {
+    const page = await inventoryCenterApi.getPickPageByPacking(pid)
+    pickPage.value = page
+    resolvePickPageWarehouse(page)
+    hydratePickDraftFromPage(page)
+    await applyDefaultPackingLineSelection(page)
+  } catch (e) {
+    console.error(e)
+    pickPage.value = null
+    pickPageLoadError.value = getApiErrorMessage(e, t('pickCreate.packingLinesLoadFailed'))
+  } finally {
+    loadingPickPage.value = false
+  }
+  if (pickPage.value?.lines?.length && selectedPackingItemId.value) {
+    await nextTick()
+    syncPackingLinesTableHighlight()
+  }
+}
+
+function onPackingLineRowClick(row: PickPagePackingLine) {
+  if (!row?.packingItemId) return
+  if (selectedPackingItemId.value === row.packingItemId) return
+  selectedPackingItemId.value = row.packingItemId
+  pickingCandidatesLoaded.value = false
+  lastPickCandidatesKey.value = ''
+  void ensurePickCandidatesLoaded(true)
+}
+
+const loadPickingCandidatesForSelectedLine = async () => {
+  const lineId = selectedPackingItemId.value?.trim()
+  if (!lineId || !form.warehouseId?.trim()) {
+    pickingCandidates.value = []
+    pickingCandidatesLoaded.value = false
+    if (lineId || form.warehouseId?.trim()) {
+      ElMessage.warning(t('pickCreate.selectLineAndWarehouse'))
+    }
+    return
+  }
+  loadingCandidates.value = true
+  pickingCandidatesLoaded.value = false
+  try {
+    const list = await inventoryCenterApi.getPickingCandidatesByPackingItem(lineId, form.warehouseId.trim())
+    pickingCandidates.value = list || []
+    pickingCandidatesCache.value[lineId] = list || []
+    pickingSourceFilter.value = 'all'
+  } catch (e) {
+    console.error(e)
+    pickingCandidates.value = []
+    ElMessage.error(getApiErrorMessage(e, '加载拣货候选失败'))
+  } finally {
+    loadingCandidates.value = false
+    pickingCandidatesLoaded.value = true
+    if (lineId && form.warehouseId?.trim()) {
+      lastPickCandidatesKey.value = `${lineId}|${form.warehouseId.trim()}`
+    }
+  }
+}
+
+watch(
+  () =>
+    isPickOnlyPage.value
+      ? `${form.warehouseId}|${selectedPackingItemId.value}|${pickPage.value?.lines?.length ?? 0}`
+      : '',
+  () => {
+    void ensurePickCandidatesLoaded()
+  }
+)
 
 const loadPickingCandidates = async () => {
   if (!form.stockOutRequestId?.trim() || !form.warehouseId?.trim()) {
@@ -867,66 +1435,123 @@ const loadPickingCandidates = async () => {
 }
 
 const applyFifoToPickDraft = () => {
-  clearPickDraft()
-  const target = notifyTargetQty.value
+  clearActivePickDraft()
+  const target = isPickOnlyPage.value ? selectedLineTargetQty.value : notifyTargetQty.value
   let rem = target
   for (const c of pickingCandidates.value) {
     if (rem <= 0) break
     const avail = Math.max(0, Math.floor(Number(c.availableQty)))
     const take = Math.min(rem, avail)
     if (take > 0) {
-      pickDraft[c.stockItemId] = take
+      activePickDraft()[c.stockItemId] = take
       rem -= take
     }
   }
   if (rem > 0) ElMessage.warning(`候选可用量不足，尚有 ${rem} 未分配，请补库存或手工调整`)
-  else ElMessage.success('已按 FIFO 顺序填满（请核对后保存拣货明细）')
+  else ElMessage.success('已按 FIFO 顺序填满（请核对后点「确认拣货数量」）')
 }
 
-const savePickingDraft = async () => {
-  const task = pendingPickingTask.value
-  if (!task?.id) return
-  const lines = pickingCandidates.value
-    .map((c) => ({ stockItemId: c.stockItemId, stockId: c.stockAggregateId, qty: pickQty(c) }))
-    .filter((l) => l.qty > 0)
-  const sum = lines.reduce((a, l) => a + l.qty, 0)
-  if (sum !== notifyTargetQty.value) {
-    ElMessage.error(`拣货数量合计须等于出库通知数量（${notifyTargetQty.value}），当前为 ${sum}`)
+/** 仅确认本页拣货数量（内存），不写数据库 */
+const confirmPickQuantities = () => {
+  if (!isPickOnlyPage.value && !pendingPickingTask.value) return
+  if (!validatePickDraftTotal()) return
+  pickDraftConfirmed.value = true
+  ElMessage.success(t('pickCreate.confirmQtySuccess'))
+}
+
+/** 拣货专页：点击「生成拣货单」时创建拣货任务（若尚未创建） */
+async function ensurePickPagePickingTask(): Promise<PickingTask | null> {
+  const existing = pendingPickingTask.value
+  if (existing?.id) return existing
+  const pid = packingId.value
+  if (!pid || !form.warehouseId?.trim()) return null
+  await inventoryCenterApi.generatePickingTaskByPacking({
+    packingId: pid,
+    warehouseId: form.warehouseId.trim(),
+    operatorId: form.operatorId
+  })
+  await loadPickPage()
+  const t = pickPage.value?.pickingTask
+  if (!t || t.status === 100 || t.status === -1) return null
+  return t
+}
+
+/** 将已确认的拣货明细写入数据库（生成拣货单） */
+const submitPickingOrder = async () => {
+  if (!pickDraftConfirmed.value) {
+    ElMessage.warning(t('pickCreate.confirmQtyFirst'))
     return
   }
-  savingPicking.value = true
+  if (!validatePickDraftTotal()) return
+  const lines = isPickOnlyPage.value ? buildAllPickLinesFromDraft() : buildPickLinesFromDraft()
+  submittingPickingOrder.value = true
+  try {
+    let task: PickingTask | null = pendingPickingTask.value
+    if (isPickOnlyPage.value) {
+      task = await ensurePickPagePickingTask()
+      if (!task?.id) {
+        ElMessage.error(t('pickCreate.submitPickingOrderFailed'))
+        return
+      }
+    } else if (!task?.id) {
+      return
+    }
+    await inventoryCenterApi.savePickingTaskItems(task.id, lines)
+    pickDraftConfirmed.value = false
+    if (isPickOnlyPage.value) {
+      await ElMessageBox.alert(t('pickCreate.submitPickingOrderCreatedDialog'), t('pickCreate.submitPickingOrderCreatedTitle'), {
+        type: 'success',
+        confirmButtonText: t('common.confirm')
+      })
+      await router.push({ name: 'PickingSlipList' })
+    } else {
+      ElMessage.success(t('pickCreate.submitPickingOrderSuccess'))
+      await loadPickingTasks()
+    }
+  } catch (e) {
+    console.error(e)
+    ElMessage.error(getApiErrorMessage(e, t('pickCreate.submitPickingOrderFailed')))
+  } finally {
+    submittingPickingOrder.value = false
+  }
+}
+
+/** 执行出库页：明细区按钮仍直接写库 */
+const savePickingDraftToDb = async () => {
+  const task = pendingPickingTask.value
+  if (!task?.id) return
+  if (!validatePickDraftTotal()) return
+  const lines = buildPickLinesFromDraft()
+  submittingPickingOrder.value = true
   try {
     await inventoryCenterApi.savePickingTaskItems(task.id, lines)
-    ElMessage.success('拣货明细已保存')
+    ElMessage.success(t('pickCreate.savePickingLinesSuccess'))
     await loadPickingTasks()
   } catch (e) {
     console.error(e)
-    ElMessage.error(getApiErrorMessage(e, '保存拣货明细失败'))
+    ElMessage.error(getApiErrorMessage(e, t('pickCreate.submitPickingOrderFailed')))
   } finally {
-    savingPicking.value = false
+    submittingPickingOrder.value = false
   }
 }
 
-const handleGeneratePicking = async () => {
+async function generatePickingTaskCore(options?: { silent?: boolean }): Promise<boolean> {
   if (requestAlreadyShipped.value) {
-    ElMessage.warning('该出库通知已执行出库，无法再次生成拣货任务')
-    return
+    if (!options?.silent) ElMessage.warning('该出库通知已执行出库，无法再次生成拣货任务')
+    return false
   }
-  if (hasActivePickingTask.value) {
-    ElMessage.warning('该出库通知已存在拣货任务，请勿重复生成')
-    return
-  }
+  if (hasActivePickingTask.value) return true
   if (!form.stockOutRequestId) {
-    ElMessage.warning('请先填写出库申请单ID')
-    return
+    if (!options?.silent) ElMessage.warning('请先填写出库申请单ID')
+    return false
   }
   if (!form.warehouseId || !form.items.length) {
-    ElMessage.warning('请先填写仓库和出库明细')
-    return
+    if (!options?.silent) ElMessage.warning('请先填写仓库和出库明细')
+    return false
   }
-  if (form.items.some(x => !x.materialCode || Number(x.quantity || 0) <= 0)) {
-    ElMessage.warning('出库明细存在空物料或数量为0，请检查来源数据')
-    return
+  if (form.items.some((x) => !x.materialCode || Number(x.quantity || 0) <= 0)) {
+    if (!options?.silent) ElMessage.warning('出库明细存在空物料或数量为0，请检查来源数据')
+    return false
   }
   try {
     await inventoryCenterApi.generatePickingTask({
@@ -935,27 +1560,37 @@ const handleGeneratePicking = async () => {
       operatorId: form.operatorId,
       items: []
     })
-    ElMessage.success('拣货任务已生成')
+    if (!options?.silent) ElMessage.success('拣货任务已生成')
     await loadPickingTasks()
     await loadPickingCandidates()
+    return true
   } catch (e) {
     console.error(e)
     ElMessage.error(getApiErrorMessage(e, '生成拣货任务失败'))
+    return false
   }
 }
 
+const handleGeneratePicking = async () => {
+  await generatePickingTaskCore()
+}
+
 const completePicking = async (taskId: string) => {
-  if (requestAlreadyShipped.value) {
+  if (!isPickOnlyPage.value && requestAlreadyShipped.value) {
     ElMessage.warning('该出库通知已出库')
     return
   }
+  completingPicking.value = true
   try {
     await inventoryCenterApi.completePickingTask(taskId)
     ElMessage.success('拣货已完成')
-    await loadPickingTasks()
+    if (isPickOnlyPage.value) await loadPickPage()
+    else await loadPickingTasks()
   } catch (e) {
     console.error(e)
     ElMessage.error(getApiErrorMessage(e, '完成拣货失败'))
+  } finally {
+    completingPicking.value = false
   }
 }
 
@@ -979,8 +1614,10 @@ const handleSubmit = async () => {
 
   submitting.value = true
   try {
+    const execPackingId = packingId.value || linkedPackingId.value || undefined
     await stockOutApi.execute({
       stockOutRequestId: form.stockOutRequestId,
+      packingId: execPackingId,
       stockOutCode: form.stockOutCode,
       warehouseId: form.warehouseId,
       operatorId: form.operatorId,
@@ -989,7 +1626,25 @@ const handleSubmit = async () => {
       items: form.items
     })
     ElMessage.success('执行出库成功，出库通知已标记为已出库')
-    router.push({ name: 'StockOutNotifyList' })
+    const fromPackingBatch = Boolean(
+      execPackingId || sessionStorage.getItem(PACKING_STOCK_OUT_QUEUE_KEY)
+    )
+    const next = popNextPackingStockOutQueueEntry()
+    if (next?.requestId) {
+      await router.push({
+        path: '/inventory/stock-out/create',
+        query: {
+          requestId: next.requestId,
+          ...(next.packingId ? { packingId: next.packingId } : {})
+        }
+      })
+      return
+    }
+    if (fromPackingBatch) {
+      router.push({ name: 'PackingList' })
+    } else {
+      router.push({ name: 'StockOutNotifyList' })
+    }
   } catch (e) {
     console.error(e)
     ElMessage.error(getApiErrorMessage(e, '执行出库失败'))
@@ -999,13 +1654,38 @@ const handleSubmit = async () => {
 }
 
 const goBack = () => {
+  if (isPickOnlyPage.value) {
+    router.push({ name: 'PackingList' })
+    return
+  }
   router.push({ name: 'StockOutNotifyList' })
 }
 
 const init = async () => {
   await loadWarehouses()
+  if (isNotifyDetailPage.value) {
+    await loadRequest()
+    return
+  }
+  if (isPickOnlyPage.value) {
+    if (!packingId.value) {
+      ElMessage.error(t('pickCreate.missingPackingId'))
+      return
+    }
+    await loadPickPage()
+    await ensurePickCandidatesLoaded()
+    return
+  }
+  if (!form.stockOutRequestId?.trim() && packingId.value) {
+    try {
+      const resolved = await packingApi.resolveStockOutRequestIds([packingId.value])
+      const rid = resolved.stockOutRequestIds[0]?.trim()
+      if (rid) form.stockOutRequestId = rid
+    } catch (e) {
+      console.error(e)
+    }
+  }
   await loadRequest()
-  if (isNotifyDetailPage.value) return
   if (requestAlreadyShipped.value) {
     ElMessage.info('该出库通知已执行出库，仅可查看信息')
   }
@@ -1096,11 +1776,29 @@ init()
 .form-card--after-outbound {
   margin-top: 16px;
 }
+.pick-only-page .form-card + .form-card {
+  margin-top: 16px;
+}
 .form-card {
   background: $layer-2;
   border-radius: 8px;
   border: 1px solid $border-panel;
   padding: 16px 18px;
+}
+.pick-kv-descriptions {
+  width: 100%;
+  :deep(.el-descriptions__label) {
+    width: 100px;
+    font-weight: 500;
+    color: $text-muted;
+  }
+  :deep(.el-descriptions__content) {
+    color: $text-primary;
+  }
+}
+.pick-kv-warehouse-readonly {
+  font-weight: 500;
+  color: $text-primary;
 }
 .basic-info-form {
   :deep(.el-form-item__label) {
@@ -1125,6 +1823,14 @@ init()
   font-weight: 500;
   color: $text-secondary;
   margin: 0 0 8px;
+}
+.pick-only-page .section-title {
+  font-weight: 700;
+  color: $text-primary;
+}
+.pick-line-status--allocated {
+  color: #46bf91;
+  font-weight: 500;
 }
 .table-footer {
   display: flex;
@@ -1308,6 +2014,19 @@ init()
     font-variant-numeric: tabular-nums;
   }
 }
+.picking-draft-confirmed-tag {
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #9ef0d0;
+  background: rgba(0, 160, 120, 0.2);
+  border: 1px solid rgba(0, 212, 180, 0.35);
+}
+.picking-draft-save-btn--confirmed {
+  border-color: rgba(0, 212, 180, 0.55);
+  box-shadow: 0 0 0 1px rgba(0, 212, 180, 0.15);
+}
 .picking-draft-save-btn {
   flex-shrink: 0;
 }
@@ -1321,6 +2040,15 @@ init()
 .picking-empty.subtle {
   font-size: 12px;
   opacity: 0.92;
+}
+.picking-empty--warn {
+  color: #f5a97a;
+}
+.picking-empty--done {
+  color: #7fd99a;
+}
+.packing-lines-on-pick-table {
+  margin-top: 8px;
 }
 </style>
 

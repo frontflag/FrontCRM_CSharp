@@ -76,6 +76,14 @@ namespace CRM.API.Controllers
             public List<DebugItemDto> Items { get; set; } = new();
         }
 
+        /// <summary>仿真环境顶栏标识（由 debug 表 FZFlag / FZColor / FZCaption 驱动）。</summary>
+        public class SimulationBannerDto
+        {
+            public bool Enabled { get; set; }
+            public string BackgroundColor { get; set; } = string.Empty;
+            public string Caption { get; set; } = string.Empty;
+        }
+
         public class SimulateBusinessChainRequest
         {
             public string BusinessNode { get; set; } = string.Empty;
@@ -185,6 +193,70 @@ namespace CRM.API.Controllers
             };
 
             return Ok(ApiResponse<DebugPageDto>.Ok(page));
+        }
+
+        /// <summary>
+        /// 登录后读取 debug 表：FZFlag=True 时返回仿真顶栏底色与居中文案；否则视为生产环境。
+        /// </summary>
+        [Authorize]
+        [HttpGet("simulation-banner")]
+        public async Task<ActionResult<ApiResponse<SimulationBannerDto>>> GetSimulationBanner()
+        {
+            var disabled = new SimulationBannerDto();
+            try
+            {
+                var rows = await _context.DebugRecords
+                    .AsNoTracking()
+                    .Where(x => x.Name == "FZFlag" || x.Name == "FZColor" || x.Name == "FZCaption")
+                    .ToListAsync();
+
+                var byName = rows.ToDictionary(x => x.Name, x => x.Value, StringComparer.OrdinalIgnoreCase);
+                if (!byName.TryGetValue("FZFlag", out var flagValue) || !IsDebugTruthy(flagValue))
+                {
+                    return Ok(ApiResponse<SimulationBannerDto>.Ok(disabled));
+                }
+
+                byName.TryGetValue("FZColor", out var colorValue);
+                byName.TryGetValue("FZCaption", out var captionValue);
+
+                return Ok(ApiResponse<SimulationBannerDto>.Ok(new SimulationBannerDto
+                {
+                    Enabled = true,
+                    BackgroundColor = NormalizeSimulationHexColor(colorValue),
+                    Caption = (captionValue ?? string.Empty).Trim()
+                }));
+            }
+            catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.InsufficientPrivilege)
+            {
+                return Ok(ApiResponse<SimulationBannerDto>.Ok(disabled));
+            }
+            catch
+            {
+                return Ok(ApiResponse<SimulationBannerDto>.Ok(disabled));
+            }
+        }
+
+        private static bool IsDebugTruthy(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return false;
+            var v = value.Trim();
+            return bool.TryParse(v, out var b) && b;
+        }
+
+        private static string NormalizeSimulationHexColor(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return "#FFF3CD";
+            var s = raw.Trim();
+            if (s.StartsWith('#')) s = s[1..];
+            if (s.Length == 3 && Regex.IsMatch(s, "^[0-9A-Fa-f]{3}$"))
+            {
+                return "#" + string.Concat(s.Select(c => $"{c}{c}"));
+            }
+            if (s.Length == 6 && Regex.IsMatch(s, "^[0-9A-Fa-f]{6}$"))
+            {
+                return "#" + s;
+            }
+            return "#FFF3CD";
         }
 
         /// <summary>
@@ -649,7 +721,7 @@ namespace CRM.API.Controllers
                 {
                     Id = Guid.NewGuid().ToString(),
                     StockInCode = $"STI{codeSuffix}",
-                    StockInType = 1,
+                    StockInType = StockInTypeCode.Purchase,
                     SourceId = notify != null ? notify.Id : null,
                     SourceCode = notify != null && !string.IsNullOrWhiteSpace(notify.NoticeCode)
                         ? notify.NoticeCode.Trim()

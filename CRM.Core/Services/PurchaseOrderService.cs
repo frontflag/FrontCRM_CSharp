@@ -150,6 +150,9 @@ namespace CRM.Core.Services
         private static string? NormalizeActingUserId(string? actingUserId) =>
             string.IsNullOrWhiteSpace(actingUserId) ? null : actingUserId.Trim();
 
+        private static string? NormalizeOptionalUserId(string? userId) =>
+            string.IsNullOrWhiteSpace(userId) ? null : userId.Trim();
+
         /// <summary>前端占位：无销售明细时传入的全零 GUID，不视为以销定采。</summary>
         private const string EmptySellOrderItemSentinel = "00000000-0000-0000-0000-000000000000";
 
@@ -227,6 +230,7 @@ namespace CRM.Core.Services
                 VendorContactId = request.VendorContactId,
                 PurchaseUserId = request.PurchaseUserId,
                 PurchaseUserName = request.PurchaseUserName,
+                Assistor = NormalizeOptionalUserId(request.Assistor),
                 Type = headerType,
                 Currency = headerCurrency,
                 DeliveryDate = PostgreSqlDateTime.ToUtc(request.DeliveryDate),
@@ -456,6 +460,7 @@ namespace CRM.Core.Services
             if (request.VendorName != null) order.VendorName = request.VendorName;
             if (request.PurchaseUserId != null) order.PurchaseUserId = request.PurchaseUserId;
             if (request.PurchaseUserName != null) order.PurchaseUserName = request.PurchaseUserName;
+            if (request.Assistor != null) order.Assistor = NormalizeOptionalUserId(request.Assistor);
             if (request.Currency.HasValue) order.Currency = request.Currency.Value;
             if (request.DeliveryDate.HasValue) order.DeliveryDate = PostgreSqlDateTime.ToUtc(request.DeliveryDate.Value);
             if (request.DeliveryAddress != null) order.DeliveryAddress = request.DeliveryAddress;

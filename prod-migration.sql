@@ -519,7 +519,7 @@ CREATE TABLE stockin (
 );
 
 
-CREATE TABLE stockinnotify (
+CREATE TABLE stockin_notify (
     "UserId" character varying(36) NOT NULL,
     "NoticeCode" character varying(32) NOT NULL,
     "PurchaseOrderId" character varying(36) NOT NULL,
@@ -532,7 +532,7 @@ CREATE TABLE stockinnotify (
     "CreateUserId" bigint,
     "ModifyTime" timestamp with time zone,
     "ModifyUserId" bigint,
-    CONSTRAINT "PK_stockinnotify" PRIMARY KEY ("UserId")
+    CONSTRAINT "PK_stockin_notify" PRIMARY KEY ("UserId")
 );
 
 
@@ -562,9 +562,9 @@ CREATE TABLE stockout (
 );
 
 
-CREATE TABLE stockoutrequest (
-    "UserId" character varying(36) NOT NULL,
-    "RequestCode" character varying(50) NOT NULL,
+CREATE TABLE stockout_notify (
+    "ID" character varying(36) NOT NULL,
+    "Code" character varying(50) NOT NULL,
     "SalesOrderId" character varying(36) NOT NULL,
     "SalesOrderItemId" character varying(36) NOT NULL,
     "MaterialCode" character varying(200) NOT NULL,
@@ -579,7 +579,7 @@ CREATE TABLE stockoutrequest (
     "CreateUserId" bigint,
     "ModifyTime" timestamp with time zone,
     "ModifyUserId" bigint,
-    CONSTRAINT "PK_stockoutrequest" PRIMARY KEY ("UserId")
+    CONSTRAINT "PK_stockout_notify" PRIMARY KEY ("ID")
 );
 
 
@@ -1355,7 +1355,7 @@ CREATE TABLE stockinnotifyitem (
     "ModifyTime" timestamp with time zone,
     "ModifyUserId" bigint,
     CONSTRAINT "PK_stockinnotifyitem" PRIMARY KEY ("UserId"),
-    CONSTRAINT "FK_stockinnotifyitem_stockinnotify_StockInNotifyId" FOREIGN KEY ("StockInNotifyId") REFERENCES stockinnotify ("UserId") ON DELETE CASCADE
+    CONSTRAINT "FK_stockinnotifyitem_stockin_notify_StockInNotifyId" FOREIGN KEY ("StockInNotifyId") REFERENCES stockin_notify ("UserId") ON DELETE CASCADE
 );
 
 
@@ -1923,7 +1923,7 @@ ON CONFLICT ("RoleId", "PermissionId") DO NOTHING;
 
 INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
 SELECT gen_random_uuid()::text, 'r0000000-0000-4000-8000-000000000009', p."PermissionId", TIMESTAMPTZ '2026-01-01T00:00:00Z'
-FROM sys_permission p WHERE p."PermissionCode" IN ('customer.read','rfq.read','draft.read','draft.write')
+FROM sys_permission p WHERE p."PermissionCode" IN ('customer.read','rfq.read','draft.write')
 ON CONFLICT ("RoleId", "PermissionId") DO NOTHING;
 
 INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
@@ -2080,4 +2080,141 @@ ON CONFLICT ("UserId", "RoleId") DO NOTHING;
 -- pickingtaskitem：备货补充拣货（与 EF 迁移 20260421100000_AddPickingTaskItemStockingSupplement 一致；已建库可幂等补齐）
 ALTER TABLE IF EXISTS public.pickingtaskitem ADD COLUMN IF NOT EXISTS "IsStockingSupplement" boolean NOT NULL DEFAULT false;
 COMMENT ON COLUMN public.pickingtaskitem."IsStockingSupplement" IS '备货补充拣货：true=按销单行型号品牌匹配的备货库存';
+
+-- 装箱单主从表（EF 迁移 20260518100000_AddPackingTables）
+CREATE TABLE IF NOT EXISTS public.packing (
+    "Id" character varying(36) NOT NULL,
+    "Code" character varying(32) NOT NULL,
+    "Status" smallint NOT NULL DEFAULT 10,
+    "StockOutType" smallint NOT NULL DEFAULT 10,
+    "MaterialType" smallint NOT NULL DEFAULT 10,
+    customer_id character varying(36) NULL,
+    sales_id character varying(36) NULL,
+    schedule_ship_date timestamp with time zone NULL,
+    storage_id character varying(36) NULL,
+    item_rows integer NOT NULL DEFAULT 0,
+    comment character varying(500) NULL,
+    create_by_user_id character varying(36) NULL,
+    modify_by_user_id character varying(36) NULL,
+    is_deleted boolean NOT NULL DEFAULT false,
+    "CreateTime" timestamp with time zone NOT NULL,
+    "CreateUserId" bigint NULL,
+    "ModifyTime" timestamp with time zone NULL,
+    "ModifyUserId" bigint NULL,
+    CONSTRAINT "PK_packing" PRIMARY KEY ("Id")
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_packing_Code" ON public.packing ("Code") WHERE is_deleted = false;
+
+CREATE TABLE IF NOT EXISTS public.packing_extend_box (
+    "Id" character varying(36) NOT NULL,
+    "PackingId" character varying(36) NOT NULL,
+    "NW" numeric(18,4) NULL,
+    "GW" numeric(18,4) NULL,
+    "DIM" character varying(200) NULL,
+    "CTNS" integer NULL,
+    CONSTRAINT "PK_packing_extend_box" PRIMARY KEY ("Id")
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_packing_extend_box_PackingId" ON public.packing_extend_box ("PackingId");
+
+ALTER TABLE IF EXISTS public.packing_extend RENAME TO packing_extend_box;
+
+CREATE TABLE IF NOT EXISTS public.packing_extend_ship (
+    "Id" character varying(36) NOT NULL,
+    "PackingId" character varying(36) NOT NULL,
+    ship_company character varying(200) NULL,
+    ship_address character varying(256) NULL,
+    ship_attn character varying(100) NULL,
+    ship_tel character varying(64) NULL,
+    bill_company character varying(200) NULL,
+    bill_address character varying(256) NULL,
+    bill_attn character varying(100) NULL,
+    bill_tel character varying(64) NULL,
+    delivery_req character varying(256) NULL,
+    delivery_method smallint NULL,
+    CONSTRAINT "PK_packing_extend_ship" PRIMARY KEY ("Id")
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_packing_extend_ship_PackingId" ON public.packing_extend_ship ("PackingId");
+
+CREATE TABLE IF NOT EXISTS public.packing_item (
+    "Id" character varying(36) NOT NULL,
+    "PackingId" character varying(36) NOT NULL,
+    sell_order_id character varying(36) NULL,
+    sell_order_item_id character varying(36) NULL,
+    product_id character varying(36) NULL,
+    stock_item_id character varying(36) NULL,
+    "PN" character varying(200) NULL,
+    "Brand" character varying(200) NULL,
+    "Qty" integer NOT NULL DEFAULT 0,
+    "Unit" character varying(20) NULL,
+    "CO" character varying(64) NULL,
+    comment character varying(500) NULL,
+    create_by_user_id character varying(36) NULL,
+    modify_by_user_id character varying(36) NULL,
+    is_deleted boolean NOT NULL DEFAULT false,
+    "CreateTime" timestamp with time zone NOT NULL,
+    "CreateUserId" bigint NULL,
+    "ModifyTime" timestamp with time zone NULL,
+    "ModifyUserId" bigint NULL,
+    CONSTRAINT "PK_packing_item" PRIMARY KEY ("Id")
+);
+CREATE INDEX IF NOT EXISTS "IX_packing_item_PackingId" ON public.packing_item ("PackingId") WHERE is_deleted = false;
+
+CREATE TABLE IF NOT EXISTS public.packing_item_extend (
+    "Id" character varying(36) NOT NULL,
+    "PackingItemId" character varying(36) NOT NULL,
+    customer_id character varying(36) NULL,
+    sales_id character varying(36) NULL,
+    sell_order_id character varying(36) NULL,
+    sell_order_item_id character varying(36) NULL,
+    "Price" numeric(18,6) NULL,
+    "PriceCurrency" smallint NULL,
+    "PriceConvertPrice" numeric(18,6) NULL,
+    customer_so character varying(200) NULL,
+    customer_pn character varying(200) NULL,
+    customer_brand character varying(200) NULL,
+    CONSTRAINT "PK_packing_item_extend" PRIMARY KEY ("Id")
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_packing_item_extend_PackingItemId" ON public.packing_item_extend ("PackingItemId");
+
+ALTER TABLE IF EXISTS public.packing_item_extend
+    ADD COLUMN IF NOT EXISTS customer_so character varying(200) NULL,
+    ADD COLUMN IF NOT EXISTS customer_pn character varying(200) NULL,
+    ADD COLUMN IF NOT EXISTS customer_brand character varying(200) NULL;
+
+INSERT INTO sys_serial_number ("Id", "CreateTime", "CurrentSequence", "ModuleCode", "ModuleName", "Prefix", "SequenceLength", "ResetByMonth", "ResetByYear")
+SELECT (SELECT COALESCE(MAX("Id"), 0) + 1 FROM sys_serial_number),
+       TIMESTAMPTZ '2026-01-01T00:00:00Z', 2025, 'Packing', '装箱单', 'Pak', 5, false, false
+WHERE NOT EXISTS (SELECT 1 FROM sys_serial_number WHERE "ModuleCode" = 'Packing');
+
+-- 出库通知状态：0/1/2 -> 10 待装箱 / 100 已出库 / -1 已取消（20 已装箱为业务流转写入）
+UPDATE stockout_notify
+SET status = CASE status
+    WHEN 0 THEN 10
+    WHEN 1 THEN 100
+    WHEN 2 THEN -1
+    ELSE status
+END
+WHERE status IN (0, 1, 2);
+
+-- 已有库：旧表名 → 新表名（幂等）
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'stockoutrequest')
+     AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'stockout_notify') THEN
+    ALTER TABLE public.stockoutrequest RENAME TO stockout_notify;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'stockinnotify')
+     AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'stockin_notify') THEN
+    ALTER TABLE public.stockinnotify RENAME TO stockin_notify;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'stockout_notify' AND column_name = 'UserId')
+     AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'stockout_notify' AND column_name = 'ID') THEN
+    ALTER TABLE public.stockout_notify RENAME COLUMN "UserId" TO "ID";
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'stockout_notify' AND column_name = 'RequestCode')
+     AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'stockout_notify' AND column_name = 'Code') THEN
+    ALTER TABLE public.stockout_notify RENAME COLUMN "RequestCode" TO "Code";
+  END IF;
+END $$;
 

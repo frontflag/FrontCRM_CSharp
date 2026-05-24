@@ -18,7 +18,7 @@
           <el-form-item label="地址类型" prop="addressType">
             <el-select v-model="formData.addressType" placeholder="请选择" style="width: 100%">
               <el-option label="办公地址" value="Office" />
-              <el-option label="开票地址" value="Billing" />
+              <el-option label="账单地址" value="Billing" />
               <el-option label="收货地址" value="Shipping" />
               <el-option label="注册地址" value="Registered" />
             </el-select>

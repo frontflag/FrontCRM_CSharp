@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -35,20 +36,33 @@ public sealed class StockOutRequestListQuery : IStockOutRequestListQuery
             select new { r, so };
 
         if (wf == "done")
-            q = q.Where(x => x.r.Status == 1);
+            q = q.Where(x => x.r.Status == StockOutRequestStatusCode.StockedOut);
         else if (wf == "pending_pick")
         {
             q = q.Where(x =>
-                x.r.Status == 0 &&
+                x.r.Status == StockOutRequestStatusCode.PendingPacking &&
                 !_db.PickingTasks.Any(pt =>
-                    pt.StockOutRequestId == x.r.Id && pt.Status == PickingTaskStatusCompleted));
+                    !pt.IsDeleted
+                    && pt.Status == PickingTaskStatusCompleted
+                    && pt.PackingId != null
+                    && _db.PackingItems.Any(pi =>
+                        !pi.IsDeleted
+                        && pi.PackingId == pt.PackingId
+                        && pi.StockOutNotifyId == x.r.Id)));
         }
         else if (wf == "picked_pending_out")
         {
             q = q.Where(x =>
-                x.r.Status == 0 &&
+                (x.r.Status == StockOutRequestStatusCode.PendingPacking
+                    || x.r.Status == StockOutRequestStatusCode.Packed) &&
                 _db.PickingTasks.Any(pt =>
-                    pt.StockOutRequestId == x.r.Id && pt.Status == PickingTaskStatusCompleted));
+                    !pt.IsDeleted
+                    && pt.Status == PickingTaskStatusCompleted
+                    && pt.PackingId != null
+                    && _db.PackingItems.Any(pi =>
+                        !pi.IsDeleted
+                        && pi.PackingId == pt.PackingId
+                        && pi.StockOutNotifyId == x.r.Id)));
         }
 
         if (!string.IsNullOrWhiteSpace(keyword))

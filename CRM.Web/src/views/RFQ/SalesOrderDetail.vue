@@ -863,11 +863,20 @@
           <span class="cell cell--brand">{{ applyForm.materialName }}</span>
           <span class="cell cell--num">{{ applyFormSalesOrderQtyText }}</span>
           <span class="cell cell--num">{{ applyFormAlreadyNotifiedText }}</span>
-          <span class="cell cell--num">{{ applyFormRemainingNotifyText }}</span>
+          <span
+            class="cell cell--num"
+            :class="{ 'cell--num-zero': applyRemainingNotifyZero }"
+          >
+            {{ applyFormRemainingNotifyText }}
+          </span>
           <span class="cell cell--num">{{ applyStockQtyText }}</span>
           <span class="cell cell--num">{{ applyPurchasedStockQtyText }}</span>
           <span class="cell cell--qty">
+            <span v-if="applyRemainingNotifyZero" class="apply-qty-cannot-apply">
+              {{ t('salesOrderItemList.applyStockOutDialog.cannotApply') }}
+            </span>
             <el-input-number
+              v-else
               v-model="applyForm.notifyQty"
               :min="0"
               :max="applyForm.maxQty"
@@ -1007,6 +1016,7 @@ import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/com
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { CurrencyCode } from '@/constants/currency'
+import { stockInTypeLabel } from '@/constants/stockInType'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const router = useRouter()
@@ -1346,12 +1356,17 @@ const applyStockOutZeroQtyBannerVisible = computed(() => {
   const stocking = Math.max(0, Math.trunc(Number(applyForm.value.purchasedStockAvailableQty) || 0))
   return maxQ <= 0 && stocking <= 0
 })
-/** 与零可申请横幅一致：该提示出现时不可提交（加载中亦禁用，避免初始 maxQty=0 误判） */
+/** 尚可申请为 0：订单数量已全部占用，不可再新建出库通知 */
+const applyRemainingNotifyZero = computed(
+  () => Math.max(0, Math.trunc(Number(applyForm.value.remainingNotifyQty) || 0)) <= 0
+)
+/** 零可申请或尚可申请为 0 时不可提交（加载中亦禁用） */
 const applyStockOutConfirmDisabled = computed(
   () =>
     applySubmitting.value ||
     applyStockOutLoading.value ||
-    (!!applyForm.value.sellOrderItemId && applyStockOutZeroQtyBannerVisible.value)
+    (!!applyForm.value.sellOrderItemId &&
+      (applyStockOutZeroQtyBannerVisible.value || applyRemainingNotifyZero.value))
 )
 /** 表单上方：同物料型号的采购备货在库数量说明 */
 const applyPurchasedStockingPurchasingBarTitle = computed(() => {
@@ -1692,14 +1707,6 @@ function prStatusLabel(v: unknown) {
   if (s === 1) return t('salesOrderDetailView.prStatus1')
   if (s === 2) return t('salesOrderDetailView.prStatus2')
   if (s === 3) return t('salesOrderDetailView.prStatus3')
-  return `(${String(v)})`
-}
-function stockInTypeLabel(v: unknown) {
-  const n = Number(v)
-  if (n === 1) return t('salesOrderDetailView.stockInType1')
-  if (n === 2) return t('salesOrderDetailView.stockInType2')
-  if (n === 3) return t('salesOrderDetailView.stockInType3')
-  if (n === 4) return t('salesOrderDetailView.stockInType4')
   return `(${String(v)})`
 }
 function stockInStatusLabel(v: unknown) {
@@ -2491,6 +2498,16 @@ const submitApplyStockOut = async () => {
 .apply-stock-lines .cell--num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+.apply-stock-lines .cell--num-zero {
+  color: var(--el-color-danger);
+  font-weight: 600;
+}
+.apply-qty-cannot-apply {
+  display: inline-block;
+  min-width: 140px;
+  font-size: 13px;
+  color: $text-muted;
 }
 
 .doc-tab-content {

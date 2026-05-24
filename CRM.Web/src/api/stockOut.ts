@@ -1,5 +1,5 @@
 import apiClient, { type ApiRejectedError } from './client'
-import { fetchCompanyProfileForReport, type CompanyProfileBundle } from '@/api/companyProfile'
+import { fetchCompanyProfileForReport, type CompanyProfileBundle, type CompanyReportInfo } from '@/api/companyProfile'
 
 export interface StockOutDto {
   id: string
@@ -80,14 +80,45 @@ function normalizeApplyContextPayload(res: unknown): StockOutApplyContextDto {
 export interface StockOutInvoiceReportBundle {
   stockOut: StockOutDetailDto
   companyProfile: CompanyProfileBundle
+  packingCode?: string | null
+  packingAddresses?: PackingReportAddressPanel | null
+  warehouseAddress?: string | null
+  /** packing.storage_id / 出库单仓库 → warehouseinfo.RegionType：10=大陆 20=海外 */
+  warehouseRegionType?: number | null
+  packingLines?: PackingReportLine[]
+}
+
+/** Packing 报表 Bill To / Ship To：客户名称、地址、联系人、电话 */
+export interface PackingReportAddressPanel {
+  billToLines: string[]
+  shipToLines: string[]
 }
 
 /** GET /api/v1/stock-out/:id/packing-report-bundle?withInspection=… */
 export interface StockOutPackingReportBundle extends StockOutInvoiceReportBundle {
   withShipmentInspection: boolean
+  /** 关联装箱单编号 packing.code（PAK…） */
+  packingCode?: string | null
+  packingAddresses?: PackingReportAddressPanel | null
+  /** 出库仓库地址 warehouseinfo.Address */
+  warehouseAddress?: string | null
+  /** 装箱单送货方式 packing_extend_ship.DeliveryMethod（10=送货 20=自提） */
+  deliveryMethod?: number | null
+  /** 装箱单明细行 */
+  packingLines?: PackingReportLine[]
 }
 
-function parseInvoiceBundlePayload(res: unknown): StockOutInvoiceReportBundle | null {
+export interface PackingReportLine {
+  pn?: string | null
+  customerPn?: string | null
+  brand?: string | null
+  customerBrand?: string | null
+  qty: number
+  carton?: string | null
+  remark?: string | null
+}
+
+export function parseInvoiceBundlePayload(res: unknown): StockOutInvoiceReportBundle | null {
   if (!res || typeof res !== 'object') return null
   const o = res as Record<string, unknown>
   const stockOut = (o.stockOut ?? o.StockOut) as StockOutDetailDto | undefined
@@ -98,18 +129,112 @@ function parseInvoiceBundlePayload(res: unknown): StockOutInvoiceReportBundle | 
     bankInfos: (rawCp.bankInfos ?? rawCp.BankInfos ?? []) as CompanyProfileBundle['bankInfos'],
     logos: (rawCp.logos ?? rawCp.Logos ?? []) as NonNullable<CompanyProfileBundle['logos']>,
     seals: (rawCp.seals ?? rawCp.Seals ?? []) as CompanyProfileBundle['seals'],
-    warehouses: (rawCp.warehouses ?? rawCp.Warehouses ?? []) as CompanyProfileBundle['warehouses']
+    warehouses: (rawCp.warehouses ?? rawCp.Warehouses ?? []) as CompanyProfileBundle['warehouses'],
+    reportInfo: normalizeReportInfo(rawCp.reportInfo ?? rawCp.ReportInfo)
   }
-  return { stockOut, companyProfile }
+  const packingAddresses = parsePackingAddressPanel(o.packingAddresses ?? o.PackingAddresses)
+  const rawCode = o.packingCode ?? o.PackingCode
+  const packingCode =
+    typeof rawCode === 'string' && rawCode.trim().length > 0 ? rawCode.trim() : null
+  const rawWarehouseAddress = o.warehouseAddress ?? o.WarehouseAddress
+  const warehouseAddress =
+    typeof rawWarehouseAddress === 'string' && rawWarehouseAddress.trim().length > 0
+      ? rawWarehouseAddress.trim()
+      : null
+  const rawRegionType = o.warehouseRegionType ?? o.WarehouseRegionType
+  const warehouseRegionType =
+    rawRegionType != null && rawRegionType !== '' && !Number.isNaN(Number(rawRegionType))
+      ? Number(rawRegionType)
+      : null
+  return {
+    stockOut,
+    companyProfile,
+    packingCode,
+    packingAddresses,
+    warehouseAddress,
+    warehouseRegionType,
+    packingLines: parsePackingLines(o)
+  }
 }
 
-function parsePackingBundlePayload(res: unknown, requestFlag: boolean): StockOutPackingReportBundle | null {
+function normalizeReportRemarks(raw: unknown): CompanyReportInfo['invoice'] {
+  const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  return {
+    remarkCn: String(o.remarkCn ?? o.RemarkCn ?? ''),
+    remarkEn: String(o.remarkEn ?? o.RemarkEn ?? '')
+  }
+}
+
+function normalizeReportInfo(raw: unknown): CompanyReportInfo {
+  const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  return {
+    invoice: normalizeReportRemarks(o.invoice ?? o.Invoice),
+    packingList: normalizeReportRemarks(o.packingList ?? o.PackingList)
+  }
+}
+
+function parsePackingAddressPanel(raw: unknown): PackingReportAddressPanel | null {
+  if (!raw || typeof raw !== 'object') return null
+  const a = raw as Record<string, unknown>
+  const bill = a.billToLines ?? a.BillToLines
+  const ship = a.shipToLines ?? a.ShipToLines
+  if (!Array.isArray(bill) && !Array.isArray(ship)) return null
+  const dash = '—'
+  const toLines = (arr: unknown): string[] => {
+    if (!Array.isArray(arr) || arr.length === 0) return []
+    return arr.map((x) => String(x ?? dash))
+  }
+  // 保持 API 原始行数（3 行旧格式或 4 行新格式），避免 pad 后把联系人误当地址
+  return {
+    billToLines: toLines(bill),
+    shipToLines: toLines(ship)
+  }
+}
+
+export function parsePackingBundlePayload(res: unknown, requestFlag: boolean): StockOutPackingReportBundle | null {
   const base = parseInvoiceBundlePayload(res)
   if (!base) return null
   const o = res as Record<string, unknown>
   const w = o.withShipmentInspection ?? o.WithShipmentInspection
   const withShipmentInspection = typeof w === 'boolean' ? w : requestFlag
-  return { ...base, withShipmentInspection }
+  const packingAddresses = parsePackingAddressPanel(o.packingAddresses ?? o.PackingAddresses)
+  const rawCode = o.packingCode ?? o.PackingCode
+  const packingCode =
+    typeof rawCode === 'string' && rawCode.trim().length > 0 ? rawCode.trim() : null
+  const rawWarehouseAddress = o.warehouseAddress ?? o.WarehouseAddress
+  const warehouseAddress =
+    typeof rawWarehouseAddress === 'string' && rawWarehouseAddress.trim().length > 0
+      ? rawWarehouseAddress.trim()
+      : null
+  const rawDeliveryMethod = o.deliveryMethod ?? o.DeliveryMethod
+  const deliveryMethod =
+    rawDeliveryMethod != null && rawDeliveryMethod !== '' && !Number.isNaN(Number(rawDeliveryMethod))
+      ? Number(rawDeliveryMethod)
+      : null
+  return { ...base, withShipmentInspection, packingCode, packingAddresses, warehouseAddress, deliveryMethod, packingLines: parsePackingLines(o) }
+}
+
+function parsePackingLines(o: Record<string, unknown>): PackingReportLine[] {
+  const raw = o.packingLines ?? o.PackingLines
+  if (!Array.isArray(raw)) return []
+  return raw.map((row) => {
+    const r = (row && typeof row === 'object' ? row : {}) as Record<string, unknown>
+    return {
+      pn: r.pn != null ? String(r.pn) : r.Pn != null ? String(r.Pn) : null,
+      customerPn:
+        r.customerPn != null ? String(r.customerPn) : r.CustomerPn != null ? String(r.CustomerPn) : null,
+      brand: r.brand != null ? String(r.brand) : r.Brand != null ? String(r.Brand) : null,
+      customerBrand:
+        r.customerBrand != null
+          ? String(r.customerBrand)
+          : r.CustomerBrand != null
+            ? String(r.CustomerBrand)
+            : null,
+      qty: Number(r.qty ?? r.Qty ?? 0) || 0,
+      carton: r.carton != null ? String(r.carton) : r.Carton != null ? String(r.Carton) : null,
+      remark: r.remark != null ? String(r.remark) : r.Remark != null ? String(r.Remark) : null
+    }
+  })
 }
 
 async function loadStockOutCompanyBundleFallback(id: string): Promise<StockOutInvoiceReportBundle | null> {
@@ -123,7 +248,8 @@ async function loadStockOutCompanyBundleFallback(id: string): Promise<StockOutIn
       bankInfos: cp.bankInfos ?? [],
       logos: cp.logos ?? [],
       seals: cp.seals ?? [],
-      warehouses: cp.warehouses ?? []
+      warehouses: cp.warehouses ?? [],
+      reportInfo: cp.reportInfo ?? normalizeReportInfo(null)
     }
   }
 }
@@ -194,6 +320,10 @@ export interface StockOutRequestDto {
   shipmentMethod?: string | null
   /** RegionType：10=境内 20=境外（与仓库、到货通知共用） */
   regionType?: number
+  /** 出库类型：10销售 20报关 30退货 40报废 */
+  stockOutType?: number
+  /** 销售明细币别（1=RMB 2=USD …） */
+  currency?: number
   createTime?: string
 }
 
@@ -219,14 +349,44 @@ function unwrapPagedStockOuts(res: unknown): StockOutListPaged {
   return { items: [], total: 0, page: 1, pageSize: 20 }
 }
 
+function normalizeStockOutRequestRow(row: unknown): StockOutRequestDto {
+  const r = row as Record<string, unknown>
+  return {
+    id: String(r.id ?? r.Id ?? ''),
+    requestCode: String(r.requestCode ?? r.RequestCode ?? ''),
+    salesOrderId: String(r.salesOrderId ?? r.SalesOrderId ?? ''),
+    salesOrderItemId: (r.salesOrderItemId ?? r.SalesOrderItemId) as string | undefined,
+    salesOrderCode: (r.salesOrderCode ?? r.SalesOrderCode) as string | undefined,
+    materialModel: (r.materialModel ?? r.MaterialModel) as string | undefined,
+    brand: (r.brand ?? r.Brand) as string | undefined,
+    outQuantity: Number(r.outQuantity ?? r.OutQuantity ?? 0),
+    expectedStockOutDate: (r.expectedStockOutDate ?? r.ExpectedStockOutDate) as string | undefined,
+    salesUserName: (r.salesUserName ?? r.SalesUserName) as string | undefined,
+    customerId: String(r.customerId ?? r.CustomerId ?? '').trim(),
+    customerName: (r.customerName ?? r.CustomerName) as string | undefined,
+    requestUserId: String(r.requestUserId ?? r.RequestUserId ?? ''),
+    requestUserName: (r.requestUserName ?? r.RequestUserName) as string | undefined,
+    requestDate: String(r.requestDate ?? r.RequestDate ?? ''),
+    status: Number(r.status ?? r.Status ?? 0),
+    remark: (r.remark ?? r.Remark) as string | undefined,
+    shipmentMethod: (r.shipmentMethod ?? r.ShipmentMethod) as string | null | undefined,
+    regionType: r.regionType != null || r.RegionType != null ? Number(r.regionType ?? r.RegionType) : undefined,
+    stockOutType:
+      r.stockOutType != null || r.StockOutType != null ? Number(r.stockOutType ?? r.StockOutType) : undefined,
+    currency: r.currency != null || r.Currency != null ? Number(r.currency ?? r.Currency) : undefined,
+    createTime: (r.createTime ?? r.CreateTime) as string | undefined
+  }
+}
+
 function unwrapPagedRequests(res: unknown): StockOutRequestListPaged {
-  const d = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
+  const root = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
+  const d = (root?.data ?? root?.Data ?? root) as Record<string, unknown> | null
   if (d && Array.isArray(d.items)) {
     return {
-      items: d.items as StockOutRequestDto[],
-      total: Number(d.total ?? 0),
-      page: Number(d.page ?? 1),
-      pageSize: Number(d.pageSize ?? 20)
+      items: (d.items as unknown[]).map(normalizeStockOutRequestRow),
+      total: Number(d.total ?? d.Total ?? 0),
+      page: Number(d.page ?? d.Page ?? 1),
+      pageSize: Number(d.pageSize ?? d.PageSize ?? 20)
     }
   }
   return { items: [], total: 0, page: 1, pageSize: 20 }
@@ -300,11 +460,19 @@ export const stockOutApi = {
    * Packing 报表；withInspection=true 为「含出货检验」版式。
    * 若专用接口 404（旧后端），降级逻辑与 Invoice 相同，并由前端固定版式标志。
    */
-  async getPackingReportBundle(id: string, withInspection: boolean): Promise<StockOutPackingReportBundle | null> {
+  async getPackingReportBundle(
+    id: string,
+    withInspection: boolean,
+    packingId?: string | null
+  ): Promise<StockOutPackingReportBundle | null> {
     const enc = encodeURIComponent(id)
+    const pid = packingId?.trim()
     try {
       const res = await apiClient.get<unknown>(`/api/v1/stock-out/${enc}/packing-report-bundle`, {
-        params: { withInspection }
+        params: {
+          withInspection,
+          ...(pid ? { packingId: pid } : {})
+        }
       })
       return parsePackingBundlePayload(res, withInspection)
     } catch (e: unknown) {
@@ -387,6 +555,7 @@ export const stockOutApi = {
 
   async execute(data: {
     stockOutRequestId: string
+    packingId?: string
     stockOutCode: string
     warehouseId: string
     operatorId?: string

@@ -817,6 +817,7 @@ import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmount
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { CurrencyCode } from '@/constants/currency'
+import { stockInTypeLabel } from '@/constants/stockInType'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBankOptions'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -908,8 +909,7 @@ function poDetailArrivalStatusText(v?: number) {
 }
 
 function poDetailStockInTypeText(v?: number) {
-  const map: Record<number, string> = { 1: '采购入库', 2: '退货入库', 3: '调拨入库', 4: '其他入库' }
-  return map[Number(v)] ?? '—'
+  return stockInTypeLabel(Number(v))
 }
 
 function poDetailStockInStatusText(v?: number) {

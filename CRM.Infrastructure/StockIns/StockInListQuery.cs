@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +9,6 @@ namespace CRM.Infrastructure.StockIns;
 public sealed class StockInListQuery : IStockInListQuery
 {
     public const int MaxPageSize = 2000;
-    private const short TransferStockInType = 3;
 
     private readonly ApplicationDbContext _db;
 
@@ -28,7 +28,7 @@ public sealed class StockInListQuery : IStockInListQuery
         var ps = pageSize < 1 ? 20 : Math.Min(pageSize, MaxPageSize);
 
         var q = _db.StockIns.AsNoTracking()
-            .Where(s => s.StockInType != TransferStockInType);
+            .Where(s => s.StockInType != StockInTypeCode.Transfer);
 
         if (request != null)
         {

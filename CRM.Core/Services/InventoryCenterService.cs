@@ -33,6 +33,8 @@ namespace CRM.Core.Services
         private readonly IRepository<SellOrder> _sellOrderRepository;
         private readonly IRepository<PurchaseOrderItem> _purchaseOrderItemRepository;
         private readonly IRepository<StockItem> _stockItemRepository;
+        private readonly IRepository<Packing> _packingRepository;
+        private readonly IRepository<PackingItem> _packingItemRepository;
         private readonly IRepository<QCInfo> _qcRepository;
         private readonly IRepository<User> _userRepository;
         private readonly IUnitOfWork _unitOfWork;
@@ -145,6 +147,8 @@ namespace CRM.Core.Services
             IRepository<SellOrder> sellOrderRepository,
             IRepository<PurchaseOrderItem> purchaseOrderItemRepository,
             IRepository<StockItem> stockItemRepository,
+            IRepository<Packing> packingRepository,
+            IRepository<PackingItem> packingItemRepository,
             IRepository<QCInfo> qcRepository,
             IRepository<User> userRepository,
             ISerialNumberService serialNumberService,
@@ -176,6 +180,8 @@ namespace CRM.Core.Services
             _sellOrderRepository = sellOrderRepository;
             _purchaseOrderItemRepository = purchaseOrderItemRepository;
             _stockItemRepository = stockItemRepository;
+            _packingRepository = packingRepository;
+            _packingItemRepository = packingItemRepository;
             _qcRepository = qcRepository;
             _userRepository = userRepository;
             _serialNumberService = serialNumberService;
@@ -1021,6 +1027,7 @@ namespace CRM.Core.Services
 
             var regionType = RegionTypeCode.Normalize(warehouse.RegionType);
             warehouse.RegionType = regionType;
+            warehouse.Status = WarehouseStatusCode.Normalize(warehouse.Status);
 
             WarehouseInfo? existing = null;
             if (!string.IsNullOrWhiteSpace(warehouse.Id))
@@ -1040,12 +1047,26 @@ namespace CRM.Core.Services
             existing.WarehouseCode = warehouse.WarehouseCode.Trim();
             existing.WarehouseName = warehouse.WarehouseName.Trim();
             existing.Address = string.IsNullOrWhiteSpace(warehouse.Address) ? null : warehouse.Address.Trim();
+            existing.ContactName = string.IsNullOrWhiteSpace(warehouse.ContactName) ? null : warehouse.ContactName.Trim();
+            existing.ContactPhone = string.IsNullOrWhiteSpace(warehouse.ContactPhone) ? null : warehouse.ContactPhone.Trim();
+            existing.WorkHours = string.IsNullOrWhiteSpace(warehouse.WorkHours) ? null : warehouse.WorkHours.Trim();
             existing.RegionType = regionType;
-            existing.Status = warehouse.Status;
+            existing.Status = WarehouseStatusCode.Normalize(warehouse.Status);
             existing.ModifyTime = DateTime.UtcNow;
             await _warehouseRepository.UpdateAsync(existing);
             await _unitOfWork.SaveChangesAsync();
             return existing;
+        }
+
+        public async Task<IReadOnlyList<WarehouseInfo>> SaveWarehousesBatchAsync(IReadOnlyList<WarehouseInfo> warehouses)
+        {
+            if (warehouses == null || warehouses.Count == 0)
+                throw new ArgumentException("仓库列表不能为空");
+
+            var results = new List<WarehouseInfo>(warehouses.Count);
+            foreach (var row in warehouses)
+                results.Add(await SaveWarehouseAsync(row));
+            return results;
         }
 
         private List<PickingTaskLineDto> MapPickingTaskItemsToLineDtos(
@@ -1076,6 +1097,7 @@ namespace CRM.Core.Services
                 lineDtos.Add(new PickingTaskLineDto
                 {
                     Id = i.Id,
+                    ItemCode = string.IsNullOrWhiteSpace(i.ItemCode) ? null : i.ItemCode.Trim(),
                     MaterialId = i.MaterialId,
                     StockId = i.StockId,
                     StockItemId = i.StockItemId,
@@ -1289,7 +1311,7 @@ namespace CRM.Core.Services
                 {
                     Id = t.Id,
                     TaskCode = t.TaskCode,
-                    StockOutRequestId = t.StockOutRequestId,
+                    PackingId = t.PackingId,
                     WarehouseId = t.WarehouseId,
                     OperatorId = t.OperatorId,
                     Status = t.Status,
@@ -1359,10 +1381,7 @@ namespace CRM.Core.Services
                 var plan = items.Sum(x => x.PlanQty);
                 var lineCount = items.Count;
 
-                sorById.TryGetValue(t.StockOutRequestId?.Trim() ?? "", out var sor);
-                SellOrder? so = null;
-                if (sor != null && !string.IsNullOrWhiteSpace(sor.SalesOrderId))
-                    soById.TryGetValue(sor.SalesOrderId.Trim(), out so);
+                var (sor, so, _) = await ResolvePickingTaskDisplayContextAsync(t, sorById, soById);
 
                 string? whDisp = null;
                 var wid = t.WarehouseId?.Trim() ?? "";
@@ -1417,10 +1436,15 @@ namespace CRM.Core.Services
             if (t == null)
                 return null;
 
-            var sor = await _stockOutRequestRepository.GetByIdAsync(t.StockOutRequestId.Trim());
-            SellOrder? so = null;
-            if (sor != null && !string.IsNullOrWhiteSpace(sor.SalesOrderId))
-                so = await _sellOrderRepository.GetByIdAsync(sor.SalesOrderId.Trim());
+            var sorById = (await _stockOutRequestRepository.GetAllAsync())
+                .GroupBy(x => x.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Key.Length > 0)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var soById = (await _sellOrderRepository.GetAllAsync())
+                .GroupBy(x => x.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Key.Length > 0)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var (sor, so, _) = await ResolvePickingTaskDisplayContextAsync(t, sorById, soById);
 
             WarehouseInfo? wh = null;
             if (!string.IsNullOrWhiteSpace(t.WarehouseId))
@@ -1517,14 +1541,13 @@ namespace CRM.Core.Services
             var sor = await _stockOutRequestRepository.GetByIdAsync(sorId)
                 ?? throw new InvalidOperationException("出库申请不存在");
 
-            // 同一出库通知只允许存在一条未取消的拣货任务，避免重复生成导致计划量叠加超过出库数量
-            var existingForSor = (await _pickingTaskRepository.GetAllAsync()).ToList()
-                .Where(x => string.Equals(x.StockOutRequestId, sorId, StringComparison.OrdinalIgnoreCase) && x.Status != -1)
-                .ToList();
-            if (existingForSor.Count > 0)
+            var packing = await EnsurePackingConfirmedForPickingAsync(sor);
+
+            var existingForPacking = await GetActivePickingTasksByPackingIdAsync(packing.Id);
+            if (existingForPacking.Count > 0)
             {
-                var codes = string.Join("、", existingForSor.Select(x => x.TaskCode));
-                throw new InvalidOperationException($"该出库通知已存在拣货任务（{codes}），请勿重复生成。");
+                var codes = string.Join("、", existingForPacking.Select(x => x.TaskCode));
+                throw new InvalidOperationException($"该装箱单已存在拣货任务（{codes}），请勿重复生成。");
             }
 
             var taskCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.PickingTask);
@@ -1534,7 +1557,7 @@ namespace CRM.Core.Services
             {
                 Id = Guid.NewGuid().ToString(),
                 TaskCode = taskCode,
-                StockOutRequestId = sorId,
+                PackingId = packing.Id,
                 WarehouseId = warehouseId,
                 OperatorId = string.IsNullOrWhiteSpace(request.OperatorId) ? "SYSTEM" : request.OperatorId.Trim(),
                 Status = 1,
@@ -1558,118 +1581,13 @@ namespace CRM.Core.Services
             var sor = await _stockOutRequestRepository.GetByIdAsync(stockOutRequestId.Trim())
                 ?? throw new InvalidOperationException("出库申请不存在");
             var wh = warehouseId.Trim();
-            if (sor.Status != 0)
-                throw new InvalidOperationException("出库申请状态不允许拣货（须为待出库）");
+            await EnsurePackingConfirmedForPickingAsync(sor);
 
             var sellLineId = sor.SalesOrderItemId.Trim();
             var sellLine = await _sellOrderItemRepository.GetByIdAsync(sellLineId)
                 ?? throw new InvalidOperationException("销售订单明细不存在");
 
-            var materials = (await _materialRepository.GetAllAsync()).ToList();
-            var materialById = materials
-                .GroupBy(m => m.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
-                .Where(g => g.Key.Length > 0)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-            var materialByAltKey = StockMaterialMatch.BuildMaterialCodeModelIndex(materials);
-            var poItems = (await _purchaseOrderItemRepository.GetAllAsync()).ToList();
-            var poItemById = poItems
-                .GroupBy(p => p.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
-                .Where(g => g.Key.Length > 0)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-            var stocks = (await _stockRepository.GetAllAsync()).ToList();
-            var stocksById = stocks
-                .GroupBy(s => s.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
-                .Where(g => g.Key.Length > 0)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-            var allLayers = (await _stockItemRepository.GetAllAsync()).ToList();
-            var candidates = new List<StockItem>();
-            foreach (var si in allLayers)
-            {
-                if (!string.Equals(si.WarehouseId?.Trim(), wh, StringComparison.OrdinalIgnoreCase))
-                    continue;
-                if (si.QtyRepertoryAvailable <= 0)
-                    continue;
-                var aggId = si.StockAggregateId?.Trim() ?? "";
-                if (aggId.Length == 0 || !stocksById.TryGetValue(aggId, out var stock))
-                    continue;
-
-                var bindSell = string.Equals(si.SellOrderItemId?.Trim(), sellLineId, StringComparison.OrdinalIgnoreCase);
-                if (bindSell)
-                {
-                    candidates.Add(si);
-                    continue;
-                }
-
-                if (stock.StockType == 2
-                    && StockMaterialMatch.StockingSupplementEligible(stock, sellLine, materialById, materialByAltKey, poItemById))
-                    candidates.Add(si);
-            }
-
-            var distinct = candidates
-                .GroupBy(x => x.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
-                .Where(g => g.Key.Length > 0)
-                .Select(g => g.First())
-                .OrderBy(si => si.ProductionDate ?? si.CreateTime)
-                .ThenBy(si => si.CreateTime)
-                .ToList();
-
-            var stockItemKeys = distinct.Select(si => si.Id?.Trim() ?? "").Where(x => x.Length > 0).ToList();
-            var codeLookups = await ResolveStockItemCodeLookupsByStockItemIdsAsync(stockItemKeys);
-
-            var stockInIds = distinct
-                .Select(x => x.StockInId?.Trim() ?? "")
-                .Where(x => x.Length > 0)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            var stockInDateById = new Dictionary<string, DateTime?>(StringComparer.OrdinalIgnoreCase);
-            if (stockInIds.Count > 0)
-            {
-                try
-                {
-                    var sins = (await _stockInRepository.FindAsync(x => stockInIds.Contains(x.Id))).ToList();
-                    foreach (var s in sins)
-                        stockInDateById[s.Id.Trim()] = s.StockInDate;
-                }
-                catch
-                {
-                    // ignore: date stays null
-                }
-            }
-
-            var list = new List<PickingStockItemCandidateDto>();
-            foreach (var si in distinct)
-            {
-                var aggId = si.StockAggregateId?.Trim() ?? "";
-                stocksById.TryGetValue(aggId, out var st);
-                var bindSell = string.Equals(si.SellOrderItemId?.Trim(), sellLineId, StringComparison.OrdinalIgnoreCase);
-                var stkId = si.Id.Trim();
-                codeLookups.StockInItemCodeByStockItemId.TryGetValue(stkId, out var sinCode);
-                codeLookups.StockItemCodeByStockItemId.TryGetValue(stkId, out var stockItemBizCode);
-                stockInDateById.TryGetValue(si.StockInId?.Trim() ?? "", out var sinDate);
-                list.Add(new PickingStockItemCandidateDto
-                {
-                    StockItemId = stkId,
-                    StockItemCode = stockItemBizCode,
-                    StockInItemCode = sinCode,
-                    StockInDate = sinDate,
-                    StockAggregateId = aggId,
-                    MaterialId = si.MaterialId?.Trim() ?? string.Empty,
-                    AvailableQty = si.QtyRepertoryAvailable,
-                    StockType = st?.StockType ?? 1,
-                    PurchasePn = si.PurchasePn,
-                    PurchaseBrand = si.PurchaseBrand,
-                    LocationId = si.LocationId,
-                    BatchNo = si.BatchNo,
-                    WarehouseId = si.WarehouseId?.Trim() ?? wh,
-                    ProductionDate = si.ProductionDate,
-                    CreateTime = si.CreateTime,
-                    IsStockingCandidate = !bindSell && (st?.StockType == 2)
-                });
-            }
-
-            return list;
+            return await BuildPickingStockItemCandidatesForSellLineAsync(sellLine, wh);
         }
 
         /// <inheritdoc />
@@ -1685,87 +1603,10 @@ namespace CRM.Core.Services
             if (task.Status == 100)
                 throw new InvalidOperationException("拣货任务已完成，不能修改明细");
 
-            var sor = await _stockOutRequestRepository.GetByIdAsync(task.StockOutRequestId.Trim())
-                ?? throw new InvalidOperationException("出库申请不存在");
-            var expected = sor.Quantity;
-            var sum = lines.Sum(l => l.Qty);
-            if (sum != expected)
-                throw new InvalidOperationException($"拣货数量之和（{sum}）须等于出库通知数量（{expected}）。");
+            if (string.IsNullOrWhiteSpace(task.PackingId))
+                throw new InvalidOperationException("拣货任务未关联装箱单");
 
-            var wh = task.WarehouseId.Trim();
-            var stocks = (await _stockRepository.GetAllAsync()).ToList();
-            var stocksById = stocks
-                .GroupBy(s => s.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
-                .Where(g => g.Key.Length > 0)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-            var sellLineId = sor.SalesOrderItemId.Trim();
-            var sellLine = await _sellOrderItemRepository.GetByIdAsync(sellLineId)
-                ?? throw new InvalidOperationException("销售订单明细不存在");
-            var materials = (await _materialRepository.GetAllAsync()).ToList();
-            var materialById = materials
-                .GroupBy(m => m.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
-                .Where(g => g.Key.Length > 0)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-            var materialByAltKey = StockMaterialMatch.BuildMaterialCodeModelIndex(materials);
-            var poItems = (await _purchaseOrderItemRepository.GetAllAsync()).ToList();
-            var poItemById = poItems
-                .GroupBy(p => p.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
-                .Where(g => g.Key.Length > 0)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-            var existing = (await _pickingTaskItemRepository.GetAllAsync())
-                .Where(x => string.Equals(x.PickingTaskId, task.Id, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            foreach (var e in existing)
-                await _pickingTaskItemRepository.DeleteAsync(e.Id);
-
-            foreach (var line in lines)
-            {
-                var sid = line.StockItemId?.Trim() ?? "";
-                var agg = line.StockId?.Trim() ?? "";
-                if (sid.Length == 0 || agg.Length == 0)
-                    throw new InvalidOperationException("拣货行缺少 stockItemId 或 stockId");
-                var si = await _stockItemRepository.GetByIdAsync(sid)
-                    ?? throw new InvalidOperationException($"在库明细不存在：{sid}");
-                if (!string.Equals(si.StockAggregateId?.Trim(), agg, StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException($"stockItemId 与 stockId（汇总桶）不一致：{sid}");
-                if (!string.Equals(si.WarehouseId?.Trim(), wh, StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException("在库明细不属于该拣货任务仓库");
-                if (line.Qty <= 0)
-                    throw new InvalidOperationException("拣货数量须大于 0");
-                if (line.Qty > si.QtyRepertoryAvailable)
-                    throw new InvalidOperationException($"在库明细 {sid} 可用量不足（可用 {si.QtyRepertoryAvailable}，申请 {line.Qty}）");
-
-                if (!stocksById.TryGetValue(agg, out var stock))
-                    throw new InvalidOperationException($"汇总库存不存在：{agg}");
-
-                var bindSell = string.Equals(si.SellOrderItemId?.Trim(), sellLineId, StringComparison.OrdinalIgnoreCase);
-                bool isStockingSupplement;
-                if (bindSell)
-                    isStockingSupplement = false;
-                else if (stock.StockType == 2
-                         && StockMaterialMatch.StockingSupplementEligible(stock, sellLine, materialById, materialByAltKey, poItemById))
-                    isStockingSupplement = true;
-                else
-                    throw new InvalidOperationException($"在库明细 {sid} 不在本单可拣范围内（非本销售行绑定且非备货匹配）");
-
-                await _pickingTaskItemRepository.AddAsync(new PickingTaskItem
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    PickingTaskId = task.Id,
-                    MaterialId = si.MaterialId?.Trim() ?? string.Empty,
-                    StockId = agg,
-                    StockItemId = sid,
-                    BatchNo = si.BatchNo,
-                    LocationId = si.LocationId,
-                    PlanQty = line.Qty,
-                    PickedQty = 0,
-                    IsStockingSupplement = isStockingSupplement,
-                    CreateTime = DateTime.UtcNow
-                });
-            }
-
-            await _unitOfWork.SaveChangesAsync();
+            await SavePickingTaskItemsForPackingAsync(task, lines);
         }
 
         public async Task CompletePickingTaskAsync(string taskId)
@@ -1773,35 +1614,130 @@ namespace CRM.Core.Services
             var task = await _pickingTaskRepository.GetByIdAsync(taskId.Trim());
             if (task == null) throw new InvalidOperationException("拣货任务不存在");
             if (task.Status == 100)
-                throw new InvalidOperationException("拣货任务已完成");
+                return;
 
-            var sor = await _stockOutRequestRepository.GetByIdAsync(task.StockOutRequestId.Trim())
-                ?? throw new InvalidOperationException("出库申请不存在");
+            if (string.IsNullOrWhiteSpace(task.PackingId))
+                throw new InvalidOperationException("拣货任务未关联装箱单");
 
-            var items = (await _pickingTaskItemRepository.GetAllAsync())
-                .Where(x => string.Equals(x.PickingTaskId, task.Id, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            if (items.Count == 0)
-                throw new InvalidOperationException("请先保存拣货明细后再完成拣货");
-            if (items.Any(x => string.IsNullOrWhiteSpace(x.StockItemId)))
-                throw new InvalidOperationException("拣货明细缺少 stock_item_id，请使用新流程保存拣货后再完成");
-            var planSum = items.Sum(x => x.PlanQty);
-            if (planSum != sor.Quantity)
-                throw new InvalidOperationException($"拣货计划数量之和（{planSum}）须等于出库通知数量（{sor.Quantity}）才能完成拣货");
+            await CompletePickingTaskForPackingAsync(task);
+        }
 
-            task.Status = 100;
-            task.ModifyTime = DateTime.UtcNow;
-
-            foreach (var item in items)
+        /// <summary>按出库通知解析唯一关联装箱单，且须为已确认（20）方可拣货。</summary>
+        private async Task<Packing> EnsurePackingConfirmedForPickingAsync(StockOutRequest sor)
+        {
+            var packing = await ResolvePackingForStockOutNotifyAsync(sor);
+            if (packing.Status != PackingStatusCode.Confirmed)
             {
-                item.PickedQty = item.PlanQty;
-                item.ModifyTime = DateTime.UtcNow;
-                await _pickingTaskItemRepository.UpdateAsync(item);
+                throw new InvalidOperationException(
+                    $"关联装箱单状态不允许拣货（须为已确认，当前为 {DescribePackingStatus(packing.Status)}）");
             }
 
-            await _pickingTaskRepository.UpdateAsync(task);
-            await _unitOfWork.SaveChangesAsync();
+            return packing;
         }
+
+        private async Task<Packing> ResolvePackingForStockOutNotifyAsync(StockOutRequest sor)
+        {
+            var sorId = sor.Id.Trim();
+            var sellLineId = sor.SalesOrderItemId?.Trim() ?? "";
+
+            var packingIdSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var byNotify = (await _packingItemRepository.FindAsync(pi =>
+                !pi.IsDeleted && pi.StockOutNotifyId != null && pi.StockOutNotifyId == sorId)).ToList();
+            foreach (var pi in byNotify)
+                packingIdSet.Add(pi.PackingId.Trim());
+
+            if (packingIdSet.Count == 0 && sellLineId.Length > 0)
+            {
+                var byLine = (await _packingItemRepository.FindAsync(pi =>
+                    !pi.IsDeleted && pi.SellOrderItemId == sellLineId)).ToList();
+                foreach (var pi in byLine.Where(x => string.IsNullOrWhiteSpace(x.StockOutNotifyId)))
+                    packingIdSet.Add(pi.PackingId.Trim());
+            }
+
+            if (packingIdSet.Count == 0)
+                throw new InvalidOperationException("未找到与该出库通知关联的装箱单，无法拣货");
+
+            if (packingIdSet.Count > 1)
+                throw new InvalidOperationException("该出库通知关联多张装箱单，无法拣货");
+
+            var packing = await _packingRepository.GetByIdAsync(packingIdSet.First());
+            if (packing == null || packing.IsDeleted)
+                throw new InvalidOperationException("关联装箱单不存在或已删除");
+
+            return packing;
+        }
+
+        private async Task<List<PackingItem>> GetPackingItemsForStockOutNotifyAsync(Packing packing, StockOutRequest sor)
+        {
+            var sorId = sor.Id.Trim();
+            var sellLineId = sor.SalesOrderItemId?.Trim() ?? "";
+            var packingId = packing.Id.Trim();
+
+            var items = (await _packingItemRepository.FindAsync(pi =>
+                !pi.IsDeleted
+                && pi.PackingId == packingId
+                && pi.StockOutNotifyId != null
+                && pi.StockOutNotifyId == sorId)).ToList();
+
+            if (items.Count == 0 && sellLineId.Length > 0)
+            {
+                items = (await _packingItemRepository.FindAsync(pi =>
+                    !pi.IsDeleted && pi.PackingId == packingId && pi.SellOrderItemId == sellLineId)).ToList();
+            }
+
+            return items;
+        }
+
+        private static string? ResolvePackingItemIdForPickLine(
+            IReadOnlyList<PackingItem> packingItems,
+            string? stockItemId)
+        {
+            if (packingItems.Count == 0)
+                return null;
+
+            var sid = stockItemId?.Trim() ?? "";
+            if (sid.Length > 0)
+            {
+                var byStock = packingItems.FirstOrDefault(pi =>
+                    !string.IsNullOrWhiteSpace(pi.StockItemId)
+                    && string.Equals(pi.StockItemId.Trim(), sid, StringComparison.OrdinalIgnoreCase));
+                if (byStock != null)
+                    return byStock.Id;
+            }
+
+            if (packingItems.Count == 1)
+                return packingItems[0].Id;
+
+            var withoutStockItem = packingItems.FirstOrDefault(pi => string.IsNullOrWhiteSpace(pi.StockItemId));
+            return (withoutStockItem ?? packingItems[0]).Id;
+        }
+
+        private async Task MarkPackingPickedAfterPickAsync(Packing packing)
+        {
+            if (packing.Status == PackingStatusCode.Picked)
+                return;
+
+            if (packing.Status != PackingStatusCode.Confirmed)
+            {
+                throw new InvalidOperationException(
+                    $"装箱单当前为 {DescribePackingStatus(packing.Status)}，无法标记为已拣货");
+            }
+
+            packing.Status = PackingStatusCode.Picked;
+            await _packingRepository.UpdateAsync(packing);
+        }
+
+        private static string DescribePackingStatus(short status) => status switch
+        {
+            PackingStatusCode.New => "新建",
+            PackingStatusCode.Confirmed => "已确认",
+            PackingStatusCode.Picked => "已拣货",
+            PackingStatusCode.Ready => "已备货",
+            PackingStatusCode.PendingStockOut => "待出库",
+            PackingStatusCode.StockOutFinished => "出库完成",
+            _ => status.ToString()
+        };
 
         public async Task<PagedResult<InventoryCountPlan>> GetCountPlansPagedAsync(
             int page,
@@ -2032,11 +1968,9 @@ namespace CRM.Core.Services
                     : $"存在下游业务节点：出库单；下游数据单号：{string.Join("、", stockOutCodes)}");
             }
 
-            var items = (await _pickingTaskItemRepository.FindAsync(x => x.PickingTaskId == task.Id)).ToList();
-            foreach (var line in items)
-                await _pickingTaskItemRepository.DeleteAsync(line.Id);
-            await _pickingTaskRepository.DeleteAsync(task.Id);
-            await _unitOfWork.SaveChangesAsync();
+            var items = await GetPickingTaskItemsByTaskIdAsync(task.Id);
+            var itemCount = items.Count;
+            await ReleaseAndDeletePickingTaskAsync(task);
 
             await _logOperationAppend.AppendAsync(
                 BusinessLogTypes.PickingTask,
@@ -2045,7 +1979,7 @@ namespace CRM.Core.Services
                 "拣货单强制删除",
                 actingUserId.Trim(),
                 string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
-                $"强制删除拣货单：拣货单内部主键={task.Id}（接口/库表主键），拣货单号={task.TaskCode}，删除时状态={task.Status}，明细行数={items.Count}",
+                $"强制删除拣货单：拣货单内部主键={task.Id}（接口/库表主键），拣货单号={task.TaskCode}，删除时状态={task.Status}，明细行数={itemCount}",
                 reason: null);
         }
 

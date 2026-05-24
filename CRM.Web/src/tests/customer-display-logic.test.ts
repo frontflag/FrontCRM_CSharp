@@ -64,7 +64,7 @@ function getLevelLabelDetail(level: string): string {
 
 /** 地址类型 → 显示标签 */
 function getAddressTypeLabel(type: string): string {
-  return ({ Office: '办公地址', Billing: '开票地址', Shipping: '收货地址', Registered: '注册地址' } as Record<string, string>)[type] || type;
+  return ({ Office: '办公地址', Billing: '账单地址', Shipping: '收货地址', Registered: '注册地址' } as Record<string, string>)[type] || type;
 }
 
 /** 完整地址拼接 */
@@ -326,8 +326,8 @@ describe('CustomerDetail - 地址类型标签 (getAddressTypeLabel)', () => {
     expect(getAddressTypeLabel('Office')).toBe('办公地址');
   });
 
-  it('UT-DISPLAY-091: "Billing" → "开票地址"', () => {
-    expect(getAddressTypeLabel('Billing')).toBe('开票地址');
+  it('UT-DISPLAY-091: "Billing" → "账单地址"', () => {
+    expect(getAddressTypeLabel('Billing')).toBe('账单地址');
   });
 
   it('UT-DISPLAY-092: "Shipping" → "收货地址"', () => {

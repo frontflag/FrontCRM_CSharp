@@ -27,4 +27,11 @@ namespace CRM.Core.Interfaces
         /// <summary>预留连续 <paramref name="count"/> 个在库明细序号，返回本块第一个序号（含）。</summary>
         Task<int> ReserveNextSequenceBlockAsync(string stockId, int count, CancellationToken cancellationToken = default);
     }
+
+    /// <summary>装箱单扩展表 <c>packing_extend.last_item_line_seq</c> 的并发安全序号预留（Infrastructure 实现）。</summary>
+    public interface IPackingItemLineSeqService
+    {
+        /// <summary>预留连续 <paramref name="count"/> 个装箱明细序号，返回本块第一个序号（含）。</summary>
+        Task<int> ReserveNextSequenceBlockAsync(string packingId, int count, CancellationToken cancellationToken = default);
+    }
 }

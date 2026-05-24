@@ -9,13 +9,20 @@ namespace CRM.Core.Models.Inventory
     /// <summary>
     /// 出库申请单（单表：一条通知对应一条销售订单明细）
     /// </summary>
-    [Table("stockoutrequest")]
+    [Table("stockout_notify")]
     public class StockOutRequest : BaseGuidEntity, ISoftDeletable
     {
+        /// <summary>主键（列名 ID）。</summary>
+        [Key]
+        [StringLength(36)]
+        [Column("ID")]
+        public override string Id { get; set; } = Guid.NewGuid().ToString();
+
         /// <summary>
-        /// 申请单号
+        /// 申请单号（列名 Code）
         /// </summary>
         [StringLength(50)]
+        [Column("Code")]
         public string RequestCode { get; set; } = string.Empty;
 
         /// <summary>
@@ -65,9 +72,9 @@ namespace CRM.Core.Models.Inventory
         public DateTime RequestDate { get; set; }
 
         /// <summary>
-        /// 状态 (0:待出库 1:已出库 2:已取消)
+        /// 状态，见 <see cref="StockOutRequestStatusCode"/>（10 待装箱 / 20 已装箱 / 100 已出库 / -1 已取消）。
         /// </summary>
-        public short Status { get; set; } = 0;
+        public short Status { get; set; } = StockOutRequestStatusCode.PendingPacking;
 
         /// <summary>
         /// 备注
@@ -85,6 +92,11 @@ namespace CRM.Core.Models.Inventory
         [Column("RegionType")]
         [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public short RegionType { get; set; } = RegionTypeCode.Domestic;
+
+        /// <summary>出库类型，见 <see cref="StockOutTypeCode"/>（默认销售出库）。</summary>
+        [Column("StockOutType")]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public short StockOutType { get; set; } = StockOutTypeCode.Sales;
 
         [StringLength(36)]
         [Column("create_by_user_id")]

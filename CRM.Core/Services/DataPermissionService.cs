@@ -198,10 +198,13 @@ namespace CRM.Core.Services
 
             var list = source.ToList();
             if (summary.PurchaseDataScope == 1)
-                return list.Where(x => x.PurchaseUserId == userId).ToList();
+                return list.Where(x => MatchesPurchaseOrderDataScope(x, userId, null)).ToList();
+
+            if (summary.PurchaseDataScope == 4)
+                return list.Where(x => IsPurchaseOrderAssistor(x, userId)).ToList();
 
             var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.PurchaseDataScope == 3);
-            return list.Where(x => !string.IsNullOrWhiteSpace(x.PurchaseUserId) && allowUserIds.Contains(x.PurchaseUserId!)).ToList();
+            return list.Where(x => MatchesPurchaseOrderDataScope(x, userId, allowUserIds)).ToList();
         }
 
         /// <inheritdoc />
@@ -218,13 +221,32 @@ namespace CRM.Core.Services
             if (summary.IsSysAdmin || summary.PurchaseDataScope == 0)
                 return query;
             if (summary.PurchaseDataScope == 4)
-                return query.Where(_ => false);
+                return query.Where(x => x.Assistor == userId);
 
             if (summary.PurchaseDataScope == 1)
-                return query.Where(x => x.PurchaseUserId == userId);
+                return query.Where(x => x.PurchaseUserId == userId || x.Assistor == userId);
 
             var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.PurchaseDataScope == 3);
-            return query.Where(x => x.PurchaseUserId != null && allowUserIds.Contains(x.PurchaseUserId));
+            return query.Where(x =>
+                (x.PurchaseUserId != null && allowUserIds.Contains(x.PurchaseUserId))
+                || x.Assistor == userId);
+        }
+
+        private static bool IsPurchaseOrderAssistor(PurchaseOrder order, string userId) =>
+            !string.IsNullOrWhiteSpace(order.Assistor)
+            && string.Equals(order.Assistor.Trim(), userId, StringComparison.OrdinalIgnoreCase);
+
+        private static bool MatchesPurchaseOrderDataScope(
+            PurchaseOrder order,
+            string userId,
+            HashSet<string>? allowPurchaseUserIds)
+        {
+            if (IsPurchaseOrderAssistor(order, userId))
+                return true;
+            if (allowPurchaseUserIds == null)
+                return string.Equals(order.PurchaseUserId, userId, StringComparison.OrdinalIgnoreCase);
+            return !string.IsNullOrWhiteSpace(order.PurchaseUserId)
+                   && allowPurchaseUserIds.Contains(order.PurchaseUserId!);
         }
 
         /// <inheritdoc />

@@ -81,6 +81,10 @@ namespace CRM.Core.Interfaces
         /// <summary>地域类型 RegionType：10=境内 20=境外（与仓库、到货通知共用）</summary>
         [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public short RegionType { get; set; } = RegionTypeCode.Domestic;
+
+        /// <summary>出库类型 <see cref="StockOutTypeCode"/>；未传或非法时服务端默认为销售出库。</summary>
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public short StockOutType { get; set; } = StockOutTypeCode.Sales;
     }
 
     /// <summary>销售明细「申请出库」弹窗用：数量口径由服务端计算，前端仅展示。</summary>
@@ -164,18 +168,31 @@ namespace CRM.Core.Interfaces
         /// <summary>地域类型：10=境内 20=境外</summary>
         public short RegionType { get; set; }
 
+        /// <summary>出库类型 <see cref="StockOutTypeCode"/>。</summary>
+        public short StockOutType { get; set; }
+
+        /// <summary>销售明细币别（1=RMB 2=USD …）。</summary>
+        public short Currency { get; set; }
+
         public DateTime CreateTime { get; set; }
     }
 
     public class ExecuteStockOutRequest
     {
         public string StockOutRequestId { get; set; } = string.Empty;
+        /// <summary>来源装箱单 <c>packing.Id</c>（多选装箱出库时由前端传入）。</summary>
+        public string? PackingId { get; set; }
         public string StockOutCode { get; set; } = string.Empty;
         public string WarehouseId { get; set; } = string.Empty;
         public string OperatorId { get; set; } = string.Empty;
         public DateTime StockOutDate { get; set; }
         public string? Remark { get; set; }
         public List<ExecuteStockOutItemRequest> Items { get; set; } = new();
+        /// <summary>装箱单批量出库等为 true 时，不校验出库通知状态（待装箱/已出库/已取消等）。</summary>
+        public bool SkipStockOutNotifyStatusChecks { get; set; }
+
+        /// <summary>装箱单列表批量出库：仅要求装箱单已备货，不校验拣货/通知数量等。</summary>
+        public bool PackingListBatchStockOut { get; set; }
     }
 
     public class ExecuteStockOutItemRequest

@@ -26,6 +26,9 @@ onMounted(async () => {
     if (authStore.isAuthenticated && (authStore.user?.identityType === undefined || authStore.user?.identityType === null)) {
       await authStore.fetchCurrentUser()
     }
+    if (authStore.isAuthenticated) {
+      await authStore.loadSimulationBanner()
+    }
   } catch {
     /* 不阻断主流程 */
   }

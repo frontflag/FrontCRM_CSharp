@@ -245,6 +245,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '库存列表' }
       },
       {
+        path: 'inventory/warehouses',
+        name: 'WarehouseManage',
+        component: () => import('@/views/Inventory/WarehouseManagePage.vue'),
+        meta: { requiresAuth: true, title: '仓库管理' }
+      },
+      {
         path: 'inventory/stock-items',
         name: 'InventoryStockItemList',
         component: () => import('@/views/Inventory/InventoryStockItemList.vue'),
@@ -329,16 +335,32 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '执行出库' }
       },
       {
+        path: 'inventory/pick/create',
+        name: 'PickCreate',
+        component: () => import('@/views/Inventory/StockOutEdit.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '拣货',
+          permissions: ['sales-order.read', 'purchase-order.read']
+        }
+      },
+      {
         path: 'inventory/stock-out/:id/invoice-report',
         name: 'StockOutInvoiceReport',
         component: () => import('@/views/Inventory/StockOutInvoiceReportPage.vue'),
         meta: { requiresAuth: true, title: '出库 Invoice' }
       },
       {
-        path: 'inventory/stock-out/:id/packing-report/:packingInspection',
-        name: 'StockOutPackingReport',
+        path: 'inventory/packing/:packingId/invoice-report',
+        name: 'PackingInvoiceReport',
+        component: () => import('@/views/Inventory/StockOutInvoiceReportPage.vue'),
+        meta: { requiresAuth: true, title: '装箱 Invoice' }
+      },
+      {
+        path: 'inventory/packing/:packingId/packing-report/:packingInspection',
+        name: 'PackingReport',
         component: () => import('@/views/Inventory/StockOutPackingReportPage.vue'),
-        meta: { requiresAuth: true, title: '出库 Packing' }
+        meta: { requiresAuth: true, title: '预览装箱单' }
       },
       {
         path: 'inventory/stock-out/:id',
@@ -364,6 +386,46 @@ const routes: RouteRecordRaw[] = [
           requiresAuth: true,
           title: '出库通知',
           // 销售用 SO 权限；采购/履约用 PO 权限（采购主部门不再持有 sales-order.read）
+          permissions: ['sales-order.read', 'purchase-order.read']
+        }
+      },
+      {
+        path: 'inventory/packing',
+        name: 'PackingList',
+        component: () => import('@/views/Inventory/PackingListPage.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '装箱单',
+          permissions: ['sales-order.read', 'purchase-order.read']
+        }
+      },
+      {
+        path: 'inventory/packing/create',
+        name: 'PackingCreate',
+        component: () => import('@/views/Inventory/PackingCreatePage.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '新建装箱单',
+          permissions: ['sales-order.read', 'purchase-order.read']
+        }
+      },
+      {
+        path: 'inventory/packing/:id',
+        name: 'PackingDetail',
+        component: () => import('@/views/Inventory/PackingDetailPage.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '装箱单详情',
+          permissions: ['sales-order.read', 'purchase-order.read']
+        }
+      },
+      {
+        path: 'inventory/packing/items',
+        name: 'PackingItemList',
+        component: () => import('@/views/Inventory/PackingItemListPage.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '装箱单明细',
           permissions: ['sales-order.read', 'purchase-order.read']
         }
       },

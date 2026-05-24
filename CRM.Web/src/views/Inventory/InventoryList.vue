@@ -15,7 +15,7 @@
         <div class="count-badge">{{ t('inventoryList.count', { count: listTotal }) }}</div>
       </div>
       <div class="header-right">
-        <button class="btn-primary" type="button" @click="openWarehouseDialog">
+        <button class="btn-primary" type="button" @click="goWarehouseManage">
           {{ t('inventoryList.actions.warehouseManagement') }}
         </button>
       </div>
@@ -202,83 +202,6 @@
         @current-change="onInventoryPageChange"
       />
     </div>
-
-    <el-dialog v-model="warehouseVisible" :title="t('inventoryList.warehouse.title')" width="720px">
-      <el-form :model="warehouseForm" inline>
-        <el-form-item :label="t('inventoryList.warehouse.code')">
-          <el-input v-model="warehouseForm.warehouseCode" />
-        </el-form-item>
-        <el-form-item :label="t('inventoryList.warehouse.name')">
-          <el-input v-model="warehouseForm.warehouseName" />
-        </el-form-item>
-        <el-form-item :label="t('inventoryList.warehouse.address')">
-          <el-input v-model="warehouseForm.address" />
-        </el-form-item>
-        <el-form-item :label="t('inventoryList.warehouse.regionType')">
-          <el-select v-model="warehouseForm.regionType" style="width: 200px" :teleported="false">
-            <el-option :value="REGION_TYPE_DOMESTIC" :label="t('inventoryList.warehouse.regionDomestic')" />
-            <el-option :value="REGION_TYPE_OVERSEAS" :label="t('inventoryList.warehouse.regionOverseas')" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <button class="btn-primary" type="button" @click="saveWarehouse">
-            {{ warehouseForm.id ? t('inventoryList.warehouse.saveEdit') : t('inventoryList.warehouse.saveNew') }}
-          </button>
-          <button class="btn-secondary" type="button" style="margin-left: 8px" @click="resetWarehouseForm">{{ t('inventoryList.warehouse.new') }}</button>
-        </el-form-item>
-      </el-form>
-      <el-table :data="warehouses" class="warehouse-table">
-        <el-table-column prop="warehouseCode" :label="t('inventoryList.warehouse.codeShort')" width="140" />
-        <el-table-column prop="warehouseName" :label="t('inventoryList.warehouse.nameShort')" width="180" />
-        <el-table-column :label="t('inventoryList.warehouse.regionTypeShort')" width="100" align="center">
-          <template #default="{ row }">{{ warehouseRegionTypeLabel(row) }}</template>
-        </el-table-column>
-        <el-table-column prop="address" :label="t('inventoryList.warehouse.address')" min-width="200" />
-        <el-table-column
-          :label="t('inventoryList.columns.actions')"
-          :width="opColWarehouseWidth"
-          :min-width="opColWarehouseMinWidth"
-          align="center"
-          fixed="right"
-          class-name="op-col"
-          label-class-name="op-col"
-          :resizable="false"
-        >
-          <template #header>
-            <div class="list-op-col-header--icon-only">
-            <button
-              type="button"
-              class="op-col-toggle-btn list-op-col-toggle"
-              :aria-label="opColWarehouseExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
-              @click.stop="toggleOpColWarehouse"
-            >
-              {{ opColWarehouseExpanded ? '>' : '<' }}
-            </button>
-          </div>
-          </template>
-          <template #default="{ row }">
-            <div @click.stop @dblclick.stop>
-              <div v-if="opColWarehouseExpanded" class="action-btns">
-                <button type="button" class="action-btn action-btn--primary" @click.stop="loadWarehouseForEdit(row)">{{ t('inventoryList.actions.edit') }}</button>
-              </div>
-
-              <el-dropdown v-else trigger="click" placement="bottom-end">
-                <div class="op-more-dropdown-trigger">
-                  <button type="button" class="op-more-trigger">...</button>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item @click.stop="loadWarehouseForEdit(row)">
-                      <span class="op-more-item op-more-item--primary">{{ t('inventoryList.actions.edit') }}</span>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-dialog>
   </div>
 </template>
 
@@ -311,7 +234,6 @@ const warehouseFilter = ref<string | undefined>(undefined)
 const materialModelFilter = ref('')
 const stockCodeFilter = ref('')
 const finance = ref<FinanceSummary | null>(null)
-const warehouseVisible = ref(false)
 const warehouses = ref<WarehouseInfo[]>([])
 
 const inventoryTableColumns = computed<CrmTableColumnDef[]>(() => [
@@ -330,30 +252,6 @@ const inventoryTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'createUser', label: t('inventoryList.columns.createUser'), width: 120, showOverflowTooltip: true }
 ])
 
-// 列表操作列：弹窗表格默认收起（Collapsed）
-const opColWarehouseExpanded = ref(false)
-const OP_COL_WAREHOUSE_COLLAPSED_WIDTH = 43
-const OP_COL_WAREHOUSE_EXPANDED_WIDTH = 173
-const OP_COL_WAREHOUSE_EXPANDED_MIN_WIDTH = 160
-const opColWarehouseWidth = computed(() =>
-  opColWarehouseExpanded.value ? OP_COL_WAREHOUSE_EXPANDED_WIDTH : OP_COL_WAREHOUSE_COLLAPSED_WIDTH
-)
-const opColWarehouseMinWidth = computed(() =>
-  opColWarehouseExpanded.value ? OP_COL_WAREHOUSE_EXPANDED_MIN_WIDTH : OP_COL_WAREHOUSE_COLLAPSED_WIDTH
-)
-function toggleOpColWarehouse() {
-  opColWarehouseExpanded.value = !opColWarehouseExpanded.value
-}
-const emptyWarehouseForm = (): WarehouseInfo => ({
-  warehouseCode: '',
-  warehouseName: '',
-  address: '',
-  regionType: REGION_TYPE_DOMESTIC,
-  status: 1
-})
-
-const warehouseForm = ref<WarehouseInfo>(emptyWarehouseForm())
-
 /** 兼容接口 camelCase / PascalCase */
 function normalizeWarehouseRow(row: WarehouseInfo): WarehouseInfo {
   const r = row as unknown as Record<string, unknown>
@@ -366,20 +264,6 @@ function normalizeWarehouseRow(row: WarehouseInfo): WarehouseInfo {
   const status = typeof st === 'number' ? st : 1
   const regionType = normalizeRegionType(r.regionType ?? r.RegionType)
   return { id, warehouseCode: code, warehouseName: name, address: addr, regionType, status }
-}
-
-function warehouseRegionTypeLabel(row: WarehouseInfo): string {
-  const n = normalizeWarehouseRow(row).regionType
-  if (n === REGION_TYPE_OVERSEAS) return t('inventoryList.warehouse.regionOverseas')
-  return t('inventoryList.warehouse.regionDomestic')
-}
-
-const resetWarehouseForm = () => {
-  warehouseForm.value = emptyWarehouseForm()
-}
-
-const loadWarehouseForEdit = (row: WarehouseInfo) => {
-  warehouseForm.value = normalizeWarehouseRow(row)
 }
 
 /** 库存编号下拉：仓库编码 + 名称，值为 id 优先否则编码 */
@@ -620,49 +504,8 @@ const onRowClick = (row: InventoryOverview) => {
   openStockDetail(row)
 }
 
-const openWarehouseDialog = async () => {
-  try {
-    resetWarehouseForm()
-    warehouseVisible.value = true
-    warehouses.value = await inventoryCenterApi.getWarehouses()
-  } catch (e) {
-    console.error(e)
-    ElMessage.error(getApiErrorMessage(e, t('inventoryList.messages.loadWarehouseFailed')))
-  }
-}
-
-const saveWarehouse = async () => {
-  try {
-    const form = warehouseForm.value
-    const trimmedId = form.id?.trim()
-    const shouldSendId =
-      !!trimmedId && warehouses.value.some(w => normalizeWarehouseRow(w).id === trimmedId)
-    const rt = normalizeRegionType(form.regionType)
-    const payload: WarehouseInfo = shouldSendId
-      ? {
-          id: trimmedId,
-          warehouseCode: form.warehouseCode.trim(),
-          warehouseName: form.warehouseName.trim(),
-          address: form.address?.trim() || undefined,
-          regionType: rt,
-          status: form.status ?? 1
-        }
-      : {
-          warehouseCode: form.warehouseCode.trim(),
-          warehouseName: form.warehouseName.trim(),
-          address: form.address?.trim() || undefined,
-          regionType: rt,
-          status: form.status ?? 1
-        }
-
-    await inventoryCenterApi.saveWarehouse(payload)
-    ElMessage.success(t('inventoryList.messages.saveWarehouseSuccess'))
-    resetWarehouseForm()
-    warehouses.value = await inventoryCenterApi.getWarehouses()
-  } catch (e) {
-    console.error(e)
-    ElMessage.error(getApiErrorMessage(e, t('inventoryList.messages.saveWarehouseFailed')))
-  }
+const goWarehouseManage = () => {
+  router.push({ name: 'WarehouseManage' })
 }
 
 onMounted(() => void fetchList())

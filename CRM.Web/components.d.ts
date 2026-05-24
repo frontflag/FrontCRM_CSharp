@@ -69,6 +69,7 @@ declare module 'vue' {
     HelpManualPanel: typeof import('./src/components/workspace/HelpManualPanel.vue')['default']
     MaterialProductionDateSelect: typeof import('./src/components/MaterialProductionDateSelect.vue')['default']
     PartyStatusIcons: typeof import('./src/components/party/PartyStatusIcons.vue')['default']
+    PurchaseOpsAssistorSelect: typeof import('./src/components/PurchaseOpsAssistorSelect.vue')['default']
     PurchaseOrderFavoritePanel: typeof import('./src/components/purchaseOrder/PurchaseOrderFavoritePanel.vue')['default']
     PurchaseOrderItemLineDialogs: typeof import('./src/components/purchaseOrder/PurchaseOrderItemLineDialogs.vue')['default']
     PurchaseOrderRecentHistoryPanel: typeof import('./src/components/purchaseOrder/PurchaseOrderRecentHistoryPanel.vue')['default']

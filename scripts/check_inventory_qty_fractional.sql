@@ -1,4 +1,4 @@
-﻿-- Phase 0: 上线前体检 — 库存域数量列是否存在非整数（应在改 int 前跑一遍，计数为 0 再执行迁移）。
+-- Phase 0: 上线前体检 — 库存域数量列是否存在非整数（应在改 int 前跑一遍，计数为 0 再执行迁移）。
 -- 规则：与迁移 20260511120000 一致，使用 round 后与 trunc 比较可发现半整数差异；此处用 fract_part <> 0 检测。
 
 SELECT 'stock' AS tbl, COUNT(*) AS non_integer_rows
@@ -31,13 +31,13 @@ WHERE ("Quantity" - trunc("Quantity")) <> 0
 UNION ALL SELECT 'stockledger', COUNT(*) FROM public.stockledger
 WHERE ("QtyIn" - trunc("QtyIn")) <> 0 OR ("QtyOut" - trunc("QtyOut")) <> 0
 
-UNION ALL SELECT 'stockoutrequest', COUNT(*) FROM public.stockoutrequest
+UNION ALL SELECT 'stockout_notify', COUNT(*) FROM public.stockout_notify
 WHERE ("Quantity" - trunc("Quantity")) <> 0
 
 UNION ALL SELECT 'pickingtaskitem', COUNT(*) FROM public.pickingtaskitem
 WHERE ("PlanQty" - trunc("PlanQty")) <> 0 OR ("PickedQty" - trunc("PickedQty")) <> 0
 
-UNION ALL SELECT 'stockinnotify', COUNT(*) FROM public.stockinnotify
+UNION ALL SELECT 'stockin_notify', COUNT(*) FROM public.stockin_notify
 WHERE ("ExpectQty" - trunc("ExpectQty")) <> 0
    OR ("ReceiveQty" - trunc("ReceiveQty")) <> 0
    OR ("PassedQty" - trunc("PassedQty")) <> 0

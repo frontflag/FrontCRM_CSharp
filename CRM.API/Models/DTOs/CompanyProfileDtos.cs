@@ -17,6 +17,21 @@ namespace CRM.API.Models.DTOs
 
         /// <summary>系统发信（SMTP）。GET 时 Password 为空，PasswordSet 表示库中是否已有密码；不入库字段。</summary>
         public CompanySmtpEmailSettingsDto? SmtpEmail { get; set; }
+
+        /// <summary>Invoice / Packing 等打印报表页脚备注（各语言独立 sysparam 字符串）。</summary>
+        public CompanyReportInfoDto ReportInfo { get; set; } = new();
+    }
+
+    public class CompanyReportInfoDto
+    {
+        public CompanyReportRemarksDto Invoice { get; set; } = new();
+        public CompanyReportRemarksDto PackingList { get; set; } = new();
+    }
+
+    public class CompanyReportRemarksDto
+    {
+        public string RemarkCn { get; set; } = string.Empty;
+        public string RemarkEn { get; set; } = string.Empty;
     }
 
     public class CompanySmtpEmailSettingsDto
@@ -62,7 +77,9 @@ namespace CRM.API.Models.DTOs
         public string Swift { get; set; } = string.Empty;
         public string Iban { get; set; } = string.Empty;
         public string BankCode { get; set; } = string.Empty;
+        public string AccountNumber { get; set; } = string.Empty;
         public string Currency { get; set; } = "RMB";
+        public string Country { get; set; } = string.Empty;
         public string BankType { get; set; } = "rmb";
         public string PurposeType { get; set; } = "payment";
         public string Remark { get; set; } = string.Empty;

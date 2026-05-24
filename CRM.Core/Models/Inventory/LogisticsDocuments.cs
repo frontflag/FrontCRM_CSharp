@@ -9,7 +9,7 @@ namespace CRM.Core.Models.Inventory
     /// <summary>
     /// 到货通知（单表：一条记录 = 采购明细上的一次到货批次）
     /// </summary>
-    [Table("stockinnotify")]
+    [Table("stockin_notify")]
     public class StockInNotify : BaseGuidEntity, ISoftDeletable
     {
         [StringLength(32)]
@@ -52,6 +52,11 @@ namespace CRM.Core.Models.Inventory
         [Column("RegionType")]
         [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public short RegionType { get; set; } = RegionTypeCode.Domestic;
+
+        /// <summary>入库类型，见 <see cref="StockInTypeCode"/>（默认采购入库）。</summary>
+        [Column("StockInType")]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public short StockInType { get; set; } = StockInTypeCode.Purchase;
 
         [StringLength(128)]
         public string? Pn { get; set; }
@@ -126,6 +131,11 @@ namespace CRM.Core.Models.Inventory
 
         /// <summary>质检填写的计划入库日；从质检列表生成入库单时作为 <see cref="StockIn.StockInDate"/> 来源。</summary>
         public DateTime? StockInPlanDate { get; set; }
+
+        /// <summary>入库类型，见 <see cref="StockInTypeCode"/>（默认采购入库；创建时通常继承到货通知）。</summary>
+        [Column("StockInType")]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
+        public short StockInType { get; set; } = StockInTypeCode.Purchase;
 
         [NotMapped]
         public string? VendorName { get; set; }

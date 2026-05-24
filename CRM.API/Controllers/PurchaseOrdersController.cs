@@ -85,7 +85,10 @@ namespace CRM.API.Controllers
                 };
                 var result = await _service.GetPagedAsync(request);
                 var summary = await GetPermissionSummaryAsync(request.CurrentUserId);
-                var items = result.Items.Select(x => MaskPurchaseOrder(x, summary)).ToList();
+                var assistorNameMap = await BuildUserDisplayNameMapAsync(result.Items.Select(x => x.Assistor));
+                var items = result.Items
+                    .Select(x => MaskPurchaseOrder(x, summary, assistorUserName: ResolveAssistorDisplayName(x.Assistor, assistorNameMap)))
+                    .ToList();
                 var aggregates = await _purchaseOrderListQuery.GetAggregatesAsync(request, cancellationToken);
                 var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
                 var canViewPurchaseAmount = !mask511 && (summary?.IsSysAdmin == true || SummaryHasPermission(summary, "purchase.amount.read"));
@@ -204,12 +207,20 @@ namespace CRM.API.Controllers
                 var companyProfile = await CompanyProfileBundleLoader.LoadAsync(_db, _logger, cancellationToken);
                 var reportItemExtends = await LoadPoItemExtendsAsync(order.Items, cancellationToken);
                 var sellOrderItemCodes = await LoadSellOrderItemCodesAsync(order.Items, cancellationToken);
+                var assistorNameMap = await BuildUserDisplayNameMapAsync(new[] { order.Assistor });
                 return Ok(new
                 {
                     success = true,
                     data = new
                     {
-                        order = MaskPurchaseOrder(order, summary, contact, vendor, reportItemExtends, sellOrderItemCodes),
+                        order = MaskPurchaseOrder(
+                            order,
+                            summary,
+                            contact,
+                            vendor,
+                            reportItemExtends,
+                            sellOrderItemCodes,
+                            ResolveAssistorDisplayName(order.Assistor, assistorNameMap)),
                         companyProfile
                     }
                 });
@@ -494,7 +505,19 @@ namespace CRM.API.Controllers
                 }
                 var detailItemExtends = await LoadPoItemExtendsAsync(order.Items, cancellationToken);
                 var sellOrderItemCodes = await LoadSellOrderItemCodesAsync(order.Items, cancellationToken);
-                return Ok(new { success = true, data = MaskPurchaseOrder(order, summary, contact, vendor, detailItemExtends, sellOrderItemCodes) });
+                var assistorNameMap = await BuildUserDisplayNameMapAsync(new[] { order.Assistor });
+                return Ok(new
+                {
+                    success = true,
+                    data = MaskPurchaseOrder(
+                        order,
+                        summary,
+                        contact,
+                        vendor,
+                        detailItemExtends,
+                        sellOrderItemCodes,
+                        ResolveAssistorDisplayName(order.Assistor, assistorNameMap))
+                });
             }
             catch (Exception ex)
             {
@@ -573,10 +596,20 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var orders = await _service.GetBySellOrderCodeAsync(sellOrderCode);
+                var orders = (await _service.GetBySellOrderCodeAsync(sellOrderCode)).ToList();
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var summary = await GetPermissionSummaryAsync(userId);
-                return Ok(new { success = true, data = orders.Select(x => MaskPurchaseOrder(x, summary)).ToList() });
+                var assistorNameMap = await BuildUserDisplayNameMapAsync(orders.Select(x => x.Assistor));
+                return Ok(new
+                {
+                    success = true,
+                    data = orders
+                        .Select(x => MaskPurchaseOrder(
+                            x,
+                            summary,
+                            assistorUserName: ResolveAssistorDisplayName(x.Assistor, assistorNameMap)))
+                        .ToList()
+                });
             }
             catch (Exception ex)
             {
@@ -638,6 +671,13 @@ namespace CRM.API.Controllers
             try
             {
                 var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var existing = await _service.GetByIdAsync(id);
+                if (existing == null)
+                    return NotFound(new { success = false, message = "采购订单不存在" });
+                if (!string.IsNullOrWhiteSpace(actorId)
+                    && !await _dataPermissionService.CanAccessPurchaseOrderAsync(actorId, existing))
+                    return StatusCode(403, new { success = false, message = "无权限编辑该采购订单" });
+
                 _logger.LogInformation(
                     "PurchaseOrders Update 入口: Id={Id} ItemCount={ItemCount} ActorId={ActorId}",
                     id, request.Items?.Count ?? 0, actorId ?? "(null)");
@@ -892,13 +932,44 @@ namespace CRM.API.Controllers
             return order.Currency;
         }
 
+        private async Task<Dictionary<string, string>> BuildUserDisplayNameMapAsync(IEnumerable<string?> userIds)
+        {
+            var ids = userIds
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0)
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            var users = await _db.Users.AsNoTracking()
+                .Where(u => ids.Contains(u.Id))
+                .Select(u => new { u.Id, u.UserName, u.RealName })
+                .ToListAsync();
+            return users.ToDictionary(
+                u => u.Id,
+                u => string.IsNullOrWhiteSpace(u.RealName) ? u.UserName : u.RealName.Trim(),
+                StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static string? ResolveAssistorDisplayName(
+            string? assistorUserId,
+            IReadOnlyDictionary<string, string> nameMap)
+        {
+            var id = assistorUserId?.Trim();
+            if (string.IsNullOrEmpty(id))
+                return null;
+            return nameMap.TryGetValue(id, out var name) ? name : null;
+        }
+
         private object MaskPurchaseOrder(
             CRM.Core.Models.Purchase.PurchaseOrder order,
             UserPermissionSummaryDto? summary,
             VendorContactInfo? vendorContact = null,
             VendorInfo? vendor = null,
             IReadOnlyDictionary<string, PurchaseOrderItemExtend>? itemExtends = null,
-            IReadOnlyDictionary<string, string>? sellOrderItemCodes = null)
+            IReadOnlyDictionary<string, string>? sellOrderItemCodes = null,
+            string? assistorUserName = null)
         {
             var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
             // vendor.info.read：完整联系人/地址等；vendor.read 或采购订单权限：至少返回供应商主键与名称（申请付款依赖 VendorId）
@@ -943,6 +1014,8 @@ namespace CRM.API.Controllers
                 VendorOfficeAddress = canViewVendorInfo ? vendor?.OfficeAddress : null,
                 order.PurchaseUserId,
                 order.PurchaseUserName,
+                order.Assistor,
+                AssistorUserName = assistorUserName,
                 order.Status,
                 order.Type,
                 Currency = displayCurrency,

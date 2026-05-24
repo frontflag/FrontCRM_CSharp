@@ -3,6 +3,12 @@
     <div class="toolbar no-print">
       <el-button @click="router.back()">{{ t('stockOutInvoiceReport.back') }}</el-button>
       <div class="toolbar__sp" />
+      <div class="toolbar__opt">
+        <el-radio-group v-model="reportLang" size="small" class="toolbar__lang">
+          <el-radio-button label="zh">{{ t('stockOutInvoiceReport.langZh') }}</el-radio-button>
+          <el-radio-button label="en">{{ t('stockOutInvoiceReport.langEn') }}</el-radio-button>
+        </el-radio-group>
+      </div>
       <div class="toolbar__opt" :title="t('stockOutInvoiceReport.sealHint')">
         <span class="toolbar__opt-lbl">{{ t('stockOutInvoiceReport.showSeal') }}</span>
         <el-switch v-model="showSealOnReport" />
@@ -24,12 +30,14 @@ import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch } from 'v
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { stockOutApi } from '@/api/stockOut'
-import type {
-  CompanyBasicRow,
-  CompanyBankRow,
-  CompanyLogoRow,
-  CompanySealRow,
-  CompanyWarehouseRow
+import { packingApi, packingDetailItemsToReportLines } from '@/api/packing'
+import {
+  type CompanyBasicRow,
+  type CompanyBankRow,
+  type CompanyLogoRow,
+  type CompanySealRow,
+  type CompanyWarehouseRow,
+  pickDefaultBankByRegion
 } from '@/api/companyProfile'
 import apiClient from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
@@ -37,33 +45,42 @@ import { formatDisplayDate } from '@/utils/displayDateTime'
 import StockOutInvoiceReportDocument from '@/components/stockOut/StockOutInvoiceReportDocument.vue'
 import { renderPdfBlobFirstPageToPngDataUrl } from '@/utils/pdfSealToPng'
 import { getApiErrorMessage } from '@/utils/apiError'
-import type { StockOutDetailDto } from '@/api/stockOut'
+import type { PackingReportAddressPanel, PackingReportLine, StockOutDetailDto } from '@/api/stockOut'
+import type { StockOutInvoiceLineVm } from '@/components/stockOut/StockOutInvoiceReportDocument.vue'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { normalizePackingAddrLines } from '@/utils/packingReportAddressLines'
+import {
+  getInvoiceReportLabels,
+  type InvoiceReportLang,
+  type InvoiceReportLabels
+} from '@/components/stockOut/packingReportLabels'
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const PO_REPORT_PRINT_BODY_CLASS = 'po-order-report-print'
 const DEFAULT_REPORT_LOGO = '/purchase-order-template/logo.svg'
 
-const INVOICE_TERMS_ZH = [
-  '本发票根据系统出库单及关联销售信息开立，仅供商检、海关及收付款参考。',
-  '货物品名、数量金额以双方确认订单及实物为准；如有争议以合同约定为准。'
-]
-
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const authStore = useAuthStore()
 
 const loading = ref(true)
 const errorMsg = ref('')
 const stockOut = ref<StockOutDetailDto | null>(null)
+const packingAddresses = ref<PackingReportAddressPanel | null>(null)
+const packingCode = ref<string | null>(null)
+const packingLines = ref<PackingReportLine[]>([])
+const warehouseInfoAddress = ref('')
 const basicDefault = ref<CompanyBasicRow | null>(null)
 const warehouseRow = ref<CompanyWarehouseRow | null>(null)
 const bankDefault = ref<CompanyBankRow | null>(null)
 const sealUrl = ref<string | null>(null)
 const companyLogoObjectUrl = ref<string | null>(null)
 const showSealOnReport = ref(true)
+const reportLang = ref<InvoiceReportLang>('en')
+
+const invoiceLabels = computed(() => getInvoiceReportLabels(reportLang.value))
 
 const canViewAmount = computed(
   () =>
@@ -73,6 +90,7 @@ const canViewAmount = computed(
 const showInvoiceAmounts = computed(() => canViewAmount.value && !maskSaleSensitiveFields.value)
 
 const stockOutId = computed(() => String(route.params.id || ''))
+const packingId = computed(() => String(route.params.packingId || ''))
 const ready = computed(() => !!stockOut.value && !errorMsg.value && !loading.value)
 
 function pickDefault<T extends { isDefault?: boolean; enabled?: boolean }>(rows: T[] | undefined | null): T | undefined {
@@ -126,60 +144,108 @@ function formatMoney(n: number): string {
   return (n ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function formatChineseDate(input: Date | string | undefined | null): string {
-  const s = formatDisplayDate(input)
-  if (!s || s === '--') return '—'
-  const parts = s.split('-').map((x) => parseInt(x, 10))
-  if (parts.length < 3 || Number.isNaN(parts[0])) return s
-  return `${parts[0]}年${parts[1]}月${parts[2]}日`
+function cellText(v: string | null | undefined, dash = '—'): string {
+  const s = (v ?? '').trim()
+  return s || dash
 }
 
-function formatBankLines(b: CompanyBankRow | null): string[] {
+function blankIfEmpty(v: string | null | undefined): string {
+  return (v ?? '').trim()
+}
+
+function mapInvoiceReportLines(
+  rows: PackingReportLine[],
+  totalAmount: number,
+  showAmounts: boolean
+): StockOutInvoiceLineVm[] {
+  const totalQty = rows.reduce((acc, row) => acc + (Number(row.qty) || 0), 0)
+  return rows.map((row, idx) => {
+    const lineQty = Number(row.qty) || 0
+    const lineAmt = totalQty > 0 && showAmounts ? (totalAmount * lineQty) / totalQty : 0
+    const unit = lineQty > 0 && showAmounts ? lineAmt / lineQty : 0
+    return {
+      index: idx + 1,
+      pn: cellText(row.pn),
+      customerPn: blankIfEmpty(row.customerPn),
+      brand: cellText(row.brand),
+      customerBrand: blankIfEmpty(row.customerBrand),
+      qty: formatReportQty(lineQty),
+      unitPrice: showAmounts ? formatMoney(unit) : '—',
+      amount: showAmounts ? formatMoney(lineAmt) : '—',
+      remark: blankIfEmpty(row.remark)
+    }
+  })
+}
+
+function buildFallbackInvoiceLines(so: StockOutDetailDto, showAmounts: boolean): StockOutInvoiceLineVm[] {
+  const qty = Number(so.totalQuantity) || 0
+  const amt = Number(so.totalAmount) || 0
+  const unit = qty > 0 ? amt / qty : 0
+  return [
+    {
+      index: 1,
+      pn: cellText(so.sourceCode || so.sellOrderItemCode),
+      customerPn: '',
+      brand: cellText(undefined),
+      customerBrand: '',
+      qty: formatReportQty(qty),
+      unitPrice: showAmounts ? formatMoney(unit) : '—',
+      amount: showAmounts ? formatMoney(amt) : '—',
+      remark: blankIfEmpty(so.remark)
+    }
+  ]
+}
+
+function reportLinesForDoc(so: StockOutDetailDto): StockOutInvoiceLineVm[] {
+  const showAmounts = showInvoiceAmounts.value
+  if (packingLines.value.length > 0) {
+    return mapInvoiceReportLines(packingLines.value, Number(so.totalAmount) || 0, showAmounts)
+  }
+  return buildFallbackInvoiceLines(so, showAmounts)
+}
+
+function reportTotalQty(lines: StockOutInvoiceLineVm[]): string {
+  if (packingLines.value.length > 0) {
+    const sum = packingLines.value.reduce((acc, row) => acc + (Number(row.qty) || 0), 0)
+    return formatReportQty(sum)
+  }
+  return formatReportQty(lines.reduce((acc, row) => acc + (Number(String(row.qty).replace(/,/g, '')) || 0), 0))
+}
+
+function formatBankLines(b: CompanyBankRow | null, L: InvoiceReportLabels): string[] {
   if (!b) return ['—']
   const lines: string[] = []
-  if (b.bankName?.trim()) lines.push(`${t('stockOutInvoiceReport.bank.bankName')}：${b.bankName.trim()}`)
-  if (b.accountName?.trim()) lines.push(`${t('stockOutInvoiceReport.bank.accountName')}：${b.accountName.trim()}`)
-  if (b.bankCode?.trim()) lines.push(`${t('stockOutInvoiceReport.bank.accountNo')}：${b.bankCode.trim()}`)
-  if (b.swift?.trim()) lines.push(`SWIFT：${b.swift.trim()}`)
-  if (b.iban?.trim()) lines.push(`IBAN：${b.iban.trim()}`)
-  if (b.bankAddress?.trim()) lines.push(`${t('stockOutInvoiceReport.bank.bankAddress')}：${b.bankAddress.trim()}`)
-  if (b.currency?.trim()) lines.push(`${t('stockOutInvoiceReport.bank.currency')}：${b.currency.trim()}`)
+  if (b.bankName?.trim()) lines.push(`${L.bankName}${b.bankName.trim()}`)
+  if (b.accountName?.trim()) lines.push(`${L.accountName}${b.accountName.trim()}`)
+  const acctNo = (b.accountNumber || b.bankCode || '').trim()
+  if (acctNo) lines.push(`${L.accountNo}${acctNo}`)
+  if (b.swift?.trim()) lines.push(`${L.swift}${b.swift.trim()}`)
+  if (b.iban?.trim()) lines.push(`${L.iban}${b.iban.trim()}`)
+  if (b.bankAddress?.trim()) lines.push(`${L.bankAddress}${b.bankAddress.trim()}`)
+  if (b.currency?.trim()) lines.push(`${L.currency}${b.currency.trim()}`)
   return lines.length ? lines : ['—']
 }
-
-const invoiceTerms = computed(() => {
-  if (locale.value === 'en-US') {
-    return [
-      'This invoice is issued from the stock-out record and related sales data for customs, inspection, and payment reference only.',
-      'Product description, quantities, and amounts are subject to confirmed orders and physical goods; disputes are governed by the underlying contract.'
-    ]
-  }
-  return INVOICE_TERMS_ZH
-})
 
 const docBind = computed(() => {
   const so = stockOut.value
   const basic = basicDefault.value
-  const wh = warehouseRow.value
+  const L = invoiceLabels.value
 
   if (!so) {
     return {
+      labels: L,
       headerCompanyName: '',
-      invoiceTitle: t('stockOutInvoiceReport.docTitle'),
-      invoiceSubtitle: t('stockOutInvoiceReport.docSubtitle'),
+      invoiceTitle: L.invoiceDocTitle,
+      invoiceSubtitle: '',
       invoiceNo: '',
       invoiceDate: '',
-      exporterLines: [] as string[],
-      consigneeLines: [] as string[],
-      shipmentLines: [] as string[],
-      currencyLabel: 'RMB',
+      headerWarehouseAddress: '',
+      billToLines: normalizePackingAddrLines(undefined),
+      shipToLines: normalizePackingAddrLines(undefined),
       lines: [],
       totalQty: '0',
       totalAmount: '0.00',
-      grandTotal: '0.00',
       bankLines: ['—'],
-      remarkLines: [] as string[],
-      terms: invoiceTerms.value,
       sealUrl: null as string | null,
       logoUrl: companyLogoObjectUrl.value ?? DEFAULT_REPORT_LOGO,
       showAmounts: showInvoiceAmounts.value,
@@ -188,71 +254,35 @@ const docBind = computed(() => {
     }
   }
 
-  const qty = Number(so.totalQuantity) || 0
   const amt = Number(so.totalAmount) || 0
-  const unit = qty > 0 ? amt / qty : 0
 
-  const exporterAddr = (wh?.address || basic?.address || '').trim() || '—'
-  const exporterPhone = (wh?.contactPhone || basic?.phone || '').trim() || '—'
   const exporterName = (basic?.companyName || '').trim() || '—'
+  const customerLine = maskSaleSensitiveFields.value ? '—' : (so.customerName || '').trim() || '—'
+  const addr = packingAddresses.value
+  const billToLines = normalizePackingAddrLines(addr?.billToLines, customerLine, L)
+  const shipToLines = normalizePackingAddrLines(addr?.shipToLines, customerLine, L)
 
-  const consigneeName = maskSaleSensitiveFields.value ? '—' : (so.customerName || '').trim() || '—'
-
-  const shipmentLines = [
-    `${t('stockOutInvoiceReport.labels.shipMethod')}：${(so.shipmentMethod || '').trim() || '—'}`,
-    `${t('stockOutInvoiceReport.labels.tracking')}：${(so.courierTrackingNo || '').trim() || '—'}`,
-    `${t('stockOutInvoiceReport.labels.stockOutDate')}：${formatDisplayDate(so.stockOutDate) || '—'}`,
-    `${t('stockOutInvoiceReport.labels.warehouse')}：${(wh?.warehouseName || so.warehouseCode || '').trim() || '—'}`,
-    `${t('stockOutInvoiceReport.labels.source')}：${(so.sourceCode || '').trim() || '—'}`
-  ]
-
-  const descParts = [so.remark, so.sourceCode].filter((x) => x && String(x).trim())
-  const description = descParts.length ? descParts.map((x) => String(x).trim()).join(' / ') : t('stockOutInvoiceReport.defaultLineDesc')
-
-  const refCode = (so.sellOrderItemCode || so.sourceCode || '—').toString()
+  const lines = reportLinesForDoc(so)
 
   return {
+    labels: L,
     headerCompanyName: exporterName,
-    invoiceTitle: t('stockOutInvoiceReport.docTitle'),
-    invoiceSubtitle: t('stockOutInvoiceReport.docSubtitle'),
-    invoiceNo: so.stockOutCode || '—',
+    headerWarehouseAddress: warehouseInfoAddress.value.trim(),
+    invoiceTitle: L.invoiceDocTitle,
+    invoiceSubtitle: '',
+    invoiceNo: (packingCode.value || so.stockOutCode || '').trim() || '—',
     invoiceDate: formatDisplayDate(so.stockOutDate) || '—',
-    exporterLines: [
-      `${t('stockOutInvoiceReport.labels.company')}：${exporterName}`,
-      `${t('stockOutInvoiceReport.labels.address')}：${exporterAddr}`,
-      `${t('stockOutInvoiceReport.labels.phone')}：${exporterPhone}`
-    ],
-    consigneeLines: [
-      `${t('stockOutInvoiceReport.labels.company')}：${consigneeName}`,
-      `${t('stockOutInvoiceReport.labels.address')}：—`
-    ],
-    shipmentLines,
-    currencyLabel: 'RMB',
-    lines: [
-      {
-        index: 1,
-        ref: refCode,
-        description,
-        qty: formatReportQty(qty),
-        unitPrice: formatMoney(unit),
-        amount: formatMoney(amt)
-      }
-    ],
-    totalQty: formatReportQty(qty),
+    billToLines,
+    shipToLines,
+    lines,
+    totalQty: reportTotalQty(lines),
     totalAmount: formatMoney(amt),
-    grandTotal: formatMoney(amt),
-    bankLines: formatBankLines(bankDefault.value),
-    remarkLines: [
-      `${t('stockOutInvoiceReport.labels.sellLine')}：${(so.sellOrderItemCode || '').trim() || '—'}`,
-      `${t('stockOutInvoiceReport.labels.salesRep')}：${maskSaleSensitiveFields.value ? '—' : (so.salesUserName || '').trim() || '—'}`,
-      `${t('stockOutInvoiceReport.labels.remark')}：${(so.remark || '').trim() || '—'}`
-    ],
-    terms: invoiceTerms.value,
+    bankLines: formatBankLines(bankDefault.value, L),
     sealUrl: sealUrl.value,
     logoUrl: companyLogoObjectUrl.value ?? DEFAULT_REPORT_LOGO,
     showAmounts: showInvoiceAmounts.value,
     showSeal: showSealOnReport.value,
-    signDate: formatChineseDate(so.stockOutDate)
+    signDate: formatDisplayDate(so.stockOutDate) || '—'
   }
 })
 
@@ -313,23 +343,43 @@ async function load() {
     companyLogoObjectUrl.value = null
   }
   try {
-    const id = stockOutId.value
-    if (!id) {
+    const fromPacking = packingId.value.trim()
+    const fromStockOut = stockOutId.value.trim()
+    if (!fromPacking && !fromStockOut) {
       errorMsg.value = t('stockOutInvoiceReport.missingId')
       return
     }
-    const bundle = await stockOutApi.getInvoiceReportBundle(id)
+    const bundle = fromPacking
+      ? await packingApi.getInvoiceReportBundle(fromPacking)
+      : await stockOutApi.getInvoiceReportBundle(fromStockOut)
     if (!bundle?.stockOut) {
       errorMsg.value = t('stockOutInvoiceReport.notFound')
       stockOut.value = null
+      packingAddresses.value = null
+      packingCode.value = null
+      packingLines.value = []
+      warehouseInfoAddress.value = ''
       return
     }
     stockOut.value = bundle.stockOut
+    packingAddresses.value = bundle.packingAddresses ?? null
+    packingCode.value = bundle.packingCode ?? null
+    warehouseInfoAddress.value = (bundle.warehouseAddress || '').trim()
+    let lines = bundle.packingLines ?? []
+    if (fromPacking && lines.length === 0) {
+      try {
+        const detail = await packingApi.getById(fromPacking)
+        lines = packingDetailItemsToReportLines(detail.items)
+      } catch {
+        /* bundle 未带明细时降级拉装箱单详情 */
+      }
+    }
+    packingLines.value = lines
     const cp = bundle.companyProfile
     const logos = cp.logos ?? []
     const seals = cp.seals ?? []
     basicDefault.value = pickDefault(cp.basicInfos) ?? null
-    bankDefault.value = pickDefault(cp.bankInfos) ?? null
+    bankDefault.value = pickDefaultBankByRegion(cp.bankInfos, bundle.warehouseRegionType) ?? null
     warehouseRow.value = pickWarehouseForStockOut(cp.warehouses, bundle.stockOut.warehouseId) ?? null
     const seal = pickReportSealRow(seals)
     await loadSealBlobUrl(seal)
@@ -338,6 +388,10 @@ async function load() {
   } catch (e) {
     errorMsg.value = getApiErrorMessage(e, t('stockOutInvoiceReport.loadFailed'))
     stockOut.value = null
+    packingAddresses.value = null
+    packingCode.value = null
+    packingLines.value = []
+    warehouseInfoAddress.value = ''
   } finally {
     loading.value = false
   }
@@ -351,7 +405,7 @@ onMounted(() => {
   document.body.classList.add(PO_REPORT_PRINT_BODY_CLASS)
   load()
 })
-watch(stockOutId, () => load())
+watch([stockOutId, packingId], () => load())
 
 onBeforeUnmount(() => {
   document.body.classList.remove(PO_REPORT_PRINT_BODY_CLASS)
@@ -389,6 +443,13 @@ onUnmounted(() => {
   gap: 8px;
   margin-right: 8px;
   flex-shrink: 0;
+}
+
+.toolbar__lang {
+  :deep(.el-radio-button__inner) {
+    padding: 5px 12px;
+    font-size: 13px;
+  }
 }
 
 .toolbar__opt-lbl {

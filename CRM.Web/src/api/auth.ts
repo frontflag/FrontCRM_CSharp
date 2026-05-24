@@ -53,6 +53,9 @@ export type PurchaseUserSelectOption = { id: string; userName: string; realName?
 /** 客户筛选「业务员」等：仅销售部门；销售账号仅自己及下属（与 /sales-users-tree 一致） */
 export type SalesUserSelectOption = { id: string; userName: string; realName?: string; label?: string }
 
+/** 采购订单「采购助理」：采购运营部门职员（/purchase-ops-staff-users） */
+export type PurchaseOpsStaffUserOption = { id: string; userName: string; realName?: string; label: string }
+
 export function flattenSalesUserTreeForSelect(nodes: SalesUserTreeNode[]): SalesUserSelectOption[] {
   const out: SalesUserSelectOption[] = []
   const walk = (ns: SalesUserTreeNode[]) => {
@@ -118,6 +121,12 @@ export const authApi = {
 
   getPurchaseUsersTree(): Promise<ApiResponse<OrgUserTreeNode[]>> {
     return apiClient.get('/api/v1/auth/purchase-users-tree')
+  },
+
+  /** 采购订单采购助理下拉：采购运营部门全部启用职员 */
+  async getPurchaseOpsStaffUsers(): Promise<PurchaseOpsStaffUserOption[]> {
+    const rows = (await apiClient.get('/api/v1/auth/purchase-ops-staff-users')) as PurchaseOpsStaffUserOption[]
+    return Array.isArray(rows) ? rows : []
   },
 
   getLogisticsUsersTree(): Promise<ApiResponse<SalesUserTreeNode[]>> {

@@ -119,12 +119,13 @@ namespace CRM.Core.Services
 
             var (arrivalId, arrivalCode, qcIdForSi, qcCodeForSi) = await ResolveStockInNotifyAndQcFieldsAsync(request);
             var regionTypeForCreate = await ResolveStockInRegionTypeForCreateAsync(request);
+            var stockInTypeForCreate = await ResolveStockInTypeForCreateAsync(request);
 
             var stockIn = new StockIn
             {
                 Id = stockInId,
                 StockInCode = stockInCode,
-                StockInType = 1, // 采购入库
+                StockInType = stockInTypeForCreate,
                 RegionType = regionTypeForCreate,
                 SourceId = arrivalId,
                 SourceCode = arrivalCode,
@@ -741,7 +742,7 @@ namespace CRM.Core.Services
 
         public async Task<IReadOnlyList<StockInListItemDto>> GetListAsync(StockInQueryRequest? request = null)
         {
-            const short transferStockInType = 3;
+            const short transferStockInType = StockInTypeCode.Transfer;
             var raw = (await _stockInRepository.GetAllAsync())
                 .Where(x => x.StockInType != transferStockInType)
                 .OrderByDescending(x => x.CreateTime)
@@ -868,7 +869,7 @@ namespace CRM.Core.Services
             if (stockIn == null)
                 throw new InvalidOperationException($"入库单 {id} 不存在");
 
-            const short transferStockInType = 3;
+            const short transferStockInType = StockInTypeCode.Transfer;
             if (stockIn.StockInType == transferStockInType)
             {
                 if (stockIn.Status == status)
@@ -1041,6 +1042,30 @@ namespace CRM.Core.Services
             }
 
             return RegionTypeCode.Domestic;
+        }
+
+        /// <summary>新建入库单时：<c>stock_in.StockInType</c> 取自关联到货通知（<see cref="StockInTypeCode"/>）。</summary>
+        private async Task<short> ResolveStockInTypeForCreateAsync(CreateStockInRequest request)
+        {
+            if (!string.IsNullOrWhiteSpace(request.StockInNotifyId))
+            {
+                var n = await _stockInNotifyRepository.GetByIdAsync(request.StockInNotifyId.Trim());
+                if (n != null)
+                    return StockInTypeCode.NormalizeForNotify(n.StockInType);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.QcId))
+            {
+                var qc = await _qcRepository.GetByIdAsync(request.QcId.Trim());
+                if (qc != null && !string.IsNullOrWhiteSpace(qc.StockInNotifyId))
+                {
+                    var n = await _stockInNotifyRepository.GetByIdAsync(qc.StockInNotifyId.Trim());
+                    if (n != null)
+                        return StockInTypeCode.NormalizeForNotify(n.StockInType);
+                }
+            }
+
+            return StockInTypeCode.Purchase;
         }
 
         /// <summary>确认入库过账前：按 <c>SourceId</c> / 质检关联通知刷新地域，与通知当前值一致。</summary>

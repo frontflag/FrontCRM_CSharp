@@ -42,15 +42,29 @@ namespace CRM.Core.Interfaces
         Task<IEnumerable<WarehouseInfo>> GetWarehousesAsync();
         Task<WarehouseInfo> SaveWarehouseAsync(WarehouseInfo warehouse);
 
+        Task<IReadOnlyList<WarehouseInfo>> SaveWarehousesBatchAsync(IReadOnlyList<WarehouseInfo> warehouses);
+
         Task<IEnumerable<PickingTaskSummaryDto>> GetPickingTasksAsync(short? status = null);
-        /// <summary>仅创建拣货任务壳；明细由 <see cref="SavePickingTaskItemsAsync"/> 写入。</summary>
+        /// <summary>仅创建拣货任务壳（按出库通知，出库执行页）；明细由 <see cref="SavePickingTaskItemsAsync"/> 写入。</summary>
         Task<PickingTask> GeneratePickingTaskAsync(GeneratePickingTaskRequest request);
+
+        /// <summary>按装箱单创建或返回已有拣货任务壳（拣货专页）。</summary>
+        Task<PickingTask> GeneratePickingTaskByPackingAsync(GeneratePickingTaskByPackingRequest request);
+
+        /// <summary>装箱单拣货专页数据（装箱明细 + 行级拣货进度 + 拣货任务）。</summary>
+        Task<PickPageByPackingDto> GetPickPageByPackingAsync(string packingId, CancellationToken cancellationToken = default);
+
         Task CompletePickingTaskAsync(string taskId);
 
         /// <summary>待拣货候选 <c>stockitem</c>（客单绑定 + 备货 PN/品牌匹配），FIFO 仅排序。</summary>
         Task<IReadOnlyList<PickingStockItemCandidateDto>> GetPickingCandidateStockItemsAsync(string stockOutRequestId, string warehouseId);
 
-        /// <summary>未完成拣货前保存/覆盖拣货明细；数量之和须等于出库通知数量。</summary>
+        /// <summary>按装箱明细行获取拣货候选。</summary>
+        Task<IReadOnlyList<PickingStockItemCandidateDto>> GetPickingCandidateStockItemsByPackingItemAsync(
+            string packingItemId,
+            string warehouseId);
+
+        /// <summary>保存/覆盖拣货明细（按装箱单：每行装箱明细数量须匹配；按通知：须等于出库通知数量）。</summary>
         Task SavePickingTaskItemsAsync(string pickingTaskId, IReadOnlyList<SavePickingTaskItemLineRequest> lines);
 
         /// <summary>拣货单列表行（出库通知 + 销售订单 + 仓库等展示字段）。</summary>
@@ -67,6 +81,8 @@ namespace CRM.Core.Interfaces
         Task SubmitCountPlanAsync(SubmitCountPlanRequest request);
 
         Task ForceDeleteStockItemAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
+        Task DeletePickingSlipAsync(string id);
+
         Task ForceDeletePickingSlipAsync(string id, string confirmBillCode, string actingUserId, string? actingUserName);
 
         /// <summary>按当前在库明细行汇总回写 <c>stock</c> 占用/销售/在库数量（删除明细后调用）。</summary>
@@ -256,6 +272,8 @@ namespace CRM.Core.Interfaces
     public class PickingTaskLineDto
     {
         public string Id { get; set; } = string.Empty;
+        /// <summary>拣货明细业务编号（<c>pickingtaskitem.item_code</c>）。</summary>
+        public string? ItemCode { get; set; }
         public string MaterialId { get; set; } = string.Empty;
         public string? StockId { get; set; }
         /// <summary>在库明细业务编号（<c>stock_item.stock_item_code</c>）。</summary>
@@ -276,7 +294,7 @@ namespace CRM.Core.Interfaces
     {
         public string Id { get; set; } = string.Empty;
         public string TaskCode { get; set; } = string.Empty;
-        public string StockOutRequestId { get; set; } = string.Empty;
+        public string? PackingId { get; set; }
         public string WarehouseId { get; set; } = string.Empty;
         public string OperatorId { get; set; } = string.Empty;
         public short Status { get; set; }
@@ -330,6 +348,46 @@ namespace CRM.Core.Interfaces
         public List<GeneratePickingTaskItemRequest> Items { get; set; } = new();
     }
 
+    public class GeneratePickingTaskByPackingRequest
+    {
+        public string PackingId { get; set; } = string.Empty;
+        public string WarehouseId { get; set; } = string.Empty;
+        public string OperatorId { get; set; } = string.Empty;
+    }
+
+    public class PickPageByPackingDto
+    {
+        public string PackingId { get; set; } = string.Empty;
+        public string PackingCode { get; set; } = string.Empty;
+        public short PackingStatus { get; set; }
+        /// <summary>装箱单出库仓库（<c>packing.storage_id</c>）。</summary>
+        public string? WarehouseId { get; set; }
+        /// <summary>仓库展示名，如「香港美信仓（HK01）」。</summary>
+        public string? WarehouseDisplay { get; set; }
+        public PickingTaskSummaryDto? PickingTask { get; set; }
+        public List<PickPagePackingLineDto> Lines { get; set; } = new();
+    }
+
+    public class PickPagePackingLineDto
+    {
+        public string PackingItemId { get; set; } = string.Empty;
+        public string? ItemCode { get; set; }
+        public string? Pn { get; set; }
+        public string? Brand { get; set; }
+        public int Qty { get; set; }
+        public string? Unit { get; set; }
+        public string? StockOutNotifyId { get; set; }
+        public string? SellOrderItemId { get; set; }
+        public string? SellOrderCode { get; set; }
+        public string? SellOrderItemCode { get; set; }
+        public string? Comment { get; set; }
+        public int PlanQtyTotal { get; set; }
+        public int PickedQtyTotal { get; set; }
+        /// <summary>pending | partial | allocated | done | over</summary>
+        public string LineStatus { get; set; } = "pending";
+        public List<PickingTaskLineDto> PickingItems { get; set; } = new();
+    }
+
     public class GeneratePickingTaskItemRequest
     {
         public string MaterialId { get; set; } = string.Empty;
@@ -363,6 +421,8 @@ namespace CRM.Core.Interfaces
 
     public class SavePickingTaskItemLineRequest
     {
+        /// <summary>装箱明细主键；按装箱单整单保存时必填。</summary>
+        public string? PackingItemId { get; set; }
         public string StockItemId { get; set; } = string.Empty;
         /// <summary>汇总桶 <c>stock.Id</c>，须与 <c>stockitem.StockAggregateId</c> 一致。</summary>
         public string StockId { get; set; } = string.Empty;

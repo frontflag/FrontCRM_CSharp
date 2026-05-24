@@ -1,38 +1,41 @@
 <template>
   <div class="po-doc">
     <header class="po-doc__masthead">
-      <div class="po-doc__masthead-left">
-        <img v-if="logoUrl" class="po-doc__logo" :src="logoUrl" alt="" />
+      <div class="po-doc__masthead-top">
+        <div class="po-doc__masthead-logo-wrap">
+          <img v-if="logoUrl" class="po-doc__logo" :src="logoUrl" alt="" />
+        </div>
+        <div class="po-doc__masthead-center">
+          <div class="po-doc__masthead-company">{{ headerCompanyName }}</div>
+          <div v-if="headerWarehouseAddress" class="po-doc__masthead-warehouse-addr">{{ headerWarehouseAddress }}</div>
+          <div class="po-doc__masthead-title-gap" aria-hidden="true"></div>
+          <div class="po-doc__masthead-title">{{ invoiceTitle }}</div>
+          <div v-if="invoiceSubtitle" class="po-doc__masthead-sub">{{ invoiceSubtitle }}</div>
+        </div>
       </div>
-      <div class="po-doc__masthead-center">
-        <div class="po-doc__masthead-company">{{ headerCompanyName }}</div>
-        <div class="po-doc__masthead-title">{{ invoiceTitle }}</div>
-        <div v-if="invoiceSubtitle" class="po-doc__masthead-sub">{{ invoiceSubtitle }}</div>
+      <div class="po-doc__masthead-meta">
+        <div><span class="po-doc__k">{{ labels.date }}</span>{{ invoiceDate }}</div>
+        <div class="po-doc__masthead-meta-line po-doc__masthead-meta-line--nowrap">
+          <span class="po-doc__k">{{ labels.invoiceNo }}</span>{{ invoiceNo }}
+        </div>
       </div>
-      <div class="po-doc__masthead-right">
-        <div><span class="po-doc__k">日期：</span>{{ invoiceDate }}</div>
-        <div><span class="po-doc__k">Invoice No.：</span>{{ invoiceNo }}</div>
-      </div>
+      <div class="po-doc__masthead-meta-gap" aria-hidden="true"></div>
     </header>
 
-    <table class="po-doc__tri">
+    <table class="po-doc__tri po-doc__tri--addr">
       <thead>
         <tr>
-          <th>Exporter / 供方</th>
-          <th>Consignee / 收货方</th>
-          <th>Shipment / 出货信息</th>
+          <th>{{ labels.billTo }}</th>
+          <th>{{ labels.shipTo }}</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           <td class="po-doc__tri-cell">
-            <div v-for="(t, i) in exporterLines" :key="'ex' + i" class="po-doc__tri-line">{{ t }}</div>
+            <div v-for="(t, i) in billToLines" :key="'bt' + i" class="po-doc__tri-line">{{ t }}</div>
           </td>
           <td class="po-doc__tri-cell">
-            <div v-for="(t, i) in consigneeLines" :key="'cn' + i" class="po-doc__tri-line">{{ t }}</div>
-          </td>
-          <td class="po-doc__tri-cell">
-            <div v-for="(t, i) in shipmentLines" :key="'sh' + i" class="po-doc__tri-line">{{ t }}</div>
+            <div v-for="(t, i) in shipToLines" :key="'st' + i" class="po-doc__tri-line">{{ t }}</div>
           </td>
         </tr>
       </tbody>
@@ -41,111 +44,104 @@
     <table class="po-doc__grid">
       <thead>
         <tr>
-          <th class="w-inv-idx">序号</th>
-          <th class="w-inv-ref">参考号 / Ref.</th>
-          <th class="w-inv-desc">品名及规格 / Description</th>
-          <th class="w-inv-qty num">数量 / Qty</th>
-          <th class="w-inv-price num">单价 / U.P.</th>
-          <th class="w-inv-amt num">金额 / Amount</th>
+          <th class="w-inv-idx">{{ labels.no }}</th>
+          <th class="w-inv-pn">{{ labels.pn }}</th>
+          <th class="w-inv-brand">{{ labels.brand }}</th>
+          <th class="w-inv-qty num">{{ labels.qty }}</th>
+          <th class="w-inv-price num">{{ labels.upUsd }}</th>
+          <th class="w-inv-amt num">{{ labels.amountUsd }}</th>
+          <th class="w-inv-rmk">{{ labels.remark }}</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="line in lines" :key="'l' + line.index">
           <td class="cen">{{ line.index }}</td>
-          <td>{{ line.ref }}</td>
-          <td>{{ line.description }}</td>
-          <td class="num">{{ showAmounts ? line.qty : '—' }}</td>
+          <td>
+            <div>{{ line.pn }}</div>
+            <div v-if="line.customerPn" class="po-doc__cell-sub">{{ line.customerPn }}</div>
+          </td>
+          <td>
+            <div>{{ line.brand }}</div>
+            <div v-if="line.customerBrand" class="po-doc__cell-sub">{{ line.customerBrand }}</div>
+          </td>
+          <td class="num">{{ line.qty }}</td>
           <td class="num">{{ showAmounts ? line.unitPrice : '—' }}</td>
           <td class="num">{{ showAmounts ? line.amount : '—' }}</td>
+          <td>{{ line.remark }}</td>
         </tr>
         <tr v-for="i in fillerRowCount" :key="'f' + i">
-          <td v-for="c in 6" :key="`${i}-${c}`">&nbsp;</td>
+          <td v-for="c in 7" :key="`${i}-${c}`">&nbsp;</td>
         </tr>
         <tr v-if="lines.length === 0">
-          <td colspan="6" class="po-doc__empty">暂无明细</td>
+          <td colspan="7" class="po-doc__empty">{{ labels.noItems }}</td>
         </tr>
         <tr v-else class="po-doc__hint-row">
-          <td colspan="6" class="po-doc__hint">以下空白</td>
+          <td colspan="7" class="po-doc__hint">{{ labels.blankBelow }}</td>
         </tr>
-        <tr v-if="showAmounts && lines.length > 0" class="po-doc__sum-row">
-          <td>总计 / Total</td>
+        <tr v-if="lines.length > 0" class="po-doc__sum-row">
+          <td>{{ labels.total }}</td>
           <td colspan="2"></td>
           <td class="num">{{ totalQty }}</td>
           <td></td>
-          <td class="num">{{ totalAmount }}</td>
+          <td class="num">{{ showAmounts ? totalAmount : '—' }}</td>
+          <td></td>
         </tr>
       </tbody>
     </table>
 
-    <div v-if="showAmounts" class="po-doc__finance-wrap">
-      <table class="po-doc__finance">
-        <tbody>
-          <tr>
-            <td class="po-doc__fin-lbl">合计金额 / Grand Total（{{ currencyLabel }}）</td>
-            <td class="num po-doc__fin-grand">{{ grandTotal }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
 
     <section class="po-doc__addon">
-      <div class="po-doc__addon-bar">银行账户 / Bank details</div>
+      <div class="po-doc__addon-bar">{{ labels.bankDetails }}</div>
       <div class="po-doc__addon-body">
         <div v-for="(t, i) in bankLines" :key="'b' + i" class="po-doc__addon-line">{{ t }}</div>
-        <div class="po-doc__addon-terms-hd">备注 / Remarks</div>
-        <div v-for="(t, i) in remarkLines" :key="'r' + i" class="po-doc__addon-line">{{ t }}</div>
-        <div class="po-doc__addon-terms-hd">条款 / Terms</div>
-        <div v-for="(t, i) in terms" :key="'t' + i" class="po-doc__term-line">{{ t }}</div>
+
       </div>
     </section>
 
     <section class="po-doc__sign">
-      <div class="po-doc__sign-cell">
-        <div class="po-doc__sign-t">Exporter（供方签章）</div>
-        <div class="po-doc__sign-pad po-doc__sign-pad--seal">
-          <img v-if="showSeal && sealUrl" class="po-doc__seal" :src="sealUrl" alt="" />
-        </div>
-        <div>日期：{{ signDate }}</div>
+      <div class="po-doc__sign-t po-doc__sign-t--left">{{ labels.exporterSign }}</div>
+      <div class="po-doc__sign-t po-doc__sign-t--right">{{ labels.consigneeSign }}</div>
+      <div class="po-doc__sign-pad po-doc__sign-pad--left po-doc__sign-pad--seal">
+        <img v-if="showSeal && sealUrl" class="po-doc__seal" :src="sealUrl" alt="" />
       </div>
-      <div class="po-doc__sign-cell po-doc__sign-cell--buyer">
-        <div class="po-doc__sign-t">Consignee（收货方签章）</div>
-        <div class="po-doc__sign-pad"></div>
-        <div class="po-doc__sign-date">日期：</div>
-      </div>
+      <div class="po-doc__sign-pad po-doc__sign-pad--right"></div>
+      <div class="po-doc__sign-foot po-doc__sign-foot--left">{{ labels.date }}{{ signDate }}</div>
+      <div class="po-doc__sign-foot po-doc__sign-foot--right">{{ labels.date }}</div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { InvoiceReportLabels } from './packingReportLabels'
 
 export interface StockOutInvoiceLineVm {
   index: number
-  ref: string
-  description: string
+  pn: string
+  customerPn: string
+  brand: string
+  customerBrand: string
   qty: string
   unitPrice: string
   amount: string
+  remark: string
 }
 
 const props = withDefaults(
   defineProps<{
+    labels: InvoiceReportLabels
     headerCompanyName: string
     invoiceTitle: string
     invoiceSubtitle?: string
     invoiceNo: string
     invoiceDate: string
-    exporterLines: string[]
-    consigneeLines: string[]
-    shipmentLines: string[]
-    currencyLabel: string
+    headerWarehouseAddress?: string
+    billToLines?: string[]
+    shipToLines?: string[]
     lines: StockOutInvoiceLineVm[]
     totalQty: string
     totalAmount: string
-    grandTotal: string
     bankLines: string[]
-    remarkLines: string[]
-    terms: string[]
     sealUrl: string | null
     logoUrl: string | null
     showAmounts: boolean
@@ -154,6 +150,7 @@ const props = withDefaults(
   }>(),
   {
     invoiceSubtitle: '',
+    headerWarehouseAddress: '',
     showSeal: true,
     signDate: ''
   }
@@ -186,15 +183,21 @@ $po-head-fg: #111;
 }
 
 .po-doc__masthead {
-  display: grid;
-  grid-template-columns: 22mm 1fr 42mm;
-  align-items: start;
-  gap: 4mm;
-  margin-bottom: 8px;
-  min-height: 28mm;
+  margin-bottom: 6px;
 }
 
-.po-doc__masthead-left {
+.po-doc__tri--addr {
+  margin-bottom: 10px;
+}
+
+.po-doc__masthead-top {
+  display: grid;
+  grid-template-columns: 36mm 1fr;
+  align-items: start;
+  gap: 4mm;
+}
+
+.po-doc__masthead-logo-wrap {
   padding-top: 2px;
 }
 
@@ -208,6 +211,33 @@ $po-head-fg: #111;
 .po-doc__masthead-center {
   text-align: center;
   padding-top: 2px;
+}
+
+.po-doc__masthead-meta {
+  margin-top: 2mm;
+  font-size: 10pt;
+  line-height: 1.65;
+  text-align: left;
+}
+
+.po-doc__masthead-meta-gap {
+  height: 1.5em;
+}
+
+.po-doc__masthead-meta-line--nowrap {
+  white-space: nowrap;
+}
+
+.po-doc__masthead-warehouse-addr {
+  margin-top: 4px;
+  font-size: 10pt;
+  font-weight: 400;
+  line-height: 1.45;
+  color: #333;
+}
+
+.po-doc__masthead-title-gap {
+  height: 1.5em;
 }
 
 .po-doc__masthead-company {
@@ -229,13 +259,6 @@ $po-head-fg: #111;
   font-size: 10pt;
   color: #333;
   letter-spacing: 0.08em;
-}
-
-.po-doc__masthead-right {
-  font-size: 10pt;
-  text-align: right;
-  line-height: 1.65;
-  padding-top: 4px;
 }
 
 .po-doc__k {
@@ -301,20 +324,30 @@ $po-head-fg: #111;
 .w-inv-idx {
   width: 8%;
 }
-.w-inv-ref {
+.w-inv-pn {
+  width: 20%;
+}
+.w-inv-brand {
   width: 18%;
 }
-.w-inv-desc {
-  width: 34%;
-}
 .w-inv-qty {
-  width: 12%;
+  width: 10%;
 }
 .w-inv-price {
-  width: 14%;
+  width: 12%;
 }
 .w-inv-amt {
   width: 14%;
+}
+.w-inv-rmk {
+  width: 18%;
+}
+
+.po-doc__cell-sub {
+  margin-top: 2px;
+  font-size: 9pt;
+  font-style: italic;
+  color: #666;
 }
 
 .cen {
@@ -342,34 +375,6 @@ $po-head-fg: #111;
   font-weight: 700;
   padding: 6px 5px;
 }
-
-.po-doc__finance-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 12px;
-}
-
-.po-doc__finance {
-  border-collapse: collapse;
-  min-width: 52%;
-  font-size: 9.5pt;
-}
-
-.po-doc__finance td {
-  border: 1px solid $po-border;
-  padding: 5px 10px;
-}
-
-.po-doc__fin-lbl {
-  width: 58%;
-  font-weight: 600;
-}
-
-.po-doc__fin-grand {
-  font-weight: 700;
-  font-size: 10.5pt;
-}
-
 .po-doc__addon {
   margin-top: 6px;
   margin-bottom: 14px;
@@ -412,9 +417,41 @@ $po-head-fg: #111;
 .po-doc__sign {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12mm;
+  grid-template-rows: auto auto auto;
+  column-gap: 12mm;
+  row-gap: 0;
   margin-top: 8mm;
   font-size: 9.5pt;
+}
+
+.po-doc__sign-t--left {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.po-doc__sign-t--right {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.po-doc__sign-pad--left {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.po-doc__sign-pad--right {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.po-doc__sign-foot--left {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.po-doc__sign-foot--right {
+  grid-column: 2;
+  grid-row: 3;
 }
 
 .po-doc__sign-t {
@@ -423,13 +460,12 @@ $po-head-fg: #111;
 }
 
 .po-doc__sign-pad {
-  min-height: 22mm;
+  min-height: 26mm;
   margin: 6px 0 8px;
   position: relative;
 }
 
 .po-doc__sign-pad--seal {
-  min-height: 26mm;
   background-color: #fff;
   isolation: isolate;
 }
@@ -441,23 +477,6 @@ $po-head-fg: #111;
   max-height: 26mm;
   max-width: 32mm;
   object-fit: contain;
-}
-
-.po-doc__sign-cell--buyer {
-  text-align: right;
-}
-
-.po-doc__sign-cell--buyer .po-doc__sign-t,
-.po-doc__sign-cell--buyer .po-doc__sign-pad {
-  text-align: left;
-}
-
-.po-doc__sign-cell--buyer .po-doc__sign-pad {
-  margin-left: auto;
-}
-
-.po-doc__sign-date {
-  text-align: right;
 }
 
 @media print {

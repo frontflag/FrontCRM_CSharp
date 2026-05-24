@@ -2384,17 +2384,17 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)");
 
+                    b.Property<string>("PackingId")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)")
+                        .HasColumnName("packing_id");
+
                     b.Property<string>("Remark")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
                     b.Property<short>("Status")
                         .HasColumnType("smallint");
-
-                    b.Property<string>("StockOutRequestId")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("character varying(36)");
 
                     b.Property<string>("TaskCode")
                         .IsRequired()
@@ -2405,6 +2405,10 @@ namespace CRM.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
 
                     b.HasKey("Id");
 
@@ -2542,6 +2546,12 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasColumnType("smallint")
                         .HasDefaultValue((short)1);
 
+                    b.Property<short>("StockInType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)10)
+                        .HasColumnName("StockInType");
+
                     b.HasKey("Id");
 
                     b.ToTable("qcinfo");
@@ -2675,7 +2685,9 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<short>("StockInType")
-                        .HasColumnType("smallint");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)10);
 
                     b.Property<decimal>("TotalAmount")
                         .HasColumnType("numeric(18,2)");
@@ -2902,6 +2914,12 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasDefaultValue((short)10)
                         .HasColumnName("RegionType");
 
+                    b.Property<short>("StockInType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)10)
+                        .HasColumnName("StockInType");
+
                     b.Property<string>("SellOrderItemId")
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)");
@@ -2921,7 +2939,7 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("stockinnotify");
+                    b.ToTable("stockin_notify");
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Inventory.StockInfo", b =>
@@ -3408,6 +3426,11 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.Property<int>("OrderQty")
                         .HasColumnType("integer");
 
+                    b.Property<string>("PackingId")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)")
+                        .HasColumnName("packing_id");
+
                     b.Property<int>("PickQty")
                         .HasColumnType("integer");
 
@@ -3568,7 +3591,7 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.Property<string>("Id")
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)")
-                        .HasColumnName("UserId");
+                        .HasColumnName("ID");
 
                     b.Property<string>("CreateByUserId")
                         .HasMaxLength(36)
@@ -3622,7 +3645,8 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.Property<string>("RequestCode")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("Code");
 
                     b.Property<DateTime>("RequestDate")
                         .HasColumnType("timestamp with time zone");
@@ -3649,9 +3673,15 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.Property<short>("Status")
                         .HasColumnType("smallint");
 
+                    b.Property<short>("StockOutType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)10)
+                        .HasColumnName("StockOutType");
+
                     b.HasKey("Id");
 
-                    b.ToTable("stockoutrequest");
+                    b.ToTable("stockout_notify");
                 });
 
             modelBuilder.Entity("CRM.Core.Models.Inventory.WarehouseInfo", b =>
@@ -3662,8 +3692,23 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasColumnName("Id");
 
                     b.Property<string>("Address")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ContactName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("contact_name");
+
+                    b.Property<string>("ContactPhone")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("contact_phone");
+
+                    b.Property<string>("WorkHours")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("work_hours");
 
                     b.Property<DateTime>("CreateTime")
                         .HasColumnType("timestamp with time zone");
@@ -3682,7 +3727,9 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasColumnName("RegionType");
 
                     b.Property<short>("Status")
-                        .HasColumnType("smallint");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)1);
 
                     b.Property<string>("WarehouseCode")
                         .IsRequired()

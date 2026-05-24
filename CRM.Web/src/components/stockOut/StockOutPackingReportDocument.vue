@@ -1,59 +1,72 @@
 <template>
   <div class="po-doc">
     <header class="po-doc__masthead">
-      <div class="po-doc__masthead-left">
-        <img v-if="logoUrl" class="po-doc__logo" :src="logoUrl" alt="" />
+      <div class="po-doc__masthead-top">
+        <div class="po-doc__masthead-logo-wrap">
+          <img v-if="logoUrl" class="po-doc__logo" :src="logoUrl" alt="" />
+        </div>
+        <div class="po-doc__masthead-center">
+          <div class="po-doc__masthead-company">{{ headerCompanyName }}</div>
+          <div v-if="headerWarehouseAddress" class="po-doc__masthead-warehouse-addr">{{ headerWarehouseAddress }}</div>
+          <div class="po-doc__masthead-title-gap" aria-hidden="true"></div>
+          <div class="po-doc__masthead-title">{{ docTitle }}</div>
+          <div v-if="docSubtitle" class="po-doc__masthead-sub">{{ docSubtitle }}</div>
+        </div>
       </div>
-      <div class="po-doc__masthead-center">
-        <div class="po-doc__masthead-company">{{ headerCompanyName }}</div>
-        <div class="po-doc__masthead-title">{{ docTitle }}</div>
-        <div v-if="docSubtitle" class="po-doc__masthead-sub">{{ docSubtitle }}</div>
+      <div class="po-doc__masthead-meta">
+        <div><span class="po-doc__k">{{ labels.date }}</span>{{ docDate }}</div>
+        <div class="po-doc__masthead-meta-line po-doc__masthead-meta-line--nowrap">
+          <span class="po-doc__k">{{ labels.packingNo }}</span>{{ docNo }}
+        </div>
+        <div class="po-doc__masthead-meta-line po-doc__masthead-meta-line--nowrap">
+          <span class="po-doc__k">{{ labels.shipMethod }}</span>{{ shipmentMethodDisplay }}
+        </div>
       </div>
-      <div class="po-doc__masthead-right">
-        <div><span class="po-doc__k">日期：</span>{{ docDate }}</div>
-        <div><span class="po-doc__k">Packing No.：</span>{{ docNo }}</div>
-      </div>
+      <div class="po-doc__masthead-meta-gap" aria-hidden="true"></div>
     </header>
 
-    <table class="po-doc__tri">
+    <table class="po-doc__tri po-doc__tri--addr">
       <thead>
         <tr>
-          <th>Shipper / 发货方</th>
-          <th>Consignee / 收货方</th>
-          <th>Shipment / 出货信息</th>
+          <th>{{ labels.billTo }}</th>
+          <th>{{ labels.shipTo }}</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           <td class="po-doc__tri-cell">
-            <div v-for="(t, i) in shipperLines" :key="'sh' + i" class="po-doc__tri-line">{{ t }}</div>
+            <div v-for="(t, i) in billToLines" :key="'bt' + i" class="po-doc__tri-line">{{ t }}</div>
           </td>
           <td class="po-doc__tri-cell">
-            <div v-for="(t, i) in consigneeLines" :key="'cn' + i" class="po-doc__tri-line">{{ t }}</div>
-          </td>
-          <td class="po-doc__tri-cell">
-            <div v-for="(t, i) in shipmentLines" :key="'sp' + i" class="po-doc__tri-line">{{ t }}</div>
+            <div v-for="(t, i) in shipToLines" :key="'st' + i" class="po-doc__tri-line">{{ t }}</div>
           </td>
         </tr>
       </tbody>
     </table>
 
+    <div class="po-doc__body">
     <table class="po-doc__grid">
       <thead>
         <tr>
-          <th class="w-pk-idx">序号</th>
-          <th class="w-pk-desc">品名及规格 / Description</th>
-          <th class="w-pk-ref">参考号 / Ref.</th>
-          <th class="w-pk-qty num">数量 / Qty</th>
-          <th class="w-pk-ctn">箱号 / Carton</th>
-          <th class="w-pk-rmk">备注 / Remark</th>
+          <th class="w-pk-idx">{{ labels.no }}</th>
+          <th class="w-pk-pn">{{ labels.pn }}</th>
+          <th class="w-pk-brand">{{ labels.brand }}</th>
+          <th class="w-pk-qty num">{{ labels.qty }}</th>
+          <th class="w-pk-ctn">{{ labels.carton }}</th>
+          <th class="w-pk-rmk">{{ labels.remark }}</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="line in lines" :key="'l' + line.index">
           <td class="cen">{{ line.index }}</td>
-          <td>{{ line.description }}</td>
-          <td>{{ line.ref }}</td>
+          <td>
+            <div>{{ line.pn }}</div>
+            <div v-if="line.customerPn" class="po-doc__cell-sub">{{ line.customerPn }}</div>
+          </td>
+          <td>
+            <div>{{ line.brand }}</div>
+            <div v-if="line.customerBrand" class="po-doc__cell-sub">{{ line.customerBrand }}</div>
+          </td>
           <td class="num">{{ line.qty }}</td>
           <td class="cen">{{ line.carton }}</td>
           <td>{{ line.remark }}</td>
@@ -62,13 +75,13 @@
           <td v-for="c in 6" :key="`${i}-${c}`">&nbsp;</td>
         </tr>
         <tr v-if="lines.length === 0">
-          <td colspan="6" class="po-doc__empty">暂无明细</td>
+          <td colspan="6" class="po-doc__empty">{{ labels.noItems }}</td>
         </tr>
         <tr v-else class="po-doc__hint-row">
-          <td colspan="6" class="po-doc__hint">以下空白</td>
+          <td colspan="6" class="po-doc__hint">{{ labels.blankBelow }}</td>
         </tr>
         <tr v-if="lines.length > 0" class="po-doc__sum-row">
-          <td>合计 / Total</td>
+          <td>{{ labels.total }}</td>
           <td colspan="2"></td>
           <td class="num">{{ totalQty }}</td>
           <td colspan="2"></td>
@@ -77,17 +90,17 @@
     </table>
 
     <section v-if="withShipmentInspection" class="po-doc__qc">
-      <div class="po-doc__addon-bar">出货检验 / Outbound inspection</div>
+      <div class="po-doc__addon-bar">{{ labels.outboundInspection }}</div>
       <table class="po-doc__qc-grid">
         <thead>
           <tr>
-            <th class="w-qc-i">序号</th>
-            <th class="w-qc-item">检验项目 / Item</th>
-            <th class="w-qc-j">判定 / Result</th>
+            <th class="w-qc-i">{{ labels.no }}</th>
+            <th class="w-qc-item">{{ labels.item }}</th>
+            <th class="w-qc-j">{{ labels.result }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(item, idx) in qcInspectionItems" :key="'qc' + idx">
+          <tr v-for="(item, idx) in labels.qcItems" :key="'qc' + idx">
             <td class="cen">{{ idx + 1 }}</td>
             <td class="qc-item-cell">{{ item }}</td>
             <td>&nbsp;</td>
@@ -95,44 +108,42 @@
         </tbody>
       </table>
       <div class="po-doc__qc-foot">
-        <span>{{ qcInspectorLabel }}</span>
-        <span>{{ qcDateLabel }}</span>
+        <span>{{ labels.qcInspector }}</span>
+        <span>{{ labels.qcDate }}</span>
       </div>
     </section>
 
     <section class="po-doc__addon">
-      <div class="po-doc__addon-bar">备注 / Remarks</div>
+      <div class="po-doc__addon-bar">{{ labels.remarks }}</div>
       <div class="po-doc__addon-body">
-        <div v-for="(t, i) in remarkLines" :key="'r' + i" class="po-doc__addon-line">{{ t }}</div>
-        <div class="po-doc__addon-terms-hd">说明 / Notes</div>
         <div v-for="(t, i) in notes" :key="'n' + i" class="po-doc__term-line">{{ t }}</div>
       </div>
     </section>
 
     <section class="po-doc__sign">
-      <div class="po-doc__sign-cell">
-        <div class="po-doc__sign-t">Shipper（发货方签章）</div>
-        <div class="po-doc__sign-pad po-doc__sign-pad--seal">
-          <img v-if="showSeal && sealUrl" class="po-doc__seal" :src="sealUrl" alt="" />
-        </div>
-        <div>日期：{{ signDate }}</div>
+      <div class="po-doc__sign-t po-doc__sign-t--left">{{ labels.shipperSign }}</div>
+      <div class="po-doc__sign-t po-doc__sign-t--right">{{ labels.consigneeSign }}</div>
+      <div class="po-doc__sign-pad po-doc__sign-pad--left po-doc__sign-pad--seal">
+        <img v-if="showSeal && sealUrl" class="po-doc__seal" :src="sealUrl" alt="" />
       </div>
-      <div class="po-doc__sign-cell po-doc__sign-cell--buyer">
-        <div class="po-doc__sign-t">Consignee（收货方签章）</div>
-        <div class="po-doc__sign-pad"></div>
-        <div class="po-doc__sign-date">日期：</div>
-      </div>
+      <div class="po-doc__sign-pad po-doc__sign-pad--right"></div>
+      <div class="po-doc__sign-foot po-doc__sign-foot--left">{{ labels.date }} {{ signDate }}</div>
+      <div class="po-doc__sign-foot po-doc__sign-foot--right">{{ labels.date }}</div>
     </section>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { PackingReportLabels } from './packingReportLabels'
 
 export interface StockOutPackingLineVm {
   index: number
-  description: string
-  ref: string
+  pn: string
+  customerPn: string
+  brand: string
+  customerBrand: string
   qty: string
   carton: string
   remark: string
@@ -140,23 +151,20 @@ export interface StockOutPackingLineVm {
 
 const props = withDefaults(
   defineProps<{
+    labels: PackingReportLabels
     headerCompanyName: string
+    headerWarehouseAddress?: string
     docTitle: string
     docSubtitle?: string
     docNo: string
     docDate: string
-    shipperLines: string[]
-    consigneeLines: string[]
-    shipmentLines: string[]
+    shipmentMethodDisplay?: string
+    billToLines?: string[]
+    shipToLines?: string[]
     lines: StockOutPackingLineVm[]
     totalQty: string
-    remarkLines: string[]
     notes: string[]
     withShipmentInspection: boolean
-    /** 含出货检时五项检验项目全文（由页面 i18n 注入） */
-    qcInspectionItems: string[]
-    qcInspectorLabel: string
-    qcDateLabel: string
     sealUrl: string | null
     logoUrl: string | null
     showSeal: boolean
@@ -164,9 +172,10 @@ const props = withDefaults(
   }>(),
   {
     docSubtitle: '',
+    headerWarehouseAddress: '',
+    shipmentMethodDisplay: '—',
     showSeal: true,
-    signDate: '',
-    qcInspectionItems: () => []
+    signDate: ''
   }
 )
 
@@ -197,15 +206,21 @@ $po-head-fg: #111;
 }
 
 .po-doc__masthead {
-  display: grid;
-  grid-template-columns: 22mm 1fr 42mm;
-  align-items: start;
-  gap: 4mm;
-  margin-bottom: 8px;
-  min-height: 28mm;
+  margin-bottom: 6px;
 }
 
-.po-doc__masthead-left {
+.po-doc__tri--addr {
+  margin-bottom: 10px;
+}
+
+.po-doc__masthead-top {
+  display: grid;
+  grid-template-columns: 36mm 1fr;
+  align-items: start;
+  gap: 4mm;
+}
+
+.po-doc__masthead-logo-wrap {
   padding-top: 2px;
 }
 
@@ -221,16 +236,48 @@ $po-head-fg: #111;
   padding-top: 2px;
 }
 
+/** 紧接在 PACKING LIST 标题行之下（与标题区分行） */
+.po-doc__masthead-meta {
+  margin-top: 2mm;
+  font-size: 10pt;
+  line-height: 1.65;
+  text-align: left;
+}
+
+.po-doc__masthead-meta-gap {
+  height: 1.5em;
+}
+
+.po-doc__masthead-meta-line--nowrap {
+  white-space: nowrap;
+}
+
+.po-doc__body {
+  margin-top: 0;
+}
+
 .po-doc__masthead-company {
   font-size: 16pt;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
 
-.po-doc__masthead-title {
-  font-size: 15pt;
-  font-weight: 700;
+.po-doc__masthead-warehouse-addr {
   margin-top: 4px;
+  font-size: 10pt;
+  font-weight: 400;
+  line-height: 1.45;
+  color: #333;
+}
+
+.po-doc__masthead-title-gap {
+  height: 1.5em;
+}
+
+.po-doc__masthead-title {
+  font-size: 17pt;
+  font-weight: 400;
+  margin-top: 0;
   letter-spacing: 0.2em;
   text-indent: 0.2em;
 }
@@ -240,13 +287,6 @@ $po-head-fg: #111;
   font-size: 10pt;
   color: #333;
   letter-spacing: 0.08em;
-}
-
-.po-doc__masthead-right {
-  font-size: 10pt;
-  text-align: right;
-  line-height: 1.65;
-  padding-top: 4px;
 }
 
 .po-doc__k {
@@ -312,20 +352,27 @@ $po-head-fg: #111;
 .w-pk-idx {
   width: 8%;
 }
-.w-pk-desc {
-  width: 34%;
+.w-pk-pn {
+  width: 24%;
 }
-.w-pk-ref {
-  width: 18%;
+.w-pk-brand {
+  width: 24%;
 }
 .w-pk-qty {
   width: 12%;
 }
 .w-pk-ctn {
-  width: 14%;
+  width: 12%;
 }
 .w-pk-rmk {
-  width: 14%;
+  width: 20%;
+}
+
+.po-doc__cell-sub {
+  margin-top: 2px;
+  font-size: 9pt;
+  font-style: italic;
+  color: #666;
 }
 
 .cen {
@@ -444,9 +491,41 @@ $po-head-fg: #111;
 .po-doc__sign {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12mm;
+  grid-template-rows: auto auto auto;
+  column-gap: 12mm;
+  row-gap: 0;
   margin-top: 8mm;
   font-size: 9.5pt;
+}
+
+.po-doc__sign-t--left {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.po-doc__sign-t--right {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.po-doc__sign-pad--left {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.po-doc__sign-pad--right {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.po-doc__sign-foot--left {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.po-doc__sign-foot--right {
+  grid-column: 2;
+  grid-row: 3;
 }
 
 .po-doc__sign-t {
@@ -455,13 +534,12 @@ $po-head-fg: #111;
 }
 
 .po-doc__sign-pad {
-  min-height: 22mm;
+  min-height: 26mm;
   margin: 6px 0 8px;
   position: relative;
 }
 
 .po-doc__sign-pad--seal {
-  min-height: 26mm;
   background-color: #fff;
   isolation: isolate;
 }
@@ -473,23 +551,6 @@ $po-head-fg: #111;
   max-height: 26mm;
   max-width: 32mm;
   object-fit: contain;
-}
-
-.po-doc__sign-cell--buyer {
-  text-align: right;
-}
-
-.po-doc__sign-cell--buyer .po-doc__sign-t,
-.po-doc__sign-cell--buyer .po-doc__sign-pad {
-  text-align: left;
-}
-
-.po-doc__sign-cell--buyer .po-doc__sign-pad {
-  margin-left: auto;
-}
-
-.po-doc__sign-date {
-  text-align: right;
 }
 
 @media print {

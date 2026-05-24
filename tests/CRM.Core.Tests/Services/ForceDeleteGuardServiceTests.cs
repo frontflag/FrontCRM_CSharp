@@ -11,7 +11,7 @@ public class ForceDeleteGuardServiceTests
     [Fact]
     public async Task CanForceDeleteFinancePaymentAsync_ShouldBlockWhenVerified()
     {
-        var sut = CreateSut(out var payItems, out _, out _, out _, out _, out _, out _, out _, out _);
+        var sut = CreateSut(out var payItems, out _, out _, out _, out _, out _, out _, out _, out _, out _);
         await payItems.AddAsync(new FinancePaymentItem
         {
             Id = "pi-1",
@@ -28,7 +28,7 @@ public class ForceDeleteGuardServiceTests
     [Fact]
     public async Task CanForceDeleteFinanceSellInvoiceAsync_ShouldAllowWhenNoReceive()
     {
-        var sut = CreateSut(out _, out _, out _, out var sellInvRepo, out var sellInvItemRepo, out _, out _, out _, out _);
+        var sut = CreateSut(out _, out _, out _, out var sellInvRepo, out var sellInvItemRepo, out _, out _, out _, out _, out _);
         await sellInvRepo.AddAsync(new FinanceSellInvoice
         {
             Id = "si-1",
@@ -51,13 +51,24 @@ public class ForceDeleteGuardServiceTests
     [Fact]
     public async Task CanForceDeleteStockOutRequestAsync_ShouldBlockWhenHasActivePickingTask()
     {
-        var sut = CreateSut(out _, out _, out _, out _, out _, out var reqRepo, out _, out var pickingRepo, out _);
+        var sut = CreateSut(out _, out _, out _, out _, out _, out var reqRepo, out _, out var packingItemRepo, out var pickingRepo, out _);
         await reqRepo.AddAsync(new StockOutRequest { Id = "sor-1", RequestCode = "SOR001" });
+        await packingItemRepo.AddAsync(new PackingItem
+        {
+            Id = "pi-1",
+            PackingId = "pk-1",
+            StockOutNotifyId = "sor-1",
+            ItemCode = "PK-1",
+            SellOrderId = "so-1",
+            SellOrderItemId = "soi-1",
+            Pn = "PN",
+            Qty = 1
+        });
         await pickingRepo.AddAsync(new PickingTask
         {
             Id = "pt-1",
             TaskCode = "PAK001",
-            StockOutRequestId = "sor-1",
+            PackingId = "pk-1",
             WarehouseId = "w-1",
             OperatorId = "u-1",
             Status = 1
@@ -76,6 +87,7 @@ public class ForceDeleteGuardServiceTests
         out MemoryRepository<SellInvoiceItem> financeSellInvoiceItemRepo,
         out MemoryRepository<StockOutRequest> stockOutRequestRepo,
         out MemoryRepository<StockOut> stockOutRepo,
+        out MemoryRepository<PackingItem> packingItemRepo,
         out MemoryRepository<PickingTask> pickingTaskRepo,
         out MemoryRepository<StockOutItem> stockOutItemRepo)
     {
@@ -86,6 +98,7 @@ public class ForceDeleteGuardServiceTests
         financeSellInvoiceItemRepo = new MemoryRepository<SellInvoiceItem>();
         stockOutRequestRepo = new MemoryRepository<StockOutRequest>();
         stockOutRepo = new MemoryRepository<StockOut>();
+        packingItemRepo = new MemoryRepository<PackingItem>();
         pickingTaskRepo = new MemoryRepository<PickingTask>();
         stockOutItemRepo = new MemoryRepository<StockOutItem>();
         var purchaseOrderItemRepo = new MemoryRepository<PurchaseOrderItem>();
@@ -97,6 +110,7 @@ public class ForceDeleteGuardServiceTests
             financeSellInvoiceRepo,
             financeSellInvoiceItemRepo,
             stockOutRequestRepo,
+            packingItemRepo,
             pickingTaskRepo,
             stockOutRepo,
             stockOutItemRepo,

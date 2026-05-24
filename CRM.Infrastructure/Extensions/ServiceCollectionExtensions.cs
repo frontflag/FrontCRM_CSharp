@@ -53,6 +53,7 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IStockOutListQuery, StockOutListQuery>();
             services.AddScoped<IStockOutRequestListQuery, StockOutRequestListQuery>();
             services.AddScoped<IStockOutItemListQuery, StockOutItemEfListQuery>();
+            services.AddScoped<IPackingListQuery, Packings.PackingEfListQuery>();
             services.AddScoped<IInventoryStockItemListQuery, InventoryStockItemEfListQuery>();
             services.AddScoped<IInventoryMaterialOverviewStockPageQuery, InventoryMaterialOverviewStockPageQuery>();
             services.AddScoped<IInventoryCountPlanListQuery, InventoryCountPlanListQuery>();
@@ -72,6 +73,7 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IPurchaseOrderExtendLineSeqService, PurchaseOrderExtendLineSeqService>();
             services.AddScoped<IStockInExtendLineSeqService, StockInExtendLineSeqService>();
             services.AddScoped<IStockExtendLineSeqService, StockExtendLineSeqService>();
+            services.AddScoped<IPackingItemLineSeqService, PackingItemLineSeqService>();
             services.AddScoped<IErrorLogService, ErrorLogService>();
 
             // 注册物料数据服务（当前使用 Mock 实现，待 Nexar API 就绪后替换为 NexarComponentDataService）

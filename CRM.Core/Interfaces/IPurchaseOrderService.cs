@@ -42,6 +42,8 @@ namespace CRM.Core.Interfaces
         public string? PurchaseUserId { get; set; }
         /// <summary>采购员名称</summary>
         public string? PurchaseUserName { get; set; }
+        /// <summary>采购助理用户 ID</summary>
+        public string? Assistor { get; set; }
         /// <summary>订单类型 1=客单采购 2=备货采购 3=样品采购</summary>
         public short Type { get; set; } = 1;
         /// <summary>币别 1=RMB 2=USD 3=EUR</summary>
@@ -90,6 +92,7 @@ namespace CRM.Core.Interfaces
         public string? VendorName { get; set; }
         public string? PurchaseUserId { get; set; }
         public string? PurchaseUserName { get; set; }
+        public string? Assistor { get; set; }
         public short? Type { get; set; }
         public short? Currency { get; set; }
         public DateTime? DeliveryDate { get; set; }

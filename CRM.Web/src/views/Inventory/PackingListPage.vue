@@ -1,170 +1,866 @@
 <template>
-  <div class="packing-list-page">
+  <div class="packing-list-page stockout-notify-page">
     <div class="page-header">
-      <h1 class="page-title">装箱单</h1>
-      <button class="btn-secondary" @click="loadList">刷新</button>
+      <div class="header-left">
+        <div class="page-title-group">
+          <div class="page-icon">箱</div>
+          <h1 class="page-title">{{ t('packingList.title') }}</h1>
+        </div>
+        <div class="count-badge">{{ t('packingList.count', { count: listTotal }) }}</div>
+      </div>
     </div>
 
+    <!-- 搜索栏：与 CustomerList / StockOutNotifyList 同一套结构 -->
     <div class="search-bar">
       <div class="search-left">
         <div class="search-input-wrap">
           <input
-            v-model="keyword"
-            class="search-input"
-            placeholder="装箱单号 / 销售单号 / 客户"
-            @keyup.enter="loadList"
+            v-model="filterForm.packingCode"
+            class="search-input search-input--code"
+            type="search"
+            :placeholder="t('packingList.filters.packingCodePlaceholder')"
+            @keyup.enter="handleSearch"
           />
         </div>
-        <button class="btn-primary btn-sm" type="button" @click="loadList">搜索</button>
-        <button class="btn-ghost btn-sm" type="button" @click="resetFilters">重置</button>
+        <el-select
+          v-model="filterForm.status"
+          :placeholder="t('packingList.filters.statusPlaceholder')"
+          clearable
+          class="status-select"
+          :teleported="false"
+        >
+          <el-option
+            v-for="v in statusFilterOptions"
+            :key="v"
+            :label="packingStatusLabel(v)"
+            :value="v"
+          />
+        </el-select>
+        <el-select
+          v-model="filterForm.stockOutType"
+          :placeholder="t('packingList.filters.stockOutTypePlaceholder')"
+          clearable
+          class="status-select status-select--type"
+          :teleported="false"
+        >
+          <el-option
+            v-for="v in stockOutTypeFilterOptions"
+            :key="v"
+            :label="packingStockOutTypeLabel(v)"
+            :value="v"
+          />
+        </el-select>
+        <el-select
+          v-model="filterForm.materialType"
+          :placeholder="t('packingList.filters.materialTypePlaceholder')"
+          clearable
+          class="status-select status-select--type"
+          :teleported="false"
+        >
+          <el-option
+            v-for="v in materialTypeFilterOptions"
+            :key="v"
+            :label="packingMaterialTypeLabel(v)"
+            :value="v"
+          />
+        </el-select>
+        <div v-if="!maskSaleSensitiveFields" class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filterForm.customerName"
+            class="search-input search-input--customer"
+            type="search"
+            :placeholder="t('packingList.filters.customerNamePlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <div v-if="!maskSaleSensitiveFields" class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filterForm.salesUserName"
+            class="search-input search-input--sales"
+            type="search"
+            :placeholder="t('packingList.filters.salesUserNamePlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <el-date-picker
+          v-model="filterForm.createDateRange"
+          type="daterange"
+          :range-separator="t('packingList.filters.dateTo')"
+          :start-placeholder="t('packingList.filters.dateStart')"
+          :end-placeholder="t('packingList.filters.dateEnd')"
+          value-format="YYYY-MM-DD"
+          clearable
+          class="filter-date-range"
+          :teleported="false"
+        />
+        <button type="button" class="btn-primary btn-sm" @click="handleSearch">{{ t('packingList.filters.search') }}</button>
+        <button type="button" class="btn-ghost btn-sm" @click="handleReset">{{ t('packingList.filters.reset') }}</button>
       </div>
     </div>
 
-    <div class="table-card" v-loading="loading">
-      <CrmDataTable
-        ref="dataTableRef"
-        column-layout-key="packing-list-main"
-        :columns="packingColumns"
-        :show-column-settings="false"
-        :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-        :data="list"
-        row-key="id"
-      >
-        <template #col-customerName="{ row }">
-          <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName?.trim() || '—') }}</span>
+    <CrmDataTable
+      ref="dataTableRef"
+      column-layout-key="packing-list-main-v6"
+      :columns="packingColumns"
+      :show-column-settings="false"
+      :density-toggle-anchor-el="rowDensityToggleAnchorEl"
+      :data="list"
+      row-key="id"
+      v-loading="loading"
+      @selection-change="onSelectionChange"
+      @row-dblclick="onRowDblClick"
+    >
+      <template #col-packingCode="{ row }">
+        <span class="packing-code-cell">{{ row.code?.trim() || '—' }}</span>
+      </template>
+      <template #col-status="{ row }">
+        <span :class="['status-badge', `packing-status-${row.status}`]">{{ packingStatusLabel(row.status) }}</span>
+      </template>
+      <template #col-stockOutType="{ row }">{{ packingStockOutTypeLabel(row.stockOutType) }}</template>
+      <template #col-materialType="{ row }">{{ packingMaterialTypeLabel(row.materialType) }}</template>
+      <template #col-customerName="{ row }">
+        <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName?.trim() || '—') }}</span>
+      </template>
+      <template #col-salesUserName="{ row }">
+        <span>{{ maskSaleSensitiveFields ? '—' : (row.salesUserName?.trim() || '—') }}</span>
+      </template>
+      <template #col-warehouseName="{ row }">{{ row.warehouseName?.trim() || '—' }}</template>
+      <template #col-itemRows="{ row }">
+        <span class="qty-cell">{{ row.itemRows ?? 0 }}</span>
+      </template>
+      <template #col-remark="{ row }">
+        <span>{{ row.comment?.trim() || '—' }}</span>
+      </template>
+      <template #col-createTime="{ row }">
+        <template v-for="p in [formatCreateTimeParts(row.createTime)]" :key="`ct-${row.id}`">
+          <span v-if="p" class="crm-quote-create-time">
+            <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+            <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+          </span>
+          <span v-else>—</span>
         </template>
-        <template #col-createTime="{ row }">{{ formatTime(row.createTime) }}</template>
-        <template #col-actions-header>
-          <div class="list-op-col-header--icon-only">
+      </template>
+      <template #col-createUserName="{ row }">{{ row.createUserName?.trim() || '—' }}</template>
+      <template #col-actions-header>
+        <div class="list-op-col-header--icon-only">
+          <button
+            type="button"
+            class="op-col-toggle-btn list-op-col-toggle"
+            :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+            @click.stop="toggleOpCol"
+          >
+            {{ opColExpanded ? '>' : '<' }}
+          </button>
+        </div>
+      </template>
+      <template #col-actions="{ row }">
+        <div @click.stop @dblclick.stop>
+          <div v-if="opColExpanded" class="action-btns action-btns--packing-wrap">
+            <button type="button" class="action-btn" @click.stop="goDetail(row)">{{ t('packingList.actions.detail') }}</button>
             <button
               type="button"
-              class="op-col-toggle-btn list-op-col-toggle"
-              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
-              @click.stop="toggleOpCol"
+              class="action-btn"
+              :disabled="!canConfirmPacking(row)"
+              @click.stop="() => void confirmPacking(row)"
             >
-              {{ opColExpanded ? '>' : '<' }}
+              {{ t('packingList.actions.confirm') }}
             </button>
-          </div>
-        </template>
-        <template #col-actions>
-          <div @click.stop @dblclick.stop>
-            <div v-if="opColExpanded" class="action-btns">
-              <button class="action-btn action-btn--primary" type="button">详情</button>
-              <button class="action-btn action-btn--warning" type="button">编辑</button>
-            </div>
-            <el-dropdown v-else trigger="click" placement="bottom-end">
-              <div class="op-more-dropdown-trigger">
-                <button type="button" class="op-more-trigger">...</button>
-              </div>
+            <button
+              type="button"
+              class="action-btn"
+              :disabled="!canPickPacking(row)"
+              @click.stop="() => void goPick(row)"
+            >
+              {{ t('packingList.actions.pick') }}
+            </button>
+            <button
+              type="button"
+              class="action-btn"
+              :disabled="!canMarkPackingReady(row)"
+              @click.stop="() => void markPackingReady(row)"
+            >
+              {{ t('packingList.actions.ready') }}
+            </button>
+            <button type="button" class="action-btn" @click.stop="() => void goInvoiceReport(row)">
+              {{ t('stockOutList.actions.printInvoice') }}
+            </button>
+            <el-dropdown trigger="click" @click.stop @command="(cmd: string) => onPackingPrintCommand(row, cmd)">
+              <button type="button" class="action-btn action-btn--dropdown">
+                {{ t('stockOutList.actions.printPacking') }}
+                <el-icon class="action-btn__caret"><ArrowDown /></el-icon>
+              </button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item>
-                    <span class="op-more-item op-more-item--primary">详情</span>
-                  </el-dropdown-item>
-                  <el-dropdown-item divided>
-                    <span class="op-more-item op-more-item--warning">编辑</span>
-                  </el-dropdown-item>
+                  <el-dropdown-item command="with">{{ t('stockOutList.actions.packingWithInspection') }}</el-dropdown-item>
+                  <el-dropdown-item command="without">{{ t('stockOutList.actions.packingWithoutInspection') }}</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
+            <button
+              type="button"
+              class="action-btn action-btn--danger"
+              :disabled="!canDeletePacking(row)"
+              @click.stop="() => void deletePacking(row)"
+            >
+              {{ t('packingList.actions.delete') }}
+            </button>
           </div>
-        </template>
-      </CrmDataTable>
-      <div class="pagination-wrapper">
-        <div class="list-footer-left">
-          <el-tooltip content="列设置" placement="top" :hide-after="0">
-            <el-button class="list-settings-btn" link type="primary" aria-label="列设置" @click="dataTableRef?.openColumnSettings?.()">
-              <el-icon><Setting /></el-icon>
-            </el-button>
-          </el-tooltip>
-          <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
-          <div class="list-footer-spacer" aria-hidden="true"></div>
+          <el-dropdown v-else trigger="click" placement="bottom-end">
+            <div class="op-more-dropdown-trigger">
+              <button type="button" class="op-more-trigger">...</button>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click.stop="goDetail(row)">
+                  <span class="op-more-item op-more-item--primary">{{ t('packingList.actions.detail') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item :disabled="!canConfirmPacking(row)" @click.stop="() => void confirmPacking(row)">
+                  <span class="op-more-item">{{ t('packingList.actions.confirm') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item :disabled="!canPickPacking(row)" @click.stop="() => void goPick(row)">
+                  <span class="op-more-item">{{ t('packingList.actions.pick') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item :disabled="!canMarkPackingReady(row)" @click.stop="() => void markPackingReady(row)">
+                  <span class="op-more-item">{{ t('packingList.actions.ready') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item @click.stop="() => void goInvoiceReport(row)">
+                  <span class="op-more-item">{{ t('stockOutList.actions.printInvoice') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item disabled>
+                  <span class="op-submenu-title">{{ t('stockOutList.actions.printPacking') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item divided @click.stop="() => void goPackingReport(row, true)">
+                  <span class="op-more-item op-more-item--sub">{{ t('stockOutList.actions.packingWithInspection') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item @click.stop="() => void goPackingReport(row, false)">
+                  <span class="op-more-item op-more-item--sub">{{ t('stockOutList.actions.packingWithoutInspection') }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item divided :disabled="!canDeletePacking(row)" @click.stop="() => void deletePacking(row)">
+                  <span class="op-more-item op-more-item--danger">{{ t('packingList.actions.delete') }}</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
+      </template>
+    </CrmDataTable>
+
+    <div v-if="listTotal > 0" class="pagination-wrapper">
+      <div class="list-footer-left">
+        <el-tooltip :content="t('packingList.columnSettings')" placement="top" :hide-after="0">
+          <el-button
+            class="list-settings-btn"
+            link
+            type="primary"
+            :aria-label="t('packingList.columnSettings')"
+            @click="dataTableRef?.openColumnSettings?.()"
+          >
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
+        <div class="list-footer-spacer" aria-hidden="true"></div>
+        <el-button class="basket-open-btn" link type="primary" @click="basketDrawerVisible = true">
+          {{ t('packingList.basket.open') }}<span v-if="basketCount" class="basket-count-label">（{{ basketCount }}）</span>
+        </el-button>
+        <el-button
+          v-if="basketCount"
+          class="basket-clear-btn"
+          link
+          type="warning"
+          @click="handleClearBasket"
+        >
+          {{ t('packingList.basket.clear') }}
+        </el-button>
+        <button
+          type="button"
+          class="btn-primary btn-sm basket-stock-out-btn"
+          :disabled="!basketCount"
+          @click="handleBatchStockOut"
+        >
+          {{ t('packingList.actions.stockOut') }}
+        </button>
       </div>
+      <el-pagination
+        class="list-main-pagination quantum-pagination"
+        v-model:current-page="listPage"
+        v-model:page-size="listPageSize"
+        :total="listTotal"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @current-change="() => void fetchList(false)"
+        @size-change="onPageSizeChange"
+      />
     </div>
+
+    <el-drawer
+      v-model="basketDrawerVisible"
+      :title="t('packingList.basket.drawerTitle')"
+      direction="rtl"
+      size="420px"
+      class="packing-list-basket-drawer"
+    >
+      <p v-if="!basketCount" class="basket-drawer-hint">{{ t('packingList.basket.emptyHint') }}</p>
+      <template v-else>
+        <p class="basket-drawer-summary">
+          {{ t('packingList.basket.summary', { count: basketCount }) }}
+        </p>
+        <el-table :data="basketItems" max-height="70vh" size="small" border stripe>
+          <el-table-column prop="code" :label="t('packingList.columns.packingCode')" min-width="140" show-overflow-tooltip />
+          <el-table-column prop="customerName" :label="t('packingList.columns.customerName')" min-width="120" show-overflow-tooltip />
+          <el-table-column width="72" align="center" :label="t('packingList.basket.remove')">
+            <template #default="{ row }">
+              <el-button link type="danger" size="small" @click="removeOneFromBasket(row.id)">
+                {{ t('packingList.basket.remove') }}
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </template>
+    </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
-import { Setting } from '@element-plus/icons-vue'
+import { ElLoading, ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowDown, Setting } from '@element-plus/icons-vue'
 import CrmDataTable from '@/components/CrmDataTable.vue'
-import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import {
+  packingApi,
+  packingMaterialTypeLabel,
+  packingStatusLabel,
+  packingStockOutTypeLabel,
+  PACKING_MATERIAL_TYPE_FILTER_VALUES,
+  PACKING_STATUS_FILTER_VALUES,
+  PACKING_STOCK_OUT_TYPE_FILTER_VALUES,
+  PackingStatusCode,
+  type PackingListItem,
+  type PackingListQuery
+} from '@/api/packing'
+import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { isPackingEligibleForStockOut, usePackingListBasketStore } from '@/stores/packingListBasket'
 
+const router = useRouter()
+const { t, locale } = useI18n()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
-const { t } = useI18n()
-
-type PackingRow = {
-  id: string
-  packingCode: string
-  salesOrderCode: string
-  customerName: string
-  status: string
-  createTime?: string
-}
 
 const loading = ref(false)
-const keyword = ref('')
-const list = ref<PackingRow[]>([])
-const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
+const list = ref<PackingListItem[]>([])
+const listTotal = ref(0)
+const listPage = ref(1)
+const listPageSize = ref(20)
+const dataTableRef = ref<{
+  openColumnSettings?: () => void
+  clearSelection?: () => void
+  toggleRowSelection?: (row: PackingListItem, selected?: boolean) => void
+} | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
+
+const basketStore = usePackingListBasketStore()
+const { count: basketCount, items: basketItems } = storeToRefs(basketStore)
+const basketDrawerVisible = ref(false)
+const suppressBasketMerge = ref(false)
 
 const opColExpanded = ref(false)
 const OP_COL_COLLAPSED_WIDTH = 43
 const OP_COL_EXPANDED_WIDTH = 173
 const OP_COL_EXPANDED_MIN_WIDTH = 160
 const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
-const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() =>
+  opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH
+)
 function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 
-const packingColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'customerName', label: '客户', prop: 'customerName', minWidth: 180, showOverflowTooltip: true },
-  { key: 'status', label: '状态', prop: 'status', width: 120, align: 'center' },
-  { key: 'packingCode', label: '装箱单号', prop: 'packingCode', width: 180, showOverflowTooltip: true },
-  { key: 'salesOrderCode', label: '销售单号', prop: 'salesOrderCode', width: 180, showOverflowTooltip: true },
-  { key: 'createTime', label: '创建时间', prop: 'createTime', width: 180 },
-  {
-    key: 'actions',
-    label: '操作',
-    width: opColWidth.value,
-    minWidth: opColMinWidth.value,
-    fixed: 'right',
-    className: 'op-col',
-    labelClassName: 'op-col',
-    hideable: false,
-    pinned: 'end',
-    reorderable: false,
-    resizable: false
+const statusFilterOptions = PACKING_STATUS_FILTER_VALUES
+const stockOutTypeFilterOptions = PACKING_STOCK_OUT_TYPE_FILTER_VALUES
+const materialTypeFilterOptions = PACKING_MATERIAL_TYPE_FILTER_VALUES
+
+type FilterForm = {
+  packingCode: string
+  status?: number
+  stockOutType?: number
+  materialType?: number
+  customerName: string
+  salesUserName: string
+  createDateRange: [string, string] | null
+}
+
+function defaultFilterForm(): FilterForm {
+  return {
+    packingCode: '',
+    status: undefined,
+    stockOutType: undefined,
+    materialType: undefined,
+    customerName: '',
+    salesUserName: '',
+    createDateRange: null
   }
-])
-
-function formatTime(v?: string) {
-  return v ? formatDisplayDateTime(v) : '--'
 }
 
-function loadList() {
-  loading.value = true
-  setTimeout(() => {
-    list.value = []
-    loading.value = false
-    if (keyword.value.trim()) {
-      ElMessage.info('装箱单列表接口尚未接入，当前展示为空')
+const filterForm = reactive<FilterForm>(defaultFilterForm())
+
+const packingColumns = computed<CrmTableColumnDef[]>(() => {
+  void locale.value
+  return [
+    {
+      key: 'selection',
+      type: 'selection',
+      width: 44,
+      fixed: 'left',
+      hideable: false,
+      reorderable: false,
+      reserveSelection: true
+    },
+    { key: 'packingCode', label: t('packingList.columns.packingCode'), width: 160, minWidth: 160, showOverflowTooltip: true },
+    { key: 'status', label: t('packingList.columns.status'), width: 110, minWidth: 110, align: 'center' },
+    { key: 'stockOutType', label: t('packingList.columns.stockOutType'), width: 140, minWidth: 140, align: 'center' },
+    { key: 'materialType', label: t('packingList.columns.materialType'), width: 140, minWidth: 140, align: 'center' },
+    { key: 'customerName', label: t('packingList.columns.customerName'), width: 140, minWidth: 140, showOverflowTooltip: true },
+    { key: 'salesUserName', label: t('packingList.columns.salesUserName'), width: 130, minWidth: 130, showOverflowTooltip: true },
+    { key: 'warehouseName', label: t('packingList.columns.warehouseName'), width: 120, minWidth: 120, showOverflowTooltip: true },
+    { key: 'itemRows', label: t('packingList.columns.itemRows'), width: 120, minWidth: 120, align: 'right' },
+    { key: 'remark', label: t('packingList.columns.remark'), minWidth: 160, showOverflowTooltip: true },
+    { key: 'createTime', label: t('packingList.columns.createTime'), width: 170, minWidth: 170 },
+    { key: 'createUserName', label: t('packingList.columns.createUserName'), width: 140, minWidth: 140, showOverflowTooltip: true },
+    {
+      key: 'actions',
+      label: t('packingList.columns.actions'),
+      width: opColWidth.value,
+      minWidth: opColMinWidth.value,
+      fixed: 'right',
+      hideable: false,
+      pinned: 'end',
+      reorderable: false,
+      className: 'op-col',
+      labelClassName: 'op-col',
+      resizable: false
     }
-  }, 120)
+  ]
+})
+
+function formatCreateTimeParts(v?: string | null) {
+  if (!v) return null
+  return formatDisplayDateTime2DigitYearParts(v)
 }
 
-function resetFilters() {
-  keyword.value = ''
-  loadList()
+function buildListQuery(): PackingListQuery {
+  const q: PackingListQuery = {
+    page: listPage.value,
+    pageSize: listPageSize.value
+  }
+  const code = filterForm.packingCode.trim()
+  if (code) q.packingCode = code
+  if (filterForm.status != null) q.status = filterForm.status
+  if (filterForm.stockOutType != null) q.stockOutType = filterForm.stockOutType
+  if (filterForm.materialType != null) q.materialType = filterForm.materialType
+  if (!maskSaleSensitiveFields.value) {
+    const customer = filterForm.customerName.trim()
+    if (customer) q.customerName = customer
+    const sales = filterForm.salesUserName.trim()
+    if (sales) q.salesUserName = sales
+  }
+  const range = filterForm.createDateRange
+  if (range?.[0]) q.createTimeFrom = range[0]
+  if (range?.[1]) q.createTimeTo = range[1]
+  return q
 }
 
-loadList()
+async function fetchList(resetPage = true) {
+  if (resetPage) listPage.value = 1
+  loading.value = true
+  try {
+    const res = await packingApi.getListPaged(buildListQuery())
+    list.value = res.items
+    listTotal.value = res.total
+    await restoreTableSelectionFromBasket()
+  } catch (e) {
+    console.error(e)
+    ElMessage.error(t('packingList.messages.loadFailed'))
+  } finally {
+    loading.value = false
+  }
+}
+
+function handleSearch() {
+  void fetchList(true)
+}
+
+function onPageSizeChange() {
+  listPage.value = 1
+  void fetchList(false)
+}
+
+function handleReset() {
+  Object.assign(filterForm, defaultFilterForm())
+  void fetchList(true)
+}
+
+watch(listTotal, () => {
+  const maxP = Math.max(1, Math.ceil(listTotal.value / listPageSize.value) || 1)
+  if (listPage.value > maxP) listPage.value = maxP
+})
+
+function canConfirmPacking(row: PackingListItem): boolean {
+  return Number(row?.status) === PackingStatusCode.New
+}
+
+function canDeletePacking(row: PackingListItem): boolean {
+  return Number(row?.status) === PackingStatusCode.New
+}
+
+async function deletePacking(row: PackingListItem) {
+  const id = resolvePackingId(row)
+  if (!id) return
+
+  if (Number(row.status) !== PackingStatusCode.New) {
+    ElMessage.error(t('packingList.delete.notNewStatus'))
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(t('packingList.delete.message'), t('packingList.delete.title'), {
+      type: 'warning',
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel')
+    })
+  } catch {
+    return
+  }
+
+  try {
+    await packingApi.delete(id)
+    ElMessage.success(t('packingList.delete.success'))
+    await fetchList(false)
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('packingList.delete.failed'))
+  }
+}
+
+async function confirmPacking(row: PackingListItem) {
+  const id = resolvePackingId(row)
+  if (!id) return
+
+  if (Number(row.status) !== PackingStatusCode.New) {
+    ElMessage.error(t('packingList.confirm.notNewStatus'))
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(t('packingList.confirm.message'), t('packingList.confirm.title'), {
+      type: 'warning',
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel')
+    })
+  } catch {
+    return
+  }
+
+  try {
+    await packingApi.confirm(id)
+    ElMessage.success(t('packingList.confirm.success'))
+    await fetchList(false)
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('packingList.confirm.failed'))
+  }
+}
+
+function canMarkPackingReady(row: PackingListItem): boolean {
+  return Number(row?.status) === PackingStatusCode.Picked
+}
+
+async function markPackingReady(row: PackingListItem) {
+  const id = resolvePackingId(row)
+  if (!id) return
+
+  if (Number(row.status) !== PackingStatusCode.Picked) {
+    ElMessage.error(t('packingList.ready.notPickedStatus'))
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(t('packingList.ready.message'), t('packingList.ready.title'), {
+      type: 'warning',
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel')
+    })
+  } catch {
+    return
+  }
+
+  try {
+    await packingApi.markReady(id)
+    ElMessage.success(t('packingList.ready.success'))
+    await fetchList(false)
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('packingList.ready.failed'))
+  }
+}
+
+function goDetail(row: PackingListItem) {
+  const id = String(row?.id || '').trim()
+  if (!id) {
+    ElMessage.warning(t('packingDetail.missingId'))
+    return
+  }
+  router.push({ name: 'PackingDetail', params: { id } })
+}
+
+function canPickPacking(row: PackingListItem): boolean {
+  return Number(row?.status) === PackingStatusCode.Confirmed
+}
+
+async function goPick(row: PackingListItem) {
+  const packingId = resolvePackingId(row)
+  if (!packingId) return
+
+  if (Number(row.status) !== PackingStatusCode.Confirmed) {
+    ElMessage.error(t('packingList.pick.notConfirmedStatus'))
+    return
+  }
+
+  try {
+    const warehouseId = String(row.storageId ?? '').trim()
+    router.push({
+      path: '/inventory/pick/create',
+      query: {
+        packingId,
+        ...(warehouseId ? { warehouseId } : {})
+      }
+    })
+  } catch (e) {
+    console.error(e)
+    ElMessage.error(e instanceof Error ? e.message : t('packingList.pick.resolveFailed'))
+  }
+}
+
+function onRowDblClick(row: PackingListItem) {
+  goDetail(row)
+}
+
+function resolvePackingId(row: PackingListItem): string {
+  return String(row?.id || '').trim()
+}
+
+async function onSelectionChange(rows: PackingListItem[]) {
+  if (suppressBasketMerge.value) return
+  const eligible = rows.filter(isPackingEligibleForStockOut)
+  const ineligible = rows.filter((r) => !isPackingEligibleForStockOut(r))
+  if (ineligible.length > 0) {
+    suppressBasketMerge.value = true
+    for (const row of ineligible) {
+      dataTableRef.value?.toggleRowSelection?.(row, false)
+    }
+    await nextTick()
+    suppressBasketMerge.value = false
+    ElMessage.warning(t('packingList.stockOut.onlyEligibleSelectable'))
+  }
+  basketStore.mergePageSelection(list.value, eligible)
+}
+
+async function restoreTableSelectionFromBasket() {
+  const table = dataTableRef.value
+  if (!table) return
+  suppressBasketMerge.value = true
+  table.clearSelection?.()
+  await nextTick()
+  for (const row of list.value) {
+    const id = resolvePackingId(row)
+    if (id && basketStore.has(id)) {
+      table.toggleRowSelection?.(row, true)
+    }
+  }
+  await nextTick()
+  suppressBasketMerge.value = false
+}
+
+function removeOneFromBasket(id: string) {
+  const rid = String(id || '').trim()
+  if (!rid) return
+  basketStore.remove(rid)
+  suppressBasketMerge.value = true
+  const row = list.value.find((r) => resolvePackingId(r) === rid)
+  if (row) {
+    dataTableRef.value?.toggleRowSelection?.(row, false)
+  }
+  void nextTick(() => {
+    suppressBasketMerge.value = false
+  })
+}
+
+async function handleClearBasket() {
+  if (!basketStore.count) return
+  try {
+    await ElMessageBox.confirm(
+      t('packingList.messages.clearBasketConfirm'),
+      t('packingList.messages.clearBasketTitle'),
+      {
+        type: 'warning',
+        confirmButtonText: t('packingList.messages.clearBasketOk'),
+        cancelButtonText: t('packingList.messages.clearBasketCancel')
+      }
+    )
+  } catch {
+    return
+  }
+  basketStore.clear()
+  suppressBasketMerge.value = true
+  dataTableRef.value?.clearSelection?.()
+  await nextTick()
+  suppressBasketMerge.value = false
+  ElMessage.success(t('packingList.messages.basketCleared'))
+}
+
+type StockOutSelectionValidation = { ok: true } | { ok: false; reasons: string[] }
+
+function normalizeShipCompareValue(value: string | null | undefined): string {
+  return String(value ?? '').trim()
+}
+
+function validateStockOutSelection(rows: PackingListItem[]): StockOutSelectionValidation {
+  const reasons: string[] = []
+  if (rows.length === 0) {
+    reasons.push(t('packingList.stockOut.noSelection'))
+    return { ok: false, reasons }
+  }
+  const notReady = rows.filter((r) => Number(r.status) !== PackingStatusCode.Ready)
+  if (notReady.length > 0) {
+    reasons.push(t('packingList.stockOut.ruleMustBeReady'))
+  }
+  const customerIds = rows.map((r) => String(r.customerId || '').trim())
+  const uniqueCustomers = new Set(customerIds.filter(Boolean))
+  if (uniqueCustomers.size !== 1 || customerIds.some((id) => !id)) {
+    reasons.push(t('packingList.stockOut.ruleSameCustomer'))
+  }
+  const warehouseNames = rows.map((r) => normalizeShipCompareValue(r.warehouseName))
+  if (new Set(warehouseNames).size !== 1 || warehouseNames.some((name) => !name)) {
+    reasons.push(t('packingList.stockOut.ruleSameWarehouse'))
+  }
+  const stockOutTypes = rows.map((r) => Number(r.stockOutType))
+  if (new Set(stockOutTypes).size !== 1) {
+    reasons.push(t('packingList.stockOut.ruleSameStockOutType'))
+  }
+  if (reasons.length > 0) return { ok: false, reasons }
+  return { ok: true }
+}
+
+function displayOrDash(value: string | null | undefined): string {
+  const s = String(value ?? '').trim()
+  return s || '—'
+}
+
+function buildBatchStockOutConfirmMessage(rows: PackingListItem[]): string {
+  const intro = t('packingList.stockOut.batchConfirmIntro', { count: rows.length })
+  const blocks = rows.map((r) => {
+    const code = displayOrDash(r.code || resolvePackingId(r))
+    const company = displayOrDash(r.shipCompany)
+    const address = displayOrDash(r.shipAddress)
+    return [
+      t('packingList.stockOut.confirmPackingCode', { code }),
+      `${t('packingList.stockOut.confirmShipCompany')}：${company}`,
+      `${t('packingList.stockOut.confirmShipAddress')}：${address}`
+    ].join('\n')
+  })
+  return [intro, '', ...blocks].join('\n')
+}
+
+async function showStockOutValidationAlert(reasons: string[]) {
+  const body =
+    reasons.length === 1 && reasons[0] === t('packingList.stockOut.noSelection')
+      ? reasons[0]
+      : `${t('packingList.stockOut.cannotIntro')}\n\n${reasons.map((r) => `• ${r}`).join('\n')}`
+  await ElMessageBox.alert(body, t('packingList.stockOut.cannotTitle'), {
+    confirmButtonText: t('packingList.stockOut.cannotOk'),
+    type: 'warning'
+  })
+}
+
+async function handleBatchStockOut() {
+  const rows = basketStore.items
+  const validation = validateStockOutSelection(rows)
+  if (!validation.ok) {
+    await showStockOutValidationAlert(validation.reasons)
+    return
+  }
+  const packingIds = rows.map((r) => resolvePackingId(r)).filter(Boolean)
+  try {
+    await ElMessageBox.confirm(buildBatchStockOutConfirmMessage(rows), t('packingList.stockOut.batchTitle'), {
+      type: 'warning',
+      confirmButtonText: t('packingList.stockOut.batchOk'),
+      cancelButtonText: t('packingList.messages.clearBasketCancel'),
+      customClass: 'packing-batch-stock-out-confirm'
+    })
+  } catch {
+    return
+  }
+  const loading = ElLoading.service({
+    lock: true,
+    text: t('packingList.stockOut.batchProcessing')
+  })
+  try {
+    const result = await packingApi.batchStockOut(packingIds)
+    const codes = result.lines.map((l) => l.stockOutCode || l.packingCode).filter(Boolean)
+    ElMessage.success(
+      t('packingList.stockOut.batchSuccess', {
+        count: result.lines.length,
+        codes: codes.join('、')
+      })
+    )
+    basketStore.clear()
+    suppressBasketMerge.value = true
+    dataTableRef.value?.clearSelection?.()
+    await nextTick()
+    suppressBasketMerge.value = false
+    await fetchList(false)
+  } catch (e) {
+    console.error(e)
+    ElMessage.error(e instanceof Error ? e.message : t('packingList.stockOut.batchFailed'))
+  } finally {
+    loading.close()
+  }
+}
+
+function goInvoiceReport(row: PackingListItem) {
+  const packingId = resolvePackingId(row)
+  if (!packingId) return
+  router.push({ name: 'PackingInvoiceReport', params: { packingId } })
+}
+
+async function goPackingReport(row: PackingListItem, withInspection: boolean) {
+  const packingId = String(row?.id || '').trim()
+  if (!packingId) return
+  router.push({
+    name: 'PackingReport',
+    params: {
+      packingId,
+      packingInspection: withInspection ? 'with-inspection' : 'without-inspection'
+    }
+  })
+}
+
+function onPackingPrintCommand(row: PackingListItem, cmd: string) {
+  if (cmd === 'with') void goPackingReport(row, true)
+  else if (cmd === 'without') void goPackingReport(row, false)
+}
+
+onMounted(() => {
+  void fetchList(true)
+})
 </script>
 
 <style scoped lang="scss">
@@ -174,14 +870,47 @@ loadList()
   padding: 24px;
   min-height: 100%;
   background: $layer-1;
-  font-family: 'Noto Sans SC', sans-serif;
+
+  // 表头单行：压过 main.scss 中表头允许换行的全局规则
+  :deep(.el-table__header-wrapper th.el-table__cell .cell),
+  :deep(.el-table__fixed-header-wrapper th.el-table__cell .cell) {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+  }
 }
 
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-icon {
+  width: 36px;
+  height: 36px;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $cyan-primary;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .page-title {
@@ -191,7 +920,19 @@ loadList()
   color: $text-primary;
 }
 
+.count-badge {
+  font-size: 12px;
+  color: $text-muted;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid $border-panel;
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+
 .search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 12px;
 }
 
@@ -202,45 +943,84 @@ loadList()
   flex-wrap: wrap;
 }
 
-.filter-field-label {
-  color: $text-muted;
-  font-size: 12px;
-}
-
 .search-input-wrap {
+  position: relative;
   display: flex;
   align-items: center;
 }
 
+.search-icon {
+  position: absolute;
+  left: 10px;
+  color: $text-muted;
+  pointer-events: none;
+}
+
 .search-input {
-  width: 280px;
   padding: 7px 12px;
   background: $layer-2;
   border: 1px solid $border-panel;
   border-radius: $border-radius-md;
   color: $text-primary;
   font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
   outline: none;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: $text-muted;
+  }
+  &:focus {
+    border-color: rgba(0, 212, 255, 0.4);
+  }
+
+  &--code {
+    width: 160px;
+  }
+
+  &--customer {
+    width: 160px;
+    padding-left: 32px;
+  }
+
+  &--sales {
+    width: 120px;
+    padding-left: 32px;
+  }
 }
 
-.table-card {
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid $border-panel;
-  background: $layer-2;
+.status-select {
+  width: 120px;
+
+  :deep(.el-select__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
+
+  :deep(.el-select__placeholder) {
+    color: $text-muted !important;
+  }
+
+  :deep(.el-select__selected-item) {
+    color: $text-primary !important;
+  }
+
+  &--type {
+    width: 130px;
+  }
 }
 
-.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: $border-radius-md;
-  font-size: 13px;
-  cursor: pointer;
-  border: 1px solid $border-panel;
-  background: rgba(255, 255, 255, 0.05);
-  color: $text-secondary;
+.filter-date-range {
+  width: 260px !important;
+
+  :deep(.el-input__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
 }
 
 .btn-primary {
@@ -253,7 +1033,16 @@ loadList()
   border-radius: $border-radius-md;
   color: #fff;
   font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
   cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  }
+
   &.btn-sm {
     padding: 6px 12px;
     font-size: 12px;
@@ -261,43 +1050,74 @@ loadList()
 }
 
 .btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 12px;
   background: transparent;
   border: 1px solid $border-panel;
   border-radius: $border-radius-md;
   color: $text-muted;
   font-size: 12px;
+  font-family: 'Noto Sans SC', sans-serif;
   cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: rgba(0, 212, 255, 0.3);
+    color: $text-secondary;
+  }
 }
 
-.action-btns {
-  display: flex;
-  gap: 6px;
+.packing-code-cell {
+  color: $text-primary;
 }
 
-.action-btn {
-  padding: 4px 10px;
+.qty-cell {
+  font-weight: 700;
+  color: $text-primary;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
   font-size: 12px;
-  border-radius: 5px;
-  cursor: pointer;
-  border: 1px solid transparent;
-  &--primary {
-    background: rgba(0, 102, 255, 0.12);
-    border-color: rgba(0, 212, 255, 0.35);
+  white-space: nowrap;
+
+  &.packing-status-10 {
+    background: rgba(255, 193, 7, 0.15);
+    color: #ffc107;
+  }
+  &.packing-status-20 {
+    background: rgba(0, 212, 255, 0.15);
     color: $cyan-primary;
   }
-  &--warning {
-    background: rgba(201, 154, 69, 0.12);
-    border-color: rgba(201, 154, 69, 0.35);
-    color: $color-amber;
+  &.packing-status-30 {
+    background: rgba(100, 149, 237, 0.18);
+    color: #8eb4ff;
+  }
+  &.packing-status-40 {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+  }
+  &.packing-status-50 {
+    background: rgba(255, 152, 0, 0.15);
+    color: #ff9800;
+  }
+  &.packing-status-100 {
+    background: rgba(70, 191, 145, 0.22);
+    color: #46bf91;
   }
 }
 
 .pagination-wrapper {
-  margin-top: 10px;
+  margin-top: 12px;
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px 16px;
 }
 
 .list-footer-left {
@@ -321,5 +1141,66 @@ loadList()
 .list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
+}
+
+.list-main-pagination {
+  margin-left: auto;
+  align-self: flex-start;
+}
+
+.op-more-dropdown-trigger {
+  display: inline-flex;
+}
+.op-more-trigger {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: $cyan-primary;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 6px;
+}
+.op-more-item {
+  font-size: 13px;
+}
+.op-more-item--primary {
+  color: $cyan-primary;
+}
+.op-submenu-title {
+  font-size: 12px;
+  color: $text-muted;
+}
+.op-more-item--sub {
+  padding-left: 8px;
+}
+
+.packing-list-page :deep(.crm-data-table td.op-col .cell),
+.packing-list-page :deep(.crm-data-table th.op-col .cell) {
+  overflow: visible;
+}
+
+.packing-list-page :deep(.action-btns--packing-wrap) {
+  flex-wrap: wrap;
+  white-space: normal;
+  row-gap: 4px;
+  column-gap: 6px;
+  justify-content: flex-end;
+}
+
+.packing-list-page :deep(.action-btns--packing-wrap .action-btn) {
+  white-space: nowrap;
+}
+</style>
+
+<style>
+.packing-batch-stock-out-confirm .el-message-box__message {
+  text-align: left;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.packing-batch-stock-out-confirm .el-message-box__message p {
+  white-space: pre-line;
+  margin: 0;
 }
 </style>

@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +8,6 @@ namespace CRM.Infrastructure.StockOuts;
 public sealed class StockOutListQuery : IStockOutListQuery
 {
     public const int MaxPageSize = 2000;
-    private const short TransferStockOutType = 3;
 
     private readonly ApplicationDbContext _db;
 
@@ -28,7 +28,7 @@ public sealed class StockOutListQuery : IStockOutListQuery
         var ps = pageSize < 1 ? 20 : Math.Min(pageSize, MaxPageSize);
 
         var q = _db.StockOuts.AsNoTracking()
-            .Where(so => so.StockOutType != TransferStockOutType);
+            .Where(so => so.StockOutType != StockOutTypeCode.Transfer);
 
         if (!string.IsNullOrWhiteSpace(sourceCode))
         {

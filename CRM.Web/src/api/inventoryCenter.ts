@@ -164,6 +164,9 @@ export interface WarehouseInfo {
   warehouseCode: string
   warehouseName: string
   address?: string
+  contactName?: string
+  contactPhone?: string
+  workHours?: string
   /** RegionType：10=境内 20=境外（与 @/constants/regionType 及到货通知共用） */
   regionType?: number
   status: number
@@ -172,6 +175,8 @@ export interface WarehouseInfo {
 /** 拣货任务明细行（备货补充：isStockingSupplement=true） */
 export interface PickingTaskLine {
   id: string
+  /** 拣货明细业务编号 pickingtaskitem.item_code */
+  itemCode?: string | null
   materialId: string
   stockId?: string | null
   /** 在库明细业务编号 stock_item.stock_item_code */
@@ -212,15 +217,45 @@ export interface PickingStockItemCandidate {
 }
 
 export interface SavePickingTaskItemLine {
+  packingItemId?: string
   stockItemId: string
   stockId: string
   qty: number
 }
 
+export interface PickPagePackingLine {
+  packingItemId: string
+  itemCode?: string | null
+  pn?: string | null
+  brand?: string | null
+  qty: number
+  unit?: string | null
+  stockOutNotifyId?: string | null
+  sellOrderItemId?: string | null
+  sellOrderCode?: string | null
+  sellOrderItemCode?: string | null
+  comment?: string | null
+  planQtyTotal: number
+  pickedQtyTotal: number
+  lineStatus: string
+  pickingItems?: PickingTaskLine[]
+}
+
+export interface PickPageByPacking {
+  packingId: string
+  packingCode: string
+  packingStatus: number
+  /** 装箱单出库仓库（packing.storage_id） */
+  warehouseId?: string | null
+  warehouseDisplay?: string | null
+  pickingTask?: PickingTask | null
+  lines: PickPagePackingLine[]
+}
+
 export interface PickingTask {
   id: string
   taskCode: string
-  stockOutRequestId: string
+  packingId?: string | null
   warehouseId: string
   operatorId: string
   status: number
@@ -373,6 +408,29 @@ export const inventoryCenterApi = {
   async saveWarehouse(payload: WarehouseInfo): Promise<WarehouseInfo> {
     return unwrap<WarehouseInfo>(await apiClient.post('/api/v1/inventory-center/warehouses', payload))
   },
+
+  async saveWarehousesBatch(payload: WarehouseInfo[]): Promise<WarehouseInfo[]> {
+    const list = unwrap<WarehouseInfo[]>(
+      await apiClient.put('/api/v1/inventory-center/warehouses/batch', payload)
+    )
+    return Array.isArray(list) ? list : []
+  },
+  async getPickPageByPacking(packingId: string): Promise<PickPageByPacking> {
+    const pid = String(packingId || '').trim()
+    if (!pid) throw new Error('装箱单 ID 不能为空')
+    return unwrap<PickPageByPacking>(
+      await apiClient.get('/api/v1/inventory-center/pick-page', { params: { packingId: pid } })
+    )
+  },
+  async generatePickingTaskByPacking(payload: {
+    packingId: string
+    warehouseId: string
+    operatorId?: string
+  }): Promise<PickingTask> {
+    return unwrap<PickingTask>(
+      await apiClient.post('/api/v1/inventory-center/picking-tasks/generate-by-packing', payload)
+    )
+  },
   async getPickingTasks(status?: number): Promise<PickingTask[]> {
     const suffix = status == null ? '' : `?status=${status}`
     return unwrap<PickingTask[]>(await apiClient.get(`/api/v1/inventory-center/picking-tasks${suffix}`))
@@ -398,6 +456,18 @@ export const inventoryCenterApi = {
   async getPickingCandidates(stockOutRequestId: string, warehouseId: string): Promise<PickingStockItemCandidate[]> {
     const qs = new URLSearchParams({
       stockOutRequestId: stockOutRequestId.trim(),
+      warehouseId: warehouseId.trim()
+    })
+    return unwrap<PickingStockItemCandidate[]>(
+      await apiClient.get(`/api/v1/inventory-center/picking-candidates?${qs.toString()}`)
+    )
+  },
+  async getPickingCandidatesByPackingItem(
+    packingItemId: string,
+    warehouseId: string
+  ): Promise<PickingStockItemCandidate[]> {
+    const qs = new URLSearchParams({
+      packingItemId: packingItemId.trim(),
       warehouseId: warehouseId.trim()
     })
     return unwrap<PickingStockItemCandidate[]>(

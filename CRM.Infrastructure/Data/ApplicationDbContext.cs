@@ -1,6 +1,7 @@
 using CRM.Core.Constants;
 using CRM.Core.Models;
 using CRM.Core.Models.Auth;
+using CRM.Core.Models.Company;
 using CRM.Core.Models.Component;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Draft;
@@ -122,6 +123,12 @@ namespace CRM.Infrastructure.Data
         public DbSet<WarehouseShelf> WarehouseShelves { get; set; } = null!;
         public DbSet<InventoryLedger> InventoryLedgers { get; set; } = null!;
         public DbSet<PickingTask> PickingTasks { get; set; } = null!;
+        public DbSet<Packing> Packings { get; set; } = null!;
+        public DbSet<PackingExtend> PackingExtends { get; set; } = null!;
+        public DbSet<PackingExtendBox> PackingExtendBoxes { get; set; } = null!;
+        public DbSet<PackingExtendShip> PackingExtendShips { get; set; } = null!;
+        public DbSet<PackingItem> PackingItems { get; set; } = null!;
+        public DbSet<PackingItemExtend> PackingItemExtends { get; set; } = null!;
         public DbSet<PickingTaskItem> PickingTaskItems { get; set; } = null!;
         public DbSet<InventoryCountPlan> InventoryCountPlans { get; set; } = null!;
         public DbSet<InventoryCountItem> InventoryCountItems { get; set; } = null!;
@@ -150,6 +157,7 @@ namespace CRM.Infrastructure.Data
         // ===== 系统参数 =====
         public DbSet<SysParamGroup> SysParamGroups { get; set; } = null!;
         public DbSet<SysParam> SysParams { get; set; } = null!;
+        public DbSet<CompanyBankInfo> CompanyBankInfos { get; set; } = null!;
         public DbSet<SysDictItem> SysDictItems { get; set; } = null!;
         public DbSet<ApprovalRecord> ApprovalRecords { get; set; } = null!;
         public DbSet<OrderJourneyLog> OrderJourneyLogs { get; set; } = null!;
@@ -571,11 +579,12 @@ namespace CRM.Infrastructure.Data
                     new SysSerialNumber { Id = 14, ModuleCode = "Stock",         ModuleName = "库存",     Prefix = "STK",     SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
                     new SysSerialNumber { Id = 15, ModuleCode = "PurchaseRequisition", ModuleName = "采购申请", Prefix = "POR",     SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
                     new SysSerialNumber { Id = 16, ModuleCode = "StockOutRequest",     ModuleName = "出库申请", Prefix = "STOR",    SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 17, ModuleCode = "PickingTask",         ModuleName = "拣货任务", Prefix = "PAK",     SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 17, ModuleCode = "PickingTask",         ModuleName = "拣货任务", Prefix = "PIK",     SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
                     new SysSerialNumber { Id = 18, ModuleCode = "ArrivalNotice",      ModuleName = "到货通知", Prefix = "STIR",    SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
                     new SysSerialNumber { Id = 19, ModuleCode = "QcRecord",           ModuleName = "质检",     Prefix = "QC",      SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
                     new SysSerialNumber { Id = 20, ModuleCode = "PaymentRequest",     ModuleName = "请款",     Prefix = "PAYR",    SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
-                    new SysSerialNumber { Id = 21, ModuleCode = "FinancePayment",     ModuleName = "财务付款", Prefix = "PAY",     SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime }
+                    new SysSerialNumber { Id = 21, ModuleCode = "FinancePayment",     ModuleName = "财务付款", Prefix = "PAY",     SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime },
+                    new SysSerialNumber { Id = 22, ModuleCode = "Packing",          ModuleName = "装箱单",   Prefix = "Pak",     SequenceLength = 5, CurrentSequence = 2025, CreateTime = seedTime }
                 );
             });
 
@@ -704,6 +713,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.WarehouseId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.VendorId).HasMaxLength(36);
                 entity.Property(e => e.RegionType).HasColumnName("RegionType").HasDefaultValue((short)10);
+                entity.Property(e => e.StockInType).HasDefaultValue(StockInTypeCode.Purchase);
                 entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.HasMany(e => e.Items).WithOne(e => e.StockIn).HasForeignKey(e => e.StockInId).OnDelete(DeleteBehavior.Cascade);
             });
@@ -825,6 +835,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.Property(e => e.StockItemId).HasMaxLength(36);
                 entity.Property(e => e.PickingTaskItemId).HasColumnName("picking_task_item_id").HasMaxLength(36);
+                entity.Property(e => e.PackingId).HasColumnName("packing_id").HasMaxLength(36);
             });
 
             modelBuilder.Entity<StockOutItemExtend>(entity =>
@@ -901,10 +912,124 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.ProfitOutBizUsd).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
             });
 
+            modelBuilder.Entity<Packing>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
+                entity.Property(e => e.Code).IsRequired().HasMaxLength(32);
+                entity.HasIndex(e => e.Code).IsUnique().HasFilter("is_deleted = false");
+                entity.Property(e => e.Status).HasDefaultValue((short)10);
+                entity.Property(e => e.StockOutType).HasDefaultValue((short)10);
+                entity.Property(e => e.MaterialType).HasDefaultValue((short)10);
+                entity.Property(e => e.CustomerId).HasColumnName("customer_id").HasMaxLength(36);
+                entity.Property(e => e.SalesId).HasColumnName("sales_id").HasMaxLength(36);
+                entity.Property(e => e.ScheduleShipDate).HasColumnName("schedule_ship_date");
+                entity.Property(e => e.StorageId).HasColumnName("storage_id").HasMaxLength(36);
+                entity.Property(e => e.ItemRows).HasColumnName("item_rows").HasDefaultValue(0);
+                entity.Property(e => e.Comment).HasColumnName("comment").HasMaxLength(500);
+                entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.ModifyByUserId).HasColumnName("modify_by_user_id").HasMaxLength(36);
+                entity.HasOne(e => e.Extend)
+                    .WithOne(x => x.Packing)
+                    .HasForeignKey<PackingExtend>(x => x.PackingId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.ExtendBox)
+                    .WithOne(x => x.Packing)
+                    .HasForeignKey<PackingExtendBox>(x => x.PackingId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.ExtendShip)
+                    .WithOne(x => x.Packing)
+                    .HasForeignKey<PackingExtendShip>(x => x.PackingId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(e => e.Items)
+                    .WithOne(i => i.Packing)
+                    .HasForeignKey(i => i.PackingId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<PackingExtend>(entity =>
+            {
+                entity.HasKey(e => e.PackingId);
+                entity.Property(e => e.PackingId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.LastItemLineSeq).HasColumnName("last_item_line_seq").HasDefaultValue(0);
+            });
+
+            modelBuilder.Entity<PackingExtendBox>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.PackingId).IsRequired().HasMaxLength(36);
+                entity.HasIndex(e => e.PackingId).IsUnique();
+                entity.Property(e => e.Nw).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.Gw).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.Dim).HasMaxLength(200);
+                entity.Property(e => e.Ctns).HasColumnName("CTNS");
+            });
+
+            modelBuilder.Entity<PackingExtendShip>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.PackingId).IsRequired().HasMaxLength(36);
+                entity.HasIndex(e => e.PackingId).IsUnique();
+                entity.Property(e => e.ShipCompany).HasColumnName("ship_company").HasMaxLength(200);
+                entity.Property(e => e.ShipAddress).HasColumnName("ship_address").HasMaxLength(256);
+                entity.Property(e => e.ShipAttn).HasColumnName("ship_attn").HasMaxLength(100);
+                entity.Property(e => e.ShipTel).HasColumnName("ship_tel").HasMaxLength(64);
+                entity.Property(e => e.BillCompany).HasColumnName("bill_company").HasMaxLength(200);
+                entity.Property(e => e.BillAddress).HasColumnName("bill_address").HasMaxLength(256);
+                entity.Property(e => e.BillAttn).HasColumnName("bill_attn").HasMaxLength(100);
+                entity.Property(e => e.BillTel).HasColumnName("bill_tel").HasMaxLength(64);
+                entity.Property(e => e.DeliveryReq).HasColumnName("delivery_req").HasMaxLength(256);
+                entity.Property(e => e.DeliveryMethod).HasColumnName("delivery_method");
+            });
+
+            modelBuilder.Entity<PackingItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
+                entity.Property(e => e.PackingId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.SellOrderId).HasColumnName("sell_order_id").HasMaxLength(36);
+                entity.Property(e => e.SellOrderItemId).HasColumnName("sell_order_item_id").HasMaxLength(36);
+                entity.Property(e => e.StockOutNotifyId).HasColumnName("stockout_notify_id").HasMaxLength(36);
+                entity.Property(e => e.ItemCode).HasColumnName("item_code").IsRequired(false).HasMaxLength(64);
+                entity.Property(e => e.ProductId).HasColumnName("product_id").HasMaxLength(36);
+                entity.Property(e => e.StockItemId).HasColumnName("stock_item_id").HasMaxLength(36);
+                entity.Property(e => e.Pn).HasColumnName("PN").HasMaxLength(200);
+                entity.Property(e => e.Brand).HasMaxLength(200);
+                entity.Property(e => e.Qty).HasDefaultValue(0);
+                entity.Property(e => e.Unit).HasMaxLength(20);
+                entity.Property(e => e.Co).HasColumnName("CO").HasMaxLength(64);
+                entity.Property(e => e.Comment).HasColumnName("comment").HasMaxLength(500);
+                entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.ModifyByUserId).HasColumnName("modify_by_user_id").HasMaxLength(36);
+                entity.HasOne(e => e.Extend)
+                    .WithOne(x => x.PackingItem)
+                    .HasForeignKey<PackingItemExtend>(x => x.PackingItemId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<PackingItemExtend>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.PackingItemId).IsRequired().HasMaxLength(36);
+                entity.HasIndex(e => e.PackingItemId).IsUnique();
+                entity.Property(e => e.CustomerId).HasColumnName("customer_id").HasMaxLength(36);
+                entity.Property(e => e.SalesId).HasColumnName("sales_id").HasMaxLength(36);
+                entity.Property(e => e.SellOrderId).HasColumnName("sell_order_id").HasMaxLength(36);
+                entity.Property(e => e.SellOrderItemId).HasColumnName("sell_order_item_id").HasMaxLength(36);
+                entity.Property(e => e.Price).HasColumnType("numeric(18,6)");
+                entity.Property(e => e.PriceConvertPrice).HasColumnType("numeric(18,6)");
+                entity.Property(e => e.CustomerSo).HasColumnName("customer_so").HasMaxLength(200);
+                entity.Property(e => e.CustomerPn).HasColumnName("customer_pn").HasMaxLength(200);
+                entity.Property(e => e.CustomerBrand).HasColumnName("customer_brand").HasMaxLength(200);
+            });
+
             modelBuilder.Entity<StockOutRequest>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.RequestCode).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Id).HasColumnName("ID");
+                entity.Property(e => e.RequestCode).IsRequired().HasMaxLength(50).HasColumnName("Code");
                 entity.Property(e => e.SalesOrderId).HasMaxLength(36);
                 entity.Property(e => e.SalesOrderItemId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.MaterialCode).IsRequired().HasMaxLength(200);
@@ -914,6 +1039,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.Property(e => e.ShipmentMethod).HasMaxLength(64);
                 entity.Property(e => e.RegionType).HasColumnName("RegionType").HasDefaultValue((short)10);
+                entity.Property(e => e.StockOutType).HasColumnName("StockOutType").HasDefaultValue(StockOutTypeCode.Sales);
             });
 
             modelBuilder.Entity<StockInNotify>(entity =>
@@ -930,6 +1056,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Status).HasDefaultValue((short)10);
                 entity.Property(e => e.ExpectedArrivalDate);
                 entity.Property(e => e.RegionType).HasColumnName("RegionType").HasDefaultValue((short)10);
+                entity.Property(e => e.StockInType).HasColumnName("StockInType").HasDefaultValue(StockInTypeCode.Purchase);
                 entity.Property(e => e.Pn).HasMaxLength(128);
                 entity.Property(e => e.Brand).HasMaxLength(64);
                 entity.Property(e => e.ExpectQty).HasDefaultValue(0);
@@ -954,6 +1081,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.StockInPlanDate).HasColumnName("StockInPlanDate");
                 entity.Property(e => e.Status).HasDefaultValue((short)10);
                 entity.Property(e => e.StockInStatus).HasDefaultValue((short)1);
+                entity.Property(e => e.StockInType).HasColumnName("StockInType").HasDefaultValue(StockInTypeCode.Purchase);
                 entity.HasMany(e => e.Items)
                     .WithOne(x => x.QcInfo)
                     .HasForeignKey(x => x.QcInfoId)
@@ -975,8 +1103,12 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Id).HasColumnName("Id");
                 entity.Property(e => e.WarehouseCode).IsRequired().HasMaxLength(32);
                 entity.Property(e => e.WarehouseName).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.Address).HasMaxLength(200);
+                entity.Property(e => e.Address).HasMaxLength(500);
+                entity.Property(e => e.ContactName).HasMaxLength(100);
+                entity.Property(e => e.ContactPhone).HasMaxLength(64);
+                entity.Property(e => e.WorkHours).HasMaxLength(100);
                 entity.Property(e => e.RegionType).HasColumnName("RegionType");
+                entity.Property(e => e.Status).HasDefaultValue(WarehouseStatusCode.Enabled);
                 entity.HasIndex(e => e.WarehouseCode).IsUnique();
             });
 
@@ -1178,7 +1310,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
                 entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.TaskCode).IsRequired().HasMaxLength(32);
-                entity.Property(e => e.StockOutRequestId).IsRequired().HasMaxLength(36);
+                entity.Property(e => e.PackingId).HasColumnName("packing_id").HasMaxLength(36);
                 entity.Property(e => e.WarehouseId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.OperatorId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.Remark).HasMaxLength(500);
@@ -1199,6 +1331,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.MaterialId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.StockId).HasMaxLength(36);
                 entity.Property(e => e.StockItemId).HasColumnName("stock_item_id").HasMaxLength(36);
+                entity.Property(e => e.PackingItemId).HasColumnName("packing_item_id").HasMaxLength(36);
+                entity.Property(e => e.ItemCode).HasColumnName("item_code").IsRequired(false).HasMaxLength(64);
                 entity.Property(e => e.BatchNo).HasMaxLength(50);
                 entity.Property(e => e.LocationId).HasMaxLength(36);
                 entity.Property(e => e.IsStockingSupplement).HasDefaultValue(false);

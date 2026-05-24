@@ -49,7 +49,7 @@ namespace CRM.Core.Interfaces
         public const string Stock = "Stock";                 // 库存 STK
         public const string PurchaseRequisition = "PurchaseRequisition"; // 采购申请 POR
         public const string StockOutRequest = "StockOutRequest"; // 出库申请 STOR
-        public const string PickingTask = "PickingTask";     // 拣货任务 PAK
+        public const string PickingTask = "PickingTask";     // 拣货任务 PIK
         public const string ArrivalNotice = "ArrivalNotice"; // 到货通知 STIR
         public const string QcRecord = "QcRecord";           // 质检 QC
         public const string PaymentRequest = "PaymentRequest"; // 请款 PAYR
@@ -63,6 +63,8 @@ namespace CRM.Core.Interfaces
         public const string CustomsDeclaration = "CustomsDeclaration";
         /// <summary>报关公司 CBR。</summary>
         public const string CustomsBroker = "CustomsBroker";
+        /// <summary>装箱单 Pak。</summary>
+        public const string Packing = "Packing";
         // 以上前缀 + 5 位 32 进制数值位，由 SerialNumberService 拼接
     }
 }

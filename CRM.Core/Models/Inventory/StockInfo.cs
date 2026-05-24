@@ -185,9 +185,9 @@ namespace CRM.Core.Models.Inventory
         public string StockInCode { get; set; } = string.Empty;
 
         /// <summary>
-        /// 入库类型 (1:采购入库 2:退货入库 3:调拨入库 4:其他入库)
+        /// 入库类型，见 <see cref="StockInTypeCode"/>（默认采购入库）。
         /// </summary>
-        public short StockInType { get; set; } = 1;
+        public short StockInType { get; set; } = StockInTypeCode.Purchase;
 
         /// <summary>
         /// 到货通知业务编码（<c>stockinnotify.NoticeCode</c>）
@@ -469,9 +469,9 @@ namespace CRM.Core.Models.Inventory
         public string StockOutCode { get; set; } = string.Empty;
 
         /// <summary>
-        /// 出库类型 (1:销售出库 2:退货出库 3:调拨出库 4:其他出库)
+        /// 出库类型，见 <see cref="Constants.StockOutTypeCode"/>（10 销售 / 20 报关 / 30 退货 / 40 报废；3 为移库虚拟出库）。
         /// </summary>
-        public short StockOutType { get; set; } = 1;
+        public short StockOutType { get; set; } = StockOutTypeCode.Sales;
 
         /// <summary>整型分类（数据库列 <c>Type</c>；与 <see cref="StockOutType"/> 独立，含义由业务定义）。</summary>
         [Column("Type")]
@@ -695,6 +695,11 @@ namespace CRM.Core.Models.Inventory
         [StringLength(36)]
         [Column("picking_task_item_id")]
         public string? PickingTaskItemId { get; set; }
+
+        /// <summary>来源装箱单主键 <c>packing.Id</c>。</summary>
+        [StringLength(36)]
+        [Column("packing_id")]
+        public string? PackingId { get; set; }
 
         /// <summary>
         /// 仓库ID（冗余，方便查询）

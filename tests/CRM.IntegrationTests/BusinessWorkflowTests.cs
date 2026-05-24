@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Linq.Expressions;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Customer;
@@ -996,7 +997,7 @@ namespace CRM.IntegrationTests
             {
                 Id = Guid.NewGuid().ToString(),
                 Status = 2,
-                StockInType = 1,
+                StockInType = StockInTypeCode.Purchase,
                 TotalQuantity = 10
             };
             var stockInItemRow = new StockInItem
@@ -1030,7 +1031,7 @@ namespace CRM.IntegrationTests
                 Id = Guid.NewGuid().ToString(),
                 SourceId = stockOutRequest.Id,
                 SellOrderItemId = sellOrderItemId,
-                StockOutType = 1,
+                StockOutType = 10,
                 TotalQuantity = 5,
                 Status = 2 // 已完成
             };
@@ -1200,7 +1201,7 @@ namespace CRM.IntegrationTests
                 Id = invItem.StockInId,
                 StockInCode = "SI-TEST-INV",
                 Status = 2, // 已完成
-                StockInType = 1, // 采购入库
+                StockInType = StockInTypeCode.Purchase, // 采购入库
                 TotalQuantity = 25
             };
 

@@ -47,6 +47,9 @@
       <div class="detail-card">
         <h3 class="section-title">{{ t('pickingSlip.detail.sectionLines') }}</h3>
         <el-table :data="lines" border class="lines-table" size="small" empty-text="—">
+          <el-table-column :label="t('pickingSlip.detail.itemCode')" min-width="140" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.itemCode || '—' }}</template>
+          </el-table-column>
           <el-table-column label="物料" min-width="120" prop="materialId" show-overflow-tooltip />
           <el-table-column label="在库明细编号" min-width="140" show-overflow-tooltip>
             <template #default="{ row }">{{ lineStockItemCode(row) }}</template>
@@ -272,6 +275,7 @@ import { salesOrderApi } from '@/api/salesOrder'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const authStore = useAuthStore()
@@ -425,9 +429,10 @@ function normCode(s: string) {
 }
 
 function stockOutRequestStatusLabel(s: number) {
-  if (s === 0) return t('stockOutNotifyList.status.pendingOut')
-  if (s === 1) return t('stockOutNotifyList.status.done')
-  if (s === 2) return t('stockOutNotifyList.status.cancelled')
+  if (s === STOCK_OUT_REQUEST_STATUS.PendingPacking) return t('stockOutNotifyList.status.pendingPacking')
+  if (s === STOCK_OUT_REQUEST_STATUS.Packed) return t('stockOutNotifyList.status.packed')
+  if (s === STOCK_OUT_REQUEST_STATUS.StockedOut) return t('stockOutNotifyList.status.stockedOut')
+  if (s === STOCK_OUT_REQUEST_STATUS.Cancelled) return t('stockOutNotifyList.status.cancelled')
   return t('stockOutNotifyList.status.unknown')
 }
 

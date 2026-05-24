@@ -212,7 +212,7 @@ export function normalizeCustomerContactFromApi(raw: unknown): CustomerContactIn
 export function formatCustomerAddressTypeLabel(type: string | number | undefined): string {
   const labels: Record<string, string> = {
     Office: '办公地址',
-    Billing: '开票地址',
+    Billing: '账单地址',
     Shipping: '收货地址',
     Registered: '注册地址'
   };

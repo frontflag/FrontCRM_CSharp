@@ -86,6 +86,7 @@ namespace CRM.Core.Interfaces
         public DateTime StockInDate { get; set; }
         public decimal TotalQuantity { get; set; }
         public string? Remark { get; set; }
+
         public List<CreateStockInItemRequest> Items { get; set; } = new();
     }
 

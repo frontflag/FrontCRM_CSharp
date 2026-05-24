@@ -53,6 +53,8 @@ export interface QcInfoDto {
   passQty: number
   rejectQty: number
   stockInId?: string
+  /** 入库类型：10采购 20报关 30退货 40报废 */
+  stockInType?: number
   /** 质检保存的计划入库日（ISO）；生成入库单时优先使用 */
   stockInPlanDate?: string | null
   /** 部分接口仍返回 PascalCase */

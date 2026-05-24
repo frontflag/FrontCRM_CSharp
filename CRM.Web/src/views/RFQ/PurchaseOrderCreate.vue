@@ -98,6 +98,17 @@
           </el-col>
         </el-row>
         <el-row :gutter="24">
+          <el-col :span="12">
+            <el-form-item label="采购助理">
+              <purchase-ops-assistor-select
+                v-model="formData.assistor"
+                placeholder="请选择采购助理（可选）"
+                clearable
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="24">
           <el-col :span="24">
             <el-form-item label="订单类型">
               <el-select v-model="formData.type" style="width: 100%" disabled>
@@ -249,6 +260,7 @@ import type { Vendor } from '@/types/vendor'
 import { useAuthStore } from '@/stores/auth'
 import { canSubmitPurchaseOrderCreate } from '@/utils/purchaseOrderCreateGate'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
+import PurchaseOpsAssistorSelect from '@/components/PurchaseOpsAssistorSelect.vue'
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import { formatCurrencyTotal, formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
@@ -336,6 +348,7 @@ const formData = ref({
   vendorContactId: '' as string,
   purchaseUserId: '' as string,
   purchaseUserName: '',
+  assistor: '' as string,
   type: 1,
   currency: 1,
   deliveryDate: '',
@@ -493,6 +506,7 @@ async function loadOrderForEdit(id: string) {
   formData.value.vendorContactName = String((o as { vendorContactName?: string }).vendorContactName ?? '')
   formData.value.purchaseUserId = String(o.purchaseUserId ?? '')
   formData.value.purchaseUserName = String(o.purchaseUserName ?? '')
+  formData.value.assistor = String(o.assistor ?? '')
   formData.value.type = Number(o.type ?? 1)
   formData.value.currency = Number(o.currency ?? 1)
   const dd = o.deliveryDate
@@ -548,6 +562,7 @@ const handleSubmit = async () => {
         const updateBody = {
           purchaseUserId: uid,
           purchaseUserName: uname,
+          assistor: formData.value.assistor?.trim() || null,
           type: formData.value.type,
           currency: formData.value.currency,
           deliveryDate: formData.value.deliveryDate || null,
@@ -569,6 +584,7 @@ const handleSubmit = async () => {
         vendorName: formData.value.vendorName,
         purchaseUserId: uid,
         purchaseUserName: uname,
+        assistor: formData.value.assistor?.trim() || undefined,
         vendorContactId: formData.value.vendorContactId || undefined,
         type: formData.value.type,
         currency: formData.value.currency,

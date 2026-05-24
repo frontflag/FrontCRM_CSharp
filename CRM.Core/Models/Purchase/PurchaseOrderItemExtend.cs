@@ -24,7 +24,7 @@ namespace CRM.Core.Models.Purchase
         public decimal QtyStockInNotifyExpectSum { get; set; }
 
         /// <summary>
-        /// 累计入库数量：所有「已入库」的采购入库单（StockInType=采购）中，头表 <c>PurchaseOrderItemId</c> 等于本行主键时，按单头 <c>TotalQuantity</c> 累计。
+        /// 累计入库数量：所有「已入库」的采购入库单（<see cref="StockInTypeCode.Purchase"/>）中，头表 <c>PurchaseOrderItemId</c> 等于本行主键时，按单头 <c>TotalQuantity</c> 累计。
         /// （与到货通知 ReceiveQty 独立，以入库单为有效入库凭证。）
         /// </summary>
         [Column(TypeName = "numeric(18,4)")]

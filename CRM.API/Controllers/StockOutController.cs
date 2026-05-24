@@ -3,11 +3,13 @@ using System.Threading;
 using CRM.API.Models.DTOs;
 using CRM.API.Services;
 using CRM.API.Utilities;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace CRM.API.Controllers
 {
@@ -138,7 +140,23 @@ namespace CRM.API.Controllers
                     SaleSensitiveFieldMask521.ApplyStockOutDetailView(dto, true);
                 var companyProfile = await CompanyProfileBundleLoader.LoadAsync(_db, _logger, cancellationToken);
                 CompanyProfileBundleLoader.StripSmtpEmail(companyProfile);
-                var bundle = new StockOutInvoiceReportBundleDto { StockOut = dto, CompanyProfile = companyProfile };
+                short? warehouseRegionType = null;
+                var warehouseId = dto.WarehouseId?.Trim();
+                if (!string.IsNullOrEmpty(warehouseId))
+                {
+                    var regionType = await _db.Warehouses.AsNoTracking()
+                        .Where(w => w.Id == warehouseId)
+                        .Select(w => (short?)w.RegionType)
+                        .FirstOrDefaultAsync(cancellationToken);
+                    if (regionType.HasValue)
+                        warehouseRegionType = RegionTypeCode.Normalize(regionType.Value);
+                }
+                var bundle = new StockOutInvoiceReportBundleDto
+                {
+                    StockOut = dto,
+                    CompanyProfile = companyProfile,
+                    WarehouseRegionType = warehouseRegionType
+                };
                 return Ok(ApiResponse<StockOutInvoiceReportBundleDto>.Ok(bundle, "ok"));
             }
             catch (Exception ex)
@@ -148,11 +166,12 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>出库 Packing 报表：出库详情 + 公司参数；<paramref name="withInspection"/> 区分含/不含出货检验版式。</summary>
+        /// <summary>出库 Packing 报表：出库详情 + 公司参数；<paramref name="withInspection"/> 区分含/不含出货检验版式；<paramref name="packingId"/> 为装箱单主键，用于直接读取 packing.code 与地址。</summary>
         [HttpGet("{id}/packing-report-bundle")]
         public async Task<ActionResult<ApiResponse<StockOutPackingReportBundleDto>>> GetPackingReportBundle(
             string id,
             [FromQuery] bool withInspection = false,
+            [FromQuery] string? packingId = null,
             CancellationToken cancellationToken = default)
         {
             try
@@ -164,11 +183,17 @@ namespace CRM.API.Controllers
                     SaleSensitiveFieldMask521.ApplyStockOutDetailView(dto, true);
                 var companyProfile = await CompanyProfileBundleLoader.LoadAsync(_db, _logger, cancellationToken);
                 CompanyProfileBundleLoader.StripSmtpEmail(companyProfile);
+                var (packingCode, packingAddresses, deliveryMethod) =
+                    await TryLoadPackingReportExtrasAsync(packingId, cancellationToken);
+                ApplyCustomerToPackingAddressPanel(packingAddresses, dto.CustomerName);
                 var bundle = new StockOutPackingReportBundleDto
                 {
                     StockOut = dto,
                     CompanyProfile = companyProfile,
-                    WithShipmentInspection = withInspection
+                    WithShipmentInspection = withInspection,
+                    PackingCode = packingCode,
+                    PackingAddresses = packingAddresses,
+                    DeliveryMethod = deliveryMethod
                 };
                 return Ok(ApiResponse<StockOutPackingReportBundleDto>.Ok(bundle, "ok"));
             }
@@ -330,7 +355,7 @@ namespace CRM.API.Controllers
                 var entity = await _stockOutRequestRepo.GetByIdAsync(id);
                 if (entity == null)
                     return NotFound(ApiResponse<object>.Fail("出库通知不存在", 404));
-                if (entity.Status == 1)
+                if (entity.Status == StockOutRequestStatusCode.StockedOut)
                     return BadRequest(ApiResponse<object>.Fail("已出库通知不能普通删除", 400));
 
                 var guard = await _forceDeleteGuard.CanForceDeleteStockOutRequestAsync(entity.Id);
@@ -513,6 +538,92 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "强制删除出库单失败");
                 return StatusCode(500, ApiResponse<object>.Fail($"强制删除出库单失败: {ex.Message}", 500));
+            }
+        }
+
+        private static PackingReportAddressPanelDto EmptyPackingAddressPanel() =>
+            new()
+            {
+                BillToLines = new List<string> { "—", "—", "—", "—" },
+                ShipToLines = new List<string> { "—", "—", "—", "—" }
+            };
+
+        private static void ApplyCustomerToPackingAddressPanel(PackingReportAddressPanelDto panel, string? customerName)
+        {
+            var customer = string.IsNullOrWhiteSpace(customerName) ? "—" : customerName.Trim();
+            SetCustomerFirstPackingAddressLine(panel.BillToLines, customer);
+            SetCustomerFirstPackingAddressLine(panel.ShipToLines, customer);
+        }
+
+        private static void SetCustomerFirstPackingAddressLine(List<string> lines, string customer)
+        {
+            if (lines.Count >= 4)
+                lines[0] = customer;
+            else if (lines.Count == 3)
+                lines.Insert(0, customer);
+            else
+            {
+                lines.Clear();
+                lines.Add(customer);
+                while (lines.Count < 4) lines.Add("—");
+                return;
+            }
+            while (lines.Count < 4) lines.Add("—");
+            if (lines.Count > 4) lines.RemoveRange(4, lines.Count - 4);
+        }
+
+        private static string PackingAddressLine(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? "—" : value.Trim();
+
+        /// <summary>按装箱单主键直接读取 code 与账单/送货地址（packing + packing_extend_ship）。</summary>
+        private async Task<(string? PackingCode, PackingReportAddressPanelDto Addresses, short? DeliveryMethod)>
+            TryLoadPackingReportExtrasAsync(string? packingId, CancellationToken cancellationToken)
+        {
+            var pid = packingId?.Trim();
+            if (string.IsNullOrEmpty(pid))
+                return (null, EmptyPackingAddressPanel(), null);
+
+            try
+            {
+                var packing = await _db.Packings
+                    .AsNoTracking()
+                    .Where(p => p.Id == pid && !p.IsDeleted)
+                    .Select(p => new { p.Code })
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (packing == null)
+                    return (null, EmptyPackingAddressPanel(), null);
+
+                var packingCode = string.IsNullOrWhiteSpace(packing.Code) ? null : packing.Code.Trim();
+
+                var ship = await _db.PackingExtendShips
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.PackingId == pid, cancellationToken);
+                if (ship == null)
+                    return (packingCode, EmptyPackingAddressPanel(), null);
+
+                return (
+                    packingCode,
+                    new PackingReportAddressPanelDto
+                    {
+                        BillToLines = new List<string>
+                        {
+                            PackingAddressLine(ship.BillAddress),
+                            PackingAddressLine(ship.BillAttn),
+                            PackingAddressLine(ship.BillTel)
+                        },
+                        ShipToLines = new List<string>
+                        {
+                            PackingAddressLine(ship.ShipAddress),
+                            PackingAddressLine(ship.ShipAttn),
+                            PackingAddressLine(ship.ShipTel)
+                        }
+                    },
+                    ship.DeliveryMethod);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "装箱单扩展信息加载失败 PackingId={PackingId}", pid);
+                return (null, EmptyPackingAddressPanel(), null);
             }
         }
 

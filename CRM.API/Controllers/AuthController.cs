@@ -589,6 +589,53 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>
+        /// 采购订单「采购助理」下拉：采购运营部门内全部启用职员（不限当前登录人数据范围）。
+        /// </summary>
+        [Authorize]
+        [HttpGet("purchase-ops-staff-users")]
+        public async Task<ActionResult<ApiResponse<object>>> GetPurchaseOpsStaffUsers()
+        {
+            try
+            {
+                var departments = (await _departmentRepo.GetAllAsync())
+                    .Where(d => d.Status == 1 && PurchasingDepartmentRules.IsPurchasingOperationsDepartment(d))
+                    .ToList();
+                if (departments.Count == 0)
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<object>(), "获取采购运营职员成功"));
+
+                var opsDeptIds = departments.Select(d => d.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var userDepartments = (await _userDepartmentRepo.GetAllAsync()).ToList();
+                var staffUserIds = userDepartments
+                    .Where(x => opsDeptIds.Contains(x.DepartmentId))
+                    .Select(x => x.UserId)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                if (staffUserIds.Count == 0)
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<object>(), "获取采购运营职员成功"));
+
+                var users = (await _userService.GetAllAsync())
+                    .Where(u => u.Status == 1 && staffUserIds.Contains(u.Id))
+                    .OrderBy(u => u.UserName)
+                    .Select(u => new
+                    {
+                        id = u.Id,
+                        userName = u.UserName,
+                        realName = u.RealName,
+                        label = u.UserName
+                    })
+                    .ToList();
+
+                return Ok(ApiResponse<object>.Ok(users, "获取采购运营职员成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetPurchaseOpsStaffUsers failed");
+                return StatusCode(500, ApiResponse<object>.Fail("获取采购运营职员失败", 500));
+            }
+        }
+
+        /// <summary>
         /// 获取物流部门人员树（仅身份为物流或部门名包含物流/仓储等）。规则与采购员树一致：物流部门登录用户按锚点下级可见，否则展示全部物流相关部门用户。
         /// </summary>
         [Authorize]

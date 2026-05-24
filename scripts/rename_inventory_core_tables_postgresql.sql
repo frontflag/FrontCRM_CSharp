@@ -18,5 +18,7 @@ ALTER TABLE IF EXISTS public.stockoutitemextend RENAME TO stock_out_item_extend;
 ALTER TABLE IF EXISTS public.stockoutitem RENAME TO stock_out_item;
 ALTER TABLE IF EXISTS public.stockout RENAME TO stock_out;
 
--- 说明：未在此脚本改名的相关表仍保持旧名，例如 public.stockinnotify、public.stockoutrequest。
+-- 出库/入库通知（与 EF [Table] 一致）
+ALTER TABLE IF EXISTS public.stockoutrequest RENAME TO stockout_notify;
+ALTER TABLE IF EXISTS public.stockinnotify RENAME TO stockin_notify;
 

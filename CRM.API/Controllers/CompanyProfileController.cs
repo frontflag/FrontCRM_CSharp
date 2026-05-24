@@ -136,7 +136,7 @@ namespace CRM.API.Controllers
             try
             {
                 var err = ValidateDefaults(body.BasicInfos, "公司基础信息")
-                    ?? ValidateDefaults(body.BankInfos, "公司银行信息")
+                    ?? ValidateBankDefaults(body.BankInfos)
                     ?? ValidateDefaults(body.Logos, "公司Logo")
                     ?? ValidateDefaults(body.Seals, "公司印章")
                     ?? ValidateDefaults(body.Warehouses, "公司仓库信息")
@@ -145,11 +145,12 @@ namespace CRM.API.Controllers
                     return BadRequest(ApiResponse<object>.Fail(err, 400));
 
                 await UpsertJsonAsync(CompanyProfileParamCodes.BasicInfos, "公司基础信息（多组）", body.BasicInfos, ct);
-                await UpsertJsonAsync(CompanyProfileParamCodes.BankInfos, "公司银行信息（多组）", body.BankInfos, ct);
+                await CompanyBankInfoStore.UpsertAllAsync(_db, body.BankInfos, ct);
                 await UpsertJsonAsync(CompanyProfileParamCodes.Logos, "公司Logo（多组）", body.Logos, ct);
                 await UpsertJsonAsync(CompanyProfileParamCodes.Seals, "公司印章（多组）", body.Seals, ct);
                 await UpsertJsonAsync(CompanyProfileParamCodes.Warehouses, "公司仓库信息（多组）", body.Warehouses, ct);
                 await UpsertSmtpEmailAsync(body.SmtpEmail, ct);
+                await UpsertReportInfoAsync(body.ReportInfo, ct);
                 await _db.SaveChangesAsync(ct);
                 return Ok(ApiResponse<object>.Ok(null, "保存成功"));
             }
@@ -168,6 +169,18 @@ namespace CRM.API.Controllers
             var n = list.Count(r => r.IsDefault);
             if (n > 1)
                 return $"{sectionName}：「默认」仅能选择一组。";
+            return null;
+        }
+
+        private static string? ValidateBankDefaults(List<CompanyBankInfoRowDto>? list)
+        {
+            list ??= new List<CompanyBankInfoRowDto>();
+            var rmbDefaults = list.Count(r => r.IsDefault && CompanyBankInfoStore.IsRmbCurrency(r.Currency));
+            if (rmbDefaults > 1)
+                return "公司银行信息（人民币）：「默认」仅能选择一组。";
+            var fxDefaults = list.Count(r => r.IsDefault && !CompanyBankInfoStore.IsRmbCurrency(r.Currency));
+            if (fxDefaults > 1)
+                return "公司银行信息（外币）：「默认」仅能选择一组。";
             return null;
         }
 
@@ -279,6 +292,74 @@ namespace CRM.API.Controllers
                 existing.IsArray = false;
                 existing.ModifyTime = DateTime.UtcNow;
             }
+        }
+
+        private async Task UpsertReportInfoAsync(CompanyReportInfoDto? body, CancellationToken ct)
+        {
+            var info = body ?? new CompanyReportInfoDto();
+            info.Invoice ??= new CompanyReportRemarksDto();
+            info.PackingList ??= new CompanyReportRemarksDto();
+
+            await UpsertStringParamAsync(
+                CompanyProfileParamCodes.ReportInvoiceRemarkCn,
+                "Invoice 报表备注（中文）",
+                info.Invoice.RemarkCn,
+                ct);
+            await UpsertStringParamAsync(
+                CompanyProfileParamCodes.ReportInvoiceRemarkEn,
+                "Invoice 报表备注（英文）",
+                info.Invoice.RemarkEn,
+                ct);
+            await UpsertStringParamAsync(
+                CompanyProfileParamCodes.ReportPackingListRemarkCn,
+                "Packing List 报表备注（中文）",
+                info.PackingList.RemarkCn,
+                ct);
+            await UpsertStringParamAsync(
+                CompanyProfileParamCodes.ReportPackingListRemarkEn,
+                "Packing List 报表备注（英文）",
+                info.PackingList.RemarkEn,
+                ct);
+        }
+
+        private async Task UpsertStringParamAsync(string paramCode, string paramName, string? value, CancellationToken ct)
+        {
+            var text = value ?? string.Empty;
+            var existing = await _db.SysParams.FirstOrDefaultAsync(x => x.ParamCode == paramCode, ct);
+            if (existing == null)
+            {
+                var row = new SysParam
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ParamCode = paramCode,
+                    ParamName = paramName,
+                    DataType = ParamDataType.String,
+                    ValueString = text.Length <= 500 ? text : null,
+                    ValueJson = text.Length > 500 ? text : null,
+                    IsArray = false,
+                    IsSystem = true,
+                    IsEditable = true,
+                    IsVisible = true,
+                    Status = 1,
+                    CreateTime = DateTime.UtcNow
+                };
+                _db.SysParams.Add(row);
+                return;
+            }
+
+            existing.DataType = ParamDataType.String;
+            existing.IsArray = false;
+            if (text.Length <= 500)
+            {
+                existing.ValueString = text;
+                existing.ValueJson = null;
+            }
+            else
+            {
+                existing.ValueString = null;
+                existing.ValueJson = text;
+            }
+            existing.ModifyTime = DateTime.UtcNow;
         }
     }
 }

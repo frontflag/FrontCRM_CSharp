@@ -275,6 +275,26 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpPut("warehouses/batch")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<WarehouseInfo>>>> SaveWarehousesBatch(
+            [FromBody] List<WarehouseInfo> request)
+        {
+            try
+            {
+                var list = await _service.SaveWarehousesBatchAsync(request ?? new List<WarehouseInfo>());
+                return Ok(ApiResponse<IEnumerable<WarehouseInfo>>.Ok(list, "保存仓库成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<IEnumerable<WarehouseInfo>>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "批量保存仓库失败");
+                return StatusCode(500, ApiResponse<IEnumerable<WarehouseInfo>>.Fail($"保存仓库失败: {ex.Message}", 500));
+            }
+        }
+
         /// <summary>拣货单列表（出库通知 + 仓库 + 订单展示列）。</summary>
         [HttpGet("picking-list")]
         public async Task<ActionResult<ApiResponse<IReadOnlyList<PickingTaskListItemDto>>>> GetPickingTaskList()
@@ -337,6 +357,58 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpGet("pick-page")]
+        public async Task<ActionResult<ApiResponse<PickPageByPackingDto>>> GetPickPageByPacking(
+            [FromQuery] string packingId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(packingId))
+                    return BadRequest(ApiResponse<PickPageByPackingDto>.Fail("packingId 不能为空", 400));
+                var dto = await _service.GetPickPageByPackingAsync(packingId.Trim(), cancellationToken);
+                return Ok(ApiResponse<PickPageByPackingDto>.Ok(dto, "获取装箱拣货页成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<PickPageByPackingDto>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<PickPageByPackingDto>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取装箱拣货页失败 packingId={PackingId}", packingId);
+                return StatusCode(500, ApiResponse<PickPageByPackingDto>.Fail($"获取装箱拣货页失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpPost("picking-tasks/generate-by-packing")]
+        public async Task<ActionResult<ApiResponse<PickingTask>>> GeneratePickingTaskByPacking(
+            [FromBody] GeneratePickingTaskByPackingRequest request)
+        {
+            try
+            {
+                var task = await _service.GeneratePickingTaskByPackingAsync(request);
+                return Ok(ApiResponse<PickingTask>.Ok(task, "生成拣货任务成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<PickingTask>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<PickingTask>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "按装箱单生成拣货任务失败");
+                var detail = ApiExceptionMessages.FormatWithDatabaseInner(ex);
+                return StatusCode(500, ApiResponse<PickingTask>.Fail($"生成拣货任务失败: {detail}", 500));
+            }
+        }
+
         [HttpPost("picking-tasks/generate")]
         public async Task<ActionResult<ApiResponse<PickingTask>>> GeneratePickingTask([FromBody] GeneratePickingTaskRequest request)
         {
@@ -383,17 +455,29 @@ namespace CRM.API.Controllers
         /// <summary>出库拣货：可拣 <c>stockitem</c> 候选列表（FIFO 仅排序）。</summary>
         [HttpGet("picking-candidates")]
         public async Task<ActionResult<ApiResponse<IReadOnlyList<PickingStockItemCandidateDto>>>> GetPickingCandidates(
-            [FromQuery] string stockOutRequestId,
+            [FromQuery] string? stockOutRequestId,
+            [FromQuery] string? packingItemId,
             [FromQuery] string warehouseId)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(stockOutRequestId))
-                    return BadRequest(ApiResponse<IReadOnlyList<PickingStockItemCandidateDto>>.Fail("stockOutRequestId 不能为空", 400));
                 if (string.IsNullOrWhiteSpace(warehouseId))
                     return BadRequest(ApiResponse<IReadOnlyList<PickingStockItemCandidateDto>>.Fail("warehouseId 不能为空", 400));
 
-                var list = await _service.GetPickingCandidateStockItemsAsync(stockOutRequestId.Trim(), warehouseId.Trim());
+                IReadOnlyList<PickingStockItemCandidateDto> list;
+                if (!string.IsNullOrWhiteSpace(packingItemId))
+                {
+                    list = await _service.GetPickingCandidateStockItemsByPackingItemAsync(
+                        packingItemId.Trim(),
+                        warehouseId.Trim());
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(stockOutRequestId))
+                        return BadRequest(ApiResponse<IReadOnlyList<PickingStockItemCandidateDto>>.Fail("stockOutRequestId 或 packingItemId 不能为空", 400));
+                    list = await _service.GetPickingCandidateStockItemsAsync(stockOutRequestId.Trim(), warehouseId.Trim());
+                }
+
                 return Ok(ApiResponse<IReadOnlyList<PickingStockItemCandidateDto>>.Ok(list, "获取拣货候选成功"));
             }
             catch (ArgumentException ex)
@@ -557,14 +641,7 @@ namespace CRM.API.Controllers
                 if (task.Status != 1)
                     return BadRequest(ApiResponse<object>.Fail("仅待拣货状态可普通删除", 400));
 
-                if (await _service.HasStockOutLinkedToPickingTaskAsync(task.Id))
-                    return BadRequest(ApiResponse<object>.Fail("存在下游出库单关联本拣货任务，不能删除", 400));
-
-                var items = (await _pickingTaskItemRepo.FindAsync(x => x.PickingTaskId == task.Id)).ToList();
-                foreach (var item in items)
-                    await _pickingTaskItemRepo.DeleteAsync(item.Id);
-                await _pickingTaskRepo.DeleteAsync(task.Id);
-                await _unitOfWork.SaveChangesAsync();
+                await _service.DeletePickingSlipAsync(task.Id);
                 return Ok(ApiResponse<object>.Ok(null, "删除拣货单成功"));
             }
             catch (Exception ex)

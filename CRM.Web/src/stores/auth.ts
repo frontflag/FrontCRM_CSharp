@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi, type LoginRequest, type RegisterRequest } from '@/api'
+import { getSimulationBanner, type SimulationBanner } from '@/api/debug'
 import { normalizeAuthUserId } from '@/utils/authUserId'
 
 interface User {
@@ -55,12 +56,31 @@ function removeBrokenGlobalWorkspaceTabKeys() {
   localStorage.removeItem('crm_active_tab:')
 }
 
+const emptySimulationBanner = (): SimulationBanner => ({
+  enabled: false,
+  backgroundColor: '',
+  caption: ''
+})
+
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('token'))
   const user = ref<User | null>(readUserFromStorage())
   const loading = ref(false)
+  const simulationBanner = ref<SimulationBanner>(emptySimulationBanner())
 
   const isAuthenticated = computed(() => !!token.value)
+
+  async function loadSimulationBanner(): Promise<void> {
+    if (!token.value) {
+      simulationBanner.value = emptySimulationBanner()
+      return
+    }
+    try {
+      simulationBanner.value = await getSimulationBanner()
+    } catch {
+      simulationBanner.value = emptySimulationBanner()
+    }
+  }
 
   /** 将登录/注册/模拟登录返回的载荷写入会话（含 permission-summary） */
   async function applyAuthPayload(authData: any): Promise<boolean> {
@@ -97,6 +117,7 @@ export const useAuthStore = defineStore('auth', () => {
       user.value.identityType = user.value.identityType ?? 0
     }
     localStorage.setItem('user', JSON.stringify(user.value))
+    await loadSimulationBanner()
     return true
   }
 
@@ -164,6 +185,7 @@ export const useAuthStore = defineStore('auth', () => {
         }
         localStorage.setItem('user', JSON.stringify(user.value))
       }
+      await loadSimulationBanner()
     } catch (error) {
       console.error('Failed to fetch current user:', error)
       logout()
@@ -176,6 +198,7 @@ export const useAuthStore = defineStore('auth', () => {
     removeBrokenGlobalWorkspaceTabKeys()
     token.value = null
     user.value = null
+    simulationBanner.value = emptySimulationBanner()
     localStorage.removeItem('token')
     localStorage.removeItem('user')
   }
@@ -214,6 +237,13 @@ export const useAuthStore = defineStore('auth', () => {
     if (permissionCode.startsWith('purchase-order.') || permissionCode === 'purchase.amount.read') {
       return t === 1
     }
+    // 商务部（4）：与 RbacService 汇总剥离一致
+    if (t === 4) {
+      if (permissionCode.startsWith('vendor.')) return true
+      if (permissionCode.startsWith('purchase-order.') || permissionCode === 'purchase.amount.read') return true
+      if (permissionCode === 'draft.read') return true
+      if (permissionCode.startsWith('finance-purchase-invoice.')) return true
+    }
     return false
   }
 
@@ -221,12 +251,14 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     user,
     loading,
+    simulationBanner,
     isAuthenticated,
     login,
     register,
     impersonate,
     logout,
     fetchCurrentUser,
+    loadSimulationBanner,
     hasPermission,
     isIdentityBlockedForPermission
   }

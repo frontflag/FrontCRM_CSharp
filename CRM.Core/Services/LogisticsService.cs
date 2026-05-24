@@ -310,6 +310,7 @@ namespace CRM.Core.Services
                 Status = 10,
                 ExpectedArrivalDate = PostgreSqlDateTime.ToUtc(expectedArrival),
                 RegionType = regionType,
+                StockInType = StockInTypeCode.NormalizeForNotify(request.StockInType),
                 Pn = poItem.PN,
                 Brand = poItem.Brand,
                 ExpectQty = InventoryQuantity.RoundFromDecimal(expectQty),
@@ -571,6 +572,7 @@ namespace CRM.Core.Services
 
             var passQty = notice.ExpectQty;
             var qcCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.QcRecord);
+            var stockInType = StockInTypeCode.NormalizeForNotify(notice.StockInType);
             var qc = new QCInfo
             {
                 Id = Guid.NewGuid().ToString(),
@@ -579,6 +581,7 @@ namespace CRM.Core.Services
                 StockInNotifyCode = notice.NoticeCode,
                 Status = 10,
                 StockInStatus = 1,
+                StockInType = stockInType,
                 PassQty = passQty,
                 RejectQty = 0,
                 CreateTime = DateTime.UtcNow,

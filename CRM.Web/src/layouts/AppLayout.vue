@@ -1,7 +1,14 @@
 <template>
   <div class="app-layout">
     <!-- 全局顶栏：深色 · 左 Logo+双行标题 · 右 通知+用户（全宽） -->
-    <header class="global-top-bar">
+    <header
+      class="global-top-bar"
+      :class="{ 'global-top-bar--simulation': simulationBannerEnabled }"
+      :style="simulationTopBarStyle"
+    >
+      <p v-if="simulationBannerEnabled && simulationCaption" class="global-simulation-caption">
+        {{ simulationCaption }}
+      </p>
       <div class="global-top-inner">
         <router-link to="/dashboard" class="global-logo" @click="closeDropdown">
           <span class="global-logo-mark">
@@ -518,6 +525,8 @@
             </template>
             <template #submenu>
               <router-link to="/inventory/stock-out-notifies" class="submenu-item" active-class="active">{{ t('layout.menu.stockOutNotifies') }}</router-link>
+              <router-link to="/inventory/packing" class="submenu-item" active-class="active">{{ t('layout.menu.packingList') }}</router-link>
+              <router-link to="/inventory/packing/items" class="submenu-item" active-class="active">{{ t('layout.menu.packingItemList') }}</router-link>
               <router-link to="/inventory/picking-list" class="submenu-item" active-class="active">{{ t('layout.menu.pickingSlip') }}</router-link>
               <router-link to="/inventory/stock-out" class="submenu-item" active-class="active">{{ t('layout.menu.stockOut') }}</router-link>
               <router-link to="/inventory/stock-out/items" class="submenu-item" active-class="active">{{ t('layout.menu.stockOutItems') }}</router-link>
@@ -1077,6 +1086,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, type Directive } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores'
@@ -1112,6 +1122,15 @@ import fallbackHeaderLogoUrl from '@/assets/brand/semicore-login-logo.png'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { simulationBanner } = storeToRefs(authStore)
+const simulationBannerEnabled = computed(() => simulationBanner.value.enabled)
+const simulationCaption = computed(() => simulationBanner.value.caption)
+const simulationTopBarStyle = computed(() => {
+  if (!simulationBanner.value.enabled) return undefined
+  const bg = simulationBanner.value.backgroundColor
+  if (!bg) return undefined
+  return { background: bg, backgroundColor: bg }
+})
 const { isDark, toggleTheme } = useUiTheme()
 const { t, locale } = useI18n()
 const currentLocale = ref<AppLocale>(locale.value as AppLocale)
@@ -1312,7 +1331,8 @@ const isStockOutLeftAuxRoute = computed(() => {
     n === 'StockOutNotifyDetail' ||
     n === 'StockOutDetail' ||
     n === 'StockOutInvoiceReport' ||
-    n === 'StockOutPackingReport'
+    n === 'PackingInvoiceReport' ||
+    n === 'PackingReport'
   )
 })
 
@@ -1440,12 +1460,15 @@ const pageTitleMap: Record<string, string> = {
   '/system/login-logs': 'layout.menu.loginLog',
   '/system/operation-logs': 'layout.menu.operationLog',
   '/inventory/list': 'layout.menu.inventoryCenter',
+  '/inventory/warehouses': 'warehouseManage.title',
   '/inventory/stock-items': 'layout.menu.inventoryStockItems',
   '/inventory/stock-in': 'layout.menu.stockInManagement',
   '/inventory/stock-in/batch-records': 'stockInBatchList.title',
   '/inventory/stock-out': 'layout.menu.stockOutManagement',
   '/inventory/stock-out/items': 'layout.menu.stockOutItems',
   '/inventory/stock-out-notifies': 'layout.menu.stockOutNotifies',
+  '/inventory/packing': 'layout.menu.packingList',
+  '/inventory/packing/items': 'layout.menu.packingItemList',
   '/inventory/picking-list': 'layout.menu.pickingSlip',
   '/customs/brokers': 'customsPages.brokers.title',
   '/customs/declarations': 'customsPages.declarations.title',
@@ -1510,6 +1533,7 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '供应商详情': 'rfqItemList.actions.detail',
   '编辑供应商': 'vendorList.actions.edit',
   '库存列表': 'inventoryList.title',
+  '仓库管理': 'warehouseManage.title',
   '库存明细': 'layout.menu.inventoryStockItems',
   '汇总库存明细': 'inventoryStockDetail.title',
   '入库追溯': 'inventoryList.actions.trace',
@@ -1600,6 +1624,10 @@ const resolveRouteTitle = (path: string): string => {
   if (/^\/quotes\/[^/]+\/edit$/.test(path)) return t('layout.menu.quoteManagement')
   if (/^\/inventory\/stocks\/[^/]+$/.test(path)) return t('inventoryStockDetail.title')
   if (/^\/inventory\/picking-list\/.+$/.test(path)) return t('pickingSlip.detailTitle')
+  if (path === '/inventory/packing/create') return t('packingCreate.title')
+  if (/^\/inventory\/packing\/[^/]+\/packing-report\//.test(path)) return t('stockOutPackingReport.docTitle')
+  if (/^\/inventory\/packing\/[^/]+\/invoice-report$/.test(path)) return t('stockOutInvoiceReport.docTitle')
+  if (/^\/inventory\/packing\/(?!items|create)[^/]+$/.test(path)) return t('packingDetail.title')
   if (path.includes('/customers/') && path.includes('/edit')) return t('layout.menu.customerManagement')
   if (path.includes('/customers/')) return t('layout.menu.customers')
   if (path.includes('/vendors/') && path.includes('/edit')) return t('layout.menu.vendorManagement')
@@ -1742,6 +1770,8 @@ watch(
       p === '/inventory/stock-out' ||
       p.startsWith('/inventory/stock-out/') ||
       p === '/inventory/stock-out-notifies' ||
+      p === '/inventory/packing' ||
+      p.startsWith('/inventory/packing/') ||
       p === '/inventory/picking-list' ||
       p.startsWith('/inventory/picking-list/')
     ) {
@@ -2123,6 +2153,35 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid var(--crm-layout-topbar-border);
   box-shadow: var(--crm-layout-topbar-shadow);
   overflow: visible;
+}
+
+.global-top-bar--simulation {
+  .global-simulation-caption {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    padding: 0 16px;
+    max-width: min(52%, calc(100% - 520px));
+    text-align: center;
+    pointer-events: none;
+    z-index: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: #1a1a1a;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.75);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .global-top-inner {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+  }
 }
 
 .global-top-inner {
