@@ -2,6 +2,7 @@ using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customs;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Models.System;
 using CRM.Core.Services.InternalTransfer;
 using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
@@ -268,6 +269,15 @@ public class CustomsDeclarationService : ICustomsDeclarationService
             await _declarationItemRepo.DeleteAsync(item.Id);
         await _declarationRepo.DeleteAsync(row.Id);
         await _unitOfWork.SaveChangesAsync();
+
+        await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+        {
+            BizType = BusinessLogTypes.CustomsDeclaration,
+            RecordId = row.Id,
+            RecordCode = row.DeclarationCode,
+            EntityDisplayName = DeleteLogEntityNames.CustomsDeclaration,
+            ExtraDetail = $"明细行数={items.Count}"
+        });
     }
 
     /// <inheritdoc />
@@ -291,16 +301,19 @@ public class CustomsDeclarationService : ICustomsDeclarationService
         await _declarationRepo.DeleteAsync(row.Id);
         await _unitOfWork.SaveChangesAsync();
 
-        var recordCode = string.IsNullOrWhiteSpace(row.DeclarationCode) ? null : row.DeclarationCode.Trim();
-        await _logOperationAppend.AppendAsync(
-            BusinessLogTypes.CustomsDeclaration,
-            row.Id,
-            recordCode,
-            "报关单强制删除",
-            actingUserId.Trim(),
-            string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
-            $"强制删除报关单 DeclarationId={row.Id}，确认单号={recordCode}，明细行数={items.Count}",
-            reason: null);
+        await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+        {
+            BizType = BusinessLogTypes.CustomsDeclaration,
+            RecordId = row.Id,
+            RecordCode = row.DeclarationCode,
+            EntityDisplayName = DeleteLogEntityNames.CustomsDeclaration,
+            IsForceDelete = true,
+            ForceConfirmBillCode = confirmBillCode.Trim(),
+            OperatorUserId = actingUserId.Trim(),
+            OperatorUserName = actingUserName?.Trim(),
+            OperationDescOverride =
+                $"强制删除报关单 DeclarationId={row.Id}，确认单号={row.DeclarationCode}，明细行数={items.Count}"
+        });
     }
 
     private async Task SoftDeleteLinkedStockTransfersAsync(string customsDeclarationId)

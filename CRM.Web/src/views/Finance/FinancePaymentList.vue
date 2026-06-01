@@ -369,18 +369,15 @@ import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTim
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useAuthStore } from '@/stores/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
-/** 付款保存/完成/提交审核等接口均需 finance-payment.write；仅 read 时列表可见但操作会 403 */
-const canFinancePaymentWrite = computed(
-  () =>
-    authStore.hasPermission('finance-payment.write') &&
-    !authStore.isIdentityBlockedForPermission('finance-payment.write')
-)
+/** 付款保存/完成/提交审核等：RBAC write + 主部门财务非只读 */
+const { canWriteFinancePayment: canFinancePaymentWrite } = useFinanceWriteGate()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const { paymentStatusLabel, paymentStatusTag, paymentModeLabel } = useFinanceEnumLabels()
 

@@ -84,6 +84,7 @@ namespace CRM.Core.Tests.Services
                 _userService,
                 _salesOrderListQuery,
                 _salesOrderItemLineListQuery,
+                Substitute.For<ILogOperationAppendService>(),
                 _unitOfWork,
                 NullLogger<SalesOrderService>.Instance);
         }
@@ -301,8 +302,9 @@ namespace CRM.Core.Tests.Services
             // Act
             await _orderService.DeleteAsync(orderId);
 
-            // Assert
-            await _orderRepository.Received(1).DeleteAsync(orderId);
+            // Assert — 整单软删 + extend 标删（非物理 DeleteAsync）
+            await _orderRepository.Received(1).UpdateAsync(Arg.Is<SellOrder>(o => o.Id == orderId && o.IsDeleted));
+            await _unitOfWork.Received(1).ExecuteAsync(Arg.Is<string>(sql => sql.Contains("sellorderextend") && sql.Contains("is_deleted")));
         }
     }
 }

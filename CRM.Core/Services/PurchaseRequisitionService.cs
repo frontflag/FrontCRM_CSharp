@@ -3,6 +3,7 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.Quote;
+using CRM.Core.Models.System;
 using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
@@ -264,15 +265,17 @@ namespace CRM.Core.Services
             await _prRepo.UpdateAsync(pr);
             await _unitOfWork!.SaveChangesAsync();
 
-            await _logOperationAppend.AppendAsync(
-                BusinessLogTypes.PurchaseRequisition,
-                pr.Id,
-                pr.BillCode,
-                "采购申请普通删除",
-                uid,
-                actingUserName?.Trim(),
-                $"普通删除采购申请，单号 {pr.BillCode}",
-                reason: null,
+            await _logOperationAppend.AppendDeleteAsync(
+                new DeleteOperationLogEntry
+                {
+                    BizType = BusinessLogTypes.PurchaseRequisition,
+                    RecordId = pr.Id,
+                    RecordCode = pr.BillCode,
+                    ActionTypeOverride = OperationLogActionTypes.PurchaseRequisitionSoftDelete,
+                    OperatorUserId = uid,
+                    OperatorUserName = actingUserName?.Trim(),
+                    OperationDescOverride = $"普通删除采购申请，单号 {pr.BillCode}"
+                },
                 cancellationToken);
 
             await _sellOrderItemExtendSync.RecalculateAsync(pr.SellOrderItemId, cancellationToken);
@@ -308,15 +311,20 @@ namespace CRM.Core.Services
             await _prRepo.UpdateAsync(pr);
             await _unitOfWork!.SaveChangesAsync();
 
-            await _logOperationAppend.AppendAsync(
-                BusinessLogTypes.PurchaseRequisition,
-                pr.Id,
-                pr.BillCode,
-                "采购申请强制删除",
-                uid,
-                actingUserName?.Trim(),
-                $"强制删除采购申请，单号 {pr.BillCode}，状态={pr.Status}",
-                reason: null,
+            await _logOperationAppend.AppendDeleteAsync(
+                new DeleteOperationLogEntry
+                {
+                    BizType = BusinessLogTypes.PurchaseRequisition,
+                    RecordId = pr.Id,
+                    RecordCode = pr.BillCode,
+                    EntityDisplayName = DeleteLogEntityNames.PurchaseRequisition,
+                    IsForceDelete = true,
+                    ActionTypeOverride = OperationLogActionTypes.PurchaseRequisitionForceDelete,
+                    OperatorUserId = uid,
+                    OperatorUserName = actingUserName?.Trim(),
+                    ForceConfirmBillCode = confirmBillCode.Trim(),
+                    OperationDescOverride = $"强制删除采购申请，单号 {pr.BillCode}，状态={pr.Status}"
+                },
                 cancellationToken);
 
             await _sellOrderItemExtendSync.RecalculateAsync(pr.SellOrderItemId, cancellationToken);
@@ -1061,6 +1069,18 @@ namespace CRM.Core.Services
 
             await _prRepo.DeleteAsync(id);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            if (_logOperationAppend != null)
+            {
+                await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+                {
+                    BizType = BusinessLogTypes.PurchaseRequisition,
+                    RecordId = pr.Id,
+                    RecordCode = pr.BillCode,
+                    EntityDisplayName = DeleteLogEntityNames.PurchaseRequisition,
+                    OperationDescOverride = $"物理删除采购申请，单号 {pr.BillCode}"
+                });
+            }
         }
 
         public async Task<IReadOnlyList<PurchaseRequisitionListItemDto>> AutoGenerateForSellOrderAsync(string sellOrderId)

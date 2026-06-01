@@ -407,6 +407,7 @@ const exchangeRates = ref({ ...DEFAULT_EXCHANGE_RATES })
 
 function emptyPriceRow() {
   return {
+    id: undefined as string | undefined,
     quantity: 0,
     unitPrice: 0,
     /** 与 SETTLEMENT_CURRENCY_OPTIONS / CurrencyCode 一致 */
@@ -732,6 +733,7 @@ function applyQuoteToForm(q: Record<string, unknown>) {
   let rows: ReturnType<typeof emptyPriceRow>[] = []
   if (Array.isArray(prRows) && prRows.length > 0) {
     rows = prRows.map((r: Record<string, unknown>) => ({
+      id: String(r.id ?? r.Id ?? '').trim() || undefined,
       quantity: Number(r.quantity) || 0,
       unitPrice: r.unitPrice != null && r.unitPrice !== '' ? Number(r.unitPrice) : 0,
       currency: normalizeQuoteCurrency(r.currency),
@@ -742,6 +744,7 @@ function applyQuoteToForm(q: Record<string, unknown>) {
     const items = q.items as unknown
     if (Array.isArray(items) && items.length > 0) {
       rows = items.map((it: Record<string, unknown>) => ({
+        id: String(it.id ?? it.Id ?? '').trim() || undefined,
         quantity: Number(it.quantity) || 0,
         unitPrice: it.unitPrice != null && it.unitPrice !== '' ? Number(it.unitPrice) : 0,
         currency: normalizeQuoteCurrency(it.currency),

@@ -69,13 +69,13 @@
             </div>
             <div class="title-tags-row">
               <TagListDisplay :tags="customerTags" />
-              <button class="btn-add-tag" @click="showTagDialog = true">添加标签</button>
+              <button v-if="canWriteSaleData" class="btn-add-tag" @click="showTagDialog = true">添加标签</button>
             </div>
           </div>
         </div>
       </div>
       <div class="header-right">
-        <button class="btn-primary" @click="handleEdit">
+        <button v-if="canWriteSaleData" class="btn-primary" @click="handleEdit">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -83,7 +83,7 @@
           编辑
         </button>
         <el-dropdown
-          v-if="customer"
+          v-if="customer && canWriteSaleData"
           trigger="click"
           placement="bottom-end"
           popper-class="customer-detail-header-more-popper"
@@ -102,7 +102,7 @@
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <button v-if="canCreateRfqFromCustomer" class="btn-success" type="button" @click="handleCreateRfq">
+        <button v-if="canWriteSaleData && canCreateRfqFromCustomer" class="btn-success" type="button" @click="handleCreateRfq">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
@@ -226,7 +226,7 @@
             <!-- 联系人 -->
             <div v-show="activeTab === 'contacts'">
               <div class="tab-toolbar">
-                <button class="btn-add-item" @click="goAddContact">
+                <button v-if="canWriteSaleData" class="btn-add-item" @click="goAddContact">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                   </svg>
@@ -284,8 +284,8 @@
                   <template #default="{ row }">
                     <div @click.stop @dblclick.stop>
                       <div v-if="customerDetailSubOpColExpanded" class="action-btns">
-                        <button type="button" class="action-btn action-btn--primary" @click.stop="goEditContact(row)">编辑</button>
-                        <button type="button" class="action-btn action-btn--danger" @click.stop="deleteContact(row)">删除</button>
+                        <button v-if="canWriteSaleData" type="button" class="action-btn action-btn--primary" @click.stop="goEditContact(row)">编辑</button>
+                        <button v-if="canWriteSaleData" type="button" class="action-btn action-btn--danger" @click.stop="deleteContact(row)">删除</button>
                       </div>
                       <el-dropdown v-else trigger="click" placement="bottom-end">
                         <div class="op-more-dropdown-trigger">
@@ -293,10 +293,10 @@
                         </div>
                         <template #dropdown>
                           <el-dropdown-menu>
-                            <el-dropdown-item @click.stop="goEditContact(row)">
+                            <el-dropdown-item v-if="canWriteSaleData" @click.stop="goEditContact(row)">
                               <span class="op-more-item op-more-item--primary">编辑</span>
                             </el-dropdown-item>
-                            <el-dropdown-item divided @click.stop="deleteContact(row)">
+                            <el-dropdown-item v-if="canWriteSaleData" divided @click.stop="deleteContact(row)">
                               <span class="op-more-item op-more-item--danger">删除</span>
                             </el-dropdown-item>
                           </el-dropdown-menu>
@@ -311,7 +311,7 @@
             <!-- 地址信息 -->
             <div v-show="activeTab === 'addresses'">
               <div class="tab-toolbar">
-                <button class="btn-add-item" @click="showAddressDialog = true">
+                <button v-if="canWriteSaleData" class="btn-add-item" @click="showAddressDialog = true">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                   </svg>
@@ -363,8 +363,8 @@
                   <template #default="{ row }">
                     <div @click.stop @dblclick.stop>
                       <div v-if="customerDetailSubOpColExpanded" class="action-btns">
-                        <button type="button" class="action-btn action-btn--primary" @click.stop="editAddress(row)">编辑</button>
-                        <button type="button" class="action-btn action-btn--danger" @click.stop="deleteAddress(row)">删除</button>
+                        <button v-if="canWriteSaleData" type="button" class="action-btn action-btn--primary" @click.stop="editAddress(row)">编辑</button>
+                        <button v-if="canWriteSaleData" type="button" class="action-btn action-btn--danger" @click.stop="deleteAddress(row)">删除</button>
                       </div>
                       <el-dropdown v-else trigger="click" placement="bottom-end">
                         <div class="op-more-dropdown-trigger">
@@ -372,10 +372,10 @@
                         </div>
                         <template #dropdown>
                           <el-dropdown-menu>
-                            <el-dropdown-item @click.stop="editAddress(row)">
+                            <el-dropdown-item v-if="canWriteSaleData" @click.stop="editAddress(row)">
                               <span class="op-more-item op-more-item--primary">编辑</span>
                             </el-dropdown-item>
-                            <el-dropdown-item divided @click.stop="deleteAddress(row)">
+                            <el-dropdown-item v-if="canWriteSaleData" divided @click.stop="deleteAddress(row)">
                               <span class="op-more-item op-more-item--danger">删除</span>
                             </el-dropdown-item>
                           </el-dropdown-menu>
@@ -390,7 +390,7 @@
             <!-- 银行信息 -->
             <div v-show="activeTab === 'banks'">
               <div class="tab-toolbar">
-                <button class="btn-add-item" @click="showBankDialog = true">
+                <button v-if="canWriteSaleData" class="btn-add-item" @click="showBankDialog = true">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                   </svg>
@@ -443,8 +443,8 @@
                   <template #default="{ row }">
                     <div @click.stop @dblclick.stop>
                       <div v-if="customerDetailSubOpColExpanded" class="action-btns">
-                        <button type="button" class="action-btn action-btn--primary" @click.stop="editBank(row)">编辑</button>
-                        <button type="button" class="action-btn action-btn--danger" @click.stop="deleteBank(row)">删除</button>
+                        <button v-if="canWriteSaleData" type="button" class="action-btn action-btn--primary" @click.stop="editBank(row)">编辑</button>
+                        <button v-if="canWriteSaleData" type="button" class="action-btn action-btn--danger" @click.stop="deleteBank(row)">删除</button>
                       </div>
                       <el-dropdown v-else trigger="click" placement="bottom-end">
                         <div class="op-more-dropdown-trigger">
@@ -452,10 +452,10 @@
                         </div>
                         <template #dropdown>
                           <el-dropdown-menu>
-                            <el-dropdown-item @click.stop="editBank(row)">
+                            <el-dropdown-item v-if="canWriteSaleData" @click.stop="editBank(row)">
                               <span class="op-more-item op-more-item--primary">编辑</span>
                             </el-dropdown-item>
-                            <el-dropdown-item divided @click.stop="deleteBank(row)">
+                            <el-dropdown-item v-if="canWriteSaleData" divided @click.stop="deleteBank(row)">
                               <span class="op-more-item op-more-item--danger">删除</span>
                             </el-dropdown-item>
                           </el-dropdown-menu>
@@ -485,7 +485,7 @@
             <!-- 联系历史 -->
             <div v-show="activeTab === 'contactHistory'">
               <div class="tab-toolbar">
-                <button class="btn-add-item" @click="showContactHistoryForm = true">
+                <button v-if="canWriteSaleData" class="btn-add-item" @click="showContactHistoryForm = true">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                   </svg>
@@ -503,7 +503,7 @@
                 </el-select>
                 <el-input v-model="newHistory.content" placeholder="联系内容" size="small" style="flex:1" />
                 <el-input v-model="newHistory.followUpResult" placeholder="跟进结果" size="small" style="width:200px" />
-                <button class="btn-add-item" @click="submitContactHistory">保存</button>
+                <button v-if="canWriteSaleData" class="btn-add-item" @click="submitContactHistory">保存</button>
                 <button class="action-btn" @click="showContactHistoryForm = false">取消</button>
               </div>
               <div v-if="contactHistories.length === 0 && !showContactHistoryForm" class="empty-state">
@@ -516,7 +516,7 @@
                   <div style="display:flex;justify-content:space-between;align-items:center">
                     <span class="timeline-text"><strong>{{ h.contactType || h.type }}</strong> · {{ h.content }}</span>
                     <div>
-                      <button class="action-btn action-btn--danger" style="margin-right:4px" @click="deleteHistory(h)">删除</button>
+                      <button v-if="canWriteSaleData" class="action-btn action-btn--danger" style="margin-right:4px" @click="deleteHistory(h)">删除</button>
                     </div>
                   </div>
                   <span v-if="h.followUpResult" class="timeline-time">跟进结果：{{ h.followUpResult }}</span>
@@ -717,6 +717,7 @@ import { CUSTOMER_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/customerRecen
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency';
 import { isDistrictPlaceholder } from '@/constants/region';
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask';
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly';
 import { formatTotalAmountNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat';
 
 const route = useRoute();
@@ -724,6 +725,7 @@ const router = useRouter();
 const { t } = useI18n();
 const authStore = useAuthStore();
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask();
+const { canWriteSaleData } = useDepartmentDataReadOnly();
 const canCreateRfqFromCustomer = computed(() => authStore.hasPermission('rfq.create'));
 const customerDict = useCustomerDictStore();
 const customerId = route.params.id as string;

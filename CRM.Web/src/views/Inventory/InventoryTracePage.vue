@@ -17,8 +17,31 @@
       </el-table-column>
       <el-table-column prop="stockInCode" :label="t('inventoryTrace.columns.stockInCode')" width="160" />
       <el-table-column prop="quantity" :label="t('inventoryTrace.columns.quantity')" width="100" align="right" />
-      <el-table-column prop="unitPrice" :label="t('inventoryTrace.columns.unitPrice')" width="110" align="right">
-        <template #default="{ row }">{{ formatUnitPriceNumber(row.unitPrice) }}</template>
+      <el-table-column
+        prop="unitPrice"
+        :label="t('inventoryTrace.columns.unitPrice')"
+        min-width="140"
+        align="center"
+        class-name="trace-unit-price-col"
+        label-class-name="trace-unit-price-col"
+      >
+        <template #default="{ row }">
+          <template v-if="unitPriceDockHasValue(row.unitPrice)">
+            <div class="dock-tier-price-line trace-unit-price-line">
+              <template v-for="amt in [splitUnitPriceDockParts(row.unitPrice)]" :key="'up-' + row.stockInCode">
+                <span class="dock-tier-amt">
+                  <span class="dock-tier-amt-int">{{ amt.intPart }}</span
+                  ><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+                </span>
+              </template>
+              <span class="dock-tier-ccy-gap">&nbsp;</span>
+              <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{
+                listAmountCurrencyIso(row.currency)
+              }}</span>
+            </div>
+          </template>
+          <span v-else>—</span>
+        </template>
       </el-table-column>
       <el-table-column prop="purchaseOrderCode" :label="t('inventoryTrace.columns.purchaseOrderCode')" width="150" />
       <el-table-column prop="purchaseUserName" :label="t('inventoryTrace.columns.purchaser')" width="130" />
@@ -42,7 +65,12 @@ import { ElMessage } from 'element-plus'
 import { inventoryCenterApi, type MaterialTrace } from '@/api/inventoryCenter'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
-import { formatUnitPriceNumber } from '@/utils/moneyFormat'
+import {
+  listAmountCurrencyDockClass,
+  listAmountCurrencyIso,
+  splitUnitPriceDockParts,
+  unitPriceDockHasValue
+} from '@/utils/moneyFormat'
 
 const route = useRoute()
 const router = useRouter()
@@ -147,5 +175,13 @@ onMounted(() => loadTrace())
   background: rgba(255, 255, 255, 0.05);
   border-color: $border-panel;
   color: $text-secondary;
+}
+
+:deep(.trace-unit-price-col .cell) {
+  text-align: center;
+}
+
+.trace-unit-price-line {
+  justify-content: center;
 }
 </style>

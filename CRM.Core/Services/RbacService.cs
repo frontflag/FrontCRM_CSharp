@@ -58,7 +58,15 @@ namespace CRM.Core.Services
 
             short identityType = 0;
             short saleScope = 1;
+            short saleAccess = 0;
             short purchaseScope = 1;
+            short purchaseAccess = 0;
+            short logisticsScope = 0;
+            short logisticsAccess = 0;
+            short financeScope = 0;
+            short financeAccess = 0;
+            var hideCustomerManagement = false;
+            var hideVendorManagement = false;
             if (!string.IsNullOrWhiteSpace(primaryDepartmentId))
             {
                 var department = await _departmentRepo.GetByIdAsync(primaryDepartmentId);
@@ -66,7 +74,15 @@ namespace CRM.Core.Services
                 {
                     identityType = department.IdentityType;
                     saleScope = department.SaleDataScope;
+                    saleAccess = department.SaleDataAccess;
+                    hideCustomerManagement = department.HideCustomerManagement;
                     purchaseScope = department.PurchaseDataScope;
+                    purchaseAccess = department.PurchaseDataAccess;
+                    hideVendorManagement = department.HideVendorManagement;
+                    logisticsScope = department.LogisticsDataScope;
+                    logisticsAccess = department.LogisticsDataAccess;
+                    financeScope = department.FinanceDataScope;
+                    financeAccess = department.FinanceDataAccess;
                     // IdentityType 未维护为 5 时按部门名称兜底（与 DataPermissionService 财务单据全员可见一致）
                     if (identityType == 0)
                     {
@@ -180,6 +196,19 @@ namespace CRM.Core.Services
                 AddPermissionCodeIfMissing(permissionCodes, "rfq.create");
             }
 
+            // 商务部（IdentityType=4）：与销售员对称，需新建需求/销售订单/申请出库通知（依赖 sales-order.write）。
+            // 仍保持上方对供应商/PO/草稿只读/进项发票的剥离。
+            if (identityType == 4)
+            {
+                AddPermissionCodeIfMissing(permissionCodes, "customer.read");
+                AddPermissionCodeIfMissing(permissionCodes, "customer.write");
+                AddPermissionCodeIfMissing(permissionCodes, "sales-order.read");
+                AddPermissionCodeIfMissing(permissionCodes, "sales-order.write");
+                AddPermissionCodeIfMissing(permissionCodes, "rfq.read");
+                AddPermissionCodeIfMissing(permissionCodes, "rfq.write");
+                AddPermissionCodeIfMissing(permissionCodes, "rfq.create");
+            }
+
             // 主部门为财务（5，含 IdentityType=0 时按部门名称推断为财务）：DEPT_EMPLOYEE 种子常仅有 finance-*.read，
             // 无 write 时前端会隐藏「付款」且保存/付款完成 API 403；与采购/销售主部门合并写权限策略对称。
             if (identityType == 5)
@@ -207,6 +236,48 @@ namespace CRM.Core.Services
                 }
             }
 
+            // 主部门「销售数据只读」：保留可见范围（SaleDataScope），剥离销售侧写权限（如财务看全量 SO 不可改删）。
+            if (saleAccess == 1)
+            {
+                RemovePermissionCodes(permissionCodes,
+                    "sales-order.write",
+                    "customer.write",
+                    "rfq.write",
+                    "rfq.create",
+                    "purchase-requisition.write");
+            }
+
+            // 主部门「采购数据只读」：保留可见范围，剥离采购侧写权限。
+            if (purchaseAccess == 1)
+            {
+                RemovePermissionCodes(permissionCodes,
+                    "purchase-order.write",
+                    "vendor.write",
+                    "purchase-requisition.write");
+            }
+
+            // 主部门「财务数据只读」：保留可见范围，剥离付款/收款侧写权限。
+            if (financeAccess == 1)
+            {
+                RemovePermissionCodes(permissionCodes,
+                    "finance-payment.write",
+                    "finance-receipt.write",
+                    "finance-sell-invoice.write",
+                    "finance-purchase-invoice.write");
+            }
+
+            // 主部门「隐藏客户管理」：与 SaleDataScope 无关，剥离客户模块读写权限。
+            if (hideCustomerManagement)
+            {
+                RemovePermissionCodes(permissionCodes, "customer.read", "customer.write");
+            }
+
+            // 主部门「隐藏供应商管理」：与 PurchaseDataScope 无关，剥离供应商模块读写权限。
+            if (hideVendorManagement)
+            {
+                RemovePermissionCodes(permissionCodes, "vendor.read", "vendor.write");
+            }
+
             return new UserPermissionSummaryDto
             {
                 UserId = userId,
@@ -217,7 +288,15 @@ namespace CRM.Core.Services
                 PrimaryDepartmentId = primaryDepartmentId,
                 IdentityType = identityType,
                 SaleDataScope = saleScope,
+                SaleDataAccess = saleAccess,
+                HideCustomerManagement = hideCustomerManagement,
                 PurchaseDataScope = purchaseScope,
+                PurchaseDataAccess = purchaseAccess,
+                HideVendorManagement = hideVendorManagement,
+                LogisticsDataScope = logisticsScope,
+                LogisticsDataAccess = logisticsAccess,
+                FinanceDataScope = financeScope,
+                FinanceDataAccess = financeAccess,
                 BelongsToPurchaseDept = belongsToPurchaseDept
             };
         }
@@ -298,7 +377,15 @@ namespace CRM.Core.Services
             string departmentName,
             string? parentId,
             short saleDataScope,
+            short saleDataAccess,
+            bool hideCustomerManagement,
             short purchaseDataScope,
+            short purchaseDataAccess,
+            bool hideVendorManagement,
+            short logisticsDataScope,
+            short logisticsDataAccess,
+            short financeDataScope,
+            short financeDataAccess,
             short identityType,
             short status)
         {
@@ -306,8 +393,10 @@ namespace CRM.Core.Services
             if (name.Length == 0)
                 throw new ArgumentException("部门名称不能为空", nameof(departmentName));
 
-            if (saleDataScope is < 0 or > 4 || purchaseDataScope is < 0 or > 4)
+            if (saleDataScope is < 0 or > 4 || purchaseDataScope is < 0 or > 4 || logisticsDataScope is < 0 or > 4 || financeDataScope is < 0 or > 4)
                 throw new ArgumentOutOfRangeException(nameof(saleDataScope), "数据范围仅支持 0–4");
+            if (saleDataAccess is not (0 or 1) || purchaseDataAccess is not (0 or 1) || logisticsDataAccess is not (0 or 1) || financeDataAccess is not (0 or 1))
+                throw new ArgumentOutOfRangeException(nameof(saleDataAccess), "数据访问仅支持 0=读写、1=只读");
             if (identityType is < 0 or > 6)
                 throw new ArgumentOutOfRangeException(nameof(identityType), "业务身份仅支持 0–6");
 
@@ -327,7 +416,15 @@ namespace CRM.Core.Services
                 DepartmentName = name,
                 ParentId = pid,
                 SaleDataScope = saleDataScope,
+                SaleDataAccess = saleDataAccess,
+                HideCustomerManagement = hideCustomerManagement,
                 PurchaseDataScope = purchaseDataScope,
+                PurchaseDataAccess = purchaseDataAccess,
+                HideVendorManagement = hideVendorManagement,
+                LogisticsDataScope = logisticsDataScope,
+                LogisticsDataAccess = logisticsDataAccess,
+                FinanceDataScope = financeDataScope,
+                FinanceDataAccess = financeDataAccess,
                 IdentityType = identityType,
                 Status = status
             };
@@ -342,7 +439,15 @@ namespace CRM.Core.Services
             string departmentName,
             string? parentId,
             short saleDataScope,
+            short saleDataAccess,
+            bool hideCustomerManagement,
             short purchaseDataScope,
+            short purchaseDataAccess,
+            bool hideVendorManagement,
+            short logisticsDataScope,
+            short logisticsDataAccess,
+            short financeDataScope,
+            short financeDataAccess,
             short identityType,
             short status)
         {
@@ -353,8 +458,10 @@ namespace CRM.Core.Services
             if (name.Length == 0)
                 throw new ArgumentException("部门名称不能为空", nameof(departmentName));
 
-            if (saleDataScope is < 0 or > 4 || purchaseDataScope is < 0 or > 4)
+            if (saleDataScope is < 0 or > 4 || purchaseDataScope is < 0 or > 4 || logisticsDataScope is < 0 or > 4 || financeDataScope is < 0 or > 4)
                 throw new ArgumentOutOfRangeException(nameof(saleDataScope), "数据范围仅支持 0–4");
+            if (saleDataAccess is not (0 or 1) || purchaseDataAccess is not (0 or 1) || logisticsDataAccess is not (0 or 1) || financeDataAccess is not (0 or 1))
+                throw new ArgumentOutOfRangeException(nameof(saleDataAccess), "数据访问仅支持 0=读写、1=只读");
             if (identityType is < 0 or > 6)
                 throw new ArgumentOutOfRangeException(nameof(identityType), "业务身份仅支持 0–6");
 
@@ -375,7 +482,15 @@ namespace CRM.Core.Services
             dept.DepartmentName = name;
             dept.ParentId = newPid;
             dept.SaleDataScope = saleDataScope;
+            dept.SaleDataAccess = saleDataAccess;
+            dept.HideCustomerManagement = hideCustomerManagement;
             dept.PurchaseDataScope = purchaseDataScope;
+            dept.PurchaseDataAccess = purchaseDataAccess;
+            dept.HideVendorManagement = hideVendorManagement;
+            dept.LogisticsDataScope = logisticsDataScope;
+            dept.LogisticsDataAccess = logisticsDataAccess;
+            dept.FinanceDataScope = financeDataScope;
+            dept.FinanceDataAccess = financeDataAccess;
             dept.IdentityType = identityType;
             dept.Status = status;
             dept.ModifyTime = DateTime.UtcNow;

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Purchase
 {
@@ -8,7 +9,7 @@ namespace CRM.Core.Models.Purchase
     /// 记录执行过程中的利润相关汇总（票/款）与进度：采购、入库、付款、进项开票（各维度含状态 + 数量或金额口径）。
     /// </summary>
     [Table("purchaseorderitemextend")]
-    public class PurchaseOrderItemExtend : BaseGuidEntity
+    public class PurchaseOrderItemExtend : BaseGuidEntity, ISoftDeletable
     {
         [Key]
         [StringLength(36)]
@@ -81,6 +82,9 @@ namespace CRM.Core.Models.Purchase
 
         /// <summary>进项开票进度：0=待开票 1=部分开票 2=开票完成（已开票金额相对应付票额）</summary>
         public short InvoiceProgressStatus { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 }
 

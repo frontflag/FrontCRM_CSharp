@@ -880,7 +880,7 @@ namespace CRM.API.Controllers
 
         public class AddVendorBankDto
         {
-            public string? BankName { get; set; }
+            public string? FinancePaymentBankId { get; set; }
             public string? BankAccount { get; set; }
             public string? AccountName { get; set; }
             public string? BankBranch { get; set; }
@@ -916,7 +916,7 @@ namespace CRM.API.Controllers
                     return BadRequest(ApiResponse<VendorBankInfo>.Fail("请求体不能为空", 400));
                 var bank = await _vendorService.AddBankAsync(vendorId, new AddVendorBankRequest
                 {
-                    BankName = request.BankName,
+                    FinancePaymentBankId = request.FinancePaymentBankId,
                     BankAccount = request.BankAccount,
                     AccountName = request.AccountName,
                     BankBranch = request.BankBranch,

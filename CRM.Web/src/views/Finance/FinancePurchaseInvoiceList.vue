@@ -54,7 +54,7 @@
         <el-button type="primary" @click="loadData"><el-icon><Search /></el-icon> {{ t('financePurchaseInvoiceList.filters.search') }}</el-button>
       </div>
       <div class="search-right">
-        <el-button type="primary" @click="openCreate">
+        <el-button v-if="canWriteFinancePurchaseInvoice" type="primary" @click="openCreate">
           <el-icon><Plus /></el-icon> {{ t('financePurchaseInvoiceList.create') }}
         </el-button>
       </div>
@@ -123,7 +123,7 @@
               text
               type="primary"
               @click.stop="openEdit(row)"
-              v-if="row.invoiceStatus === 1"
+              v-if="canWriteFinancePurchaseInvoice && row.invoiceStatus === 1"
             >
               {{ t('financePurchaseInvoiceList.actions.edit') }}
             </el-button>
@@ -132,11 +132,11 @@
               text
               type="danger"
               @click.stop="voidInvoice(row)"
-              v-if="row.invoiceStatus === 100"
+              v-if="canWriteFinancePurchaseInvoice && row.invoiceStatus === 100"
             >
               {{ t('financePurchaseInvoiceList.actions.void') }}
             </el-button>
-            <el-button size="small" text type="danger" @click.stop="handleDeleteRow(row)">删除</el-button>
+            <el-button v-if="canWriteFinancePurchaseInvoice" size="small" text type="danger" @click.stop="handleDeleteRow(row)">删除</el-button>
             <el-button v-if="isSysAdmin" size="small" text type="danger" @click.stop="handleForceDeleteRow(row)">强制删除</el-button>
           </div>
 
@@ -149,13 +149,13 @@
                 <el-dropdown-item @click.stop="openDetail(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('financePurchaseInvoiceList.actions.detail') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="row.invoiceStatus === 1" @click.stop="openEdit(row)">
+                <el-dropdown-item v-if="canWriteFinancePurchaseInvoice && row.invoiceStatus === 1" @click.stop="openEdit(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('financePurchaseInvoiceList.actions.edit') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="row.invoiceStatus === 100" @click.stop="voidInvoice(row)">
+                <el-dropdown-item v-if="canWriteFinancePurchaseInvoice && row.invoiceStatus === 100" @click.stop="voidInvoice(row)">
                   <span class="op-more-item op-more-item--danger">{{ t('financePurchaseInvoiceList.actions.void') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item divided @click.stop="handleDeleteRow(row)">
+                <el-dropdown-item v-if="canWriteFinancePurchaseInvoice" divided @click.stop="handleDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
@@ -270,7 +270,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="saveForm" :loading="saving">{{ t('financePurchaseInvoiceList.btnSave') }}</el-button>
+        <el-button v-if="canWriteFinancePurchaseInvoice" type="primary" @click="saveForm" :loading="saving">{{ t('financePurchaseInvoiceList.btnSave') }}</el-button>
       </template>
     </el-dialog>
 
@@ -301,11 +301,13 @@ import { vendorApi } from '@/api/vendor'
 import type { Vendor } from '@/types/vendor'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useAuthStore } from '@/stores/auth'
+import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { canWriteFinancePurchaseInvoice } = useFinanceWriteGate()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const {
   invoiceStatusLabel,

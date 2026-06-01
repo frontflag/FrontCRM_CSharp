@@ -1923,7 +1923,9 @@ ON CONFLICT ("RoleId", "PermissionId") DO NOTHING;
 
 INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
 SELECT gen_random_uuid()::text, 'r0000000-0000-4000-8000-000000000009', p."PermissionId", TIMESTAMPTZ '2026-01-01T00:00:00Z'
-FROM sys_permission p WHERE p."PermissionCode" IN ('customer.read','rfq.read','draft.write')
+FROM sys_permission p WHERE p."PermissionCode" IN (
+    'customer.read','customer.write','rfq.read','rfq.write','rfq.create',
+    'sales-order.read','sales-order.write','draft.write')
 ON CONFLICT ("RoleId", "PermissionId") DO NOTHING;
 
 INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
@@ -2217,4 +2219,20 @@ BEGIN
     ALTER TABLE public.stockout_notify RENAME COLUMN "RequestCode" TO "Code";
   END IF;
 END $$;
+
+-- 20260728120000 销售/采购明细软删除操作人（删除日志）
+ALTER TABLE IF EXISTS public.sellorderitem
+  ADD COLUMN IF NOT EXISTS deleted_by_user_id character varying(36) NULL,
+  ADD COLUMN IF NOT EXISTS deleted_by_user_name character varying(100) NULL;
+ALTER TABLE IF EXISTS public.purchaseorderitem
+  ADD COLUMN IF NOT EXISTS deleted_by_user_id character varying(36) NULL,
+  ADD COLUMN IF NOT EXISTS deleted_by_user_name character varying(100) NULL;
+
+-- 20260728120000 销售/采购明细软删除操作人（删除日志）
+ALTER TABLE IF EXISTS public.sellorderitem
+  ADD COLUMN IF NOT EXISTS deleted_by_user_id character varying(36) NULL,
+  ADD COLUMN IF NOT EXISTS deleted_by_user_name character varying(100) NULL;
+ALTER TABLE IF EXISTS public.purchaseorderitem
+  ADD COLUMN IF NOT EXISTS deleted_by_user_id character varying(36) NULL,
+  ADD COLUMN IF NOT EXISTS deleted_by_user_name character varying(100) NULL;
 

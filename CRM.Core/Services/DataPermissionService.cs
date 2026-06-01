@@ -260,6 +260,11 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(userId))
                 return payments;
 
+            var (financeHandled, financeScoped) = await ApplyFinanceDepartmentScopeIfNeededAsync(
+                userId, payments, p => p.CreateByUserId, cancellationToken);
+            if (financeHandled)
+                return financeScoped;
+
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
             if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
                 return payments;
@@ -292,6 +297,11 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(userId))
                 return invoices;
 
+            var (financeHandled, financeScoped) = await ApplyFinanceDepartmentScopeIfNeededAsync(
+                userId, invoices, inv => inv.CreateByUserId, cancellationToken);
+            if (financeHandled)
+                return financeScoped;
+
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
             if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
                 return invoices;
@@ -323,6 +333,11 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(userId))
                 return receipts;
 
+            var (financeHandled, financeScoped) = await ApplyFinanceDepartmentScopeIfNeededAsync(
+                userId, receipts, r => r.CreateByUserId, cancellationToken);
+            if (financeHandled)
+                return financeScoped;
+
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
             if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
                 return receipts;
@@ -347,6 +362,11 @@ namespace CRM.Core.Services
             _ = cancellationToken;
             if (string.IsNullOrWhiteSpace(userId))
                 return invoices;
+
+            var (financeHandled, financeScoped) = await ApplyFinanceDepartmentScopeIfNeededAsync(
+                userId, invoices, inv => inv.CreateByUserId, cancellationToken);
+            if (financeHandled)
+                return financeScoped;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
             if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
@@ -465,6 +485,11 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<FinanceReceipt>> FilterFinanceReceiptsAsync(string userId, IEnumerable<FinanceReceipt> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (!summary.IsSysAdmin && summary.FinanceDataScope == 4)
+                return Array.Empty<FinanceReceipt>();
+            if (!summary.IsSysAdmin && summary.FinanceDataScope is >= 1 and <= 3)
+                return await FilterByFinanceCreatorAsync(userId, source, r => r.CreateByUserId, summary);
+
             // 财务部（IdentityType=5）：不按客户业务员做销售数据范围过滤，同部门财务可互相查看收款单
             if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
                 return source.ToList();
@@ -481,6 +506,11 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<FinancePayment>> FilterFinancePaymentsAsync(string userId, IEnumerable<FinancePayment> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (!summary.IsSysAdmin && summary.FinanceDataScope == 4)
+                return Array.Empty<FinancePayment>();
+            if (!summary.IsSysAdmin && summary.FinanceDataScope is >= 1 and <= 3)
+                return await FilterByFinanceCreatorAsync(userId, source, p => p.CreateByUserId, summary);
+
             // 财务部：不按供应商采购员做采购数据范围过滤，同部门财务可互相查看付款单
             if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
                 return source.ToList();
@@ -507,6 +537,11 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<FinanceSellInvoice>> FilterFinanceSellInvoicesAsync(string userId, IEnumerable<FinanceSellInvoice> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (!summary.IsSysAdmin && summary.FinanceDataScope == 4)
+                return Array.Empty<FinanceSellInvoice>();
+            if (!summary.IsSysAdmin && summary.FinanceDataScope is >= 1 and <= 3)
+                return await FilterByFinanceCreatorAsync(userId, source, inv => inv.CreateByUserId, summary);
+
             if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
                 return source.ToList();
             if (summary.SaleDataScope == 4) return Array.Empty<FinanceSellInvoice>();
@@ -532,6 +567,11 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<FinancePurchaseInvoice>> FilterFinancePurchaseInvoicesAsync(string userId, IEnumerable<FinancePurchaseInvoice> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (!summary.IsSysAdmin && summary.FinanceDataScope == 4)
+                return Array.Empty<FinancePurchaseInvoice>();
+            if (!summary.IsSysAdmin && summary.FinanceDataScope is >= 1 and <= 3)
+                return await FilterByFinanceCreatorAsync(userId, source, inv => inv.CreateByUserId, summary);
+
             if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
                 return source.ToList();
             if (summary.PurchaseDataScope == 4) return Array.Empty<FinancePurchaseInvoice>();
@@ -552,6 +592,121 @@ namespace CRM.Core.Services
                     !string.IsNullOrWhiteSpace(ownerId) &&
                     allowUserIds.Contains(ownerId!))
                 .ToList();
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<T>> ApplyLogisticsCreatorUserScopeAsync<T>(
+            string? userId,
+            IQueryable<T> query,
+            System.Linq.Expressions.Expression<Func<T, string?>> createByUserIdSelector,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (string.IsNullOrWhiteSpace(userId))
+                return query;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || summary.LogisticsDataScope == 0)
+                return query;
+            if (summary.LogisticsDataScope == 4)
+                return query.Where(_ => false);
+
+            var uid = userId.Trim();
+            if (summary.LogisticsDataScope == 1)
+                return query.Where(BuildOwnerInListPredicate(createByUserIdSelector, new List<string> { uid }));
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.LogisticsDataScope == 3);
+            var ids = allowUserIds.ToList();
+            if (ids.Count == 0)
+                return query.Where(_ => false);
+            return query.Where(BuildOwnerInListPredicate(createByUserIdSelector, ids));
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<T>> ApplyFinanceCreatorUserScopeAsync<T>(
+            string? userId,
+            IQueryable<T> query,
+            System.Linq.Expressions.Expression<Func<T, string?>> createByUserIdSelector,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (string.IsNullOrWhiteSpace(userId))
+                return query;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || summary.FinanceDataScope == 0)
+                return query;
+            if (summary.FinanceDataScope == 4)
+                return query.Where(_ => false);
+
+            var uid = userId.Trim();
+            if (summary.FinanceDataScope == 1)
+                return query.Where(BuildOwnerInListPredicate(createByUserIdSelector, new List<string> { uid }));
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.FinanceDataScope == 3);
+            var ids = allowUserIds.ToList();
+            if (ids.Count == 0)
+                return query.Where(_ => false);
+            return query.Where(BuildOwnerInListPredicate(createByUserIdSelector, ids));
+        }
+
+        private async Task<(bool Handled, IQueryable<T> Query)> ApplyFinanceDepartmentScopeIfNeededAsync<T>(
+            string userId,
+            IQueryable<T> query,
+            System.Linq.Expressions.Expression<Func<T, string?>> createByUserIdSelector,
+            CancellationToken cancellationToken)
+        {
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin)
+                return (false, query);
+            if (summary.FinanceDataScope == 4)
+                return (true, query.Where(_ => false));
+            if (summary.FinanceDataScope is >= 1 and <= 3)
+            {
+                var scoped = await ApplyFinanceCreatorUserScopeAsync(userId, query, createByUserIdSelector, cancellationToken);
+                return (true, scoped);
+            }
+
+            return (false, query);
+        }
+
+        private async Task<List<T>> FilterByFinanceCreatorAsync<T>(
+            string userId,
+            IEnumerable<T> source,
+            System.Func<T, string?> createByUserIdSelector,
+            UserPermissionSummaryDto summary)
+        {
+            var list = source.ToList();
+            var uid = userId.Trim();
+            if (summary.FinanceDataScope == 1)
+                return list.Where(x =>
+                {
+                    var owner = createByUserIdSelector(x);
+                    return !string.IsNullOrWhiteSpace(owner) && string.Equals(owner.Trim(), uid, StringComparison.OrdinalIgnoreCase);
+                }).ToList();
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.FinanceDataScope == 3);
+            return list.Where(x =>
+            {
+                var owner = createByUserIdSelector(x);
+                return !string.IsNullOrWhiteSpace(owner) && allowUserIds.Contains(owner!);
+            }).ToList();
+        }
+
+        private static System.Linq.Expressions.Expression<Func<T, bool>> BuildOwnerInListPredicate<T>(
+            System.Linq.Expressions.Expression<Func<T, string?>> ownerSelector,
+            List<string> allowedUserIds)
+        {
+            var param = ownerSelector.Parameters[0];
+            var member = ownerSelector.Body;
+            var notNull = System.Linq.Expressions.Expression.NotEqual(member, System.Linq.Expressions.Expression.Constant(null, typeof(string)));
+            var containsMethod = typeof(List<string>).GetMethod(nameof(List<string>.Contains), new[] { typeof(string) })!;
+            var inList = System.Linq.Expressions.Expression.Call(
+                System.Linq.Expressions.Expression.Constant(allowedUserIds),
+                containsMethod,
+                member);
+            var body = System.Linq.Expressions.Expression.AndAlso(notNull, inList);
+            return System.Linq.Expressions.Expression.Lambda<Func<T, bool>>(body, param);
         }
 
         public async Task<bool> CanAccessCustomerAsync(string userId, CustomerInfo customer)

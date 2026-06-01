@@ -10,7 +10,20 @@
         <el-input v-model="form.accountName" placeholder="账户名称（通常为公司名称）" />
       </el-form-item>
       <el-form-item label="开户银行">
-        <el-input v-model="form.bankName" placeholder="开户银行" />
+        <el-select
+          v-model="form.financePaymentBankId"
+          placeholder="请选择开户银行"
+          filterable
+          clearable
+          style="width: 100%"
+        >
+          <el-option
+            v-for="b in paymentBankOptions"
+            :key="b.id"
+            :label="b.bankName"
+            :value="b.id"
+          />
+        </el-select>
       </el-form-item>
       <el-form-item label="开户支行">
         <el-input v-model="form.bankBranch" placeholder="开户支行" />
@@ -47,9 +60,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, watch } from 'vue';
+import { reactive, watch, onMounted } from 'vue';
 import type { VendorBankInfo } from '@/types/vendor';
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency';
+import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBankOptions';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -63,9 +77,11 @@ const emit = defineEmits<{
   (e: 'confirm', payload: any): void;
 }>();
 
+const { paymentBankOptions, loadPaymentBankOptions } = useFinancePaymentBankOptions();
+
 const form = reactive<any>({
   accountName: '',
-  bankName: '',
+  financePaymentBankId: '',
   bankBranch: '',
   bankAccount: '',
   currency: 1,
@@ -78,7 +94,7 @@ watch(
   (val) => {
     if (props.mode === 'edit' && val) {
       form.accountName = val.accountName || '';
-      form.bankName = val.bankName || '';
+      form.financePaymentBankId = val.financePaymentBankId?.trim() ?? '';
       form.bankBranch = val.bankBranch || '';
       form.bankAccount = val.bankAccount || '';
       form.currency = (val.currency as any) ?? 1;
@@ -86,7 +102,7 @@ watch(
       form.remark = val.remark || '';
     } else if (props.mode === 'create') {
       form.accountName = '';
-      form.bankName = '';
+      form.financePaymentBankId = '';
       form.bankBranch = '';
       form.bankAccount = '';
       form.currency = 1;
@@ -99,5 +115,9 @@ watch(
 
 const handleClose = () => emit('update:modelValue', false);
 const handleConfirm = () => emit('confirm', { ...form });
+
+onMounted(() => {
+  void loadPaymentBankOptions();
+});
 </script>
 

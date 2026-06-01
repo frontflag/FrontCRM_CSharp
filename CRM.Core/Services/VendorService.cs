@@ -1,5 +1,7 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Finance;
+using CRM.Core.Models.System;
 using CRM.Core.Models.Vendor;
 using CRM.Core.Utilities;
 
@@ -14,35 +16,41 @@ namespace CRM.Core.Services
         private readonly IRepository<VendorContactInfo> _contactRepository;
         private readonly IRepository<VendorAddress> _addressRepository;
         private readonly IRepository<VendorBankInfo> _bankRepository;
+        private readonly IRepository<FinancePaymentBank> _financePaymentBankRepository;
         private readonly IRepository<VendorContactHistory> _historyRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISerialNumberService _serialNumberService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUserService _userService;
         private readonly IVendorListQuery _vendorListQuery;
+        private readonly ILogOperationAppendService _logOperationAppend;
 
         public VendorService(
             IRepository<VendorInfo> repository,
             IRepository<VendorContactInfo> contactRepository,
             IRepository<VendorAddress> addressRepository,
             IRepository<VendorBankInfo> bankRepository,
+            IRepository<FinancePaymentBank> financePaymentBankRepository,
             IRepository<VendorContactHistory> historyRepository,
             IUnitOfWork unitOfWork,
             ISerialNumberService serialNumberService,
             IDataPermissionService dataPermissionService,
             IUserService userService,
-            IVendorListQuery vendorListQuery)
+            IVendorListQuery vendorListQuery,
+            ILogOperationAppendService logOperationAppend)
         {
             _repository = repository;
             _contactRepository = contactRepository;
             _addressRepository = addressRepository;
             _bankRepository = bankRepository;
+            _financePaymentBankRepository = financePaymentBankRepository;
             _historyRepository = historyRepository;
             _unitOfWork = unitOfWork;
             _serialNumberService = serialNumberService;
             _dataPermissionService = dataPermissionService;
             _userService = userService;
             _vendorListQuery = vendorListQuery;
+            _logOperationAppend = logOperationAppend;
         }
 
         /// <summary>前端未传采购员姓名时，用归属用户（RBAC Id）的姓名/账号填充展示字段。</summary>
@@ -198,8 +206,9 @@ namespace CRM.Core.Services
             if (vendor == null) return null;
             var contacts = await _contactRepository.FindAsync(c => c.VendorId == vendor.Id);
             vendor.Contacts = contacts.ToList();
-            var banks = await _bankRepository.FindAsync(b => b.VendorId == vendor.Id);
-            vendor.BankAccounts = banks.ToList();
+            var banks = (await _bankRepository.FindAsync(b => b.VendorId == vendor.Id)).ToList();
+            await EnrichVendorBankPaymentBankNamesAsync(banks);
+            vendor.BankAccounts = banks;
             return vendor;
         }
 
@@ -320,7 +329,20 @@ namespace CRM.Core.Services
             entity.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _repository.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
-            await AddOperationLogAsync(entity.Id, "删除", $"删除供应商，理由：{reason ?? "无"}", null, "系统用户");
+
+            var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = BusinessLogTypes.Vendor,
+                RecordId = entity.Id,
+                RecordCode = entity.Code,
+                EntityDisplayName = DeleteLogEntityNames.Vendor,
+                ActionTypeOverride = OperationLogActionTypes.GenericDelete,
+                OperatorUserId = actorId,
+                OperatorUserName = actorName,
+                Reason = reason,
+                OperationDescOverride = $"删除供应商，理由：{reason ?? "无"}"
+            });
         }
 
         /// <summary>
@@ -556,6 +578,12 @@ namespace CRM.Core.Services
 
             await _contactRepository.DeleteAsync(contact.Id);
             await _unitOfWork.SaveChangesAsync();
+            await AppendSubEntityDeleteLogAsync(
+                BusinessLogTypes.VendorContact,
+                contact.Id,
+                string.IsNullOrWhiteSpace(contact.CName) ? contact.EName : contact.CName,
+                DeleteLogEntityNames.VendorContact,
+                contact.VendorId);
         }
 
         public async Task SetMainContactAsync(string contactId)
@@ -691,6 +719,12 @@ namespace CRM.Core.Services
 
             await _addressRepository.DeleteAsync(address.Id);
             await _unitOfWork.SaveChangesAsync();
+            await AppendSubEntityDeleteLogAsync(
+                BusinessLogTypes.VendorAddress,
+                address.Id,
+                null,
+                DeleteLogEntityNames.VendorAddress,
+                address.VendorId);
         }
 
         public async Task SetDefaultAddressAsync(string addressId)
@@ -716,8 +750,34 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(vendorId)) return new List<VendorBankInfo>();
             var vendor = await ResolveVendorByIdOrCodeAsync(vendorId);
             if (vendor == null) return new List<VendorBankInfo>();
-            var list = await _bankRepository.FindAsync(b => b.VendorId == vendor.Id);
-            return list.OrderByDescending(b => b.IsDefault).ThenBy(b => b.BankName).ToList();
+            var list = (await _bankRepository.FindAsync(b => b.VendorId == vendor.Id)).ToList();
+            await EnrichVendorBankPaymentBankNamesAsync(list);
+            return list.OrderByDescending(b => b.IsDefault).ThenBy(b => b.FinancePaymentBankId).ToList();
+        }
+
+        /// <summary>按 <see cref="VendorBankInfo.FinancePaymentBankId"/> 从 financepaymentbank 同步展示用 BankName（只读冗余）。</summary>
+        private async Task EnrichVendorBankPaymentBankNamesAsync(IList<VendorBankInfo> banks)
+        {
+            if (banks.Count == 0) return;
+            var ids = banks
+                .Select(b => b.FinancePaymentBankId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0) return;
+
+            var paymentBanks = await _financePaymentBankRepository.FindAsync(b => ids.Contains(b.Id));
+            var nameById = paymentBanks.ToDictionary(b => b.Id, b => b.BankName.Trim(), StringComparer.OrdinalIgnoreCase);
+            foreach (var bank in banks)
+            {
+                if (string.IsNullOrWhiteSpace(bank.FinancePaymentBankId)) continue;
+                var key = bank.FinancePaymentBankId.Trim();
+                if (nameById.TryGetValue(key, out var name))
+#pragma warning disable CS0618
+                    bank.BankName = name;
+#pragma warning restore CS0618
+            }
         }
 
         private async Task ResetDefaultBankAsync(string vendorId)
@@ -730,6 +790,27 @@ namespace CRM.Core.Services
                 await _bankRepository.UpdateAsync(bank);
             }
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        private async Task ApplyVendorBankPaymentBankLinkAsync(VendorBankInfo bank, string? financePaymentBankId)
+        {
+            if (string.IsNullOrWhiteSpace(financePaymentBankId))
+            {
+                bank.FinancePaymentBankId = null;
+#pragma warning disable CS0618
+                bank.BankName = null;
+#pragma warning restore CS0618
+                return;
+            }
+
+            var id = financePaymentBankId.Trim();
+            var paymentBank = await _financePaymentBankRepository.GetByIdAsync(id);
+            if (paymentBank == null || paymentBank.IsDisabled)
+                throw new InvalidOperationException("所选付款银行无效或已禁用，请在「财务参数-付款银行」中维护");
+            bank.FinancePaymentBankId = id;
+#pragma warning disable CS0618
+            bank.BankName = paymentBank.BankName.Trim();
+#pragma warning restore CS0618
         }
 
         public async Task<VendorBankInfo> AddBankAsync(string vendorId, AddVendorBankRequest request)
@@ -748,7 +829,6 @@ namespace CRM.Core.Services
             {
                 Id = Guid.NewGuid().ToString(),
                 VendorId = vendor.Id,
-                BankName = request.BankName?.Trim(),
                 BankAccount = request.BankAccount?.Trim(),
                 AccountName = request.AccountName?.Trim(),
                 BankBranch = request.BankBranch?.Trim(),
@@ -757,9 +837,11 @@ namespace CRM.Core.Services
                 Remark = request.Remark?.Trim(),
                 CreateTime = DateTime.UtcNow
             };
+            await ApplyVendorBankPaymentBankLinkAsync(bank, request.FinancePaymentBankId);
 
             await _bankRepository.AddAsync(bank);
             await _unitOfWork.SaveChangesAsync();
+            await EnrichVendorBankPaymentBankNamesAsync(new List<VendorBankInfo> { bank });
             return bank;
         }
 
@@ -776,7 +858,9 @@ namespace CRM.Core.Services
             if (request.IsDefault == true && !bank.IsDefault)
                 await ResetDefaultBankAsync(bank.VendorId);
 
-            if (request.BankName != null) bank.BankName = request.BankName.Trim();
+            if (request.FinancePaymentBankId != null)
+                await ApplyVendorBankPaymentBankLinkAsync(bank, request.FinancePaymentBankId);
+
             if (request.BankAccount != null) bank.BankAccount = request.BankAccount.Trim();
             if (request.AccountName != null) bank.AccountName = request.AccountName.Trim();
             if (request.BankBranch != null) bank.BankBranch = request.BankBranch.Trim();
@@ -787,6 +871,7 @@ namespace CRM.Core.Services
             bank.ModifyTime = DateTime.UtcNow;
             await _bankRepository.UpdateAsync(bank);
             await _unitOfWork.SaveChangesAsync();
+            await EnrichVendorBankPaymentBankNamesAsync(new List<VendorBankInfo> { bank });
             return bank;
         }
 
@@ -802,6 +887,12 @@ namespace CRM.Core.Services
 
             await _bankRepository.DeleteAsync(bank.Id);
             await _unitOfWork.SaveChangesAsync();
+            await AppendSubEntityDeleteLogAsync(
+                BusinessLogTypes.VendorBank,
+                bank.Id,
+                bank.BankName,
+                DeleteLogEntityNames.VendorBank,
+                bank.VendorId);
         }
 
         public async Task SetDefaultBankAsync(string bankId)
@@ -901,6 +992,12 @@ namespace CRM.Core.Services
 
             await _historyRepository.DeleteAsync(record.Id);
             await _unitOfWork.SaveChangesAsync();
+            await AppendSubEntityDeleteLogAsync(
+                BusinessLogTypes.VendorContactHistory,
+                record.Id,
+                null,
+                DeleteLogEntityNames.VendorContactHistory,
+                record.VendorId);
         }
 
         public async Task<IEnumerable<VendorOperationLog>> GetOperationLogsAsync(string vendorId)
@@ -1026,17 +1123,33 @@ ORDER BY c.""ChangedAt"" DESC";
             var canonicalId = (await ResolveVendorByIdOrCodeAsync(vendorId))?.Id ?? vendorId.Trim();
             var venList = await _repository.FindIgnoreFiltersAsync(e => e.Id == canonicalId);
             var ven = venList.FirstOrDefault();
-            var recordCodeSql = ven?.Code != null ? $"'{SqlQ(ven.Code)}'" : "NULL";
-            var safeRecordId = SqlQ(canonicalId);
-            var safeOpType = SqlQ(operationType);
-            var safeDesc = SqlQ(desc);
-            var safeUserName = SqlQ(userName);
-            var safeUserId = userId != null ? SqlQ(userId) : null;
-            var safeRemark = remark != null ? SqlQ(remark) : null;
-            var sql = $@"
-INSERT INTO log_operation (""Id"", ""BizType"", ""RecordId"", ""RecordCode"", ""ActionType"", ""OperationTime"", ""OperatorUserId"", ""OperatorUserName"", ""Reason"", ""ExtraInfo"", ""SysRemark"", ""OperationDesc"")
-VALUES (gen_random_uuid()::text, '{BusinessLogTypes.Vendor}', '{safeRecordId}', {recordCodeSql}, '{safeOpType}', NOW(), {(safeUserId == null ? "NULL" : $"'{safeUserId}'")}, '{safeUserName}', {(safeRemark == null ? "NULL" : $"'{safeRemark}'")}, NULL, NULL, '{safeDesc}')";
-            await _unitOfWork.ExecuteAsync(sql);
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.Vendor,
+                canonicalId,
+                ven?.Code,
+                operationType,
+                userId,
+                userName,
+                desc,
+                remark);
+        }
+
+        private async Task AppendSubEntityDeleteLogAsync(
+            string bizType,
+            string recordId,
+            string? recordCode,
+            string entityDisplayName,
+            string parentVendorId)
+        {
+            var vendor = await GetByIdAsync(parentVendorId);
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = bizType,
+                RecordId = recordId,
+                RecordCode = recordCode,
+                EntityDisplayName = entityDisplayName,
+                ExtraDetail = vendor?.Code != null ? $"所属供应商={vendor.Code}" : $"所属供应商Id={parentVendorId}"
+            });
         }
     }
 }

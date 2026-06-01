@@ -15,6 +15,10 @@ namespace CRM.API.Controllers
         private const string SalesOperatorRoleCode = "sales_operator";
         /// <summary>与 sys_department / RbacService 一致：主部门 IdentityType=1 表示销售。</summary>
         private const short SalesDepartmentIdentityType = 1;
+        /// <summary>主部门 IdentityType=2 表示采购员。</summary>
+        private const short PurchaseDepartmentIdentityType = 2;
+        /// <summary>主部门 IdentityType=3 表示采购助理/采购运营（草稿箱不可见客户）。</summary>
+        private const short PurchaseAssistantIdentityType = 3;
 
         private readonly IDraftService _draftService;
         private readonly IRbacService _rbacService;
@@ -35,7 +39,8 @@ namespace CRM.API.Controllers
 
         /// <summary>
         /// 按角色/主部门身份限制草稿业务类型（列表、详情、保存、删除、转正式）：
-        /// 采购员 purchase_buyer → 仅 VENDOR；主部门销售 IdentityType=1 或销售职员角色 sales_operator → 仅 CUSTOMER；系统管理员不限制。
+        /// purchase_buyer → 仅 VENDOR；采购助理 IdentityType=3 → VENDOR+RFQ（不可见客户）；
+        /// 销售 IdentityType=1 或 sales_operator → 仅 CUSTOMER；系统管理员不限制。
         /// </summary>
         private async Task<IReadOnlyList<string>?> GetDraftEntityTypeWhitelistOrNullAsync()
         {
@@ -43,12 +48,19 @@ namespace CRM.API.Controllers
             if (string.IsNullOrWhiteSpace(rbacId)) return null;
             var summary = await _rbacService.GetUserPermissionSummaryAsync(rbacId.Trim());
             if (summary.IsSysAdmin) return null;
-            if (summary.RoleCodes.Any(c => string.Equals(c, PurchaserBuyerRoleCode, StringComparison.OrdinalIgnoreCase)))
-                return new[] { "VENDOR" };
             var isSalesPrimaryDept = summary.IdentityType == SalesDepartmentIdentityType;
-            var isSalesOperatorRole = summary.RoleCodes.Any(c => string.Equals(c, SalesOperatorRoleCode, StringComparison.OrdinalIgnoreCase));
+            var isSalesOperatorRole = summary.RoleCodes.Any(c =>
+                string.Equals(c, SalesOperatorRoleCode, StringComparison.OrdinalIgnoreCase));
             if (isSalesPrimaryDept || isSalesOperatorRole)
                 return new[] { "CUSTOMER" };
+            var isPurchaseBuyerRole = summary.RoleCodes.Any(c =>
+                string.Equals(c, PurchaserBuyerRoleCode, StringComparison.OrdinalIgnoreCase));
+            if (isPurchaseBuyerRole)
+                return new[] { "VENDOR" };
+            if (summary.IdentityType == PurchaseAssistantIdentityType)
+                return new[] { "VENDOR", "RFQ" };
+            if (summary.IdentityType == PurchaseDepartmentIdentityType)
+                return new[] { "VENDOR", "RFQ" };
             return null;
         }
 

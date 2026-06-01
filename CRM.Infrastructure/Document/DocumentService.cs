@@ -1,5 +1,8 @@
+using CRM.Core.Constants;
 using CRM.Core.Document;
 using CRM.Core.Models.Document;
+using CRM.Core.Models.System;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,11 +12,19 @@ namespace CRM.Infrastructure.Document
     {
         private readonly ApplicationDbContext _context;
         private readonly IFileStorageService _storage;
+        private readonly CRM.Core.Interfaces.ILogOperationAppendService _logOperationAppend;
+        private readonly CRM.Core.Interfaces.IUserService _userService;
 
-        public DocumentService(ApplicationDbContext context, IFileStorageService storage)
+        public DocumentService(
+            ApplicationDbContext context,
+            IFileStorageService storage,
+            CRM.Core.Interfaces.ILogOperationAppendService logOperationAppend,
+            CRM.Core.Interfaces.IUserService userService)
         {
             _context = context;
             _storage = storage;
+            _logOperationAppend = logOperationAppend;
+            _userService = userService;
         }
 
         public async Task<IReadOnlyList<UploadDocument>> UploadAsync(DocumentUploadRequest request)
@@ -126,6 +137,18 @@ namespace CRM.Infrastructure.Document
             doc.DeleteTime = DateTime.UtcNow;
             doc.DeleteUserId = userId;
             await _context.SaveChangesAsync();
+
+            var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, userId);
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = BusinessLogTypes.Document,
+                RecordId = doc.Id,
+                RecordCode = doc.OriginalFileName,
+                EntityDisplayName = DeleteLogEntityNames.Document,
+                OperatorUserId = actorId,
+                OperatorUserName = actorName,
+                ExtraDetail = $"BizType={doc.BizType}，BizId={doc.BizId}"
+            });
         }
 
         public async Task<UploadDocument?> GetByIdAsync(string id)

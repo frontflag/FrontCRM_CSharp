@@ -15,7 +15,7 @@
         <div class="count-badge">{{ t('inventoryList.count', { count: listTotal }) }}</div>
       </div>
       <div class="header-right">
-        <button class="btn-primary" type="button" @click="goWarehouseManage">
+        <button v-if="canWriteLogisticsData" class="btn-primary" type="button" @click="goWarehouseManage">
           {{ t('inventoryList.actions.warehouseManagement') }}
         </button>
       </div>
@@ -212,14 +212,16 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Box, Setting } from '@element-plus/icons-vue'
 import { inventoryCenterApi, type FinanceSummary, type InventoryOverview, type WarehouseInfo } from '@/api/inventoryCenter'
-import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
+import { REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 
 const router = useRouter()
 const { t } = useI18n()
+const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const loading = ref(false)
 const list = ref<InventoryOverview[]>([])
 const listTotal = ref(0)
@@ -447,7 +449,12 @@ async function runInventoryFetch(resetPage: boolean) {
         page: listPage.value,
         pageSize: listPageSize.value
       }),
-      inventoryCenterApi.getFinanceSummary(),
+      inventoryCenterApi.getFinanceSummary({
+        warehouseId: warehouseFilter.value?.trim() || undefined,
+        materialModel: materialModelFilter.value?.trim() || undefined,
+        stockCode: stockCodeFilter.value?.trim() || undefined,
+        stockType: stockTypeFilter.value
+      }),
       inventoryCenterApi.getWarehouses()
     ])
 

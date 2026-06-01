@@ -34,7 +34,7 @@
         <el-button type="primary" @click="loadData"><el-icon><Search /></el-icon> {{ t('financeSellInvoiceList.filters.search') }}</el-button>
       </div>
       <div class="search-right">
-        <el-button type="primary" @click="openCreate">
+        <el-button v-if="canWriteFinanceSellInvoice" type="primary" @click="openCreate">
           <el-icon><Plus /></el-icon> {{ t('financeSellInvoiceList.create') }}
         </el-button>
       </div>
@@ -118,10 +118,10 @@
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
             <el-button size="small" text type="primary" @click.stop="openDetail(row)">{{ t('financeSellInvoiceList.actions.detail') }}</el-button>
-            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="row.invoiceStatus === 1">{{ t('financeSellInvoiceList.actions.edit') }}</el-button>
-            <el-button size="small" text type="warning" @click.stop="applyInvoice(row)" v-if="row.invoiceStatus === 1">{{ t('financeSellInvoiceList.actions.apply') }}</el-button>
-            <el-button size="small" text type="danger" @click.stop="voidInvoice(row)" v-if="row.invoiceStatus === 100">{{ t('financeSellInvoiceList.actions.void') }}</el-button>
-            <el-button size="small" text type="danger" @click.stop="handleDeleteRow(row)">删除</el-button>
+            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 1">{{ t('financeSellInvoiceList.actions.edit') }}</el-button>
+            <el-button size="small" text type="warning" @click.stop="applyInvoice(row)" v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 1">{{ t('financeSellInvoiceList.actions.apply') }}</el-button>
+            <el-button size="small" text type="danger" @click.stop="voidInvoice(row)" v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 100">{{ t('financeSellInvoiceList.actions.void') }}</el-button>
+            <el-button v-if="canWriteFinanceSellInvoice" size="small" text type="danger" @click.stop="handleDeleteRow(row)">删除</el-button>
             <el-button v-if="isSysAdmin" size="small" text type="danger" @click.stop="handleForceDeleteRow(row)">强制删除</el-button>
           </div>
 
@@ -134,16 +134,16 @@
                 <el-dropdown-item @click.stop="openDetail(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('financeSellInvoiceList.actions.detail') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="row.invoiceStatus === 1" @click.stop="openEdit(row)">
+                <el-dropdown-item v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 1" @click.stop="openEdit(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('financeSellInvoiceList.actions.edit') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="row.invoiceStatus === 1" @click.stop="applyInvoice(row)">
+                <el-dropdown-item v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 1" @click.stop="applyInvoice(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('financeSellInvoiceList.actions.apply') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="row.invoiceStatus === 100" @click.stop="voidInvoice(row)">
+                <el-dropdown-item v-if="canWriteFinanceSellInvoice && row.invoiceStatus === 100" @click.stop="voidInvoice(row)">
                   <span class="op-more-item op-more-item--danger">{{ t('financeSellInvoiceList.actions.void') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item divided @click.stop="handleDeleteRow(row)">
+                <el-dropdown-item v-if="canWriteFinanceSellInvoice" divided @click.stop="handleDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
@@ -266,7 +266,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="saveForm" :loading="saving">{{ t('financeSellInvoiceList.btnSave') }}</el-button>
+        <el-button v-if="canWriteFinanceSellInvoice" type="primary" @click="saveForm" :loading="saving">{{ t('financeSellInvoiceList.btnSave') }}</el-button>
       </template>
     </el-dialog>
 
@@ -296,11 +296,13 @@ import { customerApi } from '@/api/customer'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useAuthStore } from '@/stores/auth'
+import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 
 const router = useRouter()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { canWriteFinanceSellInvoice } = useFinanceWriteGate()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const {
   invoiceStatusLabel,

@@ -1,11 +1,12 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Purchase;
 
 /// <summary>采购订单主单级扩展（1:1 purchaseorder），维护明细行序号水位。</summary>
 [Table("purchaseorderextend")]
-public class PurchaseOrderExtend
+public class PurchaseOrderExtend : ISoftDeletable
 {
     [Key]
     [StringLength(36)]
@@ -20,4 +21,7 @@ public class PurchaseOrderExtend
 
     [Column("ModifyTime")]
     public DateTime? ModifyTime { get; set; }
+
+    [Column("is_deleted")]
+    public bool IsDeleted { get; set; }
 }

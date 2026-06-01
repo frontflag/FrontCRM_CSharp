@@ -1,6 +1,7 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
+using CRM.Core.Models.System;
 using CRM.Core.Utilities;
 using System.Linq.Expressions;
 
@@ -21,6 +22,8 @@ namespace CRM.Core.Services
         private readonly IErrorLogService _errorLogService;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly ICustomerListQuery _customerListQuery;
+        private readonly ILogOperationAppendService _logOperationAppend;
+        private readonly IUserService _userService;
 
         public CustomerService(
             IRepository<CustomerInfo> customerRepository,
@@ -32,7 +35,9 @@ namespace CRM.Core.Services
             ISerialNumberService serialNumberService,
             IErrorLogService errorLogService,
             IDataPermissionService dataPermissionService,
-            ICustomerListQuery customerListQuery)
+            ICustomerListQuery customerListQuery,
+            ILogOperationAppendService logOperationAppend,
+            IUserService userService)
         {
             _customerRepository = customerRepository;
             _addressRepository = addressRepository;
@@ -44,6 +49,8 @@ namespace CRM.Core.Services
             _errorLogService = errorLogService;
             _dataPermissionService = dataPermissionService;
             _customerListQuery = customerListQuery;
+            _logOperationAppend = logOperationAppend;
+            _userService = userService;
         }
 
         /// <summary>
@@ -341,6 +348,18 @@ namespace CRM.Core.Services
 
             await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
+
+            var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, operatorUserId);
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = BusinessLogTypes.Customer,
+                RecordId = customer.Id,
+                RecordCode = customer.CustomerCode,
+                EntityDisplayName = DeleteLogEntityNames.Customer,
+                ActionTypeOverride = OperationLogActionTypes.GenericDelete,
+                OperatorUserId = actorId,
+                OperatorUserName = actorName
+            });
         }
 
         /// <summary>
@@ -464,6 +483,12 @@ namespace CRM.Core.Services
 
             await _addressRepository.DeleteAsync(address.Id);
             await _unitOfWork.SaveChangesAsync();
+            await AppendSubEntityDeleteLogAsync(
+                BusinessLogTypes.CustomerAddress,
+                address.Id,
+                null,
+                DeleteLogEntityNames.CustomerAddress,
+                address.CustomerId);
         }
 
         /// <summary>
@@ -572,6 +597,12 @@ namespace CRM.Core.Services
 
             await _contactRepository.DeleteAsync(contact.Id);
             await _unitOfWork.SaveChangesAsync();
+            await AppendSubEntityDeleteLogAsync(
+                BusinessLogTypes.CustomerContact,
+                contact.Id,
+                contact.Name,
+                DeleteLogEntityNames.CustomerContact,
+                contact.CustomerId);
         }
 
         /// <summary>
@@ -745,6 +776,12 @@ namespace CRM.Core.Services
 
             await _bankRepository.DeleteAsync(bank.Id);
             await _unitOfWork.SaveChangesAsync();
+            await AppendSubEntityDeleteLogAsync(
+                BusinessLogTypes.CustomerBank,
+                bank.Id,
+                bank.BankName,
+                DeleteLogEntityNames.CustomerBank,
+                bank.CustomerId);
         }
 
         /// <summary>
@@ -973,6 +1010,12 @@ namespace CRM.Core.Services
                 throw new KeyNotFoundException($"找不到ID为 '{historyId}' 的联系历史");
             await _contactHistoryRepository.DeleteAsync(record.Id);
             await _unitOfWork.SaveChangesAsync();
+            await AppendSubEntityDeleteLogAsync(
+                BusinessLogTypes.CustomerContactHistory,
+                record.Id,
+                null,
+                DeleteLogEntityNames.CustomerContactHistory,
+                record.CustomerId);
         }
 
         /// <summary>删除客户（带理由）</summary>
@@ -992,7 +1035,18 @@ namespace CRM.Core.Services
             customer.ModifyByUserId = ActingUserIdNormalizer.Normalize(operatorUserId);
             await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
-            await AddOperationLogAsync(resolvedId, "删除", $"删除客户，理由：{reason ?? "无"}", operatorUserId, operatorUserName);
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = BusinessLogTypes.Customer,
+                RecordId = resolvedId,
+                RecordCode = customer.CustomerCode,
+                EntityDisplayName = DeleteLogEntityNames.Customer,
+                ActionTypeOverride = OperationLogActionTypes.GenericDelete,
+                OperatorUserId = operatorUserId,
+                OperatorUserName = operatorUserName,
+                Reason = reason,
+                OperationDescOverride = $"删除客户，理由：{reason ?? "无"}"
+            });
         }
 
         /// <summary>设置黑名单（带理由）</summary>
@@ -1194,17 +1248,33 @@ ORDER BY c.""ChangedAt"" DESC";
             var canonicalId = await ResolveCustomerIdByIdOrCodeAsync(customerId) ?? customerId.Trim();
             var custList = await _customerRepository.FindAsync(c => c.Id == canonicalId);
             var cust = custList.FirstOrDefault();
-            var recordCodeSql = cust?.CustomerCode != null ? $"'{SqlQ(cust.CustomerCode)}'" : "NULL";
-            var safeRecordId = SqlQ(canonicalId);
-            var safeOpType = SqlQ(operationType);
-            var safeDesc = SqlQ(desc);
-            var safeUserName = SqlQ(userName);
-            var safeUserId = userId != null ? SqlQ(userId) : null;
-            var safeRemark = remark != null ? SqlQ(remark) : null;
-            var sql = $@"
-INSERT INTO log_operation (""Id"", ""BizType"", ""RecordId"", ""RecordCode"", ""ActionType"", ""OperationTime"", ""OperatorUserId"", ""OperatorUserName"", ""Reason"", ""ExtraInfo"", ""SysRemark"", ""OperationDesc"")
-VALUES (gen_random_uuid()::text, '{BusinessLogTypes.Customer}', '{safeRecordId}', {recordCodeSql}, '{safeOpType}', NOW(), {(safeUserId == null ? "NULL" : $"'{safeUserId}'")}, '{safeUserName}', {(safeRemark == null ? "NULL" : $"'{safeRemark}'")}, NULL, NULL, '{safeDesc}')";
-            await _unitOfWork.ExecuteAsync(sql);
+            await _logOperationAppend.AppendAsync(
+                BusinessLogTypes.Customer,
+                canonicalId,
+                cust?.CustomerCode,
+                operationType,
+                userId,
+                userName,
+                desc,
+                remark);
+        }
+
+        private async Task AppendSubEntityDeleteLogAsync(
+            string bizType,
+            string recordId,
+            string? recordCode,
+            string entityDisplayName,
+            string parentCustomerId)
+        {
+            var cust = await GetCustomerByIdAsync(parentCustomerId);
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = bizType,
+                RecordId = recordId,
+                RecordCode = recordCode,
+                EntityDisplayName = entityDisplayName,
+                ExtraDetail = cust?.CustomerCode != null ? $"所属客户={cust.CustomerCode}" : $"所属客户Id={parentCustomerId}"
+            });
         }
 
         /// <summary>记录客户字段变更（写入 log_change_fldval）</summary>

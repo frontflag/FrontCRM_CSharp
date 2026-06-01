@@ -6,6 +6,14 @@ export interface StockInItemDto {
   itemId?: string
   /** 详情页：入库明细业务编号（服务端生成） */
   stockInItemCode?: string
+  /** 详情页：入库日期（单头冗余） */
+  stockInDate?: string
+  /** 详情页：到货通知单号 */
+  sourceCode?: string
+  /** 详情页：采购订单明细编号 */
+  purchaseOrderItemCode?: string
+  /** 详情页：供应商名称 */
+  vendorName?: string
   /** 创建时作为 MaterialId 提交；详情页仅保留数据不展示列 */
   materialCode: string
   /** 展示用：物料型号（与入库列表「物料型号」一致） */
@@ -16,6 +24,16 @@ export interface StockInItemDto {
   quantity: number
   unit: string
   unitPrice?: number
+  /** 详情页：采购总额 */
+  amount?: number
+  /** 详情页：采购币别 */
+  currency?: number
+  /** 详情页：地域类型 */
+  regionType?: number
+  /** 详情页：仓库编号 */
+  warehouseCode?: string
+  /** 详情页：入库类型 */
+  stockInType?: number
   batchNo?: string
   warehouseLocation?: string
 }
@@ -64,6 +82,22 @@ export interface StockInDetailItemDto {
   /** 表字段快照：采购品牌 */
   purchaseBrand?: string | null
   currency?: number | null
+  /** 详情填充：入库日期 */
+  detailStockInDate?: string | null
+  /** 详情填充：到货通知单号 */
+  detailSourceCode?: string | null
+  /** 详情填充：采购订单明细编号 */
+  detailPurchaseOrderItemCode?: string | null
+  /** 详情填充：供应商名称 */
+  detailVendorName?: string | null
+  /** 详情填充：仓库编号 */
+  detailWarehouseCode?: string | null
+  /** 详情填充：地域类型 */
+  detailRegionType?: number | null
+  /** 详情填充：入库类型 */
+  detailStockInType?: number | null
+  /** 详情填充：采购币别 */
+  detailCurrency?: number | null
 }
 
 export interface StockInDto {
@@ -85,6 +119,8 @@ export interface StockInDto {
   stockInDate: string
   totalQuantity: number
   totalAmount: number
+  /** 地域类型：10=境内 20=境外 */
+  regionType?: number
   status: number
   remark?: string
   createTime?: string

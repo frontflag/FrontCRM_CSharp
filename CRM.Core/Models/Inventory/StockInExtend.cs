@@ -1,11 +1,12 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Inventory;
 
 /// <summary>入库单主单级扩展（1:1 stockin），维护明细行序号水位。</summary>
 [Table("stock_in_extend")]
-public class StockInExtend
+public class StockInExtend : ISoftDeletable
 {
     [Key]
     [StringLength(36)]

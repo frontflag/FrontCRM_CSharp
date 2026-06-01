@@ -301,6 +301,8 @@ import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBankOptions'
+import { vendorBankApi } from '@/api/vendor'
+import { resolveVendorDefaultFinancePaymentBankId } from '@/utils/vendorFinancePaymentBank'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { paymentBankOptions, loadPaymentBankOptions } = useFinancePaymentBankOptions()
@@ -400,6 +402,14 @@ async function openPayment(row: any) {
   paymentForm.vendorName = row.vendorName || ''
   paymentForm.purchaseUserName = row.purchaseUserName || ''
   paymentForm.vendorBankId = ''
+  if (paymentForm.vendorId) {
+    try {
+      const banks = await vendorBankApi.getBanksByVendorId(paymentForm.vendorId)
+      paymentForm.vendorBankId = resolveVendorDefaultFinancePaymentBankId(banks)
+    } catch {
+      paymentForm.vendorBankId = ''
+    }
+  }
   paymentForm.paymentMode = 1
   paymentForm.currency = row.currency || 1
   paymentForm.remark = ''

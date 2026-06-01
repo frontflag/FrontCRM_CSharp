@@ -15,7 +15,7 @@
 #   .\deploy_full_to_fz.ps1 -AllowPasswordPrompt   # 使用密码登录（否则会 BatchMode，卡住/失败）
 #   .\deploy_full_to_fz.ps1 -RequestTtyForSudo    # 非 Docker 部署时远程 sudo 要手输密码（分配伪终端，勿与静默管道一起用）
 #   .\deploy_full_to_fz.ps1 -SshKeyPath "$env:USERPROFILE\.ssh\id_ed25519"
-#   .\deploy_full_to_fz.ps1 -ApiHealthWaitSeconds 120   # 非 Docker：systemctl start 后等健康检查的最长秒数（默认 90）
+#   .\deploy_full_to_fz.ps1 -ApiHealthWaitSeconds 60   # 非 Docker：systemctl start 后等健康检查的最长秒数（默认 30）
 
 param(
     [switch]$SkipBuild,
@@ -35,7 +35,7 @@ param(
     [string]$NonDockerBackendRoot = "/opt/frontcrm/backend",
     [int]$BackendPort = 5000,
     # 冷启动 + 连库 + Kestrel 绑定略慢于 systemctl start 返回；原先 40s 且强依赖 is-active=active 易误报失败
-    [int]$ApiHealthWaitSeconds = 90,
+    [int]$ApiHealthWaitSeconds = 30,
     # Optional: ssh/scp -i (PowerShell 5.1: save this script as UTF-8 with BOM if you use non-ASCII in messages)
     [string]$SshKeyPath = ""
 )

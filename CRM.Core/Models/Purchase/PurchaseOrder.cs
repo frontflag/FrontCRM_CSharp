@@ -256,6 +256,16 @@ namespace CRM.Core.Models.Purchase
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }
 
+        /// <summary>软删除时的登录用户 GUID。</summary>
+        [StringLength(36)]
+        [Column("deleted_by_user_id")]
+        public string? DeletedByUserId { get; set; }
+
+        /// <summary>软删除时的登录账号（冗余展示）。</summary>
+        [StringLength(100)]
+        [Column("deleted_by_user_name")]
+        public string? DeletedByUserName { get; set; }
+
         // 导航属性
         public virtual PurchaseOrder? PurchaseOrder { get; set; }
         public virtual SellOrderItem? SellOrderItem { get; set; }

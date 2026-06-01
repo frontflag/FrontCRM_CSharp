@@ -15,7 +15,7 @@
             <img
               class="global-logo-img"
               :src="headerBrandLogoSrc"
-              :alt="t('layout.brandFull')"
+              :alt="brandFullText"
               width="36"
               height="36"
               decoding="async"
@@ -23,7 +23,7 @@
             />
           </span>
           <span class="global-logo-stack global-logo-stack--brand">
-            <span class="global-logo-title">{{ t('layout.brandFull') }}</span>
+            <span class="global-logo-title">{{ brandFullText }}</span>
           </span>
         </router-link>
         <div class="global-top-right">
@@ -420,7 +420,8 @@
           </template>
         </SidebarMenuGroupFlyout>
 
-        <!-- 库存 -->
+        <!-- 库存 / 入库 / 出库 / 报关：物流数据范围禁止(4)时隐藏 -->
+        <template v-if="showLogisticsMenus">
         <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.inventory') }}</div>
 
         <!-- 入库管理 -->
@@ -562,11 +563,12 @@
             </template>
           </SidebarMenuGroupFlyout>
         </template>
+        </template>
 
         <!-- 财务：按部门隔离维度拆分“付款管理/收款管理”
              红框（财务管理折叠按钮）已移除；这里以“付款管理/收款管理”作为二级菜单组（带图标与收起展开）。 -->
-        <div class="menu-section-label" v-if="!isCollapsed && (isSysAdmin || identityType !== 6)">{{ t('layout.sections.finance') }}</div>
-        <div v-if="(isSysAdmin || identityType !== 6)" class="sidebar-nav-inline-group">
+        <div class="menu-section-label" v-if="!isCollapsed && showFinanceMenus && (isSysAdmin || identityType !== 6)">{{ t('layout.sections.finance') }}</div>
+        <div v-if="showFinanceMenus && (isSysAdmin || identityType !== 6)" class="sidebar-nav-inline-group">
           <!-- 付款管理组：销售部门（identityType=1）不显示 -->
           <SidebarMenuGroupFlyout
             v-if="
@@ -1117,6 +1119,7 @@ import { Sunny, Moon } from '@element-plus/icons-vue'
 import { useUiTheme } from '@/composables/useUiTheme'
 import { setAppLocale, type AppLocale } from '@/plugins/i18n'
 import { COMPANY_LOGIN_LOGO_URL } from '@/api/companyProfile'
+import { appBrandTitle } from '@/config/loginTenant'
 import fallbackHeaderLogoUrl from '@/assets/brand/semicore-login-logo.png'
 
 const route = useRoute()
@@ -1133,6 +1136,7 @@ const simulationTopBarStyle = computed(() => {
 })
 const { isDark, toggleTheme } = useUiTheme()
 const { t, locale } = useI18n()
+const brandFullText = computed(() => appBrandTitle(t('layout.brandFull')))
 const currentLocale = ref<AppLocale>(locale.value as AppLocale)
 
 /** 顶栏图标：与登录页同源（公司信息 Logo），接口/文件缺失时回退内置图 */
@@ -1635,7 +1639,7 @@ const resolveRouteTitle = (path: string): string => {
 
   const resolved = router.resolve(path)
   const rawTitle = (resolved.meta?.title as string | undefined) || ''
-  if (!rawTitle) return t('layout.brandFull')
+  if (!rawTitle) return brandFullText.value
   const key = routeMetaTitleKeyMap[rawTitle]
   return key ? t(key) : rawTitle
 }
@@ -1672,16 +1676,18 @@ const hasPermission = (code: string) => authStore.hasPermission(code)
 const identityType = computed(() => authStore.user?.identityType ?? 0)
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 
-/** 客户板块：采购(2)、采购助理(3)、物流(6) 不显示 */
+/** 客户板块：采购(2)、采购助理(3)、物流(6) 不显示；主部门勾选「隐藏客户管理」时不显示 */
 const showCustomerMenuSection = computed(() => {
   if (isSysAdmin.value) return true
+  if (authStore.isCustomerManagementHidden()) return false
   const t = identityType.value
   return t !== 2 && t !== 3 && t !== 6
 })
 
-/** 供应商板块：销售(1)、物流(6) 不显示 */
+/** 供应商板块：销售(1)、物流(6) 不显示；主部门勾选「隐藏供应商管理」时不显示 */
 const showVendorMenuSection = computed(() => {
   if (isSysAdmin.value) return true
+  if (authStore.isVendorManagementHidden()) return false
   const t = identityType.value
   return t !== 1 && t !== 6
 })
@@ -1700,8 +1706,21 @@ const showPurchaseNavGroup = computed(() => {
   return pr || po || so
 })
 
-/** 出库管理 + 报关板块：采购侧部门（belongsToPurchaseDept）隐藏；未带新字段的旧会话仍显示 */
+/** 入库/库存/出库/报关：主部门 LogisticsDataScope=4 时整组隐藏 */
+const showLogisticsMenus = computed(() => {
+  if (isSysAdmin.value) return true
+  return (authStore.user?.logisticsDataScope ?? 0) !== 4
+})
+
+/** 付款管理/收款管理：主部门 FinanceDataScope=4 时整组隐藏 */
+const showFinanceMenus = computed(() => {
+  if (isSysAdmin.value) return true
+  return (authStore.user?.financeDataScope ?? 0) !== 4
+})
+
+/** 出库管理 + 报关板块：采购侧部门（belongsToPurchaseDept）隐藏 */
 const showStockOutAndCustomsMenus = computed(() => {
+  if (!showLogisticsMenus.value) return false
   if (isSysAdmin.value) return true
   return authStore.user?.belongsToPurchaseDept !== true
 })
@@ -2090,7 +2109,14 @@ const vClickOutside: Directive = {
   }
 }
 
+watch(brandFullText, (title) => {
+  if (typeof document !== 'undefined') document.title = title
+})
+
 onMounted(() => {
+  if (typeof document !== 'undefined') {
+    document.title = brandFullText.value
+  }
   // 如果没有标签，初始化当前路由
   if (tabs.value.length === 0) {
     const title = currentPageTitle.value

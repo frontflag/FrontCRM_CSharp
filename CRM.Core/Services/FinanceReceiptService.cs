@@ -4,6 +4,7 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Sales;
+using CRM.Core.Models.System;
 using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
@@ -185,6 +186,19 @@ namespace CRM.Core.Services
         {
             var receipt = await _receiptRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"收款单 {id} 不存在");
+            await DeleteCoreAsync(receipt);
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = BusinessLogTypes.FinanceReceipt,
+                RecordId = receipt.Id,
+                RecordCode = receipt.FinanceReceiptCode,
+                EntityDisplayName = DeleteLogEntityNames.FinanceReceipt
+            });
+        }
+
+        private async Task DeleteCoreAsync(FinanceReceipt receipt)
+        {
+            var id = receipt.Id;
             var items = await _itemRepo.GetAllAsync();
             var recalcLineIds = items
                 .Where(i => i.FinanceReceiptId == id && !string.IsNullOrWhiteSpace(i.SellOrderItemId))
@@ -216,17 +230,20 @@ namespace CRM.Core.Services
             if (!guard.CanDelete)
                 throw new ArgumentException(guard.Message);
 
-            await DeleteAsync(entity.Id);
+            await DeleteCoreAsync(entity);
 
-            await _logOperationAppend.AppendAsync(
-                BusinessLogTypes.SalesOrder,
-                entity.Id,
-                string.IsNullOrWhiteSpace(entity.FinanceReceiptCode) ? null : entity.FinanceReceiptCode.Trim(),
-                "收款单强制删除",
-                actingUserId.Trim(),
-                string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
-                $"强制删除收款单：Id={entity.Id}，Code={entity.FinanceReceiptCode}",
-                reason: null);
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = BusinessLogTypes.FinanceReceipt,
+                RecordId = entity.Id,
+                RecordCode = entity.FinanceReceiptCode,
+                EntityDisplayName = DeleteLogEntityNames.FinanceReceipt,
+                IsForceDelete = true,
+                ForceConfirmBillCode = confirmBillCode.Trim(),
+                OperatorUserId = actingUserId.Trim(),
+                OperatorUserName = actingUserName?.Trim(),
+                OperationDescOverride = $"强制删除收款单：Id={entity.Id}，Code={entity.FinanceReceiptCode}"
+            });
         }
 
         public async Task UpdateStatusAsync(string id, short status, string? actingUserId = null)

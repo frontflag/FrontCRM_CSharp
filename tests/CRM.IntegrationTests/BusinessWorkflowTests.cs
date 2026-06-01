@@ -120,7 +120,8 @@ namespace CRM.IntegrationTests
                 rfqRbac,
                 rfqMainMem,
                 rfqItemMem,
-                NullLogger<RFQService>.Instance);
+                NullLogger<RFQService>.Instance,
+                Substitute.For<ILogOperationAppendService>());
             var quoteCustomerRepo = Substitute.For<IRepository<CustomerInfo>>();
             quoteCustomerRepo.FindAsync(Arg.Any<Expression<Func<CustomerInfo, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<CustomerInfo>>(Array.Empty<CustomerInfo>()));
@@ -145,7 +146,8 @@ namespace CRM.IntegrationTests
                 _serialNumberService,
                 _userService,
                 quoteListQuery,
-                NullLogger<QuoteService>.Instance);
+                NullLogger<QuoteService>.Instance,
+                Substitute.For<ILogOperationAppendService>());
             _financeExchangeRateService = Substitute.For<IFinanceExchangeRateService>();
             _financeExchangeRateService.GetCurrentAsync(default).ReturnsForAnyArgs(new FinanceExchangeRateDto
             {
@@ -194,6 +196,7 @@ namespace CRM.IntegrationTests
                 _userService,
                 soListQuery,
                 soItemLineQuery,
+                Substitute.For<ILogOperationAppendService>(),
                 _unitOfWork,
                 NullLogger<SalesOrderService>.Instance);
         }
@@ -1320,7 +1323,7 @@ namespace CRM.IntegrationTests
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
                 sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, rbacDepartmentRepo, rbacUserDepartmentRepo, quoteRepo,
-                userRepo, rbacSvc, rfqMainMem, rfqItemMem, logger);
+                userRepo, rbacSvc, rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>());
 
             // 模拟序列号生成
             serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -1436,7 +1439,7 @@ namespace CRM.IntegrationTests
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
                 sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, rbacDepartmentRepo, rbacUserDepartmentRepo, quoteRepo,
-                userRepo, rbacSvc, rfqMainMem, rfqItemMem, logger);
+                userRepo, rbacSvc, rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>());
 
             // 模拟序列号生成
             serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -1564,7 +1567,7 @@ namespace CRM.IntegrationTests
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
                 sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, rbacDepartmentRepo, rbacUserDepartmentRepo, quoteRepo,
-                userRepo, rbacSvc, rfqMainMem, rfqItemMem, logger);
+                userRepo, rbacSvc, rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>());
 
             // 准备用户数据
             var salesUserId = "SALES-USER-001";

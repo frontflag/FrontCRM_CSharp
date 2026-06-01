@@ -1,6 +1,7 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customs;
+using CRM.Core.Models.System;
 using CRM.Core.Utilities;
 
 namespace CRM.Core.Services;
@@ -10,15 +11,21 @@ public class CustomsBrokerService : ICustomsBrokerService
     private readonly IRepository<CustomsBroker> _repo;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ISerialNumberService _serialNumberService;
+    private readonly ILogOperationAppendService _logOperationAppend;
+    private readonly IUserService _userService;
 
     public CustomsBrokerService(
         IRepository<CustomsBroker> repo,
         IUnitOfWork unitOfWork,
-        ISerialNumberService serialNumberService)
+        ISerialNumberService serialNumberService,
+        ILogOperationAppendService logOperationAppend,
+        IUserService userService)
     {
         _repo = repo;
         _unitOfWork = unitOfWork;
         _serialNumberService = serialNumberService;
+        _logOperationAppend = logOperationAppend;
+        _userService = userService;
     }
 
     public async Task<IReadOnlyList<CustomsBroker>> GetActiveListAsync()
@@ -116,6 +123,17 @@ public class CustomsBrokerService : ICustomsBrokerService
 
         await _repo.UpdateAsync(row);
         await _unitOfWork.SaveChangesAsync();
+
+        var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
+        await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+        {
+            BizType = BusinessLogTypes.CustomsBroker,
+            RecordId = row.Id,
+            RecordCode = row.BrokerCode,
+            EntityDisplayName = DeleteLogEntityNames.CustomsBroker,
+            OperatorUserId = actorId,
+            OperatorUserName = actorName
+        });
     }
 
     private static void EnsureRegionType(short regionType)

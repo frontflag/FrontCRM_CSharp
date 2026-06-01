@@ -435,6 +435,38 @@ namespace CRM.Core.Models.Inventory
         [NotMapped]
         public string? DetailUnit { get; set; }
 
+        /// <summary>详情接口填充：入库日期（单头冗余，便于明细表展示）</summary>
+        [NotMapped]
+        public DateTime? DetailStockInDate { get; set; }
+
+        /// <summary>详情接口填充：到货通知单号（单头 <c>SourceCode</c>）</summary>
+        [NotMapped]
+        public string? DetailSourceCode { get; set; }
+
+        /// <summary>详情接口填充：采购订单明细编号</summary>
+        [NotMapped]
+        public string? DetailPurchaseOrderItemCode { get; set; }
+
+        /// <summary>详情接口填充：供应商名称（单头冗余）</summary>
+        [NotMapped]
+        public string? DetailVendorName { get; set; }
+
+        /// <summary>详情接口填充：仓库编号（单头冗余）</summary>
+        [NotMapped]
+        public string? DetailWarehouseCode { get; set; }
+
+        /// <summary>详情接口填充：地域类型（单头 <c>RegionType</c>）</summary>
+        [NotMapped]
+        public short DetailRegionType { get; set; }
+
+        /// <summary>详情接口填充：入库类型（单头 <c>StockInType</c>）</summary>
+        [NotMapped]
+        public short DetailStockInType { get; set; }
+
+        /// <summary>详情接口填充：采购币别（行表/采购行解析）</summary>
+        [NotMapped]
+        public short DetailCurrency { get; set; }
+
         /// <summary>扩展表 <c>stockinitemextend</c>：与本条明细一对一（<c>StockInItemId</c> = <c>ItemId</c>）；可无扩展行。</summary>
         public virtual StockInItemExtend? Extend { get; set; }
 

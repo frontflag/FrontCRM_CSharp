@@ -29,11 +29,12 @@ public sealed class PackingItemLineSeqService : IPackingItemLineSeqService
         {
             await using var cmd = (NpgsqlCommand)conn.CreateCommand();
             cmd.CommandText = """
-INSERT INTO packing_extend ("PackingId", last_item_line_seq, "CreateTime", "ModifyTime")
-VALUES (@pid, @cnt, @ct, @mod)
+INSERT INTO packing_extend ("PackingId", last_item_line_seq, "CreateTime", "ModifyTime", is_deleted)
+VALUES (@pid, @cnt, @ct, @mod, false)
 ON CONFLICT ("PackingId") DO UPDATE SET
   last_item_line_seq = packing_extend.last_item_line_seq + EXCLUDED.last_item_line_seq,
   "ModifyTime" = EXCLUDED."ModifyTime"
+WHERE packing_extend.is_deleted = false
 RETURNING last_item_line_seq - @cnt + 1;
 """;
             cmd.Parameters.AddWithValue("pid", packingId.Trim());

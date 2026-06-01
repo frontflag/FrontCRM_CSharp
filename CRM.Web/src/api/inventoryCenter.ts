@@ -42,6 +42,8 @@ export interface MaterialTrace {
   batchNo?: string
   quantity: number
   unitPrice: number
+  /** 1=RMB 2=USD … */
+  currency?: number
   purchaseOrderCode?: string
   purchaseUserName?: string
   qcStatus?: number
@@ -82,7 +84,9 @@ export interface StockItemRow {
   salesPrice?: number | null
   salesCurrency?: number | null
   salesPriceUsd?: number | null
+  vendorId?: string | null
   vendorName?: string | null
+  customerId?: string | null
   customerName?: string | null
   /** 地域 10=境内 20=境外（stock_item.RegionType） */
   regionType?: number
@@ -117,6 +121,10 @@ export interface StockItemListQuery {
 }
 
 export interface StockItemListRow extends StockItemRow {
+  /** 入库类型（stock_in.StockInType） */
+  stockInType?: number
+  customerPn?: string | null
+  customerBrand?: string | null
   stockInDate?: string | null
   purchaserName?: string | null
   salespersonName?: string | null
@@ -399,8 +407,24 @@ export const inventoryCenterApi = {
     const qs = params.toString()
     return unwrap<PagedList<StockItemListRow>>(await apiClient.get(`/api/v1/inventory-center/stock-items?${qs}`))
   },
-  async getFinanceSummary(stagnantDays = 90): Promise<FinanceSummary> {
-    return unwrap<FinanceSummary>(await apiClient.get(`/api/v1/inventory-center/finance/summary?stagnantDays=${stagnantDays}`))
+  async getFinanceSummary(query?: {
+    stagnantDays?: number
+    warehouseId?: string
+    materialModel?: string
+    stockCode?: string
+    stockType?: number
+  }): Promise<FinanceSummary> {
+    const params = new URLSearchParams()
+    params.set('stagnantDays', String(query?.stagnantDays ?? 90))
+    if (query?.warehouseId?.trim()) params.set('warehouseId', query.warehouseId.trim())
+    if (query?.materialModel?.trim()) params.set('materialModel', query.materialModel.trim())
+    if (query?.stockCode?.trim()) params.set('stockCode', query.stockCode.trim())
+    if (query?.stockType != null && query.stockType >= 1 && query.stockType <= 3) {
+      params.set('stockType', String(query.stockType))
+    }
+    return unwrap<FinanceSummary>(
+      await apiClient.get(`/api/v1/inventory-center/finance/summary?${params.toString()}`)
+    )
   },
   async getWarehouses(): Promise<WarehouseInfo[]> {
     return unwrap<WarehouseInfo[]>(await apiClient.get('/api/v1/inventory-center/warehouses'))

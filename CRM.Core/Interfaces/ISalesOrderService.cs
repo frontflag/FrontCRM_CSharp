@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using CRM.Core.Models.Sales;
 
@@ -12,7 +13,8 @@ namespace CRM.Core.Interfaces
         Task<IEnumerable<SellOrder>> GetAllAsync();
         /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
         Task<SellOrder> UpdateAsync(string id, UpdateSalesOrderRequest request, string? actingUserId = null);
-        Task DeleteAsync(string id);
+        /// <param name="actingUserId">当前登录用户 ID（写入 log_operation 与明细 deleted_by）</param>
+        Task DeleteAsync(string id, string? actingUserId = null);
         /// <param name="auditRemark">审核拒绝时写入的原因（仅 AuditFailed 时有效）</param>
         /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
         Task UpdateStatusAsync(string id, SellOrderMainStatus status, string? auditRemark = null, string? actingUserId = null);
@@ -33,6 +35,44 @@ namespace CRM.Core.Interfaces
 
         /// <summary>按销售订单批量重算明细扩展并返回变更结果。</summary>
         Task<SalesOrderItemExtendRefreshResult> RefreshItemExtendsAsync(string salesOrderId, CancellationToken cancellationToken = default);
+
+        /// <summary>销售订单主表字段变更日志（<c>log_change_fldval</c>，BizType=<see cref="Constants.BusinessLogTypes.SalesOrder"/>）。</summary>
+        Task<IReadOnlyList<SalesOrderFieldChangeLogDto>> GetFieldChangeLogsAsync(string sellOrderId);
+
+        /// <summary>已软删除的销售订单明细行（含 <c>is_deleted=true</c>，忽略全局查询过滤器）。</summary>
+        Task<IReadOnlyList<SalesOrderDeletedItemLogDto>> GetDeletedOrderItemsAsync(string sellOrderId);
+    }
+
+    /// <summary>销售订单字段变更日志行。</summary>
+    public class SalesOrderFieldChangeLogDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string SellOrderId { get; set; } = string.Empty;
+        public string? SellOrderCode { get; set; }
+        public string FieldName { get; set; } = string.Empty;
+        public string? FieldLabel { get; set; }
+        public string? OldValue { get; set; }
+        public string? NewValue { get; set; }
+        public string? ChangedByUserId { get; set; }
+        public string? ChangedByUserName { get; set; }
+        public DateTime ChangedAt { get; set; }
+    }
+
+    /// <summary>已软删除的销售订单明细。</summary>
+    public class SalesOrderDeletedItemLogDto
+    {
+        public string SellOrderItemId { get; set; } = string.Empty;
+        public string? SellOrderItemCode { get; set; }
+        public string? PN { get; set; }
+        public string? Brand { get; set; }
+        public decimal Qty { get; set; }
+        public decimal Price { get; set; }
+        public short Currency { get; set; }
+        public string? Comment { get; set; }
+        public DateTime? CreateTime { get; set; }
+        public DateTime? DeletedAt { get; set; }
+        public string? DeletedByUserId { get; set; }
+        public string? DeletedByUserName { get; set; }
     }
 
     /// <summary>销售订单明细列表查询</summary>
@@ -161,6 +201,9 @@ namespace CRM.Core.Interfaces
 
     public class CreateSalesOrderItemRequest
     {
+        /// <summary>编辑保存时传入已有明细主键（SellOrderItemId）；新建行省略。</summary>
+        public string? Id { get; set; }
+
         /// <summary>报价ID(来源)</summary>
         public string? QuoteId { get; set; }
         /// <summary>商品/物料ID</summary>

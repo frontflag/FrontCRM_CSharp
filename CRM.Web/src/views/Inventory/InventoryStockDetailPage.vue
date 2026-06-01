@@ -67,16 +67,52 @@
         <el-table-column prop="qtyRepertoryAvailable" :label="t('inventoryStockDetail.columns.qtyAvailable')" width="100" align="right" />
         <el-table-column prop="qtyOccupy" :label="t('inventoryStockDetail.columns.qtyOccupy')" width="90" align="right" />
         <el-table-column prop="qtySales" :label="t('inventoryStockDetail.columns.qtySales')" width="90" align="right" />
-        <el-table-column :label="t('inventoryStockDetail.columns.purchasePrice')" width="128" align="right">
+        <el-table-column
+          :label="t('inventoryStockDetail.columns.purchasePrice')"
+          min-width="140"
+          align="right"
+          class-name="stock-item-unit-price-col"
+        >
           <template #default="{ row }">
             <span v-if="maskPurchaseSensitiveFields">—</span>
-            <span v-else>{{ formatCurrencyUnitPrice(row.purchasePrice, row.purchaseCurrency) }}</span>
+            <template v-else-if="unitPriceDockHasValue(row.purchasePrice)">
+              <div class="dock-tier-price-line">
+                <template v-for="amt in [splitUnitPriceDockParts(row.purchasePrice)]" :key="'pp-' + row.stockItemId">
+                  <span class="dock-tier-amt">
+                    <span class="dock-tier-amt-int">{{ amt.intPart }}</span
+                    ><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+                  </span>
+                </template>
+                <span class="dock-tier-ccy-gap">&nbsp;</span>
+                <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.purchaseCurrency)]">{{
+                  listAmountCurrencyIso(row.purchaseCurrency)
+                }}</span>
+              </div>
+            </template>
+            <span v-else>—</span>
           </template>
         </el-table-column>
-        <el-table-column :label="t('inventoryStockDetail.columns.purchasePriceUsd')" width="118" align="right">
+        <el-table-column
+          :label="t('inventoryStockDetail.columns.purchasePriceUsd')"
+          min-width="132"
+          align="right"
+          class-name="stock-item-unit-price-col"
+        >
           <template #default="{ row }">
             <span v-if="maskPurchaseSensitiveFields">—</span>
-            <span v-else>{{ formatCurrencyUnitPrice(row.purchasePriceUsd, 2) }}</span>
+            <template v-else-if="unitPriceDockHasValue(row.purchasePriceUsd)">
+              <div class="dock-tier-price-line">
+                <template v-for="amt in [splitUnitPriceDockParts(row.purchasePriceUsd)]" :key="'ppu-' + row.stockItemId">
+                  <span class="dock-tier-amt">
+                    <span class="dock-tier-amt-int">{{ amt.intPart }}</span
+                    ><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+                  </span>
+                </template>
+                <span class="dock-tier-ccy-gap">&nbsp;</span>
+                <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+              </div>
+            </template>
+            <span v-else>—</span>
           </template>
         </el-table-column>
         <el-table-column :label="t('inventoryStockDetail.columns.salesPrice')" width="128" align="right">
@@ -177,10 +213,31 @@
         </el-table-column>
         <el-table-column prop="stockInCode" :label="t('inventoryTrace.columns.stockInCode')" width="160" />
         <el-table-column prop="quantity" :label="t('inventoryTrace.columns.quantity')" width="100" align="right" />
-        <el-table-column prop="unitPrice" :label="t('inventoryTrace.columns.unitPrice')" width="110" align="right">
+        <el-table-column
+          prop="unitPrice"
+          :label="t('inventoryTrace.columns.unitPrice')"
+          min-width="140"
+          align="center"
+          class-name="trace-unit-price-col"
+          label-class-name="trace-unit-price-col"
+        >
           <template #default="{ row }">
             <span v-if="maskPurchaseSensitiveFields">—</span>
-            <span v-else>{{ formatUnitPriceNumber(row.unitPrice) }}</span>
+            <template v-else-if="unitPriceDockHasValue(row.unitPrice)">
+              <div class="dock-tier-price-line trace-unit-price-line">
+                <template v-for="amt in [splitUnitPriceDockParts(row.unitPrice)]" :key="'up-' + row.stockInCode">
+                  <span class="dock-tier-amt">
+                    <span class="dock-tier-amt-int">{{ amt.intPart }}</span
+                    ><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+                  </span>
+                </template>
+                <span class="dock-tier-ccy-gap">&nbsp;</span>
+                <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{
+                  listAmountCurrencyIso(row.currency)
+                }}</span>
+              </div>
+            </template>
+            <span v-else>—</span>
           </template>
         </el-table-column>
         <el-table-column prop="purchaseOrderCode" :label="t('inventoryTrace.columns.purchaseOrderCode')" width="150" />
@@ -207,7 +264,13 @@ import { Box } from '@element-plus/icons-vue'
 import { inventoryCenterApi, type MaterialTrace, type StockItemRow, type WarehouseInfo } from '@/api/inventoryCenter'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
-import { formatCurrencyUnitPrice, formatUnitPriceNumber } from '@/utils/moneyFormat'
+import {
+  formatCurrencyUnitPrice,
+  listAmountCurrencyDockClass,
+  listAmountCurrencyIso,
+  splitUnitPriceDockParts,
+  unitPriceDockHasValue
+} from '@/utils/moneyFormat'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
@@ -526,5 +589,14 @@ html[data-theme='dark'] .inv-stock-item-code-stocking-icon {
 .region-type-chip--overseas {
   color: #409eff;
   background: rgba(64, 158, 255, 0.14);
+}
+
+/* 物料入库追溯单价：与 RFQ「单价（阶梯）」dock-tier-price-line 一致，列内居中 */
+:deep(.trace-unit-price-col .cell) {
+  text-align: center;
+}
+
+.trace-unit-price-line {
+  justify-content: center;
 }
 </style>

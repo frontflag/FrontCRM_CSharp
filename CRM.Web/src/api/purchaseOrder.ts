@@ -24,6 +24,34 @@ export interface PurchaseOrderItemExtendRefreshResult {
   changes: PurchaseOrderItemExtendChangeDto[]
 }
 
+export interface PurchaseOrderFieldChangeLogRow {
+  id: string
+  purchaseOrderId: string
+  purchaseOrderCode?: string | null
+  fieldName: string
+  fieldLabel?: string | null
+  oldValue?: string | null
+  newValue?: string | null
+  changedByUserId?: string | null
+  changedByUserName?: string | null
+  changedAt: string
+}
+
+export interface PurchaseOrderDeletedItemRow {
+  purchaseOrderItemId: string
+  purchaseOrderItemCode?: string | null
+  pn?: string | null
+  brand?: string | null
+  qty: number
+  cost: number
+  currency: number
+  comment?: string | null
+  createTime?: string | null
+  deletedAt?: string | null
+  deletedByUserId?: string | null
+  deletedByUserName?: string | null
+}
+
 export interface PurchaseOrderDetailTabAggregates {
   purchaseRequisitions: Array<{
     id: string
@@ -128,6 +156,18 @@ export const purchaseOrderApi = {
   // 获取采购订单详情
   async getById(id: string) {
     return await apiClient.get(`/api/v1/purchase-orders/${id}`)
+  },
+
+  /** 采购订单主表字段变更日志 */
+  async getChangeLogs(id: string) {
+    const enc = encodeURIComponent(id)
+    return await apiClient.get<PurchaseOrderFieldChangeLogRow[]>(`/api/v1/purchase-orders/${enc}/change-logs`)
+  },
+
+  /** 已软删除的采购订单明细 */
+  async getDeletedItems(id: string) {
+    const enc = encodeURIComponent(id)
+    return await apiClient.get<PurchaseOrderDeletedItemRow[]>(`/api/v1/purchase-orders/${enc}/deleted-items`)
   },
 
   async getDetailTabAggregates(id: string) {

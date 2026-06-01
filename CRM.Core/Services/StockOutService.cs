@@ -5,6 +5,7 @@ using CRM.Core.Models.Customer;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
+using CRM.Core.Models.System;
 using CRM.Core.Utilities;
 using System;
 using System.Collections.Generic;
@@ -1784,15 +1785,18 @@ namespace CRM.Core.Services
             await _unitOfWork.SaveChangesAsync();
 
             var recordCode = string.IsNullOrWhiteSpace(entity.RequestCode) ? null : entity.RequestCode.Trim();
-            await _logOperationAppend.AppendAsync(
-                BusinessLogTypes.StockOut,
-                entity.Id,
-                recordCode,
-                "出库通知强制删除",
-                actingUserId.Trim(),
-                string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
-                $"强制删除出库通知 RequestId={entity.Id}，确认单号={recordCode}",
-                reason: null);
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = BusinessLogTypes.StockOut,
+                RecordId = entity.Id,
+                RecordCode = recordCode,
+                EntityDisplayName = DeleteLogEntityNames.StockOutRequest,
+                IsForceDelete = true,
+                ForceConfirmBillCode = confirmBillCode.Trim(),
+                OperatorUserId = actingUserId.Trim(),
+                OperatorUserName = actingUserName?.Trim(),
+                OperationDescOverride = $"强制删除出库通知 RequestId={entity.Id}，确认单号={recordCode}"
+            });
         }
 
         /// <inheritdoc />
@@ -1818,15 +1822,18 @@ namespace CRM.Core.Services
             await ForceDeleteWithInventoryRollbackAsync(entity.Id, actingUserId.Trim());
 
             var recordCode = string.IsNullOrWhiteSpace(entity.StockOutCode) ? null : entity.StockOutCode.Trim();
-            await _logOperationAppend.AppendAsync(
-                BusinessLogTypes.StockOut,
-                entity.Id,
-                recordCode,
-                "出库单强制删除",
-                actingUserId.Trim(),
-                string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
-                $"强制删除出库单 StockOutId={entity.Id}，确认单号={recordCode}",
-                reason: null);
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = BusinessLogTypes.StockOut,
+                RecordId = entity.Id,
+                RecordCode = recordCode,
+                EntityDisplayName = DeleteLogEntityNames.StockOut,
+                IsForceDelete = true,
+                ForceConfirmBillCode = confirmBillCode.Trim(),
+                OperatorUserId = actingUserId.Trim(),
+                OperatorUserName = actingUserName?.Trim(),
+                OperationDescOverride = $"强制删除出库单 StockOutId={entity.Id}，确认单号={recordCode}"
+            });
         }
 
         private static bool IsOutboundDoneStatus(short status) => status == 2 || status == 4;

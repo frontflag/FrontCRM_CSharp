@@ -311,6 +311,8 @@ export interface CreateRFQRequest {
 
 // 新增 RFQ 明细请求
 export interface CreateRFQItemRequest {
+  /** 编辑保存时传已有明细 Id，省略则新建 */
+  id?: string
   lineNo?: number
   // 后端字段名
   customerMpn?: string         // 客户物料型号，对应后端 customer_mpn

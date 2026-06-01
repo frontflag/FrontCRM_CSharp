@@ -156,12 +156,12 @@
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
               <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('salesOrderList.actions.detail') }}</button>
-              <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('salesOrderList.actions.edit') }}</button>
+              <button v-if="canWriteSaleData" type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('salesOrderList.actions.edit') }}</button>
               <button type="button" class="action-btn action-btn--primary" @click.stop="handlePrintReport(row)">
                 {{ t('salesOrderList.actions.printReport') }}
               </button>
               <button
-                v-if="row.status === 1 && canSubmitSalesOrderAudit"
+                v-if="canWriteSaleData && row.status === 1 && canSubmitSalesOrderAudit"
                 type="button"
                 class="action-btn action-btn--warning"
                 @click.stop="submitForAudit(row)"
@@ -179,13 +179,13 @@
                   <el-dropdown-item @click.stop="handleView(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('salesOrderList.actions.detail') }}</span>
                   </el-dropdown-item>
-                  <el-dropdown-item @click.stop="handleEdit(row)">
+                  <el-dropdown-item v-if="canWriteSaleData" @click.stop="handleEdit(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('salesOrderList.actions.edit') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item @click.stop="handlePrintReport(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('salesOrderList.actions.printReport') }}</span>
                   </el-dropdown-item>
-                  <el-dropdown-item v-if="row.status === 1 && canSubmitSalesOrderAudit" @click.stop="submitForAudit(row)">
+                  <el-dropdown-item v-if="canWriteSaleData && row.status === 1 && canSubmitSalesOrderAudit" @click.stop="submitForAudit(row)">
                     <span class="op-more-item op-more-item--warning">{{ t('salesOrderList.actions.submitAudit') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
@@ -239,6 +239,7 @@ import {
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 
 const router = useRouter()
 const route = useRoute()
@@ -249,6 +250,7 @@ const orderList = ref<any[]>([])
 const listTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const authStore = useAuthStore()
+const { canWriteSaleData } = useDepartmentDataReadOnly()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 /** 订单上的客户名属销售业务上下文：业务员有 sales-order.read 即可见列与筛选，不必具备客户主数据权限 customer.info.read */
 const canViewCustomerInfo = computed(

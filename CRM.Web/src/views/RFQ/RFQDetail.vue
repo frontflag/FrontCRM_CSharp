@@ -57,20 +57,21 @@
         </div>
       </div>
       <div class="header-right">
-        <button class="btn-secondary" @click="handleEdit" v-if="rfq?.status === 0 || rfq?.status === 1">
+        <button class="btn-secondary" @click="handleEdit" v-if="canWriteSaleData && (rfq?.status === 0 || rfq?.status === 1)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
           {{ t('rfqDetail.edit') }}
         </button>
-        <button class="btn-warning" @click="showCloseDialog" v-if="rfq?.status !== 7 && rfq?.status !== 8">
+        <button class="btn-warning" @click="showCloseDialog" v-if="canWriteSaleData && rfq?.status !== 7 && rfq?.status !== 8">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
           </svg>
           {{ t('rfqDetail.closeRfq') }}
         </button>
         <el-dropdown
+          v-if="canWriteSaleData"
           trigger="click"
           placement="bottom-end"
           popper-class="rfq-detail-header-more-popper"
@@ -550,6 +551,7 @@ import { favoriteApi } from '@/api/favorite'
 import { RFQ_FAVORITE_ENTITY_TYPE, RFQ_FAVORITES_CHANGED_EVENT } from '@/constants/rfqFavorites'
 import { canManualAssignRfqPurchaser } from '@/constants/rfqPurchaserAssign'
 import { useAuthStore } from '@/stores/auth'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { recordRfqRecentView } from '@/utils/rfqRecentHistory'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
@@ -565,6 +567,7 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { canWriteSaleData } = useDepartmentDataReadOnly()
 const rfqId = route.params.id as string
 const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMaterialProductionDateDict()
 

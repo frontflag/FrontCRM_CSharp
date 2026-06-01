@@ -225,11 +225,23 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("finance/summary")]
-        public async Task<ActionResult<ApiResponse<InventoryFinanceSummaryDto>>> GetFinanceSummary([FromQuery] int stagnantDays = 90)
+        public async Task<ActionResult<ApiResponse<InventoryFinanceSummaryDto>>> GetFinanceSummary(
+            [FromQuery] int stagnantDays = 90,
+            [FromQuery] string? warehouseId = null,
+            [FromQuery] string? materialModel = null,
+            [FromQuery] string? stockCode = null,
+            [FromQuery] short? stockType = null,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                var dto = await _service.GetFinanceSummaryAsync(stagnantDays);
+                var dto = await _service.GetFinanceSummaryAsync(
+                    stagnantDays,
+                    warehouseId,
+                    materialModel,
+                    stockCode,
+                    stockType,
+                    cancellationToken);
                 if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
                     PurchaseSensitiveFieldMask511.ApplyInventoryFinanceSummary(dto, true);
                 return Ok(ApiResponse<InventoryFinanceSummaryDto>.Ok(dto, "获取库存财务分析成功"));

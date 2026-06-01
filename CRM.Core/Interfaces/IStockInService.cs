@@ -60,6 +60,9 @@ namespace CRM.Core.Interfaces
 
     public class StockInQueryRequest
     {
+        /// <summary>列表数据范围过滤用（物流 <see cref="RbacDepartment.LogisticsDataScope"/>）。</summary>
+        public string? CurrentUserId { get; set; }
+
         public string? Model { get; set; }
         public string? VendorName { get; set; }
         public string? PurchaseOrderCode { get; set; }

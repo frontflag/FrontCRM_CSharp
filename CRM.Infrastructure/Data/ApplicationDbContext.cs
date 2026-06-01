@@ -254,6 +254,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.SellOrderItemCode).HasColumnName("sell_order_item_code").HasMaxLength(64);
                 entity.HasIndex(e => new { e.SellOrderId, e.SellOrderItemCode }).IsUnique();
                 entity.HasIndex(e => e.SellOrderId);
+                entity.Property(e => e.DeletedByUserId).HasColumnName("deleted_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.DeletedByUserName).HasColumnName("deleted_by_user_name").HasMaxLength(100);
             });
 
             modelBuilder.Entity<SellOrderExtend>(entity =>
@@ -262,6 +264,7 @@ namespace CRM.Infrastructure.Data
                 entity.ToTable("sellorderextend");
                 entity.Property(e => e.SellOrderId).HasColumnName("SellOrderId").HasMaxLength(36);
                 entity.Property(e => e.LastItemLineSeq).HasDefaultValue(0);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
             });
 
             modelBuilder.Entity<SellOrderItemExtend>(entity =>
@@ -312,6 +315,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.PurchasedStock_AvailableQty).HasColumnName("PurchasedStock_AvailableQty").HasDefaultValue(0);
                 entity.Property(e => e.ReceiptProgressStatus).HasDefaultValue((short)0);
                 entity.Property(e => e.InvoiceProgressStatus).HasDefaultValue((short)0);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
             });
 
             // ===== 采购订单模块配置 =====
@@ -348,6 +352,8 @@ namespace CRM.Infrastructure.Data
                       .HasForeignKey(e => e.SellOrderItemId)
                       .IsRequired(false)
                       .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(e => e.DeletedByUserId).HasColumnName("deleted_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.DeletedByUserName).HasColumnName("deleted_by_user_name").HasMaxLength(100);
             });
 
             modelBuilder.Entity<PurchaseOrderExtend>(entity =>
@@ -356,6 +362,7 @@ namespace CRM.Infrastructure.Data
                 entity.ToTable("purchaseorderextend");
                 entity.Property(e => e.PurchaseOrderId).HasColumnName("PurchaseOrderId").HasMaxLength(36);
                 entity.Property(e => e.LastItemLineSeq).HasDefaultValue(0);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
             });
 
             modelBuilder.Entity<PurchaseOrderItemExtend>(entity =>
@@ -381,6 +388,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.StockInProgressStatus).HasDefaultValue((short)0);
                 entity.Property(e => e.PaymentProgressStatus).HasDefaultValue((short)0);
                 entity.Property(e => e.InvoiceProgressStatus).HasDefaultValue((short)0);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
             });
 
             // ===== 软删除全局过滤器 =====
@@ -406,6 +414,13 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<SellOrderItem>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<PurchaseOrder>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<PurchaseOrderItem>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<SellOrderExtend>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<SellOrderItemExtend>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<PurchaseOrderExtend>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<PackingExtend>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<PackingExtendBox>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<PackingExtendShip>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<PackingItemExtend>().HasQueryFilter(e => !e.IsDeleted);
 
             modelBuilder.Entity<FinancePayment>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinancePaymentItem>().HasQueryFilter(e => !e.IsDeleted);
@@ -527,6 +542,7 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<VendorBankInfo>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.FinancePaymentBankId).HasMaxLength(36);
                 entity.Property(e => e.BankName).HasMaxLength(100);
                 entity.Property(e => e.BankAccount).HasMaxLength(50);
                 entity.Property(e => e.AccountName).HasMaxLength(50);
@@ -953,24 +969,26 @@ namespace CRM.Infrastructure.Data
                 entity.HasKey(e => e.PackingId);
                 entity.Property(e => e.PackingId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.LastItemLineSeq).HasColumnName("last_item_line_seq").HasDefaultValue(0);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
             });
 
             modelBuilder.Entity<PackingExtendBox>(entity =>
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.PackingId).IsRequired().HasMaxLength(36);
-                entity.HasIndex(e => e.PackingId).IsUnique();
+                entity.HasIndex(e => e.PackingId).IsUnique().HasFilter("is_deleted = false");
                 entity.Property(e => e.Nw).HasColumnType("numeric(18,4)");
                 entity.Property(e => e.Gw).HasColumnType("numeric(18,4)");
                 entity.Property(e => e.Dim).HasMaxLength(200);
                 entity.Property(e => e.Ctns).HasColumnName("CTNS");
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
             });
 
             modelBuilder.Entity<PackingExtendShip>(entity =>
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.PackingId).IsRequired().HasMaxLength(36);
-                entity.HasIndex(e => e.PackingId).IsUnique();
+                entity.HasIndex(e => e.PackingId).IsUnique().HasFilter("is_deleted = false");
                 entity.Property(e => e.ShipCompany).HasColumnName("ship_company").HasMaxLength(200);
                 entity.Property(e => e.ShipAddress).HasColumnName("ship_address").HasMaxLength(256);
                 entity.Property(e => e.ShipAttn).HasColumnName("ship_attn").HasMaxLength(100);
@@ -981,6 +999,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.BillTel).HasColumnName("bill_tel").HasMaxLength(64);
                 entity.Property(e => e.DeliveryReq).HasColumnName("delivery_req").HasMaxLength(256);
                 entity.Property(e => e.DeliveryMethod).HasColumnName("delivery_method");
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
             });
 
             modelBuilder.Entity<PackingItem>(entity =>
@@ -1013,7 +1032,7 @@ namespace CRM.Infrastructure.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.PackingItemId).IsRequired().HasMaxLength(36);
-                entity.HasIndex(e => e.PackingItemId).IsUnique();
+                entity.HasIndex(e => e.PackingItemId).IsUnique().HasFilter("is_deleted = false");
                 entity.Property(e => e.CustomerId).HasColumnName("customer_id").HasMaxLength(36);
                 entity.Property(e => e.SalesId).HasColumnName("sales_id").HasMaxLength(36);
                 entity.Property(e => e.SellOrderId).HasColumnName("sell_order_id").HasMaxLength(36);
@@ -1023,6 +1042,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.CustomerSo).HasColumnName("customer_so").HasMaxLength(200);
                 entity.Property(e => e.CustomerPn).HasColumnName("customer_pn").HasMaxLength(200);
                 entity.Property(e => e.CustomerBrand).HasColumnName("customer_brand").HasMaxLength(200);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
             });
 
             modelBuilder.Entity<StockOutRequest>(entity =>

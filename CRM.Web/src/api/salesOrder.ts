@@ -29,6 +29,34 @@ export interface SalesOrderItemExtendRefreshResult {
   changes: SalesOrderItemExtendChangeDto[]
 }
 
+export interface SalesOrderFieldChangeLogRow {
+  id: string
+  sellOrderId: string
+  sellOrderCode?: string | null
+  fieldName: string
+  fieldLabel?: string | null
+  oldValue?: string | null
+  newValue?: string | null
+  changedByUserId?: string | null
+  changedByUserName?: string | null
+  changedAt: string
+}
+
+export interface SalesOrderDeletedItemRow {
+  sellOrderItemId: string
+  sellOrderItemCode?: string | null
+  pn?: string | null
+  brand?: string | null
+  qty: number
+  price: number
+  currency: number
+  comment?: string | null
+  createTime?: string | null
+  deletedAt?: string | null
+  deletedByUserId?: string | null
+  deletedByUserName?: string | null
+}
+
 /** GET /api/v1/sales-orders/{id}/detail-tab-aggregates */
 export interface SalesOrderDetailTabAggregates {
   purchaseRequisitions: Array<{
@@ -40,6 +68,23 @@ export interface SalesOrderDetailTabAggregates {
     brand?: string | null
     qty: number
     expectedPurchaseTime: string
+    createTime: string
+  }>
+  purchaseOrderItems: Array<{
+    id: string
+    purchaseOrderId: string
+    purchaseOrderCode: string
+    purchaseOrderItemCode: string
+    poStatus: number
+    sellOrderItemId?: string | null
+    pn?: string | null
+    brand?: string | null
+    qty: number
+    cost: number
+    currency: number
+    itemStatus: number
+    vendorName?: string | null
+    purchaseUserName?: string | null
     createTime: string
   }>
   stockIns: Array<{
@@ -142,7 +187,19 @@ export const salesOrderApi = {
     return await apiClient.get(`/api/v1/sales-orders/${id}`)
   },
 
-  /** 详情页：采购申请/入库/库存/出库通知/出库/收款/销项发票等列表 */
+  /** 销售订单主表字段变更日志 */
+  async getChangeLogs(id: string) {
+    const enc = encodeURIComponent(id)
+    return await apiClient.get<SalesOrderFieldChangeLogRow[]>(`/api/v1/sales-orders/${enc}/change-logs`)
+  },
+
+  /** 已软删除的销售订单明细 */
+  async getDeletedItems(id: string) {
+    const enc = encodeURIComponent(id)
+    return await apiClient.get<SalesOrderDeletedItemRow[]>(`/api/v1/sales-orders/${enc}/deleted-items`)
+  },
+
+  /** 详情页：采购申请/采购订单明细/入库/库存/出库通知/出库/收款/销项发票等列表 */
   async getDetailTabAggregates(id: string) {
     const enc = encodeURIComponent(id)
     return await apiClient.get<SalesOrderDetailTabAggregates>(`/api/v1/sales-orders/${enc}/detail-tab-aggregates`)

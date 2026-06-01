@@ -86,7 +86,7 @@
               v-if="Number(row.status) !== STOCK_OUT_REQUEST_STATUS.StockedOut && Number(row.status) !== STOCK_OUT_REQUEST_STATUS.Cancelled"
               class="action-btns"
             >
-              <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
+              <button v-if="canWriteLogisticsData" type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
               <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">
                 强制删除
               </button>
@@ -108,7 +108,7 @@
             </div>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click.stop="handleDeleteRow(row)">
+                <el-dropdown-item v-if="canWriteLogisticsData" @click.stop="handleDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
@@ -241,6 +241,7 @@ import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionTyp
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useAuthStore } from '@/stores/auth'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { useStockOutNotifyListBasketStore } from '@/stores/stockOutNotifyListBasket'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { StockOutTypeCode } from '@/constants/stockOutType'
@@ -248,6 +249,7 @@ import { StockOutTypeCode } from '@/constants/stockOutType'
 const router = useRouter()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
 const keyword = ref('')

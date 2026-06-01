@@ -2,6 +2,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteLocationNormalized } from 'vue-router'
 import { useAuthStore } from '@/stores'
 import { canAccessPurchaseOrderCreatePage } from '@/utils/purchaseOrderCreateGate'
+import {
+  isCustomerEditOrDetailRoute,
+  isCustomerManagementRoute,
+  isVendorEditOrDetailRoute,
+  isVendorManagementRoute
+} from '@/utils/departmentModuleGate'
 import routes from './routes'
 
 const router = createRouter({
@@ -56,6 +62,18 @@ router.beforeEach((to, _from, next) => {
     })
     if (!ok) next('/dashboard')
     else next()
+  } else if (
+    to.meta.requiresAuth &&
+    authStore.isCustomerManagementHidden() &&
+    (isCustomerManagementRoute(to) || isCustomerEditOrDetailRoute(to))
+  ) {
+    next('/dashboard')
+  } else if (
+    to.meta.requiresAuth &&
+    authStore.isVendorManagementHidden() &&
+    (isVendorManagementRoute(to) || isVendorEditOrDetailRoute(to))
+  ) {
+    next('/dashboard')
   } else if (
     to.meta.requiresAuth &&
     (to.meta.permission || (Array.isArray(to.meta.permissions) && to.meta.permissions.length > 0)) &&

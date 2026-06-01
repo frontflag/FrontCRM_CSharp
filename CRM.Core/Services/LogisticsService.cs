@@ -4,6 +4,7 @@ using CRM.Core.Models;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
+using CRM.Core.Models.System;
 using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System.Threading;
@@ -1076,15 +1077,18 @@ namespace CRM.Core.Services
             await _unitOfWork.SaveChangesAsync();
 
             var recordCode = string.IsNullOrWhiteSpace(notice.NoticeCode) ? null : notice.NoticeCode.Trim();
-            await _logOperationAppend.AppendAsync(
-                BusinessLogTypes.StockIn,
-                notice.Id,
-                recordCode,
-                "到货通知强制删除",
-                actingUserId.Trim(),
-                string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
-                $"强制删除到货通知 NoticeId={notice.Id}，确认单号={recordCode}",
-                reason: null);
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = BusinessLogTypes.StockIn,
+                RecordId = notice.Id,
+                RecordCode = recordCode,
+                EntityDisplayName = DeleteLogEntityNames.ArrivalNotice,
+                IsForceDelete = true,
+                ForceConfirmBillCode = confirmBillCode.Trim(),
+                OperatorUserId = actingUserId.Trim(),
+                OperatorUserName = actingUserName?.Trim(),
+                OperationDescOverride = $"强制删除到货通知 NoticeId={notice.Id}，确认单号={recordCode}"
+            });
         }
 
         /// <inheritdoc />
@@ -1125,15 +1129,19 @@ namespace CRM.Core.Services
             await _unitOfWork.SaveChangesAsync();
 
             var recordCode = string.IsNullOrWhiteSpace(qc.QcCode) ? null : qc.QcCode.Trim();
-            await _logOperationAppend.AppendAsync(
-                BusinessLogTypes.QcInspection,
-                qc.Id,
-                recordCode,
-                "质检单强制删除",
-                actingUserId.Trim(),
-                string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
-                $"强制删除质检单 QcId={qc.Id}，确认单号={recordCode}，明细行数={items.Count}",
-                reason: null);
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = BusinessLogTypes.QcInspection,
+                RecordId = qc.Id,
+                RecordCode = recordCode,
+                EntityDisplayName = DeleteLogEntityNames.QcInspection,
+                IsForceDelete = true,
+                ForceConfirmBillCode = confirmBillCode.Trim(),
+                OperatorUserId = actingUserId.Trim(),
+                OperatorUserName = actingUserName?.Trim(),
+                OperationDescOverride =
+                    $"强制删除质检单 QcId={qc.Id}，确认单号={recordCode}，明细行数={items.Count}"
+            });
 
             if (rollback.changed && rollback.noticeId != null)
             {

@@ -533,6 +533,7 @@ import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import type { SalesOrderItemLineRow } from '@/stores/salesOrderItemListBasket'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { buildSalesOrderItemListColumns } from '@/composables/buildSalesOrderItemListColumns'
+import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const router = useRouter()
@@ -567,7 +568,7 @@ const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const listCustomerColumnOk = computed(() => canViewCustomer.value && !maskSaleSensitiveFields.value)
 const listSalesUserFilterOk = computed(() => !maskSaleSensitiveFields.value)
 const listShowAmountColumns = computed(() => canViewAmount.value && !maskSaleSensitiveFields.value)
-const canWriteSo = computed(() => authStore.hasPermission('sales-order.write'))
+const { canWriteSo } = useSaleOrderWriteGate()
 /** 业务员可从销售明细发起采购申请，不必单独持有 purchase-requisition.write */
 const canPurchaseReq = computed(
   () =>

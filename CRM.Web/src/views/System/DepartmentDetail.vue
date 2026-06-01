@@ -74,11 +74,27 @@
             </div>
             <div class="info-item">
               <span class="info-label">销售数据范围</span>
-              <span class="info-value">{{ scopeLabel(department.saleDataScope) }}</span>
+              <span class="info-value">{{ scopeAccessLabel(department.saleDataScope, department.saleDataAccess) }}</span>
+            </div>
+            <div v-if="department.hideCustomerManagement" class="info-item">
+              <span class="info-label">客户管理</span>
+              <span class="info-value">已隐藏</span>
             </div>
             <div class="info-item">
               <span class="info-label">采购数据范围</span>
-              <span class="info-value">{{ scopeLabel(department.purchaseDataScope) }}</span>
+              <span class="info-value">{{ scopeAccessLabel(department.purchaseDataScope, department.purchaseDataAccess) }}</span>
+            </div>
+            <div v-if="department.hideVendorManagement" class="info-item">
+              <span class="info-label">供应商管理</span>
+              <span class="info-value">已隐藏</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">物流数据范围</span>
+              <span class="info-value">{{ scopeAccessLabel(department.logisticsDataScope ?? 0, department.logisticsDataAccess) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">财务数据范围</span>
+              <span class="info-value">{{ scopeAccessLabel(department.financeDataScope ?? 0, department.financeDataAccess) }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">业务身份</span>
@@ -240,6 +256,14 @@ const scopeLabel = (v: number) => {
     4: '禁止'
   }
   return map[v] ?? String(v)
+}
+
+const accessLabel = (v?: number) => (v === 1 ? '只读' : '读写')
+
+const scopeAccessLabel = (scope: number, access?: number) => {
+  const base = scopeLabel(scope)
+  if (scope === 4) return base
+  return `${base} / ${accessLabel(access)}`
 }
 
 const identityLabel = (v: number) => {

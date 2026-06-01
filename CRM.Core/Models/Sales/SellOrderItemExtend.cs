@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using CRM.Core.Constants;
+using CRM.Core.Interfaces;
 using CRM.Core.Models;
 
 namespace CRM.Core.Models.Sales
@@ -9,7 +10,7 @@ namespace CRM.Core.Models.Sales
     /// 销售明细扩展：货/票/款汇总及出货通知数量（与 sellorderitem 一对一，主键同明细 Id）
     /// </summary>
     [Table("sellorderitemextend")]
-    public class SellOrderItemExtend : BaseGuidEntity
+    public class SellOrderItemExtend : BaseGuidEntity, ISoftDeletable
     {
         [Key]
         [StringLength(36)]
@@ -172,5 +173,8 @@ namespace CRM.Core.Models.Sales
 
         [Column(TypeName = "numeric(18,6)")]
         public decimal ProfitOutRateFin { get; set; }
+
+        [Column("is_deleted")]
+        public bool IsDeleted { get; set; }
     }
 }

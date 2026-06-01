@@ -164,7 +164,7 @@
                 <circle cx="20" cy="20" r="5" fill="#00D4FF" opacity="0.9"/>
               </svg>
               <div class="about-brand">
-                <h3>{{ t('layout.brandFull') }}</h3>
+                <h3>{{ brandFullText }}</h3>
               </div>
             </div>
             <p class="about-desc">{{ t('dashboardSettings.about.description') }}</p>
@@ -208,8 +208,10 @@ import { useI18n } from 'vue-i18n'
 import { ElNotification } from 'element-plus'
 import { Setting, Lock, Bell, InfoFilled, Check } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores'
+import { appBrandTitle } from '@/config/loginTenant'
 
 const { t, locale } = useI18n()
+const brandFullText = computed(() => appBrandTitle(t('layout.brandFull')))
 const authStore = useAuthStore()
 
 /** 系统名称 / 版本 / 描述：仅 SYS_ADMIN（isSysAdmin）可改，与后端 RBAC 一致 */

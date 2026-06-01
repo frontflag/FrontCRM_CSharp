@@ -83,7 +83,7 @@ public sealed class RFQModuleBusinessWorkflowTests
                 });
             var rfqMain = new MemoryRfqMainListQuery(RfqRepo, CustomerRepo, UserService, DataPermission);
             var rfqItem = new MemoryRfqItemListQuery(RfqRepo, ItemRepo, CustomerRepo, QuoteRepo, UserService, DataPermission);
-            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, SysParamRepo, RbacRoleRepo, RbacUserRoleRepo, RbacDepartmentRepo, RbacUserDepartmentRepo, QuoteRepo, UserRepo, rbac, rfqMain, rfqItem, NullLogger<RFQService>.Instance);
+            Service = new RFQService(RfqRepo, ItemRepo, CustomerRepo, Lookup, UnitOfWork, Serial, DataPermission, UserService, SysParamRepo, RbacRoleRepo, RbacUserRoleRepo, RbacDepartmentRepo, RbacUserDepartmentRepo, QuoteRepo, UserRepo, rbac, rfqMain, rfqItem, NullLogger<RFQService>.Instance, Substitute.For<ILogOperationAppendService>());
         }
 
         private sealed class ConcurrentInt

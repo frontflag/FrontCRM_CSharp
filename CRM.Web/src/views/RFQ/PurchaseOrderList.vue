@@ -17,7 +17,7 @@
       </div>
       <div class="header-right">
         <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="loadData">{{ t('purchaseOrderList.filters.refresh') }}</button>
-        <button type="button" class="btn-success" @click="handleCreate">
+        <button v-if="canWritePurchaseData" type="button" class="btn-success" @click="handleCreate">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
@@ -208,9 +208,9 @@
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
               <button type="button" class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('purchaseOrderList.actions.detail') }}</button>
-              <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('purchaseOrderList.actions.edit') }}</button>
+              <button v-if="canWritePurchaseData" type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('purchaseOrderList.actions.edit') }}</button>
               <button
-                v-if="(poListMainStatus(row) >= 1 && poListMainStatus(row) < 10) || poListMainStatus(row) === -1"
+                v-if="canWritePurchaseData && ((poListMainStatus(row) >= 1 && poListMainStatus(row) < 10) || poListMainStatus(row) === -1)"
                 type="button"
                 class="action-btn action-btn--warning"
                 @click.stop="submitAudit(row)"
@@ -218,7 +218,7 @@
                 {{ t('purchaseOrderList.actions.submitAudit') }}
               </button>
               <button
-                v-if="poListMainStatus(row) >= 10 && poListMainStatus(row) < 30"
+                v-if="canWritePurchaseData && poListMainStatus(row) >= 10 && poListMainStatus(row) < 30"
                 type="button"
                 class="action-btn action-btn--warning"
                 @click.stop="confirmBySupplier(row)"
@@ -234,7 +234,7 @@
                 {{ t('purchaseOrderList.actions.report') }}
               </button>
               <button
-                v-if="poListMainStatus(row) === 30"
+                v-if="canWritePurchaseData && poListMainStatus(row) === 30"
                 type="button"
                 class="action-btn action-btn--danger"
                 @click.stop="cancelSupplierConfirm(row)"
@@ -252,17 +252,17 @@
                   <el-dropdown-item @click.stop="handleView(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('purchaseOrderList.actions.detail') }}</span>
                   </el-dropdown-item>
-                  <el-dropdown-item @click.stop="handleEdit(row)">
+                  <el-dropdown-item v-if="canWritePurchaseData" @click.stop="handleEdit(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('purchaseOrderList.actions.edit') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item
-                    v-if="(poListMainStatus(row) >= 1 && poListMainStatus(row) < 10) || poListMainStatus(row) === -1"
+                    v-if="canWritePurchaseData && ((poListMainStatus(row) >= 1 && poListMainStatus(row) < 10) || poListMainStatus(row) === -1)"
                     @click.stop="submitAudit(row)"
                   >
                     <span class="op-more-item op-more-item--warning">{{ t('purchaseOrderList.actions.submitAudit') }}</span>
                   </el-dropdown-item>
                   <el-dropdown-item
-                    v-if="poListMainStatus(row) >= 10 && poListMainStatus(row) < 30"
+                    v-if="canWritePurchaseData && poListMainStatus(row) >= 10 && poListMainStatus(row) < 30"
                     @click.stop="confirmBySupplier(row)"
                   >
                     <span class="op-more-item op-more-item--warning">{{ t('purchaseOrderList.actions.confirmBySupplier') }}</span>
@@ -273,7 +273,7 @@
                   >
                     <span class="op-more-item op-more-item--primary">{{ t('purchaseOrderList.actions.report') }}</span>
                   </el-dropdown-item>
-                  <el-dropdown-item v-if="poListMainStatus(row) === 30" @click.stop="cancelSupplierConfirm(row)">
+                  <el-dropdown-item v-if="canWritePurchaseData && poListMainStatus(row) === 30" @click.stop="cancelSupplierConfirm(row)">
                     <span class="op-more-item op-more-item--danger">{{ t('purchaseOrderList.actions.cancelConfirm') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
@@ -331,6 +331,7 @@ import {
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -341,6 +342,7 @@ const orderList = ref<any[]>([])
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const authStore = useAuthStore()
+const { canWritePurchaseData } = useDepartmentDataReadOnly()
 /** 与后端 PurchaseOrdersController.MaskPurchaseOrder 中 canViewVendorInfo 一致（非仅 vendor.info.read） */
 const canViewVendorInfo = computed(
   () =>

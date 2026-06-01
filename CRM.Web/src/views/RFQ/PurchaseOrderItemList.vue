@@ -820,6 +820,8 @@ import { CurrencyCode } from '@/constants/currency'
 import { stockInTypeLabel } from '@/constants/stockInType'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBankOptions'
+import { vendorBankApi } from '@/api/vendor'
+import { resolveVendorDefaultFinancePaymentBankId } from '@/utils/vendorFinancePaymentBank'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 const router = useRouter()
@@ -1264,6 +1266,14 @@ async function openPaymentDialog(row: any) {
   paymentForm.vendorName = row.vendorName || ''
   paymentForm.purchaseUserName = row.purchaseUserName || ''
   paymentForm.vendorBankId = ''
+  if (paymentForm.vendorId) {
+    try {
+      const banks = await vendorBankApi.getBanksByVendorId(paymentForm.vendorId)
+      paymentForm.vendorBankId = resolveVendorDefaultFinancePaymentBankId(banks)
+    } catch {
+      paymentForm.vendorBankId = ''
+    }
+  }
   paymentForm.paymentMode = 1
   paymentForm.currency = row.currency || 1
   paymentForm.remark = ''

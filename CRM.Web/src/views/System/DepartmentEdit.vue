@@ -23,14 +23,72 @@
           />
         </el-form-item>
         <el-form-item label="销售数据范围">
-          <el-select v-model="formData.saleDataScope" style="width: 280px">
-            <el-option v-for="o in scopeOptions" :key="'s' + o.value" :label="o.label" :value="o.value" />
-          </el-select>
+          <div class="scope-access-row">
+            <el-select v-model="formData.saleDataScope" class="scope-select">
+              <el-option v-for="o in scopeOptions" :key="'s' + o.value" :label="o.label" :value="o.value" />
+            </el-select>
+            <el-select
+              v-model="formData.saleDataAccess"
+              class="access-select"
+              :disabled="formData.saleDataScope === 4"
+            >
+              <el-option v-for="o in accessOptions" :key="'sa' + o.value" :label="o.label" :value="o.value" />
+            </el-select>
+            <el-checkbox v-model="formData.hideCustomerManagement" class="scope-hide-checkbox">
+              隐藏客户管理
+            </el-checkbox>
+          </div>
+          <div v-if="formData.saleDataScope === 4" class="field-hint">范围为「禁止」时无需设置访问方式</div>
         </el-form-item>
         <el-form-item label="采购数据范围">
-          <el-select v-model="formData.purchaseDataScope" style="width: 280px">
-            <el-option v-for="o in scopeOptions" :key="'p' + o.value" :label="o.label" :value="o.value" />
-          </el-select>
+          <div class="scope-access-row">
+            <el-select v-model="formData.purchaseDataScope" class="scope-select">
+              <el-option v-for="o in scopeOptions" :key="'p' + o.value" :label="o.label" :value="o.value" />
+            </el-select>
+            <el-select
+              v-model="formData.purchaseDataAccess"
+              class="access-select"
+              :disabled="formData.purchaseDataScope === 4"
+            >
+              <el-option v-for="o in accessOptions" :key="'pa' + o.value" :label="o.label" :value="o.value" />
+            </el-select>
+            <el-checkbox v-model="formData.hideVendorManagement" class="scope-hide-checkbox">
+              隐藏供应商管理
+            </el-checkbox>
+          </div>
+          <div v-if="formData.purchaseDataScope === 4" class="field-hint">范围为「禁止」时无需设置访问方式</div>
+        </el-form-item>
+        <el-form-item label="物流数据范围">
+          <div class="scope-access-row">
+            <el-select v-model="formData.logisticsDataScope" class="scope-select">
+              <el-option v-for="o in scopeOptions" :key="'l' + o.value" :label="o.label" :value="o.value" />
+            </el-select>
+            <el-select
+              v-model="formData.logisticsDataAccess"
+              class="access-select"
+              :disabled="formData.logisticsDataScope === 4"
+            >
+              <el-option v-for="o in accessOptions" :key="'la' + o.value" :label="o.label" :value="o.value" />
+            </el-select>
+          </div>
+          <div class="field-hint">控制入库管理、出库管理、库存管理、报关菜单及对应数据范围</div>
+          <div v-if="formData.logisticsDataScope === 4" class="field-hint">范围为「禁止」时无需设置访问方式</div>
+        </el-form-item>
+        <el-form-item label="财务数据范围">
+          <div class="scope-access-row">
+            <el-select v-model="formData.financeDataScope" class="scope-select">
+              <el-option v-for="o in scopeOptions" :key="'f' + o.value" :label="o.label" :value="o.value" />
+            </el-select>
+            <el-select
+              v-model="formData.financeDataAccess"
+              class="access-select"
+              :disabled="formData.financeDataScope === 4"
+            >
+              <el-option v-for="o in accessOptions" :key="'fa' + o.value" :label="o.label" :value="o.value" />
+            </el-select>
+          </div>
+          <div class="field-hint">控制付款管理、收款管理菜单及对应数据范围</div>
+          <div v-if="formData.financeDataScope === 4" class="field-hint">范围为「禁止」时无需设置访问方式</div>
         </el-form-item>
         <el-form-item label="业务身份">
           <el-select v-model="formData.identityType" style="width: 280px">
@@ -56,7 +114,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { rbacAdminApi, type RbacDepartment } from '@/api/rbacAdmin'
@@ -78,6 +136,11 @@ const scopeOptions = [
   { value: 4, label: '4 禁止' }
 ]
 
+const accessOptions = [
+  { value: 0, label: '读写' },
+  { value: 1, label: '只读' }
+]
+
 // 展示顺序与文案按产品约定；value 仍为库中 IdentityType，未改历史数据含义（3=原采购助理 4=原客服）
 const identityOptions = [
   { value: 0, label: '0 无' },
@@ -93,10 +156,43 @@ const formData = ref({
   departmentName: '',
   parentId: undefined as string | undefined,
   saleDataScope: 2,
+  saleDataAccess: 0,
+  hideCustomerManagement: false,
   purchaseDataScope: 2,
+  purchaseDataAccess: 0,
+  hideVendorManagement: false,
+  logisticsDataScope: 0,
+  logisticsDataAccess: 0,
+  financeDataScope: 0,
+  financeDataAccess: 0,
   identityType: 0,
   status: 1
 })
+
+watch(
+  () => formData.value.saleDataScope,
+  (v) => {
+    if (v === 4) formData.value.saleDataAccess = 0
+  }
+)
+watch(
+  () => formData.value.purchaseDataScope,
+  (v) => {
+    if (v === 4) formData.value.purchaseDataAccess = 0
+  }
+)
+watch(
+  () => formData.value.logisticsDataScope,
+  (v) => {
+    if (v === 4) formData.value.logisticsDataAccess = 0
+  }
+)
+watch(
+  () => formData.value.financeDataScope,
+  (v) => {
+    if (v === 4) formData.value.financeDataAccess = 0
+  }
+)
 
 function collectExcludedIds(rootId: string, all: RbacDepartment[]): Set<string> {
   const ex = new Set<string>()
@@ -150,7 +246,15 @@ const load = async () => {
         departmentName: d.departmentName,
         parentId: d.parentId || undefined,
         saleDataScope: d.saleDataScope,
+        saleDataAccess: d.saleDataAccess ?? 0,
+        hideCustomerManagement: d.hideCustomerManagement ?? false,
         purchaseDataScope: d.purchaseDataScope,
+        purchaseDataAccess: d.purchaseDataAccess ?? 0,
+        hideVendorManagement: d.hideVendorManagement ?? false,
+        logisticsDataScope: d.logisticsDataScope ?? 0,
+        logisticsDataAccess: d.logisticsDataAccess ?? 0,
+        financeDataScope: d.financeDataScope ?? 0,
+        financeDataAccess: d.financeDataAccess ?? 0,
         identityType: d.identityType,
         status: d.status ?? 1
       }
@@ -173,7 +277,15 @@ const handleSubmit = async () => {
       departmentName: formData.value.departmentName.trim(),
       parentId: formData.value.parentId || null,
       saleDataScope: formData.value.saleDataScope,
+      saleDataAccess: formData.value.saleDataScope === 4 ? 0 : formData.value.saleDataAccess,
+      hideCustomerManagement: formData.value.hideCustomerManagement,
       purchaseDataScope: formData.value.purchaseDataScope,
+      purchaseDataAccess: formData.value.purchaseDataScope === 4 ? 0 : formData.value.purchaseDataAccess,
+      hideVendorManagement: formData.value.hideVendorManagement,
+      logisticsDataScope: formData.value.logisticsDataScope,
+      logisticsDataAccess: formData.value.logisticsDataScope === 4 ? 0 : formData.value.logisticsDataAccess,
+      financeDataScope: formData.value.financeDataScope,
+      financeDataAccess: formData.value.financeDataScope === 4 ? 0 : formData.value.financeDataAccess,
       identityType: formData.value.identityType,
       status: formData.value.status
     }
@@ -207,6 +319,33 @@ onMounted(load)
 .title {
   font-size: 18px;
   font-weight: 600;
+}
+
+.scope-access-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  max-width: 720px;
+}
+
+.scope-hide-checkbox {
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+.scope-select {
+  width: 280px;
+}
+
+.access-select {
+  width: 120px;
+}
+
+.field-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 .footer-bar {

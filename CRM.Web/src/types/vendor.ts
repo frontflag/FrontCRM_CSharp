@@ -211,6 +211,9 @@ export interface VendorAddress {
 export interface VendorBankInfo {
   id: string
   vendorId: string
+  /** 财务参数-付款银行主键（开户银行/请款供应商银行） */
+  financePaymentBankId?: string
+  /** @deprecated 仅服务端按 financePaymentBankId 回填，禁止作为保存入参 */
   bankName?: string
   bankAccount?: string
   accountName?: string

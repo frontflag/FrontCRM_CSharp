@@ -5,7 +5,7 @@
       <div class="actions">
         <el-input v-model="createForm.planMonth" :placeholder="t('inventoryCheck.filters.planMonthPlaceholder')" style="width: 120px" />
         <el-input v-model="createForm.warehouseId" :placeholder="t('inventoryCheck.filters.warehouseId')" style="width: 140px" />
-        <button class="btn-primary" @click="createPlan">{{ t('inventoryCheck.actions.createPlan') }}</button>
+        <button v-if="canWriteLogisticsData" class="btn-primary" @click="createPlan">{{ t('inventoryCheck.actions.createPlan') }}</button>
       </div>
     </div>
 
@@ -42,7 +42,7 @@
         <template #default="{ row }">
           <div @click.stop @dblclick.stop>
             <div v-if="checkPlansOpColExpanded" class="action-btns">
-              <button type="button" class="action-btn action-btn--warning" @click.stop="openSubmit(row.id)">{{ t('inventoryCheck.actions.submitResult') }}</button>
+              <button v-if="canWriteLogisticsData" type="button" class="action-btn action-btn--warning" @click.stop="openSubmit(row.id)">{{ t('inventoryCheck.actions.submitResult') }}</button>
             </div>
             <el-dropdown v-else trigger="click" placement="bottom-end">
               <div class="op-more-dropdown-trigger">
@@ -50,7 +50,7 @@
               </div>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item @click.stop="openSubmit(row.id)">
+                  <el-dropdown-item v-if="canWriteLogisticsData" @click.stop="openSubmit(row.id)">
                     <span class="op-more-item op-more-item--warning">{{ t('inventoryCheck.actions.submitResult') }}</span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
@@ -109,7 +109,7 @@
           <template #default="{ $index }">
             <div @click.stop @dblclick.stop>
               <div v-if="checkDialogOpColExpanded" class="action-btns">
-                <button type="button" class="action-btn action-btn--danger" @click.stop="removeRow($index)">{{ t('inventoryCheck.actions.delete') }}</button>
+                <button v-if="canWriteLogisticsData" type="button" class="action-btn action-btn--danger" @click.stop="removeRow($index)">{{ t('inventoryCheck.actions.delete') }}</button>
               </div>
               <el-dropdown v-else trigger="click" placement="bottom-end">
                 <div class="op-more-dropdown-trigger">
@@ -117,7 +117,7 @@
                 </div>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item @click.stop="removeRow($index)">
+                    <el-dropdown-item v-if="canWriteLogisticsData" @click.stop="removeRow($index)">
                       <span class="op-more-item op-more-item--danger">{{ t('inventoryCheck.actions.delete') }}</span>
                     </el-dropdown-item>
                   </el-dropdown-menu>
@@ -141,9 +141,11 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { inventoryCenterApi, type CountPlan } from '@/api/inventoryCenter'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 
 const loading = ref(false)
 const { t } = useI18n()
+const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 /** 《列表操作列规范》 */
 const CHECK_OP_COL_COLLAPSED = 43
 const CHECK_OP_COL_EXPANDED = 173

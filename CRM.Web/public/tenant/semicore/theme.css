@@ -1,0 +1,37 @@
+/* Semicore（公司1）：深蓝科技风 */
+.login-view.login-view--semicore .login-slogan {
+  background: linear-gradient(160deg, #0b1426 0%, #0f1f3a 45%, #0c1730 100%);
+}
+
+.login-view.login-view--semicore .slogan-line--accent {
+  color: #38bdf8;
+}
+
+.login-view.login-view--semicore .slogan-beam {
+  background: radial-gradient(ellipse at 70% 20%, rgba(56, 189, 248, 0.22) 0%, transparent 55%);
+}
+
+.login-view.login-view--semicore .tab-btn.active,
+.login-view.login-view--semicore .tab-btn:hover,
+.login-view.login-view--semicore .forgot-link,
+.login-view.login-view--semicore .footer-link {
+  color: #2563eb;
+}
+
+.login-view.login-view--semicore .tab-btn.active {
+  border-bottom-color: #2563eb;
+}
+
+.login-view.login-view--semicore .input-wrap--light:focus-within .input-icon {
+  color: #2563eb;
+}
+
+.login-view.login-view--semicore .input-wrap--light .el-input__wrapper.is-focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
+
+.login-view.login-view--semicore .login-btn--primary {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.28);
+}

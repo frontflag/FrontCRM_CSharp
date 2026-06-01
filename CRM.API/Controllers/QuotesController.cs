@@ -196,7 +196,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var quote = await _quoteService.UpdateAsync(id, request);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var quote = await _quoteService.UpdateAsync(id, request, actorId);
                 return Ok(new { success = true, message = "报价单更新成功", data = quote, errorCode = 0 });
             }
             catch (ArgumentException ex)

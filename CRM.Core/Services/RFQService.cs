@@ -35,6 +35,7 @@ namespace CRM.Core.Services
         private readonly IRfqMainListQuery _rfqMainListQuery;
         private readonly IRfqItemListQuery _rfqItemListQuery;
         private readonly ILogger<RFQService> _logger;
+        private readonly ILogOperationAppendService _logOperationAppend;
 
         public RFQService(
             IRepository<RFQ> rfqRepo,
@@ -55,7 +56,8 @@ namespace CRM.Core.Services
             IRbacService rbacService,
             IRfqMainListQuery rfqMainListQuery,
             IRfqItemListQuery rfqItemListQuery,
-            ILogger<RFQService> logger)
+            ILogger<RFQService> logger,
+            ILogOperationAppendService logOperationAppend)
         {
             _rfqRepo = rfqRepo;
             _itemRepo = itemRepo;
@@ -76,6 +78,7 @@ namespace CRM.Core.Services
             _rfqMainListQuery = rfqMainListQuery;
             _rfqItemListQuery = rfqItemListQuery;
             _logger = logger;
+            _logOperationAppend = logOperationAppend;
         }
 
         // ─── Create ──────────────────────────────────────────────────────────────
@@ -189,7 +192,7 @@ namespace CRM.Core.Services
             if (rfq == null) return null;
             // 加载明细
             var items = await _itemRepo.FindAsync(i => i.RfqId == id);
-            rfq.Items = items.OrderBy(i => i.LineNo).ToList();
+            rfq.Items = items.Where(i => !i.IsDeleted).OrderBy(i => i.LineNo).ToList();
 
             var canViewCustomer = string.IsNullOrWhiteSpace(viewerUserId)
                 || await UserCanViewCustomerInRfqContextAsync(viewerUserId);
@@ -438,78 +441,44 @@ namespace CRM.Core.Services
             rfq.ModifyTime = DateTime.UtcNow;
             rfq.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
 
-            // 更新明细：删除旧的，重新插入（全单共用新一轮询的一对采购员；无明细时不消耗游标）
-            if (request.Items != null)
+            List<RFQItem>? deletedLines = null;
+            if (request.Items != null && request.Items.Count > 0)
             {
-                var oldItems = await _itemRepo.FindAsync(i => i.RfqId == id);
-                foreach (var old in oldItems)
-                    await _itemRepo.DeleteAsync(old.Id);
-
-                string? purchaser1 = null;
-                string? purchaser2 = null;
-                if (request.Items.Count > 0)
+                foreach (var line in request.Items)
                 {
-                    _logger.LogInformation(
-                        "【需求-采购员轮询】更新需求并重发明细，重新取轮询对：RfqId={RfqId} RfqCode={RfqCode} 新明细行数={ItemCount}",
-                        rfq.Id,
-                        rfq.RfqCode,
-                        request.Items.Count);
-                    (purchaser1, purchaser2) = await TakeNextRoundRobinPurchaserPairAsync();
+                    if (string.IsNullOrWhiteSpace(line.Mpn))
+                        throw new ArgumentException("需求明细中的物料型号(MPN)不能为空");
+                    if (string.IsNullOrWhiteSpace(NormalizeLineString(line.Brand)))
+                        throw new ArgumentException("需求明细中的品牌不能为空");
                 }
 
-                for (int i = 0; i < request.Items.Count; i++)
-                {
-                    var itemReq = request.Items[i];
-                    var item = new RFQItem
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        RfqId = rfq.Id,
-                        LineNo = itemReq.LineNo > 0 ? itemReq.LineNo : i + 1,
-                        CustomerMpn = string.IsNullOrWhiteSpace(itemReq.CustomerMpn) ? null : itemReq.CustomerMpn.Trim(),
-                        Mpn = NormalizeLineString(itemReq.Mpn),
-                        CustomerBrand = NormalizeLineString(itemReq.CustomerBrand),
-                        Brand = NormalizeLineString(itemReq.Brand),
-                        TargetPrice = itemReq.TargetPrice,
-                        PriceCurrency = itemReq.PriceCurrency,
-                        Quantity = itemReq.Quantity,
-                        ProductionDate = itemReq.ProductionDate,
-                        ExpiryDate = PostgreSqlDateTime.ToUtc(itemReq.ExpiryDate),
-                        MinPackageQty = itemReq.MinPackageQty,
-                        Moq = itemReq.Moq,
-                        Alternatives = itemReq.Alternatives,
-                        Remark = itemReq.Remark,
-                        Status = 0,
-                        AssignedPurchaserUserId1 = purchaser1,
-                        AssignedPurchaserUserId2 = purchaser2,
-                        CreateTime = DateTime.UtcNow
-                    };
-                    await _itemRepo.AddAsync(item);
-                }
+                var sync = await SyncRfqItemsOnUpdateAsync(rfq, id, request.Items, actingUserId);
+                deletedLines = sync.Deleted;
 
-                if (purchaser1 != null)
+                if (sync.Inserted.Count > 0)
                 {
                     rfq.AssignMethod = 2;
                     if (rfq.Status == 0)
                         rfq.Status = 1;
                 }
 
-                rfq.ItemCount = request.Items.Count;
-
-                if (request.Items.Count > 0)
-                {
-                    _logger.LogInformation(
-                        "【需求-采购员轮询】更新需求明细已写入：RfqId={RfqId} Status={Status} AssignMethod={AssignMethod} " +
-                        "AssignedPurchaserUserId1={P1} AssignedPurchaserUserId2={P2}",
-                        rfq.Id,
-                        rfq.Status,
-                        rfq.AssignMethod,
-                        purchaser1 ?? "(null)",
-                        purchaser2 ?? "(null)");
-                }
+                var activeCount = (await _itemRepo.FindAsync(i => i.RfqId == id)).Count(i => !i.IsDeleted);
+                rfq.ItemCount = activeCount;
             }
 
             await _rfqRepo.UpdateAsync(rfq);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            if (deletedLines is { Count: > 0 })
+            {
+                await AppendRfqItemDeleteOperationLogsAsync(
+                    rfq,
+                    deletedLines,
+                    actingUserId,
+                    OperationLogActionTypes.RfqItemDelete,
+                    $"编辑需求 {rfq.RfqCode} 时删除明细行");
+            }
+
             return rfq;
         }
 
@@ -521,12 +490,21 @@ namespace CRM.Core.Services
             if (rfq == null) throw new InvalidOperationException($"需求 {id} 不存在");
 
             // 级联删除明细
-            var items = await _itemRepo.FindAsync(i => i.RfqId == id);
+            var items = (await _itemRepo.FindAsync(i => i.RfqId == id)).ToList();
             foreach (var item in items)
                 await _itemRepo.DeleteAsync(item.Id);
 
             await _rfqRepo.DeleteAsync(id);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = BusinessLogTypes.Rfq,
+                RecordId = rfq.Id,
+                RecordCode = rfq.RfqCode,
+                EntityDisplayName = DeleteLogEntityNames.Rfq,
+                ExtraDetail = $"明细行数={items.Count}"
+            });
         }
 
         // ─── Status ──────────────────────────────────────────────────────────────
@@ -837,6 +815,152 @@ namespace CRM.Core.Services
                 "【需求-采购员轮询】已更新游标参数 {ParamCode}={Cursor}",
                 SysParamCodes.RfqPurchaserRoundRobinCursor,
                 cursor);
+        }
+
+        private sealed record RfqItemSyncResult(
+            List<RFQItem> Inserted,
+            List<RFQItem> Updated,
+            List<RFQItem> Deleted);
+
+        private async Task<RfqItemSyncResult> SyncRfqItemsOnUpdateAsync(
+            RFQ rfq,
+            string rfqId,
+            List<CreateRFQItemRequest> requestItems,
+            string? actingUserId)
+        {
+            var existingActive = (await _itemRepo.FindAsync(i => i.RfqId == rfqId))
+                .Where(i => !i.IsDeleted)
+                .ToDictionary(i => i.Id, StringComparer.OrdinalIgnoreCase);
+
+            var inserted = new List<RFQItem>();
+            var updated = new List<RFQItem>();
+            var keptIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var newItemRequests = new List<(CreateRFQItemRequest Req, int Index)>();
+
+            for (var i = 0; i < requestItems.Count; i++)
+            {
+                var itemReq = requestItems[i];
+                var reqId = itemReq.Id?.Trim();
+                if (!string.IsNullOrEmpty(reqId))
+                {
+                    if (!existingActive.TryGetValue(reqId, out var existing))
+                        throw new InvalidOperationException($"需求明细 {reqId} 不存在或已删除");
+
+                    keptIds.Add(reqId);
+                    ApplyRfqItemFromRequest(existing, itemReq, i);
+                    existing.ModifyTime = DateTime.UtcNow;
+                    await _itemRepo.UpdateAsync(existing);
+                    updated.Add(existing);
+                }
+                else
+                {
+                    newItemRequests.Add((itemReq, i));
+                }
+            }
+
+            string? purchaser1 = null;
+            string? purchaser2 = null;
+            if (newItemRequests.Count > 0)
+            {
+                _logger.LogInformation(
+                    "【需求-采购员轮询】编辑需求新增明细，取轮询对：RfqId={RfqId} RfqCode={RfqCode} 新增行数={ItemCount}",
+                    rfq.Id,
+                    rfq.RfqCode,
+                    newItemRequests.Count);
+                (purchaser1, purchaser2) = await TakeNextRoundRobinPurchaserPairAsync();
+            }
+
+            foreach (var (itemReq, index) in newItemRequests)
+            {
+                var item = new RFQItem
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    RfqId = rfqId,
+                    LineNo = itemReq.LineNo > 0 ? itemReq.LineNo : index + 1,
+                    Status = 0,
+                    AssignedPurchaserUserId1 = purchaser1,
+                    AssignedPurchaserUserId2 = purchaser2,
+                    CreateTime = DateTime.UtcNow
+                };
+                ApplyRfqItemFromRequest(item, itemReq, index);
+                await _itemRepo.AddAsync(item);
+                inserted.Add(item);
+            }
+
+            if (purchaser1 != null && inserted.Count > 0)
+            {
+                _logger.LogInformation(
+                    "【需求-采购员轮询】编辑需求新增明细已写入：RfqId={RfqId} AssignedPurchaserUserId1={P1} AssignedPurchaserUserId2={P2}",
+                    rfq.Id,
+                    purchaser1 ?? "(null)",
+                    purchaser2 ?? "(null)");
+            }
+
+            var deleted = new List<RFQItem>();
+            foreach (var existing in existingActive.Values)
+            {
+                if (keptIds.Contains(existing.Id))
+                    continue;
+
+                existing.IsDeleted = true;
+                existing.ModifyTime = DateTime.UtcNow;
+                await _itemRepo.UpdateAsync(existing);
+                deleted.Add(existing);
+            }
+
+            return new RfqItemSyncResult(inserted, updated, deleted);
+        }
+
+        private static void ApplyRfqItemFromRequest(RFQItem target, CreateRFQItemRequest itemReq, int index)
+        {
+            target.LineNo = itemReq.LineNo > 0 ? itemReq.LineNo : index + 1;
+            target.CustomerMpn = string.IsNullOrWhiteSpace(itemReq.CustomerMpn) ? null : itemReq.CustomerMpn.Trim();
+            target.Mpn = NormalizeLineString(itemReq.Mpn);
+            target.CustomerBrand = NormalizeLineString(itemReq.CustomerBrand);
+            target.Brand = NormalizeLineString(itemReq.Brand);
+            target.TargetPrice = itemReq.TargetPrice;
+            target.PriceCurrency = itemReq.PriceCurrency;
+            target.Quantity = itemReq.Quantity;
+            target.ProductionDate = itemReq.ProductionDate;
+            target.ExpiryDate = PostgreSqlDateTime.ToUtc(itemReq.ExpiryDate);
+            target.MinPackageQty = itemReq.MinPackageQty;
+            target.Moq = itemReq.Moq;
+            target.Alternatives = itemReq.Alternatives;
+            target.Remark = itemReq.Remark;
+        }
+
+        private async Task AppendRfqItemDeleteOperationLogsAsync(
+            RFQ rfq,
+            IReadOnlyList<RFQItem> deletedItems,
+            string? actingUserId,
+            string actionType,
+            string descriptionPrefix)
+        {
+            var (actorId, actorName) = await ResolveActorAsync(actingUserId);
+            foreach (var d in deletedItems)
+            {
+                var lineCode = $"{rfq.RfqCode}-L{d.LineNo}";
+                await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+                {
+                    BizType = BusinessLogTypes.RfqItem,
+                    RecordId = d.Id,
+                    RecordCode = lineCode,
+                    EntityDisplayName = DeleteLogEntityNames.RfqItem,
+                    ActionTypeOverride = actionType,
+                    OperatorUserId = actorId,
+                    OperatorUserName = actorName,
+                    OperationDescOverride = $"{descriptionPrefix} {lineCode}"
+                });
+            }
+        }
+
+        private async Task<(string? UserId, string UserName)> ResolveActorAsync(string? actingUserId)
+        {
+            var id = ActingUserIdNormalizer.Normalize(actingUserId);
+            if (string.IsNullOrEmpty(id))
+                return (null, "系统");
+            var user = await _userService.GetByIdAsync(id);
+            return (id, string.IsNullOrWhiteSpace(user?.UserName) ? id : user!.UserName!.Trim());
         }
     }
 }

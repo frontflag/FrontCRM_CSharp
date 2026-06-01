@@ -30,11 +30,12 @@ public sealed class PurchaseOrderExtendLineSeqService : IPurchaseOrderExtendLine
             await using var cmd = (NpgsqlCommand)conn.CreateCommand();
 
             cmd.CommandText = """
-INSERT INTO purchaseorderextend ("PurchaseOrderId", last_item_line_seq, "CreateTime", "ModifyTime")
-VALUES (@pid, @cnt, @ct, @mod)
+INSERT INTO purchaseorderextend ("PurchaseOrderId", last_item_line_seq, "CreateTime", "ModifyTime", is_deleted)
+VALUES (@pid, @cnt, @ct, @mod, false)
 ON CONFLICT ("PurchaseOrderId") DO UPDATE SET
   last_item_line_seq = purchaseorderextend.last_item_line_seq + EXCLUDED.last_item_line_seq,
   "ModifyTime" = EXCLUDED."ModifyTime"
+WHERE purchaseorderextend.is_deleted = false
 RETURNING last_item_line_seq - @cnt + 1;
 """;
             cmd.Parameters.AddWithValue("pid", purchaseOrderId);

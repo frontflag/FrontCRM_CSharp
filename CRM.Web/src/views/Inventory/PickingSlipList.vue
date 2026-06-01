@@ -96,7 +96,7 @@
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
             <button type="button" class="action-btn action-btn--primary" @click.stop="goDetail(row)">详情</button>
-            <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
+            <button v-if="canWriteLogisticsData" type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
             <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">强制删除</button>
           </div>
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -108,7 +108,7 @@
                 <el-dropdown-item @click.stop="goDetail(row)">
                   <span class="op-more-item op-more-item--primary">详情</span>
                 </el-dropdown-item>
-                <el-dropdown-item divided @click.stop="handleDeleteRow(row)">
+                <el-dropdown-item v-if="canWriteLogisticsData" divided @click.stop="handleDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
@@ -161,12 +161,14 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useAuthStore } from '@/stores/auth'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 const router = useRouter()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
 const keyword = ref('')

@@ -194,7 +194,21 @@
             </el-col>
             <el-col :span="8">
               <el-form-item :label="t('vendorEdit.fields.bankName')">
-                <el-input v-model="formData.bankName" :placeholder="t('vendorEdit.fields.bankNamePh')" class="q-input" />
+                <el-select
+                  v-model="formData.financePaymentBankId"
+                  :placeholder="t('vendorEdit.fields.bankNamePh')"
+                  filterable
+                  clearable
+                  class="q-select"
+                  style="width: 100%"
+                >
+                  <el-option
+                    v-for="b in paymentBankOptions"
+                    :key="b.id"
+                    :label="b.bankName"
+                    :value="b.id"
+                  />
+                </el-select>
               </el-form-item>
             </el-col>
           </el-row>
@@ -347,12 +361,14 @@ import PurchaserCascader from '@/components/PurchaserCascader.vue';
 import { useVendorDictStore } from '@/stores/vendorDict';
 import { logRecentApi } from '@/api/logRecent';
 import { VENDOR_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/vendorRecentHistory';
+import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBankOptions';
 
 const route = useRoute();
 const router = useRouter();
 const { t, locale } = useI18n();
 
 const vendorDict = useVendorDictStore();
+const { paymentBankOptions, loadPaymentBankOptions } = useFinancePaymentBankOptions();
 
 /** 与 CustomerEdit 一致：create 路由无 id，:id/edit 有 id */
 const isEdit = computed(() => !!route.params.id);
@@ -384,7 +400,8 @@ const formData = reactive({
   purchaseUserId: '',
   purchaserName: '',
   taxNumber: '',
-  bankName: '',
+  /** 财务参数-付款银行主键（开户银行下拉） */
+  financePaymentBankId: '',
   bankAccount: '',
   bankAccountName: '',
   companyInfo: '',
@@ -463,7 +480,7 @@ const buildVendorApiPayload = (): CreateVendorRequest & UpdateVendorRequest => (
 
 const syncVendorBankForVendor = async (targetVendorId: string) => {
   const hasBankData = !!(
-    formData.bankName?.trim() ||
+    formData.financePaymentBankId?.trim() ||
     formData.bankAccount?.trim() ||
     formData.bankAccountName?.trim()
   );
@@ -475,7 +492,7 @@ const syncVendorBankForVendor = async (targetVendorId: string) => {
     return;
   }
   const payload = {
-    bankName: formData.bankName?.trim() || undefined,
+    financePaymentBankId: formData.financePaymentBankId?.trim() || undefined,
     bankAccount: formData.bankAccount?.trim() || undefined,
     accountName: formData.bankAccountName?.trim() || undefined,
     currency: formData.currency,
@@ -515,8 +532,8 @@ const fetchVendorDetail = async () => {
     formData.companyInfo = data.companyInfo ?? '';
     formData.remark = data.remark ?? '';
     const banks = data.bankAccounts ?? [];
-    const b0 = banks[0];
-    formData.bankName = b0?.bankName ?? '';
+    const b0 = banks.find((b) => b.isDefault) ?? banks[0];
+    formData.financePaymentBankId = b0?.financePaymentBankId?.trim() ?? '';
     formData.bankAccount = b0?.bankAccount ?? '';
     formData.bankAccountName = b0?.accountName ?? '';
     contacts.value = (data.contacts ?? []).map((c, idx: number) => ({
@@ -751,8 +768,9 @@ const syncContactsForVendor = async (targetVendorId: string) => {
   reconcileMainContactKey();
 };
 
-onMounted(() => {
+onMounted(async () => {
   void vendorDict.ensureLoaded();
+  await loadPaymentBankOptions();
   void fetchVendorDetail();
   const draftId = route.query.draftId;
   if (!isEdit.value && typeof draftId === 'string' && draftId) {

@@ -17,7 +17,9 @@ function buildItemsFromQuoteCreateForm(form: Record<string, unknown>): Record<st
     const qty = Number(r.quantity)
     const up = r.unitPrice != null && r.unitPrice !== '' ? Number(r.unitPrice) : NaN
     if (qty < 1 || Number.isNaN(up)) continue
+    const rowId = (r.id as string | undefined)?.trim()
     items.push({
+      ...(rowId ? { id: rowId } : {}),
       vendorId: form.vendorId || undefined,
       vendorName: (form.vendorName as string) || undefined,
       vendorCode: undefined,
@@ -77,7 +79,10 @@ function mapToCreateQuoteRequest(form: Record<string, unknown>): Record<string, 
 
 function mapQuoteEditSimpleToUpdate(body: Record<string, unknown>): Record<string, unknown> {
   const rawItems = (body.items as Record<string, unknown>[]) || []
-  const items = rawItems.map((it) => ({
+  const items = rawItems.map((it) => {
+    const rowId = (it.id as string | undefined)?.trim()
+    return {
+    ...(rowId ? { id: rowId } : {}),
     vendorId: it.vendorId,
     vendorName: it.vendorName,
     vendorCode: it.vendorCode,
@@ -103,7 +108,8 @@ function mapQuoteEditSimpleToUpdate(body: Record<string, unknown>): Record<strin
     moq: Number(it.moq ?? 0),
     remark: it.remark,
     status: Number(it.status ?? 0)
-  }))
+  }
+  })
   return {
     mpn: body.mpn,
     remark: body.remark ?? null,

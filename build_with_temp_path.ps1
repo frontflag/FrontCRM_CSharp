@@ -1,9 +1,21 @@
 # Build Frontend and Backend for FrontCRM
 # This script uses a temporary directory to avoid issues with # character in path
+#
+# 用法：
+#   .\build_with_temp_path.ps1
+#   .\build_with_temp_path.ps1 -Tenant semicore
+#   .\build_with_temp_path.ps1 -Tenant idesemi
+#   .\build_with_temp_path.ps1 -Tenant fz
+
+param(
+    [ValidateSet('semicore', 'idesemi', 'fz')]
+    [string]$Tenant = 'semicore'
+)
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Green
 Write-Host "FrontCRM Build (Temp Path Fix)" -ForegroundColor Green
+Write-Host "Tenant: $Tenant" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Green
 Write-Host ""
 
@@ -41,13 +53,22 @@ Write-Host ""
 
 cd "CRM.Web"
 
-Write-Host "Building production bundle..." -ForegroundColor Yellow
-npm run build
+$tenantsFile = Join-Path $tempPath "deploy\tenants.json"
+$buildMode = "production"
+if (Test-Path $tenantsFile) {
+    $tenantsCfg = Get-Content $tenantsFile -Raw | ConvertFrom-Json
+    if ($tenantsCfg.$Tenant.buildMode) {
+        $buildMode = [string]$tenantsCfg.$Tenant.buildMode
+    }
+}
+
+Write-Host "Building production bundle (mode=$buildMode)..." -ForegroundColor Yellow
+npm run build -- --mode $buildMode
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: npm build failed" -ForegroundColor Red
-    Write-Host "Cleaning up temp directory..." -ForegroundColor Yellow
+    Write-Host "ERROR: npm build failed (mode=$buildMode)" -ForegroundColor Red
+    Write-Host "  Diagnose locally: cd CRM.Web; npm run build -- --mode $buildMode" -ForegroundColor Yellow
+    Write-Host "  Temp copy kept for inspection: $tempPath\CRM.Web" -ForegroundColor Yellow
     cd D:\
-    Remove-Item -Path $tempPath -Recurse -Force
     exit 1
 }
 

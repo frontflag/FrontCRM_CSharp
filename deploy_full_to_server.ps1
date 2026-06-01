@@ -14,7 +14,10 @@
 #   .\deploy_full_to_server.ps1 -AllowPasswordPrompt   # 使用密码登录（否则会 BatchMode，卡住/失败）
 #   .\deploy_full_to_server.ps1 -RequestTtyForSudo    # 非 Docker 部署时远程 sudo 要手输密码（分配伪终端，勿与静默管道一起用）
 #   .\deploy_full_to_server.ps1 -SshKeyPath "$env:USERPROFILE\.ssh\id_ed25519"
-#   .\deploy_full_to_server.ps1 -ApiHealthWaitSeconds 120   # 非 Docker：systemctl start 后等健康检查的最长秒数（默认 90）
+#   .\deploy_full_to_server.ps1 -ApiHealthWaitSeconds 60   # 非 Docker：systemctl start 后等健康检查的最长秒数（默认 30）
+
+#   .\deploy_full_to_server.ps1 -Tenant idesemi -SkipLoginPage
+#   .\deploy_full_to_server.ps1 -Tenant semicore -IncludeLoginPage
 
 param(
     [switch]$SkipBuild,
@@ -22,6 +25,11 @@ param(
     [switch]$AllowPasswordPrompt,
     # 远程 sudo 无 NOPASSWD 且无 TTY 时会一直等密码（看起来像卡住）。默认用 sudo -n 秒失败；需交互输密码时加本开关（会 ssh -t）
     [switch]$RequestTtyForSudo,
+    [ValidateSet('semicore', 'idesemi', 'fz', '')]
+    [string]$Tenant = '',
+    # 默认上传登录页主题（dist/tenant）；加 -SkipLoginPage 保留服务器上现有 tenant 目录
+    [switch]$IncludeLoginPage,
+    [switch]$SkipLoginPage,
     [string]$ServerIP = "129.226.161.3",
     [int]$SshPort = 22,
     [string]$ServerUser = "ubuntu",
@@ -34,7 +42,7 @@ param(
     [string]$NonDockerBackendRoot = "/opt/frontcrm/backend",
     [int]$BackendPort = 5000,
     # 冷启动 + 连库 + Kestrel 绑定略慢于 systemctl start 返回；原先 40s 且强依赖 is-active=active 易误报失败
-    [int]$ApiHealthWaitSeconds = 90,
+    [int]$ApiHealthWaitSeconds = 30,
     # Optional: ssh/scp -i (PowerShell 5.1: save this script as UTF-8 with BOM if you use non-ASCII in messages)
     [string]$SshKeyPath = ""
 )
@@ -63,6 +71,14 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = (Get-Location).Path
 }
 
+$uploadLoginTheme = -not $SkipLoginPage
+if ($IncludeLoginPage) { $uploadLoginTheme = $true }
+if ($SkipLoginPage) { $uploadLoginTheme = $false }
+
+if ([string]::IsNullOrWhiteSpace($Tenant)) {
+    $Tenant = 'semicore'
+}
+
 $deployPackage = Join-Path $RepoRoot $DeployPackageName
 
 Write-Host ""
@@ -71,6 +87,7 @@ Write-Host "FrontCRM full deploy (frontend + backend)" -ForegroundColor Green
 Write-Host "============================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Repo root: $RepoRoot" -ForegroundColor Gray
+Write-Host "Tenant: $Tenant | Upload login theme: $uploadLoginTheme" -ForegroundColor Gray
 Write-Host ""
 
 # SkipBuild 分支拆成独立 if，避免 PS 5.1 将注释内的花括号误当作代码解析。
@@ -85,7 +102,7 @@ if (-not $SkipBuild) {
     Write-Host ""
 
     Set-Location $RepoRoot
-    & $buildScript
+    & $buildScript -Tenant $Tenant
     if ($LASTEXITCODE -ne 0) {
         Write-Host ('ERROR: build_with_temp_path.ps1 failed (exit {0})' -f $LASTEXITCODE) -ForegroundColor Red
         exit $LASTEXITCODE
@@ -271,7 +288,28 @@ else {
     }
 
     Write-Host ('>>> Non-Docker: sync frontend dist ({0} -> {1})' -f $srcFront, $NonDockerFrontendRoot) -ForegroundColor Gray
-    $rSyncFront = $SudoCmd + ' rm -rf ' + $NonDockerFrontendRoot + '/*; ' + $SudoCmd + ' cp -r ' + $srcFront + '/* ' + $NonDockerFrontendRoot + '/; ' + $SudoCmd + ' chown -R ' + $ServerUser + ':' + $ServerUser + ' ' + $NonDockerFrontendRoot + '; ' + $SudoCmd + ' find ' + $NonDockerFrontendRoot + ' -type d -exec chmod 755 {} \;; ' + $SudoCmd + ' find ' + $NonDockerFrontendRoot + ' -type f -exec chmod 644 {} \;'
+    if (-not $uploadLoginTheme) {
+        Write-Host '    SkipLoginPage: server dist/tenant will be preserved' -ForegroundColor DarkYellow
+    }
+    $skipLoginFlag = if ($uploadLoginTheme) { '0' } else { '1' }
+    $rSyncFront = @"
+if [ '$skipLoginFlag' = '1' ]; then
+  $SudoCmd rm -rf /tmp/frontcrm_tenant_bak 2>/dev/null || true
+  if [ -d '$NonDockerFrontendRoot/tenant' ]; then
+    $SudoCmd cp -a '$NonDockerFrontendRoot/tenant' /tmp/frontcrm_tenant_bak
+  fi
+fi
+$SudoCmd rm -rf '$NonDockerFrontendRoot'/*
+$SudoCmd cp -r '$srcFront'/* '$NonDockerFrontendRoot'/
+if [ '$skipLoginFlag' = '1' ] && [ -d /tmp/frontcrm_tenant_bak ]; then
+  $SudoCmd rm -rf '$NonDockerFrontendRoot/tenant'
+  $SudoCmd cp -a /tmp/frontcrm_tenant_bak '$NonDockerFrontendRoot/tenant'
+  $SudoCmd rm -rf /tmp/frontcrm_tenant_bak
+fi
+$SudoCmd chown -R ${ServerUser}:${ServerUser} '$NonDockerFrontendRoot'
+$SudoCmd find '$NonDockerFrontendRoot' -type d -exec chmod 755 {} \;
+$SudoCmd find '$NonDockerFrontendRoot' -type f -exec chmod 644 {} \;
+"@
     & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" $rSyncFront
     if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: sync frontend failed." -ForegroundColor Red; exit 1 }
 

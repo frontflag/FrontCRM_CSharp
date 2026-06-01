@@ -94,6 +94,9 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var denied = await RejectIfFinanceDataReadOnlyAsync();
+                if (denied != null) return denied;
+
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var receipt = await _service.CreateAsync(request, userId);
                 if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
@@ -123,6 +126,9 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var denied = await RejectIfFinanceDataReadOnlyAsync();
+                if (denied != null) return denied;
+
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var receipt = await _service.UpdateAsync(id, request, userId);
                 if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
@@ -147,6 +153,9 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var denied = await RejectIfFinanceDataReadOnlyAsync();
+                if (denied != null) return denied;
+
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 await _service.UpdateStatusAsync(id, request.Status, userId);
                 return Ok(new { success = true, message = "状态更新成功" });
@@ -169,6 +178,9 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var denied = await RejectIfFinanceDataReadOnlyAsync();
+                if (denied != null) return denied;
+
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 await _service.UpdateStatusAsync(id, 1, userId);
                 return Ok(new { success = true, message = "提交审核成功" });
@@ -191,6 +203,9 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var denied = await RejectIfFinanceDataReadOnlyAsync();
+                if (denied != null) return denied;
+
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 await _service.UpdateStatusAsync(id, 2, userId);
                 return Ok(new { success = true, message = "审核通过" });
@@ -213,6 +228,9 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var denied = await RejectIfFinanceDataReadOnlyAsync();
+                if (denied != null) return denied;
+
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 await _service.UpdateStatusAsync(id, 3, userId);
                 return Ok(new { success = true, message = "确认收款成功" });
@@ -235,6 +253,9 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var denied = await RejectIfFinanceDataReadOnlyAsync();
+                if (denied != null) return denied;
+
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 await _service.UpdateStatusAsync(id, 4, userId);
                 return Ok(new { success = true, message = "已取消" });
@@ -257,6 +278,9 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var denied = await RejectIfFinanceDataReadOnlyAsync();
+                if (denied != null) return denied;
+
                 await _service.DeleteAsync(id);
                 return Ok(new { success = true, message = "删除成功" });
             }
@@ -278,6 +302,9 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var denied = await RejectIfFinanceDataReadOnlyAsync();
+                if (denied != null) return denied;
+
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrWhiteSpace(userId))
                     return StatusCode(403, new { success = false, message = "未登录或身份无效" });
@@ -320,6 +347,9 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var denied = await RejectIfFinanceDataReadOnlyAsync();
+                if (denied != null) return denied;
+
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 await _service.VerifyReceiptItemAsync(receiptItemId, request.SellInvoiceId, request.Amount, userId);
                 return Ok(new { success = true, message = "核销成功" });
@@ -329,6 +359,13 @@ namespace CRM.API.Controllers
                 _logger.LogError(ex, "核销收款明细失败");
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
+        }
+
+        private async Task<IActionResult?> RejectIfFinanceDataReadOnlyAsync()
+        {
+            if (!await FinanceDataAccessHttp.CanWriteAsync(_rbacService, User))
+                return StatusCode(403, new { success = false, message = "主部门财务数据为只读或禁止，无法修改" });
+            return null;
         }
     }
 

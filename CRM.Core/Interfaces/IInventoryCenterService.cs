@@ -37,7 +37,14 @@ namespace CRM.Core.Interfaces
             int page,
             int pageSize,
             CancellationToken cancellationToken = default);
-        Task<InventoryFinanceSummaryDto> GetFinanceSummaryAsync(int stagnantDays = 90);
+        /// <summary>库存财务汇总；筛选条件与库存总览列表一致（在库资金/呆滞料按筛选结果；本月出库成本按结果集物料+仓库匹配台账）。</summary>
+        Task<InventoryFinanceSummaryDto> GetFinanceSummaryAsync(
+            int stagnantDays = 90,
+            string? warehouseId = null,
+            string? materialModel = null,
+            string? stockCode = null,
+            short? stockType = null,
+            CancellationToken cancellationToken = default);
 
         Task<IEnumerable<WarehouseInfo>> GetWarehousesAsync();
         Task<WarehouseInfo> SaveWarehouseAsync(WarehouseInfo warehouse);
@@ -164,7 +171,9 @@ namespace CRM.Core.Interfaces
         public short? SalesCurrency { get; set; }
         /// <summary>销售单价折合 USD；无销售行时为 null</summary>
         public decimal? SalesPriceUsd { get; set; }
+        public string? VendorId { get; set; }
         public string? VendorName { get; set; }
+        public string? CustomerId { get; set; }
         public string? CustomerName { get; set; }
 
         /// <summary>地域类型（<c>stock_item.RegionType</c>）：10=境内 20=境外（与仓库、到货通知枚举一致）。</summary>
@@ -179,6 +188,15 @@ namespace CRM.Core.Interfaces
     /// <summary>全库库存明细列表行（在 <see cref="InventoryStockItemRowDto"/> 基础上扩展展示/筛选字段）。</summary>
     public class InventoryStockItemListRowDto : InventoryStockItemRowDto
     {
+        /// <summary>入库类型（<c>stock_in.StockInType</c>，见 <see cref="CRM.Core.Constants.StockInTypeCode"/>）。</summary>
+        public short StockInType { get; set; }
+
+        /// <summary>客户物料型号（关联 <c>sellorderitem.customer_pn</c>）。</summary>
+        public string? CustomerPn { get; set; }
+
+        /// <summary>客户品牌（关联 <c>sellorderitem.customer_brand</c>）。</summary>
+        public string? CustomerBrand { get; set; }
+
         public DateTime? StockInDate { get; set; }
         public string? PurchaserName { get; set; }
         public string? SalespersonName { get; set; }
@@ -229,6 +247,8 @@ namespace CRM.Core.Interfaces
         public string? BatchNo { get; set; }
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
+        /// <summary>采购币别（1=RMB 2=USD …，与入库明细/采购行一致）。</summary>
+        public short Currency { get; set; } = 1;
         public string? PurchaseOrderCode { get; set; }
         public string? PurchaseUserName { get; set; }
         public short? QcStatus { get; set; }

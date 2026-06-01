@@ -484,6 +484,7 @@ const removeItem = (index: number) => {
 function buildItemsPayload() {
   const headerVendor = formData.value.vendorId?.trim() || ''
   return formData.value.items.map((it) => ({
+    purchaseOrderItemId: it.purchaseOrderItemId?.trim() || undefined,
     sellOrderItemId: linkedSellOrderItemIdForPayload(it.sellOrderItemId),
     vendorId: it.vendorId?.trim() || headerVendor || MANUAL_VENDOR_ID,
     pn: it.pn,
@@ -515,13 +516,16 @@ async function loadOrderForEdit(id: string) {
   formData.value.deliveryAddress = String(o.deliveryAddress ?? '')
   formData.value.comment = String(o.comment ?? '')
   formData.value.innerComment = String(o.innerComment ?? '')
-  const items = (o.items as Record<string, unknown>[] | undefined) || []
+  const items = ((o.items as Record<string, unknown>[] | undefined) || []).filter(
+    (it) => !(it.isDeleted ?? it.IsDeleted)
+  )
   formData.value.items = items.map((it) => {
     const cost = Number(it.cost) || 0
     const d = it.deliveryDate
     const deliveryDateStr =
       d == null ? '' : typeof d === 'string' ? d.split('T')[0]! : String(d)
     return {
+      purchaseOrderItemId: String(it.id ?? it.Id ?? it.purchaseOrderItemId ?? '').trim() || undefined,
       sellOrderItemId: it.sellOrderItemId as string | undefined,
       vendorId: it.vendorId as string | undefined,
       pn: String(it.pn ?? ''),

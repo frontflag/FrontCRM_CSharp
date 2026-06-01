@@ -43,7 +43,21 @@ export interface RbacDepartment {
   path?: string
   level: number
   saleDataScope: number
+  /** 0=读写 1=只读 */
+  saleDataAccess?: number
+  /** 隐藏客户管理 */
+  hideCustomerManagement?: boolean
   purchaseDataScope: number
+  /** 0=读写 1=只读 */
+  purchaseDataAccess?: number
+  /** 隐藏供应商管理 */
+  hideVendorManagement?: boolean
+  logisticsDataScope?: number
+  /** 0=读写 1=只读 */
+  logisticsDataAccess?: number
+  financeDataScope?: number
+  /** 0=读写 1=只读 */
+  financeDataAccess?: number
   identityType: number
   status: number
 
@@ -111,7 +125,15 @@ export interface UpsertDepartmentRequest {
   departmentName: string
   parentId?: string | null
   saleDataScope: number
+  saleDataAccess: number
+  hideCustomerManagement: boolean
   purchaseDataScope: number
+  purchaseDataAccess: number
+  hideVendorManagement: boolean
+  logisticsDataScope: number
+  logisticsDataAccess: number
+  financeDataScope: number
+  financeDataAccess: number
   identityType: number
   status: number
 }

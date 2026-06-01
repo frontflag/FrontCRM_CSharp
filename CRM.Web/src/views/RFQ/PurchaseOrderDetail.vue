@@ -54,7 +54,7 @@
                 </button>
                 <div class="title-inline-tags">
                   <TagListDisplay :tags="currentTags" />
-                  <button type="button" class="btn-add-tag" @click="tagDialogVisible = true">添加标签</button>
+                  <button v-if="canWritePo" type="button" class="btn-add-tag" @click="tagDialogVisible = true">添加标签</button>
                 </div>
               </div>
             </div>
@@ -74,7 +74,7 @@
           </svg>
           {{ refreshingExtends ? '刷新中...' : '刷新' }}
         </button>
-        <button class="btn-primary" type="button" @click="handleEdit">
+        <button v-if="canWritePo" class="btn-primary" type="button" @click="handleEdit">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -82,6 +82,7 @@
           编辑
         </button>
         <el-dropdown
+          v-if="canWritePo"
           trigger="click"
           placement="bottom-end"
           popper-class="po-detail-header-more-popper"
@@ -202,6 +203,22 @@
             @click="activeTab = 'documents'"
           >
             文档
+          </button>
+          <button
+            v-if="!maskPurchaseSensitiveFields"
+            class="tab-btn"
+            :class="{ 'tab-btn--active': activeTab === 'changeLog' }"
+            @click="activeTab = 'changeLog'"
+          >
+            更改日志
+          </button>
+          <button
+            v-if="!maskPurchaseSensitiveFields"
+            class="tab-btn"
+            :class="{ 'tab-btn--active': activeTab === 'deleteLog' }"
+            @click="activeTab = 'deleteLog'"
+          >
+            删除日志
           </button>
         </div>
         <div class="tabs-body">
@@ -398,6 +415,45 @@
               view-mode="list"
               style="margin-top: 16px;"
             />
+          </div>
+          <div v-show="activeTab === 'changeLog' && !maskPurchaseSensitiveFields" v-loading="changeLogsLoading" class="po-aggregate-table-wrap">
+            <el-table v-if="changeLogs.length > 0" :data="changeLogs" size="small" stripe>
+              <el-table-column label="变更时间" width="160">
+                <template #default="{ row }">{{ formatDateTime(row?.changedAt) }}</template>
+              </el-table-column>
+              <el-table-column label="操作人" width="100" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.changedByUserName || '系统' }}</template>
+              </el-table-column>
+              <el-table-column prop="fieldLabel" label="字段" min-width="120" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.fieldLabel || row.fieldName }}</template>
+              </el-table-column>
+              <el-table-column prop="oldValue" label="原值" min-width="160" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.oldValue ?? '(空)' }}</template>
+              </el-table-column>
+              <el-table-column prop="newValue" label="新值" min-width="160" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.newValue ?? '(空)' }}</template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-else description="暂无记录" :image-size="64" />
+          </div>
+          <div v-show="activeTab === 'deleteLog' && !maskPurchaseSensitiveFields" v-loading="deletedItemsLoading" class="po-aggregate-table-wrap">
+            <el-table v-if="deletedItems.length > 0" :data="deletedItems" size="small" stripe>
+              <el-table-column label="删除日期" width="160">
+                <template #default="{ row }">{{ formatDateTime(row?.deletedAt || row?.createTime) }}</template>
+              </el-table-column>
+              <el-table-column label="操作人" width="100" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.deletedByUserName || '—' }}</template>
+              </el-table-column>
+              <el-table-column prop="purchaseOrderItemCode" label="采购订单明细编号" min-width="140" show-overflow-tooltip />
+              <el-table-column prop="pn" label="物料型号" min-width="140" show-overflow-tooltip />
+              <el-table-column prop="brand" label="品牌" width="100" show-overflow-tooltip />
+              <el-table-column label="数量" width="90" align="right" prop="qty" />
+              <el-table-column label="单价+币别" width="120" align="right">
+                <template #default="{ row }">{{ formatDeletedPoItemCost(row) }}</template>
+              </el-table-column>
+              <el-table-column prop="comment" label="备注" min-width="140" show-overflow-tooltip />
+            </el-table>
+            <el-empty v-else description="暂无记录" :image-size="64" />
           </div>
         </div>
       </div>
@@ -620,7 +676,9 @@ import { Setting } from '@element-plus/icons-vue'
 import {
   purchaseOrderApi,
   type PurchaseOrderDetailTabAggregates,
-  type PurchaseOrderItemExtendRefreshResult
+  type PurchaseOrderItemExtendRefreshResult,
+  type PurchaseOrderFieldChangeLogRow,
+  type PurchaseOrderDeletedItemRow
 } from '@/api/purchaseOrder'
 import { favoriteApi } from '@/api/favorite'
 import {
@@ -634,6 +692,7 @@ import {
 import { tagApi, type TagDefinitionDto } from '@/api/tag'
 import { useAuthStore } from '@/stores/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { usePurchaseOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
@@ -652,6 +711,7 @@ const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { canWritePo } = usePurchaseOrderWriteGate()
 
 const canViewVendorInfo = computed(
   () => !maskPurchaseSensitiveFields.value && authStore.hasPermission('vendor.info.read')
@@ -698,7 +758,7 @@ const order = ref<any>(null)
 /** 与原列表「取消订单」一致：审核通过(10)前可标记取消(-2)；已为取消不可再点 */
 const canCancelPurchaseOrderFromMenu = computed(() => {
   const o = order.value
-  if (!o) return false
+  if (!o || !canWritePo.value) return false
   const s = normalizePurchaseOrderMainStatus(o)
   if (!Number.isFinite(s) || s === -2) return false
   return s < 10
@@ -707,6 +767,60 @@ const canCancelPurchaseOrderFromMenu = computed(() => {
 const poFavorited = ref(false)
 const favoriteLoading = ref(false)
 const activeTab = ref('items')
+const changeLogs = ref<PurchaseOrderFieldChangeLogRow[]>([])
+const deletedItems = ref<PurchaseOrderDeletedItemRow[]>([])
+const changeLogsLoading = ref(false)
+const deletedItemsLoading = ref(false)
+const changeLogsLoaded = ref(false)
+const deletedItemsLoaded = ref(false)
+
+function resetOrderLogTabs() {
+  changeLogs.value = []
+  deletedItems.value = []
+  changeLogsLoaded.value = false
+  deletedItemsLoaded.value = false
+}
+
+async function loadChangeLogs() {
+  const id = String(order.value?.id ?? '').trim()
+  if (!id) return
+  changeLogsLoading.value = true
+  try {
+    changeLogs.value = (await purchaseOrderApi.getChangeLogs(id)) ?? []
+    changeLogsLoaded.value = true
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '加载更改日志失败'))
+  } finally {
+    changeLogsLoading.value = false
+  }
+}
+
+async function loadDeletedItems() {
+  const id = String(order.value?.id ?? '').trim()
+  if (!id) return
+  deletedItemsLoading.value = true
+  try {
+    deletedItems.value = (await purchaseOrderApi.getDeletedItems(id)) ?? []
+    deletedItemsLoaded.value = true
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '加载删除日志失败'))
+  } finally {
+    deletedItemsLoading.value = false
+  }
+}
+
+function formatDeletedPoItemCost(row: PurchaseOrderDeletedItemRow) {
+  const cost = Number(row?.cost)
+  if (!Number.isFinite(cost)) return '—'
+  const cur = Number(row?.currency)
+  const curLabel = CURRENCY_CODE_TO_TEXT[cur] ?? (cur > 0 ? String(cur) : '')
+  return curLabel ? `${cost.toFixed(4)} ${curLabel}` : cost.toFixed(4)
+}
+
+watch(activeTab, (tab) => {
+  if (tab === 'changeLog' && !changeLogsLoaded.value) void loadChangeLogs()
+  if (tab === 'deleteLog' && !deletedItemsLoaded.value) void loadDeletedItems()
+})
 
 /** 双击订单明细行：底部面板（按采购明细主键） */
 const lineTabAggregates = ref<PurchaseOrderDetailTabAggregates | null>(null)
@@ -761,7 +875,9 @@ const docTabDragging = ref(false)
 const docTabDragDepth = ref(0)
 
 watch(maskPurchaseSensitiveFields, (m) => {
-  if (m && activeTab.value === 'documents') activeTab.value = 'items'
+  if (m && (activeTab.value === 'documents' || activeTab.value === 'changeLog' || activeTab.value === 'deleteLog')) {
+    activeTab.value = 'items'
+  }
   if (m) closePoItemLinePanel()
 })
 
@@ -866,12 +982,12 @@ function poDetailLineToListShape(it: any) {
 
 function poLineShowArrival(row: any) {
   const line = poDetailLineToListShape(row)
-  return !!(line && canCreateArrivalNotice.value && line.itemStatus === 30)
+  return !!(line && canWritePo.value && canCreateArrivalNotice.value && line.itemStatus === 30)
 }
 
 function poLineShowPayment(row: any) {
   const line = poDetailLineToListShape(row)
-  return !!(line && line.canApplyPayment)
+  return !!(line && canWritePo.value && line.canApplyPayment)
 }
 
 function goPoItemLines(row: any) {
@@ -1082,6 +1198,8 @@ async function toggleFavorite() {
 
 const fetchOrder = async () => {
   loading.value = true
+  resetOrderLogTabs()
+  const logTab = activeTab.value
   try {
     const data = await purchaseOrderApi.getById(orderId.value)
     order.value = data ?? null
@@ -1112,6 +1230,8 @@ const fetchOrder = async () => {
     closePoItemLinePanel()
   } finally {
     loading.value = false
+    if (logTab === 'changeLog' && order.value?.id) void loadChangeLogs()
+    else if (logTab === 'deleteLog' && order.value?.id) void loadDeletedItems()
   }
 }
 

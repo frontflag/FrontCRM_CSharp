@@ -481,6 +481,48 @@ namespace CRM.API.Controllers
             };
         }
 
+        /// <summary>采购订单主表字段变更日志（log_change_fldval）。</summary>
+        [HttpGet("{id:guid}/change-logs")]
+        public async Task<IActionResult> GetChangeLogs(string id)
+        {
+            try
+            {
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+                var logs = await _service.GetFieldChangeLogsAsync(id);
+                return Ok(new { success = true, data = logs });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取采购订单变更日志失败: {Id}", id);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>已软删除的采购订单明细行。</summary>
+        [HttpGet("{id:guid}/deleted-items")]
+        public async Task<IActionResult> GetDeletedItems(string id)
+        {
+            try
+            {
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "采购订单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+                var items = await _service.GetDeletedOrderItemsAsync(id);
+                return Ok(new { success = true, data = items });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取采购订单删除明细失败: {Id}", id);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         /// <summary>按主键获取采购订单详情；使用 <c>{id:guid}</c> 避免与字面路由 <c>items</c> 冲突。</summary>
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(string id, CancellationToken cancellationToken)
@@ -702,7 +744,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.DeleteAsync(id);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.DeleteAsync(id, actorId);
                 return Ok(new { success = true, message = "删除成功" });
             }
             catch (InvalidOperationException ex)

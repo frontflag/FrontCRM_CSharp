@@ -11,7 +11,8 @@ namespace CRM.Core.Interfaces
         Task<IEnumerable<PurchaseOrder>> GetAllAsync();
         /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
         Task<PurchaseOrder> UpdateAsync(string id, UpdatePurchaseOrderRequest request, string? actingUserId = null);
-        Task DeleteAsync(string id);
+        /// <param name="actingUserId">当前登录用户 ID（写入 log_operation 与明细 deleted_by）</param>
+        Task DeleteAsync(string id, string? actingUserId = null);
         /// <param name="actingUserId">当前登录用户 ID（写入 modify_by_user_id）</param>
         Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
         Task<PagedResult<PurchaseOrder>> GetPagedAsync(PurchaseOrderQueryRequest request);
@@ -24,6 +25,44 @@ namespace CRM.Core.Interfaces
         Task<IEnumerable<PurchaseOrder>> AutoGenerateFromSellOrderAsync(string sellOrderId, string? actingUserId = null);
         /// <summary>按采购单批量重算明细扩展并返回变更结果。</summary>
         Task<PurchaseOrderItemExtendRefreshResult> RefreshItemExtendsAsync(string purchaseOrderId, CancellationToken cancellationToken = default);
+
+        /// <summary>采购订单主表字段变更日志（<c>log_change_fldval</c>，BizType=<see cref="Constants.BusinessLogTypes.PurchaseOrder"/>）。</summary>
+        Task<IReadOnlyList<PurchaseOrderFieldChangeLogDto>> GetFieldChangeLogsAsync(string purchaseOrderId);
+
+        /// <summary>已软删除的采购订单明细行（<c>is_deleted=true</c>）。</summary>
+        Task<IReadOnlyList<PurchaseOrderDeletedItemLogDto>> GetDeletedOrderItemsAsync(string purchaseOrderId);
+    }
+
+    /// <summary>采购订单字段变更日志行。</summary>
+    public class PurchaseOrderFieldChangeLogDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string PurchaseOrderId { get; set; } = string.Empty;
+        public string? PurchaseOrderCode { get; set; }
+        public string FieldName { get; set; } = string.Empty;
+        public string? FieldLabel { get; set; }
+        public string? OldValue { get; set; }
+        public string? NewValue { get; set; }
+        public string? ChangedByUserId { get; set; }
+        public string? ChangedByUserName { get; set; }
+        public DateTime ChangedAt { get; set; }
+    }
+
+    /// <summary>已软删除的采购订单明细。</summary>
+    public class PurchaseOrderDeletedItemLogDto
+    {
+        public string PurchaseOrderItemId { get; set; } = string.Empty;
+        public string? PurchaseOrderItemCode { get; set; }
+        public string? PN { get; set; }
+        public string? Brand { get; set; }
+        public decimal Qty { get; set; }
+        public decimal Cost { get; set; }
+        public short Currency { get; set; }
+        public string? Comment { get; set; }
+        public DateTime? CreateTime { get; set; }
+        public DateTime? DeletedAt { get; set; }
+        public string? DeletedByUserId { get; set; }
+        public string? DeletedByUserName { get; set; }
     }
 
     public class CreatePurchaseOrderRequest
@@ -62,6 +101,9 @@ namespace CRM.Core.Interfaces
 
     public class CreatePurchaseOrderItemRequest
     {
+        /// <summary>编辑保存时传入已有采购明细主键（PurchaseOrderItemId）；新建行省略。</summary>
+        public string? PurchaseOrderItemId { get; set; }
+
         /// <summary>销售订单明细ID(以销定采核心字段)；无销售行时省略或传 null</summary>
         public string? SellOrderItemId { get; set; }
         /// <summary>供应商ID</summary>

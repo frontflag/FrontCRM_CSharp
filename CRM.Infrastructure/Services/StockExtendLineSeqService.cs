@@ -30,11 +30,12 @@ public sealed class StockExtendLineSeqService : IStockExtendLineSeqService
             await using var cmd = (NpgsqlCommand)conn.CreateCommand();
 
             cmd.CommandText = """
-INSERT INTO stock_extend ("StockId", last_item_line_seq, "CreateTime", "ModifyTime")
-VALUES (@sid, @cnt, @ct, @mod)
+INSERT INTO stock_extend ("StockId", last_item_line_seq, "CreateTime", "ModifyTime", is_deleted)
+VALUES (@sid, @cnt, @ct, @mod, false)
 ON CONFLICT ("StockId") DO UPDATE SET
   last_item_line_seq = stock_extend.last_item_line_seq + EXCLUDED.last_item_line_seq,
   "ModifyTime" = EXCLUDED."ModifyTime"
+WHERE stock_extend.is_deleted = false
 RETURNING last_item_line_seq - @cnt + 1;
 """;
             cmd.Parameters.AddWithValue("sid", stockId);

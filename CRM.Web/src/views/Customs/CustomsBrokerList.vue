@@ -2,7 +2,7 @@
   <div class="customs-page">
     <div class="page-header">
       <h1 class="page-title">{{ t('customsPages.brokers.title') }}</h1>
-      <el-button type="primary" @click="openCreate">{{ t('customsPages.brokers.create') }}</el-button>
+      <el-button v-if="canWriteLogisticsData" type="primary" @click="openCreate">{{ t('customsPages.brokers.create') }}</el-button>
     </div>
     <el-table
       :data="list"
@@ -25,7 +25,7 @@
       <el-table-column :label="t('customsPages.brokers.colActions')" width="200" fixed="right">
         <template #default="{ row }">
           <el-button
-            v-if="row.status === 1"
+            v-if="canWriteLogisticsData && row.status === 1"
             link
             type="danger"
             :loading="statusLoadingId === row.id"
@@ -34,7 +34,7 @@
             {{ t('customsPages.brokers.btnDisable') }}
           </el-button>
           <el-button
-            v-else
+            v-else-if="canWriteLogisticsData"
             link
             type="primary"
             :loading="statusLoadingId === row.id"
@@ -43,6 +43,7 @@
             {{ t('customsPages.brokers.btnEnable') }}
           </el-button>
           <el-button
+            v-if="canWriteLogisticsData"
             link
             type="danger"
             :loading="deleteLoadingId === row.id"
@@ -125,10 +126,12 @@ import {
   updateCustomsBroker,
   type CustomsBrokerDto
 } from '@/api/customs'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 
 type CustomsBrokerRegion = (typeof CustomsBrokerRegionType)[keyof typeof CustomsBrokerRegionType]
 
 const { t } = useI18n()
+const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const loading = ref(false)
 const statusLoadingId = ref<string | null>(null)
 const deleteLoadingId = ref<string | null>(null)

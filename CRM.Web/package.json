@@ -8,6 +8,8 @@
     "dev": "vite",
     "typecheck": "vue-tsc --noEmit",
     "build": "vue-tsc && vite build",
+    "build:semicore": "vue-tsc && vite build --mode production.semicore",
+    "build:idesemi": "vue-tsc && vite build --mode production.idesemi",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

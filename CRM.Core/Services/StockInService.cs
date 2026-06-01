@@ -4,6 +4,7 @@ using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Material;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
+using CRM.Core.Models.System;
 using CRM.Core.Models.Vendor;
 using CRM.Core.Utilities;
 using Microsoft.Extensions.Logging;
@@ -104,7 +105,16 @@ namespace CRM.Core.Services
             var stockInCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.StockIn);
 
             var stockInId = Guid.NewGuid().ToString();
+
+            var (arrivalId, arrivalCode, qcIdForSi, qcCodeForSi) = await ResolveStockInNotifyAndQcFieldsAsync(request);
+            StockInNotify? notifyForCreate = null;
+            if (!string.IsNullOrWhiteSpace(arrivalId))
+                notifyForCreate = await _stockInNotifyRepository.GetByIdAsync(arrivalId.Trim());
+
             var purchaseOrderId = request.PurchaseOrderId?.Trim();
+            if (string.IsNullOrWhiteSpace(purchaseOrderId) &&
+                !string.IsNullOrWhiteSpace(notifyForCreate?.PurchaseOrderId))
+                purchaseOrderId = notifyForCreate!.PurchaseOrderId.Trim();
 
             List<PurchaseOrderItem>? poLinesForHeader = null;
             IReadOnlyDictionary<string, PurchaseOrderItem>? poLineById = null;
@@ -116,8 +126,6 @@ namespace CRM.Core.Services
                     .Where(x => !string.IsNullOrWhiteSpace(x.Id))
                     .ToDictionary(x => x.Id!.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
             }
-
-            var (arrivalId, arrivalCode, qcIdForSi, qcCodeForSi) = await ResolveStockInNotifyAndQcFieldsAsync(request);
             var regionTypeForCreate = await ResolveStockInRegionTypeForCreateAsync(request);
             var stockInTypeForCreate = await ResolveStockInTypeForCreateAsync(request);
 
@@ -158,6 +166,20 @@ namespace CRM.Core.Services
                     if (poLineById != null && !string.IsNullOrWhiteSpace(materialKey) &&
                         poLineById.TryGetValue(materialKey, out var poiHit))
                         poiForLine = poiHit;
+
+                    if (poiForLine == null && notifyForCreate != null &&
+                        !string.IsNullOrWhiteSpace(notifyForCreate.PurchaseOrderItemId))
+                    {
+                        var notifyPoItemId = notifyForCreate.PurchaseOrderItemId.Trim();
+                        if (string.IsNullOrEmpty(materialKey) ||
+                            string.Equals(materialKey, notifyPoItemId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (poLineById != null)
+                                poLineById.TryGetValue(notifyPoItemId, out poiForLine);
+                            else
+                                poiForLine = await _purchaseOrderItemRepository.GetByIdAsync(notifyPoItemId);
+                        }
+                    }
 
                     var price = item.UnitPrice ?? 0m;
                     // 质检生成入库等场景前端可能传 0 价：按采购明细 Id（与 MaterialId 一致）回填采购单价
@@ -347,7 +369,172 @@ namespace CRM.Core.Services
                 }
             }
 
+            var poItemById = new Dictionary<string, PurchaseOrderItem>(StringComparer.OrdinalIgnoreCase);
+            if (poLinesForDetail != null)
+            {
+                foreach (var pl in poLinesForDetail)
+                {
+                    var pid = pl.Id?.Trim();
+                    if (string.IsNullOrEmpty(pid) || poItemById.ContainsKey(pid))
+                        continue;
+                    poItemById[pid] = pl;
+                }
+            }
+
+            foreach (var er in extendRows)
+            {
+                var pid = er.PurchaseOrderItemId?.Trim();
+                if (string.IsNullOrEmpty(pid) || poItemById.ContainsKey(pid))
+                    continue;
+                var pl = await _purchaseOrderItemRepository.GetByIdAsync(pid);
+                if (pl != null)
+                    poItemById[pid] = pl;
+            }
+
+            StockInNotify? arrivalNotify = null;
+            if (!string.IsNullOrWhiteSpace(stockIn.SourceId))
+                arrivalNotify = await _stockInNotifyRepository.GetByIdAsync(stockIn.SourceId.Trim());
+
+            var postedStockItems = (await _stockItemRepository.FindAsync(x => x.StockInId == stockIn.Id)).ToList();
+            var stockItemPoCodeByLineId = postedStockItems
+                .Where(x => !string.IsNullOrWhiteSpace(x.StockInItemId) &&
+                            !string.IsNullOrWhiteSpace(x.PurchaseOrderItemCode))
+                .GroupBy(x => x.StockInItemId!.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.First().PurchaseOrderItemCode!.Trim(),
+                    StringComparer.OrdinalIgnoreCase);
+
+            foreach (var line in lines)
+            {
+                line.DetailStockInDate = stockIn.StockInDate;
+                line.DetailSourceCode = string.IsNullOrWhiteSpace(stockIn.SourceCode)
+                    ? null
+                    : stockIn.SourceCode.Trim();
+                line.DetailVendorName = stockIn.DetailVendorName;
+                line.DetailWarehouseCode = stockIn.DetailWarehouseCode;
+                line.DetailRegionType = stockIn.RegionType;
+                line.DetailStockInType = stockIn.StockInType;
+
+                var ext = line.Extend;
+                var (poItemCode, poiForCurrency) = await ResolveStockInLinePurchaseOrderItemAsync(
+                    line,
+                    ext,
+                    poItemById,
+                    arrivalNotify,
+                    stockItemPoCodeByLineId);
+
+                line.DetailPurchaseOrderItemCode = poItemCode;
+                line.DetailCurrency = ResolveStockInLineCurrency(line, poiForCurrency);
+            }
+
             return stockIn;
+        }
+
+        /// <summary>
+        /// 解析入库明细对应的采购订单明细编号：扩展表 → 物料/采购行 Id → 库存层冗余 → 到货通知 → 同单 PN 匹配。
+        /// </summary>
+        private async Task<(string? PurchaseOrderItemCode, PurchaseOrderItem? PoItem)> ResolveStockInLinePurchaseOrderItemAsync(
+            StockInItem line,
+            StockInItemExtend? ext,
+            Dictionary<string, PurchaseOrderItem> poItemById,
+            StockInNotify? arrivalNotify,
+            IReadOnlyDictionary<string, string> stockItemPoCodeByLineId)
+        {
+            if (!string.IsNullOrWhiteSpace(ext?.PurchaseOrderItemCode))
+                return (ext!.PurchaseOrderItemCode.Trim(), await TryGetPoItemAsync(ext.PurchaseOrderItemId, poItemById));
+
+            PurchaseOrderItem? poi = null;
+            if (ext != null && !string.IsNullOrWhiteSpace(ext.PurchaseOrderItemId))
+                poi = await TryGetPoItemAsync(ext.PurchaseOrderItemId, poItemById);
+
+            if (poi == null)
+            {
+                var mid = line.MaterialId?.Trim();
+                if (!string.IsNullOrEmpty(mid))
+                    poi = await TryGetPoItemAsync(mid, poItemById);
+            }
+
+            if (!string.IsNullOrWhiteSpace(poi?.PurchaseOrderItemCode))
+                return (poi!.PurchaseOrderItemCode.Trim(), poi);
+
+            var lineId = line.Id?.Trim();
+            if (!string.IsNullOrEmpty(lineId) &&
+                stockItemPoCodeByLineId.TryGetValue(lineId, out var fromStockItem) &&
+                !string.IsNullOrWhiteSpace(fromStockItem))
+                return (fromStockItem.Trim(), poi);
+
+            if (arrivalNotify != null && !string.IsNullOrWhiteSpace(arrivalNotify.PurchaseOrderItemId))
+            {
+                poi = await TryGetPoItemAsync(arrivalNotify.PurchaseOrderItemId, poItemById);
+                if (!string.IsNullOrWhiteSpace(poi?.PurchaseOrderItemCode))
+                    return (poi!.PurchaseOrderItemCode.Trim(), poi);
+            }
+
+            var poId = arrivalNotify?.PurchaseOrderId?.Trim();
+            if (string.IsNullOrEmpty(poId) && poi != null)
+                poId = poi.PurchaseOrderId?.Trim();
+
+            if (!string.IsNullOrEmpty(poId))
+            {
+                var pn = (line.DetailMaterialModel ?? line.PurchasePn)?.Trim();
+                if (!string.IsNullOrEmpty(pn))
+                {
+                    var match = await FindPurchaseOrderItemByPnOnOrderAsync(poId, pn, poItemById);
+                    if (!string.IsNullOrWhiteSpace(match?.PurchaseOrderItemCode))
+                        return (match!.PurchaseOrderItemCode.Trim(), match);
+                }
+            }
+
+            return (null, poi);
+        }
+
+        private async Task<PurchaseOrderItem?> TryGetPoItemAsync(
+            string? purchaseOrderItemId,
+            Dictionary<string, PurchaseOrderItem> poItemById)
+        {
+            var pid = purchaseOrderItemId?.Trim();
+            if (string.IsNullOrEmpty(pid))
+                return null;
+            if (poItemById.TryGetValue(pid, out var cached))
+                return cached;
+            var pl = await _purchaseOrderItemRepository.GetByIdAsync(pid);
+            if (pl != null)
+                poItemById[pid] = pl;
+            return pl;
+        }
+
+        private async Task<PurchaseOrderItem?> FindPurchaseOrderItemByPnOnOrderAsync(
+            string purchaseOrderId,
+            string pn,
+            Dictionary<string, PurchaseOrderItem> poItemById)
+        {
+            var poId = purchaseOrderId.Trim();
+            var pnNorm = pn.Trim();
+            var cachedOnOrder = poItemById.Values
+                .FirstOrDefault(x => string.Equals(x.PurchaseOrderId?.Trim(), poId, StringComparison.OrdinalIgnoreCase) &&
+                                     string.Equals(x.PN?.Trim(), pnNorm, StringComparison.OrdinalIgnoreCase));
+            if (cachedOnOrder != null)
+                return cachedOnOrder;
+
+            var found = (await _purchaseOrderItemRepository.FindAsync(x => x.PurchaseOrderId == poId)).ToList();
+            foreach (var pl in found)
+            {
+                if (!string.IsNullOrWhiteSpace(pl.Id))
+                    poItemById[pl.Id.Trim()] = pl;
+            }
+
+            return found.FirstOrDefault(x =>
+                string.Equals(x.PN?.Trim(), pnNorm, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static short ResolveStockInLineCurrency(StockInItem line, PurchaseOrderItem? poItem)
+        {
+            if (line.Currency is > 0)
+                return line.Currency.Value;
+            if (poItem != null && poItem.Currency > 0)
+                return poItem.Currency;
+            return 1;
         }
 
         private List<StockInListItemDto> ApplyStockInMemoryFilters(
@@ -785,7 +972,20 @@ namespace CRM.Core.Services
             if (stockIn == null)
                 throw new InvalidOperationException($"入库单 {id} 不存在");
 
-            var sid = id.Trim();
+            await DeleteInternalAsync(stockIn);
+
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = BusinessLogTypes.StockIn,
+                RecordId = stockIn.Id,
+                RecordCode = stockIn.StockInCode,
+                EntityDisplayName = DeleteLogEntityNames.StockIn
+            });
+        }
+
+        private async Task DeleteInternalAsync(StockIn stockIn)
+        {
+            var sid = stockIn.Id.Trim();
             var sidLower = sid.ToLowerInvariant();
             var downstreamStockItems = (await _stockItemRepository.FindAsync(x =>
                     x.StockInId != null &&
@@ -844,18 +1044,20 @@ namespace CRM.Core.Services
             if (!string.Equals(confirmBillCode.Trim(), stockIn.StockInCode?.Trim(), StringComparison.Ordinal))
                 throw new ArgumentException("确认单号不匹配，已拒绝删除");
 
-            await DeleteAsync(id);
+            await DeleteInternalAsync(stockIn);
 
-            var recordCode = string.IsNullOrWhiteSpace(stockIn.StockInCode) ? null : stockIn.StockInCode.Trim();
-            await _logOperationAppend.AppendAsync(
-                BusinessLogTypes.StockIn,
-                id.Trim(),
-                recordCode,
-                "入库单强制删除",
-                actingUserId.Trim(),
-                string.IsNullOrWhiteSpace(actingUserName) ? null : actingUserName.Trim(),
-                $"强制删除入库单 StockInId={id.Trim()}，确认单号={recordCode}",
-                reason: null);
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = BusinessLogTypes.StockIn,
+                RecordId = stockIn.Id,
+                RecordCode = stockIn.StockInCode,
+                EntityDisplayName = DeleteLogEntityNames.StockIn,
+                IsForceDelete = true,
+                ForceConfirmBillCode = confirmBillCode.Trim(),
+                OperatorUserId = actingUserId.Trim(),
+                OperatorUserName = actingUserName?.Trim(),
+                OperationDescOverride = $"强制删除入库单 StockInId={stockIn.Id}，确认单号={stockIn.StockInCode}"
+            });
         }
 
         private static string EscapeSqlLiteral(string s) => s.Replace("'", "''", StringComparison.Ordinal);

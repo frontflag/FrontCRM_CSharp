@@ -26,10 +26,16 @@
           {{ parentLabel(row.parentId) }}
         </template>
         <template #col-saleDataScope="{ row }">
-          {{ scopeLabel(row.saleDataScope) }}
+          {{ scopeAccessLabel(row.saleDataScope, row.saleDataAccess) }}
         </template>
         <template #col-purchaseDataScope="{ row }">
-          {{ scopeLabel(row.purchaseDataScope) }}
+          {{ scopeAccessLabel(row.purchaseDataScope, row.purchaseDataAccess) }}
+        </template>
+        <template #col-logisticsDataScope="{ row }">
+          {{ scopeAccessLabel(row.logisticsDataScope ?? 0, row.logisticsDataAccess) }}
+        </template>
+        <template #col-financeDataScope="{ row }">
+          {{ scopeAccessLabel(row.financeDataScope ?? 0, row.financeDataAccess) }}
         </template>
         <template #col-identityType="{ row }">
           {{ identityLabel(row.identityType) }}
@@ -129,6 +135,8 @@ const departmentTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'level', label: t('systemDepartment.columns.level'), prop: 'level', width: 108, minWidth: 108 },
   { key: 'saleDataScope', label: t('systemDepartment.columns.saleDataScope'), minWidth: 120 },
   { key: 'purchaseDataScope', label: t('systemDepartment.columns.purchaseDataScope'), minWidth: 120 },
+  { key: 'logisticsDataScope', label: t('systemDepartment.columns.logisticsDataScope'), minWidth: 120 },
+  { key: 'financeDataScope', label: t('systemDepartment.columns.financeDataScope'), minWidth: 120 },
   { key: 'identityType', label: t('systemDepartment.columns.identityType'), minWidth: 100 },
   { key: 'createTime', label: t('systemUser.colCreateTime'), width: 160 },
   { key: 'createUser', label: t('systemUser.colCreateUser'), width: 120, showOverflowTooltip: true },
@@ -171,6 +179,13 @@ const scopeLabel = (v: number) => {
     4: t('systemDepartment.scope.forbidden')
   }
   return map[v] ?? String(v)
+}
+
+const scopeAccessLabel = (scope: number, access?: number) => {
+  const base = scopeLabel(scope)
+  if (scope === 4) return base
+  const mode = access === 1 ? t('systemDepartment.access.readOnly') : t('systemDepartment.access.readWrite')
+  return `${base} / ${mode}`
 }
 
 const identityLabel = (v: number) => {

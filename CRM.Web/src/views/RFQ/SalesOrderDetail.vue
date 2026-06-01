@@ -70,6 +70,7 @@
           编辑
         </button>
         <el-dropdown
+          v-if="canWriteSo"
           trigger="click"
           placement="bottom-end"
           popper-class="so-detail-header-more-popper"
@@ -182,6 +183,22 @@
             @click="activeTab = 'documents'"
           >
             文档
+          </button>
+          <button
+            v-if="!maskSaleSensitiveFields"
+            class="tab-btn"
+            :class="{ 'tab-btn--active': activeTab === 'changeLog' }"
+            @click="activeTab = 'changeLog'"
+          >
+            更改日志
+          </button>
+          <button
+            v-if="!maskSaleSensitiveFields"
+            class="tab-btn"
+            :class="{ 'tab-btn--active': activeTab === 'deleteLog' }"
+            @click="activeTab = 'deleteLog'"
+          >
+            删除日志
           </button>
         </div>
         <div class="tabs-body">
@@ -435,6 +452,45 @@
               style="margin-top: 16px;"
             />
           </div>
+          <div v-show="activeTab === 'changeLog' && !maskSaleSensitiveFields" v-loading="changeLogsLoading" class="so-aggregate-table-wrap">
+            <el-table v-if="changeLogs.length > 0" :data="changeLogs" size="small" stripe>
+              <el-table-column label="变更时间" width="160">
+                <template #default="{ row }">{{ formatDateTime(row?.changedAt) }}</template>
+              </el-table-column>
+              <el-table-column label="操作人" width="100" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.changedByUserName || '系统' }}</template>
+              </el-table-column>
+              <el-table-column prop="fieldLabel" label="字段" min-width="120" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.fieldLabel || row.fieldName }}</template>
+              </el-table-column>
+              <el-table-column prop="oldValue" label="原值" min-width="160" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.oldValue ?? '(空)' }}</template>
+              </el-table-column>
+              <el-table-column prop="newValue" label="新值" min-width="160" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.newValue ?? '(空)' }}</template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+          </div>
+          <div v-show="activeTab === 'deleteLog' && !maskSaleSensitiveFields" v-loading="deletedItemsLoading" class="so-aggregate-table-wrap">
+            <el-table v-if="deletedItems.length > 0" :data="deletedItems" size="small" stripe>
+              <el-table-column label="删除日期" width="160">
+                <template #default="{ row }">{{ formatDateTime(row?.deletedAt || row?.createTime) }}</template>
+              </el-table-column>
+              <el-table-column label="操作人" width="100" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.deletedByUserName || '—' }}</template>
+              </el-table-column>
+              <el-table-column prop="sellOrderItemCode" label="销售订单明细编号" min-width="140" show-overflow-tooltip />
+              <el-table-column prop="pn" label="物料型号" min-width="140" show-overflow-tooltip />
+              <el-table-column prop="brand" label="品牌" width="100" show-overflow-tooltip />
+              <el-table-column label="数量" width="90" align="right" prop="qty" />
+              <el-table-column label="单价+币别" width="120" align="right">
+                <template #default="{ row }">{{ formatDeletedItemPrice(row) }}</template>
+              </el-table-column>
+              <el-table-column prop="comment" label="备注" min-width="140" show-overflow-tooltip />
+            </el-table>
+            <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+          </div>
         </div>
       </div>
 
@@ -458,6 +514,9 @@
             <div class="tabs-nav">
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'pr' }" @click="soItemLinePanel.activeTab = 'pr'">
                 采购申请
+              </button>
+              <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'po' }" @click="soItemLinePanel.activeTab = 'po'">
+                采购订单明细
               </button>
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'stockIn' }" @click="soItemLinePanel.activeTab = 'stockIn'">
                 入库
@@ -500,6 +559,48 @@
                   <el-table-column label="数量" width="100" align="right" prop="qty" />
                   <el-table-column label="预计采购" width="160" prop="expectedPurchaseTime">
                     <template #default="{ row }">{{ formatDateTime(row?.expectedPurchaseTime) }}</template>
+                  </el-table-column>
+                  <el-table-column label="创建时间" width="160" prop="createTime">
+                    <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
+                  </el-table-column>
+                </el-table>
+                <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
+              </div>
+              <div v-show="soItemLinePanel.activeTab === 'po'" class="so-aggregate-table-wrap">
+                <el-table
+                  v-if="(lineTabAggregates?.purchaseOrderItems?.length ?? 0) > 0"
+                  :data="lineTabAggregates?.purchaseOrderItems ?? []"
+                  size="small"
+                  stripe
+                >
+                  <el-table-column type="index" width="50" label="#" />
+                  <el-table-column min-width="130" label="采购单号">
+                    <template #default="{ row }">
+                      <router-link class="so-tab-link" :to="`/purchase-orders/${row.purchaseOrderId}`">
+                        {{ row.purchaseOrderCode }}
+                      </router-link>
+                    </template>
+                  </el-table-column>
+                  <el-table-column min-width="130" label="采购明细号">
+                    <template #default="{ row }">
+                      <router-link class="so-tab-link" :to="`/purchase-orders/${row.purchaseOrderId}`">
+                        {{ row.purchaseOrderItemCode }}
+                      </router-link>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="主单状态" width="100">
+                    <template #default="{ row }">{{ poHeaderStatusLabel(row?.poStatus) }}</template>
+                  </el-table-column>
+                  <el-table-column label="明细状态" width="100">
+                    <template #default="{ row }">{{ poItemStatusLabel(row?.itemStatus) }}</template>
+                  </el-table-column>
+                  <el-table-column prop="vendorName" label="供应商" min-width="140" show-overflow-tooltip />
+                  <el-table-column prop="purchaseUserName" label="采购员" width="100" show-overflow-tooltip />
+                  <el-table-column prop="pn" label="PN" min-width="140" show-overflow-tooltip />
+                  <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip />
+                  <el-table-column label="数量" width="100" align="right" prop="qty" />
+                  <el-table-column label="单价" width="110" align="right">
+                    <template #default="{ row }">{{ formatPoLineCost(row) }}</template>
                   </el-table-column>
                   <el-table-column label="创建时间" width="160" prop="createTime">
                     <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
@@ -985,7 +1086,12 @@ import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import salesOrderApi, { type SalesOrderItemExtendRefreshResult, type SalesOrderDetailTabAggregates } from '@/api/salesOrder'
+import salesOrderApi, {
+  type SalesOrderItemExtendRefreshResult,
+  type SalesOrderDetailTabAggregates,
+  type SalesOrderFieldChangeLogRow,
+  type SalesOrderDeletedItemRow
+} from '@/api/salesOrder'
 import { getApiErrorMessage } from '@/utils/apiError'
 import purchaseRequisitionApi from '@/api/purchaseRequisition'
 import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
@@ -1018,6 +1124,7 @@ import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from 
 import { CurrencyCode } from '@/constants/currency'
 import { stockInTypeLabel } from '@/constants/stockInType'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 
 const router = useRouter()
 const route = useRoute()
@@ -1046,7 +1153,7 @@ const canViewSalesAmount = computed(() => authStore.hasPermission('sales.amount.
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const showCustomerIdentityFields = computed(() => canViewCustomerInfo.value && !maskSaleSensitiveFields.value)
 const showSalesMoneyFields = computed(() => canViewSalesAmount.value && !maskSaleSensitiveFields.value)
-const canWriteSo = computed(() => authStore.hasPermission('sales-order.write'))
+const { canWriteSo } = useSaleOrderWriteGate()
 
 /** 与采购订单列表原「取消订单」一致：审核通过(10)前可取消主单为 -2；已取消不可再取消 */
 const canCancelSalesOrderFromMenu = computed(() => {
@@ -1224,6 +1331,61 @@ const soFavorited = ref(false)
 const favoriteLoading = ref(false)
 const activeTab = ref('items')
 const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
+const changeLogs = ref<SalesOrderFieldChangeLogRow[]>([])
+const deletedItems = ref<SalesOrderDeletedItemRow[]>([])
+const changeLogsLoading = ref(false)
+const deletedItemsLoading = ref(false)
+const changeLogsLoaded = ref(false)
+const deletedItemsLoaded = ref(false)
+
+function resetOrderLogTabs() {
+  changeLogs.value = []
+  deletedItems.value = []
+  changeLogsLoaded.value = false
+  deletedItemsLoaded.value = false
+}
+
+async function loadChangeLogs() {
+  const id = String(order.value?.id ?? '').trim()
+  if (!id) return
+  changeLogsLoading.value = true
+  try {
+    changeLogs.value = (await salesOrderApi.getChangeLogs(id)) ?? []
+    changeLogsLoaded.value = true
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '加载更改日志失败'))
+  } finally {
+    changeLogsLoading.value = false
+  }
+}
+
+async function loadDeletedItems() {
+  const id = String(order.value?.id ?? '').trim()
+  if (!id) return
+  deletedItemsLoading.value = true
+  try {
+    deletedItems.value = (await salesOrderApi.getDeletedItems(id)) ?? []
+    deletedItemsLoaded.value = true
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, '加载删除日志失败'))
+  } finally {
+    deletedItemsLoading.value = false
+  }
+}
+
+function formatDeletedItemPrice(row: SalesOrderDeletedItemRow) {
+  const cost = Number(row?.price)
+  if (!Number.isFinite(cost)) return '—'
+  const cur = Number(row?.currency)
+  const curLabel =
+    cur === 2 ? 'USD' : cur === 3 ? 'EUR' : cur === 4 ? 'HKD' : cur === 1 ? 'RMB' : cur > 0 ? String(cur) : ''
+  return curLabel ? `${cost.toFixed(4)} ${curLabel}` : cost.toFixed(4)
+}
+
+watch(activeTab, (tab) => {
+  if (tab === 'changeLog' && !changeLogsLoaded.value) void loadChangeLogs()
+  if (tab === 'deleteLog' && !deletedItemsLoaded.value) void loadDeletedItems()
+})
 
 /** 《列表操作列规范》：销售订单明细操作列（列宽与采购订单明细表对齐） */
 const soDetailItemsOpColExpanded = ref(false)
@@ -1300,7 +1462,9 @@ async function onSalesOrderItemRowDblClick(row: Record<string, unknown>) {
 }
 
 watch(maskSaleSensitiveFields, (m) => {
-  if (m && activeTab.value === 'documents') activeTab.value = 'items'
+  if (m && (activeTab.value === 'documents' || activeTab.value === 'changeLog' || activeTab.value === 'deleteLog')) {
+    activeTab.value = 'items'
+  }
   if (m) closeSoItemLinePanel()
 })
 
@@ -1521,6 +1685,8 @@ async function toggleFavorite() {
 const fetchOrder = async () => {
   loading.value = true
   loadError.value = ''
+  resetOrderLogTabs()
+  const logTab = activeTab.value
   try {
     const id = orderId.value
     if (!id) {
@@ -1559,6 +1725,8 @@ const fetchOrder = async () => {
     ElMessage.error(loadError.value)
   } finally {
     loading.value = false
+    if (logTab === 'changeLog' && order.value?.id) void loadChangeLogs()
+    else if (logTab === 'deleteLog' && order.value?.id) void loadDeletedItems()
   }
 }
 
@@ -1708,6 +1876,52 @@ function prStatusLabel(v: unknown) {
   if (s === 2) return t('salesOrderDetailView.prStatus2')
   if (s === 3) return t('salesOrderDetailView.prStatus3')
   return `(${String(v)})`
+}
+
+const PO_HEADER_STATUS_TEXT: Record<number, string> = {
+  0: '草稿',
+  1: '新建',
+  2: '待审核',
+  10: '审核通过',
+  20: '待确认',
+  30: '已确认',
+  50: '进行中',
+  100: '采购完成',
+  [-1]: '审核失败',
+  [-2]: '取消'
+}
+
+const PO_ITEM_STATUS_TEXT: Record<number, string> = {
+  1: '新建',
+  2: '待审核',
+  10: '审核通过',
+  20: '待确认',
+  30: '已确认',
+  40: '已付款',
+  50: '已发货',
+  60: '已入库',
+  100: '采购完成',
+  [-1]: '审核失败',
+  [-2]: '取消'
+}
+
+function poHeaderStatusLabel(v: unknown) {
+  const s = Number(v)
+  return Number.isFinite(s) ? (PO_HEADER_STATUS_TEXT[s] ?? String(v)) : '—'
+}
+
+function poItemStatusLabel(v: unknown) {
+  const s = Number(v)
+  return Number.isFinite(s) ? (PO_ITEM_STATUS_TEXT[s] ?? String(v)) : '—'
+}
+
+function formatPoLineCost(row: { cost?: unknown; currency?: unknown }) {
+  const cost = Number(row?.cost)
+  if (!Number.isFinite(cost)) return '—'
+  const cur = Number(row?.currency)
+  const curLabel =
+    cur === 2 ? 'USD' : cur === 3 ? 'EUR' : cur === 4 ? 'HKD' : cur === 1 ? 'RMB' : cur > 0 ? String(cur) : ''
+  return curLabel ? `${cost.toFixed(4)} ${curLabel}` : cost.toFixed(4)
 }
 function stockInStatusLabel(v: unknown) {
   const s = Number(v)

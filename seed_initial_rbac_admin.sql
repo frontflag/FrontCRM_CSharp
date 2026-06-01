@@ -5,7 +5,7 @@
 -- 说明：
 --   • 系统管理员角色代码必须为 SYS_ADMIN（与 RbacService.IsSysAdmin 一致）。
 --   • 前端路由 + API [RequirePermission] 涉及的权限码见下方 INSERT。
---   • 默认账号：admin / admin123（与 update_admin_password.sql 相同 BCrypt）。
+--   • 默认账号：Admin / Admin123（BCrypt，与 update_admin_password.sql 一致）。
 --   • 「基础参数」：业务流水号已在 create_full_database.sql 的 sys_serial_number 种子中；
 --     可选再执行 create_debug_table.sql。
 --
@@ -88,15 +88,15 @@ WHERE r."RoleCode" = 'SYS_ADMIN'
     WHERE x."RoleId" = r."RoleId" AND x."PermissionId" = p."PermissionId"
   );
 
--- ---------- 5) admin 用户（BCrypt: admin123；user 表无 UserName 唯一约束，用 UPDATE + 条件 INSERT）----------
+-- ---------- 5) Admin 用户（BCrypt: Admin123；user 表无 UserName 唯一约束，用 UPDATE + 条件 INSERT）----------
 UPDATE "user" SET
-    "Password" = '$2a$11$vqvt8BRISDc6itm/ANyMGOo39xI8vkqEI.8IRvfcEW2mV9IA77to.',
+    "Password" = '$2a$11$7pie8fLiEFHn0zsateSai.01o9jGO/Hn2KHgEzTKwn88kPX/KeaNe',
     "Salt" = COALESCE(NULLIF("Salt", ''), 'init_salt'),
-    "PasswordPlain" = 'admin123',
+    "PasswordPlain" = 'Admin123',
     "IsActive" = TRUE,
     "Status" = 1,
     "Email" = COALESCE("Email", 'admin@frontcrm.com')
-WHERE "UserName" = 'admin';
+WHERE "UserName" = 'Admin';
 
 INSERT INTO "user" (
     "UserId", "UserName", "Email", "Password", "Salt", "PasswordPlain",
@@ -104,33 +104,33 @@ INSERT INTO "user" (
 )
 SELECT
     'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-    'admin',
+    'Admin',
     'admin@frontcrm.com',
-    '$2a$11$vqvt8BRISDc6itm/ANyMGOo39xI8vkqEI.8IRvfcEW2mV9IA77to.',
+    '$2a$11$7pie8fLiEFHn0zsateSai.01o9jGO/Hn2KHgEzTKwn88kPX/KeaNe',
     'init_salt',
-    'admin123',
+    'Admin123',
     TRUE,
     1,
     NOW()
-WHERE NOT EXISTS (SELECT 1 FROM "user" u2 WHERE u2."UserName" = 'admin');
+WHERE NOT EXISTS (SELECT 1 FROM "user" u2 WHERE u2."UserName" = 'Admin');
 
--- ---------- 6) admin -> SYS_ADMIN ----------
+-- ---------- 6) Admin -> SYS_ADMIN ----------
 INSERT INTO sys_user_role ("UserRoleId", "UserId", "RoleId", "CreateTime")
 SELECT gen_random_uuid()::text, u."UserId", r."RoleId", NOW()
 FROM "user" u
 CROSS JOIN sys_role r
-WHERE u."UserName" = 'admin' AND r."RoleCode" = 'SYS_ADMIN'
+WHERE u."UserName" = 'Admin' AND r."RoleCode" = 'SYS_ADMIN'
   AND NOT EXISTS (
     SELECT 1 FROM sys_user_role x
     WHERE x."UserId" = u."UserId" AND x."RoleId" = r."RoleId"
   );
 
--- ---------- 7) admin -> 根部门（主部门）----------
+-- ---------- 7) Admin -> 根部门（主部门）----------
 INSERT INTO sys_user_department ("UserDepartmentId", "UserId", "DepartmentId", "IsPrimary", "CreateTime")
 SELECT gen_random_uuid()::text, u."UserId", d."DepartmentId", TRUE, NOW()
 FROM "user" u
 CROSS JOIN sys_department d
-WHERE u."UserName" = 'admin'
+WHERE u."UserName" = 'Admin'
   AND d."DepartmentId" = '10000000-0000-4000-8000-000000000001'
   AND NOT EXISTS (
     SELECT 1 FROM sys_user_department x
@@ -141,7 +141,7 @@ COMMIT;
 
 -- ---------- 校验 ----------
 SELECT 'roles' AS t, "RoleCode", "RoleName" FROM sys_role ORDER BY "RoleCode";
-SELECT 'admin roles' AS t, ur.* FROM sys_user_role ur
-JOIN "user" u ON u."UserId" = ur."UserId" WHERE u."UserName" = 'admin';
+SELECT 'Admin roles' AS t, ur.* FROM sys_user_role ur
+JOIN "user" u ON u."UserId" = ur."UserId" WHERE u."UserName" = 'Admin';
 SELECT 'permission count' AS t, COUNT(*)::text FROM sys_permission;
-SELECT 'admin' AS t, "UserName", "Email", "IsActive" FROM "user" WHERE "UserName" = 'admin';
+SELECT 'Admin' AS t, "UserName", "Email", "IsActive" FROM "user" WHERE "UserName" = 'Admin';

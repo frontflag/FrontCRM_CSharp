@@ -215,7 +215,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>销售订单详情页：底部页签用下游列表（采购申请/入库/库存/出库通知/出库/收款/销项发票）。</summary>
+        /// <summary>销售订单详情页：底部页签用下游列表（采购申请/采购订单明细/入库/库存/出库通知/出库/收款/销项发票）。</summary>
         [HttpGet("{id:guid}/detail-tab-aggregates")]
         public async Task<IActionResult> GetDetailTabAggregates(string id)
         {
@@ -284,7 +284,7 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <param name="sellOrderItemIdScope">非 null 时：采购申请、出库通知、收款明细仅保留该销售明细；在库/出库/销项发票链仅使用该明细。</param>
+        /// <param name="sellOrderItemIdScope">非 null 时：采购申请、采购订单明细、出库通知、收款明细仅保留该销售明细；在库/出库/销项发票链仅使用该明细。</param>
         private async Task<object> BuildSalesOrderDetailTabAggregatesPayloadAsync(
             string orderId,
             IReadOnlyList<string> allOrderLineIds,
@@ -575,9 +575,43 @@ namespace CRM.API.Controllers
                 })
                 .ToList();
 
+            List<object> purchaseOrderItemRows;
+            if (itemIds.Count == 0)
+            {
+                purchaseOrderItemRows = new List<object>();
+            }
+            else
+            {
+                purchaseOrderItemRows = (await (
+                        from poi in _db.PurchaseOrderItems.AsNoTracking()
+                        join po in _db.PurchaseOrders.AsNoTracking() on poi.PurchaseOrderId equals po.Id
+                        where poi.SellOrderItemId != null && itemIds.Contains(poi.SellOrderItemId!)
+                        orderby poi.CreateTime descending
+                        select new
+                        {
+                            id = poi.Id,
+                            purchaseOrderId = po.Id,
+                            purchaseOrderCode = po.PurchaseOrderCode,
+                            purchaseOrderItemCode = poi.PurchaseOrderItemCode,
+                            poStatus = po.Status,
+                            sellOrderItemId = poi.SellOrderItemId,
+                            poi.PN,
+                            poi.Brand,
+                            poi.Qty,
+                            poi.Cost,
+                            poi.Currency,
+                            itemStatus = poi.Status,
+                            vendorName = po.VendorName,
+                            purchaseUserName = po.PurchaseUserName,
+                            poi.CreateTime
+                        })
+                    .ToListAsync()).Cast<object>().ToList();
+            }
+
             return new
             {
                 purchaseRequisitions = prRows,
+                purchaseOrderItems = purchaseOrderItemRows,
                 stockIns = stockInRows,
                 stockItems = stockItemRows,
                 stockOutRequests = outReqRows,
@@ -585,6 +619,48 @@ namespace CRM.API.Controllers
                 receipts = receiptRows,
                 sellInvoices = sellInvRows
             };
+        }
+
+        /// <summary>销售订单主表字段变更日志（log_change_fldval）。</summary>
+        [HttpGet("{id:guid}/change-logs")]
+        public async Task<IActionResult> GetChangeLogs(string id)
+        {
+            try
+            {
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "销售订单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessSalesOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该销售订单" });
+                var logs = await _service.GetFieldChangeLogsAsync(id);
+                return Ok(new { success = true, data = logs });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取销售订单变更日志失败: {Id}", id);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>已软删除的销售订单明细行。</summary>
+        [HttpGet("{id:guid}/deleted-items")]
+        public async Task<IActionResult> GetDeletedItems(string id)
+        {
+            try
+            {
+                var order = await _service.GetByIdAsync(id);
+                if (order == null) return NotFound(new { success = false, message = "销售订单不存在" });
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId) && !await _dataPermissionService.CanAccessSalesOrderAsync(userId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该销售订单" });
+                var items = await _service.GetDeletedOrderItemsAsync(id);
+                return Ok(new { success = true, data = items });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取销售订单删除明细失败: {Id}", id);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
         }
 
         [HttpGet("{id:guid}")]
@@ -777,7 +853,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                await _service.DeleteAsync(id);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.DeleteAsync(id, actorId);
                 return Ok(new { success = true, message = "删除成功" });
             }
             catch (InvalidOperationException ex)

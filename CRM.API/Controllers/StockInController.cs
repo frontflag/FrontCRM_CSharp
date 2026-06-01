@@ -52,6 +52,7 @@ namespace CRM.API.Controllers
             {
                 var query = new StockInQueryRequest
                 {
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
                     Model = model,
                     VendorName = vendorName,
                     PurchaseOrderCode = purchaseOrderCode,
@@ -108,6 +109,8 @@ namespace CRM.API.Controllers
         {
             try
             {
+                if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
+                    return StatusCode(403, ApiResponse<StockIn>.Fail("当前账号物流数据为只读或禁止，无法创建入库单", 403));
                 if (request == null)
                     return BadRequest(ApiResponse<StockIn>.Fail("请求体不能为空", 400));
                 if (string.IsNullOrWhiteSpace(request.OperatorId))
@@ -140,6 +143,8 @@ namespace CRM.API.Controllers
         {
             try
             {
+                if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
+                    return StatusCode(403, ApiResponse<StockIn>.Fail("当前账号物流数据为只读或禁止，无法修改入库单", 403));
                 if (request == null)
                     return BadRequest(ApiResponse<StockIn>.Fail("请求体不能为空", 400));
                 var entity = await _service.UpdateAsync(id, request);
@@ -161,6 +166,8 @@ namespace CRM.API.Controllers
         {
             try
             {
+                if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
+                    return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止，无法删除入库单", 403));
                 await _service.DeleteAsync(id);
                 return Ok(ApiResponse<object>.Ok(null, "删除入库单成功"));
             }

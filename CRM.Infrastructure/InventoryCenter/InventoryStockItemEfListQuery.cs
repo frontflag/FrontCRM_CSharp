@@ -49,8 +49,10 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
             join sin in _db.StockIns.AsNoTracking() on si.StockInId equals sin.Id
             join w in _db.Warehouses.AsNoTracking() on si.WarehouseId equals w.Id into wj
             from w in wj.DefaultIfEmpty()
+            join soi in _db.SellOrderItems.AsNoTracking() on si.SellOrderItemId equals soi.Id into soij
+            from soi in soij.DefaultIfEmpty()
             where si.TransferType == null || si.TransferType != StockItemTransferTypeCodes.ManualTransferSource
-            select new { si, sin, w };
+            select new { si, sin, w, soi };
 
         var filtered = baseJoin;
         if (!string.IsNullOrEmpty(codeNeedle))
@@ -136,10 +138,15 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
                 SalesPrice = x.si.SalesPrice,
                 SalesCurrency = x.si.SalesCurrency,
                 SalesPriceUsd = x.si.SalesPriceUsd,
+                VendorId = x.si.VendorId,
                 VendorName = x.si.VendorName,
+                CustomerId = x.si.CustomerId,
                 CustomerName = x.si.CustomerName,
                 RegionType = x.si.RegionType,
                 StockType = x.si.StockType,
+                StockInType = x.sin.StockInType,
+                CustomerPn = x.soi != null ? x.soi.CustomerPn : null,
+                CustomerBrand = x.soi != null ? x.soi.CustomerBrand : null,
                 PurchaserName = x.si.PurchaserName,
                 SalespersonName = x.si.SalespersonName,
                 CreateTime = x.si.CreateTime,
@@ -166,8 +173,12 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
                 ? null
                 : row.PurchaseOrderItemCode.Trim();
             row.SellOrderItemCode = string.IsNullOrWhiteSpace(row.SellOrderItemCode) ? null : row.SellOrderItemCode.Trim();
+            row.VendorId = string.IsNullOrWhiteSpace(row.VendorId) ? null : row.VendorId.Trim();
             row.VendorName = string.IsNullOrWhiteSpace(row.VendorName) ? null : row.VendorName.Trim();
+            row.CustomerId = string.IsNullOrWhiteSpace(row.CustomerId) ? null : row.CustomerId.Trim();
             row.CustomerName = string.IsNullOrWhiteSpace(row.CustomerName) ? null : row.CustomerName.Trim();
+            row.CustomerPn = string.IsNullOrWhiteSpace(row.CustomerPn) ? null : row.CustomerPn.Trim();
+            row.CustomerBrand = string.IsNullOrWhiteSpace(row.CustomerBrand) ? null : row.CustomerBrand.Trim();
             row.PurchaserName = string.IsNullOrWhiteSpace(row.PurchaserName) ? null : row.PurchaserName.Trim();
             row.SalespersonName = string.IsNullOrWhiteSpace(row.SalespersonName) ? null : row.SalespersonName.Trim();
             row.WarehouseId = row.WarehouseId?.Trim() ?? string.Empty;

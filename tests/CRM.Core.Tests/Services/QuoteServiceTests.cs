@@ -62,7 +62,8 @@ namespace CRM.Core.Tests.Services
                 _serialNumberService,
                 _userService,
                 _quoteListQuery,
-                NullLogger<QuoteService>.Instance);
+                NullLogger<QuoteService>.Instance,
+                Substitute.For<ILogOperationAppendService>());
         }
 
         [Fact]

@@ -66,8 +66,9 @@
       <el-table-column prop="createUserDisplay" :label="t('customsPages.declarations.colCreator')" width="120" />
       <el-table-column :label="t('customsPages.declarations.colActions')" width="320" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click.stop="openClearance(row)">{{ t('customsPages.declarations.setClearance') }}</el-button>
+          <el-button v-if="canWriteLogisticsData" link type="primary" @click.stop="openClearance(row)">{{ t('customsPages.declarations.setClearance') }}</el-button>
           <el-button
+            v-if="canWriteLogisticsData"
             link
             type="success"
             :disabled="row.customsClearanceStatus !== 100"
@@ -75,7 +76,7 @@
           >
             {{ t('customsPages.declarations.complete') }}
           </el-button>
-          <el-button link type="danger" @click.stop="handleDelete(row)">删除</el-button>
+          <el-button v-if="canWriteLogisticsData" link type="danger" @click.stop="handleDelete(row)">删除</el-button>
           <el-button v-if="isSysAdmin" link type="danger" @click.stop="handleForceDelete(row)">强制删除</el-button>
         </template>
       </el-table-column>
@@ -132,9 +133,11 @@ import {
   type CustomsDeclarationListItemDto
 } from '@/api/customs'
 import { useAuthStore } from '@/stores/auth'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const isSysAdmin = authStore.user?.isSysAdmin === true
 const loading = ref(false)
 const list = ref<CustomsDeclarationListItemDto[]>([])

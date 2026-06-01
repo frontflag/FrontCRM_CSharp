@@ -58,7 +58,7 @@
         </el-button>
       </div>
       <div class="search-right">
-        <el-button type="primary" @click="openCreate">
+        <el-button v-if="canWriteFinanceReceipt" type="primary" @click="openCreate">
           <el-icon><Plus /></el-icon> {{ t('financeReceiptList.create') }}
         </el-button>
       </div>
@@ -123,11 +123,11 @@
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
             <el-button size="small" text type="primary" @click.stop="openDetail(row)">{{ t('financeReceiptList.actions.detail') }}</el-button>
-            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="row.status === 0">{{ t('financeReceiptList.actions.edit') }}</el-button>
-            <el-button size="small" text type="warning" @click.stop="submitAudit(row)" v-if="row.status === 0">{{ t('financeReceiptList.actions.submitAudit') }}</el-button>
-            <el-button size="small" text type="warning" @click.stop="approveReceipt(row)" v-if="row.status === 1">{{ t('financeReceiptList.actions.approve') }}</el-button>
-            <el-button size="small" text type="danger" @click.stop="cancelReceipt(row)" v-if="[0,1].includes(row.status)">{{ t('financeReceiptList.actions.cancel') }}</el-button>
-            <el-button size="small" text type="danger" @click.stop="handleDeleteRow(row)">删除</el-button>
+            <el-button size="small" text type="primary" @click.stop="openEdit(row)" v-if="canWriteFinanceReceipt && row.status === 0">{{ t('financeReceiptList.actions.edit') }}</el-button>
+            <el-button size="small" text type="warning" @click.stop="submitAudit(row)" v-if="canWriteFinanceReceipt && row.status === 0">{{ t('financeReceiptList.actions.submitAudit') }}</el-button>
+            <el-button size="small" text type="warning" @click.stop="approveReceipt(row)" v-if="canWriteFinanceReceipt && row.status === 1">{{ t('financeReceiptList.actions.approve') }}</el-button>
+            <el-button size="small" text type="danger" @click.stop="cancelReceipt(row)" v-if="canWriteFinanceReceipt && [0,1].includes(row.status)">{{ t('financeReceiptList.actions.cancel') }}</el-button>
+            <el-button v-if="canWriteFinanceReceipt" size="small" text type="danger" @click.stop="handleDeleteRow(row)">删除</el-button>
             <el-button v-if="isSysAdmin" size="small" text type="danger" @click.stop="handleForceDeleteRow(row)">强制删除</el-button>
           </div>
 
@@ -140,19 +140,19 @@
                 <el-dropdown-item @click.stop="openDetail(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('financeReceiptList.actions.detail') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="row.status === 0" @click.stop="openEdit(row)">
+                <el-dropdown-item v-if="canWriteFinanceReceipt && row.status === 0" @click.stop="openEdit(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('financeReceiptList.actions.edit') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="row.status === 0" @click.stop="submitAudit(row)">
+                <el-dropdown-item v-if="canWriteFinanceReceipt && row.status === 0" @click.stop="submitAudit(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('financeReceiptList.actions.submitAudit') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="row.status === 1" @click.stop="approveReceipt(row)">
+                <el-dropdown-item v-if="canWriteFinanceReceipt && row.status === 1" @click.stop="approveReceipt(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('financeReceiptList.actions.approve') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="[0,1].includes(row.status)" @click.stop="cancelReceipt(row)">
+                <el-dropdown-item v-if="canWriteFinanceReceipt && [0,1].includes(row.status)" @click.stop="cancelReceipt(row)">
                   <span class="op-more-item op-more-item--danger">{{ t('financeReceiptList.actions.cancel') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item divided @click.stop="handleDeleteRow(row)">
+                <el-dropdown-item v-if="canWriteFinanceReceipt" divided @click.stop="handleDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
@@ -335,7 +335,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="saveForm" :loading="saving">{{ t('financeReceiptList.btnSave') }}</el-button>
+        <el-button v-if="canWriteFinanceReceipt" type="primary" @click="saveForm" :loading="saving">{{ t('financeReceiptList.btnSave') }}</el-button>
       </template>
     </el-dialog>
 
@@ -364,11 +364,13 @@ import { customerApi } from '@/api/customer'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useAuthStore } from '@/stores/auth'
+import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 
 const router = useRouter()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { canWriteFinanceReceipt } = useFinanceWriteGate()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const { receiptStatusLabel, receiptStatusTag, paymentModeLabel } = useFinanceEnumLabels()
 

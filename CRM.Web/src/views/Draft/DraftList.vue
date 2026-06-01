@@ -132,15 +132,16 @@ const router = useRouter()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
 
-/** 与后端 DraftsController：purchase_buyer → VENDOR；主部门销售 identityType=1 或 sales_operator → CUSTOMER */
+/** 与后端 DraftsController：purchase_buyer→VENDOR；采购/助理(2/3)→VENDOR+RFQ；销售→CUSTOMER */
 const draftEntityTypeFilterCodes = computed(() => {
   if (authStore.user?.isSysAdmin) return ['CUSTOMER', 'VENDOR', 'RFQ'] as const
   const codes = authStore.user?.roleCodes ?? []
-  const isPurchaser = codes.some((c) => String(c).trim().toLowerCase() === 'purchase_buyer')
-  if (isPurchaser) return ['VENDOR'] as const
   const idType = Number(authStore.user?.identityType ?? 0)
   const isSalesOperator = codes.some((c) => String(c).trim().toLowerCase() === 'sales_operator')
   if (idType === 1 || isSalesOperator) return ['CUSTOMER'] as const
+  const isPurchaseBuyer = codes.some((c) => String(c).trim().toLowerCase() === 'purchase_buyer')
+  if (isPurchaseBuyer) return ['VENDOR'] as const
+  if (idType === 2 || idType === 3) return ['VENDOR', 'RFQ'] as const
   return ['CUSTOMER', 'VENDOR', 'RFQ'] as const
 })
 

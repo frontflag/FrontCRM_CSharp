@@ -4166,6 +4166,12 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("ModifyTime");
 
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
                     b.HasKey("PurchaseOrderId");
 
                     b.ToTable("purchaseorderextend", (string)null);
@@ -4406,6 +4412,12 @@ namespace CRM.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
                         .HasDefaultValue((short)0);
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
 
                     b.HasKey("Id");
 
@@ -5036,7 +5048,31 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<short>("LogisticsDataAccess")
+                        .HasColumnType("smallint");
+
+                    b.Property<short>("LogisticsDataScope")
+                        .HasColumnType("smallint");
+
+                    b.Property<short>("FinanceDataAccess")
+                        .HasColumnType("smallint");
+
+                    b.Property<short>("FinanceDataScope")
+                        .HasColumnType("smallint");
+
+                    b.Property<bool>("HideCustomerManagement")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("HideVendorManagement")
+                        .HasColumnType("boolean");
+
+                    b.Property<short>("PurchaseDataAccess")
+                        .HasColumnType("smallint");
+
                     b.Property<short>("PurchaseDataScope")
+                        .HasColumnType("smallint");
+
+                    b.Property<short>("SaleDataAccess")
                         .HasColumnType("smallint");
 
                     b.Property<short>("SaleDataScope")
@@ -5446,6 +5482,12 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("ModifyTime");
 
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
                     b.HasKey("SellOrderId");
 
                     b.ToTable("sellorderextend", (string)null);
@@ -5809,6 +5851,12 @@ namespace CRM.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("smallint")
                         .HasDefaultValue((short)0);
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
 
                     b.HasKey("Id");
 

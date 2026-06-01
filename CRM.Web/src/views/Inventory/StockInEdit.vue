@@ -17,7 +17,7 @@
       <div class="header-right">
         <button class="btn-secondary" @click="goBack">返回列表</button>
         <button
-          v-if="isCreateMode"
+          v-if="isCreateMode && canWriteLogisticsData"
           class="btn-primary"
           style="margin-left: 8px"
           @click="handleSubmit"
@@ -96,10 +96,29 @@
         <div class="detail-items-table-wrap">
           <el-table :data="form.items" class="items-table quantum-table" style="width: 100%">
             <el-table-column type="index" width="50" align="center" />
-            <el-table-column label="入库明细编号" min-width="168" show-overflow-tooltip>
+            <el-table-column v-if="!isCreateMode" label="入库明细编号" min-width="148" show-overflow-tooltip>
               <template #default="{ row }">
-                <span v-if="isCreateMode" class="stockin-report-cell">—</span>
-                <span v-else class="stockin-report-cell">{{ reportCellText(row.stockInItemCode) }}</span>
+                <span class="stockin-report-cell">{{ reportCellText(row.stockInItemCode) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column v-if="!isCreateMode" label="入库日期" width="148" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportDateTimeText(row.stockInDate) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column v-if="!isCreateMode" label="到货通知单号" min-width="140" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportCellText(row.sourceCode) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column v-if="!isCreateMode" label="采购订单明细编号" min-width="160" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportCellText(row.purchaseOrderItemCode) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column v-if="!isCreateMode" label="供应商名称" min-width="160" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportCellText(maskPurchaseSensitiveFields ? '—' : row.vendorName) }}</span>
               </template>
             </el-table-column>
             <el-table-column label="物料型号" min-width="168" show-overflow-tooltip>
@@ -118,29 +137,96 @@
                 <span v-else class="stockin-report-cell">{{ reportCellText(row.materialBrand) }}</span>
               </template>
             </el-table-column>
+            <el-table-column
+              v-if="!isCreateMode"
+              label="采购单价"
+              min-width="140"
+              align="right"
+              header-align="right"
+              class-name="stock-item-unit-price-col"
+            >
+              <template #default="{ row }">
+                <span v-if="maskPurchaseSensitiveFields" class="stockin-report-cell">—</span>
+                <template v-else-if="unitPriceDockHasValue(row.unitPrice)">
+                  <div class="dock-tier-price-line">
+                    <template v-for="amt in [splitUnitPriceDockParts(row.unitPrice)]" :key="'up-' + row.itemId">
+                      <span class="dock-tier-amt">
+                        <span class="dock-tier-amt-int">{{ amt.intPart }}</span
+                        ><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+                      </span>
+                    </template>
+                    <span class="dock-tier-ccy-gap">&nbsp;</span>
+                    <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{
+                      listAmountCurrencyIso(row.currency)
+                    }}</span>
+                  </div>
+                </template>
+                <span v-else class="stockin-report-cell">—</span>
+              </template>
+            </el-table-column>
             <el-table-column label="数量" width="110" align="right" header-align="right">
               <template #default="{ row }">
                 <el-input-number v-if="isCreateMode" v-model="row.quantity" :min="0" :step="1" />
                 <span v-else class="stockin-report-cell stockin-report-cell--num">{{ reportQtyText(row.quantity) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="单位" width="90" align="center" header-align="center">
+            <el-table-column
+              v-if="!isCreateMode"
+              label="采购总额"
+              min-width="140"
+              align="right"
+              header-align="right"
+              class-name="stock-item-unit-price-col"
+            >
               <template #default="{ row }">
-                <el-input v-if="isCreateMode" v-model="row.unit" placeholder="PCS" />
-                <span v-else class="stockin-report-cell">{{ reportCellText(row.unit) }}</span>
+                <span v-if="maskPurchaseSensitiveFields" class="stockin-report-cell">—</span>
+                <template v-else-if="listTotalAmountHasValue(row.amount)">
+                  <div class="dock-tier-price-line">
+                    <template v-for="amt in [splitListMoneyParts(Number(row.amount))]" :key="'amt-' + row.itemId">
+                      <span class="dock-tier-amt">
+                        <span class="dock-tier-amt-int">{{ amt.intPart }}</span
+                        ><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+                      </span>
+                    </template>
+                    <span class="dock-tier-ccy-gap">&nbsp;</span>
+                    <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.currency)]">{{
+                      listAmountCurrencyIso(row.currency)
+                    }}</span>
+                  </div>
+                </template>
+                <span v-else class="stockin-report-cell">—</span>
               </template>
             </el-table-column>
-            <el-table-column label="单价" width="120" align="right" header-align="right">
+            <el-table-column v-if="!isCreateMode" label="地域类型" width="100" align="center" header-align="center">
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ regionTypeLabel(row.regionType) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column v-if="!isCreateMode" label="仓库" width="100" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportCellText(row.warehouseCode) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column v-if="!isCreateMode" label="入库类型" width="110" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ stockInTypeLabel(row.stockInType ?? 0) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column v-if="isCreateMode" label="单位" width="90" align="center" header-align="center">
+              <template #default="{ row }">
+                <el-input v-model="row.unit" placeholder="PCS" />
+              </template>
+            </el-table-column>
+            <el-table-column v-if="isCreateMode" label="单价" width="120" align="right" header-align="right">
               <template #default="{ row }">
                 <el-input-number
-                  v-if="isCreateMode && !maskPurchaseSensitiveFields"
+                  v-if="!maskPurchaseSensitiveFields"
                   v-model="row.unitPrice"
                   :min="0"
                   :precision="6"
                   :controls="false"
                 />
-                <span v-else-if="isCreateMode && maskPurchaseSensitiveFields" class="stockin-report-cell stockin-report-cell--num">—</span>
-                <span v-else class="stockin-report-cell stockin-report-cell--num">{{ maskPurchaseSensitiveFields ? '—' : reportUnitPriceText(row.unitPrice) }}</span>
+                <span v-else class="stockin-report-cell stockin-report-cell--num">—</span>
               </template>
             </el-table-column>
             <el-table-column label="批次号" width="140" show-overflow-tooltip>
@@ -223,7 +309,7 @@
               <template #default="{ $index }">
                 <div @click.stop @dblclick.stop>
                   <div v-if="stockInCreateOpColExpanded" class="action-btns">
-                    <button type="button" class="action-btn action-btn--danger" @click.stop="removeRow($index)">删除</button>
+                    <button v-if="canWriteLogisticsData" type="button" class="action-btn action-btn--danger" @click.stop="removeRow($index)">删除</button>
                   </div>
                   <el-dropdown v-else trigger="click" placement="bottom-end">
                     <div class="op-more-dropdown-trigger">
@@ -231,7 +317,7 @@
                     </div>
                     <template #dropdown>
                       <el-dropdown-menu>
-                        <el-dropdown-item @click.stop="removeRow($index)">
+                        <el-dropdown-item v-if="canWriteLogisticsData" @click.stop="removeRow($index)">
                           <span class="op-more-item op-more-item--danger">删除</span>
                         </el-dropdown-item>
                       </el-dropdown-menu>
@@ -253,12 +339,27 @@
         <div class="section-header">
           <h3 class="section-title">库存明细</h3>
         </div>
-        <div class="detail-items-table-wrap">
+        <div class="detail-items-table-wrap stockin-stock-items-table-wrap">
           <el-table :data="stockItemRows" class="items-table quantum-table" style="width: 100%">
-            <el-table-column type="index" width="50" align="center" />
-            <el-table-column label="库存明细编号" min-width="150" show-overflow-tooltip>
+            <el-table-column type="index" width="50" align="center" fixed="left" />
+            <el-table-column label="库存明细编号" min-width="150" show-overflow-tooltip fixed="left">
               <template #default="{ row }">
                 <span class="stockin-report-cell">{{ reportCellText(row.stockItemCode) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="仓库名称" min-width="120" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ stockItemWarehouseNameText(row) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="库存类型" min-width="88" align="center" header-align="center">
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ stockItemStockTypeLabel(row) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="入库类型" min-width="88" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ stockItemStockInTypeLabel(row) }}</span>
               </template>
             </el-table-column>
             <el-table-column label="入库明细编号" min-width="150" show-overflow-tooltip>
@@ -266,34 +367,158 @@
                 <span class="stockin-report-cell">{{ reportCellText(row.stockInItemCode) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="批次号" width="140" show-overflow-tooltip>
+            <el-table-column label="入库日期" min-width="130" show-overflow-tooltip>
               <template #default="{ row }">
-                <span class="stockin-report-cell">{{ reportCellText(row.batchNo) }}</span>
+                <span class="stockin-report-cell">{{ reportDateTimeText(row.stockInDate) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="库位" width="140" show-overflow-tooltip>
+            <el-table-column label="物料型号" min-width="168" show-overflow-tooltip>
               <template #default="{ row }">
-                <span class="stockin-report-cell">{{ reportCellText(row.locationId) }}</span>
+                <span class="stockin-report-cell">{{ reportCellText(row.purchasePn) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="入库数量" width="110" align="right" header-align="right">
+            <el-table-column label="品牌" min-width="120" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportCellText(row.purchaseBrand) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="客户物料型号" min-width="140" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportCellText(row.customerPn) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="客户品牌" min-width="120" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportCellText(row.customerBrand) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="入库数量" min-width="96" align="right" header-align="right">
               <template #default="{ row }">
                 <span class="stockin-report-cell stockin-report-cell--num">{{ reportQtyText(row.qtyInbound) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="已出库数量" width="110" align="right" header-align="right">
+            <el-table-column label="已出库数量" min-width="108" align="right" header-align="right">
               <template #default="{ row }">
                 <span class="stockin-report-cell stockin-report-cell--num">{{ reportQtyText(row.qtyStockOut) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="在库数量" width="110" align="right" header-align="right">
+            <el-table-column label="在库数量" min-width="96" align="right" header-align="right">
               <template #default="{ row }">
                 <span class="stockin-report-cell stockin-report-cell--num">{{ reportQtyText(row.qtyRepertory) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="可用数量" width="110" align="right" header-align="right">
+            <el-table-column label="供应商ID" min-width="120" show-overflow-tooltip>
               <template #default="{ row }">
-                <span class="stockin-report-cell stockin-report-cell--num">{{ reportQtyText(row.qtyRepertoryAvailable) }}</span>
+                <span class="stockin-report-cell">{{ reportCellText(row.vendorId) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="供应商名称" min-width="140" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{
+                  maskPurchaseSensitiveFields ? '—' : reportCellText(row.vendorName)
+                }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="采购员名称" min-width="100" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportCellText(row.purchaserName) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="采购订单明细编号" min-width="168" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportCellText(row.purchaseOrderItemCode) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="采购单价+币别"
+              min-width="132"
+              align="right"
+              header-align="right"
+              class-name="stock-item-unit-price-col"
+            >
+              <template #default="{ row }">
+                <span v-if="maskPurchaseSensitiveFields" class="stockin-report-cell">—</span>
+                <template v-else-if="unitPriceDockHasValue(row.purchasePrice)">
+                  <div class="dock-tier-price-line">
+                    <template
+                      v-for="amt in [splitUnitPriceDockParts(row.purchasePrice)]"
+                      :key="'sip-' + row.stockItemId"
+                    >
+                      <span class="dock-tier-amt">
+                        <span class="dock-tier-amt-int">{{ amt.intPart }}</span
+                        ><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+                      </span>
+                    </template>
+                    <span class="dock-tier-ccy-gap">&nbsp;</span>
+                    <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.purchaseCurrency)]">{{
+                      listAmountCurrencyIso(row.purchaseCurrency)
+                    }}</span>
+                  </div>
+                </template>
+                <span v-else class="stockin-report-cell">—</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="客户ID" min-width="120" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportCellText(row.customerId) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="客户名称" min-width="140" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{
+                  maskSaleSensitiveFields ? '—' : reportCellText(row.customerName)
+                }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="业务员名称" min-width="108" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{
+                  maskSaleSensitiveFields ? '—' : reportCellText(row.salespersonName)
+                }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="销售订单明细编号" min-width="168" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportCellText(row.sellOrderItemCode) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="销售单价+币别"
+              min-width="132"
+              align="right"
+              header-align="right"
+              class-name="stock-item-unit-price-col"
+            >
+              <template #default="{ row }">
+                <span v-if="maskSaleSensitiveFields" class="stockin-report-cell">—</span>
+                <template v-else-if="row.salesPrice != null && unitPriceDockHasValue(row.salesPrice)">
+                  <div class="dock-tier-price-line">
+                    <template
+                      v-for="amt in [splitUnitPriceDockParts(row.salesPrice)]"
+                      :key="'sis-' + row.stockItemId"
+                    >
+                      <span class="dock-tier-amt">
+                        <span class="dock-tier-amt-int">{{ amt.intPart }}</span
+                        ><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+                      </span>
+                    </template>
+                    <span class="dock-tier-ccy-gap">&nbsp;</span>
+                    <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.salesCurrency)]">{{
+                      listAmountCurrencyIso(row.salesCurrency)
+                    }}</span>
+                  </div>
+                </template>
+                <span v-else class="stockin-report-cell">—</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="批次号" min-width="88" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportCellText(row.batchNo) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="生产日期" min-width="96" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="stockin-report-cell">{{ reportProductionDateText(row.productionDate) }}</span>
               </template>
             </el-table-column>
           </el-table>
@@ -319,9 +544,23 @@ import { stockInApi, type CreateStockInRequest, type StockInDto, type StockInIte
 import { inventoryCenterApi, type StockItemListRow } from '@/api/inventoryCenter'
 import StockInBatchImportDialog from '@/components/Inventory/StockInBatchImportDialog.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
+import { normalizeRegionType, REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
+import { stockInTypeLabel } from '@/constants/stockInType'
+import {
+  listAmountCurrencyDockClass,
+  listAmountCurrencyIso,
+  listTotalAmountHasValue,
+  splitListMoneyParts,
+  splitUnitPriceDockParts,
+  unitPriceDockHasValue
+} from '@/utils/moneyFormat'
 import { useI18n } from 'vue-i18n'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const { t } = useI18n()
 
 const router = useRouter()
@@ -333,6 +572,9 @@ const detailStatus = ref<number | null>(null)
 const displayWarehouseCode = ref('')
 /** 详情页展示：供应商名称 */
 const displayVendorName = ref('')
+/** 详情页：单头入库类型 / 地域（库存明细行无值时回退） */
+const detailStockInType = ref(0)
+const detailRegionType = ref(REGION_TYPE_DOMESTIC)
 const stockItemRows = ref<StockItemListRow[]>([])
 
 const batchImportVisible = ref(false)
@@ -386,6 +628,8 @@ function resetCreateForm() {
   detailStatus.value = null
   displayWarehouseCode.value = ''
   displayVendorName.value = ''
+  detailStockInType.value = 0
+  detailRegionType.value = REGION_TYPE_DOMESTIC
   form.stockInCode = ''
   form.purchaseOrderId = ''
   form.vendorId = ''
@@ -435,6 +679,15 @@ function applyDetailToForm(d: StockInDto) {
   form.totalQuantity = d.totalQuantity ?? 0
   form.operatorId = ''
 
+  const headerStockInDate = normalizeDateForPicker(d.stockInDate)
+  const headerSourceCode = (d.sourceCode ?? '').trim()
+  const headerVendorName = displayVendorName.value
+  const headerWarehouseCode = displayWarehouseCode.value
+  const headerRegionType = normalizeRegionType(d.regionType)
+  const headerStockInType = Number(d.stockInType) || 0
+  detailStockInType.value = headerStockInType
+  detailRegionType.value = headerRegionType
+
   const rawItems = extractDetailItemRows(d)
   form.items = rawItems.map((it, i): StockInItemDto => {
     const code =
@@ -450,10 +703,20 @@ function applyDetailToForm(d: StockInDto) {
     const unit = pickStr(it, 'detailUnit', 'DetailUnit') || 'PCS'
     const qty = Number(it.quantity ?? it.Quantity) || 0
     const price = Number(it.price ?? it.Price) || 0
+    const amount = Number(it.amount ?? it.Amount)
+    const currencyRaw = it.detailCurrency ?? it.DetailCurrency ?? it.currency ?? it.Currency
+    const currency = currencyRaw != null && currencyRaw !== '' ? Number(currencyRaw) : undefined
+    const lineStockInDate = pickStr(it, 'detailStockInDate', 'DetailStockInDate')
+    const regionRaw = it.detailRegionType ?? it.DetailRegionType ?? d.regionType
+    const stockInTypeRaw = it.detailStockInType ?? it.DetailStockInType ?? d.stockInType
     return {
       lineNo: i + 1,
       itemId: pickStr(it, 'id', 'Id', 'itemId', 'ItemId'),
       stockInItemCode: pickStr(it, 'stockInItemCode', 'StockInItemCode'),
+      stockInDate: lineStockInDate ? normalizeDateForPicker(lineStockInDate) : headerStockInDate,
+      sourceCode: pickStr(it, 'detailSourceCode', 'DetailSourceCode') || headerSourceCode,
+      purchaseOrderItemCode: pickStr(it, 'detailPurchaseOrderItemCode', 'DetailPurchaseOrderItemCode'),
+      vendorName: pickStr(it, 'detailVendorName', 'DetailVendorName') || headerVendorName,
       materialCode: code,
       materialName: model,
       materialBrand: brand,
@@ -461,6 +724,11 @@ function applyDetailToForm(d: StockInDto) {
       quantity: qty,
       unit,
       unitPrice: price,
+      amount: Number.isFinite(amount) ? amount : undefined,
+      currency: Number.isFinite(currency) ? currency : undefined,
+      regionType: normalizeRegionType(regionRaw),
+      warehouseCode: pickStr(it, 'detailWarehouseCode', 'DetailWarehouseCode') || headerWarehouseCode,
+      stockInType: Number(stockInTypeRaw) || headerStockInType,
       batchNo: pickStr(it, 'batchNo', 'BatchNo'),
       warehouseLocation: pickStr(it, 'locationId', 'LocationId')
     }
@@ -563,16 +831,43 @@ function reportDateTimeText(iso: string | undefined | null): string {
   return t || '—'
 }
 
+function reportProductionDateText(iso: string | undefined | null): string {
+  if (!iso || typeof iso !== 'string') return '—'
+  const raw = iso.trim()
+  if (!raw) return '—'
+  const datePart = raw.includes('T') ? raw.slice(0, 10) : raw.slice(0, 10)
+  return datePart || '—'
+}
+
 function reportQtyText(n: unknown): string {
   const x = Number(n)
   if (!Number.isFinite(x)) return '—'
   return x.toLocaleString('zh-CN')
 }
 
-function reportUnitPriceText(n: unknown): string {
-  const x = Number(n)
-  if (!Number.isFinite(x)) return '—'
-  return x.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 6 })
+function regionTypeLabel(v: number | undefined): string {
+  const n = normalizeRegionType(v)
+  return n === REGION_TYPE_OVERSEAS ? t('inventoryList.warehouse.regionOverseas') : t('inventoryList.warehouse.regionDomestic')
+}
+
+function stockItemWarehouseNameText(row: StockItemListRow): string {
+  const name = (row.warehouseName ?? '').trim()
+  if (name) return name
+  const code = (row.warehouseCode ?? '').trim()
+  return code || displayWarehouseCode.value.trim() || '—'
+}
+
+function stockItemStockTypeLabel(row: StockItemListRow): string {
+  const n = Number(row.stockType)
+  if (n === 2) return t('inventoryList.stockTypes.stocking')
+  if (n === 3) return t('inventoryList.stockTypes.sample')
+  return t('inventoryList.stockTypes.customer')
+}
+
+function stockItemStockInTypeLabel(row: StockItemListRow): string {
+  const t = row.stockInType
+  if (t != null && Number.isFinite(Number(t)) && Number(t) > 0) return stockInTypeLabel(Number(t))
+  return stockInTypeLabel(detailStockInType.value)
 }
 
 const handleSubmit = async () => {
@@ -800,6 +1095,18 @@ function openBatchImport(row: StockInItemDto) {
 /* 与订单详情「订单明细」表头/行样式一致（业务列表范式） */
 .detail-items-table-wrap {
   margin-top: 4px;
+}
+
+/* 库存明细列多：横向滚动 + 表头单行不换行 */
+.stockin-stock-items-table-wrap {
+  overflow-x: auto;
+  .items-table {
+    :deep(.el-table__header-wrapper th.el-table__cell .cell) {
+      white-space: nowrap;
+      word-break: keep-all;
+      line-height: 1.35;
+    }
+  }
 }
 
 .items-table {

@@ -260,7 +260,7 @@
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
-            <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteStockItem(row)">删除</button>
+            <button v-if="canWriteLogisticsData" type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteStockItem(row)">删除</button>
             <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteStockItem(row)">强制删除</button>
           </div>
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -269,7 +269,7 @@
             </div>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click.stop="handleDeleteStockItem(row)">
+                <el-dropdown-item v-if="canWriteLogisticsData" @click.stop="handleDeleteStockItem(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="isSysAdmin" divided @click.stop="handleForceDeleteStockItem(row)">
@@ -326,12 +326,14 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useAuthStore } from '@/stores/auth'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)

@@ -75,4 +75,49 @@ public sealed class InventoryMaterialOverviewStockPageQuery : IInventoryMaterial
 
         return (items, total);
     }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<StockInfo>> GetStocksMatchingFilterAsync(
+        string? warehouseId,
+        string? materialModel,
+        string? stockCode,
+        short? stockType,
+        CancellationToken cancellationToken = default)
+    {
+        var wh = warehouseId?.Trim();
+        var modelK = materialModel?.Trim().ToLowerInvariant();
+        var codeK = stockCode?.Trim().ToLowerInvariant();
+
+        var q =
+            from s in _db.Stocks.AsNoTracking()
+            join m in _db.Materials.AsNoTracking() on s.MaterialId equals m.Id into mj
+            from m in mj.DefaultIfEmpty()
+            select new { s, m };
+
+        if (!string.IsNullOrEmpty(wh))
+            q = q.Where(x => x.s.WarehouseId == wh);
+
+        if (stockType is >= 1 and <= 3)
+            q = q.Where(x => x.s.StockType == stockType.Value);
+
+        if (!string.IsNullOrEmpty(codeK))
+            q = q.Where(x => x.s.StockCode != null && x.s.StockCode.ToLower().Contains(codeK));
+
+        if (!string.IsNullOrEmpty(modelK))
+        {
+            q = q.Where(x =>
+                (x.s.PurchasePn != null && x.s.PurchasePn.ToLower().Contains(modelK))
+                || (x.m != null && x.m.MaterialModel != null && x.m.MaterialModel.ToLower().Contains(modelK))
+                || (x.m != null && x.m.MaterialName.ToLower().Contains(modelK)));
+        }
+
+        return await q
+            .OrderByDescending(x => x.s.ModifyTime ?? x.s.CreateTime)
+            .ThenBy(x => x.s.WarehouseId)
+            .ThenBy(x => x.s.StockType)
+            .ThenBy(x => x.s.MaterialId)
+            .ThenBy(x => x.s.Id)
+            .Select(x => x.s)
+            .ToListAsync(cancellationToken);
+    }
 }

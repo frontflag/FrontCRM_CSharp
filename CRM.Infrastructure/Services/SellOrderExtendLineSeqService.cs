@@ -31,11 +31,12 @@ public sealed class SellOrderExtendLineSeqService : ISellOrderExtendLineSeqServi
 
             // 单次 upsert：避免 INSERT DO NOTHING + UPDATE 在部分库/权限下 UPDATE 未命中导致 RETURNING 为空
             cmd.CommandText = """
-INSERT INTO sellorderextend ("SellOrderId", last_item_line_seq, "CreateTime", "ModifyTime")
-VALUES (@sid, @cnt, @ct, @mod)
+INSERT INTO sellorderextend ("SellOrderId", last_item_line_seq, "CreateTime", "ModifyTime", is_deleted)
+VALUES (@sid, @cnt, @ct, @mod, false)
 ON CONFLICT ("SellOrderId") DO UPDATE SET
   last_item_line_seq = sellorderextend.last_item_line_seq + EXCLUDED.last_item_line_seq,
   "ModifyTime" = EXCLUDED."ModifyTime"
+WHERE sellorderextend.is_deleted = false
 RETURNING last_item_line_seq - @cnt + 1;
 """;
             cmd.Parameters.AddWithValue("sid", sellOrderId);

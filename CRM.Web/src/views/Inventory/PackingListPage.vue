@@ -166,6 +166,7 @@
           <div v-if="opColExpanded" class="action-btns action-btns--packing-wrap">
             <button type="button" class="action-btn" @click.stop="goDetail(row)">{{ t('packingList.actions.detail') }}</button>
             <button
+              v-if="canWriteLogisticsData"
               type="button"
               class="action-btn"
               :disabled="!canConfirmPacking(row)"
@@ -174,6 +175,7 @@
               {{ t('packingList.actions.confirm') }}
             </button>
             <button
+              v-if="canWriteLogisticsData"
               type="button"
               class="action-btn"
               :disabled="!canPickPacking(row)"
@@ -182,6 +184,7 @@
               {{ t('packingList.actions.pick') }}
             </button>
             <button
+              v-if="canWriteLogisticsData"
               type="button"
               class="action-btn"
               :disabled="!canMarkPackingReady(row)"
@@ -205,6 +208,7 @@
               </template>
             </el-dropdown>
             <button
+              v-if="canWriteLogisticsData"
               type="button"
               class="action-btn action-btn--danger"
               :disabled="!canDeletePacking(row)"
@@ -222,13 +226,13 @@
                 <el-dropdown-item @click.stop="goDetail(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('packingList.actions.detail') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item :disabled="!canConfirmPacking(row)" @click.stop="() => void confirmPacking(row)">
+                <el-dropdown-item v-if="canWriteLogisticsData" :disabled="!canConfirmPacking(row)" @click.stop="() => void confirmPacking(row)">
                   <span class="op-more-item">{{ t('packingList.actions.confirm') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item :disabled="!canPickPacking(row)" @click.stop="() => void goPick(row)">
+                <el-dropdown-item v-if="canWriteLogisticsData" :disabled="!canPickPacking(row)" @click.stop="() => void goPick(row)">
                   <span class="op-more-item">{{ t('packingList.actions.pick') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item :disabled="!canMarkPackingReady(row)" @click.stop="() => void markPackingReady(row)">
+                <el-dropdown-item v-if="canWriteLogisticsData" :disabled="!canMarkPackingReady(row)" @click.stop="() => void markPackingReady(row)">
                   <span class="op-more-item">{{ t('packingList.actions.ready') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item @click.stop="() => void goInvoiceReport(row)">
@@ -243,7 +247,7 @@
                 <el-dropdown-item @click.stop="() => void goPackingReport(row, false)">
                   <span class="op-more-item op-more-item--sub">{{ t('stockOutList.actions.packingWithoutInspection') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item divided :disabled="!canDeletePacking(row)" @click.stop="() => void deletePacking(row)">
+                <el-dropdown-item v-if="canWriteLogisticsData" divided :disabled="!canDeletePacking(row)" @click.stop="() => void deletePacking(row)">
                   <span class="op-more-item op-more-item--danger">{{ t('packingList.actions.delete') }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -326,6 +330,38 @@
         </el-table>
       </template>
     </el-drawer>
+
+    <el-dialog
+      v-model="markReadyDialogVisible"
+      :title="t('packingList.ready.title')"
+      width="520px"
+      class="packing-ready-dialog"
+      @closed="resetMarkReadyDialog"
+    >
+      <p class="packing-ready-dialog__intro">{{ t('packingList.ready.checkIntro') }}</p>
+      <el-checkbox-group v-model="markReadyCheckedKeys" class="packing-ready-dialog__group">
+        <el-checkbox
+          v-for="key in PACKING_READY_CHECK_ITEM_KEYS"
+          :key="key"
+          :value="key"
+          class="packing-ready-dialog__item"
+        >
+          {{ t(key) }}
+        </el-checkbox>
+      </el-checkbox-group>
+      <p class="packing-ready-dialog__footer">{{ t('packingList.ready.message') }}</p>
+      <template #footer>
+        <el-button @click="markReadyDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button
+          type="primary"
+          :disabled="!markReadyAllChecked"
+          :loading="markReadySubmitting"
+          @click="() => void submitMarkReady()"
+        >
+          {{ t('common.confirm') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -352,11 +388,13 @@ import {
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { isPackingEligibleForStockOut, usePackingListBasketStore } from '@/stores/packingListBasket'
 
 const router = useRouter()
 const { t, locale } = useI18n()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 
 const loading = ref(false)
 const list = ref<PackingListItem[]>([])
@@ -584,6 +622,31 @@ function canMarkPackingReady(row: PackingListItem): boolean {
   return Number(row?.status) === PackingStatusCode.Picked
 }
 
+const PACKING_READY_CHECK_ITEM_KEYS = [
+  'packingList.ready.checkItemGoods',
+  'packingList.ready.checkItemPackaging',
+  'packingList.ready.checkItemLabel',
+  'packingList.ready.checkItemDocuments',
+  'packingList.ready.checkItemCourier'
+] as const
+
+const markReadyDialogVisible = ref(false)
+const markReadyTargetId = ref('')
+const markReadyCheckedKeys = ref<string[]>([])
+const markReadySubmitting = ref(false)
+
+const markReadyAllChecked = computed(
+  () =>
+    PACKING_READY_CHECK_ITEM_KEYS.length > 0 &&
+    PACKING_READY_CHECK_ITEM_KEYS.every((key) => markReadyCheckedKeys.value.includes(key))
+)
+
+function resetMarkReadyDialog() {
+  markReadyTargetId.value = ''
+  markReadyCheckedKeys.value = []
+  markReadySubmitting.value = false
+}
+
 async function markPackingReady(row: PackingListItem) {
   const id = resolvePackingId(row)
   if (!id) return
@@ -593,22 +656,25 @@ async function markPackingReady(row: PackingListItem) {
     return
   }
 
-  try {
-    await ElMessageBox.confirm(t('packingList.ready.message'), t('packingList.ready.title'), {
-      type: 'warning',
-      confirmButtonText: t('common.confirm'),
-      cancelButtonText: t('common.cancel')
-    })
-  } catch {
-    return
-  }
+  markReadyTargetId.value = id
+  markReadyCheckedKeys.value = []
+  markReadyDialogVisible.value = true
+}
 
+async function submitMarkReady() {
+  const id = markReadyTargetId.value.trim()
+  if (!id || !markReadyAllChecked.value) return
+
+  markReadySubmitting.value = true
   try {
     await packingApi.markReady(id)
     ElMessage.success(t('packingList.ready.success'))
+    markReadyDialogVisible.value = false
     await fetchList(false)
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : t('packingList.ready.failed'))
+  } finally {
+    markReadySubmitting.value = false
   }
 }
 
@@ -1189,6 +1255,39 @@ onMounted(() => {
 
 .packing-list-page :deep(.action-btns--packing-wrap .action-btn) {
   white-space: nowrap;
+}
+
+.packing-ready-dialog__intro {
+  margin: 0 0 12px;
+  color: var(--el-text-color-primary);
+  line-height: 1.6;
+}
+
+.packing-ready-dialog__group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.packing-ready-dialog__item {
+  display: flex;
+  align-items: flex-start;
+  margin-right: 0;
+  height: auto;
+  white-space: normal;
+}
+
+.packing-ready-dialog__item :deep(.el-checkbox__label) {
+  white-space: normal;
+  line-height: 1.6;
+}
+
+.packing-ready-dialog__footer {
+  margin: 14px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  line-height: 1.6;
 }
 </style>
 

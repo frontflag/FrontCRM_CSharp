@@ -358,8 +358,8 @@ export const vendorBankApi = {
   },
 
   async createBank(vendorId: string, data: {
+    financePaymentBankId?: string;
     accountName?: string;
-    bankName?: string;
     bankBranch?: string;
     bankAccount?: string;
     currency?: number;
@@ -373,8 +373,8 @@ export const vendorBankApi = {
   },
 
   async updateBank(bankId: string, data: Partial<{
+    financePaymentBankId?: string;
     accountName?: string;
-    bankName?: string;
     bankBranch?: string;
     bankAccount?: string;
     currency?: number;

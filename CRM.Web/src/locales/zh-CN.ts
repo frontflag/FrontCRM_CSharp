@@ -607,6 +607,8 @@ const zhCN = {
       level: '层级',
       saleDataScope: '销售数据范围',
       purchaseDataScope: '采购数据范围',
+      logisticsDataScope: '物流数据范围',
+      financeDataScope: '财务数据范围',
       identityType: '业务身份',
       actions: '操作'
     },
@@ -616,6 +618,10 @@ const zhCN = {
       department: '本部门',
       departmentAndChildren: '本部门及下级',
       forbidden: '禁止'
+    },
+    access: {
+      readWrite: '读写',
+      readOnly: '只读'
     },
     identity: {
       none: '无',
@@ -3764,7 +3770,13 @@ const zhCN = {
     },
     ready: {
       title: '备货',
-      message: '是否确认装箱单已完成备货检查？',
+      checkIntro: '备货前请逐项检查以下内容：',
+      checkItemGoods: '是否与来货相符：PN、QTY、DC、PIN脚(氧化/变性)',
+      checkItemPackaging: '包装是否符合运输条件：真空/静电袋、填充、污损、加固',
+      checkItemLabel: '出货标签是否与要求相符：定制、非定制、标签制作的内容是否正确',
+      checkItemDocuments: '随货单据是否与要求相符：品质类、箱单类、订舱类',
+      checkItemCourier: '出货快递单与要求是否相符：快递单本身信息是否正确、是否与货物相符',
+      message: '确认以上检查项均已完成后，将装箱单标记为「已备货」。',
       success: '装箱单已备货',
       failed: '备货失败',
       notPickedStatus: '仅「已拣货」状态的装箱单可以备货'

@@ -68,14 +68,14 @@
           <div v-if="opColExpanded" class="action-btns">
             <button type="button" class="action-btn" @click.stop="goDetail(row)">{{ t('stockOutList.actions.detail') }}</button>
             <button
-              v-if="row.status !== 4"
+              v-if="canWriteLogisticsData && row.status !== 4"
               type="button"
               class="action-btn action-btn--warning"
               @click.stop="handleMarkFinish(row)"
             >
               {{ t('stockOutList.actions.markFinished') }}
             </button>
-            <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
+            <button v-if="canWriteLogisticsData" type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
             <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">强制删除</button>
           </div>
           <el-dropdown v-else trigger="click" placement="bottom-end">
@@ -87,10 +87,10 @@
                 <el-dropdown-item @click.stop="goDetail(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('stockOutList.actions.detail') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item v-if="row.status !== 4" @click.stop="handleMarkFinish(row)">
+                <el-dropdown-item v-if="canWriteLogisticsData && row.status !== 4" @click.stop="handleMarkFinish(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('stockOutList.actions.markFinished') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item divided @click.stop="handleDeleteRow(row)">
+                <el-dropdown-item v-if="canWriteLogisticsData" divided @click.stop="handleDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
@@ -136,6 +136,7 @@ import { stockOutApi, type StockOutDto } from '@/api/stockOut'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { useAuthStore } from '@/stores/auth'
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
@@ -144,6 +145,7 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
 const list = ref<StockOutDto[]>([])

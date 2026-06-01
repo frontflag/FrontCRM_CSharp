@@ -79,7 +79,7 @@ public class Packing : BaseGuidEntity, ISoftDeletable
 
 /// <summary>装箱单主单级扩展（1:1 packing），维护明细行序号水位。</summary>
 [Table("packing_extend")]
-public class PackingExtend
+public class PackingExtend : ISoftDeletable
 {
     [Key]
     [StringLength(36)]
@@ -96,12 +96,15 @@ public class PackingExtend
     [Column("ModifyTime")]
     public DateTime? ModifyTime { get; set; }
 
+    [Column("is_deleted")]
+    public bool IsDeleted { get; set; }
+
     public virtual Packing? Packing { get; set; }
 }
 
 /// <summary>装箱单箱规扩展表（净重/毛重/尺寸/箱数）。</summary>
 [Table("packing_extend_box")]
-public class PackingExtendBox
+public class PackingExtendBox : ISoftDeletable
 {
     [Key]
     [StringLength(36)]
@@ -126,12 +129,15 @@ public class PackingExtendBox
     [Column("CTNS")]
     public int? Ctns { get; set; }
 
+    [Column("is_deleted")]
+    public bool IsDeleted { get; set; }
+
     public virtual Packing? Packing { get; set; }
 }
 
 /// <summary>装箱单收发货地址扩展表。</summary>
 [Table("packing_extend_ship")]
-public class PackingExtendShip
+public class PackingExtendShip : ISoftDeletable
 {
     [Key]
     [StringLength(36)]
@@ -183,6 +189,9 @@ public class PackingExtendShip
     [Column("delivery_method")]
     [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
     public short? DeliveryMethod { get; set; }
+
+    [Column("is_deleted")]
+    public bool IsDeleted { get; set; }
 
     public virtual Packing? Packing { get; set; }
 }
@@ -268,7 +277,7 @@ public class PackingItem : BaseGuidEntity, ISoftDeletable
 
 /// <summary>装箱单明细扩展表（客户/业务员/销售价快照）。</summary>
 [Table("packing_item_extend")]
-public class PackingItemExtend
+public class PackingItemExtend : ISoftDeletable
 {
     [Key]
     [StringLength(36)]
@@ -316,6 +325,9 @@ public class PackingItemExtend
     [StringLength(200)]
     [Column("customer_brand")]
     public string? CustomerBrand { get; set; }
+
+    [Column("is_deleted")]
+    public bool IsDeleted { get; set; }
 
     public virtual PackingItem? PackingItem { get; set; }
 }

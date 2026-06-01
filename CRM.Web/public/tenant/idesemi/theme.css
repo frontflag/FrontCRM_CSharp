@@ -1,0 +1,59 @@
+/* IDESemi（公司2）：深紫 + 琥珀强调色 */
+.login-view.login-view--idesemi .login-slogan {
+  background: linear-gradient(155deg, #1a0a2e 0%, #2d1b4e 42%, #1f1235 100%);
+}
+
+.login-view.login-view--idesemi .slogan-orbit {
+  border-color: rgba(251, 191, 36, 0.12);
+}
+
+.login-view.login-view--idesemi .slogan-beam {
+  background: radial-gradient(ellipse at 65% 15%, rgba(251, 191, 36, 0.18) 0%, transparent 58%);
+}
+
+.login-view.login-view--idesemi .slogan-line--accent {
+  color: #fbbf24;
+}
+
+.login-view.login-view--idesemi .slogan-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.55);
+}
+
+.login-view.login-view--idesemi .slogan-tags li {
+  background: rgba(45, 27, 78, 0.75);
+  border-color: rgba(251, 191, 36, 0.25);
+}
+
+.login-view.login-view--idesemi .tab-btn.active,
+.login-view.login-view--idesemi .tab-btn:hover,
+.login-view.login-view--idesemi .forgot-link,
+.login-view.login-view--idesemi .footer-link {
+  color: #d97706;
+}
+
+.login-view.login-view--idesemi .tab-btn.active {
+  border-bottom-color: #d97706;
+}
+
+.login-view.login-view--idesemi .input-wrap--light:focus-within .input-icon {
+  color: #d97706;
+}
+
+.login-view.login-view--idesemi .input-wrap--light .el-input__wrapper.is-focus {
+  border-color: #d97706 !important;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.12) !important;
+}
+
+.login-view.login-view--idesemi .login-btn--primary {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  box-shadow: 0 8px 24px rgba(217, 119, 6, 0.32);
+}
+
+.login-view.login-view--idesemi .login-btn--primary:hover:not(:disabled) {
+  box-shadow: 0 12px 28px rgba(217, 119, 6, 0.38);
+}
+
+.login-view.login-view--idesemi .wechat-login-area .qr-loading .loading-icon {
+  color: #d97706;
+}

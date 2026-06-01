@@ -140,16 +140,16 @@
       <template #col-actions="{ row }">
         <div @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
-            <button type="button" class="action-btn action-btn--info" @click.stop="handleEditRemark(row)">{{ t('stockInList.actions.editRemark') }}</button>
+            <button v-if="canWriteLogisticsData" type="button" class="action-btn action-btn--info" @click.stop="handleEditRemark(row)">{{ t('stockInList.actions.editRemark') }}</button>
             <button
-              v-if="row.status !== 2 && row.status !== 3"
+              v-if="canWriteLogisticsData && row.status !== 2 && row.status !== 3"
               type="button"
               class="action-btn action-btn--warning"
               @click.stop="handleFinish(row)"
             >
               {{ t('stockInList.actions.markStockedIn') }}
             </button>
-            <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
+            <button v-if="canWriteLogisticsData" type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteRow(row)">删除</button>
             <button v-if="isSysAdmin" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteRow(row)">强制删除</button>
           </div>
 
@@ -159,16 +159,16 @@
             </div>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click.stop="handleEditRemark(row)">
+                <el-dropdown-item v-if="canWriteLogisticsData" @click.stop="handleEditRemark(row)">
                   <span class="op-more-item op-more-item--info">{{ t('stockInList.actions.editRemark') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item
-                  v-if="row.status !== 2 && row.status !== 3"
+                  v-if="canWriteLogisticsData && row.status !== 2 && row.status !== 3"
                   @click.stop="handleFinish(row)"
                 >
                   <span class="op-more-item op-more-item--warning">{{ t('stockInList.actions.markStockedIn') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item divided @click.stop="handleDeleteRow(row)">
+                <el-dropdown-item v-if="canWriteLogisticsData" divided @click.stop="handleDeleteRow(row)">
                   <span class="op-more-item op-more-item--danger">删除</span>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="isSysAdmin" @click.stop="handleForceDeleteRow(row)">
@@ -224,9 +224,11 @@ import { inventoryCenterApi, type WarehouseInfo } from '@/api/inventoryCenter'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { useAuthStore } from '@/stores/auth'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 
 const router = useRouter()
 const route = useRoute()

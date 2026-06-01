@@ -16,7 +16,7 @@
         </div>
         <div class="customer-count-badge">{{ t('customerList.count', { count: totalCount }) }}</div>
       </div>
-      <div class="header-right">
+      <div v-if="canWriteSaleData" class="header-right">
         <template v-if="canSubmitAudit">
           <div class="btn-split-group">
             <button type="button" class="btn-success" @click="handleCreate">
@@ -207,7 +207,7 @@
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns always-visible">
               <button class="action-btn action-btn--primary" @click.stop="handleView(row)">{{ t('customerList.actions.detail') }}</button>
-              <button class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('customerList.actions.edit') }}</button>
+              <button v-if="canWriteSaleData" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">{{ t('customerList.actions.edit') }}</button>
               <el-dropdown trigger="click" @command="(cmd: string) => handleWarrantyCommand(row, cmd)">
                 <button type="button" class="action-btn action-btn--primary action-btn--dropdown">
                   {{ t('customerList.actions.printWarranty') }}
@@ -221,7 +221,7 @@
                 </template>
               </el-dropdown>
               <button
-                v-if="row.status === 1 || row.status === -1"
+                v-if="canWriteSaleData && (row.status === 1 || row.status === -1)"
                 class="action-btn action-btn--warning"
                 @click.stop="handleSubmitAudit(row)"
               >
@@ -235,7 +235,7 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click.stop="handleView(row)">{{ t('customerList.actions.detail') }}</el-dropdown-item>
-                  <el-dropdown-item @click.stop="handleEdit(row)">{{ t('customerList.actions.edit') }}</el-dropdown-item>
+                  <el-dropdown-item v-if="canWriteSaleData" @click.stop="handleEdit(row)">{{ t('customerList.actions.edit') }}</el-dropdown-item>
                   <el-dropdown-item disabled class="customer-warranty-menu-heading">
                     {{ t('customerList.actions.printWarranty') }}
                   </el-dropdown-item>
@@ -245,7 +245,7 @@
                   <el-dropdown-item class="customer-warranty-submenu" @click.stop="goCustomerWarrantyReport(row, 'zh')">
                     {{ t('customerList.actions.warrantyZh') }}
                   </el-dropdown-item>
-                  <el-dropdown-item v-if="row.status === 1 || row.status === -1" @click.stop="handleSubmitAudit(row)">
+                  <el-dropdown-item v-if="canWriteSaleData && (row.status === 1 || row.status === -1)" @click.stop="handleSubmitAudit(row)">
                     {{ t('customerList.actions.submitAudit') }}
                   </el-dropdown-item>
                 </el-dropdown-menu>
@@ -260,7 +260,7 @@
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
         </svg>
         <p>{{ t('customerList.empty') }}</p>
-        <template v-if="canSubmitAudit">
+        <template v-if="canWriteSaleData && canSubmitAudit">
           <div class="btn-split-group empty-split">
             <button type="button" class="btn-success" @click="handleCreate">{{ t('customerList.create') }}</button>
             <el-dropdown trigger="click" @command="onCreateDropdownCommand">
@@ -277,7 +277,7 @@
             </el-dropdown>
           </div>
         </template>
-        <button v-else type="button" class="btn-success" @click="handleCreate">{{ t('customerList.create') }}</button>
+        <button v-else-if="canWriteSaleData" type="button" class="btn-success" @click="handleCreate">{{ t('customerList.create') }}</button>
       </div>
     </div>
 
@@ -328,6 +328,7 @@ import { buildCustomerListQuery, parseCustomerListQuery } from '@/utils/customer
 import { CUSTOMER_WORKFLOW_STATUS_OPTIONS } from '@/constants/customerWorkflowStatus';
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 
 const router = useRouter();
 const route = useRoute();
@@ -337,6 +338,7 @@ function isPartyStatusMuted(c: Customer) {
   return !!(c.disenableStatus || c.blackList);
 }
 const authStore = useAuthStore();
+const { canWriteSaleData } = useDepartmentDataReadOnly();
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask();
 const customerDict = useCustomerDictStore();
 /** 联系人、电话等敏感列；与 RBAC 节点 customer.info.read 一致 */

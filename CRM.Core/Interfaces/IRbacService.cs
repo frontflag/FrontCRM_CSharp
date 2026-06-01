@@ -14,7 +14,15 @@ namespace CRM.Core.Interfaces
             string departmentName,
             string? parentId,
             short saleDataScope,
+            short saleDataAccess,
+            bool hideCustomerManagement,
             short purchaseDataScope,
+            short purchaseDataAccess,
+            bool hideVendorManagement,
+            short logisticsDataScope,
+            short logisticsDataAccess,
+            short financeDataScope,
+            short financeDataAccess,
             short identityType,
             short status);
 
@@ -23,7 +31,15 @@ namespace CRM.Core.Interfaces
             string departmentName,
             string? parentId,
             short saleDataScope,
+            short saleDataAccess,
+            bool hideCustomerManagement,
             short purchaseDataScope,
+            short purchaseDataAccess,
+            bool hideVendorManagement,
+            short logisticsDataScope,
+            short logisticsDataAccess,
+            short financeDataScope,
+            short financeDataAccess,
             short identityType,
             short status);
 
@@ -42,7 +58,21 @@ namespace CRM.Core.Interfaces
         public string? PrimaryDepartmentId { get; set; }
         public short IdentityType { get; set; } = 0;
         public short SaleDataScope { get; set; } = 1;
+        /// <summary>0=读写,1=只读（主部门 SaleDataAccess）</summary>
+        public short SaleDataAccess { get; set; } = 0;
+        /// <summary>主部门隐藏客户管理（与 SaleDataScope 独立）</summary>
+        public bool HideCustomerManagement { get; set; }
         public short PurchaseDataScope { get; set; } = 1;
+        /// <summary>0=读写,1=只读（主部门 PurchaseDataAccess）</summary>
+        public short PurchaseDataAccess { get; set; } = 0;
+        /// <summary>主部门隐藏供应商管理（与 PurchaseDataScope 独立）</summary>
+        public bool HideVendorManagement { get; set; }
+        public short LogisticsDataScope { get; set; } = 0;
+        /// <summary>0=读写,1=只读（主部门 LogisticsDataAccess）</summary>
+        public short LogisticsDataAccess { get; set; } = 0;
+        public short FinanceDataScope { get; set; } = 0;
+        /// <summary>0=读写,1=只读（主部门 FinanceDataAccess）</summary>
+        public short FinanceDataAccess { get; set; } = 0;
 
         /// <summary>是否隶属采购侧部门（主部门 IdentityType 2/3、兼任采购部门、或主部门名称含采购等兜底），与权限汇总逻辑一致。</summary>
         public bool BelongsToPurchaseDept { get; set; }

@@ -1,5 +1,7 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
+using CRM.Core.Models.System;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Utilities;
@@ -22,6 +24,7 @@ namespace CRM.Core.Services
         private readonly IUserService _userService;
         private readonly IQuoteListQuery _quoteListQuery;
         private readonly ILogger<QuoteService> _logger;
+        private readonly ILogOperationAppendService _logOperationAppend;
 
         public QuoteService(
             IRepository<Quote> quoteRepository,
@@ -33,7 +36,8 @@ namespace CRM.Core.Services
             ISerialNumberService serialNumberService,
             IUserService userService,
             IQuoteListQuery quoteListQuery,
-            ILogger<QuoteService> logger)
+            ILogger<QuoteService> logger,
+            ILogOperationAppendService logOperationAppend)
         {
             _quoteRepository = quoteRepository;
             _quoteItemRepository = quoteItemRepository;
@@ -45,6 +49,7 @@ namespace CRM.Core.Services
             _userService = userService;
             _quoteListQuery = quoteListQuery;
             _logger = logger;
+            _logOperationAppend = logOperationAppend;
         }
 
         /// <summary>为列表/详情 JSON 填充需求主表编号（与 RFQId 对应）。</summary>
@@ -230,7 +235,7 @@ namespace CRM.Core.Services
                 return null;
 
             var items = await _quoteItemRepository.FindAsync(i => i.QuoteId == id);
-            quote.Items = items.ToList();
+            quote.Items = items.Where(i => !i.IsDeleted).ToList();
             await HydrateQuoteRfqCodeAsync(new[] { quote });
             await HydrateQuoteCustomerDisplayAsync(new[] { quote });
             await HydrateQuoteUserDisplayAsync(new[] { quote });
@@ -269,6 +274,7 @@ namespace CRM.Core.Services
             var quoteIds = quotes.Select(q => q.Id).ToList();
             var itemRows = await _quoteItemRepository.FindAsync(i => quoteIds.Contains(i.QuoteId));
             var byQuoteId = itemRows
+                .Where(i => !i.IsDeleted)
                 .GroupBy(i => i.QuoteId)
                 .ToDictionary(g => g.Key, g => (ICollection<QuoteItem>)g.ToList());
 
@@ -302,22 +308,24 @@ namespace CRM.Core.Services
 
             await _quoteRepository.UpdateAsync(quote);
 
-            // 更新明细行（先删后增）
-            if (request.Items != null)
+            List<QuoteItem>? deletedLines = null;
+            if (request.Items != null && request.Items.Count > 0)
             {
-                var existingItems = await _quoteItemRepository.GetAllAsync();
-                var toDelete = existingItems.Where(i => i.QuoteId == id).ToList();
-                foreach (var item in toDelete)
-                    await _quoteItemRepository.DeleteAsync(item.Id);
-
-                foreach (var itemReq in request.Items)
-                {
-                    var item = MapToQuoteItem(id, itemReq);
-                    await _quoteItemRepository.AddAsync(item);
-                }
+                var sync = await SyncQuoteItemsOnUpdateAsync(quote, id, request.Items);
+                deletedLines = sync.Deleted;
             }
 
             await _unitOfWork.SaveChangesAsync();
+
+            if (deletedLines is { Count: > 0 })
+            {
+                await AppendQuoteItemDeleteOperationLogsAsync(
+                    quote,
+                    deletedLines,
+                    actingUserId,
+                    OperationLogActionTypes.QuoteItemDelete,
+                    $"编辑报价单 {quote.QuoteCode} 时删除明细行");
+            }
             await HydrateQuoteRfqCodeAsync(new[] { quote });
             await HydrateQuoteCustomerDisplayAsync(new[] { quote });
             await HydrateQuoteUserDisplayAsync(new[] { quote });
@@ -335,10 +343,20 @@ namespace CRM.Core.Services
 
             // 先删明细行
             var items = await _quoteItemRepository.GetAllAsync();
-            foreach (var item in items.Where(i => i.QuoteId == id))
+            var quoteItems = items.Where(i => i.QuoteId == id).ToList();
+            foreach (var item in quoteItems)
                 await _quoteItemRepository.DeleteAsync(item.Id);
 
             await _quoteRepository.DeleteAsync(id);
+
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = BusinessLogTypes.Quote,
+                RecordId = quote.Id,
+                RecordCode = quote.QuoteCode,
+                EntityDisplayName = DeleteLogEntityNames.Quote,
+                ExtraDetail = $"明细行数={quoteItems.Count}"
+            });
 
             // 删除报价后，如果该 RFQ 明细已无任何报价，则回退为「待报价」(0)
             if (!string.IsNullOrWhiteSpace(quote.RFQItemId))
@@ -402,40 +420,149 @@ namespace CRM.Core.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
+        private sealed record QuoteItemSyncResult(
+            List<QuoteItem> Inserted,
+            List<QuoteItem> Updated,
+            List<QuoteItem> Deleted);
+
+        private async Task<QuoteItemSyncResult> SyncQuoteItemsOnUpdateAsync(
+            Quote quote,
+            string quoteId,
+            List<CreateQuoteItemRequest> requestItems)
+        {
+            var existingActive = (await _quoteItemRepository.FindAsync(i => i.QuoteId == quoteId))
+                .Where(i => !i.IsDeleted)
+                .ToDictionary(i => i.Id, StringComparer.OrdinalIgnoreCase);
+
+            var inserted = new List<QuoteItem>();
+            var updated = new List<QuoteItem>();
+            var keptIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var newItemRequests = new List<CreateQuoteItemRequest>();
+
+            foreach (var itemReq in requestItems)
+            {
+                var reqId = itemReq.Id?.Trim();
+                if (!string.IsNullOrEmpty(reqId))
+                {
+                    if (!existingActive.TryGetValue(reqId, out var existing))
+                        throw new InvalidOperationException($"报价明细 {reqId} 不存在或已删除");
+
+                    keptIds.Add(reqId);
+                    ApplyQuoteItemFromRequest(existing, itemReq);
+                    existing.ModifyTime = DateTime.UtcNow;
+                    await _quoteItemRepository.UpdateAsync(existing);
+                    updated.Add(existing);
+                }
+                else
+                {
+                    newItemRequests.Add(itemReq);
+                }
+            }
+
+            foreach (var itemReq in newItemRequests)
+            {
+                var item = new QuoteItem
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    QuoteId = quoteId,
+                    CreateTime = DateTime.UtcNow
+                };
+                ApplyQuoteItemFromRequest(item, itemReq);
+                await _quoteItemRepository.AddAsync(item);
+                inserted.Add(item);
+            }
+
+            var deleted = new List<QuoteItem>();
+            foreach (var existing in existingActive.Values)
+            {
+                if (keptIds.Contains(existing.Id))
+                    continue;
+
+                existing.IsDeleted = true;
+                existing.ModifyTime = DateTime.UtcNow;
+                await _quoteItemRepository.UpdateAsync(existing);
+                deleted.Add(existing);
+            }
+
+            return new QuoteItemSyncResult(inserted, updated, deleted);
+        }
+
+        private static void ApplyQuoteItemFromRequest(QuoteItem target, CreateQuoteItemRequest req)
+        {
+            target.VendorId = req.VendorId;
+            target.VendorName = req.VendorName;
+            target.VendorCode = req.VendorCode;
+            target.ContactId = req.ContactId;
+            target.ContactName = req.ContactName;
+            target.PriceType = req.PriceType;
+            target.ExpiryDate = PostgreSqlDateTime.ToUtc(req.ExpiryDate);
+            target.Mpn = req.Mpn;
+            target.Brand = req.Brand;
+            target.BrandOrigin = req.BrandOrigin;
+            target.DateCode = req.DateCode;
+            target.LeadTime = req.LeadTime;
+            target.LabelType = req.LabelType;
+            target.WaferOrigin = req.WaferOrigin;
+            target.PackageOrigin = req.PackageOrigin;
+            target.FreeShipping = req.FreeShipping;
+            target.Currency = req.Currency;
+            target.Quantity = req.Quantity;
+            target.UnitPrice = req.UnitPrice;
+            target.ConvertedPrice = req.ConvertedPrice;
+            target.MinPackageQty = req.MinPackageQty;
+            target.MinPackageUnit = req.MinPackageUnit;
+            target.StockQty = req.StockQty;
+            target.Moq = req.Moq;
+            target.Remark = req.Remark;
+            target.Status = req.Status;
+        }
+
         private static QuoteItem MapToQuoteItem(string quoteId, CreateQuoteItemRequest req)
         {
-            return new QuoteItem
+            var item = new QuoteItem
             {
                 Id = Guid.NewGuid().ToString(),
                 QuoteId = quoteId,
-                VendorId = req.VendorId,
-                VendorName = req.VendorName,
-                VendorCode = req.VendorCode,
-                ContactId = req.ContactId,
-                ContactName = req.ContactName,
-                PriceType = req.PriceType,
-                ExpiryDate = PostgreSqlDateTime.ToUtc(req.ExpiryDate),
-                Mpn = req.Mpn,
-                Brand = req.Brand,
-                BrandOrigin = req.BrandOrigin,
-                DateCode = req.DateCode,
-                LeadTime = req.LeadTime,
-                LabelType = req.LabelType,
-                WaferOrigin = req.WaferOrigin,
-                PackageOrigin = req.PackageOrigin,
-                FreeShipping = req.FreeShipping,
-                Currency = req.Currency,
-                Quantity = req.Quantity,
-                UnitPrice = req.UnitPrice,
-                ConvertedPrice = req.ConvertedPrice,
-                MinPackageQty = req.MinPackageQty,
-                MinPackageUnit = req.MinPackageUnit,
-                StockQty = req.StockQty,
-                Moq = req.Moq,
-                Remark = req.Remark,
-                Status = req.Status,
                 CreateTime = DateTime.UtcNow
             };
+            ApplyQuoteItemFromRequest(item, req);
+            return item;
+        }
+
+        private async Task AppendQuoteItemDeleteOperationLogsAsync(
+            Quote quote,
+            IReadOnlyList<QuoteItem> deletedItems,
+            string? actingUserId,
+            string actionType,
+            string descriptionPrefix)
+        {
+            var (actorId, actorName) = await ResolveActorAsync(actingUserId);
+            var tier = 0;
+            foreach (var d in deletedItems.OrderBy(i => i.CreateTime))
+            {
+                tier++;
+                var lineCode = $"{quote.QuoteCode}#{tier}";
+                await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+                {
+                    BizType = BusinessLogTypes.QuoteItem,
+                    RecordId = d.Id,
+                    RecordCode = lineCode,
+                    EntityDisplayName = DeleteLogEntityNames.QuoteItem,
+                    ActionTypeOverride = actionType,
+                    OperatorUserId = actorId,
+                    OperatorUserName = actorName,
+                    OperationDescOverride = $"{descriptionPrefix} {lineCode}"
+                });
+            }
+        }
+
+        private async Task<(string? UserId, string UserName)> ResolveActorAsync(string? actingUserId)
+        {
+            var id = ActingUserIdNormalizer.Normalize(actingUserId);
+            if (string.IsNullOrEmpty(id))
+                return (null, "系统");
+            var user = await _userService.GetByIdAsync(id);
+            return (id, string.IsNullOrWhiteSpace(user?.UserName) ? id : user!.UserName!.Trim());
         }
     }
 }

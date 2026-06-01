@@ -1165,19 +1165,30 @@ public class PackingService : IPackingService
         if (itemIds.Count > 0)
         {
             var extends = await _db.PackingItemExtends
-                .Where(e => itemIds.Contains(e.PackingItemId))
+                .IgnoreQueryFilters()
+                .Where(e => itemIds.Contains(e.PackingItemId) && !e.IsDeleted)
                 .ToListAsync(cancellationToken);
-            if (extends.Count > 0)
-                _db.PackingItemExtends.RemoveRange(extends);
+            foreach (var ext in extends)
+                ext.IsDeleted = true;
         }
 
-        var boxes = await _db.PackingExtendBoxes.Where(b => b.PackingId == id).ToListAsync(cancellationToken);
-        if (boxes.Count > 0)
-            _db.PackingExtendBoxes.RemoveRange(boxes);
+        var boxes = await _db.PackingExtendBoxes
+            .IgnoreQueryFilters()
+            .Where(b => b.PackingId == id && !b.IsDeleted)
+            .ToListAsync(cancellationToken);
+        foreach (var box in boxes)
+            box.IsDeleted = true;
 
-        var ships = await _db.PackingExtendShips.Where(s => s.PackingId == id).ToListAsync(cancellationToken);
-        if (ships.Count > 0)
-            _db.PackingExtendShips.RemoveRange(ships);
+        var ships = await _db.PackingExtendShips
+            .IgnoreQueryFilters()
+            .Where(s => s.PackingId == id && !s.IsDeleted)
+            .ToListAsync(cancellationToken);
+        foreach (var ship in ships)
+            ship.IsDeleted = true;
+
+        var safePackingId = id.Replace("'", "''", StringComparison.Ordinal);
+        await _unitOfWork.ExecuteAsync(
+            $@"UPDATE packing_extend SET is_deleted = true, ""ModifyTime"" = NOW() WHERE ""PackingId"" = '{safePackingId}' AND is_deleted = false");
 
         foreach (var item in items)
             await _packingItemRepository.DeleteAsync(item.Id);

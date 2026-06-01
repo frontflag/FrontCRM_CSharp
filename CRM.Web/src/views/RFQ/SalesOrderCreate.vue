@@ -408,6 +408,8 @@ const genOrderCode = () => {
 }
 
 type OrderLineDraft = {
+  /** 编辑已有明细时回传 SellOrderItemId，新建行不传 */
+  sellOrderItemId?: string
   quoteId?: string
   pn: string
   customerMaterialModel: string
@@ -677,7 +679,9 @@ function parseHeaderCommentBlocks(comment: string | null | undefined) {
 async function loadOrderForEdit(id: string) {
   const order = (await salesOrderApi.getById(id)) as Record<string, unknown>
   const itemsRaw = order.items ?? order.Items
-  const items = Array.isArray(itemsRaw) ? (itemsRaw as Record<string, unknown>[]) : []
+  const items = (Array.isArray(itemsRaw) ? (itemsRaw as Record<string, unknown>[]) : []).filter(
+    (row) => !(row.isDeleted ?? row.IsDeleted)
+  )
 
   formData.value.sellOrderCode = pickRowStr(order, 'sellOrderCode', 'SellOrderCode') || formData.value.sellOrderCode
   formData.value.type = Number(order.type ?? order.Type ?? 1) || 1
@@ -766,6 +770,8 @@ async function loadOrderForEdit(id: string) {
     const pqNum = pqRaw != null && pqRaw !== '' ? Number(pqRaw) : 0
     const lineCur = Number(row.currency ?? row.Currency ?? formData.value.currency) || 1
     const line: OrderLineDraft = {
+      sellOrderItemId:
+        pickRowStr(row, 'sellOrderItemId', 'SellOrderItemId', 'id', 'Id') || undefined,
       quoteId: quoteIdRaw || undefined,
       pn: pickRowStr(row, 'pn', 'PN'),
       customerMaterialModel: apiCustomerPn || parsedLine.customerMaterialModel,
@@ -970,6 +976,7 @@ onMounted(async () => {
 
 function buildCreateOrUpdateLinePayloads(headerCurrency: number) {
   return formData.value.items.map((it) => ({
+    id: it.sellOrderItemId?.trim() || undefined,
     quoteId: it.quoteId,
     pn: it.pn,
     brand: it.brand,

@@ -1,6 +1,6 @@
 <template>
-  <div class="login-view">
-    <div class="login-split">
+  <div :class="['login-view', `login-view--${loginTenantId}`]">
+    <div :class="['login-split', `login-split--${loginLayoutMode}`]">
       <!-- 左侧：品牌与 Slogan -->
       <aside class="login-slogan" aria-label="brand">
         <div class="slogan-bg" aria-hidden="true">
@@ -22,14 +22,14 @@
           </header>
 
           <h1 class="slogan-headline">
-            <span class="slogan-line slogan-line--white">{{ t('login.sloganLine1') }}</span>
-            <span class="slogan-line slogan-line--accent">{{ t('login.sloganLine2') }}</span>
+            <span class="slogan-line slogan-line--white">{{ sloganLine1 }}</span>
+            <span class="slogan-line slogan-line--accent">{{ sloganLine2 }}</span>
           </h1>
 
           <ul class="slogan-tags" aria-label="features">
-            <li><span class="slogan-dot" />{{ t('login.featureSync') }}</li>
-            <li><span class="slogan-dot" />{{ t('login.featureTrack') }}</li>
-            <li><span class="slogan-dot" />{{ t('login.featureReport') }}</li>
+            <li><span class="slogan-dot" />{{ featureTag1 }}</li>
+            <li><span class="slogan-dot" />{{ featureTag2 }}</li>
+            <li><span class="slogan-dot" />{{ featureTag3 }}</li>
           </ul>
         </div>
       </aside>
@@ -47,8 +47,8 @@
 
         <div class="login-panel__middle">
         <div class="login-card">
-          <h2 class="panel-welcome">{{ t('login.welcomeTitle') }}</h2>
-          <p class="panel-welcome-sub">{{ t('login.welcomeSub') }}</p>
+          <h2 class="panel-welcome">{{ welcomeTitle }}</h2>
+          <p class="panel-welcome-sub">{{ welcomeSub }}</p>
 
           <div class="login-tabs">
             <button
@@ -168,7 +168,7 @@
         </div>
         </div>
 
-        <p class="copyright">{{ t('login.copyright') }}</p>
+        <p class="copyright">{{ copyrightText }}</p>
       </main>
     </div>
   </div>
@@ -183,7 +183,21 @@ import { ChatDotRound, Loading, CircleCheck, Warning, Timer } from '@element-plu
 import { useAuthStore } from '@/stores'
 import { getWechatQrCode, checkWechatLoginStatus } from '@/api/wechatAuth'
 import { COMPANY_LOGIN_LOGO_URL } from '@/api/companyProfile'
+import { LOGIN_TENANT_ID, loginPageLayout, loginTenantText, loginThemeCssHref } from '@/config/loginTenant'
 import fallbackLoginLogoUrl from '@/assets/brand/semicore-login-logo.png'
+
+const loginTenantId = LOGIN_TENANT_ID
+const loginLayoutMode = loginPageLayout()
+let loginThemeLinkEl: HTMLLinkElement | null = null
+
+const sloganLine1 = computed(() => loginTenantText('VITE_LOGIN_SLOGAN_LINE1', t('login.sloganLine1')))
+const sloganLine2 = computed(() => loginTenantText('VITE_LOGIN_SLOGAN_LINE2', t('login.sloganLine2')))
+const featureTag1 = computed(() => loginTenantText('VITE_LOGIN_FEATURE_1', t('login.featureSync')))
+const featureTag2 = computed(() => loginTenantText('VITE_LOGIN_FEATURE_2', t('login.featureTrack')))
+const featureTag3 = computed(() => loginTenantText('VITE_LOGIN_FEATURE_3', t('login.featureReport')))
+const welcomeTitle = computed(() => loginTenantText('VITE_LOGIN_WELCOME_TITLE', t('login.welcomeTitle')))
+const welcomeSub = computed(() => loginTenantText('VITE_LOGIN_WELCOME_SUB', t('login.welcomeSub')))
+const copyrightText = computed(() => loginTenantText('VITE_LOGIN_COPYRIGHT', t('login.copyright')))
 
 const REMEMBER_USER_KEY = 'frontcrm_login_remember_user'
 
@@ -231,6 +245,12 @@ const rules: FormRules = {
 }
 
 onMounted(() => {
+  loginThemeLinkEl = document.createElement('link')
+  loginThemeLinkEl.rel = 'stylesheet'
+  loginThemeLinkEl.href = loginThemeCssHref(loginTenantId)
+  loginThemeLinkEl.setAttribute('data-login-tenant-theme', loginTenantId)
+  document.head.appendChild(loginThemeLinkEl)
+
   try {
     const saved = localStorage.getItem(REMEMBER_USER_KEY)
     if (saved) {
@@ -324,6 +344,10 @@ function stopPolling() {
 
 onUnmounted(() => {
   stopPolling()
+  if (loginThemeLinkEl?.parentNode) {
+    loginThemeLinkEl.parentNode.removeChild(loginThemeLinkEl)
+    loginThemeLinkEl = null
+  }
 })
 
 const handleLogin = async () => {
@@ -374,6 +398,12 @@ const handleLogin = async () => {
   display: flex;
   min-height: 100vh;
   width: 100%;
+}
+
+@media (min-width: 901px) {
+  .login-split--right-left {
+    flex-direction: row-reverse;
+  }
 }
 
 /* ========== 左侧 Slogan ========== */

@@ -52,6 +52,9 @@ namespace CRM.Core.Interfaces
 
     public class CreateRFQItemRequest
     {
+        /// <summary>已有明细行 Id；编辑保存时传入以增量更新，省略则新建。</summary>
+        public string? Id { get; set; }
+
         public int LineNo { get; set; } = 1;
         public string? CustomerMpn { get; set; }
         public string Mpn { get; set; } = string.Empty;

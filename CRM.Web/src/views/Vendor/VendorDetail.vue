@@ -66,13 +66,13 @@
             </div>
             <div class="title-tags-row">
               <TagListDisplay :tags="vendorTags" />
-              <button class="btn-add-tag" @click="showTagDialog = true">{{ t('vendorDetail.addTag') }}</button>
+              <button v-if="canWritePurchaseData" class="btn-add-tag" @click="showTagDialog = true">{{ t('vendorDetail.addTag') }}</button>
             </div>
           </div>
         </div>
       </div>
       <div class="header-right">
-        <button class="btn-primary" @click="handleEdit">
+        <button v-if="canWritePurchaseData" class="btn-primary" @click="handleEdit">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -80,7 +80,7 @@
           {{ t('vendorDetail.edit') }}
         </button>
         <el-dropdown
-          v-if="vendor"
+          v-if="vendor && canWritePurchaseData"
           trigger="click"
           placement="bottom-end"
           popper-class="vendor-detail-header-more-popper"
@@ -99,7 +99,7 @@
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <button class="btn-success" v-if="vendor?.status !== 1" type="button" @click="handleActivate">
+        <button class="btn-success" v-if="canWritePurchaseData && vendor?.status !== 1" type="button" @click="handleActivate">
           {{ t('vendorDetail.activate') }}
         </button>
       </div>
@@ -177,7 +177,7 @@
         <div class="tabs-body">
           <div v-show="activeTab === 'contacts'">
             <div class="tab-toolbar">
-              <button class="btn-add-item" @click="goCreateContact">
+              <button v-if="canWritePurchaseData" class="btn-add-item" @click="goCreateContact">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
@@ -239,10 +239,10 @@
                 <template #default="{ row }">
                   <div @click.stop @dblclick.stop>
                     <div v-if="vendorDetailSubOpColExpanded" class="action-btns">
-                      <button type="button" class="action-btn action-btn--primary" @click.stop="goEditContact(row)">{{ t('vendorDetail.contacts.edit') }}</button>
-                      <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteContact(row)">{{ t('vendorDetail.contacts.delete') }}</button>
+                      <button v-if="canWritePurchaseData" type="button" class="action-btn action-btn--primary" @click.stop="goEditContact(row)">{{ t('vendorDetail.contacts.edit') }}</button>
+                      <button v-if="canWritePurchaseData" type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteContact(row)">{{ t('vendorDetail.contacts.delete') }}</button>
                       <button
-                        v-if="!row.isMain"
+                        v-if="canWritePurchaseData && !row.isMain"
                         type="button"
                         class="action-btn action-btn--info"
                         @click.stop="handleSetMainContact(row)"
@@ -256,13 +256,13 @@
                       </div>
                       <template #dropdown>
                         <el-dropdown-menu>
-                          <el-dropdown-item @click.stop="goEditContact(row)">
+                          <el-dropdown-item v-if="canWritePurchaseData" @click.stop="goEditContact(row)">
                             <span class="op-more-item op-more-item--primary">{{ t('vendorDetail.contacts.edit') }}</span>
                           </el-dropdown-item>
-                          <el-dropdown-item divided @click.stop="handleDeleteContact(row)">
+                          <el-dropdown-item v-if="canWritePurchaseData" divided @click.stop="handleDeleteContact(row)">
                             <span class="op-more-item op-more-item--danger">{{ t('vendorDetail.contacts.delete') }}</span>
                           </el-dropdown-item>
-                          <el-dropdown-item v-if="!row.isMain" divided @click.stop="handleSetMainContact(row)">
+                          <el-dropdown-item v-if="canWritePurchaseData && !row.isMain" divided @click.stop="handleSetMainContact(row)">
                             <span class="op-more-item op-more-item--info">{{ t('vendorDetail.contacts.setMain') }}</span>
                           </el-dropdown-item>
                         </el-dropdown-menu>
@@ -275,7 +275,7 @@
           </div>
           <div v-show="activeTab === 'addresses'">
             <div class="tab-toolbar">
-              <button class="btn-add-item" @click="openCreateAddress">
+              <button v-if="canWritePurchaseData" class="btn-add-item" @click="openCreateAddress">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
@@ -336,10 +336,10 @@
                 <template #default="{ row }">
                   <div @click.stop @dblclick.stop>
                     <div v-if="vendorDetailSubOpColExpanded" class="action-btns">
-                      <button type="button" class="action-btn action-btn--primary" @click.stop="openEditAddress(row)">{{ t('vendorDetail.addresses.edit') }}</button>
-                      <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteAddress(row)">{{ t('vendorDetail.addresses.delete') }}</button>
+                      <button v-if="canWritePurchaseData" type="button" class="action-btn action-btn--primary" @click.stop="openEditAddress(row)">{{ t('vendorDetail.addresses.edit') }}</button>
+                      <button v-if="canWritePurchaseData" type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteAddress(row)">{{ t('vendorDetail.addresses.delete') }}</button>
                       <button
-                        v-if="!row.isDefault"
+                        v-if="canWritePurchaseData && !row.isDefault"
                         type="button"
                         class="action-btn action-btn--info"
                         @click.stop="handleSetDefaultAddress(row)"
@@ -353,13 +353,13 @@
                       </div>
                       <template #dropdown>
                         <el-dropdown-menu>
-                          <el-dropdown-item @click.stop="openEditAddress(row)">
+                          <el-dropdown-item v-if="canWritePurchaseData" @click.stop="openEditAddress(row)">
                             <span class="op-more-item op-more-item--primary">{{ t('vendorDetail.addresses.edit') }}</span>
                           </el-dropdown-item>
-                          <el-dropdown-item divided @click.stop="handleDeleteAddress(row)">
+                          <el-dropdown-item v-if="canWritePurchaseData" divided @click.stop="handleDeleteAddress(row)">
                             <span class="op-more-item op-more-item--danger">{{ t('vendorDetail.addresses.delete') }}</span>
                           </el-dropdown-item>
-                          <el-dropdown-item v-if="!row.isDefault" divided @click.stop="handleSetDefaultAddress(row)">
+                          <el-dropdown-item v-if="canWritePurchaseData && !row.isDefault" divided @click.stop="handleSetDefaultAddress(row)">
                             <span class="op-more-item op-more-item--info">{{ t('vendorDetail.addresses.setDefault') }}</span>
                           </el-dropdown-item>
                         </el-dropdown-menu>
@@ -372,7 +372,7 @@
           </div>
           <div v-show="activeTab === 'banks'">
             <div class="tab-toolbar">
-              <button class="btn-add-item" @click="openCreateBank">
+              <button v-if="canWritePurchaseData" class="btn-add-item" @click="openCreateBank">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
@@ -390,8 +390,12 @@
               <el-table-column prop="accountName" :label="t('vendorDetail.banks.accountName')" min-width="160" show-overflow-tooltip>
                 <template #default="{ row }"><span class="cell-primary">{{ maskPurchaseSensitiveFields ? '—' : (row.accountName || '--') }}</span></template>
               </el-table-column>
-              <el-table-column prop="bankName" :label="t('vendorDetail.banks.bankName')" min-width="160" show-overflow-tooltip>
-                <template #default="{ row }"><span class="cell-secondary">{{ maskPurchaseSensitiveFields ? '—' : (row.bankName || '--') }}</span></template>
+              <el-table-column prop="financePaymentBankId" :label="t('vendorDetail.banks.bankName')" min-width="160" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <span class="cell-secondary">
+                    {{ maskPurchaseSensitiveFields ? '—' : vendorBankLabel(row, paymentBankOptions) }}
+                  </span>
+                </template>
               </el-table-column>
               <el-table-column prop="bankBranch" :label="t('vendorDetail.banks.branch')" min-width="160" show-overflow-tooltip>
                 <template #default="{ row }"><span class="cell-secondary">{{ maskPurchaseSensitiveFields ? '—' : (row.bankBranch || '--') }}</span></template>
@@ -429,10 +433,10 @@
                 <template #default="{ row }">
                   <div @click.stop @dblclick.stop>
                     <div v-if="vendorDetailSubOpColExpanded" class="action-btns">
-                      <button type="button" class="action-btn action-btn--primary" @click.stop="openEditBank(row)">{{ t('vendorDetail.banks.edit') }}</button>
-                      <button type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteBank(row)">{{ t('vendorDetail.banks.delete') }}</button>
+                      <button v-if="canWritePurchaseData" type="button" class="action-btn action-btn--primary" @click.stop="openEditBank(row)">{{ t('vendorDetail.banks.edit') }}</button>
+                      <button v-if="canWritePurchaseData" type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteBank(row)">{{ t('vendorDetail.banks.delete') }}</button>
                       <button
-                        v-if="!row.isDefault"
+                        v-if="canWritePurchaseData && !row.isDefault"
                         type="button"
                         class="action-btn action-btn--info"
                         @click.stop="handleSetDefaultBank(row)"
@@ -446,13 +450,13 @@
                       </div>
                       <template #dropdown>
                         <el-dropdown-menu>
-                          <el-dropdown-item @click.stop="openEditBank(row)">
+                          <el-dropdown-item v-if="canWritePurchaseData" @click.stop="openEditBank(row)">
                             <span class="op-more-item op-more-item--primary">{{ t('vendorDetail.banks.edit') }}</span>
                           </el-dropdown-item>
-                          <el-dropdown-item divided @click.stop="handleDeleteBank(row)">
+                          <el-dropdown-item v-if="canWritePurchaseData" divided @click.stop="handleDeleteBank(row)">
                             <span class="op-more-item op-more-item--danger">{{ t('vendorDetail.banks.delete') }}</span>
                           </el-dropdown-item>
-                          <el-dropdown-item v-if="!row.isDefault" divided @click.stop="handleSetDefaultBank(row)">
+                          <el-dropdown-item v-if="canWritePurchaseData && !row.isDefault" divided @click.stop="handleSetDefaultBank(row)">
                             <span class="op-more-item op-more-item--info">{{ t('vendorDetail.banks.setDefault') }}</span>
                           </el-dropdown-item>
                         </el-dropdown-menu>
@@ -473,7 +477,7 @@
           </div>
           <div v-show="activeTab === 'history'" class="history-tab">
             <div class="tab-toolbar">
-              <button class="btn-add-item" @click="showHistoryForm = true">
+              <button v-if="canWritePurchaseData" class="btn-add-item" @click="showHistoryForm = true">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
@@ -492,7 +496,7 @@
               <el-input v-model="newHistory.subject" :placeholder="t('vendorDetail.history.subject')" size="small" style="width:200px" />
               <el-input v-model="newHistory.content" :placeholder="t('vendorDetail.history.content')" size="small" style="flex:1" />
               <el-input v-model="newHistory.result" :placeholder="t('vendorDetail.history.result')" size="small" style="width:200px" />
-              <button class="btn-add-item" @click="submitHistory">{{ t('vendorDetail.history.save') }}</button>
+              <button v-if="canWritePurchaseData" class="btn-add-item" @click="submitHistory">{{ t('vendorDetail.history.save') }}</button>
               <button class="action-btn" @click="cancelHistoryForm">{{ t('vendorDetail.history.cancel') }}</button>
             </div>
             <div v-if="histories.length === 0 && !showHistoryForm" class="empty-state">
@@ -510,7 +514,7 @@
                     <span v-if="h.subject"> · {{ h.subject }}</span>
                   </span>
                   <div class="timeline-actions">
-                    <button class="action-btn action-btn--danger" @click="deleteHistory(h)">{{ t('vendorDetail.history.delete') }}</button>
+                    <button v-if="canWritePurchaseData" class="action-btn action-btn--danger" @click="deleteHistory(h)">{{ t('vendorDetail.history.delete') }}</button>
                   </div>
                 </div>
                 <div class="timeline-body">
@@ -717,11 +721,16 @@ import { VENDOR_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/vendorRecentHis
 import { favoriteApi } from '@/api/favorite';
 import { VENDOR_FAVORITES_CHANGED_EVENT } from '@/constants/vendorFavorites';
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask';
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly';
+import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBankOptions';
+import { vendorBankLabel } from '@/utils/vendorFinancePaymentBank';
 
 const route = useRoute();
 const router = useRouter();
 const { t, locale } = useI18n();
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask();
+const { canWritePurchaseData } = useDepartmentDataReadOnly();
+const { paymentBankOptions, loadPaymentBankOptions } = useFinancePaymentBankOptions();
 const vendorDict = useVendorDictStore();
 
 const vendorId = route.params.id as string;
@@ -1328,9 +1337,12 @@ const handleBankDialogConfirm = async (payload: any) => {
 
 const handleDeleteBank = async (row: VendorBankInfo) => {
   try {
+    const bankLabel = vendorBankLabel(row, paymentBankOptions.value)
     await ElMessageBox.confirm(
       t('vendorDetail.messages.deleteBankConfirm', {
-        name: row.bankName || row.bankAccount || row.accountName || '—'
+        name: bankLabel !== '--'
+          ? bankLabel
+          : row.bankAccount || row.accountName || '—'
       }),
       t('vendorDetail.messages.deleteBankTitle'),
       { type: 'warning' }
@@ -1355,6 +1367,7 @@ const handleSetDefaultBank = async (row: VendorBankInfo) => {
 
 onMounted(() => {
   void vendorDict.ensureLoaded();
+  void loadPaymentBankOptions();
   void fetchVendor();
   void fetchVendorTags();
 });

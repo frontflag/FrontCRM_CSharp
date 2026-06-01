@@ -11,10 +11,12 @@ public sealed class StockInListQuery : IStockInListQuery
     public const int MaxPageSize = 2000;
 
     private readonly ApplicationDbContext _db;
+    private readonly IDataPermissionService _dataPermission;
 
-    public StockInListQuery(ApplicationDbContext db)
+    public StockInListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
     {
         _db = db;
+        _dataPermission = dataPermission;
     }
 
     /// <inheritdoc />
@@ -145,6 +147,13 @@ public sealed class StockInListQuery : IStockInListQuery
                                         so.SellOrderCode.ToLower().Contains(k)))))));
             }
         }
+
+        var userId = request?.CurrentUserId;
+        q = await _dataPermission.ApplyLogisticsCreatorUserScopeAsync(
+            userId,
+            q,
+            s => s.CreateByUserId ?? s.CreatedBy,
+            cancellationToken);
 
         var total = await q.CountAsync(cancellationToken);
         var ids = await q

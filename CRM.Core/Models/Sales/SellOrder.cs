@@ -258,6 +258,16 @@ namespace CRM.Core.Models.Sales
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }
 
+        /// <summary>软删除时的登录用户 GUID（与 JWT 一致）。</summary>
+        [StringLength(36)]
+        [Column("deleted_by_user_id")]
+        public string? DeletedByUserId { get; set; }
+
+        /// <summary>软删除时的登录账号（冗余展示）。</summary>
+        [StringLength(100)]
+        [Column("deleted_by_user_name")]
+        public string? DeletedByUserName { get; set; }
+
         // 导航属性
         public virtual SellOrder? SellOrder { get; set; }
     }

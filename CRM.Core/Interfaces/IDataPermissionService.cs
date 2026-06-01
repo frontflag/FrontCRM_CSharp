@@ -107,6 +107,25 @@ namespace CRM.Core.Interfaces
             IQueryable<CustomerInfo> customers,
             CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// 物流数据范围：按单据创建人用户 Id 过滤（<c>LogisticsDataScope</c>；0 全部、4 无、1/2/3 与组织数据范围一致）。
+        /// 用于入库/出库/报关等带 <c>CreateByUserId</c> 的列表。
+        /// </summary>
+        Task<IQueryable<T>> ApplyLogisticsCreatorUserScopeAsync<T>(
+            string? userId,
+            IQueryable<T> query,
+            System.Linq.Expressions.Expression<Func<T, string?>> createByUserIdSelector,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 财务数据范围：按单据创建人用户 Id 过滤（<c>FinanceDataScope</c>；0 全部、4 无、1/2/3 与组织数据范围一致）。
+        /// </summary>
+        Task<IQueryable<T>> ApplyFinanceCreatorUserScopeAsync<T>(
+            string? userId,
+            IQueryable<T> query,
+            System.Linq.Expressions.Expression<Func<T, string?>> createByUserIdSelector,
+            CancellationToken cancellationToken = default);
+
         Task<bool> CanAccessCustomerAsync(string userId, CustomerInfo customer);
         Task<bool> CanAccessVendorAsync(string userId, VendorInfo vendor);
         Task<bool> CanAccessRFQAsync(string userId, RFQ rfq);

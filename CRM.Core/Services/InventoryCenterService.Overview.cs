@@ -394,4 +394,37 @@ public partial class InventoryCenterService
             .ThenBy(x => x.StockId, StringComparer.Ordinal)
             .ToList();
     }
+
+    /// <summary>与总览分页列表相同筛选（不分页），供财务统计面板。</summary>
+    private async Task<List<InventoryMaterialOverviewDto>> GetMaterialOverviewFilteredAsync(
+        string? warehouseId,
+        string? materialModel,
+        string? stockCode,
+        short? stockType,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var stocks = await _inventoryMaterialOverviewStockPageQuery.GetStocksMatchingFilterAsync(
+                warehouseId,
+                materialModel,
+                stockCode,
+                stockType,
+                cancellationToken);
+            if (stocks.Count == 0)
+                return new List<InventoryMaterialOverviewDto>();
+
+            var ledgers = (await _ledgerRepository.GetAllAsync()).ToList();
+            return await BuildMaterialOverviewDtosAsync(
+                stocks.ToList(),
+                ledgers,
+                materialModel,
+                stockCode,
+                applyMaterialStockCodePostFilter: false);
+        }
+        catch (Exception ex) when (IsTableMissingException(ex))
+        {
+            return new List<InventoryMaterialOverviewDto>();
+        }
+    }
 }

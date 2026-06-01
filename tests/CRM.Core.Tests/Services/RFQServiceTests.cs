@@ -135,7 +135,8 @@ namespace CRM.Core.Tests.Services
                 _rbacService,
                 _rfqMainListQuery,
                 _rfqItemListQuery,
-                NullLogger<RFQService>.Instance);
+                NullLogger<RFQService>.Instance,
+                Substitute.For<ILogOperationAppendService>());
         }
 
         private static CreateRFQRequest BuildValidCreateRequest(Action<CreateRFQRequest>? tweak = null)
@@ -278,7 +279,8 @@ namespace CRM.Core.Tests.Services
                 rbacSvc,
                 rfqMain,
                 rfqItem,
-                NullLogger<RFQService>.Instance);
+                NullLogger<RFQService>.Instance,
+                Substitute.For<ILogOperationAppendService>());
 
             var req = BuildValidCreateRequest(r =>
             {

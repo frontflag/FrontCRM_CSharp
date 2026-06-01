@@ -41,6 +41,8 @@ namespace CRM.Core.Services
         private readonly IPurchaseRequisitionService? _purchaseRequisitionService;
         private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
         private readonly IPurchaseOrderExtendLineSeqService _poLineSeq;
+        private readonly IUserService? _userService;
+        private readonly ILogOperationAppendService? _logOperationAppend;
         private readonly ILogger<PurchaseOrderService> _logger;
         private readonly IPurchaseOrderListQuery _purchaseOrderListQuery;
 
@@ -62,6 +64,8 @@ namespace CRM.Core.Services
             IPurchaseOrderItemExtendSyncService poItemExtendSync,
             IPurchaseOrderExtendLineSeqService poLineSeq,
             ILogger<PurchaseOrderService> logger,
+            IUserService? userService = null,
+            ILogOperationAppendService? logOperationAppend = null,
             IUnitOfWork? unitOfWork = null)
         {
             _poRepo = poRepo;
@@ -80,6 +84,8 @@ namespace CRM.Core.Services
             _purchaseRequisitionService = purchaseRequisitionService;
             _poItemExtendSync = poItemExtendSync;
             _poLineSeq = poLineSeq;
+            _userService = userService;
+            _logOperationAppend = logOperationAppend;
             _logger = logger;
             _unitOfWork = unitOfWork;
         }
@@ -119,7 +125,7 @@ namespace CRM.Core.Services
                 poItemExtendSync,
                 poLineSeq,
                 logger,
-                unitOfWork)
+                unitOfWork: unitOfWork)
         {
         }
 
@@ -372,7 +378,7 @@ namespace CRM.Core.Services
             var order = await _poRepo.GetByIdAsync(id);
             if (order == null) return null;
             var items = await _poItemRepo.FindAsync(i => i.PurchaseOrderId == id);
-            order.Items = items.ToList();
+            order.Items = items.Where(i => !i.IsDeleted).ToList();
             return order;
         }
 
@@ -457,6 +463,7 @@ namespace CRM.Core.Services
             var order = await _poRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"采购订单 {id} 不存在");
 
+            var headerBefore = CapturePurchaseOrderHeaderSnapshot(order);
             if (request.VendorName != null) order.VendorName = request.VendorName;
             if (request.PurchaseUserId != null) order.PurchaseUserId = request.PurchaseUserId;
             if (request.PurchaseUserName != null) order.PurchaseUserName = request.PurchaseUserName;
@@ -468,63 +475,28 @@ namespace CRM.Core.Services
             if (request.InnerComment != null) order.InnerComment = request.InnerComment;
 
             var replacedItemCount = 0;
-            List<PurchaseOrderItem>? newLines = null;
+            List<PurchaseOrderItem>? insertedLines = null;
+            List<PurchaseOrderItem>? updatedLines = null;
+            List<PurchaseOrderItem>? deletedLines = null;
             var recalcSellLineIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (request.Items != null && request.Items.Count > 0)
             {
-                var existing = await _poItemRepo.GetAllAsync();
-                foreach (var d in existing.Where(i => i.PurchaseOrderId == id))
-                {
-                    if (!string.IsNullOrWhiteSpace(d.SellOrderItemId))
-                        recalcSellLineIds.Add(d.SellOrderItemId.Trim());
-                    await _poItemExtendRepo.DeleteAsync(d.Id);
-                    await _poItemRepo.DeleteAsync(d.Id);
-                }
-
-                var fx = await _financeExchangeRateService.GetCurrentAsync();
-                var firstSeq = await _poLineSeq.ReserveNextSequenceBlockAsync(id, request.Items.Count);
-                var lineIndex = 0;
-                decimal total = 0m;
-                newLines = new List<PurchaseOrderItem>();
-                foreach (var item in request.Items)
-                {
-                    var seq = firstSeq + lineIndex++;
-                    var poItem = new PurchaseOrderItem
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        PurchaseOrderId = id,
-                        PurchaseOrderItemCode = OrderLineItemCodes.Purchase(order.PurchaseOrderCode, seq),
-                        SellOrderItemId = NormalizeStoredSellOrderItemId(item.SellOrderItemId),
-                        VendorId = !string.IsNullOrWhiteSpace(item.VendorId) ? item.VendorId.Trim() : order.VendorId,
-                        ProductId = item.ProductId,
-                        PN = item.PN,
-                        Brand = item.Brand,
-                        Qty = item.Qty,
-                        Cost = item.Cost,
-                        Currency = item.Currency,
-                    // PostgreSQL timestamptz 不接受 DateTimeKind=Unspecified，统一转 UTC
-                    DeliveryDate = PostgreSqlDateTime.ToUtc(item.DeliveryDate),
-                        Comment = item.Comment,
-                        InnerComment = item.InnerComment,
-                        Status = ShouldSyncOrderAndItemStatus(order.Status) ? order.Status : StatusNew,
-                        CreateTime = DateTime.UtcNow
-                    };
-                    poItem.ConvertPrice = ExchangeRateToUsdConverter.UnitLocalToUsd(
-                        poItem.Cost, poItem.Currency, fx.UsdToCny, fx.UsdToHkd, fx.UsdToEur);
-                    await _poItemRepo.AddAsync(poItem);
-                    newLines.Add(poItem);
-                    await AddPurchaseOrderItemExtendAsync(poItem);
-                    total += item.Qty * item.Cost;
-                    if (!string.IsNullOrWhiteSpace(poItem.SellOrderItemId))
-                        recalcSellLineIds.Add(poItem.SellOrderItemId.Trim());
-                }
-                var distinctNewLineCurrencies = newLines.Select(l => l.Currency).Distinct().ToList();
-                if (distinctNewLineCurrencies.Count == 1)
-                    order.Currency = distinctNewLineCurrencies[0];
-                order.Total = total;
-                order.ConvertTotal = total;
-                order.ItemRows = request.Items.Count;
-                replacedItemCount = request.Items.Count;
+                var sync = await SyncPurchaseOrderItemsOnUpdateAsync(order, id, request.Items, actingUserId, recalcSellLineIds);
+                insertedLines = sync.Inserted;
+                updatedLines = sync.Updated;
+                deletedLines = sync.Deleted;
+                var activeLines = request.Items.Count;
+                var distinctCurrencies = (insertedLines ?? new List<PurchaseOrderItem>())
+                    .Concat(updatedLines ?? new List<PurchaseOrderItem>())
+                    .Select(l => l.Currency)
+                    .Distinct()
+                    .ToList();
+                if (distinctCurrencies.Count == 1)
+                    order.Currency = distinctCurrencies[0];
+                order.Total = sync.Total;
+                order.ConvertTotal = sync.Total;
+                order.ItemRows = activeLines;
+                replacedItemCount = activeLines;
                 order.Type = ResolvePurchaseOrderHeaderType(request.Type ?? order.Type, request.Items);
             }
             else if (request.Type.HasValue)
@@ -541,17 +513,32 @@ namespace CRM.Core.Services
             await _poRepo.UpdateAsync(order);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
 
+            await LogPurchaseOrderHeaderChangesAsync(order, headerBefore, actingUserId);
+
+            if (deletedLines is { Count: > 0 })
+            {
+                await LogPurchaseOrderItemsDeletedAsync(
+                    order,
+                    deletedLines,
+                    actingUserId,
+                    OperationLogActionTypes.PurchaseOrderItemDelete,
+                    $"编辑采购订单 {order.PurchaseOrderCode} 时删除明细行");
+            }
+
             foreach (var sid in recalcSellLineIds)
                 await _sellOrderItemExtendSync.RecalculateAsync(sid);
             await RecalculatePurchaseRequisitionBySellLinesAsync(recalcSellLineIds);
 
-            if (newLines != null)
+            var touchedPoLines = new List<PurchaseOrderItem>();
+            if (insertedLines != null) touchedPoLines.AddRange(insertedLines);
+            if (updatedLines != null) touchedPoLines.AddRange(updatedLines);
+            if (touchedPoLines.Count > 0)
             {
-                foreach (var line in newLines)
+                foreach (var line in touchedPoLines)
                     await _poItemExtendSync.RecalculateAsync(line.Id);
             }
 
-            if (replacedItemCount > 0 && newLines != null)
+            if (replacedItemCount > 0 && insertedLines is { Count: > 0 })
             {
                 var t = DateTime.UtcNow;
                 await _orderJourneyLog.AppendAsync(new OrderJourneyLog
@@ -567,7 +554,7 @@ namespace CRM.Core.Services
                     ActorKind = OrderJourneyActorKinds.System,
                     Source = nameof(PurchaseOrderService)
                 });
-                foreach (var line in newLines)
+                foreach (var line in insertedLines)
                 {
                     var lineTotal = Math.Round(line.Qty * line.Cost, 2, MidpointRounding.AwayFromZero);
                     await _orderJourneyLog.AppendAsync(new OrderJourneyLog
@@ -594,11 +581,40 @@ namespace CRM.Core.Services
             return order;
         }
 
-        public async Task DeleteAsync(string id)
+        public async Task DeleteAsync(string id, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("ID不能为空");
             var po = await _poRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"采购订单 {id} 不存在");
+
+            var (actorId, actorName) = await ResolveActorAsync(actingUserId);
+            var itemsToDelete = (await _poItemRepo.GetAllAsync())
+                .Where(i => i.PurchaseOrderId == id)
+                .ToList();
+            var recalcAfterDelete = itemsToDelete
+                .Where(i => IsLinkedSellOrderPurchaseLine(i.SellOrderItemId))
+                .Select(i => i.SellOrderItemId!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var item in itemsToDelete)
+            {
+                item.IsDeleted = true;
+                item.ModifyTime = DateTime.UtcNow;
+                item.DeletedByUserId = actorId;
+                item.DeletedByUserName = actorName;
+                await _poItemRepo.UpdateAsync(item);
+                await _poItemExtendRepo.DeleteAsync(item.Id);
+            }
+
+            await SoftDeletePurchaseOrderExtendAsync(id);
+
+            po.IsDeleted = true;
+            po.ModifyTime = DateTime.UtcNow;
+            po.ModifyByUserId = NormalizeActingUserId(actingUserId);
+            await _poRepo.UpdateAsync(po);
+            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
             await _orderJourneyLog.AppendAsync(new OrderJourneyLog
             {
                 EntityKind = OrderJourneyEntityKinds.PurchaseOrder,
@@ -609,19 +625,9 @@ namespace CRM.Core.Services
                 ActorKind = OrderJourneyActorKinds.System,
                 Source = nameof(PurchaseOrderService)
             });
-            var items = await _poItemRepo.GetAllAsync();
-            var recalcAfterDelete = items
-                .Where(i => i.PurchaseOrderId == id && IsLinkedSellOrderPurchaseLine(i.SellOrderItemId))
-                .Select(i => i.SellOrderItemId!.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            foreach (var item in items.Where(i => i.PurchaseOrderId == id))
-            {
-                await _poItemExtendRepo.DeleteAsync(item.Id);
-                await _poItemRepo.DeleteAsync(item.Id);
-            }
-            await _poRepo.DeleteAsync(id);
-            if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            await LogPurchaseOrderWholeDeleteOperationLogsAsync(po, itemsToDelete, actingUserId);
+
             foreach (var sid in recalcAfterDelete)
                 await _sellOrderItemExtendSync.RecalculateAsync(sid);
             await RecalculatePurchaseRequisitionBySellLinesAsync(recalcAfterDelete);
@@ -778,6 +784,7 @@ namespace CRM.Core.Services
                 ?? throw new InvalidOperationException($"采购订单 {id} 不存在");
 
             var fromStatus = order.Status;
+            var statusBefore = order.Status;
             ValidateStatusTransition(order.Status, status);
             order.Status = status;
             order.ModifyTime = DateTime.UtcNow;
@@ -796,6 +803,17 @@ namespace CRM.Core.Services
             }
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            if (statusBefore != status)
+            {
+                await AddPurchaseOrderFieldChangeLogAsync(
+                    order,
+                    "status",
+                    "订单状态",
+                    FormatPurchaseOrderStatus(statusBefore),
+                    FormatPurchaseOrderStatus(status),
+                    actingUserId);
+            }
 
             string? remark = null;
             if (status == StatusConfirmed)
@@ -921,6 +939,406 @@ namespace CRM.Core.Services
             public decimal QtyStockInNotifyNot { get; set; }
             public decimal QtyStockInNotifyExpectSum { get; set; }
         }
+
+        public async Task<IReadOnlyList<PurchaseOrderFieldChangeLogDto>> GetFieldChangeLogsAsync(string purchaseOrderId)
+        {
+            if (_unitOfWork == null || string.IsNullOrWhiteSpace(purchaseOrderId))
+                return Array.Empty<PurchaseOrderFieldChangeLogDto>();
+            var safe = SqlQ(purchaseOrderId.Trim());
+            var sql = $@"
+SELECT c.""Id"",
+       c.""RecordId"" AS ""PurchaseOrderId"",
+       c.""RecordCode"" AS ""PurchaseOrderCode"",
+       c.""FieldName"",
+       c.""FieldLabel"",
+       c.""OldValue"",
+       c.""NewValue"",
+       c.""ChangedByUserId"",
+       c.""ChangedByUserName"",
+       c.""ChangedAt""
+FROM log_change_fldval c
+WHERE c.""BizType"" = '{BusinessLogTypes.PurchaseOrder}' AND c.""RecordId"" = '{safe}'
+ORDER BY c.""ChangedAt"" DESC";
+            var rows = await _unitOfWork.QueryAsync<PurchaseOrderFieldChangeLogDto>(sql);
+            return rows.ToList();
+        }
+
+        public async Task<IReadOnlyList<PurchaseOrderDeletedItemLogDto>> GetDeletedOrderItemsAsync(string purchaseOrderId)
+        {
+            if (_unitOfWork == null || string.IsNullOrWhiteSpace(purchaseOrderId))
+                return Array.Empty<PurchaseOrderDeletedItemLogDto>();
+            var safe = SqlQ(purchaseOrderId.Trim());
+            var itemBiz = BusinessLogTypes.PurchaseOrderItem;
+            var sql = $@"
+SELECT i.""PurchaseOrderItemId"",
+       i.purchase_order_item_code AS ""PurchaseOrderItemCode"",
+       i.pn AS ""PN"",
+       i.brand AS ""Brand"",
+       i.qty AS ""Qty"",
+       i.cost AS ""Cost"",
+       i.currency AS ""Currency"",
+       i.comment AS ""Comment"",
+       i.""CreateTime"",
+       i.""ModifyTime"" AS ""DeletedAt"",
+       COALESCE(
+         NULLIF(TRIM(i.deleted_by_user_name), ''),
+         NULLIF(TRIM(del_op.""OperatorUserName""), ''),
+         NULLIF(TRIM(chg_near.""ChangedByUserName""), ''),
+         NULLIF(TRIM(u.""UserName""), '')
+       ) AS ""DeletedByUserName"",
+       COALESCE(NULLIF(TRIM(i.deleted_by_user_id), ''), del_op.""OperatorUserId"") AS ""DeletedByUserId""
+FROM purchaseorderitem i
+INNER JOIN purchaseorder po ON po.""PurchaseOrderId"" = i.purchase_order_id
+LEFT JOIN ""user"" u ON u.""UserId"" = po.modify_by_user_id
+    AND po.""ModifyTime"" IS NOT NULL
+    AND i.""ModifyTime"" IS NOT NULL
+    AND ABS(EXTRACT(EPOCH FROM (i.""ModifyTime"" - po.""ModifyTime""))) <= 120
+LEFT JOIN LATERAL (
+    SELECT o.""OperatorUserId"", o.""OperatorUserName""
+    FROM log_operation o
+    WHERE o.""BizType"" = '{itemBiz}'
+      AND o.""RecordId"" = i.""PurchaseOrderItemId""
+      AND o.""ActionType"" IN ('{OperationLogActionTypes.PurchaseOrderItemDelete}', '{OperationLogActionTypes.PurchaseOrderItemDeleteWithOrder}')
+    ORDER BY o.""OperationTime"" DESC
+    LIMIT 1
+) del_op ON true
+LEFT JOIN LATERAL (
+    SELECT c.""ChangedByUserName""
+    FROM log_change_fldval c
+    WHERE c.""BizType"" = '{BusinessLogTypes.PurchaseOrder}'
+      AND c.""RecordId"" = po.""PurchaseOrderId""
+      AND c.""ChangedByUserName"" IS NOT NULL
+      AND TRIM(c.""ChangedByUserName"") <> ''
+      AND c.""ChangedAt"" BETWEEN i.""ModifyTime"" - INTERVAL '30 minutes' AND i.""ModifyTime"" + INTERVAL '30 minutes'
+    ORDER BY ABS(EXTRACT(EPOCH FROM (c.""ChangedAt"" - i.""ModifyTime"")))
+    LIMIT 1
+) chg_near ON true
+WHERE i.purchase_order_id = '{safe}' AND i.is_deleted = true
+ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
+            var rows = await _unitOfWork.QueryAsync<PurchaseOrderDeletedItemLogDto>(sql);
+            return rows.ToList();
+        }
+
+        private static string SqlQ(string? s) => (s ?? "").Replace("'", "''", StringComparison.Ordinal);
+
+        private sealed record PurchaseOrderHeaderSnapshot(
+            string? VendorName,
+            string? PurchaseUserName,
+            string? Assistor,
+            short Currency,
+            DateTime? DeliveryDate,
+            string? DeliveryAddress,
+            string? Comment,
+            string? InnerComment);
+
+        private static PurchaseOrderHeaderSnapshot CapturePurchaseOrderHeaderSnapshot(PurchaseOrder order) =>
+            new(
+                order.VendorName,
+                order.PurchaseUserName,
+                order.Assistor,
+                order.Currency,
+                order.DeliveryDate,
+                order.DeliveryAddress,
+                order.Comment,
+                order.InnerComment);
+
+        private async Task LogPurchaseOrderHeaderChangesAsync(
+            PurchaseOrder order,
+            PurchaseOrderHeaderSnapshot before,
+            string? actingUserId)
+        {
+            var after = CapturePurchaseOrderHeaderSnapshot(order);
+            await CompareAndLogPoHeaderFieldAsync(order, before.VendorName, after.VendorName, "vendorName", "供应商", actingUserId);
+            await CompareAndLogPoHeaderFieldAsync(order, before.PurchaseUserName, after.PurchaseUserName, "purchaseUserName", "采购员", actingUserId);
+            await CompareAndLogPoAssistorFieldAsync(order, before.Assistor, after.Assistor, actingUserId);
+            await CompareAndLogPoHeaderFieldAsync(order, FormatCurrency(before.Currency), FormatCurrency(after.Currency), "currency", "币别", actingUserId);
+            await CompareAndLogPoHeaderFieldAsync(order, FormatDate(before.DeliveryDate), FormatDate(after.DeliveryDate), "deliveryDate", "交期", actingUserId);
+            await CompareAndLogPoHeaderFieldAsync(order, before.DeliveryAddress, after.DeliveryAddress, "deliveryAddress", "送货地址", actingUserId);
+            await CompareAndLogPoHeaderFieldAsync(order, before.Comment, after.Comment, "comment", "备注", actingUserId);
+            await CompareAndLogPoHeaderFieldAsync(order, before.InnerComment, after.InnerComment, "innerComment", "内部备注", actingUserId);
+        }
+
+        private async Task CompareAndLogPoHeaderFieldAsync(
+            PurchaseOrder order,
+            string? oldVal,
+            string? newVal,
+            string fieldName,
+            string fieldLabel,
+            string? actingUserId)
+        {
+            var o = string.IsNullOrWhiteSpace(oldVal) ? null : oldVal.Trim();
+            var n = string.IsNullOrWhiteSpace(newVal) ? null : newVal.Trim();
+            if (string.Equals(o, n, StringComparison.Ordinal))
+                return;
+            await AddPurchaseOrderFieldChangeLogAsync(order, fieldName, fieldLabel, o, n, actingUserId);
+        }
+
+        private async Task CompareAndLogPoAssistorFieldAsync(
+            PurchaseOrder order,
+            string? oldId,
+            string? newId,
+            string? actingUserId)
+        {
+            var o = await ResolveUserDisplayNameAsync(oldId);
+            var n = await ResolveUserDisplayNameAsync(newId);
+            if (string.Equals(o, n, StringComparison.Ordinal))
+                return;
+            await AddPurchaseOrderFieldChangeLogAsync(order, "assistor", "采购助理", o, n, actingUserId);
+        }
+
+        private async Task<string?> ResolveUserDisplayNameAsync(string? userId)
+        {
+            var id = NormalizeActingUserId(userId);
+            if (string.IsNullOrEmpty(id) || _userService == null)
+                return string.IsNullOrWhiteSpace(userId) ? null : userId.Trim();
+            var user = await _userService.GetByIdAsync(id);
+            return string.IsNullOrWhiteSpace(user?.UserName) ? id : user!.UserName!.Trim();
+        }
+
+        private async Task AddPurchaseOrderFieldChangeLogAsync(
+            PurchaseOrder order,
+            string fieldName,
+            string fieldLabel,
+            string? oldValue,
+            string? newValue,
+            string? actingUserId)
+        {
+            if (_unitOfWork == null) return;
+            var (userId, userName) = await ResolveActorAsync(actingUserId);
+            var recordCodeSql = string.IsNullOrWhiteSpace(order.PurchaseOrderCode) ? "NULL" : $"'{SqlQ(order.PurchaseOrderCode)}'";
+            var safeRecordId = SqlQ(order.Id);
+            var safeField = SqlQ(fieldName);
+            var safeLabel = SqlQ(fieldLabel);
+            var oldSql = oldValue == null ? "NULL" : $"'{SqlQ(oldValue)}'";
+            var newSql = newValue == null ? "NULL" : $"'{SqlQ(newValue)}'";
+            var userIdSql = string.IsNullOrWhiteSpace(userId) ? "NULL" : $"'{SqlQ(userId)}'";
+            var sql = $@"
+INSERT INTO log_change_fldval (""Id"", ""BizType"", ""RecordId"", ""RecordCode"", ""FieldName"", ""FieldLabel"", ""OldValue"", ""NewValue"", ""ChangedAt"", ""ChangedByUserId"", ""ChangedByUserName"", ""ExtraInfo"", ""SysRemark"")
+VALUES (gen_random_uuid()::text, '{BusinessLogTypes.PurchaseOrder}', '{safeRecordId}', {recordCodeSql}, '{safeField}', '{safeLabel}', {oldSql}, {newSql}, NOW(), {userIdSql}, '{SqlQ(userName)}', NULL, NULL)";
+            await _unitOfWork.ExecuteAsync(sql);
+        }
+
+        private sealed record PurchaseOrderItemSyncResult(
+            List<PurchaseOrderItem> Inserted,
+            List<PurchaseOrderItem> Updated,
+            List<PurchaseOrderItem> Deleted,
+            decimal Total);
+
+        private async Task<PurchaseOrderItemSyncResult> SyncPurchaseOrderItemsOnUpdateAsync(
+            PurchaseOrder order,
+            string purchaseOrderId,
+            List<CreatePurchaseOrderItemRequest> requestItems,
+            string? actingUserId,
+            HashSet<string> recalcSellLineIds)
+        {
+            var existingActive = (await _poItemRepo.FindAsync(i => i.PurchaseOrderId == purchaseOrderId))
+                .Where(i => !i.IsDeleted)
+                .ToDictionary(i => i.Id, StringComparer.OrdinalIgnoreCase);
+
+            var fx = await _financeExchangeRateService.GetCurrentAsync();
+            var inserted = new List<PurchaseOrderItem>();
+            var updated = new List<PurchaseOrderItem>();
+            var keptIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            decimal total = 0m;
+            var newItemRequests = new List<CreatePurchaseOrderItemRequest>();
+
+            foreach (var itemReq in requestItems)
+            {
+                var reqId = itemReq.PurchaseOrderItemId?.Trim();
+                if (!string.IsNullOrEmpty(reqId))
+                {
+                    if (!existingActive.TryGetValue(reqId, out var existing))
+                        throw new InvalidOperationException($"采购订单明细 {reqId} 不存在或已删除");
+
+                    keptIds.Add(reqId);
+                    var prevSell = existing.SellOrderItemId;
+                    ApplyPurchaseOrderItemFromRequest(existing, itemReq, order, fx);
+                    existing.ModifyTime = DateTime.UtcNow;
+                    await _poItemRepo.UpdateAsync(existing);
+                    updated.Add(existing);
+                    total += existing.Qty * existing.Cost;
+                    TrackSellLineForRecalc(recalcSellLineIds, existing.SellOrderItemId);
+                    if (!string.Equals(prevSell, existing.SellOrderItemId, StringComparison.OrdinalIgnoreCase))
+                        TrackSellLineForRecalc(recalcSellLineIds, prevSell);
+                }
+                else
+                {
+                    newItemRequests.Add(itemReq);
+                }
+            }
+
+            if (newItemRequests.Count > 0)
+            {
+                var firstSeq = await _poLineSeq.ReserveNextSequenceBlockAsync(purchaseOrderId, newItemRequests.Count);
+                var lineIndex = 0;
+                foreach (var item in newItemRequests)
+                {
+                    var seq = firstSeq + lineIndex++;
+                    var poItem = new PurchaseOrderItem
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        PurchaseOrderId = purchaseOrderId,
+                        PurchaseOrderItemCode = OrderLineItemCodes.Purchase(order.PurchaseOrderCode, seq),
+                        Status = ShouldSyncOrderAndItemStatus(order.Status) ? order.Status : StatusNew,
+                        CreateTime = DateTime.UtcNow
+                    };
+                    ApplyPurchaseOrderItemFromRequest(poItem, item, order, fx);
+                    await _poItemRepo.AddAsync(poItem);
+                    inserted.Add(poItem);
+                    await AddPurchaseOrderItemExtendAsync(poItem);
+                    total += poItem.Qty * poItem.Cost;
+                    TrackSellLineForRecalc(recalcSellLineIds, poItem.SellOrderItemId);
+                }
+            }
+
+            var deleted = new List<PurchaseOrderItem>();
+            var (deleteActorId, deleteActorName) = await ResolveActorAsync(actingUserId);
+            foreach (var existing in existingActive.Values)
+            {
+                if (keptIds.Contains(existing.Id))
+                    continue;
+
+                TrackSellLineForRecalc(recalcSellLineIds, existing.SellOrderItemId);
+                existing.IsDeleted = true;
+                existing.ModifyTime = DateTime.UtcNow;
+                existing.DeletedByUserId = deleteActorId;
+                existing.DeletedByUserName = deleteActorName;
+                await _poItemRepo.UpdateAsync(existing);
+                await _poItemExtendRepo.DeleteAsync(existing.Id);
+                deleted.Add(existing);
+            }
+
+            return new PurchaseOrderItemSyncResult(inserted, updated, deleted, total);
+        }
+
+        private static void TrackSellLineForRecalc(HashSet<string> recalcSellLineIds, string? sellOrderItemId)
+        {
+            if (!string.IsNullOrWhiteSpace(sellOrderItemId))
+                recalcSellLineIds.Add(sellOrderItemId.Trim());
+        }
+
+        private static void ApplyPurchaseOrderItemFromRequest(
+            PurchaseOrderItem target,
+            CreatePurchaseOrderItemRequest item,
+            PurchaseOrder order,
+            FinanceExchangeRateDto fx)
+        {
+            target.SellOrderItemId = NormalizeStoredSellOrderItemId(item.SellOrderItemId);
+            target.VendorId = !string.IsNullOrWhiteSpace(item.VendorId) ? item.VendorId.Trim() : order.VendorId;
+            target.ProductId = item.ProductId;
+            target.PN = item.PN;
+            target.Brand = item.Brand;
+            target.Qty = item.Qty;
+            target.Cost = item.Cost;
+            target.Currency = item.Currency;
+            target.DeliveryDate = PostgreSqlDateTime.ToUtc(item.DeliveryDate);
+            target.Comment = item.Comment;
+            target.InnerComment = item.InnerComment;
+            target.ConvertPrice = ExchangeRateToUsdConverter.UnitLocalToUsd(
+                target.Cost, target.Currency, fx.UsdToCny, fx.UsdToHkd, fx.UsdToEur);
+        }
+
+        private async Task LogPurchaseOrderItemsDeletedAsync(
+            PurchaseOrder order,
+            IReadOnlyList<PurchaseOrderItem> deletedLines,
+            string? actingUserId,
+            string actionType,
+            string descriptionPrefix)
+        {
+            if (_logOperationAppend == null) return;
+            var (actorId, actorName) = await ResolveActorAsync(actingUserId);
+            foreach (var d in deletedLines)
+            {
+                await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+                {
+                    BizType = BusinessLogTypes.PurchaseOrderItem,
+                    RecordId = d.Id,
+                    RecordCode = d.PurchaseOrderItemCode,
+                    ActionTypeOverride = actionType,
+                    OperatorUserId = actorId,
+                    OperatorUserName = actorName,
+                    OperationDescOverride = $"{descriptionPrefix} {d.PurchaseOrderItemCode}"
+                });
+            }
+        }
+
+        private async Task LogPurchaseOrderWholeDeleteOperationLogsAsync(
+            PurchaseOrder order,
+            IReadOnlyList<PurchaseOrderItem> deletedItems,
+            string? actingUserId)
+        {
+            if (_logOperationAppend == null) return;
+            var (actorId, actorName) = await ResolveActorAsync(actingUserId);
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = BusinessLogTypes.PurchaseOrder,
+                RecordId = order.Id,
+                RecordCode = order.PurchaseOrderCode,
+                ActionTypeOverride = OperationLogActionTypes.PurchaseOrderDelete,
+                OperatorUserId = actorId,
+                OperatorUserName = actorName,
+                OperationDescOverride =
+                    $"整单删除采购订单 {order.PurchaseOrderCode}，共 {deletedItems.Count} 条明细"
+            });
+
+            if (deletedItems.Count > 0)
+            {
+                await LogPurchaseOrderItemsDeletedAsync(
+                    order,
+                    deletedItems,
+                    actingUserId,
+                    OperationLogActionTypes.PurchaseOrderItemDeleteWithOrder,
+                    $"整单删除采购订单 {order.PurchaseOrderCode} 时删除明细行");
+            }
+        }
+
+        private async Task SoftDeletePurchaseOrderExtendAsync(string purchaseOrderId)
+        {
+            if (string.IsNullOrWhiteSpace(purchaseOrderId) || _unitOfWork == null)
+                return;
+            var safeId = purchaseOrderId.Trim().Replace("'", "''", StringComparison.Ordinal);
+            await _unitOfWork.ExecuteAsync(
+                $@"UPDATE purchaseorderextend SET is_deleted = true, ""ModifyTime"" = NOW() WHERE ""PurchaseOrderId"" = '{safeId}' AND is_deleted = false");
+        }
+
+        private async Task<(string? UserId, string UserName)> ResolveActorAsync(string? actingUserId)
+        {
+            var id = NormalizeActingUserId(actingUserId);
+            if (string.IsNullOrEmpty(id))
+                return (null, "系统");
+            if (_userService == null)
+                return (id, id);
+            var user = await _userService.GetByIdAsync(id);
+            return (id, string.IsNullOrWhiteSpace(user?.UserName) ? id : user!.UserName!.Trim());
+        }
+
+        private static string FormatPurchaseOrderStatus(short status) => status switch
+        {
+            1 => "新建",
+            2 => "待审核",
+            10 => "审核通过",
+            20 => "待确认",
+            30 => "已确认",
+            50 => "进行中",
+            100 => "采购完成",
+            -1 => "审核失败",
+            -2 => "取消",
+            _ => status.ToString()
+        };
+
+        private static string FormatCurrency(short currency) => currency switch
+        {
+            1 => "RMB",
+            2 => "USD",
+            3 => "EUR",
+            4 => "HKD",
+            5 => "JPY",
+            6 => "GBP",
+            _ => currency.ToString()
+        };
+
+        private static string? FormatDate(DateTime? dt) =>
+            dt.HasValue ? dt.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) : null;
 
         private static void ValidateStatusTransition(short current, short target)
         {

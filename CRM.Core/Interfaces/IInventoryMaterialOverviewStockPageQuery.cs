@@ -18,4 +18,12 @@ public interface IInventoryMaterialOverviewStockPageQuery
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);
+
+    /// <summary>与 <see cref="GetStockPageAsync"/> 相同筛选，不分页（供财务汇总统计）。</summary>
+    Task<IReadOnlyList<StockInfo>> GetStocksMatchingFilterAsync(
+        string? warehouseId,
+        string? materialModel,
+        string? stockCode,
+        short? stockType,
+        CancellationToken cancellationToken = default);
 }

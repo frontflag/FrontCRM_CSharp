@@ -27,8 +27,16 @@ namespace CRM.Core.Models.Vendor
         public string VendorId { get; set; } = string.Empty;
 
         /// <summary>
-        /// 银行名称
+        /// 财务参数-付款银行主键（financepaymentbank）；业务下拉存 Id，<see cref="BankName"/> 冗余展示名。
         /// </summary>
+        [StringLength(36)]
+        [Column("FinancePaymentBankId")]
+        public string? FinancePaymentBankId { get; set; }
+
+        /// <summary>
+        /// 银行名称（仅服务端根据 <see cref="FinancePaymentBankId"/> 从 financepaymentbank 回填的展示冗余，勿作为业务入参）。
+        /// </summary>
+        [Obsolete("请使用 FinancePaymentBankId；BankName 仅由服务端按付款银行主数据同步。")]
         [StringLength(100)]
         public string? BankName { get; set; }
 

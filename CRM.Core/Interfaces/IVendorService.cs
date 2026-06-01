@@ -279,7 +279,8 @@ namespace CRM.Core.Interfaces
     /// </summary>
     public class AddVendorBankRequest
     {
-        public string? BankName { get; set; }
+        /// <summary>财务参数-付款银行主键（financepaymentbank.FinancePaymentBankId）。</summary>
+        public string? FinancePaymentBankId { get; set; }
         public string? BankAccount { get; set; }
         public string? AccountName { get; set; }
         public string? BankBranch { get; set; }
@@ -293,7 +294,7 @@ namespace CRM.Core.Interfaces
     /// </summary>
     public class UpdateVendorBankRequest
     {
-        public string? BankName { get; set; }
+        public string? FinancePaymentBankId { get; set; }
         public string? BankAccount { get; set; }
         public string? AccountName { get; set; }
         public string? BankBranch { get; set; }

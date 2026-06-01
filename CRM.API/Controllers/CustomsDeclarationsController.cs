@@ -1,4 +1,5 @@
 using CRM.API.Models.DTOs;
+using CRM.API.Utilities;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customs;
 using CRM.Infrastructure.Data;
@@ -14,17 +15,20 @@ public class CustomsDeclarationsController : ControllerBase
 {
     private readonly ICustomsDeclarationService _service;
     private readonly IRbacService _rbacService;
+    private readonly IDataPermissionService _dataPermissionService;
     private readonly ApplicationDbContext _db;
     private readonly ILogger<CustomsDeclarationsController> _logger;
 
     public CustomsDeclarationsController(
         ICustomsDeclarationService service,
         IRbacService rbacService,
+        IDataPermissionService dataPermissionService,
         ApplicationDbContext db,
         ILogger<CustomsDeclarationsController> logger)
     {
         _service = service;
         _rbacService = rbacService;
+        _dataPermissionService = dataPermissionService;
         _db = db;
         _logger = logger;
     }
@@ -52,6 +56,13 @@ public class CustomsDeclarationsController : ControllerBase
             var sorQ = (stockOutRequestId ?? string.Empty).Trim();
 
             var dq = _db.CustomsDeclarations.AsNoTracking();
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            dq = await _dataPermissionService.ApplyLogisticsCreatorUserScopeAsync(
+                userId,
+                dq,
+                d => d.CreateByUserId,
+                CancellationToken.None);
+
             if (!string.IsNullOrEmpty(codeQ))
                 dq = dq.Where(d => EF.Functions.ILike(d.DeclarationCode, $"%{codeQ}%"));
             if (!string.IsNullOrEmpty(sorQ))
@@ -147,6 +158,8 @@ public class CustomsDeclarationsController : ControllerBase
     {
         try
         {
+            if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
             var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
             await _service.SetCustomsClearanceStatusAsync(id, body.CustomsClearanceStatus, uid);
             return Ok(ApiResponse<object>.Ok(null, "已更新海关状态"));
@@ -167,6 +180,8 @@ public class CustomsDeclarationsController : ControllerBase
     {
         try
         {
+            if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
             var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
             await _service.CompleteDeclarationAndTransferAsync(id, uid);
             return Ok(ApiResponse<object>.Ok(null, "报关完成并已移库"));
@@ -187,6 +202,8 @@ public class CustomsDeclarationsController : ControllerBase
     {
         try
         {
+            if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
             await _service.DeleteDeclarationAsync(id);
             return Ok(ApiResponse<object>.Ok(null, "删除报关单成功"));
         }

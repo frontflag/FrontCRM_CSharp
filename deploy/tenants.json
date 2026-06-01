@@ -1,0 +1,32 @@
+{
+  "semicore": {
+    "displayName": "Semicore",
+    "buildMode": "production.semicore",
+    "serverIP": "129.226.161.3",
+    "sshPort": 22,
+    "serverUser": "ubuntu",
+    "remoteDeployPath": "/home/ubuntu/frontcrm",
+    "nonDockerFrontendRoot": "/opt/frontcrm/frontend",
+    "nonDockerBackendRoot": "/opt/frontcrm/backend"
+  },
+  "idesemi": {
+    "displayName": "IDESemi",
+    "buildMode": "production.idesemi",
+    "serverIP": "43.154.198.15",
+    "sshPort": 22,
+    "serverUser": "ubuntu",
+    "remoteDeployPath": "/home/ubuntu/frontcrm",
+    "nonDockerFrontendRoot": "/opt/frontcrm/frontend",
+    "nonDockerBackendRoot": "/opt/frontcrm/backend"
+  },
+  "fz": {
+    "displayName": "FZ",
+    "buildMode": "production.semicore",
+    "serverIP": "43.129.212.65",
+    "sshPort": 22,
+    "serverUser": "ubuntu",
+    "remoteDeployPath": "/home/ubuntu/frontcrm",
+    "nonDockerFrontendRoot": "/opt/frontcrm/frontend",
+    "nonDockerBackendRoot": "/opt/frontcrm/backend"
+  }
+}

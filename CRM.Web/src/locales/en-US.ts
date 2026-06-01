@@ -620,6 +620,8 @@ const enUS = {
       level: 'Level',
       saleDataScope: 'Sales Data Scope',
       purchaseDataScope: 'Purchase Data Scope',
+      logisticsDataScope: 'Logistics Data Scope',
+      financeDataScope: 'Finance Data Scope',
       identityType: 'Business Identity',
       actions: 'Actions'
     },
@@ -629,6 +631,10 @@ const enUS = {
       department: 'Department',
       departmentAndChildren: 'Department and Children',
       forbidden: 'Forbidden'
+    },
+    access: {
+      readWrite: 'Read-write',
+      readOnly: 'Read-only'
     },
     identity: {
       none: 'None',
@@ -3787,7 +3793,17 @@ const enUS = {
     },
     ready: {
       title: 'Stock ready',
-      message: 'Confirm that the stock-ready check is complete for this packing list?',
+      checkIntro: 'Before marking stock ready, verify each item below:',
+      checkItemGoods: 'Goods match inbound: PN, QTY, DC, pin condition (oxidation/deformation)',
+      checkItemPackaging:
+        'Packaging meets shipping requirements: vacuum/ESD bag, padding, cleanliness, reinforcement',
+      checkItemLabel:
+        'Shipping labels match requirements: custom/standard labels and label content are correct',
+      checkItemDocuments:
+        'Accompanying documents match requirements: quality, packing list, booking documents',
+      checkItemCourier:
+        'Courier waybill matches requirements: waybill details are correct and match the shipment',
+      message: 'Mark this packing list as「Ready」only after all checks above are complete.',
       success: 'Packing list marked as stock ready',
       failed: 'Failed to mark stock ready',
       notPickedStatus: 'Only packing lists in「Picked」status can be marked stock ready'

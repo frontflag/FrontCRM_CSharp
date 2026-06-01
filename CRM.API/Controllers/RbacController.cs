@@ -122,7 +122,21 @@ namespace CRM.API.Controllers
             public string DepartmentName { get; set; } = string.Empty;
             public string? ParentId { get; set; }
             public short SaleDataScope { get; set; }
+            /// <summary>0=读写,1=只读</summary>
+            public short SaleDataAccess { get; set; }
+            /// <summary>隐藏客户管理菜单并拦截客户模块路由</summary>
+            public bool HideCustomerManagement { get; set; }
             public short PurchaseDataScope { get; set; }
+            /// <summary>0=读写,1=只读</summary>
+            public short PurchaseDataAccess { get; set; }
+            /// <summary>隐藏供应商管理菜单并拦截供应商模块路由</summary>
+            public bool HideVendorManagement { get; set; }
+            public short LogisticsDataScope { get; set; }
+            /// <summary>0=读写,1=只读</summary>
+            public short LogisticsDataAccess { get; set; }
+            public short FinanceDataScope { get; set; }
+            /// <summary>0=读写,1=只读</summary>
+            public short FinanceDataAccess { get; set; }
             public short IdentityType { get; set; }
             public short Status { get; set; } = 1;
         }
@@ -141,7 +155,15 @@ namespace CRM.API.Controllers
                     request.DepartmentName.Trim(),
                     request.ParentId,
                     request.SaleDataScope,
+                    request.SaleDataAccess,
+                    request.HideCustomerManagement,
                     request.PurchaseDataScope,
+                    request.PurchaseDataAccess,
+                    request.HideVendorManagement,
+                    request.LogisticsDataScope,
+                    request.LogisticsDataAccess,
+                    request.FinanceDataScope,
+                    request.FinanceDataAccess,
                     request.IdentityType,
                     request.Status);
 
@@ -181,7 +203,15 @@ namespace CRM.API.Controllers
                     request.DepartmentName.Trim(),
                     request.ParentId,
                     request.SaleDataScope,
+                    request.SaleDataAccess,
+                    request.HideCustomerManagement,
                     request.PurchaseDataScope,
+                    request.PurchaseDataAccess,
+                    request.HideVendorManagement,
+                    request.LogisticsDataScope,
+                    request.LogisticsDataAccess,
+                    request.FinanceDataScope,
+                    request.FinanceDataAccess,
                     request.IdentityType,
                     request.Status);
 

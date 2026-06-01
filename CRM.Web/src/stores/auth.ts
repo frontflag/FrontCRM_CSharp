@@ -20,7 +20,21 @@ interface User {
   // 来自后端 `permission-summary`：用于菜单/功能展示的“部门数据隔离”维度判断
   identityType?: number
   saleDataScope?: number
+  /** 0=读写 1=只读（主部门） */
+  saleDataAccess?: number
+  /** 主部门隐藏客户管理（与 saleDataScope 独立） */
+  hideCustomerManagement?: boolean
   purchaseDataScope?: number
+  /** 0=读写 1=只读（主部门） */
+  purchaseDataAccess?: number
+  /** 主部门隐藏供应商管理（与 purchaseDataScope 独立） */
+  hideVendorManagement?: boolean
+  logisticsDataScope?: number
+  /** 0=读写 1=只读（主部门物流） */
+  logisticsDataAccess?: number
+  financeDataScope?: number
+  /** 0=读写 1=只读（主部门财务） */
+  financeDataAccess?: number
   /** 与后端 RBAC 一致：采购侧部门员工（含名称兜底） */
   belongsToPurchaseDept?: boolean
 }
@@ -110,7 +124,15 @@ export const useAuthStore = defineStore('auth', () => {
         departmentIds: summary?.departmentIds || [],
         identityType: Number(summary?.identityType ?? 0),
         saleDataScope: Number(summary?.saleDataScope ?? 1),
+        saleDataAccess: Number(summary?.saleDataAccess ?? 0),
+        hideCustomerManagement: !!summary?.hideCustomerManagement,
         purchaseDataScope: Number(summary?.purchaseDataScope ?? 1),
+        purchaseDataAccess: Number(summary?.purchaseDataAccess ?? 0),
+        hideVendorManagement: !!summary?.hideVendorManagement,
+        logisticsDataScope: Number(summary?.logisticsDataScope ?? 0),
+        logisticsDataAccess: Number(summary?.logisticsDataAccess ?? 0),
+        financeDataScope: Number(summary?.financeDataScope ?? 0),
+        financeDataAccess: Number(summary?.financeDataAccess ?? 0),
         belongsToPurchaseDept: !!summary?.belongsToPurchaseDept
       }
     } else {
@@ -180,7 +202,15 @@ export const useAuthStore = defineStore('auth', () => {
           departmentIds: summary?.departmentIds || [],
           identityType: Number(summary?.identityType ?? 0),
           saleDataScope: Number(summary?.saleDataScope ?? 1),
+          saleDataAccess: Number(summary?.saleDataAccess ?? 0),
+          hideCustomerManagement: !!summary?.hideCustomerManagement,
           purchaseDataScope: Number(summary?.purchaseDataScope ?? 1),
+          purchaseDataAccess: Number(summary?.purchaseDataAccess ?? 0),
+          hideVendorManagement: !!summary?.hideVendorManagement,
+          logisticsDataScope: Number(summary?.logisticsDataScope ?? 0),
+          logisticsDataAccess: Number(summary?.logisticsDataAccess ?? 0),
+          financeDataScope: Number(summary?.financeDataScope ?? 0),
+          financeDataAccess: Number(summary?.financeDataAccess ?? 0),
           belongsToPurchaseDept: !!summary?.belongsToPurchaseDept
         }
         localStorage.setItem('user', JSON.stringify(user.value))
@@ -208,6 +238,46 @@ export const useAuthStore = defineStore('auth', () => {
     if (!user.value) return false
     if (user.value.isSysAdmin) return true
     return (user.value.permissionCodes || []).includes(permissionCode)
+  }
+
+  /** 主部门销售数据只读（与 SaleDataScope 独立；仍可有 sales-order.read） */
+  function isSaleDataReadOnly(): boolean {
+    return !user.value?.isSysAdmin && (user.value?.saleDataAccess ?? 0) === 1
+  }
+
+  /** 主部门采购数据只读 */
+  function isPurchaseDataReadOnly(): boolean {
+    return !user.value?.isSysAdmin && (user.value?.purchaseDataAccess ?? 0) === 1
+  }
+
+  /** 主部门物流数据范围禁止（隐藏入库/出库/库存/报关菜单） */
+  function isLogisticsDataForbidden(): boolean {
+    return !user.value?.isSysAdmin && (user.value?.logisticsDataScope ?? 0) === 4
+  }
+
+  /** 主部门物流数据只读 */
+  function isLogisticsDataReadOnly(): boolean {
+    return !user.value?.isSysAdmin && (user.value?.logisticsDataAccess ?? 0) === 1
+  }
+
+  /** 主部门财务数据范围禁止（隐藏付款管理/收款管理菜单） */
+  function isFinanceDataForbidden(): boolean {
+    return !user.value?.isSysAdmin && (user.value?.financeDataScope ?? 0) === 4
+  }
+
+  /** 主部门财务数据只读 */
+  function isFinanceDataReadOnly(): boolean {
+    return !user.value?.isSysAdmin && (user.value?.financeDataAccess ?? 0) === 1
+  }
+
+  /** 主部门隐藏客户管理（与 saleDataScope 独立） */
+  function isCustomerManagementHidden(): boolean {
+    return !user.value?.isSysAdmin && user.value?.hideCustomerManagement === true
+  }
+
+  /** 主部门隐藏供应商管理（与 purchaseDataScope 独立） */
+  function isVendorManagementHidden(): boolean {
+    return !user.value?.isSysAdmin && user.value?.hideVendorManagement === true
   }
 
   /**
@@ -260,6 +330,14 @@ export const useAuthStore = defineStore('auth', () => {
     fetchCurrentUser,
     loadSimulationBanner,
     hasPermission,
-    isIdentityBlockedForPermission
+    isIdentityBlockedForPermission,
+    isSaleDataReadOnly,
+    isPurchaseDataReadOnly,
+    isLogisticsDataForbidden,
+    isLogisticsDataReadOnly,
+    isFinanceDataForbidden,
+    isFinanceDataReadOnly,
+    isCustomerManagementHidden,
+    isVendorManagementHidden
   }
 })

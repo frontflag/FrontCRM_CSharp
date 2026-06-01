@@ -17,7 +17,7 @@
           </div>
           <p class="section-hint">{{ t('warehouseManage.sectionHint') }}</p>
         </div>
-        <el-button type="primary" class="save-all-btn" :loading="saving" @click="saveAll">
+        <el-button v-if="canWriteLogisticsData" type="primary" class="save-all-btn" :loading="saving" @click="saveAll">
           {{ t('warehouseManage.saveAll') }}
         </el-button>
       </div>
@@ -27,10 +27,14 @@
           <span class="group-card__title">{{ t('warehouseManage.groupTitle', { n: idx + 1 }) }}</span>
           <div class="group-card__actions">
             <span class="switch-label">{{ t('warehouseManage.enabled') }}</span>
-            <el-switch :model-value="row.status === 1" @update:model-value="(on: boolean) => (row.status = on ? 1 : 0)" />
+            <el-switch
+              :disabled="!canWriteLogisticsData"
+              :model-value="row.status === 1"
+              @update:model-value="(on: boolean) => (row.status = on ? 1 : 0)"
+            />
           </div>
         </div>
-        <el-form label-width="120px" class="settings-form" :model="row">
+        <el-form label-width="120px" class="settings-form" :model="row" :disabled="!canWriteLogisticsData">
           <el-row :gutter="16">
             <el-col :span="8">
               <el-form-item :label="t('warehouseManage.warehouseCode')" required>
@@ -74,6 +78,7 @@
         </el-form>
         <div class="group-card__footer">
           <el-button
+            v-if="canWriteLogisticsData"
             class="group-mini-btn"
             circle
             type="primary"
@@ -84,6 +89,7 @@
             <el-icon><Plus /></el-icon>
           </el-button>
           <el-button
+            v-if="canWriteLogisticsData"
             class="group-mini-btn group-mini-btn--minus"
             circle
             plain
@@ -107,11 +113,13 @@ import { Minus, Plus } from '@element-plus/icons-vue'
 import { inventoryCenterApi, type WarehouseInfo } from '@/api/inventoryCenter'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 
 type WarehouseRowVm = WarehouseInfo & { _key: string }
 
 const { t } = useI18n()
 const router = useRouter()
+const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 
 const loading = ref(false)
 const saving = ref(false)

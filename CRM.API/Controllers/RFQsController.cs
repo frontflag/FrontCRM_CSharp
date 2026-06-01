@@ -184,7 +184,8 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var rfq = await _rfqService.UpdateAsync(id, request);
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var rfq = await _rfqService.UpdateAsync(id, request, actorId);
                 return Ok(ApiResponse<object>.Ok(rfq, "需求更新成功"));
             }
             catch (ArgumentException ex)

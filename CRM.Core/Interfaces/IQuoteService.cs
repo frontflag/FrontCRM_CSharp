@@ -41,6 +41,9 @@ namespace CRM.Core.Interfaces
     /// </summary>
     public class CreateQuoteItemRequest
     {
+        /// <summary>已有报价明细行 Id；编辑保存时传入以增量更新，省略则新建。</summary>
+        public string? Id { get; set; }
+
         // 供应商信息
         public string? VendorId { get; set; }
         public string? VendorName { get; set; }

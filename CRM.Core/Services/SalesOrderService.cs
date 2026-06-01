@@ -31,6 +31,7 @@ namespace CRM.Core.Services
         private readonly IUserService _userService;
         private readonly ISalesOrderListQuery _salesOrderListQuery;
         private readonly ISalesOrderItemLineListQuery _salesOrderItemLineListQuery;
+        private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<SalesOrderService> _logger;
 
         public SalesOrderService(
@@ -51,6 +52,7 @@ namespace CRM.Core.Services
             IUserService userService,
             ISalesOrderListQuery salesOrderListQuery,
             ISalesOrderItemLineListQuery salesOrderItemLineListQuery,
+            ILogOperationAppendService logOperationAppend,
             IUnitOfWork unitOfWork,
             ILogger<SalesOrderService> logger)
         {
@@ -71,6 +73,7 @@ namespace CRM.Core.Services
             _userService = userService ?? throw new ArgumentNullException(nameof(userService));
             _salesOrderListQuery = salesOrderListQuery ?? throw new ArgumentNullException(nameof(salesOrderListQuery));
             _salesOrderItemLineListQuery = salesOrderItemLineListQuery ?? throw new ArgumentNullException(nameof(salesOrderItemLineListQuery));
+            _logOperationAppend = logOperationAppend ?? throw new ArgumentNullException(nameof(logOperationAppend));
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _logger = logger;
         }
@@ -362,7 +365,7 @@ namespace CRM.Core.Services
             }
 
             var items = await _soItemRepo.FindAsync(i => i.SellOrderId == id);
-            order.Items = items.ToList();
+            order.Items = items.Where(i => !i.IsDeleted).ToList();
             return order;
         }
 
@@ -434,6 +437,7 @@ namespace CRM.Core.Services
                 ?? throw new InvalidOperationException($"销售订单 {id} 不存在");
 
             SellOrderHeaderRemarkCodec.TryMaterializeFromLegacyComment(order);
+            var headerBefore = CaptureSalesOrderHeaderSnapshot(order);
             if (HeaderRemarksTouched(request))
                 PatchSalesOrderHeaderRemarksFromRequest(order, request);
 
@@ -446,54 +450,17 @@ namespace CRM.Core.Services
             if (request.DeliveryAddress != null) order.DeliveryAddress = request.DeliveryAddress;
 
             var replacedItemCount = 0;
-            List<SellOrderItem>? newLines = null;
+            List<SellOrderItem>? insertedLines = null;
+            List<SellOrderItem>? updatedLines = null;
+            List<SellOrderItem>? deletedLines = null;
             if (request.Items != null && request.Items.Count > 0)
             {
-                var existingItems = await _soItemRepo.GetAllAsync();
-                var toDelete = existingItems.Where(i => i.SellOrderId == id).ToList();
-                foreach (var d in toDelete)
-                {
-                    await _soItemExtendRepo.DeleteAsync(d.Id);
-                    await _soItemRepo.DeleteAsync(d.Id);
-                }
-
-                var fx = await _financeExchangeRateService.GetCurrentAsync();
-                var firstSeq = await _soLineSeq.ReserveNextSequenceBlockAsync(id, request.Items.Count);
-                var lineIndex = 0;
-                decimal total = 0m;
-                newLines = new List<SellOrderItem>();
-                foreach (var item in request.Items)
-                {
-                    var seq = firstSeq + lineIndex++;
-                    var soItem = new SellOrderItem
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        SellOrderId = id,
-                        SellOrderItemCode = OrderLineItemCodes.Sell(order.SellOrderCode, seq),
-                        QuoteId = item.QuoteId,
-                        ProductId = item.ProductId,
-                        PN = item.PN,
-                        Brand = item.Brand,
-                        CustomerSo = item.CustomerSo,
-                        CustomerPn = string.IsNullOrWhiteSpace(item.CustomerPn) ? null : item.CustomerPn.Trim(),
-                        CustomerBrand = string.IsNullOrWhiteSpace(item.CustomerBrand) ? null : item.CustomerBrand.Trim(),
-                        Qty = item.Qty,
-                        Price = item.Price,
-                        Currency = item.Currency,
-                        DateCode = item.DateCode,
-                        DeliveryDate = PostgreSqlDateTime.ToUtc(item.DeliveryDate),
-                        Comment = item.Comment,
-                        CreateTime = DateTime.UtcNow
-                    };
-                    soItem.ConvertPrice = ExchangeRateToUsdConverter.UnitLocalToUsd(
-                        soItem.Price, soItem.Currency, fx.UsdToCny, fx.UsdToHkd, fx.UsdToEur);
-                    await _soItemRepo.AddAsync(soItem);
-                    newLines.Add(soItem);
-                    await AddSellOrderItemExtendAsync(soItem, fx);
-                    total += item.Qty * item.Price;
-                }
-                order.Total = total;
-                order.ConvertTotal = total;
+                var sync = await SyncSellOrderItemsOnUpdateAsync(order, id, request.Items, actingUserId);
+                insertedLines = sync.Inserted;
+                updatedLines = sync.Updated;
+                deletedLines = sync.Deleted;
+                order.Total = sync.Total;
+                order.ConvertTotal = sync.Total;
                 order.ItemRows = request.Items.Count;
                 replacedItemCount = request.Items.Count;
             }
@@ -503,14 +470,29 @@ namespace CRM.Core.Services
             await _soRepo.UpdateAsync(order);
             await _unitOfWork.SaveChangesAsync();
 
-            if (newLines != null)
+            await LogSalesOrderHeaderChangesAsync(order, headerBefore, actingUserId);
+
+            if (deletedLines is { Count: > 0 })
             {
-                foreach (var line in newLines)
-                    await _soItemExtendSync.RecalculateAsync(line.Id);
-                await TryRefreshPurchasedStockAvailableForSellLinesAsync(newLines);
+                await AppendSellOrderItemDeleteOperationLogsAsync(
+                    order,
+                    deletedLines,
+                    actingUserId,
+                    OperationLogActionTypes.SellOrderItemDelete,
+                    $"编辑销售订单 {order.SellOrderCode} 时删除明细行");
             }
 
-            if (replacedItemCount > 0 && newLines != null)
+            var touchedLines = new List<SellOrderItem>();
+            if (insertedLines != null) touchedLines.AddRange(insertedLines);
+            if (updatedLines != null) touchedLines.AddRange(updatedLines);
+            if (touchedLines.Count > 0)
+            {
+                foreach (var line in touchedLines)
+                    await _soItemExtendSync.RecalculateAsync(line.Id);
+                await TryRefreshPurchasedStockAvailableForSellLinesAsync(touchedLines);
+            }
+
+            if (replacedItemCount > 0 && insertedLines is { Count: > 0 })
             {
                 var t = DateTime.UtcNow;
                 await _orderJourneyLog.AppendAsync(new OrderJourneyLog
@@ -526,7 +508,7 @@ namespace CRM.Core.Services
                     ActorKind = OrderJourneyActorKinds.System,
                     Source = nameof(SalesOrderService)
                 });
-                foreach (var line in newLines)
+                foreach (var line in insertedLines)
                 {
                     var lineTotal = Math.Round(line.Qty * line.Price, 2, MidpointRounding.AwayFromZero);
                     await _orderJourneyLog.AppendAsync(new OrderJourneyLog
@@ -551,11 +533,35 @@ namespace CRM.Core.Services
             return order;
         }
 
-        public async Task DeleteAsync(string id)
+        public async Task DeleteAsync(string id, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("ID不能为空");
             var order = await _soRepo.GetByIdAsync(id)
                 ?? throw new InvalidOperationException($"销售订单 {id} 不存在");
+
+            var (actorId, actorName) = await ResolveActorAsync(actingUserId);
+            var itemsToDelete = (await _soItemRepo.GetAllAsync())
+                .Where(i => i.SellOrderId == id)
+                .ToList();
+
+            foreach (var item in itemsToDelete)
+            {
+                item.IsDeleted = true;
+                item.ModifyTime = DateTime.UtcNow;
+                item.DeletedByUserId = actorId;
+                item.DeletedByUserName = actorName;
+                await _soItemRepo.UpdateAsync(item);
+                await _soItemExtendRepo.DeleteAsync(item.Id);
+            }
+
+            await SoftDeleteSellOrderExtendAsync(id);
+
+            order.IsDeleted = true;
+            order.ModifyTime = DateTime.UtcNow;
+            order.ModifyByUserId = NormalizeActingUserId(actingUserId);
+            await _soRepo.UpdateAsync(order);
+            await _unitOfWork.SaveChangesAsync();
+
             await _orderJourneyLog.AppendAsync(new OrderJourneyLog
             {
                 EntityKind = OrderJourneyEntityKinds.SellOrder,
@@ -566,14 +572,8 @@ namespace CRM.Core.Services
                 ActorKind = OrderJourneyActorKinds.System,
                 Source = nameof(SalesOrderService)
             });
-            var items = await _soItemRepo.GetAllAsync();
-            foreach (var item in items.Where(i => i.SellOrderId == id))
-            {
-                await _soItemExtendRepo.DeleteAsync(item.Id);
-                await _soItemRepo.DeleteAsync(item.Id);
-            }
-            await _soRepo.DeleteAsync(id);
-            await _unitOfWork.SaveChangesAsync();
+
+            await AppendSellOrderWholeDeleteOperationLogsAsync(order, itemsToDelete, actingUserId);
         }
 
         public async Task UpdateStatusAsync(string id, SellOrderMainStatus status, string? auditRemark = null, string? actingUserId = null)
@@ -594,6 +594,7 @@ namespace CRM.Core.Services
                 throw new InvalidOperationException("仅「待审核」状态可审核拒绝");
 
             var fromStatus = (short)order.Status;
+            var statusBefore = fromStatus;
             order.Status = status;
             if (status == SellOrderMainStatus.AuditFailed && !string.IsNullOrWhiteSpace(auditRemark))
                 order.AuditRemark = auditRemark.Trim();
@@ -604,6 +605,17 @@ namespace CRM.Core.Services
             order.ModifyByUserId = NormalizeActingUserId(actingUserId);
             await _soRepo.UpdateAsync(order);
             await _unitOfWork.SaveChangesAsync();
+
+            if (statusBefore != (short)status)
+            {
+                await AddSalesOrderFieldChangeLogAsync(
+                    order,
+                    "status",
+                    "订单状态",
+                    FormatSellOrderStatus(statusBefore),
+                    FormatSellOrderStatus((short)status),
+                    actingUserId);
+            }
 
             await _orderJourneyLog.AppendAsync(new OrderJourneyLog
             {
@@ -1101,6 +1113,381 @@ namespace CRM.Core.Services
                 After = a.ToString($"F{digits}")
             });
         }
+
+        private static string SqlQ(string? s) => (s ?? "").Replace("'", "''", StringComparison.Ordinal);
+
+        public async Task<IReadOnlyList<SalesOrderFieldChangeLogDto>> GetFieldChangeLogsAsync(string sellOrderId)
+        {
+            if (string.IsNullOrWhiteSpace(sellOrderId))
+                return Array.Empty<SalesOrderFieldChangeLogDto>();
+            var safe = SqlQ(sellOrderId.Trim());
+            var sql = $@"
+SELECT c.""Id"",
+       c.""RecordId"" AS ""SellOrderId"",
+       c.""RecordCode"" AS ""SellOrderCode"",
+       c.""FieldName"",
+       c.""FieldLabel"",
+       c.""OldValue"",
+       c.""NewValue"",
+       c.""ChangedByUserId"",
+       c.""ChangedByUserName"",
+       c.""ChangedAt""
+FROM log_change_fldval c
+WHERE c.""BizType"" = '{BusinessLogTypes.SalesOrder}' AND c.""RecordId"" = '{safe}'
+ORDER BY c.""ChangedAt"" DESC";
+            var rows = await _unitOfWork.QueryAsync<SalesOrderFieldChangeLogDto>(sql);
+            return rows.ToList();
+        }
+
+        public async Task<IReadOnlyList<SalesOrderDeletedItemLogDto>> GetDeletedOrderItemsAsync(string sellOrderId)
+        {
+            if (string.IsNullOrWhiteSpace(sellOrderId))
+                return Array.Empty<SalesOrderDeletedItemLogDto>();
+            var safe = SqlQ(sellOrderId.Trim());
+            var itemBiz = BusinessLogTypes.SellOrderItem;
+            var sql = $@"
+SELECT i.""SellOrderItemId"",
+       i.sell_order_item_code AS ""SellOrderItemCode"",
+       i.pn AS ""PN"",
+       i.brand AS ""Brand"",
+       i.qty AS ""Qty"",
+       i.price AS ""Price"",
+       i.currency AS ""Currency"",
+       i.comment AS ""Comment"",
+       i.""CreateTime"",
+       i.""ModifyTime"" AS ""DeletedAt"",
+       COALESCE(
+         NULLIF(TRIM(i.deleted_by_user_name), ''),
+         NULLIF(TRIM(del_op.""OperatorUserName""), ''),
+         NULLIF(TRIM(chg_near.""ChangedByUserName""), ''),
+         NULLIF(TRIM(u.""UserName""), '')
+       ) AS ""DeletedByUserName"",
+       COALESCE(NULLIF(TRIM(i.deleted_by_user_id), ''), del_op.""OperatorUserId"") AS ""DeletedByUserId""
+FROM sellorderitem i
+INNER JOIN sellorder so ON so.""SellOrderId"" = i.sell_order_id
+LEFT JOIN ""user"" u ON u.""UserId"" = so.modify_by_user_id
+    AND so.""ModifyTime"" IS NOT NULL
+    AND i.""ModifyTime"" IS NOT NULL
+    AND ABS(EXTRACT(EPOCH FROM (i.""ModifyTime"" - so.""ModifyTime""))) <= 120
+LEFT JOIN LATERAL (
+    SELECT o.""OperatorUserId"", o.""OperatorUserName""
+    FROM log_operation o
+    WHERE o.""BizType"" = '{itemBiz}'
+      AND o.""RecordId"" = i.""SellOrderItemId""
+      AND o.""ActionType"" IN ('{OperationLogActionTypes.SellOrderItemDelete}', '{OperationLogActionTypes.SellOrderItemDeleteWithOrder}')
+    ORDER BY o.""OperationTime"" DESC
+    LIMIT 1
+) del_op ON true
+LEFT JOIN LATERAL (
+    SELECT c.""ChangedByUserName""
+    FROM log_change_fldval c
+    WHERE c.""BizType"" = '{BusinessLogTypes.SalesOrder}'
+      AND c.""RecordId"" = so.""SellOrderId""
+      AND c.""ChangedByUserName"" IS NOT NULL
+      AND TRIM(c.""ChangedByUserName"") <> ''
+      AND c.""ChangedAt"" BETWEEN i.""ModifyTime"" - INTERVAL '30 minutes' AND i.""ModifyTime"" + INTERVAL '30 minutes'
+    ORDER BY ABS(EXTRACT(EPOCH FROM (c.""ChangedAt"" - i.""ModifyTime"")))
+    LIMIT 1
+) chg_near ON true
+WHERE i.sell_order_id = '{safe}' AND i.is_deleted = true
+ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
+            var rows = await _unitOfWork.QueryAsync<SalesOrderDeletedItemLogDto>(sql);
+            return rows.ToList();
+        }
+
+        private sealed record SalesOrderHeaderSnapshot(
+            string? CustomerName,
+            string? SalesUserId,
+            string? SalesUserName,
+            short Type,
+            short Currency,
+            DateTime? DeliveryDate,
+            string? DeliveryAddress,
+            string? ProductKind,
+            string? CustomerContactName,
+            string? InvoiceInfo,
+            string? PaymentTermsText,
+            string? Comment);
+
+        private static SalesOrderHeaderSnapshot CaptureSalesOrderHeaderSnapshot(SellOrder order) =>
+            new(
+                order.CustomerName,
+                order.SalesUserId,
+                order.SalesUserName,
+                order.Type,
+                order.Currency,
+                order.DeliveryDate,
+                order.DeliveryAddress,
+                order.ProductKind,
+                order.CustomerContactName,
+                order.InvoiceInfo,
+                order.PaymentTermsText,
+                order.Comment);
+
+        private async Task LogSalesOrderHeaderChangesAsync(
+            SellOrder order,
+            SalesOrderHeaderSnapshot before,
+            string? actingUserId)
+        {
+            var after = CaptureSalesOrderHeaderSnapshot(order);
+            await CompareAndLogHeaderFieldAsync(order, before.CustomerName, after.CustomerName, "customerName", "客户名称", actingUserId);
+            await CompareAndLogHeaderFieldAsync(order, before.SalesUserName, after.SalesUserName, "salesUserName", "业务员", actingUserId);
+            await CompareAndLogHeaderFieldAsync(order, FormatOrderType(before.Type), FormatOrderType(after.Type), "type", "订单类型", actingUserId);
+            await CompareAndLogHeaderFieldAsync(order, FormatCurrency(before.Currency), FormatCurrency(after.Currency), "currency", "币别", actingUserId);
+            await CompareAndLogHeaderFieldAsync(order, FormatDate(before.DeliveryDate), FormatDate(after.DeliveryDate), "deliveryDate", "交期", actingUserId);
+            await CompareAndLogHeaderFieldAsync(order, before.DeliveryAddress, after.DeliveryAddress, "deliveryAddress", "交货地址", actingUserId);
+            await CompareAndLogHeaderFieldAsync(order, before.ProductKind, after.ProductKind, "productKind", "产品种类", actingUserId);
+            await CompareAndLogHeaderFieldAsync(order, before.CustomerContactName, after.CustomerContactName, "customerContactName", "客户联系人", actingUserId);
+            await CompareAndLogHeaderFieldAsync(order, before.InvoiceInfo, after.InvoiceInfo, "invoiceInfo", "开票信息", actingUserId);
+            await CompareAndLogHeaderFieldAsync(order, before.PaymentTermsText, after.PaymentTermsText, "paymentTermsText", "付款条款", actingUserId);
+            await CompareAndLogHeaderFieldAsync(order, before.Comment, after.Comment, "comment", "备注", actingUserId);
+        }
+
+        private async Task CompareAndLogHeaderFieldAsync(
+            SellOrder order,
+            string? oldVal,
+            string? newVal,
+            string fieldName,
+            string fieldLabel,
+            string? actingUserId)
+        {
+            var o = string.IsNullOrWhiteSpace(oldVal) ? null : oldVal.Trim();
+            var n = string.IsNullOrWhiteSpace(newVal) ? null : newVal.Trim();
+            if (string.Equals(o, n, StringComparison.Ordinal))
+                return;
+            await AddSalesOrderFieldChangeLogAsync(order, fieldName, fieldLabel, o, n, actingUserId);
+        }
+
+        private async Task AddSalesOrderFieldChangeLogAsync(
+            SellOrder order,
+            string fieldName,
+            string fieldLabel,
+            string? oldValue,
+            string? newValue,
+            string? actingUserId)
+        {
+            var (userId, userName) = await ResolveActorAsync(actingUserId);
+            var recordCodeSql = string.IsNullOrWhiteSpace(order.SellOrderCode) ? "NULL" : $"'{SqlQ(order.SellOrderCode)}'";
+            var safeRecordId = SqlQ(order.Id);
+            var safeField = SqlQ(fieldName);
+            var safeLabel = SqlQ(fieldLabel);
+            var oldSql = oldValue == null ? "NULL" : $"'{SqlQ(oldValue)}'";
+            var newSql = newValue == null ? "NULL" : $"'{SqlQ(newValue)}'";
+            var userIdSql = string.IsNullOrWhiteSpace(userId) ? "NULL" : $"'{SqlQ(userId)}'";
+            var sql = $@"
+INSERT INTO log_change_fldval (""Id"", ""BizType"", ""RecordId"", ""RecordCode"", ""FieldName"", ""FieldLabel"", ""OldValue"", ""NewValue"", ""ChangedAt"", ""ChangedByUserId"", ""ChangedByUserName"", ""ExtraInfo"", ""SysRemark"")
+VALUES (gen_random_uuid()::text, '{BusinessLogTypes.SalesOrder}', '{safeRecordId}', {recordCodeSql}, '{safeField}', '{safeLabel}', {oldSql}, {newSql}, NOW(), {userIdSql}, '{SqlQ(userName)}', NULL, NULL)";
+            await _unitOfWork.ExecuteAsync(sql);
+        }
+
+        private async Task<(string? UserId, string UserName)> ResolveActorAsync(string? actingUserId)
+        {
+            var id = NormalizeActingUserId(actingUserId);
+            if (string.IsNullOrEmpty(id))
+                return (null, "系统");
+            var user = await _userService.GetByIdAsync(id);
+            return (id, string.IsNullOrWhiteSpace(user?.UserName) ? id : user!.UserName!.Trim());
+        }
+
+        private sealed record SellOrderItemSyncResult(
+            List<SellOrderItem> Inserted,
+            List<SellOrderItem> Updated,
+            List<SellOrderItem> Deleted,
+            decimal Total);
+
+        private async Task<SellOrderItemSyncResult> SyncSellOrderItemsOnUpdateAsync(
+            SellOrder order,
+            string sellOrderId,
+            List<CreateSalesOrderItemRequest> requestItems,
+            string? actingUserId)
+        {
+            var existingActive = (await _soItemRepo.FindAsync(i => i.SellOrderId == sellOrderId))
+                .Where(i => !i.IsDeleted)
+                .ToDictionary(i => i.Id, StringComparer.OrdinalIgnoreCase);
+
+            var fx = await _financeExchangeRateService.GetCurrentAsync();
+            var inserted = new List<SellOrderItem>();
+            var updated = new List<SellOrderItem>();
+            var keptIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            decimal total = 0m;
+
+            var newItemRequests = new List<CreateSalesOrderItemRequest>();
+            foreach (var itemReq in requestItems)
+            {
+                var reqId = itemReq.Id?.Trim();
+                if (!string.IsNullOrEmpty(reqId))
+                {
+                    if (!existingActive.TryGetValue(reqId, out var existing))
+                        throw new InvalidOperationException($"销售订单明细 {reqId} 不存在或已删除");
+
+                    keptIds.Add(reqId);
+                    ApplySellOrderItemFromRequest(existing, itemReq, fx);
+                    existing.ModifyTime = DateTime.UtcNow;
+                    await _soItemRepo.UpdateAsync(existing);
+                    updated.Add(existing);
+                    total += existing.Qty * existing.Price;
+                }
+                else
+                {
+                    newItemRequests.Add(itemReq);
+                }
+            }
+
+            if (newItemRequests.Count > 0)
+            {
+                var firstSeq = await _soLineSeq.ReserveNextSequenceBlockAsync(sellOrderId, newItemRequests.Count);
+                var lineIndex = 0;
+                foreach (var item in newItemRequests)
+                {
+                    var seq = firstSeq + lineIndex++;
+                    var soItem = new SellOrderItem
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        SellOrderId = sellOrderId,
+                        SellOrderItemCode = OrderLineItemCodes.Sell(order.SellOrderCode, seq),
+                        CreateTime = DateTime.UtcNow
+                    };
+                    ApplySellOrderItemFromRequest(soItem, item, fx);
+                    await _soItemRepo.AddAsync(soItem);
+                    inserted.Add(soItem);
+                    await AddSellOrderItemExtendAsync(soItem, fx);
+                    total += soItem.Qty * soItem.Price;
+                }
+            }
+
+            var deleted = new List<SellOrderItem>();
+            var (deleteActorId, deleteActorName) = await ResolveActorAsync(actingUserId);
+            foreach (var existing in existingActive.Values)
+            {
+                if (keptIds.Contains(existing.Id))
+                    continue;
+
+                existing.IsDeleted = true;
+                existing.ModifyTime = DateTime.UtcNow;
+                existing.DeletedByUserId = deleteActorId;
+                existing.DeletedByUserName = deleteActorName;
+                await _soItemRepo.UpdateAsync(existing);
+                await _soItemExtendRepo.DeleteAsync(existing.Id);
+                deleted.Add(existing);
+            }
+
+            return new SellOrderItemSyncResult(inserted, updated, deleted, total);
+        }
+
+        private static void ApplySellOrderItemFromRequest(
+            SellOrderItem target,
+            CreateSalesOrderItemRequest item,
+            FinanceExchangeRateDto fx)
+        {
+            target.QuoteId = item.QuoteId;
+            target.ProductId = item.ProductId;
+            target.PN = item.PN;
+            target.Brand = item.Brand;
+            target.CustomerSo = item.CustomerSo;
+            target.CustomerPn = string.IsNullOrWhiteSpace(item.CustomerPn) ? null : item.CustomerPn.Trim();
+            target.CustomerBrand = string.IsNullOrWhiteSpace(item.CustomerBrand) ? null : item.CustomerBrand.Trim();
+            target.Qty = item.Qty;
+            target.Price = item.Price;
+            target.Currency = item.Currency;
+            target.DateCode = item.DateCode;
+            target.DeliveryDate = PostgreSqlDateTime.ToUtc(item.DeliveryDate);
+            target.Comment = item.Comment;
+            target.ConvertPrice = ExchangeRateToUsdConverter.UnitLocalToUsd(
+                target.Price, target.Currency, fx.UsdToCny, fx.UsdToHkd, fx.UsdToEur);
+        }
+
+        private async Task AppendSellOrderItemDeleteOperationLogsAsync(
+            SellOrder order,
+            IReadOnlyList<SellOrderItem> deletedItems,
+            string? actingUserId,
+            string actionType,
+            string descriptionPrefix)
+        {
+            var (actorId, actorName) = await ResolveActorAsync(actingUserId);
+            foreach (var d in deletedItems)
+            {
+                await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+                {
+                    BizType = BusinessLogTypes.SellOrderItem,
+                    RecordId = d.Id,
+                    RecordCode = d.SellOrderItemCode,
+                    ActionTypeOverride = actionType,
+                    OperatorUserId = actorId,
+                    OperatorUserName = actorName,
+                    OperationDescOverride = $"{descriptionPrefix} {d.SellOrderItemCode}"
+                });
+            }
+        }
+
+        private async Task AppendSellOrderWholeDeleteOperationLogsAsync(
+            SellOrder order,
+            IReadOnlyList<SellOrderItem> deletedItems,
+            string? actingUserId)
+        {
+            var (actorId, actorName) = await ResolveActorAsync(actingUserId);
+            await _logOperationAppend.AppendDeleteAsync(new DeleteOperationLogEntry
+            {
+                BizType = BusinessLogTypes.SalesOrder,
+                RecordId = order.Id,
+                RecordCode = order.SellOrderCode,
+                ActionTypeOverride = OperationLogActionTypes.SellOrderDelete,
+                OperatorUserId = actorId,
+                OperatorUserName = actorName,
+                OperationDescOverride =
+                    $"整单删除销售订单 {order.SellOrderCode}，共 {deletedItems.Count} 条明细"
+            });
+
+            if (deletedItems.Count > 0)
+            {
+                await AppendSellOrderItemDeleteOperationLogsAsync(
+                    order,
+                    deletedItems,
+                    actingUserId,
+                    OperationLogActionTypes.SellOrderItemDeleteWithOrder,
+                    $"整单删除销售订单 {order.SellOrderCode} 时删除明细行");
+            }
+        }
+
+        private async Task SoftDeleteSellOrderExtendAsync(string sellOrderId)
+        {
+            if (string.IsNullOrWhiteSpace(sellOrderId))
+                return;
+            var safeId = sellOrderId.Trim().Replace("'", "''", StringComparison.Ordinal);
+            await _unitOfWork.ExecuteAsync(
+                $@"UPDATE sellorderextend SET is_deleted = true, ""ModifyTime"" = NOW() WHERE ""SellOrderId"" = '{safeId}' AND is_deleted = false");
+        }
+
+        private static string FormatSellOrderStatus(short status) => status switch
+        {
+            1 => "新建",
+            2 => "待审核",
+            10 => "审核通过",
+            20 => "进行中",
+            100 => "完成",
+            -1 => "审核失败",
+            -2 => "取消",
+            _ => status.ToString()
+        };
+
+        private static string FormatOrderType(short type) => type switch
+        {
+            1 => "客单采购",
+            2 => "备货采购",
+            3 => "样品采购",
+            _ => type.ToString()
+        };
+
+        private static string FormatCurrency(short currency) => currency switch
+        {
+            1 => "RMB",
+            2 => "USD",
+            3 => "EUR",
+            4 => "HKD",
+            _ => currency.ToString()
+        };
+
+        private static string? FormatDate(DateTime? dt) =>
+            dt.HasValue ? dt.Value.ToString("yyyy-MM-dd") : null;
 
         private sealed class SoItemRefreshSnapshot
         {

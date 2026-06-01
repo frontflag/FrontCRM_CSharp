@@ -77,6 +77,37 @@ export function listTotalAmountHasValue(v: unknown): boolean {
   return Number.isFinite(n)
 }
 
+/** 单价阶梯行是否有有效数值 */
+export function unitPriceDockHasValue(v: unknown): boolean {
+  return listTotalAmountHasValue(v)
+}
+
+/**
+ * 单价拆段（与 RFQ「单价（阶梯）」dock-tier-price-line 一致：2–6 位小数）。
+ */
+export function splitUnitPriceDockParts(value: unknown): { intPart: string; fracPart: string } {
+  const n = num(value)
+  if (Number.isNaN(n)) return { intPart: '—', fracPart: '' }
+  const parts = new Intl.NumberFormat('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: UNIT_PRICE_DECIMALS
+  }).formatToParts(n)
+  let intPart = ''
+  let fracPart = ''
+  for (const p of parts) {
+    if (p.type === 'integer' || p.type === 'group') intPart += p.value
+    else if (p.type === 'decimal' || p.type === 'fraction') fracPart += p.value
+  }
+  if (!fracPart) {
+    const fallback = n.toLocaleString('zh-CN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: UNIT_PRICE_DECIMALS
+    })
+    return { intPart: fallback, fracPart: '' }
+  }
+  return { intPart, fracPart }
+}
+
 /**
  * 列表金额拆段（Intl formatToParts），与《业务列表规范》库存/RFQ 阶梯展示一致：
  * 整数+千分位与小数分段，便于与尾部 ISO 币别色标组合。

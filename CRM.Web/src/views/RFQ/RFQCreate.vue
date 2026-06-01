@@ -801,6 +801,7 @@ function formatExpiryForPicker(v: unknown): string {
 
 function mapItemsFromApi(items: any[]) {
   return items.map((raw: any) => ({
+    id: raw.id || raw.Id || undefined,
     customerMpn: raw.customerMpn || raw.customerMaterialModel || '',
     customerBrand: raw.customerBrand || '',
     mpn: raw.mpn || raw.materialModel || '',
@@ -973,7 +974,9 @@ function buildItemPayload(): CreateRFQItemRequest[] {
       expiryRaw && typeof expiryRaw === 'string'
         ? expiryRaw
         : undefined
+    const lineId = (it.id || it.Id || '').trim()
     return {
+      ...(lineId ? { id: lineId } : {}),
       lineNo: idx + 1,
       customerMpn: (it.customerMpn || '').trim() || undefined,
       mpn: (it.mpn || '').trim(),
