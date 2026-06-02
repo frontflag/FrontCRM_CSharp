@@ -1,6 +1,7 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
+using CRM.Core.Models.Customs;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
@@ -25,6 +26,7 @@ namespace CRM.Core.Services
         private readonly IRepository<StockOutItem> _stockOutItemRepository;
         private readonly IRepository<StockOutItemExtend> _stockOutItemExtendRepository;
         private readonly IRepository<StockOutRequest> _stockOutRequestRepository;
+        private readonly IRepository<CustomsPendlist> _customsPendlistRepository;
         private readonly IRepository<Packing> _packingRepository;
         private readonly IRepository<PackingItem> _packingItemRepository;
         private readonly IRepository<PickingTask> _pickingTaskRepository;
@@ -53,12 +55,14 @@ namespace CRM.Core.Services
         private readonly IStockOutListQuery _stockOutListQuery;
         private readonly IStockOutRequestListQuery _stockOutRequestListQuery;
         private readonly IStockOutItemListQuery _stockOutItemListQuery;
+        private readonly ICustomsV2FlowService _customsV2FlowService;
 
         public StockOutService(
             IRepository<StockOut> stockOutRepository,
             IRepository<StockOutItem> stockOutItemRepository,
             IRepository<StockOutItemExtend> stockOutItemExtendRepository,
             IRepository<StockOutRequest> stockOutRequestRepository,
+            IRepository<CustomsPendlist> customsPendlistRepository,
             IRepository<Packing> packingRepository,
             IRepository<PackingItem> packingItemRepository,
             IRepository<PickingTask> pickingTaskRepository,
@@ -86,12 +90,14 @@ namespace CRM.Core.Services
             ILogger<StockOutService> logger,
             IStockOutListQuery stockOutListQuery,
             IStockOutRequestListQuery stockOutRequestListQuery,
-            IStockOutItemListQuery stockOutItemListQuery)
+            IStockOutItemListQuery stockOutItemListQuery,
+            ICustomsV2FlowService customsV2FlowService)
         {
             _stockOutRepository = stockOutRepository;
             _stockOutItemRepository = stockOutItemRepository;
             _stockOutItemExtendRepository = stockOutItemExtendRepository;
             _stockOutRequestRepository = stockOutRequestRepository;
+            _customsPendlistRepository = customsPendlistRepository;
             _packingRepository = packingRepository;
             _packingItemRepository = packingItemRepository;
             _pickingTaskRepository = pickingTaskRepository;
@@ -120,6 +126,7 @@ namespace CRM.Core.Services
             _stockOutListQuery = stockOutListQuery;
             _stockOutRequestListQuery = stockOutRequestListQuery;
             _stockOutItemListQuery = stockOutItemListQuery;
+            _customsV2FlowService = customsV2FlowService;
         }
 
         public async Task<StockOutRequest> CreateStockOutRequestAsync(CreateStockOutRequestRequest request, string? actingUserId = null)
@@ -185,6 +192,9 @@ namespace CRM.Core.Services
                 so,
                 customerIdByDisplayName);
 
+            var regionType = RegionTypeCode.Normalize(request.RegionType);
+            var stockOutType = StockOutTypeCode.NormalizeForNotify(request.StockOutType);
+
             var stockOutRequest = new StockOutRequest
             {
                 Id = Guid.NewGuid().ToString(),
@@ -202,11 +212,21 @@ namespace CRM.Core.Services
                 ShipmentMethod = string.IsNullOrWhiteSpace(request.ShipmentMethod)
                     ? null
                     : request.ShipmentMethod.Trim(),
-                RegionType = RegionTypeCode.Normalize(request.RegionType),
-                StockOutType = StockOutTypeCode.NormalizeForNotify(request.StockOutType),
+                RegionType = regionType,
+                StockOutType = stockOutType,
                 CreateTime = DateTime.UtcNow,
                 CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
+
+            if (regionType == RegionTypeCode.Domestic && stockOutType == StockOutTypeCode.Sales)
+            {
+                var pendlist = await TryBuildCustomsPendlistAsync(lineId, qtyInt, stockOutRequest.Id, actingUserId);
+                if (pendlist != null)
+                {
+                    stockOutRequest.Status = StockOutRequestStatusCode.PendingCustoms;
+                    await _customsPendlistRepository.AddAsync(pendlist);
+                }
+            }
 
             await _stockOutRequestRepository.AddAsync(stockOutRequest);
             var saveAfterReq = await _unitOfWork.SaveChangesAsync();
@@ -307,6 +327,45 @@ namespace CRM.Core.Services
                 if (po == null || po.Status < min)
                     throw new InvalidOperationException("关联采购订单尚未供应商确认，不能申请出库");
             }
+        }
+
+        /// <summary>
+        /// 境内销售出库：若境外 <c>stock_item</c> 可用量 ≥ 申请量，则进入待报关并生成 pendlist。
+        /// </summary>
+        private async Task<CustomsPendlist?> TryBuildCustomsPendlistAsync(
+            string sellOrderItemId,
+            int requestedQty,
+            string salesStockOutNotifyId,
+            string? actingUserId)
+        {
+            var lineId = sellOrderItemId.Trim();
+            var overseasLayers = (await _stockItemRepository.FindAsync(si =>
+                si.SellOrderItemId == lineId
+                && si.QtyRepertoryAvailable > 0
+                && si.RegionType == RegionTypeCode.Overseas)).ToList();
+            var overseasAvail = overseasLayers.Sum(si => si.QtyRepertoryAvailable);
+            if (overseasAvail < requestedQty)
+                return null;
+
+            var topWarehouseId = overseasLayers
+                .GroupBy(si => si.WarehouseId?.Trim() ?? string.Empty)
+                .Where(g => !string.IsNullOrEmpty(g.Key))
+                .OrderByDescending(g => g.Sum(x => x.QtyRepertoryAvailable))
+                .Select(g => g.Key)
+                .FirstOrDefault();
+
+            return new CustomsPendlist
+            {
+                Id = Guid.NewGuid().ToString(),
+                SalesStockOutNotifyId = salesStockOutNotifyId,
+                SellOrderItemId = lineId,
+                Qty = requestedQty,
+                Status = CustomsPendlistStatusCode.Open,
+                OverseasWarehouseId = topWarehouseId,
+                CreateTime = DateTime.UtcNow,
+                CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId),
+                IsDeleted = false
+            };
         }
 
         public async Task<IEnumerable<StockOutRequestListItemDto>> GetStockOutRequestListAsync()
@@ -503,6 +562,8 @@ namespace CRM.Core.Services
                     throw new InvalidOperationException("该出库通知已执行出库，请勿重复操作");
                 if (stockOutRequest.Status == StockOutRequestStatusCode.Cancelled)
                     throw new InvalidOperationException("该出库通知已取消，不能执行出库");
+                if (stockOutRequest.Status == StockOutRequestStatusCode.PendingCustoms)
+                    throw new InvalidOperationException("该出库通知待报关，请先完成报关流程后再执行出库");
                 if (stockOutRequest.Status == StockOutRequestStatusCode.PendingPacking)
                     throw new InvalidOperationException("请先完成装箱后再执行出库");
             }
@@ -538,6 +599,10 @@ namespace CRM.Core.Services
             }
 
             var sellLineId = stockOutRequest.SalesOrderItemId.Trim();
+
+            var isCustomsOut = StockOutTypeCode.NormalizeForNotify(stockOutRequest.StockOutType) == StockOutTypeCode.Customs;
+            if (isCustomsOut)
+                await _customsV2FlowService.EnsureCustomsOutReadyAsync(requestId);
 
             var stockOutCode = string.IsNullOrWhiteSpace(request.StockOutCode)
                 ? await _serialNumberService.GenerateNextAsync(ModuleCodes.StockOut)
@@ -644,6 +709,14 @@ namespace CRM.Core.Services
                     .GroupBy(pi => pi.Id.Trim(), StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
+            IReadOnlyDictionary<string, CustomsDeclarationItem> decItemByPackingItemId =
+                new Dictionary<string, CustomsDeclarationItem>(StringComparer.OrdinalIgnoreCase);
+            if (isCustomsOut)
+            {
+                decItemByPackingItemId =
+                    await _customsV2FlowService.GetDeclarationItemsMapForCustomsStockOutAsync(requestId);
+            }
+
             foreach (var pickItem in pickItems)
             {
                 var takeQty = pickItem.PlanQty;
@@ -716,8 +789,14 @@ namespace CRM.Core.Services
                     CreateTime = DateTime.UtcNow
                 };
                 await _stockOutItemRepository.AddAsync(outLine);
-                await _stockOutItemExtendRepository.AddAsync(
-                    BuildStockOutItemExtend(outLine, layer, stock, takeQty));
+                var ext = BuildStockOutItemExtend(outLine, layer, stock, takeQty);
+                if (isCustomsOut)
+                {
+                    _customsV2FlowService.ApplyCustomsStockOutExtend(
+                        ext, layer, pickItem.PackingItemId, decItemByPackingItemId);
+                }
+
+                await _stockOutItemExtendRepository.AddAsync(ext);
 
                 totalQty += takeQty;
             }
@@ -822,6 +901,9 @@ namespace CRM.Core.Services
                 CustomerId = string.IsNullOrWhiteSpace(stockOutRequest.CustomerId) ? null : stockOutRequest.CustomerId.Trim(),
                 WarehouseId = request.WarehouseId,
                 StockOutDate = PostgreSqlDateTime.ToUtc(request.StockOutDate),
+                ExpectedStockOutDate = request.ExpectedStockOutDate.HasValue
+                    ? PostgreSqlDateTime.ToUtc(request.ExpectedStockOutDate.Value)
+                    : null,
                 TotalQuantity = totalQty,
                 TotalAmount = totalAmount,
                 Remark = request.Remark,
@@ -872,6 +954,9 @@ namespace CRM.Core.Services
             _logger.LogInformation(
                 "[SellLineStockOutSync] ExecuteStockOut after Recalculate SellOrderItemId={SellOrderItemId} SaveChanges={Rows}",
                 sellLineId, saveExtend);
+
+            if (isCustomsOut)
+                await _customsV2FlowService.OnCustomsStockOutCompletedAsync(requestId, actingUserId);
 
             return stockOut;
         }
@@ -948,6 +1033,7 @@ namespace CRM.Core.Services
                 SourceCode = x.SourceCode,
                 SourceId = x.SourceId,
                 StockOutDate = x.StockOutDate,
+                ExpectedStockOutDate = x.ExpectedStockOutDate,
                 TotalQuantity = x.TotalQuantity,
                 TotalAmount = x.TotalAmount,
                 Status = x.Status,
@@ -1108,6 +1194,9 @@ namespace CRM.Core.Services
                     },
                     StringComparer.OrdinalIgnoreCase);
 
+            var stockOutIds = outs.Select(x => x.Id).ToList();
+            var packingCountById = await ResolvePackingCountByStockOutIdAsync(stockOutIds);
+
             return outs
                 .Select(x =>
                 {
@@ -1150,6 +1239,8 @@ namespace CRM.Core.Services
                         SourceCode = x.SourceCode,
                         SourceId = x.SourceId,
                         StockOutDate = x.StockOutDate,
+                        ExpectedStockOutDate = x.ExpectedStockOutDate,
+                        PackingCount = packingCountById.TryGetValue(x.Id, out var packingCount) ? packingCount : 0,
                         TotalQuantity = x.TotalQuantity,
                         TotalAmount = x.TotalAmount,
                         Status = x.Status,
@@ -1165,6 +1256,74 @@ namespace CRM.Core.Services
                     };
                 })
                 .ToList();
+        }
+
+        /// <summary>按出库单统计关联装箱单数量（<c>stock_out_item.packing_id</c> 或拣货任务关联）。</summary>
+        private async Task<IReadOnlyDictionary<string, int>> ResolvePackingCountByStockOutIdAsync(
+            IReadOnlyList<string> stockOutIds)
+        {
+            if (stockOutIds.Count == 0)
+                return new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            var idSet = stockOutIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var items = (await _stockOutItemRepository.GetAllAsync())
+                .Where(i => !i.IsDeleted && idSet.Contains(i.StockOutId ?? string.Empty))
+                .ToList();
+
+            var pickingItemIds = items
+                .Select(i => i.PickingTaskItemId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var packingByPickingItem = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (pickingItemIds.Count > 0)
+            {
+                var pickItems = (await _pickingTaskItemRepository.GetAllAsync())
+                    .Where(pti => pickingItemIds.Contains(pti.Id) && !pti.IsDeleted)
+                    .Select(pti => new { pti.Id, pti.PickingTaskId })
+                    .ToList();
+                var taskIds = pickItems
+                    .Select(x => x.PickingTaskId)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                var taskPackingById = (await _pickingTaskRepository.GetAllAsync())
+                    .Where(pt => taskIds.Contains(pt.Id) && !pt.IsDeleted && !string.IsNullOrWhiteSpace(pt.PackingId))
+                    .ToDictionary(pt => pt.Id, pt => pt.PackingId!.Trim(), StringComparer.OrdinalIgnoreCase);
+                foreach (var pi in pickItems)
+                {
+                    if (taskPackingById.TryGetValue(pi.PickingTaskId, out var packingId))
+                        packingByPickingItem[pi.Id] = packingId;
+                }
+            }
+
+            var result = stockOutIds.ToDictionary(id => id, _ => 0, StringComparer.OrdinalIgnoreCase);
+            foreach (var grp in items.GroupBy(i => i.StockOutId?.Trim() ?? string.Empty))
+            {
+                if (string.IsNullOrEmpty(grp.Key) || !idSet.Contains(grp.Key))
+                    continue;
+
+                var packingIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var item in grp)
+                {
+                    if (!string.IsNullOrWhiteSpace(item.PackingId))
+                    {
+                        packingIds.Add(item.PackingId.Trim());
+                        continue;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(item.PickingTaskItemId)
+                        && packingByPickingItem.TryGetValue(item.PickingTaskItemId.Trim(), out var viaPick))
+                    {
+                        packingIds.Add(viaPick);
+                    }
+                }
+
+                result[grp.Key] = packingIds.Count;
+            }
+
+            return result;
         }
 
         /// <inheritdoc />
@@ -1578,6 +1737,35 @@ namespace CRM.Core.Services
             if (to.HasValue && t >= DateStartUtc(to.Value).AddDays(1))
                 return false;
             return true;
+        }
+
+        /// <inheritdoc />
+        public async Task MarkFinishedAsync(string id, MarkStockOutFinishedRequest request, string? actingUserId = null)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("ID不能为空", nameof(id));
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+            if (request.StockOutDate == default)
+                throw new ArgumentException("请填写实际出库日期", nameof(request));
+            if (string.IsNullOrWhiteSpace(request.CourierTrackingNo))
+                throw new ArgumentException("请填写快递单号", nameof(request));
+
+            var stockOut = await _stockOutRepository.GetByIdAsync(id.Trim())
+                ?? throw new InvalidOperationException($"出库单 {id} 不存在");
+
+            if (stockOut.Status == 4)
+                throw new InvalidOperationException("该出库单已是完成状态");
+
+            stockOut.StockOutDate = PostgreSqlDateTime.ToUtc(request.StockOutDate);
+            stockOut.CourierTrackingNo = request.CourierTrackingNo.Trim();
+            stockOut.Remark = string.IsNullOrWhiteSpace(request.Remark) ? null : request.Remark.Trim();
+            stockOut.ModifyTime = DateTime.UtcNow;
+            stockOut.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+            await _stockOutRepository.UpdateAsync(stockOut);
+            await _unitOfWork.SaveChangesAsync();
+
+            await UpdateStatusAsync(id.Trim(), 4, actingUserId);
         }
 
         /// <inheritdoc />

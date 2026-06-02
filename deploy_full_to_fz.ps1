@@ -293,7 +293,7 @@ else {
     $nd = $NonDockerBackendRoot
     $bp = $BackendPort
     # Stop service and kill orphan dotnet process to avoid AddressInUse on 5000.
-    $restartApiOneLine = 'if ' + $SudoCmd + ' systemctl list-unit-files 2>/dev/null | grep -qF ''crm-api.service''; then ' + $SudoCmd + ' systemctl daemon-reload; ' + $SudoCmd + ' systemctl stop crm-api 2>/dev/null || true; ' + $SudoCmd + ' pkill -f CRM.API.dll 2>/dev/null || true; sleep 3; ' + $SudoCmd + ' systemctl start crm-api || exit 1; sleep 2; else cd ' + $nd + ' || exit 1; pkill -f CRM.API.dll 2>/dev/null || true; sleep 3; export ASPNETCORE_ENVIRONMENT=Production; export ASPNETCORE_URLS=http://0.0.0.0:' + $bp + '; nohup dotnet CRM.API.dll > api.log 2>&1 & sleep 2; fi'
+    $restartApiOneLine = 'if ' + $SudoCmd + ' systemctl list-unit-files 2>/dev/null | grep -qF ''crm-api.service''; then ' + $SudoCmd + ' systemctl daemon-reload; ' + $SudoCmd + ' systemctl stop crm-api 2>/dev/null || true; sleep 3; ' + $SudoCmd + ' systemctl start crm-api || exit 1; sleep 2; else cd ' + $nd + ' || exit 1; pkill -f ''[d]otnet CRM.API.dll'' 2>/dev/null || true; sleep 3; export ASPNETCORE_ENVIRONMENT=Production; export ASPNETCORE_URLS=http://0.0.0.0:' + $bp + '; nohup dotnet CRM.API.dll > api.log 2>&1 & sleep 2; fi'
     & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$restartApiOneLine"
     $restartExit = $LASTEXITCODE
 

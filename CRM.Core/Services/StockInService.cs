@@ -42,6 +42,7 @@ namespace CRM.Core.Services
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly ILogger<StockInService> _logger;
         private readonly IStockInListQuery _stockInListQuery;
+        private readonly ICustomsV2FlowService _customsV2FlowService;
 
         public StockInService(
             IRepository<StockIn> stockInRepository,
@@ -68,7 +69,8 @@ namespace CRM.Core.Services
             IUnitOfWork unitOfWork,
             ILogOperationAppendService logOperationAppend,
             ILogger<StockInService> logger,
-            IStockInListQuery stockInListQuery)
+            IStockInListQuery stockInListQuery,
+            ICustomsV2FlowService customsV2FlowService)
         {
             _stockInRepository = stockInRepository;
             _stockInItemRepository = stockInItemRepository;
@@ -95,6 +97,7 @@ namespace CRM.Core.Services
             _logOperationAppend = logOperationAppend;
             _logger = logger;
             _stockInListQuery = stockInListQuery;
+            _customsV2FlowService = customsV2FlowService;
         }
 
         public async Task<StockIn> CreateAsync(CreateStockInRequest request, string? actingUserId = null)
@@ -1119,6 +1122,11 @@ namespace CRM.Core.Services
                 {
                     _logger.LogError(ex, "[InboundStatus2] Step=PostStockIn failed StockInId={StockInId}", stockIn.Id);
                     throw;
+                }
+
+                if (stockIn.StockInType == StockInTypeCode.Customs)
+                {
+                    await _customsV2FlowService.OnCustomsStockInCompletedAsync(stockIn.Id, actingUserId);
                 }
 
                 string? hookPoId;

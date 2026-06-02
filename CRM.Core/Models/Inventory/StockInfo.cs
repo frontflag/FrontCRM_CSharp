@@ -546,6 +546,10 @@ namespace CRM.Core.Models.Inventory
         /// </summary>
         public DateTime StockOutDate { get; set; } = DateTime.UtcNow;
 
+        /// <summary>预计出库日期（UTC，仅日期语义；批量出库时由用户指定）。</summary>
+        [Column("expected_stock_out_date")]
+        public DateTime? ExpectedStockOutDate { get; set; }
+
         /// <summary>
         /// 出库总数
         /// </summary>

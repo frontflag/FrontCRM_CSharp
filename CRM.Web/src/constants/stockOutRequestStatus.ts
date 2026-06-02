@@ -1,5 +1,6 @@
 /** 出库通知 stockoutrequest.Status，与后端 StockOutRequestStatusCode 一致 */
 export const STOCK_OUT_REQUEST_STATUS = {
+  PendingCustoms: 5,
   PendingPacking: 10,
   Packed: 20,
   StockedOut: 100,

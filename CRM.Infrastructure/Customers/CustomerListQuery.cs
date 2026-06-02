@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
+using CRM.Core.Services;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -105,6 +106,7 @@ public sealed class CustomerListQuery : ICustomerListQuery
             .ToListAsync(cancellationToken);
 
         await HydrateContactsAsync(items, cancellationToken);
+        await HydrateUserDisplayNamesAsync(items, cancellationToken);
 
         return new PagedResult<CustomerInfo>
         {
@@ -148,6 +150,7 @@ public sealed class CustomerListQuery : ICustomerListQuery
             .ToListAsync(cancellationToken);
 
         await HydrateContactsAsync(items, cancellationToken);
+        await HydrateUserDisplayNamesAsync(items, cancellationToken);
 
         return new PagedResult<CustomerInfo>
         {
@@ -191,6 +194,7 @@ public sealed class CustomerListQuery : ICustomerListQuery
             .ToListAsync(cancellationToken);
 
         await HydrateContactsAsync(items, cancellationToken);
+        await HydrateUserDisplayNamesAsync(items, cancellationToken);
 
         return new PagedResult<CustomerInfo>
         {
@@ -234,6 +238,7 @@ public sealed class CustomerListQuery : ICustomerListQuery
             .ToListAsync(cancellationToken);
 
         await HydrateContactsAsync(items, cancellationToken);
+        await HydrateUserDisplayNamesAsync(items, cancellationToken);
 
         return new PagedResult<CustomerInfo>
         {
@@ -257,5 +262,59 @@ public sealed class CustomerListQuery : ICustomerListQuery
         var byCustomer = contactRows.GroupBy(x => x.CustomerId).ToDictionary(g => g.Key, g => (ICollection<CustomerContactInfo>)g.ToList());
         foreach (var c in customers)
             c.Contacts = byCustomer.TryGetValue(c.Id, out var list) ? list : new List<CustomerContactInfo>();
+    }
+
+    private async Task HydrateUserDisplayNamesAsync(IReadOnlyList<CustomerInfo> customers, CancellationToken cancellationToken)
+    {
+        if (customers.Count == 0)
+            return;
+
+        var userIds = customers
+            .SelectMany(c => new[] { c.CreateByUserId, c.SalesUserId })
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (userIds.Count == 0)
+            return;
+
+        var users = await _db.Users.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .ToListAsync(cancellationToken);
+
+        var byId = users
+            .Where(u => !string.IsNullOrWhiteSpace(u.Id))
+            .GroupBy(u => u.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.First(),
+                StringComparer.OrdinalIgnoreCase);
+
+        foreach (var c in customers)
+        {
+            if (!string.IsNullOrWhiteSpace(c.SalesUserId)
+                && byId.TryGetValue(c.SalesUserId.Trim(), out var su))
+            {
+                c.SalesPersonName = EntityLookupService.FormatUserLoginName(su)
+                    ?? EntityLookupService.FormatUserDisplayName(su);
+            }
+
+            var creatorKey = !string.IsNullOrWhiteSpace(c.CreateByUserId)
+                ? c.CreateByUserId.Trim()
+                : c.SalesUserId?.Trim();
+
+            if (string.IsNullOrWhiteSpace(creatorKey))
+                continue;
+
+            if (byId.TryGetValue(creatorKey, out var cu))
+            {
+                c.CreateUserName = EntityLookupService.FormatUserLoginName(cu)
+                    ?? EntityLookupService.FormatUserDisplayName(cu);
+            }
+            else
+            {
+                c.CreateUserName = creatorKey;
+            }
+        }
     }
 }

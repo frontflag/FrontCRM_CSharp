@@ -47,6 +47,7 @@ namespace CRM.Core.Services
         private readonly IInventoryStockItemListQuery _inventoryStockItemListQuery;
         private readonly IInventoryMaterialOverviewStockPageQuery _inventoryMaterialOverviewStockPageQuery;
         private readonly IInventoryCountPlanListQuery _inventoryCountPlanListQuery;
+        private readonly ICustomsV2FlowService _customsV2FlowService;
         private static bool IsTableMissingException(Exception ex)
             => (ex.Message?.Contains("42P01") ?? false)
                || (ex.InnerException?.Message?.Contains("42P01") ?? false)
@@ -160,6 +161,7 @@ namespace CRM.Core.Services
             IInventoryStockItemListQuery inventoryStockItemListQuery,
             IInventoryMaterialOverviewStockPageQuery inventoryMaterialOverviewStockPageQuery,
             IInventoryCountPlanListQuery inventoryCountPlanListQuery,
+            ICustomsV2FlowService customsV2FlowService,
             ILogger<InventoryCenterService> logger)
         {
             _stockRepository = stockRepository;
@@ -193,6 +195,7 @@ namespace CRM.Core.Services
             _inventoryStockItemListQuery = inventoryStockItemListQuery;
             _inventoryMaterialOverviewStockPageQuery = inventoryMaterialOverviewStockPageQuery;
             _inventoryCountPlanListQuery = inventoryCountPlanListQuery;
+            _customsV2FlowService = customsV2FlowService;
             _logger = logger;
         }
 

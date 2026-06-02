@@ -508,6 +508,10 @@ namespace CRM.Core.Models.Customer
         [Column("modify_by_user_id")]
         public string? ModifyByUserId { get; set; }
 
+        /// <summary>创建人展示名（列表 API 填充，不落库）</summary>
+        [NotMapped]
+        public string? CreateUserName { get; set; }
+
         // 导航属性
         public virtual ICollection<CustomerContactInfo> Contacts { get; set; } = new List<CustomerContactInfo>();
         public virtual ICollection<CustomerAddress> Addresses { get; set; } = new List<CustomerAddress>();

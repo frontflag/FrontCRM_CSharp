@@ -14,6 +14,7 @@ namespace CRM.API.Controllers;
 public class CustomsDeclarationsController : ControllerBase
 {
     private readonly ICustomsDeclarationService _service;
+    private readonly ICustomsV2FlowService _customsV2FlowService;
     private readonly IRbacService _rbacService;
     private readonly IDataPermissionService _dataPermissionService;
     private readonly ApplicationDbContext _db;
@@ -21,12 +22,14 @@ public class CustomsDeclarationsController : ControllerBase
 
     public CustomsDeclarationsController(
         ICustomsDeclarationService service,
+        ICustomsV2FlowService customsV2FlowService,
         IRbacService rbacService,
         IDataPermissionService dataPermissionService,
         ApplicationDbContext db,
         ILogger<CustomsDeclarationsController> logger)
     {
         _service = service;
+        _customsV2FlowService = customsV2FlowService;
         _rbacService = rbacService;
         _dataPermissionService = dataPermissionService;
         _db = db;
@@ -66,7 +69,14 @@ public class CustomsDeclarationsController : ControllerBase
             if (!string.IsNullOrEmpty(codeQ))
                 dq = dq.Where(d => EF.Functions.ILike(d.DeclarationCode, $"%{codeQ}%"));
             if (!string.IsNullOrEmpty(sorQ))
-                dq = dq.Where(d => d.StockOutRequestId == sorQ);
+            {
+                var decIdsForSor = await _db.CustomsDeclarationItems.AsNoTracking()
+                    .Where(i => i.StockOutRequestId == sorQ)
+                    .Select(i => i.DeclarationId)
+                    .Distinct()
+                    .ToListAsync();
+                dq = dq.Where(d => decIdsForSor.Contains(d.Id));
+            }
             if (internalStatus.HasValue)
                 dq = dq.Where(d => d.InternalStatus == internalStatus.Value);
             if (customsClearanceStatus.HasValue)
@@ -94,11 +104,18 @@ public class CustomsDeclarationsController : ControllerBase
                 select new { d, b, u };
 
             var rows = await query.Take(n).ToListAsync();
+            var decIds = rows.Select(x => x.d.Id).ToList();
+            var firstSorByDec = await _db.CustomsDeclarationItems.AsNoTracking()
+                .Where(i => decIds.Contains(i.DeclarationId))
+                .GroupBy(i => i.DeclarationId)
+                .Select(g => new { DeclarationId = g.Key, SorId = g.OrderBy(i => i.LineNo).Select(i => i.StockOutRequestId).FirstOrDefault() })
+                .ToDictionaryAsync(x => x.DeclarationId, x => x.SorId);
             var list = rows.Select(x => new CustomsDeclarationListItemDto
             {
                 Id = x.d.Id,
                 DeclarationCode = x.d.DeclarationCode,
-                StockOutRequestId = x.d.StockOutRequestId,
+                PackingId = x.d.PackingId,
+                StockOutRequestId = firstSorByDec.TryGetValue(x.d.Id, out var sor) ? sor : null,
                 CustomsBrokerId = x.d.CustomsBrokerId,
                 CustomsBrokerName = x.b.Cname,
                 DeclarationType = x.d.DeclarationType,
@@ -139,10 +156,17 @@ public class CustomsDeclarationsController : ControllerBase
     public async Task<ActionResult<ApiResponse<CustomsDeclaration>>> GetByStockOutRequest(string stockOutRequestId)
     {
         var key = stockOutRequestId.Trim();
+        var item = await _db.CustomsDeclarationItems.AsNoTracking()
+            .Where(i => i.StockOutRequestId == key)
+            .OrderBy(i => i.LineNo)
+            .Select(i => i.DeclarationId)
+            .FirstOrDefaultAsync();
+        if (string.IsNullOrEmpty(item))
+            return NotFound(ApiResponse<CustomsDeclaration>.Fail("未找到对应报关单", 404));
         var row = await _db.CustomsDeclarations
             .AsNoTracking()
             .Include(x => x.Items)
-            .FirstOrDefaultAsync(x => x.StockOutRequestId == key);
+            .FirstOrDefaultAsync(x => x.Id == item);
         if (row == null)
             return NotFound(ApiResponse<CustomsDeclaration>.Fail("未找到对应报关单", 404));
         return Ok(ApiResponse<CustomsDeclaration>.Ok(row, "OK"));
@@ -151,6 +175,35 @@ public class CustomsDeclarationsController : ControllerBase
     public class SetClearanceStatusRequest
     {
         public short CustomsClearanceStatus { get; set; }
+    }
+
+    public class PatchCustomsDeclarationHeaderRequest
+    {
+        public string? ToWarehouseId { get; set; }
+        public string? Remark { get; set; }
+    }
+
+    [HttpPatch("{id}")]
+    public async Task<ActionResult<ApiResponse<object>>> PatchHeader(string id, [FromBody] PatchCustomsDeclarationHeaderRequest body)
+    {
+        try
+        {
+            if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
+            var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
+            await _customsV2FlowService.UpdateDeclarationHeaderAsync(
+                id, body?.ToWarehouseId, body?.Remark, uid);
+            return Ok(ApiResponse<object>.Ok(null, "已更新报关单"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "更新报关单失败");
+            return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500));
+        }
     }
 
     [HttpPatch("{id}/customs-clearance-status")]
@@ -176,25 +229,13 @@ public class CustomsDeclarationsController : ControllerBase
     }
 
     [HttpPost("{id}/complete")]
-    public async Task<ActionResult<ApiResponse<object>>> Complete(string id)
+    public Task<ActionResult<ApiResponse<object>>> Complete(string id)
     {
-        try
-        {
-            if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
-                return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
-            var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
-            await _service.CompleteDeclarationAndTransferAsync(id, uid);
-            return Ok(ApiResponse<object>.Ok(null, "报关完成并已移库"));
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "报关完成失败");
-            return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500));
-        }
+        _ = id;
+        return Task.FromResult<ActionResult<ApiResponse<object>>>(
+            StatusCode(410, ApiResponse<object>.Fail(
+                "报关 V2 已废弃「报关完成+移库一步过账」，请使用报关出库/入库流程。",
+                410)));
     }
 
     [HttpDelete("{id}")]

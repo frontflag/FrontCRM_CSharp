@@ -88,6 +88,8 @@ export interface PackingCreateExtras {
   box?: PackingExtendBoxInput
   comment?: string | null
   scheduleShipDate?: string | null
+  /** 报关装箱（StockOutType=20）必填 */
+  customsBrokerId?: string | null
 }
 
 export interface PackingDraftLine {
@@ -500,11 +502,16 @@ export const packingApi = {
   },
 
   /** 批量出库：服务端校验并直接生成出库单（不打开执行出库页） */
-  async batchStockOut(packingIds: string[]): Promise<PackingBatchStockOutResult> {
+  async batchStockOut(packingIds: string[], expectedStockOutDate: string): Promise<PackingBatchStockOutResult> {
     const ids = packingIds.map((x) => String(x || '').trim()).filter(Boolean)
     if (!ids.length) throw new Error('请至少选择一张装箱单')
+    const expected = String(expectedStockOutDate || '').trim()
+    if (!expected) throw new Error('请填写预计出库日期')
     try {
-      const res = await apiClient.post<unknown>('/api/v1/packing/batch-stock-out', { packingIds: ids })
+      const res = await apiClient.post<unknown>('/api/v1/packing/batch-stock-out', {
+        packingIds: ids,
+        expectedStockOutDate: expected
+      })
       const root = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
       const d = (root?.data ?? root?.Data ?? root) as Record<string, unknown> | null
       const raw = (d?.lines ?? d?.Lines) as unknown

@@ -1,0 +1,226 @@
+# 报关 V2 — DDL 与表结构说明
+
+> **版本**：讨论定稿（2026-06）  
+> **配套脚本**：[`scripts/customs_v2_schema_postgresql.sql`](../../scripts/customs_v2_schema_postgresql.sql)  
+> **范围**：数据库结构；不含 API / 前端实现。  
+> **旧流程**：`CompleteDeclarationAndTransferAsync` / 移库过账 **废弃**；`stocktransfer_customers` **不再新增**（表保留只读）。
+
+---
+
+## 1. 业务对象与表映射
+
+| 业务对象 | 表 | 说明 |
+|----------|-----|------|
+| 销售出库通知 | `stockout_notify` | `StockOutType=10` |
+| 待报关 | **`customs_pendlist`** | 与销售出库通知 **1:1**，无独立业务单号 |
+| 报关出库通知 | `stockout_notify` | `StockOutType=20`；与 pendlist **1:1** |
+| 报关装箱单 | `packing` | `StockOutType=20`；`customs_broker_id` |
+| 报关装箱明细 | `packing_item` | **1:1** 绑定报关出库通知（`stockout_notify_id`） |
+| 报关记录 | `customs_declaration` | 与装箱 **1:1**；**去掉** `StockOutRequestId` |
+| 报关明细 | `customs_declaration_item` | 装箱确认时生成；拣货后回写源在库行 |
+| 报关到货 | `stockin_notify` | `StockInType=20` |
+| 报关 QC | `qcinfo` | `StockInType=20` |
+| 报关入库 | `stock_in` | `StockInType=20` |
+
+---
+
+## 2. 端到端 FK 关系（简图）
+
+```text
+stockout_notify (销售, Type=10)
+    │ 1:1
+customs_pendlist
+    │ 1:1
+stockout_notify (报关出库, Type=20)
+    │ N:1  packing_item.stockout_notify_id
+packing (Type=20, customs_broker_id)
+    │ 1:1  customs_declaration.packing_id
+customs_declaration
+    │ 1:N
+customs_declaration_item ──→ stockin_notify.customs_declaration_item_id
+                              └── qcinfo → stock_in
+```
+
+---
+
+## 3. 枚举（应用层常量，库内为 `smallint`）
+
+### 3.1 `stockout_notify.Status`
+
+| 值 | 常量 | 含义 |
+|----|------|------|
+| -1 | Cancelled | 已取消 |
+| **5** | **PendingCustoms** | **待报关**（禁销售装箱） |
+| 10 | PendingPacking | 待装箱 |
+| 20 | Packed | 已装箱 |
+| 100 | StockedOut | 已出库 |
+
+报关入库完成后：销售通知 **5 → 10**（自动）。
+
+### 3.2 `customs_pendlist.status`
+
+| 值 | 含义 |
+|----|------|
+| 1 | **Open（新建）**：可生成报关出库通知 |
+| 2 | **CustomsOutNotifyCreated**：已生成报关出库通知 |
+| 3 | **InCustomsProcess**：已进装箱/报关单流程 |
+| 10 | **Closed**：报关入库完成 |
+| -1 | **Cancelled**：随销售出库通知取消 |
+
+装箱作废/移除明细：pendlist **恢复为 1（Open）**（应用层）。
+
+### 3.3 `stockout_notify.StockOutType`
+
+| 值 | 含义 |
+|----|------|
+| 10 | 销售出库通知 |
+| 20 | 报关出库通知 |
+
+---
+
+## 4. 新建表：`customs_pendlist`
+
+| 列名 | 类型 | 空 | 说明 |
+|------|------|----|------|
+| `id` | varchar(36) | N | PK |
+| `sales_stockout_notify_id` | varchar(36) | N | 销售出库通知 FK → `stockout_notify."ID"`，**唯一**（未删） |
+| `sell_order_item_id` | varchar(36) | N | 销售明细冗余 |
+| `qty` | integer | N | 待报关数量（= 销售出库通知数量） |
+| `status` | smallint | N | 见 §3.2，默认 **1** |
+| `customs_stockout_notify_id` | varchar(36) | Y | 报关出库通知 FK，**唯一**（未删且非空） |
+| `overseas_warehouse_id` | varchar(36) | Y | 创建时快照主境外仓（可选，辅助列表） |
+| `create_time` / `modify_time` | timestamptz | | 审计 |
+| `create_by_user_id` / `modify_by_user_id` | varchar(36) | Y | |
+| `is_deleted` | boolean | N | 默认 false |
+
+**索引**
+
+- `UX_customs_pendlist_sales_sor`：`sales_stockout_notify_id` WHERE `is_deleted = false`
+- `UX_customs_pendlist_customs_sor`：`customs_stockout_notify_id` WHERE `is_deleted = false AND customs_stockout_notify_id IS NOT NULL`
+- `IX_customs_pendlist_sell_line`：`sell_order_item_id` WHERE `is_deleted = false`
+
+**无业务单号**；列表展示销售出库通知 `Code`。
+
+---
+
+## 5. 变更表：`stockout_notify`
+
+| 变更 | 列 | 说明 |
+|------|-----|------|
+| 注释 | `Status` | 增加 **5=待报关** |
+| 新增 | `customs_pendlist_id` | varchar(36) NULL；**仅 Type=20** 使用；指向 pendlist，**唯一**（未删且非空） |
+
+> 销售出库通知（Type=10）与 pendlist 的关联在 **`customs_pendlist.sales_stockout_notify_id`**，不在销售通知行上重复 FK。
+
+---
+
+## 6. 变更表：`packing`
+
+| 变更 | 列 | 说明 |
+|------|-----|------|
+| 新增 | `customs_broker_id` | varchar(36) NULL → `customs_broker."Id"`；**报关装箱必填**（应用校验） |
+| 新增 | `customs_declaration_id` | varchar(36) NULL；装箱确认后写入；**唯一**（未删且非空） |
+
+报关装箱 **不使用** `customer_id` 表示报关公司。
+
+---
+
+## 7. 变更表：`packing_item`
+
+| 变更 | 列 | 说明 |
+|------|-----|------|
+| 已有 | `stockout_notify_id` | 报关场景 **1:1 绑定报关出库通知**（Type=20） |
+| 新增 | `customs_pendlist_id` | varchar(36) NULL；冗余，便于回退/溯源；**唯一**（未删且非空） |
+
+---
+
+## 8. 变更表：`customs_declaration`
+
+| 变更 | 说明 |
+|------|------|
+| **删除** | `StockOutRequestId` 列及 FK、唯一索引 |
+| 新增 | `packing_id` varchar(36) NOT NULL → `packing."Id"`，**唯一**（`is_deleted = false`） |
+| 保留 | `FromWarehouseId`（明细源境外仓 **自动带出**）、`ToWarehouseId`（**手动**） |
+
+---
+
+## 9. 变更表：`customs_declaration_item`
+
+| 变更 | 列 | 说明 |
+|------|-----|------|
+| **改可空** | `SourceStockItemId` | 装箱生成时可为空；**拣货后回写** |
+| 保留 | `StockOutRequestId` | 仍指向 **销售**出库通知 |
+| 新增 | `customs_pendlist_id` | varchar(36) NOT NULL |
+| 新增 | `customs_stockout_notify_id` | varchar(36) NOT NULL（报关出库通知） |
+| 新增 | `packing_item_id` | varchar(36) NOT NULL，**唯一**（未删） |
+| 新增 | `original_purchase_price` | numeric(18,6) DEFAULT 0；P0 快照 |
+| 新增 | `vendor_id` | varchar(36) NULL；原始供应商 |
+
+---
+
+## 10. 变更表：`stock_out_item_extend`
+
+| 变更 | 列 | 说明 |
+|------|-----|------|
+| 新增 | `original_purchase_price` | numeric(18,6) NOT NULL DEFAULT 0；**P0** |
+| 新增 | `vendor_id` | varchar(36) NULL |
+| 新增 | `customs_declaration_item_id` | varchar(36) NULL；报关溯源 |
+
+**语义（定稿）**
+
+| 场景 | `original_purchase_price` | `PurchasePrice` |
+|------|---------------------------|-----------------|
+| 报关出库 extend | P0 | P0 |
+| 销售出库 extend | P0 | **P1（报关采购价）** |
+
+---
+
+## 11. 变更表：`stockin_notify`（报关到货）
+
+| 新增 | 列 | 说明 |
+|------|-----|------|
+| `customs_declaration_item_id` | varchar(36) NULL | 从报关明细发起到货；**唯一**（未删且非空） |
+
+发起条件（应用层）：对应报关明细所属报关单 **已报关出库完成**。
+
+---
+
+## 12. 不变更 / 仅应用层
+
+| 对象 | 说明 |
+|------|------|
+| `stock_item` | 报关入库时 `PurchasePrice` = P1（`TaxIncludedUnitPrice`） |
+| `qcinfo` | 复用；`StockInType=20`；**部分通过按全拒** |
+| `stocktransfer_customers` | 不删表；V2 **禁止新写入** |
+| RBAC | 不新增节点 |
+
+---
+
+## 13. 约束摘要（须应用 + DB 协同）
+
+1. **跨境外仓禁止**合并报关装箱：组箱前校验各报关出库通知源仓一致。  
+2. **1 装箱 → 1 报关记录**：`customs_declaration.packing_id` 唯一。  
+3. **1 pendlist → 1 销售 SOR / 1 报关出库通知**。  
+4. **1 packing_item → 1 报关出库通知**（Type=20）。  
+5. 已生成报关出库通知 → **禁止取消**销售出库通知。  
+6. `POST .../customs-declarations/{id}/complete` → **410**。
+
+---
+
+## 14. 执行顺序
+
+1. 阅读本文档。  
+2. 在 **非生产** 库执行 [`scripts/customs_v2_schema_postgresql.sql`](../../scripts/customs_v2_schema_postgresql.sql)。  
+3. 后续 EF Migration / 实体类与本文对齐（开发阶段）。  
+
+**回滚**：脚本末尾含 `Down` 段（删除新表、恢复列需按环境评估）；生产执行前 **备份**。
+
+---
+
+## 15. 与旧文档关系
+
+| 文档 | 关系 |
+|------|------|
+| `报关_移库.md` | 移库一步过账 **废弃** |
+| `报关模块完整实施方案.md` | 被本文 **V2 流程**  supersede |
+| `报关V2前备份` commit | 代码基线 |

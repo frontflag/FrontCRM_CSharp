@@ -26,6 +26,7 @@ namespace CRM.API.Controllers
         private readonly ApplicationDbContext _db;
         private readonly IRbacService _rbacService;
         private readonly IForceDeleteGuardService _forceDeleteGuard;
+        private readonly ICustomsPendlistService _customsPendlistService;
         private readonly ILogger<StockOutController> _logger;
 
         public StockOutController(
@@ -38,6 +39,7 @@ namespace CRM.API.Controllers
             ApplicationDbContext db,
             IRbacService rbacService,
             IForceDeleteGuardService forceDeleteGuard,
+            ICustomsPendlistService customsPendlistService,
             ILogger<StockOutController> logger)
         {
             _service = service;
@@ -49,6 +51,7 @@ namespace CRM.API.Controllers
             _db = db;
             _rbacService = rbacService;
             _forceDeleteGuard = forceDeleteGuard;
+            _customsPendlistService = customsPendlistService;
             _logger = logger;
         }
 
@@ -246,6 +249,58 @@ namespace CRM.API.Controllers
             }
         }
 
+        /// <summary>标记完成对话框上下文</summary>
+        [HttpGet("{id}/mark-finish-context")]
+        public async Task<ActionResult<ApiResponse<StockOutMarkFinishContextDto>>> GetMarkFinishContext(
+            string id,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var dto = await BuildMarkFinishContextAsync(id, cancellationToken);
+                if (dto == null)
+                    return NotFound(ApiResponse<StockOutMarkFinishContextDto>.Fail("出库单不存在", 404));
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                {
+                    dto.CustomerName = null;
+                    dto.ShipAddress = null;
+                }
+                return Ok(ApiResponse<StockOutMarkFinishContextDto>.Ok(dto, "OK"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取标记完成上下文失败");
+                return StatusCode(500, ApiResponse<StockOutMarkFinishContextDto>.Fail($"加载失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>标记完成：更新实际出库日期、快递单号、备注并置状态为已完成</summary>
+        [HttpPost("{id}/mark-finished")]
+        public async Task<ActionResult<ApiResponse<object>>> MarkFinished(string id, [FromBody] MarkStockOutFinishedRequest? body)
+        {
+            try
+            {
+                if (body == null)
+                    return BadRequest(ApiResponse<object>.Fail("请求体不能为空", 400));
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                await _service.MarkFinishedAsync(id, body, actorId);
+                return Ok(ApiResponse<object>.Ok(null, "已标记为完成"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "标记出库单完成失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"标记完成失败: {ex.Message}", 500));
+            }
+        }
+
         /// <summary>销售明细申请出库前的数量上下文（服务端计算，前端只读展示）</summary>
         [HttpGet("request/apply-context")]
         public async Task<ActionResult<ApiResponse<StockOutApplyContextDto>>> GetRequestApplyContext(
@@ -362,9 +417,20 @@ namespace CRM.API.Controllers
                 if (!guard.CanDelete)
                     return BadRequest(ApiResponse<object>.Fail(guard.Message, 400));
 
+                await _customsPendlistService.EnsureSalesNotifyDeletableAsync(entity.Id);
+
                 await _stockOutRequestRepo.DeleteAsync(entity.Id);
+                await _customsPendlistService.CancelBySalesStockOutNotifyAsync(
+                    entity.Id,
+                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? User.FindFirst("sub")?.Value
+                    ?? User.FindFirst("userId")?.Value);
                 await _unitOfWork.SaveChangesAsync();
                 return Ok(ApiResponse<object>.Ok(null, "删除出库通知成功"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
             }
             catch (Exception ex)
             {
@@ -574,6 +640,108 @@ namespace CRM.API.Controllers
 
         private static string PackingAddressLine(string? value) =>
             string.IsNullOrWhiteSpace(value) ? "—" : value.Trim();
+
+        /// <summary>标记完成对话框：客户、送货地址、关联装箱单及当前头表字段。</summary>
+        private async Task<StockOutMarkFinishContextDto?> BuildMarkFinishContextAsync(
+            string id,
+            CancellationToken cancellationToken)
+        {
+            var sid = id?.Trim();
+            if (string.IsNullOrEmpty(sid))
+                return null;
+
+            var detail = await _service.GetDetailViewAsync(sid);
+            if (detail == null)
+                return null;
+
+            var stockOut = await _db.StockOuts.AsNoTracking()
+                .Where(x => x.Id == sid && !x.IsDeleted)
+                .Select(x => new { x.StockOutCode, x.StockOutDate, x.CourierTrackingNo, x.Remark })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            var directPackingIds = await _db.StockOutItems.AsNoTracking()
+                .Where(i => i.StockOutId == sid && !i.IsDeleted && i.PackingId != null && i.PackingId != "")
+                .Select(i => i.PackingId!)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            var pickingTaskItemIds = await _db.StockOutItems.AsNoTracking()
+                .Where(i => i.StockOutId == sid && !i.IsDeleted && i.PickingTaskItemId != null && i.PickingTaskItemId != "")
+                .Select(i => i.PickingTaskItemId!)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            var viaPickingPackingIds = new List<string>();
+            if (pickingTaskItemIds.Count > 0)
+            {
+                viaPickingPackingIds = await (
+                    from pti in _db.PickingTaskItems.AsNoTracking()
+                    join pt in _db.PickingTasks.AsNoTracking() on pti.PickingTaskId equals pt.Id
+                    where pickingTaskItemIds.Contains(pti.Id)
+                          && !pti.IsDeleted
+                          && !pt.IsDeleted
+                          && pt.PackingId != null
+                          && pt.PackingId != ""
+                    select pt.PackingId!
+                ).Distinct().ToListAsync(cancellationToken);
+            }
+
+            var packingIds = directPackingIds
+                .Concat(viaPickingPackingIds)
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var packings = new List<StockOutMarkFinishPackingDto>();
+            string? shipAddress = null;
+
+            if (packingIds.Count > 0)
+            {
+                var packingRows = await _db.Packings.AsNoTracking()
+                    .Where(p => packingIds.Contains(p.Id) && !p.IsDeleted)
+                    .OrderBy(p => p.Code)
+                    .Select(p => new { p.Id, p.Code })
+                    .ToListAsync(cancellationToken);
+
+                var shipRows = await _db.PackingExtendShips.AsNoTracking()
+                    .Where(s => packingIds.Contains(s.PackingId))
+                    .Select(s => new { s.PackingId, s.ShipAddress })
+                    .ToListAsync(cancellationToken);
+                var shipByPacking = shipRows.ToDictionary(
+                    x => x.PackingId,
+                    x => x.ShipAddress,
+                    StringComparer.OrdinalIgnoreCase);
+
+                foreach (var p in packingRows)
+                {
+                    packings.Add(new StockOutMarkFinishPackingDto
+                    {
+                        Id = p.Id,
+                        Code = string.IsNullOrWhiteSpace(p.Code) ? null : p.Code.Trim()
+                    });
+                    if (shipAddress == null
+                        && shipByPacking.TryGetValue(p.Id, out var addr)
+                        && !string.IsNullOrWhiteSpace(addr))
+                    {
+                        shipAddress = addr.Trim();
+                    }
+                }
+            }
+
+            return new StockOutMarkFinishContextDto
+            {
+                StockOutId = sid,
+                StockOutCode = stockOut?.StockOutCode ?? detail.StockOutCode,
+                CustomerName = detail.CustomerName,
+                ShipAddress = shipAddress,
+                Packings = packings,
+                StockOutDate = stockOut?.StockOutDate ?? detail.StockOutDate,
+                CourierTrackingNo = string.IsNullOrWhiteSpace(stockOut?.CourierTrackingNo)
+                    ? detail.CourierTrackingNo
+                    : stockOut!.CourierTrackingNo.Trim(),
+                Remark = stockOut?.Remark ?? detail.Remark
+            };
+        }
 
         /// <summary>按装箱单主键直接读取 code 与账单/送货地址（packing + packing_extend_ship）。</summary>
         private async Task<(string? PackingCode, PackingReportAddressPanelDto Addresses, short? DeliveryMethod)>

@@ -127,11 +127,15 @@ public class PackingController : ControllerBase
         if (body?.PackingIds == null || body.PackingIds.Count == 0)
             return BadRequest(ApiResponse<PackingBatchStockOutResultDto>.Fail("请至少选择一张装箱单", 400));
 
+        if (body.ExpectedStockOutDate is not { } expectedDate || expectedDate == default)
+            return BadRequest(ApiResponse<PackingBatchStockOutResultDto>.Fail("请填写预计出库日期", 400));
+
         try
         {
             var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var result = await _packingService.BatchExecuteStockOutFromPackingsAsync(
                 body.PackingIds,
+                expectedDate,
                 actorId,
                 cancellationToken);
             return Ok(ApiResponse<PackingBatchStockOutResultDto>.Ok(result, "批量出库成功"));
@@ -508,4 +512,6 @@ public class CreatePackingFromStockOutRequestsBody
 public class BatchStockOutFromPackingsBody
 {
     public List<string> PackingIds { get; set; } = new();
+    /// <summary>预计出库日期（必填，YYYY-MM-DD 或 ISO 日期时间）。</summary>
+    public DateTime? ExpectedStockOutDate { get; set; }
 }

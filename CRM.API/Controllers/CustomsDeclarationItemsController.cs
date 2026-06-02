@@ -1,10 +1,11 @@
 using CRM.API.Models.DTOs;
-using CRM.Core.Models;
-using CRM.Core.Models.Customer;
+using CRM.API.Utilities;
+using CRM.Core.Interfaces;
 using CRM.Core.Models.Customs;
 using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace CRM.API.Controllers;
 
@@ -13,12 +14,70 @@ namespace CRM.API.Controllers;
 public class CustomsDeclarationItemsController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
+    private readonly ICustomsV2FlowService _customsV2FlowService;
+    private readonly IRbacService _rbacService;
     private readonly ILogger<CustomsDeclarationItemsController> _logger;
 
-    public CustomsDeclarationItemsController(ApplicationDbContext db, ILogger<CustomsDeclarationItemsController> logger)
+    public CustomsDeclarationItemsController(
+        ApplicationDbContext db,
+        ICustomsV2FlowService customsV2FlowService,
+        IRbacService rbacService,
+        ILogger<CustomsDeclarationItemsController> logger)
     {
         _db = db;
+        _customsV2FlowService = customsV2FlowService;
+        _rbacService = rbacService;
         _logger = logger;
+    }
+
+    public class PatchCustomsDeclarationItemRequest
+    {
+        public string? HsCode { get; set; }
+        public int? DeclareQty { get; set; }
+        public decimal? DeclareUnitPrice { get; set; }
+        public decimal? DutyAmount { get; set; }
+        public decimal? VatAmount { get; set; }
+        public decimal? CustomsPaymentGoods { get; set; }
+        public decimal? CustomsAgencyFee { get; set; }
+        public decimal? OtherFee { get; set; }
+        public decimal? InspectionFee { get; set; }
+        public decimal? TotalValueTax { get; set; }
+        public decimal? TaxIncludedUnitPrice { get; set; }
+    }
+
+    [HttpPatch("{id}")]
+    public async Task<ActionResult<ApiResponse<object>>> PatchItem(string id, [FromBody] PatchCustomsDeclarationItemRequest body)
+    {
+        try
+        {
+            if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
+            var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
+            await _customsV2FlowService.UpdateDeclarationItemAsync(id, new CustomsDeclarationItemPatch
+            {
+                HsCode = body?.HsCode,
+                DeclareQty = body?.DeclareQty,
+                DeclareUnitPrice = body?.DeclareUnitPrice,
+                DutyAmount = body?.DutyAmount,
+                VatAmount = body?.VatAmount,
+                CustomsPaymentGoods = body?.CustomsPaymentGoods,
+                CustomsAgencyFee = body?.CustomsAgencyFee,
+                OtherFee = body?.OtherFee,
+                InspectionFee = body?.InspectionFee,
+                TotalValueTax = body?.TotalValueTax,
+                TaxIncludedUnitPrice = body?.TaxIncludedUnitPrice
+            }, uid);
+            return Ok(ApiResponse<object>.Ok(null, "已更新报关明细"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "更新报关明细失败");
+            return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500));
+        }
     }
 
     [HttpGet]

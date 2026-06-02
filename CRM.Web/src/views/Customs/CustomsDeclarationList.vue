@@ -67,15 +67,6 @@
       <el-table-column :label="t('customsPages.declarations.colActions')" width="320" fixed="right">
         <template #default="{ row }">
           <el-button v-if="canWriteLogisticsData" link type="primary" @click.stop="openClearance(row)">{{ t('customsPages.declarations.setClearance') }}</el-button>
-          <el-button
-            v-if="canWriteLogisticsData"
-            link
-            type="success"
-            :disabled="row.customsClearanceStatus !== 100"
-            @click.stop="doComplete(row)"
-          >
-            {{ t('customsPages.declarations.complete') }}
-          </el-button>
           <el-button v-if="canWriteLogisticsData" link type="danger" @click.stop="handleDelete(row)">删除</el-button>
           <el-button v-if="isSysAdmin" link type="danger" @click.stop="handleForceDelete(row)">强制删除</el-button>
         </template>
@@ -123,7 +114,6 @@ import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  completeCustomsDeclaration,
   deleteCustomsDeclaration,
   fetchCustomsDeclarationById,
   fetchCustomsDeclarations,
@@ -231,23 +221,6 @@ async function saveClearance() {
     ElMessage.error(e instanceof Error ? e.message : String(e))
   } finally {
     clearanceSaving.value = false
-  }
-}
-
-async function doComplete(row: CustomsDeclarationListItemDto) {
-  try {
-    await ElMessageBox.confirm(t('customsPages.declarations.completeConfirm'), t('customsPages.declarations.complete'), {
-      type: 'warning'
-    })
-  } catch {
-    return
-  }
-  try {
-    await completeCustomsDeclaration(row.id)
-    ElMessage.success(t('customsPages.declarations.completeOk'))
-    await load()
-  } catch (e: unknown) {
-    ElMessage.error(e instanceof Error ? e.message : String(e))
   }
 }
 

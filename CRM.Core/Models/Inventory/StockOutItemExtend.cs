@@ -79,6 +79,18 @@ namespace CRM.Core.Models.Inventory
         [Column(TypeName = "numeric(18,2)")]
         public decimal ProfitOutBizUsd { get; set; }
 
+        /// <summary>原始采购价 P0。</summary>
+        [Column("original_purchase_price", TypeName = "numeric(18,6)")]
+        public decimal OriginalPurchasePrice { get; set; }
+
+        [StringLength(36)]
+        [Column("vendor_id")]
+        public string? VendorId { get; set; }
+
+        [StringLength(36)]
+        [Column("customs_declaration_item_id")]
+        public string? CustomsDeclarationItemId { get; set; }
+
         /// <summary>出库明细（主键与 <see cref="Id"/> / <c>StockOutItemId</c> 相同）。</summary>
         public virtual StockOutItem? StockOutItem { get; set; }
 

@@ -196,6 +196,7 @@ COMMENT ON COLUMN public.stock_out."WarehouseId" IS '出库仓库主键（GUID�
 COMMENT ON COLUMN public.stock_out."CustomerId" IS '客户主键（GUID，销售出库）';
 COMMENT ON COLUMN public.stock_out."SellOrderItemId" IS '销售订单明细主键（GUID，按行出库时冗余）';
 COMMENT ON COLUMN public.stock_out."StockOutDate" IS '出库日期（timestamptz，存 UTC）';
+COMMENT ON COLUMN public.stock_out.expected_stock_out_date IS '预计出库日期（timestamptz，存 UTC；批量出库时由用户指定）';
 COMMENT ON COLUMN public.stock_out."TotalQuantity" IS '出库总数量（整数）';
 COMMENT ON COLUMN public.stock_out."TotalAmount" IS '出库总金额（numeric(18,2)）';
 COMMENT ON COLUMN public.stock_out."Status" IS '出库单状态：0=草稿 1=待出库 2=已出库 3=已取消';

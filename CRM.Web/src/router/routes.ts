@@ -299,6 +299,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '报关公司' }
       },
       {
+        path: 'customs/pendlists',
+        name: 'CustomsPendlistList',
+        component: () => import('@/views/Customs/CustomsPendlistList.vue'),
+        meta: { requiresAuth: true, title: '待报关列表' }
+      },
+      {
         path: 'customs/declarations',
         name: 'CustomsDeclarationList',
         component: () => import('@/views/Customs/CustomsDeclarationList.vue'),

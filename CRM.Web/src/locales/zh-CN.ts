@@ -42,6 +42,38 @@ const zhCN = {
       statusActive: '启用',
       statusInactive: '停用'
     },
+    pendlists: {
+      title: '待报关列表',
+      search: '查询',
+      reset: '重置',
+      filterStatus: '状态',
+      filterStatusAll: '全部',
+      filterKeyword: '关键词',
+      filterKeywordPlaceholder: '销售出库通知单号 / 报关出库通知单号',
+      statusOpen: '待处理',
+      statusCustomsOutCreated: '已生成报关出库通知',
+      statusInProcess: '报关流程中',
+      statusClosed: '已关闭',
+      statusCancelled: '已取消',
+      colSalesSor: '销售出库通知',
+      colSalesOrder: '销售单号',
+      colSoLine: '销售明细',
+      colMaterial: '物料型号',
+      colBrand: '品牌',
+      colQty: '数量',
+      colOverseasWh: '境外仓',
+      colStatus: '状态',
+      colCustomsSor: '报关出库通知',
+      colCustomer: '客户',
+      colCreateTime: '创建时间',
+      colCreator: '创建人',
+      colActions: '操作',
+      createCustomsOutNotify: '生成报关出库通知',
+      createConfirm: '确定为该条待报关记录生成报关出库通知？',
+      createOk: '已生成报关出库通知 {code}',
+      createFailed: '生成报关出库通知失败',
+      onlyOpenCanCreate: '仅「待处理」状态可生成报关出库通知'
+    },
     declarations: {
       title: '报关单',
       search: '查询',
@@ -240,6 +272,7 @@ const zhCN = {
       stockInManagement: '入库管理',
       customsGroup: '报关',
       customsBrokers: '报关公司',
+      customsPendlists: '待报关列表',
       customsDeclarations: '报关单',
       customsDeclarationItems: '报关明细',
       stockTransfers: '报关移库',
@@ -3416,7 +3449,7 @@ const zhCN = {
     title: '出库单列表',
     count: '共 {count} 条',
     filters: {
-      keywordPlaceholder: '出库单号/来源/明细编号/出货方式/快递单号',
+      keywordPlaceholder: '出库单号/出货方式/快递单号',
       search: '搜索',
       refresh: '刷新'
     },
@@ -3433,13 +3466,13 @@ const zhCN = {
       sourceCode: '来源申请',
       customerName: '客户',
       salesUserName: '业务员',
-      sellOrderItemCode: '销售订单明细编号',
+      expectedStockOutDate: '预计出库日期',
       stockOutDate: '出库日期',
+      packingCount: '装箱单数',
       shipmentMethod: '出货方式',
       courierTrackingNo: '快递单号',
-      totalQuantity: '出库数量',
       remark: '备注',
-      createTime: '创建时间',
+      createTime: '创建日期',
       createUser: '创建人',
       actions: '操作'
     },
@@ -3451,6 +3484,17 @@ const zhCN = {
       packingWithInspection: 'Packing-含出货检',
       packingWithoutInspection: 'Packing-不含出货检',
       markFinished: '标记完成'
+    },
+    markFinish: {
+      title: '标记完成',
+      shipAddress: '送货地址',
+      packingSummary: '装箱单',
+      packingCount: '共 {count} 张',
+      actualStockOutDate: '实际出库日期',
+      actualStockOutDatePlaceholder: '请选择实际出库日期',
+      courierTrackingNoPlaceholder: '请输入快递单号',
+      remarkPlaceholder: '可选备注',
+      loadContextFailed: '加载出库单信息失败'
     },
     messages: {
       loadFailed: '加载出库单失败',
@@ -3633,6 +3677,7 @@ const zhCN = {
       actions: '操作'
     },
     status: {
+      pendingCustoms: '待报关',
       pendingPacking: '待装箱',
       packed: '已装箱',
       stockedOut: '已出库',
@@ -3813,6 +3858,9 @@ const zhCN = {
       confirmPackingCode: '装箱单：{code}',
       confirmShipCompany: '出货公司名称',
       confirmShipAddress: '出货地址',
+      expectedStockOutDate: '预计出库日期',
+      expectedStockOutDatePlaceholder: '请选择预计出库日期',
+      expectedStockOutDateRequired: '请先选择预计出库日期',
       batchConfirm: '确认为所选 {count} 张装箱单生成出库单？系统将按已完成拣货自动扣减库存。',
       batchOk: '确认出库',
       batchProcessing: '正在生成出库单…',
@@ -3905,7 +3953,10 @@ const zhCN = {
     invalidSelection: '未选择有效的出库通知，请从出库通知列表勾选后进入',
     deliveryMethodPlaceholder: '请选择',
     deliveryMethodDelivery: '送货',
-    deliveryMethodPickup: '自提'
+    deliveryMethodPickup: '自提',
+    customsBroker: '报关公司',
+    customsBrokerPlaceholder: '请选择报关公司',
+    customsBrokerRequired: '报关装箱须选择报关公司'
   },
   packingDetail: {
     title: '装箱单详情',

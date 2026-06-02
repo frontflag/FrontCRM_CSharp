@@ -42,6 +42,38 @@ const enUS = {
       statusActive: 'Active',
       statusInactive: 'Inactive'
     },
+    pendlists: {
+      title: 'Customs pending list',
+      search: 'Search',
+      reset: 'Reset',
+      filterStatus: 'Status',
+      filterStatusAll: 'All',
+      filterKeyword: 'Keyword',
+      filterKeywordPlaceholder: 'Sales / customs stock-out notice code',
+      statusOpen: 'Open',
+      statusCustomsOutCreated: 'Customs out notify created',
+      statusInProcess: 'In customs process',
+      statusClosed: 'Closed',
+      statusCancelled: 'Cancelled',
+      colSalesSor: 'Sales stock-out notice',
+      colSalesOrder: 'Sales order',
+      colSoLine: 'SO line',
+      colMaterial: 'PN / model',
+      colBrand: 'Brand',
+      colQty: 'Qty',
+      colOverseasWh: 'Overseas warehouse',
+      colStatus: 'Status',
+      colCustomsSor: 'Customs stock-out notice',
+      colCustomer: 'Customer',
+      colCreateTime: 'Created at',
+      colCreator: 'Created by',
+      colActions: 'Actions',
+      createCustomsOutNotify: 'Create customs out notice',
+      createConfirm: 'Create a customs stock-out notice for this pending row?',
+      createOk: 'Created customs out notice {code}',
+      createFailed: 'Failed to create customs out notice',
+      onlyOpenCanCreate: 'Only open rows can create a customs out notice'
+    },
     declarations: {
       title: 'Customs declarations',
       search: 'Search',
@@ -240,6 +272,7 @@ const enUS = {
       stockInManagement: 'Stock-In Buz',
       customsGroup: 'Customs',
       customsBrokers: 'Brokers',
+      customsPendlists: 'Customs pending',
       customsDeclarations: 'Declarations',
       customsDeclarationItems: 'Declaration lines',
       stockTransfers: 'Customs transfers',
@@ -3438,7 +3471,7 @@ const enUS = {
     title: 'Stock-Out List',
     count: '{count} records total',
     filters: {
-      keywordPlaceholder: 'Code / source / line no. / ship method / tracking',
+      keywordPlaceholder: 'Code / ship method / tracking',
       search: 'Search',
       refresh: 'Refresh'
     },
@@ -3455,13 +3488,13 @@ const enUS = {
       sourceCode: 'Source Request',
       customerName: 'Customer',
       salesUserName: 'Sales Rep',
-      sellOrderItemCode: 'Sales Order Line No.',
+      expectedStockOutDate: 'Expected stock-out date',
       stockOutDate: 'Stock-Out Date',
+      packingCount: 'Packing count',
       shipmentMethod: 'Shipment method',
       courierTrackingNo: 'Tracking no.',
-      totalQuantity: 'Stock-Out Qty',
       remark: 'Remark',
-      createTime: 'Created At',
+      createTime: 'Created date',
       createUser: 'Created By',
       actions: 'Actions'
     },
@@ -3473,6 +3506,17 @@ const enUS = {
       packingWithInspection: 'Packing (with OQC)',
       packingWithoutInspection: 'Packing (no OQC)',
       markFinished: 'Mark Finished'
+    },
+    markFinish: {
+      title: 'Mark as finished',
+      shipAddress: 'Ship-to address',
+      packingSummary: 'Packing lists',
+      packingCount: '{count} packing list(s)',
+      actualStockOutDate: 'Actual stock-out date',
+      actualStockOutDatePlaceholder: 'Select actual stock-out date',
+      courierTrackingNoPlaceholder: 'Enter tracking number',
+      remarkPlaceholder: 'Optional remark',
+      loadContextFailed: 'Failed to load stock-out details'
     },
     messages: {
       loadFailed: 'Failed to load stock-out list',
@@ -3655,6 +3699,7 @@ const enUS = {
       actions: 'Actions'
     },
     status: {
+      pendingCustoms: 'Pending customs',
       pendingPacking: 'Pending packing',
       packed: 'Packed',
       stockedOut: 'Shipped',
@@ -3840,6 +3885,9 @@ const enUS = {
       confirmPackingCode: 'Packing list: {code}',
       confirmShipCompany: 'Ship-to company',
       confirmShipAddress: 'Ship-to address',
+      expectedStockOutDate: 'Expected stock-out date',
+      expectedStockOutDatePlaceholder: 'Select expected stock-out date',
+      expectedStockOutDateRequired: 'Please select an expected stock-out date first',
       batchConfirm:
         'Generate stock-out for {count} packing list(s)? Inventory will be deducted based on completed picking.',
       batchOk: 'Confirm',
@@ -3932,7 +3980,10 @@ const enUS = {
     invalidSelection: 'No valid stock-out notifies selected',
     deliveryMethodPlaceholder: 'Select',
     deliveryMethodDelivery: 'Delivery',
-    deliveryMethodPickup: 'Self pickup'
+    deliveryMethodPickup: 'Self pickup',
+    customsBroker: 'Customs broker',
+    customsBrokerPlaceholder: 'Select customs broker',
+    customsBrokerRequired: 'Customs packing requires a customs broker'
   },
   packingDetail: {
     title: 'Packing list detail',

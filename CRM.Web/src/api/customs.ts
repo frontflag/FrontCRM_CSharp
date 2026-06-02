@@ -17,6 +17,43 @@ export interface CustomsBrokerDto {
   createTime?: string
 }
 
+export const CUSTOMS_PENDLIST_STATUS = {
+  Open: 1,
+  CustomsOutNotifyCreated: 2,
+  InCustomsProcess: 3,
+  Closed: 10,
+  Cancelled: -1
+} as const
+
+export interface CustomsPendlistListItemDto {
+  id: string
+  salesStockOutNotifyId: string
+  salesStockOutNotifyCode?: string | null
+  sellOrderItemId: string
+  sellOrderItemCode?: string | null
+  qty: number
+  status: number
+  customsStockOutNotifyId?: string | null
+  customsStockOutNotifyCode?: string | null
+  overseasWarehouseId?: string | null
+  overseasWarehouseName?: string | null
+  salesOrderId?: string | null
+  salesOrderCode?: string | null
+  materialCode?: string | null
+  materialName?: string | null
+  customerName?: string | null
+  createTime: string
+  createByUserId?: string | null
+  createUserDisplay?: string | null
+}
+
+export interface CreateCustomsOutNotifyResultDto {
+  pendlistId: string
+  customsStockOutNotifyId: string
+  customsStockOutNotifyCode: string
+  pendlistStatus: number
+}
+
 export interface CustomsDeclarationListItemDto {
   id: string
   declarationCode: string
@@ -102,6 +139,23 @@ export async function fetchCustomsBrokersAdmin(): Promise<CustomsBrokerDto[]> {
   return apiClient.get<CustomsBrokerDto[]>('/api/v1/customs-brokers', { params: { all: true } })
 }
 
+export async function fetchCustomsPendlists(params: {
+  status?: number
+  keyword?: string
+  take?: number
+}): Promise<CustomsPendlistListItemDto[]> {
+  return apiClient.get<CustomsPendlistListItemDto[]>('/api/v1/customs-pendlists', { params })
+}
+
+export async function createCustomsOutNotifyFromPendlist(
+  pendlistId: string
+): Promise<CreateCustomsOutNotifyResultDto> {
+  return apiClient.post<CreateCustomsOutNotifyResultDto>(
+    `/api/v1/customs-pendlists/${encodeURIComponent(pendlistId)}/customs-out-notify`,
+    {}
+  )
+}
+
 export async function createCustomsBroker(body: {
   cname: string
   ename?: string | null
@@ -141,6 +195,20 @@ export async function patchCustomsClearanceStatus(id: string, customsClearanceSt
   await apiClient.patch(`/api/v1/customs-declarations/${encodeURIComponent(id)}/customs-clearance-status`, {
     customsClearanceStatus
   })
+}
+
+export async function patchCustomsDeclarationHeader(
+  id: string,
+  body: { toWarehouseId?: string | null; remark?: string | null }
+): Promise<void> {
+  await apiClient.patch(`/api/v1/customs-declarations/${encodeURIComponent(id)}`, body)
+}
+
+export async function patchCustomsDeclarationItem(
+  id: string,
+  body: Record<string, unknown>
+): Promise<void> {
+  await apiClient.patch(`/api/v1/customs-declaration-items/${encodeURIComponent(id)}`, body)
 }
 
 export async function completeCustomsDeclaration(id: string): Promise<void> {

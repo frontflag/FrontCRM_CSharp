@@ -101,6 +101,11 @@ namespace CRM.Core.Models.Inventory
         [NotMapped]
         public ICollection<StockInNotifyItemSnapshot>? Items { get; set; }
 
+        /// <summary>报关到货：从报关明细发起（StockInType=20）。</summary>
+        [StringLength(36)]
+        [Column("customs_declaration_item_id")]
+        public string? CustomsDeclarationItemId { get; set; }
+
         /// <summary>软删除标记；为 true 时全局查询过滤器排除。</summary>
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }

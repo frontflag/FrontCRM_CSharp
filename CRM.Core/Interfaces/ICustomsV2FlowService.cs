@@ -1,0 +1,47 @@
+using CRM.Core.Models.Customs;
+using CRM.Core.Models.Inventory;
+
+namespace CRM.Core.Interfaces;
+
+/// <summary>报关 V2 端到端编排（装箱确认→报关单→拣货回写→报关出库→到货→销售 SOR 解锁）。</summary>
+public interface ICustomsV2FlowService
+{
+    Task OnCustomsPackingCreatedAsync(string packingId, string? actingUserId, CancellationToken cancellationToken = default);
+
+    Task GenerateDeclarationOnPackingConfirmAsync(string packingId, string? actingUserId, CancellationToken cancellationToken = default);
+
+    Task WritebackDeclarationItemsAfterPickingAsync(string packingId, string pickingTaskId, string? actingUserId, CancellationToken cancellationToken = default);
+
+    Task EnsureCustomsOutReadyAsync(string customsStockOutRequestId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyDictionary<string, CustomsDeclarationItem>> GetDeclarationItemsMapForCustomsStockOutAsync(
+        string customsStockOutRequestId,
+        CancellationToken cancellationToken = default);
+
+    void ApplyCustomsStockOutExtend(StockOutItemExtend ext, StockItem layer, string? packingItemId, IReadOnlyDictionary<string, CustomsDeclarationItem> decItemByPackingItemId);
+
+    Task OnCustomsStockOutCompletedAsync(string customsStockOutRequestId, string? actingUserId, CancellationToken cancellationToken = default);
+
+    Task OnCustomsStockInCompletedAsync(string stockInId, string? actingUserId, CancellationToken cancellationToken = default);
+
+    Task RevertPendlistOnPackingDeleteAsync(IReadOnlyList<string> customsPendlistIds, string? actingUserId, CancellationToken cancellationToken = default);
+
+    Task UpdateDeclarationHeaderAsync(string declarationId, string? toWarehouseId, string? remark, string? actingUserId, CancellationToken cancellationToken = default);
+
+    Task UpdateDeclarationItemAsync(string itemId, CustomsDeclarationItemPatch patch, string? actingUserId, CancellationToken cancellationToken = default);
+}
+
+public sealed class CustomsDeclarationItemPatch
+{
+    public string? HsCode { get; set; }
+    public int? DeclareQty { get; set; }
+    public decimal? DeclareUnitPrice { get; set; }
+    public decimal? DutyAmount { get; set; }
+    public decimal? VatAmount { get; set; }
+    public decimal? CustomsPaymentGoods { get; set; }
+    public decimal? CustomsAgencyFee { get; set; }
+    public decimal? OtherFee { get; set; }
+    public decimal? InspectionFee { get; set; }
+    public decimal? TotalValueTax { get; set; }
+    public decimal? TaxIncludedUnitPrice { get; set; }
+}

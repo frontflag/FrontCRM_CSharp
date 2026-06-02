@@ -108,6 +108,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<StockItem> StockItems { get; set; } = null!;
         public DbSet<StockOutRequest> StockOutRequests { get; set; } = null!;
         public DbSet<CustomsBroker> CustomsBrokers { get; set; } = null!;
+        public DbSet<CustomsPendlist> CustomsPendlists { get; set; } = null!;
         public DbSet<CustomsDeclaration> CustomsDeclarations { get; set; } = null!;
         public DbSet<CustomsDeclarationItem> CustomsDeclarationItems { get; set; } = null!;
         public DbSet<StockTransfer> StockTransfers { get; set; } = null!;
@@ -832,6 +833,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.Property(e => e.ShipmentMethod).HasMaxLength(64);
                 entity.Property(e => e.CourierTrackingNo).HasMaxLength(128);
+                entity.Property(e => e.ExpectedStockOutDate).HasColumnName("expected_stock_out_date");
                 entity.Property(e => e.RegionType).HasColumnName("RegionType").HasDefaultValue((short)10);
                 entity.Property(e => e.Type).HasColumnName("Type").HasDefaultValue(0);
                 entity.HasMany(e => e.Items).WithOne(e => e.StockOut).HasForeignKey(e => e.StockOutId).OnDelete(DeleteBehavior.Cascade);
@@ -876,6 +878,10 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.SalesPrice).HasColumnType("numeric(18,6)");
                 entity.Property(e => e.SalesPriceUsd).HasColumnType("numeric(18,6)");
                 entity.Property(e => e.ProfitOutBizUsd).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.OriginalPurchasePrice).HasColumnName("original_purchase_price").HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.VendorId).HasColumnName("vendor_id").HasMaxLength(36);
+                entity.Property(e => e.CustomsDeclarationItemId).HasColumnName("customs_declaration_item_id").HasMaxLength(36);
+                entity.HasIndex(e => e.CustomsDeclarationItemId).HasDatabaseName("IX_sox_extend_cdi").HasFilter("is_deleted = false AND customs_declaration_item_id IS NOT NULL");
                 entity.HasOne(e => e.StockOutItem)
                     .WithOne(s => s.Extend)
                     .HasForeignKey<StockOutItemExtend>(e => e.Id)
@@ -944,6 +950,12 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.StorageId).HasColumnName("storage_id").HasMaxLength(36);
                 entity.Property(e => e.ItemRows).HasColumnName("item_rows").HasDefaultValue(0);
                 entity.Property(e => e.Comment).HasColumnName("comment").HasMaxLength(500);
+                entity.Property(e => e.CustomsBrokerId).HasColumnName("customs_broker_id").HasMaxLength(36);
+                entity.Property(e => e.CustomsDeclarationId).HasColumnName("customs_declaration_id").HasMaxLength(36);
+                entity.HasIndex(e => e.CustomsDeclarationId)
+                    .IsUnique()
+                    .HasDatabaseName("UX_packing_customs_declaration")
+                    .HasFilter("is_deleted = false AND customs_declaration_id IS NOT NULL");
                 entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
                 entity.Property(e => e.ModifyByUserId).HasColumnName("modify_by_user_id").HasMaxLength(36);
                 entity.HasOne(e => e.Extend)
@@ -1011,6 +1023,11 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.SellOrderId).HasColumnName("sell_order_id").HasMaxLength(36);
                 entity.Property(e => e.SellOrderItemId).HasColumnName("sell_order_item_id").HasMaxLength(36);
                 entity.Property(e => e.StockOutNotifyId).HasColumnName("stockout_notify_id").HasMaxLength(36);
+                entity.Property(e => e.CustomsPendlistId).HasColumnName("customs_pendlist_id").HasMaxLength(36);
+                entity.HasIndex(e => e.CustomsPendlistId)
+                    .IsUnique()
+                    .HasDatabaseName("UX_packing_item_customs_pendlist")
+                    .HasFilter("is_deleted = false AND customs_pendlist_id IS NOT NULL");
                 entity.Property(e => e.ItemCode).HasColumnName("item_code").IsRequired(false).HasMaxLength(64);
                 entity.Property(e => e.ProductId).HasColumnName("product_id").HasMaxLength(36);
                 entity.Property(e => e.StockItemId).HasColumnName("stock_item_id").HasMaxLength(36);
@@ -1060,6 +1077,11 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.ShipmentMethod).HasMaxLength(64);
                 entity.Property(e => e.RegionType).HasColumnName("RegionType").HasDefaultValue((short)10);
                 entity.Property(e => e.StockOutType).HasColumnName("StockOutType").HasDefaultValue(StockOutTypeCode.Sales);
+                entity.Property(e => e.CustomsPendlistId).HasColumnName("customs_pendlist_id").HasMaxLength(36);
+                entity.HasIndex(e => e.CustomsPendlistId)
+                    .IsUnique()
+                    .HasDatabaseName("UX_stockout_notify_customs_pendlist")
+                    .HasFilter("is_deleted = false AND customs_pendlist_id IS NOT NULL");
             });
 
             modelBuilder.Entity<StockInNotify>(entity =>
@@ -1085,6 +1107,11 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Cost).HasColumnType("numeric(18,6)").HasDefaultValue(0m);
                 entity.Property(e => e.ExpectTotal).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.ReceiveTotal).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.CustomsDeclarationItemId).HasColumnName("customs_declaration_item_id").HasMaxLength(36);
+                entity.HasIndex(e => e.CustomsDeclarationItemId)
+                    .IsUnique()
+                    .HasDatabaseName("UX_stockin_notify_cdi")
+                    .HasFilter("is_deleted = false AND customs_declaration_item_id IS NOT NULL");
                 entity.Ignore(e => e.Items);
             });
 
@@ -1221,8 +1248,11 @@ namespace CRM.Infrastructure.Data
                 entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.DeclarationCode).IsRequired().HasMaxLength(32);
                 entity.HasIndex(e => e.DeclarationCode).IsUnique().HasFilter("is_deleted = false");
-                entity.Property(e => e.StockOutRequestId).IsRequired().HasMaxLength(36);
-                entity.HasIndex(e => e.StockOutRequestId).IsUnique().HasFilter("is_deleted = false");
+                entity.Property(e => e.PackingId).HasColumnName("packing_id").HasMaxLength(36);
+                entity.HasIndex(e => e.PackingId)
+                    .IsUnique()
+                    .HasDatabaseName("UX_customs_declaration_packing")
+                    .HasFilter("is_deleted = false AND packing_id IS NOT NULL");
                 entity.Property(e => e.CustomsBrokerId).IsRequired().HasMaxLength(36);
                 entity.Property(e => e.ExchangeRate).HasColumnType("numeric(18,6)");
                 entity.Property(e => e.TotalTaxAmount).HasColumnType("numeric(18,2)");
@@ -1258,6 +1288,47 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.InspectionFee).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.TotalValueTax).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.TaxIncludedUnitPrice).HasColumnType("numeric(18,6)");
+                entity.Property(e => e.CustomsPendlistId).HasColumnName("customs_pendlist_id").HasMaxLength(36);
+                entity.Property(e => e.CustomsStockOutNotifyId).HasColumnName("customs_stockout_notify_id").HasMaxLength(36);
+                entity.Property(e => e.PackingItemId).HasColumnName("packing_item_id").HasMaxLength(36);
+                entity.Property(e => e.OriginalPurchasePrice).HasColumnName("original_purchase_price").HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.VendorId).HasColumnName("vendor_id").HasMaxLength(36);
+                entity.HasIndex(e => e.PackingItemId)
+                    .IsUnique()
+                    .HasDatabaseName("UX_cdi_packing_item")
+                    .HasFilter("is_deleted = false AND packing_item_id IS NOT NULL");
+            });
+
+            modelBuilder.Entity<CustomsPendlist>(entity =>
+            {
+                entity.ToTable("customs_pendlist");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasQueryFilter(e => !e.IsDeleted);
+                entity.Property(e => e.SalesStockOutNotifyId).HasColumnName("sales_stockout_notify_id").IsRequired().HasMaxLength(36);
+                entity.Property(e => e.SellOrderItemId).HasColumnName("sell_order_item_id").IsRequired().HasMaxLength(36);
+                entity.Property(e => e.Qty).HasColumnName("qty");
+                entity.Property(e => e.Status).HasColumnName("status");
+                entity.Property(e => e.CustomsStockOutNotifyId).HasColumnName("customs_stockout_notify_id").HasMaxLength(36);
+                entity.Property(e => e.OverseasWarehouseId).HasColumnName("overseas_warehouse_id").HasMaxLength(36);
+                entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.ModifyByUserId).HasColumnName("modify_by_user_id").HasMaxLength(36);
+                entity.Property(e => e.CreateTime).HasColumnName("create_time");
+                entity.Property(e => e.ModifyTime).HasColumnName("modify_time");
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.HasIndex(e => e.SalesStockOutNotifyId)
+                    .IsUnique()
+                    .HasDatabaseName("UX_customs_pendlist_sales_sor")
+                    .HasFilter("is_deleted = false");
+                entity.HasIndex(e => e.CustomsStockOutNotifyId)
+                    .IsUnique()
+                    .HasDatabaseName("UX_customs_pendlist_customs_sor")
+                    .HasFilter("is_deleted = false AND customs_stockout_notify_id IS NOT NULL");
+                entity.HasIndex(e => e.SellOrderItemId)
+                    .HasDatabaseName("IX_customs_pendlist_sell_line")
+                    .HasFilter("is_deleted = false");
             });
 
             modelBuilder.Entity<StockTransfer>(entity =>

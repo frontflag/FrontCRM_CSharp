@@ -33,6 +33,22 @@
           <el-descriptions-item :label="t('packingDetail.stockOutType')">
             {{ packingStockOutTypeLabel(draft.stockOutType ?? StockOutTypeCode.Sales) }}
           </el-descriptions-item>
+          <el-descriptions-item v-if="isCustomsPacking" :label="t('packingCreate.customsBroker')">
+            <el-select
+              v-model="customsBrokerId"
+              filterable
+              clearable
+              :placeholder="t('packingCreate.customsBrokerPlaceholder')"
+              style="width: 280px"
+            >
+              <el-option
+                v-for="b in customsBrokers"
+                :key="b.id"
+                :label="b.cname"
+                :value="b.id"
+              />
+            </el-select>
+          </el-descriptions-item>
           <el-descriptions-item :label="t('packingList.columns.warehouseName')">
             {{ draftWarehouseDisplay || '—' }}
           </el-descriptions-item>
@@ -177,6 +193,7 @@ import {
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useStockOutNotifyListBasketStore } from '@/stores/stockOutNotifyListBasket'
 import { inventoryCenterApi, type WarehouseInfo } from '@/api/inventoryCenter'
+import { fetchCustomsBrokersAdmin, type CustomsBrokerDto } from '@/api/customs'
 
 const route = useRoute()
 const router = useRouter()
@@ -216,6 +233,12 @@ const boxForm = reactive({
   dim: '',
   ctns: undefined as number | undefined
 })
+const customsBrokers = ref<CustomsBrokerDto[]>([])
+const customsBrokerId = ref('')
+
+const isCustomsPacking = computed(
+  () => (draft.value?.stockOutType ?? StockOutTypeCode.Sales) === StockOutTypeCode.Customs
+)
 
 function parseRequestIdsFromRoute(): string[] {
   const raw = String(route.query.ids || '').trim()
@@ -259,6 +282,13 @@ async function loadPage() {
       }
     }
     draft.value = preview
+    if ((preview.stockOutType ?? StockOutTypeCode.Sales) === StockOutTypeCode.Customs) {
+      try {
+        customsBrokers.value = await fetchCustomsBrokersAdmin()
+      } catch (e) {
+        console.warn('load customs brokers failed', e)
+      }
+    }
     const customerId = String(preview.customerId || '').trim()
     let companyName = preview.customerName?.trim() || ''
     customerAddresses = []
@@ -309,12 +339,17 @@ function buildExtras(): PackingCreateExtras {
       gw: boxForm.gw ?? null,
       dim: boxForm.dim.trim() || null,
       ctns: boxForm.ctns ?? null
-    }
+    },
+    customsBrokerId: isCustomsPacking.value ? customsBrokerId.value.trim() || null : null
   }
 }
 
 async function handleSubmit() {
   if (!draft.value || !requestIds.value.length) return
+  if (isCustomsPacking.value && !customsBrokerId.value.trim()) {
+    ElMessage.warning(t('packingCreate.customsBrokerRequired'))
+    return
+  }
   submitting.value = true
   try {
     const result = await packingApi.createFromStockOutRequests(requestIds.value, buildExtras())

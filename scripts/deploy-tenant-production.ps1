@@ -10,10 +10,11 @@
 #   .\scripts\deploy-tenant-production.ps1 -Tenant idesemi -SkipLoginPage
 #   .\scripts\deploy-tenant-production.ps1 -Tenant idesemi -IncludeLoginPage
 #   .\scripts\deploy-tenant-production.ps1 -Tenant fz
+#   .\scripts\deploy-tenant-production.ps1 -Tenant all
 
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('semicore', 'idesemi', 'fz')]
+    [ValidateSet('semicore', 'idesemi', 'fz', 'all')]
     [string]$Tenant,
 
     [switch]$SkipBuild,
@@ -29,6 +30,58 @@ param(
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
+
+function Get-DeployTenantChildParams {
+    param([string]$TargetTenant)
+
+    $child = @{
+        Tenant = $TargetTenant
+    }
+    if ($SkipBuild) { $child.SkipBuild = $true }
+    if ($AllowPasswordPrompt) { $child.AllowPasswordPrompt = $true }
+    if ($RequestTtyForSudo) { $child.RequestTtyForSudo = $true }
+    if ($IncludeLoginPage) { $child.IncludeLoginPage = $true }
+    if ($SkipLoginPage) { $child.SkipLoginPage = $true }
+    if (-not [string]::IsNullOrWhiteSpace($SshKeyPath)) { $child.SshKeyPath = $SshKeyPath }
+    if ($DeploymentMode -ne 'auto') { $child.DeploymentMode = $DeploymentMode }
+    return $child
+}
+
+if ($Tenant -eq 'all') {
+    $batchTenants = @('semicore', 'idesemi', 'fz')
+    $failedTenants = New-Object System.Collections.Generic.List[string]
+
+    Write-Host ""
+    Write-Host "=== Deploy ALL tenants (sequential) ===" -ForegroundColor Cyan
+    Write-Host "Order: $($batchTenants -join ' -> ')" -ForegroundColor Gray
+    Write-Host ""
+
+    for ($i = 0; $i -lt $batchTenants.Count; $i++) {
+        $t = $batchTenants[$i]
+        Write-Host ""
+        Write-Host ">>> Batch $($i + 1)/$($batchTenants.Count): $t" -ForegroundColor Magenta
+        Write-Host ""
+
+        $childParams = Get-DeployTenantChildParams -TargetTenant $t
+        & $PSCommandPath @childParams
+        if ($LASTEXITCODE -ne 0) {
+            $failedTenants.Add($t) | Out-Null
+            Write-Host ""
+            Write-Host "!!! Tenant '$t' deploy failed (exit $LASTEXITCODE); continuing with next tenant..." -ForegroundColor Red
+        }
+    }
+
+    Write-Host ""
+    if ($failedTenants.Count -gt 0) {
+        Write-Host "=== Batch deploy finished with failures ===" -ForegroundColor Red
+        Write-Host "Failed: $($failedTenants -join ', ')" -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "=== Batch deploy finished: all tenants succeeded ===" -ForegroundColor Green
+    exit 0
+}
+
 $tenantsFile = Join-Path $RepoRoot "deploy\tenants.json"
 if (-not (Test-Path $tenantsFile)) {
     throw "tenants.json not found: $tenantsFile"

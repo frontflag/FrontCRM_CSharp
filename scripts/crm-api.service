@@ -1,0 +1,26 @@
+# FrontCRM API systemd unit（非 Docker 部署）
+# 安装：
+#   sudo cp scripts/crm-api.service /etc/systemd/system/crm-api.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now crm-api
+#
+# 连接串：写入 /opt/frontcrm/backend/appsettings.json（勿在 appsettings.Production.json 留空连接串覆盖）
+
+[Unit]
+Description=FrontCRM API
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/frontcrm/backend
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://0.0.0.0:5000
+ExecStart=/usr/bin/dotnet /opt/frontcrm/backend/CRM.API.dll
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

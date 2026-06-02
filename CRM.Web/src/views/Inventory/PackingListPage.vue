@@ -362,6 +362,45 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="batchStockOutDialogVisible"
+      :title="t('packingList.stockOut.batchTitle')"
+      width="520px"
+      class="packing-batch-stock-out-dialog"
+      @closed="resetBatchStockOutDialog"
+    >
+      <p class="packing-batch-stock-out-dialog__intro">
+        {{ t('packingList.stockOut.batchConfirmIntro', { count: batchStockOutRows.length }) }}
+      </p>
+      <div v-for="row in batchStockOutRows" :key="resolvePackingId(row)" class="packing-batch-stock-out-dialog__block">
+        <p>{{ t('packingList.stockOut.confirmPackingCode', { code: displayOrDash(row.code || resolvePackingId(row)) }) }}</p>
+        <p>{{ t('packingList.stockOut.confirmShipCompany') }}：{{ displayOrDash(row.shipCompany) }}</p>
+        <p>{{ t('packingList.stockOut.confirmShipAddress') }}：{{ displayOrDash(row.shipAddress) }}</p>
+      </div>
+      <div class="packing-batch-stock-out-dialog__date">
+        <label class="packing-batch-stock-out-dialog__date-label">{{ t('packingList.stockOut.expectedStockOutDate') }}</label>
+        <el-date-picker
+          v-model="batchStockOutExpectedDate"
+          type="date"
+          value-format="YYYY-MM-DD"
+          :placeholder="t('packingList.stockOut.expectedStockOutDatePlaceholder')"
+          :teleported="false"
+          class="packing-batch-stock-out-dialog__date-picker"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="batchStockOutDialogVisible = false">{{ t('packingList.messages.clearBasketCancel') }}</el-button>
+        <el-button
+          type="primary"
+          :disabled="!batchStockOutExpectedDate"
+          :loading="batchStockOutSubmitting"
+          @click="() => void submitBatchStockOut()"
+        >
+          {{ t('packingList.stockOut.batchOk') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -635,6 +674,11 @@ const markReadyTargetId = ref('')
 const markReadyCheckedKeys = ref<string[]>([])
 const markReadySubmitting = ref(false)
 
+const batchStockOutDialogVisible = ref(false)
+const batchStockOutRows = ref<PackingListItem[]>([])
+const batchStockOutExpectedDate = ref('')
+const batchStockOutSubmitting = ref(false)
+
 const markReadyAllChecked = computed(
   () =>
     PACKING_READY_CHECK_ITEM_KEYS.length > 0 &&
@@ -830,19 +874,10 @@ function displayOrDash(value: string | null | undefined): string {
   return s || '—'
 }
 
-function buildBatchStockOutConfirmMessage(rows: PackingListItem[]): string {
-  const intro = t('packingList.stockOut.batchConfirmIntro', { count: rows.length })
-  const blocks = rows.map((r) => {
-    const code = displayOrDash(r.code || resolvePackingId(r))
-    const company = displayOrDash(r.shipCompany)
-    const address = displayOrDash(r.shipAddress)
-    return [
-      t('packingList.stockOut.confirmPackingCode', { code }),
-      `${t('packingList.stockOut.confirmShipCompany')}：${company}`,
-      `${t('packingList.stockOut.confirmShipAddress')}：${address}`
-    ].join('\n')
-  })
-  return [intro, '', ...blocks].join('\n')
+function resetBatchStockOutDialog() {
+  batchStockOutRows.value = []
+  batchStockOutExpectedDate.value = ''
+  batchStockOutSubmitting.value = false
 }
 
 async function showStockOutValidationAlert(reasons: string[]) {
@@ -863,23 +898,26 @@ async function handleBatchStockOut() {
     await showStockOutValidationAlert(validation.reasons)
     return
   }
-  const packingIds = rows.map((r) => resolvePackingId(r)).filter(Boolean)
-  try {
-    await ElMessageBox.confirm(buildBatchStockOutConfirmMessage(rows), t('packingList.stockOut.batchTitle'), {
-      type: 'warning',
-      confirmButtonText: t('packingList.stockOut.batchOk'),
-      cancelButtonText: t('packingList.messages.clearBasketCancel'),
-      customClass: 'packing-batch-stock-out-confirm'
-    })
-  } catch {
+  batchStockOutRows.value = [...rows]
+  batchStockOutExpectedDate.value = ''
+  batchStockOutDialogVisible.value = true
+}
+
+async function submitBatchStockOut() {
+  if (!batchStockOutExpectedDate.value) {
+    ElMessage.warning(t('packingList.stockOut.expectedStockOutDateRequired'))
     return
   }
+  const packingIds = batchStockOutRows.value.map((r) => resolvePackingId(r)).filter(Boolean)
+  if (!packingIds.length) return
+
+  batchStockOutSubmitting.value = true
   const loading = ElLoading.service({
     lock: true,
     text: t('packingList.stockOut.batchProcessing')
   })
   try {
-    const result = await packingApi.batchStockOut(packingIds)
+    const result = await packingApi.batchStockOut(packingIds, batchStockOutExpectedDate.value)
     const codes = result.lines.map((l) => l.stockOutCode || l.packingCode).filter(Boolean)
     ElMessage.success(
       t('packingList.stockOut.batchSuccess', {
@@ -887,6 +925,7 @@ async function handleBatchStockOut() {
         codes: codes.join('、')
       })
     )
+    batchStockOutDialogVisible.value = false
     basketStore.clear()
     suppressBasketMerge.value = true
     dataTableRef.value?.clearSelection?.()
@@ -898,6 +937,7 @@ async function handleBatchStockOut() {
     ElMessage.error(e instanceof Error ? e.message : t('packingList.stockOut.batchFailed'))
   } finally {
     loading.close()
+    batchStockOutSubmitting.value = false
   }
 }
 
@@ -1289,17 +1329,45 @@ onMounted(() => {
   font-size: 13px;
   line-height: 1.6;
 }
-</style>
 
-<style>
-.packing-batch-stock-out-confirm .el-message-box__message {
-  text-align: left;
-  max-height: 60vh;
-  overflow-y: auto;
+.packing-batch-stock-out-dialog__intro {
+  margin: 0 0 12px;
+  color: var(--el-text-color-regular);
+  line-height: 1.6;
 }
 
-.packing-batch-stock-out-confirm .el-message-box__message p {
-  white-space: pre-line;
-  margin: 0;
+.packing-batch-stock-out-dialog__block {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.packing-batch-stock-out-dialog__block p {
+  margin: 0 0 4px;
+  line-height: 1.5;
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+}
+
+.packing-batch-stock-out-dialog__block p:last-child {
+  margin-bottom: 0;
+}
+
+.packing-batch-stock-out-dialog__date {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.packing-batch-stock-out-dialog__date-label {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+}
+
+.packing-batch-stock-out-dialog__date-picker {
+  width: 100%;
 }
 </style>

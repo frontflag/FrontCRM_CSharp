@@ -330,6 +330,7 @@ const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => {
 })
 
 const statusLabel = (s: number) => {
+  if (s === STOCK_OUT_REQUEST_STATUS.PendingCustoms) return t('stockOutNotifyList.status.pendingCustoms')
   if (s === STOCK_OUT_REQUEST_STATUS.PendingPacking) return t('stockOutNotifyList.status.pendingPacking')
   if (s === STOCK_OUT_REQUEST_STATUS.Packed) return t('stockOutNotifyList.status.packed')
   if (s === STOCK_OUT_REQUEST_STATUS.StockedOut) return t('stockOutNotifyList.status.stockedOut')
@@ -776,6 +777,7 @@ onMounted(() => {
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 12px;
+  &.status-5 { background: rgba(156, 89, 182, 0.18); color: #9c59b6; }
   &.status-10 { background: rgba(255,193,7,0.15); color: #ffc107; }
   &.status-20 { background: rgba(0,212,255,0.15); color: $cyan-primary; }
   &.status-100 { background: rgba(70,191,145,0.18); color: #46BF91; }

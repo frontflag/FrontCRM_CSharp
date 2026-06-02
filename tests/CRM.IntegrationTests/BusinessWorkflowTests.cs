@@ -3,6 +3,7 @@ using System.Linq.Expressions;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
+using CRM.Core.Models.Customs;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
@@ -474,7 +475,11 @@ namespace CRM.IntegrationTests
             ledgerRepoForStockOut.FindAsync(Arg.Any<Expression<Func<InventoryLedger, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<InventoryLedger>>(new List<InventoryLedger>()));
             var service = new StockOutService(
-                stockOutRepo, stockOutItemRepo, stockOutItemExtendRepo, stockOutRequestRepo, pickingTaskRepo, pickingTaskItemRepo, stockRepo, stockItemRepo,
+                stockOutRepo, stockOutItemRepo, stockOutItemExtendRepo, stockOutRequestRepo,
+                Substitute.For<IRepository<CustomsPendlist>>(),
+                Substitute.For<IRepository<Packing>>(),
+                Substitute.For<IRepository<PackingItem>>(),
+                pickingTaskRepo, pickingTaskItemRepo, stockRepo, stockItemRepo,
                 ledgerRepoForStockOut,
                 stockInItemRepoForStockOut, stockInRepoForStockOut,
                 sellOrderRepo, sellOrderItemRepo, sellOrderItemLineExtendRepo, customerRepoForStockOut, purchaseOrderItemRepo, purchaseOrderRepo, userRepo,
@@ -486,7 +491,8 @@ namespace CRM.IntegrationTests
                 NullLogger<StockOutService>.Instance,
                 Substitute.For<IStockOutListQuery>(),
                 Substitute.For<IStockOutRequestListQuery>(),
-                Substitute.For<IStockOutItemListQuery>());
+                Substitute.For<IStockOutItemListQuery>(),
+                Substitute.For<ICustomsV2FlowService>());
 
             // 准备销售订单明细
             var sellOrderItem = new SellOrderItem
@@ -647,7 +653,11 @@ namespace CRM.IntegrationTests
             ledgerRepoForStockOut2.FindAsync(Arg.Any<Expression<Func<InventoryLedger, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<InventoryLedger>>(new List<InventoryLedger>()));
             var service = new StockOutService(
-                stockOutRepo, stockOutItemRepo, stockOutItemExtendRepo2, stockOutRequestRepo, pickingTaskRepo, pickingTaskItemRepo, stockRepo, stockItemRepo2,
+                stockOutRepo, stockOutItemRepo, stockOutItemExtendRepo2, stockOutRequestRepo,
+                Substitute.For<IRepository<CustomsPendlist>>(),
+                Substitute.For<IRepository<Packing>>(),
+                Substitute.For<IRepository<PackingItem>>(),
+                pickingTaskRepo, pickingTaskItemRepo, stockRepo, stockItemRepo2,
                 ledgerRepoForStockOut2,
                 stockInItemRepoForStockOut2, stockInRepoForStockOut2,
                 sellOrderRepo, sellOrderItemRepo, sellOrderItemLineExtendRepo2, customerRepoForStockOut, purchaseOrderItemRepo, purchaseOrderRepo, userRepo,
@@ -659,7 +669,8 @@ namespace CRM.IntegrationTests
                 NullLogger<StockOutService>.Instance,
                 Substitute.For<IStockOutListQuery>(),
                 Substitute.For<IStockOutRequestListQuery>(),
-                Substitute.For<IStockOutItemListQuery>());
+                Substitute.For<IStockOutItemListQuery>(),
+                Substitute.For<ICustomsV2FlowService>());
 
             var sellOrderItem = new SellOrderItem
             {
@@ -2011,7 +2022,8 @@ namespace CRM.IntegrationTests
                 stockInLineSeq, stockInUnitOfWork,
                 Substitute.For<ILogOperationAppendService>(),
                 stockInLogger,
-                Substitute.For<IStockInListQuery>());
+                Substitute.For<IStockInListQuery>(),
+                Substitute.For<ICustomsV2FlowService>());
 
             // 模拟入库单仓储
             var allStockIns = new List<StockIn>();
@@ -2070,7 +2082,11 @@ namespace CRM.IntegrationTests
             ledgerRepoWf.FindAsync(Arg.Any<Expression<Func<InventoryLedger, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<InventoryLedger>>(new List<InventoryLedger>()));
             var stockOutService = new StockOutService(
-                stockOutRepo, stockOutItemRepo, stockOutItemExtendRepoWf, stockOutRequestRepo, pickingTaskRepo, pickingTaskItemRepoWf, stockRepo, stockItemRepoForWorkflow,
+                stockOutRepo, stockOutItemRepo, stockOutItemExtendRepoWf, stockOutRequestRepo,
+                Substitute.For<IRepository<CustomsPendlist>>(),
+                Substitute.For<IRepository<Packing>>(),
+                Substitute.For<IRepository<PackingItem>>(),
+                pickingTaskRepo, pickingTaskItemRepoWf, stockRepo, stockItemRepoForWorkflow,
                 ledgerRepoWf,
                 stockInItemRepoWf, stockInRepoWf,
                 _salesOrderRepository, _salesOrderItemRepository, sellOrderItemLineExtendRepoWf, customerRepoForStockOut2, poItemRepo, poRepo, userRepo,
@@ -2082,7 +2098,8 @@ namespace CRM.IntegrationTests
                 NullLogger<StockOutService>.Instance,
                 Substitute.For<IStockOutListQuery>(),
                 Substitute.For<IStockOutRequestListQuery>(),
-                Substitute.For<IStockOutItemListQuery>());
+                Substitute.For<IStockOutItemListQuery>(),
+                Substitute.For<ICustomsV2FlowService>());
 
             // 模拟出库申请仓储
             var allStockOutRequests = new List<StockOutRequest>();

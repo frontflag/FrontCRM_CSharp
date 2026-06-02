@@ -52,6 +52,9 @@ namespace CRM.Core.Interfaces
         Task UpdateStatusAsync(string id, short status, string? actingUserId = null);
         /// <summary>可改：出库日期、出货方式、快递单号</summary>
         Task UpdateHeaderAsync(string id, UpdateStockOutHeaderRequest request, string? actingUserId = null);
+
+        /// <summary>标记完成：更新实际出库日期、快递单号、备注并置状态为已完成(4)。</summary>
+        Task MarkFinishedAsync(string id, MarkStockOutFinishedRequest request, string? actingUserId = null);
         /// <summary>强制删除出库单；若单据已执行出库（状态 2/4）则自动反向回补库存数量。</summary>
         Task ForceDeleteWithInventoryRollbackAsync(string id, string? actingUserId = null);
 
@@ -112,6 +115,10 @@ namespace CRM.Core.Interfaces
         public string? SourceCode { get; set; }
         public string? SourceId { get; set; }
         public DateTime StockOutDate { get; set; }
+        /// <summary>预计出库日期</summary>
+        public DateTime? ExpectedStockOutDate { get; set; }
+        /// <summary>关联装箱单数量（去重）</summary>
+        public int PackingCount { get; set; }
         public int TotalQuantity { get; set; }
         public decimal TotalAmount { get; set; }
         public short Status { get; set; }
@@ -140,6 +147,31 @@ namespace CRM.Core.Interfaces
         public DateTime StockOutDate { get; set; }
         public string? ShipmentMethod { get; set; }
         public string? CourierTrackingNo { get; set; }
+    }
+
+    public class StockOutMarkFinishPackingDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string? Code { get; set; }
+    }
+
+    public class StockOutMarkFinishContextDto
+    {
+        public string StockOutId { get; set; } = string.Empty;
+        public string? StockOutCode { get; set; }
+        public string? CustomerName { get; set; }
+        public string? ShipAddress { get; set; }
+        public IReadOnlyList<StockOutMarkFinishPackingDto> Packings { get; set; } = Array.Empty<StockOutMarkFinishPackingDto>();
+        public DateTime? StockOutDate { get; set; }
+        public string? CourierTrackingNo { get; set; }
+        public string? Remark { get; set; }
+    }
+
+    public class MarkStockOutFinishedRequest
+    {
+        public DateTime StockOutDate { get; set; }
+        public string CourierTrackingNo { get; set; } = string.Empty;
+        public string? Remark { get; set; }
     }
 
     public class StockOutRequestListItemDto
@@ -186,6 +218,8 @@ namespace CRM.Core.Interfaces
         public string WarehouseId { get; set; } = string.Empty;
         public string OperatorId { get; set; } = string.Empty;
         public DateTime StockOutDate { get; set; }
+        /// <summary>预计出库日期（批量出库等场景；UTC）。</summary>
+        public DateTime? ExpectedStockOutDate { get; set; }
         public string? Remark { get; set; }
         public List<ExecuteStockOutItemRequest> Items { get; set; } = new();
         /// <summary>装箱单批量出库等为 true 时，不校验出库通知状态（待装箱/已出库/已取消等）。</summary>

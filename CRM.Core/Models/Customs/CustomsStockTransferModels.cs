@@ -56,7 +56,7 @@ public class CustomsBroker : BaseGuidEntity
     public string? ModifyByUserId { get; set; }
 }
 
-/// <summary>报关主单；与出库通知、移库单 1:1:1。</summary>
+/// <summary>报关主单；V2 与报关装箱单 1:1（<see cref="PackingId"/>）。</summary>
 [Table("customs_declaration")]
 public class CustomsDeclaration : BaseGuidEntity, ISoftDeletable
 {
@@ -69,9 +69,10 @@ public class CustomsDeclaration : BaseGuidEntity, ISoftDeletable
     [StringLength(32)]
     public string DeclarationCode { get; set; } = string.Empty;
 
-    [Required]
+    /// <summary>报关装箱单主键（装箱确认时写入）。</summary>
     [StringLength(36)]
-    public string StockOutRequestId { get; set; } = string.Empty;
+    [Column("packing_id")]
+    public string? PackingId { get; set; }
 
     [Required]
     [StringLength(36)]
@@ -132,13 +133,33 @@ public class CustomsDeclarationItem : BaseGuidEntity, ISoftDeletable
 
     public int LineNo { get; set; }
 
-    [Required]
+    /// <summary>拣货后回写；装箱生成报关明细时可为空。</summary>
     [StringLength(36)]
-    public string SourceStockItemId { get; set; } = string.Empty;
+    public string? SourceStockItemId { get; set; }
 
+    /// <summary>销售出库通知 <c>stockout_notify.ID</c>（Type=10）。</summary>
     [Required]
     [StringLength(36)]
     public string StockOutRequestId { get; set; } = string.Empty;
+
+    [StringLength(36)]
+    [Column("customs_pendlist_id")]
+    public string? CustomsPendlistId { get; set; }
+
+    [StringLength(36)]
+    [Column("customs_stockout_notify_id")]
+    public string? CustomsStockOutNotifyId { get; set; }
+
+    [StringLength(36)]
+    [Column("packing_item_id")]
+    public string? PackingItemId { get; set; }
+
+    [Column("original_purchase_price", TypeName = "numeric(18,6)")]
+    public decimal OriginalPurchasePrice { get; set; }
+
+    [StringLength(36)]
+    [Column("vendor_id")]
+    public string? VendorId { get; set; }
 
     [Required]
     [StringLength(36)]

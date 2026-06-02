@@ -57,6 +57,16 @@ public class Packing : BaseGuidEntity, ISoftDeletable
     [Column("comment")]
     public string? Comment { get; set; }
 
+    /// <summary>报关装箱单：报关公司 <c>customs_broker.Id</c>。</summary>
+    [StringLength(36)]
+    [Column("customs_broker_id")]
+    public string? CustomsBrokerId { get; set; }
+
+    /// <summary>装箱确认后关联 <c>customs_declaration</c>（1:1）。</summary>
+    [StringLength(36)]
+    [Column("customs_declaration_id")]
+    public string? CustomsDeclarationId { get; set; }
+
     [StringLength(36)]
     [Column("create_by_user_id")]
     public string? CreateByUserId { get; set; }
@@ -222,6 +232,10 @@ public class PackingItem : BaseGuidEntity, ISoftDeletable
     [StringLength(36)]
     [Column("stockout_notify_id")]
     public string? StockOutNotifyId { get; set; }
+
+    [StringLength(36)]
+    [Column("customs_pendlist_id")]
+    public string? CustomsPendlistId { get; set; }
 
     /// <summary>装箱明细业务编号（如 装箱单号-行序），同单内唯一。</summary>
     [StringLength(64)]

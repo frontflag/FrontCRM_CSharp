@@ -1,5 +1,6 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Vendor;
+using CRM.Core.Services;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -102,6 +103,7 @@ public sealed class VendorListQuery : IVendorListQuery
             .ToListAsync(cancellationToken);
 
         await HydrateContactsAsync(items, cancellationToken);
+        await HydrateUserDisplayNamesAsync(items, cancellationToken);
 
         return new PagedResult<VendorInfo>
         {
@@ -145,6 +147,7 @@ public sealed class VendorListQuery : IVendorListQuery
             .ToListAsync(cancellationToken);
 
         await HydrateContactsAsync(items, cancellationToken);
+        await HydrateUserDisplayNamesAsync(items, cancellationToken);
 
         return new PagedResult<VendorInfo>
         {
@@ -188,6 +191,7 @@ public sealed class VendorListQuery : IVendorListQuery
             .ToListAsync(cancellationToken);
 
         await HydrateContactsAsync(items, cancellationToken);
+        await HydrateUserDisplayNamesAsync(items, cancellationToken);
 
         return new PagedResult<VendorInfo>
         {
@@ -231,6 +235,7 @@ public sealed class VendorListQuery : IVendorListQuery
             .ToListAsync(cancellationToken);
 
         await HydrateContactsAsync(items, cancellationToken);
+        await HydrateUserDisplayNamesAsync(items, cancellationToken);
 
         return new PagedResult<VendorInfo>
         {
@@ -259,5 +264,64 @@ public sealed class VendorListQuery : IVendorListQuery
 
         foreach (var v in vendors)
             v.Contacts = byVendor.TryGetValue(v.Id, out var list) ? list : new List<VendorContactInfo>();
+    }
+
+    private async Task HydrateUserDisplayNamesAsync(IReadOnlyList<VendorInfo> vendors, CancellationToken cancellationToken)
+    {
+        if (vendors.Count == 0)
+            return;
+
+        var userIds = vendors
+            .SelectMany(v => new[] { v.CreateByUserId, v.PurchaseUserId })
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (userIds.Count == 0)
+            return;
+
+        var users = await _db.Users.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .ToListAsync(cancellationToken);
+
+        var byId = users
+            .Where(u => !string.IsNullOrWhiteSpace(u.Id))
+            .GroupBy(u => u.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.First(),
+                StringComparer.OrdinalIgnoreCase);
+
+        foreach (var v in vendors)
+        {
+            if (!string.IsNullOrWhiteSpace(v.PurchaseUserId)
+                && byId.TryGetValue(v.PurchaseUserId.Trim(), out var pu))
+            {
+                v.PurchaseUserName = EntityLookupService.FormatUserLoginName(pu)
+                    ?? EntityLookupService.FormatUserDisplayName(pu);
+            }
+
+            var creatorKey = !string.IsNullOrWhiteSpace(v.CreateByUserId)
+                ? v.CreateByUserId.Trim()
+                : v.PurchaseUserId?.Trim();
+
+            if (string.IsNullOrWhiteSpace(creatorKey))
+            {
+                if (string.IsNullOrWhiteSpace(v.CreateUserName) && !string.IsNullOrWhiteSpace(v.PurchaserName))
+                    v.CreateUserName = v.PurchaserName.Trim();
+                continue;
+            }
+
+            if (byId.TryGetValue(creatorKey, out var cu))
+            {
+                v.CreateUserName = EntityLookupService.FormatUserLoginName(cu)
+                    ?? EntityLookupService.FormatUserDisplayName(cu);
+            }
+            else
+            {
+                // 兼容历史：create_by_user_id 曾写入登录名而非 GUID
+                v.CreateUserName = creatorKey;
+            }
+        }
     }
 }

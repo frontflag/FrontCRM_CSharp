@@ -497,6 +497,12 @@ public partial class InventoryCenterService
 
         await _pickingTaskRepository.UpdateAsync(task);
         await _unitOfWork.SaveChangesAsync();
+
+        if (StockOutTypeCode.NormalizeForNotify(packing.StockOutType) == StockOutTypeCode.Customs)
+        {
+            await _customsV2FlowService.WritebackDeclarationItemsAfterPickingAsync(
+                packingId, task.Id, null);
+        }
     }
 
     private async Task<Packing> EnsurePackingConfirmedByIdAsync(string packingId)

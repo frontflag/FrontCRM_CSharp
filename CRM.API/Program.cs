@@ -181,6 +181,7 @@ catch (Exception ex)
     }
     else
         Log.Fatal(ex, "Application terminated unexpectedly");
+    Environment.ExitCode = 1;
 }
 finally
 {

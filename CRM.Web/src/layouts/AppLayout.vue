@@ -558,6 +558,7 @@
             </template>
             <template #submenu>
               <router-link to="/customs/brokers" class="submenu-item" active-class="active">{{ t('layout.menu.customsBrokers') }}</router-link>
+              <router-link to="/customs/pendlists" class="submenu-item" active-class="active">{{ t('layout.menu.customsPendlists') }}</router-link>
               <router-link to="/customs/declarations" class="submenu-item" active-class="active">{{ t('layout.menu.customsDeclarations') }}</router-link>
               <router-link to="/customs/declaration-items" class="submenu-item" active-class="active">{{ t('layout.menu.customsDeclarationItems') }}</router-link>
             </template>
@@ -1475,6 +1476,7 @@ const pageTitleMap: Record<string, string> = {
   '/inventory/packing/items': 'layout.menu.packingItemList',
   '/inventory/picking-list': 'layout.menu.pickingSlip',
   '/customs/brokers': 'customsPages.brokers.title',
+  '/customs/pendlists': 'customsPages.pendlists.title',
   '/customs/declarations': 'customsPages.declarations.title',
   '/customs/declaration-items': 'customsPages.items.title',
   '/inventory/transfers-customers': 'customsPages.transfers.title',

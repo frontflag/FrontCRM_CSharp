@@ -286,6 +286,14 @@ namespace CRM.Core.Models.Vendor
         [Column("modify_by_user_id")]
         public string? ModifyByUserId { get; set; }
 
+        /// <summary>创建人展示名（列表 API 填充，不落库）</summary>
+        [NotMapped]
+        public string? CreateUserName { get; set; }
+
+        /// <summary>采购员展示名（列表 API 填充，不落库；兼容前端 purchaseUserName）</summary>
+        [NotMapped]
+        public string? PurchaseUserName { get; set; }
+
         // 导航属性
         public virtual ICollection<VendorContactInfo> Contacts { get; set; } = new List<VendorContactInfo>();
         public virtual ICollection<VendorAddress> Addresses { get; set; } = new List<VendorAddress>();

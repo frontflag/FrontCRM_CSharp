@@ -57,6 +57,7 @@ public interface IPackingService
     /// <summary>批量出库：校验装箱单后按拣货结果自动生成出库单（不经过执行出库页）。</summary>
     Task<PackingBatchStockOutResultDto> BatchExecuteStockOutFromPackingsAsync(
         IReadOnlyList<string> packingIds,
+        DateTime expectedStockOutDate,
         string? actingUserId = null,
         CancellationToken cancellationToken = default);
 
@@ -117,6 +118,8 @@ public class PackingCreateExtras
     public PackingExtendBoxInput? Box { get; set; }
     public string? Comment { get; set; }
     public DateTime? ScheduleShipDate { get; set; }
+    /// <summary>报关装箱（StockOutType=20）必填：<c>customs_broker.Id</c>。</summary>
+    public string? CustomsBrokerId { get; set; }
 }
 
 public class PackingExtendShipInput

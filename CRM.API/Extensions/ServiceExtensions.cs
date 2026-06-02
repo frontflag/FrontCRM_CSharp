@@ -55,6 +55,8 @@ namespace CRM.API.Extensions
             services.AddScoped<IRepository<CRM.Core.Models.Inventory.PackingItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Inventory.PackingItem>>();
             services.AddScoped<ICustomsBrokerService, CustomsBrokerService>();
             services.AddScoped<ICustomsDeclarationService, CustomsDeclarationService>();
+            services.AddScoped<ICustomsPendlistService, CustomsPendlistService>();
+            services.AddScoped<ICustomsV2FlowService, CustomsV2FlowService>();
             services.AddScoped<ISellOrderItemExtendSyncService, SellOrderItemExtendSyncService>();
             services.AddScoped<ISellOrderItemPurchasedStockAvailableSyncService, SellOrderItemPurchasedStockAvailableSyncService>();
             services.AddScoped<IPurchaseOrderItemExtendSyncService, PurchaseOrderItemExtendSyncService>();

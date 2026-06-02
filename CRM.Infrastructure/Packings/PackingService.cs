@@ -3,6 +3,7 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Auth;
 using CRM.Core.Models.Customer;
+using CRM.Core.Models.Customs;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Sales;
 using CRM.Core.Services;
@@ -28,6 +29,7 @@ public class PackingService : IPackingService
     private readonly ISerialNumberService _serialNumberService;
     private readonly IPackingItemLineSeqService _packingItemLineSeq;
     private readonly IStockOutService _stockOutService;
+    private readonly ICustomsV2FlowService _customsV2FlowService;
 
     public PackingService(
         ApplicationDbContext db,
@@ -42,7 +44,8 @@ public class PackingService : IPackingService
         IUnitOfWork unitOfWork,
         ISerialNumberService serialNumberService,
         IPackingItemLineSeqService packingItemLineSeq,
-        IStockOutService stockOutService)
+        IStockOutService stockOutService,
+        ICustomsV2FlowService customsV2FlowService)
     {
         _db = db;
         _packingListQuery = packingListQuery;
@@ -57,6 +60,7 @@ public class PackingService : IPackingService
         _serialNumberService = serialNumberService;
         _packingItemLineSeq = packingItemLineSeq;
         _stockOutService = stockOutService;
+        _customsV2FlowService = customsV2FlowService;
     }
 
     public async Task<PagedResult<PackingListItemDto>> GetPackingListPagedAsync(
@@ -550,6 +554,13 @@ public class PackingService : IPackingService
         var packingCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.Packing);
         var packingStorageId = await ResolvePackingStorageIdFromRequestsAsync(orderedRequests, cancellationToken);
 
+        if (packingStockOutType == StockOutTypeCode.Customs)
+        {
+            var brokerId = extras?.CustomsBrokerId?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(brokerId))
+                throw new InvalidOperationException("报关装箱须选择报关公司。");
+        }
+
         var packing = new Packing
         {
             Id = Guid.NewGuid().ToString(),
@@ -563,6 +574,9 @@ public class PackingService : IPackingService
             ItemRows = orderedRequests.Count,
             Comment = extras?.Comment?.Trim(),
             ScheduleShipDate = extras?.ScheduleShipDate,
+            CustomsBrokerId = packingStockOutType == StockOutTypeCode.Customs
+                ? extras!.CustomsBrokerId!.Trim()
+                : null,
             CreateTime = now,
             CreateByUserId = createBy
         };
@@ -648,6 +662,10 @@ public class PackingService : IPackingService
                     SellOrderId = req.SalesOrderId,
                     SellOrderItemId = req.SalesOrderItemId,
                     StockOutNotifyId = req.Id,
+                    CustomsPendlistId = packingStockOutType == StockOutTypeCode.Customs
+                        ? (req.CustomsPendlistId?.Trim() ?? throw new InvalidOperationException(
+                            $"报关出库通知 {req.RequestCode} 缺少待报关关联。"))
+                        : null,
                     ProductId = soItem.ProductId,
                     Pn = string.IsNullOrWhiteSpace(req.MaterialCode) ? soItem.PN : req.MaterialCode.Trim(),
                     Brand = string.IsNullOrWhiteSpace(req.MaterialName) ? soItem.Brand : req.MaterialName.Trim(),
@@ -697,6 +715,9 @@ public class PackingService : IPackingService
                 cancellationToken);
 
             await tx.CommitAsync(cancellationToken);
+
+            if (packingStockOutType == StockOutTypeCode.Customs)
+                await _customsV2FlowService.OnCustomsPackingCreatedAsync(packing.Id, createBy, cancellationToken);
         }
         catch
         {
@@ -925,6 +946,8 @@ public class PackingService : IPackingService
             throw new InvalidOperationException("已出库的出库通知不能生成装箱单");
         if (requests.Any(r => r.Status == StockOutRequestStatusCode.Packed))
             throw new InvalidOperationException("已装箱的出库通知不能重复生成装箱单");
+        if (requests.Any(r => r.Status == StockOutRequestStatusCode.PendingCustoms))
+            throw new InvalidOperationException("待报关的出库通知不能生成销售装箱单，请先完成报关流程");
         if (requests.Any(r => r.Status != StockOutRequestStatusCode.PendingPacking))
             throw new InvalidOperationException("仅「待装箱」状态的出库通知可生成装箱单");
 
@@ -934,6 +957,10 @@ public class PackingService : IPackingService
             .ToList();
         if (normalizedStockOutTypes.Count != 1)
             throw new InvalidOperationException("所选出库通知的出库类型必须一致");
+
+        var packingStockOutType = normalizedStockOutTypes[0];
+        if (packingStockOutType == StockOutTypeCode.Customs)
+            await ValidateCustomsStockOutRequestsForPackingAsync(requests, cancellationToken);
 
         var existingPackingItems = await _db.PackingItems
             .AsNoTracking()
@@ -1073,6 +1100,9 @@ public class PackingService : IPackingService
         packing.Status = PackingStatusCode.Confirmed;
         await _packingRepository.UpdateAsync(packing);
         await _unitOfWork.SaveChangesAsync();
+
+        if (StockOutTypeCode.NormalizeForNotify(packing.StockOutType) == StockOutTypeCode.Customs)
+            await _customsV2FlowService.GenerateDeclarationOnPackingConfirmAsync(id, actingUserId, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -1211,6 +1241,15 @@ public class PackingService : IPackingService
             }
         }
 
+        var pendlistIds = items
+            .Select(i => i.CustomsPendlistId?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (pendlistIds.Count > 0)
+            await _customsV2FlowService.RevertPendlistOnPackingDeleteAsync(pendlistIds, modifyBy, cancellationToken);
+
         await _packingRepository.DeleteAsync(id);
         await _unitOfWork.SaveChangesAsync();
     }
@@ -1330,9 +1369,14 @@ public class PackingService : IPackingService
     /// <inheritdoc />
     public async Task<PackingBatchStockOutResultDto> BatchExecuteStockOutFromPackingsAsync(
         IReadOnlyList<string> packingIds,
+        DateTime expectedStockOutDate,
         string? actingUserId = null,
         CancellationToken cancellationToken = default)
     {
+        if (expectedStockOutDate == default)
+            throw new ArgumentException("请填写预计出库日期", nameof(expectedStockOutDate));
+
+        var expectedUtc = PostgreSqlDateTime.ToUtc(expectedStockOutDate);
         var ids = (packingIds ?? Array.Empty<string>())
             .Select(x => x?.Trim())
             .Where(x => !string.IsNullOrEmpty(x))
@@ -1445,6 +1489,7 @@ public class PackingService : IPackingService
                     WarehouseId = batchWarehouseId,
                     OperatorId = actor ?? string.Empty,
                     StockOutDate = now,
+                    ExpectedStockOutDate = expectedUtc,
                     SkipStockOutNotifyStatusChecks = true,
                     PackingListBatchStockOut = true,
                     Items =
@@ -1934,5 +1979,43 @@ public class PackingService : IPackingService
         }
 
         return wh.Id.Trim();
+    }
+
+    private async Task ValidateCustomsStockOutRequestsForPackingAsync(
+        IReadOnlyList<StockOutRequest> requests,
+        CancellationToken cancellationToken)
+    {
+        foreach (var r in requests)
+        {
+            if (StockOutTypeCode.NormalizeForNotify(r.StockOutType) != StockOutTypeCode.Customs)
+                throw new InvalidOperationException("报关装箱须选择报关出库通知（Type=20）。");
+            if (string.IsNullOrWhiteSpace(r.CustomsPendlistId))
+            {
+                var code = string.IsNullOrWhiteSpace(r.RequestCode) ? r.Id : r.RequestCode.Trim();
+                throw new InvalidOperationException($"报关出库通知 {code} 缺少待报关关联。");
+            }
+        }
+
+        var pendlistIds = requests
+            .Select(r => r.CustomsPendlistId!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var pendlists = await _db.CustomsPendlists
+            .AsNoTracking()
+            .Where(p => pendlistIds.Contains(p.Id) && !p.IsDeleted)
+            .ToListAsync(cancellationToken);
+        if (pendlists.Count != pendlistIds.Count)
+            throw new InvalidOperationException("部分待报关记录不存在，请刷新后重试。");
+
+        if (pendlists.Any(p => p.Status != CustomsPendlistStatusCode.CustomsOutNotifyCreated))
+            throw new InvalidOperationException("仅「已生成报关出库通知」的待报关记录可组报关装箱。");
+
+        var whIds = pendlists
+            .Select(p => p.OverseasWarehouseId?.Trim() ?? string.Empty)
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (whIds.Count > 1)
+            throw new InvalidOperationException("所选报关出库通知须来自同一境外仓，不能跨仓合并装箱。");
     }
 }

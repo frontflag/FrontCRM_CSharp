@@ -55,9 +55,14 @@ namespace CRM.Core.Models.Inventory
 
         /// <summary>
         /// 出库通知状态，见 <see cref="StockOutRequestStatusCode"/>：
-        /// 10=待装箱，20=已装箱，100=已出库，-1=已取消。
+        /// 5=待报关，10=待装箱，20=已装箱，100=已出库，-1=已取消。
         /// </summary>
         public short Status { get; set; } = StockOutRequestStatusCode.PendingPacking;
+
+        /// <summary>仅 StockOutType=20（报关出库通知）使用，指向 <c>customs_pendlist</c>。</summary>
+        [StringLength(36)]
+        [Column("customs_pendlist_id")]
+        public string? CustomsPendlistId { get; set; }
 
         /// <summary>业务备注（自由文本）。</summary>
         [StringLength(500)]

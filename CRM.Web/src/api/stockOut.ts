@@ -9,6 +9,10 @@ export interface StockOutDto {
   /** 列表接口不再返回；详情等仍可能返回 */
   warehouseId?: string
   stockOutDate: string
+  /** 预计出库日期 */
+  expectedStockOutDate?: string | null
+  /** 关联装箱单数量 */
+  packingCount?: number
   totalQuantity: number
   totalAmount: number
   status: number
@@ -21,6 +25,22 @@ export interface StockOutDto {
   /** 出货方式（字典 LogisticsArrivalMethod ItemCode） */
   shipmentMethod?: string | null
   courierTrackingNo?: string | null
+}
+
+export interface StockOutMarkFinishPacking {
+  id: string
+  code?: string | null
+}
+
+export interface StockOutMarkFinishContext {
+  stockOutId: string
+  stockOutCode?: string
+  customerName?: string
+  shipAddress?: string
+  packings: StockOutMarkFinishPacking[]
+  stockOutDate?: string
+  courierTrackingNo?: string
+  remark?: string
 }
 
 /** GET /api/v1/stock-out/:id（详情视图，含仓库与明细主键） */
@@ -571,5 +591,39 @@ export const stockOutApi = {
 
   async updateStatus(id: string, status: number): Promise<void> {
     await apiClient.patch(`/api/v1/stock-out/${id}/status?status=${status}`)
+  },
+
+  async getMarkFinishContext(id: string): Promise<StockOutMarkFinishContext> {
+    const enc = encodeURIComponent(id)
+    const res = await apiClient.get<unknown>(`/api/v1/stock-out/${enc}/mark-finish-context`)
+    const root = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
+    const d = (root?.data ?? root?.Data ?? root) as Record<string, unknown> | null
+    const packRaw = (d?.packings ?? d?.Packings) as unknown
+    const packings = Array.isArray(packRaw)
+      ? packRaw.map((x) => {
+          const o = x && typeof x === 'object' ? (x as Record<string, unknown>) : {}
+          return {
+            id: String(o.id ?? o.Id ?? ''),
+            code: (o.code ?? o.Code) as string | null | undefined
+          }
+        })
+      : []
+    return {
+      stockOutId: String(d?.stockOutId ?? d?.StockOutId ?? id),
+      stockOutCode: (d?.stockOutCode ?? d?.StockOutCode) as string | undefined,
+      customerName: (d?.customerName ?? d?.CustomerName) as string | undefined,
+      shipAddress: (d?.shipAddress ?? d?.ShipAddress) as string | undefined,
+      packings,
+      stockOutDate: (d?.stockOutDate ?? d?.StockOutDate) as string | undefined,
+      courierTrackingNo: (d?.courierTrackingNo ?? d?.CourierTrackingNo) as string | undefined,
+      remark: (d?.remark ?? d?.Remark) as string | undefined
+    }
+  },
+
+  async markFinished(
+    id: string,
+    body: { stockOutDate: string; courierTrackingNo: string; remark?: string }
+  ): Promise<void> {
+    await apiClient.post(`/api/v1/stock-out/${encodeURIComponent(id)}/mark-finished`, body)
   }
 }
