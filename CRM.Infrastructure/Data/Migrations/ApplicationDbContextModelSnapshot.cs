@@ -1502,8 +1502,17 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<int>("CurrencyType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(10);
+
                     b.Property<DateTime>("CreateTime")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EBankName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<bool>("IsDisabled")
                         .HasColumnType("boolean");
@@ -1513,6 +1522,10 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer");
+
+                    b.Property<string>("ShortName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
 
@@ -3357,7 +3370,7 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
-                    b.Property<DateTime>("StockOutDate")
+                    b.Property<DateTime?>("StockOutDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<short>("StockOutType")

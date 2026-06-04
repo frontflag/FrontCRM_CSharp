@@ -1,5 +1,6 @@
 import apiClient, { type ApiRejectedError } from './client'
 import { fetchCompanyProfileForReport, type CompanyProfileBundle } from './companyProfile'
+import type { QcImageReadonlyRow } from './document'
 
 function httpStatusFromApiError(e: unknown): number | undefined {
   if (typeof e !== 'object' || e === null) return undefined
@@ -158,6 +159,8 @@ export interface SalesOrderDetailTabAggregates {
     currency: number
     createTime: string
   }>
+  /** 销售明细关联质检单上的图片文档（只读展示） */
+  qcImages: QcImageReadonlyRow[]
 }
 
 // 销售订单API

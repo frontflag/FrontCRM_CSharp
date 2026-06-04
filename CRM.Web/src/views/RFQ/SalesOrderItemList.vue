@@ -139,7 +139,6 @@
           {{ extendTriLabel('invoice', row.invoiceProgressStatus) }}
         </el-tag>
       </template>
-      <template #col-orderCreateTime="{ row }">{{ formatDt(row.orderCreateTime) }}</template>
       <template #col-currency="{ row }">{{ settlementCurrencyLabel(row.currency) }}</template>
       <template #col-price="{ row }">
         <span class="amount-with-code">

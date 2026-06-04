@@ -542,9 +542,9 @@ namespace CRM.Core.Models.Inventory
         public string? SellOrderItemId { get; set; }
 
         /// <summary>
-        /// 出库日期
+        /// 实际出库日期（标记完成时填写；批量生成出库单时不自动写入）
         /// </summary>
-        public DateTime StockOutDate { get; set; } = DateTime.UtcNow;
+        public DateTime? StockOutDate { get; set; }
 
         /// <summary>预计出库日期（UTC，仅日期语义；批量出库时由用户指定）。</summary>
         [Column("expected_stock_out_date")]

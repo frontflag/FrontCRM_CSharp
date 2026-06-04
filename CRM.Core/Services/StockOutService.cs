@@ -195,6 +195,10 @@ namespace CRM.Core.Services
             var regionType = RegionTypeCode.Normalize(request.RegionType);
             var stockOutType = StockOutTypeCode.NormalizeForNotify(request.StockOutType);
 
+            LogisticsShipmentMethodCode.EnsureRequired(request.ShipmentMethod);
+            var shipmentMethod = LogisticsShipmentMethodCode.Normalize(request.ShipmentMethod)!;
+            var expressCompany = LogisticsShipmentMethodCode.NormalizeExpressCompany(request.ExpressCompany);
+
             var stockOutRequest = new StockOutRequest
             {
                 Id = Guid.NewGuid().ToString(),
@@ -209,11 +213,11 @@ namespace CRM.Core.Services
                 RequestDate = PostgreSqlDateTime.ToUtc(request.RequestDate),
                 Status = StockOutRequestStatusCode.PendingPacking,
                 Remark = request.Remark,
-                ShipmentMethod = string.IsNullOrWhiteSpace(request.ShipmentMethod)
-                    ? null
-                    : request.ShipmentMethod.Trim(),
+                ShipmentMethod = shipmentMethod,
+                ExpressCompany = expressCompany,
                 RegionType = regionType,
                 StockOutType = stockOutType,
+                CustomsStatus = StockOutNotifyCustomsStatusCode.Unknown,
                 CreateTime = DateTime.UtcNow,
                 CreateByUserId = ActingUserIdNormalizer.Normalize(actingUserId)
             };
@@ -224,6 +228,7 @@ namespace CRM.Core.Services
                 if (pendlist != null)
                 {
                     stockOutRequest.Status = StockOutRequestStatusCode.PendingCustoms;
+                    stockOutRequest.CustomsStatus = StockOutNotifyCustomsStatusCode.PendingCustoms;
                     await _customsPendlistRepository.AddAsync(pendlist);
                 }
             }
@@ -380,15 +385,13 @@ namespace CRM.Core.Services
 
         /// <inheritdoc />
         public async Task<PagedResult<StockOutRequestListItemDto>> GetStockOutRequestListPagedAsync(
-            string? keyword,
-            string? workflow,
+            StockOutRequestListQueryRequest? filter,
             int page,
             int pageSize,
             CancellationToken cancellationToken = default)
         {
             var paged = await _stockOutRequestListQuery.GetPagedStockOutRequestIdsAsync(
-                keyword,
-                workflow,
+                filter,
                 page,
                 pageSize,
                 cancellationToken);
@@ -466,6 +469,9 @@ namespace CRM.Core.Services
             var customers = (await _customerRepository.FindAsync(c => !c.IsDeleted)).ToList();
             var customerIdByDisplayName = CustomerIdResolveHelper.BuildDisplayNameIndex(customers);
 
+            var notifyIds = reqs.Select(r => r.Id).ToList();
+            var packingLinkByNotifyId = await ResolvePackingLinkByNotifyIdsAsync(notifyIds);
+
             return reqs
                 .Select(x =>
                 {
@@ -479,6 +485,8 @@ namespace CRM.Core.Services
                         if (!userLoginById.TryGetValue(x.RequestUserId, out requestUserName))
                             userLoginByLoginKey.TryGetValue(x.RequestUserId, out requestUserName);
                     }
+
+                    packingLinkByNotifyId.TryGetValue(x.Id.Trim(), out var packingLink);
 
                     return new StockOutRequestListItemDto
                     {
@@ -502,8 +510,12 @@ namespace CRM.Core.Services
                         RequestUserName = requestUserName,
                         RequestDate = x.RequestDate,
                         Status = x.Status,
+                        CustomsStatus = x.CustomsStatus,
                         Remark = x.Remark,
                         ShipmentMethod = string.IsNullOrWhiteSpace(x.ShipmentMethod) ? null : x.ShipmentMethod.Trim(),
+                        ExpressCompany = string.IsNullOrWhiteSpace(x.ExpressCompany) ? null : x.ExpressCompany.Trim(),
+                        PackingId = packingLink.PackingId,
+                        PackingCode = packingLink.PackingCode,
                         RegionType = x.RegionType,
                         StockOutType = x.StockOutType,
                         Currency = soItemCurrencyMap.TryGetValue(x.SalesOrderItemId.Trim(), out var cur)
@@ -513,6 +525,66 @@ namespace CRM.Core.Services
                     };
                 })
                 .ToList();
+        }
+
+        /// <summary>出库通知列表：按 <c>packing_item.stockout_notify_id</c> 解析关联装箱单。</summary>
+        private async Task<IReadOnlyDictionary<string, (string? PackingId, string? PackingCode)>> ResolvePackingLinkByNotifyIdsAsync(
+            IReadOnlyList<string> notifyIds)
+        {
+            var result = new Dictionary<string, (string? PackingId, string? PackingCode)>(StringComparer.OrdinalIgnoreCase);
+            if (notifyIds == null || notifyIds.Count == 0)
+                return result;
+
+            var idSet = notifyIds
+                .Select(x => x?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Cast<string>()
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (idSet.Count == 0)
+                return result;
+
+            var packingItems = (await _packingItemRepository.FindAsync(pi =>
+                    !pi.IsDeleted && pi.StockOutNotifyId != null && idSet.Contains(pi.StockOutNotifyId)))
+                .ToList();
+            if (packingItems.Count == 0)
+                return result;
+
+            var packingIdSet = packingItems
+                .Select(pi => pi.PackingId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+            var packingById = packingIdSet.Count == 0
+                ? new Dictionary<string, Packing>(StringComparer.OrdinalIgnoreCase)
+                : (await _packingRepository.FindAsync(p => packingIdSet.Contains(p.Id) && !p.IsDeleted))
+                    .ToDictionary(p => p.Id.Trim(), p => p, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var grp in packingItems.GroupBy(pi => pi.StockOutNotifyId!.Trim(), StringComparer.OrdinalIgnoreCase))
+            {
+                var links = grp
+                    .Select(pi =>
+                    {
+                        var pid = pi.PackingId?.Trim();
+                        if (string.IsNullOrEmpty(pid) || !packingById.TryGetValue(pid, out var pk))
+                            return (Id: (string?)null, Code: (string?)null);
+                        var code = string.IsNullOrWhiteSpace(pk.Code) ? null : pk.Code.Trim();
+                        return (Id: pid, Code: code);
+                    })
+                    .Where(x => !string.IsNullOrWhiteSpace(x.Code))
+                    .GroupBy(x => x.Id!, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => g.First())
+                    .OrderBy(x => x.Code, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (links.Count == 0)
+                    continue;
+
+                result[grp.Key] = (
+                    links[0].Id,
+                    links.Count == 1 ? links[0].Code : string.Join("、", links.Select(x => x.Code)));
+            }
+
+            return result;
         }
 
         private static string? ResolveSellOrderSalesLogin(
@@ -900,7 +972,9 @@ namespace CRM.Core.Services
                 SellOrderItemId = sellLineId,
                 CustomerId = string.IsNullOrWhiteSpace(stockOutRequest.CustomerId) ? null : stockOutRequest.CustomerId.Trim(),
                 WarehouseId = request.WarehouseId,
-                StockOutDate = PostgreSqlDateTime.ToUtc(request.StockOutDate),
+                StockOutDate = request.StockOutDate is { } stockOutDate && stockOutDate != default
+                    ? PostgreSqlDateTime.ToUtc(stockOutDate)
+                    : null,
                 ExpectedStockOutDate = request.ExpectedStockOutDate.HasValue
                     ? PostgreSqlDateTime.ToUtc(request.ExpectedStockOutDate.Value)
                     : null,
@@ -1086,15 +1160,13 @@ namespace CRM.Core.Services
 
         /// <inheritdoc />
         public async Task<PagedResult<StockOutListItemDto>> GetStockOutListPagedAsync(
-            string? keyword,
-            string? sourceCode,
+            StockOutListQueryRequest? filter,
             int page,
             int pageSize,
             CancellationToken cancellationToken = default)
         {
             var paged = await _stockOutListQuery.GetPagedStockOutIdsAsync(
-                keyword,
-                sourceCode,
+                filter,
                 page,
                 pageSize,
                 cancellationToken);
@@ -1195,7 +1267,17 @@ namespace CRM.Core.Services
                     StringComparer.OrdinalIgnoreCase);
 
             var stockOutIds = outs.Select(x => x.Id).ToList();
-            var packingCountById = await ResolvePackingCountByStockOutIdAsync(stockOutIds);
+            var packingSummaryById = await ResolvePackingSummaryByStockOutIdAsync(stockOutIds);
+
+            var notifyIdSet = outs
+                .Select(x => x.SourceId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Cast<string>()
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var notifyById = notifyIdSet.Count == 0
+                ? new Dictionary<string, StockOutRequest>(StringComparer.OrdinalIgnoreCase)
+                : (await _stockOutRequestRepository.FindAsync(r => notifyIdSet.Contains(r.Id)))
+                    .ToDictionary(r => r.Id.Trim(), r => r, StringComparer.OrdinalIgnoreCase);
 
             return outs
                 .Select(x =>
@@ -1231,6 +1313,20 @@ namespace CRM.Core.Services
                             userLoginByLoginKey.TryGetValue(x.CreateByUserId, out createUserName);
                     }
 
+                    var shipmentMethod = string.IsNullOrWhiteSpace(x.ShipmentMethod) ? null : x.ShipmentMethod.Trim();
+                    string? expressCompany = null;
+                    var sourceId = x.SourceId?.Trim();
+                    if (!string.IsNullOrEmpty(sourceId) && notifyById.TryGetValue(sourceId, out var notify))
+                    {
+                        if (string.IsNullOrWhiteSpace(shipmentMethod))
+                            shipmentMethod = string.IsNullOrWhiteSpace(notify.ShipmentMethod)
+                                ? null
+                                : notify.ShipmentMethod.Trim();
+                        expressCompany = string.IsNullOrWhiteSpace(notify.ExpressCompany)
+                            ? null
+                            : notify.ExpressCompany.Trim();
+                    }
+
                     return new StockOutListItemDto
                     {
                         Id = x.Id,
@@ -1240,7 +1336,12 @@ namespace CRM.Core.Services
                         SourceId = x.SourceId,
                         StockOutDate = x.StockOutDate,
                         ExpectedStockOutDate = x.ExpectedStockOutDate,
-                        PackingCount = packingCountById.TryGetValue(x.Id, out var packingCount) ? packingCount : 0,
+                        PackingCount = packingSummaryById.TryGetValue(x.Id, out var packingSummary)
+                            ? packingSummary.Count
+                            : 0,
+                        PackingCodes = packingSummaryById.TryGetValue(x.Id, out var packingSummaryForCodes)
+                            ? packingSummaryForCodes.Codes
+                            : null,
                         TotalQuantity = x.TotalQuantity,
                         TotalAmount = x.TotalAmount,
                         Status = x.Status,
@@ -1251,19 +1352,26 @@ namespace CRM.Core.Services
                         CustomerName = customerName,
                         SalesUserName = salesUserName,
                         SellOrderItemCode = sellOrderItemCode,
-                        ShipmentMethod = string.IsNullOrWhiteSpace(x.ShipmentMethod) ? null : x.ShipmentMethod.Trim(),
+                        ShipmentMethod = shipmentMethod,
+                        ExpressCompany = expressCompany,
                         CourierTrackingNo = string.IsNullOrWhiteSpace(x.CourierTrackingNo) ? null : x.CourierTrackingNo.Trim()
                     };
                 })
                 .ToList();
         }
 
-        /// <summary>按出库单统计关联装箱单数量（<c>stock_out_item.packing_id</c> 或拣货任务关联）。</summary>
-        private async Task<IReadOnlyDictionary<string, int>> ResolvePackingCountByStockOutIdAsync(
+        private sealed class StockOutPackingSummary
+        {
+            public int Count { get; init; }
+            public string? Codes { get; init; }
+        }
+
+        /// <summary>按出库单统计关联装箱单（<c>stock_out_item.packing_id</c> 或拣货任务关联）。</summary>
+        private async Task<IReadOnlyDictionary<string, StockOutPackingSummary>> ResolvePackingSummaryByStockOutIdAsync(
             IReadOnlyList<string> stockOutIds)
         {
             if (stockOutIds.Count == 0)
-                return new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                return new Dictionary<string, StockOutPackingSummary>(StringComparer.OrdinalIgnoreCase);
 
             var idSet = stockOutIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
             var items = (await _stockOutItemRepository.GetAllAsync())
@@ -1298,7 +1406,7 @@ namespace CRM.Core.Services
                 }
             }
 
-            var result = stockOutIds.ToDictionary(id => id, _ => 0, StringComparer.OrdinalIgnoreCase);
+            var packingIdsByStockOut = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             foreach (var grp in items.GroupBy(i => i.StockOutId?.Trim() ?? string.Empty))
             {
                 if (string.IsNullOrEmpty(grp.Key) || !idSet.Contains(grp.Key))
@@ -1320,7 +1428,39 @@ namespace CRM.Core.Services
                     }
                 }
 
-                result[grp.Key] = packingIds.Count;
+                packingIdsByStockOut[grp.Key] = packingIds;
+            }
+
+            var allPackingIds = packingIdsByStockOut.Values
+                .SelectMany(x => x)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var codeByPackingId = allPackingIds.Count == 0
+                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                : (await _packingRepository.FindAsync(p => allPackingIds.Contains(p.Id) && !p.IsDeleted))
+                    .GroupBy(p => p.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.First().Code?.Trim() ?? string.Empty,
+                        StringComparer.OrdinalIgnoreCase);
+
+            var result = stockOutIds.ToDictionary(
+                id => id,
+                _ => new StockOutPackingSummary { Count = 0, Codes = null },
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var (stockOutId, packingIds) in packingIdsByStockOut)
+            {
+                var codes = packingIds
+                    .Select(pid => codeByPackingId.TryGetValue(pid, out var code) ? code : string.Empty)
+                    .Where(c => !string.IsNullOrWhiteSpace(c))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                result[stockOutId] = new StockOutPackingSummary
+                {
+                    Count = packingIds.Count,
+                    Codes = codes.Count > 0 ? string.Join(",", codes) : null
+                };
             }
 
             return result;
@@ -1420,7 +1560,10 @@ namespace CRM.Core.Services
             var pnNeedle = query.PurchasePn?.Trim();
             var soLineCodeNeedle = query.SellOrderItemCode?.Trim();
             var stockInCodeNeedle = query.StockInCode?.Trim();
+            var packingCodeNeedle = query.PackingCode?.Trim();
             var statusFilter = query.Status;
+
+            var packingDisplayByLineId = await ResolvePackingDisplayByStockOutItemIdAsync(items);
 
             var result = new List<StockOutItemListRowDto>();
             foreach (var line in items)
@@ -1482,6 +1625,10 @@ namespace CRM.Core.Services
                 if (!TextContainsOptional(headerStockInCode, stockInCodeNeedle))
                     continue;
 
+                packingDisplayByLineId.TryGetValue(line.Id.Trim(), out var packingDisplay);
+                if (!TextContainsOptional(packingDisplay.Code, packingCodeNeedle))
+                    continue;
+
                 var outQty = line.ActualQty > 0 ? line.ActualQty : line.Quantity;
 
                 result.Add(new StockOutItemListRowDto
@@ -1499,12 +1646,14 @@ namespace CRM.Core.Services
                     ShipmentMethod = string.IsNullOrWhiteSpace(hdr.ShipmentMethod) ? null : hdr.ShipmentMethod.Trim(),
                     CourierTrackingNo = string.IsNullOrWhiteSpace(hdr.CourierTrackingNo) ? null : hdr.CourierTrackingNo.Trim(),
                     SellOrderItemCode = sellOrderItemCode,
-                    StockInCode = headerStockInCode
+                    StockInCode = headerStockInCode,
+                    PackingId = packingDisplay.Id,
+                    PackingCode = packingDisplay.Code
                 });
             }
 
             return result
-                .OrderByDescending(x => x.StockOutDate)
+                .OrderByDescending(x => x.StockOutDate ?? DateTime.MinValue)
                 .ThenBy(x => x.StockOutCode, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(x => x.StockOutItemId, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -1647,6 +1796,8 @@ namespace CRM.Core.Services
                 .GroupBy(x => x.Id, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
+            var packingDisplayByLineId = await ResolvePackingDisplayByStockOutItemIdAsync(linesOrdered);
+
             var result = new List<StockOutItemListRowDto>();
             foreach (var line in linesOrdered)
             {
@@ -1689,6 +1840,7 @@ namespace CRM.Core.Services
                 }
 
                 var outQty = line.ActualQty > 0 ? line.ActualQty : line.Quantity;
+                packingDisplayByLineId.TryGetValue(line.Id.Trim(), out var packingDisplay);
 
                 result.Add(new StockOutItemListRowDto
                 {
@@ -1705,8 +1857,88 @@ namespace CRM.Core.Services
                     ShipmentMethod = string.IsNullOrWhiteSpace(hdr.ShipmentMethod) ? null : hdr.ShipmentMethod.Trim(),
                     CourierTrackingNo = string.IsNullOrWhiteSpace(hdr.CourierTrackingNo) ? null : hdr.CourierTrackingNo.Trim(),
                     SellOrderItemCode = sellOrderItemCode,
-                    StockInCode = headerStockInCode
+                    StockInCode = headerStockInCode,
+                    PackingId = packingDisplay.Id,
+                    PackingCode = packingDisplay.Code
                 });
+            }
+
+            return result;
+        }
+
+        /// <summary>按出库明细行解析关联装箱单（<c>packing_id</c> 或拣货任务）。</summary>
+        private async Task<IReadOnlyDictionary<string, (string? Id, string? Code)>> ResolvePackingDisplayByStockOutItemIdAsync(
+            IReadOnlyList<StockOutItem> lines)
+        {
+            if (lines.Count == 0)
+                return new Dictionary<string, (string? Id, string? Code)>(StringComparer.OrdinalIgnoreCase);
+
+            var pickingItemIds = lines
+                .Where(l => string.IsNullOrWhiteSpace(l.PackingId) && !string.IsNullOrWhiteSpace(l.PickingTaskItemId))
+                .Select(l => l.PickingTaskItemId!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var packingByPickingItem = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (pickingItemIds.Count > 0)
+            {
+                var pickItems = (await _pickingTaskItemRepository.GetAllAsync())
+                    .Where(pti => pickingItemIds.Contains(pti.Id) && !pti.IsDeleted)
+                    .Select(pti => new { pti.Id, pti.PickingTaskId })
+                    .ToList();
+                var taskIds = pickItems
+                    .Select(x => x.PickingTaskId)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                var taskPackingById = (await _pickingTaskRepository.GetAllAsync())
+                    .Where(pt => taskIds.Contains(pt.Id) && !pt.IsDeleted && !string.IsNullOrWhiteSpace(pt.PackingId))
+                    .ToDictionary(pt => pt.Id, pt => pt.PackingId!.Trim(), StringComparer.OrdinalIgnoreCase);
+                foreach (var pi in pickItems)
+                {
+                    if (taskPackingById.TryGetValue(pi.PickingTaskId, out var packingId))
+                        packingByPickingItem[pi.Id] = packingId;
+                }
+            }
+
+            var packingIdByLineId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var line in lines)
+            {
+                var lineId = line.Id.Trim();
+                if (!string.IsNullOrWhiteSpace(line.PackingId))
+                    packingIdByLineId[lineId] = line.PackingId.Trim();
+                else if (!string.IsNullOrWhiteSpace(line.PickingTaskItemId)
+                         && packingByPickingItem.TryGetValue(line.PickingTaskItemId.Trim(), out var viaPick))
+                {
+                    packingIdByLineId[lineId] = viaPick;
+                }
+            }
+
+            var allPackingIds = packingIdByLineId.Values
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var codeByPackingId = allPackingIds.Count == 0
+                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                : (await _packingRepository.FindAsync(p => allPackingIds.Contains(p.Id) && !p.IsDeleted))
+                    .GroupBy(p => p.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.First().Code?.Trim() ?? string.Empty,
+                        StringComparer.OrdinalIgnoreCase);
+
+            var result = new Dictionary<string, (string? Id, string? Code)>(StringComparer.OrdinalIgnoreCase);
+            foreach (var line in lines)
+            {
+                var lineId = line.Id.Trim();
+                if (!packingIdByLineId.TryGetValue(lineId, out var packingId))
+                {
+                    result[lineId] = (null, null);
+                    continue;
+                }
+
+                string? code = null;
+                if (codeByPackingId.TryGetValue(packingId, out var c) && !string.IsNullOrWhiteSpace(c))
+                    code = c;
+                result[lineId] = (packingId, code);
             }
 
             return result;
@@ -1727,11 +1959,13 @@ namespace CRM.Core.Services
             return utc.Date;
         }
 
-        private static bool StockOutDateInRange(DateTime stockOutDate, DateTime? from, DateTime? to)
+        private static bool StockOutDateInRange(DateTime? stockOutDate, DateTime? from, DateTime? to)
         {
             if (!from.HasValue && !to.HasValue)
                 return true;
-            var t = DateStartUtc(stockOutDate);
+            if (!stockOutDate.HasValue)
+                return false;
+            var t = DateStartUtc(stockOutDate.Value);
             if (from.HasValue && t < DateStartUtc(from.Value))
                 return false;
             if (to.HasValue && t >= DateStartUtc(to.Value).AddDays(1))

@@ -484,9 +484,22 @@ public class CustomsV2FlowService : ICustomsV2FlowService
                     && salesSor.Status == StockOutRequestStatusCode.PendingCustoms)
                 {
                     salesSor.Status = StockOutRequestStatusCode.PendingPacking;
+                    salesSor.CustomsStatus = StockOutNotifyCustomsStatusCode.Completed;
                     salesSor.ModifyTime = now;
                     salesSor.ModifyByUserId = actor;
                     await _stockOutRequestRepo.UpdateAsync(salesSor);
+                }
+
+                if (!string.IsNullOrWhiteSpace(pendlist.CustomsStockOutNotifyId))
+                {
+                    var customsSor = await _stockOutRequestRepo.GetByIdAsync(pendlist.CustomsStockOutNotifyId.Trim());
+                    if (customsSor != null && !customsSor.IsDeleted)
+                    {
+                        customsSor.CustomsStatus = StockOutNotifyCustomsStatusCode.Completed;
+                        customsSor.ModifyTime = now;
+                        customsSor.ModifyByUserId = actor;
+                        await _stockOutRequestRepo.UpdateAsync(customsSor);
+                    }
                 }
             }
         }
@@ -539,6 +552,31 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             row.ModifyTime = now;
             row.ModifyByUserId = actor;
             await _pendlistRepo.UpdateAsync(row);
+
+            var salesSor = await _stockOutRequestRepo.GetByIdAsync(row.SalesStockOutNotifyId.Trim());
+            if (salesSor != null
+                && !salesSor.IsDeleted
+                && salesSor.CustomsStatus == StockOutNotifyCustomsStatusCode.InCustoms)
+            {
+                salesSor.CustomsStatus = StockOutNotifyCustomsStatusCode.PendingCustoms;
+                salesSor.ModifyTime = now;
+                salesSor.ModifyByUserId = actor;
+                await _stockOutRequestRepo.UpdateAsync(salesSor);
+            }
+
+            if (!string.IsNullOrWhiteSpace(row.CustomsStockOutNotifyId))
+            {
+                var customsSor = await _stockOutRequestRepo.GetByIdAsync(row.CustomsStockOutNotifyId.Trim());
+                if (customsSor != null
+                    && !customsSor.IsDeleted
+                    && customsSor.CustomsStatus == StockOutNotifyCustomsStatusCode.InCustoms)
+                {
+                    customsSor.CustomsStatus = StockOutNotifyCustomsStatusCode.PendingCustoms;
+                    customsSor.ModifyTime = now;
+                    customsSor.ModifyByUserId = actor;
+                    await _stockOutRequestRepo.UpdateAsync(customsSor);
+                }
+            }
         }
 
         await _unitOfWork.SaveChangesAsync();

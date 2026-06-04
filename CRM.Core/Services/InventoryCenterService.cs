@@ -1427,12 +1427,15 @@ namespace CRM.Core.Services
         }
 
         /// <inheritdoc />
-        public async Task<IReadOnlyList<PickingTaskListItemDto>> GetPickingTaskListRowsAsync()
+        public async Task<IReadOnlyList<PickingTaskListItemDto>> GetPickingTaskListRowsAsync(PickingTaskListQueryRequest? query = null)
         {
             List<PickingTask> tasks;
             try
             {
-                tasks = (await _pickingTaskRepository.GetAllAsync()).OrderByDescending(x => x.CreateTime).ToList();
+                tasks = (await _pickingTaskRepository.GetAllAsync())
+                    .Where(t => !t.IsDeleted)
+                    .OrderByDescending(x => x.CreateTime)
+                    .ToList();
             }
             catch (Exception ex) when (IsTableMissingException(ex))
             {
@@ -1471,6 +1474,45 @@ namespace CRM.Core.Services
                 .GroupBy(i => i.PickingTaskId, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
 
+            var packingIds = tasks
+                .Select(t => t.PackingId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+
+            List<Packing> packings;
+            List<PackingItem> packingItems;
+            try
+            {
+                packings = packingIds.Count == 0
+                    ? new List<Packing>()
+                    : (await _packingRepository.FindAsync(p => packingIds.Contains(p.Id))).ToList();
+                packingItems = packingIds.Count == 0
+                    ? new List<PackingItem>()
+                    : (await _packingItemRepository.FindAsync(pi =>
+                        !pi.IsDeleted && packingIds.Contains(pi.PackingId))).ToList();
+            }
+            catch (Exception ex) when (IsTableMissingException(ex))
+            {
+                packings = new List<Packing>();
+                packingItems = new List<PackingItem>();
+            }
+
+            var packingById = packings
+                .GroupBy(p => p.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Key.Length > 0)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var notifyIdByPackingId = packingItems
+                .GroupBy(pi => pi.PackingId?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Key.Length > 0)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(pi => pi.StockOutNotifyId?.Trim())
+                        .FirstOrDefault(x => !string.IsNullOrEmpty(x)),
+                    StringComparer.OrdinalIgnoreCase);
+
             var users = (await _userRepository.GetAllAsync()).ToList();
             var userLookups = BuildUserDisplayLookups(users);
 
@@ -1482,7 +1524,8 @@ namespace CRM.Core.Services
                 var plan = items.Sum(x => x.PlanQty);
                 var lineCount = items.Count;
 
-                var (sor, so, _) = await ResolvePickingTaskDisplayContextAsync(t, sorById, soById);
+                var (sor, so, packing) = ResolvePickingTaskDisplayContextForList(
+                    t, sorById, soById, packingById, notifyIdByPackingId);
 
                 string? whDisp = null;
                 var wid = t.WarehouseId?.Trim() ?? "";
@@ -1491,6 +1534,7 @@ namespace CRM.Core.Services
                 else if (!string.IsNullOrEmpty(wid))
                     whDisp = wid;
 
+                var packingId = t.PackingId?.Trim();
                 rows.Add(new PickingTaskListItemDto
                 {
                     Id = t.Id,
@@ -1508,13 +1552,98 @@ namespace CRM.Core.Services
                     PlanQtyTotal = plan,
                     LineCount = lineCount,
                     StockOutRequestCode = sor?.RequestCode,
+                    PackingId = string.IsNullOrEmpty(packingId) ? null : packingId,
+                    PackingCode = packing == null || string.IsNullOrWhiteSpace(packing.Code)
+                        ? null
+                        : packing.Code.Trim(),
                     TaskCode = t.TaskCode,
                     CreateTime = t.CreateTime,
                     CreateUserDisplay = ResolveUserDisplay(t.OperatorId, userLookups.ById, userLookups.ByLogin)
                 });
             }
 
-            return rows;
+            return ApplyPickingTaskListQuery(rows, query);
+        }
+
+        private static (StockOutRequest? Sor, SellOrder? So, Packing? Packing) ResolvePickingTaskDisplayContextForList(
+            PickingTask task,
+            IReadOnlyDictionary<string, StockOutRequest> sorById,
+            IReadOnlyDictionary<string, SellOrder> soById,
+            IReadOnlyDictionary<string, Packing> packingById,
+            IReadOnlyDictionary<string, string?> notifyIdByPackingId)
+        {
+            var packingId = task.PackingId?.Trim();
+            if (string.IsNullOrEmpty(packingId))
+                return (null, null, null);
+
+            packingById.TryGetValue(packingId, out var packing);
+
+            StockOutRequest? sor = null;
+            if (notifyIdByPackingId.TryGetValue(packingId, out var notifyId)
+                && !string.IsNullOrWhiteSpace(notifyId)
+                && sorById.TryGetValue(notifyId.Trim(), out var cachedSor))
+                sor = cachedSor;
+
+            SellOrder? so = null;
+            if (sor != null && !string.IsNullOrWhiteSpace(sor.SalesOrderId))
+            {
+                var soId = sor.SalesOrderId.Trim();
+                soById.TryGetValue(soId, out so);
+            }
+
+            return (sor, so, packing);
+        }
+
+        private static IReadOnlyList<PickingTaskListItemDto> ApplyPickingTaskListQuery(
+            List<PickingTaskListItemDto> rows,
+            PickingTaskListQueryRequest? query)
+        {
+            if (query == null)
+                return rows;
+
+            IEnumerable<PickingTaskListItemDto> q = rows;
+
+            if (query.Status.HasValue)
+                q = q.Where(r => r.Status == query.Status.Value);
+
+            var warehouseId = query.WarehouseId?.Trim();
+            if (!string.IsNullOrEmpty(warehouseId))
+                q = q.Where(r => string.Equals(r.WarehouseId?.Trim(), warehouseId, StringComparison.OrdinalIgnoreCase));
+
+            var taskCode = query.TaskCode?.Trim();
+            if (!string.IsNullOrEmpty(taskCode))
+                q = q.Where(r => (r.TaskCode ?? "").Contains(taskCode, StringComparison.OrdinalIgnoreCase));
+
+            var packingCode = query.PackingCode?.Trim();
+            if (!string.IsNullOrEmpty(packingCode))
+                q = q.Where(r => (r.PackingCode ?? "").Contains(packingCode, StringComparison.OrdinalIgnoreCase));
+
+            var stockOutRequestCode = query.StockOutRequestCode?.Trim();
+            if (!string.IsNullOrEmpty(stockOutRequestCode))
+                q = q.Where(r => (r.StockOutRequestCode ?? "").Contains(stockOutRequestCode, StringComparison.OrdinalIgnoreCase));
+
+            var materialModel = query.MaterialModel?.Trim();
+            if (!string.IsNullOrEmpty(materialModel))
+                q = q.Where(r => (r.MaterialModel ?? "").Contains(materialModel, StringComparison.OrdinalIgnoreCase));
+
+            var customerName = query.CustomerName?.Trim();
+            if (!string.IsNullOrEmpty(customerName))
+                q = q.Where(r => (r.CustomerName ?? "").Contains(customerName, StringComparison.OrdinalIgnoreCase));
+
+            var salesUserName = query.SalesUserName?.Trim();
+            if (!string.IsNullOrEmpty(salesUserName))
+                q = q.Where(r => (r.SalesUserName ?? "").Contains(salesUserName, StringComparison.OrdinalIgnoreCase));
+
+            if (query.CreateTimeFrom.HasValue)
+                q = q.Where(r => r.CreateTime >= query.CreateTimeFrom.Value);
+
+            if (query.CreateTimeTo.HasValue)
+            {
+                var end = query.CreateTimeTo.Value.Date.AddDays(1);
+                q = q.Where(r => r.CreateTime < end);
+            }
+
+            return q.ToList();
         }
 
         /// <inheritdoc />
@@ -1545,7 +1674,7 @@ namespace CRM.Core.Services
                 .GroupBy(x => x.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
                 .Where(g => g.Key.Length > 0)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-            var (sor, so, _) = await ResolvePickingTaskDisplayContextAsync(t, sorById, soById);
+            var (sor, so, packing) = await ResolvePickingTaskDisplayContextAsync(t, sorById, soById);
 
             WarehouseInfo? wh = null;
             if (!string.IsNullOrWhiteSpace(t.WarehouseId))
@@ -1624,12 +1753,17 @@ namespace CRM.Core.Services
                 PlanQtyTotal = items.Sum(x => x.PlanQty),
                 LineCount = items.Count,
                 StockOutRequestCode = sor?.RequestCode,
+                PackingId = string.IsNullOrWhiteSpace(t.PackingId) ? null : t.PackingId.Trim(),
+                PackingCode = packing == null || string.IsNullOrWhiteSpace(packing.Code)
+                    ? null
+                    : packing.Code.Trim(),
                 TaskCode = t.TaskCode,
                 CreateTime = t.CreateTime,
                 CreateUserDisplay = ResolveUserDisplay(t.OperatorId, userLookups.ById, userLookups.ByLogin),
                 Remark = t.Remark,
                 DistinctStockTypes = distinctTypes,
-                Items = lineDtos
+                Items = lineDtos,
+                Packing = await BuildPickingTaskPackingPanelAsync(t, packing)
             };
         }
 

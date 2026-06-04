@@ -71,7 +71,7 @@ namespace CRM.API.Controllers
         /// </summary>
         public class DebugPageDto
         {
-            /// <summary>供界面展示的数据库连接串（Host/Database/Username/Password 的值：从第 1 位起奇数位保留、偶数位为 *）</summary>
+            /// <summary>供界面展示：仅数据库名（奇数位保留、偶数位为 *），不含 Host/Port/账号密码。</summary>
             public string DatabaseConnectionDisplay { get; set; } = string.Empty;
             public List<DebugItemDto> Items { get; set; } = new();
         }
@@ -1284,14 +1284,12 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>
-        /// Debug：对 Host、Database、Username、Password 的值脱敏——从第 1 位起算，奇数位保留、偶数位替换为 *。
+        /// Debug 数据库面板：仅展示库名（奇数位保留、偶数位 *），不展示 Host/Port/Username/Password。
         /// </summary>
         private static string MaskConnectionStringForDebugDisplay(string? connectionString)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
                 return "(无法获取数据库连接串，请检查配置)";
-
-            var s = connectionString.Trim();
 
             static string MaskEvenPositionsToStar(string? value)
             {
@@ -1300,7 +1298,6 @@ namespace CRM.API.Controllers
                 var sb = new StringBuilder(value.Length);
                 for (var i = 0; i < value.Length; i++)
                 {
-                    // 第 (i+1) 位：奇数位保留，偶数位为 *
                     if ((i + 1) % 2 == 0)
                         sb.Append('*');
                     else
@@ -1309,24 +1306,26 @@ namespace CRM.API.Controllers
                 return sb.ToString();
             }
 
-            static string ReplaceKeyValue(string input, string pattern)
+            string? databaseName = null;
+            try
             {
-                return Regex.Replace(
-                    input,
-                    pattern,
-                    m => $"{m.Groups[1].Value}={MaskEvenPositionsToStar(m.Groups[2].Value)}",
+                var builder = new NpgsqlConnectionStringBuilder(connectionString.Trim());
+                databaseName = builder.Database;
+            }
+            catch
+            {
+                var m = Regex.Match(
+                    connectionString.Trim(),
+                    @"\b(?:Database|Initial\s+Catalog)\s*=\s*([^;]*)",
                     RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+                if (m.Success)
+                    databaseName = m.Groups[1].Value.Trim();
             }
 
-            // PostgreSQL / 常见别名
-            s = ReplaceKeyValue(s, @"\b(Host|Server)\s*=\s*([^;]*)");
-            s = ReplaceKeyValue(s, @"\b(Database)\s*=\s*([^;]*)");
-            // SQL Server
-            s = ReplaceKeyValue(s, @"\b(Initial\s+Catalog)\s*=\s*([^;]*)");
-            s = ReplaceKeyValue(s, @"\b(Username|User\s+Id|User\s+ID|UID)\s*=\s*([^;]*)");
-            s = ReplaceKeyValue(s, @"\b(Password|Pwd)\s*=\s*([^;]*)");
+            if (string.IsNullOrWhiteSpace(databaseName))
+                return "—";
 
-            return s;
+            return $"Database={MaskEvenPositionsToStar(databaseName)}";
         }
     }
 }

@@ -524,6 +524,14 @@
               >
                 进项发票
               </button>
+              <button
+                type="button"
+                class="tab-btn"
+                :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'qcImages' }"
+                @click="poItemLinePanel.activeTab = 'qcImages'"
+              >
+                质检图片
+              </button>
             </div>
             <div class="tabs-body">
               <div v-show="poItemLinePanel.activeTab === 'requisitions'" class="po-aggregate-table-wrap">
@@ -541,6 +549,22 @@
                   </el-table-column>
                   <el-table-column label="状态" width="100">
                     <template #default="{ row }">{{ prStatusText(row?.status) }}</template>
+                  </el-table-column>
+                  <el-table-column label="销售订单号" min-width="140" show-overflow-tooltip>
+                    <template #default="{ row }">
+                      <router-link
+                        v-if="row.sellOrderId && row.sellOrderCode"
+                        class="po-tab-link"
+                        :to="`/sales-orders/${row.sellOrderId}`"
+                      >
+                        {{ row.sellOrderCode }}
+                      </router-link>
+                      <span v-else-if="row.sellOrderCode">{{ row.sellOrderCode }}</span>
+                      <span v-else>—</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="salesUserName" label="业务员" width="120" show-overflow-tooltip>
+                    <template #default="{ row }">{{ row.salesUserName?.trim() || '—' }}</template>
                   </el-table-column>
                   <el-table-column prop="pn" label="PN" min-width="140" show-overflow-tooltip />
                   <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip />
@@ -646,6 +670,9 @@
                 </el-table>
                 <el-empty v-else description="暂无数据" :image-size="64" />
               </div>
+              <div v-show="poItemLinePanel.activeTab === 'qcImages'" class="po-aggregate-table-wrap po-qc-images-wrap">
+                <QcImagesReadonlyGallery :images="lineTabAggregates?.qcImages ?? []" empty-text="暂无质检图片" />
+              </div>
             </div>
           </div>
         </div>
@@ -706,6 +733,7 @@ import { recordPurchaseOrderRecentView } from '@/utils/purchaseOrderRecentHistor
 import PurchaseOrderItemLineDialogs from '@/components/purchaseOrder/PurchaseOrderItemLineDialogs.vue'
 import { buildPurchaseOrderDetailItemsColumns } from '@/composables/buildPurchaseOrderDetailItemsColumns'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import QcImagesReadonlyGallery from '@/components/Logistics/QcImagesReadonlyGallery.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -834,7 +862,8 @@ const poItemLinePanel = reactive({
     | 'arrivals'
     | 'stockIns'
     | 'stocks'
-    | 'purchaseInvoices',
+    | 'purchaseInvoices'
+    | 'qcImages',
   loading: false,
   loadError: ''
 })

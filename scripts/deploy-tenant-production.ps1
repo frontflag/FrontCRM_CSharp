@@ -50,6 +50,7 @@ function Get-DeployTenantChildParams {
 if ($Tenant -eq 'all') {
     $batchTenants = @('semicore', 'idesemi', 'fz')
     $failedTenants = New-Object System.Collections.Generic.List[string]
+    $succeededTenants = New-Object System.Collections.Generic.List[string]
 
     Write-Host ""
     Write-Host "=== Deploy ALL tenants (sequential) ===" -ForegroundColor Cyan
@@ -68,17 +69,27 @@ if ($Tenant -eq 'all') {
             $failedTenants.Add($t) | Out-Null
             Write-Host ""
             Write-Host "!!! Tenant '$t' deploy failed (exit $LASTEXITCODE); continuing with next tenant..." -ForegroundColor Red
+        } else {
+            $succeededTenants.Add($t) | Out-Null
         }
     }
 
+    $successCount = $succeededTenants.Count
+    $failCount = $failedTenants.Count
+    $summaryColor = if ($failCount -gt 0) { 'Red' } else { 'Green' }
+
     Write-Host ""
-    if ($failedTenants.Count -gt 0) {
-        Write-Host "=== Batch deploy finished with failures ===" -ForegroundColor Red
-        Write-Host "Failed: $($failedTenants -join ', ')" -ForegroundColor Red
+    Write-Host "=== 批量发布完成 ===" -ForegroundColor $summaryColor
+    Write-Host "发布成功: $successCount 个" -ForegroundColor Green
+    if ($successCount -gt 0) {
+        Write-Host "  成功租户: $($succeededTenants -join ', ')" -ForegroundColor Gray
+    }
+    Write-Host "发布失败: $failCount 个" -ForegroundColor $(if ($failCount -gt 0) { 'Red' } else { 'Gray' })
+    if ($failCount -gt 0) {
+        Write-Host "  失败租户: $($failedTenants -join ', ')" -ForegroundColor Red
         exit 1
     }
 
-    Write-Host "=== Batch deploy finished: all tenants succeeded ===" -ForegroundColor Green
     exit 0
 }
 
@@ -103,6 +114,11 @@ if (-not (Test-Path $deployScript)) {
     throw "deploy_full_to_server.ps1 not found: $deployScript"
 }
 
+$effectiveDeploymentMode = $DeploymentMode
+if ($effectiveDeploymentMode -eq 'auto' -and $cfg.deploymentMode) {
+    $effectiveDeploymentMode = [string]$cfg.deploymentMode
+}
+
 $params = @{
     Tenant               = $Tenant
     ServerIP             = [string]$cfg.serverIP
@@ -111,7 +127,7 @@ $params = @{
     RemoteDeployPath     = [string]$cfg.remoteDeployPath
     NonDockerFrontendRoot = [string]$cfg.nonDockerFrontendRoot
     NonDockerBackendRoot  = [string]$cfg.nonDockerBackendRoot
-    DeploymentMode       = $DeploymentMode
+    DeploymentMode       = $effectiveDeploymentMode
 }
 
 if ($SkipBuild) { $params.SkipBuild = $true }

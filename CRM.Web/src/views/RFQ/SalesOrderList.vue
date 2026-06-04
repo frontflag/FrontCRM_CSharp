@@ -298,6 +298,7 @@ const salesOrderTableColumns = computed((): CrmTableColumnDef[] => {
     ? [{ key: 'customerName', label: t('salesOrderList.columns.customer'), prop: 'customerName', minWidth: 200, showOverflowTooltip: true }]
     : []),
   { key: 'salesUserName', label: t('salesOrderList.columns.salesUser'), prop: 'salesUserName', width: 120, minWidth: 120, showOverflowTooltip: true },
+  { key: 'assistorUserName', label: t('salesOrderList.columns.assistor'), prop: 'assistorUserName', width: 120, minWidth: 120, showOverflowTooltip: true },
   ...(canViewSalesAmount.value ? [{ key: 'total', label: t('salesOrderList.columns.totalAmount'), prop: 'total', width: 160, align: 'right' as const }] : []),
   {
     key: 'itemRows',

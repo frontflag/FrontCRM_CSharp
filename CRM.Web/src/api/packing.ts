@@ -30,6 +30,12 @@ export interface PackingListItem {
   itemRows: number
   comment?: string | null
   scheduleShipDate?: string | null
+  /** 关联出库通知的计划出货日期 */
+  requestDate?: string | null
+  /** 关联出库通知的出货方式（字典 ItemCode） */
+  shipmentMethod?: string | null
+  /** 快递公司（字典 ItemCode） */
+  expressCompany?: string | null
   createTime: string
   createByUserId?: string | null
   createUserName?: string | null
@@ -73,6 +79,9 @@ export interface PackingExtendShipInput {
   billAttn?: string | null
   billTel?: string | null
   deliveryReq?: string | null
+  shipmentMethod?: string | null
+  expressCompany?: string | null
+  /** @deprecated 请使用 shipmentMethod */
   deliveryMethod?: number | null
 }
 
@@ -116,6 +125,8 @@ export interface PackingDraftFromStockOutRequests {
   /** 由送达地域解析的出库仓库（写入 packing.storage_id） */
   warehouseId?: string | null
   warehouseName?: string | null
+  shipmentMethod?: string | null
+  expressCompany?: string | null
   lines: PackingDraftLine[]
 }
 
@@ -204,6 +215,9 @@ export interface PackingDetail {
   billAttn?: string | null
   billTel?: string | null
   deliveryReq?: string | null
+  shipmentMethod?: string | null
+  expressCompany?: string | null
+  /** @deprecated 请使用 shipmentMethod */
   deliveryMethod?: number | null
   items: PackingDetailLine[]
   itemExtends: PackingDetailItemExtend[]
@@ -244,6 +258,34 @@ export {
 } from '@/constants/stockOutType'
 export const PACKING_MATERIAL_TYPE_FILTER_VALUES = [10, 20, 30] as const
 export type PackingItemListPaged = { items: PackingItemListRow[]; total: number; page: number; pageSize: number }
+
+function normalizePackingListItem(row: unknown): PackingListItem {
+  const r = row as Record<string, unknown>
+  return {
+    id: String(r.id ?? r.Id ?? ''),
+    code: String(r.code ?? r.Code ?? ''),
+    status: Number(r.status ?? r.Status ?? 0),
+    stockOutType: Number(r.stockOutType ?? r.StockOutType ?? 0),
+    materialType: Number(r.materialType ?? r.MaterialType ?? 0),
+    customerId: (r.customerId ?? r.CustomerId) as string | null | undefined,
+    customerName: (r.customerName ?? r.CustomerName) as string | null | undefined,
+    salesId: (r.salesId ?? r.SalesId) as string | null | undefined,
+    salesUserName: (r.salesUserName ?? r.SalesUserName) as string | null | undefined,
+    storageId: (r.storageId ?? r.StorageId) as string | null | undefined,
+    warehouseName: (r.warehouseName ?? r.WarehouseName) as string | null | undefined,
+    itemRows: Number(r.itemRows ?? r.ItemRows ?? 0),
+    comment: (r.comment ?? r.Comment) as string | null | undefined,
+    scheduleShipDate: (r.scheduleShipDate ?? r.ScheduleShipDate) as string | null | undefined,
+    requestDate: (r.requestDate ?? r.RequestDate) as string | null | undefined,
+    shipmentMethod: (r.shipmentMethod ?? r.ShipmentMethod) as string | null | undefined,
+    expressCompany: (r.expressCompany ?? r.ExpressCompany) as string | null | undefined,
+    createTime: String(r.createTime ?? r.CreateTime ?? ''),
+    createByUserId: (r.createByUserId ?? r.CreateByUserId) as string | null | undefined,
+    createUserName: (r.createUserName ?? r.CreateUserName) as string | null | undefined,
+    shipCompany: (r.shipCompany ?? r.ShipCompany) as string | null | undefined,
+    shipAddress: (r.shipAddress ?? r.ShipAddress) as string | null | undefined
+  }
+}
 
 function unwrapPaged<T>(res: unknown, pick: (d: Record<string, unknown>) => T[]): PackingListPaged {
   const root = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
@@ -350,6 +392,8 @@ function unwrapDetail(res: unknown): PackingDetail | null {
     billAttn: (d.billAttn ?? d.BillAttn) as string | null | undefined,
     billTel: (d.billTel ?? d.BillTel) as string | null | undefined,
     deliveryReq: (d.deliveryReq ?? d.DeliveryReq) as string | null | undefined,
+    shipmentMethod: (d.shipmentMethod ?? d.ShipmentMethod) as string | null | undefined,
+    expressCompany: (d.expressCompany ?? d.ExpressCompany) as string | null | undefined,
     deliveryMethod:
       d.deliveryMethod != null || d.DeliveryMethod != null
         ? Number(d.deliveryMethod ?? d.DeliveryMethod)
@@ -493,7 +537,9 @@ async function resolveStockOutRequestIdsInternal(
 export const packingApi = {
   async getListPaged(params?: PackingListQuery): Promise<PackingListPaged> {
     const res = await apiClient.get<unknown>('/api/v1/packing', { params })
-    return unwrapPaged(res, (d) => d.items as PackingListItem[])
+    return unwrapPaged(res, (d) =>
+      Array.isArray(d.items) ? (d.items as unknown[]).map(normalizePackingListItem) : []
+    )
   },
 
   /** 所选装箱单 → 可执行出库的出库通知 Id（通知须为已装箱） */
@@ -695,6 +741,8 @@ export const packingApi = {
             : undefined,
         warehouseId: (d.warehouseId ?? d.WarehouseId) as string | null | undefined,
         warehouseName: (d.warehouseName ?? d.WarehouseName) as string | null | undefined,
+        shipmentMethod: (d.shipmentMethod ?? d.ShipmentMethod) as string | null | undefined,
+        expressCompany: (d.expressCompany ?? d.ExpressCompany) as string | null | undefined,
         lines
       }
     } catch (e) {

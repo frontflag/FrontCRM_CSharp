@@ -31,7 +31,8 @@
           <el-descriptions-item :label="t('packingList.columns.itemRows')">{{ detail.itemRows }}</el-descriptions-item>
           <el-descriptions-item :label="t('packingDetail.scheduleShipDate')">{{ formatTime(detail.scheduleShipDate) }}</el-descriptions-item>
           <el-descriptions-item :label="t('packingList.columns.createTime')">{{ formatTime(detail.createTime) }}</el-descriptions-item>
-          <el-descriptions-item :label="t('packingDetail.deliveryMethod')">{{ packingDeliveryMethodLabel(detail.deliveryMethod) }}</el-descriptions-item>
+          <el-descriptions-item :label="t('packingList.columns.shipmentMethod')">{{ shipmentMethodDisplay(detail.shipmentMethod) }}</el-descriptions-item>
+          <el-descriptions-item :label="t('pickingSlip.detail.expressCompany')">{{ expressCompanyDisplay(detail.expressCompany) }}</el-descriptions-item>
           <el-descriptions-item v-if="detail.comment?.trim()" :label="t('packingDetail.comment')" :span="2">
             {{ detail.comment }}
           </el-descriptions-item>
@@ -277,7 +278,6 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import {
   packingApi,
-  packingDeliveryMethodLabel,
   packingMaterialTypeLabel,
   packingStatusLabel,
   packingStockOutTypeLabel,
@@ -286,6 +286,7 @@ import {
   type PackingDetailLine,
   type PackingStockOutNotifyRow
 } from '@/api/packing'
+import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import {
   inventoryCenterApi,
   type PickPageByPacking,
@@ -300,6 +301,21 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
+
+function shipmentMethodDisplay(code?: string | null): string {
+  const c = String(code ?? '').trim()
+  if (!c) return '—'
+  const hit = shipmentArrivalOptions.value.find((o) => String(o.value) === c)
+  return hit?.label ?? c
+}
+
+function expressCompanyDisplay(code?: string | null): string {
+  const c = String(code ?? '').trim()
+  if (!c) return '—'
+  const hit = expressOptions.value.find((o) => String(o.value) === c)
+  return hit?.label ?? c
+}
 
 function displayCustomerName(name?: string | null): string {
   if (maskSaleSensitiveFields.value) return '—'
@@ -543,6 +559,7 @@ watch(
 )
 
 onMounted(() => {
+  void ensureLogisticsDict()
   void loadDetail()
 })
 </script>

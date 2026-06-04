@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using CRM.API.Models.DTOs;
@@ -7,6 +8,7 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Rbac;
 using CRM.Core.Models.System;
+using CRM.Core.Constants;
 using CRM.Core.Utilities;
 
 namespace CRM.API.Controllers
@@ -17,6 +19,7 @@ namespace CRM.API.Controllers
     {
         private readonly IAuthService _authService;
         private readonly IRbacService _rbacService;
+        private readonly ISysRelationMapService _relationMapService;
         private readonly ILogger<AuthController> _logger;
         private readonly IUserService _userService;
         private readonly IRepository<RbacDepartment> _departmentRepo;
@@ -29,6 +32,7 @@ namespace CRM.API.Controllers
         public AuthController(
             IAuthService authService,
             IRbacService rbacService,
+            ISysRelationMapService relationMapService,
             ILogger<AuthController> logger,
             IUserService userService,
             IRepository<RbacDepartment> departmentRepo,
@@ -40,6 +44,7 @@ namespace CRM.API.Controllers
         {
             _authService = authService;
             _rbacService = rbacService;
+            _relationMapService = relationMapService;
             _logger = logger;
             _userService = userService;
             _departmentRepo = departmentRepo;
@@ -636,6 +641,279 @@ namespace CRM.API.Controllers
         }
 
         /// <summary>
+        /// 销售订单「销售助理」下拉：商务相关部门内全部启用职员（不限当前登录人数据范围）。
+        /// </summary>
+        [Authorize]
+        [HttpGet("business-ops-staff-users")]
+        public async Task<ActionResult<ApiResponse<object>>> GetBusinessOpsStaffUsers()
+        {
+            try
+            {
+                var departments = (await _departmentRepo.GetAllAsync())
+                    .Where(d => d.Status == 1 && BusinessDepartmentRules.IsBusinessDepartment(d))
+                    .ToList();
+                if (departments.Count == 0)
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<object>(), "获取商务职员成功"));
+
+                var opsDeptIds = departments.Select(d => d.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var userDepartments = (await _userDepartmentRepo.GetAllAsync()).ToList();
+                var staffUserIds = userDepartments
+                    .Where(x => opsDeptIds.Contains(x.DepartmentId))
+                    .Select(x => x.UserId)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                if (staffUserIds.Count == 0)
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<object>(), "获取商务职员成功"));
+
+                var users = (await _userService.GetAllAsync())
+                    .Where(u => u.Status == 1 && staffUserIds.Contains(u.Id))
+                    .OrderBy(u => u.UserName)
+                    .Select(u => new
+                    {
+                        id = u.Id,
+                        userName = u.UserName,
+                        realName = u.RealName,
+                        label = u.UserName
+                    })
+                    .ToList();
+
+                return Ok(ApiResponse<object>.Ok(users, "获取商务职员成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetBusinessOpsStaffUsers failed");
+                return StatusCode(500, ApiResponse<object>.Fail("获取商务职员失败", 500));
+            }
+        }
+
+        /// <summary>
+        /// 销售订单「销售员」全量下拉：销售相关部门内全部启用职员，并合并所有已授予 SYS_ADMIN 的启用账号（不限当前登录人数据范围）。
+        /// </summary>
+        [Authorize]
+        [HttpGet("sales-dept-staff-users")]
+        public async Task<ActionResult<ApiResponse<object>>> GetSalesDeptStaffUsers()
+        {
+            try
+            {
+                var staffUserIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                var departments = (await _departmentRepo.GetAllAsync())
+                    .Where(d => d.Status == 1 && SalesDepartmentRules.IsSalesDepartment(d))
+                    .ToList();
+                if (departments.Count > 0)
+                {
+                    var salesDeptIds = departments.Select(d => d.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    var userDepartments = (await _userDepartmentRepo.GetAllAsync()).ToList();
+                    foreach (var uid in userDepartments
+                                 .Where(x => salesDeptIds.Contains(x.DepartmentId))
+                                 .Select(x => x.UserId))
+                    {
+                        if (!string.IsNullOrWhiteSpace(uid))
+                            staffUserIds.Add(uid.Trim());
+                    }
+                }
+
+                var sysAdminUserIds = await GetActiveSysAdminUserIdsAsync();
+                staffUserIds.UnionWith(sysAdminUserIds);
+
+                if (staffUserIds.Count == 0)
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<object>(), "获取销售部职员成功"));
+
+                var users = (await _userService.GetAllAsync())
+                    .Where(u => u.Status == 1 && staffUserIds.Contains(u.Id))
+                    .OrderBy(u => u.UserName)
+                    .Select(u => new
+                    {
+                        id = u.Id,
+                        userName = u.UserName,
+                        realName = u.RealName,
+                        label = u.UserName
+                    })
+                    .ToList();
+
+                return Ok(ApiResponse<object>.Ok(users, "获取销售部职员成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetSalesDeptStaffUsers failed");
+                return StatusCode(500, ApiResponse<object>.Fail("获取销售部职员失败", 500));
+            }
+        }
+
+        /// <summary>
+        /// 销售订单（销售助理模式）：当前助理在 sys_relation_map(type=100) 中已配置的销售员列表。
+        /// </summary>
+        [Authorize]
+        [HttpGet("sales-order-mapped-salespersons")]
+        public async Task<ActionResult<ApiResponse<object>>> GetSalesOrderMappedSalespersons(
+            [FromQuery] string? assistantUserId = null)
+        {
+            try
+            {
+                var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(currentUserId))
+                    return Unauthorized(ApiResponse<object>.Fail("未登录或登录态失效", 401));
+
+                var src = string.IsNullOrWhiteSpace(assistantUserId)
+                    ? currentUserId
+                    : assistantUserId.Trim();
+
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(currentUserId);
+                var canReadAny = summary.IsSysAdmin || summary.PermissionCodes.Any(c =>
+                    string.Equals(c, "rbac.manage", StringComparison.OrdinalIgnoreCase));
+                if (!canReadAny && !string.Equals(src, currentUserId, StringComparison.OrdinalIgnoreCase))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权查看该助理的映射销售员", 403));
+
+                var destIds = await _relationMapService.GetMappedDestIdsAsync(
+                    SysRelationMapTypeCode.SalesAssistantToSalesperson,
+                    src);
+                var destSet = destIds
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                if (destSet.Count == 0)
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<object>(), "获取映射销售员成功"));
+
+                var users = (await _userService.GetAllAsync())
+                    .Where(u => u.Status == 1 && destSet.Contains(u.Id))
+                    .OrderBy(u => u.UserName)
+                    .Select(u => new
+                    {
+                        id = u.Id,
+                        userName = u.UserName,
+                        realName = u.RealName,
+                        label = u.UserName
+                    })
+                    .ToList();
+
+                return Ok(ApiResponse<object>.Ok(users, "获取映射销售员成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetSalesOrderMappedSalespersons failed");
+                return StatusCode(500, ApiResponse<object>.Fail("获取映射销售员失败", 500));
+            }
+        }
+
+        /// <summary>
+        /// 采购订单「采购员」全量下拉：采购相关部门内全部启用职员（不含采购运营部），并合并所有已授予 SYS_ADMIN 的启用账号。
+        /// </summary>
+        [Authorize]
+        [HttpGet("purchase-dept-staff-users")]
+        public async Task<ActionResult<ApiResponse<object>>> GetPurchaseDeptStaffUsers()
+        {
+            try
+            {
+                var staffUserIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                var departments = (await _departmentRepo.GetAllAsync())
+                    .Where(d => d.Status == 1 && PurchasingDepartmentRules.IsPurchaseDepartmentForRfqBuyer(d))
+                    .ToList();
+                if (departments.Count > 0)
+                {
+                    var purchaseDeptIds = departments.Select(d => d.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    var userDepartments = (await _userDepartmentRepo.GetAllAsync()).ToList();
+                    foreach (var uid in userDepartments
+                                 .Where(x => purchaseDeptIds.Contains(x.DepartmentId))
+                                 .Select(x => x.UserId))
+                    {
+                        if (!string.IsNullOrWhiteSpace(uid))
+                            staffUserIds.Add(uid.Trim());
+                    }
+                }
+
+                var sysAdminUserIds = await GetActiveSysAdminUserIdsAsync();
+                staffUserIds.UnionWith(sysAdminUserIds);
+
+                if (staffUserIds.Count == 0)
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<object>(), "获取采购部职员成功"));
+
+                var users = (await _userService.GetAllAsync())
+                    .Where(u => u.Status == 1 && staffUserIds.Contains(u.Id))
+                    .OrderBy(u => u.UserName)
+                    .Select(u => new
+                    {
+                        id = u.Id,
+                        userName = u.UserName,
+                        realName = u.RealName,
+                        label = u.UserName
+                    })
+                    .ToList();
+
+                return Ok(ApiResponse<object>.Ok(users, "获取采购部职员成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetPurchaseDeptStaffUsers failed");
+                return StatusCode(500, ApiResponse<object>.Fail("获取采购部职员失败", 500));
+            }
+        }
+
+        /// <summary>
+        /// 采购订单（采购助理模式）：当前助理在 sys_relation_map(type=101) 中已配置的采购员列表。
+        /// </summary>
+        [Authorize]
+        [HttpGet("purchase-order-mapped-purchasers")]
+        public async Task<ActionResult<ApiResponse<object>>> GetPurchaseOrderMappedPurchasers(
+            [FromQuery] string? assistantUserId = null)
+        {
+            try
+            {
+                var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(currentUserId))
+                    return Unauthorized(ApiResponse<object>.Fail("未登录或登录态失效", 401));
+
+                var src = string.IsNullOrWhiteSpace(assistantUserId)
+                    ? currentUserId
+                    : assistantUserId.Trim();
+
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(currentUserId);
+                var canReadAny = summary.IsSysAdmin || summary.PermissionCodes.Any(c =>
+                    string.Equals(c, "rbac.manage", StringComparison.OrdinalIgnoreCase));
+                if (!canReadAny && !string.Equals(src, currentUserId, StringComparison.OrdinalIgnoreCase))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权查看该助理的映射采购员", 403));
+
+                var destIds = await _relationMapService.GetMappedDestIdsAsync(
+                    SysRelationMapTypeCode.PurchaseAssistantToPurchaser,
+                    src);
+                var destSet = destIds
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                if (destSet.Count == 0)
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<object>(), "获取映射采购员成功"));
+
+                var users = (await _userService.GetAllAsync())
+                    .Where(u => u.Status == 1 && destSet.Contains(u.Id))
+                    .OrderBy(u => u.UserName)
+                    .Select(u => new
+                    {
+                        id = u.Id,
+                        userName = u.UserName,
+                        realName = u.RealName,
+                        label = u.UserName
+                    })
+                    .ToList();
+
+                return Ok(ApiResponse<object>.Ok(users, "获取映射采购员成功"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetPurchaseOrderMappedPurchasers failed");
+                return StatusCode(500, ApiResponse<object>.Fail("获取映射采购员失败", 500));
+            }
+        }
+
+        /// <summary>
         /// 获取物流部门人员树（仅身份为物流或部门名包含物流/仓储等）。规则与采购员树一致：物流部门登录用户按锚点下级可见，否则展示全部物流相关部门用户。
         /// </summary>
         [Authorize]
@@ -1008,6 +1286,25 @@ namespace CRM.API.Controllers
             if (normalized.Any(x => x.Contains("EMPLOYEE") || x.Contains("STAFF") || x.Contains("员工")))
                 return 1;
             return 0;
+        }
+
+        /// <summary>员工管理中勾选「授予系统管理员权限 (SYS_ADMIN)」的启用用户 Id。</summary>
+        private async Task<HashSet<string>> GetActiveSysAdminUserIdsAsync()
+        {
+            var roles = (await _roleRepo.GetAllAsync()).ToList();
+            var sysAdminRoleId = roles
+                .FirstOrDefault(r => r.Status == 1
+                    && string.Equals(r.RoleCode, "SYS_ADMIN", StringComparison.OrdinalIgnoreCase))
+                ?.Id;
+            if (string.IsNullOrWhiteSpace(sysAdminRoleId))
+                return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            return (await _userRoleRepo.GetAllAsync())
+                .Where(ur => string.Equals(ur.RoleId, sysAdminRoleId, StringComparison.OrdinalIgnoreCase))
+                .Select(ur => ur.UserId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
         }
     }
 }

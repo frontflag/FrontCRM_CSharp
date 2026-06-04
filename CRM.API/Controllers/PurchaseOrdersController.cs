@@ -335,21 +335,27 @@ namespace CRM.API.Controllers
 
             var prRows = soItemIds.Count == 0
                 ? new List<object>()
-                : (await _db.PurchaseRequisitions.AsNoTracking()
-                    .Where(x => soItemIds.Contains(x.SellOrderItemId))
-                    .OrderByDescending(x => x.CreateTime)
-                    .Select(x => new
-                    {
-                        id = x.Id,
-                        billCode = x.BillCode,
-                        x.Status,
-                        sellOrderItemId = x.SellOrderItemId,
-                        x.PN,
-                        x.Brand,
-                        x.Qty,
-                        x.ExpectedPurchaseTime,
-                        x.CreateTime
-                    })
+                : (await (
+                        from pr in _db.PurchaseRequisitions.AsNoTracking()
+                        join so in _db.SellOrders.AsNoTracking() on pr.SellOrderId equals so.Id into soJoin
+                        from so in soJoin.DefaultIfEmpty()
+                        where soItemIds.Contains(pr.SellOrderItemId)
+                        orderby pr.CreateTime descending
+                        select new
+                        {
+                            id = pr.Id,
+                            billCode = pr.BillCode,
+                            pr.Status,
+                            sellOrderItemId = pr.SellOrderItemId,
+                            sellOrderId = pr.SellOrderId,
+                            sellOrderCode = so != null ? so.SellOrderCode : null,
+                            salesUserName = so != null ? so.SalesUserName : null,
+                            pr.PN,
+                            pr.Brand,
+                            pr.Qty,
+                            pr.ExpectedPurchaseTime,
+                            pr.CreateTime
+                        })
                     .ToListAsync()).Cast<object>().ToList();
 
             List<string> payHeaderIds;
@@ -470,6 +476,79 @@ namespace CRM.API.Controllers
                 })
                 .ToListAsync();
 
+            List<object> qcImageRows;
+            if (poItemIds.Count == 0)
+            {
+                qcImageRows = new List<object>();
+            }
+            else
+            {
+                var notifyIds = await _db.StockInNotifies.AsNoTracking()
+                    .Where(x => x.PurchaseOrderId == purchaseOrderId && poItemIds.Contains(x.PurchaseOrderItemId))
+                    .Select(x => x.Id)
+                    .ToListAsync();
+
+                if (notifyIds.Count == 0)
+                {
+                    qcImageRows = new List<object>();
+                }
+                else
+                {
+                    var qcList = await _db.QCInfos.AsNoTracking()
+                        .Where(q => notifyIds.Contains(q.StockInNotifyId))
+                        .OrderByDescending(q => q.CreateTime)
+                        .Select(q => new { q.Id, q.QcCode, q.StockInNotifyCode })
+                        .ToListAsync();
+
+                    var qcIds = qcList.Select(q => q.Id).ToList();
+                    var qcMeta = qcList.ToDictionary(q => q.Id, StringComparer.OrdinalIgnoreCase);
+
+                    var imageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ".jpg", ".jpeg", ".png", ".gif", ".webp"
+                    };
+
+                    var docs = await _db.UploadDocuments.AsNoTracking()
+                        .Where(d => d.BizType == "QC" && qcIds.Contains(d.BizId))
+                        .OrderBy(d => d.CreateTime)
+                        .Select(d => new
+                        {
+                            documentId = d.Id,
+                            qcId = d.BizId,
+                            d.OriginalFileName,
+                            d.MimeType,
+                            d.FileExtension,
+                            d.CreateTime
+                        })
+                        .ToListAsync();
+
+                    qcImageRows = docs
+                        .Where(d =>
+                        {
+                            var t = (d.MimeType ?? string.Empty).Trim().ToLowerInvariant();
+                            var e = (d.FileExtension ?? string.Empty).Trim().ToLowerInvariant();
+                            return t.StartsWith("image/", StringComparison.Ordinal)
+                                || imageExtensions.Contains(e);
+                        })
+                        .Select(d =>
+                        {
+                            qcMeta.TryGetValue(d.qcId, out var meta);
+                            return (object)new
+                            {
+                                d.documentId,
+                                d.qcId,
+                                qcCode = meta?.QcCode,
+                                stockInNotifyCode = meta?.StockInNotifyCode,
+                                d.OriginalFileName,
+                                mimeType = d.MimeType,
+                                fileExtension = d.FileExtension,
+                                d.CreateTime
+                            };
+                        })
+                        .ToList();
+                }
+            }
+
             return new
             {
                 purchaseRequisitions = prRows,
@@ -477,7 +556,8 @@ namespace CRM.API.Controllers
                 arrivalNotices = noticeRows,
                 stockIns = stockInRows,
                 stockItems = stockItemRows,
-                purchaseInvoices = invoiceRows
+                purchaseInvoices = invoiceRows,
+                qcImages = qcImageRows
             };
         }
 

@@ -66,7 +66,13 @@ namespace CRM.API.Controllers
                 return BadRequest(ApiResponse<FinancePaymentBankDto>.Fail("请求体为空", 400));
             try
             {
-                var dto = await _service.CreateAsync(body.BankName, body.SortOrder, ct);
+                var dto = await _service.CreateAsync(
+                    body.BankName,
+                    body.ShortName,
+                    body.EBankName,
+                    body.CurrencyType,
+                    body.SortOrder,
+                    ct);
                 return Ok(ApiResponse<FinancePaymentBankDto>.Ok(dto, "已新增"));
             }
             catch (ArgumentException ex)
@@ -91,7 +97,15 @@ namespace CRM.API.Controllers
                 return BadRequest(ApiResponse<FinancePaymentBankDto>.Fail("请求体为空", 400));
             try
             {
-                var dto = await _service.UpdateAsync(id, body.BankName, body.SortOrder, body.IsDisabled, ct);
+                var dto = await _service.UpdateAsync(
+                    id,
+                    body.BankName,
+                    body.ShortName,
+                    body.EBankName,
+                    body.CurrencyType,
+                    body.SortOrder,
+                    body.IsDisabled,
+                    ct);
                 if (dto == null)
                     return NotFound(ApiResponse<FinancePaymentBankDto>.Fail("记录不存在", 404));
                 return Ok(ApiResponse<FinancePaymentBankDto>.Ok(dto, "已保存"));
@@ -111,12 +125,20 @@ namespace CRM.API.Controllers
     public class CreateFinancePaymentBankRequest
     {
         public string BankName { get; set; } = string.Empty;
+        public string? ShortName { get; set; }
+        public string? EBankName { get; set; }
+        /// <summary>10=人民币银行，20=外币银行。</summary>
+        public int CurrencyType { get; set; } = 10;
         public int? SortOrder { get; set; }
     }
 
     public class UpdateFinancePaymentBankRequest
     {
         public string BankName { get; set; } = string.Empty;
+        public string? ShortName { get; set; }
+        public string? EBankName { get; set; }
+        /// <summary>10=人民币银行，20=外币银行。</summary>
+        public int CurrencyType { get; set; } = 10;
         public int SortOrder { get; set; }
         public bool IsDisabled { get; set; }
     }

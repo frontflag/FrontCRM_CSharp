@@ -126,6 +126,10 @@
             <span class="info-value">{{ maskSaleSensitiveFields ? '—' : order.salesUserName || '--' }}</span>
           </div>
           <div class="info-item">
+            <span class="info-label">{{ t('salesOrderCreate.fields.assistor') }}</span>
+            <span class="info-value">{{ (order as any).assistorUserName || '--' }}</span>
+          </div>
+          <div class="info-item">
             <span class="info-label">状态</span>
             <span class="info-value">{{ getStatusText(order.status) }}</span>
           </div>
@@ -536,6 +540,9 @@
               <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'sellInvoice' }" @click="soItemLinePanel.activeTab = 'sellInvoice'">
                 销项发票
               </button>
+              <button type="button" class="tab-btn" :class="{ 'tab-btn--active': soItemLinePanel.activeTab === 'qcImages' }" @click="soItemLinePanel.activeTab = 'qcImages'">
+                {{ t('salesOrderDetailView.tabs.qcImages') }}
+              </button>
             </div>
             <div class="tabs-body">
               <div v-show="soItemLinePanel.activeTab === 'pr'" class="so-aggregate-table-wrap">
@@ -842,6 +849,12 @@
                 </el-table>
                 <el-empty v-else :description="t('salesOrderDetailView.empty')" :image-size="64" />
               </div>
+              <div v-show="soItemLinePanel.activeTab === 'qcImages'" class="so-aggregate-table-wrap so-qc-images-wrap">
+                <QcImagesReadonlyGallery
+                  :images="lineTabAggregates?.qcImages ?? []"
+                  :empty-text="t('salesOrderDetailView.emptyQcImages')"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -906,24 +919,12 @@
               <el-input :model-value="order?.sellOrderCode || '--'" disabled />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="出货方式">
-              <el-select
-                v-model="applyForm.shipmentMethod"
-                clearable
-                filterable
-                placeholder="请选择"
-                style="width: 100%"
-              >
-                <el-option
-                  v-for="o in shipmentMethodOptions"
-                  :key="o.value"
-                  :label="o.label"
-                  :value="o.value"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
+          <ShipmentExpressFields
+            v-model:shipment-method="applyForm.shipmentMethod"
+            v-model:express-company="applyForm.expressCompany"
+            shipment-label="出货方式"
+            placeholder="请选择"
+          />
           <el-col :span="12">
             <el-form-item :label="t('stockOutNotifyList.applyDialog.regionType')">
               <el-select
@@ -1120,6 +1121,8 @@ import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTim
 import { formatTotalAmountNumber, formatUnitPriceNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
 import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
+import ShipmentExpressFields from '@/components/Logistics/ShipmentExpressFields.vue'
+import QcImagesReadonlyGallery from '@/components/Logistics/QcImagesReadonlyGallery.vue'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { CurrencyCode } from '@/constants/currency'
 import { stockInTypeLabel } from '@/constants/stockInType'
@@ -1131,7 +1134,7 @@ const route = useRoute()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMaterialProductionDateDict()
-const { ensureLoaded: ensureLogisticsDict, arrivalOptions: shipmentMethodOptions } = useLogisticsFormDict()
+const { ensureLoaded: ensureLogisticsDict } = useLogisticsFormDict()
 
 function fmtSoItemDateCode(row: { dateCode?: string; DateCode?: string } | null | undefined) {
   if (!row) return '—'
@@ -1487,6 +1490,8 @@ const applyForm = ref({
   requestDate: null as Date | null,
   /** 数据字典 LogisticsArrivalMethod（与物流「来货方式」同源） */
   shipmentMethod: '' as string,
+  /** 数据字典 LogisticsExpressMethod，可选 */
+  expressCompany: '' as string,
   /** RegionType：10=境内 20=境外 */
   regionType: REGION_TYPE_DOMESTIC as number,
   remark: '',
@@ -1530,7 +1535,9 @@ const applyStockOutConfirmDisabled = computed(
     applySubmitting.value ||
     applyStockOutLoading.value ||
     (!!applyForm.value.sellOrderItemId &&
-      (applyStockOutZeroQtyBannerVisible.value || applyRemainingNotifyZero.value))
+      (applyStockOutZeroQtyBannerVisible.value ||
+        applyRemainingNotifyZero.value ||
+        !String(applyForm.value.shipmentMethod || '').trim()))
 )
 /** 表单上方：同物料型号的采购备货在库数量说明 */
 const applyPurchasedStockingPurchasingBarTitle = computed(() => {
@@ -2018,6 +2025,7 @@ const handleOpenApplyStockOut = async (item?: any) => {
       requestCode: '',
       requestDate: new Date(),
       shipmentMethod: '',
+      expressCompany: '',
       regionType,
       remark: '',
       sellOrderItemId,
@@ -2050,6 +2058,10 @@ const submitApplyStockOut = async () => {
     ElMessage.warning('请选择一条销售订单明细后再申请出库')
     return
   }
+  if (!String(applyForm.value.shipmentMethod || '').trim()) {
+    ElMessage.warning('请选择出货方式')
+    return
+  }
   const qty = Number(applyForm.value.notifyQty)
   if (!(qty > 0)) {
     ElMessage.warning('出库通知数量必须大于 0')
@@ -2074,7 +2086,8 @@ const submitApplyStockOut = async () => {
       requestUserId: (authStore.user as any)?.id || '',
       requestDate: rd.toISOString(),
       remark: applyForm.value.remark || undefined,
-      shipmentMethod: applyForm.value.shipmentMethod?.trim() || undefined,
+      shipmentMethod: applyForm.value.shipmentMethod.trim(),
+      expressCompany: applyForm.value.expressCompany?.trim() || undefined,
       regionType: normalizeRegionType(applyForm.value.regionType)
     })
     applyDialogVisible.value = false

@@ -81,6 +81,9 @@ namespace CRM.Core.Services
         private static string? NormalizeActingUserId(string? actingUserId) =>
             string.IsNullOrWhiteSpace(actingUserId) ? null : actingUserId.Trim();
 
+        private static string? NormalizeOptionalUserId(string? userId) =>
+            string.IsNullOrWhiteSpace(userId) ? null : userId.Trim();
+
         public async Task<SellOrder> CreateAsync(CreateSalesOrderRequest request, string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(request.CustomerId))
@@ -96,6 +99,7 @@ namespace CRM.Core.Services
                 CustomerName = request.CustomerName,
                 SalesUserId = request.SalesUserId,
                 SalesUserName = request.SalesUserName,
+                Assistor = NormalizeOptionalUserId(request.Assistor),
                 Type = request.Type,
                 Currency = request.Currency,
                 DeliveryDate = PostgreSqlDateTime.ToUtc(request.DeliveryDate),
@@ -444,6 +448,7 @@ namespace CRM.Core.Services
             if (request.CustomerName != null) order.CustomerName = request.CustomerName;
             if (request.SalesUserId != null) order.SalesUserId = request.SalesUserId;
             if (request.SalesUserName != null) order.SalesUserName = request.SalesUserName;
+            if (request.Assistor != null) order.Assistor = NormalizeOptionalUserId(request.Assistor);
             if (request.Type.HasValue) order.Type = request.Type.Value;
             if (request.Currency.HasValue) order.Currency = request.Currency.Value;
             if (request.DeliveryDate.HasValue) order.DeliveryDate = PostgreSqlDateTime.ToUtc(request.DeliveryDate.Value);
@@ -1199,6 +1204,7 @@ ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
             string? CustomerName,
             string? SalesUserId,
             string? SalesUserName,
+            string? Assistor,
             short Type,
             short Currency,
             DateTime? DeliveryDate,
@@ -1214,6 +1220,7 @@ ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
                 order.CustomerName,
                 order.SalesUserId,
                 order.SalesUserName,
+                order.Assistor,
                 order.Type,
                 order.Currency,
                 order.DeliveryDate,
@@ -1232,6 +1239,7 @@ ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
             var after = CaptureSalesOrderHeaderSnapshot(order);
             await CompareAndLogHeaderFieldAsync(order, before.CustomerName, after.CustomerName, "customerName", "客户名称", actingUserId);
             await CompareAndLogHeaderFieldAsync(order, before.SalesUserName, after.SalesUserName, "salesUserName", "业务员", actingUserId);
+            await CompareAndLogSoAssistorFieldAsync(order, before.Assistor, after.Assistor, actingUserId);
             await CompareAndLogHeaderFieldAsync(order, FormatOrderType(before.Type), FormatOrderType(after.Type), "type", "订单类型", actingUserId);
             await CompareAndLogHeaderFieldAsync(order, FormatCurrency(before.Currency), FormatCurrency(after.Currency), "currency", "币别", actingUserId);
             await CompareAndLogHeaderFieldAsync(order, FormatDate(before.DeliveryDate), FormatDate(after.DeliveryDate), "deliveryDate", "交期", actingUserId);
@@ -1241,6 +1249,28 @@ ORDER BY i.""ModifyTime"" DESC NULLS LAST, i.""CreateTime"" DESC";
             await CompareAndLogHeaderFieldAsync(order, before.InvoiceInfo, after.InvoiceInfo, "invoiceInfo", "开票信息", actingUserId);
             await CompareAndLogHeaderFieldAsync(order, before.PaymentTermsText, after.PaymentTermsText, "paymentTermsText", "付款条款", actingUserId);
             await CompareAndLogHeaderFieldAsync(order, before.Comment, after.Comment, "comment", "备注", actingUserId);
+        }
+
+        private async Task CompareAndLogSoAssistorFieldAsync(
+            SellOrder order,
+            string? oldId,
+            string? newId,
+            string? actingUserId)
+        {
+            var o = await ResolveUserDisplayNameAsync(oldId);
+            var n = await ResolveUserDisplayNameAsync(newId);
+            if (string.Equals(o, n, StringComparison.Ordinal))
+                return;
+            await CompareAndLogHeaderFieldAsync(order, o, n, "assistor", "销售助理", actingUserId);
+        }
+
+        private async Task<string?> ResolveUserDisplayNameAsync(string? userId)
+        {
+            var id = NormalizeActingUserId(userId);
+            if (string.IsNullOrEmpty(id))
+                return string.IsNullOrWhiteSpace(userId) ? null : userId.Trim();
+            var user = await _userService.GetByIdAsync(id);
+            return string.IsNullOrWhiteSpace(user?.UserName) ? id : user!.UserName!.Trim();
         }
 
         private async Task CompareAndLogHeaderFieldAsync(

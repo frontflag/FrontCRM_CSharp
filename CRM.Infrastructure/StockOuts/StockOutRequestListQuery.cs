@@ -19,15 +19,13 @@ public sealed class StockOutRequestListQuery : IStockOutRequestListQuery
 
     /// <inheritdoc />
     public async Task<PagedResult<string>> GetPagedStockOutRequestIdsAsync(
-        string? keyword,
-        string? workflow,
+        StockOutRequestListQueryRequest? filter,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default)
     {
         var p = page < 1 ? 1 : page;
         var ps = pageSize < 1 ? 20 : Math.Min(pageSize, MaxPageSize);
-        var wf = (workflow ?? "all").Trim().ToLowerInvariant();
 
         var q =
             from r in _db.StockOutRequests.AsNoTracking()
@@ -35,45 +33,98 @@ public sealed class StockOutRequestListQuery : IStockOutRequestListQuery
             from so in soj.DefaultIfEmpty()
             select new { r, so };
 
-        if (wf == "done")
-            q = q.Where(x => x.r.Status == StockOutRequestStatusCode.StockedOut);
-        else if (wf == "pending_pick")
+        if (filter != null)
         {
-            q = q.Where(x =>
-                x.r.Status == StockOutRequestStatusCode.PendingPacking &&
-                !_db.PickingTasks.Any(pt =>
-                    !pt.IsDeleted
-                    && pt.Status == PickingTaskStatusCompleted
-                    && pt.PackingId != null
-                    && _db.PackingItems.Any(pi =>
-                        !pi.IsDeleted
-                        && pi.PackingId == pt.PackingId
-                        && pi.StockOutNotifyId == x.r.Id)));
-        }
-        else if (wf == "picked_pending_out")
-        {
-            q = q.Where(x =>
-                (x.r.Status == StockOutRequestStatusCode.PendingPacking
-                    || x.r.Status == StockOutRequestStatusCode.Packed) &&
-                _db.PickingTasks.Any(pt =>
-                    !pt.IsDeleted
-                    && pt.Status == PickingTaskStatusCompleted
-                    && pt.PackingId != null
-                    && _db.PackingItems.Any(pi =>
-                        !pi.IsDeleted
-                        && pi.PackingId == pt.PackingId
-                        && pi.StockOutNotifyId == x.r.Id)));
-        }
+            if (filter.Status.HasValue)
+            {
+                var st = filter.Status.Value;
+                q = q.Where(x => x.r.Status == st);
+            }
+            else
+            {
+                var wf = (filter.Workflow ?? "all").Trim().ToLowerInvariant();
+                if (wf == "done")
+                    q = q.Where(x => x.r.Status == StockOutRequestStatusCode.StockedOut);
+                else if (wf == "pending_pick")
+                {
+                    q = q.Where(x =>
+                        x.r.Status == StockOutRequestStatusCode.PendingPacking &&
+                        !_db.PickingTasks.Any(pt =>
+                            !pt.IsDeleted
+                            && pt.Status == PickingTaskStatusCompleted
+                            && pt.PackingId != null
+                            && _db.PackingItems.Any(pi =>
+                                !pi.IsDeleted
+                                && pi.PackingId == pt.PackingId
+                                && pi.StockOutNotifyId == x.r.Id)));
+                }
+                else if (wf == "picked_pending_out")
+                {
+                    q = q.Where(x =>
+                        (x.r.Status == StockOutRequestStatusCode.PendingPacking
+                            || x.r.Status == StockOutRequestStatusCode.Packed) &&
+                        _db.PickingTasks.Any(pt =>
+                            !pt.IsDeleted
+                            && pt.Status == PickingTaskStatusCompleted
+                            && pt.PackingId != null
+                            && _db.PackingItems.Any(pi =>
+                                !pi.IsDeleted
+                                && pi.PackingId == pt.PackingId
+                                && pi.StockOutNotifyId == x.r.Id)));
+                }
+            }
 
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            var k = keyword.Trim().ToLowerInvariant();
-            q = q.Where(x =>
-                x.r.RequestCode.ToLower().Contains(k) ||
-                (x.so != null && x.so.SellOrderCode.ToLower().Contains(k)) ||
-                x.r.MaterialCode.ToLower().Contains(k) ||
-                (x.r.MaterialName != null && x.r.MaterialName.ToLower().Contains(k)) ||
-                (x.so != null && x.so.CustomerName != null && x.so.CustomerName.ToLower().Contains(k)));
+            if (filter.RegionType.HasValue)
+                q = q.Where(x => x.r.RegionType == filter.RegionType.Value);
+
+            if (!string.IsNullOrWhiteSpace(filter.CustomerName))
+            {
+                var k = filter.CustomerName.Trim().ToLowerInvariant();
+                q = q.Where(x =>
+                    (x.so != null && x.so.CustomerName != null && x.so.CustomerName.ToLower().Contains(k)) ||
+                    (x.r.CustomerId != null && _db.Customers.Any(c =>
+                        c.Id == x.r.CustomerId &&
+                        ((c.OfficialName != null && c.OfficialName.ToLower().Contains(k)) ||
+                         (c.NickName != null && c.NickName.ToLower().Contains(k))))));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.SalesUserName))
+            {
+                var k = filter.SalesUserName.Trim().ToLowerInvariant();
+                q = q.Where(x =>
+                    x.so != null &&
+                    x.so.SalesUserId != null &&
+                    _db.Users.Any(u =>
+                        u.Id == x.so.SalesUserId &&
+                        ((u.RealName != null && u.RealName.ToLower().Contains(k)) ||
+                         u.UserName.ToLower().Contains(k))));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.MaterialModel))
+            {
+                var k = filter.MaterialModel.Trim().ToLowerInvariant();
+                q = q.Where(x => x.r.MaterialCode.ToLower().Contains(k));
+            }
+
+            if (filter.RequestDateFrom.HasValue)
+                q = q.Where(x => x.r.RequestDate >= filter.RequestDateFrom.Value);
+
+            if (filter.RequestDateTo.HasValue)
+            {
+                var toExclusive = filter.RequestDateTo.Value.Date.AddDays(1);
+                q = q.Where(x => x.r.RequestDate < toExclusive);
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.Keyword))
+            {
+                var k = filter.Keyword.Trim().ToLowerInvariant();
+                q = q.Where(x =>
+                    x.r.RequestCode.ToLower().Contains(k) ||
+                    (x.so != null && x.so.SellOrderCode.ToLower().Contains(k)) ||
+                    x.r.MaterialCode.ToLower().Contains(k) ||
+                    (x.r.MaterialName != null && x.r.MaterialName.ToLower().Contains(k)) ||
+                    (x.so != null && x.so.CustomerName != null && x.so.CustomerName.ToLower().Contains(k)));
+            }
         }
 
         var total = await q.CountAsync(cancellationToken);

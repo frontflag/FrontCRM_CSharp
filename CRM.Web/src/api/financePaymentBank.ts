@@ -3,6 +3,9 @@ import apiClient from './client'
 export interface FinancePaymentBankDto {
   id: string
   bankName: string
+  shortName?: string | null
+  eBankName?: string | null
+  currencyType: number
   sortOrder: number
   isDisabled: boolean
   createTimeUtc: string
@@ -19,13 +22,26 @@ export const financePaymentBankApi = {
     return apiClient.get<FinancePaymentBankDto[]>('/api/v1/finance/payment-banks')
   },
 
-  async create(body: { bankName: string; sortOrder?: number | null }): Promise<FinancePaymentBankDto> {
+  async create(body: {
+    bankName: string
+    shortName?: string | null
+    eBankName?: string | null
+    currencyType: number
+    sortOrder?: number | null
+  }): Promise<FinancePaymentBankDto> {
     return apiClient.post<FinancePaymentBankDto>('/api/v1/finance/payment-banks', body)
   },
 
   async update(
     id: string,
-    body: { bankName: string; sortOrder: number; isDisabled: boolean }
+    body: {
+      bankName: string
+      shortName?: string | null
+      eBankName?: string | null
+      currencyType: number
+      sortOrder: number
+      isDisabled: boolean
+    }
   ): Promise<FinancePaymentBankDto> {
     return apiClient.put<FinancePaymentBankDto>(`/api/v1/finance/payment-banks/${id}`, body)
   }

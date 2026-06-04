@@ -1,4 +1,5 @@
 import apiClient from './client'
+import type { QcImageReadonlyRow } from './document'
 
 export interface PurchaseOrderItemExtendFieldChangeDto {
   field: string
@@ -58,6 +59,9 @@ export interface PurchaseOrderDetailTabAggregates {
     billCode: string
     status: number
     sellOrderItemId: string
+    sellOrderId?: string | null
+    sellOrderCode?: string | null
+    salesUserName?: string | null
     pn?: string | null
     brand?: string | null
     qty: number
@@ -115,6 +119,8 @@ export interface PurchaseOrderDetailTabAggregates {
     redInvoiceStatus: number
     createTime: string
   }>
+  /** 采购明细关联质检单上的图片文档（只读展示） */
+  qcImages: QcImageReadonlyRow[]
 }
 
 // 采购订单API

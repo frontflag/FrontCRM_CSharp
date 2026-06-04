@@ -4,6 +4,9 @@ namespace CRM.Core.Interfaces
     {
         public string Id { get; set; } = string.Empty;
         public string BankName { get; set; } = string.Empty;
+        public string? ShortName { get; set; }
+        public string? EBankName { get; set; }
+        public int CurrencyType { get; set; }
         public int SortOrder { get; set; }
         public bool IsDisabled { get; set; }
         public DateTime CreateTimeUtc { get; set; }
@@ -16,10 +19,19 @@ namespace CRM.Core.Interfaces
         Task<IReadOnlyList<FinancePaymentBankDto>> ListEnabledAsync(CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<FinancePaymentBankDto>> ListAsync(CancellationToken cancellationToken = default);
-        Task<FinancePaymentBankDto> CreateAsync(string bankName, int? sortOrder, CancellationToken cancellationToken = default);
+        Task<FinancePaymentBankDto> CreateAsync(
+            string bankName,
+            string? shortName,
+            string? eBankName,
+            int currencyType,
+            int? sortOrder,
+            CancellationToken cancellationToken = default);
         Task<FinancePaymentBankDto?> UpdateAsync(
             string id,
             string bankName,
+            string? shortName,
+            string? eBankName,
+            int currencyType,
             int sortOrder,
             bool isDisabled,
             CancellationToken cancellationToken = default);

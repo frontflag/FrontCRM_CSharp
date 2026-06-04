@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Constants;
 using CRM.Core.Models;
 
 namespace CRM.Core.Models.Finance
@@ -18,6 +19,20 @@ namespace CRM.Core.Models.Finance
         [Required]
         [StringLength(200)]
         public string BankName { get; set; } = string.Empty;
+
+        /// <summary>银行简称。</summary>
+        [StringLength(100)]
+        [Column("ShortName")]
+        public string? ShortName { get; set; }
+
+        /// <summary>银行英文名称。</summary>
+        [StringLength(200)]
+        [Column("EBankName")]
+        public string? EBankName { get; set; }
+
+        /// <summary>币别类型：<see cref="FinancePaymentBankCurrencyType"/>（10=人民币银行，20=外币银行）。</summary>
+        [Column("CurrencyType")]
+        public int CurrencyType { get; set; } = FinancePaymentBankCurrencyType.Cny;
 
         public int SortOrder { get; set; }
 

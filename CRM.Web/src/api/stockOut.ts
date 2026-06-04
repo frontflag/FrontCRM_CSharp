@@ -13,6 +13,8 @@ export interface StockOutDto {
   expectedStockOutDate?: string | null
   /** 关联装箱单数量 */
   packingCount?: number
+  /** 关联装箱单编号，多个以逗号拼接 */
+  packingCodes?: string | null
   totalQuantity: number
   totalAmount: number
   status: number
@@ -24,6 +26,8 @@ export interface StockOutDto {
   sellOrderItemCode?: string
   /** 出货方式（字典 LogisticsArrivalMethod ItemCode） */
   shipmentMethod?: string | null
+  /** 快递公司（字典 LogisticsExpressMethod ItemCode） */
+  expressCompany?: string | null
   courierTrackingNo?: string | null
 }
 
@@ -122,7 +126,9 @@ export interface StockOutPackingReportBundle extends StockOutInvoiceReportBundle
   packingAddresses?: PackingReportAddressPanel | null
   /** 出库仓库地址 warehouseinfo.Address */
   warehouseAddress?: string | null
-  /** 装箱单送货方式 packing_extend_ship.DeliveryMethod（10=送货 20=自提） */
+  /** 装箱单出货方式 packing_extend_ship.shipment_method */
+  shipmentMethod?: string | null
+  /** @deprecated 请使用 shipmentMethod */
   deliveryMethod?: number | null
   /** 装箱单明细行 */
   packingLines?: PackingReportLine[]
@@ -231,7 +237,8 @@ export function parsePackingBundlePayload(res: unknown, requestFlag: boolean): S
     rawDeliveryMethod != null && rawDeliveryMethod !== '' && !Number.isNaN(Number(rawDeliveryMethod))
       ? Number(rawDeliveryMethod)
       : null
-  return { ...base, withShipmentInspection, packingCode, packingAddresses, warehouseAddress, deliveryMethod, packingLines: parsePackingLines(o) }
+  const shipmentMethod = (o.shipmentMethod ?? o.ShipmentMethod) as string | null | undefined
+  return { ...base, withShipmentInspection, packingCode, packingAddresses, warehouseAddress, shipmentMethod, deliveryMethod, packingLines: parsePackingLines(o) }
 }
 
 function parsePackingLines(o: Record<string, unknown>): PackingReportLine[] {
@@ -297,6 +304,8 @@ export interface StockOutItemListQuery {
   sellOrderItemCode?: string
   /** 入库单号（子串匹配） */
   stockInCode?: string
+  /** 装箱单号（子串匹配） */
+  packingCode?: string
 }
 
 export interface StockOutItemListRow {
@@ -315,6 +324,8 @@ export interface StockOutItemListRow {
   sellOrderItemCode?: string | null
   /** 来源入库单号 */
   stockInCode?: string | null
+  packingId?: string | null
+  packingCode?: string | null
 }
 
 export interface StockOutRequestDto {
@@ -335,9 +346,17 @@ export interface StockOutRequestDto {
   requestUserName?: string
   requestDate: string
   status: number
+  /** 报关状态：0未知 10无需报关 20待报关 30报关中 100报关完成 */
+  customsStatus?: number
   remark?: string
   /** 出货方式（字典 LogisticsArrivalMethod ItemCode） */
   shipmentMethod?: string | null
+  /** 快递公司（字典 LogisticsExpressMethod ItemCode） */
+  expressCompany?: string | null
+  /** 关联装箱单 Id */
+  packingId?: string | null
+  /** 关联装箱单号 packing.code */
+  packingCode?: string | null
   /** RegionType：10=境内 20=境外（与仓库、到货通知共用） */
   regionType?: number
   /** 出库类型：10销售 20报关 30退货 40报废 */
@@ -350,17 +369,61 @@ export interface StockOutRequestDto {
 /** GET 出库单列表：<code>data</code> 与《翻页查询规范》一致 */
 export type StockOutListPaged = { items: StockOutDto[]; total: number; page: number; pageSize: number }
 
+/** GET /api/v1/stock-out 列表筛选 */
+export type StockOutListQuery = {
+  keyword?: string
+  sourceCode?: string
+  status?: number
+  stockOutCode?: string
+  packingCode?: string
+  shipmentMethod?: string
+  customerName?: string
+  salesUserName?: string
+  remark?: string
+  stockOutDateFrom?: string
+  stockOutDateTo?: string
+  page?: number
+  pageSize?: number
+}
+
 /** GET 出库通知列表 */
 export type StockOutRequestListPaged = { items: StockOutRequestDto[]; total: number; page: number; pageSize: number }
 
 /** GET 出库明细列表 */
 export type StockOutItemListPaged = { items: StockOutItemListRow[]; total: number; page: number; pageSize: number }
 
+function normalizeStockOutListRow(row: unknown): StockOutDto {
+  const r = row as Record<string, unknown>
+  return {
+    id: String(r.id ?? r.Id ?? ''),
+    stockOutCode: String(r.stockOutCode ?? r.StockOutCode ?? ''),
+    stockOutType: Number(r.stockOutType ?? r.StockOutType ?? 0),
+    sourceCode: (r.sourceCode ?? r.SourceCode) as string | undefined,
+    warehouseId: (r.warehouseId ?? r.WarehouseId) as string | undefined,
+    stockOutDate: String(r.stockOutDate ?? r.StockOutDate ?? ''),
+    expectedStockOutDate: (r.expectedStockOutDate ?? r.ExpectedStockOutDate) as string | null | undefined,
+    packingCount: r.packingCount != null || r.PackingCount != null ? Number(r.packingCount ?? r.PackingCount) : undefined,
+    packingCodes: (r.packingCodes ?? r.PackingCodes) as string | null | undefined,
+    totalQuantity: Number(r.totalQuantity ?? r.TotalQuantity ?? 0),
+    totalAmount: Number(r.totalAmount ?? r.TotalAmount ?? 0),
+    status: Number(r.status ?? r.Status ?? 0),
+    remark: (r.remark ?? r.Remark) as string | undefined,
+    createTime: (r.createTime ?? r.CreateTime) as string | undefined,
+    createUserName: (r.createUserName ?? r.CreateUserName) as string | undefined,
+    customerName: (r.customerName ?? r.CustomerName) as string | undefined,
+    salesUserName: (r.salesUserName ?? r.SalesUserName) as string | undefined,
+    sellOrderItemCode: (r.sellOrderItemCode ?? r.SellOrderItemCode) as string | undefined,
+    shipmentMethod: (r.shipmentMethod ?? r.ShipmentMethod) as string | null | undefined,
+    expressCompany: (r.expressCompany ?? r.ExpressCompany) as string | null | undefined,
+    courierTrackingNo: (r.courierTrackingNo ?? r.CourierTrackingNo) as string | null | undefined
+  }
+}
+
 function unwrapPagedStockOuts(res: unknown): StockOutListPaged {
   const d = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
   if (d && Array.isArray(d.items)) {
     return {
-      items: d.items as StockOutDto[],
+      items: (d.items as unknown[]).map(normalizeStockOutListRow),
       total: Number(d.total ?? 0),
       page: Number(d.page ?? 1),
       pageSize: Number(d.pageSize ?? 20)
@@ -388,8 +451,12 @@ function normalizeStockOutRequestRow(row: unknown): StockOutRequestDto {
     requestUserName: (r.requestUserName ?? r.RequestUserName) as string | undefined,
     requestDate: String(r.requestDate ?? r.RequestDate ?? ''),
     status: Number(r.status ?? r.Status ?? 0),
+    customsStatus: Number(r.customsStatus ?? r.CustomsStatus ?? 0),
     remark: (r.remark ?? r.Remark) as string | undefined,
     shipmentMethod: (r.shipmentMethod ?? r.ShipmentMethod) as string | null | undefined,
+    expressCompany: (r.expressCompany ?? r.ExpressCompany) as string | null | undefined,
+    packingId: (r.packingId ?? r.PackingId) as string | null | undefined,
+    packingCode: (r.packingCode ?? r.PackingCode) as string | null | undefined,
     regionType: r.regionType != null || r.RegionType != null ? Number(r.regionType ?? r.RegionType) : undefined,
     stockOutType:
       r.stockOutType != null || r.StockOutType != null ? Number(r.stockOutType ?? r.StockOutType) : undefined,
@@ -427,13 +494,7 @@ function unwrapPagedStockOutItems(res: unknown): StockOutItemListPaged {
 
 export const stockOutApi = {
   /** 出库单列表分页（主列表页） */
-  async getListPaged(params?: {
-    keyword?: string
-    /** 与出库来源单号精确匹配（忽略 keyword） */
-    sourceCode?: string
-    page?: number
-    pageSize?: number
-  }): Promise<StockOutListPaged> {
+  async getListPaged(params?: StockOutListQuery): Promise<StockOutListPaged> {
     const res = await apiClient.get<unknown>('/api/v1/stock-out', { params: params ?? {} })
     return unwrapPagedStockOuts(res)
   },
@@ -523,6 +584,13 @@ export const stockOutApi = {
   async getRequestListPaged(params?: {
     keyword?: string
     workflow?: string
+    status?: number
+    regionType?: number
+    customerName?: string
+    salesUserName?: string
+    materialModel?: string
+    requestDateFrom?: string
+    requestDateTo?: string
     page?: number
     pageSize?: number
   }): Promise<StockOutRequestListPaged> {
@@ -563,6 +631,7 @@ export const stockOutApi = {
     requestDate: string
     remark?: string
     shipmentMethod?: string | null
+    expressCompany?: string | null
     regionType?: number
   }): Promise<StockOutRequestDto> {
     // 去掉 Vue Proxy / 非枚举属性，保证 quantity 与网络载荷一致

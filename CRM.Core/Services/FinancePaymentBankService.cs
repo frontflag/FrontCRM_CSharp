@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Finance;
 
@@ -36,13 +37,20 @@ namespace CRM.Core.Services
                 .ToList();
         }
 
-        public async Task<FinancePaymentBankDto> CreateAsync(string bankName, int? sortOrder, CancellationToken cancellationToken = default)
+        public async Task<FinancePaymentBankDto> CreateAsync(
+            string bankName,
+            string? shortName,
+            string? eBankName,
+            int currencyType,
+            int? sortOrder,
+            CancellationToken cancellationToken = default)
         {
             var name = (bankName ?? string.Empty).Trim();
             if (string.IsNullOrEmpty(name))
                 throw new ArgumentException("银行名称不能为空");
             if (name.Length > 200)
                 throw new ArgumentException("银行名称过长");
+            ValidateCurrencyType(currencyType);
 
             var all = (await _repo.GetAllAsync()).ToList();
             cancellationToken.ThrowIfCancellationRequested();
@@ -52,6 +60,9 @@ namespace CRM.Core.Services
             {
                 Id = Guid.NewGuid().ToString(),
                 BankName = name,
+                ShortName = NormalizeShortName(shortName),
+                EBankName = NormalizeEBankName(eBankName),
+                CurrencyType = currencyType,
                 SortOrder = order,
                 IsDisabled = false
             };
@@ -63,6 +74,9 @@ namespace CRM.Core.Services
         public async Task<FinancePaymentBankDto?> UpdateAsync(
             string id,
             string bankName,
+            string? shortName,
+            string? eBankName,
+            int currencyType,
             int sortOrder,
             bool isDisabled,
             CancellationToken cancellationToken = default)
@@ -72,6 +86,7 @@ namespace CRM.Core.Services
                 throw new ArgumentException("银行名称不能为空");
             if (name.Length > 200)
                 throw new ArgumentException("银行名称过长");
+            ValidateCurrencyType(currencyType);
 
             var entity = await _repo.GetByIdAsync(id);
             cancellationToken.ThrowIfCancellationRequested();
@@ -79,6 +94,9 @@ namespace CRM.Core.Services
                 return null;
 
             entity.BankName = name;
+            entity.ShortName = NormalizeShortName(shortName);
+            entity.EBankName = NormalizeEBankName(eBankName);
+            entity.CurrencyType = currencyType;
             entity.SortOrder = sortOrder;
             entity.IsDisabled = isDisabled;
             await _repo.UpdateAsync(entity);
@@ -91,10 +109,35 @@ namespace CRM.Core.Services
             {
                 Id = r.Id,
                 BankName = r.BankName,
+                ShortName = r.ShortName,
+                EBankName = r.EBankName,
+                CurrencyType = r.CurrencyType,
                 SortOrder = r.SortOrder,
                 IsDisabled = r.IsDisabled,
                 CreateTimeUtc = r.CreateTime,
                 ModifyTimeUtc = r.ModifyTime
             };
+
+        private static void ValidateCurrencyType(int currencyType)
+        {
+            if (!FinancePaymentBankCurrencyType.IsValid(currencyType))
+                throw new ArgumentException("币别类型无效，仅支持 10（人民币银行）或 20（外币银行）");
+        }
+
+        private static string? NormalizeShortName(string? shortName)
+        {
+            var s = (shortName ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(s)) return null;
+            if (s.Length > 100) throw new ArgumentException("银行简称过长");
+            return s;
+        }
+
+        private static string? NormalizeEBankName(string? eBankName)
+        {
+            var s = (eBankName ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(s)) return null;
+            if (s.Length > 200) throw new ArgumentException("银行英文名称过长");
+            return s;
+        }
     }
 }

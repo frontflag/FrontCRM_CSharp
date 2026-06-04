@@ -31,6 +31,7 @@ import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch } from 'v
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { packingApi, packingDeliveryMethodLabel, packingDeliveryMethodLabelEn, packingDetailItemsToReportLines } from '@/api/packing'
+import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import {
   pickReportRemarkLines,
   type CompanyBasicRow,
@@ -62,6 +63,7 @@ const DEFAULT_REPORT_LOGO = '/purchase-order-template/logo.svg'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions } = useLogisticsFormDict()
 
 const loading = ref(true)
 const errorMsg = ref('')
@@ -73,6 +75,7 @@ const basicDefault = ref<CompanyBasicRow | null>(null)
 const warehouseRow = ref<CompanyWarehouseRow | null>(null)
 const warehouseInfoAddress = ref('')
 const packingDeliveryMethod = ref<number | null>(null)
+const packingShipmentMethod = ref<string | null>(null)
 const reportInfo = ref<CompanyReportInfo | null>(null)
 const packingLines = ref<PackingReportLine[]>([])
 const sealUrl = ref<string | null>(null)
@@ -150,7 +153,17 @@ function formatReportQty(n: number): string {
   return (n ?? 0).toLocaleString('zh-CN', { maximumFractionDigits: 4 })
 }
 
-function resolveShipMethodDisplay(so: StockOutDetailDto, deliveryMethod: number | null): string {
+function resolveShipMethodDisplay(
+  so: StockOutDetailDto,
+  shipmentMethod: string | null,
+  deliveryMethod: number | null
+): string {
+  const code = (shipmentMethod || '').trim()
+  if (code) {
+    const hit = shipmentArrivalOptions.value.find((o) => String(o.value) === code)
+    if (hit?.label) return hit.label
+    return code
+  }
   const labelFn = reportLang.value === 'zh' ? packingDeliveryMethodLabel : packingDeliveryMethodLabelEn
   const fromPacking = labelFn(deliveryMethod)
   if (fromPacking !== '—') return fromPacking
@@ -244,7 +257,7 @@ const docBind = computed(() => {
   const shipToLines = normalizePackingAddrLines(addr?.shipToLines, customerLine, L)
 
   const shipperName = (basic?.companyName || '').trim() || '—'
-  const shipMethodDisplay = resolveShipMethodDisplay(so, packingDeliveryMethod.value)
+  const shipMethodDisplay = resolveShipMethodDisplay(so, packingShipmentMethod.value, packingDeliveryMethod.value)
   const lines = reportLinesForDoc(so)
 
   return {
@@ -360,6 +373,7 @@ async function load() {
       packingCode.value = null
       warehouseInfoAddress.value = ''
       packingDeliveryMethod.value = null
+      packingShipmentMethod.value = null
       packingLines.value = []
       return
     }
@@ -371,6 +385,7 @@ async function load() {
       bundle.deliveryMethod != null && !Number.isNaN(Number(bundle.deliveryMethod))
         ? Number(bundle.deliveryMethod)
         : null
+    packingShipmentMethod.value = (bundle.shipmentMethod || '').trim() || null
     packingAddresses.value = bundle.packingAddresses ?? null
     let lines = bundle.packingLines ?? []
     if (lines.length === 0) {
@@ -398,6 +413,7 @@ async function load() {
     packingCode.value = null
     warehouseInfoAddress.value = ''
     packingDeliveryMethod.value = null
+    packingShipmentMethod.value = null
     reportInfo.value = null
     packingLines.value = []
   } finally {
@@ -415,6 +431,7 @@ function doPrint() {
 
 onMounted(() => {
   document.body.classList.add(PO_REPORT_PRINT_BODY_CLASS)
+  void ensureLogisticsDict()
   load()
 })
 watch([packingId, packingInspection], () => load())

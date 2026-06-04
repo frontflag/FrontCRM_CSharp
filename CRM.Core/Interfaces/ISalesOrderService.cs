@@ -171,6 +171,8 @@ namespace CRM.Core.Interfaces
         public string? SalesUserId { get; set; }
         /// <summary>业务员名称</summary>
         public string? SalesUserName { get; set; }
+        /// <summary>销售助理用户 ID</summary>
+        public string? Assistor { get; set; }
         /// <summary>订单类型 1=客单采购 2=备货采购 3=样品采购</summary>
         public short Type { get; set; } = 1;
         /// <summary>币别 1=RMB 2=USD 3=EUR</summary>
@@ -241,6 +243,8 @@ namespace CRM.Core.Interfaces
         /// <summary>业务员用户 ID</summary>
         public string? SalesUserId { get; set; }
         public string? SalesUserName { get; set; }
+        /// <summary>销售助理用户 ID</summary>
+        public string? Assistor { get; set; }
         public short? Type { get; set; }
         public short? Currency { get; set; }
         public DateTime? DeliveryDate { get; set; }

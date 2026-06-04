@@ -689,6 +689,53 @@ public partial class InventoryCenterService
         return (sor, so, packing);
     }
 
+    /// <summary>拣货详情「装箱信息」：从关联装箱单及其出库通知读取物流字段（不在拣货单表冗余）。</summary>
+    private async Task<PickingTaskPackingPanelDto?> BuildPickingTaskPackingPanelAsync(
+        PickingTask task,
+        Packing? packingHint = null)
+    {
+        var packingId = task.PackingId?.Trim();
+        if (string.IsNullOrEmpty(packingId))
+            return null;
+
+        var packing = packingHint ?? await _packingRepository.GetByIdAsync(packingId);
+        if (packing == null)
+            return null;
+
+        var packingItems = (await _packingItemRepository.FindAsync(pi =>
+                !pi.IsDeleted && pi.PackingId == packingId))
+            .ToList();
+
+        var notifyIds = packingItems
+            .Select(pi => pi.StockOutNotifyId?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Cast<string>()
+            .ToList();
+
+        StockOutRequest? firstNotify = null;
+        if (notifyIds.Count > 0)
+        {
+            var notifies = (await _stockOutRequestRepository.FindAsync(r =>
+                    !r.IsDeleted && notifyIds.Contains(r.Id)))
+                .OrderBy(r => r.RequestCode, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            firstNotify = notifies.FirstOrDefault();
+        }
+
+        return new PickingTaskPackingPanelDto
+        {
+            PackingId = packingId,
+            PackingCode = string.IsNullOrWhiteSpace(packing.Code) ? null : packing.Code.Trim(),
+            ShipmentMethod = string.IsNullOrWhiteSpace(firstNotify?.ShipmentMethod)
+                ? null
+                : firstNotify!.ShipmentMethod.Trim(),
+            ExpressCompany = string.IsNullOrWhiteSpace(firstNotify?.ExpressCompany)
+                ? null
+                : firstNotify!.ExpressCompany.Trim()
+        };
+    }
+
     /// <summary>按装箱单查未取消的拣货任务（按创建时间倒序，禁止 GetAllAsync 扫全表）。</summary>
     private async Task<List<PickingTask>> GetActivePickingTasksByPackingIdAsync(string packingId)
     {

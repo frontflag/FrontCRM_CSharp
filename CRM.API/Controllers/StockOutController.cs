@@ -62,6 +62,7 @@ namespace CRM.API.Controllers
 
         [HttpGet]
         public async Task<IActionResult> GetAll(
+            [FromQuery] StockOutListQueryRequest? filter,
             [FromQuery] string? keyword,
             [FromQuery] string? sourceCode,
             [FromQuery] int page = 1,
@@ -70,7 +71,13 @@ namespace CRM.API.Controllers
         {
             try
             {
-                var result = await _service.GetStockOutListPagedAsync(keyword, sourceCode, page, pageSize, cancellationToken);
+                filter ??= new StockOutListQueryRequest();
+                if (!string.IsNullOrWhiteSpace(keyword) && string.IsNullOrWhiteSpace(filter.Keyword))
+                    filter.Keyword = keyword;
+                if (!string.IsNullOrWhiteSpace(sourceCode) && string.IsNullOrWhiteSpace(filter.SourceCode))
+                    filter.SourceCode = sourceCode;
+
+                var result = await _service.GetStockOutListPagedAsync(filter, page, pageSize, cancellationToken);
                 var items = result.Items.ToList();
                 if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
                     SaleSensitiveFieldMask521.ApplyStockOutListItems(items, true);
@@ -347,6 +354,7 @@ namespace CRM.API.Controllers
                     RequestDate = body.RequestDate,
                     Remark = body.Remark,
                     ShipmentMethod = body.ShipmentMethod,
+                    ExpressCompany = body.ExpressCompany,
                     RegionType = body.RegionType,
                 };
                 var entity = await _service.CreateStockOutRequestAsync(request);
@@ -369,15 +377,14 @@ namespace CRM.API.Controllers
 
         [HttpGet("request")]
         public async Task<IActionResult> GetRequests(
-            [FromQuery] string? keyword,
-            [FromQuery] string? workflow,
+            [FromQuery] StockOutRequestListQueryRequest filter,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
         {
             try
             {
-                var result = await _service.GetStockOutRequestListPagedAsync(keyword, workflow, page, pageSize, cancellationToken);
+                var result = await _service.GetStockOutRequestListPagedAsync(filter, page, pageSize, cancellationToken);
                 var items = result.Items.ToList();
                 if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
                     SaleSensitiveFieldMask521.ApplyStockOutRequestListItems(items, true);
@@ -735,7 +742,9 @@ namespace CRM.API.Controllers
                 CustomerName = detail.CustomerName,
                 ShipAddress = shipAddress,
                 Packings = packings,
-                StockOutDate = stockOut?.StockOutDate ?? detail.StockOutDate,
+                StockOutDate = detail.Status == 4
+                    ? stockOut?.StockOutDate ?? detail.StockOutDate
+                    : null,
                 CourierTrackingNo = string.IsNullOrWhiteSpace(stockOut?.CourierTrackingNo)
                     ? detail.CourierTrackingNo
                     : stockOut!.CourierTrackingNo.Trim(),

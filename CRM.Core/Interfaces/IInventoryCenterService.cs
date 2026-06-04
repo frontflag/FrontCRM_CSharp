@@ -75,7 +75,7 @@ namespace CRM.Core.Interfaces
         Task SavePickingTaskItemsAsync(string pickingTaskId, IReadOnlyList<SavePickingTaskItemLineRequest> lines);
 
         /// <summary>拣货单列表行（出库通知 + 销售订单 + 仓库等展示字段）。</summary>
-        Task<IReadOnlyList<PickingTaskListItemDto>> GetPickingTaskListRowsAsync();
+        Task<IReadOnlyList<PickingTaskListItemDto>> GetPickingTaskListRowsAsync(PickingTaskListQueryRequest? query = null);
 
         /// <summary>拣货单详情（列表头字段 + 明细行）。</summary>
         Task<PickingTaskDetailViewDto?> GetPickingTaskDetailForUiAsync(string pickingTaskId);
@@ -329,6 +329,21 @@ namespace CRM.Core.Interfaces
         public List<PickingTaskLineDto> Items { get; set; } = new();
     }
 
+    /// <summary>拣货单列表筛选（GET picking-list 查询参数）。</summary>
+    public sealed class PickingTaskListQueryRequest
+    {
+        public short? Status { get; set; }
+        public string? WarehouseId { get; set; }
+        public string? TaskCode { get; set; }
+        public string? PackingCode { get; set; }
+        public string? StockOutRequestCode { get; set; }
+        public string? MaterialModel { get; set; }
+        public string? CustomerName { get; set; }
+        public string? SalesUserName { get; set; }
+        public DateTime? CreateTimeFrom { get; set; }
+        public DateTime? CreateTimeTo { get; set; }
+    }
+
     /// <summary>拣货单列表（主从拣货任务 + 出库通知/订单展示列）。</summary>
     public class PickingTaskListItemDto
     {
@@ -345,6 +360,8 @@ namespace CRM.Core.Interfaces
         public int PlanQtyTotal { get; set; }
         public int LineCount { get; set; }
         public string? StockOutRequestCode { get; set; }
+        public string? PackingId { get; set; }
+        public string? PackingCode { get; set; }
         public string TaskCode { get; set; } = string.Empty;
         public DateTime CreateTime { get; set; }
         /// <summary>生成拣货任务时的操作人（OperatorId 解析）</summary>
@@ -357,6 +374,19 @@ namespace CRM.Core.Interfaces
         public string? Remark { get; set; }
         public List<short> DistinctStockTypes { get; set; } = new();
         public List<PickingTaskLineDto> Items { get; set; } = new();
+        /// <summary>关联装箱单摘要（物流字段从装箱单关联出库通知读取，拣货单表不冗余）。</summary>
+        public PickingTaskPackingPanelDto? Packing { get; set; }
+    }
+
+    /// <summary>拣货单详情「装箱信息」面板：数据来自关联装箱单。</summary>
+    public class PickingTaskPackingPanelDto
+    {
+        public string PackingId { get; set; } = string.Empty;
+        public string? PackingCode { get; set; }
+        /// <summary>出货方式（字典 LogisticsArrivalMethod ItemCode，取自装箱单关联出库通知）。</summary>
+        public string? ShipmentMethod { get; set; }
+        /// <summary>快递公司（字典 LogisticsExpressMethod ItemCode；未维护时为 null）。</summary>
+        public string? ExpressCompany { get; set; }
     }
 
     public class GeneratePickingTaskRequest

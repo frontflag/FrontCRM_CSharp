@@ -195,7 +195,18 @@ public class PackingExtendShip : ISoftDeletable
     [Column("delivery_req")]
     public string? DeliveryReq { get; set; }
 
-    /// <summary>送货方式，见 <see cref="PackingDeliveryMethodCode"/>。</summary>
+    /// <summary>出货方式：字典 <see cref="LogisticsShipmentMethodCode"/> / LogisticsArrivalMethod ItemCode。</summary>
+    [StringLength(64)]
+    [Column("shipment_method")]
+    public string? ShipmentMethod { get; set; }
+
+    /// <summary>快递公司：字典 LogisticsExpressMethod ItemCode。</summary>
+    [StringLength(64)]
+    [Column("express_company")]
+    public string? ExpressCompany { get; set; }
+
+    /// <summary>已废弃：请使用 <see cref="ShipmentMethod"/>。历史 10→1、20→2。</summary>
+    [Obsolete("请使用 ShipmentMethod（LogisticsArrivalMethod ItemCode）")]
     [Column("delivery_method")]
     [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
     public short? DeliveryMethod { get; set; }

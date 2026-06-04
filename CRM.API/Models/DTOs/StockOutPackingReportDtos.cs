@@ -23,7 +23,10 @@ namespace CRM.API.Models.DTOs
         /// <summary>出库仓库地域（packing.storage_id 解析 warehouseinfo.RegionType）：10=境内 20=境外。</summary>
         public short? WarehouseRegionType { get; set; }
 
-        /// <summary>装箱单送货方式 packing_extend_ship.DeliveryMethod（10=送货 20=自提）。</summary>
+        /// <summary>装箱单出货方式 packing_extend_ship.shipment_method（LogisticsArrivalMethod ItemCode）。</summary>
+        public string? ShipmentMethod { get; set; }
+
+        /// <summary>已废弃：请使用 ShipmentMethod。</summary>
         public short? DeliveryMethod { get; set; }
 
         /// <summary>装箱单明细行（打印表格 PN / Brand / Qty 等）。</summary>

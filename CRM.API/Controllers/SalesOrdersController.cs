@@ -78,7 +78,10 @@ namespace CRM.API.Controllers
                     CurrentUserId = userId
                 };
                 var result = await _service.GetPagedAsync(request);
-                var items = result.Items.Select(x => MaskSalesOrder(x, summary)).ToList();
+                var assistorNameMap = await BuildUserDisplayNameMapAsync(result.Items.Select(x => x.Assistor));
+                var items = result.Items
+                    .Select(x => MaskSalesOrder(x, summary, assistorUserName: ResolveAssistorDisplayName(x.Assistor, assistorNameMap)))
+                    .ToList();
                 var aggregates = await _salesOrderListQuery.GetAggregatesAsync(request, cancellationToken);
                 var canViewSalesAmount = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("sales.amount.read") ?? false));
                 return Ok(new
@@ -198,12 +201,18 @@ namespace CRM.API.Controllers
 
                 var companyProfile = await CompanyProfileBundleLoader.LoadAsync(_db, _logger, cancellationToken);
                 CompanyProfileBundleLoader.StripSmtpEmail(companyProfile);
+                var reportAssistorMap = await BuildUserDisplayNameMapAsync(new[] { order.Assistor });
                 return Ok(new
                 {
                     success = true,
                     data = new
                     {
-                        order = MaskSalesOrder(order, summary, itemExtends, stockOutGate),
+                        order = MaskSalesOrder(
+                            order,
+                            summary,
+                            itemExtends,
+                            stockOutGate,
+                            ResolveAssistorDisplayName(order.Assistor, reportAssistorMap)),
                         companyProfile
                     }
                 });
@@ -608,6 +617,79 @@ namespace CRM.API.Controllers
                     .ToListAsync()).Cast<object>().ToList();
             }
 
+            List<object> qcImageRows;
+            if (itemIds.Count == 0)
+            {
+                qcImageRows = new List<object>();
+            }
+            else
+            {
+                var notifyIds = await _db.StockInNotifies.AsNoTracking()
+                    .Where(n => n.SellOrderItemId != null && itemIds.Contains(n.SellOrderItemId!))
+                    .Select(n => n.Id)
+                    .ToListAsync();
+
+                if (notifyIds.Count == 0)
+                {
+                    qcImageRows = new List<object>();
+                }
+                else
+                {
+                    var qcList = await _db.QCInfos.AsNoTracking()
+                        .Where(q => notifyIds.Contains(q.StockInNotifyId))
+                        .OrderByDescending(q => q.CreateTime)
+                        .Select(q => new { q.Id, q.QcCode, q.StockInNotifyCode })
+                        .ToListAsync();
+
+                    var qcIds = qcList.Select(q => q.Id).ToList();
+                    var qcMeta = qcList.ToDictionary(q => q.Id, StringComparer.OrdinalIgnoreCase);
+
+                    var imageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ".jpg", ".jpeg", ".png", ".gif", ".webp"
+                    };
+
+                    var docs = await _db.UploadDocuments.AsNoTracking()
+                        .Where(d => d.BizType == "QC" && qcIds.Contains(d.BizId))
+                        .OrderBy(d => d.CreateTime)
+                        .Select(d => new
+                        {
+                            documentId = d.Id,
+                            qcId = d.BizId,
+                            d.OriginalFileName,
+                            d.MimeType,
+                            d.FileExtension,
+                            d.CreateTime
+                        })
+                        .ToListAsync();
+
+                    qcImageRows = docs
+                        .Where(d =>
+                        {
+                            var t = (d.MimeType ?? string.Empty).Trim().ToLowerInvariant();
+                            var e = (d.FileExtension ?? string.Empty).Trim().ToLowerInvariant();
+                            return t.StartsWith("image/", StringComparison.Ordinal)
+                                || imageExtensions.Contains(e);
+                        })
+                        .Select(d =>
+                        {
+                            qcMeta.TryGetValue(d.qcId, out var meta);
+                            return (object)new
+                            {
+                                d.documentId,
+                                d.qcId,
+                                qcCode = meta?.QcCode,
+                                stockInNotifyCode = meta?.StockInNotifyCode,
+                                d.OriginalFileName,
+                                mimeType = d.MimeType,
+                                fileExtension = d.FileExtension,
+                                d.CreateTime
+                            };
+                        })
+                        .ToList();
+                }
+            }
+
             return new
             {
                 purchaseRequisitions = prRows,
@@ -617,7 +699,8 @@ namespace CRM.API.Controllers
                 stockOutRequests = outReqRows,
                 stockOuts = stockOutRows,
                 receipts = receiptRows,
-                sellInvoices = sellInvRows
+                sellInvoices = sellInvRows,
+                qcImages = qcImageRows
             };
         }
 
@@ -694,7 +777,17 @@ namespace CRM.API.Controllers
                         order.Items.Select(i => i.Id));
                 }
 
-                return Ok(new { success = true, data = MaskSalesOrder(order, summary, itemExtends, stockOutGate) });
+                var assistorNameMap = await BuildUserDisplayNameMapAsync(new[] { order.Assistor });
+                return Ok(new
+                {
+                    success = true,
+                    data = MaskSalesOrder(
+                        order,
+                        summary,
+                        itemExtends,
+                        stockOutGate,
+                        ResolveAssistorDisplayName(order.Assistor, assistorNameMap))
+                });
             }
             catch (Exception ex)
             {
@@ -710,7 +803,14 @@ namespace CRM.API.Controllers
                 var orders = await _service.GetByCustomerIdAsync(customerId);
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var summary = await GetPermissionSummaryAsync(userId);
-                return Ok(new { success = true, data = orders.Select(x => MaskSalesOrder(x, summary)).ToList() });
+                var assistorNameMap = await BuildUserDisplayNameMapAsync(orders.Select(x => x.Assistor));
+                return Ok(new
+                {
+                    success = true,
+                    data = orders
+                        .Select(x => MaskSalesOrder(x, summary, assistorUserName: ResolveAssistorDisplayName(x.Assistor, assistorNameMap)))
+                        .ToList()
+                });
             }
             catch (Exception ex)
             {
@@ -808,8 +908,18 @@ namespace CRM.API.Controllers
                         loaded.Items.Select(i => i.Id));
                 }
 
+                var createAssistorMap = await BuildUserDisplayNameMapAsync(new[] { loaded.Assistor });
                 return CreatedAtAction(nameof(GetById), new { id = loaded.Id },
-                    new { success = true, data = MaskSalesOrder(loaded, summary, itemExtends, stockOutGate) });
+                    new
+                    {
+                        success = true,
+                        data = MaskSalesOrder(
+                            loaded,
+                            summary,
+                            itemExtends,
+                            stockOutGate,
+                            ResolveAssistorDisplayName(loaded.Assistor, createAssistorMap))
+                    });
             }
             catch (ArgumentException ex)
             {
@@ -1001,9 +1111,40 @@ namespace CRM.API.Controllers
             return (usdUnit, usdLine);
         }
 
+        private async Task<Dictionary<string, string>> BuildUserDisplayNameMapAsync(IEnumerable<string?> userIds)
+        {
+            var ids = userIds
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0)
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            var users = await _db.Users.AsNoTracking()
+                .Where(u => ids.Contains(u.Id))
+                .Select(u => new { u.Id, u.UserName, u.RealName })
+                .ToListAsync();
+            return users.ToDictionary(
+                u => u.Id,
+                u => string.IsNullOrWhiteSpace(u.RealName) ? u.UserName : u.RealName.Trim(),
+                StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static string? ResolveAssistorDisplayName(
+            string? assistorUserId,
+            IReadOnlyDictionary<string, string> nameMap)
+        {
+            var id = assistorUserId?.Trim();
+            if (string.IsNullOrEmpty(id))
+                return null;
+            return nameMap.TryGetValue(id, out var name) ? name : null;
+        }
+
         private object MaskSalesOrder(CRM.Core.Models.Sales.SellOrder order, UserPermissionSummaryDto? summary,
             IReadOnlyDictionary<string, SellOrderItemExtend>? itemExtends = null,
-            IReadOnlyDictionary<string, bool>? stockOutApplyPurchaseGate = null)
+            IReadOnlyDictionary<string, bool>? stockOutApplyPurchaseGate = null,
+            string? assistorUserName = null)
         {
             var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
             var canViewCustomerInfo = !mask521 && (summary?.IsSysAdmin == true || (summary?.PermissionCodes?.Contains("customer.info.read") ?? false));
@@ -1017,6 +1158,8 @@ namespace CRM.API.Controllers
                 CustomerName = canViewCustomerInfo ? order.CustomerName : null,
                 SalesUserId = mask521 ? null : order.SalesUserId,
                 SalesUserName = mask521 ? null : order.SalesUserName,
+                order.Assistor,
+                AssistorUserName = assistorUserName,
                 order.Status,
                 order.Type,
                 order.Currency,

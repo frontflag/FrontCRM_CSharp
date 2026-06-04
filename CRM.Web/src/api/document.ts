@@ -21,6 +21,18 @@ const BASE = '/api/v1/documents'
 /** 质检单附件，bizId 为质检单主键（QCInfo.Id） */
 export const DOCUMENT_BIZ_TYPE_QC = 'QC'
 
+/** 订单明细「质检图片」页签只读展示行 */
+export interface QcImageReadonlyRow {
+  documentId: string
+  qcId: string
+  qcCode?: string | null
+  stockInNotifyCode?: string | null
+  originalFileName?: string | null
+  mimeType?: string | null
+  fileExtension?: string | null
+  createTime: string
+}
+
 export const documentApi = {
   /** 上传文档（multipart/form-data） */
   async uploadDocuments(

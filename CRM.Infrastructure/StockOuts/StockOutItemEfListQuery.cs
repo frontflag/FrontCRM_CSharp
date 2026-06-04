@@ -55,13 +55,13 @@ public sealed class StockOutItemEfListQuery : IStockOutItemListQuery
         if (query.StockOutDateFrom.HasValue)
         {
             var d = query.StockOutDateFrom.Value.Date;
-            q = q.Where(x => x.so.StockOutDate >= d);
+            q = q.Where(x => x.so.StockOutDate != null && x.so.StockOutDate >= d);
         }
 
         if (query.StockOutDateTo.HasValue)
         {
             var endEx = query.StockOutDateTo.Value.Date.AddDays(1);
-            q = q.Where(x => x.so.StockOutDate < endEx);
+            q = q.Where(x => x.so.StockOutDate != null && x.so.StockOutDate < endEx);
         }
 
         if (!string.IsNullOrWhiteSpace(query.CustomerName))
@@ -117,9 +117,32 @@ public sealed class StockOutItemEfListQuery : IStockOutItemListQuery
                             sin.StockInCode.ToLower().Contains(k)))));
         }
 
+        if (!string.IsNullOrWhiteSpace(query.PackingCode))
+        {
+            var k = query.PackingCode.Trim().ToLowerInvariant();
+            q = q.Where(x =>
+                (x.si.PackingId != null
+                 && _db.Packings.Any(pk =>
+                     !pk.IsDeleted
+                     && pk.Id == x.si.PackingId
+                     && pk.Code.ToLower().Contains(k)))
+                || (x.si.PickingTaskItemId != null
+                    && _db.PickingTaskItems.Any(pti =>
+                        !pti.IsDeleted
+                        && pti.Id == x.si.PickingTaskItemId
+                        && _db.PickingTasks.Any(pt =>
+                            !pt.IsDeleted
+                            && pt.Id == pti.PickingTaskId
+                            && pt.PackingId != null
+                            && _db.Packings.Any(pk =>
+                                !pk.IsDeleted
+                                && pk.Id == pt.PackingId
+                                && pk.Code.ToLower().Contains(k))))));
+        }
+
         var total = await q.CountAsync(cancellationToken);
         var ids = await q
-            .OrderByDescending(x => x.so.StockOutDate)
+            .OrderByDescending(x => x.so.StockOutDate ?? DateTime.MinValue)
             .ThenBy(x => x.so.StockOutCode)
             .ThenBy(x => x.si.Id)
             .Skip((p - 1) * ps)

@@ -166,7 +166,10 @@ public static class PackingReportBundleLoader
             PackingAddresses = packingAddresses,
             WarehouseAddress = warehouseAddress,
             WarehouseRegionType = warehouseRegionType,
+            ShipmentMethod = packing.ShipmentMethod,
+#pragma warning disable CS0618
             DeliveryMethod = packing.DeliveryMethod,
+#pragma warning restore CS0618
             PackingLines = MapPackingLines(packing)
         };
     }

@@ -10,20 +10,11 @@
         <el-input v-model="form.accountName" placeholder="账户名称（通常为公司名称）" />
       </el-form-item>
       <el-form-item label="开户银行">
-        <el-select
+        <finance-payment-bank-select
           v-model="form.financePaymentBankId"
           placeholder="请选择开户银行"
-          filterable
           clearable
-          style="width: 100%"
-        >
-          <el-option
-            v-for="b in paymentBankOptions"
-            :key="b.id"
-            :label="b.bankName"
-            :value="b.id"
-          />
-        </el-select>
+        />
       </el-form-item>
       <el-form-item label="开户支行">
         <el-input v-model="form.bankBranch" placeholder="开户支行" />
@@ -60,10 +51,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, watch, onMounted } from 'vue';
+import { reactive, watch } from 'vue';
 import type { VendorBankInfo } from '@/types/vendor';
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency';
-import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBankOptions';
+import FinancePaymentBankSelect from '@/components/Finance/FinancePaymentBankSelect.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -76,8 +67,6 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
   (e: 'confirm', payload: any): void;
 }>();
-
-const { paymentBankOptions, loadPaymentBankOptions } = useFinancePaymentBankOptions();
 
 const form = reactive<any>({
   accountName: '',
@@ -115,9 +104,5 @@ watch(
 
 const handleClose = () => emit('update:modelValue', false);
 const handleConfirm = () => emit('confirm', { ...form });
-
-onMounted(() => {
-  void loadPaymentBankOptions();
-});
 </script>
 

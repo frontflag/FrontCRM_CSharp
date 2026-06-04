@@ -44,6 +44,28 @@
         </el-descriptions>
       </div>
 
+      <div v-if="packingPanel" class="detail-card">
+        <h3 class="section-title">{{ t('pickingSlip.detail.sectionPacking') }}</h3>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item :label="t('packingList.columns.packingCode')">
+            <router-link
+              v-if="packingPanel.packingId"
+              class="cell-link"
+              :to="{ name: 'PackingDetail', params: { id: packingPanel.packingId } }"
+            >
+              {{ packingPanel.packingCode || packingPanel.packingId }}
+            </router-link>
+            <span v-else>{{ packingPanel.packingCode || '—' }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('packingList.columns.shipmentMethod')">
+            {{ shipmentMethodDisplay(packingPanel.shipmentMethod) }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('pickingSlip.detail.expressCompany')" :span="2">
+            {{ expressCompanyDisplay(packingPanel.expressCompany) }}
+          </el-descriptions-item>
+        </el-descriptions>
+      </div>
+
       <div class="detail-card">
         <h3 class="section-title">{{ t('pickingSlip.detail.sectionLines') }}</h3>
         <el-table :data="lines" border class="lines-table" size="small" empty-text="—">
@@ -143,7 +165,6 @@
                     {{ soItemExtendTriLabel('invoice', row.invoiceProgressStatus) }}
                   </el-tag>
                 </template>
-                <template #col-orderCreateTime="{ row }">{{ soItemFormatDt(row.orderCreateTime) }}</template>
                 <template #col-currency="{ row }">{{ soItemSettlementCurrencyLabel(row.currency) }}</template>
                 <template #col-price="{ row }">
                   <span class="amount-with-code">
@@ -256,7 +277,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -275,9 +296,11 @@ import { salesOrderApi } from '@/api/salesOrder'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const { ensureLoaded: ensureLogisticsDict, arrivalOptions, expressOptions } = useLogisticsFormDict()
 const authStore = useAuthStore()
 
 const route = useRoute()
@@ -325,6 +348,51 @@ const stockOutRequestCodeTrim = computed(() => {
 })
 
 const raw = computed(() => detail.value as unknown as Record<string, unknown> | null)
+
+const packingPanel = computed(() => {
+  const r = raw.value
+  if (!r) return null
+  const p = (r.packing ?? r.Packing) as Record<string, unknown> | null | undefined
+  if (!p || typeof p !== 'object') return null
+  const packingId = String(p.packingId ?? p.PackingId ?? '').trim()
+  if (!packingId) return null
+  return {
+    packingId,
+    packingCode: (p.packingCode ?? p.PackingCode) as string | null | undefined,
+    shipmentMethod: (p.shipmentMethod ?? p.ShipmentMethod) as string | null | undefined,
+    expressCompany: (p.expressCompany ?? p.ExpressCompany) as string | null | undefined
+  }
+})
+
+const arrivalLabelByCode = computed(() => {
+  const m = new Map<string, string>()
+  for (const o of arrivalOptions.value) {
+    const k = String(o.value ?? '').trim()
+    if (k) m.set(k.toLowerCase(), o.label)
+  }
+  return m
+})
+
+const expressLabelByCode = computed(() => {
+  const m = new Map<string, string>()
+  for (const o of expressOptions.value) {
+    const k = String(o.value ?? '').trim()
+    if (k) m.set(k.toLowerCase(), o.label)
+  }
+  return m
+})
+
+function shipmentMethodDisplay(code?: string | null): string {
+  if (!code?.trim()) return '—'
+  const c = code.trim()
+  return arrivalLabelByCode.value.get(c.toLowerCase()) ?? c
+}
+
+function expressCompanyDisplay(code?: string | null): string {
+  if (!code?.trim()) return '—'
+  const c = code.trim()
+  return expressLabelByCode.value.get(c.toLowerCase()) ?? c
+}
 
 function d(key: string) {
   if (maskSaleSensitiveFields.value && (key === 'customerName' || key === 'salesUserName')) return '—'
@@ -649,6 +717,10 @@ watch(
     else clearRelated()
   }
 )
+
+onMounted(() => {
+  void ensureLogisticsDict()
+})
 </script>
 
 <style scoped lang="scss">

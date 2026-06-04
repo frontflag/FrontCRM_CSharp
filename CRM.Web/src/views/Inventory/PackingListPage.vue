@@ -108,7 +108,7 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="packing-list-main-v6"
+      column-layout-key="packing-list-main-v8"
       :columns="packingColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -133,6 +133,17 @@
         <span>{{ maskSaleSensitiveFields ? '—' : (row.salesUserName?.trim() || '—') }}</span>
       </template>
       <template #col-warehouseName="{ row }">{{ row.warehouseName?.trim() || '—' }}</template>
+      <template #col-requestDate="{ row }">
+        <template v-for="p in [formatCreateTimeParts(row.requestDate)]" :key="`rd-${row.id}`">
+          <span v-if="p" class="crm-quote-create-time">
+            <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+            <span v-if="p.time" class="crm-quote-create-time__hm">{{ p.time }}</span>
+          </span>
+          <span v-else>—</span>
+        </template>
+      </template>
+      <template #col-shipmentMethod="{ row }">{{ shipmentMethodDisplay(row.shipmentMethod) }}</template>
+      <template #col-expressCompany="{ row }">{{ expressCompanyDisplay(row.expressCompany) }}</template>
       <template #col-itemRows="{ row }">
         <span class="qty-cell">{{ row.itemRows ?? 0 }}</span>
       </template>
@@ -426,6 +437,7 @@ import {
 } from '@/api/packing'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { isPackingEligibleForStockOut, usePackingListBasketStore } from '@/stores/packingListBasket'
@@ -434,6 +446,7 @@ const router = useRouter()
 const { t, locale } = useI18n()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
+const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
 
 const loading = ref(false)
 const list = ref<PackingListItem[]>([])
@@ -511,6 +524,9 @@ const packingColumns = computed<CrmTableColumnDef[]>(() => {
     { key: 'customerName', label: t('packingList.columns.customerName'), width: 140, minWidth: 140, showOverflowTooltip: true },
     { key: 'salesUserName', label: t('packingList.columns.salesUserName'), width: 130, minWidth: 130, showOverflowTooltip: true },
     { key: 'warehouseName', label: t('packingList.columns.warehouseName'), width: 120, minWidth: 120, showOverflowTooltip: true },
+    { key: 'requestDate', label: t('packingList.columns.expectedShipDate'), width: 150, minWidth: 150 },
+    { key: 'shipmentMethod', label: t('packingList.columns.shipmentMethod'), width: 120, minWidth: 100, showOverflowTooltip: true },
+    { key: 'expressCompany', label: t('packingList.columns.expressCompany'), width: 120, minWidth: 100, showOverflowTooltip: true },
     { key: 'itemRows', label: t('packingList.columns.itemRows'), width: 120, minWidth: 120, align: 'right' },
     { key: 'remark', label: t('packingList.columns.remark'), minWidth: 160, showOverflowTooltip: true },
     { key: 'createTime', label: t('packingList.columns.createTime'), width: 170, minWidth: 170 },
@@ -534,6 +550,37 @@ const packingColumns = computed<CrmTableColumnDef[]>(() => {
 function formatCreateTimeParts(v?: string | null) {
   if (!v) return null
   return formatDisplayDateTime2DigitYearParts(v)
+}
+
+const arrivalLabelByCode = computed(() => {
+  const m = new Map<string, string>()
+  for (const o of shipmentArrivalOptions.value) {
+    const k = String(o.value ?? '').trim()
+    if (k) m.set(k.toLowerCase(), o.label)
+  }
+  return m
+})
+
+const expressLabelByCode = computed(() => {
+  const m = new Map<string, string>()
+  for (const o of expressOptions.value) {
+    const k = String(o.value ?? '').trim()
+    if (k) m.set(k.toLowerCase(), o.label)
+  }
+  return m
+})
+
+function shipmentMethodDisplay(code?: string | number | null): string {
+  if (code === null || code === undefined || code === '') return '—'
+  const c = String(code).trim()
+  if (!c) return '—'
+  return arrivalLabelByCode.value.get(c.toLowerCase()) ?? c
+}
+
+function expressCompanyDisplay(code?: string | null): string {
+  const c = String(code ?? '').trim()
+  if (!c) return '—'
+  return expressLabelByCode.value.get(c.toLowerCase()) ?? c
 }
 
 function buildListQuery(): PackingListQuery {
@@ -965,6 +1012,7 @@ function onPackingPrintCommand(row: PackingListItem, cmd: string) {
 }
 
 onMounted(() => {
+  void ensureLogisticsDict()
   void fetchList(true)
 })
 </script>

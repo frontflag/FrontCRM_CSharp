@@ -56,6 +56,15 @@ export type SalesUserSelectOption = { id: string; userName: string; realName?: s
 /** 采购订单「采购助理」：采购运营部门职员（/purchase-ops-staff-users） */
 export type PurchaseOpsStaffUserOption = { id: string; userName: string; realName?: string; label: string }
 
+/** 采购订单「采购员」全量下拉：采购相关部门职员 + 全部 SYS_ADMIN（/purchase-dept-staff-users） */
+export type PurchaseDeptStaffUserOption = { id: string; userName: string; realName?: string; label: string }
+
+/** 销售订单「销售助理」：商务相关部门职员（/business-ops-staff-users） */
+export type BusinessOpsStaffUserOption = { id: string; userName: string; realName?: string; label: string }
+
+/** 销售订单「销售员」全量下拉：销售相关部门职员 + 全部 SYS_ADMIN（/sales-dept-staff-users） */
+export type SalesDeptStaffUserOption = { id: string; userName: string; realName?: string; label: string }
+
 export function flattenSalesUserTreeForSelect(nodes: SalesUserTreeNode[]): SalesUserSelectOption[] {
   const out: SalesUserSelectOption[] = []
   const walk = (ns: SalesUserTreeNode[]) => {
@@ -126,6 +135,42 @@ export const authApi = {
   /** 采购订单采购助理下拉：采购运营部门全部启用职员 */
   async getPurchaseOpsStaffUsers(): Promise<PurchaseOpsStaffUserOption[]> {
     const rows = (await apiClient.get('/api/v1/auth/purchase-ops-staff-users')) as PurchaseOpsStaffUserOption[]
+    return Array.isArray(rows) ? rows : []
+  },
+
+  /** 采购订单采购员全量下拉：采购相关部门全部启用职员（不含采购运营部） */
+  async getPurchaseDeptStaffUsers(): Promise<PurchaseDeptStaffUserOption[]> {
+    const rows = (await apiClient.get('/api/v1/auth/purchase-dept-staff-users')) as PurchaseDeptStaffUserOption[]
+    return Array.isArray(rows) ? rows : []
+  },
+
+  /** 采购助理新建订单：sys_relation_map type=101 已配置的采购员 */
+  async getPurchaseOrderMappedPurchasers(assistantUserId?: string): Promise<PurchaseDeptStaffUserOption[]> {
+    const params = assistantUserId?.trim() ? { assistantUserId: assistantUserId.trim() } : undefined
+    const rows = (await apiClient.get('/api/v1/auth/purchase-order-mapped-purchasers', {
+      params
+    })) as PurchaseDeptStaffUserOption[]
+    return Array.isArray(rows) ? rows : []
+  },
+
+  /** 销售订单销售助理下拉：商务相关部门全部启用职员 */
+  async getBusinessOpsStaffUsers(): Promise<BusinessOpsStaffUserOption[]> {
+    const rows = (await apiClient.get('/api/v1/auth/business-ops-staff-users')) as BusinessOpsStaffUserOption[]
+    return Array.isArray(rows) ? rows : []
+  },
+
+  /** 销售订单销售员全量下拉：销售相关部门全部启用职员 */
+  async getSalesDeptStaffUsers(): Promise<SalesDeptStaffUserOption[]> {
+    const rows = (await apiClient.get('/api/v1/auth/sales-dept-staff-users')) as SalesDeptStaffUserOption[]
+    return Array.isArray(rows) ? rows : []
+  },
+
+  /** 销售助理新建订单：sys_relation_map type=100 已配置的销售员 */
+  async getSalesOrderMappedSalespersons(assistantUserId?: string): Promise<SalesDeptStaffUserOption[]> {
+    const params = assistantUserId?.trim() ? { assistantUserId: assistantUserId.trim() } : undefined
+    const rows = (await apiClient.get('/api/v1/auth/sales-order-mapped-salespersons', {
+      params
+    })) as SalesDeptStaffUserOption[]
     return Array.isArray(rows) ? rows : []
   },
 

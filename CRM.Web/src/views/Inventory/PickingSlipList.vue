@@ -10,24 +10,96 @@
           </div>
           <h1 class="page-title">{{ t('pickingSlip.title') }}</h1>
         </div>
-        <div class="count-badge">{{ t('pickingSlip.count', { count: filteredList.length }) }}</div>
+        <div class="count-badge">{{ t('pickingSlip.count', { count: list.length }) }}</div>
       </div>
     </div>
 
     <div class="search-bar">
       <div class="search-left">
-        <div class="search-input-wrap">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            v-model="keyword"
-            class="search-input search-input--picking"
-            :placeholder="t('pickingSlip.filters.keywordPlaceholder')"
-            @keyup.enter="handleSearch"
+        <el-select
+          v-model="filterForm.status"
+          :placeholder="t('pickingSlip.filters.status')"
+          clearable
+          class="filter-select filter-select--status"
+          :teleported="false"
+        >
+          <el-option
+            v-for="opt in statusFilterOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
           />
-        </div>
+        </el-select>
+        <el-select
+          v-model="filterForm.warehouseId"
+          :placeholder="t('pickingSlip.filters.warehouse')"
+          clearable
+          filterable
+          class="filter-select filter-select--warehouse"
+          :teleported="false"
+        >
+          <el-option
+            v-for="wh in warehouseOptions"
+            :key="wh.id"
+            :label="warehouseOptionLabel(wh)"
+            :value="wh.id"
+          />
+        </el-select>
+        <input
+          v-model="filterForm.taskCode"
+          class="search-input search-input--code"
+          type="search"
+          :placeholder="t('pickingSlip.filters.taskCode')"
+          @keyup.enter="handleSearch"
+        />
+        <input
+          v-model="filterForm.packingCode"
+          class="search-input search-input--code"
+          type="search"
+          :placeholder="t('pickingSlip.filters.packingCode')"
+          @keyup.enter="handleSearch"
+        />
+        <input
+          v-model="filterForm.stockOutRequestCode"
+          class="search-input search-input--code"
+          type="search"
+          :placeholder="t('pickingSlip.filters.stockOutRequestCode')"
+          @keyup.enter="handleSearch"
+        />
+        <input
+          v-model="filterForm.materialModel"
+          class="search-input search-input--pn"
+          type="search"
+          :placeholder="t('pickingSlip.filters.materialModel')"
+          @keyup.enter="handleSearch"
+        />
+        <input
+          v-if="!maskSaleSensitiveFields"
+          v-model="filterForm.customerName"
+          class="search-input search-input--customer"
+          type="search"
+          :placeholder="t('pickingSlip.filters.customerName')"
+          @keyup.enter="handleSearch"
+        />
+        <input
+          v-if="!maskSaleSensitiveFields"
+          v-model="filterForm.salesUserName"
+          class="search-input search-input--sales"
+          type="search"
+          :placeholder="t('pickingSlip.filters.salesUserName')"
+          @keyup.enter="handleSearch"
+        />
+        <el-date-picker
+          v-model="filterForm.createDateRange"
+          type="daterange"
+          :range-separator="t('pickingSlip.filters.dateSep')"
+          :start-placeholder="t('pickingSlip.filters.dateFrom')"
+          :end-placeholder="t('pickingSlip.filters.dateTo')"
+          value-format="YYYY-MM-DD"
+          clearable
+          class="filter-date-range"
+          :teleported="false"
+        />
         <button type="button" class="btn-primary btn-sm" @click="handleSearch">{{ t('pickingSlip.filters.search') }}</button>
         <button type="button" class="btn-ghost btn-sm" @click="handleReset">{{ t('pickingSlip.filters.reset') }}</button>
       </div>
@@ -39,7 +111,7 @@
       :columns="columns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-      :data="pagedFilteredList"
+      :data="pagedList"
       :row-key="rowKey"
       v-loading="loading"
       @row-dblclick="onRowDblClick"
@@ -82,6 +154,16 @@
       </template>
       <template #col-stockOutRequestCode="{ row }">
         <span>{{ displayCell(row, 'stockOutRequestCode') }}</span>
+      </template>
+      <template #col-packingCode="{ row }">
+        <router-link
+          v-if="packingLinkId(row)"
+          class="picking-link mono-cell"
+          :to="`/inventory/packing/${packingLinkId(row)}`"
+        >
+          {{ displayCell(row, 'packingCode') }}
+        </router-link>
+        <span v-else>{{ displayCell(row, 'packingCode') }}</span>
       </template>
       <template #col-taskCode="{ row }">
         <span class="mono-cell">{{ displayCell(row, 'taskCode') }}</span>
@@ -140,7 +222,7 @@
         class="list-main-pagination"
         v-model:current-page="listPage"
         v-model:page-size="listPageSize"
-        :total="filteredListTotal"
+        :total="listTotal"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
         @size-change="listPage = 1"
@@ -150,12 +232,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
-import { inventoryCenterApi, type PickingTaskListRow } from '@/api/inventoryCenter'
+import {
+  inventoryCenterApi,
+  type PickingTaskListQuery,
+  type PickingTaskListRow,
+  type WarehouseInfo
+} from '@/api/inventoryCenter'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import { getApiErrorMessage } from '@/utils/apiError'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -171,10 +258,29 @@ const authStore = useAuthStore()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
-const keyword = ref('')
 const list = ref<PickingTaskListRow[]>([])
 const listPage = ref(1)
 const listPageSize = ref(20)
+const warehouseOptions = ref<WarehouseInfo[]>([])
+
+const filterForm = reactive({
+  status: undefined as number | undefined,
+  warehouseId: '',
+  taskCode: '',
+  packingCode: '',
+  stockOutRequestCode: '',
+  materialModel: '',
+  customerName: '',
+  salesUserName: '',
+  createDateRange: null as [string, string] | null
+})
+
+const statusFilterOptions = computed(() => [
+  { value: 1, label: t('pickingSlip.status.pending') },
+  { value: 2, label: t('pickingSlip.status.inProgress') },
+  { value: 100, label: t('pickingSlip.status.done') },
+  { value: -1, label: t('pickingSlip.status.cancelled') }
+])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const opColExpanded = ref(false)
@@ -225,6 +331,7 @@ const columns = computed<CrmTableColumnDef[]>(() => {
     { key: 'planQtyTotal', label: t('pickingSlip.columns.planQtyTotal'), width: 100, align: 'right' },
     { key: 'lineCount', label: t('pickingSlip.columns.lineCount'), width: 110, align: 'right' },
     { key: 'stockOutRequestCode', label: t('pickingSlip.columns.stockOutRequestCode'), width: 160, minWidth: 140, showOverflowTooltip: true },
+    { key: 'packingCode', label: t('pickingSlip.columns.packingCode'), width: 150, minWidth: 130, showOverflowTooltip: true },
     { key: 'taskCode', label: t('pickingSlip.columns.taskCode'), width: 150, minWidth: 130, showOverflowTooltip: true },
     { key: 'createTime', label: t('pickingSlip.columns.createTime'), width: 170 },
     { key: 'createUserDisplay', label: t('pickingSlip.columns.createUser'), width: 120, showOverflowTooltip: true },
@@ -254,32 +361,66 @@ const statusLabel = (row: PickingTaskListRow) => {
   return t('pickingSlip.status.unknown')
 }
 
-const filteredList = computed(() => {
-  const k = keyword.value.trim().toLowerCase()
-  if (!k) return list.value
-  return list.value.filter((x) => {
-    const r = rowRecord(x)
-    const taskCode = String(r.taskCode ?? r.TaskCode ?? '').toLowerCase()
-    const notice = String(r.stockOutRequestCode ?? r.StockOutRequestCode ?? '').toLowerCase()
-    const cust = String(r.customerName ?? r.CustomerName ?? '').toLowerCase()
-    return taskCode.includes(k) || notice.includes(k) || cust.includes(k)
-  })
-})
+function warehouseOptionLabel(wh: WarehouseInfo) {
+  const name = (wh.warehouseName || '').trim()
+  const code = (wh.warehouseCode || '').trim()
+  if (name && code) return `${name}（${code}）`
+  return name || code || wh.id
+}
 
-const filteredListTotal = computed(() => filteredList.value.length)
-const pagedFilteredList = computed(() => {
-  const rows = filteredList.value
+function packingLinkId(row: PickingTaskListRow) {
+  const r = rowRecord(row)
+  return String(r.packingId ?? r.PackingId ?? '').trim() || ''
+}
+
+function buildListQuery(): PickingTaskListQuery {
+  const q: PickingTaskListQuery = {}
+  if (filterForm.status != null && !Number.isNaN(Number(filterForm.status))) q.status = Number(filterForm.status)
+  const wh = filterForm.warehouseId?.trim()
+  if (wh) q.warehouseId = wh
+  const tc = filterForm.taskCode?.trim()
+  if (tc) q.taskCode = tc
+  const pc = filterForm.packingCode?.trim()
+  if (pc) q.packingCode = pc
+  const nc = filterForm.stockOutRequestCode?.trim()
+  if (nc) q.stockOutRequestCode = nc
+  const pn = filterForm.materialModel?.trim()
+  if (pn) q.materialModel = pn
+  if (!maskSaleSensitiveFields.value) {
+    const cn = filterForm.customerName?.trim()
+    if (cn) q.customerName = cn
+    const su = filterForm.salesUserName?.trim()
+    if (su) q.salesUserName = su
+  }
+  if (filterForm.createDateRange?.length === 2) {
+    q.createTimeFrom = filterForm.createDateRange[0]
+    q.createTimeTo = filterForm.createDateRange[1]
+  }
+  return q
+}
+
+function resetFilterForm() {
+  filterForm.status = undefined
+  filterForm.warehouseId = ''
+  filterForm.taskCode = ''
+  filterForm.packingCode = ''
+  filterForm.stockOutRequestCode = ''
+  filterForm.materialModel = ''
+  filterForm.customerName = ''
+  filterForm.salesUserName = ''
+  filterForm.createDateRange = null
+}
+
+const listTotal = computed(() => list.value.length)
+const pagedList = computed(() => {
+  const rows = list.value
   const start = (listPage.value - 1) * listPageSize.value
   return rows.slice(start, start + listPageSize.value)
 })
 
-watch(filteredListTotal, () => {
-  const maxP = Math.max(1, Math.ceil(filteredListTotal.value / listPageSize.value) || 1)
+watch(listTotal, () => {
+  const maxP = Math.max(1, Math.ceil(listTotal.value / listPageSize.value) || 1)
   if (listPage.value > maxP) listPage.value = maxP
-})
-
-watch(keyword, () => {
-  listPage.value = 1
 })
 
 const onRowDblClick = (row: PickingTaskListRow) => {
@@ -343,7 +484,7 @@ async function runPickingFetch(resetPage: boolean) {
   if (resetPage) listPage.value = 1
   loading.value = true
   try {
-    list.value = await inventoryCenterApi.getPickingListRows()
+    list.value = await inventoryCenterApi.getPickingListRows(buildListQuery())
   } catch (e) {
     console.error(e)
     ElMessage.error(getApiErrorMessage(e, t('pickingSlip.messages.loadFailed')))
@@ -356,17 +497,22 @@ async function runPickingFetch(resetPage: boolean) {
 const fetchList = () => void runPickingFetch(true)
 
 const handleSearch = () => {
-  listPage.value = 1
-  void runPickingFetch(false)
+  void runPickingFetch(true)
 }
 
 const handleReset = () => {
-  keyword.value = ''
-  listPage.value = 1
-  void runPickingFetch(false)
+  resetFilterForm()
+  void runPickingFetch(true)
 }
 
-onMounted(() => void fetchList())
+onMounted(async () => {
+  try {
+    warehouseOptions.value = await inventoryCenterApi.getWarehouses()
+  } catch {
+    warehouseOptions.value = []
+  }
+  void fetchList()
+})
 </script>
 
 <style scoped lang="scss">
@@ -481,8 +627,41 @@ onMounted(() => void fetchList())
     border-color: rgba(0, 212, 255, 0.4);
   }
 
-  &.search-input--picking {
-    width: 280px;
+  &.search-input--code {
+    width: 140px;
+  }
+
+  &.search-input--pn {
+    width: 140px;
+  }
+
+  &.search-input--customer {
+    width: 140px;
+  }
+
+  &.search-input--sales {
+    width: 120px;
+  }
+}
+
+.filter-select {
+  width: 130px;
+
+  &--warehouse {
+    width: 180px;
+  }
+}
+
+.filter-date-range {
+  width: 240px;
+}
+
+.picking-link {
+  color: $cyan-primary;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
   }
 }
 

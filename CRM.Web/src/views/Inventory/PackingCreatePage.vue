@@ -52,6 +52,12 @@
           <el-descriptions-item :label="t('packingList.columns.warehouseName')">
             {{ draftWarehouseDisplay || '—' }}
           </el-descriptions-item>
+          <el-descriptions-item :label="t('packingList.columns.shipmentMethod')">
+            {{ shipmentMethodDisplay(shipmentMethod) }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('pickingSlip.detail.expressCompany')">
+            {{ expressCompanyDisplay(expressCompany) }}
+          </el-descriptions-item>
         </el-descriptions>
       </div>
 
@@ -112,12 +118,12 @@
           </el-tab-pane>
           <el-tab-pane :label="t('packingDetail.tabs.deliveryReq')" name="deliveryReq">
             <el-form label-width="100px" class="packing-extend-form">
-              <el-form-item :label="t('packingDetail.deliveryMethod')">
-                <el-select v-model="deliveryMethod" clearable :placeholder="t('packingCreate.deliveryMethodPlaceholder')" style="width: 200px">
-                  <el-option :label="t('packingCreate.deliveryMethodDelivery')" :value="10" />
-                  <el-option :label="t('packingCreate.deliveryMethodPickup')" :value="20" />
-                </el-select>
-              </el-form-item>
+              <el-row :gutter="16">
+                <ShipmentExpressFields
+                  v-model:shipment-method="shipmentMethod"
+                  v-model:express-company="expressCompany"
+                />
+              </el-row>
               <el-form-item :label="t('packingDetail.deliveryReq')">
                 <el-input v-model="deliveryReq" type="textarea" :rows="4" />
               </el-form-item>
@@ -194,10 +200,13 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 import { useStockOutNotifyListBasketStore } from '@/stores/stockOutNotifyListBasket'
 import { inventoryCenterApi, type WarehouseInfo } from '@/api/inventoryCenter'
 import { fetchCustomsBrokersAdmin, type CustomsBrokerDto } from '@/api/customs'
+import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
+import ShipmentExpressFields from '@/components/Logistics/ShipmentExpressFields.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const basketStore = useStockOutNotifyListBasketStore()
 
@@ -226,7 +235,9 @@ const packingExtendTab = ref<'ship' | 'bill' | 'deliveryReq' | 'box'>('ship')
 const shipForm = reactive<PackingAddressFields>({ company: '', address: '', attn: '', tel: '' })
 const billForm = reactive<PackingAddressFields>({ company: '', address: '', attn: '', tel: '' })
 const deliveryReq = ref('')
-const deliveryMethod = ref<number | undefined>(undefined)
+/** 出货方式 / 快递公司：初始来自出库通知，用户可改，写入 packing_extend_ship */
+const shipmentMethod = ref('')
+const expressCompany = ref('')
 const boxForm = reactive({
   nw: undefined as number | undefined,
   gw: undefined as number | undefined,
@@ -239,6 +250,20 @@ const customsBrokerId = ref('')
 const isCustomsPacking = computed(
   () => (draft.value?.stockOutType ?? StockOutTypeCode.Sales) === StockOutTypeCode.Customs
 )
+
+function shipmentMethodDisplay(code?: string | null): string {
+  const c = String(code ?? '').trim()
+  if (!c) return '—'
+  const hit = shipmentArrivalOptions.value.find((o) => String(o.value) === c)
+  return hit?.label ?? c
+}
+
+function expressCompanyDisplay(code?: string | null): string {
+  const c = String(code ?? '').trim()
+  if (!c) return '—'
+  const hit = expressOptions.value.find((o) => String(o.value) === c)
+  return hit?.label ?? c
+}
 
 function parseRequestIdsFromRoute(): string[] {
   const raw = String(route.query.ids || '').trim()
@@ -282,6 +307,8 @@ async function loadPage() {
       }
     }
     draft.value = preview
+    shipmentMethod.value = String(preview.shipmentMethod ?? '').trim()
+    expressCompany.value = String(preview.expressCompany ?? '').trim()
     if ((preview.stockOutType ?? StockOutTypeCode.Sales) === StockOutTypeCode.Customs) {
       try {
         customsBrokers.value = await fetchCustomsBrokersAdmin()
@@ -332,7 +359,8 @@ function buildExtras(): PackingCreateExtras {
       billAttn: billForm.attn.trim() || null,
       billTel: billForm.tel.trim() || null,
       deliveryReq: deliveryReq.value.trim() || null,
-      deliveryMethod: deliveryMethod.value ?? null
+      shipmentMethod: shipmentMethod.value.trim() || null,
+      expressCompany: expressCompany.value.trim() || null
     },
     box: {
       nw: boxForm.nw ?? null,
@@ -346,6 +374,11 @@ function buildExtras(): PackingCreateExtras {
 
 async function handleSubmit() {
   if (!draft.value || !requestIds.value.length) return
+  if (!shipmentMethod.value.trim()) {
+    ElMessage.warning(t('packingCreate.shipmentMethodRequired'))
+    packingExtendTab.value = 'deliveryReq'
+    return
+  }
   if (isCustomsPacking.value && !customsBrokerId.value.trim()) {
     ElMessage.warning(t('packingCreate.customsBrokerRequired'))
     return
@@ -368,6 +401,7 @@ function goBack() {
 }
 
 onMounted(() => {
+  void ensureLogisticsDict()
   void loadPage()
 })
 </script>

@@ -59,6 +59,12 @@ namespace CRM.Core.Models.Inventory
         /// </summary>
         public short Status { get; set; } = StockOutRequestStatusCode.PendingPacking;
 
+        /// <summary>
+        /// 报关状态，见 <see cref="StockOutNotifyCustomsStatusCode"/>：
+        /// 0=未知，10=无需报关，20=待报关，30=报关中，100=报关完成。
+        /// </summary>
+        public short CustomsStatus { get; set; } = StockOutNotifyCustomsStatusCode.Unknown;
+
         /// <summary>仅 StockOutType=20（报关出库通知）使用，指向 <c>customs_pendlist</c>。</summary>
         [StringLength(36)]
         [Column("customs_pendlist_id")]
@@ -73,6 +79,11 @@ namespace CRM.Core.Models.Inventory
         /// </summary>
         [StringLength(64)]
         public string? ShipmentMethod { get; set; }
+
+        /// <summary>快递公司：数据字典 <c>LogisticsExpressMethod</c> 的 ItemCode。</summary>
+        [StringLength(64)]
+        [Column("ExpressCompany")]
+        public string? ExpressCompany { get; set; }
 
         /// <summary>地域类型，见 <see cref="RegionTypeCode"/>：10=境内，20=境外。</summary>
         [Column("RegionType")]

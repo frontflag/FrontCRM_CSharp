@@ -213,8 +213,6 @@ export const rbacAdminApi = {
     return apiClient.get<RbacDepartment[]>('/api/v1/rbac/departments')
   },
 
-  // 下面这些方法当前后端是否已提供不确定；这里先补齐类型/最小实现，
-  // 以保证页面能够编译通过。若调用会抛出/返回空，便于后续补齐真实后端接口。
   async getDepartmentById(departmentId: string): Promise<RbacDepartment> {
     const list = await this.getDepartments()
     const d = list.find((x) => x.id === departmentId)
@@ -222,9 +220,10 @@ export const rbacAdminApi = {
     return d
   },
 
-  async getDepartmentUsers(_departmentId: string): Promise<AdminUserDto[]> {
-    // 后端若未提供部门->用户映射接口，这里先返回空数组。
-    return []
+  async getDepartmentUsers(departmentId: string): Promise<AdminUserDto[]> {
+    return apiClient.get<AdminUserDto[]>(
+      `/api/v1/rbac/departments/${encodeURIComponent(departmentId)}/users`
+    )
   },
 
   async createDepartment(payload: UpsertDepartmentRequest): Promise<RbacDepartment> {

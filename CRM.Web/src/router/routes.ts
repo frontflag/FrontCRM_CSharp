@@ -720,6 +720,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '编辑权限', permission: 'rbac.manage' }
       },
       {
+        path: 'system/user-config',
+        name: 'UserConfig',
+        component: () => import('@/views/System/UserConfigView.vue'),
+        meta: { requiresAuth: true, title: '用户配置', permission: 'rbac.manage' }
+      },
+      {
         path: 'system/departments',
         name: 'DepartmentList',
         component: () => import('@/views/System/DepartmentList.vue'),

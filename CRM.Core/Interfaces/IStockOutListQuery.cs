@@ -6,8 +6,7 @@ namespace CRM.Core.Interfaces;
 public interface IStockOutListQuery
 {
     Task<PagedResult<string>> GetPagedStockOutIdsAsync(
-        string? keyword,
-        string? sourceCode,
+        StockOutListQueryRequest? filter,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);

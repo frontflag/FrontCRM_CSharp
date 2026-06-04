@@ -19,8 +19,11 @@ namespace CRM.API.Models.DTOs
         public string RequestUserId { get; set; } = string.Empty;
         public DateTime RequestDate { get; set; }
         public string? Remark { get; set; }
-        /// <summary>出货方式（字典 LogisticsArrivalMethod ItemCode）</summary>
+        /// <summary>出货方式（字典 LogisticsArrivalMethod ItemCode，必填）</summary>
         public string? ShipmentMethod { get; set; }
+
+        /// <summary>快递公司（字典 LogisticsExpressMethod ItemCode，可选）</summary>
+        public string? ExpressCompany { get; set; }
 
         /// <summary>地域类型 RegionType：10=境内 20=境外</summary>
         [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]

@@ -148,6 +148,8 @@ public class PackingService : IPackingService
             .GroupBy(s => s.PackingId.Trim(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
+        var notifySummaryByPackingId = await LoadNotifySummaryByPackingIdsAsync(idSet, cancellationToken);
+
         static string? FormatUserName(User? user) =>
             user == null
                 ? null
@@ -178,6 +180,13 @@ public class PackingService : IPackingService
             }
 
             shipByPackingId.TryGetValue(pk.Id.Trim(), out var ship);
+            notifySummaryByPackingId.TryGetValue(pk.Id.Trim(), out var notifySummary);
+
+            var shipmentMethod = ResolvePackingShipmentMethod(ship)
+                ?? notifySummary.ShipmentMethod;
+            var expressCompany = !string.IsNullOrWhiteSpace(ship?.ExpressCompany)
+                ? ship!.ExpressCompany.Trim()
+                : notifySummary.ExpressCompany;
 
             items.Add(new PackingListItemDto
             {
@@ -195,6 +204,9 @@ public class PackingService : IPackingService
                 ItemRows = pk.ItemRows,
                 Comment = pk.Comment,
                 ScheduleShipDate = pk.ScheduleShipDate,
+                RequestDate = notifySummary.RequestDate,
+                ShipmentMethod = shipmentMethod,
+                ExpressCompany = expressCompany,
                 CreateTime = pk.CreateTime,
                 CreateByUserId = pk.CreateByUserId,
                 CreateUserName = FormatUserName(createUser),
@@ -448,7 +460,13 @@ public class PackingService : IPackingService
             BillAttn = pk.ExtendShip?.BillAttn,
             BillTel = pk.ExtendShip?.BillTel,
             DeliveryReq = pk.ExtendShip?.DeliveryReq,
+            ShipmentMethod = ResolvePackingShipmentMethod(pk.ExtendShip),
+            ExpressCompany = string.IsNullOrWhiteSpace(pk.ExtendShip?.ExpressCompany)
+                ? null
+                : pk.ExtendShip!.ExpressCompany.Trim(),
+#pragma warning disable CS0618
             DeliveryMethod = pk.ExtendShip?.DeliveryMethod,
+#pragma warning restore CS0618
             Items = detailLines,
             StockOutNotifies = await LoadStockOutNotifiesForPackingAsync(lines, cancellationToken),
             ItemExtends = extendRows.Select(e =>
@@ -589,6 +607,13 @@ public class PackingService : IPackingService
             if (extras?.Ship != null)
             {
                 var s = extras.Ship;
+                var resolvedShipment = !string.IsNullOrWhiteSpace(s.ShipmentMethod)
+                    ? LogisticsShipmentMethodCode.Normalize(s.ShipmentMethod)
+                    : LogisticsShipmentMethodCode.Normalize(orderedRequests[0].ShipmentMethod);
+                LogisticsShipmentMethodCode.EnsureRequired(resolvedShipment);
+                var resolvedExpress = !string.IsNullOrWhiteSpace(s.ExpressCompany)
+                    ? LogisticsShipmentMethodCode.NormalizeExpressCompany(s.ExpressCompany)
+                    : LogisticsShipmentMethodCode.NormalizeExpressCompany(orderedRequests[0].ExpressCompany);
                 _db.PackingExtendShips.Add(new PackingExtendShip
                 {
                     Id = Guid.NewGuid().ToString(),
@@ -602,7 +627,8 @@ public class PackingService : IPackingService
                     BillAttn = TrimOrNull(s.BillAttn),
                     BillTel = TrimOrNull(s.BillTel),
                     DeliveryReq = TrimOrNull(s.DeliveryReq),
-                    DeliveryMethod = s.DeliveryMethod
+                    ShipmentMethod = resolvedShipment,
+                    ExpressCompany = resolvedExpress
                 });
             }
 
@@ -805,6 +831,62 @@ public class PackingService : IPackingService
 
     private static string? FormatCustomerDisplayName(CustomerInfo? customer) =>
         customer == null ? null : customer.OfficialName ?? customer.NickName;
+
+    /// <summary>装箱单列表：按关联出库通知汇总计划出货日期与出货方式（首条通知，按 RequestCode 排序）。</summary>
+    private async Task<Dictionary<string, (DateTime? RequestDate, string? ShipmentMethod, string? ExpressCompany)>> LoadNotifySummaryByPackingIdsAsync(
+        IReadOnlyCollection<string> packingIds,
+        CancellationToken cancellationToken)
+    {
+        var result = new Dictionary<string, (DateTime? RequestDate, string? ShipmentMethod, string? ExpressCompany)>(StringComparer.OrdinalIgnoreCase);
+        if (packingIds.Count == 0)
+            return result;
+
+        var idSet = packingIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var packingItems = await _db.PackingItems.AsNoTracking()
+            .Where(pi => idSet.Contains(pi.PackingId) && !pi.IsDeleted)
+            .Select(pi => new { pi.PackingId, pi.StockOutNotifyId })
+            .ToListAsync(cancellationToken);
+        if (packingItems.Count == 0)
+            return result;
+
+        var notifyIds = packingItems
+            .Select(x => x.StockOutNotifyId?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Cast<string>()
+            .ToList();
+        if (notifyIds.Count == 0)
+            return result;
+
+        var notifies = await _db.StockOutRequests.AsNoTracking()
+            .Where(r => !r.IsDeleted && notifyIds.Contains(r.Id))
+            .OrderBy(r => r.RequestCode)
+            .ToListAsync(cancellationToken);
+        var notifyById = notifies.ToDictionary(r => r.Id.Trim(), r => r, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var group in packingItems.GroupBy(x => x.PackingId.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            StockOutRequest? first = null;
+            foreach (var pi in group)
+            {
+                var nid = pi.StockOutNotifyId?.Trim();
+                if (string.IsNullOrEmpty(nid) || !notifyById.TryGetValue(nid, out var notify))
+                    continue;
+                if (first == null || string.Compare(notify.RequestCode, first.RequestCode, StringComparison.OrdinalIgnoreCase) < 0)
+                    first = notify;
+            }
+
+            if (first == null)
+                continue;
+
+            result[group.Key] = (
+                first.RequestDate == default ? null : first.RequestDate,
+                string.IsNullOrWhiteSpace(first.ShipmentMethod) ? null : first.ShipmentMethod.Trim(),
+                string.IsNullOrWhiteSpace(first.ExpressCompany) ? null : first.ExpressCompany.Trim());
+        }
+
+        return result;
+    }
 
     private async Task<List<PackingStockOutNotifyRowDto>> LoadStockOutNotifiesForPackingAsync(
         IReadOnlyList<PackingItem> packingItems,
@@ -1052,6 +1134,8 @@ public class PackingService : IPackingService
             .ToList();
         if (regionTypes.Count != 1)
             throw new InvalidOperationException("所选出库通知的送达地域必须一致");
+
+        LogisticsShipmentMethodCode.EnsureStockOutRequestsConsistentForPacking(requests);
 
         var soItemMap = soItems.ToDictionary(si => si.Id.Trim(), si => si, StringComparer.OrdinalIgnoreCase);
         var idOrder = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -1488,7 +1572,6 @@ public class PackingService : IPackingService
                     StockOutCode = stockOutCode,
                     WarehouseId = batchWarehouseId,
                     OperatorId = actor ?? string.Empty,
-                    StockOutDate = now,
                     ExpectedStockOutDate = expectedUtc,
                     SkipStockOutNotifyStatusChecks = true,
                     PackingListBatchStockOut = true,
@@ -1609,6 +1692,13 @@ public class PackingService : IPackingService
             else
             {
                 notify.Status = targetStatus;
+            }
+
+            if (targetStatus == StockOutRequestStatusCode.Packed
+                && StockOutTypeCode.NormalizeForNotify(notify.StockOutType) == StockOutTypeCode.Sales
+                && notify.CustomsStatus == StockOutNotifyCustomsStatusCode.Unknown)
+            {
+                notify.CustomsStatus = StockOutNotifyCustomsStatusCode.NotRequired;
             }
 
             notify.ModifyTime = now;
@@ -1943,8 +2033,22 @@ public class PackingService : IPackingService
             StockOutType = StockOutTypeCode.NormalizeForNotify(bundle.Requests[0].StockOutType),
             WarehouseId = storageId,
             WarehouseName = warehouseName,
+            ShipmentMethod = LogisticsShipmentMethodCode.Normalize(bundle.Requests[0].ShipmentMethod),
+            ExpressCompany = LogisticsShipmentMethodCode.NormalizeExpressCompany(bundle.Requests[0].ExpressCompany),
             Lines = lines
         };
+    }
+
+    private static string? ResolvePackingShipmentMethod(PackingExtendShip? extendShip)
+    {
+        if (extendShip == null)
+            return null;
+        var fromField = LogisticsShipmentMethodCode.Normalize(extendShip.ShipmentMethod);
+        if (!string.IsNullOrEmpty(fromField))
+            return fromField;
+#pragma warning disable CS0618
+        return LogisticsShipmentMethodCode.MapLegacyDeliveryMethod(extendShip.DeliveryMethod);
+#pragma warning restore CS0618
     }
 
     /// <summary>

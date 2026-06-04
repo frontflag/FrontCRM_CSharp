@@ -690,7 +690,7 @@
           </button>
         </SidebarMenuTooltipWrap>
 
-        <!-- 系统管理 -->
+        <!-- 组织管理（可展开菜单组） -->
         <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.systemManagement') }}</div>
         <SidebarMenuGroupFlyout
           v-if="hasPermission('rbac.manage')"
@@ -729,6 +729,7 @@
             <router-link to="/system/departments" class="submenu-item" active-class="active" exact>{{ t('layout.menu.departmentManagement') }}</router-link>
             <router-link to="/system/roles" class="submenu-item" active-class="active" exact>{{ t('layout.menu.roleManagement') }}</router-link>
             <router-link to="/system/permissions" class="submenu-item" active-class="active" exact>{{ t('layout.menu.permissionManagement') }}</router-link>
+            <router-link to="/system/user-config" class="submenu-item" active-class="active" exact>{{ t('layout.menu.userConfig') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -1456,6 +1457,7 @@ const pageTitleMap: Record<string, string> = {
   '/system/roles/create': 'layout.menu.roleManagement',
   '/system/permissions': 'layout.menu.permissionManagement',
   '/system/permissions/create': 'layout.menu.permissionManagement',
+  '/system/user-config': 'layout.menu.userConfig',
   '/system/departments': 'layout.menu.departmentManagement',
   '/system/departments/create': 'layout.menu.departmentManagement',
   '/system/company-info': 'layout.menu.companyInfo',

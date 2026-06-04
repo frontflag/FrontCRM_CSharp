@@ -542,7 +542,8 @@ namespace CRM.IntegrationTests
                 CustomerId = "CUST-001",
                 RequestUserId = "user-1",
                 RequestDate = DateTime.UtcNow,
-                Remark = "第一次出库申请"
+                Remark = "第一次出库申请",
+                ShipmentMethod = "1"
             };
 
             var req1 = await service.CreateStockOutRequestAsync(request1);
@@ -564,7 +565,8 @@ namespace CRM.IntegrationTests
                 CustomerId = "CUST-001",
                 RequestUserId = "user-1",
                 RequestDate = DateTime.UtcNow,
-                Remark = "第二次出库申请"
+                Remark = "第二次出库申请",
+                ShipmentMethod = "1"
             };
 
             var req2 = await service.CreateStockOutRequestAsync(request2);
@@ -585,7 +587,8 @@ namespace CRM.IntegrationTests
                 CustomerId = "CUST-001",
                 RequestUserId = "user-1",
                 RequestDate = DateTime.UtcNow,
-                Remark = "第三次出库申请（应失败）"
+                Remark = "第三次出库申请（应失败）",
+                ShipmentMethod = "1"
             };
 
             var exception = await Assert.ThrowsAsync<ArgumentException>(() => service.CreateStockOutRequestAsync(request3));
@@ -707,7 +710,8 @@ namespace CRM.IntegrationTests
                 CustomerId = "CUST-001",
                 RequestUserId = "user-1",
                 RequestDate = DateTime.UtcNow,
-                Remark = "应因在库不足失败"
+                Remark = "应因在库不足失败",
+                ShipmentMethod = "1"
             };
 
             var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateStockOutRequestAsync(request));
@@ -2123,7 +2127,8 @@ namespace CRM.IntegrationTests
                 CustomerId = "CUST-001",
                 RequestUserId = "USER-001",
                 RequestDate = DateTime.UtcNow,
-                Remark = "第一批出库"
+                Remark = "第一批出库",
+                ShipmentMethod = "1"
             };
             var sor1 = await stockOutService.CreateStockOutRequestAsync(outRequest1);
             Assert.NotNull(sor1);
@@ -2139,7 +2144,8 @@ namespace CRM.IntegrationTests
                 CustomerId = "CUST-001",
                 RequestUserId = "USER-001",
                 RequestDate = DateTime.UtcNow,
-                Remark = "第二批出库"
+                Remark = "第二批出库",
+                ShipmentMethod = "1"
             };
             var sor2 = await stockOutService.CreateStockOutRequestAsync(outRequest2);
             Assert.NotNull(sor2);

@@ -74,7 +74,7 @@
     <div class="table-wrapper" v-loading="loading">
       <CrmDataTable
         ref="dataTableRef"
-        column-layout-key="quote-list-main"
+        column-layout-key="quote-list-main-v3"
         :columns="quoteTableColumns"
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -100,6 +100,9 @@
         </template>
         <template #col-productionDateDc="{ row }">
           <span>{{ displayQuoteProductionDateDc(row) }}</span>
+        </template>
+        <template #col-leadTime="{ row }">
+          <span>{{ displayQuoteLeadTime(row) }}</span>
         </template>
         <template #col-lineUnitPrice="{ row }">
           <span class="amount-with-code">
@@ -154,6 +157,9 @@
         <template #col-actions="{ row }">
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
+              <button type="button" class="action-btn" @click.stop="handleCopyQuoteSummary(row)">
+                {{ t('quoteList.actions.copy') }}
+              </button>
               <button type="button" class="action-btn action-btn--primary" @click.stop="handleEdit(row)">
                 {{ t('quoteList.actions.edit') }}
               </button>
@@ -167,6 +173,9 @@
               </div>
               <template #dropdown>
                 <el-dropdown-menu>
+                  <el-dropdown-item @click.stop="handleCopyQuoteSummary(row)">
+                    <span class="op-more-item">{{ t('quoteList.actions.copy') }}</span>
+                  </el-dropdown-item>
                   <el-dropdown-item @click.stop="handleEdit(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('quoteList.actions.edit') }}</span>
                   </el-dropdown-item>
@@ -423,8 +432,15 @@ const quoteTableColumns = computed<CrmTableColumnDef[]>(() => {
     {
       key: 'productionDateDc',
       label: t('quoteList.columns.productionDateDc'),
+      width: 150,
+      minWidth: 130,
+      showOverflowTooltip: true
+    },
+    {
+      key: 'leadTime',
+      label: t('quoteList.columns.leadTime'),
       width: 120,
-      minWidth: 104,
+      minWidth: 100,
       showOverflowTooltip: true
     },
     {
@@ -582,6 +598,67 @@ function displayQuoteProductionDateDc(row: Record<string, unknown>): string {
   }
   if (labels.size === 0) return t('quoteList.na')
   return [...labels].join('、')
+}
+
+/** 交期：多明细去重后顿号拼接 */
+function displayQuoteLeadTime(row: Record<string, unknown>): string {
+  const items = row.items ?? row.Items
+  if (Array.isArray(items) && items.length > 0) {
+    const set = new Set<string>()
+    for (const raw of items) {
+      const o = raw as Record<string, unknown>
+      const lt = o.leadTime ?? o.LeadTime
+      if (lt != null && String(lt).trim() !== '') set.add(String(lt).trim())
+    }
+    if (set.size > 0) return [...set].join('、')
+  }
+  const hdr = row.leadTime ?? row.LeadTime
+  const s = hdr != null ? String(hdr).trim() : ''
+  if (s) return s
+  return t('quoteList.na')
+}
+
+function formatCopyUnitPrice(value: number): string {
+  if (!Number.isFinite(value)) return '—'
+  const fixed = value.toFixed(6).replace(/\.?0+$/, '')
+  return fixed || '0'
+}
+
+/** 复制摘要：物料型号、品牌、数量PCS、单价+币别、生产日期 */
+function buildQuoteSummaryCopyText(row: Record<string, unknown>): string {
+  const mpn = firstQuoteItemMpn(row) || '—'
+
+  const brandRaw = displayFirstItemBrand(row)
+  const brand = brandRaw === t('quoteList.na') ? '—' : brandRaw
+
+  const qtyRaw = displayFirstItemQuantity(row)
+  const qty = qtyRaw === t('quoteList.na') ? '—' : `${qtyRaw}PCS`
+
+  let priceCurrency = '—'
+  const it = firstQuoteItem(row)
+  if (it) {
+    const p = it.unitPrice ?? it.UnitPrice
+    const n = Number(p)
+    if (Number.isFinite(n)) {
+      const ccy = listAmountCurrencyIso(Number(it.currency ?? it.Currency ?? 1))
+      priceCurrency = `${formatCopyUnitPrice(n)}${ccy}`
+    }
+  }
+
+  const pdRaw = displayQuoteProductionDateDc(row)
+  const pd = pdRaw === t('quoteList.na') ? '—' : pdRaw
+
+  return [mpn, brand, qty, priceCurrency, pd].join('    ')
+}
+
+async function handleCopyQuoteSummary(row: Record<string, unknown>) {
+  const text = buildQuoteSummaryCopyText(row)
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success(t('quoteList.actions.copySuccess'))
+  } catch {
+    ElMessage.error(t('quoteList.actions.copyFailed'))
+  }
 }
 
 // 状态处理

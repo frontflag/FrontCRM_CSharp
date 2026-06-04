@@ -139,7 +139,7 @@
         :data="customerList"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
         row-key="id"
-        @row-dblclick="handleView"
+        @row-dblclick="onRowDblClick"
       >
         <template #col-status="{ row }">
           <span class="status-dot" :class="getStatusDotClass(row.status)">
@@ -580,6 +580,15 @@ function onCreateDropdownCommand(cmd: string) {
 }
 const handleView = (row: Customer) => router.push(`/customers/${row.id}`);
 const handleEdit = (row: Customer) => router.push(`/customers/${row.id}/edit`);
+
+/** 双击：详情；按住 Ctrl 双击：编辑（需销售数据写权限） */
+function onRowDblClick(row: Customer, _column: unknown, event?: MouseEvent) {
+  if (event?.ctrlKey && canWriteSaleData.value) {
+    handleEdit(row);
+    return;
+  }
+  handleView(row);
+}
 
 function goCustomerWarrantyReport(row: Customer, lang: 'en' | 'zh') {
   if (!row?.id) return

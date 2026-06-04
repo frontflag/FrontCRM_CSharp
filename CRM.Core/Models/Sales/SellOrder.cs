@@ -44,6 +44,11 @@ namespace CRM.Core.Models.Sales
         [Column("sales_user_name")]
         public string? SalesUserName { get; set; }
 
+        /// <summary>销售助理用户 ID（<c>user.UserId</c>），商务部负责跟进本销售订单。</summary>
+        [StringLength(36)]
+        [Column("assistor")]
+        public string? Assistor { get; set; }
+
         /// <summary>采购员组ID</summary>
         [StringLength(36)]
         [Column("purchase_group_id")]

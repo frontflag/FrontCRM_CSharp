@@ -15,4 +15,6 @@ globs:
 
 若检查失败，须修复报错后再结束本次前端相关任务；不得仅假设能通过。
 
+**路径大小写：** 若报错 **TS1261**（路径仅大小写不同），须按 [import 路径大小写规范](../../../document/PRD/规范/前端规范/import路径大小写规范.md) 修正 `import` 后再跑 typecheck。
+
 仓库根目录已配置 **Husky**：`git commit` 时若暂存区包含 `CRM.Web/` 下文件，会自动执行 `npm run web:typecheck`；未通过则提交被拒绝。首次克隆后请在仓库根目录执行一次 `npm install` 以安装 husky 并注册钩子。

@@ -7,6 +7,7 @@ using CRM.Core.Models.Rbac;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Models.Sales;
 using CRM.Core.Models.Vendor;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
 {
@@ -180,14 +181,16 @@ namespace CRM.Core.Services
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
             if (summary.IsSysAdmin || summary.SaleDataScope == 0) return source.ToList();
+            if (BusinessDepartmentRules.UseSellOrderAssistorOnlyScope(summary))
+                return source.Where(x => IsSellOrderAssistor(x, userId)).ToList();
             if (summary.SaleDataScope == 4) return Array.Empty<SellOrder>();
 
             var list = source.ToList();
             if (summary.SaleDataScope == 1)
-                return list.Where(x => x.SalesUserId == userId).ToList();
+                return list.Where(x => MatchesSellOrderDataScope(x, userId, null)).ToList();
 
             var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
-            return list.Where(x => !string.IsNullOrWhiteSpace(x.SalesUserId) && allowUserIds.Contains(x.SalesUserId!)).ToList();
+            return list.Where(x => MatchesSellOrderDataScope(x, userId, allowUserIds)).ToList();
         }
 
         public async Task<IReadOnlyList<PurchaseOrder>> FilterPurchaseOrdersAsync(string userId, IEnumerable<PurchaseOrder> source)
@@ -402,14 +405,35 @@ namespace CRM.Core.Services
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
             if (summary.IsSysAdmin || summary.SaleDataScope == 0)
                 return query;
+            if (BusinessDepartmentRules.UseSellOrderAssistorOnlyScope(summary))
+                return query.Where(x => x.Assistor == userId);
             if (summary.SaleDataScope == 4)
                 return query.Where(_ => false);
 
             if (summary.SaleDataScope == 1)
-                return query.Where(x => x.SalesUserId == userId);
+                return query.Where(x => x.SalesUserId == userId || x.Assistor == userId);
 
             var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
-            return query.Where(x => x.SalesUserId != null && allowUserIds.Contains(x.SalesUserId));
+            return query.Where(x =>
+                (x.SalesUserId != null && allowUserIds.Contains(x.SalesUserId))
+                || x.Assistor == userId);
+        }
+
+        private static bool IsSellOrderAssistor(SellOrder order, string userId) =>
+            !string.IsNullOrWhiteSpace(order.Assistor)
+            && string.Equals(order.Assistor.Trim(), userId, StringComparison.OrdinalIgnoreCase);
+
+        private static bool MatchesSellOrderDataScope(
+            SellOrder order,
+            string userId,
+            HashSet<string>? allowSalesUserIds)
+        {
+            if (IsSellOrderAssistor(order, userId))
+                return true;
+            if (allowSalesUserIds == null)
+                return string.Equals(order.SalesUserId, userId, StringComparison.OrdinalIgnoreCase);
+            return !string.IsNullOrWhiteSpace(order.SalesUserId)
+                   && allowSalesUserIds.Contains(order.SalesUserId!);
         }
 
         /// <inheritdoc />

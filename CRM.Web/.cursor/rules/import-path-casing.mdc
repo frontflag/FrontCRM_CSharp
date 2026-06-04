@@ -1,0 +1,32 @@
+---
+description: import 路径大小写必须与磁盘目录完全一致（Linux 构建 TS1261）
+globs:
+  - CRM.Web/**/*.vue
+  - CRM.Web/**/*.ts
+  - CRM.Web/**/*.tsx
+alwaysApply: false
+---
+
+# import 路径大小写（强制）
+
+规范全文：`document/PRD/规范/前端规范/import路径大小写规范.md`
+
+## 必须遵守
+
+- `@/`、相对路径、`import()` 中的**每一段目录名、文件名**大小写须与仓库中真实路径一致。
+- 新建组件/工具时：先 `grep` 或查看同目录已有文件的 import，**复制正确大小写**，勿手猜。
+- `components/` 下模块目录使用 **PascalCase**（如 `Logistics/`，不是 `logistics/`）。
+
+## 示例
+
+```ts
+// ✅
+import X from '@/components/Logistics/ShipmentExpressFields.vue'
+
+// ❌ Linux vue-tsc TS1261
+import X from '@/components/logistics/ShipmentExpressFields.vue'
+```
+
+## 完成前端改动后
+
+与 `typecheck-after-frontend-edit` 一并执行：`npm run typecheck`（或 `npm run build`）。

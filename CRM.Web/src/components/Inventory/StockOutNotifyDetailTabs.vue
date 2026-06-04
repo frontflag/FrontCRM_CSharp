@@ -66,7 +66,6 @@
                 {{ soItemExtendTriLabel('invoice', row.invoiceProgressStatus) }}
               </el-tag>
             </template>
-            <template #col-orderCreateTime="{ row }">{{ soItemFormatDt(row.orderCreateTime) }}</template>
             <template #col-currency="{ row }">{{ soItemSettlementCurrencyLabel(row.currency) }}</template>
             <template #col-price="{ row }">
               <span class="amount-with-code">

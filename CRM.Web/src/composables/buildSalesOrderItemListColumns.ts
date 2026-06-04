@@ -47,7 +47,6 @@ export function buildSalesOrderItemListColumns(p: BuildSalesOrderItemListColumns
       showOverflowTooltip: true
     },
     { key: 'orderStatus', label: p.t('salesOrderItemList.columns.status'), prop: 'orderStatus', width: 160, align: 'center' },
-    { key: 'orderCreateTime', label: p.t('salesOrderItemList.columns.orderCreateDate'), prop: 'orderCreateTime', width: 160 },
     { key: 'salesUserName', label: p.t('salesOrderItemList.columns.salesUser'), prop: 'salesUserName', width: 100, showOverflowTooltip: true },
     { key: 'pn', label: p.t('salesOrderItemList.columns.pn'), prop: 'pn', minWidth: 130, showOverflowTooltip: true },
     { key: 'brand', label: p.t('salesOrderItemList.columns.brand'), prop: 'brand', width: 110, showOverflowTooltip: true },
@@ -56,9 +55,9 @@ export function buildSalesOrderItemListColumns(p: BuildSalesOrderItemListColumns
     { key: 'createUser', label: p.t('salesOrderItemList.columns.createUser'), width: 120, showOverflowTooltip: true }
   )
   if (p.listCustomerColumnOk) {
-    const insertCustomerAt = cols.findIndex((c) => c.key === 'orderCreateTime')
+    const insertCustomerAt = cols.findIndex((c) => c.key === 'orderStatus')
     if (insertCustomerAt >= 0) {
-      cols.splice(insertCustomerAt, 0, {
+      cols.splice(insertCustomerAt + 1, 0, {
         key: 'customerName',
         label: p.t('salesOrderItemList.columns.customerName'),
         prop: 'customerName',

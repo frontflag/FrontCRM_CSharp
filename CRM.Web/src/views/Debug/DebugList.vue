@@ -43,7 +43,7 @@ onMounted(async () => {
         当前前端构建版本：<span class="mono version-strong">{{ FRONTEND_DEBUG_VERSION }}</span>
         （来自 package.json，每次 <code>npm run build</code> 写入；用于核对线上是否为本次构建）
       </div>
-      <div class="debug-sub muted">按 PRD：数据库连接（后端脱敏）、debug 表记录；版本号见上。</div>
+      <div class="debug-sub muted">按 PRD：数据库面板仅展示库名（脱敏），debug 表记录；版本号见上。</div>
     </div>
 
     <section class="debug-panel panel-version">

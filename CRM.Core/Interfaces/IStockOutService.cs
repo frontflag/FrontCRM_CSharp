@@ -15,10 +15,9 @@ namespace CRM.Core.Interfaces
         Task<StockOutApplyContextDto> GetApplyContextAsync(string salesOrderId, string salesOrderItemId);
         Task<IEnumerable<StockOutRequestListItemDto>> GetStockOutRequestListAsync();
 
-        /// <summary>出库通知列表分页（workflow：all / done / pending_pick / picked_pending_out）。</summary>
+        /// <summary>出库通知列表分页。</summary>
         Task<PagedResult<StockOutRequestListItemDto>> GetStockOutRequestListPagedAsync(
-            string? keyword,
-            string? workflow,
+            StockOutRequestListQueryRequest? filter,
             int page,
             int pageSize,
             CancellationToken cancellationToken = default);
@@ -32,10 +31,9 @@ namespace CRM.Core.Interfaces
         /// <summary>出库单列表（含客户、业务员、销售明细编号等展示字段）</summary>
         Task<IEnumerable<StockOutListItemDto>> GetStockOutListAsync();
 
-        /// <summary>出库单列表分页；<paramref name="sourceCode"/> 非空时按来源单号精确匹配（忽略 <paramref name="keyword"/>）。</summary>
+        /// <summary>出库单列表分页；<see cref="StockOutListQueryRequest.SourceCode"/> 非空时按来源单号精确匹配（忽略其他筛选）。</summary>
         Task<PagedResult<StockOutListItemDto>> GetStockOutListPagedAsync(
-            string? keyword,
-            string? sourceCode,
+            StockOutListQueryRequest? filter,
             int page,
             int pageSize,
             CancellationToken cancellationToken = default);
@@ -78,8 +76,11 @@ namespace CRM.Core.Interfaces
         public string RequestUserId { get; set; } = string.Empty;
         public DateTime RequestDate { get; set; }
         public string? Remark { get; set; }
-        /// <summary>出货方式（字典 LogisticsArrivalMethod ItemCode）</summary>
+        /// <summary>出货方式（字典 LogisticsArrivalMethod ItemCode，必填：1送货 2自提 3快递）</summary>
         public string? ShipmentMethod { get; set; }
+
+        /// <summary>快递公司（字典 LogisticsExpressMethod ItemCode，可选）</summary>
+        public string? ExpressCompany { get; set; }
 
         /// <summary>地域类型 RegionType：10=境内 20=境外（与仓库、到货通知共用）</summary>
         [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
@@ -114,11 +115,13 @@ namespace CRM.Core.Interfaces
         public short StockOutType { get; set; }
         public string? SourceCode { get; set; }
         public string? SourceId { get; set; }
-        public DateTime StockOutDate { get; set; }
+        public DateTime? StockOutDate { get; set; }
         /// <summary>预计出库日期</summary>
         public DateTime? ExpectedStockOutDate { get; set; }
         /// <summary>关联装箱单数量（去重）</summary>
         public int PackingCount { get; set; }
+        /// <summary>关联装箱单编号，多个以英文逗号拼接。</summary>
+        public string? PackingCodes { get; set; }
         public int TotalQuantity { get; set; }
         public decimal TotalAmount { get; set; }
         public short Status { get; set; }
@@ -131,6 +134,8 @@ namespace CRM.Core.Interfaces
         public string? SellOrderItemCode { get; set; }
         /// <summary>出货方式（字典 ItemCode）</summary>
         public string? ShipmentMethod { get; set; }
+        /// <summary>快递公司（字典 LogisticsExpressMethod ItemCode，优先关联出库通知）</summary>
+        public string? ExpressCompany { get; set; }
         public string? CourierTrackingNo { get; set; }
     }
 
@@ -193,9 +198,20 @@ namespace CRM.Core.Interfaces
         public string? RequestUserName { get; set; }
         public DateTime RequestDate { get; set; }
         public short Status { get; set; }
+        /// <summary>报关状态，见 <see cref="StockOutNotifyCustomsStatusCode"/>。</summary>
+        public short CustomsStatus { get; set; }
         public string? Remark { get; set; }
         /// <summary>出货方式（字典 LogisticsArrivalMethod ItemCode）</summary>
         public string? ShipmentMethod { get; set; }
+
+        /// <summary>快递公司（字典 LogisticsExpressMethod ItemCode）</summary>
+        public string? ExpressCompany { get; set; }
+
+        /// <summary>关联装箱单主键（<c>packing_item.stockout_notify_id</c>）。</summary>
+        public string? PackingId { get; set; }
+
+        /// <summary>关联装箱单号 <c>packing.code</c>。</summary>
+        public string? PackingCode { get; set; }
 
         /// <summary>地域类型：10=境内 20=境外</summary>
         public short RegionType { get; set; }
@@ -217,7 +233,7 @@ namespace CRM.Core.Interfaces
         public string StockOutCode { get; set; } = string.Empty;
         public string WarehouseId { get; set; } = string.Empty;
         public string OperatorId { get; set; } = string.Empty;
-        public DateTime StockOutDate { get; set; }
+        public DateTime? StockOutDate { get; set; }
         /// <summary>预计出库日期（批量出库等场景；UTC）。</summary>
         public DateTime? ExpectedStockOutDate { get; set; }
         public string? Remark { get; set; }
@@ -255,6 +271,9 @@ namespace CRM.Core.Interfaces
 
         /// <summary>入库单号（<c>stock_in.StockInCode</c>），子串匹配</summary>
         public string? StockInCode { get; set; }
+
+        /// <summary>装箱单号（<c>packing.Code</c>），子串匹配</summary>
+        public string? PackingCode { get; set; }
     }
 
     /// <summary><c>stockoutitem</c> 行 + 头表展示字段。</summary>
@@ -264,7 +283,7 @@ namespace CRM.Core.Interfaces
         public string StockOutId { get; set; } = string.Empty;
         public short Status { get; set; }
         public string StockOutCode { get; set; } = string.Empty;
-        public DateTime StockOutDate { get; set; }
+        public DateTime? StockOutDate { get; set; }
         public string? CustomerName { get; set; }
         public string? SalesUserName { get; set; }
         public string? PurchasePn { get; set; }
@@ -277,5 +296,11 @@ namespace CRM.Core.Interfaces
 
         /// <summary>来源入库单号（拣货扩展 <c>StockInItemId</c> → 入库头 <c>StockInCode</c>）</summary>
         public string? StockInCode { get; set; }
+
+        /// <summary>关联装箱单主键</summary>
+        public string? PackingId { get; set; }
+
+        /// <summary>关联装箱单编号</summary>
+        public string? PackingCode { get; set; }
     }
 }

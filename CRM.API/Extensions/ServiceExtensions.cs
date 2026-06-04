@@ -85,6 +85,7 @@ namespace CRM.API.Extensions
                 services.AddSingleton<ISearcher, NullIpSearcher>();
             services.AddScoped<IDraftService, DraftService>();
             services.AddScoped<IRbacService, RbacService>();
+            services.AddScoped<ISysRelationMapService, CRM.Infrastructure.RelationMaps.SysRelationMapService>();
             services.AddScoped<IDataPermissionService, DataPermissionService>();
             services.AddScoped<IApprovalRecordService, ApprovalRecordService>();
             services.AddScoped<IOrderJourneyLogService, OrderJourneyLogService>();

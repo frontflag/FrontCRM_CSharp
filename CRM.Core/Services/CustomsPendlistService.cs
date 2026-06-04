@@ -150,9 +150,14 @@ public class CustomsPendlistService : ICustomsPendlistService
             RegionType = RegionTypeCode.Overseas,
             StockOutType = StockOutTypeCode.Customs,
             CustomsPendlistId = pendlist.Id,
+            CustomsStatus = StockOutNotifyCustomsStatusCode.InCustoms,
             CreateTime = now,
             CreateByUserId = actor
         };
+
+        salesSor.CustomsStatus = StockOutNotifyCustomsStatusCode.InCustoms;
+        salesSor.ModifyTime = now;
+        salesSor.ModifyByUserId = actor;
 
         pendlist.CustomsStockOutNotifyId = customsSorId;
         pendlist.Status = CustomsPendlistStatusCode.CustomsOutNotifyCreated;
@@ -160,6 +165,7 @@ public class CustomsPendlistService : ICustomsPendlistService
         pendlist.ModifyByUserId = actor;
 
         await _stockOutRequestRepo.AddAsync(customsSor);
+        await _stockOutRequestRepo.UpdateAsync(salesSor);
         await _pendlistRepo.UpdateAsync(pendlist);
         await _unitOfWork.SaveChangesAsync();
 

@@ -113,7 +113,7 @@ const DOC_BIZ = 'STOCK_OUT'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
-const { ensureLoaded: ensureLogisticsDict, arrivalOptions: shipmentMethodOptions } = useLogisticsFormDict()
+const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions: shipmentMethodOptions } = useLogisticsFormDict()
 
 const loading = ref(false)
 const saving = ref(false)

@@ -238,17 +238,32 @@ elseif ($DeploymentMode -eq "nonDocker") {
     $useDocker = $false
 }
 else {
-    # auto: if docker compose ps succeeds, treat as docker mode
-    # PS 5.1：双引号内 2>&1、> 会被当成重定向，须用单引号整段 bash
-    & ssh @SshOpts -p $SshPort "$SshTarget" 'command -v docker >/dev/null 2>&1 && docker compose ps >/dev/null 2>&1'
+    Write-Host "Detecting remote deployment mode (docker vs non-docker, timeout 15s)..." -ForegroundColor Yellow
+    $remotePath = $RemoteDeployPath.Replace("'", "'\''")
+    $detectDockerCmd = 'timeout 15 sh -c ''command -v docker >/dev/null 2>&1 && test -f ''' + $remotePath + '/docker-compose.yml'' && cd ''' + $remotePath + ''' && docker compose ps -q 2>/dev/null | head -1 | grep -q .'' 2>/dev/null'
+    & ssh @SshOpts -p $SshPort "$SshTarget" $detectDockerCmd
     if ($LASTEXITCODE -eq 0) { $useDocker = $true }
+    if ($useDocker) {
+        Write-Host "  -> Docker (compose available on server)" -ForegroundColor Gray
+    } else {
+        Write-Host "  -> Non-Docker (Nginx + systemd crm-api)" -ForegroundColor Gray
+    }
+    Write-Host ""
 }
 
 if ($useDocker) {
-    Write-Host "Docker deployment mode detected: rebuilding and starting compose." -ForegroundColor Cyan
-    Write-Host ""
-    & ssh @SshOpts -p $SshPort "$SshTarget" "cd '$RemoteDeployPath'; docker compose build --no-cache" | Out-Null
-    & ssh @SshOpts -p $SshPort "$SshTarget" "cd '$RemoteDeployPath'; docker compose up -d" | Out-Null
+    Write-Host "Docker deployment: docker compose build --no-cache (may take several minutes, output below)..." -ForegroundColor Cyan
+    & ssh @SshOpts -p $SshPort "$SshTarget" "cd '$RemoteDeployPath'; docker compose build --no-cache"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: docker compose build failed." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "Docker deployment: docker compose up -d ..." -ForegroundColor Cyan
+    & ssh @SshOpts -p $SshPort "$SshTarget" "cd '$RemoteDeployPath'; docker compose up -d"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: docker compose up failed." -ForegroundColor Red
+        exit 1
+    }
 }
 else {
     Write-Host "Non-Docker mode detected: applying Nginx + dotnet flow." -ForegroundColor Cyan
@@ -292,9 +307,13 @@ else {
     Write-Host ('>>> Non-Docker: restart crm-api (free port {0} first)...' -f $BackendPort) -ForegroundColor Gray
     $nd = $NonDockerBackendRoot
     $bp = $BackendPort
-    # Stop service and kill orphan dotnet process to avoid AddressInUse on 5000.
-    $restartApiOneLine = 'if ' + $SudoCmd + ' systemctl list-unit-files 2>/dev/null | grep -qF ''crm-api.service''; then ' + $SudoCmd + ' systemctl daemon-reload; ' + $SudoCmd + ' systemctl stop crm-api 2>/dev/null || true; sleep 3; ' + $SudoCmd + ' systemctl start crm-api || exit 1; sleep 2; else cd ' + $nd + ' || exit 1; pkill -f ''[d]otnet CRM.API.dll'' 2>/dev/null || true; sleep 3; export ASPNETCORE_ENVIRONMENT=Production; export ASPNETCORE_URLS=http://0.0.0.0:' + $bp + '; nohup dotnet CRM.API.dll > api.log 2>&1 & sleep 2; fi'
-    & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$restartApiOneLine"
+    $stopApiOneLine = 'if ' + $SudoCmd + ' systemctl list-unit-files 2>/dev/null | grep -qF ''crm-api.service''; then ' + $SudoCmd + ' systemctl stop crm-api 2>/dev/null || true; sleep 2; else pkill -f ''[d]otnet CRM.API.dll'' 2>/dev/null || true; sleep 2; fi'
+    Write-Host '>>> Non-Docker: stopping crm-api...' -ForegroundColor Gray
+    & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$stopApiOneLine"
+
+    $startApiOneLine = 'if ' + $SudoCmd + ' systemctl list-unit-files 2>/dev/null | grep -qF ''crm-api.service''; then ' + $SudoCmd + ' systemctl daemon-reload; ' + $SudoCmd + ' systemctl start crm-api || exit 1; sleep 2; else cd ' + $nd + ' || exit 1; export ASPNETCORE_ENVIRONMENT=Production; export ASPNETCORE_URLS=http://0.0.0.0:' + $bp + '; nohup dotnet CRM.API.dll > api.log 2>&1 & sleep 2; fi'
+    Write-Host '>>> Non-Docker: starting crm-api...' -ForegroundColor Gray
+    & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$startApiOneLine"
     $restartExit = $LASTEXITCODE
 
     # Kestrel may be ready after systemctl returns; verify by health endpoint.

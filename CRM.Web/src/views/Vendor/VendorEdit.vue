@@ -194,21 +194,12 @@
             </el-col>
             <el-col :span="8">
               <el-form-item :label="t('vendorEdit.fields.bankName')">
-                <el-select
+                <finance-payment-bank-select
                   v-model="formData.financePaymentBankId"
                   :placeholder="t('vendorEdit.fields.bankNamePh')"
-                  filterable
                   clearable
                   class="q-select"
-                  style="width: 100%"
-                >
-                  <el-option
-                    v-for="b in paymentBankOptions"
-                    :key="b.id"
-                    :label="b.bankName"
-                    :value="b.id"
-                  />
-                </el-select>
+                />
               </el-form-item>
             </el-col>
           </el-row>
@@ -361,14 +352,13 @@ import PurchaserCascader from '@/components/PurchaserCascader.vue';
 import { useVendorDictStore } from '@/stores/vendorDict';
 import { logRecentApi } from '@/api/logRecent';
 import { VENDOR_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/vendorRecentHistory';
-import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBankOptions';
+import FinancePaymentBankSelect from '@/components/Finance/FinancePaymentBankSelect.vue';
 
 const route = useRoute();
 const router = useRouter();
 const { t, locale } = useI18n();
 
 const vendorDict = useVendorDictStore();
-const { paymentBankOptions, loadPaymentBankOptions } = useFinancePaymentBankOptions();
 
 /** 与 CustomerEdit 一致：create 路由无 id，:id/edit 有 id */
 const isEdit = computed(() => !!route.params.id);
@@ -770,7 +760,6 @@ const syncContactsForVendor = async (targetVendorId: string) => {
 
 onMounted(async () => {
   void vendorDict.ensureLoaded();
-  await loadPaymentBankOptions();
   void fetchVendorDetail();
   const draftId = route.query.draftId;
   if (!isEdit.value && typeof draftId === 'string' && draftId) {

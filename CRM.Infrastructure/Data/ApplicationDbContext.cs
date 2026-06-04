@@ -160,6 +160,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<SysParam> SysParams { get; set; } = null!;
         public DbSet<CompanyBankInfo> CompanyBankInfos { get; set; } = null!;
         public DbSet<SysDictItem> SysDictItems { get; set; } = null!;
+        public DbSet<SysRelationMap> SysRelationMaps { get; set; } = null!;
         public DbSet<ApprovalRecord> ApprovalRecords { get; set; } = null!;
         public DbSet<OrderJourneyLog> OrderJourneyLogs { get; set; } = null!;
         public DbSet<LoginLog> LoginLogs { get; set; } = null!;
@@ -438,6 +439,7 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<TagDefinition>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<BizDraft>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<UploadDocument>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<SysRelationMap>().HasQueryFilter(e => !e.IsDeleted);
 
             // User configuration
             modelBuilder.Entity<User>(entity =>
@@ -1010,6 +1012,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.BillAttn).HasColumnName("bill_attn").HasMaxLength(100);
                 entity.Property(e => e.BillTel).HasColumnName("bill_tel").HasMaxLength(64);
                 entity.Property(e => e.DeliveryReq).HasColumnName("delivery_req").HasMaxLength(256);
+                entity.Property(e => e.ShipmentMethod).HasColumnName("shipment_method").HasMaxLength(64);
+                entity.Property(e => e.ExpressCompany).HasColumnName("express_company").HasMaxLength(64);
                 entity.Property(e => e.DeliveryMethod).HasColumnName("delivery_method");
                 entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
             });
@@ -1075,6 +1079,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.RequestUserId).HasMaxLength(36);
                 entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.Property(e => e.ShipmentMethod).HasMaxLength(64);
+                entity.Property(e => e.ExpressCompany).HasMaxLength(64);
+                entity.Property(e => e.CustomsStatus).HasColumnName("CustomsStatus").HasDefaultValue((short)0);
                 entity.Property(e => e.RegionType).HasColumnName("RegionType").HasDefaultValue((short)10);
                 entity.Property(e => e.StockOutType).HasColumnName("StockOutType").HasDefaultValue(StockOutTypeCode.Sales);
                 entity.Property(e => e.CustomsPendlistId).HasColumnName("customs_pendlist_id").HasMaxLength(36);
@@ -1773,6 +1779,25 @@ namespace CRM.Infrastructure.Data
                 entity.Ignore(e => e.ModifyTime);
             });
 
+            modelBuilder.Entity<SysRelationMap>(entity =>
+            {
+                entity.ToTable("sys_relation_map");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+                entity.Property(e => e.Type).HasColumnName("type");
+                entity.Property(e => e.ObjSrc).HasColumnName("obj_src").IsRequired().HasMaxLength(64);
+                entity.Property(e => e.ObjDest).HasColumnName("obj_dest").IsRequired().HasMaxLength(64);
+                entity.Property(e => e.Remark).HasColumnName("remark").HasMaxLength(500);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+                entity.HasIndex(e => new { e.Type, e.ObjSrc, e.ObjDest })
+                    .IsUnique()
+                    .HasFilter("is_deleted = false");
+                entity.HasIndex(e => new { e.Type, e.ObjSrc })
+                    .HasFilter("is_deleted = false");
+                entity.HasIndex(e => new { e.Type, e.ObjDest })
+                    .HasFilter("is_deleted = false");
+            });
+
             modelBuilder.Entity<FinanceExchangeRateSetting>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -1808,6 +1833,9 @@ namespace CRM.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("FinancePaymentBankId").HasMaxLength(36);
                 entity.Property(e => e.BankName).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.ShortName).HasMaxLength(100);
+                entity.Property(e => e.EBankName).HasMaxLength(200);
+                entity.Property(e => e.CurrencyType).HasDefaultValue(10);
                 entity.Property(e => e.SortOrder);
                 entity.Property(e => e.IsDisabled);
                 entity.Ignore(e => e.CreateUserId);

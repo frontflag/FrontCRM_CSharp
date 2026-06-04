@@ -13,9 +13,63 @@
       </div>
     </div>
 
-    <el-table :data="rows" border stripe size="small" class="bank-table">
+    <div class="search-bar">
+      <span class="filter-label">{{ t('financeParams.filterBankName') }}</span>
+      <el-input
+        v-model="filters.bankKeyword"
+        clearable
+        class="filter-bank-keyword"
+        :placeholder="t('financeParams.filterBankNamePlaceholder')"
+        @keyup.enter="onQuery"
+      />
+      <span class="filter-label">{{ t('financeParams.filterCurrency') }}</span>
+      <el-select
+        v-model="filters.currencyType"
+        clearable
+        class="filter-currency"
+        :placeholder="t('financeParams.filterAll')"
+        :teleported="false"
+      >
+        <el-option
+          v-for="opt in currencyTypeOptions"
+          :key="opt.value"
+          :label="t(opt.labelKey)"
+          :value="opt.value"
+        />
+      </el-select>
+      <span class="filter-label">{{ t('financeParams.filterStatus') }}</span>
+      <el-select
+        v-model="filters.status"
+        clearable
+        class="filter-status"
+        :placeholder="t('financeParams.filterAll')"
+        :teleported="false"
+      >
+        <el-option :label="t('financeParams.statusEnabled')" value="enabled" />
+        <el-option :label="t('financeParams.statusDisabled')" value="disabled" />
+      </el-select>
+      <el-button type="primary" @click="onQuery">{{ t('financeParams.queryBtn') }}</el-button>
+      <el-button @click="resetFilters">{{ t('financeParams.resetBtn') }}</el-button>
+    </div>
+
+    <el-table :data="displayRows" border stripe size="small" class="bank-table">
       <el-table-column prop="sortOrder" :label="t('financeParams.colSortOrder')" width="100" align="center" />
-      <el-table-column prop="bankName" :label="t('financeParams.colBankName')" min-width="260" show-overflow-tooltip />
+      <el-table-column prop="bankName" :label="t('financeParams.colBankName')" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="eBankName" :label="t('financeParams.colEBankName')" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.eBankName || '—' }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="shortName" :label="t('financeParams.colShortName')" width="120" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.shortName || '—' }}
+        </template>
+      </el-table-column>
+      <el-table-column :label="t('financeParams.colCurrencyType')" width="130" align="center">
+        <template #default="{ row }">
+          {{ currencyTypeLabel(row.currencyType) }}
+        </template>
+      </el-table-column>
       <el-table-column :label="t('financeParams.colStatus')" width="120" align="center">
         <template #default="{ row }">
           <el-switch
@@ -32,10 +86,26 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="480px" destroy-on-close @closed="resetForm">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="520px" destroy-on-close @closed="resetForm">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
         <el-form-item :label="t('financeParams.fieldBankName')" prop="bankName">
           <el-input v-model="form.bankName" maxlength="200" show-word-limit />
+        </el-form-item>
+        <el-form-item :label="t('financeParams.fieldEBankName')" prop="eBankName">
+          <el-input v-model="form.eBankName" maxlength="200" show-word-limit clearable />
+        </el-form-item>
+        <el-form-item :label="t('financeParams.fieldShortName')" prop="shortName">
+          <el-input v-model="form.shortName" maxlength="100" show-word-limit clearable />
+        </el-form-item>
+        <el-form-item :label="t('financeParams.fieldCurrencyType')" prop="currencyType">
+          <el-select v-model="form.currencyType" class="w-full">
+            <el-option
+              v-for="opt in currencyTypeOptions"
+              :key="opt.value"
+              :label="t(opt.labelKey)"
+              :value="opt.value"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item :label="t('financeParams.fieldSortOrder')" prop="sortOrder">
           <el-input-number v-model="form.sortOrder" :min="0" :max="999999" controls-position="right" class="w-full" />
@@ -57,14 +127,72 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { financePaymentBankApi, type FinancePaymentBankDto } from '@/api/financePaymentBank'
+import {
+  FINANCE_PAYMENT_BANK_CURRENCY_CNY,
+  FINANCE_PAYMENT_BANK_CURRENCY_OPTIONS,
+  financePaymentBankCurrencyTypeLabel
+} from '@/constants/financePaymentBankCurrencyType'
 
 const { t } = useI18n()
+
+const currencyTypeOptions = FINANCE_PAYMENT_BANK_CURRENCY_OPTIONS
+
+function currencyTypeLabel(value: number): string {
+  return financePaymentBankCurrencyTypeLabel(value, t)
+}
 
 type RowVm = FinancePaymentBankDto & { _toggleLoading?: boolean }
 
 const loading = ref(false)
 const saving = ref(false)
-const rows = ref<RowVm[]>([])
+const allRows = ref<RowVm[]>([])
+
+const filters = reactive({
+  bankKeyword: '',
+  currencyType: undefined as number | undefined,
+  status: '' as '' | 'enabled' | 'disabled'
+})
+
+const applied = reactive({
+  bankKeyword: '',
+  currencyType: undefined as number | undefined,
+  status: '' as '' | 'enabled' | 'disabled'
+})
+
+const displayRows = computed(() => {
+  let list = allRows.value
+  const kw = applied.bankKeyword.trim().toLowerCase()
+  if (kw) {
+    list = list.filter(
+      (r) =>
+        r.bankName.toLowerCase().includes(kw) ||
+        (r.eBankName ?? '').toLowerCase().includes(kw) ||
+        (r.shortName ?? '').toLowerCase().includes(kw)
+    )
+  }
+  if (applied.currencyType != null) {
+    list = list.filter((r) => r.currencyType === applied.currencyType)
+  }
+  if (applied.status === 'enabled') {
+    list = list.filter((r) => !r.isDisabled)
+  } else if (applied.status === 'disabled') {
+    list = list.filter((r) => r.isDisabled)
+  }
+  return list
+})
+
+function onQuery() {
+  applied.bankKeyword = filters.bankKeyword
+  applied.currencyType = filters.currencyType
+  applied.status = filters.status
+}
+
+function resetFilters() {
+  filters.bankKeyword = ''
+  filters.currencyType = undefined
+  filters.status = ''
+  onQuery()
+}
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const editingId = ref<string | null>(null)
@@ -72,12 +200,16 @@ const formRef = ref<FormInstance>()
 
 const form = reactive({
   bankName: '',
+  shortName: '',
+  eBankName: '',
+  currencyType: FINANCE_PAYMENT_BANK_CURRENCY_CNY,
   sortOrder: 0,
   isDisabled: false
 })
 
 const rules = computed<FormRules>(() => ({
   bankName: [{ required: true, message: t('financeParams.ruleBankName'), trigger: 'blur' }],
+  currencyType: [{ required: true, message: t('financeParams.ruleCurrencyType'), trigger: 'change' }],
   sortOrder: [{ required: true, message: t('financeParams.ruleSortOrder'), trigger: 'change' }]
 }))
 
@@ -89,7 +221,7 @@ async function load() {
   loading.value = true
   try {
     const list = await financePaymentBankApi.list()
-    rows.value = list.map((r) => ({ ...r, _toggleLoading: false }))
+    allRows.value = list.map((r) => ({ ...r, _toggleLoading: false }))
   } catch {
     ElMessage.error(t('financeParams.paymentBanksLoadFailed'))
   } finally {
@@ -100,8 +232,11 @@ async function load() {
 function openAdd() {
   isEdit.value = false
   editingId.value = null
-  const maxOrder = rows.value.reduce((m, r) => Math.max(m, r.sortOrder), 0)
+  const maxOrder = allRows.value.reduce((m, r) => Math.max(m, r.sortOrder), 0)
   form.bankName = ''
+  form.shortName = ''
+  form.eBankName = ''
+  form.currencyType = FINANCE_PAYMENT_BANK_CURRENCY_CNY
   form.sortOrder = maxOrder + 1
   form.isDisabled = false
   dialogVisible.value = true
@@ -111,6 +246,9 @@ function openEdit(row: FinancePaymentBankDto) {
   isEdit.value = true
   editingId.value = row.id
   form.bankName = row.bankName
+  form.shortName = row.shortName ?? ''
+  form.eBankName = row.eBankName ?? ''
+  form.currencyType = row.currencyType ?? FINANCE_PAYMENT_BANK_CURRENCY_CNY
   form.sortOrder = row.sortOrder
   form.isDisabled = row.isDisabled
   dialogVisible.value = true
@@ -127,6 +265,9 @@ async function submit() {
     if (isEdit.value && editingId.value) {
       await financePaymentBankApi.update(editingId.value, {
         bankName: form.bankName.trim(),
+        shortName: form.shortName.trim() || null,
+        eBankName: form.eBankName.trim() || null,
+        currencyType: form.currencyType,
         sortOrder: form.sortOrder,
         isDisabled: form.isDisabled
       })
@@ -134,6 +275,9 @@ async function submit() {
     } else {
       await financePaymentBankApi.create({
         bankName: form.bankName.trim(),
+        shortName: form.shortName.trim() || null,
+        eBankName: form.eBankName.trim() || null,
+        currencyType: form.currencyType,
         sortOrder: form.sortOrder
       })
       ElMessage.success(t('financeParams.saveSuccess'))
@@ -154,6 +298,9 @@ async function onToggleDisabled(row: RowVm, enabled: boolean) {
   try {
     await financePaymentBankApi.update(row.id, {
       bankName: row.bankName,
+      shortName: row.shortName?.trim() || null,
+      eBankName: row.eBankName?.trim() || null,
+      currencyType: row.currencyType,
       sortOrder: row.sortOrder,
       isDisabled
     })
@@ -218,6 +365,32 @@ onMounted(() => {
   flex-shrink: 0;
   display: flex;
   gap: 8px;
+}
+
+.search-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.filter-label {
+  font-size: 13px;
+  color: $text-muted;
+  flex-shrink: 0;
+}
+
+.filter-bank-keyword {
+  width: 220px;
+}
+
+.filter-currency {
+  width: 140px;
+}
+
+.filter-status {
+  width: 120px;
 }
 
 .bank-table {

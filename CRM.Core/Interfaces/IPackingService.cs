@@ -133,6 +133,11 @@ public class PackingExtendShipInput
     public string? BillAttn { get; set; }
     public string? BillTel { get; set; }
     public string? DeliveryReq { get; set; }
+    /// <summary>出货方式：字典 LogisticsArrivalMethod ItemCode。</summary>
+    public string? ShipmentMethod { get; set; }
+    /// <summary>快递公司：字典 LogisticsExpressMethod ItemCode。</summary>
+    public string? ExpressCompany { get; set; }
+    [Obsolete("请使用 ShipmentMethod")]
     public short? DeliveryMethod { get; set; }
 }
 
@@ -160,6 +165,12 @@ public class PackingDraftFromStockOutRequestsDto
     public string? WarehouseName { get; set; }
 
     public List<PackingDraftLineDto> Lines { get; set; } = new();
+
+    /// <summary>所选出库通知统一的出货方式（校验通过后取首条）。</summary>
+    public string? ShipmentMethod { get; set; }
+
+    /// <summary>所选出库通知统一的快递公司（校验通过后取首条，均可为空）。</summary>
+    public string? ExpressCompany { get; set; }
 }
 
 public class PackingDraftLineDto
@@ -193,6 +204,12 @@ public class PackingListItemDto
     public int ItemRows { get; set; }
     public string? Comment { get; set; }
     public DateTime? ScheduleShipDate { get; set; }
+    /// <summary>关联出库通知的计划出货日期（取首条通知 <c>RequestDate</c>）。</summary>
+    public DateTime? RequestDate { get; set; }
+    /// <summary>关联出库通知的出货方式（字典 ItemCode，取首条通知）。</summary>
+    public string? ShipmentMethod { get; set; }
+    /// <summary>快递公司（优先 packing_extend_ship，否则取首条出库通知）。</summary>
+    public string? ExpressCompany { get; set; }
     public DateTime CreateTime { get; set; }
     public string? CreateByUserId { get; set; }
     public string? CreateUserName { get; set; }
@@ -257,6 +274,9 @@ public class PackingDetailDto
     public string? BillAttn { get; set; }
     public string? BillTel { get; set; }
     public string? DeliveryReq { get; set; }
+    public string? ShipmentMethod { get; set; }
+    public string? ExpressCompany { get; set; }
+    [Obsolete("请使用 ShipmentMethod")]
     public short? DeliveryMethod { get; set; }
     public List<PackingDetailLineDto> Items { get; set; } = new();
     public List<PackingDetailItemExtendDto> ItemExtends { get; set; } = new();

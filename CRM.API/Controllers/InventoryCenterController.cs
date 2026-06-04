@@ -309,11 +309,34 @@ namespace CRM.API.Controllers
 
         /// <summary>拣货单列表（出库通知 + 仓库 + 订单展示列）。</summary>
         [HttpGet("picking-list")]
-        public async Task<ActionResult<ApiResponse<IReadOnlyList<PickingTaskListItemDto>>>> GetPickingTaskList()
+        public async Task<ActionResult<ApiResponse<IReadOnlyList<PickingTaskListItemDto>>>> GetPickingTaskList(
+            [FromQuery] short? status = null,
+            [FromQuery] string? warehouseId = null,
+            [FromQuery] string? taskCode = null,
+            [FromQuery] string? packingCode = null,
+            [FromQuery] string? stockOutRequestCode = null,
+            [FromQuery] string? materialModel = null,
+            [FromQuery] string? customerName = null,
+            [FromQuery] string? salesUserName = null,
+            [FromQuery] DateTime? createTimeFrom = null,
+            [FromQuery] DateTime? createTimeTo = null)
         {
             try
             {
-                var list = await _service.GetPickingTaskListRowsAsync();
+                var query = new PickingTaskListQueryRequest
+                {
+                    Status = status,
+                    WarehouseId = warehouseId,
+                    TaskCode = taskCode,
+                    PackingCode = packingCode,
+                    StockOutRequestCode = stockOutRequestCode,
+                    MaterialModel = materialModel,
+                    CustomerName = customerName,
+                    SalesUserName = salesUserName,
+                    CreateTimeFrom = createTimeFrom,
+                    CreateTimeTo = createTimeTo
+                };
+                var list = await _service.GetPickingTaskListRowsAsync(query);
                 if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
                 {
                     var masked = list.ToList();

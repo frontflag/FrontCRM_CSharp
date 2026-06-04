@@ -136,7 +136,6 @@
       <template #col-itemStatus="{ row }">
         <el-tag effect="dark" :type="statusTagType(row.itemStatus)" size="small">{{ statusText(row.itemStatus) }}</el-tag>
       </template>
-      <template #col-orderCreateTime="{ row }">{{ formatDt(row.orderCreateTime) }}</template>
       <template #col-paymentProgressStatus="{ row }">
         <el-tag effect="dark" size="small" :type="poExtendTriTagType(Number(row.paymentProgressStatus ?? 0))">
           {{ poPaymentProgressText(Number(row.paymentProgressStatus ?? 0)) }}
@@ -333,6 +332,14 @@
             >
               进项发票
             </button>
+            <button
+              type="button"
+              class="tab-btn"
+              :class="{ 'tab-btn--active': poItemLinePanel.activeTab === 'qcImages' }"
+              @click="poItemLinePanel.activeTab = 'qcImages'"
+            >
+              {{ t('purchaseOrderItemList.lineDetailPanel.qcImages') }}
+            </button>
           </div>
           <div class="tabs-body">
             <div v-show="poItemLinePanel.activeTab === 'requisitions'" class="po-aggregate-table-wrap">
@@ -350,6 +357,22 @@
                 </el-table-column>
                 <el-table-column label="状态" width="100">
                   <template #default="{ row }">{{ poDetailPrStatusText(row?.status) }}</template>
+                </el-table-column>
+                <el-table-column label="销售订单号" min-width="140" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    <router-link
+                      v-if="row.sellOrderId && row.sellOrderCode"
+                      class="po-tab-link"
+                      :to="`/sales-orders/${row.sellOrderId}`"
+                    >
+                      {{ row.sellOrderCode }}
+                    </router-link>
+                    <span v-else-if="row.sellOrderCode">{{ row.sellOrderCode }}</span>
+                    <span v-else>—</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="salesUserName" label="业务员" width="120" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.salesUserName?.trim() || '—' }}</template>
                 </el-table-column>
                 <el-table-column prop="pn" label="PN" min-width="140" show-overflow-tooltip />
                 <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip />
@@ -455,6 +478,12 @@
               </el-table>
               <el-empty v-else :description="t('purchaseOrderItemList.lineDetailPanel.empty')" :image-size="64" />
             </div>
+            <div v-show="poItemLinePanel.activeTab === 'qcImages'" class="po-aggregate-table-wrap po-qc-images-wrap">
+              <QcImagesReadonlyGallery
+                :images="lineTabAggregates?.qcImages ?? []"
+                :empty-text="t('purchaseOrderItemList.lineDetailPanel.emptyQcImages')"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -484,19 +513,10 @@
         <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item :label="t('purchaseOrderItemList.paymentDialog.vendorBank')" required>
-              <el-select
+              <finance-payment-bank-select
                 v-model="paymentForm.vendorBankId"
                 :placeholder="t('purchaseOrderItemList.paymentDialog.vendorBankPlaceholder')"
-                filterable
-                style="width: 100%"
-              >
-                <el-option
-                  v-for="b in paymentBankOptions"
-                  :key="b.id"
-                  :label="b.bankName"
-                  :value="b.id"
-                />
-              </el-select>
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -814,6 +834,7 @@ import {
 } from '@/utils/moneyFormat'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
+import FinancePaymentBankSelect from '@/components/Finance/FinancePaymentBankSelect.vue'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { CurrencyCode } from '@/constants/currency'
@@ -823,13 +844,14 @@ import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBan
 import { vendorBankApi } from '@/api/vendor'
 import { resolveVendorDefaultFinancePaymentBankId } from '@/utils/vendorFinancePaymentBank'
 import { getApiErrorMessage } from '@/utils/apiError'
+import QcImagesReadonlyGallery from '@/components/Logistics/QcImagesReadonlyGallery.vue'
 
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
-const { paymentBankOptions, loadPaymentBankOptions } = useFinancePaymentBankOptions()
+const { loadPaymentBankOptions } = useFinancePaymentBankOptions()
 
 const lineTabAggregates = ref<PurchaseOrderDetailTabAggregates | null>(null)
 const poItemLinePanel = reactive({
@@ -842,7 +864,8 @@ const poItemLinePanel = reactive({
     | 'arrivals'
     | 'stockIns'
     | 'stocks'
-    | 'purchaseInvoices',
+    | 'purchaseInvoices'
+    | 'qcImages',
   loading: false,
   loadError: ''
 })
@@ -979,8 +1002,7 @@ const purchaseOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
       minWidth: 160,
       showOverflowTooltip: true
     },
-    { key: 'itemStatus', label: t('purchaseOrderItemList.columns.itemStatus'), prop: 'itemStatus', width: 160, align: 'center' },
-    { key: 'orderCreateTime', label: t('purchaseOrderItemList.columns.orderCreateTime'), prop: 'orderCreateTime', width: 160 }
+    { key: 'itemStatus', label: t('purchaseOrderItemList.columns.itemStatus'), prop: 'itemStatus', width: 160, align: 'center' }
   ]
   if (canViewVendor.value) {
     cols.push({

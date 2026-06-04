@@ -279,6 +279,19 @@ export interface PickingTask {
   items?: PickingTaskLine[]
 }
 
+export interface PickingTaskListQuery {
+  status?: number
+  warehouseId?: string
+  taskCode?: string
+  packingCode?: string
+  stockOutRequestCode?: string
+  materialModel?: string
+  customerName?: string
+  salesUserName?: string
+  createTimeFrom?: string
+  createTimeTo?: string
+}
+
 /** 拣货单列表行（与后端 PickingTaskListItemDto 一致，JSON camelCase） */
 export interface PickingTaskListRow {
   id: string
@@ -292,15 +305,25 @@ export interface PickingTaskListRow {
   planQtyTotal: number
   lineCount: number
   stockOutRequestCode?: string | null
+  packingId?: string | null
+  packingCode?: string | null
   taskCode: string
   createTime?: string
   createUserDisplay?: string | null
+}
+
+export interface PickingTaskPackingPanel {
+  packingId: string
+  packingCode?: string | null
+  shipmentMethod?: string | null
+  expressCompany?: string | null
 }
 
 export interface PickingTaskDetailView extends PickingTaskListRow {
   remark?: string | null
   distinctStockTypes?: number[]
   items?: PickingTaskLine[]
+  packing?: PickingTaskPackingPanel | null
 }
 
 export interface CountPlan {
@@ -459,8 +482,29 @@ export const inventoryCenterApi = {
     const suffix = status == null ? '' : `?status=${status}`
     return unwrap<PickingTask[]>(await apiClient.get(`/api/v1/inventory-center/picking-tasks${suffix}`))
   },
-  async getPickingListRows(): Promise<PickingTaskListRow[]> {
-    return unwrap<PickingTaskListRow[]>(await apiClient.get('/api/v1/inventory-center/picking-list'))
+  async getPickingListRows(query?: PickingTaskListQuery): Promise<PickingTaskListRow[]> {
+    const params: Record<string, string | number> = {}
+    const add = (key: string, v: string | number | undefined) => {
+      if (v === undefined || v === null) return
+      const s = typeof v === 'string' ? v.trim() : v
+      if (s === '' || s === undefined) return
+      params[key] = s
+    }
+    if (query) {
+      if (query.status != null && !Number.isNaN(Number(query.status))) params.status = Number(query.status)
+      add('warehouseId', query.warehouseId)
+      add('taskCode', query.taskCode)
+      add('packingCode', query.packingCode)
+      add('stockOutRequestCode', query.stockOutRequestCode)
+      add('materialModel', query.materialModel)
+      add('customerName', query.customerName)
+      add('salesUserName', query.salesUserName)
+      add('createTimeFrom', query.createTimeFrom)
+      add('createTimeTo', query.createTimeTo)
+    }
+    return unwrap<PickingTaskListRow[]>(
+      await apiClient.get('/api/v1/inventory-center/picking-list', { params })
+    )
   },
   async getPickingListDetail(id: string): Promise<PickingTaskDetailView> {
     return unwrap<PickingTaskDetailView>(

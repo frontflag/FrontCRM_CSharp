@@ -398,6 +398,28 @@
                 </template>
               </el-table-column>
               <el-table-column
+                :label="t('rfqItemList.dockQuotes.leadTime')"
+                min-width="100"
+                width="120"
+                show-overflow-tooltip
+                class-name="dock-tier-col"
+              >
+                <template #default="{ row }">
+                  <div class="dock-quote-tiers">
+                    <template v-if="dockQuoteLineItems(row as Record<string, unknown>).length">
+                      <div
+                        v-for="(it, idx) in dockQuoteLineItems(row as Record<string, unknown>)"
+                        :key="idx"
+                        class="dock-quote-tier-line"
+                      >
+                        {{ formatDockTierLeadTime(it.leadTime) }}
+                      </div>
+                    </template>
+                    <span v-else class="dock-tier-empty">—</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column
                 :label="t('rfqItemList.dockQuotes.vendorName')"
                 min-width="140"
                 show-overflow-tooltip
@@ -1093,6 +1115,8 @@ interface DockQuoteTierLine {
   currency: number
   /** 生产日期 / DC（quoteitem.date_code） */
   dateCode?: string | null
+  /** 交期（quoteitem.lead_time） */
+  leadTime?: string | null
 }
 
 function dockQuoteLineItems(quoteRow: Record<string, unknown>): DockQuoteTierLine[] {
@@ -1108,7 +1132,10 @@ function dockQuoteLineItems(quoteRow: Record<string, unknown>): DockQuoteTierLin
       const dcRaw = o.dateCode ?? o.DateCode
       const dateCode =
         dcRaw != null && String(dcRaw).trim() !== '' ? String(dcRaw).trim() : null
-      lines.push({ quantity, unitPrice, currency, dateCode })
+      const ltRaw = o.leadTime ?? o.LeadTime
+      const leadTime =
+        ltRaw != null && String(ltRaw).trim() !== '' ? String(ltRaw).trim() : null
+      lines.push({ quantity, unitPrice, currency, dateCode, leadTime })
     }
     return lines
   }
@@ -1118,8 +1145,11 @@ function dockQuoteLineItems(quoteRow: Record<string, unknown>): DockQuoteTierLin
   const hdrDc = quoteRow.dateCode ?? quoteRow.DateCode
   const dateCode =
     hdrDc != null && String(hdrDc).trim() !== '' ? String(hdrDc).trim() : null
+  const hdrLt = quoteRow.leadTime ?? quoteRow.LeadTime
+  const leadTime =
+    hdrLt != null && String(hdrLt).trim() !== '' ? String(hdrLt).trim() : null
   if ((Number.isFinite(q) && q !== 0) || (Number.isFinite(p) && p !== 0)) {
-    return [{ quantity: q, unitPrice: p, currency: c, dateCode }]
+    return [{ quantity: q, unitPrice: p, currency: c, dateCode, leadTime }]
   }
   return []
 }
@@ -1129,6 +1159,11 @@ function formatDockTierDateCode(dc: string | null | undefined) {
   const s = String(dc ?? '').trim()
   if (!s) return '—'
   return productionDateDisplayLabel(s, materialPdOptions.value) || '—'
+}
+
+function formatDockTierLeadTime(lt: string | null | undefined) {
+  const s = String(lt ?? '').trim()
+  return s || '—'
 }
 
 function formatDockTierQuantity(q: number) {

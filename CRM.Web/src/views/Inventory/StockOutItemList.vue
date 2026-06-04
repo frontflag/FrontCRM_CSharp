@@ -41,6 +41,12 @@
           :placeholder="t('stockOutItemList.filters.stockInCode')"
           @keyup.enter="fetchList"
         />
+        <input
+          v-model="filters.packingCode"
+          class="search-input search-input--filter search-input--wide"
+          :placeholder="t('stockOutItemList.filters.packingCode')"
+          @keyup.enter="fetchList"
+        />
         <div
           class="filter-date-range"
           role="group"
@@ -106,6 +112,20 @@
       <el-table-column prop="stockOutCode" :label="t('stockOutItemList.columns.stockOutCode')" width="150" show-overflow-tooltip />
       <el-table-column prop="stockInCode" :label="t('stockOutItemList.columns.stockInCode')" width="140" show-overflow-tooltip>
         <template #default="{ row }">{{ row.stockInCode || t('quoteList.na') }}</template>
+      </el-table-column>
+      <el-table-column prop="packingCode" :label="t('stockOutItemList.columns.packingCode')" width="150" show-overflow-tooltip>
+        <template #default="{ row }">
+          <router-link
+            v-if="row.packingId?.trim() && row.packingCode?.trim()"
+            class="cell-link mono-cell"
+            :to="`/inventory/packing/${row.packingId.trim()}`"
+            @click.stop
+          >
+            {{ row.packingCode.trim() }}
+          </router-link>
+          <span v-else-if="row.packingCode?.trim()" class="mono-cell">{{ row.packingCode.trim() }}</span>
+          <span v-else>{{ t('quoteList.na') }}</span>
+        </template>
       </el-table-column>
       <el-table-column :label="t('stockOutItemList.columns.stockOutDate')" width="118">
         <template #default="{ row }">{{ formatDateOnly(row.stockOutDate) }}</template>
@@ -206,6 +226,7 @@ const filters = reactive({
   status: undefined as number | undefined,
   stockOutCode: '',
   stockInCode: '',
+  packingCode: '',
   customerName: '',
   salesUserName: '',
   purchasePn: '',
@@ -217,6 +238,7 @@ function buildQuery(): StockOutItemListQuery {
     status: filters.status,
     stockOutCode: filters.stockOutCode.trim() || undefined,
     stockInCode: filters.stockInCode.trim() || undefined,
+    packingCode: filters.packingCode.trim() || undefined,
     stockOutDateFrom: dateFrom.value?.trim() || undefined,
     stockOutDateTo: dateTo.value?.trim() || undefined,
     purchasePn: filters.purchasePn.trim() || undefined,
@@ -261,6 +283,7 @@ const resetFilters = () => {
   filters.status = undefined
   filters.stockOutCode = ''
   filters.stockInCode = ''
+  filters.packingCode = ''
   filters.customerName = ''
   filters.salesUserName = ''
   filters.purchasePn = ''
@@ -407,6 +430,19 @@ onMounted(async () => {
 .filter-date-range__picker :deep(.el-input__wrapper) {
   box-shadow: none !important;
   background: transparent;
+}
+
+.cell-link {
+  color: $cyan-primary;
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.mono-cell {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
 }
 
 .status-badge {

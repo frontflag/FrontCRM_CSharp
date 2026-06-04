@@ -23,19 +23,10 @@
         <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item label="供应商银行" required>
-              <el-select
+              <finance-payment-bank-select
                 v-model="paymentForm.vendorBankId"
                 placeholder="请选择供应商银行"
-                filterable
-                style="width: 100%"
-              >
-                <el-option
-                  v-for="b in paymentBankOptions"
-                  :key="b.id"
-                  :label="b.bankName"
-                  :value="b.id"
-                />
-              </el-select>
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -293,6 +284,7 @@ import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
+import FinancePaymentBankSelect from '@/components/Finance/FinancePaymentBankSelect.vue'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
 import { financePaymentApi } from '@/api/finance'
@@ -305,7 +297,7 @@ import { vendorBankApi } from '@/api/vendor'
 import { resolveVendorDefaultFinancePaymentBankId } from '@/utils/vendorFinancePaymentBank'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
-const { paymentBankOptions, loadPaymentBankOptions } = useFinancePaymentBankOptions()
+const { loadPaymentBankOptions } = useFinancePaymentBankOptions()
 
 const emit = defineEmits<{ success: [] }>()
 

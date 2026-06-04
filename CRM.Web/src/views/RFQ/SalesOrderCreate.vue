@@ -72,7 +72,25 @@
             </el-col>
             <el-col :span="8">
               <el-form-item :label="t('salesOrderCreate.fields.salesUser')" prop="salesUserId">
+                <el-select
+                  v-if="staffPickLocked || staffPickFree"
+                  v-model="formData.salesUserId"
+                  :placeholder="t('salesOrderCreate.placeholders.salesUser')"
+                  filterable
+                  clearable
+                  style="width: 100%"
+                  :loading="salesUserOptionsLoading"
+                  @change="onSalesUserSelectChange"
+                >
+                  <el-option
+                    v-for="u in salesUserSelectOptions"
+                    :key="u.id"
+                    :label="u.userName"
+                    :value="u.id"
+                  />
+                </el-select>
                 <sales-user-cascader
+                  v-else
                   v-model="formData.salesUserId"
                   :placeholder="t('salesOrderCreate.placeholders.salesUser')"
                   clearable
@@ -101,7 +119,21 @@
                 </el-select>
               </el-form-item>
             </el-col>
-            <el-col :span="8" class="order-section-col-placeholder" aria-hidden="true" />
+            <el-col :span="8">
+              <el-form-item :label="t('salesOrderCreate.fields.assistor')">
+                <el-input
+                  v-if="staffPickLocked"
+                  :model-value="assistorReadonlyLabel"
+                  readonly
+                />
+                <sales-ops-assistor-select
+                  v-else
+                  v-model="formData.assistor"
+                  :placeholder="t('salesOrderCreate.placeholders.assistor')"
+                  clearable
+                />
+              </el-form-item>
+            </el-col>
           </el-row>
           <el-row :gutter="20">
             <el-col :span="24">
@@ -336,6 +368,12 @@ import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { useAuthStore } from '@/stores/auth'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
+import SalesOpsAssistorSelect from '@/components/SalesOpsAssistorSelect.vue'
+import { authApi, type SalesDeptStaffUserOption } from '@/api/auth'
+import {
+  canPickSalesOrderStaffFreely,
+  isSellOrderAssistorLockedMode
+} from '@/utils/salesOrderStaffPickRules'
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
@@ -386,6 +424,12 @@ const formRef = ref()
 const submitLoading = ref(false)
 const prefillCustomerId = ref<string | undefined>(undefined)
 const prefillSalesUserId = ref<string | undefined>(undefined)
+
+const staffPickLocked = computed(() => isSellOrderAssistorLockedMode(authStore.user))
+const staffPickFree = computed(() => canPickSalesOrderStaffFreely(authStore.user))
+const assistorReadonlyLabel = ref('')
+const salesUserSelectOptions = ref<SalesDeptStaffUserOption[]>([])
+const salesUserOptionsLoading = ref(false)
 
 const collapseActive = ref(['order', 'customer', 'items'])
 
@@ -453,6 +497,7 @@ const formData = ref({
   type: 1 as number,
   salesUserId: '' as string,
   salesUserName: '' as string,
+  assistor: '' as string,
   productKind: '现货',
   orderRemark: '',
   customerId: '' as string,
@@ -491,6 +536,125 @@ function lineLineTotal(index: number) {
 function onSalesUserChange(payload: { id: string; label: string }) {
   formData.value.salesUserName = payload?.label || ''
   prefillSalesUserId.value = payload?.id || undefined
+}
+
+function normalizeSalesDeptStaffUser(row: Record<string, unknown>): SalesDeptStaffUserOption | null {
+  const id = String(row.id ?? row.Id ?? '').trim()
+  if (!id) return null
+  const userName = String(row.userName ?? row.UserName ?? row.label ?? row.Label ?? '').trim()
+  return {
+    id,
+    userName: userName || id,
+    realName: row.realName != null ? String(row.realName) : row.RealName != null ? String(row.RealName) : undefined,
+    label: userName || id
+  }
+}
+
+function findSalesUserOption(userId: string): SalesDeptStaffUserOption | undefined {
+  const key = userId.trim().toLowerCase()
+  return salesUserSelectOptions.value.find((u) => u.id.trim().toLowerCase() === key)
+}
+
+/** 保证 el-select 有匹配 option，否则 Element Plus 会把 value 当原文显示成 GUID */
+function reconcileSalesUserWithSelectOptions(allowExistingFromOrder = false) {
+  const id = formData.value.salesUserId?.trim()
+  if (!id) return
+
+  const hit = findSalesUserOption(id)
+  if (hit) {
+    formData.value.salesUserName = hit.userName
+    prefillSalesUserId.value = hit.id
+    return
+  }
+
+  const name = formData.value.salesUserName?.trim()
+  if (allowExistingFromOrder && name) {
+    const extra: SalesDeptStaffUserOption = { id, userName: name, label: name }
+    salesUserSelectOptions.value = [...salesUserSelectOptions.value, extra]
+    prefillSalesUserId.value = id
+    return
+  }
+
+  if (staffPickLocked.value) {
+    formData.value.salesUserId = ''
+    formData.value.salesUserName = ''
+    prefillSalesUserId.value = undefined
+    return
+  }
+
+  if (staffPickFree.value && name) {
+    salesUserSelectOptions.value = [
+      ...salesUserSelectOptions.value,
+      { id, userName: name, realName: undefined, label: name }
+    ]
+    prefillSalesUserId.value = id
+  }
+}
+
+function onSalesUserSelectChange(userId: string | undefined) {
+  const id = userId ? String(userId) : ''
+  const row = findSalesUserOption(id)
+  formData.value.salesUserName = row?.userName ?? ''
+  prefillSalesUserId.value = id || undefined
+}
+
+async function loadSalesUserSelectOptionsForAssistor(assistantUserId: string) {
+  salesUserOptionsLoading.value = true
+  try {
+    const rows = await authApi.getSalesOrderMappedSalespersons(assistantUserId)
+    salesUserSelectOptions.value = rows
+      .map((u) => normalizeSalesDeptStaffUser(u as unknown as Record<string, unknown>))
+      .filter((u): u is SalesDeptStaffUserOption => u != null)
+    reconcileSalesUserWithSelectOptions(isEditMode.value)
+  } catch (e: unknown) {
+    salesUserSelectOptions.value = []
+    reconcileSalesUserWithSelectOptions(false)
+    const msg = e instanceof Error ? e.message : String(e)
+    ElMessage.error(msg || t('salesOrderCreate.messages.loadMappedSalesUsersFailed'))
+  } finally {
+    salesUserOptionsLoading.value = false
+  }
+}
+
+async function initStaffPickFields(orderForEdit?: Record<string, unknown>) {
+  if (staffPickLocked.value) {
+    const me = authStore.user
+    if (!isEditMode.value && me?.id) {
+      formData.value.assistor = me.id
+      assistorReadonlyLabel.value = me.userName || ''
+    } else if (orderForEdit) {
+      formData.value.assistor = pickRowStr(orderForEdit, 'assistor', 'Assistor')
+      assistorReadonlyLabel.value = pickRowStr(orderForEdit, 'assistorUserName', 'AssistorUserName')
+      if (!assistorReadonlyLabel.value && formData.value.assistor) {
+        try {
+          const staff = await authApi.getBusinessOpsStaffUsers()
+          const hit = staff.find((s) => s.id === formData.value.assistor)
+          assistorReadonlyLabel.value = hit?.userName ?? ''
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    const assistantId = formData.value.assistor?.trim() || me?.id || ''
+    if (assistantId) await loadSalesUserSelectOptionsForAssistor(assistantId)
+    return
+  }
+
+  if (staffPickFree.value) {
+    salesUserOptionsLoading.value = true
+    try {
+      const rows = await authApi.getSalesDeptStaffUsers()
+      salesUserSelectOptions.value = rows
+        .map((u) => normalizeSalesDeptStaffUser(u as unknown as Record<string, unknown>))
+        .filter((u): u is SalesDeptStaffUserOption => u != null)
+      reconcileSalesUserWithSelectOptions(isEditMode.value)
+    } catch {
+      salesUserSelectOptions.value = []
+      reconcileSalesUserWithSelectOptions(false)
+    } finally {
+      salesUserOptionsLoading.value = false
+    }
+  }
 }
 
 async function onCustomerFilterInput(query: string) {
@@ -607,6 +771,9 @@ function applyRfqHeaderToForm(rfq: RFQ) {
     formData.value.salesUserId = rfq.salesUserId
     formData.value.salesUserName = String(rfq.salesUserName ?? '').trim()
   }
+  if (staffPickLocked.value || staffPickFree.value) {
+    reconcileSalesUserWithSelectOptions(false)
+  }
 }
 
 function buildItemComment(it: OrderLineDraft): string | undefined {
@@ -687,6 +854,7 @@ async function loadOrderForEdit(id: string) {
   formData.value.type = Number(order.type ?? order.Type ?? 1) || 1
   formData.value.salesUserId = pickRowStr(order, 'salesUserId', 'SalesUserId')
   formData.value.salesUserName = pickRowStr(order, 'salesUserName', 'SalesUserName')
+  formData.value.assistor = pickRowStr(order, 'assistor', 'Assistor')
   formData.value.currency = Number(order.currency ?? order.Currency ?? 1) || 1
   formData.value.customerId = pickRowStr(order, 'customerId', 'CustomerId')
   formData.value.customerName = pickRowStr(order, 'customerName', 'CustomerName')
@@ -746,6 +914,8 @@ async function loadOrderForEdit(id: string) {
 
   prefillCustomerId.value = formData.value.customerId || undefined
   prefillSalesUserId.value = formData.value.salesUserId || undefined
+
+  await initStaffPickFields(order)
 
   if (!items.length) {
     addItem()
@@ -847,6 +1017,11 @@ function purchaseQuoteLabelFromRow(first: Record<string, unknown> | undefined): 
 
 onMounted(async () => {
   await ensureMaterialPdDict()
+  try {
+    await authStore.fetchCurrentUser()
+  } catch {
+    /* 未登录等由路由守卫处理 */
+  }
 
   if (editId.value) {
     try {
@@ -858,8 +1033,10 @@ onMounted(async () => {
     return
   }
 
+  await initStaffPickFields()
+
   const user = authStore.user
-  if (user?.id && !formData.value.salesUserId) {
+  if (!staffPickLocked.value && user?.id && !formData.value.salesUserId) {
     formData.value.salesUserId = user.id
     formData.value.salesUserName = user.userName || ''
     prefillSalesUserId.value = user.id
@@ -896,12 +1073,18 @@ onMounted(async () => {
       try {
         const rfq = await rfqApi.getRFQById(firstRfqId)
         applyRfqHeaderToForm(rfq)
+        if (staffPickLocked.value) {
+          const assistantId = formData.value.assistor?.trim() || user?.id || ''
+          if (assistantId) await loadSalesUserSelectOptionsForAssistor(assistantId)
+        } else if (staffPickFree.value) {
+          reconcileSalesUserWithSelectOptions(false)
+        }
       } catch {
         /* ignore */
       }
     }
 
-    if (!formData.value.salesUserId && user?.id) {
+    if (!staffPickLocked.value && !formData.value.salesUserId && user?.id) {
       formData.value.salesUserId = user.id
       formData.value.salesUserName = user.userName || ''
     }
@@ -992,6 +1175,13 @@ function buildCreateOrUpdateLinePayloads(headerCurrency: number) {
   }))
 }
 
+function resolveSubmitSalesUserId(): string | undefined {
+  const id = (formData.value.salesUserId || prefillSalesUserId.value || '').trim()
+  if (id) return id
+  if (staffPickLocked.value) return undefined
+  return authStore.user?.id || undefined
+}
+
 const handleSubmit = async () => {
   const firstLineCur = formData.value.items[0]?.currency
   const headerCurrency = firstLineCur ?? formData.value.currency
@@ -1003,8 +1193,9 @@ const handleSubmit = async () => {
       task: async () => {
         await salesOrderApi.update(editId.value, {
           customerName: formData.value.customerName || undefined,
-          salesUserId: formData.value.salesUserId || prefillSalesUserId.value || authStore.user?.id || undefined,
+          salesUserId: resolveSubmitSalesUserId(),
           salesUserName: formData.value.salesUserName || undefined,
+          assistor: formData.value.assistor?.trim() || null,
           type: formData.value.type,
           currency: headerCurrency,
           deliveryDate: null,
@@ -1033,8 +1224,9 @@ const handleSubmit = async () => {
         sellOrderCode: formData.value.sellOrderCode,
         customerId: formData.value.customerId || prefillCustomerId.value || MANUAL_CUSTOMER_ID,
         customerName: formData.value.customerName,
-        salesUserId: formData.value.salesUserId || prefillSalesUserId.value || authStore.user?.id || undefined,
+        salesUserId: resolveSubmitSalesUserId(),
         salesUserName: formData.value.salesUserName,
+        assistor: formData.value.assistor?.trim() || undefined,
         type: formData.value.type,
         currency: headerCurrency,
         deliveryDate: null,

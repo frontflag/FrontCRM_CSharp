@@ -14,34 +14,71 @@
       </div>
     </div>
 
-    <!-- 搜索栏：与客户列表 CustomerList 同一套结构与样式 -->
+    <!-- 搜索栏 -->
     <div class="search-bar">
       <div class="search-left">
         <el-select
-          v-model="workflowFilter"
-          :placeholder="t('stockOutNotifyList.filters.workflowPlaceholder')"
+          v-model="filterForm.status"
+          :placeholder="t('stockOutNotifyList.filters.statusPlaceholder')"
           clearable
-          class="status-select status-select--workflow"
+          class="status-select"
           :teleported="false"
         >
-          <el-option :label="t('stockOutNotifyList.filters.workflowAll')" value="all" />
-          <el-option :label="t('stockOutNotifyList.filters.workflowPendingPick')" value="pending_pick" />
-          <el-option :label="t('stockOutNotifyList.filters.workflowPickedPendingOut')" value="picked_pending_out" />
-          <el-option :label="t('stockOutNotifyList.filters.workflowDone')" value="done" />
+          <el-option
+            v-for="opt in statusFilterOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
         </el-select>
-        <div class="search-input-wrap">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
+        <el-select
+          v-model="filterForm.regionType"
+          :placeholder="t('stockOutNotifyList.filters.regionPlaceholder')"
+          clearable
+          class="status-select status-select--region"
+          :teleported="false"
+        >
+          <el-option :label="t('inventoryList.warehouse.regionDomestic')" :value="REGION_TYPE_DOMESTIC" />
+          <el-option :label="t('inventoryList.warehouse.regionOverseas')" :value="REGION_TYPE_OVERSEAS" />
+        </el-select>
+        <div v-if="!maskSaleSensitiveFields" class="search-input-wrap">
           <input
-            v-model="keyword"
-            class="search-input search-input--wide"
+            v-model="filterForm.customerName"
+            class="search-input search-input--customer"
             type="search"
-            :placeholder="t('stockOutNotifyList.filters.keywordPlaceholder')"
+            :placeholder="t('stockOutNotifyList.filters.customerPlaceholder')"
             @keyup.enter="handleSearch"
           />
         </div>
+        <div v-if="!maskSaleSensitiveFields" class="search-input-wrap">
+          <input
+            v-model="filterForm.salesUserName"
+            class="search-input search-input--sales"
+            type="search"
+            :placeholder="t('stockOutNotifyList.filters.salesUserPlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <div class="search-input-wrap">
+          <input
+            v-model="filterForm.materialModel"
+            class="search-input search-input--material"
+            type="search"
+            :placeholder="t('stockOutNotifyList.filters.materialModelPlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <el-date-picker
+          v-model="filterForm.requestDateRange"
+          type="daterange"
+          :range-separator="t('stockOutNotifyList.filters.dateTo')"
+          :start-placeholder="t('stockOutNotifyList.filters.dateStart')"
+          :end-placeholder="t('stockOutNotifyList.filters.dateEnd')"
+          value-format="YYYY-MM-DD"
+          clearable
+          class="filter-date-range"
+          :teleported="false"
+        />
         <button type="button" class="btn-primary btn-sm" @click="handleSearch">{{ t('stockOutNotifyList.filters.search') }}</button>
         <button type="button" class="btn-ghost btn-sm" @click="handleReset">{{ t('stockOutNotifyList.filters.reset') }}</button>
       </div>
@@ -49,7 +86,7 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="stock-out-notify-list-main-v2"
+      column-layout-key="stock-out-notify-list-main-v6"
       :columns="stockOutNotifyColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -62,8 +99,23 @@
       <template #col-status="{ row }">
         <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
       </template>
+      <template #col-customsStatus="{ row }">{{ customsStatusLabel(row.customsStatus) }}</template>
       <template #col-outQuantity="{ row }">{{ row.outQuantity }}</template>
       <template #col-regionType="{ row }">{{ regionTypeLabel(row) }}</template>
+      <template #col-shipmentMethod="{ row }">{{ shipmentMethodDisplay(row.shipmentMethod) }}</template>
+      <template #col-expressCompany="{ row }">{{ expressCompanyDisplay(row.expressCompany) }}</template>
+      <template #col-packingCode="{ row }">
+        <router-link
+          v-if="row.packingId?.trim() && row.packingCode?.trim()"
+          :to="{ name: 'PackingDetail', params: { id: row.packingId.trim() } }"
+          class="cell-link"
+          @click.stop
+        >
+          {{ row.packingCode.trim() }}
+        </router-link>
+        <span v-else-if="row.packingCode?.trim()">{{ row.packingCode.trim() }}</span>
+        <span v-else>—</span>
+      </template>
       <template #col-requestDate="{ row }">{{ formatRequestDateTime(row.requestDate) }}</template>
       <template #col-createTime="{ row }">{{ formatRequestDateTime(row.createTime) }}</template>
       <template #col-createUser="{ row }">{{ row.createUserName || row.requestUserName || '--' }}</template>
@@ -230,30 +282,41 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { storeToRefs } from 'pinia'
 import { stockOutApi, type StockOutRequestDto } from '@/api/stockOut'
-import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
+import { normalizeRegionType, REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useAuthStore } from '@/stores/auth'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { useStockOutNotifyListBasketStore } from '@/stores/stockOutNotifyListBasket'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
+import { STOCK_OUT_NOTIFY_CUSTOMS_STATUS } from '@/constants/stockOutNotifyCustomsStatus'
 import { StockOutTypeCode } from '@/constants/stockOutType'
+import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 const router = useRouter()
 const { t, locale } = useI18n()
+const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const authStore = useAuthStore()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const loading = ref(false)
-const keyword = ref('')
-const workflowFilter = ref<string>('all')
+const filterForm = reactive({
+  status: undefined as number | undefined,
+  regionType: undefined as number | undefined,
+  customerName: '',
+  salesUserName: '',
+  materialModel: '',
+  requestDateRange: null as [string, string] | null
+})
 const list = ref<StockOutRequestDto[]>([])
 const listTotal = ref(0)
 const listPage = ref(1)
@@ -282,6 +345,34 @@ function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 
+const statusFilterOptions = computed(() => [
+  { value: STOCK_OUT_REQUEST_STATUS.PendingCustoms, label: t('stockOutNotifyList.status.pendingCustoms') },
+  { value: STOCK_OUT_REQUEST_STATUS.PendingPacking, label: t('stockOutNotifyList.status.pendingPacking') },
+  { value: STOCK_OUT_REQUEST_STATUS.Packed, label: t('stockOutNotifyList.status.packed') },
+  { value: STOCK_OUT_REQUEST_STATUS.StockedOut, label: t('stockOutNotifyList.status.stockedOut') },
+  { value: STOCK_OUT_REQUEST_STATUS.Cancelled, label: t('stockOutNotifyList.status.cancelled') }
+])
+
+function buildListQueryParams() {
+  const params: Parameters<typeof stockOutApi.getRequestListPaged>[0] = {
+    page: listPage.value,
+    pageSize: listPageSize.value
+  }
+  if (filterForm.status != null) params.status = filterForm.status
+  if (filterForm.regionType === REGION_TYPE_DOMESTIC || filterForm.regionType === REGION_TYPE_OVERSEAS) {
+    params.regionType = filterForm.regionType
+  }
+  const customer = filterForm.customerName.trim()
+  if (customer) params.customerName = customer
+  const salesUser = filterForm.salesUserName.trim()
+  if (salesUser) params.salesUserName = salesUser
+  const material = filterForm.materialModel.trim()
+  if (material) params.materialModel = material
+  if (filterForm.requestDateRange?.[0]) params.requestDateFrom = filterForm.requestDateRange[0]
+  if (filterForm.requestDateRange?.[1]) params.requestDateTo = filterForm.requestDateRange[1]
+  return params
+}
+
 const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
   return [
@@ -295,6 +386,13 @@ const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => {
     reserveSelection: true
   },
   { key: 'status', label: t('stockOutNotifyList.columns.status'), prop: 'status', width: 110, align: 'center' },
+  {
+    key: 'customsStatus',
+    label: t('stockOutNotifyList.columns.customsStatus'),
+    width: 120,
+    minWidth: 110,
+    align: 'center'
+  },
   { key: 'materialModel', label: t('stockOutNotifyList.columns.materialModel'), prop: 'materialModel', width: 180, showOverflowTooltip: true },
   { key: 'brand', label: t('stockOutNotifyList.columns.brand'), prop: 'brand', width: 140, showOverflowTooltip: true },
   { key: 'outQuantity', label: t('stockOutNotifyList.columns.outQuantity'), prop: 'outQuantity', width: 110, align: 'right' },
@@ -304,6 +402,28 @@ const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => {
     width: 100,
     minWidth: 100,
     align: 'center'
+  },
+  {
+    key: 'shipmentMethod',
+    label: t('stockOutNotifyList.columns.shipmentMethod'),
+    width: 120,
+    minWidth: 100,
+    showOverflowTooltip: true
+  },
+  {
+    key: 'expressCompany',
+    label: t('stockOutNotifyList.columns.expressCompany'),
+    width: 120,
+    minWidth: 100,
+    showOverflowTooltip: true
+  },
+  {
+    key: 'packingCode',
+    label: t('stockOutNotifyList.columns.packingCode'),
+    prop: 'packingCode',
+    width: 150,
+    minWidth: 130,
+    showOverflowTooltip: true
   },
   { key: 'requestDate', label: t('stockOutNotifyList.columns.requestDate'), prop: 'requestDate', width: 170 },
   { key: 'salesUserName', label: t('stockOutNotifyList.columns.salesUserName'), prop: 'salesUserName', width: 130, showOverflowTooltip: true },
@@ -338,10 +458,33 @@ const statusLabel = (s: number) => {
   return t('stockOutNotifyList.status.unknown')
 }
 
+function customsStatusLabel(code?: number | null): string {
+  const n = Number(code ?? 0)
+  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.NotRequired) return t('stockOutNotifyList.customsStatus.notRequired')
+  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.PendingCustoms) return t('stockOutNotifyList.customsStatus.pendingCustoms')
+  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.InCustoms) return t('stockOutNotifyList.customsStatus.inCustoms')
+  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.Completed) return t('stockOutNotifyList.customsStatus.completed')
+  return '—'
+}
+
 const regionTypeLabel = (row: StockOutRequestDto) => {
   const r = row as unknown as Record<string, unknown>
   const n = normalizeRegionType(r.regionType ?? r.RegionType)
   return n === REGION_TYPE_OVERSEAS ? t('inventoryList.warehouse.regionOverseas') : t('inventoryList.warehouse.regionDomestic')
+}
+
+function shipmentMethodDisplay(code?: string | null): string {
+  const c = String(code ?? '').trim()
+  if (!c) return '—'
+  const hit = shipmentArrivalOptions.value.find((o) => String(o.value) === c)
+  return hit?.label ?? c
+}
+
+function expressCompanyDisplay(code?: string | null): string {
+  const c = String(code ?? '').trim()
+  if (!c) return '—'
+  const hit = expressOptions.value.find((o) => String(o.value) === c)
+  return hit?.label ?? c
 }
 
 /** 按本地时区显示年月日 + 时分 */
@@ -355,22 +498,11 @@ watch(listTotal, () => {
   if (listPage.value > maxP) listPage.value = maxP
 })
 
-watch(workflowFilter, () => {
-  void runNotifyFetch(true)
-})
-
 async function runNotifyFetch(resetPage: boolean) {
   if (resetPage) listPage.value = 1
   loading.value = true
   try {
-    const wf = (workflowFilter.value || 'all') as string
-    const kw = keyword.value.trim()
-    const reqPage = await stockOutApi.getRequestListPaged({
-      keyword: kw || undefined,
-      workflow: wf === 'all' ? undefined : wf,
-      page: listPage.value,
-      pageSize: listPageSize.value
-    })
+    const reqPage = await stockOutApi.getRequestListPaged(buildListQueryParams())
     list.value = reqPage.items
     listTotal.value = reqPage.total
     await restoreTableSelectionFromBasket()
@@ -392,8 +524,12 @@ function onNotifyPageSizeChange() {
 }
 
 function handleReset() {
-  workflowFilter.value = 'all'
-  keyword.value = ''
+  filterForm.status = undefined
+  filterForm.regionType = undefined
+  filterForm.customerName = ''
+  filterForm.salesUserName = ''
+  filterForm.materialModel = ''
+  filterForm.requestDateRange = null
   void runNotifyFetch(true)
 }
 
@@ -526,6 +662,21 @@ function validatePackingSelection(rows: StockOutRequestDto[]): PackingSelectionV
     reasons.push(t('stockOutNotifyList.packing.ruleSameStockOutType'))
   }
 
+  const hasMissingShipment = rows.some((r) => !String(r.shipmentMethod ?? '').trim())
+  if (hasMissingShipment) {
+    reasons.push(t('stockOutNotifyList.packing.ruleShipmentMethodRequired'))
+  } else {
+    const uniqueShipmentMethods = new Set(rows.map((r) => String(r.shipmentMethod ?? '').trim()))
+    if (uniqueShipmentMethods.size > 1) {
+      reasons.push(t('stockOutNotifyList.packing.ruleSameShipmentMethod'))
+    }
+  }
+
+  const expressKeys = rows.map((r) => String(r.expressCompany ?? '').trim())
+  if (new Set(expressKeys).size > 1) {
+    reasons.push(t('stockOutNotifyList.packing.ruleSameExpressCompany'))
+  }
+
   if (reasons.length > 0) return { ok: false, reasons }
   return { ok: true }
 }
@@ -594,6 +745,7 @@ const handleForceDeleteRow = async (row: StockOutRequestDto) => {
 }
 
 onMounted(() => {
+  void ensureLogisticsDict()
   void runNotifyFetch(true)
 })
 </script>
@@ -704,6 +856,33 @@ onMounted(() => {
 
   &--wide {
     width: 280px;
+  }
+
+  &--customer {
+    width: 160px;
+  }
+
+  &--sales {
+    width: 120px;
+  }
+
+  &--material {
+    width: 160px;
+  }
+}
+
+.status-select--region {
+  width: 110px;
+}
+
+.filter-date-range {
+  width: 260px !important;
+
+  :deep(.el-input__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
   }
 }
 
@@ -870,6 +1049,14 @@ onMounted(() => {
 .pagination-wrapper .list-main-pagination {
   margin-left: auto;
   align-self: flex-start;
+}
+
+.cell-link {
+  color: var(--el-color-primary);
+  text-decoration: none;
+}
+.cell-link:hover {
+  text-decoration: underline;
 }
 </style>
 

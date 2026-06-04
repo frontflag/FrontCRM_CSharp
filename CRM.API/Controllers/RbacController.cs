@@ -117,6 +117,53 @@ namespace CRM.API.Controllers
             return Ok(ApiResponse<object>.Ok(departments, "获取部门列表成功"));
         }
 
+        /// <summary>
+        /// 获取部门关联员工（含主部门与其它归属部门）。
+        /// </summary>
+        [HttpGet("departments/{departmentId}/users")]
+        public async Task<ActionResult<ApiResponse<object>>> GetDepartmentUsers(string departmentId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(departmentId))
+                    return BadRequest(ApiResponse<object>.Fail("departmentId 不能为空", 400));
+
+                var deptId = departmentId.Trim();
+                var dept = (await _departmentRepo.FindAsync(x => x.Id == deptId)).FirstOrDefault();
+                if (dept == null)
+                    return NotFound(ApiResponse<object>.Fail("部门不存在", 404));
+
+                var links = (await _userDepartmentRepo.FindAsync(x => x.DepartmentId == deptId)).ToList();
+                var userIds = links
+                    .Select(x => x.UserId)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (userIds.Count == 0)
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<AdminUserDto>(), "获取部门员工成功"));
+
+                var dtos = new List<AdminUserDto>();
+                foreach (var userId in userIds)
+                {
+                    var dto = await BuildAdminUserDtoAsync(userId);
+                    if (dto != null)
+                        dtos.Add(dto);
+                }
+
+                dtos = dtos
+                    .OrderBy(x => x.UserName, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                return Ok(ApiResponse<object>.Ok(dtos, "获取部门员工成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取部门员工失败 departmentId={DepartmentId}", departmentId);
+                return StatusCode(500, ApiResponse<object>.Fail($"获取部门员工失败: {ex.Message}", 500));
+            }
+        }
+
         public class UpsertDepartmentRequest
         {
             public string DepartmentName { get; set; } = string.Empty;

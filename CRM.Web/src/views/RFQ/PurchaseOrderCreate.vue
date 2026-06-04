@@ -88,7 +88,25 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="采购员">
+              <el-select
+                v-if="staffPickLocked || staffPickFree"
+                v-model="formData.purchaseUserId"
+                placeholder="请选择采购员"
+                filterable
+                clearable
+                style="width: 100%"
+                :loading="purchaseUserOptionsLoading"
+                @change="onPurchaseUserSelectChange"
+              >
+                <el-option
+                  v-for="u in purchaseUserSelectOptions"
+                  :key="u.id"
+                  :label="u.userName"
+                  :value="u.id"
+                />
+              </el-select>
               <purchaser-cascader
+                v-else
                 v-model="formData.purchaseUserId"
                 placeholder="请选择采购员（默认当前账号，可更换）"
                 clearable
@@ -100,7 +118,13 @@
         <el-row :gutter="24">
           <el-col :span="12">
             <el-form-item label="采购助理">
+              <el-input
+                v-if="staffPickLocked"
+                :model-value="assistorReadonlyLabel"
+                readonly
+              />
               <purchase-ops-assistor-select
+                v-else
                 v-model="formData.assistor"
                 placeholder="请选择采购助理（可选）"
                 clearable
@@ -261,6 +285,11 @@ import { useAuthStore } from '@/stores/auth'
 import { canSubmitPurchaseOrderCreate } from '@/utils/purchaseOrderCreateGate'
 import PurchaserCascader from '@/components/PurchaserCascader.vue'
 import PurchaseOpsAssistorSelect from '@/components/PurchaseOpsAssistorSelect.vue'
+import { authApi, type PurchaseDeptStaffUserOption } from '@/api/auth'
+import {
+  canPickPurchaseOrderStaffFreely,
+  isPurchaseOrderAssistorLockedMode
+} from '@/utils/purchaseOrderStaffPickRules'
 import MaterialProductionDateSelect from '@/components/MaterialProductionDateSelect.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
 import { formatCurrencyTotal, formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
@@ -296,6 +325,12 @@ function linkedSellOrderItemIdForPayload(id: string | undefined): string | undef
 const formRef = ref<FormInstance>()
 const submitLoading = ref(false)
 const genLoading = ref(false)
+
+const staffPickLocked = computed(() => isPurchaseOrderAssistorLockedMode(authStore.user))
+const staffPickFree = computed(() => canPickPurchaseOrderStaffFreely(authStore.user))
+const assistorReadonlyLabel = ref('')
+const purchaseUserSelectOptions = ref<PurchaseDeptStaffUserOption[]>([])
+const purchaseUserOptionsLoading = ref(false)
 
 const requisitionId = computed(() => {
   const v = route.query.requisitionId
@@ -372,6 +407,139 @@ const calculateTotal = computed(() =>
 function onPurchaserChange(payload: { id: string; label: string }) {
   formData.value.purchaseUserId = payload?.id || ''
   formData.value.purchaseUserName = payload?.label || ''
+}
+
+function normalizePurchaseDeptStaffUser(row: Record<string, unknown>): PurchaseDeptStaffUserOption | null {
+  const id = String(row.id ?? row.Id ?? '').trim()
+  if (!id) return null
+  const userName = String(row.userName ?? row.UserName ?? row.label ?? row.Label ?? '').trim()
+  return {
+    id,
+    userName: userName || id,
+    realName: row.realName != null ? String(row.realName) : row.RealName != null ? String(row.RealName) : undefined,
+    label: userName || id
+  }
+}
+
+function findPurchaseUserOption(userId: string): PurchaseDeptStaffUserOption | undefined {
+  const key = userId.trim().toLowerCase()
+  return purchaseUserSelectOptions.value.find((u) => u.id.trim().toLowerCase() === key)
+}
+
+function reconcilePurchaseUserWithSelectOptions(allowExistingFromOrder = false) {
+  const id = formData.value.purchaseUserId?.trim()
+  if (!id) return
+
+  const hit = findPurchaseUserOption(id)
+  if (hit) {
+    formData.value.purchaseUserName = hit.userName
+    return
+  }
+
+  const name = formData.value.purchaseUserName?.trim()
+  if (allowExistingFromOrder && name) {
+    purchaseUserSelectOptions.value = [
+      ...purchaseUserSelectOptions.value,
+      { id, userName: name, label: name }
+    ]
+    return
+  }
+
+  if (staffPickLocked.value) {
+    formData.value.purchaseUserId = ''
+    formData.value.purchaseUserName = ''
+    return
+  }
+
+  if (staffPickFree.value && name) {
+    purchaseUserSelectOptions.value = [
+      ...purchaseUserSelectOptions.value,
+      { id, userName: name, realName: undefined, label: name }
+    ]
+  }
+}
+
+function onPurchaseUserSelectChange(userId: string | undefined) {
+  const id = userId ? String(userId) : ''
+  const row = findPurchaseUserOption(id)
+  formData.value.purchaseUserName = row?.userName ?? ''
+}
+
+async function loadPurchaseUserSelectOptionsForAssistor(assistantUserId: string) {
+  purchaseUserOptionsLoading.value = true
+  try {
+    const rows = await authApi.getPurchaseOrderMappedPurchasers(assistantUserId)
+    purchaseUserSelectOptions.value = rows
+      .map((u) => normalizePurchaseDeptStaffUser(u as unknown as Record<string, unknown>))
+      .filter((u): u is PurchaseDeptStaffUserOption => u != null)
+    reconcilePurchaseUserWithSelectOptions(!!editId.value)
+  } catch (e: unknown) {
+    purchaseUserSelectOptions.value = []
+    reconcilePurchaseUserWithSelectOptions(false)
+    const msg = e instanceof Error ? e.message : String(e)
+    ElMessage.error(msg || '加载已配置采购员失败')
+  } finally {
+    purchaseUserOptionsLoading.value = false
+  }
+}
+
+async function initStaffPickFields(orderForEdit?: Record<string, unknown>) {
+  if (staffPickLocked.value) {
+    const me = authStore.user
+    if (!editId.value && me?.id) {
+      formData.value.assistor = me.id
+      assistorReadonlyLabel.value = me.userName || ''
+    } else if (orderForEdit) {
+      formData.value.assistor = String(orderForEdit.assistor ?? orderForEdit.Assistor ?? formData.value.assistor)
+      assistorReadonlyLabel.value = String(
+        orderForEdit.assistorUserName ?? orderForEdit.AssistorUserName ?? ''
+      )
+      if (!assistorReadonlyLabel.value && formData.value.assistor) {
+        try {
+          const staff = await authApi.getPurchaseOpsStaffUsers()
+          const hit = staff.find((s) => s.id === formData.value.assistor)
+          assistorReadonlyLabel.value = hit?.userName ?? ''
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    const assistantId = formData.value.assistor?.trim() || me?.id || ''
+    if (assistantId) await loadPurchaseUserSelectOptionsForAssistor(assistantId)
+    return
+  }
+
+  if (staffPickFree.value) {
+    purchaseUserOptionsLoading.value = true
+    try {
+      const rows = await authApi.getPurchaseDeptStaffUsers()
+      purchaseUserSelectOptions.value = rows
+        .map((u) => normalizePurchaseDeptStaffUser(u as unknown as Record<string, unknown>))
+        .filter((u): u is PurchaseDeptStaffUserOption => u != null)
+      reconcilePurchaseUserWithSelectOptions(!!editId.value)
+    } catch (e: unknown) {
+      purchaseUserSelectOptions.value = []
+      reconcilePurchaseUserWithSelectOptions(false)
+      const msg = e instanceof Error ? e.message : String(e)
+      ElMessage.error(msg || '加载采购部职员失败')
+    } finally {
+      purchaseUserOptionsLoading.value = false
+    }
+  }
+}
+
+function resolveSubmitPurchaseUserId(): string | undefined {
+  const id = formData.value.purchaseUserId?.trim()
+  if (id) return id
+  if (staffPickLocked.value) return undefined
+  return authStore.user?.id || undefined
+}
+
+function resolveSubmitPurchaseUserName(): string | undefined {
+  const name = formData.value.purchaseUserName?.trim()
+  if (name) return name
+  if (staffPickLocked.value) return undefined
+  return authStore.user?.userName || undefined
 }
 
 function syncLineVendorIds() {
@@ -519,6 +687,8 @@ async function loadOrderForEdit(id: string) {
   const items = ((o.items as Record<string, unknown>[] | undefined) || []).filter(
     (it) => !(it.isDeleted ?? it.IsDeleted)
   )
+  await initStaffPickFields(o)
+
   formData.value.items = items.map((it) => {
     const cost = Number(it.cost) || 0
     const d = it.deliveryDate
@@ -560,8 +730,8 @@ const handleSubmit = async () => {
     loading: submitLoading,
     successMessage: editId.value ? '采购订单已保存' : '采购订单创建成功',
     task: async () => {
-      const uid = formData.value.purchaseUserId || authStore.user?.id || undefined
-      const uname = formData.value.purchaseUserName || authStore.user?.userName || undefined
+      const uid = resolveSubmitPurchaseUserId()
+      const uname = resolveSubmitPurchaseUserName()
       if (editId.value) {
         const updateBody = {
           purchaseUserId: uid,
@@ -643,8 +813,10 @@ async function handleGeneratePurchaseOrder() {
     const prName = String(pr.purchaseUserName ?? '').trim()
     const pickUid = quoteUid || rfqUid || prUid
     const pickName = quoteUid ? quoteName : rfqUid ? rfqName : prName
-    formData.value.purchaseUserId = pickUid || formData.value.purchaseUserId
-    formData.value.purchaseUserName = pickName || formData.value.purchaseUserName
+    if (!staffPickLocked.value) {
+      formData.value.purchaseUserId = pickUid || formData.value.purchaseUserId
+      formData.value.purchaseUserName = pickName || formData.value.purchaseUserName
+    }
     const quoteCostNum = Number(pr.quoteCost ?? prExt.quoteCost ?? 0) || 0
     const quoteCurNum = Number(prExt.quoteCurrency ?? pr.currency ?? formData.value.currency ?? 1) || 1
     formData.value.currency = quoteCurNum
@@ -673,6 +845,13 @@ async function handleGeneratePurchaseOrder() {
     ]
 
     generatedFromRequisition.value = true
+    await initStaffPickFields()
+    if (staffPickLocked.value) {
+      const assistantId = formData.value.assistor?.trim() || authStore.user?.id || ''
+      if (assistantId) await loadPurchaseUserSelectOptionsForAssistor(assistantId)
+    } else if (staffPickFree.value) {
+      reconcilePurchaseUserWithSelectOptions(false)
+    }
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error(e)
@@ -683,6 +862,12 @@ async function handleGeneratePurchaseOrder() {
 
 onMounted(async () => {
   await ensureMaterialPdDict()
+  try {
+    await authStore.fetchCurrentUser()
+  } catch {
+    /* 未登录等由路由守卫处理 */
+  }
+
   if (editId.value) {
     try {
       await loadOrderForEdit(editId.value)
@@ -695,8 +880,11 @@ onMounted(async () => {
     await handleGeneratePurchaseOrder()
     return
   }
+
+  await initStaffPickFields()
+
   const u = authStore.user
-  if (u?.id) {
+  if (!staffPickLocked.value && u?.id) {
     formData.value.purchaseUserId = u.id
     formData.value.purchaseUserName = u.userName || ''
   }
