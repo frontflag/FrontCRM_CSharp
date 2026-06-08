@@ -11,10 +11,12 @@ public sealed class StockOutRequestListQuery : IStockOutRequestListQuery
     private const short PickingTaskStatusCompleted = 100;
 
     private readonly ApplicationDbContext _db;
+    private readonly IDataPermissionService _dataPermission;
 
-    public StockOutRequestListQuery(ApplicationDbContext db)
+    public StockOutRequestListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
     {
         _db = db;
+        _dataPermission = dataPermission;
     }
 
     /// <inheritdoc />
@@ -27,10 +29,14 @@ public sealed class StockOutRequestListQuery : IStockOutRequestListQuery
         var p = page < 1 ? 1 : page;
         var ps = pageSize < 1 ? 20 : Math.Min(pageSize, MaxPageSize);
 
+        var scopedSo = await _dataPermission.ApplySellOrderDataScopeAsync(
+            filter?.CurrentUserId,
+            _db.SellOrders.AsNoTracking(),
+            cancellationToken);
+
         var q =
             from r in _db.StockOutRequests.AsNoTracking()
-            join so in _db.SellOrders.AsNoTracking() on r.SalesOrderId equals so.Id into soj
-            from so in soj.DefaultIfEmpty()
+            join so in scopedSo on r.SalesOrderId equals so.Id
             select new { r, so };
 
         if (filter != null)
@@ -76,6 +82,12 @@ public sealed class StockOutRequestListQuery : IStockOutRequestListQuery
 
             if (filter.RegionType.HasValue)
                 q = q.Where(x => x.r.RegionType == filter.RegionType.Value);
+
+            if (filter.StockOutType.HasValue)
+            {
+                var stockOutType = StockOutTypeCode.NormalizeForNotify(filter.StockOutType.Value);
+                q = q.Where(x => x.r.StockOutType == stockOutType);
+            }
 
             if (!string.IsNullOrWhiteSpace(filter.CustomerName))
             {
@@ -123,7 +135,7 @@ public sealed class StockOutRequestListQuery : IStockOutRequestListQuery
                     (x.so != null && x.so.SellOrderCode.ToLower().Contains(k)) ||
                     x.r.MaterialCode.ToLower().Contains(k) ||
                     (x.r.MaterialName != null && x.r.MaterialName.ToLower().Contains(k)) ||
-                    (x.so != null && x.so.CustomerName != null && x.so.CustomerName.ToLower().Contains(k)));
+                    (x.so.CustomerName != null && x.so.CustomerName.ToLower().Contains(k)));
             }
         }
 

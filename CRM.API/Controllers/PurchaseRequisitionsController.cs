@@ -93,7 +93,8 @@ namespace CRM.API.Controllers
                         SellOrderId = sellOrderId,
                         Status = status,
                         Page = page,
-                        PageSize = pageSize
+                        PageSize = pageSize,
+                        CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                     },
                     cancellationToken);
 

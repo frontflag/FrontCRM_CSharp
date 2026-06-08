@@ -24,6 +24,7 @@ namespace CRM.Core.Interfaces
             short? stockType,
             int page,
             int pageSize,
+            string? currentUserId = null,
             CancellationToken cancellationToken = default);
         /// <summary>按销售明细解析物料键（含关联采购行），汇总全仓库可用库存；用于出库申请展示。</summary>
         Task<SellOrderLineAvailableQtyDto> GetAvailableQtyForSellOrderItemAsync(string sellOrderItemId);
@@ -44,6 +45,7 @@ namespace CRM.Core.Interfaces
             string? materialModel = null,
             string? stockCode = null,
             short? stockType = null,
+            string? currentUserId = null,
             CancellationToken cancellationToken = default);
 
         Task<IEnumerable<WarehouseInfo>> GetWarehousesAsync();
@@ -152,6 +154,8 @@ namespace CRM.Core.Interfaces
         public DateTime? ProductionDate { get; set; }
         public string? PurchasePn { get; set; }
         public string? PurchaseBrand { get; set; }
+        /// <summary>货代单号（自采购订单头 JOIN）。</summary>
+        public string? FreightForwarderOrderNo { get; set; }
         /// <summary>采购明细编号（<c>stock_item.purchase_order_item_code</c>）。</summary>
         public string? PurchaseOrderItemCode { get; set; }
         public string? SellOrderItemCode { get; set; }
@@ -225,6 +229,7 @@ namespace CRM.Core.Interfaces
         public string? WarehouseId { get; set; }
         public string? PurchasePn { get; set; }
         public string? PurchaseBrand { get; set; }
+        public string? FreightForwarderOrderNo { get; set; }
         /// <summary>0 或不传=全部；1=未出库；2=部分出库；3=出库完成</summary>
         public short? OutboundStatus { get; set; }
         public string? CustomerName { get; set; }
@@ -238,6 +243,9 @@ namespace CRM.Core.Interfaces
 
         /// <summary>在库数量（<c>QtyRepertory</c>）筛选：<see langword="null"/> 不限；<see langword="true"/> 仅 &gt;0；<see langword="false"/> 仅 ==0。</summary>
         public bool? RepertoryHasStock { get; set; }
+
+        /// <summary>当前登录用户 Id（销售数据范围过滤）。</summary>
+        public string? CurrentUserId { get; set; }
     }
 
     public class InventoryMaterialTraceDto
@@ -336,12 +344,16 @@ namespace CRM.Core.Interfaces
         public string? WarehouseId { get; set; }
         public string? TaskCode { get; set; }
         public string? PackingCode { get; set; }
+        public string? FreightForwarderOrderNo { get; set; }
         public string? StockOutRequestCode { get; set; }
         public string? MaterialModel { get; set; }
         public string? CustomerName { get; set; }
         public string? SalesUserName { get; set; }
         public DateTime? CreateTimeFrom { get; set; }
         public DateTime? CreateTimeTo { get; set; }
+
+        /// <summary>当前登录用户 Id（销售数据范围过滤）。</summary>
+        public string? CurrentUserId { get; set; }
     }
 
     /// <summary>拣货单列表（主从拣货任务 + 出库通知/订单展示列）。</summary>
@@ -362,6 +374,7 @@ namespace CRM.Core.Interfaces
         public string? StockOutRequestCode { get; set; }
         public string? PackingId { get; set; }
         public string? PackingCode { get; set; }
+        public string? FreightForwarderOrderNo { get; set; }
         public string TaskCode { get; set; } = string.Empty;
         public DateTime CreateTime { get; set; }
         /// <summary>生成拣货任务时的操作人（OperatorId 解析）</summary>
@@ -460,6 +473,7 @@ namespace CRM.Core.Interfaces
         public short StockType { get; set; }
         public string? PurchasePn { get; set; }
         public string? PurchaseBrand { get; set; }
+        public string? FreightForwarderOrderNo { get; set; }
         public string? LocationId { get; set; }
         public string? BatchNo { get; set; }
         public string WarehouseId { get; set; } = string.Empty;

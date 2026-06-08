@@ -11,10 +11,12 @@ public sealed class PurchaseRequisitionListQuery : IPurchaseRequisitionListQuery
     public const int MaxPageSize = 2000;
 
     private readonly ApplicationDbContext _db;
+    private readonly IDataPermissionService _dataPermission;
 
-    public PurchaseRequisitionListQuery(ApplicationDbContext db)
+    public PurchaseRequisitionListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
     {
         _db = db;
+        _dataPermission = dataPermission;
     }
 
     /// <inheritdoc />
@@ -25,11 +27,15 @@ public sealed class PurchaseRequisitionListQuery : IPurchaseRequisitionListQuery
         var page = request.Page < 1 ? 1 : request.Page;
         var pageSize = request.PageSize < 1 ? 20 : Math.Min(request.PageSize, MaxPageSize);
 
+        var scopedSo = await _dataPermission.ApplySellOrderDataScopeAsync(
+            request.CurrentUserId,
+            _db.SellOrders.AsNoTracking(),
+            cancellationToken);
+
         var q =
             from pr in _db.PurchaseRequisitions.AsNoTracking()
-            join so in _db.SellOrders.AsNoTracking() on pr.SellOrderId equals so.Id into soGroup
-            from so in soGroup.DefaultIfEmpty()
-            select new { pr, SellOrderCode = so != null ? so.SellOrderCode : (string?)null };
+            join so in scopedSo on pr.SellOrderId equals so.Id
+            select new { pr, SellOrderCode = so.SellOrderCode };
 
         if (!string.IsNullOrWhiteSpace(request.SellOrderId))
         {

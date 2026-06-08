@@ -72,6 +72,7 @@ namespace CRM.API.Controllers
             try
             {
                 filter ??= new StockOutListQueryRequest();
+                filter.CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!string.IsNullOrWhiteSpace(keyword) && string.IsNullOrWhiteSpace(filter.Keyword))
                     filter.Keyword = keyword;
                 if (!string.IsNullOrWhiteSpace(sourceCode) && string.IsNullOrWhiteSpace(filter.SourceCode))
@@ -112,6 +113,8 @@ namespace CRM.API.Controllers
         {
             try
             {
+                query ??= new StockOutItemListQuery();
+                query.CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var result = await _service.GetStockOutItemListPagedAsync(query, page, pageSize, cancellationToken);
                 var items = result.Items.ToList();
                 if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
@@ -384,6 +387,8 @@ namespace CRM.API.Controllers
         {
             try
             {
+                filter ??= new StockOutRequestListQueryRequest();
+                filter.CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var result = await _service.GetStockOutRequestListPagedAsync(filter, page, pageSize, cancellationToken);
                 var items = result.Items.ToList();
                 if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))

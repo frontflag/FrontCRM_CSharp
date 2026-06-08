@@ -9,8 +9,13 @@ public sealed class PackingEfListQuery : IPackingListQuery
     public const int MaxPageSize = 200;
 
     private readonly ApplicationDbContext _db;
+    private readonly IDataPermissionService _dataPermission;
 
-    public PackingEfListQuery(ApplicationDbContext db) => _db = db;
+    public PackingEfListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
+    {
+        _db = db;
+        _dataPermission = dataPermission;
+    }
 
     public async Task<PagedResult<string>> GetPagedPackingIdsAsync(
         PackingListQueryRequest? filter,
@@ -22,6 +27,11 @@ public sealed class PackingEfListQuery : IPackingListQuery
         var ps = pageSize < 1 ? 20 : Math.Min(pageSize, MaxPageSize);
 
         var q = _db.Packings.AsNoTracking().Where(x => !x.IsDeleted);
+        q = await _dataPermission.ApplyPackingListDataScopeAsync(
+            filter?.CurrentUserId,
+            q,
+            _db.Customers.AsNoTracking(),
+            cancellationToken);
 
         if (filter != null)
         {
@@ -95,14 +105,21 @@ public sealed class PackingEfListQuery : IPackingListQuery
         string? packingCode,
         int page,
         int pageSize,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default)
     {
         var p = page < 1 ? 1 : page;
         var ps = pageSize < 1 ? 20 : Math.Min(pageSize, MaxPageSize);
 
+        var scopedPk = await _dataPermission.ApplyPackingListDataScopeAsync(
+            currentUserId,
+            _db.Packings.AsNoTracking().Where(x => !x.IsDeleted),
+            _db.Customers.AsNoTracking(),
+            cancellationToken);
+
         var q = from pi in _db.PackingItems.AsNoTracking()
-                join pk in _db.Packings.AsNoTracking() on pi.PackingId equals pk.Id
-                where !pi.IsDeleted && !pk.IsDeleted
+                join pk in scopedPk on pi.PackingId equals pk.Id
+                where !pi.IsDeleted
                 select new { pi, pk };
 
         if (!string.IsNullOrWhiteSpace(packingCode))

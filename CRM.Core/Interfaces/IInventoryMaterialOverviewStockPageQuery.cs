@@ -17,6 +17,7 @@ public interface IInventoryMaterialOverviewStockPageQuery
         short? stockType,
         int page,
         int pageSize,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>与 <see cref="GetStockPageAsync"/> 相同筛选，不分页（供财务汇总统计）。</summary>
@@ -25,5 +26,6 @@ public interface IInventoryMaterialOverviewStockPageQuery
         string? materialModel,
         string? stockCode,
         short? stockType,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default);
 }

@@ -12,10 +12,12 @@ namespace CRM.Infrastructure.InventoryCenter;
 public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
 {
     private readonly ApplicationDbContext _db;
+    private readonly IDataPermissionService _dataPermission;
 
-    public InventoryStockItemEfListQuery(ApplicationDbContext db)
+    public InventoryStockItemEfListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
     {
         _db = db;
+        _dataPermission = dataPermission;
     }
 
     /// <inheritdoc />
@@ -40,18 +42,28 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
         var puNeedle = query.PurchaserName?.Trim().ToLowerInvariant();
         var spUserId = query.SalespersonUserId?.Trim();
         var puUserId = query.PurchaserUserId?.Trim();
+        var ffNeedle = query.FreightForwarderOrderNo?.Trim().ToLowerInvariant();
         var outboundFilter = query.OutboundStatus;
         DateTime? fromD = query.StockInDateFrom.HasValue ? query.StockInDateFrom.Value.Date : null;
         DateTime? toEx = query.StockInDateTo.HasValue ? query.StockInDateTo.Value.Date.AddDays(1) : null;
 
+        var stockItems = _db.StockItems.AsNoTracking()
+            .Where(si => si.TransferType == null || si.TransferType != StockItemTransferTypeCodes.ManualTransferSource);
+        stockItems = await _dataPermission.ApplyStockItemListDataScopeAsync(
+            query.CurrentUserId,
+            stockItems,
+            _db.SellOrders.AsNoTracking(),
+            _db.SellOrderItems.AsNoTracking(),
+            _db.Customers.AsNoTracking(),
+            cancellationToken);
+
         var baseJoin =
-            from si in _db.StockItems.AsNoTracking()
+            from si in stockItems
             join sin in _db.StockIns.AsNoTracking() on si.StockInId equals sin.Id
             join w in _db.Warehouses.AsNoTracking() on si.WarehouseId equals w.Id into wj
             from w in wj.DefaultIfEmpty()
             join soi in _db.SellOrderItems.AsNoTracking() on si.SellOrderItemId equals soi.Id into soij
             from soi in soij.DefaultIfEmpty()
-            where si.TransferType == null || si.TransferType != StockItemTransferTypeCodes.ManualTransferSource
             select new { si, sin, w, soi };
 
         var filtered = baseJoin;
@@ -70,6 +82,15 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
         if (!string.IsNullOrEmpty(brandNeedle))
             filtered = filtered.Where(x =>
                 x.si.PurchaseBrand != null && x.si.PurchaseBrand.ToLower().Contains(brandNeedle));
+        if (!string.IsNullOrEmpty(ffNeedle))
+            filtered = filtered.Where(x =>
+                x.si.PurchaseOrderItemId != null &&
+                _db.PurchaseOrderItems.Any(poi =>
+                    poi.Id == x.si.PurchaseOrderItemId &&
+                    _db.PurchaseOrders.Any(po =>
+                        po.Id == poi.PurchaseOrderId &&
+                        po.FreightForwarderOrderNo != null &&
+                        po.FreightForwarderOrderNo.ToLower().Contains(ffNeedle))));
         if (!string.IsNullOrEmpty(customerNeedle))
             filtered = filtered.Where(x =>
                 x.si.CustomerName != null && x.si.CustomerName.ToLower().Contains(customerNeedle));
@@ -158,6 +179,23 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
                 ProfitOutBizUsd = x.si.ProfitOutBizUsd
             })
             .ToListAsync(cancellationToken);
+
+        if (pageRows.Count > 0)
+        {
+            var stockItemIds = pageRows.Select(r => r.StockItemId).ToList();
+            var ffByStockItemId = await (
+                from si in _db.StockItems.AsNoTracking()
+                where stockItemIds.Contains(si.Id) && si.PurchaseOrderItemId != null
+                join poi in _db.PurchaseOrderItems.AsNoTracking() on si.PurchaseOrderItemId equals poi.Id
+                join po in _db.PurchaseOrders.AsNoTracking() on poi.PurchaseOrderId equals po.Id
+                select new { si.Id, po.FreightForwarderOrderNo }
+            ).ToDictionaryAsync(x => x.Id, x => x.FreightForwarderOrderNo, cancellationToken);
+            foreach (var row in pageRows)
+            {
+                if (ffByStockItemId.TryGetValue(row.StockItemId, out var ff))
+                    row.FreightForwarderOrderNo = string.IsNullOrWhiteSpace(ff) ? null : ff.Trim();
+            }
+        }
 
         foreach (var row in pageRows)
         {

@@ -53,7 +53,8 @@ namespace CRM.API.Controllers
                     Status = status,
                     RfqItemId = rfqItemId,
                     AggregateCreateFromUtc = aggFrom,
-                    AggregateCreateToExclusiveUtc = aggToEx
+                    AggregateCreateToExclusiveUtc = aggToEx,
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 };
 
                 var result = await _quoteService.GetPagedAsync(request);
@@ -123,7 +124,10 @@ namespace CRM.API.Controllers
                 var idList = string.IsNullOrWhiteSpace(rfqItemIds)
                     ? Array.Empty<string>()
                     : rfqItemIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                var map = await _quoteListQuery.GetQuoteCountsByRfqItemIdsAsync(idList, cancellationToken);
+                var map = await _quoteListQuery.GetQuoteCountsByRfqItemIdsAsync(
+                    idList,
+                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                    cancellationToken);
                 var counts = idList
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Take(500)

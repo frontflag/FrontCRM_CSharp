@@ -15,10 +15,12 @@ public sealed class QuoteListQuery : IQuoteListQuery
     public const int MaxPageSize = 2000;
 
     private readonly ApplicationDbContext _db;
+    private readonly IDataPermissionService _dataPermission;
 
-    public QuoteListQuery(ApplicationDbContext db)
+    public QuoteListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
     {
         _db = db;
+        _dataPermission = dataPermission;
     }
 
     /// <inheritdoc />
@@ -29,7 +31,7 @@ public sealed class QuoteListQuery : IQuoteListQuery
         var page = request.Page < 1 ? 1 : request.Page;
         var pageSize = request.PageSize < 1 ? 20 : Math.Min(request.PageSize, MaxPageSize);
 
-        var filtered = BuildFilteredQuery(request);
+        var filtered = await BuildFilteredQueryAsync(request, cancellationToken);
         var total = await filtered.CountAsync(cancellationToken);
         var items = await filtered
             .OrderByDescending(q => q.CreateTime)
@@ -51,7 +53,7 @@ public sealed class QuoteListQuery : IQuoteListQuery
         QuoteQueryRequest request,
         CancellationToken cancellationToken = default)
     {
-        var q = BuildFilteredQuery(request);
+        var q = await BuildFilteredQueryAsync(request, cancellationToken);
         var total = await q.CountAsync(cancellationToken);
         var pending = await q.CountAsync(x => x.Status == 0 || x.Status == 1, cancellationToken);
         var sent = await q.CountAsync(x => x.Status == 3, cancellationToken);
@@ -77,9 +79,16 @@ public sealed class QuoteListQuery : IQuoteListQuery
         };
     }
 
-    private IQueryable<Quote> BuildFilteredQuery(QuoteQueryRequest request)
+    private async Task<IQueryable<Quote>> BuildFilteredQueryAsync(
+        QuoteQueryRequest request,
+        CancellationToken cancellationToken)
     {
         var q = _db.Quotes.AsNoTracking();
+        q = await _dataPermission.ApplyQuoteListDataScopeAsync(
+            request.CurrentUserId,
+            q,
+            _db.RFQs.AsNoTracking(),
+            cancellationToken);
 
         if (request.Status.HasValue)
             q = q.Where(x => x.Status == request.Status.Value);
@@ -138,6 +147,7 @@ public sealed class QuoteListQuery : IQuoteListQuery
     /// <inheritdoc />
     public async Task<IReadOnlyDictionary<string, int>> GetQuoteCountsByRfqItemIdsAsync(
         IReadOnlyCollection<string> rfqItemIds,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default)
     {
         var ids = rfqItemIds
@@ -149,9 +159,16 @@ public sealed class QuoteListQuery : IQuoteListQuery
         if (ids.Count == 0)
             return new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        var rows = await _db.Quotes.AsNoTracking()
-            .Where(q => q.RFQItemId != null && ids.Contains(q.RFQItemId))
-            .GroupBy(q => q.RFQItemId!)
+        var q = _db.Quotes.AsNoTracking()
+            .Where(x => x.RFQItemId != null && ids.Contains(x.RFQItemId));
+        q = await _dataPermission.ApplyQuoteListDataScopeAsync(
+            currentUserId,
+            q,
+            _db.RFQs.AsNoTracking(),
+            cancellationToken);
+
+        var rows = await q
+            .GroupBy(x => x.RFQItemId!)
             .Select(g => new { RfqItemId = g.Key, Cnt = g.Count() })
             .ToListAsync(cancellationToken);
 

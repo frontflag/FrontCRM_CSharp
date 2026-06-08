@@ -58,7 +58,8 @@ public class PackingController : ControllerBase
                 CustomerName = customerName,
                 SalesUserName = salesUserName,
                 CreateTimeFrom = createTimeFrom,
-                CreateTimeTo = createTimeTo
+                CreateTimeTo = createTimeTo,
+                CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
             };
             var result = await _packingService.GetPackingListPagedAsync(filter, page, pageSize, cancellationToken);
             if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
@@ -96,7 +97,12 @@ public class PackingController : ControllerBase
         try
         {
             var result = await _packingService.GetPackingItemListPagedAsync(
-                keyword, packingCode, page, pageSize, cancellationToken);
+                keyword,
+                packingCode,
+                page,
+                pageSize,
+                User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                cancellationToken);
             if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
             {
                 foreach (var row in result.Items)

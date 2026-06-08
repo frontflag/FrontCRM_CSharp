@@ -229,9 +229,11 @@ public class PackingService : IPackingService
         string? packingCode,
         int page,
         int pageSize,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default)
     {
-        var paged = await _packingListQuery.GetPagedPackingItemIdsAsync(keyword, packingCode, page, pageSize, cancellationToken);
+        var paged = await _packingListQuery.GetPagedPackingItemIdsAsync(
+            keyword, packingCode, page, pageSize, currentUserId, cancellationToken);
         if (paged.TotalCount == 0)
         {
             return new PagedResult<PackingItemListRowDto>

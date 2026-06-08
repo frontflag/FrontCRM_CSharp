@@ -22,6 +22,7 @@ public partial class InventoryCenterService
         short? stockType,
         int page,
         int pageSize,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default)
     {
         try
@@ -33,6 +34,7 @@ public partial class InventoryCenterService
                 stockType,
                 page,
                 pageSize,
+                currentUserId,
                 cancellationToken);
             var p = page < 1 ? 1 : page;
             var ps = pageSize < 1 ? 20 : Math.Min(pageSize, IInventoryMaterialOverviewStockPageQuery.MaxPageSize);
@@ -401,6 +403,7 @@ public partial class InventoryCenterService
         string? materialModel,
         string? stockCode,
         short? stockType,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default)
     {
         try
@@ -410,6 +413,7 @@ public partial class InventoryCenterService
                 materialModel,
                 stockCode,
                 stockType,
+                currentUserId,
                 cancellationToken);
             if (stocks.Count == 0)
                 return new List<InventoryMaterialOverviewDto>();

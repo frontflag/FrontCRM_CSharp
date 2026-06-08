@@ -137,6 +137,13 @@ namespace CRM.Core.Interfaces
         /// <summary>快递公司（字典 LogisticsExpressMethod ItemCode，优先关联出库通知）</summary>
         public string? ExpressCompany { get; set; }
         public string? CourierTrackingNo { get; set; }
+        public string? FreightForwarderOrderNo { get; set; }
+
+        /// <summary>报关出库单关联的原销售出库通知 Id（StockOutType=报关且 SourceId 为报关出库通知时有值）。</summary>
+        public string? SalesStockOutNotifyId { get; set; }
+
+        /// <summary>报关出库单关联的原销售出库通知单号。</summary>
+        public string? SalesStockOutNotifyCode { get; set; }
     }
 
     public class StockOutDetailViewDto : StockOutListItemDto
@@ -219,6 +226,12 @@ namespace CRM.Core.Interfaces
         /// <summary>出库类型 <see cref="StockOutTypeCode"/>。</summary>
         public short StockOutType { get; set; }
 
+        /// <summary>报关出库通知关联的原销售出库通知 Id（仅 StockOutType=报关时有值）。</summary>
+        public string? SalesStockOutNotifyId { get; set; }
+
+        /// <summary>报关出库通知关联的原销售出库通知单号。</summary>
+        public string? SalesStockOutNotifyCode { get; set; }
+
         /// <summary>销售明细币别（1=RMB 2=USD …）。</summary>
         public short Currency { get; set; }
 
@@ -274,6 +287,12 @@ namespace CRM.Core.Interfaces
 
         /// <summary>装箱单号（<c>packing.Code</c>），子串匹配</summary>
         public string? PackingCode { get; set; }
+
+        /// <summary>货代单号（子串，经出库明细关联采购订单头）。</summary>
+        public string? FreightForwarderOrderNo { get; set; }
+
+        /// <summary>当前登录用户 Id（销售数据范围过滤）。</summary>
+        public string? CurrentUserId { get; set; }
     }
 
     /// <summary><c>stockoutitem</c> 行 + 头表展示字段。</summary>
@@ -302,5 +321,8 @@ namespace CRM.Core.Interfaces
 
         /// <summary>关联装箱单编号</summary>
         public string? PackingCode { get; set; }
+
+        /// <summary>货代单号（自采购订单头 JOIN）</summary>
+        public string? FreightForwarderOrderNo { get; set; }
     }
 }

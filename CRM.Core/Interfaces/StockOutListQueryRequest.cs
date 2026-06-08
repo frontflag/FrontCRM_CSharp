@@ -30,9 +30,18 @@ public class StockOutListQueryRequest
     /// <summary>备注（子串）。</summary>
     public string? Remark { get; set; }
 
+    /// <summary>出库类型 <see cref="Constants.StockOutTypeCode"/>（10销售 20报关 30退货 40报废）。</summary>
+    public short? StockOutType { get; set; }
+
     /// <summary>出库日期起（含）。</summary>
     public DateTime? StockOutDateFrom { get; set; }
 
     /// <summary>出库日期止（含当日）。</summary>
     public DateTime? StockOutDateTo { get; set; }
+
+    /// <summary>货代单号（子串，经出库明细关联采购订单头）。</summary>
+    public string? FreightForwarderOrderNo { get; set; }
+
+    /// <summary>当前登录用户 Id（销售数据范围过滤）。</summary>
+    public string? CurrentUserId { get; set; }
 }

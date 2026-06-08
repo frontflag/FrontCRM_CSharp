@@ -16,6 +16,7 @@ public interface IPackingService
         string? packingCode,
         int page,
         int pageSize,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default);
 
     Task<PackingDetailDto?> GetPackingByIdAsync(

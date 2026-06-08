@@ -15,6 +15,9 @@ public class StockOutRequestListQueryRequest
     /// <summary>地域 10=境内 20=境外。</summary>
     public short? RegionType { get; set; }
 
+    /// <summary>出库类型 <see cref="Constants.StockOutTypeCode"/>（10销售 20报关 30退货 40报废）。</summary>
+    public short? StockOutType { get; set; }
+
     /// <summary>客户/公司名称（模糊）。</summary>
     public string? CustomerName { get; set; }
 
@@ -29,4 +32,7 @@ public class StockOutRequestListQueryRequest
 
     /// <summary>预计出库日期止（含当日）。</summary>
     public DateTime? RequestDateTo { get; set; }
+
+    /// <summary>当前登录用户 Id（销售数据范围过滤）。</summary>
+    public string? CurrentUserId { get; set; }
 }

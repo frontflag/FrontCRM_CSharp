@@ -6,6 +6,7 @@ public interface ICustomsPendlistService
         short? status,
         string? keyword,
         int take,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default);
 
     Task<CreateCustomsOutNotifyResultDto> CreateCustomsOutNotifyAsync(

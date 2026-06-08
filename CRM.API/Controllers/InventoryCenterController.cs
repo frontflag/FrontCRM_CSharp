@@ -96,6 +96,7 @@ namespace CRM.API.Controllers
                     stockType,
                     page,
                     pageSize,
+                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
                     cancellationToken);
                 var items = result.Items.ToList();
                 if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
@@ -174,6 +175,8 @@ namespace CRM.API.Controllers
         {
             try
             {
+                query ??= new InventoryStockItemListQuery();
+                query.CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var result = await _service.GetStockItemsListPagedAsync(query, page, pageSize, cancellationToken);
                 var items = result.Items.ToList();
                 if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
@@ -241,6 +244,7 @@ namespace CRM.API.Controllers
                     materialModel,
                     stockCode,
                     stockType,
+                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
                     cancellationToken);
                 if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
                     PurchaseSensitiveFieldMask511.ApplyInventoryFinanceSummary(dto, true);
@@ -314,6 +318,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? warehouseId = null,
             [FromQuery] string? taskCode = null,
             [FromQuery] string? packingCode = null,
+            [FromQuery] string? freightForwarderOrderNo = null,
             [FromQuery] string? stockOutRequestCode = null,
             [FromQuery] string? materialModel = null,
             [FromQuery] string? customerName = null,
@@ -329,12 +334,14 @@ namespace CRM.API.Controllers
                     WarehouseId = warehouseId,
                     TaskCode = taskCode,
                     PackingCode = packingCode,
+                    FreightForwarderOrderNo = freightForwarderOrderNo,
                     StockOutRequestCode = stockOutRequestCode,
                     MaterialModel = materialModel,
                     CustomerName = customerName,
                     SalesUserName = salesUserName,
                     CreateTimeFrom = createTimeFrom,
-                    CreateTimeTo = createTimeTo
+                    CreateTimeTo = createTimeTo,
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                 };
                 var list = await _service.GetPickingTaskListRowsAsync(query);
                 if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))

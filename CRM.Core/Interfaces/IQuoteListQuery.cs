@@ -13,6 +13,7 @@ public interface IQuoteListQuery
     /// <summary>按需求明细行 ID 统计关联报价主表条数（未出现在结果中的 id 视为 0）。</summary>
     Task<IReadOnlyDictionary<string, int>> GetQuoteCountsByRfqItemIdsAsync(
         IReadOnlyCollection<string> rfqItemIds,
+        string? currentUserId = null,
         CancellationToken cancellationToken = default);
 }
 
@@ -30,6 +31,9 @@ public sealed class QuoteQueryRequest
     public int Page { get; set; } = 1;
 
     public int PageSize { get; set; } = 20;
+
+    /// <summary>当前登录用户 Id（销售数据范围过滤）。</summary>
+    public string? CurrentUserId { get; set; }
 
     /// <summary>可选；与 <see cref="AggregateCreateToExclusiveUtc"/> 同时有效时，用于统计区间内新建报价数（与 RFQ 首页「近 30 天报价数」对齐）。</summary>
     public DateTime? AggregateCreateFromUtc { get; set; }

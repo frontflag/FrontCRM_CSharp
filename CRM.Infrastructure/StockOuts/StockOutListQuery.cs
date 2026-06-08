@@ -10,10 +10,12 @@ public sealed class StockOutListQuery : IStockOutListQuery
     public const int MaxPageSize = 2000;
 
     private readonly ApplicationDbContext _db;
+    private readonly IDataPermissionService _dataPermission;
 
-    public StockOutListQuery(ApplicationDbContext db)
+    public StockOutListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
     {
         _db = db;
+        _dataPermission = dataPermission;
     }
 
     /// <inheritdoc />
@@ -28,6 +30,15 @@ public sealed class StockOutListQuery : IStockOutListQuery
 
         var q = _db.StockOuts.AsNoTracking()
             .Where(so => so.StockOutType != StockOutTypeCode.Transfer);
+
+        var scopeUserId = filter?.CurrentUserId;
+        q = await _dataPermission.ApplyStockOutListDataScopeAsync(
+            scopeUserId,
+            q,
+            _db.SellOrders.AsNoTracking(),
+            _db.SellOrderItems.AsNoTracking(),
+            _db.Customers.AsNoTracking(),
+            cancellationToken);
 
         if (filter != null && !string.IsNullOrWhiteSpace(filter.SourceCode))
         {
@@ -132,6 +143,30 @@ public sealed class StockOutListQuery : IStockOutListQuery
             {
                 var endEx = filter.StockOutDateTo.Value.Date.AddDays(1);
                 q = q.Where(so => so.StockOutDate != null && so.StockOutDate < endEx);
+            }
+
+            if (filter.StockOutType.HasValue)
+            {
+                var stockOutType = StockOutTypeCode.NormalizeForNotify(filter.StockOutType.Value);
+                q = q.Where(so => so.StockOutType == stockOutType);
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.FreightForwarderOrderNo))
+            {
+                var k = filter.FreightForwarderOrderNo.Trim().ToLowerInvariant();
+                q = q.Where(so =>
+                    _db.StockOutItems.Any(si =>
+                        !si.IsDeleted
+                        && si.StockOutId == so.Id
+                        && _db.StockOutItemExtends.Any(ext =>
+                            ext.Id == si.Id
+                            && ext.PurchaseOrderItemId != null
+                            && _db.PurchaseOrderItems.Any(poi =>
+                                poi.Id == ext.PurchaseOrderItemId
+                                && _db.PurchaseOrders.Any(po =>
+                                    po.Id == poi.PurchaseOrderId
+                                    && po.FreightForwarderOrderNo != null
+                                    && po.FreightForwarderOrderNo.ToLower().Contains(k))))));
             }
 
             if (!string.IsNullOrWhiteSpace(filter.Keyword))

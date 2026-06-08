@@ -33,7 +33,12 @@ public class CustomsPendlistsController : ControllerBase
     {
         try
         {
-            var list = await _service.GetListAsync(status, keyword, take, cancellationToken);
+            var list = await _service.GetListAsync(
+                status,
+                keyword,
+                take,
+                User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                cancellationToken);
             return Ok(ApiResponse<List<CustomsPendlistListItemDto>>.Ok(list.ToList(), "OK"));
         }
         catch (Exception ex)

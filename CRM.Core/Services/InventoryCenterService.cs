@@ -48,6 +48,7 @@ namespace CRM.Core.Services
         private readonly IInventoryMaterialOverviewStockPageQuery _inventoryMaterialOverviewStockPageQuery;
         private readonly IInventoryCountPlanListQuery _inventoryCountPlanListQuery;
         private readonly ICustomsV2FlowService _customsV2FlowService;
+        private readonly IDataPermissionService _dataPermissionService;
         private static bool IsTableMissingException(Exception ex)
             => (ex.Message?.Contains("42P01") ?? false)
                || (ex.InnerException?.Message?.Contains("42P01") ?? false)
@@ -162,6 +163,7 @@ namespace CRM.Core.Services
             IInventoryMaterialOverviewStockPageQuery inventoryMaterialOverviewStockPageQuery,
             IInventoryCountPlanListQuery inventoryCountPlanListQuery,
             ICustomsV2FlowService customsV2FlowService,
+            IDataPermissionService dataPermissionService,
             ILogger<InventoryCenterService> logger)
         {
             _stockRepository = stockRepository;
@@ -196,6 +198,7 @@ namespace CRM.Core.Services
             _inventoryMaterialOverviewStockPageQuery = inventoryMaterialOverviewStockPageQuery;
             _inventoryCountPlanListQuery = inventoryCountPlanListQuery;
             _customsV2FlowService = customsV2FlowService;
+            _dataPermissionService = dataPermissionService;
             _logger = logger;
         }
 
@@ -945,6 +948,7 @@ namespace CRM.Core.Services
             string? materialModel = null,
             string? stockCode = null,
             short? stockType = null,
+            string? currentUserId = null,
             CancellationToken cancellationToken = default)
         {
             var overview = await GetMaterialOverviewFilteredAsync(
@@ -952,6 +956,7 @@ namespace CRM.Core.Services
                 materialModel,
                 stockCode,
                 stockType,
+                currentUserId,
                 cancellationToken);
             List<InventoryLedger> ledgers;
             FinanceExchangeRateDto fx;
@@ -1527,6 +1532,12 @@ namespace CRM.Core.Services
                 var (sor, so, packing) = ResolvePickingTaskDisplayContextForList(
                     t, sorById, soById, packingById, notifyIdByPackingId);
 
+                if (!string.IsNullOrWhiteSpace(query?.CurrentUserId))
+                {
+                    if (so == null || !await _dataPermissionService.CanAccessSalesOrderAsync(query.CurrentUserId, so))
+                        continue;
+                }
+
                 string? whDisp = null;
                 var wid = t.WarehouseId?.Trim() ?? "";
                 if (whById.TryGetValue(wid, out var wh))
@@ -1560,6 +1571,71 @@ namespace CRM.Core.Services
                     CreateTime = t.CreateTime,
                     CreateUserDisplay = ResolveUserDisplay(t.OperatorId, userLookups.ById, userLookups.ByLogin)
                 });
+            }
+
+            var stockItemIds = taskItems
+                .Select(i => i.StockItemId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+            var ffByStockItemId = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+            if (stockItemIds.Count > 0)
+            {
+                var stockItems = (await _stockItemRepository.FindAsync(si => stockItemIds.Contains(si.Id))).ToList();
+                var poiIds = stockItems
+                    .Select(si => si.PurchaseOrderItemId?.Trim())
+                    .Where(x => !string.IsNullOrEmpty(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Cast<string>()
+                    .ToList();
+                var poItemsForFf = poiIds.Count == 0
+                    ? new List<PurchaseOrderItem>()
+                    : (await _purchaseOrderItemRepository.FindAsync(p => poiIds.Contains(p.Id))).ToList();
+                var poItemByIdForFf = poItemsForFf
+                    .GroupBy(p => p.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
+                    .Where(g => g.Key.Length > 0)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+                var poIdsForFf = poItemsForFf
+                    .Select(p => p.PurchaseOrderId?.Trim())
+                    .Where(x => !string.IsNullOrEmpty(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Cast<string>()
+                    .ToList();
+                var poByIdForFf = poIdsForFf.Count == 0
+                    ? new Dictionary<string, PurchaseOrder>(StringComparer.OrdinalIgnoreCase)
+                    : (await _purchaseOrderRepository.FindAsync(p => poIdsForFf.Contains(p.Id)))
+                        .GroupBy(p => p.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
+                        .Where(g => g.Key.Length > 0)
+                        .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+                foreach (var si in stockItems)
+                {
+                    var sid = si.Id?.Trim() ?? "";
+                    if (sid.Length == 0) continue;
+                    ffByStockItemId[sid] = FreightForwarderOrderNoLookup.FromPurchaseOrderItemId(
+                        si.PurchaseOrderItemId, poItemByIdForFf, poByIdForFf);
+                }
+            }
+
+            var ffSetsByTaskId = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var ti in taskItems)
+            {
+                var taskId = ti.PickingTaskId?.Trim();
+                var sid = ti.StockItemId?.Trim();
+                if (string.IsNullOrEmpty(taskId) || string.IsNullOrEmpty(sid)) continue;
+                if (!ffByStockItemId.TryGetValue(sid, out var ff) || string.IsNullOrWhiteSpace(ff)) continue;
+                if (!ffSetsByTaskId.TryGetValue(taskId, out var set))
+                {
+                    set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    ffSetsByTaskId[taskId] = set;
+                }
+                set.Add(ff.Trim());
+            }
+
+            foreach (var row in rows)
+            {
+                if (ffSetsByTaskId.TryGetValue(row.Id, out var set) && set.Count > 0)
+                    row.FreightForwarderOrderNo = FreightForwarderOrderNoDisplay.JoinDistinct(set);
             }
 
             return ApplyPickingTaskListQuery(rows, query);
@@ -1617,6 +1693,10 @@ namespace CRM.Core.Services
             var packingCode = query.PackingCode?.Trim();
             if (!string.IsNullOrEmpty(packingCode))
                 q = q.Where(r => (r.PackingCode ?? "").Contains(packingCode, StringComparison.OrdinalIgnoreCase));
+
+            var freightForwarderOrderNo = query.FreightForwarderOrderNo?.Trim();
+            if (!string.IsNullOrEmpty(freightForwarderOrderNo))
+                q = q.Where(r => (r.FreightForwarderOrderNo ?? "").Contains(freightForwarderOrderNo, StringComparison.OrdinalIgnoreCase));
 
             var stockOutRequestCode = query.StockOutRequestCode?.Trim();
             if (!string.IsNullOrEmpty(stockOutRequestCode))

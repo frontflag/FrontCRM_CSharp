@@ -10,10 +10,12 @@ public sealed class StockOutItemEfListQuery : IStockOutItemListQuery
     public const int MaxPageSize = 100;
 
     private readonly ApplicationDbContext _db;
+    private readonly IDataPermissionService _dataPermission;
 
-    public StockOutItemEfListQuery(ApplicationDbContext db)
+    public StockOutItemEfListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
     {
         _db = db;
+        _dataPermission = dataPermission;
     }
 
     /// <inheritdoc />
@@ -27,9 +29,17 @@ public sealed class StockOutItemEfListQuery : IStockOutItemListQuery
         var p = page < 1 ? 1 : page;
         var ps = pageSize < 1 ? 20 : Math.Min(pageSize, MaxPageSize);
 
+        var scopedStockOuts = await _dataPermission.ApplyStockOutListDataScopeAsync(
+            query.CurrentUserId,
+            _db.StockOuts.AsNoTracking(),
+            _db.SellOrders.AsNoTracking(),
+            _db.SellOrderItems.AsNoTracking(),
+            _db.Customers.AsNoTracking(),
+            cancellationToken);
+
         var q =
             from si in _db.StockOutItems.AsNoTracking()
-            join so in _db.StockOuts.AsNoTracking() on si.StockOutId equals so.Id
+            join so in scopedStockOuts on si.StockOutId equals so.Id
             join sol in _db.SellOrderItems.AsNoTracking() on so.SellOrderItemId equals sol.Id into solg
             from sol in solg.DefaultIfEmpty()
             join ord in _db.SellOrders.AsNoTracking() on sol.SellOrderId equals ord.Id into ordg
@@ -91,6 +101,21 @@ public sealed class StockOutItemEfListQuery : IStockOutItemListQuery
         {
             var k = query.PurchasePn.Trim().ToLowerInvariant();
             q = q.Where(x => x.si.PurchasePn != null && x.si.PurchasePn.ToLower().Contains(k));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.FreightForwarderOrderNo))
+        {
+            var k = query.FreightForwarderOrderNo.Trim().ToLowerInvariant();
+            q = q.Where(x =>
+                _db.StockOutItemExtends.Any(ext =>
+                    ext.Id == x.si.Id
+                    && ext.PurchaseOrderItemId != null
+                    && _db.PurchaseOrderItems.Any(poi =>
+                        poi.Id == ext.PurchaseOrderItemId
+                        && _db.PurchaseOrders.Any(po =>
+                            po.Id == poi.PurchaseOrderId
+                            && po.FreightForwarderOrderNo != null
+                            && po.FreightForwarderOrderNo.ToLower().Contains(k)))));
         }
 
         if (!string.IsNullOrWhiteSpace(query.SellOrderItemCode))

@@ -2,7 +2,9 @@ using System.Linq;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Finance;
+using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
+using CRM.Core.Models.Quote;
 using CRM.Core.Models.Rbac;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Models.Sales;
@@ -504,6 +506,200 @@ namespace CRM.Core.Services
         {
             _ = cancellationToken;
             return GetAllowedUserIdsAsync(summary, includeChildren);
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<Quote>> ApplyQuoteListDataScopeAsync(
+            string? userId,
+            IQueryable<Quote> quotes,
+            IQueryable<RFQ> rfqs,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (string.IsNullOrWhiteSpace(userId))
+                return quotes;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+                return quotes;
+            if (summary.SaleDataScope == 4)
+                return quotes.Where(_ => false);
+
+            var uid = userId.Trim();
+            if (summary.SaleDataScope == 1)
+            {
+                return quotes.Where(q =>
+                    (q.SalesUserId != null && q.SalesUserId == uid) ||
+                    (q.RFQId != null &&
+                     rfqs.Any(r => r.Id == q.RFQId && r.SalesUserId != null && r.SalesUserId == uid)));
+            }
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
+            return quotes.Where(q =>
+                (q.SalesUserId != null && allowUserIds.Contains(q.SalesUserId)) ||
+                (q.RFQId != null &&
+                 rfqs.Any(r =>
+                     r.Id == q.RFQId &&
+                     r.SalesUserId != null &&
+                     allowUserIds.Contains(r.SalesUserId))));
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<PurchaseRequisition>> ApplyPurchaseRequisitionListDataScopeAsync(
+            string? userId,
+            IQueryable<PurchaseRequisition> query,
+            IQueryable<SellOrder> sellOrders,
+            CancellationToken cancellationToken = default)
+        {
+            var scopedOrders = await ApplySellOrderDataScopeAsync(userId, sellOrders, cancellationToken);
+            return query.Where(pr => scopedOrders.Any(so => so.Id == pr.SellOrderId));
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<StockOutRequest>> ApplyStockOutRequestListDataScopeAsync(
+            string? userId,
+            IQueryable<StockOutRequest> query,
+            IQueryable<SellOrder> sellOrders,
+            CancellationToken cancellationToken = default)
+        {
+            var scopedOrders = await ApplySellOrderDataScopeAsync(userId, sellOrders, cancellationToken);
+            return query.Where(r => scopedOrders.Any(so => so.Id == r.SalesOrderId));
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<StockOut>> ApplyStockOutListDataScopeAsync(
+            string? userId,
+            IQueryable<StockOut> query,
+            IQueryable<SellOrder> sellOrders,
+            IQueryable<SellOrderItem> sellOrderItems,
+            IQueryable<CustomerInfo> customers,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                return query;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+                return query;
+            if (summary.SaleDataScope == 4)
+                return query.Where(_ => false);
+
+            var scopedOrders = await ApplySellOrderDataScopeAsync(userId, sellOrders, cancellationToken);
+            var scopedCustomers = await ApplyCustomerListDataScopeAsync(userId, customers, cancellationToken);
+
+            return query.Where(so =>
+                (so.SellOrderItemId != null &&
+                 sellOrderItems.Any(sol =>
+                     sol.Id == so.SellOrderItemId &&
+                     scopedOrders.Any(o => o.Id == sol.SellOrderId)))
+                ||
+                (so.CustomerId != null &&
+                 scopedCustomers.Any(c => c.Id == so.CustomerId)));
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<Packing>> ApplyPackingListDataScopeAsync(
+            string? userId,
+            IQueryable<Packing> query,
+            IQueryable<CustomerInfo> customers,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                return query;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+                return query;
+            if (summary.SaleDataScope == 4)
+                return query.Where(_ => false);
+
+            var uid = userId.Trim();
+            var scopedCustomers = await ApplyCustomerListDataScopeAsync(userId, customers, cancellationToken);
+
+            if (summary.SaleDataScope == 1)
+            {
+                return query.Where(p =>
+                    (p.SalesId != null && p.SalesId == uid) ||
+                    (p.CustomerId != null && scopedCustomers.Any(c => c.Id == p.CustomerId)));
+            }
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
+            return query.Where(p =>
+                (p.SalesId != null && allowUserIds.Contains(p.SalesId)) ||
+                (p.CustomerId != null && scopedCustomers.Any(c => c.Id == p.CustomerId)));
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<StockItem>> ApplyStockItemListDataScopeAsync(
+            string? userId,
+            IQueryable<StockItem> query,
+            IQueryable<SellOrder> sellOrders,
+            IQueryable<SellOrderItem> sellOrderItems,
+            IQueryable<CustomerInfo> customers,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                return query;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+                return query;
+            if (summary.SaleDataScope == 4)
+                return query.Where(_ => false);
+
+            var scopedOrders = await ApplySellOrderDataScopeAsync(userId, sellOrders, cancellationToken);
+            var scopedCustomers = await ApplyCustomerListDataScopeAsync(userId, customers, cancellationToken);
+            var uid = userId.Trim();
+
+            if (summary.SaleDataScope == 1)
+            {
+                return query.Where(si =>
+                    (si.SalespersonId != null && si.SalespersonId == uid) ||
+                    (si.SellOrderItemId != null &&
+                     sellOrderItems.Any(sol =>
+                         sol.Id == si.SellOrderItemId &&
+                         scopedOrders.Any(o => o.Id == sol.SellOrderId))) ||
+                    (si.CustomerId != null && scopedCustomers.Any(c => c.Id == si.CustomerId)));
+            }
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
+            return query.Where(si =>
+                (si.SalespersonId != null && allowUserIds.Contains(si.SalespersonId)) ||
+                (si.SellOrderItemId != null &&
+                 sellOrderItems.Any(sol =>
+                     sol.Id == si.SellOrderItemId &&
+                     scopedOrders.Any(o => o.Id == sol.SellOrderId))) ||
+                (si.CustomerId != null && scopedCustomers.Any(c => c.Id == si.CustomerId)));
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<StockInfo>> ApplyStockAggregateListDataScopeAsync(
+            string? userId,
+            IQueryable<StockInfo> query,
+            IQueryable<StockItem> stockItems,
+            IQueryable<SellOrder> sellOrders,
+            IQueryable<SellOrderItem> sellOrderItems,
+            IQueryable<CustomerInfo> customers,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                return query;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+                return query;
+            if (summary.SaleDataScope == 4)
+                return query.Where(_ => false);
+
+            var scopedItems = await ApplyStockItemListDataScopeAsync(
+                userId,
+                stockItems,
+                sellOrders,
+                sellOrderItems,
+                customers,
+                cancellationToken);
+
+            return query.Where(s => scopedItems.Any(si => si.StockAggregateId == s.Id));
         }
 
         public async Task<IReadOnlyList<FinanceReceipt>> FilterFinanceReceiptsAsync(string userId, IEnumerable<FinanceReceipt> source)

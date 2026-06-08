@@ -11,4 +11,7 @@ public class PackingListQueryRequest
     public string? SalesUserName { get; set; }
     public DateTime? CreateTimeFrom { get; set; }
     public DateTime? CreateTimeTo { get; set; }
+
+    /// <summary>当前登录用户 Id（销售数据范围过滤）。</summary>
+    public string? CurrentUserId { get; set; }
 }

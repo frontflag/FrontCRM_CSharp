@@ -8,6 +8,9 @@ public sealed class PurchaseRequisitionListQueryRequest
     public short? Status { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
+
+    /// <summary>当前登录用户 Id（销售数据范围过滤）。</summary>
+    public string? CurrentUserId { get; set; }
 }
 
 /// <summary>采购申请列表一行（与列表 API 的 <c>items</c> 项字段一致，JSON 驼峰由序列化器处理）。</summary>
