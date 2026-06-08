@@ -31,6 +31,9 @@ namespace CRM.Core.Interfaces
 
         /// <summary>已软删除的采购订单明细行（<c>is_deleted=true</c>）。</summary>
         Task<IReadOnlyList<PurchaseOrderDeletedItemLogDto>> GetDeletedOrderItemsAsync(string purchaseOrderId);
+
+        /// <summary>物流录入/修改/清空货代单号（审核通过后；系统内唯一）。</summary>
+        Task<PurchaseOrder> UpdateFreightForwarderOrderNoAsync(string purchaseOrderId, string? freightForwarderOrderNo, string? actingUserId = null);
     }
 
     /// <summary>采购订单字段变更日志行。</summary>
@@ -154,6 +157,15 @@ namespace CRM.Core.Interfaces
 
         /// <summary>供应商名称包含。</summary>
         public string? VendorNameFilter { get; set; }
+
+        /// <summary>货代单号包含。</summary>
+        public string? FreightForwarderOrderNoFilter { get; set; }
+
+        /// <summary>采购员姓名包含。</summary>
+        public string? PurchaseUserNameFilter { get; set; }
+
+        /// <summary>备注（主表 Comment）包含。</summary>
+        public string? CommentFilter { get; set; }
 
         /// <summary>主表订单类型 1/2/3。</summary>
         public short? OrderType { get; set; }

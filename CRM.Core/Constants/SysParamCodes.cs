@@ -20,5 +20,8 @@ namespace CRM.Core.Constants
 
         /// <summary>需求明细采购员轮询游标（非负整数，持久化在 ValueString）</summary>
         public const string RfqPurchaserRoundRobinCursor = "System.RFQ.PurchaserRoundRobinCursor";
+
+        /// <summary>每条 RFQ 轮询分配的报价员人数（1 或 2，持久化在 ValueString）</summary>
+        public const string RfqRoundRobinAssigneeCount = "System.RFQ.RoundRobinAssigneeCount";
     }
 }

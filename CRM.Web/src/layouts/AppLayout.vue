@@ -774,6 +774,12 @@
             <router-link to="/system/company-info" class="submenu-item" active-class="active" exact>{{ t('layout.menu.companyInfo') }}</router-link>
             <router-link to="/system/dict-items" class="submenu-item" active-class="active" exact>{{ t('layout.menu.dictItems') }}</router-link>
             <router-link
+              to="/system/purchase-params/assignee-count"
+              class="submenu-item"
+              active-class="active"
+              exact
+            >{{ t('layout.menu.purchaseParams') }}</router-link>
+            <router-link
               to="/system/finance-params/exchange-rates"
               class="submenu-item"
               active-class="active"
@@ -1464,6 +1470,8 @@ const pageTitleMap: Record<string, string> = {
   '/system/dict-items': 'layout.menu.dictItems',
   '/system/finance-params/exchange-rates': 'layout.menu.financeParams',
   '/system/finance-params/payment-banks': 'financeParams.paymentBanksNav',
+  '/system/purchase-params/assignee-count': 'layout.menu.purchaseParams',
+  '/system/purchase-params/quoter-pool': 'purchaseParams.quoterPoolNav',
   '/system/login-logs': 'layout.menu.loginLog',
   '/system/operation-logs': 'layout.menu.operationLog',
   '/inventory/list': 'layout.menu.inventoryCenter',
@@ -1803,7 +1811,7 @@ watch(
     if (p.startsWith('/system/')) {
       openGroups.value.systemManagement = true
     }
-    if (p === '/system/company-info' || p === '/system/dict-items' || p.startsWith('/system/finance-params')) {
+    if (p === '/system/company-info' || p === '/system/dict-items' || p.startsWith('/system/purchase-params') || p.startsWith('/system/finance-params')) {
       openGroups.value.paramManagement = true
     }
     if (p === '/system/login-logs' || p === '/system/operation-logs') {

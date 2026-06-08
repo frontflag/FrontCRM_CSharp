@@ -67,6 +67,13 @@
           @keyup.enter="handleSearch"
         />
         <input
+          v-model="filterForm.freightForwarderOrderNo"
+          class="search-input search-input--code"
+          type="search"
+          :placeholder="t('common.freightForwarderOrderNoPlaceholder')"
+          @keyup.enter="handleSearch"
+        />
+        <input
           v-model="filterForm.materialModel"
           class="search-input search-input--pn"
           type="search"
@@ -164,6 +171,9 @@
           {{ displayCell(row, 'packingCode') }}
         </router-link>
         <span v-else>{{ displayCell(row, 'packingCode') }}</span>
+      </template>
+      <template #col-freightForwarderOrderNo="{ row }">
+        <span>{{ displayCell(row, 'freightForwarderOrderNo') }}</span>
       </template>
       <template #col-taskCode="{ row }">
         <span class="mono-cell">{{ displayCell(row, 'taskCode') }}</span>
@@ -269,6 +279,7 @@ const filterForm = reactive({
   taskCode: '',
   packingCode: '',
   stockOutRequestCode: '',
+  freightForwarderOrderNo: '',
   materialModel: '',
   customerName: '',
   salesUserName: '',
@@ -332,6 +343,14 @@ const columns = computed<CrmTableColumnDef[]>(() => {
     { key: 'lineCount', label: t('pickingSlip.columns.lineCount'), width: 110, align: 'right' },
     { key: 'stockOutRequestCode', label: t('pickingSlip.columns.stockOutRequestCode'), width: 160, minWidth: 140, showOverflowTooltip: true },
     { key: 'packingCode', label: t('pickingSlip.columns.packingCode'), width: 150, minWidth: 130, showOverflowTooltip: true },
+    {
+      key: 'freightForwarderOrderNo',
+      label: t('common.freightForwarderOrderNo'),
+      prop: 'freightForwarderOrderNo',
+      width: 160,
+      minWidth: 140,
+      showOverflowTooltip: true
+    },
     { key: 'taskCode', label: t('pickingSlip.columns.taskCode'), width: 150, minWidth: 130, showOverflowTooltip: true },
     { key: 'createTime', label: t('pickingSlip.columns.createTime'), width: 170 },
     { key: 'createUserDisplay', label: t('pickingSlip.columns.createUser'), width: 120, showOverflowTooltip: true },
@@ -384,6 +403,8 @@ function buildListQuery(): PickingTaskListQuery {
   if (pc) q.packingCode = pc
   const nc = filterForm.stockOutRequestCode?.trim()
   if (nc) q.stockOutRequestCode = nc
+  const ff = filterForm.freightForwarderOrderNo?.trim()
+  if (ff) q.freightForwarderOrderNo = ff
   const pn = filterForm.materialModel?.trim()
   if (pn) q.materialModel = pn
   if (!maskSaleSensitiveFields.value) {
@@ -405,6 +426,7 @@ function resetFilterForm() {
   filterForm.taskCode = ''
   filterForm.packingCode = ''
   filterForm.stockOutRequestCode = ''
+  filterForm.freightForwarderOrderNo = ''
   filterForm.materialModel = ''
   filterForm.customerName = ''
   filterForm.salesUserName = ''

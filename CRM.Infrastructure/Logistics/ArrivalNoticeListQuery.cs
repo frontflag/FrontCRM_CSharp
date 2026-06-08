@@ -21,6 +21,7 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
     public async Task<PagedResult<StockInNotify>> GetPagedAsync(
         short? status,
         string? purchaseOrderCode,
+        string? freightForwarderOrderNo,
         DateTime? expectedArrivalDate,
         string? noticeId,
         int page,
@@ -45,6 +46,15 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
         {
             var k = purchaseOrderCode.Trim().ToLowerInvariant();
             q = q.Where(x => x.PurchaseOrderCode.ToLower().Contains(k));
+        }
+
+        if (!string.IsNullOrWhiteSpace(freightForwarderOrderNo))
+        {
+            var k = freightForwarderOrderNo.Trim().ToLowerInvariant();
+            q = q.Where(x => _db.PurchaseOrders.Any(po =>
+                po.Id == x.PurchaseOrderId &&
+                po.FreightForwarderOrderNo != null &&
+                po.FreightForwarderOrderNo.ToLower().Contains(k)));
         }
 
         if (expectedArrivalDate.HasValue)
@@ -75,15 +85,18 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
         }
 
         var poIds = rows.Select(x => x.PurchaseOrderId).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
-        var vendorCodes = await _db.PurchaseOrders.AsNoTracking()
+        var poMeta = await _db.PurchaseOrders.AsNoTracking()
             .Where(po => poIds.Contains(po.Id))
-            .Select(po => new { po.Id, po.VendorCode })
-            .ToDictionaryAsync(x => x.Id, x => x.VendorCode, cancellationToken);
+            .Select(po => new { po.Id, po.VendorCode, po.FreightForwarderOrderNo })
+            .ToDictionaryAsync(x => x.Id, x => x, cancellationToken);
 
         foreach (var row in rows)
         {
-            if (vendorCodes.TryGetValue(row.PurchaseOrderId, out var vc))
-                row.VendorCode = vc;
+            if (poMeta.TryGetValue(row.PurchaseOrderId, out var meta))
+            {
+                row.VendorCode = meta.VendorCode;
+                row.FreightForwarderOrderNo = meta.FreightForwarderOrderNo;
+            }
             AttachItemSnapshot(row);
         }
 

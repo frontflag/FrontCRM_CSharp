@@ -107,6 +107,22 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
         if (request.EndDate.HasValue)
             q = q.Where(o => o.CreateTime <= request.EndDate.Value.AddDays(1));
 
+        if (!string.IsNullOrWhiteSpace(request.SalesUserNameFilter))
+        {
+            var s = request.SalesUserNameFilter.Trim();
+            q = q.Where(o =>
+                o.SalesUserName != null &&
+                o.SalesUserName.ToLower().Contains(s.ToLower()));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.CommentFilter))
+        {
+            var c = request.CommentFilter.Trim();
+            q = q.Where(o =>
+                o.Comment != null &&
+                o.Comment.ToLower().Contains(c.ToLower()));
+        }
+
         return q;
     }
 }

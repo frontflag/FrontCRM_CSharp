@@ -27,8 +27,31 @@
       <div class="form-card">
         <h3 class="section-title">{{ t('stockOutDetail.sectionReadonly') }}</h3>
         <el-descriptions :column="2" border size="small" class="desc-block">
-          <el-descriptions-item :label="t('stockOutList.columns.stockOutCode')">{{ detail.stockOutCode }}</el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutList.columns.stockOutCode')">
+            <span class="stock-out-code-cell">
+              <span>{{ detail.stockOutCode }}</span>
+              <el-tooltip
+                v-if="isCustomsStockOut && salesNotifyTooltip"
+                :content="salesNotifyTooltip"
+                placement="top"
+                :hide-after="0"
+              >
+                <span class="customs-notify-tag">{{ t('stockOutList.customsNotifyTag') }}</span>
+              </el-tooltip>
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutList.columns.stockOutType')">
+            <StockBizTypeTag biz="out" :type="detail.stockOutType" />
+          </el-descriptions-item>
           <el-descriptions-item :label="t('stockOutDetail.sourceCode')">{{ detail.sourceCode || '—' }}</el-descriptions-item>
+          <el-descriptions-item
+            v-if="detailSalesNotifyId && detailSalesNotifyCode"
+            :label="t('stockOutList.salesNotifyCodeLink')"
+          >
+            <router-link :to="{ name: 'StockOutNotifyDetail', params: { id: detailSalesNotifyId } }" class="cell-link">
+              {{ detailSalesNotifyCode }}
+            </router-link>
+          </el-descriptions-item>
           <el-descriptions-item :label="t('stockOutList.columns.customerName')">{{
             maskSaleSensitiveFields ? '—' : detail.customerName || '—'
           }}</el-descriptions-item>
@@ -105,6 +128,8 @@ import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { StockOutTypeCode } from '@/constants/stockOutType'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
@@ -152,6 +177,17 @@ watch(detail, (d) => {
 })
 
 const formatNum = (v: number) => (v == null ? '—' : Number(v).toLocaleString())
+
+const isCustomsStockOut = computed(() => Number(detail.value?.stockOutType) === StockOutTypeCode.Customs)
+
+const detailSalesNotifyId = computed(() => String(detail.value?.salesStockOutNotifyId ?? '').trim())
+const detailSalesNotifyCode = computed(() => String(detail.value?.salesStockOutNotifyCode ?? '').trim())
+
+const salesNotifyTooltip = computed(() => {
+  const code = detailSalesNotifyCode.value
+  if (!code) return ''
+  return t('stockOutList.salesNotifyCodeTooltip', { code })
+})
 
 const statusLabel = (s: number) => {
   switch (s) {
@@ -342,6 +378,35 @@ onMounted(() => void load())
   &.status-4 {
     background: rgba(0, 212, 255, 0.18);
     color: $cyan-primary;
+  }
+}
+
+.stock-out-code-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.customs-notify-tag {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #ffb84d;
+  background: rgba(255, 184, 77, 0.14);
+  border: 1px solid rgba(255, 184, 77, 0.45);
+  cursor: default;
+  user-select: none;
+}
+
+.cell-link {
+  color: $cyan-primary;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
   }
 }
 </style>

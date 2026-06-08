@@ -136,6 +136,7 @@ export const purchaseOrderApi = {
     vendorName?: string
     purchaseUserName?: string
     pn?: string
+    freightForwarderOrderNo?: string
     orderType?: number
   }) {
     return await apiClient.get('/api/v1/purchase-orders/items', { params })
@@ -148,6 +149,12 @@ export const purchaseOrderApi = {
     code?: string
     /** 供应商名称包含 */
     vendor?: string
+    /** 货代单号包含（独立筛选） */
+    freightForwarderOrderNo?: string
+    /** 采购员姓名包含 */
+    purchaseUserName?: string
+    /** 备注包含 */
+    comment?: string
     /** 主表订单类型 1/2/3 */
     orderType?: number
     status?: number
@@ -228,6 +235,14 @@ export const purchaseOrderApi = {
   // 刷新采购明细扩展字段（读取下游数据重算）
   async refreshItemExtends(id: string) {
     return await apiClient.post<PurchaseOrderItemExtendRefreshResult>(`/api/v1/purchase-orders/${id}/refresh-item-extends`, {})
+  },
+
+  /** 录入/修改/清空货代单号（物流写权限） */
+  async updateFreightForwarderOrderNo(id: string, freightForwarderOrderNo: string | null) {
+    const enc = encodeURIComponent(id)
+    return await apiClient.patch(`/api/v1/purchase-orders/${enc}/freight-forwarder-order-no`, {
+      freightForwarderOrderNo
+    })
   }
 }
 

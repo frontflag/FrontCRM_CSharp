@@ -26,7 +26,9 @@
           <el-descriptions-item :label="t('packingList.columns.salesUserName')">
             {{ maskSaleSensitiveFields ? '—' : (detail.salesUserName?.trim() || '—') }}
           </el-descriptions-item>
-          <el-descriptions-item :label="t('packingDetail.stockOutType')">{{ packingStockOutTypeLabel(detail.stockOutType) }}</el-descriptions-item>
+          <el-descriptions-item :label="t('packingDetail.stockOutType')">
+            <StockBizTypeTag biz="out" :type="detail.stockOutType" />
+          </el-descriptions-item>
           <el-descriptions-item :label="t('packingDetail.materialType')">{{ packingMaterialTypeLabel(detail.materialType) }}</el-descriptions-item>
           <el-descriptions-item :label="t('packingList.columns.itemRows')">{{ detail.itemRows }}</el-descriptions-item>
           <el-descriptions-item :label="t('packingDetail.scheduleShipDate')">{{ formatTime(detail.scheduleShipDate) }}</el-descriptions-item>
@@ -280,7 +282,6 @@ import {
   packingApi,
   packingMaterialTypeLabel,
   packingStatusLabel,
-  packingStockOutTypeLabel,
   currencyLabel,
   type PackingDetail,
   type PackingDetailLine,
@@ -296,6 +297,7 @@ import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 
 const route = useRoute()
 const router = useRouter()

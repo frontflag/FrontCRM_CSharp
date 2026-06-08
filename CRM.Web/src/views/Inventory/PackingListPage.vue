@@ -124,7 +124,9 @@
       <template #col-status="{ row }">
         <span :class="['status-badge', `packing-status-${row.status}`]">{{ packingStatusLabel(row.status) }}</span>
       </template>
-      <template #col-stockOutType="{ row }">{{ packingStockOutTypeLabel(row.stockOutType) }}</template>
+      <template #col-stockOutType="{ row }">
+        <StockBizTypeTag biz="out" :type="row.stockOutType" />
+      </template>
       <template #col-materialType="{ row }">{{ packingMaterialTypeLabel(row.materialType) }}</template>
       <template #col-customerName="{ row }">
         <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName?.trim() || '—') }}</span>
@@ -441,6 +443,7 @@ import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { isPackingEligibleForStockOut, usePackingListBasketStore } from '@/stores/packingListBasket'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 
 const router = useRouter()
 const { t, locale } = useI18n()

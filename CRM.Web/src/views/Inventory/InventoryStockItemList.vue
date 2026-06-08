@@ -61,6 +61,12 @@
           :placeholder="t('inventoryStockItemList.filters.stockItemCode')"
           @keyup.enter="fetchList"
         />
+        <input
+          v-model="filters.freightForwarderOrderNo"
+          class="search-input search-input--filter"
+          :placeholder="t('common.freightForwarderOrderNoPlaceholder')"
+          @keyup.enter="fetchList"
+        />
         <div
           class="filter-date-range"
           role="group"
@@ -414,6 +420,14 @@ const stockItemTableColumns = computed<CrmTableColumnDef[]>(() => [
     minWidth: 168,
     showOverflowTooltip: true
   },
+  {
+    key: 'freightForwarderOrderNo',
+    label: t('common.freightForwarderOrderNo'),
+    prop: 'freightForwarderOrderNo',
+    width: 160,
+    minWidth: 140,
+    showOverflowTooltip: true
+  },
   { key: 'customerName', label: t('inventoryStockItemList.columns.customerName'), prop: 'customerName', minWidth: 120, showOverflowTooltip: true },
   {
     key: 'salespersonName',
@@ -457,6 +471,7 @@ const warehouseOptions = computed(() => warehouses.value.filter((w) => !!(w.id &
 const filters = reactive({
   stockInCode: '',
   stockItemCode: '',
+  freightForwarderOrderNo: '',
   purchasePn: '',
   purchaseBrand: '',
   warehouseId: '',
@@ -483,6 +498,7 @@ function buildQuery(): StockItemListQuery {
   const q: StockItemListQuery = {
     stockInCode: filters.stockInCode.trim() || undefined,
     stockItemCode: filters.stockItemCode.trim() || undefined,
+    freightForwarderOrderNo: filters.freightForwarderOrderNo.trim() || undefined,
     stockInDateFrom: dateFrom.value?.trim() || undefined,
     stockInDateTo: dateTo.value?.trim() || undefined,
     warehouseId: filters.warehouseId.trim() || undefined,
@@ -527,6 +543,7 @@ const fetchList = () => void runStockItemFetch(true)
 const resetFilters = () => {
   filters.stockInCode = ''
   filters.stockItemCode = ''
+  filters.freightForwarderOrderNo = ''
   filters.purchasePn = ''
   filters.purchaseBrand = ''
   filters.warehouseId = ''

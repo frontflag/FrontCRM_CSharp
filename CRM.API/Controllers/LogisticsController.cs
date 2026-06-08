@@ -55,6 +55,7 @@ namespace CRM.API.Controllers
         public async Task<IActionResult> GetArrivalNotices(
             [FromQuery] short? status,
             [FromQuery] string? purchaseOrderCode,
+            [FromQuery] string? freightForwarderOrderNo,
             [FromQuery] DateTime? expectedArrivalDate,
             [FromQuery] string? id,
             [FromQuery] int page = 1,
@@ -66,6 +67,7 @@ namespace CRM.API.Controllers
                 var paged = await _arrivalNoticeListQuery.GetPagedAsync(
                     status,
                     purchaseOrderCode,
+                    freightForwarderOrderNo,
                     expectedArrivalDate,
                     string.IsNullOrWhiteSpace(id) ? null : id.Trim(),
                     page,

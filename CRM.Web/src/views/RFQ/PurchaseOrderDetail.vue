@@ -82,7 +82,7 @@
           编辑
         </button>
         <el-dropdown
-          v-if="canWritePo"
+          v-if="showHeaderMoreMenu"
           trigger="click"
           placement="bottom-end"
           popper-class="po-detail-header-more-popper"
@@ -100,7 +100,7 @@
               >
                 取消订单
               </el-dropdown-item>
-              <el-dropdown-item command="delete" class="detail-more-item--danger">删除订单</el-dropdown-item>
+              <el-dropdown-item v-if="canWritePo" command="delete" class="detail-more-item--danger">删除订单</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -116,7 +116,15 @@
             <line x1="12" y1="18" x2="12" y2="12" />
             <line x1="9" y1="15" x2="15" y2="15" />
           </svg>
-          采购单报表
+          打印订单
+        </button>
+        <button
+          v-if="canEditFreightForwarderOrderNo"
+          class="btn-warning"
+          type="button"
+          @click="openFreightForwarderOrderNoDialog"
+        >
+          录入货代单号
         </button>
       </div>
     </div>
@@ -172,6 +180,10 @@
           <div class="info-item">
             <span class="info-label">交货日期</span>
             <span class="info-value info-value--time">{{ formatDateTime(order.deliveryDate) }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">货代单号</span>
+            <span class="info-value">{{ order.freightForwarderOrderNo?.trim() || '—' }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">创建时间</span>
@@ -622,7 +634,9 @@
                     </template>
                   </el-table-column>
                   <el-table-column label="类型" width="100">
-                    <template #default="{ row }">{{ stockInTypeText(row?.stockInType) }}</template>
+                    <template #default="{ row }">
+                      <StockBizTypeTag biz="in" :type="row?.stockInType" />
+                    </template>
                   </el-table-column>
                   <el-table-column label="状态" width="100">
                     <template #default="{ row }">{{ stockInStatusText(row?.status) }}</template>
@@ -692,6 +706,24 @@
 
     <PurchaseOrderItemLineDialogs ref="poItemLineDialogsRef" @success="fetchOrder" />
 
+    <el-dialog v-model="ffDialogVisible" title="货代单号" width="480px" destroy-on-close>
+      <p class="ff-dialog-hint">与外部货代系统一一对应，用于全链路追溯；留空并保存可清除。</p>
+      <el-input
+        v-model="ffDraft"
+        maxlength="64"
+        show-word-limit
+        clearable
+        placeholder="请输入货代单号"
+        @keyup.enter="saveFreightForwarderOrderNo"
+      />
+      <template #footer>
+        <button type="button" class="btn-ghost" @click="ffDialogVisible = false">取消</button>
+        <button type="button" class="btn-primary" :disabled="ffSaving" @click="saveFreightForwarderOrderNo">
+          {{ ffSaving ? '保存中…' : '保存' }}
+        </button>
+      </template>
+    </el-dialog>
+
   </div>
 </template>
 
@@ -719,7 +751,7 @@ import {
 import { tagApi, type TagDefinitionDto } from '@/api/tag'
 import { useAuthStore } from '@/stores/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
-import { usePurchaseOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
+import { usePurchaseOrderWriteGate, useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import TagListDisplay from '@/components/Tag/TagListDisplay.vue'
 import ApplyTagsDialog from '@/components/Tag/ApplyTagsDialog.vue'
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
@@ -728,7 +760,7 @@ import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
-import { stockInTypeLabel } from '@/constants/stockInType'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { recordPurchaseOrderRecentView } from '@/utils/purchaseOrderRecentHistory'
 import PurchaseOrderItemLineDialogs from '@/components/purchaseOrder/PurchaseOrderItemLineDialogs.vue'
 import { buildPurchaseOrderDetailItemsColumns } from '@/composables/buildPurchaseOrderDetailItemsColumns'
@@ -740,6 +772,20 @@ const route = useRoute()
 const authStore = useAuthStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { canWritePo } = usePurchaseOrderWriteGate()
+const { canWriteLogisticsData } = useDepartmentDataReadOnly()
+
+const FF_EDITABLE_PO_STATUSES = new Set([10, 20, 30, 50, 100])
+const showHeaderMoreMenu = computed(() => canWritePo.value)
+const canEditFreightForwarderOrderNo = computed(() => {
+  const o = order.value
+  if (!o || !canWriteLogisticsData.value) return false
+  const s = normalizePurchaseOrderMainStatus(o)
+  return FF_EDITABLE_PO_STATUSES.has(s)
+})
+
+const ffDialogVisible = ref(false)
+const ffDraft = ref('')
+const ffSaving = ref(false)
 
 const canViewVendorInfo = computed(
   () => !maskPurchaseSensitiveFields.value && authStore.hasPermission('vendor.info.read')
@@ -1065,6 +1111,28 @@ function onHeaderMoreCommand(cmd: string) {
   else if (cmd === 'delete') void handleDeleteOrder()
 }
 
+function openFreightForwarderOrderNoDialog() {
+  if (!canEditFreightForwarderOrderNo.value) return
+  ffDraft.value = String(order.value?.freightForwarderOrderNo ?? '').trim()
+  ffDialogVisible.value = true
+}
+
+async function saveFreightForwarderOrderNo() {
+  if (!order.value?.id || ffSaving.value) return
+  ffSaving.value = true
+  try {
+    const trimmed = ffDraft.value.trim()
+    await purchaseOrderApi.updateFreightForwarderOrderNo(order.value.id, trimmed || null)
+    ElMessage.success('货代单号已保存')
+    ffDialogVisible.value = false
+    await fetchOrder()
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '保存失败'))
+  } finally {
+    ffSaving.value = false
+  }
+}
+
 async function handleCancelPurchaseOrder() {
   if (!order.value?.id || !canCancelPurchaseOrderFromMenu.value) return
   try {
@@ -1295,7 +1363,6 @@ const formatDateTime = (v?: string) => (v ? formatDisplayDateTime(v) : '--')
 const prStatusText = (v?: number) => ({ 0: '新建', 1: '部分完成', 2: '全部完成', 3: '已取消' } as Record<number, string>)[Number(v)] ?? '--'
 const paymentStatusText = (v?: number) => ({ 1: '新建', 2: '待审核', 10: '审核通过', 100: '付款完成', [-1]: '审核失败', [-2]: '已取消' } as Record<number, string>)[Number(v)] ?? '--'
 const arrivalStatusText = (v?: number) => ({ 10: '未到货', 20: '到货待检', 30: '已质检', 100: '已入库', 1: '新建' } as Record<number, string>)[Number(v)] ?? '--'
-const stockInTypeText = (v?: number) => stockInTypeLabel(Number(v))
 const stockInStatusText = (v?: number) => ({ 0: '草稿', 1: '待入库', 2: '已入库', 3: '已取消' } as Record<number, string>)[Number(v)] ?? '--'
 
 const handleEdit = () => {
@@ -1562,6 +1629,26 @@ const handleEdit = () => {
   &:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 16px rgba(70, 191, 145, 0.3);
+  }
+}
+
+.btn-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, rgba(201, 154, 69, 0.92), rgba(255, 180, 60, 0.82));
+  border: 1px solid rgba(255, 180, 60, 0.45);
+  border-radius: $border-radius-md;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(255, 180, 60, 0.35);
   }
 }
 
@@ -1996,13 +2083,13 @@ html[data-theme='dark'] .purchase-order-detail .po-detail-biz-qty {
 }
 
 .po-detail-header-more-popper .el-dropdown-menu__item {
-  color: rgba(200, 220, 240, 0.92) !important;
+  color: $text-primary !important;
   font-size: 13px;
 
   &:hover,
   &:focus {
     background: rgba(0, 212, 255, 0.1) !important;
-    color: #e8f4ff !important;
+    color: $text-primary !important;
   }
 }
 

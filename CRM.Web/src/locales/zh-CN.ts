@@ -10,7 +10,10 @@ const zhCN = {
     saveSuccess: '保存成功',
     saveFailed: '保存失败',
     createSuccess: '创建成功',
-    crossSideAttachmentsRestricted: '按权限策略，当前角色不可查看或上传此类业务附件。'
+    crossSideAttachmentsRestricted: '按权限策略，当前角色不可查看或上传此类业务附件。',
+    freightForwarderOrderNo: '货代单号',
+    freightForwarderOrderNoPlaceholder: '请输入货代单号',
+    editFreightForwarderOrderNo: '录入货代单号'
   },
   customsPages: {
     brokers: {
@@ -274,6 +277,45 @@ const zhCN = {
     loadAllFailed:
       '汇率接口不可用（常见为 404）：请确认生产环境已部署包含汇率 API 的 CRM.API，且网关将 /api 转发到后端；数据库需已执行 finance 汇率相关迁移。'
   },
+  purchaseParams: {
+    pageTitle: '采购参数',
+    pageSubtitle: '配置 RFQ 轮询分配的报价人数与报价员池。',
+    navTitle: '参数分类',
+    assigneeCountNav: '报价人数',
+    quoterPoolNav: '报价员池',
+    assigneeCountTitle: '报价人数',
+    assigneeCountHint: '新建需求时，从报价员池中按顺序连续取 N 名采购员，写入该需求全部明细。',
+    assigneeCountLabel: '每条需求分配报价采购员人数：',
+    assigneeCountOption1: '1 人',
+    assigneeCountOption2: '2 人',
+    assigneeCountLoadFailed: '加载报价人数失败',
+    quoterPoolTitle: '报价员池',
+    quoterPoolHint: '勾选可参与 RFQ 轮询分配的采购部职员；保存后生效。池为空时新建需求将为待分配。',
+    quoterPoolSelectedCount: '报价员 {count} 人',
+    quoterPoolLoadFailed: '加载报价员池失败',
+    filterLabel: '筛选',
+    filterStatus: '状态',
+    filterAll: '全部',
+    filterSelected: '报价员',
+    colSelect: '选择',
+    colUserName: '账号',
+    colRealName: '中文名',
+    colDepartment: '部门',
+    colStatus: '状态',
+    statusActive: '在职',
+    statusInactive: '停用',
+    selectAll: '全选',
+    invertSelection: '反选',
+    clearSelection: '清空',
+    saveBtn: '保存',
+    refreshBtn: '刷新',
+    saveSuccess: '保存成功',
+    saveFailed: '保存失败',
+    unsavedLeaveTitle: '未保存的更改',
+    unsavedLeaveConfirm: '报价员池有未保存的勾选，确定离开吗？',
+    leaveBtn: '离开',
+    cancelBtn: '取消'
+  },
   layout: {
     /** 顶栏 Logo 旁完整品牌文案（与产品对外名称一致） */
     brandFull: 'Semicore Ai智能系統',
@@ -370,6 +412,7 @@ const zhCN = {
       operationLog: '操作日志',
       companyInfo: '公司信息',
       dictItems: '数据字典',
+      purchaseParams: '采购参数',
       financeParams: '财务参数',
       systemSettings: '系统设置',
       debug: 'Debug',
@@ -2264,6 +2307,11 @@ const zhCN = {
       orderCodePlaceholder: '请输入订单号',
       customer: '客户',
       customerPlaceholder: '客户名称',
+      salesUserPlaceholder: '请输入业务员',
+      commentPlaceholder: '请输入备注',
+      createDateFrom: '创建开始',
+      createDateTo: '创建结束',
+      createDateSep: '至',
       allStatus: '全部状态',
       search: '搜索',
       reset: '重置',
@@ -2281,6 +2329,7 @@ const zhCN = {
       assistor: '销售助理',
       totalAmount: '总金额',
       itemRows: '行项目',
+      comment: '备注',
       purchaseStatus: '采购状态',
       deliveryDate: '交货日期',
       createTime: '创建时间',
@@ -2556,6 +2605,13 @@ const zhCN = {
     filters: {
       orderCode: '订单号',
       orderCodePlaceholder: '请输入订单号',
+      freightForwarderOrderNo: '货代单号',
+      freightForwarderOrderNoPlaceholder: '请输入货代单号',
+      purchaserPlaceholder: '请输入采购员',
+      commentPlaceholder: '请输入备注',
+      createDateFrom: '创建开始',
+      createDateTo: '创建结束',
+      createDateSep: '至',
       vendor: '供应商',
       vendorPlaceholder: '请输入供应商',
       status: '状态',
@@ -2572,13 +2628,16 @@ const zhCN = {
     },
     columns: {
       orderCode: '订单号',
+      freightForwarderOrderNo: '货代单号',
       status: '状态',
+      orderType: '类型',
       vendor: '供应商',
       purchaser: '采购员',
       totalAmount: '总金额',
       itemRows: '行项目',
       stockStatus: '入库状态',
       deliveryDate: '交货日期',
+      comment: '备注',
       createTime: '创建时间',
       createUser: '创建人',
       actions: '操作'
@@ -2596,7 +2655,7 @@ const zhCN = {
       cancelled: '取消'
     },
     stock: { none: '未入库', partial: '部分入库', all: '全部入库' },
-    actions: { detail: '详情', edit: '编辑', submitAudit: '提交审核', confirmBySupplier: '供应商确认', report: '采购单', cancelConfirm: '取消确认' },
+    actions: { detail: '详情', edit: '编辑', submitAudit: '提交审核', confirmBySupplier: '供应商确认', report: '打印订单', cancelConfirm: '取消确认' },
     loadFailed: '加载数据失败',
     createDisabled: '功能暂未开放',
     reportNotAllowed: '仅供应商已确认后的采购订单可生成采购单报表',
@@ -3470,6 +3529,7 @@ const zhCN = {
       vendorName: '供应商名称',
       purchaseOrderCode: '采购订单号',
       salesOrderCode: '销售订单号',
+      stockInTypePlaceholder: '入库类型',
       search: '搜索',
       reset: '重置'
     },
@@ -3489,6 +3549,7 @@ const zhCN = {
     columns: {
       stockInCode: '入库单号',
       status: '状态',
+      stockInType: '入库类型',
       sourceCode: '到货通知号',
       purchaseOrderCode: '采购单号',
       materialModel: '物料型号',
@@ -3507,6 +3568,14 @@ const zhCN = {
     status: { draft: '草稿', pending: '待入库', done: '已入库', cancelled: '已取消' },
     actions: { editRemark: '修改备注', markStockedIn: '标记已入库' },
     remarkPlaceholder: '请输入入库单备注',
+    stockInTypeLabels: {
+      purchase: '采购入库',
+      customs: '报关入库',
+      return: '退货入库',
+      scrap: '报废入库'
+    },
+    customsNotifyTag: '报关',
+    arrivalNotifyCodeTooltip: '原到货通知：{code}',
     messages: {
       loadFailed: '加载入库单失败',
       remarkUpdated: '备注已更新',
@@ -3531,6 +3600,7 @@ const zhCN = {
       stockOutDateFrom: '开始',
       stockOutDateTo: '结束',
       stockOutDateSep: '至',
+      stockOutTypePlaceholder: '出库类型',
       search: '搜索',
       reset: '重置',
       refresh: '刷新'
@@ -3545,6 +3615,7 @@ const zhCN = {
     columns: {
       stockOutCode: '出库单号',
       status: '状态',
+      stockOutType: '出库类型',
       sourceCode: '来源申请',
       customerName: '客户',
       salesUserName: '业务员',
@@ -3570,6 +3641,15 @@ const zhCN = {
       packingWithoutInspection: 'Packing-不含出货检',
       markFinished: '标记完成'
     },
+    stockOutTypeLabels: {
+      sales: '销售出库',
+      customs: '报关出库',
+      return: '退货出库',
+      scrap: '报废出库'
+    },
+    customsNotifyTag: '报关',
+    salesNotifyCodeTooltip: '原销售出库通知：{code}',
+    salesNotifyCodeLink: '原销售出库通知',
     editDialog: {
       title: '编辑出库单',
       loadFailed: '加载出库单失败'
@@ -3747,6 +3827,8 @@ const zhCN = {
       dateStart: '预计出库起',
       dateEnd: '预计出库止',
       dateTo: '至',
+      stockOutTypePlaceholder: '出库类型',
+      stockOutTypeAll: '全部类型',
       workflowPlaceholder: '流程筛选',
       workflowAll: '全部',
       workflowPendingPick: '待拣货',
@@ -3763,6 +3845,7 @@ const zhCN = {
       workflow: '流程',
       status: '状态',
       customsStatus: '报关状态',
+      stockOutType: '出库类型',
       salesOrderCode: '销售单号',
       materialModel: '物料型号',
       brand: '品牌',
@@ -3795,6 +3878,15 @@ const zhCN = {
       inCustoms: '报关中',
       completed: '报关完成'
     },
+    stockOutTypeLabels: {
+      sales: '销售出库',
+      customs: '报关出库',
+      return: '退货出库',
+      scrap: '报废出库'
+    },
+    customsNotifyTag: '报关',
+    salesNotifyCodeTooltip: '原销售出库通知：{code}',
+    salesNotifyCodeLink: '原销售出库通知',
     workflow: {
       pendingPick: '待拣货',
       pickedPendingOut: '已拣货待出库',

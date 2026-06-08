@@ -1,4 +1,4 @@
-# 按公司（Tenant）参数化构建并部署 FrontCRM
+﻿# 按公司（Tenant）参数化构建并部署 FrontCRM
 # 配置：deploy/tenants.json
 #
 # 公司1 Semicore  129.226.161.3  蓝色登录页  left-right
@@ -28,6 +28,22 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+function Initialize-DeployScriptConsole {
+    # Windows PowerShell 5.1 reads UTF-8 .ps1 reliably only with BOM; align console output too.
+    try {
+        if ($Host.Name -eq 'ConsoleHost') {
+            chcp 65001 | Out-Null
+            [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+            [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+            $script:OutputEncoding = [System.Text.Encoding]::UTF8
+        }
+    } catch {
+        # Non-interactive hosts may reject chcp; ignore.
+    }
+}
+
+Initialize-DeployScriptConsole
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
@@ -79,14 +95,14 @@ if ($Tenant -eq 'all') {
     $summaryColor = if ($failCount -gt 0) { 'Red' } else { 'Green' }
 
     Write-Host ""
-    Write-Host "=== 批量发布完成 ===" -ForegroundColor $summaryColor
-    Write-Host "发布成功: $successCount 个" -ForegroundColor Green
+    Write-Host "=== Batch deploy summary ===" -ForegroundColor $summaryColor
+    Write-Host "Succeeded: $successCount tenant(s)" -ForegroundColor Green
     if ($successCount -gt 0) {
-        Write-Host "  成功租户: $($succeededTenants -join ', ')" -ForegroundColor Gray
+        Write-Host "  Tenants: $($succeededTenants -join ', ')" -ForegroundColor Gray
     }
-    Write-Host "发布失败: $failCount 个" -ForegroundColor $(if ($failCount -gt 0) { 'Red' } else { 'Gray' })
+    Write-Host "Failed: $failCount tenant(s)" -ForegroundColor $(if ($failCount -gt 0) { 'Red' } else { 'Gray' })
     if ($failCount -gt 0) {
-        Write-Host "  失败租户: $($failedTenants -join ', ')" -ForegroundColor Red
+        Write-Host "  Tenants: $($failedTenants -join ', ')" -ForegroundColor Red
         exit 1
     }
 

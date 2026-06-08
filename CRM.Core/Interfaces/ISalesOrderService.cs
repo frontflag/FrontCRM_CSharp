@@ -272,6 +272,12 @@ namespace CRM.Core.Interfaces
         /// <summary>客户名称包含。</summary>
         public string? CustomerNameFilter { get; set; }
 
+        /// <summary>业务员姓名包含。</summary>
+        public string? SalesUserNameFilter { get; set; }
+
+        /// <summary>备注（主表 Comment）包含。</summary>
+        public string? CommentFilter { get; set; }
+
         public short? Status { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }

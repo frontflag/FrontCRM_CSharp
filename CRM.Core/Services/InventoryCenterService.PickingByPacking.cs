@@ -1,6 +1,7 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Inventory;
+using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
 
@@ -551,6 +552,18 @@ public partial class InventoryCenterService
             .GroupBy(p => p.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Key.Length > 0)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        var poIds = poItems
+            .Select(p => p.PurchaseOrderId?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Cast<string>()
+            .ToList();
+        var poById = poIds.Count == 0
+            ? new Dictionary<string, PurchaseOrder>(StringComparer.OrdinalIgnoreCase)
+            : (await _purchaseOrderRepository.FindAsync(p => poIds.Contains(p.Id)))
+                .GroupBy(p => p.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Key.Length > 0)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         var stocks = (await _stockRepository.GetAllAsync()).ToList();
         var stocksById = stocks
@@ -635,6 +648,8 @@ public partial class InventoryCenterService
                 StockType = st?.StockType ?? 1,
                 PurchasePn = si.PurchasePn,
                 PurchaseBrand = si.PurchaseBrand,
+                FreightForwarderOrderNo = FreightForwarderOrderNoLookup.FromPurchaseOrderItemId(
+                    si.PurchaseOrderItemId, poItemById, poById),
                 LocationId = si.LocationId,
                 BatchNo = si.BatchNo,
                 WarehouseId = si.WarehouseId?.Trim() ?? wh,

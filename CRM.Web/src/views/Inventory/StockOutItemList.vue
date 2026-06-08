@@ -47,6 +47,12 @@
           :placeholder="t('stockOutItemList.filters.packingCode')"
           @keyup.enter="fetchList"
         />
+        <input
+          v-model="filters.freightForwarderOrderNo"
+          class="search-input search-input--filter search-input--wide"
+          :placeholder="t('common.freightForwarderOrderNoPlaceholder')"
+          @keyup.enter="fetchList"
+        />
         <div
           class="filter-date-range"
           role="group"
@@ -126,6 +132,14 @@
           <span v-else-if="row.packingCode?.trim()" class="mono-cell">{{ row.packingCode.trim() }}</span>
           <span v-else>{{ t('quoteList.na') }}</span>
         </template>
+      </el-table-column>
+      <el-table-column
+        prop="freightForwarderOrderNo"
+        :label="t('common.freightForwarderOrderNo')"
+        width="160"
+        show-overflow-tooltip
+      >
+        <template #default="{ row }">{{ row.freightForwarderOrderNo?.trim() || t('quoteList.na') }}</template>
       </el-table-column>
       <el-table-column :label="t('stockOutItemList.columns.stockOutDate')" width="118">
         <template #default="{ row }">{{ formatDateOnly(row.stockOutDate) }}</template>
@@ -227,6 +241,7 @@ const filters = reactive({
   stockOutCode: '',
   stockInCode: '',
   packingCode: '',
+  freightForwarderOrderNo: '',
   customerName: '',
   salesUserName: '',
   purchasePn: '',
@@ -239,6 +254,7 @@ function buildQuery(): StockOutItemListQuery {
     stockOutCode: filters.stockOutCode.trim() || undefined,
     stockInCode: filters.stockInCode.trim() || undefined,
     packingCode: filters.packingCode.trim() || undefined,
+    freightForwarderOrderNo: filters.freightForwarderOrderNo.trim() || undefined,
     stockOutDateFrom: dateFrom.value?.trim() || undefined,
     stockOutDateTo: dateTo.value?.trim() || undefined,
     purchasePn: filters.purchasePn.trim() || undefined,
@@ -284,6 +300,7 @@ const resetFilters = () => {
   filters.stockOutCode = ''
   filters.stockInCode = ''
   filters.packingCode = ''
+  filters.freightForwarderOrderNo = ''
   filters.customerName = ''
   filters.salesUserName = ''
   filters.purchasePn = ''

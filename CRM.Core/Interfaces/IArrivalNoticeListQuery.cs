@@ -8,6 +8,7 @@ public interface IArrivalNoticeListQuery
     Task<PagedResult<StockInNotify>> GetPagedAsync(
         short? status,
         string? purchaseOrderCode,
+        string? freightForwarderOrderNo,
         DateTime? expectedArrivalDate,
         string? noticeId,
         int page,

@@ -123,6 +123,12 @@ namespace CRM.Core.Services
             var noticeMap = notices.ToDictionary(x => x.Id, x => x);
 
             var poIdsScope = notices.Select(n => n.PurchaseOrderId).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
+            var poById = poIdsScope.Count == 0
+                ? new Dictionary<string, PurchaseOrder>(StringComparer.OrdinalIgnoreCase)
+                : (await _poRepo.FindAsync(x => poIdsScope.Contains(x.Id)))
+                    .GroupBy(x => x.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
+                    .Where(g => g.Key.Length > 0)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
             var poItems = poIdsScope.Count == 0
                 ? new List<PurchaseOrderItem>()
                 : (await _poItemRepo.FindAsync(x => poIdsScope.Contains(x.PurchaseOrderId))).ToList();
@@ -161,6 +167,9 @@ namespace CRM.Core.Services
 
                 qc.VendorName = notice?.VendorName;
                 qc.PurchaseOrderCode = notice?.PurchaseOrderCode;
+                qc.FreightForwarderOrderNo = notice == null
+                    ? null
+                    : FreightForwarderOrderNoLookup.FromPurchaseOrderId(notice.PurchaseOrderId, poById);
 
                 var modelSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 if (notice != null)
@@ -391,6 +400,14 @@ namespace CRM.Core.Services
             var notices = (await _notifyRepo.GetAllAsync()).ToList();
             var noticeMap = notices.ToDictionary(x => x.Id, x => x);
 
+            var poIdsScopeLegacy = notices.Select(n => n.PurchaseOrderId).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
+            var poByIdLegacy = poIdsScopeLegacy.Count == 0
+                ? new Dictionary<string, PurchaseOrder>(StringComparer.OrdinalIgnoreCase)
+                : (await _poRepo.FindAsync(x => poIdsScopeLegacy.Contains(x.Id)))
+                    .GroupBy(x => x.Id?.Trim() ?? "", StringComparer.OrdinalIgnoreCase)
+                    .Where(g => g.Key.Length > 0)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
             var poItems = (await _poItemRepo.GetAllAsync()).ToList();
             var poItemMap = poItems.ToDictionary(x => x.Id, x => x);
             // 采购明细 purchase_order_id 为空时 GroupBy(null).ToDictionary 会抛 ArgumentNullException，导致质检列表整页失败
@@ -412,6 +429,9 @@ namespace CRM.Core.Services
 
                 qc.VendorName = notice?.VendorName;
                 qc.PurchaseOrderCode = notice?.PurchaseOrderCode;
+                qc.FreightForwarderOrderNo = notice == null
+                    ? null
+                    : FreightForwarderOrderNoLookup.FromPurchaseOrderId(notice.PurchaseOrderId, poByIdLegacy);
 
                 var modelSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 if (notice != null)

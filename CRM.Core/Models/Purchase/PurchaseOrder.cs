@@ -136,6 +136,11 @@ namespace CRM.Core.Models.Purchase
         [Column("inner_comment")]
         public string? InnerComment { get; set; }
 
+        /// <summary>货代系统订单号（与外部仓库 1:1 对应；审核通过后由物流录入）。</summary>
+        [StringLength(64)]
+        [Column("freight_forwarder_order_no")]
+        public string? FreightForwarderOrderNo { get; set; }
+
         /// <summary>创建订单时的登录用户 ID（<c>user</c> 表主键 GUID，与 JWT 一致）；基类 <c>CreateUserId</c>(bigint) 勿用于关联用户。</summary>
         [StringLength(36)]
         [Column("create_by_user_id")]

@@ -36,6 +36,18 @@
             @keyup.enter="loadData"
           />
         </div>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filters.freightForwarderOrderNo"
+            class="search-input"
+            :placeholder="t('common.freightForwarderOrderNoPlaceholder')"
+            @keyup.enter="loadData"
+          />
+        </div>
         <el-date-picker
           v-model="filters.expectedArrivalDate"
           type="date"
@@ -311,6 +323,14 @@ const arrivalNoticeColumns = computed<CrmTableColumnDef[]>(() => {
     },
     { key: 'noticeCode', label: t('arrivalNoticeList.columns.noticeCode'), prop: 'noticeCode', width: 170 },
     { key: 'purchaseOrderCode', label: t('arrivalNoticeList.columns.purchaseOrderCode'), prop: 'purchaseOrderCode', width: 160 },
+    {
+      key: 'freightForwarderOrderNo',
+      label: t('common.freightForwarderOrderNo'),
+      prop: 'freightForwarderOrderNo',
+      width: 160,
+      minWidth: 140,
+      showOverflowTooltip: true
+    },
     { key: 'createTime', label: t('arrivalNoticeList.columns.createTime'), prop: 'createTime', width: 170 },
     { key: 'createUser', label: t('arrivalNoticeList.columns.createUser'), width: 120, showOverflowTooltip: true },
     {
@@ -337,10 +357,12 @@ const arrivalDetailLabelStyle = { minWidth: '8.5em', whiteSpace: 'nowrap' as con
 const filters = ref<{
   status?: number
   purchaseOrderCode: string
+  freightForwarderOrderNo: string
   expectedArrivalDate: string
 }>({
   status: undefined,
   purchaseOrderCode: '',
+  freightForwarderOrderNo: '',
   expectedArrivalDate: ''
 })
 
@@ -409,6 +431,7 @@ function applyArrivalList(resetPage: boolean) {
     .getArrivalNotices({
       status: filters.value.status,
       purchaseOrderCode: filters.value.purchaseOrderCode.trim() || undefined,
+      freightForwarderOrderNo: filters.value.freightForwarderOrderNo.trim() || undefined,
       expectedArrivalDate: filters.value.expectedArrivalDate || undefined,
       page: listPage.value,
       pageSize: listPageSize.value
@@ -429,6 +452,7 @@ const resetFilters = () => {
   filters.value = {
     status: undefined,
     purchaseOrderCode: '',
+    freightForwarderOrderNo: '',
     expectedArrivalDate: ''
   }
   applyArrivalList(true)

@@ -762,6 +762,26 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '数据字典', permission: 'rbac.manage' }
       },
       {
+        path: 'system/purchase-params',
+        component: () => import('@/views/System/PurchaseParamsLayout.vue'),
+        meta: { requiresAuth: true, title: '采购参数', permission: 'rbac.manage' },
+        children: [
+          { path: '', redirect: '/system/purchase-params/assignee-count' },
+          {
+            path: 'assignee-count',
+            name: 'PurchaseAssigneeCount',
+            component: () => import('@/views/System/PurchaseAssigneeCountSettings.vue'),
+            meta: { requiresAuth: true, title: '采购参数', permission: 'rbac.manage' }
+          },
+          {
+            path: 'quoter-pool',
+            name: 'PurchaseQuoterPool',
+            component: () => import('@/views/System/PurchaseQuoterPoolSettings.vue'),
+            meta: { requiresAuth: true, title: '采购参数', permission: 'rbac.manage' }
+          }
+        ]
+      },
+      {
         path: 'system/finance-params',
         component: () => import('@/views/System/FinanceParamsLayout.vue'),
         meta: { requiresAuth: true, title: '财务参数', permission: 'rbac.manage' },

@@ -112,13 +112,10 @@ namespace CRM.IntegrationTests
                 _dataPermissionService,
                 _userService,
                 _sysParamRepo,
-                _rbacRoleRepo,
-                _rbacUserRoleRepo,
-                _rbacDepartmentRepo,
-                _rbacUserDepartmentRepo,
                 _quoteRepository,
                 _userRepo,
                 rfqRbac,
+                CreateEmptyPurchaseQuoterPoolService(),
                 rfqMainMem,
                 rfqItemMem,
                 NullLogger<RFQService>.Instance,
@@ -200,6 +197,14 @@ namespace CRM.IntegrationTests
                 Substitute.For<ILogOperationAppendService>(),
                 _unitOfWork,
                 NullLogger<SalesOrderService>.Instance);
+        }
+
+        private static IPurchaseQuoterPoolService CreateEmptyPurchaseQuoterPoolService()
+        {
+            var svc = Substitute.For<IPurchaseQuoterPoolService>();
+            svc.GetOrderedActivePoolUserIdsAsync(Arg.Any<CancellationToken>()).Returns(Array.Empty<string>());
+            svc.GetAssigneeCountAsync(Arg.Any<CancellationToken>()).Returns(2);
+            return svc;
         }
 
         [Fact]
@@ -1337,8 +1342,8 @@ namespace CRM.IntegrationTests
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
-                sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, rbacDepartmentRepo, rbacUserDepartmentRepo, quoteRepo,
-                userRepo, rbacSvc, rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>());
+                sysParamRepo, quoteRepo,
+                userRepo, rbacSvc, CreateEmptyPurchaseQuoterPoolService(), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>());
 
             // 模拟序列号生成
             serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -1453,8 +1458,8 @@ namespace CRM.IntegrationTests
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
-                sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, rbacDepartmentRepo, rbacUserDepartmentRepo, quoteRepo,
-                userRepo, rbacSvc, rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>());
+                sysParamRepo, quoteRepo,
+                userRepo, rbacSvc, CreateEmptyPurchaseQuoterPoolService(), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>());
 
             // 模拟序列号生成
             serialNumberService.GenerateNextAsync(Arg.Any<string>()).Returns("RF20260001");
@@ -1581,8 +1586,8 @@ namespace CRM.IntegrationTests
             var service = new RFQService(
                 rfqRepo, itemRepo, customerRepo, entityLookup, unitOfWork,
                 serialNumberService, dataPermissionService, userService,
-                sysParamRepo, rbacRoleRepo, rbacUserRoleRepo, rbacDepartmentRepo, rbacUserDepartmentRepo, quoteRepo,
-                userRepo, rbacSvc, rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>());
+                sysParamRepo, quoteRepo,
+                userRepo, rbacSvc, CreateEmptyPurchaseQuoterPoolService(), rfqMainMem, rfqItemMem, logger, Substitute.For<ILogOperationAppendService>());
 
             // 准备用户数据
             var salesUserId = "SALES-USER-001";

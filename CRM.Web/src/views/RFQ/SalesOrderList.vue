@@ -48,9 +48,19 @@
       </el-col>
     </el-row>
 
-    <!-- 搜索栏：对齐客户列表 CustomerList search-bar -->
+    <!-- 搜索栏：状态 → 订单号 → 客户 → 业务员 → 备注 → 创建日期 -->
     <div class="search-bar">
       <div class="search-left">
+        <el-select
+          v-model="filterForm.status"
+          :placeholder="t('salesOrderList.filters.allStatus')"
+          clearable
+          class="status-select"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option v-for="opt in statusFilterOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+        </el-select>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -77,16 +87,43 @@
             />
           </div>
         </template>
-        <el-select
-          v-model="filterForm.status"
-          :placeholder="t('salesOrderList.filters.allStatus')"
+        <template v-if="!maskSaleSensitiveFields">
+          <div class="search-input-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              v-model="filterForm.salesUserName"
+              class="search-input"
+              :placeholder="t('salesOrderList.filters.salesUserPlaceholder')"
+              @keyup.enter="handleSearch"
+            />
+          </div>
+        </template>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filterForm.comment"
+            class="search-input"
+            :placeholder="t('salesOrderList.filters.commentPlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <el-date-picker
+          v-model="filterForm.createDateRange"
+          type="daterange"
+          :range-separator="t('salesOrderList.filters.createDateSep')"
+          :start-placeholder="t('salesOrderList.filters.createDateFrom')"
+          :end-placeholder="t('salesOrderList.filters.createDateTo')"
+          value-format="YYYY-MM-DD"
+          class="filter-date-range so-list-date-range"
           clearable
-          class="status-select"
           :teleported="false"
-          @change="handleSearch"
-        >
-          <el-option v-for="opt in statusFilterOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-        </el-select>
+        />
         <button class="btn-primary btn-sm" type="button" @click="handleSearch">{{ t('salesOrderList.filters.search') }}</button>
         <button class="btn-ghost btn-sm" type="button" @click="handleReset">{{ t('salesOrderList.filters.reset') }}</button>
       </div>
@@ -135,6 +172,9 @@
         </template>
         <template #col-createTime="{ row }">
           {{ formatDisplayDateTime(row.createTime) }}
+        </template>
+        <template #col-comment="{ row }">
+          {{ row.headerRemarkDisplay || row.comment || '—' }}
         </template>
         <template #col-createUser="{ row }">
           {{ row.createUserName || row.createdBy || row.salesUserName || '—' }}
@@ -268,6 +308,9 @@ const listFocusedOrderId = ref('')
 const filterForm = ref({
   code: '',
   customer: '',
+  salesUserName: '',
+  comment: '',
+  createDateRange: null as [string, string] | null,
   status: undefined as number | undefined
 })
 
@@ -307,6 +350,13 @@ const salesOrderTableColumns = computed((): CrmTableColumnDef[] => {
     width: 120,
     minWidth: 120,
     align: 'center' as const
+  },
+  {
+    key: 'comment',
+    label: t('salesOrderList.columns.comment'),
+    prop: 'comment',
+    minWidth: 160,
+    showOverflowTooltip: true
   },
   {
     key: 'sellOrderCode',
@@ -410,6 +460,14 @@ const loadData = async () => {
     if (filterForm.value.status !== undefined && filterForm.value.status !== null) {
       params.status = filterForm.value.status
     }
+    if (!maskSaleSensitiveFields.value) {
+      const salesUser = filterForm.value.salesUserName.trim()
+      if (salesUser) params.salesUserName = salesUser
+    }
+    const cm = filterForm.value.comment.trim()
+    if (cm) params.comment = cm
+    if (filterForm.value.createDateRange?.[0]) params.startDate = filterForm.value.createDateRange[0]
+    if (filterForm.value.createDateRange?.[1]) params.endDate = filterForm.value.createDateRange[1]
 
     const res = (await salesOrderApi.getList(params)) as {
       items?: any[]
@@ -458,6 +516,11 @@ function syncFiltersFromRoute() {
   const q = route.query
   filterForm.value.code = typeof q.code === 'string' ? q.code : ''
   filterForm.value.customer = typeof q.customer === 'string' ? q.customer : ''
+  filterForm.value.salesUserName = typeof q.salesUserName === 'string' ? q.salesUserName : ''
+  filterForm.value.comment = typeof q.comment === 'string' ? q.comment : ''
+  const from = typeof q.startDate === 'string' ? q.startDate : ''
+  const to = typeof q.endDate === 'string' ? q.endDate : ''
+  filterForm.value.createDateRange = from && to ? [from, to] : null
   const st = q.status
   if (st === undefined || st === null || st === '') {
     filterForm.value.status = undefined
@@ -483,6 +546,12 @@ const handleSearch = () => {
   if (code) query.code = code
   const customer = filterForm.value.customer.trim()
   if (customer) query.customer = customer
+  const salesUser = filterForm.value.salesUserName.trim()
+  if (salesUser) query.salesUserName = salesUser
+  const cm = filterForm.value.comment.trim()
+  if (cm) query.comment = cm
+  if (filterForm.value.createDateRange?.[0]) query.startDate = filterForm.value.createDateRange[0]
+  if (filterForm.value.createDateRange?.[1]) query.endDate = filterForm.value.createDateRange[1]
   if (filterForm.value.status !== undefined && filterForm.value.status !== null) {
     query.status = String(filterForm.value.status)
   }
@@ -491,7 +560,14 @@ const handleSearch = () => {
 }
 
 const handleReset = () => {
-  filterForm.value = { code: '', customer: '', status: undefined }
+  filterForm.value = {
+    code: '',
+    customer: '',
+    salesUserName: '',
+    comment: '',
+    createDateRange: null,
+    status: undefined
+  }
   pageInfo.value.page = 1
   router.replace({ name: 'SalesOrderList', query: {} })
 }
@@ -664,6 +740,16 @@ const submitForAudit = async (row: any) => {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.filter-date-range.so-list-date-range {
+  width: 260px;
+  :deep(.el-range-editor.el-input__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
 }
 
 .filter-field-label {

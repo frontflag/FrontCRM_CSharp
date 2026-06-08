@@ -142,6 +142,7 @@ export interface StockInListItemDto {
   vendorName?: string
   /** 采购订单号（列表接口由采购头解析） */
   purchaseOrderCode?: string | null
+  freightForwarderOrderNo?: string | null
   salesOrderCode?: string
   /** 列表汇总：物料型号（多行逗号分隔） */
   materialModelSummary?: string | null
@@ -168,6 +169,7 @@ export const stockInApi = {
       model?: string
       vendorName?: string
       purchaseOrderCode?: string
+      freightForwarderOrderNo?: string
       salesOrderCode?: string
       stockInCode?: string
       sourceDisplayNo?: string
@@ -175,6 +177,7 @@ export const stockInApi = {
       stockInDateStart?: string
       stockInDateEnd?: string
       remark?: string
+      stockInType?: number
       page?: number
       pageSize?: number
     }

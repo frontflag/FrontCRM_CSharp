@@ -55,9 +55,28 @@
       </el-col>
     </el-row>
 
-    <!-- 搜索栏（与客户列表页 search-bar 一致） -->
+    <!-- 搜索栏：状态 → 类型 → 采购订单号 → 供应商 → 采购员 → 货代单号 → 备注 → 创建日期 -->
     <div class="search-bar">
       <div class="search-left">
+        <el-select
+          v-model="filterForm.status"
+          :placeholder="t('purchaseOrderList.filters.allStatus')"
+          clearable
+          class="status-select status-select--po"
+          :teleported="false"
+          @change="handleSearch"
+        >
+          <el-option :label="t('purchaseOrderList.status.draft')" :value="0" />
+          <el-option :label="t('purchaseOrderList.status.new')" :value="1" />
+          <el-option :label="t('purchaseOrderList.status.pendingReview')" :value="2" />
+          <el-option :label="t('purchaseOrderList.status.approved')" :value="10" />
+          <el-option :label="t('purchaseOrderList.status.pendingConfirm')" :value="20" />
+          <el-option :label="t('purchaseOrderList.status.confirmed')" :value="30" />
+          <el-option :label="t('purchaseOrderList.status.inProgress')" :value="50" />
+          <el-option :label="t('purchaseOrderList.status.completed')" :value="100" />
+          <el-option :label="t('purchaseOrderList.status.reviewFailed')" :value="-1" />
+          <el-option :label="t('purchaseOrderList.status.cancelled')" :value="-2" />
+        </el-select>
         <el-select
           v-model="filterForm.orderType"
           :placeholder="t('purchaseOrderList.filters.allOrderTypes')"
@@ -114,25 +133,82 @@
             />
           </div>
         </template>
-        <el-select
-          v-model="filterForm.status"
-          :placeholder="t('purchaseOrderList.filters.allStatus')"
+        <template v-if="canViewPurchaseUser">
+          <div class="search-input-wrap">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              class="search-icon"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              v-model="filterForm.purchaseUserName"
+              class="search-input"
+              :placeholder="t('purchaseOrderList.filters.purchaserPlaceholder')"
+              @keyup.enter="handleSearch"
+            />
+          </div>
+        </template>
+        <div class="search-input-wrap">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            class="search-icon"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filterForm.freightForwarderOrderNo"
+            class="search-input"
+            :placeholder="t('purchaseOrderList.filters.freightForwarderOrderNoPlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <div class="search-input-wrap">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            class="search-icon"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filterForm.comment"
+            class="search-input"
+            :placeholder="t('purchaseOrderList.filters.commentPlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <el-date-picker
+          v-model="filterForm.createDateRange"
+          type="daterange"
+          :range-separator="t('purchaseOrderList.filters.createDateSep')"
+          :start-placeholder="t('purchaseOrderList.filters.createDateFrom')"
+          :end-placeholder="t('purchaseOrderList.filters.createDateTo')"
+          value-format="YYYY-MM-DD"
+          class="filter-date-range po-list-date-range"
           clearable
-          class="status-select status-select--po"
           :teleported="false"
-          @change="handleSearch"
-        >
-          <el-option :label="t('purchaseOrderList.status.draft')" :value="0" />
-          <el-option :label="t('purchaseOrderList.status.new')" :value="1" />
-          <el-option :label="t('purchaseOrderList.status.pendingReview')" :value="2" />
-          <el-option :label="t('purchaseOrderList.status.approved')" :value="10" />
-          <el-option :label="t('purchaseOrderList.status.pendingConfirm')" :value="20" />
-          <el-option :label="t('purchaseOrderList.status.confirmed')" :value="30" />
-          <el-option :label="t('purchaseOrderList.status.inProgress')" :value="50" />
-          <el-option :label="t('purchaseOrderList.status.completed')" :value="100" />
-          <el-option :label="t('purchaseOrderList.status.reviewFailed')" :value="-1" />
-          <el-option :label="t('purchaseOrderList.status.cancelled')" :value="-2" />
-        </el-select>
+        />
         <button type="button" class="btn-primary btn-sm" @click="handleSearch">{{ t('purchaseOrderList.filters.search') }}</button>
         <button type="button" class="btn-ghost btn-sm" @click="handleReset">{{ t('purchaseOrderList.filters.reset') }}</button>
       </div>
@@ -167,6 +243,11 @@
         <template #col-status="{ row }">
           <el-tag effect="dark" :type="getStatusType(poListMainStatus(row))" size="small">
             {{ getStatusText(poListMainStatus(row)) }}
+          </el-tag>
+        </template>
+        <template #col-type="{ row }">
+          <el-tag effect="dark" :type="purchaseOrderTypeTagType(row)" size="small">
+            {{ purchaseOrderTypeLabel(row) }}
           </el-tag>
         </template>
         <template #col-total="{ row }">
@@ -355,6 +436,9 @@ const canViewVendorInfo = computed(
 const canViewPurchaseAmount = computed(
   () => !maskPurchaseSensitiveFields.value && authStore.hasPermission('purchase.amount.read')
 )
+const canViewPurchaseUser = computed(
+  () => authStore.hasPermission('purchase.user.read') || authStore.hasPermission('purchase-order.read')
+)
 
 // 列表操作列：默认收起（Collapsed）
 const opColExpanded = ref(false)
@@ -378,9 +462,32 @@ function isPurchaseOrderStocking(row: Record<string, unknown>) {
   return purchaseOrderHeaderType(row) === 2
 }
 
+function purchaseOrderTypeLabel(row: Record<string, unknown>) {
+  const n = purchaseOrderHeaderType(row)
+  if (n === 2) return t('purchaseOrderList.filters.orderTypeStocking')
+  if (n === 3) return t('purchaseOrderList.filters.orderTypeSample')
+  return t('purchaseOrderList.filters.orderTypeCustomer')
+}
+
+function purchaseOrderTypeTagType(row: Record<string, unknown>): '' | 'success' | 'warning' | 'danger' | 'info' {
+  const n = purchaseOrderHeaderType(row)
+  if (n === 2) return 'warning'
+  if (n === 3) return 'info'
+  return ''
+}
+
 /** 采购订单列表主表可配置列（localStorage：crm-table-columns:v1:purchase-order-list-main） */
 const purchaseOrderTableColumns = computed((): CrmTableColumnDef[] => [
   { key: 'status', label: t('purchaseOrderList.columns.status'), prop: 'status', width: 160, align: 'center' as const },
+  {
+    key: 'type',
+    label: t('purchaseOrderList.columns.orderType'),
+    prop: 'type',
+    width: 110,
+    minWidth: 100,
+    align: 'center' as const,
+    showOverflowTooltip: true
+  },
   ...(canViewVendorInfo.value
     ? [{ key: 'vendorName', label: t('purchaseOrderList.columns.vendor'), prop: 'vendorName', minWidth: 200, showOverflowTooltip: true }]
     : []),
@@ -397,6 +504,21 @@ const purchaseOrderTableColumns = computed((): CrmTableColumnDef[] => [
     align: 'center' as const
   },
   { key: 'deliveryDate', label: t('purchaseOrderList.columns.deliveryDate'), prop: 'deliveryDate', width: 160 },
+  {
+    key: 'freightForwarderOrderNo',
+    label: t('purchaseOrderList.columns.freightForwarderOrderNo'),
+    prop: 'freightForwarderOrderNo',
+    width: 160,
+    minWidth: 140,
+    showOverflowTooltip: true
+  },
+  {
+    key: 'comment',
+    label: t('purchaseOrderList.columns.comment'),
+    prop: 'comment',
+    minWidth: 160,
+    showOverflowTooltip: true
+  },
   {
     key: 'purchaseOrderCode',
     label: t('purchaseOrderList.columns.orderCode'),
@@ -426,7 +548,11 @@ const purchaseOrderTableColumns = computed((): CrmTableColumnDef[] => [
 // 筛选表单
 const filterForm = ref({
   code: '',
+  freightForwarderOrderNo: '',
   vendor: '',
+  purchaseUserName: '',
+  comment: '',
+  createDateRange: null as [string, string] | null,
   status: undefined as number | undefined,
   orderType: undefined as number | undefined
 })
@@ -501,7 +627,12 @@ const loadData = async () => {
       page: number
       pageSize: number
       code?: string
+      freightForwarderOrderNo?: string
       vendor?: string
+      purchaseUserName?: string
+      comment?: string
+      startDate?: string
+      endDate?: string
       status?: number
       orderType?: number
     } = {
@@ -509,9 +640,17 @@ const loadData = async () => {
       pageSize: pageInfo.value.pageSize
     }
     const c = filterForm.value.code?.trim()
+    const ff = filterForm.value.freightForwarderOrderNo?.trim()
     const v = filterForm.value.vendor?.trim()
+    const pu = filterForm.value.purchaseUserName?.trim()
+    const cm = filterForm.value.comment?.trim()
     if (c) params.code = c
+    if (ff) params.freightForwarderOrderNo = ff
     if (v) params.vendor = v
+    if (canViewPurchaseUser.value && pu) params.purchaseUserName = pu
+    if (cm) params.comment = cm
+    if (filterForm.value.createDateRange?.[0]) params.startDate = filterForm.value.createDateRange[0]
+    if (filterForm.value.createDateRange?.[1]) params.endDate = filterForm.value.createDateRange[1]
     if (filterForm.value.status !== undefined) params.status = filterForm.value.status
     if (filterForm.value.orderType !== undefined) params.orderType = filterForm.value.orderType
 
@@ -564,7 +703,16 @@ const handleSearch = () => {
 }
 
 const handleReset = () => {
-  filterForm.value = { code: '', vendor: '', status: undefined, orderType: undefined }
+  filterForm.value = {
+    code: '',
+    freightForwarderOrderNo: '',
+    vendor: '',
+    purchaseUserName: '',
+    comment: '',
+    createDateRange: null,
+    status: undefined,
+    orderType: undefined
+  }
   pageInfo.value.page = 1
   void loadData()
 }
@@ -845,6 +993,16 @@ onMounted(loadData)
 
 .status-select--po-type {
   width: 140px;
+}
+
+.filter-date-range.po-list-date-range {
+  width: 260px;
+  :deep(.el-range-editor.el-input__wrapper) {
+    background: $layer-2 !important;
+    box-shadow: none !important;
+    border: 1px solid $border-panel !important;
+    border-radius: $border-radius-md !important;
+  }
 }
 
 .po-code-with-badge {

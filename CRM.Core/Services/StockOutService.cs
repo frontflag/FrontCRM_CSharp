@@ -471,6 +471,7 @@ namespace CRM.Core.Services
 
             var notifyIds = reqs.Select(r => r.Id).ToList();
             var packingLinkByNotifyId = await ResolvePackingLinkByNotifyIdsAsync(notifyIds);
+            var salesNotifyLinkByCustomsNotifyId = await ResolveSalesNotifyLinkByCustomsNotifyIdsAsync(reqs);
 
             return reqs
                 .Select(x =>
@@ -487,6 +488,7 @@ namespace CRM.Core.Services
                     }
 
                     packingLinkByNotifyId.TryGetValue(x.Id.Trim(), out var packingLink);
+                    salesNotifyLinkByCustomsNotifyId.TryGetValue(x.Id.Trim(), out var salesNotifyLink);
 
                     return new StockOutRequestListItemDto
                     {
@@ -518,6 +520,8 @@ namespace CRM.Core.Services
                         PackingCode = packingLink.PackingCode,
                         RegionType = x.RegionType,
                         StockOutType = x.StockOutType,
+                        SalesStockOutNotifyId = salesNotifyLink.SalesId,
+                        SalesStockOutNotifyCode = salesNotifyLink.SalesCode,
                         Currency = soItemCurrencyMap.TryGetValue(x.SalesOrderItemId.Trim(), out var cur)
                             ? cur
                             : (short)0,
@@ -525,6 +529,111 @@ namespace CRM.Core.Services
                     };
                 })
                 .ToList();
+        }
+
+        /// <summary>报关出库通知 → 原销售出库通知单号（经 customs_pendlist）。</summary>
+        private async Task<IReadOnlyDictionary<string, (string? SalesId, string? SalesCode)>> ResolveSalesNotifyLinkByCustomsNotifyIdsAsync(
+            IReadOnlyList<StockOutRequest> reqs)
+        {
+            var result = new Dictionary<string, (string? SalesId, string? SalesCode)>(StringComparer.OrdinalIgnoreCase);
+            if (reqs == null || reqs.Count == 0)
+                return result;
+
+            var customsReqs = reqs
+                .Where(r => StockOutTypeCode.NormalizeForNotify(r.StockOutType) == StockOutTypeCode.Customs)
+                .ToList();
+            if (customsReqs.Count == 0)
+                return result;
+
+            var pendlistIds = customsReqs
+                .Select(r => r.CustomsPendlistId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+
+            var pendlists = pendlistIds.Count == 0
+                ? new List<CustomsPendlist>()
+                : (await _customsPendlistRepository.FindAsync(p =>
+                    pendlistIds.Contains(p.Id) && !p.IsDeleted)).ToList();
+
+            var pendlistById = pendlists.ToDictionary(p => p.Id.Trim(), p => p, StringComparer.OrdinalIgnoreCase);
+
+            var salesIds = pendlists
+                .Select(p => p.SalesStockOutNotifyId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+
+            var salesSorById = salesIds.Count == 0
+                ? new Dictionary<string, StockOutRequest>(StringComparer.OrdinalIgnoreCase)
+                : (await _stockOutRequestRepository.FindAsync(r => salesIds.Contains(r.Id)))
+                    .ToDictionary(r => r.Id.Trim(), r => r, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var notify in customsReqs)
+            {
+                var notifyId = notify.Id.Trim();
+                if (string.IsNullOrWhiteSpace(notify.CustomsPendlistId))
+                    continue;
+                if (!pendlistById.TryGetValue(notify.CustomsPendlistId.Trim(), out var pendlist))
+                    continue;
+
+                var salesId = pendlist.SalesStockOutNotifyId?.Trim();
+                if (string.IsNullOrEmpty(salesId))
+                    continue;
+
+                salesSorById.TryGetValue(salesId, out var salesSor);
+                result[notifyId] = (salesId, salesSor?.RequestCode);
+            }
+
+            return result;
+        }
+
+        /// <summary>报关出库单 SourceId（报关出库通知 Id）→ 原销售出库通知。</summary>
+        private async Task<IReadOnlyDictionary<string, (string? SalesId, string? SalesCode)>> ResolveSalesNotifyLinkByCustomsStockOutNotifyIdsAsync(
+            IEnumerable<string> customsNotifyIds)
+        {
+            var result = new Dictionary<string, (string? SalesId, string? SalesCode)>(StringComparer.OrdinalIgnoreCase);
+            var ids = customsNotifyIds
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0)
+                return result;
+
+            var pendlists = (await _customsPendlistRepository.FindAsync(p =>
+                    !p.IsDeleted
+                    && p.CustomsStockOutNotifyId != null
+                    && ids.Contains(p.CustomsStockOutNotifyId)))
+                .ToList();
+
+            var salesIds = pendlists
+                .Select(p => p.SalesStockOutNotifyId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+
+            var salesSorById = salesIds.Count == 0
+                ? new Dictionary<string, StockOutRequest>(StringComparer.OrdinalIgnoreCase)
+                : (await _stockOutRequestRepository.FindAsync(r => salesIds.Contains(r.Id)))
+                    .ToDictionary(r => r.Id.Trim(), r => r, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var pendlist in pendlists)
+            {
+                var customsNotifyId = pendlist.CustomsStockOutNotifyId?.Trim();
+                if (string.IsNullOrEmpty(customsNotifyId))
+                    continue;
+                var salesId = pendlist.SalesStockOutNotifyId?.Trim();
+                if (string.IsNullOrEmpty(salesId))
+                    continue;
+                salesSorById.TryGetValue(salesId, out var salesSor);
+                result[customsNotifyId] = (salesId, salesSor?.RequestCode);
+            }
+
+            return result;
         }
 
         /// <summary>出库通知列表：按 <c>packing_item.stockout_notify_id</c> 解析关联装箱单。</summary>
@@ -1099,6 +1208,20 @@ namespace CRM.Core.Services
                     warehouseCode = wh.WarehouseCode.Trim();
             }
 
+            string? salesStockOutNotifyId = null;
+            string? salesStockOutNotifyCode = null;
+            var sourceId = x.SourceId?.Trim();
+            if (StockOutTypeCode.NormalizeForNotify(x.StockOutType) == StockOutTypeCode.Customs
+                && !string.IsNullOrEmpty(sourceId))
+            {
+                var salesLinkMap = await ResolveSalesNotifyLinkByCustomsStockOutNotifyIdsAsync(new[] { sourceId });
+                if (salesLinkMap.TryGetValue(sourceId, out var salesLink))
+                {
+                    salesStockOutNotifyId = salesLink.SalesId;
+                    salesStockOutNotifyCode = salesLink.SalesCode;
+                }
+            }
+
             var listRow = new StockOutListItemDto
             {
                 Id = x.Id,
@@ -1106,6 +1229,8 @@ namespace CRM.Core.Services
                 StockOutType = x.StockOutType,
                 SourceCode = x.SourceCode,
                 SourceId = x.SourceId,
+                SalesStockOutNotifyId = salesStockOutNotifyId,
+                SalesStockOutNotifyCode = salesStockOutNotifyCode,
                 StockOutDate = x.StockOutDate,
                 ExpectedStockOutDate = x.ExpectedStockOutDate,
                 TotalQuantity = x.TotalQuantity,
@@ -1129,6 +1254,8 @@ namespace CRM.Core.Services
                 StockOutType = listRow.StockOutType,
                 SourceCode = listRow.SourceCode,
                 SourceId = listRow.SourceId,
+                SalesStockOutNotifyId = listRow.SalesStockOutNotifyId,
+                SalesStockOutNotifyCode = listRow.SalesStockOutNotifyCode,
                 StockOutDate = listRow.StockOutDate,
                 TotalQuantity = listRow.TotalQuantity,
                 TotalAmount = listRow.TotalAmount,
@@ -1268,6 +1395,7 @@ namespace CRM.Core.Services
 
             var stockOutIds = outs.Select(x => x.Id).ToList();
             var packingSummaryById = await ResolvePackingSummaryByStockOutIdAsync(stockOutIds);
+            var freightForwarderByStockOutId = await ResolveFreightForwarderOrderNoByStockOutIdAsync(stockOutIds);
 
             var notifyIdSet = outs
                 .Select(x => x.SourceId?.Trim())
@@ -1278,6 +1406,15 @@ namespace CRM.Core.Services
                 ? new Dictionary<string, StockOutRequest>(StringComparer.OrdinalIgnoreCase)
                 : (await _stockOutRequestRepository.FindAsync(r => notifyIdSet.Contains(r.Id)))
                     .ToDictionary(r => r.Id.Trim(), r => r, StringComparer.OrdinalIgnoreCase);
+
+            var customsSourceIds = outs
+                .Where(x => StockOutTypeCode.NormalizeForNotify(x.StockOutType) == StockOutTypeCode.Customs)
+                .Select(x => x.SourceId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Cast<string>()
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var salesNotifyByCustomsSourceId = await ResolveSalesNotifyLinkByCustomsStockOutNotifyIdsAsync(customsSourceIds);
 
             return outs
                 .Select(x =>
@@ -1327,6 +1464,16 @@ namespace CRM.Core.Services
                             : notify.ExpressCompany.Trim();
                     }
 
+                    string? salesStockOutNotifyId = null;
+                    string? salesStockOutNotifyCode = null;
+                    if (StockOutTypeCode.NormalizeForNotify(x.StockOutType) == StockOutTypeCode.Customs
+                        && !string.IsNullOrEmpty(sourceId)
+                        && salesNotifyByCustomsSourceId.TryGetValue(sourceId, out var salesLink))
+                    {
+                        salesStockOutNotifyId = salesLink.SalesId;
+                        salesStockOutNotifyCode = salesLink.SalesCode;
+                    }
+
                     return new StockOutListItemDto
                     {
                         Id = x.Id,
@@ -1334,6 +1481,8 @@ namespace CRM.Core.Services
                         StockOutType = x.StockOutType,
                         SourceCode = x.SourceCode,
                         SourceId = x.SourceId,
+                        SalesStockOutNotifyId = salesStockOutNotifyId,
+                        SalesStockOutNotifyCode = salesStockOutNotifyCode,
                         StockOutDate = x.StockOutDate,
                         ExpectedStockOutDate = x.ExpectedStockOutDate,
                         PackingCount = packingSummaryById.TryGetValue(x.Id, out var packingSummary)
@@ -1354,7 +1503,10 @@ namespace CRM.Core.Services
                         SellOrderItemCode = sellOrderItemCode,
                         ShipmentMethod = shipmentMethod,
                         ExpressCompany = expressCompany,
-                        CourierTrackingNo = string.IsNullOrWhiteSpace(x.CourierTrackingNo) ? null : x.CourierTrackingNo.Trim()
+                        CourierTrackingNo = string.IsNullOrWhiteSpace(x.CourierTrackingNo) ? null : x.CourierTrackingNo.Trim(),
+                        FreightForwarderOrderNo = freightForwarderByStockOutId.TryGetValue(x.Id, out var ff) && !string.IsNullOrWhiteSpace(ff)
+                            ? ff.Trim()
+                            : null
                     };
                 })
                 .ToList();
@@ -1364,6 +1516,70 @@ namespace CRM.Core.Services
         {
             public int Count { get; init; }
             public string? Codes { get; init; }
+        }
+
+        private async Task<IReadOnlyDictionary<string, string>> ResolveFreightForwarderOrderNoByStockOutIdAsync(
+            IReadOnlyList<string> stockOutIds)
+        {
+            if (stockOutIds.Count == 0)
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            var items = (await _stockOutItemRepository.FindAsync(x => stockOutIds.Contains(x.StockOutId)))
+                .Where(x => !x.IsDeleted)
+                .ToList();
+            if (items.Count == 0)
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            var itemIds = items.Select(x => x.Id.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var extends = (await _stockOutItemExtendRepository.FindAsync(e => itemIds.Contains(e.Id)))
+                .Where(e => !string.IsNullOrWhiteSpace(e.PurchaseOrderItemId))
+                .ToList();
+            if (extends.Count == 0)
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            var poiIds = extends
+                .Select(e => e.PurchaseOrderItemId!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var pois = (await _purchaseOrderItemRepository.FindAsync(p => poiIds.Contains(p.Id))).ToList();
+            var poIds = pois
+                .Select(p => p.PurchaseOrderId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+            var pos = poIds.Count == 0
+                ? new List<PurchaseOrder>()
+                : (await _purchaseOrderRepository.FindAsync(p => poIds.Contains(p.Id))).ToList();
+            var poiById = pois.GroupBy(p => p.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var poById = pos.GroupBy(p => p.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var ffByOutItemId = extends.ToDictionary(
+                e => e.Id.Trim(),
+                e => FreightForwarderOrderNoLookup.FromPurchaseOrderItemId(e.PurchaseOrderItemId, poiById, poById) ?? string.Empty,
+                StringComparer.OrdinalIgnoreCase);
+
+            var result = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var line in items)
+            {
+                var outId = line.StockOutId?.Trim() ?? string.Empty;
+                if (outId.Length == 0) continue;
+                if (!ffByOutItemId.TryGetValue(line.Id.Trim(), out var ff) || string.IsNullOrWhiteSpace(ff))
+                    continue;
+                if (!result.TryGetValue(outId, out var set))
+                {
+                    set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    result[outId] = set;
+                }
+                set.Add(ff.Trim());
+            }
+
+            return result.ToDictionary(
+                kv => kv.Key,
+                kv => FreightForwarderOrderNoDisplay.JoinDistinct(kv.Value),
+                StringComparer.OrdinalIgnoreCase);
         }
 
         /// <summary>按出库单统计关联装箱单（<c>stock_out_item.packing_id</c> 或拣货任务关联）。</summary>
@@ -1771,6 +1987,29 @@ namespace CRM.Core.Services
                 .GroupBy(e => e.Id.Trim(), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
+            var poiIdsForFf = extendByOutItemId.Values
+                .Select(e => e.PurchaseOrderItemId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+            var poisForFf = poiIdsForFf.Count == 0
+                ? new List<PurchaseOrderItem>()
+                : (await _purchaseOrderItemRepository.FindAsync(p => poiIdsForFf.Contains(p.Id))).ToList();
+            var poIdsForFf = poisForFf
+                .Select(p => p.PurchaseOrderId?.Trim())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Cast<string>()
+                .ToList();
+            var posForFf = poIdsForFf.Count == 0
+                ? new List<PurchaseOrder>()
+                : (await _purchaseOrderRepository.FindAsync(p => poIdsForFf.Contains(p.Id))).ToList();
+            var poiByIdForFf = poisForFf.GroupBy(p => p.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var poByIdForFf = posForFf.GroupBy(p => p.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
             var stockInItemIdSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var line in linesOrdered)
             {
@@ -1842,6 +2081,11 @@ namespace CRM.Core.Services
                 var outQty = line.ActualQty > 0 ? line.ActualQty : line.Quantity;
                 packingDisplayByLineId.TryGetValue(line.Id.Trim(), out var packingDisplay);
 
+                string? freightForwarderOrderNo = null;
+                if (extendByOutItemId.TryGetValue(line.Id.Trim(), out var extFf))
+                    freightForwarderOrderNo = FreightForwarderOrderNoLookup.FromPurchaseOrderItemId(
+                        extFf.PurchaseOrderItemId, poiByIdForFf, poByIdForFf);
+
                 result.Add(new StockOutItemListRowDto
                 {
                     StockOutItemId = line.Id,
@@ -1859,7 +2103,8 @@ namespace CRM.Core.Services
                     SellOrderItemCode = sellOrderItemCode,
                     StockInCode = headerStockInCode,
                     PackingId = packingDisplay.Id,
-                    PackingCode = packingDisplay.Code
+                    PackingCode = packingDisplay.Code,
+                    FreightForwarderOrderNo = freightForwarderOrderNo
                 });
             }
 

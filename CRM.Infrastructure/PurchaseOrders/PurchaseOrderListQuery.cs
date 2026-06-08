@@ -68,7 +68,8 @@ public sealed class PurchaseOrderListQuery : IPurchaseOrderListQuery
         q = await _dataPermission.ApplyPurchaseOrderDataScopeAsync(request.CurrentUserId, q, cancellationToken);
 
         var hasSplitFilters = !string.IsNullOrWhiteSpace(request.PurchaseOrderCodeFilter)
-            || !string.IsNullOrWhiteSpace(request.VendorNameFilter);
+            || !string.IsNullOrWhiteSpace(request.VendorNameFilter)
+            || !string.IsNullOrWhiteSpace(request.FreightForwarderOrderNoFilter);
 
         if (!string.IsNullOrWhiteSpace(request.Keyword) && !hasSplitFilters)
         {
@@ -90,6 +91,14 @@ public sealed class PurchaseOrderListQuery : IPurchaseOrderListQuery
                 var v = request.VendorNameFilter.Trim();
                 q = q.Where(o => o.VendorName != null && o.VendorName.ToLower().Contains(v.ToLower()));
             }
+
+            if (!string.IsNullOrWhiteSpace(request.FreightForwarderOrderNoFilter))
+            {
+                var f = request.FreightForwarderOrderNoFilter.Trim();
+                q = q.Where(o =>
+                    o.FreightForwarderOrderNo != null &&
+                    o.FreightForwarderOrderNo.ToLower().Contains(f.ToLower()));
+            }
         }
 
         if (request.Status.HasValue)
@@ -103,6 +112,22 @@ public sealed class PurchaseOrderListQuery : IPurchaseOrderListQuery
 
         if (request.EndDate.HasValue)
             q = q.Where(o => o.CreateTime <= request.EndDate.Value.AddDays(1));
+
+        if (!string.IsNullOrWhiteSpace(request.PurchaseUserNameFilter))
+        {
+            var p = request.PurchaseUserNameFilter.Trim();
+            q = q.Where(o =>
+                o.PurchaseUserName != null &&
+                o.PurchaseUserName.ToLower().Contains(p.ToLower()));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.CommentFilter))
+        {
+            var c = request.CommentFilter.Trim();
+            q = q.Where(o =>
+                o.Comment != null &&
+                o.Comment.ToLower().Contains(c.ToLower()));
+        }
 
         return q;
     }

@@ -20,6 +20,7 @@ public sealed class PurchaseOrderItemListQueryRequest
     public DateTime? EndDate { get; set; }
 
     public string? PurchaseOrderCode { get; set; }
+    public string? FreightForwarderOrderNo { get; set; }
     public string? VendorName { get; set; }
     public string? PurchaseUserName { get; set; }
     public string? Pn { get; set; }
@@ -36,6 +37,7 @@ public sealed class PurchaseOrderItemListLineRaw
     public string PurchaseOrderId { get; set; } = string.Empty;
     public string PurchaseOrderItemCode { get; set; } = string.Empty;
     public string PurchaseOrderCode { get; set; } = string.Empty;
+    public string? FreightForwarderOrderNo { get; set; }
     public short PurchaseOrderType { get; set; }
     public short OrderStatus { get; set; }
     public DateTime? OrderCreateTime { get; set; }

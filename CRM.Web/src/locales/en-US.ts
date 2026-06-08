@@ -10,7 +10,10 @@ const enUS = {
     saveSuccess: 'Saved successfully',
     saveFailed: 'Save failed',
     createSuccess: 'Created successfully',
-    crossSideAttachmentsRestricted: 'Under your role policy, attachments for this business type are not available.'
+    crossSideAttachmentsRestricted: 'Under your role policy, attachments for this business type are not available.',
+    freightForwarderOrderNo: 'Freight forwarder no.',
+    freightForwarderOrderNoPlaceholder: 'Enter freight forwarder no.',
+    editFreightForwarderOrderNo: 'Edit freight forwarder no.'
   },
   customsPages: {
     brokers: {
@@ -275,6 +278,45 @@ const enUS = {
     loadAllFailed:
       'Exchange-rate API unavailable (often 404): deploy CRM.API that includes FinanceExchangeRateController, ensure /api is proxied to the API, and DB migrations for finance exchange rates are applied.'
   },
+  purchaseParams: {
+    pageTitle: 'Purchase parameters',
+    pageSubtitle: 'Configure RFQ round-robin assignee count and quoter pool.',
+    navTitle: 'Categories',
+    assigneeCountNav: 'Assignee count',
+    quoterPoolNav: 'Quoter pool',
+    assigneeCountTitle: 'Assignee count',
+    assigneeCountHint: 'When creating an RFQ, take N consecutive members from the quoter pool for all line items.',
+    assigneeCountLabel: 'Quoters assigned per RFQ:',
+    assigneeCountOption1: '1 person',
+    assigneeCountOption2: '2 people',
+    assigneeCountLoadFailed: 'Failed to load assignee count',
+    quoterPoolTitle: 'Quoter pool',
+    quoterPoolHint: 'Select purchase staff eligible for RFQ round-robin assignment. Changes apply after Save. Empty pool leaves new RFQs unassigned.',
+    quoterPoolSelectedCount: '{count} quoter(s)',
+    quoterPoolLoadFailed: 'Failed to load quoter pool',
+    filterLabel: 'Filter',
+    filterStatus: 'Status',
+    filterAll: 'All',
+    filterSelected: 'Quoters',
+    colSelect: 'Select',
+    colUserName: 'Account',
+    colRealName: 'Name',
+    colDepartment: 'Department',
+    colStatus: 'Status',
+    statusActive: 'Active',
+    statusInactive: 'Inactive',
+    selectAll: 'Select all',
+    invertSelection: 'Invert',
+    clearSelection: 'Clear',
+    saveBtn: 'Save',
+    refreshBtn: 'Refresh',
+    saveSuccess: 'Saved',
+    saveFailed: 'Save failed',
+    unsavedLeaveTitle: 'Unsaved changes',
+    unsavedLeaveConfirm: 'Quoter pool selections are not saved. Leave anyway?',
+    leaveBtn: 'Leave',
+    cancelBtn: 'Cancel'
+  },
   layout: {
     brandFull: 'Semicore Ai Intelligent System',
     brandSub: 'Semicore Ai Intelligent System',
@@ -370,6 +412,7 @@ const enUS = {
       operationLog: 'Operation log',
       companyInfo: 'Company Info',
       dictItems: 'Dictionary Items',
+      purchaseParams: 'Purchase parameters',
       financeParams: 'Finance parameters',
       systemSettings: 'System Settings',
       debug: 'Debug',
@@ -2285,6 +2328,11 @@ const enUS = {
       orderCodePlaceholder: 'Enter order code',
       customer: 'Customer',
       customerPlaceholder: 'Customer name',
+      salesUserPlaceholder: 'Enter sales rep',
+      commentPlaceholder: 'Enter remark',
+      createDateFrom: 'Created from',
+      createDateTo: 'Created to',
+      createDateSep: 'to',
       allStatus: 'All statuses',
       search: 'Search',
       reset: 'Reset',
@@ -2302,6 +2350,7 @@ const enUS = {
       assistor: 'Sales assistant',
       totalAmount: 'Total Amount',
       itemRows: 'Items',
+      comment: 'Remark',
       purchaseStatus: 'Purchase Status',
       deliveryDate: 'Delivery Date',
       createTime: 'Created At',
@@ -2580,6 +2629,13 @@ const enUS = {
     filters: {
       orderCode: 'Order Code',
       orderCodePlaceholder: 'Enter order code',
+      freightForwarderOrderNo: 'Freight forwarder no.',
+      freightForwarderOrderNoPlaceholder: 'Enter freight forwarder no.',
+      purchaserPlaceholder: 'Enter purchaser',
+      commentPlaceholder: 'Enter remark',
+      createDateFrom: 'Created from',
+      createDateTo: 'Created to',
+      createDateSep: 'to',
       vendor: 'Vendor',
       vendorPlaceholder: 'Enter vendor',
       status: 'Status',
@@ -2597,12 +2653,15 @@ const enUS = {
     columns: {
       orderCode: 'Order Code',
       status: 'Status',
+      orderType: 'Type',
       vendor: 'Vendor',
       purchaser: 'Purchaser',
       totalAmount: 'Total Amount',
       itemRows: 'Items',
       stockStatus: 'Stock-In Status',
       deliveryDate: 'Delivery Date',
+      freightForwarderOrderNo: 'Freight forwarder no.',
+      comment: 'Remark',
       createTime: 'Created At',
       createUser: 'Created By',
       actions: 'Actions'
@@ -2620,7 +2679,7 @@ const enUS = {
       cancelled: 'Cancelled'
     },
     stock: { none: 'Not Stocked In', partial: 'Partially Stocked In', all: 'Fully Stocked In' },
-    actions: { detail: 'Detail', edit: 'Edit', submitAudit: 'Submit for Review', confirmBySupplier: 'Supplier Confirm', report: 'PO Report', cancelConfirm: 'Cancel Confirmation' },
+    actions: { detail: 'Detail', edit: 'Edit', submitAudit: 'Submit for Review', confirmBySupplier: 'Supplier Confirm', report: 'Print Order', cancelConfirm: 'Cancel Confirmation' },
     loadFailed: 'Failed to load data',
     createDisabled: 'Feature is not available yet',
     reportNotAllowed: 'Only supplier-confirmed purchase orders can generate PO reports',
@@ -3492,6 +3551,7 @@ const enUS = {
       vendorName: 'Vendor Name',
       purchaseOrderCode: 'PO Code',
       salesOrderCode: 'SO Code',
+      stockInTypePlaceholder: 'Stock-in type',
       search: 'Search',
       reset: 'Reset'
     },
@@ -3511,6 +3571,7 @@ const enUS = {
     columns: {
       stockInCode: 'Stock-In Code',
       status: 'Status',
+      stockInType: 'Stock-in type',
       sourceCode: 'Arrival Notice No.',
       purchaseOrderCode: 'Purchase Order No.',
       materialModel: 'Material Model',
@@ -3529,6 +3590,14 @@ const enUS = {
     status: { draft: 'Draft', pending: 'Pending Stock-In', done: 'Stocked In', cancelled: 'Cancelled' },
     actions: { editRemark: 'Edit Remark', markStockedIn: 'Mark as Stocked In' },
     remarkPlaceholder: 'Enter stock-in remark',
+    stockInTypeLabels: {
+      purchase: 'Purchase stock-in',
+      customs: 'Customs stock-in',
+      return: 'Return stock-in',
+      scrap: 'Scrap stock-in'
+    },
+    customsNotifyTag: 'Customs',
+    arrivalNotifyCodeTooltip: 'Original arrival notice: {code}',
     messages: {
       loadFailed: 'Failed to load stock-in list',
       remarkUpdated: 'Remark updated',
@@ -3553,6 +3622,7 @@ const enUS = {
       stockOutDateFrom: 'From',
       stockOutDateTo: 'To',
       stockOutDateSep: 'to',
+      stockOutTypePlaceholder: 'Stock-out type',
       search: 'Search',
       reset: 'Reset',
       refresh: 'Refresh'
@@ -3567,6 +3637,7 @@ const enUS = {
     columns: {
       stockOutCode: 'Stock-Out Code',
       status: 'Status',
+      stockOutType: 'Stock-out type',
       sourceCode: 'Source Request',
       customerName: 'Customer',
       salesUserName: 'Sales Rep',
@@ -3592,6 +3663,15 @@ const enUS = {
       packingWithoutInspection: 'Packing (no OQC)',
       markFinished: 'Mark Finished'
     },
+    stockOutTypeLabels: {
+      sales: 'Sales stock-out',
+      customs: 'Customs stock-out',
+      return: 'Return stock-out',
+      scrap: 'Scrap stock-out'
+    },
+    customsNotifyTag: 'Customs',
+    salesNotifyCodeTooltip: 'Original sales stock-out notify: {code}',
+    salesNotifyCodeLink: 'Original sales notify',
     editDialog: {
       title: 'Edit stock-out',
       loadFailed: 'Failed to load stock-out'
@@ -3769,6 +3849,8 @@ const enUS = {
       dateStart: 'Expected ship from',
       dateEnd: 'Expected ship to',
       dateTo: 'to',
+      stockOutTypePlaceholder: 'Stock-out type',
+      stockOutTypeAll: 'All types',
       workflowPlaceholder: 'Workflow',
       workflowAll: 'All',
       workflowPendingPick: 'Pending pick',
@@ -3785,6 +3867,7 @@ const enUS = {
       workflow: 'Workflow',
       status: 'Status',
       customsStatus: 'Customs status',
+      stockOutType: 'Stock-out type',
       salesOrderCode: 'Sales Order No.',
       materialModel: 'Material / MPN',
       brand: 'Brand',
@@ -3817,6 +3900,15 @@ const enUS = {
       inCustoms: 'In customs',
       completed: 'Customs completed'
     },
+    stockOutTypeLabels: {
+      sales: 'Sales stock-out',
+      customs: 'Customs stock-out',
+      return: 'Return stock-out',
+      scrap: 'Scrap stock-out'
+    },
+    customsNotifyTag: 'Customs',
+    salesNotifyCodeTooltip: 'Original sales notice: {code}',
+    salesNotifyCodeLink: 'Original sales notice',
     workflow: {
       pendingPick: 'Pending pick',
       pickedPendingOut: 'Picked — pending ship',

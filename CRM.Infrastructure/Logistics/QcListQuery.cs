@@ -55,6 +55,17 @@ public sealed class QcListQuery : IQcListQuery
                     n.PurchaseOrderCode.ToLower().Contains(k)));
             }
 
+            if (!string.IsNullOrWhiteSpace(request.FreightForwarderOrderNo))
+            {
+                var k = request.FreightForwarderOrderNo.Trim().ToLowerInvariant();
+                qcQuery = qcQuery.Where(q => _db.StockInNotifies.Any(n =>
+                    n.Id == q.StockInNotifyId &&
+                    _db.PurchaseOrders.Any(po =>
+                        po.Id == n.PurchaseOrderId &&
+                        po.FreightForwarderOrderNo != null &&
+                        po.FreightForwarderOrderNo.ToLower().Contains(k))));
+            }
+
             if (!string.IsNullOrWhiteSpace(request.SalesOrderCode))
             {
                 var k = request.SalesOrderCode.Trim().ToLowerInvariant();

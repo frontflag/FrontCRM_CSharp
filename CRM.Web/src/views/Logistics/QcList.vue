@@ -42,6 +42,14 @@
         </div>
         <div class="search-input-wrap">
           <input
+            v-model="filters.freightForwarderOrderNo"
+            class="search-input--plain"
+            :placeholder="t('common.freightForwarderOrderNoPlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
+        <div class="search-input-wrap">
+          <input
             v-model="filters.salesOrderCode"
             class="search-input--plain"
             :placeholder="t('qcList.filters.salesOrderPlaceholder')"
@@ -253,6 +261,14 @@ const qcTableColumns = computed<CrmTableColumnDef[]>(() => {
       showOverflowTooltip: true
     },
     {
+      key: 'freightForwarderOrderNo',
+      label: t('common.freightForwarderOrderNo'),
+      prop: 'freightForwarderOrderNo',
+      width: 160,
+      minWidth: 140,
+      showOverflowTooltip: true
+    },
+    {
       key: 'salesOrderCode',
       label: t('qcList.columns.salesOrderCode'),
       prop: 'salesOrderCode',
@@ -281,6 +297,7 @@ const filters = ref({
   model: '',
   vendorName: '',
   purchaseOrderCode: '',
+  freightForwarderOrderNo: '',
   salesOrderCode: '',
 })
 const getYYMMDD = (d: Date) => {
@@ -352,6 +369,8 @@ function syncFiltersFromRoute() {
   filters.value.model = typeof q.model === 'string' ? q.model : ''
   filters.value.vendorName = typeof q.vendorName === 'string' ? q.vendorName : ''
   filters.value.purchaseOrderCode = typeof q.purchaseOrderCode === 'string' ? q.purchaseOrderCode : ''
+  filters.value.freightForwarderOrderNo =
+    typeof q.freightForwarderOrderNo === 'string' ? q.freightForwarderOrderNo : ''
   filters.value.salesOrderCode = typeof q.salesOrderCode === 'string' ? q.salesOrderCode : ''
 }
 
@@ -368,6 +387,7 @@ function applyQcList(resetPage: boolean) {
       model: filters.value.model || undefined,
       vendorName: filters.value.vendorName || undefined,
       purchaseOrderCode: filters.value.purchaseOrderCode || undefined,
+      freightForwarderOrderNo: filters.value.freightForwarderOrderNo.trim() || undefined,
       salesOrderCode: filters.value.salesOrderCode || undefined,
       page: listPage.value,
       pageSize: listPageSize.value
@@ -407,6 +427,8 @@ const handleSearch = () => {
   if (v) query.vendorName = v
   const p = filters.value.purchaseOrderCode.trim()
   if (p) query.purchaseOrderCode = p
+  const ff = filters.value.freightForwarderOrderNo.trim()
+  if (ff) query.freightForwarderOrderNo = ff
   const s = filters.value.salesOrderCode.trim()
   if (s) query.salesOrderCode = s
   router.replace({ name: 'QcList', query })
@@ -417,6 +439,7 @@ const resetFilters = () => {
     model: '',
     vendorName: '',
     purchaseOrderCode: '',
+    freightForwarderOrderNo: '',
     salesOrderCode: '',
   }
   router.replace({ name: 'QcList', query: {} })

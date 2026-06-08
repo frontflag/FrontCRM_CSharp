@@ -29,6 +29,12 @@ export interface StockOutDto {
   /** 快递公司（字典 LogisticsExpressMethod ItemCode） */
   expressCompany?: string | null
   courierTrackingNo?: string | null
+  /** 货代单号（关联采购订单，多单逗号拼接） */
+  freightForwarderOrderNo?: string | null
+  /** 报关出库单关联的原销售出库通知 Id */
+  salesStockOutNotifyId?: string | null
+  /** 报关出库单关联的原销售出库通知单号 */
+  salesStockOutNotifyCode?: string | null
 }
 
 export interface StockOutMarkFinishPacking {
@@ -281,15 +287,26 @@ async function loadStockOutCompanyBundleFallback(id: string): Promise<StockOutIn
   }
 }
 
+function normalizeStockOutDetailRow(row: unknown): StockOutDetailDto {
+  const base = normalizeStockOutListRow(row)
+  const r = row as Record<string, unknown>
+  return {
+    ...base,
+    warehouseId: (r.warehouseId ?? r.WarehouseId) as string | undefined,
+    warehouseCode: (r.warehouseCode ?? r.WarehouseCode) as string | null | undefined,
+    sellOrderItemId: (r.sellOrderItemId ?? r.SellOrderItemId) as string | undefined
+  }
+}
+
 async function getStockOutDetailInternal(id: string): Promise<StockOutDetailDto | null> {
   const enc = encodeURIComponent(id)
   const res = await apiClient.get<unknown>(`/api/v1/stock-out/${enc}`)
   if (res && typeof res === 'object') {
     const o = res as Record<string, unknown>
     const inner = o.data ?? o.Data
-    if (inner && typeof inner === 'object') return inner as StockOutDetailDto
+    if (inner && typeof inner === 'object') return normalizeStockOutDetailRow(inner)
   }
-  return (res as StockOutDetailDto) ?? null
+  return res ? normalizeStockOutDetailRow(res) : null
 }
 
 /** GET /api/v1/stock-out/items 查询参数（与后端 StockOutItemListQuery 一致） */
@@ -306,6 +323,7 @@ export interface StockOutItemListQuery {
   stockInCode?: string
   /** 装箱单号（子串匹配） */
   packingCode?: string
+  freightForwarderOrderNo?: string
 }
 
 export interface StockOutItemListRow {
@@ -326,6 +344,7 @@ export interface StockOutItemListRow {
   stockInCode?: string | null
   packingId?: string | null
   packingCode?: string | null
+  freightForwarderOrderNo?: string | null
 }
 
 export interface StockOutRequestDto {
@@ -361,6 +380,10 @@ export interface StockOutRequestDto {
   regionType?: number
   /** 出库类型：10销售 20报关 30退货 40报废 */
   stockOutType?: number
+  /** 报关出库通知关联的原销售出库通知 Id */
+  salesStockOutNotifyId?: string | null
+  /** 报关出库通知关联的原销售出库通知单号 */
+  salesStockOutNotifyCode?: string | null
   /** 销售明细币别（1=RMB 2=USD …） */
   currency?: number
   createTime?: string
@@ -380,6 +403,8 @@ export type StockOutListQuery = {
   customerName?: string
   salesUserName?: string
   remark?: string
+  freightForwarderOrderNo?: string
+  stockOutType?: number
   stockOutDateFrom?: string
   stockOutDateTo?: string
   page?: number
@@ -415,7 +440,10 @@ function normalizeStockOutListRow(row: unknown): StockOutDto {
     sellOrderItemCode: (r.sellOrderItemCode ?? r.SellOrderItemCode) as string | undefined,
     shipmentMethod: (r.shipmentMethod ?? r.ShipmentMethod) as string | null | undefined,
     expressCompany: (r.expressCompany ?? r.ExpressCompany) as string | null | undefined,
-    courierTrackingNo: (r.courierTrackingNo ?? r.CourierTrackingNo) as string | null | undefined
+    courierTrackingNo: (r.courierTrackingNo ?? r.CourierTrackingNo) as string | null | undefined,
+    freightForwarderOrderNo: (r.freightForwarderOrderNo ?? r.FreightForwarderOrderNo) as string | null | undefined,
+    salesStockOutNotifyId: (r.salesStockOutNotifyId ?? r.SalesStockOutNotifyId) as string | null | undefined,
+    salesStockOutNotifyCode: (r.salesStockOutNotifyCode ?? r.SalesStockOutNotifyCode) as string | null | undefined
   }
 }
 
@@ -460,6 +488,8 @@ function normalizeStockOutRequestRow(row: unknown): StockOutRequestDto {
     regionType: r.regionType != null || r.RegionType != null ? Number(r.regionType ?? r.RegionType) : undefined,
     stockOutType:
       r.stockOutType != null || r.StockOutType != null ? Number(r.stockOutType ?? r.StockOutType) : undefined,
+    salesStockOutNotifyId: (r.salesStockOutNotifyId ?? r.SalesStockOutNotifyId) as string | null | undefined,
+    salesStockOutNotifyCode: (r.salesStockOutNotifyCode ?? r.SalesStockOutNotifyCode) as string | null | undefined,
     currency: r.currency != null || r.Currency != null ? Number(r.currency ?? r.Currency) : undefined,
     createTime: (r.createTime ?? r.CreateTime) as string | undefined
   }
@@ -591,6 +621,7 @@ export const stockOutApi = {
     materialModel?: string
     requestDateFrom?: string
     requestDateTo?: string
+    stockOutType?: number
     page?: number
     pageSize?: number
   }): Promise<StockOutRequestListPaged> {

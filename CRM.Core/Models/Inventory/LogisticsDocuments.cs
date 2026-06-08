@@ -25,6 +25,10 @@ namespace CRM.Core.Models.Inventory
         [StringLength(32)]
         public string PurchaseOrderCode { get; set; } = string.Empty;
 
+        /// <summary>货代单号（展示用，自采购订单头 JOIN）。</summary>
+        [NotMapped]
+        public string? FreightForwarderOrderNo { get; set; }
+
         /// <summary>所属采购订单明细主键；同一采购行可有多条到货通知（分批到货）。</summary>
         [StringLength(36)]
         public string PurchaseOrderItemId { get; set; } = string.Empty;
@@ -163,6 +167,9 @@ namespace CRM.Core.Models.Inventory
 
         [NotMapped]
         public string? PurchaseOrderCode { get; set; }
+
+        [NotMapped]
+        public string? FreightForwarderOrderNo { get; set; }
 
         [NotMapped]
         public string? SalesOrderCode { get; set; }

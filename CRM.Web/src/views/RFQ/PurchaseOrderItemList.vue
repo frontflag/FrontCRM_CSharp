@@ -43,6 +43,18 @@
             @keyup.enter="runSearch"
           />
         </div>
+        <div class="search-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            v-model="filters.freightForwarderOrderNo"
+            class="search-input"
+            :placeholder="t('common.freightForwarderOrderNoPlaceholder')"
+            @keyup.enter="runSearch"
+          />
+        </div>
         <template v-if="canViewVendor">
           <div class="search-input-wrap">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" aria-hidden="true">
@@ -430,7 +442,9 @@
                   </template>
                 </el-table-column>
                 <el-table-column label="类型" width="100">
-                  <template #default="{ row }">{{ poDetailStockInTypeText(row?.stockInType) }}</template>
+                  <template #default="{ row }">
+                    <StockBizTypeTag biz="in" :type="row?.stockInType" />
+                  </template>
                 </el-table-column>
                 <el-table-column label="状态" width="100">
                   <template #default="{ row }">{{ poDetailStockInStatusText(row?.status) }}</template>
@@ -838,7 +852,7 @@ import FinancePaymentBankSelect from '@/components/Finance/FinancePaymentBankSel
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { CurrencyCode } from '@/constants/currency'
-import { stockInTypeLabel } from '@/constants/stockInType'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBankOptions'
 import { vendorBankApi } from '@/api/vendor'
@@ -933,10 +947,6 @@ function poDetailArrivalStatusText(v?: number) {
   return map[Number(v)] ?? '—'
 }
 
-function poDetailStockInTypeText(v?: number) {
-  return stockInTypeLabel(Number(v))
-}
-
 function poDetailStockInStatusText(v?: number) {
   const map: Record<number, string> = { 0: '草稿', 1: '待入库', 2: '已入库', 3: '已取消' }
   return map[Number(v)] ?? '—'
@@ -1000,6 +1010,14 @@ const purchaseOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
       prop: 'purchaseOrderCode',
       width: 160,
       minWidth: 160,
+      showOverflowTooltip: true
+    },
+    {
+      key: 'freightForwarderOrderNo',
+      label: t('common.freightForwarderOrderNo'),
+      prop: 'freightForwarderOrderNo',
+      width: 160,
+      minWidth: 140,
       showOverflowTooltip: true
     },
     { key: 'itemStatus', label: t('purchaseOrderItemList.columns.itemStatus'), prop: 'itemStatus', width: 160, align: 'center' }
@@ -1152,6 +1170,7 @@ function paymentRequestAmountMax(row: { pendingRequested?: number }) {
 const dateRange = ref<[string, string] | null>(null)
 const filters = reactive({
   purchaseOrderCode: '',
+  freightForwarderOrderNo: '',
   vendorName: '',
   purchaseUserName: '',
   pn: '',
@@ -1488,6 +1507,7 @@ async function loadList() {
       startDate?: string
       endDate?: string
       purchaseOrderCode?: string
+      freightForwarderOrderNo?: string
       vendorName?: string
       purchaseUserName?: string
       pn?: string
@@ -1499,6 +1519,7 @@ async function loadList() {
     if (dateRange.value?.[0]) params.startDate = dateRange.value[0]
     if (dateRange.value?.[1]) params.endDate = dateRange.value[1]
     if (filters.purchaseOrderCode.trim()) params.purchaseOrderCode = filters.purchaseOrderCode.trim()
+    if (filters.freightForwarderOrderNo.trim()) params.freightForwarderOrderNo = filters.freightForwarderOrderNo.trim()
     if (canViewVendor.value && filters.vendorName.trim()) params.vendorName = filters.vendorName.trim()
     if (canViewPurchaseUser.value && filters.purchaseUserName.trim()) params.purchaseUserName = filters.purchaseUserName.trim()
     if (filters.pn.trim()) params.pn = filters.pn.trim()
@@ -1531,6 +1552,7 @@ async function loadList() {
 function resetFilters() {
   dateRange.value = null
   filters.purchaseOrderCode = ''
+  filters.freightForwarderOrderNo = ''
   filters.vendorName = ''
   filters.purchaseUserName = ''
   filters.pn = ''

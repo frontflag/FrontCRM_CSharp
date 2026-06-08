@@ -45,6 +45,20 @@
             :value="w.id"
           />
         </el-select>
+        <el-select
+          v-model="filters.stockInType"
+          class="search-select search-select--filter search-select--stock-in-type"
+          clearable
+          :placeholder="t('stockInList.filters.stockInTypePlaceholder')"
+          :teleported="false"
+        >
+          <el-option
+            v-for="v in STOCK_IN_TYPE_FILTER_VALUES"
+            :key="v"
+            :label="listStockInTypeLabel(v)"
+            :value="v"
+          />
+        </el-select>
         <el-date-picker
           v-model="filters.stockInDateRange"
           type="daterange"
@@ -82,6 +96,12 @@
           @keyup.enter="handleSearch"
         />
         <input
+          v-model="filters.freightForwarderOrderNo"
+          class="search-input search-input--filter"
+          :placeholder="t('common.freightForwarderOrderNoPlaceholder')"
+          @keyup.enter="handleSearch"
+        />
+        <input
           v-model="filters.salesOrderCode"
           class="search-input search-input--filter"
           :placeholder="t('stockInList.filters.salesOrderCode')"
@@ -94,7 +114,7 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="stock-in-list-main"
+      column-layout-key="stock-in-list-main-v2"
       :columns="stockInTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -103,7 +123,20 @@
       @row-dblclick="handleView"
     >
       <template #col-stockInCode="{ row }">
-        <span class="code-link" @click.stop="handleView(row)">{{ row.stockInCode }}</span>
+        <span class="stock-in-code-cell">
+          <span class="code-link" @click.stop="handleView(row)">{{ row.stockInCode }}</span>
+          <el-tooltip
+            v-if="isCustomsStockIn(row) && arrivalNotifyTooltip(row)"
+            :content="arrivalNotifyTooltip(row)"
+            placement="top"
+            :hide-after="0"
+          >
+            <span class="customs-notify-tag">{{ t('stockInList.customsNotifyTag') }}</span>
+          </el-tooltip>
+        </span>
+      </template>
+      <template #col-stockInType="{ row }">
+        <StockBizTypeTag biz="in" :type="row.stockInType" />
       </template>
       <template #col-status="{ row }">
         <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
@@ -226,6 +259,8 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { useAuthStore } from '@/stores/auth'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import { StockInTypeCode, STOCK_IN_TYPE_FILTER_VALUES } from '@/constants/stockInType'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
@@ -257,6 +292,13 @@ function toggleOpCol() {
 
 const stockInTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'status', label: t('stockInList.columns.status'), prop: 'status', width: 110, align: 'center' },
+  {
+    key: 'stockInType',
+    label: t('stockInList.columns.stockInType'),
+    prop: 'stockInType',
+    width: 110,
+    align: 'center'
+  },
   { key: 'materialModel', label: t('stockInList.columns.materialModel'), minWidth: 140, showOverflowTooltip: true },
   { key: 'materialBrand', label: t('stockInList.columns.brand'), minWidth: 120, showOverflowTooltip: true },
   { key: 'warehouseName', label: t('stockInList.columns.warehouse'), minWidth: 160, showOverflowTooltip: true },
@@ -268,6 +310,13 @@ const stockInTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'stockInCode', label: t('stockInList.columns.stockInCode'), prop: 'stockInCode', width: 160, minWidth: 160, showOverflowTooltip: true },
   { key: 'sourceDisplayNo', label: t('stockInList.columns.sourceCode'), prop: 'sourceDisplayNo', width: 160, showOverflowTooltip: true },
   { key: 'purchaseOrderCode', label: t('stockInList.columns.purchaseOrderCode'), prop: 'purchaseOrderCode', minWidth: 160, showOverflowTooltip: true },
+  {
+    key: 'freightForwarderOrderNo',
+    label: t('common.freightForwarderOrderNo'),
+    prop: 'freightForwarderOrderNo',
+    minWidth: 160,
+    showOverflowTooltip: true
+  },
   { key: 'salesOrderCode', label: t('stockInList.columns.salesOrderCode'), prop: 'salesOrderCode', minWidth: 170, showOverflowTooltip: true },
   { key: 'createTime', label: t('stockInList.columns.createTime'), width: 160 },
   { key: 'createUser', label: t('stockInList.columns.createUser'), width: 120, showOverflowTooltip: true },
@@ -297,11 +346,13 @@ const filters = reactive({
   stockInCode: '',
   sourceDisplayNo: '',
   warehouseId: '',
+  stockInType: undefined as number | undefined,
   stockInDateRange: [] as string[],
   remark: '',
   model: '',
   vendorName: '',
   purchaseOrderCode: '',
+  freightForwarderOrderNo: '',
   salesOrderCode: ''
 })
 
@@ -352,6 +403,24 @@ const statusLabel = (s: number) => {
   }
 }
 
+function listStockInTypeLabel(type: number | undefined | null): string {
+  const n = Number(type)
+  if (n === StockInTypeCode.Customs) return t('stockInList.stockInTypeLabels.customs')
+  if (n === StockInTypeCode.Return) return t('stockInList.stockInTypeLabels.return')
+  if (n === StockInTypeCode.Scrap) return t('stockInList.stockInTypeLabels.scrap')
+  return t('stockInList.stockInTypeLabels.purchase')
+}
+
+function isCustomsStockIn(row: StockInListItemDto): boolean {
+  return Number(row.stockInType) === StockInTypeCode.Customs
+}
+
+function arrivalNotifyTooltip(row: StockInListItemDto): string {
+  const code = String(row.sourceDisplayNo ?? '').trim()
+  if (!code) return ''
+  return t('stockInList.arrivalNotifyCodeTooltip', { code })
+}
+
 function syncFiltersFromRoute() {
   if (route.name !== 'StockInList') return
   const q = route.query
@@ -365,7 +434,14 @@ function syncFiltersFromRoute() {
   filters.stockInDateRange = dateStart && dateEnd ? [dateStart, dateEnd] : []
   filters.vendorName = typeof q.vendorName === 'string' ? q.vendorName : ''
   filters.purchaseOrderCode = typeof q.purchaseOrderCode === 'string' ? q.purchaseOrderCode : ''
+  filters.freightForwarderOrderNo =
+    typeof q.freightForwarderOrderNo === 'string' ? q.freightForwarderOrderNo : ''
   filters.salesOrderCode = typeof q.salesOrderCode === 'string' ? q.salesOrderCode : ''
+  const typeRaw = q.stockInType
+  filters.stockInType =
+    typeRaw === undefined || typeRaw === null || typeRaw === ''
+      ? undefined
+      : Number(typeRaw)
 }
 
 const fetchList = async (resetPage = true) => {
@@ -389,7 +465,9 @@ const fetchList = async (resetPage = true) => {
       model: filters.model || undefined,
       vendorName: maskPurchaseSensitiveFields.value ? undefined : filters.vendorName || undefined,
       purchaseOrderCode: filters.purchaseOrderCode || undefined,
+      freightForwarderOrderNo: filters.freightForwarderOrderNo.trim() || undefined,
       salesOrderCode: filters.salesOrderCode || undefined,
+      stockInType: filters.stockInType,
       page: listPage.value,
       pageSize: listPageSize.value
     })
@@ -437,8 +515,13 @@ const handleSearch = () => {
   if (v && !maskPurchaseSensitiveFields.value) query.vendorName = v
   const p = filters.purchaseOrderCode.trim()
   if (p) query.purchaseOrderCode = p
+  const ff = filters.freightForwarderOrderNo.trim()
+  if (ff) query.freightForwarderOrderNo = ff
   const s = filters.salesOrderCode.trim()
   if (s) query.salesOrderCode = s
+  if (filters.stockInType !== undefined && !Number.isNaN(filters.stockInType)) {
+    query.stockInType = String(filters.stockInType)
+  }
   router.replace({ name: 'StockInList', query })
 }
 
@@ -456,7 +539,9 @@ const resetFilters = () => {
   filters.remark = ''
   filters.vendorName = ''
   filters.purchaseOrderCode = ''
+  filters.freightForwarderOrderNo = ''
   filters.salesOrderCode = ''
+  filters.stockInType = undefined
   router.replace({ name: 'StockInList', query: {} })
 }
 
@@ -765,6 +850,26 @@ const handleForceDeleteRow = async (row: StockInListItemDto) => {
 .list-footer-spacer {
   width: 26px;
   flex: 0 0 26px;
+}
+
+.stock-in-code-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.customs-notify-tag {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #ffb84d;
+  background: rgba(255, 184, 77, 0.14);
+  border: 1px solid rgba(255, 184, 77, 0.45);
+  cursor: default;
+  user-select: none;
 }
 </style>
 

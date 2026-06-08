@@ -96,6 +96,7 @@ declare module 'vue' {
     SalesUserCascader: typeof import('./src/components/SalesUserCascader.vue')['default']
     SettlementCurrencyAmountInput: typeof import('./src/components/SettlementCurrencyAmountInput.vue')['default']
     ShipmentExpressFields: typeof import('./src/components/Logistics/ShipmentExpressFields.vue')['default']
+    StockBizTypeTag: typeof import('./src/components/Inventory/StockBizTypeTag.vue')['default']
     StockInBatchImportDialog: typeof import('./src/components/Inventory/StockInBatchImportDialog.vue')['default']
     StockInBatchWriteOffDialog: typeof import('./src/components/Inventory/StockInBatchWriteOffDialog.vue')['default']
     StockInSearchPanel: typeof import('./src/components/Inventory/StockInSearchPanel.vue')['default']

@@ -9,6 +9,7 @@ using CRM.Core.Utilities;
 using CRM.API.Authorization;
 using CRM.API.Services;
 using CRM.API.Services.Interfaces;
+using CRM.API.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -60,6 +61,9 @@ namespace CRM.API.Controllers
             [FromQuery] string? keyword,
             [FromQuery] string? code,
             [FromQuery] string? vendor,
+            [FromQuery] string? freightForwarderOrderNo,
+            [FromQuery] string? purchaseUserName,
+            [FromQuery] string? comment,
             [FromQuery] short? orderType,
             [FromQuery] short? status,
             [FromQuery] string? startDate,
@@ -75,6 +79,9 @@ namespace CRM.API.Controllers
                     Keyword = keyword,
                     PurchaseOrderCodeFilter = string.IsNullOrWhiteSpace(code) ? null : code.Trim(),
                     VendorNameFilter = string.IsNullOrWhiteSpace(vendor) ? null : vendor.Trim(),
+                    FreightForwarderOrderNoFilter = string.IsNullOrWhiteSpace(freightForwarderOrderNo) ? null : freightForwarderOrderNo.Trim(),
+                    PurchaseUserNameFilter = string.IsNullOrWhiteSpace(purchaseUserName) ? null : purchaseUserName.Trim(),
+                    CommentFilter = string.IsNullOrWhiteSpace(comment) ? null : comment.Trim(),
                     OrderType = orderType,
                     Status = status,
                     StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
@@ -124,6 +131,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             [FromQuery] string? purchaseOrderCode,
+            [FromQuery] string? freightForwarderOrderNo,
             [FromQuery] string? vendorName,
             [FromQuery] string? purchaseUserName,
             [FromQuery] string? pn,
@@ -152,6 +160,7 @@ namespace CRM.API.Controllers
                     StartDate = DateTime.TryParse(startDate, out var sd) ? sd : null,
                     EndDate = DateTime.TryParse(endDate, out var ed) ? ed : null,
                     PurchaseOrderCode = string.IsNullOrWhiteSpace(purchaseOrderCode) ? null : purchaseOrderCode.Trim(),
+                    FreightForwarderOrderNo = string.IsNullOrWhiteSpace(freightForwarderOrderNo) ? null : freightForwarderOrderNo.Trim(),
                     VendorName = canViewVendorInfo && !string.IsNullOrWhiteSpace(vendorName) ? vendorName.Trim() : null,
                     PurchaseUserName = canViewPurchaseUser && !string.IsNullOrWhiteSpace(purchaseUserName) ? purchaseUserName.Trim() : null,
                     Pn = string.IsNullOrWhiteSpace(pn) ? null : pn.Trim(),
@@ -858,6 +867,58 @@ namespace CRM.API.Controllers
             }
         }
 
+        public sealed class UpdateFreightForwarderOrderNoRequest
+        {
+            public string? FreightForwarderOrderNo { get; set; }
+        }
+
+        /// <summary>物流录入/修改/清空货代单号（审核通过后；系统内唯一）。</summary>
+        [HttpPatch("{id:guid}/freight-forwarder-order-no")]
+        public async Task<IActionResult> UpdateFreightForwarderOrderNo(
+            string id,
+            [FromBody] UpdateFreightForwarderOrderNoRequest request)
+        {
+            try
+            {
+                if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
+                    return StatusCode(403, new { success = false, message = "当前账号无物流写权限，无法录入货代单号" });
+
+                var order = await _service.GetByIdAsync(id);
+                if (order == null)
+                    return NotFound(new { success = false, message = "采购订单不存在" });
+
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(actorId) && !await _dataPermissionService.CanAccessPurchaseOrderAsync(actorId, order))
+                    return StatusCode(403, new { success = false, message = "无权限访问该采购订单" });
+
+                var updated = await _service.UpdateFreightForwarderOrderNoAsync(
+                    id,
+                    request?.FreightForwarderOrderNo,
+                    actorId);
+                var summary = await GetPermissionSummaryAsync(actorId);
+                var assistorNameMap = await BuildUserDisplayNameMapAsync(new[] { updated.Assistor });
+                return Ok(new
+                {
+                    success = true,
+                    data = MaskPurchaseOrder(updated, summary, assistorUserName: ResolveAssistorDisplayName(updated.Assistor, assistorNameMap)),
+                    message = "货代单号已保存"
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "更新货代单号失败: {Id}", id);
+                return StatusCode(500, new { success = false, message = PersistErrorMessage(ex) });
+            }
+        }
+
         [HttpPost("{id:guid}/refresh-item-extends")]
         [RequirePermission("purchase-order.write")]
         public async Task<IActionResult> RefreshItemExtends(string id, CancellationToken cancellationToken)
@@ -1006,6 +1067,7 @@ namespace CRM.API.Controllers
                     purchaseOrderId = r.PurchaseOrderId,
                     purchaseOrderItemCode = r.PurchaseOrderItemCode,
                     purchaseOrderCode = r.PurchaseOrderCode,
+                    freightForwarderOrderNo = r.FreightForwarderOrderNo,
                     purchaseOrderType = r.PurchaseOrderType,
                     vendorId = canViewVendorInfo ? r.VendorId : null,
                     vendorName = canViewVendorInfo ? r.VendorName : null,
@@ -1127,6 +1189,7 @@ namespace CRM.API.Controllers
             {
                 order.Id,
                 order.PurchaseOrderCode,
+                order.FreightForwarderOrderNo,
                 VendorId = canViewVendorInfo ? order.VendorId : null,
                 VendorName = canViewVendorInfo ? order.VendorName : null,
                 VendorCode = canViewVendorInfo ? order.VendorCode : null,

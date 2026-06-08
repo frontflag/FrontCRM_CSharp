@@ -63,7 +63,23 @@
         <dl v-else class="stockin-report-dl" aria-label="基础信息">
           <div class="stockin-report-row">
             <dt>入库单号</dt>
-            <dd>{{ reportCellText(form.stockInCode) }}</dd>
+            <dd class="stockin-code-cell">
+              <span>{{ reportCellText(form.stockInCode) }}</span>
+              <el-tooltip
+                v-if="isCustomsStockInDetail && detailArrivalNotifyTooltip"
+                :content="detailArrivalNotifyTooltip"
+                placement="top"
+                :hide-after="0"
+              >
+                <span class="customs-notify-tag">{{ t('stockInList.customsNotifyTag') }}</span>
+              </el-tooltip>
+            </dd>
+          </div>
+          <div class="stockin-report-row">
+            <dt>入库类型</dt>
+            <dd>
+              <StockBizTypeTag biz="in" :type="detailStockInType" />
+            </dd>
           </div>
           <div class="stockin-report-row">
             <dt>仓库编号</dt>
@@ -209,7 +225,7 @@
             </el-table-column>
             <el-table-column v-if="!isCreateMode" label="入库类型" width="110" show-overflow-tooltip>
               <template #default="{ row }">
-                <span class="stockin-report-cell">{{ stockInTypeLabel(row.stockInType ?? 0) }}</span>
+                <StockBizTypeTag biz="in" :type="row.stockInType ?? detailStockInType" />
               </template>
             </el-table-column>
             <el-table-column v-if="isCreateMode" label="单位" width="90" align="center" header-align="center">
@@ -359,7 +375,7 @@
             </el-table-column>
             <el-table-column label="入库类型" min-width="88" show-overflow-tooltip>
               <template #default="{ row }">
-                <span class="stockin-report-cell">{{ stockItemStockInTypeLabel(row) }}</span>
+                <StockBizTypeTag biz="in" :type="row.stockInType ?? detailStockInType" />
               </template>
             </el-table-column>
             <el-table-column label="入库明细编号" min-width="150" show-overflow-tooltip>
@@ -543,11 +559,12 @@ import { ElMessage } from 'element-plus'
 import { stockInApi, type CreateStockInRequest, type StockInDto, type StockInItemDto } from '@/api/stockIn'
 import { inventoryCenterApi, type StockItemListRow } from '@/api/inventoryCenter'
 import StockInBatchImportDialog from '@/components/Inventory/StockInBatchImportDialog.vue'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { normalizeRegionType, REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
-import { stockInTypeLabel } from '@/constants/stockInType'
+import { StockInTypeCode } from '@/constants/stockInType'
 import {
   listAmountCurrencyDockClass,
   listAmountCurrencyIso,
@@ -574,6 +591,7 @@ const displayWarehouseCode = ref('')
 const displayVendorName = ref('')
 /** 详情页：单头入库类型 / 地域（库存明细行无值时回退） */
 const detailStockInType = ref(0)
+const detailSourceDisplayNo = ref('')
 const detailRegionType = ref(REGION_TYPE_DOMESTIC)
 const stockItemRows = ref<StockItemListRow[]>([])
 
@@ -629,6 +647,7 @@ function resetCreateForm() {
   displayWarehouseCode.value = ''
   displayVendorName.value = ''
   detailStockInType.value = 0
+  detailSourceDisplayNo.value = ''
   detailRegionType.value = REGION_TYPE_DOMESTIC
   form.stockInCode = ''
   form.purchaseOrderId = ''
@@ -686,6 +705,7 @@ function applyDetailToForm(d: StockInDto) {
   const headerRegionType = normalizeRegionType(d.regionType)
   const headerStockInType = Number(d.stockInType) || 0
   detailStockInType.value = headerStockInType
+  detailSourceDisplayNo.value = headerSourceCode
   detailRegionType.value = headerRegionType
 
   const rawItems = extractDetailItemRows(d)
@@ -864,11 +884,13 @@ function stockItemStockTypeLabel(row: StockItemListRow): string {
   return t('inventoryList.stockTypes.customer')
 }
 
-function stockItemStockInTypeLabel(row: StockItemListRow): string {
-  const t = row.stockInType
-  if (t != null && Number.isFinite(Number(t)) && Number(t) > 0) return stockInTypeLabel(Number(t))
-  return stockInTypeLabel(detailStockInType.value)
-}
+const isCustomsStockInDetail = computed(() => detailStockInType.value === StockInTypeCode.Customs)
+
+const detailArrivalNotifyTooltip = computed(() => {
+  const code = detailSourceDisplayNo.value.trim()
+  if (!code) return ''
+  return t('stockInList.arrivalNotifyCodeTooltip', { code })
+})
 
 const handleSubmit = async () => {
   if (!form.stockInCode || !form.warehouseId) {
@@ -1166,6 +1188,26 @@ function openBatchImport(row: StockInItemDto) {
       white-space: nowrap;
     }
   }
+}
+
+.stockin-code-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.customs-notify-tag {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #ffb84d;
+  background: rgba(255, 184, 77, 0.14);
+  border: 1px solid rgba(255, 184, 77, 0.45);
+  cursor: default;
+  user-select: none;
 }
 </style>
 

@@ -69,6 +69,7 @@ export interface StockItemRow {
   productionDate?: string | null
   purchasePn?: string | null
   purchaseBrand?: string | null
+  freightForwarderOrderNo?: string | null
   purchaseOrderItemCode?: string | null
   sellOrderItemCode?: string | null
   qtyInbound: number
@@ -105,6 +106,7 @@ export interface StockItemListQuery {
   warehouseId?: string
   purchasePn?: string
   purchaseBrand?: string
+  freightForwarderOrderNo?: string
   /** 1=未出库 2=部分 3=完成 */
   outboundStatus?: number
   customerName?: string
@@ -215,6 +217,7 @@ export interface PickingStockItemCandidate {
   stockType: number
   purchasePn?: string | null
   purchaseBrand?: string | null
+  freightForwarderOrderNo?: string | null
   locationId?: string | null
   batchNo?: string | null
   warehouseId: string
@@ -284,6 +287,7 @@ export interface PickingTaskListQuery {
   warehouseId?: string
   taskCode?: string
   packingCode?: string
+  freightForwarderOrderNo?: string
   stockOutRequestCode?: string
   materialModel?: string
   customerName?: string
@@ -307,6 +311,7 @@ export interface PickingTaskListRow {
   stockOutRequestCode?: string | null
   packingId?: string | null
   packingCode?: string | null
+  freightForwarderOrderNo?: string | null
   taskCode: string
   createTime?: string
   createUserDisplay?: string | null
@@ -412,6 +417,7 @@ export const inventoryCenterApi = {
     add('warehouseId', q.warehouseId)
     add('purchasePn', q.purchasePn)
     add('purchaseBrand', q.purchaseBrand)
+    add('freightForwarderOrderNo', q.freightForwarderOrderNo)
     if (q.outboundStatus != null && q.outboundStatus >= 1 && q.outboundStatus <= 3) {
       params.set('outboundStatus', String(q.outboundStatus))
     }
@@ -495,6 +501,7 @@ export const inventoryCenterApi = {
       add('warehouseId', query.warehouseId)
       add('taskCode', query.taskCode)
       add('packingCode', query.packingCode)
+      add('freightForwarderOrderNo', query.freightForwarderOrderNo)
       add('stockOutRequestCode', query.stockOutRequestCode)
       add('materialModel', query.materialModel)
       add('customerName', query.customerName)

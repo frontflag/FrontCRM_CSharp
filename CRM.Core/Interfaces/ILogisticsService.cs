@@ -79,6 +79,7 @@ namespace CRM.Core.Interfaces
         public string? Model { get; set; }
         public string? VendorName { get; set; }
         public string? PurchaseOrderCode { get; set; }
+        public string? FreightForwarderOrderNo { get; set; }
         public string? SalesOrderCode { get; set; }
     }
 

@@ -30,6 +30,20 @@
             :value="opt.value"
           />
         </el-select>
+        <el-select
+          v-model="filterForm.stockOutType"
+          :placeholder="t('stockOutList.filters.stockOutTypePlaceholder')"
+          clearable
+          class="filter-select filter-select--stock-out-type"
+          :teleported="false"
+        >
+          <el-option
+            v-for="v in STOCK_OUT_TYPE_FILTER_VALUES"
+            :key="v"
+            :label="listStockOutTypeLabel(v)"
+            :value="v"
+          />
+        </el-select>
         <input
           v-model="filterForm.stockOutCode"
           class="search-input search-input--code"
@@ -42,6 +56,13 @@
           class="search-input search-input--code"
           type="search"
           :placeholder="t('stockOutList.filters.packingCode')"
+          @keyup.enter="handleSearch"
+        />
+        <input
+          v-model="filterForm.freightForwarderOrderNo"
+          class="search-input search-input--code"
+          type="search"
+          :placeholder="t('common.freightForwarderOrderNoPlaceholder')"
           @keyup.enter="handleSearch"
         />
         <el-select
@@ -96,7 +117,7 @@
     <!-- 结构与 StockOutNotifyList / StockInList 一致：无 row-key、无额外包裹 -->
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="stock-out-list-main-v2"
+      column-layout-key="stock-out-list-main-v3"
       :columns="stockOutTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -107,6 +128,22 @@
     >
       <template #col-status="{ row }">
         <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
+      </template>
+      <template #col-stockOutType="{ row }">
+        <StockBizTypeTag biz="out" :type="row.stockOutType" />
+      </template>
+      <template #col-stockOutCode="{ row }">
+        <span class="stock-out-code-cell">
+          <span class="mono-cell">{{ row.stockOutCode || t('quoteList.na') }}</span>
+          <el-tooltip
+            v-if="isCustomsStockOut(row) && salesNotifyTooltip(row)"
+            :content="salesNotifyTooltip(row)"
+            placement="top"
+            :hide-after="0"
+          >
+            <span class="customs-notify-tag">{{ t('stockOutList.customsNotifyTag') }}</span>
+          </el-tooltip>
+        </span>
       </template>
       <template #col-stockOutDate="{ row }">
         <span class="text-secondary">{{ formatDate(row.stockOutDate) }}</span>
@@ -350,6 +387,8 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useAuthStore } from '@/stores/auth'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import { StockOutTypeCode, STOCK_OUT_TYPE_FILTER_VALUES } from '@/constants/stockOutType'
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
@@ -367,8 +406,10 @@ const listPage = ref(1)
 const listPageSize = ref(20)
 const filterForm = reactive({
   status: undefined as number | undefined,
+  stockOutType: undefined as number | undefined,
   stockOutCode: '',
   packingCode: '',
+  freightForwarderOrderNo: '',
   shipmentMethod: '',
   customerName: '',
   salesUserName: '',
@@ -448,8 +489,15 @@ function resetEditDialog() {
 }
 
 const stockOutTableColumns = computed<CrmTableColumnDef[]>(() => [
-  { key: 'stockOutCode', label: t('stockOutList.columns.stockOutCode'), prop: 'stockOutCode', width: 160, minWidth: 160, showOverflowTooltip: true },
+  { key: 'stockOutCode', label: t('stockOutList.columns.stockOutCode'), prop: 'stockOutCode', width: 190, minWidth: 170, showOverflowTooltip: true },
   { key: 'status', label: t('stockOutList.columns.status'), prop: 'status', width: 110, align: 'center' },
+  {
+    key: 'stockOutType',
+    label: t('stockOutList.columns.stockOutType'),
+    prop: 'stockOutType',
+    width: 110,
+    align: 'center'
+  },
   { key: 'expectedStockOutDate', label: t('stockOutList.columns.expectedStockOutDate'), prop: 'expectedStockOutDate', width: 130 },
   { key: 'stockOutDate', label: t('stockOutList.columns.stockOutDate'), prop: 'stockOutDate', width: 170 },
   { key: 'shipmentMethod', label: t('stockOutList.columns.shipmentMethod'), prop: 'shipmentMethod', width: 120, minWidth: 100, showOverflowTooltip: true },
@@ -458,6 +506,14 @@ const stockOutTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'customerName', label: t('stockOutList.columns.customerName'), prop: 'customerName', width: 140, minWidth: 120, showOverflowTooltip: true },
   { key: 'salesUserName', label: t('stockOutList.columns.salesUserName'), prop: 'salesUserName', width: 110, minWidth: 100, showOverflowTooltip: true },
   { key: 'packingCodes', label: t('stockOutList.columns.packingCodes'), prop: 'packingCodes', width: 160, minWidth: 140, showOverflowTooltip: true },
+  {
+    key: 'freightForwarderOrderNo',
+    label: t('common.freightForwarderOrderNo'),
+    prop: 'freightForwarderOrderNo',
+    width: 160,
+    minWidth: 140,
+    showOverflowTooltip: true
+  },
   { key: 'packingCount', label: t('stockOutList.columns.packingCount'), prop: 'packingCount', width: 100, align: 'right' },
   { key: 'remark', label: t('stockOutList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
   { key: 'createTime', label: t('stockOutList.columns.createTime'), width: 170 },
@@ -483,6 +539,8 @@ function syncFiltersFromRoute() {
   const legacyKeyword = typeof q.keyword === 'string' ? q.keyword.trim() : ''
   filterForm.stockOutCode = typeof q.stockOutCode === 'string' ? q.stockOutCode : legacyKeyword
   filterForm.packingCode = typeof q.packingCode === 'string' ? q.packingCode : ''
+  filterForm.freightForwarderOrderNo =
+    typeof q.freightForwarderOrderNo === 'string' ? q.freightForwarderOrderNo : ''
   filterForm.shipmentMethod = typeof q.shipmentMethod === 'string' ? q.shipmentMethod : ''
   filterForm.customerName = typeof q.customerName === 'string' ? q.customerName : ''
   filterForm.salesUserName = typeof q.salesUserName === 'string' ? q.salesUserName : ''
@@ -495,6 +553,29 @@ function syncFiltersFromRoute() {
   const from = typeof q.stockOutDateFrom === 'string' ? q.stockOutDateFrom : ''
   const to = typeof q.stockOutDateTo === 'string' ? q.stockOutDateTo : ''
   filterForm.stockOutDateRange = from && to ? [from, to] : null
+  const typeRaw = q.stockOutType
+  filterForm.stockOutType =
+    typeRaw === undefined || typeRaw === null || typeRaw === ''
+      ? undefined
+      : Number(typeRaw)
+}
+
+function listStockOutTypeLabel(type: number | undefined | null): string {
+  const n = Number(type)
+  if (n === StockOutTypeCode.Customs) return t('stockOutList.stockOutTypeLabels.customs')
+  if (n === StockOutTypeCode.Return) return t('stockOutList.stockOutTypeLabels.return')
+  if (n === StockOutTypeCode.Scrap) return t('stockOutList.stockOutTypeLabels.scrap')
+  return t('stockOutList.stockOutTypeLabels.sales')
+}
+
+function isCustomsStockOut(row: StockOutDto): boolean {
+  return Number(row.stockOutType) === StockOutTypeCode.Customs
+}
+
+function salesNotifyTooltip(row: StockOutDto): string {
+  const code = String(row.salesStockOutNotifyCode ?? '').trim()
+  if (!code) return ''
+  return t('stockOutList.salesNotifyCodeTooltip', { code })
 }
 
 function buildListQuery(): StockOutListQuery {
@@ -503,10 +584,15 @@ function buildListQuery(): StockOutListQuery {
     pageSize: listPageSize.value
   }
   if (filterForm.status !== undefined && !Number.isNaN(filterForm.status)) q.status = filterForm.status
+  if (filterForm.stockOutType !== undefined && !Number.isNaN(filterForm.stockOutType)) {
+    q.stockOutType = filterForm.stockOutType
+  }
   const code = filterForm.stockOutCode.trim()
   if (code) q.stockOutCode = code
   const packing = filterForm.packingCode.trim()
   if (packing) q.packingCode = packing
+  const ff = filterForm.freightForwarderOrderNo.trim()
+  if (ff) q.freightForwarderOrderNo = ff
   const ship = filterForm.shipmentMethod.trim()
   if (ship) q.shipmentMethod = ship
   const cust = filterForm.customerName.trim()
@@ -525,10 +611,15 @@ function buildListQuery(): StockOutListQuery {
 function buildRouteQuery(): Record<string, string> {
   const q: Record<string, string> = {}
   if (filterForm.status !== undefined && !Number.isNaN(filterForm.status)) q.status = String(filterForm.status)
+  if (filterForm.stockOutType !== undefined && !Number.isNaN(filterForm.stockOutType)) {
+    q.stockOutType = String(filterForm.stockOutType)
+  }
   const code = filterForm.stockOutCode.trim()
   if (code) q.stockOutCode = code
   const packing = filterForm.packingCode.trim()
   if (packing) q.packingCode = packing
+  const ff = filterForm.freightForwarderOrderNo.trim()
+  if (ff) q.freightForwarderOrderNo = ff
   const ship = filterForm.shipmentMethod.trim()
   if (ship) q.shipmentMethod = ship
   const cust = filterForm.customerName.trim()
@@ -645,8 +736,10 @@ const handleSearch = () => {
 
 function handleReset() {
   filterForm.status = undefined
+  filterForm.stockOutType = undefined
   filterForm.stockOutCode = ''
   filterForm.packingCode = ''
+  filterForm.freightForwarderOrderNo = ''
   filterForm.shipmentMethod = ''
   filterForm.customerName = ''
   filterForm.salesUserName = ''
@@ -1092,6 +1185,26 @@ const handleForceDeleteRow = async (row: StockOutDto) => {
 
 .stock-out-mark-finish-dialog__field {
   width: 100%;
+}
+
+.stock-out-code-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.customs-notify-tag {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #ffb84d;
+  background: rgba(255, 184, 77, 0.14);
+  border: 1px solid rgba(255, 184, 77, 0.45);
+  cursor: default;
+  user-select: none;
 }
 
 </style>

@@ -4057,6 +4057,11 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasColumnType("smallint")
                         .HasColumnName("finance_status");
 
+                    b.Property<string>("FreightForwarderOrderNo")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("freight_forwarder_order_no");
+
                     b.Property<string>("InnerComment")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -4154,6 +4159,10 @@ namespace CRM.Infrastructure.Data.Migrations
 
                     b.HasIndex("PurchaseOrderCode")
                         .IsUnique();
+
+                    b.HasIndex("FreightForwarderOrderNo")
+                        .IsUnique()
+                        .HasFilter("freight_forwarder_order_no IS NOT NULL AND btrim(freight_forwarder_order_no) <> ''");
 
                     b.ToTable("purchaseorder");
                 });

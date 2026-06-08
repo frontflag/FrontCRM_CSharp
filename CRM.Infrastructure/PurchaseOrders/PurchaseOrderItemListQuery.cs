@@ -54,6 +54,14 @@ public sealed class PurchaseOrderItemListQuery : IPurchaseOrderItemListQuery
                 x.po.PurchaseOrderCode.ToLower().Contains(c.ToLower()));
         }
 
+        if (!string.IsNullOrWhiteSpace(request.FreightForwarderOrderNo))
+        {
+            var f = request.FreightForwarderOrderNo.Trim();
+            q = q.Where(x =>
+                x.po.FreightForwarderOrderNo != null &&
+                x.po.FreightForwarderOrderNo.ToLower().Contains(f.ToLower()));
+        }
+
         if (!string.IsNullOrWhiteSpace(request.VendorName))
         {
             var v = request.VendorName.Trim();
@@ -96,6 +104,7 @@ public sealed class PurchaseOrderItemListQuery : IPurchaseOrderItemListQuery
                 PurchaseOrderId = x.item.PurchaseOrderId,
                 PurchaseOrderItemCode = x.item.PurchaseOrderItemCode,
                 PurchaseOrderCode = x.po.PurchaseOrderCode,
+                FreightForwarderOrderNo = x.po.FreightForwarderOrderNo,
                 PurchaseOrderType = x.po.Type >= 1 && x.po.Type <= 3 ? x.po.Type : (short)1,
                 OrderStatus = x.po.Status,
                 OrderCreateTime = x.po.CreateTime,

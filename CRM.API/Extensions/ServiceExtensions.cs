@@ -86,6 +86,7 @@ namespace CRM.API.Extensions
             services.AddScoped<IDraftService, DraftService>();
             services.AddScoped<IRbacService, RbacService>();
             services.AddScoped<ISysRelationMapService, CRM.Infrastructure.RelationMaps.SysRelationMapService>();
+            services.AddScoped<IPurchaseQuoterPoolService, CRM.Infrastructure.PurchaseParams.PurchaseQuoterPoolService>();
             services.AddScoped<IDataPermissionService, DataPermissionService>();
             services.AddScoped<IApprovalRecordService, ApprovalRecordService>();
             services.AddScoped<IOrderJourneyLogService, OrderJourneyLogService>();

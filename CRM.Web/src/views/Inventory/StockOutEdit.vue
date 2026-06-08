@@ -74,8 +74,35 @@
       <div class="form-card">
         <h3 class="section-title">基础信息</h3>
         <el-descriptions v-if="isNotifyDetailPage" :column="2" border class="notify-detail-desc">
-          <el-descriptions-item label="出库通知单号">{{ notifyRequestCodeDisplay }}</el-descriptions-item>
+          <el-descriptions-item label="出库通知单号">
+            <span class="notify-code-cell">
+              <span>{{ notifyRequestCodeDisplay }}</span>
+              <el-tooltip
+                v-if="notifyDetailIsCustoms && notifyDetailSalesNotifyTooltip"
+                :content="notifyDetailSalesNotifyTooltip"
+                placement="top"
+                :hide-after="0"
+              >
+                <span class="customs-notify-tag">{{ t('stockOutNotifyList.customsNotifyTag') }}</span>
+              </el-tooltip>
+            </span>
+          </el-descriptions-item>
           <el-descriptions-item :label="t('stockOutNotifyList.columns.status')">{{ notifyDetailStatusLabel }}</el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutNotifyList.columns.stockOutType')">
+            <StockBizTypeTag biz="out" :type="currentRequest?.stockOutType" />
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('stockOutNotifyList.columns.customsStatus')">{{ notifyDetailCustomsStatusLabel }}</el-descriptions-item>
+          <el-descriptions-item
+            v-if="notifyDetailIsCustoms && notifyDetailSalesNotifyId"
+            :label="t('stockOutNotifyList.salesNotifyCodeLink')"
+          >
+            <router-link
+              :to="{ name: 'StockOutNotifyDetail', params: { id: notifyDetailSalesNotifyId } }"
+              class="cell-link"
+            >
+              {{ notifyDetailSalesNotifyCode || notifyDetailSalesNotifyId }}
+            </router-link>
+          </el-descriptions-item>
           <el-descriptions-item :label="t('stockOutNotifyList.columns.materialModel')">{{ currentRequest?.materialModel || '—' }}</el-descriptions-item>
           <el-descriptions-item :label="t('stockOutNotifyList.columns.brand')">{{ currentRequest?.brand || '—' }}</el-descriptions-item>
           <el-descriptions-item :label="t('stockOutNotifyList.columns.outQuantity')">{{ formatQty(currentRequest?.outQuantity) }}</el-descriptions-item>
@@ -497,6 +524,13 @@
         <el-table-column label="库存明细编号" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">{{ pickingCandidateStockItemCode(row) }}</template>
         </el-table-column>
+        <el-table-column
+          :label="t('common.freightForwarderOrderNo')"
+          min-width="140"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">{{ row.freightForwarderOrderNo?.trim() || '—' }}</template>
+        </el-table-column>
         <el-table-column label="型号" min-width="100" show-overflow-tooltip>
           <template #default="{ row }">{{ row.purchasePn || '—' }}</template>
         </el-table-column>
@@ -565,8 +599,11 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
+import { STOCK_OUT_NOTIFY_CUSTOMS_STATUS } from '@/constants/stockOutNotifyCustomsStatus'
+import { StockOutTypeCode } from '@/constants/stockOutType'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import StockOutNotifyDetailTabs from '@/components/Inventory/StockOutNotifyDetailTabs.vue'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { packingApi } from '@/api/packing'
 import {
   PACKING_STOCK_OUT_QUEUE_KEY,
@@ -648,11 +685,35 @@ const pageTitle = computed(() => {
 
 const notifyDetailStatusLabel = computed(() => {
   const s = Number(currentRequest.value?.status)
+  if (s === STOCK_OUT_REQUEST_STATUS.PendingCustoms) return t('stockOutNotifyList.status.pendingCustoms')
   if (s === STOCK_OUT_REQUEST_STATUS.PendingPacking) return t('stockOutNotifyList.status.pendingPacking')
   if (s === STOCK_OUT_REQUEST_STATUS.Packed) return t('stockOutNotifyList.status.packed')
   if (s === STOCK_OUT_REQUEST_STATUS.StockedOut) return t('stockOutNotifyList.status.stockedOut')
   if (s === STOCK_OUT_REQUEST_STATUS.Cancelled) return t('stockOutNotifyList.status.cancelled')
   return t('stockOutNotifyList.status.unknown')
+})
+
+const notifyDetailIsCustoms = computed(
+  () => Number(currentRequest.value?.stockOutType ?? StockOutTypeCode.Sales) === StockOutTypeCode.Customs
+)
+
+const notifyDetailCustomsStatusLabel = computed(() => {
+  const n = Number(currentRequest.value?.customsStatus ?? 0)
+  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.NotRequired) return t('stockOutNotifyList.customsStatus.notRequired')
+  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.PendingCustoms) return t('stockOutNotifyList.customsStatus.pendingCustoms')
+  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.InCustoms) return t('stockOutNotifyList.customsStatus.inCustoms')
+  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.Completed) return t('stockOutNotifyList.customsStatus.completed')
+  return '—'
+})
+
+const notifyDetailSalesNotifyId = computed(() => String(currentRequest.value?.salesStockOutNotifyId ?? '').trim())
+
+const notifyDetailSalesNotifyCode = computed(() => String(currentRequest.value?.salesStockOutNotifyCode ?? '').trim())
+
+const notifyDetailSalesNotifyTooltip = computed(() => {
+  const code = notifyDetailSalesNotifyCode.value
+  if (!code) return ''
+  return t('stockOutNotifyList.salesNotifyCodeTooltip', { code })
 })
 
 const notifyDetailRegionLabel = computed(() => {
@@ -2049,6 +2110,34 @@ init()
 }
 .packing-lines-on-pick-table {
   margin-top: 8px;
+}
+
+.notify-code-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.customs-notify-tag {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #ffb84d;
+  background: rgba(255, 184, 77, 0.14);
+  border: 1px solid rgba(255, 184, 77, 0.45);
+  cursor: default;
+  user-select: none;
+}
+
+.cell-link {
+  color: $cyan-primary;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 </style>
 

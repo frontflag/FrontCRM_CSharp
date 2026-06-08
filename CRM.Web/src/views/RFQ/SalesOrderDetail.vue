@@ -624,7 +624,9 @@
                     </template>
                   </el-table-column>
                   <el-table-column label="类型" width="100" prop="stockInType">
-                    <template #default="{ row }">{{ stockInTypeLabel(row?.stockInType) }}</template>
+                    <template #default="{ row }">
+                      <StockBizTypeTag biz="in" :type="row?.stockInType" />
+                    </template>
                   </el-table-column>
                   <el-table-column label="状态" width="100" prop="status">
                     <template #default="{ row }">{{ stockInStatusLabel(row?.status) }}</template>
@@ -1125,7 +1127,7 @@ import ShipmentExpressFields from '@/components/Logistics/ShipmentExpressFields.
 import QcImagesReadonlyGallery from '@/components/Logistics/QcImagesReadonlyGallery.vue'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { CurrencyCode } from '@/constants/currency'
-import { stockInTypeLabel } from '@/constants/stockInType'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 

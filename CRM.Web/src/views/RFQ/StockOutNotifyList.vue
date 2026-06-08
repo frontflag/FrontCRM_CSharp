@@ -41,6 +41,20 @@
           <el-option :label="t('inventoryList.warehouse.regionDomestic')" :value="REGION_TYPE_DOMESTIC" />
           <el-option :label="t('inventoryList.warehouse.regionOverseas')" :value="REGION_TYPE_OVERSEAS" />
         </el-select>
+        <el-select
+          v-model="filterForm.stockOutType"
+          :placeholder="t('stockOutNotifyList.filters.stockOutTypePlaceholder')"
+          clearable
+          class="status-select status-select--stock-out-type"
+          :teleported="false"
+        >
+          <el-option
+            v-for="v in STOCK_OUT_TYPE_FILTER_VALUES"
+            :key="v"
+            :label="notifyStockOutTypeLabel(v)"
+            :value="v"
+          />
+        </el-select>
         <div v-if="!maskSaleSensitiveFields" class="search-input-wrap">
           <input
             v-model="filterForm.customerName"
@@ -86,7 +100,7 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="stock-out-notify-list-main-v6"
+      column-layout-key="stock-out-notify-list-main-v7"
       :columns="stockOutNotifyColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -100,6 +114,22 @@
         <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
       </template>
       <template #col-customsStatus="{ row }">{{ customsStatusLabel(row.customsStatus) }}</template>
+      <template #col-stockOutType="{ row }">
+        <StockBizTypeTag biz="out" :type="row.stockOutType" />
+      </template>
+      <template #col-requestCode="{ row }">
+        <span class="notify-code-cell">
+          <span class="notify-code-text">{{ row.requestCode || '—' }}</span>
+          <el-tooltip
+            v-if="isCustomsNotify(row) && salesNotifyTooltip(row)"
+            :content="salesNotifyTooltip(row)"
+            placement="top"
+            :hide-after="0"
+          >
+            <span class="customs-notify-tag">{{ t('stockOutNotifyList.customsNotifyTag') }}</span>
+          </el-tooltip>
+        </span>
+      </template>
       <template #col-outQuantity="{ row }">{{ row.outQuantity }}</template>
       <template #col-regionType="{ row }">{{ regionTypeLabel(row) }}</template>
       <template #col-shipmentMethod="{ row }">{{ shipmentMethodDisplay(row.shipmentMethod) }}</template>
@@ -297,7 +327,8 @@ import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOn
 import { useStockOutNotifyListBasketStore } from '@/stores/stockOutNotifyListBasket'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { STOCK_OUT_NOTIFY_CUSTOMS_STATUS } from '@/constants/stockOutNotifyCustomsStatus'
-import { StockOutTypeCode } from '@/constants/stockOutType'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import { StockOutTypeCode, STOCK_OUT_TYPE_FILTER_VALUES } from '@/constants/stockOutType'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
@@ -312,6 +343,7 @@ const loading = ref(false)
 const filterForm = reactive({
   status: undefined as number | undefined,
   regionType: undefined as number | undefined,
+  stockOutType: undefined as number | undefined,
   customerName: '',
   salesUserName: '',
   materialModel: '',
@@ -362,6 +394,7 @@ function buildListQueryParams() {
   if (filterForm.regionType === REGION_TYPE_DOMESTIC || filterForm.regionType === REGION_TYPE_OVERSEAS) {
     params.regionType = filterForm.regionType
   }
+  if (filterForm.stockOutType != null) params.stockOutType = filterForm.stockOutType
   const customer = filterForm.customerName.trim()
   if (customer) params.customerName = customer
   const salesUser = filterForm.salesUserName.trim()
@@ -391,6 +424,13 @@ const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => {
     label: t('stockOutNotifyList.columns.customsStatus'),
     width: 120,
     minWidth: 110,
+    align: 'center'
+  },
+  {
+    key: 'stockOutType',
+    label: t('stockOutNotifyList.columns.stockOutType'),
+    width: 110,
+    minWidth: 100,
     align: 'center'
   },
   { key: 'materialModel', label: t('stockOutNotifyList.columns.materialModel'), prop: 'materialModel', width: 180, showOverflowTooltip: true },
@@ -429,7 +469,7 @@ const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => {
   { key: 'salesUserName', label: t('stockOutNotifyList.columns.salesUserName'), prop: 'salesUserName', width: 130, showOverflowTooltip: true },
   { key: 'customerName', label: t('stockOutNotifyList.columns.customer'), prop: 'customerName', minWidth: 180, showOverflowTooltip: true },
   { key: 'remark', label: t('stockOutNotifyList.columns.remark'), prop: 'remark', minWidth: 180, showOverflowTooltip: true },
-  { key: 'requestCode', label: t('stockOutNotifyList.columns.requestCode'), prop: 'requestCode', width: 160, minWidth: 160 },
+  { key: 'requestCode', label: t('stockOutNotifyList.columns.requestCode'), prop: 'requestCode', width: 190, minWidth: 170 },
   { key: 'salesOrderCode', label: t('stockOutNotifyList.columns.salesOrderCode'), prop: 'salesOrderCode', width: 160, minWidth: 160 },
   { key: 'createTime', label: t('stockOutNotifyList.columns.createTime'), prop: 'createTime', width: 170 },
   { key: 'createUser', label: t('stockOutNotifyList.columns.createUser'), width: 140, showOverflowTooltip: true },
@@ -465,6 +505,24 @@ function customsStatusLabel(code?: number | null): string {
   if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.InCustoms) return t('stockOutNotifyList.customsStatus.inCustoms')
   if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.Completed) return t('stockOutNotifyList.customsStatus.completed')
   return '—'
+}
+
+function notifyStockOutTypeLabel(type?: number | null): string {
+  const n = Number(type ?? StockOutTypeCode.Sales)
+  if (n === StockOutTypeCode.Customs) return t('stockOutNotifyList.stockOutTypeLabels.customs')
+  if (n === StockOutTypeCode.Return) return t('stockOutNotifyList.stockOutTypeLabels.return')
+  if (n === StockOutTypeCode.Scrap) return t('stockOutNotifyList.stockOutTypeLabels.scrap')
+  return t('stockOutNotifyList.stockOutTypeLabels.sales')
+}
+
+function isCustomsNotify(row: StockOutRequestDto): boolean {
+  return resolveNotifyStockOutType(row.stockOutType) === StockOutTypeCode.Customs
+}
+
+function salesNotifyTooltip(row: StockOutRequestDto): string {
+  const code = String(row.salesStockOutNotifyCode ?? '').trim()
+  if (!code) return ''
+  return t('stockOutNotifyList.salesNotifyCodeTooltip', { code })
 }
 
 const regionTypeLabel = (row: StockOutRequestDto) => {
@@ -526,6 +584,7 @@ function onNotifyPageSizeChange() {
 function handleReset() {
   filterForm.status = undefined
   filterForm.regionType = undefined
+  filterForm.stockOutType = undefined
   filterForm.customerName = ''
   filterForm.salesUserName = ''
   filterForm.materialModel = ''
@@ -873,6 +932,36 @@ onMounted(() => {
 
 .status-select--region {
   width: 110px;
+}
+
+.status-select--stock-out-type {
+  width: 120px;
+}
+
+.notify-code-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.notify-code-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customs-notify-tag {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #ffb84d;
+  background: rgba(255, 184, 77, 0.14);
+  border: 1px solid rgba(255, 184, 77, 0.45);
+  cursor: default;
+  user-select: none;
 }
 
 .filter-date-range {

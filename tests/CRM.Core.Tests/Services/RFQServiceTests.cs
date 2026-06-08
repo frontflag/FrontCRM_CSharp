@@ -37,7 +37,26 @@ namespace CRM.Core.Tests.Services
         private readonly IRbacService _rbacService;
         private readonly IRfqMainListQuery _rfqMainListQuery;
         private readonly IRfqItemListQuery _rfqItemListQuery;
+        private readonly IPurchaseQuoterPoolService _purchaseQuoterPoolService;
         private readonly RFQService _rfqService;
+
+        private static IPurchaseQuoterPoolService CreateEmptyPoolService()
+        {
+            var svc = Substitute.For<IPurchaseQuoterPoolService>();
+            svc.GetOrderedActivePoolUserIdsAsync(Arg.Any<CancellationToken>())
+                .Returns(Array.Empty<string>());
+            svc.GetAssigneeCountAsync(Arg.Any<CancellationToken>()).Returns(2);
+            return svc;
+        }
+
+        private static IPurchaseQuoterPoolService CreatePoolServiceWithUsers(params string[] userIds)
+        {
+            var svc = Substitute.For<IPurchaseQuoterPoolService>();
+            svc.GetOrderedActivePoolUserIdsAsync(Arg.Any<CancellationToken>())
+                .Returns(userIds.ToList());
+            svc.GetAssigneeCountAsync(Arg.Any<CancellationToken>()).Returns(2);
+            return svc;
+        }
 
         public RFQServiceTests()
         {
@@ -116,6 +135,8 @@ namespace CRM.Core.Tests.Services
                     PageSize = 20
                 }));
 
+            _purchaseQuoterPoolService = CreateEmptyPoolService();
+
             _rfqService = new RFQService(
                 _rfqRepository,
                 _rfqItemRepository,
@@ -126,13 +147,10 @@ namespace CRM.Core.Tests.Services
                 _dataPermissionService,
                 _userService,
                 _sysParamRepo,
-                _rbacRoleRepo,
-                _rbacUserRoleRepo,
-                _rbacDepartmentRepo,
-                _rbacUserDepartmentRepo,
                 _quoteRepo,
                 _userRepo,
                 _rbacService,
+                _purchaseQuoterPoolService,
                 _rfqMainListQuery,
                 _rfqItemListQuery,
                 NullLogger<RFQService>.Instance,
@@ -178,7 +196,7 @@ namespace CRM.Core.Tests.Services
             await _unitOfWork.Received(1).SaveChangesAsync();
         }
 
-        /// <summary>有采购员池时：主单已分配、明细共用一对采购员、全局游标每单 +2。</summary>
+        /// <summary>有报价员池时：主单已分配、明细共用一对采购员、全局游标每单 +2。</summary>
         [Fact]
         public async Task CreateAsync_WithPurchaserPool_AssignsPairToAllLinesAndAdvancesCursor()
         {
@@ -192,14 +210,6 @@ namespace CRM.Core.Tests.Services
             var sysParamRepo = new MemoryRepository<SysParam>();
             await sysParamRepo.AddAsync(new SysParam
             {
-                Id = "sp-role",
-                ParamCode = SysParamCodes.RfqRoundRobinPurchaserRoleCodes,
-                ParamName = "roles",
-                ValueString = "buyer",
-                Status = 1
-            });
-            await sysParamRepo.AddAsync(new SysParam
-            {
                 Id = "sp-cursor",
                 ParamCode = SysParamCodes.RfqPurchaserRoundRobinCursor,
                 ParamName = "cursor",
@@ -207,26 +217,7 @@ namespace CRM.Core.Tests.Services
                 Status = 1
             });
 
-            var roleRepo = new MemoryRepository<RbacRole>();
-            await roleRepo.AddAsync(new RbacRole { Id = "ROLE-1", RoleCode = "buyer", RoleName = "Buyer" });
-
-            var userRoleRepo = new MemoryRepository<RbacUserRole>();
-            await userRoleRepo.AddAsync(new RbacUserRole { Id = "ur-1", UserId = "U-Z", RoleId = "ROLE-1" });
-            await userRoleRepo.AddAsync(new RbacUserRole { Id = "ur-2", UserId = "U-A", RoleId = "ROLE-1" });
-            await userRoleRepo.AddAsync(new RbacUserRole { Id = "ur-3", UserId = "U-M", RoleId = "ROLE-1" });
-
-            var userRepo = new MemoryRepository<User>();
-            foreach (var id in new[] { "U-Z", "U-A", "U-M" })
-            {
-                await userRepo.AddAsync(new User
-                {
-                    Id = id,
-                    UserName = id.ToLowerInvariant(),
-                    PasswordHash = "x",
-                    Salt = "y",
-                    IsActive = true
-                });
-            }
+            var purchaseQuoterPool = CreatePoolServiceWithUsers("U-A", "U-M", "U-Z");
 
             var rbacDeptRepo = Substitute.For<IRepository<RbacDepartment>>();
             var rbacUserDeptRepo = Substitute.For<IRepository<RbacUserDepartment>>();
@@ -270,13 +261,10 @@ namespace CRM.Core.Tests.Services
                 Substitute.For<IDataPermissionService>(),
                 Substitute.For<IUserService>(),
                 sysParamRepo,
-                roleRepo,
-                userRoleRepo,
-                rbacDeptRepo,
-                rbacUserDeptRepo,
                 Substitute.For<IRepository<Quote>>(),
-                userRepo,
+                Substitute.For<IRepository<User>>(),
                 rbacSvc,
+                purchaseQuoterPool,
                 rfqMain,
                 rfqItem,
                 NullLogger<RFQService>.Instance,

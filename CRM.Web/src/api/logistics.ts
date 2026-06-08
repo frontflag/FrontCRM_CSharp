@@ -16,6 +16,7 @@ export interface StockInNotifyDto {
   noticeCode: string
   purchaseOrderId: string
   purchaseOrderCode: string
+  freightForwarderOrderNo?: string | null
   purchaseOrderItemId?: string
   sellOrderItemId?: string | null
   vendorId?: string
@@ -45,6 +46,7 @@ export interface QcInfoDto {
   stockInNotifyCode: string
   vendorName?: string
   purchaseOrderCode?: string
+  freightForwarderOrderNo?: string | null
   salesOrderCode?: string
   model?: string
   brand?: string
@@ -90,6 +92,7 @@ export const logisticsApi = {
   async getArrivalNotices(params?: {
     status?: number
     purchaseOrderCode?: string
+    freightForwarderOrderNo?: string
     expectedArrivalDate?: string
     /** 按到货通知主键精确查（编辑/联动场景） */
     id?: string
@@ -124,6 +127,7 @@ export const logisticsApi = {
     model?: string
     vendorName?: string
     purchaseOrderCode?: string
+    freightForwarderOrderNo?: string
     salesOrderCode?: string
     page?: number
     pageSize?: number

@@ -940,6 +940,56 @@ namespace CRM.Core.Services
             public decimal QtyStockInNotifyExpectSum { get; set; }
         }
 
+        public async Task<PurchaseOrder> UpdateFreightForwarderOrderNoAsync(
+            string purchaseOrderId,
+            string? freightForwarderOrderNo,
+            string? actingUserId = null)
+        {
+            if (string.IsNullOrWhiteSpace(purchaseOrderId))
+                throw new ArgumentException("采购订单 Id 不能为空", nameof(purchaseOrderId));
+
+            var order = await _poRepo.GetByIdAsync(purchaseOrderId.Trim())
+                ?? throw new InvalidOperationException("采购订单不存在");
+
+            if (!PurchaseOrderFreightForwarderOrderNoRules.IsEditableStatus(order.Status))
+                throw new InvalidOperationException("当前采购订单状态不允许录入或修改货代单号");
+
+            var normalized = PurchaseOrderFreightForwarderOrderNoRules.Normalize(freightForwarderOrderNo);
+            if (normalized != null && normalized.Length > PurchaseOrderFreightForwarderOrderNoRules.MaxLength)
+                throw new ArgumentException($"货代单号长度不能超过 {PurchaseOrderFreightForwarderOrderNoRules.MaxLength} 个字符");
+
+            var oldValue = PurchaseOrderFreightForwarderOrderNoRules.Normalize(order.FreightForwarderOrderNo);
+            if (string.Equals(oldValue, normalized, StringComparison.OrdinalIgnoreCase))
+                return order;
+
+            if (!string.IsNullOrEmpty(normalized))
+            {
+                var dup = (await _poRepo.FindAsync(p =>
+                        p.Id != order.Id &&
+                        p.FreightForwarderOrderNo != null &&
+                        p.FreightForwarderOrderNo.ToLower() == normalized.ToLower()))
+                    .FirstOrDefault();
+                if (dup != null)
+                    throw new InvalidOperationException($"货代单号「{normalized}」已被采购订单 {dup.PurchaseOrderCode} 使用");
+            }
+
+            order.FreightForwarderOrderNo = normalized;
+            order.ModifyByUserId = NormalizeActingUserId(actingUserId);
+            order.ModifyTime = DateTime.UtcNow;
+            await _poRepo.UpdateAsync(order);
+            await _unitOfWork!.SaveChangesAsync();
+
+            await CompareAndLogPoHeaderFieldAsync(
+                order,
+                oldValue,
+                normalized,
+                "freightForwarderOrderNo",
+                "货代单号",
+                actingUserId);
+
+            return order;
+        }
+
         public async Task<IReadOnlyList<PurchaseOrderFieldChangeLogDto>> GetFieldChangeLogsAsync(string purchaseOrderId)
         {
             if (_unitOfWork == null || string.IsNullOrWhiteSpace(purchaseOrderId))

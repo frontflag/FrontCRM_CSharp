@@ -161,6 +161,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<CompanyBankInfo> CompanyBankInfos { get; set; } = null!;
         public DbSet<SysDictItem> SysDictItems { get; set; } = null!;
         public DbSet<SysRelationMap> SysRelationMaps { get; set; } = null!;
+        public DbSet<SysPurchaseQuoterPool> SysPurchaseQuoterPools { get; set; } = null!;
         public DbSet<ApprovalRecord> ApprovalRecords { get; set; } = null!;
         public DbSet<OrderJourneyLog> OrderJourneyLogs { get; set; } = null!;
         public DbSet<LoginLog> LoginLogs { get; set; } = null!;
@@ -327,6 +328,12 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Id).HasColumnName("PurchaseOrderId");
                 entity.Property(e => e.PurchaseOrderCode).IsRequired().HasMaxLength(32);
                 entity.HasIndex(e => e.PurchaseOrderCode).IsUnique();
+                entity.Property(e => e.FreightForwarderOrderNo)
+                    .HasColumnName("freight_forwarder_order_no")
+                    .HasMaxLength(64);
+                entity.HasIndex(e => e.FreightForwarderOrderNo)
+                    .IsUnique()
+                    .HasFilter("freight_forwarder_order_no IS NOT NULL AND btrim(freight_forwarder_order_no) <> ''");
                 entity.Property(e => e.Status).HasDefaultValue((short)0);
                 entity.HasMany(e => e.Items)
                       .WithOne(i => i.PurchaseOrder)
@@ -1796,6 +1803,17 @@ namespace CRM.Infrastructure.Data
                     .HasFilter("is_deleted = false");
                 entity.HasIndex(e => new { e.Type, e.ObjDest })
                     .HasFilter("is_deleted = false");
+            });
+
+            modelBuilder.Entity<SysPurchaseQuoterPool>(entity =>
+            {
+                entity.ToTable("sys_purchase_quoter_pool");
+                entity.HasKey(e => e.UserId);
+                entity.Property(e => e.UserId).HasColumnName("user_id").HasMaxLength(36);
+                entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+                entity.Property(e => e.CreateTime).HasColumnName("create_time");
+                entity.Property(e => e.UpdateTime).HasColumnName("update_time");
+                entity.HasIndex(e => e.SortOrder);
             });
 
             modelBuilder.Entity<FinanceExchangeRateSetting>(entity =>

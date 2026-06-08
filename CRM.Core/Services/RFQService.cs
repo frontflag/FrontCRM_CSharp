@@ -2,7 +2,6 @@ using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Customer;
-using CRM.Core.Models.Rbac;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Models.System;
@@ -25,13 +24,10 @@ namespace CRM.Core.Services
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUserService _userService;
         private readonly IRepository<SysParam> _sysParamRepo;
-        private readonly IRepository<RbacRole> _rbacRoleRepo;
-        private readonly IRepository<RbacUserRole> _rbacUserRoleRepo;
-        private readonly IRepository<RbacDepartment> _rbacDepartmentRepo;
-        private readonly IRepository<RbacUserDepartment> _rbacUserDepartmentRepo;
         private readonly IRepository<Quote> _quoteRepo;
         private readonly IRepository<User> _userRepo;
         private readonly IRbacService _rbacService;
+        private readonly IPurchaseQuoterPoolService _purchaseQuoterPoolService;
         private readonly IRfqMainListQuery _rfqMainListQuery;
         private readonly IRfqItemListQuery _rfqItemListQuery;
         private readonly ILogger<RFQService> _logger;
@@ -47,13 +43,10 @@ namespace CRM.Core.Services
             IDataPermissionService dataPermissionService,
             IUserService userService,
             IRepository<SysParam> sysParamRepo,
-            IRepository<RbacRole> rbacRoleRepo,
-            IRepository<RbacUserRole> rbacUserRoleRepo,
-            IRepository<RbacDepartment> rbacDepartmentRepo,
-            IRepository<RbacUserDepartment> rbacUserDepartmentRepo,
             IRepository<Quote> quoteRepo,
             IRepository<User> userRepo,
             IRbacService rbacService,
+            IPurchaseQuoterPoolService purchaseQuoterPoolService,
             IRfqMainListQuery rfqMainListQuery,
             IRfqItemListQuery rfqItemListQuery,
             ILogger<RFQService> logger,
@@ -68,13 +61,10 @@ namespace CRM.Core.Services
             _dataPermissionService = dataPermissionService;
             _userService = userService;
             _sysParamRepo = sysParamRepo;
-            _rbacRoleRepo = rbacRoleRepo;
-            _rbacUserRoleRepo = rbacUserRoleRepo;
-            _rbacDepartmentRepo = rbacDepartmentRepo;
-            _rbacUserDepartmentRepo = rbacUserDepartmentRepo;
             _quoteRepo = quoteRepo;
             _userRepo = userRepo;
             _rbacService = rbacService;
+            _purchaseQuoterPoolService = purchaseQuoterPoolService;
             _rfqMainListQuery = rfqMainListQuery;
             _rfqItemListQuery = rfqItemListQuery;
             _logger = logger;
@@ -106,8 +96,8 @@ namespace CRM.Core.Services
                 request.Items?.Count ?? 0,
                 request.SalesUserId ?? "(null)");
 
-            // 每个需求取轮询队列中连续 2 名采购员，写入该需求下全部明细；游标全局 +2
-            var (purchaser1, purchaser2) = await TakeNextRoundRobinPurchaserPairAsync();
+            // 每个需求从报价员池取连续 N 名采购员，写入该需求下全部明细；游标全局 +N
+            var (purchaser1, purchaser2) = await TakeNextRoundRobinPurchasersAsync();
 
             var rfq = new RFQ
             {
@@ -564,191 +554,44 @@ namespace CRM.Core.Services
         }
 
         /// <summary>
-        /// 从全局轮询池取连续 2 名采购员（同一需求下所有明细相同）；游标 +2。
-        /// 池仅 1 人时两人相同；池为空时返回 (null,null)。
+        /// 从报价员池取连续 N 名采购员（同一需求下所有明细相同）；游标 +N。
+        /// 池为空时返回 (null,null) 且不推进游标。
         /// </summary>
-        private async Task<(string? UserId1, string? UserId2)> TakeNextRoundRobinPurchaserPairAsync()
+        private async Task<(string? UserId1, string? UserId2)> TakeNextRoundRobinPurchasersAsync()
         {
-            //取采购员池
-            var pool = await GetPurchaserPoolOrderedAsync();
+            var pool = await _purchaseQuoterPoolService.GetOrderedActivePoolUserIdsAsync();
             var n = pool.Count;
             if (n == 0)
             {
                 _logger.LogWarning(
-                    "【需求-采购员轮询】采购员池为空，跳过分配。请检查系统参数 {ParamCode}、角色 RoleCode、rbac_user_role 与用户 IsActive。",
-                    SysParamCodes.RfqRoundRobinPurchaserRoleCodes);
+                    "【需求-采购员轮询】报价员池为空，跳过分配。请在「采购参数 → 报价员池」中配置可参与轮询的采购员。");
                 return (null, null);
             }
 
-            //取游标
-            var cursor = await GetRoundRobinCursorAsync();
-            var idx1 = cursor % n;
-            var idx2 = (cursor + 1) % n;
-            var a1 = pool[idx1];
-            var a2 = pool[idx2];
-            var newCursor = cursor + 2;
-            await SaveRoundRobinCursorAsync(newCursor);
+            var assignCount = await _purchaseQuoterPoolService.GetAssigneeCountAsync();
+            if (assignCount is not (1 or 2))
+                assignCount = 2;
 
+            var cursor = await GetRoundRobinCursorAsync();
+            var ids = new List<string>(assignCount);
+            for (var i = 0; i < assignCount; i++)
+                ids.Add(pool[(cursor + i) % n]);
+
+            await SaveRoundRobinCursorAsync(cursor + assignCount);
+
+            var a1 = ids[0];
+            var a2 = assignCount >= 2 ? ids[1] : null;
             _logger.LogInformation(
-                "【需求-采购员轮询】本笔取值：池人数={PoolCount} CursorBefore={CursorBefore} 取下标[{Idx1},{Idx2}] " +
+                "【需求-采购员轮询】本笔取值：池人数={PoolCount} 分配人数={AssignCount} CursorBefore={CursorBefore} " +
                 "UserId1={UserId1} UserId2={UserId2} CursorAfter={CursorAfter}",
                 n,
+                assignCount,
                 cursor,
-                idx1,
-                idx2,
                 a1,
-                a2,
-                newCursor);
+                a2 ?? "(null)",
+                cursor + assignCount);
 
             return (a1, a2);
-        }
-
-        private async Task<List<string>> GetPurchaserPoolOrderedAsync()
-        {
-            //取可以报价角色
-            var paramRows = await _sysParamRepo.FindAsync(p =>
-                p.ParamCode == SysParamCodes.RfqRoundRobinPurchaserRoleCodes && p.Status == 1);
-            var paramRow = paramRows.FirstOrDefault();
-            var raw = paramRow?.ValueString?.Trim() ?? "";
-
-            if (paramRow == null)
-            {
-                _logger.LogInformation(
-                    "【需求-采购员轮询】系统参数未找到或未启用(Status=1)：{ParamCode}，将使用默认角色编码列表。",
-                    SysParamCodes.RfqRoundRobinPurchaserRoleCodes);
-            }
-            else
-            {
-                _logger.LogInformation(
-                    "【需求-采购员轮询】系统参数 {ParamCode}：Status={Status} ValueString=\"{ValueString}\"",
-                    SysParamCodes.RfqRoundRobinPurchaserRoleCodes,
-                    paramRow.Status,
-                    string.IsNullOrEmpty(raw) ? "(空，将用默认角色码)" : raw);
-            }
-
-            var codes = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(s => s.Length > 0)
-                .ToList();
-            if (codes.Count == 0)
-                codes = new List<string> { "purchase_buyer", "purchaser", "purchase_staff" };
-
-            _logger.LogInformation(
-                "【需求-采购员轮询】用于匹配 rbac_role.RoleCode 的编码列表：{Codes}",
-                string.Join(", ", codes));
-
-            var allRoles = (await _rbacRoleRepo.GetAllAsync()).ToList();
-            var roles = allRoles
-                .Where(r => codes.Any(c => string.Equals(c, r.RoleCode, StringComparison.OrdinalIgnoreCase)))
-                .ToList();
-            var roleIds = roles.Select(r => r.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            if (roles.Count == 0)
-            {
-                var sampleCodes = allRoles.Take(15).Select(r => r.RoleCode).ToList();
-                _logger.LogWarning(
-                    "【需求-采购员轮询】未匹配到任何角色。库中 rbac_role 总数={TotalRoleCount} 前若干 RoleCode 示例：{Sample}",
-                    allRoles.Count,
-                    sampleCodes.Count == 0 ? "(无角色表数据)" : string.Join(", ", sampleCodes));
-                return new List<string>();
-            }
-
-            _logger.LogInformation(
-                "【需求-采购员轮询】匹配到的角色：{RoleSummary}",
-                string.Join("; ", roles.Select(r => $"{r.RoleCode}(Id={r.Id})")));
-
-            var userRoleRows = (await _rbacUserRoleRepo.GetAllAsync())
-                .Where(ur => roleIds.Contains(ur.RoleId))
-                .ToList();
-            var candIds = userRoleRows.Select(ur => ur.UserId).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-
-            _logger.LogInformation(
-                "【需求-采购员轮询】rbac_user_role 中关联上述角色的用户数（去重 UserId）={CandCount}",
-                candIds.Count);
-
-            var allUsers = (await _userRepo.GetAllAsync()).ToList();
-            var activeById = allUsers.Where(u => u.IsActive).ToDictionary(u => u.Id, StringComparer.OrdinalIgnoreCase);
-
-            var allDepts = (await _rbacDepartmentRepo.GetAllAsync()).Where(d => d.Status == 1).ToList();
-            var allUserDept = (await _rbacUserDepartmentRepo.GetAllAsync()).ToList();
-
-            var purchaseDeptIds = allDepts
-                .Where(PurchasingDepartmentRules.IsPurchaseDepartmentForRfqBuyer)
-                .Select(d => d.Id)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            var opsDeptIds = allDepts
-                .Where(PurchasingDepartmentRules.IsPurchasingOperationsDepartment)
-                .Select(d => d.Id)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            var primaryPurchaseUserIds = allUserDept
-                .Where(ud => ud.IsPrimary && purchaseDeptIds.Contains(ud.DepartmentId))
-                .Select(ud => ud.UserId)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            var poolSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var pool = new List<string>();
-
-            void TryAddPool(string userId)
-            {
-                if (string.IsNullOrWhiteSpace(userId) || poolSet.Contains(userId)) return;
-                if (!activeById.TryGetValue(userId, out _)) return;
-                poolSet.Add(userId);
-                pool.Add(userId);
-            }
-
-            foreach (var uid in candIds.OrderBy(x => x, StringComparer.Ordinal))
-                TryAddPool(uid);
-
-            var fromRoleCount = pool.Count;
-            foreach (var uid in primaryPurchaseUserIds.OrderBy(x => x, StringComparer.Ordinal))
-                TryAddPool(uid);
-
-            var fromDeptOnly = pool.Count - fromRoleCount;
-            if (fromDeptOnly > 0)
-            {
-                _logger.LogInformation(
-                    "【需求-采购员轮询】除角色池外，合并主部门在采购相关部门的在职用户 {DeptOnlyCount} 人（仅绑 DEPT_EMPLOYEE 等、未绑 purchase_buyer 也会入池）。",
-                    fromDeptOnly);
-            }
-
-            var inactiveOrMissing = candIds.Count - allUsers.Count(u => candIds.Contains(u.Id) && u.IsActive);
-            if (inactiveOrMissing > 0)
-            {
-                _logger.LogInformation(
-                    "【需求-采购员轮询】角色候选 UserId 中因用户不存在或 IsActive=false 被过滤约 {Filtered} 个（候选 {Cand} 人）。",
-                    inactiveOrMissing,
-                    candIds.Count);
-            }
-
-            pool.Sort(StringComparer.Ordinal);
-
-            if (opsDeptIds.Count > 0 && pool.Count > 0)
-            {
-                var before = pool.Count;
-                pool = pool
-                    .Where(uid =>
-                    {
-                        var p = allUserDept.FirstOrDefault(ud =>
-                            string.Equals(ud.UserId, uid, StringComparison.OrdinalIgnoreCase) && ud.IsPrimary);
-                        return p == null || !opsDeptIds.Contains(p.DepartmentId);
-                    })
-                    .ToList();
-                if (before != pool.Count)
-                {
-                    _logger.LogInformation(
-                        "【需求-采购员轮询】已排除主部门在采购运营部的用户 {Removed} 人（不参与询价分配）。",
-                        before - pool.Count);
-                }
-            }
-
-            _logger.LogInformation(
-                "【需求-采购员轮询】最终轮询池（按 User.Id 排序，共 {PoolCount} 人）：{PoolIds}",
-                pool.Count,
-                pool.Count == 0 ? "(空)" : string.Join(", ", pool));
-
-            return pool;
         }
 
         /// <summary>
@@ -867,7 +710,7 @@ namespace CRM.Core.Services
                     rfq.Id,
                     rfq.RfqCode,
                     newItemRequests.Count);
-                (purchaser1, purchaser2) = await TakeNextRoundRobinPurchaserPairAsync();
+                (purchaser1, purchaser2) = await TakeNextRoundRobinPurchasersAsync();
             }
 
             foreach (var (itemReq, index) in newItemRequests)

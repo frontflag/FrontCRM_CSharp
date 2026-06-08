@@ -31,7 +31,7 @@
           </el-descriptions-item>
           <el-descriptions-item :label="t('packingList.columns.itemRows')">{{ draft.lines.length }}</el-descriptions-item>
           <el-descriptions-item :label="t('packingDetail.stockOutType')">
-            {{ packingStockOutTypeLabel(draft.stockOutType ?? StockOutTypeCode.Sales) }}
+            <StockBizTypeTag biz="out" :type="draft.stockOutType ?? StockOutTypeCode.Sales" />
           </el-descriptions-item>
           <el-descriptions-item v-if="isCustomsPacking" :label="t('packingCreate.customsBroker')">
             <el-select
@@ -185,11 +185,11 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import {
   packingApi,
-  packingStockOutTypeLabel,
   type PackingCreateExtras,
   type PackingDraftFromStockOutRequests
 } from '@/api/packing'
 import { StockOutTypeCode } from '@/constants/stockOutType'
+import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { customerAddressApi, customerApi, normalizeCustomerAddressFromApi } from '@/api/customer'
 import {
   firstCustomerAddressByType,
