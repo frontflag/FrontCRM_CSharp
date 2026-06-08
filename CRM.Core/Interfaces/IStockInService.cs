@@ -17,6 +17,7 @@ namespace CRM.Core.Interfaces
         public string? VendorName { get; set; }
         /// <summary>采购订单号（由头表采购明细关联的采购单）</summary>
         public string? PurchaseOrderCode { get; set; }
+        public string? FreightForwarderOrderNo { get; set; }
 
         /// <summary>销售订单号（由采购订单明细关联推导，可能多单逗号拼接）</summary>
         public string? SalesOrderCode { get; set; }
@@ -43,6 +44,13 @@ namespace CRM.Core.Interfaces
     {
         Task<StockIn> CreateAsync(CreateStockInRequest request, string? actingUserId = null);
         Task<StockIn?> GetByIdAsync(string id);
+
+        /// <summary>当前用户是否可见该入库单（销售 + 物流数据范围，与列表一致）。</summary>
+        Task<bool> CanUserAccessStockInAsync(
+            string? userId,
+            string stockInId,
+            CancellationToken cancellationToken = default);
+
         Task<IReadOnlyList<StockInListItemDto>> GetListAsync(StockInQueryRequest? request = null);
 
         /// <summary>入库单列表：数据库分页（排除调拨等由查询层约定）。</summary>
@@ -66,6 +74,7 @@ namespace CRM.Core.Interfaces
         public string? Model { get; set; }
         public string? VendorName { get; set; }
         public string? PurchaseOrderCode { get; set; }
+        public string? FreightForwarderOrderNo { get; set; }
         public string? SalesOrderCode { get; set; }
         public string? StockInCode { get; set; }
         public string? SourceDisplayNo { get; set; }
@@ -73,6 +82,9 @@ namespace CRM.Core.Interfaces
         public DateTime? StockInDateStart { get; set; }
         public DateTime? StockInDateEnd { get; set; }
         public string? Remark { get; set; }
+
+        /// <summary>入库类型 <see cref="Constants.StockInTypeCode"/>（10采购 20报关 30退货 40报废）。</summary>
+        public short? StockInType { get; set; }
     }
 
     public class CreateStockInRequest

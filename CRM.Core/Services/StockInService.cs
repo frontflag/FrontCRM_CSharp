@@ -434,6 +434,13 @@ namespace CRM.Core.Services
             return stockIn;
         }
 
+        /// <inheritdoc />
+        public Task<bool> CanUserAccessStockInAsync(
+            string? userId,
+            string stockInId,
+            CancellationToken cancellationToken = default)
+            => _stockInListQuery.IsVisibleToUserAsync(userId, stockInId, cancellationToken);
+
         /// <summary>
         /// 解析入库明细对应的采购订单明细编号：扩展表 → 物料/采购行 Id → 库存层冗余 → 到货通知 → 同单 PN 匹配。
         /// </summary>
@@ -793,6 +800,11 @@ namespace CRM.Core.Services
                     !string.IsNullOrWhiteSpace(poForPoCode.PurchaseOrderCode))
                     purchaseOrderCode = poForPoCode.PurchaseOrderCode.Trim();
 
+                string? freightForwarderOrderNo = null;
+                if (headerPoId != null &&
+                    poDict.TryGetValue(headerPoId, out var poForFf))
+                    freightForwarderOrderNo = PurchaseOrderFreightForwarderOrderNoRules.Normalize(poForFf.FreightForwarderOrderNo);
+
                 string? modelSummary = null;
                 string? brandSummary = null;
                 if (stockInItemsMap.TryGetValue(s.Id, out var silForDisplay) && silForDisplay.Count > 0)
@@ -872,6 +884,7 @@ namespace CRM.Core.Services
                     VendorId = s.VendorId,
                     VendorName = vendorName,
                     PurchaseOrderCode = purchaseOrderCode,
+                    FreightForwarderOrderNo = freightForwarderOrderNo,
                     SalesOrderCode = string.IsNullOrWhiteSpace(salesOrderCode) ? null : salesOrderCode,
                     MaterialModelSummary = modelSummary,
                     MaterialBrandSummary = brandSummary,

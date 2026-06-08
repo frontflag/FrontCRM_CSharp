@@ -1,5 +1,6 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Inventory;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -64,6 +65,12 @@ public sealed class StockInListQuery : IStockInListQuery
                 q = q.Where(s => s.StockInDate < endEx);
             }
 
+            if (request.StockInType.HasValue)
+            {
+                var stockInType = StockInTypeCode.NormalizeForNotify(request.StockInType.Value);
+                q = q.Where(s => s.StockInType == stockInType);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.VendorName))
             {
                 var k = request.VendorName.Trim().ToLowerInvariant();
@@ -104,6 +111,21 @@ public sealed class StockInListQuery : IStockInListQuery
                             _db.PurchaseOrders.Any(po =>
                                 po.Id == poi.PurchaseOrderId &&
                                 po.PurchaseOrderCode.ToLower().Contains(k)))));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.FreightForwarderOrderNo))
+            {
+                var k = request.FreightForwarderOrderNo.Trim().ToLowerInvariant();
+                q = q.Where(s =>
+                    _db.StockInItemExtends.Any(e =>
+                        e.StockInId == s.Id &&
+                        e.PurchaseOrderItemId != null &&
+                        _db.PurchaseOrderItems.Any(poi =>
+                            poi.Id == e.PurchaseOrderItemId &&
+                            _db.PurchaseOrders.Any(po =>
+                                po.Id == poi.PurchaseOrderId &&
+                                po.FreightForwarderOrderNo != null &&
+                                po.FreightForwarderOrderNo.ToLower().Contains(k)))));
             }
 
             if (!string.IsNullOrWhiteSpace(request.SourceDisplayNo))
@@ -149,11 +171,7 @@ public sealed class StockInListQuery : IStockInListQuery
         }
 
         var userId = request?.CurrentUserId;
-        q = await _dataPermission.ApplyLogisticsCreatorUserScopeAsync(
-            userId,
-            q,
-            s => s.CreateByUserId ?? s.CreatedBy,
-            cancellationToken);
+        q = await ApplyDataScopesAsync(userId, q, cancellationToken);
 
         var total = await q.CountAsync(cancellationToken);
         var ids = await q
@@ -171,5 +189,41 @@ public sealed class StockInListQuery : IStockInListQuery
             PageIndex = p,
             PageSize = ps
         };
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> IsVisibleToUserAsync(
+        string? userId,
+        string stockInId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(stockInId))
+            return false;
+
+        var q = _db.StockIns.AsNoTracking()
+            .Where(s => s.Id == stockInId && s.StockInType != StockInTypeCode.Transfer);
+        q = await ApplyDataScopesAsync(userId, q, cancellationToken);
+        return await q.AnyAsync(cancellationToken);
+    }
+
+    private async Task<IQueryable<StockIn>> ApplyDataScopesAsync(
+        string? userId,
+        IQueryable<StockIn> query,
+        CancellationToken cancellationToken)
+    {
+        query = await _dataPermission.ApplyStockInListDataScopeAsync(
+            userId,
+            query,
+            _db.SellOrders.AsNoTracking(),
+            _db.SellOrderItems.AsNoTracking(),
+            _db.StockInItemExtends.AsNoTracking(),
+            _db.PurchaseOrderItems.AsNoTracking(),
+            cancellationToken);
+
+        return await _dataPermission.ApplyLogisticsCreatorUserScopeAsync(
+            userId,
+            query,
+            s => s.CreateByUserId ?? s.CreatedBy,
+            cancellationToken);
     }
 }

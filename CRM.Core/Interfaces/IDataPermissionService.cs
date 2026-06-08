@@ -93,6 +93,16 @@ namespace CRM.Core.Interfaces
             IQueryable<CustomerInfo> customers,
             CancellationToken cancellationToken = default);
 
+        /// <summary>入库单列表：经明细扩展关联的销售订单明细收窄销售数据范围。</summary>
+        Task<IQueryable<StockIn>> ApplyStockInListDataScopeAsync(
+            string? userId,
+            IQueryable<StockIn> query,
+            IQueryable<SellOrder> sellOrders,
+            IQueryable<SellOrderItem> sellOrderItems,
+            IQueryable<StockInItemExtend> stockInItemExtends,
+            IQueryable<PurchaseOrderItem> purchaseOrderItems,
+            CancellationToken cancellationToken = default);
+
         /// <summary>装箱单列表：按 <c>SalesId</c> 或客户归属收窄销售数据范围。</summary>
         Task<IQueryable<Packing>> ApplyPackingListDataScopeAsync(
             string? userId,

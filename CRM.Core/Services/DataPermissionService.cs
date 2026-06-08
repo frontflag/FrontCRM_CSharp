@@ -598,6 +598,45 @@ namespace CRM.Core.Services
         }
 
         /// <inheritdoc />
+        public async Task<IQueryable<StockIn>> ApplyStockInListDataScopeAsync(
+            string? userId,
+            IQueryable<StockIn> query,
+            IQueryable<SellOrder> sellOrders,
+            IQueryable<SellOrderItem> sellOrderItems,
+            IQueryable<StockInItemExtend> stockInItemExtends,
+            IQueryable<PurchaseOrderItem> purchaseOrderItems,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                return query;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || summary.SaleDataScope == 0)
+                return query;
+            if (summary.SaleDataScope == 4)
+                return query.Where(_ => false);
+
+            var scopedOrders = await ApplySellOrderDataScopeAsync(userId, sellOrders, cancellationToken);
+
+            return query.Where(si =>
+                stockInItemExtends.Any(ext =>
+                    !ext.IsDeleted
+                    && ext.StockInId == si.Id
+                    && (
+                        (ext.SellOrderItemId != null
+                         && sellOrderItems.Any(sol =>
+                             sol.Id == ext.SellOrderItemId
+                             && scopedOrders.Any(o => o.Id == sol.SellOrderId)))
+                        || (ext.PurchaseOrderItemId != null
+                            && purchaseOrderItems.Any(poi =>
+                                poi.Id == ext.PurchaseOrderItemId
+                                && poi.SellOrderItemId != null
+                                && sellOrderItems.Any(sol =>
+                                    sol.Id == poi.SellOrderItemId
+                                    && scopedOrders.Any(o => o.Id == sol.SellOrderId)))))));
+        }
+
+        /// <inheritdoc />
         public async Task<IQueryable<Packing>> ApplyPackingListDataScopeAsync(
             string? userId,
             IQueryable<Packing> query,

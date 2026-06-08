@@ -37,6 +37,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? model,
             [FromQuery] string? vendorName,
             [FromQuery] string? purchaseOrderCode,
+            [FromQuery] string? freightForwarderOrderNo,
             [FromQuery] string? salesOrderCode,
             [FromQuery] string? stockInCode,
             [FromQuery] string? sourceDisplayNo,
@@ -44,6 +45,7 @@ namespace CRM.API.Controllers
             [FromQuery] DateTime? stockInDateStart,
             [FromQuery] DateTime? stockInDateEnd,
             [FromQuery] string? remark,
+            [FromQuery] short? stockInType,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -56,13 +58,15 @@ namespace CRM.API.Controllers
                     Model = model,
                     VendorName = vendorName,
                     PurchaseOrderCode = purchaseOrderCode,
+                    FreightForwarderOrderNo = freightForwarderOrderNo,
                     SalesOrderCode = salesOrderCode,
                     StockInCode = stockInCode,
                     SourceDisplayNo = sourceDisplayNo,
                     WarehouseId = warehouseId,
                     StockInDateStart = stockInDateStart,
                     StockInDateEnd = stockInDateEnd,
-                    Remark = remark
+                    Remark = remark,
+                    StockInType = stockInType
                 };
                 var result = await _service.GetListPagedAsync(query, page, pageSize, cancellationToken);
                 return Ok(new
@@ -86,12 +90,15 @@ namespace CRM.API.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<ApiResponse<StockIn>>> GetById(string id)
+        public async Task<ActionResult<ApiResponse<StockIn>>> GetById(string id, CancellationToken cancellationToken = default)
         {
             try
             {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var entity = await _service.GetByIdAsync(id);
                 if (entity == null)
+                    return NotFound(ApiResponse<StockIn>.Fail("入库单不存在", 404));
+                if (!await _service.CanUserAccessStockInAsync(userId, id, cancellationToken))
                     return NotFound(ApiResponse<StockIn>.Fail("入库单不存在", 404));
                 if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
                     PurchaseSensitiveFieldMask511.ApplyStockIn(entity, true);
@@ -139,12 +146,15 @@ namespace CRM.API.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<ApiResponse<StockIn>>> Update(string id, [FromBody] UpdateStockInRequest request)
+        public async Task<ActionResult<ApiResponse<StockIn>>> Update(string id, [FromBody] UpdateStockInRequest request, CancellationToken cancellationToken = default)
         {
             try
             {
                 if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
                     return StatusCode(403, ApiResponse<StockIn>.Fail("当前账号物流数据为只读或禁止，无法修改入库单", 403));
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!await _service.CanUserAccessStockInAsync(userId, id, cancellationToken))
+                    return NotFound(ApiResponse<StockIn>.Fail("入库单不存在", 404));
                 if (request == null)
                     return BadRequest(ApiResponse<StockIn>.Fail("请求体不能为空", 400));
                 var entity = await _service.UpdateAsync(id, request);
@@ -162,12 +172,15 @@ namespace CRM.API.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<ActionResult<ApiResponse<object>>> Delete(string id)
+        public async Task<ActionResult<ApiResponse<object>>> Delete(string id, CancellationToken cancellationToken = default)
         {
             try
             {
                 if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
                     return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止，无法删除入库单", 403));
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!await _service.CanUserAccessStockInAsync(userId, id, cancellationToken))
+                    return NotFound(ApiResponse<object>.Fail("入库单不存在", 404));
                 await _service.DeleteAsync(id);
                 return Ok(ApiResponse<object>.Ok(null, "删除入库单成功"));
             }
@@ -227,11 +240,13 @@ namespace CRM.API.Controllers
         }
 
         [HttpPatch("{id}/status")]
-        public async Task<ActionResult<ApiResponse<object>>> UpdateStatus(string id, [FromQuery] short status)
+        public async Task<ActionResult<ApiResponse<object>>> UpdateStatus(string id, [FromQuery] short status, CancellationToken cancellationToken = default)
         {
             try
             {
                 var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!await _service.CanUserAccessStockInAsync(actorId, id, cancellationToken))
+                    return NotFound(ApiResponse<object>.Fail("入库单不存在", 404));
                 await _service.UpdateStatusAsync(id, status, actorId);
                 return Ok(ApiResponse<object>.Ok(null, "更新状态成功"));
             }
