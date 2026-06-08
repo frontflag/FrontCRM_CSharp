@@ -142,6 +142,10 @@
               </span>
             </span>
           </div>
+          <div class="info-item" v-if="showSalesMoneyFields && customerAdvanceText">
+            <span class="info-label">客户预收余额</span>
+            <span class="info-value">{{ customerAdvanceText }}</span>
+          </div>
           <div class="info-item">
             <span class="info-label">行项目数</span>
             <span class="info-value">{{ order.itemRows ?? 0 }}</span>
@@ -1095,6 +1099,8 @@ import salesOrderApi, {
   type SalesOrderFieldChangeLogRow,
   type SalesOrderDeletedItemRow
 } from '@/api/salesOrder'
+import { financeCustomerAdvanceApi } from '@/api/financeCustomerAdvance'
+import { CURRENCY_MAP } from '@/api/finance'
 import { getApiErrorMessage } from '@/utils/apiError'
 import purchaseRequisitionApi from '@/api/purchaseRequisition'
 import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
@@ -1330,6 +1336,7 @@ async function handleOpenApplyPurchase(row: any) {
 const loading = ref(false)
 const refreshingExtends = ref(false)
 const order = ref<any>(null)
+const customerAdvanceText = ref('')
 /** 加载失败时展示具体原因（权限/网络/库表等），避免一律显示「订单不存在」 */
 const loadError = ref('')
 const soFavorited = ref(false)
@@ -1694,6 +1701,7 @@ async function toggleFavorite() {
 const fetchOrder = async () => {
   loading.value = true
   loadError.value = ''
+  customerAdvanceText.value = ''
   resetOrderLogTabs()
   const logTab = activeTab.value
   try {
@@ -1708,6 +1716,19 @@ const fetchOrder = async () => {
     soDetailItemsOpColExpanded.value = false
     if (order.value) {
       loadError.value = ''
+      if (order.value.customerId && !maskSaleSensitiveFields.value) {
+        try {
+          const adv = await financeCustomerAdvanceApi.getBalance(order.value.customerId)
+          const balances = (adv.balances ?? []).filter(b => (b.balance ?? 0) > 0)
+          customerAdvanceText.value = balances.length
+            ? balances
+                .map(b => `${CURRENCY_MAP[b.currency] ?? b.currency} ${Number(b.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+                .join(' / ')
+            : '—'
+        } catch {
+          customerAdvanceText.value = ''
+        }
+      }
       refreshTags()
       recordSalesOrderRecentView({
         id: String(order.value.id),

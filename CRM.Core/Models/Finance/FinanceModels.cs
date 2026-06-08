@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 
 namespace CRM.Core.Models.Finance
@@ -254,6 +255,10 @@ namespace CRM.Core.Models.Finance
         [NotMapped]
         public string? CreateUserName { get; set; }
 
+        /// <summary>列表汇总：明细含预收行则为 20，否则 10（不落库）</summary>
+        [NotMapped]
+        public short ReceiptPurpose { get; set; } = FinanceReceiptPurposeCode.Normal;
+
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }
 
@@ -319,6 +324,19 @@ namespace CRM.Core.Models.Finance
         /// <summary>累计已核销至销项发票的金额（支持多次核销）。</summary>
         [Column(TypeName = "numeric(18,2)")]
         public decimal VerifiedAmount { get; set; }
+
+        /// <summary>收款用途 10普通 20预收</summary>
+        [Column("receipt_purpose")]
+        public short ReceiptPurpose { get; set; } = FinanceReceiptPurposeCode.Normal;
+
+        /// <summary>预收可选挂销售订单（软约束）</summary>
+        [StringLength(36)]
+        [Column("advance_sell_order_id")]
+        public string? AdvanceSellOrderId { get; set; }
+
+        /// <summary>已转入客户预收池金额（显式预收入账 + 超额转预收）</summary>
+        [Column("advance_pool_amount", TypeName = "numeric(18,2)")]
+        public decimal AdvancePoolAmount { get; set; }
 
         [ForeignKey("FinanceReceiptId")]
         public virtual FinanceReceipt? Receipt { get; set; }

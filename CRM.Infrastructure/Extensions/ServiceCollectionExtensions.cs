@@ -61,6 +61,8 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IFinancePurchaseInvoiceListQuery, FinancePurchaseInvoiceListQuery>();
             services.AddScoped<IFinanceReceiptListQuery, FinanceReceiptListQuery>();
             services.AddScoped<IFinanceSellInvoiceListQuery, FinanceSellInvoiceListQuery>();
+            services.AddScoped<IFinanceReceivableListQuery, FinanceReceivableListQuery>();
+            services.AddScoped<IFinanceCustomerAdvanceListQuery, FinanceCustomerAdvanceListQuery>();
             services.AddScoped<ILoginLogQueryService, LoginLogListQuery>();
             services.AddScoped<IOperationLogQueryService, OperationLogListQuery>();
 

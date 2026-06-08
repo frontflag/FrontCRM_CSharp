@@ -497,7 +497,8 @@ namespace CRM.IntegrationTests
                 Substitute.For<IStockOutListQuery>(),
                 Substitute.For<IStockOutRequestListQuery>(),
                 Substitute.For<IStockOutItemListQuery>(),
-                Substitute.For<ICustomsV2FlowService>());
+                Substitute.For<ICustomsV2FlowService>(),
+                Substitute.For<IFinanceReceivableService>());
 
             // 准备销售订单明细
             var sellOrderItem = new SellOrderItem
@@ -678,7 +679,8 @@ namespace CRM.IntegrationTests
                 Substitute.For<IStockOutListQuery>(),
                 Substitute.For<IStockOutRequestListQuery>(),
                 Substitute.For<IStockOutItemListQuery>(),
-                Substitute.For<ICustomsV2FlowService>());
+                Substitute.For<ICustomsV2FlowService>(),
+                Substitute.For<IFinanceReceivableService>());
 
             var sellOrderItem = new SellOrderItem
             {
@@ -959,13 +961,13 @@ namespace CRM.IntegrationTests
             var stockInItemRepo = Substitute.For<IRepository<StockInItem>>();
             var stockOutRequestRepo = Substitute.For<IRepository<StockOutRequest>>();
             var stockOutRepo = Substitute.For<IRepository<StockOut>>();
-            var receiptItemRepo = Substitute.For<IRepository<FinanceReceiptItem>>();
+            var receivableRepo = Substitute.For<IRepository<FinanceReceivable>>();
 
             // 创建同步服务
             var service = new SellOrderItemExtendSyncService(
                 soItemRepo, extendRepo, poItemRepo, stockInRepo, stockInItemExtendRepo, stockInItemRepo,
                 stockOutRequestRepo,
-                stockOutRepo, receiptItemRepo,
+                stockOutRepo, receivableRepo,
                 NullLogger<SellOrderItemExtendSyncService>.Instance);
 
             // 准备销售订单明细
@@ -1059,11 +1061,12 @@ namespace CRM.IntegrationTests
                 Status = 2 // 已完成
             };
 
-            // 模拟收款条目（已核销金额 300）
-            var receiptItem = new FinanceReceiptItem
+            // 模拟应收款（已核销金额 300）
+            var receivable = new FinanceReceivable
             {
                 SellOrderItemId = sellOrderItemId,
-                VerifiedAmount = 300m
+                VerifiedDone = 300m,
+                IsDeleted = false
             };
 
             // 设置模拟返回值
@@ -1093,8 +1096,12 @@ namespace CRM.IntegrationTests
                 .Returns(Task.FromResult<IEnumerable<StockOutRequest>>(new List<StockOutRequest> { stockOutRequest }));
             stockOutRepo.FindAsync(Arg.Any<Expression<Func<StockOut, bool>>>())
                 .Returns(Task.FromResult<IEnumerable<StockOut>>(new List<StockOut> { stockOut }));
-            receiptItemRepo.FindAsync(Arg.Any<Expression<Func<FinanceReceiptItem, bool>>>())
-                .Returns(Task.FromResult<IEnumerable<FinanceReceiptItem>>(new List<FinanceReceiptItem> { receiptItem }));
+            receivableRepo.FindAsync(Arg.Any<Expression<Func<FinanceReceivable, bool>>>())
+                .Returns(call =>
+                {
+                    var pred = call.Arg<Expression<Func<FinanceReceivable, bool>>>().Compile();
+                    return Task.FromResult<IEnumerable<FinanceReceivable>>(new List<FinanceReceivable> { receivable }.Where(pred));
+                });
 
             // 执行同步
             await service.RecalculateAsync(sellOrderItemId);
@@ -2108,7 +2115,8 @@ namespace CRM.IntegrationTests
                 Substitute.For<IStockOutListQuery>(),
                 Substitute.For<IStockOutRequestListQuery>(),
                 Substitute.For<IStockOutItemListQuery>(),
-                Substitute.For<ICustomsV2FlowService>());
+                Substitute.For<ICustomsV2FlowService>(),
+                Substitute.For<IFinanceReceivableService>());
 
             // 模拟出库申请仓储
             var allStockOutRequests = new List<StockOutRequest>();
@@ -2191,6 +2199,7 @@ namespace CRM.IntegrationTests
                 Substitute.For<IForceDeleteGuardService>(),
                 Substitute.For<ILogOperationAppendService>(),
                 Substitute.For<IFinanceReceiptListQuery>(),
+                Substitute.For<IFinanceCustomerAdvanceService>(),
                 receiptUnitOfWork);
 
             // 模拟收款仓储

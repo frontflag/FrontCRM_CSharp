@@ -660,10 +660,28 @@
             <template #submenu>
               <router-link
                 v-if="hasPermission('finance-receipt.read')"
+                to="/finance/receivables"
+                class="submenu-item"
+                active-class="active"
+              >{{ t('layout.menu.receivables') }}</router-link>
+              <router-link
+                v-if="hasPermission('finance-receipt.read')"
+                to="/finance/customer-advances"
+                class="submenu-item"
+                active-class="active"
+              >{{ t('layout.menu.customerAdvances') }}</router-link>
+              <router-link
+                v-if="hasPermission('finance-receipt.read')"
                 to="/finance/receipts"
                 class="submenu-item"
                 active-class="active"
               >{{ t('layout.menu.receiptRecords') }}</router-link>
+              <router-link
+                v-if="hasPermission('finance-receipt.read')"
+                to="/finance/receipt-write-off"
+                class="submenu-item"
+                active-class="active"
+              >{{ t('layout.menu.receiptWriteOff') }}</router-link>
               <router-link
                 v-if="hasPermission('finance-sell-invoice.read')"
                 to="/finance/sell-invoices"
@@ -1515,6 +1533,9 @@ const pageTitleMap: Record<string, string> = {
   '/debug/tools': 'layout.menu.debugData',
   '/finance/payments': 'layout.menu.paymentManagement',
   '/finance/receipts': 'layout.menu.receiptManagement',
+  '/finance/receivables': 'layout.menu.receiptManagement',
+  '/finance/customer-advances': 'layout.menu.receiptManagement',
+  '/finance/receipt-write-off': 'layout.menu.receiptManagement',
   '/finance/purchase-invoices': 'layout.menu.purchaseInvoices',
   '/finance/sell-invoices': 'layout.menu.sellInvoices'
 }

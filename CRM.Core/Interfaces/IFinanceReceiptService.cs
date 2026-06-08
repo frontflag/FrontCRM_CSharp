@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Models.Finance;
 
 namespace CRM.Core.Interfaces
@@ -32,6 +33,10 @@ namespace CRM.Core.Interfaces
         public string? ReceiptBankId { get; set; }
         public string? BankSlipNo { get; set; }
         public string? Remark { get; set; }
+        /// <summary>收款单级预收标识（明细为空时用于自动生成明细行）</summary>
+        public short ReceiptPurpose { get; set; } = FinanceReceiptPurposeCode.Normal;
+        /// <summary>预收可选挂销售订单</summary>
+        public string? AdvanceSellOrderId { get; set; }
         public List<CreateFinanceReceiptItemRequest> Items { get; set; } = new();
     }
 
@@ -46,6 +51,8 @@ namespace CRM.Core.Interfaces
         public string? ProductId { get; set; }
         public string? PN { get; set; }
         public string? Brand { get; set; }
+        public short ReceiptPurpose { get; set; } = FinanceReceiptPurposeCode.Normal;
+        public string? AdvanceSellOrderId { get; set; }
     }
 
     public class UpdateFinanceReceiptRequest

@@ -88,6 +88,10 @@ namespace CRM.Infrastructure.Data
         public DbSet<FinanceExchangeRateSetting> FinanceExchangeRateSettings { get; set; } = null!;
         public DbSet<FinanceExchangeRateChangeLog> FinanceExchangeRateChangeLogs { get; set; } = null!;
         public DbSet<FinancePaymentBank> FinancePaymentBanks { get; set; } = null!;
+        public DbSet<FinanceReceivable> FinanceReceivables { get; set; } = null!;
+        public DbSet<FinanceReceivableWriteOff> FinanceReceivableWriteOffs { get; set; } = null!;
+        public DbSet<FinanceCustomerAdvance> FinanceCustomerAdvances { get; set; } = null!;
+        public DbSet<FinanceCustomerAdvanceLedger> FinanceCustomerAdvanceLedgers { get; set; } = null!;
         public DbSet<PaymentRequest> PaymentRequests { get; set; } = null!;
 
         // ===== 物料主数据 =====
@@ -435,6 +439,8 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<FinancePaymentItem>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinanceReceipt>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinanceReceiptItem>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<FinanceReceivable>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<FinanceCustomerAdvance>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinancePurchaseInvoice>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinancePurchaseInvoiceItem>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<FinanceSellInvoice>().HasQueryFilter(e => !e.IsDeleted);
@@ -1591,7 +1597,55 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.ReceiptAmount).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.ReceiptConvertAmount).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.VerifiedAmount).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.AdvancePoolAmount).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.ReceiptPurpose).HasColumnName("receipt_purpose").HasDefaultValue((short)10);
+                entity.Property(e => e.AdvanceSellOrderId).HasColumnName("advance_sell_order_id");
                 entity.HasIndex(e => e.FinanceReceiptId);
+            });
+
+            modelBuilder.Entity<FinanceReceivable>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FinanceReceivableId");
+                entity.Property(e => e.Amount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.VerifiedDone).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.VerifiedToBe).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+                entity.Property(e => e.OutboundQty).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.UnitPrice).HasColumnType("numeric(18,6)");
+                entity.HasIndex(e => e.StockOutId).IsUnique();
+                entity.HasIndex(e => e.CustomerId);
+                entity.HasIndex(e => e.SellOrderItemId);
+            });
+
+            modelBuilder.Entity<FinanceReceivableWriteOff>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FinanceReceivableWriteOffId");
+                entity.Property(e => e.Amount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.FinanceReceiptId).IsRequired(false);
+                entity.Property(e => e.FinanceReceiptItemId).IsRequired(false);
+                entity.HasIndex(e => e.FinanceReceivableId);
+                entity.HasIndex(e => e.FinanceReceiptItemId);
+            });
+
+            modelBuilder.Entity<FinanceCustomerAdvance>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FinanceCustomerAdvanceId");
+                entity.Property(e => e.Balance).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.TotalIn).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.TotalApplied).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.TotalRefund).HasColumnType("numeric(18,2)");
+                entity.HasIndex(e => new { e.CustomerId, e.Currency }).IsUnique();
+            });
+
+            modelBuilder.Entity<FinanceCustomerAdvanceLedger>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("FinanceCustomerAdvanceLedgerId");
+                entity.Property(e => e.Amount).HasColumnType("numeric(18,2)");
+                entity.HasIndex(e => e.FinanceCustomerAdvanceId);
+                entity.HasIndex(e => e.CustomerId);
             });
 
             modelBuilder.Entity<FinancePayment>(entity =>

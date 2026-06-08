@@ -24,6 +24,7 @@ namespace CRM.Core.Services
         private readonly IForceDeleteGuardService _forceDeleteGuard;
         private readonly ILogOperationAppendService _logOperationAppend;
         private readonly IFinanceReceiptListQuery _receiptListQuery;
+        private readonly IFinanceCustomerAdvanceService _advanceService;
 
         public FinanceReceiptService(
             IRepository<FinanceReceipt> receiptRepo,
@@ -38,6 +39,7 @@ namespace CRM.Core.Services
             IForceDeleteGuardService forceDeleteGuard,
             ILogOperationAppendService logOperationAppend,
             IFinanceReceiptListQuery receiptListQuery,
+            IFinanceCustomerAdvanceService advanceService,
             IUnitOfWork? unitOfWork = null)
         {
             _receiptRepo = receiptRepo;
@@ -52,6 +54,7 @@ namespace CRM.Core.Services
             _forceDeleteGuard = forceDeleteGuard;
             _logOperationAppend = logOperationAppend;
             _receiptListQuery = receiptListQuery;
+            _advanceService = advanceService;
             _unitOfWork = unitOfWork;
         }
 
@@ -109,13 +112,40 @@ namespace CRM.Core.Services
             };
             await _receiptRepo.AddAsync(receipt);
 
-            foreach (var item in request.Items)
+            var itemRequests = (request.Items ?? new List<CreateFinanceReceiptItemRequest>())
+                .Where(i => i.ReceiptAmount > 0m)
+                .ToList();
+            if (itemRequests.Count == 0 && request.ReceiptAmount > 0m)
             {
+                itemRequests.Add(new CreateFinanceReceiptItemRequest
+                {
+                    ReceiptAmount = request.ReceiptAmount,
+                    ReceiptPurpose = request.ReceiptPurpose,
+                    AdvanceSellOrderId = request.AdvanceSellOrderId,
+                    SellOrderId = string.IsNullOrWhiteSpace(request.AdvanceSellOrderId)
+                        ? null
+                        : request.AdvanceSellOrderId.Trim()
+                });
+            }
+
+            short headerPurpose = FinanceReceiptPurposeCode.Normal;
+            foreach (var item in itemRequests)
+            {
+                var purpose = ResolveReceiptPurpose(item.ReceiptPurpose, request.ReceiptPurpose);
+                if (purpose == FinanceReceiptPurposeCode.Advance)
+                    headerPurpose = FinanceReceiptPurposeCode.Advance;
+
+                var advanceSo = string.IsNullOrWhiteSpace(item.AdvanceSellOrderId)
+                    ? request.AdvanceSellOrderId
+                    : item.AdvanceSellOrderId;
+
                 var receiptItem = new FinanceReceiptItem
                 {
                     Id = Guid.NewGuid().ToString(),
                     FinanceReceiptId = receipt.Id,
-                    SellOrderId = item.SellOrderId,
+                    SellOrderId = string.IsNullOrWhiteSpace(item.SellOrderId)
+                        ? (string.IsNullOrWhiteSpace(advanceSo) ? null : advanceSo.Trim())
+                        : item.SellOrderId.Trim(),
                     SellOrderItemId = item.SellOrderItemId,
                     FinanceSellInvoiceId = item.FinanceSellInvoiceId,
                     FinanceSellInvoiceItemId = item.FinanceSellInvoiceItemId,
@@ -125,14 +155,31 @@ namespace CRM.Core.Services
                     ProductId = item.ProductId,
                     PN = item.PN,
                     Brand = item.Brand,
+                    ReceiptPurpose = purpose,
+                    AdvanceSellOrderId = string.IsNullOrWhiteSpace(advanceSo) ? null : advanceSo.Trim(),
                     VerificationStatus = 0,
                     CreateTime = DateTime.UtcNow
                 };
                 await _itemRepo.AddAsync(receiptItem);
             }
 
+            receipt.ReceiptPurpose = headerPurpose;
+
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
             return receipt;
+        }
+
+        private static short ResolveReceiptPurpose(short itemPurpose, short headerPurpose)
+        {
+            if (itemPurpose == FinanceReceiptPurposeCode.Advance)
+                return FinanceReceiptPurposeCode.Advance;
+            if (headerPurpose == FinanceReceiptPurposeCode.Advance)
+                return FinanceReceiptPurposeCode.Advance;
+            if (itemPurpose > 0)
+                return itemPurpose;
+            if (headerPurpose > 0)
+                return headerPurpose;
+            return FinanceReceiptPurposeCode.Normal;
         }
 
         public async Task<FinanceReceipt?> GetByIdAsync(string id)
@@ -273,6 +320,9 @@ namespace CRM.Core.Services
             receipt.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _receiptRepo.UpdateAsync(receipt);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+
+            if (status == 2 || status == 3)
+                await _advanceService.TryCreditExplicitAdvanceOnReceiptApprovedAsync(receipt.Id, actingUserId);
         }
 
         public async Task VerifyReceiptItemAsync(string receiptItemId, string sellInvoiceId, decimal amount, string? actingUserId = null)

@@ -84,6 +84,15 @@
           {{ receiptStatusLabel(row.status) }}
         </el-tag>
       </template>
+      <template #col-receiptPurpose="{ row }">
+        <el-tag
+          effect="plain"
+          size="small"
+          :type="row.receiptPurpose === 20 ? 'warning' : 'primary'"
+        >
+          {{ receiptPurposeLabel(row.receiptPurpose) }}
+        </el-tag>
+      </template>
       <template #col-customerName="{ row }">
         <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName || '—') }}</span>
       </template>
@@ -254,6 +263,28 @@
               </el-select>
             </el-form-item>
           </el-col>
+          <el-col v-if="!editingId && !maskSaleSensitiveFields" :span="12">
+            <el-form-item :label="t('financeReceiptList.formAdvance')">
+              <el-checkbox v-model="form.isAdvanceReceipt">{{ t('financeReceiptList.formAdvance') }}</el-checkbox>
+              <div v-if="form.isAdvanceReceipt" class="field-hint">{{ t('financeReceiptList.formAdvanceHint') }}</div>
+            </el-form-item>
+          </el-col>
+          <el-col v-if="!editingId && form.isAdvanceReceipt && !maskSaleSensitiveFields" :span="12">
+            <el-form-item :label="t('financeReceiptList.formAdvanceSo')">
+              <el-select
+                v-model="form.advanceSellOrderId"
+                filterable
+                remote
+                clearable
+                :remote-method="searchSo"
+                :loading="soSearchLoading"
+                :placeholder="t('financeReceiptList.formAdvanceSoPh')"
+                style="width:100%"
+              >
+                <el-option v-for="o in soOptions" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+            </el-form-item>
+          </el-col>
           <el-col :span="12">
             <el-form-item :label="t('financeReceiptList.formDate')">
               <el-date-picker v-model="form.receiptDate" type="date" value-format="YYYY-MM-DD" style="width:100%" />
@@ -361,6 +392,7 @@ import {
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { customerApi } from '@/api/customer'
+import salesOrderApi from '@/api/salesOrder'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useAuthStore } from '@/stores/auth'
@@ -373,6 +405,12 @@ const authStore = useAuthStore()
 const { canWriteFinanceReceipt } = useFinanceWriteGate()
 const isSysAdmin = computed(() => authStore.user?.isSysAdmin === true)
 const { receiptStatusLabel, receiptStatusTag, paymentModeLabel } = useFinanceEnumLabels()
+
+function receiptPurposeLabel(purpose?: number) {
+  return purpose === 20
+    ? t('financeReceiptList.purposeAdvance')
+    : t('financeReceiptList.purposeNormal')
+}
 
 const receiptStatusSelectKeys = Object.keys(RECEIPT_STATUS_MAP).map(k => Number(k))
 const paymentModeKeys = Object.keys(PAYMENT_MODE_MAP).map(k => Number(k))
@@ -447,6 +485,7 @@ function toggleOpCol() {
 
 const receiptTableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'status', label: t('financeReceiptList.columns.status'), prop: 'status', width: 100, align: 'center' },
+  { key: 'receiptPurpose', label: t('financeReceiptList.columns.purpose'), prop: 'receiptPurpose', width: 90, align: 'center' },
   { key: 'customerName', label: t('financeReceiptList.columns.customer'), prop: 'customerName', minWidth: 160, showOverflowTooltip: true },
   { key: 'receiptAmount', label: t('financeReceiptList.columns.amount'), prop: 'receiptAmount', width: 140, align: 'right' },
   { key: 'receiptMode', label: t('financeReceiptList.columns.mode'), prop: 'receiptMode', width: 110 },
@@ -524,7 +563,7 @@ function triggerSlipFilePick() {
   slipFileInputRef.value?.click()
 }
 
-const form = reactive<Partial<FinanceReceipt>>({
+const form = reactive<Partial<FinanceReceipt> & { isAdvanceReceipt?: boolean; advanceSellOrderId?: string }>({
   customerId: '',
   customerName: '',
   receiptAmount: 0,
@@ -533,7 +572,31 @@ const form = reactive<Partial<FinanceReceipt>>({
   receiptDate: undefined,
   bankSlipNo: '',
   remark: '',
+  isAdvanceReceipt: false,
+  advanceSellOrderId: '',
 })
+
+const soOptions = ref<{ value: string; label: string }[]>([])
+const soSearchLoading = ref(false)
+
+async function searchSo(keyword: string) {
+  if (!keyword?.trim()) {
+    soOptions.value = []
+    return
+  }
+  soSearchLoading.value = true
+  try {
+    const res = await salesOrderApi.getList({ searchTerm: keyword.trim(), page: 1, pageSize: 20 })
+    soOptions.value = (res.items || []).map((o: { id: string; sellOrderCode?: string }) => ({
+      value: o.id,
+      label: o.sellOrderCode || o.id
+    }))
+  } catch {
+    soOptions.value = []
+  } finally {
+    soSearchLoading.value = false
+  }
+}
 
 const openCreate = () => {
   editingId.value = null
@@ -549,7 +612,10 @@ const openCreate = () => {
     receiptDate: undefined,
     bankSlipNo: '',
     remark: '',
+    isAdvanceReceipt: false,
+    advanceSellOrderId: '',
   })
+  soOptions.value = []
   dialogVisible.value = true
 }
 
@@ -637,9 +703,21 @@ const saveForm = async () => {
         remark: form.remark,
       })
     } else {
+      const amount = Number(form.receiptAmount ?? 0)
+      const { isAdvanceReceipt, advanceSellOrderId, ...receiptHeader } = form
+      const receiptPurpose = isAdvanceReceipt ? 20 : 10
       const created = await financeReceiptApi.create({
-        ...form,
-        items: [],
+        ...receiptHeader,
+        receiptPurpose,
+        advanceSellOrderId: isAdvanceReceipt ? (advanceSellOrderId || undefined) : undefined,
+        items: amount > 0
+          ? [{
+              receiptAmount: amount,
+              receiptPurpose,
+              advanceSellOrderId: isAdvanceReceipt ? (advanceSellOrderId || undefined) : undefined,
+              sellOrderId: advanceSellOrderId || undefined
+            }]
+          : []
       })
       const newId = created?.id?.trim()
       if (newId && pendingSlipFiles.value.length) {
@@ -663,9 +741,9 @@ const saveForm = async () => {
     ElMessage.success(t('financeReceiptList.messages.saveOk'))
     dialogVisible.value = false
     loadData()
-  } catch {
-    ElMessage.success(t('financeReceiptList.messages.saveOkDemo'))
-    dialogVisible.value = false
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : t('financeReceiptList.messages.saveFail')
+    ElMessage.error(msg)
   } finally {
     saving.value = false
   }

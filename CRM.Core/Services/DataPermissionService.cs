@@ -358,6 +358,64 @@ namespace CRM.Core.Services
         }
 
         /// <inheritdoc />
+        public async Task<IQueryable<FinanceReceivable>> ApplyFinanceReceivableListDataScopeAsync(
+            string? userId,
+            IQueryable<FinanceReceivable> receivables,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (string.IsNullOrWhiteSpace(userId))
+                return receivables;
+
+            var (financeHandled, financeScoped) = await ApplyFinanceDepartmentScopeIfNeededAsync(
+                userId, receivables, r => r.CreateByUserId, cancellationToken);
+            if (financeHandled)
+                return financeScoped;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
+                return receivables;
+            if (summary.SaleDataScope == 4)
+                return receivables.Where(_ => false);
+
+            var uid = userId.Trim();
+            if (summary.SaleDataScope == 1)
+                return receivables.Where(r => r.SalesUserId == uid);
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
+            return receivables.Where(r => r.SalesUserId != null && allowUserIds.Contains(r.SalesUserId));
+        }
+
+        /// <inheritdoc />
+        public async Task<IQueryable<FinanceCustomerAdvance>> ApplyFinanceCustomerAdvanceListDataScopeAsync(
+            string? userId,
+            IQueryable<FinanceCustomerAdvance> advances,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (string.IsNullOrWhiteSpace(userId))
+                return advances;
+
+            var (financeHandled, financeScoped) = await ApplyFinanceDepartmentScopeIfNeededAsync(
+                userId, advances, a => a.CreateByUserId, cancellationToken);
+            if (financeHandled)
+                return financeScoped;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.IsSysAdmin || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.SaleDataScope == 0)
+                return advances;
+            if (summary.SaleDataScope == 4)
+                return advances.Where(_ => false);
+
+            var uid = userId.Trim();
+            if (summary.SaleDataScope == 1)
+                return advances.Where(a => a.SalesUserId == uid);
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
+            return advances.Where(a => a.SalesUserId != null && allowUserIds.Contains(a.SalesUserId));
+        }
+
+        /// <inheritdoc />
         public async Task<IQueryable<FinanceSellInvoice>> ApplyFinanceSellInvoiceListDataScopeAsync(
             string? userId,
             IQueryable<FinanceSellInvoice> invoices,

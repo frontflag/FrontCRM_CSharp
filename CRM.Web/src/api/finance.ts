@@ -81,6 +81,8 @@ export interface FinanceReceipt {
   receiptBankId?: string
   bankSlipNo?: string
   remark?: string
+  /** 列表汇总：10普通 20预收 */
+  receiptPurpose?: number
   createdAt?: string
   /** 列表/详情接口由后端根据 createByUserId 填充 */
   createUserName?: string
@@ -94,12 +96,33 @@ export interface FinanceReceiptItem {
   sellOrderItemId?: string
   receiptAmount: number
   receiptAmountToBe: number
+  receiptConvertAmount?: number
+  verifiedAmount?: number
+  advancePoolAmount?: number
+  receiptPurpose?: number
+  advanceSellOrderId?: string
   productId?: string
   pn?: string
   brand?: string
   verificationStatus: number
   verificationDone: number
   verificationToBe: number
+}
+
+export interface CreateFinanceReceiptItem {
+  sellOrderId?: string
+  sellOrderItemId?: string
+  receiptAmount: number
+  receiptPurpose?: number
+  advanceSellOrderId?: string
+  pn?: string
+  brand?: string
+}
+
+export interface CreateFinanceReceiptPayload extends Omit<Partial<FinanceReceipt>, 'items'> {
+  items?: CreateFinanceReceiptItem[]
+  receiptPurpose?: number
+  advanceSellOrderId?: string
 }
 
 export interface FinancePurchaseInvoice {
@@ -326,7 +349,7 @@ export const financeReceiptApi = {
     apiClient.get<PageResult<FinanceReceipt>>(RECEIPT_BASE, { params }),
   getById: (id: string) =>
     apiClient.get<FinanceReceipt>(`${RECEIPT_BASE}/${id}`),
-  create: (data: Partial<FinanceReceipt>) =>
+  create: (data: CreateFinanceReceiptPayload) =>
     apiClient.post<FinanceReceipt>(RECEIPT_BASE, data),
   update: (id: string, data: Partial<FinanceReceipt>) =>
     apiClient.put<FinanceReceipt>(`${RECEIPT_BASE}/${id}`, data),

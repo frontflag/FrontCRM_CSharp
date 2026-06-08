@@ -398,6 +398,9 @@ const zhCN = {
       purchaseInvoices: '进项发票',
       receiptManagement: '收款管理',
       receiptRecords: '收款记录',
+      receivables: '应收款',
+      customerAdvances: '预收款',
+      receiptWriteOff: '收款核销',
       sellInvoices: '销项发票',
       reportAnalytics: '报表分析',
       systemManagement: '组织管理',
@@ -4714,6 +4717,8 @@ const zhCN = {
       search: '查询'
     },
     create: '新建收款单',
+    purposeNormal: '普通',
+    purposeAdvance: '预收',
     stats: {
       monthTotal: '本月收款总额',
       pending: '待审核',
@@ -4723,6 +4728,7 @@ const zhCN = {
     columns: {
       code: '收款单号',
       status: '状态',
+      purpose: '类型',
       customer: '客户',
       amount: '收款金额',
       mode: '收款方式',
@@ -4749,6 +4755,10 @@ const zhCN = {
     formBankSlipPh: '请输入银行水单号',
     formRemark: '备注',
     formRemarkPh: '请输入备注',
+    formAdvance: '预收款',
+    formAdvanceHint: '审核通过后金额进入客户预收池，可在收款核销页使用',
+    formAdvanceSo: '关联销售订单（可选）',
+    formAdvanceSoPh: '输入订单号搜索',
     formSlipAttach: '银行水单附件',
     slipSelectFile: '选择文件',
     uploadingSlip: '上传中…',
@@ -4762,6 +4772,7 @@ const zhCN = {
     messages: {
       selectCustomer: '请选择客户',
       saveOk: '保存成功',
+      saveFail: '保存失败',
       saveOkDemo: '保存成功（演示模式）',
       slipUploadOk: '水单附件上传成功',
       slipUploadFail: '水单附件上传失败',
@@ -4777,6 +4788,93 @@ const zhCN = {
     },
     unknownCustomer: '未知客户',
     customerFallback: '客户'
+  },
+  financeReceivableList: {
+    pageTitle: '应收款',
+    goWriteOff: '收款核销',
+    filters: {
+      keyword: '搜索应收单号/出库单号/客户/型号',
+      verificationStatus: '核销状态',
+      onlyOpen: '仅待核销',
+      search: '查询'
+    },
+    verification: {
+      pending: '未核销',
+      partial: '部分核销',
+      complete: '已核销'
+    },
+    columns: {
+      code: '应收单号',
+      stockOutCode: '出库单号',
+      customer: '客户',
+      pn: '型号',
+      brand: '品牌',
+      qty: '出库数量',
+      amount: '应收金额',
+      verifiedDone: '已核销',
+      verifiedToBe: '待核销',
+      verificationStatus: '核销状态',
+      stockOutDate: '出库日期'
+    }
+  },
+  financeReceiptWriteOff: {
+    pageTitle: '收款核销',
+    customerPh: '搜索并选择客户',
+    load: '加载',
+    receiptItemsTitle: '可核销收款明细',
+    receivablesTitle: '待核销应收（出库批次）',
+    colReceiptCode: '收款单号',
+    colRemaining: '可核销余额',
+    colPn: '型号',
+    colStockOut: '出库单号',
+    colToBe: '待核销',
+    colWriteOffAmount: '本次核销',
+    back: '返回应收列表',
+    submit: '提交核销',
+    selectReceiptItem: '请选择左侧收款明细',
+    noAmount: '请填写核销金额',
+    exceedRemaining: '核销总额超过收款明细可核销余额',
+    success: '核销成功',
+    failed: '核销失败',
+    advanceBalances: '客户预收余额',
+    purposeNormal: '普通',
+    purposeAdvance: '预收',
+    colPurpose: '用途',
+    colPoolAmount: '预收池核销',
+    exceedReceivable: '收款核销与预收池合计超过应收待核销金额',
+    exceedAdvancePool: '预收池核销超过 {currency} 可用余额',
+    soMismatchTitle: '销售订单不一致',
+    soMismatchConfirm: '确认继续核销'
+  },
+  financeCustomerAdvanceList: {
+    pageTitle: '预收款',
+    goWriteOff: '收款核销',
+    viewLedger: '流水',
+    ledgerTitle: '预收流水',
+    ledgerType: '类型',
+    ledgerAmount: '金额',
+    ledgerBalanceAfter: '余额',
+    ledgerRemark: '备注',
+    ledgerTime: '时间',
+    ledgerTypes: {
+      in: '入账',
+      apply: '核销',
+      autoIn: '超额转预收'
+    },
+    filters: {
+      keyword: '搜索客户',
+      currency: '币别',
+      onlyPositive: '仅有余额',
+      search: '查询'
+    },
+    columns: {
+      customer: '客户',
+      currency: '币别',
+      balance: '可用余额',
+      totalIn: '累计入账',
+      totalApplied: '累计核销',
+      actions: '操作'
+    }
   },
   financeReceiptDetail: {
     backToList: '返回列表',

@@ -65,6 +65,8 @@ namespace CRM.Core.Interfaces
         public const string CustomsBroker = "CustomsBroker";
         /// <summary>装箱单 Pak。</summary>
         public const string Packing = "Packing";
+        /// <summary>应收款 ARV。</summary>
+        public const string FinanceReceivable = "FinanceReceivable";
         // 以上前缀 + 5 位 32 进制数值位，由 SerialNumberService 拼接
     }
 }

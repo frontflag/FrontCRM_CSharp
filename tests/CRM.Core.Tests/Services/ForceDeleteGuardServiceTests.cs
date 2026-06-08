@@ -103,6 +103,7 @@ public class ForceDeleteGuardServiceTests
         stockOutItemRepo = new MemoryRepository<StockOutItem>();
         var purchaseOrderItemRepo = new MemoryRepository<PurchaseOrderItem>();
         var financeReceiptRepo = new MemoryRepository<FinanceReceipt>();
+        var financeReceivableRepo = new MemoryRepository<FinanceReceivable>();
         return new ForceDeleteGuardService(
             financePaymentItemRepo,
             financeReceiptItemRepo,
@@ -115,6 +116,7 @@ public class ForceDeleteGuardServiceTests
             stockOutRepo,
             stockOutItemRepo,
             purchaseOrderItemRepo,
-            financeReceiptRepo);
+            financeReceiptRepo,
+            financeReceivableRepo);
     }
 }

@@ -56,6 +56,7 @@ namespace CRM.Core.Services
         private readonly IStockOutRequestListQuery _stockOutRequestListQuery;
         private readonly IStockOutItemListQuery _stockOutItemListQuery;
         private readonly ICustomsV2FlowService _customsV2FlowService;
+        private readonly IFinanceReceivableService _financeReceivableService;
 
         public StockOutService(
             IRepository<StockOut> stockOutRepository,
@@ -91,7 +92,8 @@ namespace CRM.Core.Services
             IStockOutListQuery stockOutListQuery,
             IStockOutRequestListQuery stockOutRequestListQuery,
             IStockOutItemListQuery stockOutItemListQuery,
-            ICustomsV2FlowService customsV2FlowService)
+            ICustomsV2FlowService customsV2FlowService,
+            IFinanceReceivableService financeReceivableService)
         {
             _stockOutRepository = stockOutRepository;
             _stockOutItemRepository = stockOutItemRepository;
@@ -127,6 +129,7 @@ namespace CRM.Core.Services
             _stockOutRequestListQuery = stockOutRequestListQuery;
             _stockOutItemListQuery = stockOutItemListQuery;
             _customsV2FlowService = customsV2FlowService;
+            _financeReceivableService = financeReceivableService;
         }
 
         public async Task<StockOutRequest> CreateStockOutRequestAsync(CreateStockOutRequestRequest request, string? actingUserId = null)
@@ -1140,6 +1143,9 @@ namespace CRM.Core.Services
 
             if (isCustomsOut)
                 await _customsV2FlowService.OnCustomsStockOutCompletedAsync(requestId, actingUserId);
+
+            if (stockOutHeaderType == StockOutTypeCode.Sales)
+                await _financeReceivableService.TryEnsureFromStockOutAsync(stockOut.Id, actingUserId);
 
             return stockOut;
         }
@@ -2555,6 +2561,11 @@ namespace CRM.Core.Services
                     stockOut.StockOutType);
                 return;
             }
+
+            if (IsOutboundDone(status) && !IsOutboundDone(previousStatus))
+                await _financeReceivableService.TryEnsureFromStockOutAsync(stockOut.Id, actingUserId);
+            else if (!IsOutboundDone(status) && IsOutboundDone(previousStatus))
+                await _financeReceivableService.TrySoftDeleteForStockOutAsync(stockOut.Id, actingUserId);
 
             StockOutRequest? sorForLine = null;
             if (!string.IsNullOrWhiteSpace(stockOut.SourceId))

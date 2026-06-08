@@ -167,6 +167,19 @@ namespace CRM.Core.Interfaces
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// 将应收款列表销售数据范围套用到 <see cref="IQueryable{FinanceReceivable}"/>（主表 <c>SalesUserId</c>）。
+        /// </summary>
+        Task<IQueryable<FinanceReceivable>> ApplyFinanceReceivableListDataScopeAsync(
+            string? userId,
+            IQueryable<FinanceReceivable> receivables,
+            CancellationToken cancellationToken = default);
+
+        Task<IQueryable<FinanceCustomerAdvance>> ApplyFinanceCustomerAdvanceListDataScopeAsync(
+            string? userId,
+            IQueryable<FinanceCustomerAdvance> advances,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// 将销项发票列表销售数据范围套用到 <see cref="IQueryable{FinanceSellInvoice}"/>（与 <see cref="FilterFinanceSellInvoicesAsync"/> 一致：按客户 <c>SalesUserId</c> 归属）。
         /// </summary>
         Task<IQueryable<FinanceSellInvoice>> ApplyFinanceSellInvoiceListDataScopeAsync(

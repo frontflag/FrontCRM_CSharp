@@ -57,6 +57,23 @@ public sealed class FinanceReceiptListQuery : IFinanceReceiptListQuery
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
+        if (items.Count > 0)
+        {
+            var receiptIds = items.Select(r => r.Id).ToList();
+            var purposeMap = await _db.FinanceReceiptItems.AsNoTracking()
+                .IgnoreQueryFilters()
+                .Where(i => receiptIds.Contains(i.FinanceReceiptId))
+                .GroupBy(i => i.FinanceReceiptId)
+                .Select(g => new { ReceiptId = g.Key, Purpose = g.Max(i => i.ReceiptPurpose) })
+                .ToDictionaryAsync(x => x.ReceiptId, x => x.Purpose, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
+            foreach (var receipt in items)
+            {
+                if (purposeMap.TryGetValue(receipt.Id, out var purpose))
+                    receipt.ReceiptPurpose = purpose;
+            }
+        }
+
         return new PagedResult<FinanceReceipt>
         {
             Items = items,

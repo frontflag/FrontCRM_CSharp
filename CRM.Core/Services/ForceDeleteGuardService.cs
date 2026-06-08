@@ -19,6 +19,7 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
     private readonly IRepository<StockOutItem> _stockOutItemRepo;
     private readonly IRepository<PurchaseOrderItem> _purchaseOrderItemRepo;
     private readonly IRepository<FinanceReceipt> _financeReceiptRepo;
+    private readonly IRepository<FinanceReceivable> _financeReceivableRepo;
 
     public ForceDeleteGuardService(
         IRepository<FinancePaymentItem> financePaymentItemRepo,
@@ -32,7 +33,8 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
         IRepository<StockOut> stockOutRepo,
         IRepository<StockOutItem> stockOutItemRepo,
         IRepository<PurchaseOrderItem> purchaseOrderItemRepo,
-        IRepository<FinanceReceipt> financeReceiptRepo)
+        IRepository<FinanceReceipt> financeReceiptRepo,
+        IRepository<FinanceReceivable> financeReceivableRepo)
     {
         _financePaymentItemRepo = financePaymentItemRepo;
         _financeReceiptItemRepo = financeReceiptItemRepo;
@@ -46,6 +48,7 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
         _stockOutItemRepo = stockOutItemRepo;
         _purchaseOrderItemRepo = purchaseOrderItemRepo;
         _financeReceiptRepo = financeReceiptRepo;
+        _financeReceivableRepo = financeReceivableRepo;
     }
 
     public async Task<ForceDeleteGuardResult> CanForceDeleteFinancePaymentAsync(string financePaymentId)
@@ -200,6 +203,11 @@ public class ForceDeleteGuardService : IForceDeleteGuardService
         var stockOut = await _stockOutRepo.GetByIdAsync(stockOutId);
         if (stockOut == null)
             return ForceDeleteGuardResult.Deny("出库单不存在");
+        var receivable = (await _financeReceivableRepo.FindAsync(r =>
+            r.StockOutId == stockOutId && !r.IsDeleted)).FirstOrDefault();
+        if (receivable != null && receivable.VerifiedDone > 0m)
+            return ForceDeleteGuardResult.Deny(
+                $"该出库单已有收款核销（已核销 {receivable.VerifiedDone}），不可删除");
         return ForceDeleteGuardResult.Allow();
     }
 }

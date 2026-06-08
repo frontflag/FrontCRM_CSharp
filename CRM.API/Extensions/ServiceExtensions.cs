@@ -123,6 +123,12 @@ namespace CRM.API.Extensions
             services.AddScoped<IFinanceReceiptService, FinanceReceiptService>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceReceipt>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceReceipt>>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceReceiptItem>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceReceiptItem>>();
+            services.AddScoped<IFinanceReceivableService, FinanceReceivableService>();
+            services.AddScoped<IFinanceCustomerAdvanceService, FinanceCustomerAdvanceService>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceReceivable>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceReceivable>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceReceivableWriteOff>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceReceivableWriteOff>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceCustomerAdvance>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceCustomerAdvance>>();
+            services.AddScoped<IRepository<CRM.Core.Models.Finance.FinanceCustomerAdvanceLedger>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinanceCustomerAdvanceLedger>>();
             // 财务模块 - 进项发票
             services.AddScoped<IFinancePurchaseInvoiceService, FinancePurchaseInvoiceService>();
             services.AddScoped<IRepository<CRM.Core.Models.Finance.FinancePurchaseInvoice>, CRM.Infrastructure.Repositories.Repository<CRM.Core.Models.Finance.FinancePurchaseInvoice>>();

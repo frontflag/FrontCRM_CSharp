@@ -398,6 +398,9 @@ const enUS = {
       purchaseInvoices: 'Purchase Invoices',
       receiptManagement: 'Receipt Buz',
       receiptRecords: 'Receipt Records',
+      receivables: 'Receivables',
+      customerAdvances: 'Customer advances',
+      receiptWriteOff: 'Receipt Write-off',
       sellInvoices: 'Sales Invoices',
       reportAnalytics: 'Report Analytics',
       systemManagement: 'Organization',
@@ -4741,6 +4744,8 @@ const enUS = {
       search: 'Search'
     },
     create: 'New receipt',
+    purposeNormal: 'Normal',
+    purposeAdvance: 'Advance',
     stats: {
       monthTotal: 'This month (received)',
       pending: 'Pending approval',
@@ -4750,6 +4755,7 @@ const enUS = {
     columns: {
       code: 'Receipt code',
       status: 'Status',
+      purpose: 'Type',
       customer: 'Customer',
       amount: 'Amount',
       mode: 'Method',
@@ -4776,6 +4782,10 @@ const enUS = {
     formBankSlipPh: 'Enter bank slip number',
     formRemark: 'Remark',
     formRemarkPh: 'Enter remark',
+    formAdvance: 'Customer advance',
+    formAdvanceHint: 'After approval, amount credits the customer advance pool for write-off',
+    formAdvanceSo: 'Linked sales order (optional)',
+    formAdvanceSoPh: 'Search by order code',
     formSlipAttach: 'Bank slip attachments',
     slipSelectFile: 'Choose files',
     uploadingSlip: 'Uploading…',
@@ -4789,6 +4799,7 @@ const enUS = {
     messages: {
       selectCustomer: 'Select a customer',
       saveOk: 'Saved',
+      saveFail: 'Save failed',
       saveOkDemo: 'Saved (demo)',
       slipUploadOk: 'Attachments uploaded',
       slipUploadFail: 'Attachment upload failed',
@@ -4804,6 +4815,93 @@ const enUS = {
     },
     unknownCustomer: 'Unknown customer',
     customerFallback: 'Customer'
+  },
+  financeReceivableList: {
+    pageTitle: 'Receivables',
+    goWriteOff: 'Write-off',
+    filters: {
+      keyword: 'Search code / stock-out / customer / PN',
+      verificationStatus: 'Verification status',
+      onlyOpen: 'Open only',
+      search: 'Search'
+    },
+    verification: {
+      pending: 'Pending',
+      partial: 'Partial',
+      complete: 'Complete'
+    },
+    columns: {
+      code: 'Receivable code',
+      stockOutCode: 'Stock-out',
+      customer: 'Customer',
+      pn: 'PN',
+      brand: 'Brand',
+      qty: 'Qty',
+      amount: 'Amount',
+      verifiedDone: 'Verified',
+      verifiedToBe: 'Open',
+      verificationStatus: 'Status',
+      stockOutDate: 'Stock-out date'
+    }
+  },
+  financeReceiptWriteOff: {
+    pageTitle: 'Receipt write-off',
+    customerPh: 'Search customer',
+    load: 'Load',
+    receiptItemsTitle: 'Receipt items (balance)',
+    receivablesTitle: 'Open receivables (by stock-out)',
+    colReceiptCode: 'Receipt',
+    colRemaining: 'Remaining',
+    colPn: 'PN',
+    colStockOut: 'Stock-out',
+    colToBe: 'Open',
+    colWriteOffAmount: 'Write-off',
+    back: 'Back to receivables',
+    submit: 'Submit',
+    selectReceiptItem: 'Select a receipt item on the left',
+    noAmount: 'Enter write-off amount',
+    exceedRemaining: 'Total exceeds receipt item balance',
+    success: 'Write-off succeeded',
+    failed: 'Write-off failed',
+    advanceBalances: 'Customer advance balance',
+    purposeNormal: 'Normal',
+    purposeAdvance: 'Advance',
+    colPurpose: 'Purpose',
+    colPoolAmount: 'From advance pool',
+    exceedReceivable: 'Receipt + pool write-off exceeds open receivable',
+    exceedAdvancePool: 'Pool write-off exceeds {currency} available balance',
+    soMismatchTitle: 'Sales order mismatch',
+    soMismatchConfirm: 'Confirm and continue'
+  },
+  financeCustomerAdvanceList: {
+    pageTitle: 'Customer advances',
+    goWriteOff: 'Receipt write-off',
+    viewLedger: 'Ledger',
+    ledgerTitle: 'Advance ledger',
+    ledgerType: 'Type',
+    ledgerAmount: 'Amount',
+    ledgerBalanceAfter: 'Balance',
+    ledgerRemark: 'Remark',
+    ledgerTime: 'Time',
+    ledgerTypes: {
+      in: 'Credit',
+      apply: 'Apply',
+      autoIn: 'Excess to pool'
+    },
+    filters: {
+      keyword: 'Search customer',
+      currency: 'Currency',
+      onlyPositive: 'Positive balance only',
+      search: 'Search'
+    },
+    columns: {
+      customer: 'Customer',
+      currency: 'Currency',
+      balance: 'Balance',
+      totalIn: 'Total in',
+      totalApplied: 'Total applied',
+      actions: 'Actions'
+    }
   },
   financeReceiptDetail: {
     backToList: 'Back to list',

@@ -33,7 +33,7 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
     private readonly IRepository<StockInItem> _stockInItemRepo;
     private readonly IRepository<StockOutRequest> _stockOutRequestRepo;
     private readonly IRepository<StockOut> _stockOutRepo;
-    private readonly IRepository<FinanceReceiptItem> _receiptItemRepo;
+    private readonly IRepository<FinanceReceivable> _receivableRepo;
     private readonly ILogger<SellOrderItemExtendSyncService> _logger;
 
     public SellOrderItemExtendSyncService(
@@ -45,7 +45,7 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         IRepository<StockInItem> stockInItemRepo,
         IRepository<StockOutRequest> stockOutRequestRepo,
         IRepository<StockOut> stockOutRepo,
-        IRepository<FinanceReceiptItem> receiptItemRepo,
+        IRepository<FinanceReceivable> receivableRepo,
         ILogger<SellOrderItemExtendSyncService> logger)
     {
         _soItemRepo = soItemRepo;
@@ -56,7 +56,7 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
         _stockInItemRepo = stockInItemRepo;
         _stockOutRequestRepo = stockOutRequestRepo;
         _stockOutRepo = stockOutRepo;
-        _receiptItemRepo = receiptItemRepo;
+        _receivableRepo = receivableRepo;
         _logger = logger;
     }
 
@@ -128,10 +128,10 @@ public class SellOrderItemExtendSyncService : ISellOrderItemExtendSyncService
                 id);
         }
 
-        var receiptItems = (await _receiptItemRepo.FindAsync(x =>
-                x.SellOrderItemId != null && x.SellOrderItemId == id))
+        var receivables = (await _receivableRepo.FindAsync(r =>
+                r.SellOrderItemId == id && !r.IsDeleted))
             .ToList();
-        var verifiedSum = receiptItems.Sum(x => x.VerifiedAmount);
+        var verifiedSum = receivables.Sum(r => r.VerifiedDone);
         ext.ReceiptAmountFinish = verifiedSum;
         ext.ReceiptAmountNot = Math.Max(0m, ext.ReceiptAmount - verifiedSum);
 
