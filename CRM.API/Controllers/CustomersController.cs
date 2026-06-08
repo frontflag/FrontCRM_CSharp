@@ -132,7 +132,11 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var customers = (await _customerService.GetAllCustomersAsync()).ToList();
+                if (!string.IsNullOrWhiteSpace(userId))
+                    customers = (await _dataPermissionService.FilterCustomersAsync(userId, customers)).ToList();
+
                 var now = DateTime.UtcNow;
                 var firstDayOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -143,7 +147,6 @@ namespace CRM.API.Controllers
                 var newLast30Days = customers.Count(c => c.CreateTime >= now.AddDays(-30));
                 var totalBalance = customers.Sum(c => c.CreditLineRemain);
 
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var sellOrders = (await _sellOrderRepository.GetAllAsync()).ToList();
                 if (!string.IsNullOrWhiteSpace(userId))
                     sellOrders = (await _dataPermissionService.FilterSalesOrdersAsync(userId, sellOrders)).ToList();
