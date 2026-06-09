@@ -19,8 +19,8 @@ namespace CRM.Core.Document
         /// <summary>单次上传最多文件数</summary>
         public int MaxFilesPerUpload { get; set; } = 5;
 
-        /// <summary>允许的扩展名白名单，如 .pdf,.jpg,.jpeg,.png,.docx,.xlsx,.zip</summary>
-        public string[] AllowedExtensions { get; set; } = { ".pdf", ".jpg", ".jpeg", ".png", ".docx", ".xlsx", ".zip" };
+        /// <summary>允许的扩展名白名单，如 .pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.zip</summary>
+        public string[] AllowedExtensions { get; set; } = { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx", ".xls", ".xlsx", ".zip" };
 
         /// <summary>缩略图配置</summary>
         public ThumbnailOptions Thumbnail { get; set; } = new();

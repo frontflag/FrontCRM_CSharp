@@ -8,6 +8,7 @@ import {
   PURCHASE_ORDER_FAVORITE_ENTITY_TYPE,
   PURCHASE_ORDER_FAVORITES_CHANGED_EVENT
 } from '@/constants/purchaseOrderFavorites'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
 withDefaults(
   defineProps<{
@@ -18,6 +19,7 @@ withDefaults(
 
 const router = useRouter()
 const { t } = useI18n()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
 const loading = ref(false)
 const items = ref<any[]>([])
@@ -99,7 +101,7 @@ onBeforeUnmount(() => {
           @click="goDetail(row)"
         >
           <td class="po-favorite-panel__code">{{ row.purchaseOrderCode || '—' }}</td>
-          <td class="po-favorite-panel__name">{{ row.vendorName || '—' }}</td>
+          <td class="po-favorite-panel__name">{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName || '—') }}</td>
           <td>{{ getStatusText(Number(row.status)) }}</td>
         </tr>
       </tbody>

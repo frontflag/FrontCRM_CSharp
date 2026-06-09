@@ -195,10 +195,11 @@
             v-model:file-list="qcFileList"
             multiple
             accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
-            :limit="24"
+            :limit="MAX_QC_IMAGES"
             :before-upload="beforeSelectQcImage"
             :before-remove="beforeRemoveQcImage"
             :on-preview="onPreviewQcImage"
+            :on-exceed="onExceedQcImages"
           >
             <el-icon><Plus /></el-icon>
           </el-upload>
@@ -220,8 +221,9 @@ import { Plus } from '@element-plus/icons-vue'
 import apiClient from '@/api/client'
 import { documentApi, DOCUMENT_BIZ_TYPE_QC, type UploadDocumentDto } from '@/api/document'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import { getApiErrorMessage } from '@/utils/apiError'
 
-type QcUploadFile = UploadFile & { documentId?: string }
+type QcUploadFile = UploadFile & { documentId?: string; uploadFailReason?: string }
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const route = useRoute()
@@ -364,10 +366,17 @@ function onPreviewQcImage(uploadFile: UploadFile) {
   if (uploadFile.url) window.open(uploadFile.url, '_blank', 'noopener,noreferrer')
 }
 
-const MAX_FILES_PER_UPLOAD = 5
+const MAX_QC_IMAGES = 24
 const MAX_QC_IMAGE_SIZE_MB = 8
 
+type QcImageUploadFailure = { item: QcUploadFile; reason: string }
+type QcImageUploadBatchResult = { successCount: number; failed: QcImageUploadFailure[] }
+
 function beforeSelectQcImage(rawFile: UploadRawFile) {
+  if (qcFileList.value.length >= MAX_QC_IMAGES) {
+    ElMessage.warning(`最多上传 ${MAX_QC_IMAGES} 张图片，当前已达上限`)
+    return false
+  }
   const maxBytes = MAX_QC_IMAGE_SIZE_MB * 1024 * 1024
   if (rawFile.size > maxBytes) {
     ElMessage.warning(`单张图片不能超过 ${MAX_QC_IMAGE_SIZE_MB}MB，请压缩后再上传`)
@@ -376,11 +385,76 @@ function beforeSelectQcImage(rawFile: UploadRawFile) {
   return true
 }
 
-async function uploadPendingQcImages(qcId: string, files: File[]) {
-  if (!files.length) return
-  for (let i = 0; i < files.length; i += MAX_FILES_PER_UPLOAD) {
-    const chunk = files.slice(i, i + MAX_FILES_PER_UPLOAD)
-    await documentApi.uploadDocuments(DOCUMENT_BIZ_TYPE_QC, qcId, chunk)
+function onExceedQcImages() {
+  ElMessage.warning(`最多 ${MAX_QC_IMAGES} 张图片，请删除部分后再添加`)
+}
+
+function normalizeQcUploadError(error: unknown): string {
+  const msg = getApiErrorMessage(error, '上传失败')
+  if (/timeout|超时/i.test(msg)) return '上传超时，请检查网络后重试'
+  if (/network error|网络/i.test(msg)) return '网络异常，请稍后重试'
+  return msg
+}
+
+function qcUploadFileLabel(item: QcUploadFile): string {
+  return item.name || item.raw?.name || '未知文件'
+}
+
+/** 逐张上传，已成功写入服务端的文件不回滚；失败项保留本地 raw 供补传 */
+async function uploadPendingQcImages(qcId: string, pending: QcUploadFile[]): Promise<QcImageUploadBatchResult> {
+  const failed: QcImageUploadFailure[] = []
+  let successCount = 0
+  for (const item of pending) {
+    const file = item.raw
+    if (!file) continue
+    try {
+      await documentApi.uploadDocuments(DOCUMENT_BIZ_TYPE_QC, qcId, [file])
+      successCount += 1
+    } catch (e: unknown) {
+      failed.push({ item, reason: normalizeQcUploadError(e) })
+    }
+  }
+  return { successCount, failed }
+}
+
+function buildQcUploadResultMessage(result: QcImageUploadBatchResult): string {
+  const { successCount, failed } = result
+  const failCount = failed.length
+  const detailLines = failed
+    .slice(0, 5)
+    .map((f) => `「${qcUploadFileLabel(f.item)}」：${f.reason}`)
+  const detail =
+    failCount <= 5
+      ? detailLines.join('；')
+      : `${detailLines.join('；')}…等共 ${failCount} 张`
+  return [
+    `质检主单已保存。图片上传：成功 ${successCount} 张，失败 ${failCount} 张。`,
+    failCount ? `失败明细：${detail}。` : '',
+    '未成功的图片仍保留在下方列表中，补传后再次点击「保存质检」即可，无需重新选择已成功的图片。',
+  ]
+    .filter(Boolean)
+    .join('')
+}
+
+/** 刷新已保存缩略图，并把仍待上传的失败项重新挂回列表 */
+async function refreshQcFileListAfterUpload(qcId: string, failed: QcImageUploadFailure[]) {
+  await loadQcDocuments(qcId)
+  for (const { item, reason } of failed) {
+    const file = item.raw
+    if (!file) continue
+    let url = item.url
+    if (!url?.startsWith('blob:')) {
+      url = URL.createObjectURL(file)
+      qcPreviewBlobUrls.push(url)
+    }
+    qcFileList.value.push({
+      name: qcUploadFileLabel(item),
+      url,
+      uid: item.uid,
+      status: 'fail',
+      raw: file,
+      uploadFailReason: reason,
+    })
   }
 }
 
@@ -512,24 +586,29 @@ const submitQc = async () => {
       hasStockInPlanDate: true,
       stockInPlanDate: plan ? `${plan}T12:00:00.000Z` : null,
     })
-    const pendingFiles: File[] = qcFileList.value
-      .filter((f) => f.raw != null)
-      .map((f) => f.raw as File)
-    let uploadFailed = false
-    if (pendingFiles.length) {
-      try {
-        // 附件走独立上传接口；上传失败不回滚已保存的质检主单
-        await uploadPendingQcImages(qcId, pendingFiles)
-      } catch {
-        uploadFailed = true
-      }
+    if (qcFileList.value.length > MAX_QC_IMAGES) {
+      ElMessage.warning(`质检图片最多 ${MAX_QC_IMAGES} 张，当前已选 ${qcFileList.value.length} 张，请删除多余图片`)
+      return
     }
-    await loadQcDocuments(qcId)
-    if (uploadFailed) {
-      ElMessage.warning('质检主单已保存，部分图片上传失败，请在编辑页重试上传')
-    } else {
-      ElMessage.success(wasEdit ? '质检已更新' : '质检已保存')
+    const pendingItems = qcFileList.value.filter((f) => f.raw != null)
+    let uploadResult: QcImageUploadBatchResult | null = null
+    if (pendingItems.length) {
+      // 附件走独立上传接口；逐张上传，已成功的不回滚
+      uploadResult = await uploadPendingQcImages(qcId, pendingItems)
     }
+    if (uploadResult && uploadResult.failed.length > 0) {
+      await refreshQcFileListAfterUpload(qcId, uploadResult.failed)
+      ElMessage.warning({
+        message: buildQcUploadResultMessage(uploadResult),
+        duration: 12_000,
+        showClose: true,
+      })
+      return
+    }
+    if (pendingItems.length) {
+      await loadQcDocuments(qcId)
+    }
+    ElMessage.success(wasEdit ? '质检已更新' : '质检已保存')
     router.push({ name: 'QcList', query: { qcId } })
   } catch (e: any) {
     ElMessage.error(e?.message || (isEdit.value ? '更新质检失败' : '创建质检失败'))

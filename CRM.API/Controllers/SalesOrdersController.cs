@@ -241,6 +241,7 @@ namespace CRM.API.Controllers
                     return StatusCode(403, new { success = false, message = "无权限访问该销售订单" });
                 var summary = await GetPermissionSummaryAsync(userId);
                 var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
+                var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
 
                 var itemIds = (order.Items ?? new List<SellOrderItem>())
                     .Select(i => i.Id)
@@ -249,7 +250,7 @@ namespace CRM.API.Controllers
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                var data = await BuildSalesOrderDetailTabAggregatesPayloadAsync(id, itemIds, sellOrderItemIdScope: null, mask521);
+                var data = await BuildSalesOrderDetailTabAggregatesPayloadAsync(id, itemIds, sellOrderItemIdScope: null, mask521, mask511);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
@@ -286,8 +287,9 @@ namespace CRM.API.Controllers
 
                 var summary = await GetPermissionSummaryAsync(userId);
                 var mask521 = SaleSensitiveFieldMask521.ShouldMask(summary);
+                var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
 
-                var data = await BuildSalesOrderDetailTabAggregatesPayloadAsync(id, orderLineIds, sellOrderItemIdScope: lineId, mask521);
+                var data = await BuildSalesOrderDetailTabAggregatesPayloadAsync(id, orderLineIds, sellOrderItemIdScope: lineId, mask521, mask511);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
@@ -302,7 +304,8 @@ namespace CRM.API.Controllers
             string orderId,
             IReadOnlyList<string> allOrderLineIds,
             string? sellOrderItemIdScope,
-            bool mask521)
+            bool mask521,
+            bool mask511)
         {
             var itemIds = sellOrderItemIdScope != null
                 ? new List<string> { sellOrderItemIdScope }
@@ -595,7 +598,7 @@ namespace CRM.API.Controllers
             }
             else
             {
-                purchaseOrderItemRows = (await (
+                var rawPoRows = await (
                         from poi in _db.PurchaseOrderItems.AsNoTracking()
                         join po in _db.PurchaseOrders.AsNoTracking() on poi.PurchaseOrderId equals po.Id
                         where poi.SellOrderItemId != null && itemIds.Contains(poi.SellOrderItemId!)
@@ -611,14 +614,35 @@ namespace CRM.API.Controllers
                             poi.PN,
                             poi.Brand,
                             poi.Qty,
-                            poi.Cost,
-                            poi.Currency,
+                            cost = poi.Cost,
+                            currency = poi.Currency,
                             itemStatus = poi.Status,
                             vendorName = po.VendorName,
                             purchaseUserName = po.PurchaseUserName,
                             poi.CreateTime
                         })
-                    .ToListAsync()).Cast<object>().ToList();
+                    .ToListAsync();
+
+                purchaseOrderItemRows = rawPoRows
+                    .Select(r => (object)new
+                    {
+                        r.id,
+                        r.purchaseOrderId,
+                        r.purchaseOrderCode,
+                        r.purchaseOrderItemCode,
+                        r.poStatus,
+                        r.sellOrderItemId,
+                        r.PN,
+                        r.Brand,
+                        r.Qty,
+                        cost = mask511 ? 0m : r.cost,
+                        currency = mask511 ? (short?)null : r.currency,
+                        r.itemStatus,
+                        vendorName = mask511 ? null : r.vendorName,
+                        r.purchaseUserName,
+                        r.CreateTime
+                    })
+                    .ToList();
             }
 
             List<object> qcImageRows;

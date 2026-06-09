@@ -128,9 +128,15 @@
                     show-overflow-tooltip
                   >
                     <template #default="{ row }">
-                      <el-button link type="primary" @click="goPurchaseOrder(row.purchaseOrderId)">
+                      <el-button
+                        v-if="!maskPurchaseSensitiveFields"
+                        link
+                        type="primary"
+                        @click="goPurchaseOrder(row.purchaseOrderId)"
+                      >
                         {{ row.purchaseOrderCode || '—' }}
                       </el-button>
+                      <span v-else>{{ row.purchaseOrderCode || '—' }}</span>
                     </template>
                   </el-table-column>
                   <el-table-column
@@ -163,11 +169,13 @@
                     align="right"
                   >
                     <template #default="{ row }">
-                      {{ row.cost != null ? Number(row.cost).toFixed(4) : '—' }}
+                      {{ maskPurchaseSensitiveFields ? '—' : row.cost != null ? Number(row.cost).toFixed(4) : '—' }}
                     </template>
                   </el-table-column>
                   <el-table-column :label="t('purchaseRequisitionDetail.poItemTable.currency')" width="80" align="center">
-                    <template #default="{ row }">{{ formatPoCurrency(row.currency) }}</template>
+                    <template #default="{ row }">{{
+                      maskPurchaseSensitiveFields ? '—' : formatPoCurrency(row.currency)
+                    }}</template>
                   </el-table-column>
                   <el-table-column :label="t('purchaseRequisitionDetail.poItemTable.poStatus')" width="120">
                     <template #default="{ row }">{{ formatPoStatus(row.poStatus) }}</template>
@@ -235,11 +243,13 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseRequisitionApi } from '@/api/purchaseRequisition'
 import { useAuthStore } from '@/stores/auth'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
 const loading = ref(false)
 const deleting = ref(false)

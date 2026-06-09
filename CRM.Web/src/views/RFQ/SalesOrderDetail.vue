@@ -587,16 +587,18 @@
                   <el-table-column type="index" width="50" label="#" />
                   <el-table-column min-width="130" label="采购单号">
                     <template #default="{ row }">
-                      <router-link class="so-tab-link" :to="`/purchase-orders/${row.purchaseOrderId}`">
+                      <router-link v-if="!maskPurchaseSensitiveFields" class="so-tab-link" :to="`/purchase-orders/${row.purchaseOrderId}`">
                         {{ row.purchaseOrderCode }}
                       </router-link>
+                      <span v-else>{{ row.purchaseOrderCode || '—' }}</span>
                     </template>
                   </el-table-column>
                   <el-table-column min-width="130" label="采购明细号">
                     <template #default="{ row }">
-                      <router-link class="so-tab-link" :to="`/purchase-orders/${row.purchaseOrderId}`">
+                      <router-link v-if="!maskPurchaseSensitiveFields" class="so-tab-link" :to="`/purchase-orders/${row.purchaseOrderId}`">
                         {{ row.purchaseOrderItemCode }}
                       </router-link>
+                      <span v-else>{{ row.purchaseOrderItemCode || '—' }}</span>
                     </template>
                   </el-table-column>
                   <el-table-column label="主单状态" width="100">
@@ -605,13 +607,15 @@
                   <el-table-column label="明细状态" width="100">
                     <template #default="{ row }">{{ poItemStatusLabel(row?.itemStatus) }}</template>
                   </el-table-column>
-                  <el-table-column prop="vendorName" label="供应商" min-width="140" show-overflow-tooltip />
+                  <el-table-column label="供应商" min-width="140" show-overflow-tooltip>
+                    <template #default="{ row }">{{ maskPurchaseSensitiveFields ? '—' : (row.vendorName || '—') }}</template>
+                  </el-table-column>
                   <el-table-column prop="purchaseUserName" label="采购员" width="100" show-overflow-tooltip />
                   <el-table-column prop="pn" label="PN" min-width="140" show-overflow-tooltip />
                   <el-table-column prop="brand" label="品牌" width="120" show-overflow-tooltip />
                   <el-table-column label="数量" width="100" align="right" prop="qty" />
                   <el-table-column label="单价" width="110" align="right">
-                    <template #default="{ row }">{{ formatPoLineCost(row) }}</template>
+                    <template #default="{ row }">{{ maskPurchaseSensitiveFields ? '—' : formatPoLineCost(row) }}</template>
                   </el-table-column>
                   <el-table-column label="创建时间" width="160" prop="createTime">
                     <template #default="{ row }">{{ formatDateTime(row?.createTime) }}</template>
@@ -1135,6 +1139,7 @@ import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from 
 import { CurrencyCode } from '@/constants/currency'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleOrderWriteGate } from '@/composables/useDepartmentDataReadOnly'
 
 const router = useRouter()
@@ -1162,6 +1167,7 @@ function fmtSoItemDeliveryDate(row: { deliveryDate?: unknown; DeliveryDate?: unk
 const canViewCustomerInfo = computed(() => authStore.hasPermission('customer.info.read'))
 const canViewSalesAmount = computed(() => authStore.hasPermission('sales.amount.read'))
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const showCustomerIdentityFields = computed(() => canViewCustomerInfo.value && !maskSaleSensitiveFields.value)
 const showSalesMoneyFields = computed(() => canViewSalesAmount.value && !maskSaleSensitiveFields.value)
 const { canWriteSo } = useSaleOrderWriteGate()

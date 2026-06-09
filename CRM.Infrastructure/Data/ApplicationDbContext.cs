@@ -1612,6 +1612,9 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.VerifiedToBe).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
                 entity.Property(e => e.OutboundQty).HasColumnType("numeric(18,4)");
                 entity.Property(e => e.UnitPrice).HasColumnType("numeric(18,6)");
+                // finance_receivable 使用 create_by_user_id（GUID），无 BaseEntity 的 bigint CreateUserId
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
                 entity.HasIndex(e => e.StockOutId).IsUnique();
                 entity.HasIndex(e => e.CustomerId);
                 entity.HasIndex(e => e.SellOrderItemId);
@@ -1624,6 +1627,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Amount).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.FinanceReceiptId).IsRequired(false);
                 entity.Property(e => e.FinanceReceiptItemId).IsRequired(false);
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
                 entity.HasIndex(e => e.FinanceReceivableId);
                 entity.HasIndex(e => e.FinanceReceiptItemId);
             });
@@ -1636,6 +1641,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.TotalIn).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.TotalApplied).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.TotalRefund).HasColumnType("numeric(18,2)");
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
                 entity.HasIndex(e => new { e.CustomerId, e.Currency }).IsUnique();
             });
 
@@ -1644,6 +1651,8 @@ namespace CRM.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("FinanceCustomerAdvanceLedgerId");
                 entity.Property(e => e.Amount).HasColumnType("numeric(18,2)");
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
                 entity.HasIndex(e => e.FinanceCustomerAdvanceId);
                 entity.HasIndex(e => e.CustomerId);
             });

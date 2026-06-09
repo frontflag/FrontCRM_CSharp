@@ -8,7 +8,7 @@
   >
     <div class="upload-toolbar">
       <div class="upload-area">
-        <input ref="fileInput" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.zip" @change="onSelect" />
+        <input ref="fileInput" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.zip" @change="onSelect" />
         <div class="upload-placeholder">
           <p class="upload-line">
             <span>拖拽文件到此处，或</span>
@@ -109,7 +109,7 @@ function addDroppedFiles(files: File[]) {
 }
 
 function addFiles(files: File[]) {
-  const allowed = ['.pdf', '.jpg', '.jpeg', '.png', '.docx', '.xlsx', '.zip']
+  const allowed = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx', '.xls', '.xlsx', '.zip']
   const next = [...selectedFiles.value]
   for (const f of files) {
     const ext = '.' + (f.name.split('.').pop() || '').toLowerCase()

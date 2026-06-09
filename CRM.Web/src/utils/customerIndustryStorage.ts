@@ -1,4 +1,5 @@
 import { buildCustomerFormDictFallback } from '@/constants/customerDictFallback'
+import enUS from '@/locales/en-US'
 
 const fallbackIndustryRows = buildCustomerFormDictFallback().CustomerIndustry
 
@@ -8,6 +9,11 @@ export const CUSTOMER_INDUSTRY_CODE_TO_LABEL: Record<string, string> = Object.fr
 )
 
 const LABEL_SET = new Set(fallbackIndustryRows.map((x) => x.label))
+
+/** 英文界面/API label → English code（与 en-US customerList.industry 一致） */
+export const CUSTOMER_INDUSTRY_EN_LABEL_TO_CODE: Record<string, string> = Object.fromEntries(
+  Object.entries(enUS.customerList.industry).map(([code, label]) => [label, code])
+)
 
 /**
  * Excel/旧链接等：中文别名 → English code（与历史导入映射一致）
@@ -61,7 +67,21 @@ export function industryCellToStorageLabel(raw: string): string {
   if (LABEL_SET.has(s)) return s
   const code = CUSTOMER_INDUSTRY_CN_ALIAS_TO_CODE[s]
   if (code && CUSTOMER_INDUSTRY_CODE_TO_LABEL[code]) return CUSTOMER_INDUSTRY_CODE_TO_LABEL[code]
+  const fromEn = CUSTOMER_INDUSTRY_EN_LABEL_TO_CODE[s]
+  if (fromEn && CUSTOMER_INDUSTRY_CODE_TO_LABEL[fromEn]) return CUSTOMER_INDUSTRY_CODE_TO_LABEL[fromEn]
   return s
+}
+
+/** 标准中文 label 或 English code → 当前界面语言下的展示文案 */
+export function industryCodeFromStorage(raw: string): string | null {
+  const s = raw.trim()
+  if (!s) return null
+  if (CUSTOMER_INDUSTRY_CODE_TO_LABEL[s]) return s
+  const fromCn = Object.entries(CUSTOMER_INDUSTRY_CODE_TO_LABEL).find(([, label]) => label === s)
+  if (fromCn) return fromCn[0]
+  const fromEn = CUSTOMER_INDUSTRY_EN_LABEL_TO_CODE[s]
+  if (fromEn) return fromEn
+  return null
 }
 
 /** 列表 URL query：旧书签中的英文 code 转为与库表一致的中文后再参与筛选 */

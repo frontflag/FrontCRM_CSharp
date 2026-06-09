@@ -2,6 +2,12 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { dictionaryApi } from '@/api/dictionary';
 import { buildCustomerFormDictFallback } from '@/constants/customerDictFallback';
+import i18n from '@/plugins/i18n';
+import {
+  CUSTOMER_INDUSTRY_CODE_TO_LABEL,
+  industryCellToStorageLabel,
+  industryCodeFromStorage
+} from '@/utils/customerIndustryStorage';
 
 const K = {
   type: 'CustomerType',
@@ -96,9 +102,21 @@ export const useCustomerDictStore = defineStore('customerDict', () => {
     mergedList(K.level).map((x) => ({ value: x.code, label: x.label }))
   );
 
-  const industryOptions = computed(() =>
-    mergedList(K.industry).map((x) => ({ value: x.code, label: x.label }))
-  );
+  function industryI18nLabel(code: string, apiLabelFallback?: string) {
+    void i18n.global.locale.value;
+    const key = `customerList.industry.${code}`;
+    const msg = i18n.global.t(key);
+    if (msg !== key) return msg;
+    return CUSTOMER_INDUSTRY_CODE_TO_LABEL[code] ?? apiLabelFallback ?? code;
+  }
+
+  const industryOptions = computed(() => {
+    void i18n.global.locale.value;
+    return mergedList(K.industry).map((x) => ({
+      value: industryCellToStorageLabel(x.code),
+      label: industryI18nLabel(x.code, x.label)
+    }));
+  });
 
   const taxRateOptions = computed(() =>
     mergedList(K.taxRate)
@@ -137,9 +155,13 @@ export const useCustomerDictStore = defineStore('customerDict', () => {
     return labelFor(K.level, level) || level;
   }
 
-  function industryLabel(code: string | null | undefined) {
-    if (!code) return '--';
-    return labelFor(K.industry, code) || code;
+  function industryLabel(raw: string | null | undefined) {
+    if (!raw) return '--';
+    const code = industryCodeFromStorage(raw);
+    if (code) return industryI18nLabel(code);
+    const row = getList(K.industry).find((x) => x.code === raw || x.label === raw);
+    if (row) return industryI18nLabel(row.code, row.label);
+    return raw;
   }
 
   function taxRateLabel(rate: number | null | undefined) {
@@ -164,16 +186,16 @@ export const useCustomerDictStore = defineStore('customerDict', () => {
   async function resolveIndustryStorageLabel(raw: string | null | undefined): Promise<string> {
     const s = (raw ?? '').trim();
     if (!s) return '';
+    const normalized = industryCellToStorageLabel(s);
+    if (normalized !== s || industryCodeFromStorage(s)) return normalized;
     await ensureLoaded();
-    const rows = mergedList(K.industry).map((x) => ({ code: x.code, label: x.label }));
-    const byCode = rows.find((o) => o.code === s);
-    if (byCode) return byCode.label;
-    if (rows.some((o) => o.label === s)) return s;
     await ensureExtraOption(K.industry, s);
-    const rows2 = mergedList(K.industry).map((x) => ({ code: x.code, label: x.label }));
-    const after = rows2.find((o) => o.code === s);
-    if (after) return after.label;
-    return s;
+    const rows = mergedList(K.industry);
+    const byCode = rows.find((o) => o.code === s);
+    if (byCode) return industryCellToStorageLabel(byCode.code);
+    const byApiLabel = rows.find((o) => o.label === s);
+    if (byApiLabel) return industryCellToStorageLabel(byApiLabel.code);
+    return normalized;
   }
 
   return {

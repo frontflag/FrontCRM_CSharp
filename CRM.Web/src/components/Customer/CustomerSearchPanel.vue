@@ -193,7 +193,7 @@ onMounted(async () => {
             v-for="opt in customerDict.industryOptions"
             :key="opt.value"
             :label="opt.label"
-            :value="opt.label"
+            :value="opt.value"
           />
         </el-select>
       </div>

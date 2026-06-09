@@ -50,7 +50,8 @@ export const documentApi = {
     files.forEach((f) => form.append('files', f))
 
     const res = await apiClient.post<any>(BASE + '/upload', form, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120_000,
     })
     if (Array.isArray(res)) return res as UploadDocumentDto[]
     if (res && Array.isArray(res.data)) return res.data as UploadDocumentDto[]

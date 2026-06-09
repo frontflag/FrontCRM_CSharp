@@ -126,6 +126,9 @@ namespace CRM.API.Controllers
                 var pr = await _prRepo.GetByIdAsync(id);
                 if (pr == null) return NotFound(new { success = false, message = "采购申请不存在" });
 
+                var summary = await TryGetPermissionSummaryAsync();
+                var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
+
                 var so = await _soRepo.GetByIdAsync(pr.SellOrderId);
                 var line = await _soItemRepo.GetByIdAsync(pr.SellOrderItemId);
 
@@ -236,15 +239,17 @@ namespace CRM.API.Controllers
                         prefillRfqPurchaserUserId = prefillRfqPurchaserUserId,
                         prefillRfqPurchaserUserName = prefillRfqPurchaserUserName,
                         prefillPurchaseOrderType = prefillPurchaseOrderType,
-                        quoteVendorId = vendorIdFromQuote,
-                        quoteCost = pr.QuoteCost != 0m ? pr.QuoteCost : (matchedQuoteItem?.UnitPrice ?? 0m),
+                        quoteVendorId = mask511 ? null : vendorIdFromQuote,
+                        quoteCost = mask511
+                            ? 0m
+                            : (pr.QuoteCost != 0m ? pr.QuoteCost : (matchedQuoteItem?.UnitPrice ?? 0m)),
                         // 报价币别：优先匹配到的报价明细；否则沿用销售订单明细行币别（用于 PO 预填「报价」展示与采购单价默认币别）
                         quoteCurrency = matchedQuoteItem != null
                             ? matchedQuoteItem.Currency
                             : (short)(line?.Currency ?? 1),
-                        intendedVendorName = intendedVendorName,
-                        intendedVendorContactId = intendedVendorContactId,
-                        intendedVendorContactName = intendedVendorContactName,
+                        intendedVendorName = mask511 ? null : intendedVendorName,
+                        intendedVendorContactId = mask511 ? null : intendedVendorContactId,
+                        intendedVendorContactName = mask511 ? null : intendedVendorContactName,
                         remark = pr.Remark,
                         createTime = pr.CreateTime
                     }
@@ -271,6 +276,9 @@ namespace CRM.API.Controllers
                 var pr = await _prRepo.GetByIdAsync(id.Trim());
                 if (pr == null)
                     return NotFound(new { success = false, message = "采购申请不存在" });
+
+                var summary = await TryGetPermissionSummaryAsync();
+                var mask511 = PurchaseSensitiveFieldMask511.ShouldMask(summary);
 
                 var soItemKey = (pr.SellOrderItemId ?? "").Trim();
                 if (soItemKey.Length == 0)
@@ -312,13 +320,13 @@ namespace CRM.API.Controllers
                         purchaseOrderCode = po?.PurchaseOrderCode,
                         purchaseOrderItemCode = it.PurchaseOrderItemCode,
                         sellOrderItemId = it.SellOrderItemId,
-                        vendorId = it.VendorId,
+                        vendorId = mask511 ? null : it.VendorId,
                         poStatus = po?.Status,
                         pn = it.PN,
                         brand = it.Brand,
                         qty = it.Qty,
-                        cost = it.Cost,
-                        currency = it.Currency
+                        cost = mask511 ? 0m : it.Cost,
+                        currency = mask511 ? (short?)null : it.Currency
                     });
                 }
 

@@ -19,6 +19,9 @@ namespace CRM.Infrastructure.Document
             [".zip"] = new byte[] { 0x50, 0x4B, 0x03, 0x04 },
             [".docx"] = new byte[] { 0x50, 0x4B, 0x03, 0x04 },
             [".xlsx"] = new byte[] { 0x50, 0x4B, 0x03, 0x04 },
+            // Word/Excel 97–2003（OLE 复合文档）
+            [".doc"] = new byte[] { 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 },
+            [".xls"] = new byte[] { 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 },
         };
 
         public FileStorageService(IOptions<DocumentModuleOptions> options, FileNameGenerator nameGenerator)
