@@ -218,9 +218,37 @@ export interface VendorBankInfo {
   bankAccount?: string
   accountName?: string
   bankBranch?: string
+  bankAddress?: string
+  swift?: string
+  iban?: string
+  bankCode?: string
+  country?: string
+  /** rmb / foreign */
+  accountType?: string
+  /** payment / receipt */
+  purposeType?: string
   currency?: number
   isDefault: boolean
+  isEnabled?: boolean
   remark?: string
   createTime?: string
   modifyTime?: string
+}
+
+export type VendorBankFormPayload = {
+  financePaymentBankId?: string
+  accountName?: string
+  bankBranch?: string
+  bankAccount?: string
+  bankAddress?: string
+  swift?: string
+  iban?: string
+  bankCode?: string
+  country?: string
+  accountType?: string
+  purposeType?: string
+  currency?: number
+  isDefault: boolean
+  isEnabled: boolean
+  remark?: string
 }

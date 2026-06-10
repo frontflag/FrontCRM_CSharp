@@ -1,6 +1,7 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
+using CRM.Core.Models.Company;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.System;
@@ -17,6 +18,8 @@ namespace CRM.Core.Services
         private readonly IRepository<PurchaseOrder> _poRepo;
         private readonly IRepository<PurchaseOrderItem> _poItemRepo;
         private readonly IRepository<VendorInfo> _vendorRepo;
+        private readonly IRepository<VendorBankInfo> _vendorBankRepo;
+        private readonly IRepository<CompanyBankInfo> _companyBankRepo;
         private readonly IRepository<User> _userRepository;
         private readonly IDataPermissionService _dataPermissionService;
         private readonly IUnitOfWork? _unitOfWork;
@@ -36,6 +39,8 @@ namespace CRM.Core.Services
             ISerialNumberService serialNumberService,
             IPurchaseOrderItemExtendSyncService poItemExtendSync,
             IRepository<VendorInfo> vendorRepo,
+            IRepository<VendorBankInfo> vendorBankRepo,
+            IRepository<CompanyBankInfo> companyBankRepo,
             IRepository<User> userRepository,
             IForceDeleteGuardService forceDeleteGuard,
             ILogOperationAppendService logOperationAppend,
@@ -51,6 +56,8 @@ namespace CRM.Core.Services
             _serialNumberService = serialNumberService;
             _poItemExtendSync = poItemExtendSync;
             _vendorRepo = vendorRepo;
+            _vendorBankRepo = vendorBankRepo;
+            _companyBankRepo = companyBankRepo;
             _userRepository = userRepository;
             _forceDeleteGuard = forceDeleteGuard;
             _logOperationAppend = logOperationAppend;
@@ -89,7 +96,11 @@ namespace CRM.Core.Services
             if (string.IsNullOrWhiteSpace(request.VendorId))
                 throw new ArgumentException("供应商ID不能为空", nameof(request.VendorId));
 
-            await ValidateFinancePaymentBankIdAsync(request.FinancePaymentBankId);
+            var (vendorBankId, financePaymentBankId) = await ResolvePaymentVendorBankAsync(
+                request.VendorId,
+                request.VendorBankId,
+                request.FinancePaymentBankId,
+                request.PaymentMode);
 
             var code = await _serialNumberService.GenerateNextAsync(ModuleCodes.FinancePayment);
             if (code.Length > 16)
@@ -113,9 +124,8 @@ namespace CRM.Core.Services
                 PaymentUserId = request.PaymentUserId,
                 PaymentMode = request.PaymentMode,
                 BankSlipNo = request.BankSlipNo,
-                FinancePaymentBankId = string.IsNullOrWhiteSpace(request.FinancePaymentBankId)
-                    ? null
-                    : request.FinancePaymentBankId.Trim(),
+                VendorBankId = vendorBankId,
+                FinancePaymentBankId = financePaymentBankId,
                 RequestRemark = string.IsNullOrWhiteSpace(request.RequestRemark)
                     ? null
                     : request.RequestRemark.Trim(),
@@ -163,6 +173,7 @@ namespace CRM.Core.Services
                 await _poItemExtendSync.RecalculateAsync(pid);
 
             await EnrichVendorCodesAsync(new[] { payment });
+            await EnrichVendorBankNamesAsync(new[] { payment });
             await EnrichPaymentBankNamesAsync(new[] { payment });
             await EnrichCreateUserNamesAsync(new[] { payment });
             return payment;
@@ -178,6 +189,7 @@ namespace CRM.Core.Services
             var items = await _itemRepo.FindAsync(i => i.FinancePaymentId == id);
             payment.Items = items.ToList();
             await EnrichVendorCodesAsync(new[] { payment });
+            await EnrichVendorBankNamesAsync(new[] { payment });
             await EnrichPaymentBankNamesAsync(new[] { payment });
             await EnrichCreateUserNamesAsync(new[] { payment });
             return payment;
@@ -187,6 +199,7 @@ namespace CRM.Core.Services
         {
             var all = (await _paymentRepo.GetAllAsync()).ToList();
             await EnrichVendorCodesAsync(all);
+            await EnrichVendorBankNamesAsync(all);
             await EnrichPaymentBankNamesAsync(all);
             await EnrichCreateUserNamesAsync(all);
             return all;
@@ -197,6 +210,7 @@ namespace CRM.Core.Services
             var result = await _paymentListQuery.GetPagedAsync(request);
             var items = result.Items.ToList();
             await EnrichVendorCodesAsync(items);
+            await EnrichVendorBankNamesAsync(items);
             await EnrichPaymentBankNamesAsync(items);
             await EnrichCreateUserNamesAsync(items);
             return new PagedResult<FinancePayment>
@@ -218,12 +232,25 @@ namespace CRM.Core.Services
             if (request.PaymentDate.HasValue) payment.PaymentDate = PostgreSqlDateTime.ToUtc(request.PaymentDate.Value);
             if (request.PaymentMode.HasValue) payment.PaymentMode = request.PaymentMode.Value;
             if (request.BankSlipNo != null) payment.BankSlipNo = request.BankSlipNo;
-            if (request.FinancePaymentBankId != null)
+            if (request.CompanyBankId != null)
             {
-                await ValidateFinancePaymentBankIdAsync(request.FinancePaymentBankId);
-                payment.FinancePaymentBankId = string.IsNullOrWhiteSpace(request.FinancePaymentBankId)
-                    ? null
-                    : request.FinancePaymentBankId.Trim();
+                if (string.IsNullOrWhiteSpace(request.CompanyBankId))
+                    payment.CompanyBankId = null;
+                else
+                {
+                    await ValidateCompanyBankIdAsync(request.CompanyBankId);
+                    payment.CompanyBankId = request.CompanyBankId.Trim();
+                }
+            }
+            if (request.VendorBankId != null || request.FinancePaymentBankId != null)
+            {
+                var (vendorBankId, financePaymentBankId) = await ResolvePaymentVendorBankAsync(
+                    payment.VendorId,
+                    request.VendorBankId ?? payment.VendorBankId,
+                    request.FinancePaymentBankId ?? payment.FinancePaymentBankId,
+                    request.PaymentMode ?? payment.PaymentMode);
+                payment.VendorBankId = vendorBankId;
+                payment.FinancePaymentBankId = financePaymentBankId;
             }
             if (request.RequestRemark != null)
                 payment.RequestRemark = string.IsNullOrWhiteSpace(request.RequestRemark) ? null : request.RequestRemark.Trim();
@@ -246,6 +273,7 @@ namespace CRM.Core.Services
             await _paymentRepo.UpdateAsync(payment);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
             await EnrichVendorCodesAsync(new[] { payment });
+            await EnrichVendorBankNamesAsync(new[] { payment });
             await EnrichPaymentBankNamesAsync(new[] { payment });
             await EnrichCreateUserNamesAsync(new[] { payment });
             return payment;
@@ -451,27 +479,159 @@ namespace CRM.Core.Services
             if (bank.IsDisabled) throw new ArgumentException("所选付款银行已禁用");
         }
 
+        private async Task ValidateCompanyBankIdAsync(string? bankId)
+        {
+            if (string.IsNullOrWhiteSpace(bankId)) return;
+            var id = bankId.Trim();
+            var bank = await _companyBankRepo.GetByIdAsync(id);
+            if (bank == null) throw new ArgumentException("公司付款银行账户不存在");
+            if (!bank.Enabled) throw new ArgumentException("所选公司银行账户已停用");
+        }
+
+        private async Task<(string? VendorBankId, string? FinancePaymentBankId)> ResolvePaymentVendorBankAsync(
+            string vendorId,
+            string? vendorBankId,
+            string? financePaymentBankId,
+            short paymentMode)
+        {
+            if (!string.IsNullOrWhiteSpace(vendorBankId))
+            {
+                var id = vendorBankId.Trim();
+                var banks = await _vendorBankRepo.FindAsync(b => b.Id == id);
+                var bank = banks.FirstOrDefault()
+                    ?? throw new ArgumentException("供应商银行不存在");
+                if (!bank.IsEnabled)
+                    throw new ArgumentException("所选供应商银行已停用");
+                if (!string.Equals(bank.VendorId?.Trim(), vendorId.Trim(), StringComparison.OrdinalIgnoreCase))
+                    throw new ArgumentException("供应商银行与当前供应商不匹配");
+
+                if (!string.IsNullOrWhiteSpace(financePaymentBankId))
+                {
+                    await ValidateFinancePaymentBankIdAsync(financePaymentBankId);
+                    return (bank.Id, financePaymentBankId.Trim());
+                }
+
+                var linkedPaymentBankId = bank.FinancePaymentBankId?.Trim();
+                if (!string.IsNullOrWhiteSpace(linkedPaymentBankId))
+                    await ValidateFinancePaymentBankIdAsync(linkedPaymentBankId);
+
+                return (bank.Id, linkedPaymentBankId);
+            }
+
+            if (paymentMode == 1)
+                throw new ArgumentException("请选择供应商银行");
+
+            if (!string.IsNullOrWhiteSpace(financePaymentBankId))
+            {
+                await ValidateFinancePaymentBankIdAsync(financePaymentBankId);
+                return (null, financePaymentBankId.Trim());
+            }
+
+            return (null, null);
+        }
+
+        private async Task EnrichVendorBankNamesAsync(IReadOnlyList<FinancePayment> items)
+        {
+            var list = items.Where(p => p != null).ToList();
+            if (list.Count == 0) return;
+            var vendorBankIds = list
+                .Select(p => p.VendorBankId)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (vendorBankIds.Count == 0) return;
+
+            var vendorBanks = (await _vendorBankRepo.FindAsync(b => vendorBankIds.Contains(b.Id))).ToList();
+            var vendorBankMap = vendorBanks
+                .Where(b => !string.IsNullOrWhiteSpace(b.Id))
+                .GroupBy(b => b.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var paymentBankIds = vendorBanks
+                .Select(b => b.FinancePaymentBankId)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var paymentBankNameMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (paymentBankIds.Count > 0)
+            {
+                var paymentBanks = (await _paymentBankRepo.FindAsync(b => paymentBankIds.Contains(b.Id))).ToList();
+                paymentBankNameMap = paymentBanks
+                    .Where(b => !string.IsNullOrWhiteSpace(b.Id) && !string.IsNullOrWhiteSpace(b.BankName))
+                    .GroupBy(b => b.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First().BankName.Trim(), StringComparer.OrdinalIgnoreCase);
+            }
+
+            foreach (var p in list)
+            {
+                if (string.IsNullOrWhiteSpace(p.VendorBankId)) continue;
+                if (!vendorBankMap.TryGetValue(p.VendorBankId.Trim(), out var vendorBank)) continue;
+
+                string? name = null;
+                var linkedId = vendorBank.FinancePaymentBankId?.Trim();
+                if (!string.IsNullOrWhiteSpace(linkedId) && paymentBankNameMap.TryGetValue(linkedId, out var linkedName))
+                    name = linkedName;
+                else if (!string.IsNullOrWhiteSpace(vendorBank.BankName))
+                    name = vendorBank.BankName.Trim();
+
+                if (!string.IsNullOrWhiteSpace(name))
+                    p.VendorBankName = name;
+            }
+        }
+
         private async Task EnrichPaymentBankNamesAsync(IReadOnlyList<FinancePayment> items)
         {
             var list = items.Where(p => p != null).ToList();
             if (list.Count == 0) return;
-            var ids = list
+
+            var companyBankIds = list
+                .Select(p => p.CompanyBankId)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var companyBankMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (companyBankIds.Count > 0)
+            {
+                var companyBanks = (await _companyBankRepo.FindAsync(b => companyBankIds.Contains(b.Id))).ToList();
+                companyBankMap = companyBanks
+                    .Where(b => !string.IsNullOrWhiteSpace(b.Id) && !string.IsNullOrWhiteSpace(b.BankName))
+                    .GroupBy(b => b.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First().BankName.Trim(), StringComparer.OrdinalIgnoreCase);
+            }
+
+            var financeBankIds = list
+                .Where(p => string.IsNullOrWhiteSpace(p.CompanyBankId))
                 .Select(p => p.FinancePaymentBankId)
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .Select(s => s!.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            if (ids.Count == 0) return;
-            var banks = (await _paymentBankRepo.FindAsync(b => ids.Contains(b.Id))).ToList();
-            var map = banks
-                .Where(b => !string.IsNullOrWhiteSpace(b.Id))
-                .GroupBy(b => b.Id.Trim(), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First().BankName, StringComparer.OrdinalIgnoreCase);
+            var financeBankMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (financeBankIds.Count > 0)
+            {
+                var banks = (await _paymentBankRepo.FindAsync(b => financeBankIds.Contains(b.Id))).ToList();
+                financeBankMap = banks
+                    .Where(b => !string.IsNullOrWhiteSpace(b.Id))
+                    .GroupBy(b => b.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First().BankName, StringComparer.OrdinalIgnoreCase);
+            }
+
             foreach (var p in list)
             {
+                if (!string.IsNullOrWhiteSpace(p.CompanyBankId))
+                {
+                    var cid = p.CompanyBankId.Trim();
+                    if (companyBankMap.TryGetValue(cid, out var companyName) && !string.IsNullOrWhiteSpace(companyName))
+                        p.PaymentBankName = companyName;
+                    continue;
+                }
+
                 if (string.IsNullOrWhiteSpace(p.FinancePaymentBankId)) continue;
                 var bid = p.FinancePaymentBankId.Trim();
-                if (map.TryGetValue(bid, out var name) && !string.IsNullOrWhiteSpace(name))
+                if (financeBankMap.TryGetValue(bid, out var name) && !string.IsNullOrWhiteSpace(name))
                     p.PaymentBankName = name.Trim();
             }
         }

@@ -884,8 +884,16 @@ namespace CRM.API.Controllers
             public string? BankAccount { get; set; }
             public string? AccountName { get; set; }
             public string? BankBranch { get; set; }
+            public string? BankAddress { get; set; }
+            public string? Swift { get; set; }
+            public string? Iban { get; set; }
+            public string? BankCode { get; set; }
+            public string? Country { get; set; }
+            public string? AccountType { get; set; }
+            public string? PurposeType { get; set; }
             public short? Currency { get; set; }
             public bool IsDefault { get; set; } = false;
+            public bool IsEnabled { get; set; } = true;
             public string? Remark { get; set; }
         }
 
@@ -920,8 +928,16 @@ namespace CRM.API.Controllers
                     BankAccount = request.BankAccount,
                     AccountName = request.AccountName,
                     BankBranch = request.BankBranch,
+                    BankAddress = request.BankAddress,
+                    Swift = request.Swift,
+                    Iban = request.Iban,
+                    BankCode = request.BankCode,
+                    Country = request.Country,
+                    AccountType = request.AccountType,
+                    PurposeType = request.PurposeType,
                     Currency = request.Currency,
                     IsDefault = request.IsDefault,
+                    IsEnabled = request.IsEnabled,
                     Remark = request.Remark
                 });
                 return Ok(ApiResponse<VendorBankInfo>.Ok(bank, "添加银行信息成功"));

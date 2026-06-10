@@ -59,6 +59,48 @@ namespace CRM.Core.Models.Vendor
         public string? BankBranch { get; set; }
 
         /// <summary>
+        /// 银行地址
+        /// </summary>
+        [StringLength(500)]
+        public string? BankAddress { get; set; }
+
+        /// <summary>
+        /// 国际银行代码 SWIFT
+        /// </summary>
+        [StringLength(64)]
+        public string? Swift { get; set; }
+
+        /// <summary>
+        /// 国际银行账号 IBAN
+        /// </summary>
+        [StringLength(64)]
+        public string? Iban { get; set; }
+
+        /// <summary>
+        /// 联行号 / 银行号
+        /// </summary>
+        [StringLength(32)]
+        public string? BankCode { get; set; }
+
+        /// <summary>
+        /// 所在国家
+        /// </summary>
+        [StringLength(100)]
+        public string? Country { get; set; }
+
+        /// <summary>
+        /// 账户类型：rmb / foreign
+        /// </summary>
+        [StringLength(32)]
+        public string AccountType { get; set; } = "rmb";
+
+        /// <summary>
+        /// 用途：payment / receipt
+        /// </summary>
+        [StringLength(32)]
+        public string PurposeType { get; set; } = "payment";
+
+        /// <summary>
         /// 币别
         /// </summary>
         public short? Currency { get; set; }
@@ -67,6 +109,11 @@ namespace CRM.Core.Models.Vendor
         /// 是否默认账户
         /// </summary>
         public bool IsDefault { get; set; } = false;
+
+        /// <summary>
+        /// 是否启用
+        /// </summary>
+        public bool IsEnabled { get; set; } = true;
 
         /// <summary>
         /// 备注

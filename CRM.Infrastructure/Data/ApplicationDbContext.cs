@@ -563,6 +563,13 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.BankAccount).HasMaxLength(50);
                 entity.Property(e => e.AccountName).HasMaxLength(50);
                 entity.Property(e => e.BankBranch).HasMaxLength(100);
+                entity.Property(e => e.BankAddress).HasMaxLength(500);
+                entity.Property(e => e.Swift).HasMaxLength(64);
+                entity.Property(e => e.Iban).HasMaxLength(64);
+                entity.Property(e => e.BankCode).HasMaxLength(32);
+                entity.Property(e => e.Country).HasMaxLength(100);
+                entity.Property(e => e.AccountType).HasMaxLength(32);
+                entity.Property(e => e.PurposeType).HasMaxLength(32);
             });
 
             // Vendor Contact History configuration
@@ -1664,6 +1671,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.FinancePaymentCode).IsRequired().HasMaxLength(16);
                 entity.Property(e => e.BankSlipNo).HasMaxLength(100);
                 entity.Property(e => e.FinancePaymentBankId).HasMaxLength(36);
+                entity.Property(e => e.CompanyBankId).HasMaxLength(36);
+                entity.Property(e => e.VendorBankId).HasMaxLength(36);
                 entity.Property(e => e.RequestRemark).HasMaxLength(500);
                 entity.Property(e => e.FeeIntermediateBank).HasColumnType("numeric(18,2)");
                 entity.Property(e => e.FeeBankCharge).HasColumnType("numeric(18,2)");
@@ -1676,6 +1685,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.PaymentTotalAmount).HasColumnType("numeric(18,2)");
                 entity.HasIndex(e => e.FinancePaymentCode).IsUnique();
                 entity.HasIndex(e => e.FinancePaymentBankId);
+                entity.HasIndex(e => e.CompanyBankId);
+                entity.HasIndex(e => e.VendorBankId);
                 entity.HasMany(e => e.Items)
                     .WithOne(i => i.Payment)
                     .HasForeignKey(i => i.FinancePaymentId)

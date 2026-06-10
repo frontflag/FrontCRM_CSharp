@@ -780,6 +780,20 @@ namespace CRM.Core.Services
             }
         }
 
+        private static string NormalizeVendorBankAccountType(string? accountType, short? currency)
+        {
+            var normalized = accountType?.Trim().ToLowerInvariant();
+            if (normalized is "rmb" or "foreign")
+                return normalized;
+            return currency == 1 ? "rmb" : "foreign";
+        }
+
+        private static string NormalizeVendorBankPurposeType(string? purposeType)
+        {
+            var normalized = purposeType?.Trim().ToLowerInvariant();
+            return normalized is "payment" or "receipt" ? normalized : "payment";
+        }
+
         private async Task ResetDefaultBankAsync(string vendorId)
         {
             var list = await _bankRepository.FindAsync(b => b.VendorId == vendorId && b.IsDefault);
@@ -832,8 +846,16 @@ namespace CRM.Core.Services
                 BankAccount = request.BankAccount?.Trim(),
                 AccountName = request.AccountName?.Trim(),
                 BankBranch = request.BankBranch?.Trim(),
+                BankAddress = request.BankAddress?.Trim(),
+                Swift = request.Swift?.Trim(),
+                Iban = request.Iban?.Trim(),
+                BankCode = request.BankCode?.Trim(),
+                Country = request.Country?.Trim(),
+                AccountType = NormalizeVendorBankAccountType(request.AccountType, request.Currency),
+                PurposeType = NormalizeVendorBankPurposeType(request.PurposeType),
                 Currency = request.Currency,
                 IsDefault = request.IsDefault,
+                IsEnabled = request.IsEnabled,
                 Remark = request.Remark?.Trim(),
                 CreateTime = DateTime.UtcNow
             };
@@ -864,8 +886,19 @@ namespace CRM.Core.Services
             if (request.BankAccount != null) bank.BankAccount = request.BankAccount.Trim();
             if (request.AccountName != null) bank.AccountName = request.AccountName.Trim();
             if (request.BankBranch != null) bank.BankBranch = request.BankBranch.Trim();
+            if (request.BankAddress != null) bank.BankAddress = request.BankAddress.Trim();
+            if (request.Swift != null) bank.Swift = request.Swift.Trim();
+            if (request.Iban != null) bank.Iban = request.Iban.Trim();
+            if (request.BankCode != null) bank.BankCode = request.BankCode.Trim();
+            if (request.Country != null) bank.Country = request.Country.Trim();
+            if (request.AccountType != null)
+                bank.AccountType = NormalizeVendorBankAccountType(request.AccountType, request.Currency ?? bank.Currency);
+            else if (request.Currency.HasValue)
+                bank.AccountType = NormalizeVendorBankAccountType(null, request.Currency.Value);
+            if (request.PurposeType != null) bank.PurposeType = NormalizeVendorBankPurposeType(request.PurposeType);
             if (request.Currency.HasValue) bank.Currency = request.Currency.Value;
             if (request.IsDefault.HasValue) bank.IsDefault = request.IsDefault.Value;
+            if (request.IsEnabled.HasValue) bank.IsEnabled = request.IsEnabled.Value;
             if (request.Remark != null) bank.Remark = request.Remark.Trim();
 
             bank.ModifyTime = DateTime.UtcNow;

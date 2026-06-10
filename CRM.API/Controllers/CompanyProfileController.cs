@@ -58,7 +58,7 @@ namespace CRM.API.Controllers
 
         /// <summary>采购/销售订单报表等场景：仅需读取公司参数，不要求「参数管理」权限。</summary>
         [HttpGet("report-bundle")]
-        [RequireAnyPermission("purchase-order.read", "sales-order.read", "vendor.read")]
+        [RequireAnyPermission("purchase-order.read", "sales-order.read", "vendor.read", "finance-payment.read", "finance-payment.write")]
         public async Task<ActionResult<ApiResponse<CompanyProfileBundleDto>>> GetReportBundle(CancellationToken ct)
         {
             try

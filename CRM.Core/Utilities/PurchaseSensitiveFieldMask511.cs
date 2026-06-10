@@ -45,6 +45,8 @@ public static class PurchaseSensitiveFieldMask511
         foreach (var x in rows)
         {
             x.VendorName = null;
+            x.VendorEnglishName = null;
+            x.VendorCode = null;
             x.VendorId = null;
             x.TotalAmount = 0m;
             x.CurrencyCode = null;
@@ -93,6 +95,8 @@ public static class PurchaseSensitiveFieldMask511
         foreach (var x in rows)
         {
             x.VendorName = null;
+            x.VendorEnglishName = null;
+            x.VendorCode = null;
             x.PurchasePrice = 0m;
             x.PurchasePriceUsd = 0m;
         }
@@ -104,6 +108,8 @@ public static class PurchaseSensitiveFieldMask511
         foreach (var x in rows)
         {
             x.VendorName = null;
+            x.VendorEnglishName = null;
+            x.VendorCode = null;
             x.PurchasePrice = 0m;
             x.PurchasePriceUsd = 0m;
             x.ProfitOutBizUsd = 0m;
@@ -187,6 +193,9 @@ public static class PurchaseSensitiveFieldMask511
         p.VendorId = string.Empty;
         p.VendorName = null;
         p.VendorCode = null;
+        p.VendorBankId = null;
+        p.VendorBankName = null;
+        p.CompanyBankId = null;
         p.FinancePaymentBankId = null;
         p.PaymentBankName = null;
         p.RequestRemark = null;

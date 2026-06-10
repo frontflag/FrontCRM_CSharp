@@ -31,8 +31,10 @@ namespace CRM.Core.Interfaces
         public string? PaymentUserId { get; set; }
         public short PaymentMode { get; set; } = 1;
         public string? BankSlipNo { get; set; }
-        /// <summary>财务参数-付款银行主键；请款时建议必填。</summary>
+        /// <summary>财务参数-付款银行主键；请款时由服务端按 VendorBankId 推导。</summary>
         public string? FinancePaymentBankId { get; set; }
+        /// <summary>供应商银行账户 ID（vendorbankinfo.BankId）；请款时建议必填。</summary>
+        public string? VendorBankId { get; set; }
         /// <summary>请款人申请备注。</summary>
         public string? RequestRemark { get; set; }
         public decimal FeeIntermediateBank { get; set; }
@@ -67,6 +69,9 @@ namespace CRM.Core.Interfaces
         public short? PaymentMode { get; set; }
         public string? BankSlipNo { get; set; }
         public string? FinancePaymentBankId { get; set; }
+        /// <summary>公司付款银行账户主键（company_bankinfo.Id）。</summary>
+        public string? CompanyBankId { get; set; }
+        public string? VendorBankId { get; set; }
         public string? RequestRemark { get; set; }
         public decimal? FeeIntermediateBank { get; set; }
         public decimal? FeeBankCharge { get; set; }

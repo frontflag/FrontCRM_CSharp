@@ -20,16 +20,14 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="12">
-          <el-col :span="12">
-            <el-form-item label="供应商银行" required>
-              <finance-payment-bank-select
-                v-model="paymentForm.vendorBankId"
-                placeholder="请选择供应商银行"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
+        <payment-request-vendor-bank-section
+          v-model="paymentForm.vendorBankId"
+          :vendor-id="paymentForm.vendorId"
+          :banks="paymentForm.vendorBanks"
+          :masked="maskPurchaseSensitiveFields"
+          @maintain="paymentDialogVisible = false"
+        >
+          <template #trailing>
             <el-form-item label="请款方式" required>
               <el-select v-model="paymentForm.paymentMode" style="width: 100%">
                 <el-option label="银行转账" :value="1" />
@@ -38,8 +36,8 @@
                 <el-option label="承兑汇票" :value="4" />
               </el-select>
             </el-form-item>
-          </el-col>
-        </el-row>
+          </template>
+        </payment-request-vendor-bank-section>
         <el-form-item label="请款备注">
           <el-input v-model="paymentForm.remark" type="textarea" :rows="2" />
         </el-form-item>
@@ -143,7 +141,9 @@
       </el-form>
       <template #footer>
         <el-button @click="paymentDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="paymentSubmitting" @click="submitPayment">提交审批</el-button>
+        <el-button type="primary" :loading="paymentSubmitting" :disabled="!hasEnabledVendorBanks" @click="submitPayment">
+          提交审批
+        </el-button>
       </template>
     </el-dialog>
 
@@ -284,7 +284,7 @@ import { computed, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
-import FinancePaymentBankSelect from '@/components/Finance/FinancePaymentBankSelect.vue'
+import PaymentRequestVendorBankSection from '@/components/Vendor/PaymentRequestVendorBankSection.vue'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import { formatCurrencyTotal, formatCurrencyUnitPrice } from '@/utils/moneyFormat'
 import { financePaymentApi } from '@/api/finance'
@@ -292,12 +292,11 @@ import { logisticsApi } from '@/api/logistics'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
-import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBankOptions'
+import { filterEnabledVendorBanks, resolveVendorDefaultBankId } from '@/utils/vendorFinancePaymentBank'
+
 import { vendorBankApi } from '@/api/vendor'
-import { resolveVendorDefaultFinancePaymentBankId } from '@/utils/vendorFinancePaymentBank'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
-const { loadPaymentBankOptions } = useFinancePaymentBankOptions()
 
 const emit = defineEmits<{ success: [] }>()
 
@@ -314,6 +313,7 @@ const paymentForm = reactive<any>({
   vendorName: '',
   purchaseUserName: '',
   vendorBankId: '',
+  vendorBanks: [] as import('@/types/vendor').VendorBankInfo[],
   paymentMode: 1,
   currency: 1,
   remark: '',
@@ -348,6 +348,8 @@ const arrivalForm = reactive<any>({
   remark: '',
   lines: [] as any[]
 })
+
+const hasEnabledVendorBanks = computed(() => filterEnabledVendorBanks(paymentForm.vendorBanks).length > 0)
 
 const paymentTotalAmount = computed(() => {
   const linesTotal = paymentForm.lines.reduce((sum: number, line: any) => sum + Number(line.requestAmount || 0), 0)
@@ -389,16 +391,18 @@ function toDatePickerValue(v: unknown): string {
 
 /** 与 PurchaseOrderItemList 行结构一致 */
 async function openPayment(row: any) {
-  await loadPaymentBankOptions()
   paymentForm.vendorId = row.vendorId || ''
   paymentForm.vendorName = row.vendorName || ''
   paymentForm.purchaseUserName = row.purchaseUserName || ''
   paymentForm.vendorBankId = ''
+  paymentForm.vendorBanks = []
   if (paymentForm.vendorId) {
     try {
       const banks = await vendorBankApi.getBanksByVendorId(paymentForm.vendorId)
-      paymentForm.vendorBankId = resolveVendorDefaultFinancePaymentBankId(banks)
+      paymentForm.vendorBanks = banks
+      paymentForm.vendorBankId = resolveVendorDefaultBankId(banks)
     } catch {
+      paymentForm.vendorBanks = []
       paymentForm.vendorBankId = ''
     }
   }
@@ -532,7 +536,7 @@ async function submitPayment() {
       paymentMode: paymentForm.paymentMode,
       paymentCurrency: paymentForm.currency,
       paymentAmountToBe: paymentTotalAmount.value,
-      financePaymentBankId: paymentForm.vendorBankId,
+      vendorBankId: paymentForm.vendorBankId,
       requestRemark: paymentForm.remark?.trim() || undefined,
       feeIntermediateBank: Number(paymentForm.fee.intermediateBankFee || 0),
       feeBankCharge: Number(paymentForm.fee.bankCharge || 0),

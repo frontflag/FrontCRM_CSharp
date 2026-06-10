@@ -362,8 +362,16 @@ export const vendorBankApi = {
     accountName?: string;
     bankBranch?: string;
     bankAccount?: string;
+    bankAddress?: string;
+    swift?: string;
+    iban?: string;
+    bankCode?: string;
+    country?: string;
+    accountType?: string;
+    purposeType?: string;
     currency?: number;
     isDefault: boolean;
+    isEnabled?: boolean;
     remark?: string;
   }): Promise<VendorBankInfo> {
     const res = await apiClient.post<any>(`/api/v1/vendors/${vendorId}/banks`, data);
@@ -377,8 +385,16 @@ export const vendorBankApi = {
     accountName?: string;
     bankBranch?: string;
     bankAccount?: string;
+    bankAddress?: string;
+    swift?: string;
+    iban?: string;
+    bankCode?: string;
+    country?: string;
+    accountType?: string;
+    purposeType?: string;
     currency?: number;
     isDefault: boolean;
+    isEnabled?: boolean;
     remark?: string;
   }>): Promise<VendorBankInfo> {
     const res = await apiClient.put<any>(`/api/v1/vendor-banks/${bankId}`, data);

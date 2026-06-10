@@ -1,7 +1,20 @@
 import type { FinancePaymentBankDto } from '@/api/financePaymentBank'
 import type { VendorBankInfo } from '@/types/vendor'
 
-/** 供应商默认请款银行：仅使用 vendorbankinfo.FinancePaymentBankId。 */
+/** 仅返回已启用的供应商银行账户。 */
+export function filterEnabledVendorBanks(banks: VendorBankInfo[]): VendorBankInfo[] {
+  return banks.filter((b) => b.isEnabled !== false)
+}
+
+/** 供应商默认请款银行账户 ID（vendorbankinfo.id）。 */
+export function resolveVendorDefaultBankId(banks: VendorBankInfo[]): string {
+  const enabled = filterEnabledVendorBanks(banks)
+  if (!enabled.length) return ''
+  const preferred = enabled.find((b) => b.isDefault) ?? enabled[0]
+  return preferred.id?.trim() ?? ''
+}
+
+/** @deprecated 请使用 resolveVendorDefaultBankId；仅兼容旧逻辑。 */
 export function resolveVendorDefaultFinancePaymentBankId(banks: VendorBankInfo[]): string {
   if (!banks.length) return ''
   const preferred = banks.find((b) => b.isDefault) ?? banks[0]
@@ -20,4 +33,17 @@ export function vendorBankLabel(
     if (hit?.bankName) return hit.bankName
   }
   return bank.bankName?.trim() || '--'
+}
+
+/** 请款下拉：{开户银行名} · {账户名称} · {完整账号} */
+export function formatVendorBankOptionLabel(
+  bank: VendorBankInfo,
+  paymentBankOptions: FinancePaymentBankDto[],
+  masked = false
+): string {
+  if (masked) return '—'
+  const bankName = vendorBankLabel(bank, paymentBankOptions)
+  const accountName = bank.accountName?.trim() || '—'
+  const accountNo = bank.bankAccount?.trim() || '—'
+  return `${bankName} · ${accountName} · ${accountNo}`
 }

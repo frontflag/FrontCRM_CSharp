@@ -284,8 +284,16 @@ namespace CRM.Core.Interfaces
         public string? BankAccount { get; set; }
         public string? AccountName { get; set; }
         public string? BankBranch { get; set; }
+        public string? BankAddress { get; set; }
+        public string? Swift { get; set; }
+        public string? Iban { get; set; }
+        public string? BankCode { get; set; }
+        public string? Country { get; set; }
+        public string? AccountType { get; set; }
+        public string? PurposeType { get; set; }
         public short? Currency { get; set; }
         public bool IsDefault { get; set; } = false;
+        public bool IsEnabled { get; set; } = true;
         public string? Remark { get; set; }
     }
 
@@ -298,8 +306,16 @@ namespace CRM.Core.Interfaces
         public string? BankAccount { get; set; }
         public string? AccountName { get; set; }
         public string? BankBranch { get; set; }
+        public string? BankAddress { get; set; }
+        public string? Swift { get; set; }
+        public string? Iban { get; set; }
+        public string? BankCode { get; set; }
+        public string? Country { get; set; }
+        public string? AccountType { get; set; }
+        public string? PurposeType { get; set; }
         public short? Currency { get; set; }
         public bool? IsDefault { get; set; }
+        public bool? IsEnabled { get; set; }
         public string? Remark { get; set; }
     }
 

@@ -25,8 +25,12 @@ export interface FinancePayment {
   paymentUserId?: string
   paymentMode: number  // 1:银行转账 2:现金 3:支票 4:承兑汇票
   bankSlipNo?: string
-  /** 财务参数-付款银行主键 */
+  /** 财务参数-付款银行主键（请款时由 vendorBankId 推导） */
   financePaymentBankId?: string | null
+  /** 公司付款银行账户主键（company_bankinfo.Id） */
+  companyBankId?: string | null
+  /** 供应商银行账户 ID */
+  vendorBankId?: string | null
   /** 请款申请备注 */
   requestRemark?: string | null
   feeIntermediateBank?: number
@@ -38,6 +42,8 @@ export interface FinancePayment {
   feeIntermediateBankPayer?: string | null
   /** 列表/详情由后端填充 */
   paymentBankName?: string | null
+  /** 列表/详情由后端按 vendorBankId 填充 */
+  vendorBankName?: string | null
   /** 通用备注（审核等） */
   remark?: string | null
   /** 后端 BaseEntity 序列化字段（camelCase: createTime） */

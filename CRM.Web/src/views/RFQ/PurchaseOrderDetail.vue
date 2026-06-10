@@ -841,6 +841,18 @@ const canCancelPurchaseOrderFromMenu = computed(() => {
 const poFavorited = ref(false)
 const favoriteLoading = ref(false)
 const activeTab = ref('items')
+
+const PO_DETAIL_TAB_KEYS = ['items', 'documents', 'changeLog', 'deleteLog'] as const
+
+function applyPoDetailTabFromRoute() {
+  const tab = route.query.tab
+  if (typeof tab === 'string' && (PO_DETAIL_TAB_KEYS as readonly string[]).includes(tab)) {
+    activeTab.value = tab
+  }
+}
+
+watch(() => route.query.tab, applyPoDetailTabFromRoute, { immediate: true })
+
 const changeLogs = ref<PurchaseOrderFieldChangeLogRow[]>([])
 const deletedItems = ref<PurchaseOrderDeletedItemRow[]>([])
 const changeLogsLoading = ref(false)

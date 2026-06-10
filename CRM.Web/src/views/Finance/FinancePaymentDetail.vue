@@ -1,16 +1,27 @@
 <template>
   <div class="finance-detail">
-    <!-- 面包屑 + 返回 -->
+    <!-- 面包屑 + 返回 + 操作 -->
     <div class="detail-header">
-      <el-button link @click="router.back()" class="back-btn">
-        <el-icon><ArrowLeft /></el-icon> {{ t('financePaymentDetail.backToList') }}
-      </el-button>
-      <el-breadcrumb separator="/">
-        <el-breadcrumb-item :to="{ name: 'FinancePaymentList' }">{{ t('financePaymentDetail.breadcrumb') }}</el-breadcrumb-item>
-        <el-breadcrumb-item>
-          <span class="order-code">{{ detail?.financePaymentCode || t('financePaymentDetail.detail') }}</span>
-        </el-breadcrumb-item>
-      </el-breadcrumb>
+      <div class="detail-header__left">
+        <el-button link @click="router.back()" class="back-btn">
+          <el-icon><ArrowLeft /></el-icon> {{ t('financePaymentDetail.backToList') }}
+        </el-button>
+        <el-breadcrumb separator="/">
+          <el-breadcrumb-item :to="{ name: 'FinancePaymentList' }">{{ t('financePaymentDetail.breadcrumb') }}</el-breadcrumb-item>
+          <el-breadcrumb-item>
+            <span class="order-code">{{ detail?.financePaymentCode || t('financePaymentDetail.detail') }}</span>
+          </el-breadcrumb-item>
+        </el-breadcrumb>
+      </div>
+      <div v-if="detail" class="detail-header__actions">
+        <el-button
+          v-if="canShowPayButton"
+          type="warning"
+          @click="payDialogVisible = true"
+        >
+          {{ t('financePaymentList.actions.pay') }}
+        </el-button>
+      </div>
     </div>
 
     <div v-if="loading" class="loading-wrap">
@@ -43,8 +54,11 @@
           <el-descriptions-item :label="t('financePaymentDetail.labels.mode')">{{ paymentModeLabel(detail.paymentMode) }}</el-descriptions-item>
           <el-descriptions-item :label="t('financePaymentDetail.labels.date')">{{ detail.paymentDate ? formatDisplayDate(detail.paymentDate) : '-' }}</el-descriptions-item>
           <el-descriptions-item :label="t('financePaymentDetail.labels.bankSlip')">{{ (detail as any).bankSlipNo || '-' }}</el-descriptions-item>
-          <el-descriptions-item :label="t('financePaymentDetail.labels.paymentBank')" :span="2">
-            {{ detail.paymentBankName || '—' }}
+          <el-descriptions-item :label="t('financePaymentDetail.labels.vendorReceivingBank')">
+            {{ maskPurchaseSensitiveFields ? '—' : (detail.vendorBankName || '—') }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('financePaymentDetail.labels.paymentBank')">
+            {{ maskPurchaseSensitiveFields ? '—' : (detail.paymentBankName || '—') }}
           </el-descriptions-item>
           <el-descriptions-item :label="t('financePaymentDetail.labels.requestRemark')" :span="2">
             {{ detail.requestRemark || '—' }}
@@ -54,48 +68,110 @@
         </el-descriptions>
       </div>
 
-      <!-- 付款明细 -->
-      <div class="tab-card">
-        <div class="card-title">
-          <span class="title-bar"></span>
-          <span>{{ t('financePaymentDetail.paymentLines') }}</span>
+      <!-- 付款明细 | 文档（采购订单关联文档） -->
+      <div class="tab-card payment-lines-card">
+        <div class="tabs-section payment-lines-tabs">
+          <div class="tabs-nav">
+            <button
+              class="tab-btn"
+              :class="{ 'tab-btn--active': paymentLinesActiveTab === 'items' }"
+              @click="paymentLinesActiveTab = 'items'"
+            >
+              {{ t('financePaymentDetail.paymentLines') }}
+            </button>
+            <button
+              v-if="!maskPurchaseSensitiveFields"
+              class="tab-btn"
+              :class="{ 'tab-btn--active': paymentLinesActiveTab === 'documents' }"
+              @click="paymentLinesActiveTab = 'documents'"
+            >
+              {{ t('financePaymentDetail.tabDocuments') }}
+            </button>
+          </div>
+          <div class="tabs-body">
+            <div v-show="paymentLinesActiveTab === 'items'">
+              <el-empty v-if="!detail.items?.length" :description="t('financePaymentDetail.noItems')" :image-size="80" />
+              <CrmDataTable v-else :data="paymentLineRows" size="small">
+                <el-table-column type="index" width="50" label="#" />
+                <el-table-column prop="purchaseOrderCode" :label="t('financePaymentDetail.labels.poCode')" min-width="160" show-overflow-tooltip />
+                <el-table-column prop="pn" :label="t('financePaymentDetail.labels.pn')" min-width="150" />
+                <el-table-column prop="brand" :label="t('financePaymentDetail.labels.brand')" width="120" />
+                <el-table-column prop="qty" :label="t('financePaymentDetail.labels.qty')" width="100" align="right">
+                  <template #default="{ row }">
+                    {{ row.qty ?? '-' }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="cost" :label="t('financePaymentDetail.labels.unitPrice')" width="130" align="right">
+                  <template #default="{ row }">
+                    {{ row.cost == null ? '-' : formatAmount(Number(row.cost)) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="paymentAmount" :label="t('financePaymentDetail.labels.paidAmount')" width="130" align="right">
+                  <template #default="{ row }">
+                    {{ formatAmount(row.paymentAmount) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="purchaseOrderCreateTime" :label="t('financePaymentDetail.labels.poCreatedAt')" width="170">
+                  <template #default="{ row }">
+                    {{ row.purchaseOrderCreateTime ? formatDisplayDateTime(row.purchaseOrderCreateTime) : '-' }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="purchaseOrderCreateUserName" :label="t('financePaymentDetail.labels.creator')" width="120" show-overflow-tooltip />
+                <el-table-column prop="lineRemark" :label="t('financePaymentDetail.labels.lineRemark')" min-width="120" show-overflow-tooltip />
+                <el-table-column :label="t('financePaymentDetail.labels.verifyStatus')" width="120" align="center">
+                  <template #default="{ row }">
+                    <el-tag effect="dark" size="small" :type="row.verificationStatus === 2 ? 'success' : row.verificationStatus === 1 ? 'warning' : 'info'">
+                      {{ verificationStatusLabel(row.verificationStatus) }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+              </CrmDataTable>
+            </div>
+            <div v-show="paymentLinesActiveTab === 'documents' && !maskPurchaseSensitiveFields" class="doc-tab-content">
+              <el-empty
+                v-if="!relatedPurchaseOrders.length"
+                :description="t('financePaymentDetail.noRelatedPo')"
+                :image-size="80"
+              />
+              <template v-else>
+                <div v-if="relatedPurchaseOrders.length > 1" class="po-doc-toolbar">
+                  <span class="po-doc-toolbar__label">{{ t('financePaymentDetail.selectPoForDocs') }}</span>
+                  <el-select v-model="selectedPoIdForDocs" style="width: 220px">
+                    <el-option
+                      v-for="po in relatedPurchaseOrders"
+                      :key="po.id"
+                      :label="po.code"
+                      :value="po.id"
+                    />
+                  </el-select>
+                  <router-link
+                    v-if="selectedPoIdForDocs"
+                    class="po-doc-toolbar__link"
+                    :to="{ name: 'PurchaseOrderDetail', params: { id: selectedPoIdForDocs }, query: { tab: 'documents' } }"
+                  >
+                    {{ t('financePaymentDetail.openPoDocuments') }}
+                  </router-link>
+                </div>
+                <div v-else class="po-doc-toolbar po-doc-toolbar--single">
+                  <span class="po-doc-toolbar__label">{{ t('financePaymentDetail.poDocSource', { code: relatedPurchaseOrders[0].code }) }}</span>
+                  <router-link
+                    class="po-doc-toolbar__link"
+                    :to="{ name: 'PurchaseOrderDetail', params: { id: relatedPurchaseOrders[0].id }, query: { tab: 'documents' } }"
+                  >
+                    {{ t('financePaymentDetail.openPoDocuments') }}
+                  </router-link>
+                </div>
+                <DocumentListPanel
+                  v-if="selectedPoIdForDocs"
+                  biz-type="PURCHASE_ORDER"
+                  :biz-id="selectedPoIdForDocs"
+                  view-mode="list"
+                  readonly
+                />
+              </template>
+            </div>
+          </div>
         </div>
-        <el-empty v-if="!detail.items?.length" :description="t('financePaymentDetail.noItems')" :image-size="80" />
-        <CrmDataTable v-else :data="paymentLineRows" size="small">
-          <el-table-column type="index" width="50" label="#" />
-          <el-table-column prop="purchaseOrderCode" :label="t('financePaymentDetail.labels.poCode')" min-width="160" show-overflow-tooltip />
-          <el-table-column prop="pn" :label="t('financePaymentDetail.labels.pn')" min-width="150" />
-          <el-table-column prop="brand" :label="t('financePaymentDetail.labels.brand')" width="120" />
-          <el-table-column prop="qty" :label="t('financePaymentDetail.labels.qty')" width="100" align="right">
-            <template #default="{ row }">
-              {{ row.qty ?? '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="cost" :label="t('financePaymentDetail.labels.unitPrice')" width="130" align="right">
-            <template #default="{ row }">
-              {{ row.cost == null ? '-' : formatAmount(Number(row.cost)) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="paymentAmount" :label="t('financePaymentDetail.labels.paidAmount')" width="130" align="right">
-            <template #default="{ row }">
-              {{ formatAmount(row.paymentAmount) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="purchaseOrderCreateTime" :label="t('financePaymentDetail.labels.poCreatedAt')" width="170">
-            <template #default="{ row }">
-              {{ row.purchaseOrderCreateTime ? formatDisplayDateTime(row.purchaseOrderCreateTime) : '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="purchaseOrderCreateUserName" :label="t('financePaymentDetail.labels.creator')" width="120" show-overflow-tooltip />
-          <el-table-column prop="lineRemark" :label="t('financePaymentDetail.labels.lineRemark')" min-width="120" show-overflow-tooltip />
-          <el-table-column :label="t('financePaymentDetail.labels.verifyStatus')" width="120" align="center">
-            <template #default="{ row }">
-              <el-tag effect="dark" size="small" :type="row.verificationStatus === 2 ? 'success' : row.verificationStatus === 1 ? 'warning' : 'info'">
-                {{ verificationStatusLabel(row.verificationStatus) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-        </CrmDataTable>
       </div>
 
       <!-- 银行水单附件 -->
@@ -106,76 +182,42 @@
         </div>
         <el-alert type="info" :closable="false" show-icon :title="t('common.crossSideAttachmentsRestricted')" />
       </div>
-      <div v-else class="tab-card">
+      <div v-else class="tab-card bank-slip-card">
         <div class="card-title">
           <span class="title-bar"></span>
           <span>{{ t('financePaymentDetail.bankSlip') }}</span>
         </div>
-        <el-empty v-if="!paymentDocs.length" :description="t('financePaymentDetail.noAttachments')" :image-size="80" />
-        <CrmDataTable v-else :data="paymentDocs" size="small">
-          <el-table-column type="index" width="50" label="#" />
-          <el-table-column prop="originalFileName" :label="t('financePaymentDetail.labels.fileName')" min-width="260" show-overflow-tooltip />
-          <el-table-column prop="remark" :label="t('financePaymentDetail.labels.remark')" min-width="140" show-overflow-tooltip />
-          <el-table-column prop="createTime" :label="t('financePaymentDetail.labels.uploadTime')" width="170">
-            <template #default="{ row }">
-              {{ row.createTime ? formatDisplayDateTime(row.createTime) : '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column
-            :label="t('financePaymentDetail.labels.actions')"
-            :width="paymentDocsOpColWidth"
-            :min-width="paymentDocsOpColMinWidth"
-            fixed="right"
-            align="center"
-            class-name="op-col"
-            label-class-name="op-col"
-          >
-            <template #header>
-              <div class="list-op-col-header--icon-only">
-            <button
-              type="button"
-              class="op-col-toggle-btn list-op-col-toggle"
-              :aria-label="paymentDocsOpColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
-              @click.stop="togglePaymentDocsOpCol"
-            >
-              {{ paymentDocsOpColExpanded ? '>' : '<' }}
-            </button>
-          </div>
-            </template>
-            <template #default="{ row }">
-              <div @click.stop @dblclick.stop>
-                <div v-if="paymentDocsOpColExpanded" class="action-btns">
-                  <el-button size="small" text type="primary" @click.stop="previewDoc(row)">{{ t('financePaymentDetail.preview') }}</el-button>
-                  <el-button size="small" text type="primary" @click.stop="downloadDoc(row)">{{ t('financePaymentDetail.download') }}</el-button>
-                </div>
-                <el-dropdown v-else trigger="click" placement="bottom-end">
-                  <div class="op-more-dropdown-trigger">
-                    <button type="button" class="op-more-trigger">...</button>
-                  </div>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item @click.stop="previewDoc(row)">
-                        <span class="op-more-item op-more-item--primary">{{ t('financePaymentDetail.preview') }}</span>
-                      </el-dropdown-item>
-                      <el-dropdown-item divided @click.stop="downloadDoc(row)">
-                        <span class="op-more-item op-more-item--primary">{{ t('financePaymentDetail.download') }}</span>
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
-              </div>
-            </template>
-          </el-table-column>
-        </CrmDataTable>
+        <DocumentUploadPanel
+          v-if="paymentId"
+          biz-type="FINANCE_PAYMENT"
+          :biz-id="paymentId"
+          :max-files="20"
+          :max-size-mb="100"
+          @uploaded="paymentSlipDocListRef?.refresh()"
+        />
+        <DocumentListPanel
+          v-if="paymentId"
+          ref="paymentSlipDocListRef"
+          biz-type="FINANCE_PAYMENT"
+          :biz-id="paymentId"
+          view-mode="list"
+          style="margin-top: 16px;"
+        />
       </div>
     </template>
 
     <el-empty v-else :description="t('financePaymentDetail.notFound')" />
+
+    <FinancePaymentPayDialog
+      v-model="payDialogVisible"
+      :payment="detail"
+      @success="onPayDialogSuccess"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useFinanceEnumLabels } from '@/composables/useFinanceEnumLabels'
@@ -185,25 +227,69 @@ import {
   CURRENCY_MAP,
   type FinancePayment,
 } from '@/api/finance'
-import { documentApi, type UploadDocumentDto } from '@/api/document'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { vendorApi } from '@/api/vendor'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
+import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
+import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
+import FinancePaymentPayDialog from '@/components/Finance/FinancePaymentPayDialog.vue'
+import { useFinanceWriteGate } from '@/composables/useDepartmentDataReadOnly'
 
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const { paymentStatusLabel, paymentStatusTag, paymentModeLabel, verificationStatusLabel } = useFinanceEnumLabels()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const { canWriteFinancePayment: canFinancePaymentWrite } = useFinanceWriteGate()
 
 const loading = ref(false)
+const payDialogVisible = ref(false)
 const detail = ref<FinancePayment | null>(null)
 const paymentLineRows = ref<any[]>([])
-const paymentDocs = ref<UploadDocumentDto[]>([])
 const vendorDisplayName = ref('-')
-
+const paymentLinesActiveTab = ref<'items' | 'documents'>('items')
+const selectedPoIdForDocs = ref('')
+const paymentSlipDocListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
 const paymentId = computed(() => route.params.id as string)
+
+const canShowPayButton = computed(() => {
+  if (!canFinancePaymentWrite.value || !detail.value) return false
+  return [1, -1, 10].includes(detail.value.status)
+})
+
+const onPayDialogSuccess = async () => {
+  await fetchDetail()
+  paymentSlipDocListRef.value?.refresh()
+}
+
+const relatedPurchaseOrders = computed(() => {
+  const map = new Map<string, { id: string; code: string }>()
+  for (const row of paymentLineRows.value) {
+    const id = String(row?.purchaseOrderId || '').trim()
+    if (!id) continue
+    const code = String(row?.purchaseOrderCode || id)
+    if (!map.has(id)) map.set(id, { id, code })
+  }
+  return Array.from(map.values())
+})
+
+watch(relatedPurchaseOrders, (list) => {
+  if (!list.length) {
+    selectedPoIdForDocs.value = ''
+    return
+  }
+  const current = selectedPoIdForDocs.value
+  if (!current || !list.some((po) => po.id === current)) {
+    selectedPoIdForDocs.value = list[0].id
+  }
+}, { immediate: true })
+
+watch(maskPurchaseSensitiveFields, (masked) => {
+  if (masked && paymentLinesActiveTab.value === 'documents') {
+    paymentLinesActiveTab.value = 'items'
+  }
+})
 
 const feeSummaryText = computed(() => {
   const d = detail.value
@@ -213,21 +299,6 @@ const feeSummaryText = computed(() => {
   const payer = (d.feeIntermediateBankPayer || '—').trim() || '—'
   return `${sym} ${t('financePaymentDetail.labels.feeIntermediateBank')}${f(d.feeIntermediateBank)} · ${t('financePaymentDetail.labels.feeBankCharge')}${f(d.feeBankCharge)} · ${t('financePaymentDetail.labels.feeFreight')}${f(d.feeFreight)} · ${t('financePaymentDetail.labels.feeMisc')}${f(d.feeMisc)} · ${t('financePaymentDetail.labels.feeRounding')}${f(d.feeRounding)} · ${t('financePaymentDetail.labels.feePayer')}${payer}`
 })
-
-/** 《列表操作列规范》：银行水单附件表 */
-const paymentDocsOpColExpanded = ref(false)
-const PAYMENT_DOCS_OP_COL_COLLAPSED = 43
-const PAYMENT_DOCS_OP_COL_EXPANDED = 173
-const PAYMENT_DOCS_OP_COL_EXPANDED_MIN = 160
-const paymentDocsOpColWidth = computed(() =>
-  paymentDocsOpColExpanded.value ? PAYMENT_DOCS_OP_COL_EXPANDED : PAYMENT_DOCS_OP_COL_COLLAPSED
-)
-const paymentDocsOpColMinWidth = computed(() =>
-  paymentDocsOpColExpanded.value ? PAYMENT_DOCS_OP_COL_EXPANDED_MIN : PAYMENT_DOCS_OP_COL_COLLAPSED
-)
-function togglePaymentDocsOpCol() {
-  paymentDocsOpColExpanded.value = !paymentDocsOpColExpanded.value
-}
 
 onMounted(() => {
   fetchDetail()
@@ -239,31 +310,13 @@ const fetchDetail = async () => {
     // apiClient 拦截器已解包，直接返回业务数据
     detail.value = await financePaymentApi.getById(paymentId.value)
     await buildPaymentLineRows()
-    await loadPaymentDocs()
     await resolveVendorDisplayName()
   } catch {
     detail.value = null
     paymentLineRows.value = []
-    paymentDocs.value = []
     vendorDisplayName.value = '-'
   } finally {
     loading.value = false
-  }
-}
-
-const loadPaymentDocs = async () => {
-  if (!paymentId.value) {
-    paymentDocs.value = []
-    return
-  }
-  if (maskPurchaseSensitiveFields.value) {
-    paymentDocs.value = []
-    return
-  }
-  try {
-    paymentDocs.value = await documentApi.getDocuments('FINANCE_PAYMENT', paymentId.value)
-  } catch {
-    paymentDocs.value = []
   }
 }
 
@@ -293,6 +346,7 @@ const buildPaymentLineRows = async () => {
     const matchedItem = poItems.find((x: any) => String(x?.id || '') === String(item?.purchaseOrderItemId || '')) || {}
     return {
       ...item,
+      purchaseOrderId: String(item?.purchaseOrderId || po?.id || '').trim(),
       purchaseOrderCode: po?.purchaseOrderCode || po?.PurchaseOrderCode || item?.purchaseOrderCode || '-',
       qty: matchedItem?.qty ?? matchedItem?.Qty ?? null,
       cost: matchedItem?.cost ?? matchedItem?.Cost ?? null,
@@ -377,13 +431,6 @@ const formatAmount = (val: number) => {
   return val.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-const previewDoc = (doc: UploadDocumentDto) => {
-  window.open(documentApi.getPreviewPath(doc.id), '_blank')
-}
-
-const downloadDoc = async (doc: UploadDocumentDto) => {
-  await documentApi.downloadDocument(doc.id, doc.originalFileName)
-}
 </script>
 
 <style lang="scss" scoped>
@@ -397,8 +444,21 @@ const downloadDoc = async (doc: UploadDocumentDto) => {
 .detail-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   margin-bottom: 20px;
+  .detail-header__left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+  .detail-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
   .back-btn {
     color: $text-secondary;
     &:hover { color: $cyan-primary; }
@@ -461,4 +521,71 @@ const downloadDoc = async (doc: UploadDocumentDto) => {
   color: $cyan-primary;
   font-weight: 600;
 }
+
+.payment-lines-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.payment-lines-tabs.tabs-section {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.payment-lines-tabs .tabs-nav {
+  display: flex;
+  border-bottom: 1px solid $border-card;
+  padding: 0 20px;
+  background: $layer-3;
+}
+
+.payment-lines-tabs .tab-btn {
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: $text-muted;
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.payment-lines-tabs .tab-btn--active {
+  color: $cyan-primary;
+  border-bottom-color: $cyan-primary;
+}
+
+.payment-lines-tabs .tabs-body {
+  padding: 16px 20px 20px;
+}
+
+.po-doc-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.po-doc-toolbar--single {
+  justify-content: space-between;
+}
+
+.po-doc-toolbar__label {
+  font-size: 13px;
+  color: $text-secondary;
+}
+
+.po-doc-toolbar__link {
+  font-size: 13px;
+  color: $cyan-primary;
+  text-decoration: none;
+}
+
+.po-doc-toolbar__link:hover {
+  text-decoration: underline;
+}
+
 </style>

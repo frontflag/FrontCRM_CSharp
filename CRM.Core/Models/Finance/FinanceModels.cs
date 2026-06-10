@@ -64,9 +64,17 @@ namespace CRM.Core.Models.Finance
         [StringLength(100)]
         public string? BankSlipNo { get; set; }
 
-        /// <summary>财务参数「付款银行」主键；请款场景写入。</summary>
+        /// <summary>财务参数「付款银行」主键；请款场景由供应商银行推导。</summary>
         [StringLength(36)]
         public string? FinancePaymentBankId { get; set; }
+
+        /// <summary>公司付款银行账户主键（company_bankinfo.Id）；付款环节写入。</summary>
+        [StringLength(36)]
+        public string? CompanyBankId { get; set; }
+
+        /// <summary>供应商银行账户 ID（vendorbankinfo.BankId）。</summary>
+        [StringLength(36)]
+        public string? VendorBankId { get; set; }
 
         /// <summary>请款人填写的申请备注（与审核等写入的 <see cref="Remark"/> 区分）。</summary>
         [StringLength(500)]
@@ -98,6 +106,10 @@ namespace CRM.Core.Models.Finance
         /// <summary>列表/详情由后端按 <see cref="FinancePaymentBankId"/> 填充。</summary>
         [NotMapped]
         public string? PaymentBankName { get; set; }
+
+        /// <summary>列表/详情由后端按 <see cref="VendorBankId"/> 填充收款银行名称。</summary>
+        [NotMapped]
+        public string? VendorBankName { get; set; }
 
         [StringLength(36)]
         [Column("create_by_user_id")]

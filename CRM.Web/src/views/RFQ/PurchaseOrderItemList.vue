@@ -524,16 +524,14 @@
           </el-col>
         </el-row>
 
-        <el-row :gutter="12">
-          <el-col :span="12">
-            <el-form-item :label="t('purchaseOrderItemList.paymentDialog.vendorBank')" required>
-              <finance-payment-bank-select
-                v-model="paymentForm.vendorBankId"
-                :placeholder="t('purchaseOrderItemList.paymentDialog.vendorBankPlaceholder')"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
+        <payment-request-vendor-bank-section
+          v-model="paymentForm.vendorBankId"
+          :vendor-id="paymentForm.vendorId"
+          :banks="paymentForm.vendorBanks"
+          :masked="maskPurchaseSensitiveFields"
+          @maintain="paymentDialogVisible = false"
+        >
+          <template #trailing>
             <el-form-item :label="t('purchaseOrderItemList.paymentDialog.paymentMode')" required>
               <el-select v-model="paymentForm.paymentMode" style="width: 100%">
                 <el-option :label="t('purchaseOrderItemList.paymentDialog.modeWire')" :value="1" />
@@ -542,8 +540,8 @@
                 <el-option :label="t('purchaseOrderItemList.paymentDialog.modeAcceptance')" :value="4" />
               </el-select>
             </el-form-item>
-          </el-col>
-        </el-row>
+          </template>
+        </payment-request-vendor-bank-section>
         <el-form-item :label="t('purchaseOrderItemList.paymentDialog.remark')">
           <el-input v-model="paymentForm.remark" type="textarea" :rows="2" />
         </el-form-item>
@@ -661,7 +659,12 @@
 
       <template #footer>
         <el-button @click="paymentDialogVisible = false">{{ t('purchaseOrderItemList.paymentDialog.cancel') }}</el-button>
-        <el-button type="primary" :loading="paymentSubmitting" @click="submitPayment()">
+        <el-button
+          type="primary"
+          :loading="paymentSubmitting"
+          :disabled="!hasEnabledVendorBanks"
+          @click="submitPayment()"
+        >
           {{ t('purchaseOrderItemList.paymentDialog.submit') }}
         </el-button>
       </template>
@@ -848,15 +851,14 @@ import {
 } from '@/utils/moneyFormat'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmountInput.vue'
-import FinancePaymentBankSelect from '@/components/Finance/FinancePaymentBankSelect.vue'
+import PaymentRequestVendorBankSection from '@/components/Vendor/PaymentRequestVendorBankSection.vue'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { REGION_TYPE_DOMESTIC, REGION_TYPE_OVERSEAS, normalizeRegionType } from '@/constants/regionType'
 import { CurrencyCode } from '@/constants/currency'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
-import { useFinancePaymentBankOptions } from '@/composables/useFinancePaymentBankOptions'
 import { vendorBankApi } from '@/api/vendor'
-import { resolveVendorDefaultFinancePaymentBankId } from '@/utils/vendorFinancePaymentBank'
+import { filterEnabledVendorBanks, resolveVendorDefaultBankId } from '@/utils/vendorFinancePaymentBank'
 import { getApiErrorMessage } from '@/utils/apiError'
 import QcImagesReadonlyGallery from '@/components/Logistics/QcImagesReadonlyGallery.vue'
 
@@ -865,7 +867,6 @@ const route = useRoute()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
-const { loadPaymentBankOptions } = useFinancePaymentBankOptions()
 
 const lineTabAggregates = ref<PurchaseOrderDetailTabAggregates | null>(null)
 const poItemLinePanel = reactive({
@@ -1140,6 +1141,7 @@ const paymentForm = reactive<any>({
   vendorName: '',
   purchaseUserName: '',
   vendorBankId: '',
+  vendorBanks: [] as import('@/types/vendor').VendorBankInfo[],
   paymentMode: 1,
   currency: 1,
   remark: '',
@@ -1153,6 +1155,8 @@ const paymentForm = reactive<any>({
   },
   lines: [] as any[]
 })
+
+const hasEnabledVendorBanks = computed(() => filterEnabledVendorBanks(paymentForm.vendorBanks).length > 0)
 
 const paymentTotalAmount = computed(() => {
   const linesTotal = paymentForm.lines.reduce((sum: number, line: any) => sum + Number(line.requestAmount || 0), 0)
@@ -1302,16 +1306,18 @@ function buildFinancePaymentCode() {
 }
 
 async function openPaymentDialog(row: any) {
-  await loadPaymentBankOptions()
   paymentForm.vendorId = row.vendorId || ''
   paymentForm.vendorName = row.vendorName || ''
   paymentForm.purchaseUserName = row.purchaseUserName || ''
   paymentForm.vendorBankId = ''
+  paymentForm.vendorBanks = []
   if (paymentForm.vendorId) {
     try {
       const banks = await vendorBankApi.getBanksByVendorId(paymentForm.vendorId)
-      paymentForm.vendorBankId = resolveVendorDefaultFinancePaymentBankId(banks)
+      paymentForm.vendorBanks = banks
+      paymentForm.vendorBankId = resolveVendorDefaultBankId(banks)
     } catch {
+      paymentForm.vendorBanks = []
       paymentForm.vendorBankId = ''
     }
   }
@@ -1459,7 +1465,7 @@ async function submitPayment() {
       paymentMode: paymentForm.paymentMode,
       paymentCurrency: paymentForm.currency,
       paymentAmountToBe: paymentTotalAmount.value,
-      financePaymentBankId: paymentForm.vendorBankId,
+      vendorBankId: paymentForm.vendorBankId,
       requestRemark: paymentForm.remark?.trim() || undefined,
       feeIntermediateBank: Number(paymentForm.fee.intermediateBankFee || 0),
       feeBankCharge: Number(paymentForm.fee.bankCharge || 0),

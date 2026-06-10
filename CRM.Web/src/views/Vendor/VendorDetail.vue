@@ -403,6 +403,12 @@
               <el-table-column prop="bankAccount" :label="t('vendorDetail.banks.accountNo')" min-width="180" show-overflow-tooltip>
                 <template #default="{ row }"><span class="cell-code">{{ maskPurchaseSensitiveFields ? '—' : (row.bankAccount || '--') }}</span></template>
               </el-table-column>
+              <el-table-column prop="bankCode" :label="t('vendorDetail.banks.bankCode')" min-width="140" show-overflow-tooltip>
+                <template #default="{ row }"><span class="cell-code">{{ maskPurchaseSensitiveFields ? '—' : (row.bankCode || '--') }}</span></template>
+              </el-table-column>
+              <el-table-column prop="swift" :label="t('vendorDetail.banks.swift')" min-width="120" show-overflow-tooltip>
+                <template #default="{ row }"><span class="cell-code">{{ maskPurchaseSensitiveFields ? '—' : (row.swift || '--') }}</span></template>
+              </el-table-column>
               <el-table-column :label="t('vendorDetail.banks.defaultCol')" width="80" align="center">
                 <template #default="{ row }">
                   <span v-if="row.isDefault" class="default-badge">{{ t('vendorDetail.banks.defaultBadge') }}</span>
@@ -698,7 +704,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useVendorDictStore } from '@/stores/vendorDict';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -815,6 +821,18 @@ const tabs = computed(() => {
   ];
 });
 const activeTab = ref('contacts');
+
+const VENDOR_DETAIL_TAB_KEYS = ['contacts', 'addresses', 'banks', 'documents', 'history', 'logs'] as const;
+
+function applyVendorDetailTabFromRoute() {
+  const tab = route.query.tab;
+  if (typeof tab === 'string' && (VENDOR_DETAIL_TAB_KEYS as readonly string[]).includes(tab)) {
+    activeTab.value = tab;
+  }
+}
+
+watch(() => route.query.tab, applyVendorDetailTabFromRoute, { immediate: true });
+
 /** 《列表操作列规范》：联系人/地址/银行子表共用列头切换 */
 const vendorDetailSubOpColExpanded = ref(false);
 const VENDOR_SUB_OP_COL_COLLAPSED = 43;

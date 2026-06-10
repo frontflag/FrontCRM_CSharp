@@ -16,7 +16,7 @@
             <div class="actions">
               <button type="button" class="link" @click="preview(doc)">预览</button>
               <button type="button" class="link" @click="download(doc)">下载</button>
-              <button type="button" class="link danger" @click="remove(doc)">删除</button>
+              <button v-if="!readonly" type="button" class="link danger" @click="remove(doc)">删除</button>
             </div>
           </div>
           <div v-if="doc.remark" class="doc-remark-line">{{ doc.remark }}</div>
@@ -34,7 +34,7 @@
           <div class="actions">
             <button type="button" class="link" @click="preview(doc)">预览</button>
             <button type="button" class="link" @click="download(doc)">下载</button>
-            <button type="button" class="link danger" @click="remove(doc)">删除</button>
+            <button v-if="!readonly" type="button" class="link danger" @click="remove(doc)">删除</button>
           </div>
         </template>
       </div>
@@ -50,11 +50,16 @@ import { documentApi, type UploadDocumentDto } from '@/api/document'
 import DocumentPreviewDialog from './DocumentPreviewDialog.vue'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 
-const props = defineProps<{
-  bizType: string
-  bizId: string
-  viewMode?: 'grid' | 'list'
-}>()
+const props = withDefaults(
+  defineProps<{
+    bizType: string
+    bizId: string
+    viewMode?: 'grid' | 'list'
+    /** 只读：仅预览/下载，不可删除 */
+    readonly?: boolean
+  }>(),
+  { readonly: false }
+)
 
 /** 非 grid 时按列表行展示（横向：文件名、日期、字节、操作） */
 const isListView = computed(() => props.viewMode !== 'grid')
